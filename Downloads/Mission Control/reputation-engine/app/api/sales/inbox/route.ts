@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { calculateLeadScore, normalizeLead, uid } from '@/lib/sales'
 import {
+  getInboundLead,
+  getSalesLeadByInboundId,
   listInboundJunkLeads,
   listInboundLeads,
   listSalesLeads,
@@ -131,55 +133,9 @@ function inferFollowUp(item: InboundLead) {
   }
 }
 
-async function ensureLeadForInbound(item: InboundLead, existingLeadIdsByInboundId: Map<string, string>) {
+function ensureLeadForInbound(item: InboundLead, existingLeadIdsByInboundId: Map<string, string>) {
   const existing = existingLeadIdsByInboundId.get(item.id)
-  if (existing) {
-    return { ...item, linkedLeadId: existing }
-  }
-
-  const fallbackName = item.name || 'New Caller'
-  const validated = validateLeadPayload({
-    name: fallbackName,
-    phone: item.phone,
-    email: item.email,
-    moveType: 'residential',
-  })
-
-  const lead = normalizeLead({
-    id: uid('lead'),
-    name: validated.name,
-    inboundId: item.id,
-    inboundMessage: item.message?.trim() || '',
-    phone: validated.phone,
-    email: validated.email,
-    source: item.source || 'other',
-    stage: inferStageFromInbound(item),
-    moveType: 'residential',
-    moveDate: '',
-    originAddress: '',
-    originCity: '',
-    destCity: '',
-    moveReason: '',
-    notes: item.message?.trim() || '',
-    ...inferFollowUp(item),
-    directMailAttributed: false,
-    inventory: [],
-    totalItems: 0,
-    totalCubicFeet: 0,
-    roomBreakdown: {},
-    callLogs: [buildInboundCallLog(item)],
-    createdAt: new Date(item.created_at || Date.now()).toISOString().slice(0, 10),
-    leadScore: 0,
-  })
-
-  const savedLead = await saveSalesLead({
-    ...lead,
-    leadScore: calculateLeadScore(lead),
-  })
-
-  await ensureInboundCallMapping(item, savedLead)
-
-  return { ...item, linkedLeadId: savedLead.id }
+  return { ...item, linkedLeadId: existing }
 }
 
 export async function GET(request: Request) {
@@ -201,21 +157,18 @@ export async function GET(request: Request) {
             linkedLeadId: existingLeadIdsByInboundId.get(item.id),
             raw_data: mergeInboxRawData(item, leadByInboundId.get(item.id)),
           }))
-        : await Promise.all(
-            items.map(async item => {
-              const ensured = await ensureLeadForInbound(item, existingLeadIdsByInboundId)
-              const linkedLead = leadByInboundId.get(ensured.id) || leads.find(lead => lead.id === ensured.linkedLeadId)
-              await ensureInboundCallMapping(ensured, linkedLead)
-              return {
-                ...ensured,
-                name:
-                  ensured.name ||
-                  linkedLead?.name ||
-                  (ensured.source === 'twilio_call' ? 'New Caller' : ensured.source === 'twilio_sms' ? 'New Contact' : 'New Lead'),
-                raw_data: mergeInboxRawData(ensured, linkedLead),
-              }
-            })
-          )
+        : items.map(item => {
+            const ensured = ensureLeadForInbound(item, existingLeadIdsByInboundId)
+            const linkedLead = leadByInboundId.get(item.id) || leads.find(lead => lead.id === ensured.linkedLeadId)
+            return {
+              ...ensured,
+              name:
+                ensured.name ||
+                linkedLead?.name ||
+                (ensured.source === 'twilio_call' ? 'New Caller' : ensured.source === 'twilio_sms' ? 'New Contact' : 'New Lead'),
+              raw_data: mergeInboxRawData(ensured, linkedLead),
+            }
+          })
     return NextResponse.json(hydrated)
   } catch (error) {
     return NextResponse.json(
@@ -241,10 +194,22 @@ export async function POST(request: Request) {
     if (!payload.inboundId || !payload.name?.trim()) {
       return NextResponse.json({ error: 'inboundId and name are required' }, { status: 400 })
     }
+
+    const existingLead = await getSalesLeadByInboundId(payload.inboundId)
+    if (existingLead) {
+      await markInboundLeadClaimed(payload.inboundId)
+      return NextResponse.json(existingLead)
+    }
+
+    const inbound = await getInboundLead(payload.inboundId)
+    if (!inbound) {
+      return NextResponse.json({ error: 'Inbound lead not found' }, { status: 404 })
+    }
+
     const validated = validateLeadPayload({
       name: payload.name,
-      phone: payload.phone,
-      email: payload.email,
+      phone: payload.phone || inbound.phone,
+      email: payload.email || inbound.email,
       moveType: payload.moveType || 'residential',
     })
 
@@ -252,28 +217,26 @@ export async function POST(request: Request) {
       id: uid('lead'),
       name: payload.name.trim(),
       inboundId: payload.inboundId,
-      inboundMessage: payload.notes?.trim() || '',
-      phone: validated.phone,
-      email: validated.email,
-      source: payload.source || 'other',
-      stage: payload.stage || 'new',
+      inboundMessage: inbound.message?.trim() || payload.notes?.trim() || '',
+      phone: validated.phone || inbound.phone || undefined,
+      email: validated.email || inbound.email || undefined,
+      source: payload.source || inbound.source || 'other',
+      stage: payload.stage || inferStageFromInbound(inbound),
       moveType: validated.moveType || 'residential',
       moveDate: '',
       originAddress: '',
       originCity: '',
       destCity: '',
       moveReason: '',
-      notes: payload.notes?.trim() || '',
-      followUpDate: undefined,
+      notes: payload.notes?.trim() || inbound.message?.trim() || '',
+      ...inferFollowUp(inbound),
       directMailAttributed: false,
       inventory: [],
       totalItems: 0,
       totalCubicFeet: 0,
       roomBreakdown: {},
-      callLogs: payload.notes?.trim()
-        ? [{ id: uid('cl'), type: 'note', notes: `Inbound intake: ${payload.notes.trim()}`, date: new Date().toISOString() }]
-        : [],
-      createdAt: new Date().toISOString().slice(0, 10),
+      callLogs: [buildInboundCallLog(inbound)],
+      createdAt: new Date(inbound.created_at || Date.now()).toISOString().slice(0, 10),
       leadScore: 0,
     })
 
@@ -281,6 +244,7 @@ export async function POST(request: Request) {
       ...lead,
       leadScore: calculateLeadScore(lead),
     })
+    await ensureInboundCallMapping(inbound, savedLead)
     await markInboundLeadClaimed(payload.inboundId)
 
     return NextResponse.json(savedLead)

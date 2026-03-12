@@ -11,8 +11,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  const needsSalesAuth = pathname.startsWith('/sales') || pathname.startsWith('/api/sales')
-  if (!needsSalesAuth) {
+  const needsInternalAuth =
+    pathname.startsWith('/sales') ||
+    pathname.startsWith('/api/sales') ||
+    pathname.startsWith('/partners') ||
+    pathname.startsWith('/trigger') ||
+    pathname.startsWith('/api/partners')
+  if (!needsInternalAuth) {
     return NextResponse.next()
   }
 
@@ -22,7 +27,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  if (pathname.startsWith('/api/sales')) {
+  if (pathname.startsWith('/api/')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -32,5 +37,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/sales/:path*', '/api/sales/:path*', '/login'],
+  matcher: ['/sales/:path*', '/api/sales/:path*', '/partners/:path*', '/trigger', '/api/partners/:path*', '/login'],
 }

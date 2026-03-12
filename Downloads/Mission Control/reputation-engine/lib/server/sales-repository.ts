@@ -102,6 +102,22 @@ export async function getSalesLead(id: string) {
   return lead ? normalizeLead(lead) : null
 }
 
+export async function getSalesLeadByInboundId(inboundId: string) {
+  const { url, headers } = requireSupabase()
+  const response = await fetch(
+    `${url}/rest/v1/crm_leads?select=id,data,deleted&data->>inboundId=eq.${encodeURIComponent(inboundId)}&order=updated_at.desc&limit=1`,
+    { headers, cache: 'no-store' }
+  )
+
+  if (!response.ok) {
+    throw new Error(`Failed to read crm_leads by inboundId ${inboundId}`)
+  }
+
+  const records = (await response.json()) as PersistedRecord<CRMLead>[]
+  const record = records.find(item => !item.deleted)
+  return record?.data ? normalizeLead(record.data) : null
+}
+
 export async function saveSalesLead(lead: CRMLead) {
   return normalizeLead(await upsert<CRMLead>('crm_leads', normalizeLead(lead)))
 }
@@ -212,6 +228,21 @@ export async function listInboundJunkLeads() {
   }
 
   return (await response.json()) as InboundLead[]
+}
+
+export async function getInboundLead(id: string) {
+  const { url, headers } = requireSupabase()
+  const response = await fetch(
+    `${url}/rest/v1/inbound_leads?id=eq.${encodeURIComponent(id)}&select=id,source,name,phone,email,message,raw_data,created_at,claimed,claimed_at&limit=1`,
+    { headers, cache: 'no-store' }
+  )
+
+  if (!response.ok) {
+    throw new Error(`Failed to read inbound lead ${id}`)
+  }
+
+  const records = (await response.json()) as InboundLead[]
+  return records[0] || null
 }
 
 export async function markInboundLeadClaimed(id: string) {

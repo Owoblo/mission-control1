@@ -374,6 +374,11 @@ function corsHeaders() {
 
 async function handleVoiceToken(request, env) {
     if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders() });
+    if (!authorizeInternalRequest(request, env)) {
+        return new Response(JSON.stringify({ ok: false, error: 'Unauthorized' }), {
+            status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders() }
+        });
+    }
 
     const accountSid   = env.TWILIO_ACCOUNT_SID;
     const apiKeySid    = env.TWILIO_API_KEY_SID;
