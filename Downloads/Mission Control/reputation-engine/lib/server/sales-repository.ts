@@ -449,18 +449,28 @@ export async function saveListingInventoryScan(zpid: string, scan: InventoryScan
     body: JSON.stringify([
       {
         zpid,
+        scan_id: crypto.randomUUID(),
+        scanned_by: 'crm_app',
+        photos_analyzed: Array.isArray((scan as { photoUrls?: unknown }).photoUrls)
+          ? ((scan as { photoUrls?: unknown[] }).photoUrls || []).length
+          : null,
+        photo_urls: Array.isArray((scan as { photoUrls?: unknown }).photoUrls)
+          ? ((scan as { photoUrls?: unknown[] }).photoUrls || []).filter(Boolean)
+          : null,
         status: 'completed',
         inventory_items: scan.inventory,
         total_items: scan.totalItems,
         total_cubic_feet: scan.totalCubicFeet,
         room_breakdown: scan.roomBreakdown || {},
         scanned_at: new Date().toISOString(),
+        error_message: null,
       },
     ]),
   })
 
   if (!response.ok) {
-    throw new Error('Failed to save listing inventory scan')
+    const details = await response.text().catch(() => '')
+    throw new Error(`Failed to save listing inventory scan${details ? `: ${details}` : ''}`)
   }
 
   return response.json()

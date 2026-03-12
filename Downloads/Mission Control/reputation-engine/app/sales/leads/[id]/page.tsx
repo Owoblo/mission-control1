@@ -15,7 +15,7 @@ import {
 import { InventoryRoomSection } from '@/app/components/sales/lead-detail/inventory-room-section'
 import { INVENTORY_PRESETS, createInventoryItemFromPreset } from '@/lib/item-presets'
 import { SALES_LEAD_STAGES, computeQuoteTotals, deriveInventoryMetrics, formatDate, formatDateTime, formatMoney } from '@/lib/sales'
-import { createLeadQuote, deleteSalesLead, enrichSalesAddress, fetchSalesOverview, saveLeadConsultation, saveSalesFollowUp, sendSalesMessage, updateSalesLead, updateSalesQuote } from '@/lib/sales-api'
+import { createLeadQuote, deleteSalesLead, enrichSalesAddress, fetchSalesLead, fetchSalesOverview, fetchSalesQuote, saveLeadConsultation, saveSalesFollowUp, sendSalesMessage, updateSalesLead, updateSalesQuote } from '@/lib/sales-api'
 import type { CRMLead, CRMQuote, FollowUpLog, InventoryItem, QuoteLineItem } from '@/lib/types'
 
 export default function SalesLeadDetailPage() {
@@ -77,10 +77,11 @@ export default function SalesLeadDetailPage() {
 
   async function refresh(currentLeadId: string) {
     try {
-      const data = await fetchSalesOverview()
-      const nextLead = data.leads.find(item => item.id === currentLeadId) || null
+      const nextLead = await fetchSalesLead(currentLeadId)
       setLead(nextLead)
-      setQuote(nextLead?.quoteId ? data.quotes.find(item => item.id === nextLead.quoteId) || null : null)
+      const quotePayload = nextLead?.quoteId ? await fetchSalesQuote(nextLead.quoteId) : null
+      setQuote(quotePayload?.quote || null)
+      const data = await fetchSalesOverview()
       setFollowUps(data.followUps.filter(item => item.leadId === currentLeadId || item.quoteId === nextLead?.quoteId))
       setStage(nextLead?.stage || 'new')
       setFollowUpDate(nextLead?.followUpDate || '')

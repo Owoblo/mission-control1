@@ -25,12 +25,12 @@ export async function fetchSalesOverview(): Promise<{
   followUps: FollowUpLog[]
   summary: SalesDashboardSummary
 }> {
-  const response = await fetch('/api/sales/overview', { cache: 'no-store' })
+  const response = await fetch('/api/sales/overview', { cache: 'no-store', credentials: 'include' })
   return readJson(response)
 }
 
 export async function fetchSalesLead(id: string): Promise<CRMLead | null> {
-  const response = await fetch(`/api/sales/leads/${id}`, { cache: 'no-store' })
+  const response = await fetch(`/api/sales/leads/${id}`, { cache: 'no-store', credentials: 'include' })
   if (response.status === 404) return null
   return readJson(response)
 }
@@ -38,6 +38,7 @@ export async function fetchSalesLead(id: string): Promise<CRMLead | null> {
 export async function createSalesLead(payload: Partial<CRMLead>): Promise<CRMLead> {
   const response = await fetch('/api/sales/leads', {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
@@ -47,6 +48,7 @@ export async function createSalesLead(payload: Partial<CRMLead>): Promise<CRMLea
 export async function updateSalesLead(id: string, updates: Partial<CRMLead>): Promise<CRMLead> {
   const response = await fetch(`/api/sales/leads/${id}`, {
     method: 'PATCH',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates),
   })
@@ -56,6 +58,7 @@ export async function updateSalesLead(id: string, updates: Partial<CRMLead>): Pr
 export async function deleteSalesLead(id: string): Promise<{ ok: boolean }> {
   const response = await fetch(`/api/sales/leads/${id}`, {
     method: 'DELETE',
+    credentials: 'include',
   })
   return readJson(response)
 }
@@ -66,6 +69,7 @@ export async function saveLeadConsultation(
 ): Promise<CRMLead> {
   const response = await fetch(`/api/sales/leads/${id}/consultation`, {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
@@ -75,6 +79,7 @@ export async function saveLeadConsultation(
 export async function createLeadQuote(leadId: string): Promise<{ quote: CRMQuote; lead: CRMLead }> {
   const response = await fetch('/api/sales/quotes', {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ leadId }),
   })
@@ -87,7 +92,7 @@ export async function fetchSalesQuote(id: string): Promise<{
   client: CRMClient | null
   followUps: FollowUpLog[]
 } | null> {
-  const response = await fetch(`/api/sales/quotes/${id}`, { cache: 'no-store' })
+  const response = await fetch(`/api/sales/quotes/${id}`, { cache: 'no-store', credentials: 'include' })
   if (response.status === 404) return null
   return readJson(response)
 }
@@ -98,6 +103,7 @@ export async function updateSalesQuote(
 ): Promise<{ quote: CRMQuote; lead: CRMLead | null }> {
   const response = await fetch(`/api/sales/quotes/${id}`, {
     method: 'PATCH',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates),
   })
@@ -110,6 +116,7 @@ export async function saveSalesFollowUp(payload: Partial<FollowUpLog> & { follow
 }> {
   const response = await fetch('/api/sales/followups', {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
@@ -128,6 +135,7 @@ export async function sendSalesMessage(payload: {
 }): Promise<{ ok: boolean; log: FollowUpLog }> {
   const response = await fetch('/api/sales/send', {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
@@ -135,7 +143,7 @@ export async function sendSalesMessage(payload: {
 }
 
 export async function fetchInboundLeads(mode?: 'junk'): Promise<InboundLead[]> {
-  const response = await fetch(`/api/sales/inbox${mode ? `?mode=${mode}` : ''}`, { cache: 'no-store' })
+  const response = await fetch(`/api/sales/inbox${mode ? `?mode=${mode}` : ''}`, { cache: 'no-store', credentials: 'include' })
   return readJson(response)
 }
 
@@ -151,6 +159,7 @@ export async function claimInboundLead(payload: {
 }): Promise<CRMLead> {
   const response = await fetch('/api/sales/inbox', {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
@@ -160,6 +169,7 @@ export async function claimInboundLead(payload: {
 export async function markInboundLeadJunk(inboundId: string): Promise<{ ok: boolean }> {
   const response = await fetch('/api/sales/inbox', {
     method: 'PATCH',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ inboundId, action: 'junk' }),
   })
@@ -169,6 +179,7 @@ export async function markInboundLeadJunk(inboundId: string): Promise<{ ok: bool
 export async function restoreInboundLead(inboundId: string): Promise<{ ok: boolean }> {
   const response = await fetch('/api/sales/inbox', {
     method: 'PATCH',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ inboundId, action: 'restore' }),
   })
@@ -182,6 +193,7 @@ export async function enrichSalesAddress(address: string, analyze = false, force
 }> {
   const response = await fetch('/api/sales/enrich/address', {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ address, analyze, forceAnalyze }),
   })
@@ -206,6 +218,7 @@ export async function estimateSalesRoute(payload: {
 }> {
   const response = await fetch('/api/sales/route-estimate', {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
@@ -222,6 +235,7 @@ export async function logDialerCall(payload: {
 }): Promise<CRMLead> {
   const response = await fetch('/api/sales/dialer/calls', {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
@@ -229,7 +243,7 @@ export async function logDialerCall(payload: {
 }
 
 export async function matchLeadByPhone(phone: string): Promise<CRMLead | null> {
-  const response = await fetch(`/api/sales/leads/match-phone?phone=${encodeURIComponent(phone)}`, { cache: 'no-store' })
+  const response = await fetch(`/api/sales/leads/match-phone?phone=${encodeURIComponent(phone)}`, { cache: 'no-store', credentials: 'include' })
   const payload = await readJson<{ lead: CRMLead | null }>(response)
   return payload.lead
 }
