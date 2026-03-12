@@ -1,0 +1,93 @@
+import { NextResponse } from 'next/server'
+import { uid } from '@/lib/sales'
+import { requireWorkerBaseUrl } from '@/lib/server/runtime'
+import { saveFollowUpLog, saveSalesEmail } from '@/lib/server/sales-repository'
+import type { CRMEmail, FollowUpLog } from '@/lib/types'
+
+export async function POST(request: Request) {
+  try {
+    const payload = (await request.json()) as {
+      channel?: 'email' | 'sms'
+      to?: string
+      subject?: string
+      body?: string
+      htmlBody?: string
+      leadId?: string
+      quoteId?: string
+      followUpDate?: string
+      notes?: string
+    }
+
+    if (!payload.channel || !payload.to || !payload.body) {
+      return NextResponse.json({ error: 'channel, to, and body are required' }, { status: 400 })
+    }
+
+    const workerPath = payload.channel === 'email' ? '/send-email' : '/send-sms'
+    const workerSecret = process.env.WORKER_SHARED_SECRET
+    if (!workerSecret) {
+      return NextResponse.json({ error: 'Missing WORKER_SHARED_SECRET' }, { status: 500 })
+    }
+    const workerBody =
+      payload.channel === 'email'
+        ? {
+            to: payload.to,
+            subject: payload.subject || 'Saturn Star Moving',
+            body: payload.body,
+            htmlBody: payload.htmlBody || undefined,
+          }
+        : { to: payload.to, body: payload.body }
+
+    const response = await fetch(`${requireWorkerBaseUrl()}${workerPath}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-internal-secret': workerSecret,
+      },
+      body: JSON.stringify(workerBody),
+    })
+    const result = await response.json().catch(() => ({}))
+
+    if (!response.ok || !result?.ok) {
+      return NextResponse.json({ error: result?.error || 'Send failed' }, { status: response.status || 500 })
+    }
+
+    const log: FollowUpLog = {
+      id: uid('fu'),
+      leadId: payload.leadId,
+      quoteId: payload.quoteId,
+      type: payload.channel,
+      date: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      notes:
+        payload.notes ||
+        (payload.channel === 'email'
+          ? `Email sent to ${payload.to}${payload.subject ? ` — ${payload.subject}` : ''}`
+          : `SMS sent to ${payload.to}`),
+    }
+    const savedLog = await saveFollowUpLog(log)
+
+    let emailRecord: CRMEmail | null = null
+    if (payload.channel === 'email') {
+      emailRecord = await saveSalesEmail({
+        id: uid('em'),
+        leadId: payload.leadId || null,
+        quoteId: payload.quoteId || null,
+        to: payload.to,
+        from: 'business@starmovers.ca',
+        subject: payload.subject || 'Saturn Star Moving',
+        body: payload.body,
+        templateType: payload.quoteId ? 'quote_sent' : 'first_contact',
+        direction: 'outbound',
+        status: 'sent',
+        sentAt: new Date().toISOString(),
+      })
+    }
+
+    return NextResponse.json({ ok: true, result, log: savedLog, email: emailRecord })
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to send message' },
+      { status: 400 }
+    )
+  }
+}

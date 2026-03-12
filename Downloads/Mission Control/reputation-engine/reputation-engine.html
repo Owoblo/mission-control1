@@ -1,0 +1,1974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Saturn Star — Review & Referral Engine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:       #1a2744;
+      --navy-light: #243358;
+      --navy-dark:  #111b33;
+      --navy-2:     #1A2940;
+      --navy-deep:  #0F1B2D;
+      --navy-card:  #1A2940;
+      --navy-border:#2D4A6A;
+      --gold:       #F5A623;
+      --gold-2:     #FDB944;
+      --bg:         #0F1B2D;
+      --text:       #E2E8F0;
+    }
+
+    html, body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--navy-border); border-radius: 3px; }
+
+    /* ── Layout ── */
+    #app { display: flex; min-height: 100vh; }
+
+    /* Sidebar */
+    #sidebar {
+      width: 240px;
+      min-height: 100vh;
+      background: var(--navy-dark);
+      border-right: 1px solid var(--navy-border);
+      display: flex;
+      flex-direction: column;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+    .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 20px 18px 16px;
+      border-bottom: 1px solid var(--navy-border);
+    }
+    .logo-star {
+      width: 34px; height: 34px;
+      background: var(--gold);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--navy-dark);
+      font-weight: 700;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .logo-text { font-weight: 700; color: #fff; font-size: 14px; line-height: 1.2; }
+    .logo-sub  { color: #64748b; font-size: 11px; }
+
+    .sidebar-nav { padding: 12px 10px; flex: 1; }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      color: #94a3b8;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.15s;
+      margin-bottom: 2px;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+    .nav-item:hover { background: var(--navy-light); color: #fff; }
+    .nav-item.active { background: rgba(245,166,35,0.12); color: var(--gold); }
+    .nav-item .nav-icon { font-size: 15px; width: 18px; text-align: center; flex-shrink: 0; }
+    .nav-badge {
+      margin-left: auto;
+      background: #dc2626;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      min-width: 18px;
+      height: 18px;
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      padding: 0 4px;
+    }
+    .sidebar-footer {
+      padding: 14px 18px;
+      border-top: 1px solid var(--navy-border);
+      font-size: 11px;
+      color: #475569;
+    }
+
+    /* Topbar */
+    #topbar {
+      height: 56px;
+      background: #fff;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+    }
+    .topbar-title { font-weight: 700; color: #1e293b; font-size: 15px; }
+    .topbar-sub   { color: #64748b; font-size: 12px; }
+    .topbar-right { display: flex; align-items: center; gap: 8px; }
+
+    /* Main content */
+    #content-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      overflow: hidden;
+    }
+    #main-content {
+      flex: 1;
+      padding: 28px 28px;
+      overflow-y: auto;
+      max-width: 1100px;
+    }
+
+    /* ── Review view: full-screen overlay ── */
+    #review-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      z-index: 100;
+      overflow-y: auto;
+      padding: 0;
+    }
+    #review-overlay.visible { display: flex; flex-direction: column; }
+    .review-topbar {
+      height: 56px;
+      border-bottom: 1px solid var(--navy-border);
+      background: var(--navy-dark);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .review-inner { flex: 1; padding: 32px 20px; }
+
+    /* ── Cards / Buttons / Forms ── */
+    .card {
+      background: var(--navy-card);
+      border: 1px solid var(--navy-border);
+      border-radius: 12px;
+    }
+    .card-elevated {
+      background: #243555;
+      border: 1px solid var(--navy-border);
+      border-radius: 12px;
+    }
+    .btn-gold {
+      background: var(--gold);
+      color: var(--navy-dark);
+      font-weight: 600;
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.15s;
+      display: inline-flex; align-items: center; gap: 6px;
+      text-decoration: none;
+    }
+    .btn-gold:hover { background: var(--gold-2); }
+    .btn-gold:active { transform: scale(0.97); }
+    .btn-ghost {
+      background: none;
+      border: 1px solid var(--navy-border);
+      color: #cbd5e1;
+      font-weight: 500;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.15s;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-ghost:hover { background: var(--navy-card); border-color: var(--gold); color: #fff; }
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 12px;
+      border-radius: 7px;
+      border: 1px solid var(--navy-border);
+      background: none;
+      color: #94a3b8;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn-sm:hover { border-color: var(--gold); color: var(--gold); }
+    .btn-sm.btn-gold-sm {
+      background: var(--gold); color: var(--navy-dark);
+      border-color: var(--gold); font-weight: 600;
+    }
+    .btn-sm.btn-gold-sm:hover { background: var(--gold-2); }
+    .btn-sm.danger:hover { border-color: #ef4444; color: #ef4444; }
+    .btn-sm.success { border-color: #10b981; color: #10b981; background: rgba(16,185,129,0.08); }
+
+    input, select, textarea {
+      background: var(--navy-deep);
+      border: 1px solid var(--navy-border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 13px;
+      color: #fff;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      font-family: inherit;
+    }
+    input::placeholder, textarea::placeholder { color: #475569; }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(245,166,35,0.12);
+    }
+    select option { background: var(--navy-deep); color: #fff; }
+    label.lbl {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 6px;
+    }
+    .form-group { margin-bottom: 16px; }
+
+    /* ── Badges ── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 20px;
+    }
+    .badge-pending  { background: rgba(100,116,139,0.3); color: #cbd5e1; }
+    .badge-sent     { background: rgba(59,130,246,0.2);  color: #93c5fd; }
+    .badge-feedback { background: rgba(139,92,246,0.2);  color: #c4b5fd; }
+    .badge-progress { background: rgba(234,179,8,0.2);   color: #fde047; }
+    .badge-complete { background: rgba(16,185,129,0.2);  color: #6ee7b7; }
+    .badge-flagged  { background: rgba(239,68,68,0.2);   color: #fca5a5; }
+
+    .badge-type-realtor          { background: rgba(59,130,246,0.15);  color: #93c5fd; }
+    .badge-type-property-manager { background: rgba(16,185,129,0.15);  color: #6ee7b7; }
+    .badge-type-builder          { background: rgba(245,158,11,0.15);  color: #fcd34d; }
+    .badge-type-supply-chain     { background: rgba(139,92,246,0.15);  color: #c4b5fd; }
+    .badge-type-other            { background: rgba(100,116,139,0.2);  color: #cbd5e1; }
+
+    /* ── Stat cards ── */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: var(--navy-card);
+      border: 1px solid var(--navy-border);
+      border-radius: 12px;
+      padding: 18px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .stat-val  { font-size: 24px; font-weight: 700; line-height: 1; }
+    .stat-lbl  { font-size: 11px; color: #64748b; }
+
+    /* ── Filter tabs ── */
+    .filter-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; }
+    .filter-tab {
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      color: #64748b;
+      background: none;
+      border: none;
+      transition: all 0.15s;
+    }
+    .filter-tab:hover { color: #fff; background: var(--navy-light); }
+    .filter-tab.active { background: var(--gold); color: var(--navy-dark); }
+
+    /* ── Job row ── */
+    .job-row {
+      background: var(--navy-card);
+      border: 1px solid var(--navy-border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      transition: border-color 0.15s;
+    }
+    .job-row:hover { border-color: #3D5A7A; }
+    .job-info { flex: 1; min-width: 0; }
+    .job-name { font-weight: 600; color: #fff; font-size: 14px; }
+    .job-meta { font-size: 11px; color: #475569; margin-top: 4px; display: flex; flex-wrap: wrap; gap: 8px; }
+    .job-comment {
+      font-size: 11px; color: #94a3b8; font-style: italic;
+      background: var(--navy-deep); border-radius: 8px; padding: 7px 10px;
+      margin-top: 8px;
+    }
+    .review-dots { display: flex; gap: 4px; align-items: center; }
+    .review-dot {
+      width: 24px; height: 24px; border-radius: 50%;
+      font-size: 10px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      border: 1px solid var(--navy-border);
+      background: var(--navy-deep);
+      color: #475569;
+    }
+    .review-dot.done {
+      background: rgba(16,185,129,0.12);
+      color: #34d399;
+      border-color: rgba(16,185,129,0.3);
+    }
+    .job-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex-shrink: 0; }
+
+    /* ── Partner cards ── */
+    .partner-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .partner-card {
+      background: var(--navy-card);
+      border: 1px solid var(--navy-border);
+      border-radius: 12px;
+      padding: 20px;
+      transition: border-color 0.15s;
+    }
+    .partner-card:hover { border-color: #3D5A7A; }
+    .partner-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding-top: 12px;
+      margin-top: 12px;
+      border-top: 1px solid var(--navy-border);
+    }
+    .partner-stat { text-align: center; }
+    .partner-stat-val { font-size: 18px; font-weight: 700; color: #fff; }
+    .partner-stat-lbl { font-size: 11px; color: #475569; }
+
+    /* ── Analytics ── */
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+    .analytics-card {
+      background: var(--navy-card);
+      border: 1px solid var(--navy-border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .analytics-card h3 { font-size: 13px; font-weight: 600; color: #94a3b8; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .bar-label { font-size: 12px; color: #94a3b8; width: 80px; text-align: right; flex-shrink: 0; }
+    .bar-track { flex: 1; height: 8px; background: var(--navy-deep); border-radius: 4px; overflow: hidden; }
+    .bar-fill  { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+    .bar-count { font-size: 12px; color: #fff; width: 30px; flex-shrink: 0; font-weight: 600; }
+
+    /* ── Modals ── */
+    .modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 200;
+      padding: 16px;
+    }
+    .modal {
+      background: var(--navy-card);
+      border: 1px solid var(--navy-border);
+      border-radius: 16px;
+      padding: 24px;
+      width: 100%;
+      max-width: 480px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal-lg { max-width: 560px; }
+    .modal h3 { font-size: 17px; font-weight: 700; color: #fff; margin-bottom: 20px; }
+    .modal-footer { display: flex; gap: 10px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--navy-border); }
+    .modal-footer > * { flex: 1; }
+
+    /* ── Review flow ── */
+    .review-container { max-width: 520px; margin: 0 auto; }
+    .star-btn {
+      font-size: 48px;
+      background: none; border: none; cursor: pointer;
+      transition: transform 0.1s;
+      line-height: 1;
+    }
+    .star-btn:hover { transform: scale(1.15); }
+    .star-btn:active { transform: scale(0.95); }
+    .progress-track { height: 8px; background: var(--navy-deep); border-radius: 4px; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--gold), var(--gold-2)); border-radius: 4px; transition: width 0.5s ease; }
+
+    .review-card {
+      background: var(--navy-card);
+      border: 1px solid var(--navy-border);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex; align-items: center; gap: 14px;
+      margin-bottom: 10px;
+      transition: border-color 0.15s, opacity 0.2s;
+    }
+    .review-card.done { opacity: 0.55; }
+    .review-card:not(.done):hover { border-color: #3D5A7A; }
+    .review-icon {
+      width: 48px; height: 48px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; flex-shrink: 0;
+      border: 1px solid;
+    }
+    .review-icon-google   { background: linear-gradient(135deg, rgba(59,130,246,0.25), rgba(59,130,246,0.08)); border-color: rgba(59,130,246,0.4); }
+    .review-icon-yelp     { background: linear-gradient(135deg, rgba(239,68,68,0.25),  rgba(239,68,68,0.08));  border-color: rgba(239,68,68,0.4);  }
+    .review-icon-facebook { background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(99,102,241,0.08)); border-color: rgba(99,102,241,0.4); }
+    .review-icon-media    { background: linear-gradient(135deg, rgba(168,85,247,0.25), rgba(168,85,247,0.08)); border-color: rgba(168,85,247,0.4); }
+
+    /* ── Confetti ── */
+    .confetti-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; overflow: hidden; }
+    .confetti-piece {
+      position: absolute;
+      top: -10px;
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      animation: confettiFall linear forwards;
+    }
+    @keyframes confettiFall {
+      0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+    }
+
+    /* ── Section header ── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .section-title { font-size: 22px; font-weight: 700; color: #fff; }
+    .section-sub   { font-size: 13px; color: #64748b; margin-top: 2px; }
+
+    /* ── Grid helpers ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    .span-2 { grid-column: span 2; }
+    .span-3 { grid-column: span 3; }
+
+    /* ── Animations ── */
+    @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-fade  { animation: fadeIn  0.3s ease both; }
+    .animate-slide { animation: slideUp 0.35s ease both; }
+
+    /* ── Empty state ── */
+    .empty-state { text-align: center; padding: 64px 24px; }
+    .empty-icon  { font-size: 40px; margin-bottom: 12px; }
+    .empty-text  { color: #64748b; font-size: 14px; }
+
+    /* ── Misc ── */
+    .divider { height: 1px; background: var(--navy-border); margin: 16px 0; }
+    .text-gold { color: var(--gold); }
+    .text-muted { color: #64748b; }
+    .text-sm  { font-size: 13px; }
+    .text-xs  { font-size: 11px; }
+    .font-bold { font-weight: 700; }
+    .font-semi { font-weight: 600; }
+    .mt-1 { margin-top: 4px; }
+    .mt-2 { margin-top: 8px; }
+    .mt-3 { margin-top: 12px; }
+    .mt-4 { margin-top: 16px; }
+    .mb-1 { margin-bottom: 4px; }
+    .mb-2 { margin-bottom: 8px; }
+    .mb-3 { margin-bottom: 12px; }
+    .mb-4 { margin-bottom: 16px; }
+    .w-full { width: 100%; }
+    .flex { display: flex; }
+    .flex-1 { flex: 1; }
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .gap-2 { gap: 8px; }
+    .gap-3 { gap: 12px; }
+    .text-center { text-align: center; }
+    a { color: inherit; text-decoration: none; }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      #sidebar { display: none; }
+      .stat-grid { grid-template-columns: repeat(2, 1fr); }
+      .analytics-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px) {
+      #main-content { padding: 16px; }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .job-row { flex-direction: column; }
+      .job-actions { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="legacy-guard" style="position:fixed;inset:0;background:rgba(15,23,42,.72);backdrop-filter:blur(8px);z-index:10000;display:flex;align-items:center;justify-content:center;padding:24px;">
+  <div style="width:min(560px,100%);background:white;border-radius:22px;padding:28px;box-shadow:0 24px 90px rgba(15,23,42,.28);">
+    <div style="font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#b45309;margin-bottom:10px;">Legacy Review Engine</div>
+    <h2 style="font-size:28px;line-height:1.1;color:#1a2744;margin-bottom:12px;">Use the Next.js review app.</h2>
+    <p style="font-size:14px;line-height:1.7;color:#475569;margin-bottom:18px;">This standalone HTML review engine still contains the old local-first architecture. The shared production path is the Next.js Mission Control app.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;">
+      <a id="legacy-guard-link" href="http://localhost:3000/" style="border-radius:999px;padding:11px 16px;font-size:13px;font-weight:700;text-decoration:none;background:#1a2744;color:white;border:1px solid #1a2744;">Open new review app</a>
+      <button onclick="document.getElementById('legacy-guard').remove()" style="border-radius:999px;padding:11px 16px;font-size:13px;font-weight:700;background:white;color:#1a2744;border:1px solid #e5e7eb;cursor:pointer;">Continue in legacy mode</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     REVIEW OVERLAY (full-screen customer-facing flow)
+═══════════════════════════════════════════════════════════════ -->
+<div id="review-overlay">
+  <div class="review-topbar">
+    <div class="logo-star">★</div>
+    <span style="font-weight:700;color:#fff;font-size:14px;">Saturn Star Movers</span>
+    <span style="color:#475569;font-size:12px;margin-left:4px;">· Review Flow</span>
+    <button onclick="closeReviewFlow()" style="margin-left:auto;background:none;border:1px solid var(--navy-border);color:#94a3b8;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:12px;transition:all 0.15s;"
+      onmouseover="this.style.borderColor='var(--gold)';this.style.color='#fff'"
+      onmouseout="this.style.borderColor='var(--navy-border)';this.style.color='#94a3b8'">
+      ← Back to Dashboard
+    </button>
+  </div>
+  <div class="review-inner">
+    <div id="review-step-content" class="review-container"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     MAIN APP
+═══════════════════════════════════════════════════════════════ -->
+<div id="app">
+
+  <!-- Sidebar -->
+  <nav id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-star">★</div>
+      <div>
+        <div class="logo-text">Saturn Star</div>
+        <div class="logo-sub">Review Engine</div>
+      </div>
+    </div>
+    <div class="sidebar-nav">
+      <button class="nav-item active" onclick="navigate('dashboard')" id="nav-dashboard">
+        <span class="nav-icon">📋</span> Dashboard
+      </button>
+      <button class="nav-item" onclick="navigate('trigger')" id="nav-trigger">
+        <span class="nav-icon">✅</span> Mark Job Complete
+      </button>
+      <button class="nav-item" onclick="navigate('partners')" id="nav-partners">
+        <span class="nav-icon">🤝</span> Referral Partners
+      </button>
+      <button class="nav-item" onclick="navigate('analytics')" id="nav-analytics">
+        <span class="nav-icon">📊</span> Analytics
+      </button>
+    </div>
+    <div class="sidebar-footer">
+      226-724-1730 · info@saturnstarmovers.ca
+    </div>
+  </nav>
+
+  <!-- Content -->
+  <div id="content-wrap">
+    <div id="topbar">
+      <div>
+        <div class="topbar-title" id="topbar-title">Post-Move Engine</div>
+        <div class="topbar-sub" id="topbar-sub">Review &amp; referral loop — starts the second a job is done</div>
+      </div>
+      <div class="topbar-right" id="topbar-right"></div>
+    </div>
+    <div id="main-content"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     MODALS
+═══════════════════════════════════════════════════════════════ -->
+<div id="modal-backdrop" class="modal-backdrop" style="display:none;" onclick="closeModalOnBackdrop(event)">
+  <div id="modal-box" class="modal animate-slide"></div>
+</div>
+
+<!-- Confetti container -->
+<div id="confetti-container" class="confetti-container"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   CONFIG
+═══════════════════════════════════════════════════════════════ */
+const BRAND = {
+  name:  'Saturn Star Movers',
+  phone: '226-724-1730',
+  email: 'info@saturnstarmovers.ca'
+}
+const REVIEW_LINKS = {
+  google:   'https://g.page/r/YOUR_GOOGLE_PLACE_ID/review',
+  yelp:     'https://www.yelp.com/writeareview/biz/saturn-star-movers',
+  facebook: 'https://www.facebook.com/saturnstarmovers/reviews',
+}
+const INCENTIVE_AMOUNT = 50
+
+const REVIEW_CARDS = [
+  { key: 'google',   label: 'Google Review',          icon: '🔍', iconCls: 'review-icon-google',   href: REVIEW_LINKS.google,   desc: 'Helps locals find us most' },
+  { key: 'yelp',     label: 'Yelp Review',             icon: '⭐',  iconCls: 'review-icon-yelp',     href: REVIEW_LINKS.yelp,     desc: 'Great for word-of-mouth' },
+  { key: 'facebook', label: 'Facebook Recommendation', icon: '👍', iconCls: 'review-icon-facebook', href: REVIEW_LINKS.facebook, desc: 'Your network will see this' },
+  { key: 'media',    label: 'Photo / Video',           icon: '📸', iconCls: 'review-icon-media',    href: null,                  desc: 'Before/after or us in action' },
+]
+
+const TYPE_LABELS = {
+  'realtor':          '🏡 Realtor',
+  'property-manager': '🏢 Property Manager',
+  'builder':          '🔨 Builder',
+  'supply-chain':     '📦 Supply Chain',
+  'other':            '🤝 Other',
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DB / STORE
+═══════════════════════════════════════════════════════════════ */
+const DB = {
+  getJobs()    { try { return JSON.parse(localStorage.getItem('ssm_jobs')||'[]') } catch { return [] } },
+  saveJobs(j)  { localStorage.setItem('ssm_jobs', JSON.stringify(j)) },
+  getJob(id)   { return this.getJobs().find(j => j.id === id) || null },
+  saveJob(job) {
+    const jobs = this.getJobs()
+    const i = jobs.findIndex(j => j.id === job.id)
+    if (i >= 0) jobs[i] = job; else jobs.unshift(job)
+    this.saveJobs(jobs)
+  },
+  deleteJob(id) { this.saveJobs(this.getJobs().filter(j => j.id !== id)) },
+
+  getPartners()      { try { return JSON.parse(localStorage.getItem('ssm_partners')||'[]') } catch { return [] } },
+  savePartners(p)    { localStorage.setItem('ssm_partners', JSON.stringify(p)) },
+  getPartner(id)     { return this.getPartners().find(p => p.id === id) || null },
+  savePartner(partner) {
+    const partners = this.getPartners()
+    const i = partners.findIndex(p => p.id === partner.id)
+    if (i >= 0) partners[i] = partner; else partners.unshift(partner)
+    this.savePartners(partners)
+  },
+  deletePartner(id) { this.savePartners(this.getPartners().filter(p => p.id !== id)) },
+
+  generateId() { return Date.now().toString(36) + Math.random().toString(36).slice(2) },
+  reviewCount(reviews) { return Object.values(reviews).filter(Boolean).length },
+}
+
+/* ── Seed data (only if empty) ── */
+;(function seedIfEmpty() {
+  if (DB.getJobs().length > 0) return
+  DB.saveJobs([
+    {
+      id: 'j001', customerName: 'Sarah Johnson', customerEmail: 'sarah@email.com', customerPhone: '226-555-0101',
+      moveDate: '2026-03-01', moveFrom: '234 Oak Ave, Windsor', moveTo: '789 Elm St, Windsor',
+      crewLead: 'Mike Torres', referralPartnerId: null, referralPartnerName: null,
+      status: 'in-progress', feedbackRating: 5, feedbackComment: '',
+      reviews: { google: true, yelp: true, facebook: false, media: false },
+      incentiveEarned: false, incentivePaid: false, proofSentToPartner: false,
+      createdAt: '2026-03-01T20:00:00Z', reviewSentAt: '2026-03-01T20:05:00Z'
+    },
+    {
+      id: 'j002', customerName: 'Marcus Williams', customerEmail: 'marcus@email.com', customerPhone: '226-555-0202',
+      moveDate: '2026-02-28', moveFrom: '456 Pine St, Windsor', moveTo: '123 Maple Dr, LaSalle',
+      crewLead: 'James Cooper', referralPartnerId: null, referralPartnerName: null,
+      status: 'complete', feedbackRating: 5, feedbackComment: 'Amazing team! Super fast and careful.',
+      reviews: { google: true, yelp: true, facebook: true, media: true },
+      incentiveEarned: true, incentivePaid: true, proofSentToPartner: false,
+      createdAt: '2026-02-28T20:00:00Z', reviewSentAt: '2026-02-28T20:10:00Z'
+    },
+    {
+      id: 'j003', customerName: 'Priya Sharma', customerEmail: 'priya@email.com', customerPhone: '226-555-0303',
+      moveDate: '2026-02-20', moveFrom: '789 Sunset Blvd, Windsor', moveTo: '321 Oak Park, Windsor',
+      crewLead: 'Mike Torres', referralPartnerId: null, referralPartnerName: null,
+      status: 'flagged', feedbackRating: 2, feedbackComment: 'Items were damaged and crew seemed rushed.',
+      reviews: { google: false, yelp: false, facebook: false, media: false },
+      incentiveEarned: false, incentivePaid: false, proofSentToPartner: false,
+      createdAt: '2026-02-20T20:00:00Z', reviewSentAt: '2026-02-20T20:15:00Z'
+    }
+  ])
+})()
+
+/* ═══════════════════════════════════════════════════════════════
+   ROUTER / STATE
+═══════════════════════════════════════════════════════════════ */
+let currentView = 'dashboard'
+let dashboardFilter = 'all'
+
+// review flow state
+let reviewJob = null
+let reviewStep = 'rating'  // 'rating' | 'negative' | 'reviews' | 'complete' | 'not-found'
+let reviewHover = 0
+let reviewNegText = ''
+let reviewNegSent = false
+let reviewMediaModal = false
+
+function navigate(view) {
+  currentView = view
+  // update sidebar
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'))
+  const navEl = document.getElementById('nav-' + view)
+  if (navEl) navEl.classList.add('active')
+  renderView()
+}
+
+function renderView() {
+  const mc = document.getElementById('main-content')
+  mc.className = 'animate-fade'
+  // force reflow for re-animation
+  void mc.offsetWidth
+  mc.className = 'animate-fade'
+
+  const titles = {
+    dashboard: ['Post-Move Engine',     'Review &amp; referral loop — starts the second a job is done'],
+    trigger:   ['Mark Job Complete',    'Triggers the post-move review &amp; referral sequence'],
+    partners:  ['Referral Partners',    'Realtors, builders &amp; managers who send you business'],
+    analytics: ['Analytics',            'Performance overview of your review &amp; referral engine'],
+  }
+  const [title, sub] = titles[currentView] || ['', '']
+  document.getElementById('topbar-title').innerHTML = title
+  document.getElementById('topbar-sub').innerHTML   = sub
+
+  const rightActions = {
+    dashboard: `<button class="btn-gold" onclick="navigate('trigger')"><span>+</span> Mark Job Complete</button>`,
+    trigger:   `<button class="btn-ghost" onclick="navigate('dashboard')">← Dashboard</button>`,
+    partners:  `<button class="btn-gold" onclick="openAddPartnerModal()">+ Add Partner</button>`,
+    analytics: '',
+  }
+  document.getElementById('topbar-right').innerHTML = rightActions[currentView] || ''
+
+  switch (currentView) {
+    case 'dashboard': renderDashboard(mc); break
+    case 'trigger':   renderTrigger(mc);   break
+    case 'partners':  renderPartners(mc);  break
+    case 'analytics': renderAnalytics(mc); break
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   STATUS HELPERS
+═══════════════════════════════════════════════════════════════ */
+const STATUS_MAP = {
+  'pending':           { label: 'Review Pending',      cls: 'badge-pending'  },
+  'sent':              { label: 'Link Sent',            cls: 'badge-sent'     },
+  'feedback-received': { label: 'Feedback In',          cls: 'badge-feedback' },
+  'in-progress':       { label: 'Reviews Coming',       cls: 'badge-progress' },
+  'complete':          { label: 'All 4 Done ✓',         cls: 'badge-complete' },
+  'flagged':           { label: 'Flagged – Fix First',  cls: 'badge-flagged'  },
+}
+
+function statusBadge(status) {
+  const s = STATUS_MAP[status] || { label: status, cls: 'badge-pending' }
+  return `<span class="badge ${s.cls}">${s.label}</span>`
+}
+
+function reviewDotsHTML(reviews) {
+  const items = [
+    { key: 'google',   label: 'G'  },
+    { key: 'yelp',     label: 'Y'  },
+    { key: 'facebook', label: 'F'  },
+    { key: 'media',    label: '📸' },
+  ]
+  return items.map(i =>
+    `<span class="review-dot ${reviews[i.key] ? 'done' : ''}" title="${i.key}">${i.label}</span>`
+  ).join('')
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DASHBOARD VIEW
+═══════════════════════════════════════════════════════════════ */
+function renderDashboard(container) {
+  const jobs = DB.getJobs()
+  const total          = jobs.length
+  const linksSent      = jobs.filter(j => ['sent','feedback-received','in-progress','complete'].includes(j.status)).length
+  const allDone        = jobs.filter(j => j.status === 'complete').length
+  const incentiveValue = jobs.filter(j => j.incentiveEarned).length * INCENTIVE_AMOUNT
+  const flagged        = jobs.filter(j => j.status === 'flagged').length
+
+  const filtered = dashboardFilter === 'all'
+    ? jobs
+    : jobs.filter(j => j.status === dashboardFilter)
+
+  const filters = [
+    { key: 'all',         label: 'All Jobs' },
+    { key: 'pending',     label: STATUS_MAP.pending.label },
+    { key: 'sent',        label: STATUS_MAP.sent.label },
+    { key: 'in-progress', label: STATUS_MAP['in-progress'].label },
+    { key: 'complete',    label: STATUS_MAP.complete.label },
+    { key: 'flagged',     label: STATUS_MAP.flagged.label },
+  ]
+
+  const filterTabsHTML = filters.map(f =>
+    `<button class="filter-tab ${dashboardFilter === f.key ? 'active' : ''}" onclick="setDashFilter('${f.key}')">${f.label}</button>`
+  ).join('')
+
+  const jobRowsHTML = filtered.length === 0
+    ? `<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">No jobs match this filter.</div></div>`
+    : filtered.map(job => renderJobRow(job)).join('')
+
+  const pendingJobs = jobs.filter(j => j.status === 'pending')
+  const bulkBtn = pendingJobs.length > 0
+    ? `<button class="btn-ghost" onclick="copyAllPendingLinks()" style="font-size:12px;padding:7px 14px;">📋 Copy ${pendingJobs.length} Pending Link${pendingJobs.length > 1 ? 's' : ''}</button>`
+    : ''
+
+  container.innerHTML = `
+    <div class="animate-slide">
+      <!-- Stats -->
+      <div class="stat-grid">
+        <div class="stat-card">
+          <span class="stat-val" style="color:#fff">${total}</span>
+          <span class="stat-lbl">Total Jobs</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-val" style="color:#60a5fa">${linksSent}</span>
+          <span class="stat-lbl">Links Sent</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-val" style="color:#34d399">${allDone}</span>
+          <span class="stat-lbl">All 4 Done</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-val text-gold">$${incentiveValue}</span>
+          <span class="stat-lbl">Incentives Earned</span>
+        </div>
+        <div class="stat-card" style="${flagged > 0 ? 'border-color:rgba(239,68,68,0.4)' : ''}">
+          <span class="stat-val" style="color:${flagged > 0 ? '#f87171' : '#64748b'}">${flagged}</span>
+          <span class="stat-lbl">Need Attention</span>
+        </div>
+      </div>
+
+      <!-- Filter row -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <div class="filter-tabs" style="margin-bottom:0;">${filterTabsHTML}</div>
+        ${bulkBtn}
+      </div>
+
+      <!-- Job rows -->
+      <div id="job-list">${jobRowsHTML}</div>
+    </div>
+  `
+}
+
+function renderJobRow(job) {
+  const rc = DB.reviewCount(job.reviews)
+  const dots = reviewDotsHTML(job.reviews)
+
+  const incentiveBadge = job.incentiveEarned && !job.incentivePaid
+    ? `<span class="badge" style="background:rgba(245,166,35,0.15);color:var(--gold);border:1px solid rgba(245,166,35,0.3);">💰 $50 owed</span>`
+    : (job.incentivePaid ? `<span class="badge badge-complete">✓ Paid</span>` : '')
+
+  const referralText = job.referralPartnerName
+    ? `<span>via <span style="color:#cbd5e1">${esc(job.referralPartnerName)}</span></span>`
+    : ''
+
+  const commentHTML = job.feedbackComment
+    ? `<div class="job-comment">"${esc(job.feedbackComment)}"</div>`
+    : ''
+
+  // Action buttons
+  let actions = `
+    <button class="btn-sm" onclick="copyJobLink('${job.id}')" id="copy-btn-${job.id}">🔗 Copy Link</button>
+    <button class="btn-sm" onclick="smsJob('${job.id}')">💬 SMS</button>
+    <button class="btn-sm" onclick="emailJob('${job.id}')">📧 Email</button>
+    <button class="btn-sm" onclick="previewReviewFlow('${job.id}')">👁 Preview</button>
+  `
+  if (job.status === 'complete' && job.referralPartnerId && !job.proofSentToPartner) {
+    actions += `<button class="btn-sm" onclick="sendProofFromDash('${job.id}')" style="border-color:#3b82f6;color:#93c5fd;">📧 Proof</button>`
+  }
+  if (job.incentiveEarned && !job.incentivePaid) {
+    actions += `<button class="btn-sm btn-gold-sm" onclick="markPaid('${job.id}')">Mark Paid</button>`
+  }
+  if (job.status === 'flagged') {
+    actions += `<button class="btn-sm" onclick="syncToRecovery('${job.id}')" style="border-color:rgba(239,68,68,0.5);color:#f87171;">⚡ Recovery</button>`
+  }
+  actions += `<button class="btn-sm danger" onclick="deleteJob('${job.id}')">✕</button>`
+
+  return `
+    <div class="job-row" id="job-${job.id}">
+      <div class="job-info">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span class="job-name">${esc(job.customerName)}</span>
+          ${statusBadge(job.status)}
+          ${incentiveBadge}
+        </div>
+        <div class="job-meta">
+          <span>${esc(job.moveDate)}</span>
+          <span>${esc(job.moveFrom)} → ${esc(job.moveTo)}</span>
+          ${referralText}
+          <span>Crew: ${esc(job.crewLead)}</span>
+        </div>
+        ${commentHTML}
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;">
+        <div class="review-dots">${dots}</div>
+        <span style="font-size:11px;color:#475569;">${rc}/4 reviews</span>
+      </div>
+      <div class="job-actions">${actions}</div>
+    </div>
+  `
+}
+
+function setDashFilter(f) {
+  dashboardFilter = f
+  renderView()
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DASHBOARD ACTIONS
+═══════════════════════════════════════════════════════════════ */
+function getReviewLink(jobId) {
+  return window.location.href.split('?')[0].split('#')[0] + '?review=' + jobId
+}
+
+function copyJobLink(jobId) {
+  const job = DB.getJob(jobId)
+  if (!job) return
+  const link = getReviewLink(jobId)
+  navigator.clipboard.writeText(link).catch(() => {})
+  const btn = document.getElementById('copy-btn-' + jobId)
+  if (btn) { btn.textContent = '✓ Copied!'; btn.style.borderColor = '#10b981'; btn.style.color = '#34d399' }
+  if (job.status === 'pending') {
+    DB.saveJob({ ...job, status: 'sent', reviewSentAt: new Date().toISOString() })
+    setTimeout(() => renderView(), 2200)
+  }
+  setTimeout(() => {
+    if (btn) { btn.textContent = '🔗 Copy Link'; btn.style.borderColor = ''; btn.style.color = '' }
+  }, 2000)
+}
+
+function smsJob(jobId) {
+  const job = DB.getJob(jobId)
+  if (!job) return
+  const link = getReviewLink(jobId)
+  const msg = encodeURIComponent(
+    `Hi ${job.customerName}! Thank you for choosing Saturn Star Movers. We hope your move went great! 🌟\n\n` +
+    `We'd love your feedback — it only takes 2 minutes and you can earn $50 back:\n${link}`
+  )
+  window.location.href = `sms:${job.customerPhone}?body=${msg}`
+  if (job.status === 'pending') {
+    DB.saveJob({ ...job, status: 'sent', reviewSentAt: new Date().toISOString() })
+    setTimeout(() => renderView(), 500)
+  }
+}
+
+function emailJob(jobId) {
+  const job = DB.getJob(jobId)
+  if (!job) return
+  const link = getReviewLink(jobId)
+  const subject = encodeURIComponent('How was your move with Saturn Star? ⭐')
+  const body = encodeURIComponent(
+    `Hi ${job.customerName},\n\nThank you for trusting Saturn Star Movers with your move!\n\n` +
+    `We'd love to hear how it went. Share your experience (takes 2 min) and earn $50 back off your invoice:\n\n${link}\n\n` +
+    `Thank you!\nSaturn Star Movers\n226-724-1730`
+  )
+  window.location.href = `mailto:${job.customerEmail}?subject=${subject}&body=${body}`
+  if (job.status === 'pending') {
+    DB.saveJob({ ...job, status: 'sent', reviewSentAt: new Date().toISOString() })
+    setTimeout(() => renderView(), 500)
+  }
+}
+
+function markPaid(jobId) {
+  const job = DB.getJob(jobId)
+  if (!job) return
+  DB.saveJob({ ...job, incentivePaid: true })
+  renderView()
+}
+
+function deleteJob(jobId) {
+  if (!confirm('Delete this job?')) return
+  DB.deleteJob(jobId)
+  renderView()
+}
+
+function sendProofFromDash(jobId) {
+  const job = DB.getJob(jobId)
+  if (!job || !job.referralPartnerId) return
+  const partner = DB.getPartner(job.referralPartnerId)
+  if (!partner) return
+  const body = encodeURIComponent(
+    `Hi ${partner.name},\n\nGreat news! ${job.customerName}, who moved with us on ${job.moveDate}, just completed their review.\n\n` +
+    `They had a wonderful experience with Saturn Star Movers and left us reviews on Google, Yelp, and Facebook.\n\n` +
+    `We really appreciate you sending clients our way. If you have anyone else looking to move, we'd love to help them too!\n\n` +
+    `Best,\nSaturn Star Movers\n226-724-1730`
+  )
+  window.open(`mailto:${partner.email}?subject=${encodeURIComponent(`Your client ${job.customerName} loved their move!`)}&body=${body}`)
+  DB.saveJob({ ...job, proofSentToPartner: true })
+  renderView()
+}
+
+function syncToRecovery(jobId) {
+  const job = DB.getJob(jobId)
+  if (!job) return
+  try {
+    const cases = JSON.parse(localStorage.getItem('sscr_cases') || '[]')
+    const exists = cases.find(c => c.sourceJobId === jobId)
+    if (exists) { alert('Already synced to Customer Recovery.'); return }
+    cases.unshift({
+      id: DB.generateId(),
+      sourceJobId: jobId,
+      type: 'conduct',
+      customerName: job.customerName,
+      customerEmail: job.customerEmail,
+      customerPhone: job.customerPhone,
+      moveDate: job.moveDate,
+      moveFrom: job.moveFrom,
+      moveTo: job.moveTo,
+      crewLead: job.crewLead,
+      issue: job.feedbackComment || 'Customer flagged — review details.',
+      status: 'open',
+      createdAt: new Date().toISOString(),
+    })
+    localStorage.setItem('sscr_cases', JSON.stringify(cases))
+    alert('Synced to Customer Recovery module.')
+  } catch(e) {
+    alert('Could not sync to recovery: ' + e.message)
+  }
+}
+
+function copyAllPendingLinks() {
+  const pending = DB.getJobs().filter(j => j.status === 'pending')
+  if (pending.length === 0) return
+  const lines = pending.map(j => `${j.customerName}: ${getReviewLink(j.id)}`).join('\n')
+  navigator.clipboard.writeText(lines).catch(() => {})
+  alert(`Copied ${pending.length} review link(s) to clipboard.`)
+  // mark all as sent
+  pending.forEach(j => DB.saveJob({ ...j, status: 'sent', reviewSentAt: new Date().toISOString() }))
+  renderView()
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TRIGGER VIEW
+═══════════════════════════════════════════════════════════════ */
+let triggerForm = {
+  customerName: '', customerEmail: '', customerPhone: '',
+  moveDate: new Date().toISOString().slice(0, 10),
+  moveFrom: '', moveTo: '', crewLead: '', referralPartnerId: '',
+}
+let triggerDone = false
+let triggerJobLink = ''
+let triggerJobName = ''
+
+function renderTrigger(container) {
+  if (triggerDone) {
+    renderTriggerSuccess(container)
+    return
+  }
+  const partners = DB.getPartners()
+  const partnerOptions = partners.map(p =>
+    `<option value="${p.id}">${esc(p.name)} (${p.type})</option>`
+  ).join('')
+  const noPartnerMsg = partners.length === 0
+    ? `<div style="font-size:11px;color:#475569;margin-top:6px;">No partners yet. <button onclick="navigate('partners')" style="background:none;border:none;color:var(--gold);cursor:pointer;font-size:11px;padding:0;">Add one →</button></div>`
+    : ''
+
+  container.innerHTML = `
+    <div class="animate-slide" style="max-width:680px;">
+      <form onsubmit="submitTriggerForm(event)" id="trigger-form">
+
+        <!-- Section 1: Customer -->
+        <div class="card mb-4" style="padding:24px;">
+          <h2 style="font-size:13px;font-weight:600;color:#cbd5e1;display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+            <span style="width:20px;height:20px;border-radius:50%;background:rgba(245,166,35,0.15);color:var(--gold);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;">1</span>
+            Customer Info
+          </h2>
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="lbl">Full Name *</label>
+              <input id="tf-name" required placeholder="Jane Smith" value="${esc(triggerForm.customerName)}" oninput="triggerForm.customerName=this.value" />
+            </div>
+            <div class="form-group">
+              <label class="lbl">Phone *</label>
+              <input id="tf-phone" required placeholder="226-555-0100" type="tel" value="${esc(triggerForm.customerPhone)}" oninput="triggerForm.customerPhone=this.value" />
+            </div>
+            <div class="form-group span-2">
+              <label class="lbl">Email *</label>
+              <input id="tf-email" required placeholder="jane@email.com" type="email" value="${esc(triggerForm.customerEmail)}" oninput="triggerForm.customerEmail=this.value" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Move Details -->
+        <div class="card mb-4" style="padding:24px;">
+          <h2 style="font-size:13px;font-weight:600;color:#cbd5e1;display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+            <span style="width:20px;height:20px;border-radius:50%;background:rgba(245,166,35,0.15);color:var(--gold);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;">2</span>
+            Move Details
+          </h2>
+          <div class="grid-3 mb-3">
+            <div class="form-group">
+              <label class="lbl">Move Date *</label>
+              <input id="tf-date" required type="date" value="${esc(triggerForm.moveDate)}" oninput="triggerForm.moveDate=this.value" />
+            </div>
+            <div class="form-group">
+              <label class="lbl">Moving From *</label>
+              <input id="tf-from" required placeholder="123 Oak St, Windsor" value="${esc(triggerForm.moveFrom)}" oninput="triggerForm.moveFrom=this.value" />
+            </div>
+            <div class="form-group">
+              <label class="lbl">Moving To *</label>
+              <input id="tf-to" required placeholder="456 Elm St, Windsor" value="${esc(triggerForm.moveTo)}" oninput="triggerForm.moveTo=this.value" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="lbl">Crew Lead *</label>
+            <input id="tf-crew" required placeholder="e.g. Marcus" value="${esc(triggerForm.crewLead)}" oninput="triggerForm.crewLead=this.value" />
+          </div>
+        </div>
+
+        <!-- Section 3: Referral -->
+        <div class="card mb-4" style="padding:24px;">
+          <h2 style="font-size:13px;font-weight:600;color:#cbd5e1;display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+            <span style="width:20px;height:20px;border-radius:50%;background:rgba(245,166,35,0.15);color:var(--gold);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;">3</span>
+            Referral Source <span style="font-weight:400;color:#475569;">(optional)</span>
+          </h2>
+          <div class="form-group">
+            <label class="lbl">Who referred this customer?</label>
+            <select id="tf-partner" oninput="triggerForm.referralPartnerId=this.value">
+              <option value="">— No referral / direct —</option>
+              ${partnerOptions}
+            </select>
+            ${noPartnerMsg}
+          </div>
+        </div>
+
+        <button type="submit" class="btn-gold w-full" style="padding:14px;font-size:14px;justify-content:center;">
+          Complete Job &amp; Generate Review Link →
+        </button>
+      </form>
+    </div>
+  `
+}
+
+function submitTriggerForm(e) {
+  e.preventDefault()
+  const f = triggerForm
+  const id = DB.generateId()
+  const partner = DB.getPartners().find(p => p.id === f.referralPartnerId)
+
+  // update partner stats
+  if (partner) {
+    DB.savePartner({
+      ...partner,
+      totalJobsReferred: (partner.totalJobsReferred || 0) + 1,
+    })
+  }
+
+  const job = {
+    id,
+    customerName:        f.customerName.trim(),
+    customerEmail:       f.customerEmail.trim(),
+    customerPhone:       f.customerPhone.trim(),
+    moveDate:            f.moveDate,
+    moveFrom:            f.moveFrom.trim(),
+    moveTo:              f.moveTo.trim(),
+    crewLead:            f.crewLead.trim(),
+    referralPartnerId:   f.referralPartnerId || null,
+    referralPartnerName: partner ? partner.name : null,
+    status:              'pending',
+    reviews:             { google: false, yelp: false, facebook: false, media: false },
+    feedbackRating:      null,
+    feedbackComment:     '',
+    incentiveEarned:     false,
+    incentivePaid:       false,
+    proofSentToPartner:  false,
+    createdAt:           new Date().toISOString(),
+    reviewSentAt:        null,
+  }
+  DB.saveJob(job)
+  triggerJobLink = getReviewLink(id)
+  triggerJobName = f.customerName.trim()
+  triggerDone = true
+  renderView()
+}
+
+function renderTriggerSuccess(container) {
+  const smsLink = () => {
+    const msg = encodeURIComponent(
+      `Hi ${triggerJobName}! Thank you for choosing Saturn Star Movers. We hope your move went great! 🌟\n\n` +
+      `We'd love your feedback — it only takes 2 minutes and you can earn $50 back:\n${triggerJobLink}`
+    )
+    return `sms:?body=${msg}`
+  }
+  const emailLink = () => {
+    const subject = encodeURIComponent('How was your move with Saturn Star? ⭐')
+    const body = encodeURIComponent(
+      `Hi ${triggerJobName},\n\nThank you for trusting Saturn Star Movers with your move!\n\n` +
+      `We'd love to hear how it went. Share your experience (takes 2 min) and earn $50 back off your invoice:\n\n${triggerJobLink}\n\n` +
+      `Thank you!\nSaturn Star Movers\n226-724-1730`
+    )
+    return `mailto:?subject=${subject}&body=${body}`
+  }
+
+  container.innerHTML = `
+    <div class="animate-slide" style="max-width:480px;margin:0 auto;">
+      <div class="card" style="padding:32px;text-align:center;">
+        <div style="width:64px;height:64px;border-radius:50%;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 20px;">✅</div>
+        <h2 style="font-size:20px;font-weight:700;color:#fff;margin-bottom:6px;">Job Complete!</h2>
+        <p style="color:#64748b;font-size:13px;">Review request ready for <span style="color:#fff;">${esc(triggerJobName)}</span></p>
+
+        <div style="background:var(--navy-deep);border:1px solid var(--navy-border);border-radius:10px;padding:16px;text-align:left;margin:20px 0;">
+          <p style="font-size:10px;color:#475569;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px;">Customer Review Link</p>
+          <p style="font-size:12px;color:var(--gold);font-family:monospace;word-break:break-all;">${esc(triggerJobLink)}</p>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
+          <button id="trigger-copy-btn" onclick="copyTriggerLink()" style="padding:10px;border-radius:10px;border:1px solid var(--navy-border);background:none;color:#cbd5e1;cursor:pointer;font-size:13px;transition:all 0.15s;"
+            onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--gold)'"
+            onmouseout="this.style.borderColor='var(--navy-border)';this.style.color='#cbd5e1'">🔗 Copy</button>
+          <a href="${smsLink()}" style="padding:10px;border-radius:10px;border:1px solid var(--navy-border);color:#cbd5e1;font-size:13px;text-align:center;display:block;transition:all 0.15s;"
+            onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--gold)'"
+            onmouseout="this.style.borderColor='var(--navy-border)';this.style.color='#cbd5e1'">💬 SMS</a>
+          <a href="${emailLink()}" style="padding:10px;border-radius:10px;border:1px solid var(--navy-border);color:#cbd5e1;font-size:13px;text-align:center;display:block;transition:all 0.15s;"
+            onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--gold)'"
+            onmouseout="this.style.borderColor='var(--navy-border)';this.style.color='#cbd5e1'">📧 Email</a>
+        </div>
+
+        <p style="font-size:11px;color:#475569;margin-bottom:20px;">Share this link via SMS or email — or copy it and send it yourself.</p>
+
+        <div style="display:flex;gap:10px;">
+          <button class="btn-ghost flex-1" onclick="goToDashFromTrigger()">← Dashboard</button>
+          <button class="btn-gold flex-1" style="justify-content:center;" onclick="resetTrigger()">+ Another Job</button>
+        </div>
+      </div>
+    </div>
+  `
+}
+
+function copyTriggerLink() {
+  navigator.clipboard.writeText(triggerJobLink).catch(() => {})
+  const btn = document.getElementById('trigger-copy-btn')
+  if (btn) {
+    btn.textContent = '✓ Copied!'
+    btn.style.borderColor = '#10b981'
+    btn.style.color = '#34d399'
+    setTimeout(() => {
+      btn.textContent = '🔗 Copy'
+      btn.style.borderColor = 'var(--navy-border)'
+      btn.style.color = '#cbd5e1'
+    }, 2000)
+  }
+}
+
+function goToDashFromTrigger() {
+  triggerDone = false
+  navigate('dashboard')
+}
+
+function resetTrigger() {
+  triggerDone = false
+  triggerForm = {
+    customerName: '', customerEmail: '', customerPhone: '',
+    moveDate: new Date().toISOString().slice(0, 10),
+    moveFrom: '', moveTo: '', crewLead: '', referralPartnerId: '',
+  }
+  triggerJobLink = ''
+  triggerJobName = ''
+  renderView()
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PARTNERS VIEW
+═══════════════════════════════════════════════════════════════ */
+function renderPartners(container) {
+  const partners = DB.getPartners()
+
+  const cardsHTML = partners.length === 0
+    ? `<div class="empty-state">
+        <div class="empty-icon">🤝</div>
+        <div class="empty-text">No partners yet.</div>
+        <button class="btn-gold mt-4" onclick="openAddPartnerModal()">Add Your First Partner</button>
+       </div>`
+    : `<div class="partner-grid">${partners.map(p => renderPartnerCard(p)).join('')}</div>`
+
+  container.innerHTML = `<div class="animate-slide">${cardsHTML}</div>`
+}
+
+function renderPartnerCard(p) {
+  const typeCls = 'badge-type-' + p.type
+  return `
+    <div class="partner-card">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;">
+        <div>
+          <p style="font-weight:600;color:#fff;font-size:14px;margin-bottom:3px;">${esc(p.name)}</p>
+          ${p.company ? `<p style="font-size:11px;color:#475569;margin-bottom:6px;">${esc(p.company)}</p>` : ''}
+          <span class="badge ${typeCls}">${TYPE_LABELS[p.type] || p.type}</span>
+        </div>
+        <div style="display:flex;gap:4px;">
+          <button onclick="openEditPartnerModal('${p.id}')"
+            style="width:28px;height:28px;border-radius:7px;border:none;background:none;cursor:pointer;color:#64748b;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;"
+            onmouseover="this.style.background='var(--navy-light)';this.style.color='#fff'"
+            onmouseout="this.style.background='none';this.style.color='#64748b'">✏️</button>
+          <button onclick="deletePartner('${p.id}')"
+            style="width:28px;height:28px;border-radius:7px;border:none;background:none;cursor:pointer;color:#475569;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;"
+            onmouseover="this.style.background='rgba(239,68,68,0.1)';this.style.color='#f87171'"
+            onmouseout="this.style.background='none';this.style.color='#475569'">✕</button>
+        </div>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <a href="mailto:${p.email}" style="display:flex;align-items:center;gap:6px;font-size:12px;color:#64748b;transition:color 0.15s;margin-bottom:4px;"
+          onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='#64748b'">📧 ${esc(p.email)}</a>
+        ${p.phone ? `<a href="tel:${p.phone}" style="display:flex;align-items:center;gap:6px;font-size:12px;color:#64748b;transition:color 0.15s;"
+          onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='#64748b'">📞 ${esc(p.phone)}</a>` : ''}
+      </div>
+
+      <div class="partner-stats">
+        <div class="partner-stat">
+          <div class="partner-stat-val">${p.totalJobsReferred || 0}</div>
+          <div class="partner-stat-lbl">Jobs Sent</div>
+        </div>
+        <div class="partner-stat">
+          <div class="partner-stat-val text-gold">$${p.totalIncentiveOwed || 0}</div>
+          <div class="partner-stat-lbl">Incentive Owed</div>
+        </div>
+      </div>
+
+      <button onclick="openProofModal('${p.id}')" class="btn-ghost w-full mt-3" style="padding:8px;font-size:12px;justify-content:center;">
+        📧 Send Proof Package
+      </button>
+    </div>
+  `
+}
+
+// Partner modal state
+let editingPartnerId = null
+let partnerForm = { name: '', type: 'realtor', email: '', phone: '', company: '' }
+
+function openAddPartnerModal() {
+  editingPartnerId = null
+  partnerForm = { name: '', type: 'realtor', email: '', phone: '', company: '' }
+  renderPartnerModal()
+}
+
+function openEditPartnerModal(id) {
+  const p = DB.getPartner(id)
+  if (!p) return
+  editingPartnerId = id
+  partnerForm = { name: p.name, type: p.type, email: p.email, phone: p.phone || '', company: p.company || '' }
+  renderPartnerModal()
+}
+
+function renderPartnerModal() {
+  const typeOptions = Object.entries(TYPE_LABELS).map(([v, l]) =>
+    `<option value="${v}" ${partnerForm.type === v ? 'selected' : ''}>${l}</option>`
+  ).join('')
+
+  const content = `
+    <h3>${editingPartnerId ? 'Edit Partner' : 'Add Partner'}</h3>
+    <form onsubmit="savePartnerForm(event)">
+      <div class="form-group">
+        <label class="lbl">Full Name *</label>
+        <input required placeholder="Sarah Johnson" value="${esc(partnerForm.name)}" oninput="partnerForm.name=this.value" />
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="lbl">Type *</label>
+          <select onchange="partnerForm.type=this.value">${typeOptions}</select>
+        </div>
+        <div class="form-group">
+          <label class="lbl">Company</label>
+          <input placeholder="RE/MAX Windsor" value="${esc(partnerForm.company)}" oninput="partnerForm.company=this.value" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="lbl">Email *</label>
+        <input required type="email" placeholder="sarah@remax.ca" value="${esc(partnerForm.email)}" oninput="partnerForm.email=this.value" />
+      </div>
+      <div class="form-group">
+        <label class="lbl">Phone</label>
+        <input type="tel" placeholder="226-555-0100" value="${esc(partnerForm.phone)}" oninput="partnerForm.phone=this.value" />
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-ghost" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn-gold" style="justify-content:center;">${editingPartnerId ? 'Save Changes' : 'Add Partner'}</button>
+      </div>
+    </form>
+  `
+  showModal(content)
+}
+
+function savePartnerForm(e) {
+  e.preventDefault()
+  if (editingPartnerId) {
+    const existing = DB.getPartner(editingPartnerId)
+    DB.savePartner({
+      ...existing,
+      name:    partnerForm.name.trim(),
+      type:    partnerForm.type,
+      email:   partnerForm.email.trim(),
+      phone:   partnerForm.phone.trim() || undefined,
+      company: partnerForm.company.trim() || undefined,
+    })
+  } else {
+    DB.savePartner({
+      id:                 DB.generateId(),
+      name:               partnerForm.name.trim(),
+      type:               partnerForm.type,
+      email:              partnerForm.email.trim(),
+      phone:              partnerForm.phone.trim() || undefined,
+      company:            partnerForm.company.trim() || undefined,
+      totalJobsReferred:  0,
+      totalIncentiveOwed: 0,
+      createdAt:          new Date().toISOString(),
+    })
+  }
+  closeModal()
+  if (currentView === 'partners') renderView()
+}
+
+function deletePartner(id) {
+  if (!confirm('Remove this partner?')) return
+  DB.deletePartner(id)
+  renderView()
+}
+
+function openProofModal(partnerId) {
+  const p = DB.getPartner(partnerId)
+  if (!p) return
+  const defaultText =
+    `Hi ${p.name},\n\nI wanted to share some exciting news — one of your clients just completed their move with Saturn Star Movers and left us a glowing 5-star review!\n\n` +
+    `We really appreciate you sending clients our way. It means a lot to the whole team.\n\n` +
+    `If you have anyone else planning a move, we'd love to take great care of them too. As always, we'll make sure your clients are in great hands.\n\n` +
+    `Thanks again,\nSaturn Star Movers\n226-724-1730`
+
+  const content = `
+    <h3>Send Proof Package</h3>
+    <p style="color:#64748b;font-size:13px;margin-top:-12px;margin-bottom:16px;">To: <span style="color:#fff;">${esc(p.name)}</span> · ${esc(p.email)}</p>
+    <div class="form-group">
+      <label class="lbl">Email Body</label>
+      <textarea id="proof-textarea" style="min-height:200px;resize:none;font-family:monospace;font-size:12px;">${esc(defaultText)}</textarea>
+    </div>
+    <p style="font-size:11px;color:#475569;margin-bottom:16px;">This will open your email client. Paste in review screenshots before sending.</p>
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn-gold" style="justify-content:center;" onclick="sendProofEmail('${p.id}','${esc(p.email)}')">Open Email Client →</button>
+    </div>
+  `
+  showModal(content, true)
+}
+
+function sendProofEmail(partnerId, email) {
+  const text = document.getElementById('proof-textarea').value
+  const subject = encodeURIComponent('Your client just left us a 5-star review! ⭐')
+  const body = encodeURIComponent(text)
+  window.open(`mailto:${email}?subject=${subject}&body=${body}`)
+  closeModal()
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ANALYTICS VIEW
+═══════════════════════════════════════════════════════════════ */
+function renderAnalytics(container) {
+  const jobs = DB.getJobs()
+  const partners = DB.getPartners()
+
+  const total       = jobs.length
+  const complete    = jobs.filter(j => j.status === 'complete').length
+  const flagged     = jobs.filter(j => j.status === 'flagged').length
+  const flagRate    = total > 0 ? ((flagged / total) * 100).toFixed(1) : '0.0'
+  const incEarned   = jobs.filter(j => j.incentiveEarned).length
+  const incPaid     = jobs.filter(j => j.incentivePaid).length
+  const incOwed     = (incEarned - incPaid) * INCENTIVE_AMOUNT
+
+  // Reviews by platform
+  const gCount = jobs.filter(j => j.reviews.google).length
+  const yCount = jobs.filter(j => j.reviews.yelp).length
+  const fCount = jobs.filter(j => j.reviews.facebook).length
+  const mCount = jobs.filter(j => j.reviews.media).length
+  const maxPlatform = Math.max(gCount, yCount, fCount, mCount, 1)
+
+  // Top referral partners
+  const partnerRank = partners
+    .map(p => ({ name: p.name, jobs: p.totalJobsReferred || 0 }))
+    .sort((a, b) => b.jobs - a.jobs)
+    .slice(0, 5)
+  const maxPJobs = Math.max(...partnerRank.map(p => p.jobs), 1)
+
+  // Jobs last 30 days by day-of-week (simplified)
+  const statusBreakdown = [
+    { label: 'Complete',  count: complete,                   color: '#34d399' },
+    { label: 'In-Progress', count: jobs.filter(j => j.status === 'in-progress').length, color: '#fde047' },
+    { label: 'Sent',      count: jobs.filter(j => j.status === 'sent').length, color: '#60a5fa' },
+    { label: 'Pending',   count: jobs.filter(j => j.status === 'pending').length, color: '#94a3b8' },
+    { label: 'Flagged',   count: flagged, color: '#f87171' },
+  ]
+  const maxStatus = Math.max(...statusBreakdown.map(s => s.count), 1)
+
+  const barRow = (label, count, max, color) => `
+    <div class="bar-row">
+      <span class="bar-label" style="font-size:12px;color:#94a3b8;">${label}</span>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${(count/max)*100}%;background:${color};"></div>
+      </div>
+      <span class="bar-count">${count}</span>
+    </div>
+  `
+
+  container.innerHTML = `
+    <div class="animate-slide">
+      <!-- Top stats -->
+      <div class="stat-grid" style="margin-bottom:24px;">
+        <div class="stat-card">
+          <span class="stat-val" style="color:#fff;">${total}</span>
+          <span class="stat-lbl">Total Jobs</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-val" style="color:#34d399;">${complete}</span>
+          <span class="stat-lbl">All 4 Done</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-val" style="color:#f87171;">${flagRate}%</span>
+          <span class="stat-lbl">Flagged Rate</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-val text-gold">$${incEarned * INCENTIVE_AMOUNT}</span>
+          <span class="stat-lbl">Total Earned</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-val" style="color:#fb923c;">$${incOwed}</span>
+          <span class="stat-lbl">Still Owed</span>
+        </div>
+      </div>
+
+      <div class="analytics-grid">
+        <!-- Review platform breakdown -->
+        <div class="analytics-card">
+          <h3>Reviews by Platform</h3>
+          ${barRow('Google',   gCount, maxPlatform, '#60a5fa')}
+          ${barRow('Yelp',     yCount, maxPlatform, '#f87171')}
+          ${barRow('Facebook', fCount, maxPlatform, '#818cf8')}
+          ${barRow('Photo',    mCount, maxPlatform, '#c084fc')}
+        </div>
+
+        <!-- Status breakdown -->
+        <div class="analytics-card">
+          <h3>Job Status Breakdown</h3>
+          ${statusBreakdown.map(s => barRow(s.label, s.count, maxStatus, s.color)).join('')}
+        </div>
+
+        <!-- Incentive summary -->
+        <div class="analytics-card">
+          <h3>Incentive Summary</h3>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:13px;color:#94a3b8;">Earned</span>
+              <span style="font-size:18px;font-weight:700;color:var(--gold);">$${incEarned * INCENTIVE_AMOUNT}</span>
+            </div>
+            <div style="height:1px;background:var(--navy-border);"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:13px;color:#94a3b8;">Paid Out</span>
+              <span style="font-size:18px;font-weight:700;color:#34d399;">$${incPaid * INCENTIVE_AMOUNT}</span>
+            </div>
+            <div style="height:1px;background:var(--navy-border);"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:13px;color:#94a3b8;">Still Owed</span>
+              <span style="font-size:18px;font-weight:700;color:#fb923c;">$${incOwed}</span>
+            </div>
+            <div style="height:1px;background:var(--navy-border);"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:13px;color:#94a3b8;">Customers × $${INCENTIVE_AMOUNT}</span>
+              <span style="font-size:13px;color:#64748b;">${incEarned} earned, ${incPaid} paid</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Top referral partners -->
+        <div class="analytics-card">
+          <h3>Top Referral Partners</h3>
+          ${partnerRank.length === 0
+            ? `<p style="color:#475569;font-size:13px;">No partners yet.</p>`
+            : partnerRank.map(p => barRow(p.name, p.jobs, maxPJobs, '#fde047')).join('')
+          }
+        </div>
+      </div>
+    </div>
+  `
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   REVIEW FLOW
+═══════════════════════════════════════════════════════════════ */
+function previewReviewFlow(jobId) {
+  reviewJob = DB.getJob(jobId)
+  if (!reviewJob) return
+
+  // determine starting step
+  if (reviewJob.status === 'complete')                                   reviewStep = 'complete'
+  else if (reviewJob.status === 'flagged')                               reviewStep = 'negative'
+  else if (reviewJob.status === 'in-progress' || reviewJob.feedbackRating >= 4) reviewStep = 'reviews'
+  else                                                                   reviewStep = 'rating'
+
+  reviewHover    = 0
+  reviewNegText  = ''
+  reviewNegSent  = false
+  reviewMediaModal = false
+
+  const overlay = document.getElementById('review-overlay')
+  overlay.classList.add('visible')
+  renderReviewStep()
+}
+
+function closeReviewFlow() {
+  document.getElementById('review-overlay').classList.remove('visible')
+  reviewJob = null
+  if (currentView === 'dashboard') renderView()
+}
+
+function renderReviewStep() {
+  const el = document.getElementById('review-step-content')
+  el.className = 'review-container animate-slide'
+
+  switch (reviewStep) {
+    case 'rating':   el.innerHTML = reviewRatingHTML(); break
+    case 'negative': el.innerHTML = reviewNegativeHTML(); break
+    case 'reviews':  el.innerHTML = reviewReviewsHTML(); break
+    case 'complete': el.innerHTML = reviewCompleteHTML(); launchConfetti(); break
+    default:         el.innerHTML = reviewNotFoundHTML(); break
+  }
+}
+
+function reviewRatingHTML() {
+  const firstName = (reviewJob.customerName || '').split(' ')[0]
+  const hints = ['', "That bad? We want to fix it.", "Not great — tell us what happened.", "Room to improve — share your thoughts.", "Great! Help us spread the word.", "Amazing! You just made our day 🙌"]
+  const hintText = hints[reviewHover] || 'Tap a star to rate'
+
+  const stars = [1,2,3,4,5].map(s => `
+    <button class="star-btn" onclick="handleRating(${s})"
+      onmouseover="reviewHover=${s};document.getElementById('star-hint').textContent='${hints[s]}';"
+      onmouseout="reviewHover=0;document.getElementById('star-hint').textContent='Tap a star to rate';"
+      style="filter: ${reviewHover >= s ? 'brightness(1)' : 'grayscale(0.8) brightness(0.5)'}">⭐</button>
+  `).join('')
+
+  return `
+    <div style="text-align:center;padding:48px 0 32px;">
+      <div style="margin-bottom:8px;">
+        <span style="display:inline-flex;align-items:center;gap:6px;background:rgba(245,166,35,0.1);border:1px solid rgba(245,166,35,0.3);border-radius:20px;padding:6px 16px;color:var(--gold);font-size:12px;font-weight:600;">★ Saturn Star Movers</span>
+      </div>
+      <h1 style="font-size:24px;font-weight:700;color:#fff;margin:16px 0 8px;">How was your move, ${esc(firstName)}?</h1>
+      <p style="color:#64748b;font-size:13px;">Your feedback means the world to our crew — takes 30 seconds.</p>
+      <div style="display:flex;justify-content:center;gap:12px;margin:40px 0;">${stars}</div>
+      <p id="star-hint" style="color:#475569;font-size:12px;">${hintText}</p>
+    </div>
+  `
+}
+
+function handleRating(stars) {
+  if (!reviewJob) return
+  reviewJob = { ...reviewJob, feedbackRating: stars, status: stars >= 4 ? 'in-progress' : 'flagged' }
+  DB.saveJob(reviewJob)
+  reviewStep = stars >= 4 ? 'reviews' : 'negative'
+  renderReviewStep()
+}
+
+function reviewNegativeHTML() {
+  if (reviewNegSent) {
+    return `
+      <div style="text-align:center;padding:48px 0;">
+        <div class="card" style="padding:32px;max-width:440px;margin:0 auto;">
+          <div style="font-size:32px;margin-bottom:12px;">📬</div>
+          <p style="font-size:16px;font-weight:600;color:#fff;margin-bottom:8px;">We got your message</p>
+          <p style="color:#64748b;font-size:13px;">Our manager will reach out within 24 hours to make things right.</p>
+          <p style="color:#475569;font-size:12px;margin-top:12px;">Need to talk now? Call <a href="tel:${BRAND.phone}" style="color:var(--gold);">${BRAND.phone}</a></p>
+        </div>
+      </div>
+    `
+  }
+  return `
+    <div style="padding:48px 0 32px;">
+      <div style="text-align:center;margin-bottom:32px;">
+        <div style="width:64px;height:64px;border-radius:50%;background:var(--navy-light);border:1px solid var(--navy-border);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 16px;">🙏</div>
+        <h2 style="font-size:21px;font-weight:700;color:#fff;margin-bottom:6px;">We're sorry to hear that</h2>
+        <p style="color:#64748b;font-size:13px;">Moving is stressful — if we fell short, we want to make it right.</p>
+      </div>
+      <div class="card" style="padding:24px;max-width:440px;margin:0 auto;">
+        <label class="lbl">Tell us what happened</label>
+        <textarea id="neg-textarea" style="min-height:120px;resize:none;margin-bottom:12px;" placeholder="What could we have done better? Any specific issues with the crew, timing, or handling of items?" oninput="reviewNegText=this.value">${esc(reviewNegText)}</textarea>
+        <button class="btn-gold w-full" style="justify-content:center;" onclick="submitNegFeedback()">Send Feedback</button>
+        <p style="font-size:11px;color:#475569;text-align:center;margin-top:10px;">Or call us directly: <a href="tel:${BRAND.phone}" style="color:var(--gold);">${BRAND.phone}</a></p>
+      </div>
+    </div>
+  `
+}
+
+function submitNegFeedback() {
+  const text = document.getElementById('neg-textarea').value.trim()
+  if (!text) return
+  reviewJob = { ...reviewJob, feedbackComment: text, status: 'flagged' }
+  DB.saveJob(reviewJob)
+  reviewNegSent = true
+  renderReviewStep()
+}
+
+function reviewReviewsHTML() {
+  if (!reviewJob) return ''
+  const rc = DB.reviewCount(reviewJob.reviews)
+
+  const cards = REVIEW_CARDS.map(card => {
+    const done = reviewJob.reviews[card.key]
+    const actionBtn = done
+      ? `<span style="font-size:12px;color:#34d399;font-weight:600;white-space:nowrap;">Done ✓</span>`
+      : card.key === 'media'
+        ? `<button class="btn-sm btn-gold-sm" onclick="openMediaModal()">Upload</button>`
+        : `<a href="${card.href}" target="_blank" rel="noopener noreferrer" onclick="setTimeout(()=>markReviewDone('${card.key}'),1500)" class="btn-sm btn-gold-sm" style="display:inline-flex;align-items:center;">Go →</a>`
+
+    return `
+      <div class="review-card ${done ? 'done' : ''}">
+        <div class="review-icon ${card.iconCls}">${done ? '✅' : card.icon}</div>
+        <div style="flex:1;min-width:0;">
+          <p style="font-weight:600;font-size:13px;color:#fff;margin-bottom:2px;">${card.label}</p>
+          <p style="font-size:11px;color:#475569;">${card.desc}</p>
+        </div>
+        ${actionBtn}
+      </div>
+    `
+  }).join('')
+
+  const ratingStars = [1,2,3,4,5].map(s =>
+    `<span style="font-size:18px;color:${(reviewJob.feedbackRating||0) >= s ? 'var(--gold)' : '#334155'}">★</span>`
+  ).join('')
+
+  return `
+    <div style="padding:24px 0;">
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="display:flex;justify-content:center;gap:2px;margin-bottom:10px;">${ratingStars}</div>
+        <h2 style="font-size:20px;font-weight:700;color:#fff;margin-bottom:6px;">You're on a roll, ${esc((reviewJob.customerName||'').split(' ')[0])}! 🙌</h2>
+        <p style="color:#64748b;font-size:13px;">Help others find us — and earn <span style="color:var(--gold);font-weight:600;">$${INCENTIVE_AMOUNT} back</span> for completing all 4.</p>
+      </div>
+
+      <div class="card-elevated" style="padding:16px;margin-bottom:20px;border-radius:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:12px;color:#64748b;">${rc} of 4 completed</span>
+          <span style="font-size:12px;color:var(--gold);font-weight:600;">${rc === 4 ? `$${INCENTIVE_AMOUNT} earned! 🎉` : `${4 - rc} more for $${INCENTIVE_AMOUNT} back`}</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" style="width:${(rc/4)*100}%"></div>
+        </div>
+      </div>
+
+      <div>${cards}</div>
+
+      <p style="text-align:center;font-size:11px;color:#334155;margin-top:20px;">
+        ${BRAND.name} · <a href="tel:${BRAND.phone}" style="color:var(--gold);">${BRAND.phone}</a>
+      </p>
+
+      ${reviewMediaModal ? mediaModalHTML() : ''}
+    </div>
+  `
+}
+
+function markReviewDone(key) {
+  if (!reviewJob) return
+  reviewJob = { ...reviewJob, reviews: { ...reviewJob.reviews, [key]: true } }
+  const count = DB.reviewCount(reviewJob.reviews)
+  if (count === 4) {
+    reviewJob.status         = 'complete'
+    reviewJob.incentiveEarned = true
+  }
+  DB.saveJob(reviewJob)
+  if (count === 4) {
+    reviewStep = 'complete'
+  }
+  reviewMediaModal = false
+  renderReviewStep()
+}
+
+function openMediaModal() {
+  reviewMediaModal = true
+  renderReviewStep()
+}
+
+function mediaModalHTML() {
+  return `
+    <div class="modal-backdrop" style="z-index:300;" onclick="if(event.target===this){closeMediaModal()}">
+      <div class="modal animate-slide" style="max-width:380px;">
+        <h3>Upload a Photo or Video</h3>
+        <p style="color:#64748b;font-size:13px;margin-top:-12px;margin-bottom:16px;">Share a before/after, the crew in action, or your beautiful new place!</p>
+        <div style="border:2px dashed var(--navy-border);border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:border-color 0.15s;"
+          onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--navy-border)'">
+          <div style="font-size:32px;margin-bottom:8px;">📷</div>
+          <p style="color:#64748b;font-size:13px;">Tap to choose a photo or video</p>
+          <input type="file" accept="image/*,video/*" style="display:none;" />
+        </div>
+        <div class="modal-footer">
+          <button class="btn-ghost" onclick="closeMediaModal()">Cancel</button>
+          <button class="btn-gold" style="justify-content:center;" onclick="confirmMedia()">Mark as Done ✓</button>
+        </div>
+      </div>
+    </div>
+  `
+}
+
+function closeMediaModal() {
+  reviewMediaModal = false
+  renderReviewStep()
+}
+
+function confirmMedia() {
+  markReviewDone('media')
+}
+
+function reviewCompleteHTML() {
+  if (!reviewJob) return ''
+  const firstName = (reviewJob.customerName || '').split(' ')[0]
+  const reviewSummary = REVIEW_CARDS.map(c => `
+    <div style="border-radius:10px;border:1px solid ${reviewJob.reviews[c.key] ? 'rgba(16,185,129,0.4)' : 'var(--navy-border)'};
+      background:${reviewJob.reviews[c.key] ? 'rgba(16,185,129,0.08)' : 'var(--navy-card)'};
+      padding:10px;text-align:center;">
+      <div style="font-size:20px;">${c.icon}</div>
+      <div style="font-size:11px;margin-top:4px;color:${reviewJob.reviews[c.key] ? '#34d399' : '#475569'};">
+        ${reviewJob.reviews[c.key] ? '✓' : '○'}
+      </div>
+    </div>
+  `).join('')
+
+  return `
+    <div style="text-align:center;padding:48px 0 32px;">
+      <div style="width:96px;height:96px;border-radius:50%;background:rgba(245,166,35,0.08);border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:48px;margin:0 auto 24px;">🎉</div>
+      <h2 style="font-size:26px;font-weight:700;color:#fff;margin-bottom:8px;">You're amazing!</h2>
+      <p style="color:#cbd5e1;font-size:14px;">Thank you for completing all 4 reviews, <span style="color:var(--gold);font-weight:600;">${esc(firstName)}</span>.</p>
+
+      <div class="card" style="padding:24px;margin:24px auto;max-width:360px;text-align:left;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <span style="font-size:13px;color:#64748b;">Your $${INCENTIVE_AMOUNT} reward</span>
+          <span style="font-size:20px;font-weight:700;color:var(--gold);">$${INCENTIVE_AMOUNT}</span>
+        </div>
+        <div style="height:1px;background:var(--navy-border);margin-bottom:12px;"></div>
+        <p style="font-size:12px;color:#475569;">Your $${INCENTIVE_AMOUNT} will be applied as a credit back to your invoice. We'll reach out shortly to confirm.</p>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;max-width:360px;margin:0 auto 24px;">${reviewSummary}</div>
+
+      <p style="font-size:12px;color:#334155;">${BRAND.name} · <a href="tel:${BRAND.phone}" style="color:var(--gold);">${BRAND.phone}</a></p>
+    </div>
+  `
+}
+
+function reviewNotFoundHTML() {
+  return `
+    <div style="text-align:center;padding:80px 0;">
+      <div style="font-size:48px;margin-bottom:16px;">🔍</div>
+      <h2 style="font-size:20px;font-weight:700;color:#fff;margin-bottom:8px;">Link not found</h2>
+      <p style="color:#64748b;font-size:13px;">This review link may have expired or is invalid.</p>
+      <p style="color:#475569;font-size:12px;margin-top:16px;">Questions? Call us: <a href="tel:${BRAND.phone}" style="color:var(--gold);">${BRAND.phone}</a></p>
+    </div>
+  `
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CONFETTI
+═══════════════════════════════════════════════════════════════ */
+function launchConfetti() {
+  const container = document.getElementById('confetti-container')
+  container.innerHTML = ''
+  const colors = ['#F5A623','#FDB944','#34d399','#60a5fa','#c084fc','#f87171','#fff']
+  for (let i = 0; i < 80; i++) {
+    const piece = document.createElement('div')
+    piece.className = 'confetti-piece'
+    piece.style.cssText = `
+      left: ${Math.random() * 100}%;
+      background: ${colors[Math.floor(Math.random() * colors.length)]};
+      width: ${4 + Math.random() * 8}px;
+      height: ${4 + Math.random() * 8}px;
+      border-radius: ${Math.random() > 0.5 ? '50%' : '2px'};
+      animation-duration: ${2 + Math.random() * 3}s;
+      animation-delay: ${Math.random() * 1.5}s;
+    `
+    container.appendChild(piece)
+  }
+  setTimeout(() => { container.innerHTML = '' }, 6000)
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MODAL UTILITIES
+═══════════════════════════════════════════════════════════════ */
+function showModal(contentHTML, large = false) {
+  const box = document.getElementById('modal-box')
+  box.className = 'modal animate-slide' + (large ? ' modal-lg' : '')
+  box.innerHTML = contentHTML
+  document.getElementById('modal-backdrop').style.display = 'flex'
+}
+
+function closeModal() {
+  document.getElementById('modal-backdrop').style.display = 'none'
+}
+
+function closeModalOnBackdrop(e) {
+  if (e.target === document.getElementById('modal-backdrop')) closeModal()
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   UTILITIES
+═══════════════════════════════════════════════════════════════ */
+function esc(str) {
+  if (str == null) return ''
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   URL-BASED REVIEW ROUTING
+   Supports ?review=<jobId> to open review flow directly
+═══════════════════════════════════════════════════════════════ */
+function checkURLForReview() {
+  const params = new URLSearchParams(window.location.search)
+  const jobId = params.get('review')
+  if (jobId) {
+    previewReviewFlow(jobId)
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════════════ */
+;(function init() {
+  renderView()
+  checkURLForReview()
+})()
+</script>
+<script>
+  (function () {
+    const link = document.getElementById('legacy-guard-link');
+    if (!link) return;
+    const base = window.location.origin && window.location.origin.startsWith('http')
+      ? window.location.origin
+      : 'http://localhost:3000';
+    link.href = base + '/';
+  })();
+</script>
+</body>
+</html>

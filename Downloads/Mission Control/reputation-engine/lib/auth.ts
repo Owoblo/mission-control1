@@ -1,0 +1,72 @@
+const SESSION_COOKIE = 'mc_session'
+const SESSION_TTL_MS = 1000 * 60 * 60 * 12
+
+function toBase64Url(input: ArrayBuffer | string) {
+  const bytes =
+    typeof input === 'string'
+      ? new TextEncoder().encode(input)
+      : new Uint8Array(input)
+  let binary = ''
+  for (let index = 0; index < bytes.length; index += 1) {
+    binary += String.fromCharCode(bytes[index])
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+}
+
+function fromBase64Url(input: string) {
+  const normalized = input.replace(/-/g, '+').replace(/_/g, '/')
+  const padded = normalized + '==='.slice((normalized.length + 3) % 4)
+  const binary = atob(padded)
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index)
+  }
+  return bytes
+}
+
+async function sign(value: string, secret: string) {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(value))
+  return toBase64Url(signature)
+}
+
+function getAuthSecret() {
+  const secret = process.env.AUTH_SECRET
+  if (!secret) throw new Error('Missing AUTH_SECRET')
+  return secret
+}
+
+export function getSessionCookieName() {
+  return SESSION_COOKIE
+}
+
+export async function createSessionToken() {
+  const payload = {
+    exp: Date.now() + SESSION_TTL_MS,
+  }
+  const encodedPayload = toBase64Url(JSON.stringify(payload))
+  const encodedSignature = await sign(encodedPayload, getAuthSecret())
+  return `${encodedPayload}.${encodedSignature}`
+}
+
+export async function verifySessionToken(token?: string | null) {
+  if (!token) return false
+  const [encodedPayload, encodedSignature] = token.split('.')
+  if (!encodedPayload || !encodedSignature) return false
+
+  const expectedSignature = await sign(encodedPayload, getAuthSecret())
+  if (expectedSignature !== encodedSignature) return false
+
+  try {
+    const payload = JSON.parse(new TextDecoder().decode(fromBase64Url(encodedPayload))) as { exp?: number }
+    return typeof payload.exp === 'number' && payload.exp > Date.now()
+  } catch {
+    return false
+  }
+}

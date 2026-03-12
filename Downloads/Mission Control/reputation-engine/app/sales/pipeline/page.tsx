@@ -1,0 +1,146 @@
+'use client'
+
+import Link from 'next/link'
+import { useEffect, useMemo, useState, type MouseEvent } from 'react'
+import { deleteSalesLead, fetchSalesOverview } from '@/lib/sales-api'
+import { formatDate, formatMoney } from '@/lib/sales'
+import type { CRMLead, CRMQuote } from '@/lib/types'
+
+const COLUMN_ORDER: CRMLead['stage'][] = ['new', 'contacted', 'pricing', 'quoted', 'nurture', 'booked', 'lost']
+
+const COLUMN_LABELS: Record<CRMLead['stage'], string> = {
+  new: 'New Inquiry',
+  contacted: 'Contacted',
+  pricing: 'Estimating',
+  quoted: 'Quote Sent',
+  nurture: 'Nurture',
+  booked: 'Booked',
+  lost: 'Lost',
+}
+
+export default function SalesPipelinePage() {
+  const [leads, setLeads] = useState<CRMLead[]>([])
+  const [quotes, setQuotes] = useState<CRMQuote[]>([])
+  const [loading, setLoading] = useState(true)
+  const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  async function refresh() {
+    try {
+      setLoading(true)
+      const data = await fetchSalesOverview()
+      setLeads(data.leads)
+      setQuotes(data.quotes)
+      setError(null)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    void refresh()
+  }, [])
+
+  async function removeLead(event: MouseEvent, lead: CRMLead) {
+    event.preventDefault()
+    event.stopPropagation()
+    const confirmed = window.confirm(`Delete ${lead.name}?`)
+    if (!confirmed) return
+
+    try {
+      setDeleteBusyId(lead.id)
+      await deleteSalesLead(lead.id)
+      await refresh()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setDeleteBusyId(null)
+    }
+  }
+
+  const quoteMap = useMemo(() => new Map(quotes.map(item => [item.id, item])), [quotes])
+  const grouped = useMemo(() => {
+    return COLUMN_ORDER.map(stage => ({
+      stage,
+      label: COLUMN_LABELS[stage],
+      cards: leads.filter(lead => lead.stage === stage).sort((a, b) => (b.leadScore || 0) - (a.leadScore || 0)),
+    }))
+  }, [leads])
+
+  return (
+    <div className="crm-shell space-y-8">
+      <section className="flex items-end justify-between gap-4">
+        <div>
+          <h1 className="font-display text-[28px] font-semibold tracking-tight text-[var(--app-ink)]">Pipeline Board</h1>
+          <div className="mt-2 text-sm text-[var(--app-muted)]">
+            {leads.length} active leads · {quotes.length} quotes · {formatMoney(quotes.reduce((sum, item) => sum + item.total, 0))} total quote value
+          </div>
+        </div>
+        <button onClick={() => void refresh()} className="crm-button">Refresh</button>
+      </section>
+
+      {error ? <div className="rounded-[8px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
+
+      {loading ? (
+        <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] px-5 py-16 text-center text-sm text-[var(--app-muted)]">Loading pipeline...</div>
+      ) : (
+        <div className="overflow-x-auto pb-4">
+          <div className="flex min-w-max gap-4">
+            {grouped.map(column => (
+              <div key={column.stage} className="w-[290px]">
+                <div className="mb-3 flex items-center justify-between border-b border-[var(--app-line)] pb-3">
+                  <h2 className="font-display text-sm font-semibold uppercase tracking-[0.16em] text-[var(--app-ink)]">{column.label}</h2>
+                  <span className="rounded-[4px] bg-[var(--app-wash)] px-2 py-0.5 text-xs text-[var(--app-muted)]">{column.cards.length}</span>
+                </div>
+                <div className="space-y-3">
+                  {column.cards.map(lead => {
+                    const quote = lead.quoteId ? quoteMap.get(lead.quoteId) : undefined
+                    return (
+                      <Link
+                        key={lead.id}
+                        href={`/sales/leads/${lead.id}`}
+                        className="block rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-4 transition hover:border-[var(--app-ink)]"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-semibold text-[var(--app-ink)]">{lead.name}</div>
+                            <div className="mt-1 text-xs text-[var(--app-muted)]">{lead.moveDate ? formatDate(lead.moveDate) : 'Date TBD'} · {lead.moveType || 'Move TBD'}</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-[4px] bg-[rgba(15,106,83,0.08)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-accent)]">
+                              {lead.leadScore || 0}
+                            </span>
+                            <button
+                              onClick={event => void removeLead(event, lead)}
+                              className="text-xs text-[var(--app-muted)] hover:text-rose-700"
+                            >
+                              {deleteBusyId === lead.id ? 'Deleting...' : 'Delete'}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="mt-3 flex items-center justify-between text-xs text-[var(--app-muted)]">
+                          <span>{lead.originCity || 'Origin TBD'} → {lead.destCity || 'Destination TBD'}</span>
+                          <span>{quote ? formatMoney(quote.total) : 'Est. pending'}</span>
+                        </div>
+                        <div className="mt-3 border-t border-[var(--app-line)] pt-3 text-xs text-[var(--app-muted)]">
+                          {quote?.viewedAt ? `Viewed ${formatDate(quote.viewedAt)}` : lead.followUpDate ? `Follow up ${formatDate(lead.followUpDate)}` : 'No follow-up set'}
+                        </div>
+                      </Link>
+                    )
+                  })}
+                  {column.cards.length === 0 ? (
+                    <div className="rounded-[8px] border border-dashed border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-12 text-center text-sm text-[var(--app-muted)]">
+                      No leads here yet.
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
