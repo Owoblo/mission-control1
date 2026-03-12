@@ -44,7 +44,7 @@ export function InventoryRoomSection({
       <div className="flex items-center justify-between gap-3">
         <div>
           <div className="crm-label">{roomName}</div>
-          <div className="mt-1 text-xs text-stone-500">
+          <div className="mt-1 text-[11px] text-stone-500">
             {roomItems.length} lines · {roomTotals.items} items · {Math.round(roomTotals.cubicFeet)} cu ft · {Math.round(roomTotals.weightLbs)} lbs
           </div>
         </div>

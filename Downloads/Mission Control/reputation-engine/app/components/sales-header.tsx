@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 import { LogoutButton } from '@/app/components/logout-button'
 
 const NAV_ITEMS = [
@@ -13,6 +14,23 @@ const NAV_ITEMS = [
 
 export function SalesHeader() {
   const pathname = usePathname()
+  const router = useRouter()
+  const [query, setQuery] = useState('')
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    setQuery(params.get('q') || '')
+  }, [pathname])
+
+  function updateQuery(nextValue: string) {
+    setQuery(nextValue)
+    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
+    if (nextValue.trim()) params.set('q', nextValue.trim())
+    else params.delete('q')
+    const next = params.toString()
+    router.replace(next ? `${pathname}?${next}` : pathname)
+  }
 
   return (
     <header className="sticky top-0 z-40 border-b border-[var(--app-line)] bg-[var(--app-panel-strong)]">
@@ -47,6 +65,8 @@ export function SalesHeader() {
             <input
               type="text"
               placeholder="Search leads, quotes..."
+              value={query}
+              onChange={event => updateQuery(event.target.value)}
               className="h-9 w-64 rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] pl-9 pr-4 text-sm text-[var(--app-ink)] outline-none transition focus:border-[var(--app-ink)]"
             />
           </div>

@@ -11,6 +11,7 @@ export default function SalesQuotesIndexPage() {
   const [leads, setLeads] = useState<CRMLead[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
 
   async function refresh() {
     try {
@@ -31,6 +32,12 @@ export default function SalesQuotesIndexPage() {
   }, [])
 
   const leadMap = useMemo(() => new Map(leads.map(item => [item.id, item])), [leads])
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    setQuery((params.get('q') || '').trim().toLowerCase())
+  }, [])
+
   const grouped = useMemo(() => {
     const groups: Record<string, CRMQuote[]> = {
       draft: [],
@@ -39,13 +46,30 @@ export default function SalesQuotesIndexPage() {
       declined: [],
     }
     for (const quote of quotes) {
+      const lead = quote.leadId ? leadMap.get(quote.leadId) : undefined
+      if (query) {
+        const haystack = [
+          quote.number,
+          quote.originAddress,
+          quote.originCity,
+          quote.destCity,
+          quote.status,
+          lead?.name,
+          lead?.phone,
+          lead?.email,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+        if (!haystack.includes(query)) continue
+      }
       if (quote.status === 'accepted' || quote.status === 'invoiced') groups.accepted.push(quote)
       else if (quote.status === 'declined') groups.declined.push(quote)
       else if (quote.status === 'sent' || quote.status === 'viewed') groups.sent.push(quote)
       else groups.draft.push(quote)
     }
     return groups
-  }, [quotes])
+  }, [leadMap, query, quotes])
 
   return (
     <div className="crm-shell space-y-8">

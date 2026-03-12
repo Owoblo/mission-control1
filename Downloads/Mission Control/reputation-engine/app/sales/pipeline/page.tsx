@@ -24,6 +24,7 @@ export default function SalesPipelinePage() {
   const [loading, setLoading] = useState(true)
   const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
 
   async function refresh() {
     try {
@@ -43,11 +44,15 @@ export default function SalesPipelinePage() {
     void refresh()
   }, [])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    setQuery((params.get('q') || '').trim().toLowerCase())
+  }, [])
+
   async function removeLead(event: MouseEvent, lead: CRMLead) {
     event.preventDefault()
     event.stopPropagation()
-    const confirmed = window.confirm(`Delete ${lead.name}?`)
-    if (!confirmed) return
 
     try {
       setDeleteBusyId(lead.id)
@@ -65,9 +70,28 @@ export default function SalesPipelinePage() {
     return COLUMN_ORDER.map(stage => ({
       stage,
       label: COLUMN_LABELS[stage],
-      cards: leads.filter(lead => lead.stage === stage).sort((a, b) => (b.leadScore || 0) - (a.leadScore || 0)),
+      cards: leads
+        .filter(lead => lead.stage === stage)
+        .filter(lead => {
+          if (!query) return true
+          const haystack = [
+            lead.name,
+            lead.phone,
+            lead.email,
+            lead.originAddress,
+            lead.originCity,
+            lead.destAddress,
+            lead.destCity,
+            lead.moveType,
+          ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase()
+          return haystack.includes(query)
+        })
+        .sort((a, b) => (b.leadScore || 0) - (a.leadScore || 0)),
     }))
-  }, [leads])
+  }, [leads, query])
 
   return (
     <div className="crm-shell space-y-8">

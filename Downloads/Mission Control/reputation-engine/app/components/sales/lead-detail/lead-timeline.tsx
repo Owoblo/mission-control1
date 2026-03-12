@@ -166,7 +166,6 @@ export function LeadTimeline({
             <div className="flex items-center gap-2 text-[var(--app-muted)]">
               <button className="rounded p-1.5 hover:bg-[var(--app-bg)]">＋</button>
               <button className="rounded p-1.5 hover:bg-[var(--app-bg)]">⌕</button>
-              <button onClick={onStartConsultation} className="rounded p-1.5 text-[var(--app-accent)] hover:bg-[var(--app-bg)]">Record Consultation</button>
             </div>
             <div className="flex items-center gap-3">
               <select value={activityType} onChange={event => onActivityTypeChange(event.target.value as FollowUpLog['type'])} className="crm-input max-w-[120px] py-2">

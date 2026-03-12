@@ -10,6 +10,7 @@ export default function SalesLeadsIndexPage() {
   const [leads, setLeads] = useState<CRMLead[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
 
   async function refresh() {
     try {
@@ -28,9 +29,34 @@ export default function SalesLeadsIndexPage() {
     void refresh()
   }, [])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    setQuery((params.get('q') || '').trim().toLowerCase())
+  }, [])
+
   const sorted = useMemo(
-    () => [...leads].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
-    [leads]
+    () =>
+      [...leads]
+        .filter(lead => {
+          if (!query) return true
+          const haystack = [
+            lead.name,
+            lead.phone,
+            lead.email,
+            lead.originAddress,
+            lead.originCity,
+            lead.destAddress,
+            lead.destCity,
+            lead.moveType,
+          ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase()
+          return haystack.includes(query)
+        })
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    [leads, query]
   )
 
   return (

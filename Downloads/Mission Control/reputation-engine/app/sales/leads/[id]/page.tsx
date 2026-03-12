@@ -15,7 +15,7 @@ import {
 import { InventoryRoomSection } from '@/app/components/sales/lead-detail/inventory-room-section'
 import { INVENTORY_PRESETS, createInventoryItemFromPreset } from '@/lib/item-presets'
 import { SALES_LEAD_STAGES, computeQuoteTotals, deriveInventoryMetrics, formatDate, formatDateTime, formatMoney } from '@/lib/sales'
-import { createLeadQuote, deleteSalesLead, enrichSalesAddress, fetchSalesOverview, saveLeadConsultation, saveSalesFollowUp, updateSalesLead, updateSalesQuote } from '@/lib/sales-api'
+import { createLeadQuote, deleteSalesLead, enrichSalesAddress, fetchSalesOverview, saveLeadConsultation, saveSalesFollowUp, sendSalesMessage, updateSalesLead, updateSalesQuote } from '@/lib/sales-api'
 import type { CRMLead, CRMQuote, FollowUpLog, InventoryItem, QuoteLineItem } from '@/lib/types'
 
 export default function SalesLeadDetailPage() {
@@ -62,6 +62,11 @@ export default function SalesLeadDetailPage() {
   const [quoteModalBusy, setQuoteModalBusy] = useState(false)
   const [quoteModalDirty, setQuoteModalDirty] = useState(false)
   const [quoteLineItems, setQuoteLineItems] = useState<QuoteLineItem[]>([])
+  const [composerOpen, setComposerOpen] = useState(false)
+  const [composerChannel, setComposerChannel] = useState<'sms' | 'email'>('sms')
+  const [composerSubject, setComposerSubject] = useState('Following up — Saturn Star Moving')
+  const [composerBody, setComposerBody] = useState('')
+  const [composerBusy, setComposerBusy] = useState(false)
   const [listingLookupBusy, setListingLookupBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const autosaveTimerRef = useRef<number | null>(null)
@@ -584,6 +589,51 @@ export default function SalesLeadDetailPage() {
     window.dispatchEvent(new CustomEvent('crm:open-dialer', { detail: { phone: lead.phone, name: lead.name } }))
   }
 
+  function openComposer(channel: 'sms' | 'email') {
+    if (!lead) return
+    const firstName = (lead.name || 'there').split(' ')[0]
+    setComposerChannel(channel)
+    setComposerSubject(channel === 'email' ? 'Following up — Saturn Star Moving' : '')
+    setComposerBody(
+      channel === 'sms'
+        ? `Hi ${firstName}, this is Saturn Star Moving. I’m following up on your move request. What date and locations are you planning for?`
+        : `Hi ${firstName},
+
+I’m following up on your move request with Saturn Star Moving.
+
+Let me know your move date, origin, destination, and any inventory or access details you already know, and I’ll keep your estimate moving.
+
+Saturn Star Moving`
+    )
+    setComposerOpen(true)
+  }
+
+  async function sendComposerMessage() {
+    if (!lead) return
+    const to = composerChannel === 'sms' ? lead.phone : lead.email
+    if (!to || !composerBody.trim()) return
+
+    try {
+      setComposerBusy(true)
+      await sendSalesMessage({
+        channel: composerChannel,
+        to,
+        subject: composerChannel === 'email' ? composerSubject.trim() || 'Following up — Saturn Star Moving' : undefined,
+        body: composerBody.trim(),
+        leadId: lead.id,
+        quoteId: quote?.id,
+        notes: `${composerChannel.toUpperCase()} sent from lead detail`,
+      })
+      setComposerOpen(false)
+      await refresh(lead.id)
+      setError(null)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setComposerBusy(false)
+    }
+  }
+
   function updateInventoryItem(index: number, field: keyof InventoryItem, value: string) {
     setInventory(current =>
       current.map((item, itemIndex) =>
@@ -727,8 +777,6 @@ export default function SalesLeadDetailPage() {
 
   async function removeLead() {
     if (!lead) return
-    const confirmed = window.confirm(`Delete ${lead.name}? This will remove the lead from the active CRM.`)
-    if (!confirmed) return
 
     try {
       setDeleteBusy(true)
@@ -860,9 +908,16 @@ export default function SalesLeadDetailPage() {
             <div className="space-y-3 border-b border-[var(--app-line)] p-5">
               {lead.phone ? <button onClick={openDialer} className="crm-button-dark w-full justify-center">Call Lead</button> : null}
               <div className="grid grid-cols-2 gap-3">
-                {lead.phone ? <a href={`sms:${lead.phone}`} className="crm-button justify-center">Send SMS</a> : <div />}
-                {lead.email ? <a href={`mailto:${lead.email}`} className="crm-button justify-center">Email</a> : <div />}
+                {lead.phone ? <button onClick={() => openComposer('sms')} className="crm-button justify-center">Send SMS</button> : <div />}
+                {lead.email ? <button onClick={() => openComposer('email')} className="crm-button justify-center">Email</button> : <div />}
               </div>
+              <button
+                onClick={() => void startConsultation()}
+                disabled={consultationActive || consultationSaving}
+                className="crm-button w-full justify-center"
+              >
+                {consultationActive ? `Recording Consultation • ${formatSeconds(consultationSeconds)}` : consultationSaving ? 'Saving Consultation...' : 'Record Consultation'}
+              </button>
               {quote ? (
                 <button onClick={() => void openQuoteBuilder()} className="crm-button w-full justify-center border-[rgba(34,72,56,0.2)] bg-[rgba(34,72,56,0.08)] text-[var(--app-accent)]">
                   Build Estimate
@@ -1103,6 +1158,20 @@ export default function SalesLeadDetailPage() {
                   </div>
                 )}
               </div>
+              {analysisBusy && (
+                <div className="mt-3">
+                  <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-[0.14em] text-stone-500">
+                    <span>Scan Progress</span>
+                    <span>{Math.min(activePhotoIndex + 1, listingPhotos.length)} / {listingPhotos.length} photos</span>
+                  </div>
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-stone-200">
+                    <div
+                      className="h-full rounded-full bg-[var(--app-accent)] transition-all duration-500"
+                      style={{ width: `${(Math.min(activePhotoIndex + 1, listingPhotos.length) / Math.max(listingPhotos.length, 1)) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
               <div className="mt-4 overflow-hidden rounded-3xl border border-stone-200 bg-stone-100">
                 <img
                   src={listingPhotos[activePhotoIndex]}
@@ -1114,6 +1183,7 @@ export default function SalesLeadDetailPage() {
                 <span className="crm-chip">{analysisBusy ? 'AI reviewing full set' : 'Photo source locked'}</span>
                 <span className="crm-chip">{listingPhotos.length} photos</span>
                 <span className="crm-chip">{hasGeneratedInventory ? 'Draft on lead' : 'No saved draft yet'}</span>
+                {analysisBusy ? <span className="crm-chip">{Math.min(activePhotoIndex + 1, listingPhotos.length)} scanned</span> : null}
               </div>
               <div className="mt-4 grid grid-cols-4 gap-2">
                 {listingPhotos.map((photo, index) => (
@@ -1147,6 +1217,44 @@ export default function SalesLeadDetailPage() {
           </div>
         </div>
       </div>
+
+      {composerOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-2xl rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[var(--app-line)] px-5 py-4">
+              <div>
+                <div className="crm-label">{composerChannel === 'sms' ? 'SMS Composer' : 'Email Composer'}</div>
+                <div className="mt-1 text-sm text-[var(--app-muted)]">
+                  Sending to {composerChannel === 'sms' ? lead?.phone || 'No phone' : lead?.email || 'No email'}
+                </div>
+              </div>
+              <button onClick={() => setComposerOpen(false)} className="crm-button">Close</button>
+            </div>
+            <div className="space-y-4 px-5 py-5">
+              {composerChannel === 'email' ? (
+                <input
+                  value={composerSubject}
+                  onChange={event => setComposerSubject(event.target.value)}
+                  className="crm-input"
+                  placeholder="Email subject"
+                />
+              ) : null}
+              <textarea
+                value={composerBody}
+                onChange={event => setComposerBody(event.target.value)}
+                className="crm-input min-h-56"
+                placeholder={composerChannel === 'sms' ? 'Type your SMS...' : 'Type your email...'}
+              />
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t border-[var(--app-line)] px-5 py-4">
+              <button onClick={() => setComposerOpen(false)} className="crm-button">Cancel</button>
+              <button onClick={() => void sendComposerMessage()} disabled={composerBusy || !composerBody.trim()} className="crm-button-dark disabled:opacity-60">
+                {composerBusy ? 'Sending...' : composerChannel === 'sms' ? 'Send SMS' : 'Send Email'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <EstimateDraftModal
         open={quoteModalOpen}
