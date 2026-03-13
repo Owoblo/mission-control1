@@ -45,6 +45,11 @@ function isMissingRelationError(message: string) {
 }
 
 async function selectById<T>(table: TableName, id: string): Promise<T | null> {
+  const record = await selectRecordById<T>(table, id)
+  return record && !record.deleted ? record.data : null
+}
+
+async function selectRecordById<T>(table: TableName, id: string): Promise<PersistedRecord<T> | null> {
   const { url, headers } = requireSupabase()
   const response = await fetch(
     `${url}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}&select=id,data,deleted&limit=1`,
@@ -56,11 +61,15 @@ async function selectById<T>(table: TableName, id: string): Promise<T | null> {
   }
 
   const records = (await response.json()) as PersistedRecord<T>[]
-  const record = records.find(item => !item.deleted)
-  return record?.data ?? null
+  return records[0] ?? null
 }
 
 async function upsert<T extends { id: string }>(table: TableName, data: T): Promise<T> {
+  const existing = await selectRecordById<T>(table, data.id)
+  if (existing?.deleted) {
+    throw new Error(`Cannot save deleted ${table}/${data.id}`)
+  }
+
   const { url, headers } = requireSupabase()
   const response = await fetch(`${url}/rest/v1/${table}`, {
     method: 'POST',
