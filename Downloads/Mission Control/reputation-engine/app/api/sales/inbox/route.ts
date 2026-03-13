@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { calculateLeadScore, normalizeLead, uid } from '@/lib/sales'
+import { recordLeadUpdateAudit } from '@/lib/server/sales-audit'
 import {
   getInboundLead,
   getSalesLeadByInboundId,
@@ -14,6 +15,30 @@ import {
 } from '@/lib/server/sales-repository'
 import { validateLeadPayload } from '@/lib/server/sales-validation'
 import type { CallLogEntry, CRMLead, InboundLead } from '@/lib/types'
+
+function digitsOnly(value?: string) {
+  return (value || '').replace(/\D/g, '')
+}
+
+function findMatchingActiveLead(leads: CRMLead[], phone?: string, email?: string) {
+  const phoneDigits = digitsOnly(phone)
+  const normalizedEmail = (email || '').trim().toLowerCase()
+
+  return leads.find(lead => {
+    if (lead.stage === 'booked' || lead.stage === 'lost') {
+      return false
+    }
+
+    const leadPhoneDigits = digitsOnly(lead.phone)
+    const leadEmail = (lead.email || '').trim().toLowerCase()
+
+    if (phoneDigits && leadPhoneDigits && (leadPhoneDigits === phoneDigits || leadPhoneDigits.endsWith(phoneDigits) || phoneDigits.endsWith(leadPhoneDigits))) {
+      return true
+    }
+
+    return !!normalizedEmail && !!leadEmail && leadEmail === normalizedEmail
+  }) || null
+}
 
 function parseRawData(value: InboundLead['raw_data']) {
   if (!value) return null
@@ -212,6 +237,41 @@ export async function POST(request: Request) {
       email: payload.email || inbound.email,
       moveType: payload.moveType || 'residential',
     })
+    const duplicateLead = findMatchingActiveLead(await listSalesLeads(), validated.phone || inbound.phone, validated.email || inbound.email)
+
+    if (duplicateLead) {
+      const inboundCallLog = buildInboundCallLog(inbound)
+      const hasMatchingCallLog = duplicateLead.callLogs?.some(entry => {
+        if (inboundCallLog.callSid && entry.callSid === inboundCallLog.callSid) {
+          return true
+        }
+        return entry.date === inboundCallLog.date && entry.notes === inboundCallLog.notes
+      })
+
+      const mergedLead = normalizeLead({
+        ...duplicateLead,
+        name: duplicateLead.name || payload.name.trim(),
+        inboundId: duplicateLead.inboundId || payload.inboundId,
+        inboundMessage: duplicateLead.inboundMessage || inbound.message?.trim() || payload.notes?.trim() || '',
+        phone: duplicateLead.phone || validated.phone || inbound.phone || undefined,
+        email: duplicateLead.email || validated.email || inbound.email || undefined,
+        source: duplicateLead.source || payload.source || inbound.source || 'other',
+        moveType: duplicateLead.moveType || validated.moveType || 'residential',
+        notes: duplicateLead.notes || payload.notes?.trim() || inbound.message?.trim() || '',
+        followUpDate: duplicateLead.followUpDate || inferFollowUp(inbound).followUpDate,
+        callLogs: hasMatchingCallLog ? duplicateLead.callLogs || [] : [...(duplicateLead.callLogs || []), inboundCallLog],
+      })
+
+      const savedLead = await saveSalesLead({
+        ...mergedLead,
+        leadScore: calculateLeadScore(mergedLead),
+      })
+      await recordLeadUpdateAudit(duplicateLead, savedLead)
+      await ensureInboundCallMapping(inbound, savedLead)
+      await markInboundLeadClaimed(payload.inboundId)
+
+      return NextResponse.json(savedLead)
+    }
 
     const lead = normalizeLead({
       id: uid('lead'),
