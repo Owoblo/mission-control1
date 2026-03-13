@@ -258,13 +258,20 @@ function getSupabaseConfig(env) {
 
 async function fetchCrmRecord(table, id, env) {
     const { url, headers } = getSupabaseConfig(env);
-    const res = await fetch(`${url}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}&select=id,data&limit=1`, { headers });
+    const res = await fetch(`${url}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}&select=id,data,deleted&limit=1`, { headers });
     if (!res.ok) throw new Error(`Failed to fetch ${table}`);
     const rows = await res.json();
-    return rows?.[0] || null;
+    const row = rows?.[0] || null;
+    if (row?.deleted) return null;
+    return row;
 }
 
 async function patchCrmRecord(table, id, data, env) {
+    const existing = await fetchCrmRecord(table, id, env);
+    if (!existing) {
+        throw new Error(`Cannot update missing or deleted ${table}/${id}`);
+    }
+
     const { url, headers } = getSupabaseConfig(env);
     const updatedAt = new Date().toISOString();
     const res = await fetch(`${url}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}`, {
@@ -305,12 +312,14 @@ async function findInboundLeadByCallSid(callSid, env) {
 async function findCrmLeadByInboundId(inboundId, env) {
     const { url, headers } = getSupabaseConfig(env);
     const res = await fetch(
-        `${url}/rest/v1/crm_leads?select=id,data&data->>inboundId=eq.${encodeURIComponent(inboundId)}&order=updated_at.desc&limit=1`,
+        `${url}/rest/v1/crm_leads?select=id,data,deleted&data->>inboundId=eq.${encodeURIComponent(inboundId)}&order=updated_at.desc&limit=1`,
         { headers }
     );
     if (!res.ok) return null;
     const rows = await res.json();
-    return rows?.[0] || null;
+    const row = rows?.[0] || null;
+    if (row?.deleted) return null;
+    return row;
 }
 
 async function saveCallSidMapping(callSid, leadId, callLogId, env) {
@@ -779,14 +788,10 @@ async function handleRecordingDone(request, env) {
 
         if (!lead_id) return new Response('ok');
 
-        // Fetch the lead's data
-        const leadRes = await fetch(`${sbUrl}/rest/v1/crm_leads?id=eq.${encodeURIComponent(lead_id)}&select=id,data`, {
-            headers: sbH
-        });
-        const leads = await leadRes.json();
-        if (!leads || leads.length === 0) return new Response('ok');
+        const leadRow = await fetchCrmRecord('crm_leads', lead_id, env).catch(() => null);
+        if (!leadRow?.data) return new Response('ok');
 
-        const lead = leads[0].data;
+        const lead = leadRow.data;
         const callLogs = lead.callLogs || [];
         let idx = callLogs.findIndex(l => l.id === call_log_id);
         if (idx < 0) idx = callLogs.findIndex(l => l.callSid === callSid);
@@ -816,11 +821,7 @@ async function handleRecordingDone(request, env) {
         lead.callLogs  = callLogs;
         lead.updatedAt = new Date().toISOString();
 
-        await fetch(`${sbUrl}/rest/v1/crm_leads?id=eq.${encodeURIComponent(lead_id)}`, {
-            method:  'PATCH',
-            headers: { ...sbH, 'Prefer': 'return=minimal' },
-            body:    JSON.stringify({ data: lead, updated_at: lead.updatedAt }),
-        });
+        await patchCrmRecord('crm_leads', lead_id, lead, env);
 
         // ── Transcribe + AI summary (async, best-effort) ──
         if (env.OPENAI_API_KEY && parseInt(duration, 10) > 10) {
@@ -927,11 +928,7 @@ Return JSON only (no markdown):
 
     lead.updatedAt = new Date().toISOString();
 
-    await fetch(`${sbUrl}/rest/v1/crm_leads?id=eq.${encodeURIComponent(leadId)}`, {
-        method:  'PATCH',
-        headers: { ...sbH, 'Prefer': 'return=minimal' },
-        body:    JSON.stringify({ data: lead, updated_at: lead.updatedAt }),
-    });
+    await patchCrmRecord('crm_leads', leadId, lead, env);
 
     // Mirror transcript + AI summary onto the related inbound row so Inbox can show it pre-claim
     const inbound = await findInboundLeadByCallSid(callSid, env);
