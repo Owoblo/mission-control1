@@ -193,11 +193,25 @@ export async function getSalesOverview(): Promise<{
     listFollowUpLogs(),
   ])
 
+  const activeLeadIds = new Set(leads.map(lead => lead.id))
+  const activeQuoteIds = new Set(quotes.map(quote => quote.id))
+  const scopedFollowUps = followUps.filter(log => {
+    if (log.leadId && !activeLeadIds.has(log.leadId)) {
+      return false
+    }
+
+    if (log.quoteId && !activeQuoteIds.has(log.quoteId)) {
+      return false
+    }
+
+    return true
+  })
+
   return {
     leads,
     quotes,
     clients,
-    followUps,
+    followUps: scopedFollowUps,
     summary: buildSalesSummary(leads, quotes),
   }
 }
