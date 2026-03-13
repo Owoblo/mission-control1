@@ -150,6 +150,10 @@ export default function SalesLeadDetailPage() {
 
   useEffect(() => {
     if (!params?.id) return
+    setLead(null)
+    setQuote(null)
+    setFollowUps([])
+    setError(null)
     void refresh(params.id)
   }, [params])
 
@@ -226,7 +230,6 @@ export default function SalesLeadDetailPage() {
 
   const timeline = useMemo(() => {
     const systemEvents = [
-      lead ? { id: `created-${lead.id}`, kind: 'lead created', text: 'Lead created in sales CRM.', date: lead.createdAt, actor: 'system' } : null,
       quote ? { id: `quote-created-${quote.id}`, kind: 'quote draft', text: `${quote.number} created as draft.`, date: quote.createdAt, actor: 'system', amount: quote.total, quoteId: quote.id } : null,
       quote?.sentAt ? { id: `quote-sent-${quote.id}`, kind: 'quote sent', text: `${quote.number} sent to customer for review.`, date: quote.sentAt, actor: 'rep', amount: quote.total, quoteId: quote.id } : null,
       quote?.viewedAt ? { id: `quote-viewed-${quote.id}`, kind: 'quote viewed', text: `${quote.number} opened by customer.`, date: quote.viewedAt, actor: 'customer', amount: quote.total, quoteId: quote.id } : null,

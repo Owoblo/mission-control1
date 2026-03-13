@@ -25,6 +25,7 @@ export default function SalesPipelinePage() {
   const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
+  const [viewMode, setViewMode] = useState<'board' | 'list'>('board')
 
   async function refresh() {
     try {
@@ -54,11 +55,13 @@ export default function SalesPipelinePage() {
     event.preventDefault()
     event.stopPropagation()
 
+    const previousLeads = leads
     try {
       setDeleteBusyId(lead.id)
+      setLeads(current => current.filter(item => item.id !== lead.id))
       await deleteSalesLead(lead.id)
-      await refresh()
     } catch (err) {
+      setLeads(previousLeads)
       setError((err as Error).message)
     } finally {
       setDeleteBusyId(null)
@@ -102,14 +105,34 @@ export default function SalesPipelinePage() {
             {leads.length} active leads · {quotes.length} quotes · {formatMoney(quotes.reduce((sum, item) => sum + item.total, 0))} total quote value
           </div>
         </div>
-        <button onClick={() => void refresh()} className="crm-button">Refresh</button>
+        <div className="flex items-center gap-2">
+          <div className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-panel)] p-1">
+            <button
+              onClick={() => setViewMode('board')}
+              className={`rounded-[4px] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] ${
+                viewMode === 'board' ? 'bg-[var(--app-ink)] text-white' : 'text-[var(--app-muted)]'
+              }`}
+            >
+              Board
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`rounded-[4px] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] ${
+                viewMode === 'list' ? 'bg-[var(--app-ink)] text-white' : 'text-[var(--app-muted)]'
+              }`}
+            >
+              List
+            </button>
+          </div>
+          <button onClick={() => void refresh()} className="crm-button">Refresh</button>
+        </div>
       </section>
 
       {error ? <div className="rounded-[8px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
 
       {loading ? (
         <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] px-5 py-16 text-center text-sm text-[var(--app-muted)]">Loading pipeline...</div>
-      ) : (
+      ) : viewMode === 'board' ? (
         <div className="overflow-x-auto pb-4">
           <div className="flex min-w-max gap-4">
             {grouped.map(column => (
@@ -163,6 +186,45 @@ export default function SalesPipelinePage() {
               </div>
             ))}
           </div>
+        </div>
+      ) : (
+        <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)]">
+          <div className="grid grid-cols-[minmax(0,1.2fr)_140px_150px_170px_110px] gap-4 border-b border-[var(--app-line)] px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">
+            <div>Lead</div>
+            <div>Stage</div>
+            <div>Move Date</div>
+            <div>Route</div>
+            <div>Action</div>
+          </div>
+          {grouped.flatMap(column => column.cards).map(lead => {
+            const quote = lead.quoteId ? quoteMap.get(lead.quoteId) : undefined
+            return (
+              <Link
+                key={lead.id}
+                href={`/sales/leads/${lead.id}`}
+                className="grid grid-cols-[minmax(0,1.2fr)_140px_150px_170px_110px] gap-4 border-b border-[var(--app-line)] px-5 py-4 text-sm transition hover:bg-[var(--app-bg)]"
+              >
+                <div>
+                  <div className="font-medium text-[var(--app-ink)]">{lead.name}</div>
+                  <div className="mt-1 text-xs text-[var(--app-muted)]">{quote ? formatMoney(quote.total) : 'Estimate pending'}</div>
+                </div>
+                <div className="text-[var(--app-ink)] capitalize">{COLUMN_LABELS[lead.stage]}</div>
+                <div className="text-[var(--app-muted)]">{lead.moveDate ? formatDate(lead.moveDate) : 'Date TBD'}</div>
+                <div className="text-[var(--app-muted)]">{lead.originCity || 'Origin TBD'} → {lead.destCity || 'Destination TBD'}</div>
+                <div>
+                  <button
+                    onClick={event => void removeLead(event, lead)}
+                    className="text-xs text-[var(--app-muted)] hover:text-rose-700"
+                  >
+                    {deleteBusyId === lead.id ? 'Deleting...' : 'Delete'}
+                  </button>
+                </div>
+              </Link>
+            )
+          })}
+          {grouped.flatMap(column => column.cards).length === 0 ? (
+            <div className="px-5 py-16 text-center text-sm text-[var(--app-muted)]">No leads matched this view.</div>
+          ) : null}
         </div>
       )}
     </div>
