@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { calculateLeadScore, normalizeLead, syncLeadFromQuoteStatus } from '@/lib/sales'
+import { recordLeadUpdateAudit } from '@/lib/server/sales-audit'
 import { deleteSalesLead, getSalesLead, getSalesQuote, saveSalesLead } from '@/lib/server/sales-repository'
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
@@ -45,6 +46,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     })
 
     const saved = await saveSalesLead(nextLead)
+    await recordLeadUpdateAudit(current, saved)
     return NextResponse.json(saved)
   } catch (error) {
     return NextResponse.json(

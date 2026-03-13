@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { calculateLeadScore, normalizeLead, uid } from '@/lib/sales'
+import { recordLeadCreatedAudit } from '@/lib/server/sales-audit'
 import { saveSalesLead } from '@/lib/server/sales-repository'
 import { validateLeadPayload } from '@/lib/server/sales-validation'
 import type { CRMLead } from '@/lib/types'
@@ -43,6 +44,7 @@ export async function POST(request: Request) {
       ...lead,
       leadScore: calculateLeadScore(lead),
     })
+    await recordLeadCreatedAudit(saved)
 
     return NextResponse.json(saved)
   } catch (error) {

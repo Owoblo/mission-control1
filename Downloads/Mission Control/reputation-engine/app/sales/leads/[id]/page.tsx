@@ -75,52 +75,73 @@ export default function SalesLeadDetailPage() {
   const consultationStreamRef = useRef<MediaStream | null>(null)
   const consultationChunksRef = useRef<Blob[]>([])
 
+  function buildSavedLeadSignature(nextLead: CRMLead) {
+    return buildLeadSignature({
+      name: nextLead.name || '',
+      phone: nextLead.phone || '',
+      email: nextLead.email || '',
+      moveDate: nextLead.moveDate || '',
+      moveType: nextLead.moveType || 'residential',
+      source: nextLead.source || '',
+      originAddress: nextLead.originAddress || '',
+      originCity: nextLead.originCity || '',
+      originAccess: nextLead.originAccess || '',
+      destAddress: nextLead.destAddress || '',
+      destCity: nextLead.destCity || '',
+      destAccess: nextLead.destAccess || '',
+      parkingNotes: nextLead.parkingNotes || '',
+      moveReason: nextLead.moveReason || '',
+      notes: nextLead.notes || '',
+      stage: nextLead.stage || 'new',
+      followUpDate: nextLead.followUpDate || '',
+      inventory: nextLead.inventory || [],
+    })
+  }
+
+  function applyLeadSnapshot(nextLead: CRMLead, options?: { hydrateForm?: boolean }) {
+    setLead(nextLead)
+    lastSavedLeadStateRef.current = buildSavedLeadSignature(nextLead)
+
+    if (!options?.hydrateForm) {
+      return
+    }
+
+    setStage(nextLead.stage || 'new')
+    setFollowUpDate(nextLead.followUpDate || '')
+    setLeadName(nextLead.name || '')
+    setLeadPhone(nextLead.phone || '')
+    setLeadEmail(nextLead.email || '')
+    setMoveDate(nextLead.moveDate || '')
+    setMoveType((nextLead.moveType || 'residential') as CRMLead['moveType'])
+    setLeadSource(nextLead.source || '')
+    setOriginAddress(nextLead.originAddress || '')
+    setOriginCity(nextLead.originCity || '')
+    setOriginAccess(nextLead.originAccess || '')
+    setDestAddress(nextLead.destAddress || '')
+    setDestCity(nextLead.destCity || '')
+    setDestAccess(nextLead.destAccess || '')
+    setParkingNotes(nextLead.parkingNotes || '')
+    setMoveReason(nextLead.moveReason || '')
+    setNotes(nextLead.notes || '')
+    setInventory(nextLead.inventory || [])
+  }
+
+  function mergeFollowUpLog(entry: FollowUpLog) {
+    setFollowUps(current =>
+      [...current.filter(item => item.id !== entry.id), entry].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    )
+  }
+
   async function refresh(currentLeadId: string) {
     try {
       const nextLead = await fetchSalesLead(currentLeadId)
-      setLead(nextLead)
       const quotePayload = nextLead?.quoteId ? await fetchSalesQuote(nextLead.quoteId) : null
       setQuote(quotePayload?.quote || null)
       const data = await fetchSalesOverview()
       setFollowUps(data.followUps.filter(item => item.leadId === currentLeadId || item.quoteId === nextLead?.quoteId))
-      setStage(nextLead?.stage || 'new')
-      setFollowUpDate(nextLead?.followUpDate || '')
-      setLeadName(nextLead?.name || '')
-      setLeadPhone(nextLead?.phone || '')
-      setLeadEmail(nextLead?.email || '')
-      setMoveDate(nextLead?.moveDate || '')
-      setMoveType((nextLead?.moveType || 'residential') as CRMLead['moveType'])
-      setLeadSource(nextLead?.source || '')
-      setOriginAddress(nextLead?.originAddress || '')
-      setOriginCity(nextLead?.originCity || '')
-      setOriginAccess(nextLead?.originAccess || '')
-      setDestAddress(nextLead?.destAddress || '')
-      setDestCity(nextLead?.destCity || '')
-      setDestAccess(nextLead?.destAccess || '')
-      setParkingNotes(nextLead?.parkingNotes || '')
-      setMoveReason(nextLead?.moveReason || '')
-      setNotes(nextLead?.notes || '')
-      setInventory(nextLead?.inventory || [])
-      lastSavedLeadStateRef.current = buildLeadSignature({
-        name: nextLead?.name || '',
-        phone: nextLead?.phone || '',
-        email: nextLead?.email || '',
-        moveDate: nextLead?.moveDate || '',
-        moveType: nextLead?.moveType || 'residential',
-        source: nextLead?.source || '',
-        originAddress: nextLead?.originAddress || '',
-        originCity: nextLead?.originCity || '',
-        originAccess: nextLead?.originAccess || '',
-        destAddress: nextLead?.destAddress || '',
-        destCity: nextLead?.destCity || '',
-        destAccess: nextLead?.destAccess || '',
-        parkingNotes: nextLead?.parkingNotes || '',
-        moveReason: nextLead?.moveReason || '',
-        notes: nextLead?.notes || '',
-        stage: nextLead?.stage || 'new',
-        followUpDate: nextLead?.followUpDate || '',
-        inventory: nextLead?.inventory || [],
-      })
+      if (nextLead) {
+        applyLeadSnapshot(nextLead, { hydrateForm: true })
+      }
       setError(nextLead ? null : 'Lead not found')
     } catch (err) {
       setError((err as Error).message)
@@ -375,27 +396,7 @@ export default function SalesLeadDetailPage() {
       void (async () => {
         try {
           const saved = await updateSalesLead(lead.id, buildLeadDraftPayload())
-          setLead(saved)
-          lastSavedLeadStateRef.current = buildLeadSignature({
-            name: saved.name || '',
-            phone: saved.phone || '',
-            email: saved.email || '',
-            moveDate: saved.moveDate || '',
-            moveType: saved.moveType || 'residential',
-            source: saved.source || '',
-            originAddress: saved.originAddress || '',
-            originCity: saved.originCity || '',
-            originAccess: saved.originAccess || '',
-            destAddress: saved.destAddress || '',
-            destCity: saved.destCity || '',
-            destAccess: saved.destAccess || '',
-            parkingNotes: saved.parkingNotes || '',
-            moveReason: saved.moveReason || '',
-            notes: saved.notes || '',
-            stage: saved.stage || 'new',
-            followUpDate: saved.followUpDate || '',
-            inventory: saved.inventory || [],
-          })
+          applyLeadSnapshot(saved)
           setError(null)
         } catch (err) {
           setError((err as Error).message)
@@ -415,45 +416,7 @@ export default function SalesLeadDetailPage() {
     try {
       setSaving(true)
       const saved = await updateSalesLead(lead.id, buildLeadDraftPayload())
-      setLead(saved)
-      setStage(saved.stage)
-      setFollowUpDate(saved.followUpDate || '')
-      setLeadName(saved.name || '')
-      setLeadPhone(saved.phone || '')
-      setLeadEmail(saved.email || '')
-      setMoveDate(saved.moveDate || '')
-      setMoveType((saved.moveType || 'residential') as CRMLead['moveType'])
-      setLeadSource(saved.source || '')
-      setOriginAddress(saved.originAddress || '')
-      setOriginCity(saved.originCity || '')
-      setOriginAccess(saved.originAccess || '')
-      setDestAddress(saved.destAddress || '')
-      setDestCity(saved.destCity || '')
-      setDestAccess(saved.destAccess || '')
-      setParkingNotes(saved.parkingNotes || '')
-      setMoveReason(saved.moveReason || '')
-      setNotes(saved.notes || '')
-      setInventory(saved.inventory || [])
-      lastSavedLeadStateRef.current = buildLeadSignature({
-        name: saved.name || '',
-        phone: saved.phone || '',
-        email: saved.email || '',
-        moveDate: saved.moveDate || '',
-        moveType: saved.moveType || 'residential',
-        source: saved.source || '',
-        originAddress: saved.originAddress || '',
-        originCity: saved.originCity || '',
-        originAccess: saved.originAccess || '',
-        destAddress: saved.destAddress || '',
-        destCity: saved.destCity || '',
-        destAccess: saved.destAccess || '',
-        parkingNotes: saved.parkingNotes || '',
-        moveReason: saved.moveReason || '',
-        notes: saved.notes || '',
-        stage: saved.stage || 'new',
-        followUpDate: saved.followUpDate || '',
-        inventory: saved.inventory || [],
-      })
+      applyLeadSnapshot(saved, { hydrateForm: true })
       setError(null)
     } catch (err) {
       setError((err as Error).message)
@@ -616,7 +579,7 @@ Saturn Star Moving`
 
     try {
       setComposerBusy(true)
-      await sendSalesMessage({
+      const result = await sendSalesMessage({
         channel: composerChannel,
         to,
         subject: composerChannel === 'email' ? composerSubject.trim() || 'Following up — Saturn Star Moving' : undefined,
@@ -626,7 +589,7 @@ Saturn Star Moving`
         notes: `${composerChannel.toUpperCase()} sent from lead detail`,
       })
       setComposerOpen(false)
-      await refresh(lead.id)
+      mergeFollowUpLog(result.log)
       setError(null)
     } catch (err) {
       setError((err as Error).message)
@@ -687,7 +650,7 @@ Saturn Star Moving`
     if (!lead || !activityNotes.trim()) return
     try {
       setLoggingActivity(true)
-      await saveSalesFollowUp({
+      const result = await saveSalesFollowUp({
         leadId: lead.id,
         quoteId: quote?.id,
         type: activityType,
@@ -695,7 +658,10 @@ Saturn Star Moving`
         followUpDate: followUpDate || undefined,
       })
       setActivityNotes('')
-      await refresh(lead.id)
+      mergeFollowUpLog(result.log)
+      if (result.lead) {
+        applyLeadSnapshot(result.lead)
+      }
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -760,7 +726,7 @@ Saturn Star Moving`
         durationSeconds: consultationSeconds,
       })
 
-      setLead(saved)
+      applyLeadSnapshot(saved, { hydrateForm: true })
       setConsultationNotes('')
       setConsultationSummary('')
       setConsultationSeconds(0)
@@ -768,7 +734,6 @@ Saturn Star Moving`
       consultationRecorderRef.current = null
       consultationStreamRef.current = null
       consultationChunksRef.current = []
-      await refresh(lead.id)
     } catch (err) {
       setError((err as Error).message)
     } finally {

@@ -116,6 +116,12 @@ export default function SalesQuoteDetailPage() {
   const [copied, setCopied] = useState<'accept' | 'email' | 'sms' | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  function mergeFollowUpLog(entry: FollowUpLog) {
+    setFollowUps(current =>
+      [...current.filter(item => item.id !== entry.id), entry].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    )
+  }
+
   async function refresh(currentQuoteId: string) {
     try {
       const data = await fetchSalesQuote(currentQuoteId)
@@ -338,21 +344,23 @@ Saturn Star Movers`
         sentAt: new Date().toISOString().slice(0, 10),
       })
 
+      let nextLead = sentResult.lead
       if (lead) {
-        await saveSalesFollowUp({
+        const followUpResult = await saveSalesFollowUp({
           leadId: lead.id,
           quoteId: quote.id,
           type: sendChannel,
           followUpDate,
           notes: `${sendChannel === 'email' ? 'Quote emailed' : 'Quote texted'} with acceptance link.`,
         })
-        await updateSalesLead(lead.id, { followUpDate })
+        mergeFollowUpLog(followUpResult.log)
+        const updatedLead = await updateSalesLead(lead.id, { followUpDate })
+        nextLead = updatedLead
       }
 
       setQuote(sentResult.quote)
-      setLead(sentResult.lead)
+      setLead(nextLead)
       setStatus(sentResult.quote.status)
-      await refresh(quote.id)
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -369,7 +377,7 @@ Saturn Star Movers`
 
     try {
       setSendBusy(true)
-      await sendSalesMessage({
+      const messageResult = await sendSalesMessage({
         channel: sendChannel,
         to,
         subject,
@@ -379,6 +387,7 @@ Saturn Star Movers`
         quoteId: quote.id,
         notes: `${sendChannel === 'email' ? 'Quote email sent' : 'Quote SMS sent'} from sales quote page.`,
       })
+      mergeFollowUpLog(messageResult.log)
 
       const sentResult = await updateSalesQuote(quote.id, {
         status: 'sent',
@@ -404,21 +413,23 @@ Saturn Star Movers`
         sentAt: new Date().toISOString().slice(0, 10),
       })
 
+      let nextLead = sentResult.lead
       if (lead) {
-        await saveSalesFollowUp({
+        const followUpResult = await saveSalesFollowUp({
           leadId: lead.id,
           quoteId: quote.id,
           type: sendChannel,
           followUpDate,
           notes: `${sendChannel === 'email' ? 'Quote emailed' : 'Quote texted'} with acceptance link.`,
         })
-        await updateSalesLead(lead.id, { followUpDate })
+        mergeFollowUpLog(followUpResult.log)
+        const updatedLead = await updateSalesLead(lead.id, { followUpDate })
+        nextLead = updatedLead
       }
 
       setQuote(sentResult.quote)
-      setLead(sentResult.lead)
+      setLead(nextLead)
       setStatus(sentResult.quote.status)
-      await refresh(quote.id)
     } catch (err) {
       setError((err as Error).message)
     } finally {
