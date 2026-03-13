@@ -2,6 +2,9 @@ import { normalizeFollowUp, uid } from '@/lib/sales'
 import { saveFollowUpLog } from '@/lib/server/sales-repository'
 import type { CRMLead, FollowUpLog } from '@/lib/types'
 
+export const LEAD_ARCHIVED_NOTE = '__system__:lead_archived'
+export const LEAD_RESTORED_NOTE = '__system__:lead_restored'
+
 function buildLog(leadId: string, type: FollowUpLog['type'], notes: string): FollowUpLog {
   const now = new Date().toISOString()
   return normalizeFollowUp({
@@ -29,6 +32,14 @@ async function persistLogs(logs: FollowUpLog[]) {
 
 export async function recordLeadCreatedAudit(lead: CRMLead) {
   await persistLogs([buildLog(lead.id, 'note', 'Lead created in sales CRM.')])
+}
+
+export async function recordLeadArchivedAudit(leadId: string) {
+  await persistLogs([buildLog(leadId, 'note', LEAD_ARCHIVED_NOTE)])
+}
+
+export async function recordLeadRestoredAudit(leadId: string) {
+  await persistLogs([buildLog(leadId, 'note', LEAD_RESTORED_NOTE)])
 }
 
 export async function recordLeadUpdateAudit(previous: CRMLead, next: CRMLead) {

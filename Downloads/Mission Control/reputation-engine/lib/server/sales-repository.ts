@@ -5,6 +5,7 @@ import {
   normalizeLead,
   normalizeQuote,
 } from '@/lib/sales'
+import { LEAD_ARCHIVED_NOTE, LEAD_RESTORED_NOTE } from '@/lib/server/sales-audit'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import type {
   CRMClient,
@@ -23,6 +24,30 @@ type PersistedRecord<T> = { id: string; data: T; updated_at?: string; deleted?: 
 
 function requireSupabase() {
   return requireSupabaseEnv()
+}
+
+function getArchivedLeadIds(logs: FollowUpLog[]) {
+  const latestLifecycle = new Map<string, { archived: boolean; date: number }>()
+
+  for (const log of logs) {
+    if (!log.leadId) continue
+    if (log.notes !== LEAD_ARCHIVED_NOTE && log.notes !== LEAD_RESTORED_NOTE) continue
+
+    const timestamp = new Date(log.date || log.createdAt || 0).getTime()
+    const current = latestLifecycle.get(log.leadId)
+    if (current && current.date >= timestamp) continue
+
+    latestLifecycle.set(log.leadId, {
+      archived: log.notes === LEAD_ARCHIVED_NOTE,
+      date: timestamp,
+    })
+  }
+
+  return new Set(
+    Array.from(latestLifecycle.entries())
+      .filter(([, value]) => value.archived)
+      .map(([leadId]) => leadId)
+  )
 }
 
 async function selectAll<T>(table: TableName): Promise<T[]> {
@@ -102,13 +127,22 @@ async function markDeleted(table: TableName, id: string) {
 }
 
 export async function listSalesLeads() {
-  const leads = await selectAll<CRMLead>('crm_leads')
-  return leads.map(lead => normalizeLead(lead))
+  const [leads, followUps] = await Promise.all([
+    selectAll<CRMLead>('crm_leads'),
+    listFollowUpLogs(),
+  ])
+  const archivedLeadIds = getArchivedLeadIds(followUps)
+  return leads
+    .map(lead => normalizeLead(lead))
+    .filter(lead => !archivedLeadIds.has(lead.id))
 }
 
 export async function getSalesLead(id: string) {
   const lead = await selectById<CRMLead>('crm_leads', id)
-  return lead ? normalizeLead(lead) : null
+  if (!lead) return null
+
+  const archivedLeadIds = getArchivedLeadIds(await listFollowUpLogs())
+  return archivedLeadIds.has(id) ? null : normalizeLead(lead)
 }
 
 export async function getSalesLeadByInboundId(inboundId: string) {
@@ -202,9 +236,15 @@ export async function getSalesOverview(): Promise<{
     listFollowUpLogs(),
   ])
 
+  const archivedLeadIds = getArchivedLeadIds(followUps)
+  const activeLeads = leads.filter(lead => !archivedLeadIds.has(lead.id))
   const activeLeadIds = new Set(leads.map(lead => lead.id))
   const activeQuoteIds = new Set(quotes.map(quote => quote.id))
   const scopedFollowUps = followUps.filter(log => {
+    if (log.leadId && archivedLeadIds.has(log.leadId)) {
+      return false
+    }
+
     if (log.leadId && !activeLeadIds.has(log.leadId)) {
       return false
     }
@@ -217,11 +257,11 @@ export async function getSalesOverview(): Promise<{
   })
 
   return {
-    leads,
+    leads: activeLeads,
     quotes,
     clients,
     followUps: scopedFollowUps,
-    summary: buildSalesSummary(leads, quotes),
+    summary: buildSalesSummary(activeLeads, quotes),
   }
 }
 
