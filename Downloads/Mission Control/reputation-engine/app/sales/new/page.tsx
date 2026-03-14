@@ -112,7 +112,7 @@ export default function NewSalesLeadPage() {
     <div className="crm-shell space-y-6">
       <div>
         <Link href="/sales" className="text-sm text-stone-500 hover:text-stone-900">Sales CRM</Link>
-        <h1 className="mt-2 text-4xl font-semibold tracking-tight text-stone-900">New lead.</h1>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">New lead.</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 crm-muted">
           Fast intake for phone calls, form fills, referrals, and walk-ins. Capture the move cleanly, then price it.
         </p>
@@ -176,12 +176,12 @@ export default function NewSalesLeadPage() {
             <input className="crm-input mt-2" value={form.originAddress} onChange={e => setField('originAddress', e.target.value)} />
           </label>
           <div className="md:col-span-2 rounded-[28px] border border-stone-200 bg-[linear-gradient(180deg,#fbf6ef,#f6efe6)] p-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <button type="button" onClick={() => void lookupAddress(false)} disabled={lookupBusy} className="crm-button disabled:opacity-60">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+              <button type="button" onClick={() => void lookupAddress(false)} disabled={lookupBusy} className="crm-button w-full justify-center disabled:opacity-60 sm:w-auto">
                 {lookupBusy ? 'Looking up...' : 'Lookup listing'}
               </button>
               {analysisAvailable && !inventoryDraft && (
-                <button type="button" onClick={() => void lookupAddress(true)} disabled={analysisBusy} className="crm-button-dark disabled:opacity-60">
+                <button type="button" onClick={() => void lookupAddress(true)} disabled={analysisBusy} className="crm-button-dark w-full justify-center disabled:opacity-60 sm:w-auto">
                   {analysisBusy ? 'Analyzing photos...' : 'Analyze MLS photos'}
                 </button>
               )}
@@ -249,11 +249,11 @@ export default function NewSalesLeadPage() {
           </label>
         </div>
 
-        <div className="mt-6 flex flex-wrap gap-2">
-          <button onClick={() => void submit()} disabled={saving} className="crm-button-dark disabled:opacity-60">
+        <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <button onClick={() => void submit()} disabled={saving} className="crm-button-dark w-full justify-center disabled:opacity-60 sm:w-auto">
             {saving ? 'Saving...' : 'Create lead'}
           </button>
-          <Link href="/sales" className="crm-button">Cancel</Link>
+          <Link href="/sales" className="crm-button w-full justify-center sm:w-auto">Cancel</Link>
         </div>
       </div>
     </div>

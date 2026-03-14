@@ -26,6 +26,32 @@ function requireSupabase() {
   return requireSupabaseEnv()
 }
 
+function digitsOnly(value?: string) {
+  return (value || '').replace(/\D/g, '')
+}
+
+function normalizeEmail(value?: string) {
+  return (value || '').trim().toLowerCase()
+}
+
+function leadsShareIdentity(left: CRMLead, right: CRMLead) {
+  if (left.id === right.id) return false
+
+  if (left.inboundId && right.inboundId && left.inboundId === right.inboundId) {
+    return true
+  }
+
+  const leftPhone = digitsOnly(left.phone)
+  const rightPhone = digitsOnly(right.phone)
+  if (leftPhone && rightPhone && (leftPhone === rightPhone || leftPhone.endsWith(rightPhone) || rightPhone.endsWith(leftPhone))) {
+    return true
+  }
+
+  const leftEmail = normalizeEmail(left.email)
+  const rightEmail = normalizeEmail(right.email)
+  return !!leftEmail && !!rightEmail && leftEmail === rightEmail
+}
+
 function getArchivedLeadIds(logs: FollowUpLog[]) {
   const latestLifecycle = new Map<string, { archived: boolean; date: number }>()
 
@@ -63,6 +89,20 @@ async function selectAll<T>(table: TableName): Promise<T[]> {
 
   const records = (await response.json()) as PersistedRecord<T>[]
   return records.map(record => record.data)
+}
+
+async function selectAllRecords<T>(table: TableName): Promise<PersistedRecord<T>[]> {
+  const { url, headers } = requireSupabase()
+  const response = await fetch(
+    `${url}/rest/v1/${table}?select=id,data,updated_at,deleted&deleted=eq.false&order=updated_at.desc`,
+    { headers, cache: 'no-store' }
+  )
+
+  if (!response.ok) {
+    throw new Error(`Failed to read ${table}`)
+  }
+
+  return (await response.json()) as PersistedRecord<T>[]
 }
 
 function isMissingRelationError(message: string) {
@@ -148,7 +188,7 @@ export async function getSalesLead(id: string) {
 export async function getSalesLeadByInboundId(inboundId: string) {
   const { url, headers } = requireSupabase()
   const response = await fetch(
-    `${url}/rest/v1/crm_leads?select=id,data,deleted&data->>inboundId=eq.${encodeURIComponent(inboundId)}&order=updated_at.desc&limit=1`,
+    `${url}/rest/v1/crm_leads?select=id,data,deleted&data->>inboundId=eq.${encodeURIComponent(inboundId)}&deleted=eq.false&order=updated_at.desc&limit=1`,
     { headers, cache: 'no-store' }
   )
 
@@ -166,17 +206,64 @@ export async function saveSalesLead(lead: CRMLead) {
 }
 
 export async function deleteSalesLead(id: string) {
+  const current = await selectById<CRMLead>('crm_leads', id)
   await markDeleted('crm_leads', id)
+
+  if (!current) {
+    return [id]
+  }
+
+  const activeDuplicates = (await listSalesLeads())
+    .filter(lead => lead.stage !== 'booked' && lead.stage !== 'lost')
+    .filter(lead => leadsShareIdentity(current, lead))
+
+  if (activeDuplicates.length === 0) {
+    return [id]
+  }
+
+  await Promise.all(activeDuplicates.map(lead => markDeleted('crm_leads', lead.id)))
+  return [id, ...activeDuplicates.map(lead => lead.id)]
 }
 
 export async function listSalesQuotes() {
-  const quotes = await selectAll<CRMQuote>('crm_quotes')
-  return quotes.map(quote => normalizeQuote(quote))
+  const records = await selectAllRecords<CRMQuote>('crm_quotes')
+  const latestByLeadId = new Map<string, PersistedRecord<CRMQuote>>()
+  const standaloneQuotes: PersistedRecord<CRMQuote>[] = []
+
+  for (const record of records) {
+    const leadId = record.data?.leadId
+    if (!leadId) {
+      standaloneQuotes.push(record)
+      continue
+    }
+
+    if (!latestByLeadId.has(leadId)) {
+      latestByLeadId.set(leadId, record)
+    }
+  }
+
+  return [...standaloneQuotes, ...Array.from(latestByLeadId.values())].map(record => normalizeQuote(record.data))
 }
 
 export async function getSalesQuote(id: string) {
   const quote = await selectById<CRMQuote>('crm_quotes', id)
   return quote ? normalizeQuote(quote) : null
+}
+
+export async function getLatestSalesQuoteByLeadId(leadId: string) {
+  const { url, headers } = requireSupabase()
+  const response = await fetch(
+    `${url}/rest/v1/crm_quotes?select=id,data,updated_at,deleted&data->>leadId=eq.${encodeURIComponent(leadId)}&deleted=eq.false&order=updated_at.desc&limit=20`,
+    { headers, cache: 'no-store' }
+  )
+
+  if (!response.ok) {
+    throw new Error(`Failed to read crm_quotes by leadId ${leadId}`)
+  }
+
+  const records = (await response.json()) as PersistedRecord<CRMQuote>[]
+  const record = records.find(item => !item.deleted)
+  return record?.data ? normalizeQuote(record.data) : null
 }
 
 export async function saveSalesQuote(quote: CRMQuote) {
@@ -288,6 +375,20 @@ export async function listInboundJunkLeads() {
 
   if (!response.ok) {
     throw new Error('Failed to read junk inbound leads')
+  }
+
+  return (await response.json()) as InboundLead[]
+}
+
+export async function listClosedInboundLeads() {
+  const { url, headers } = requireSupabase()
+  const response = await fetch(
+    `${url}/rest/v1/inbound_leads?select=id,source,name,phone,email,message,raw_data,created_at,claimed,claimed_at&claimed=eq.true&order=claimed_at.desc&limit=100`,
+    { headers, cache: 'no-store' }
+  )
+
+  if (!response.ok) {
+    throw new Error('Failed to read closed inbound leads')
   }
 
   return (await response.json()) as InboundLead[]

@@ -29,6 +29,20 @@ function stageTone(lead: CRMLead, quote?: CRMQuote) {
   return 'bg-[var(--app-bg)] text-[var(--app-muted)]'
 }
 
+function latestActivityDate(lead: CRMLead, quote?: CRMQuote) {
+  const dates = [
+    lead.createdAt,
+    ...(lead.callLogs || []).map(item => item.date),
+    quote?.respondedAt,
+    quote?.acceptedAt,
+    quote?.viewedAt,
+    quote?.sentAt,
+    quote?.createdAt,
+  ].filter(Boolean) as string[]
+
+  return dates.sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] || lead.createdAt
+}
+
 export default function SalesDashboardPage() {
   const [leads, setLeads] = useState<CRMLead[]>([])
   const [quotes, setQuotes] = useState<CRMQuote[]>([])
@@ -56,8 +70,12 @@ export default function SalesDashboardPage() {
   }, [])
 
   const quoteMap = useMemo(() => new Map(quotes.map(item => [item.id, item])), [quotes])
+  const today = new Date().toISOString().slice(0, 10)
+  const quotesSentToday = useMemo(
+    () => quotes.filter(item => item.sentAt && item.sentAt.slice(0, 10) === today).length,
+    [quotes, today]
+  )
   const followUpFocus = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10)
     return leads
       .filter(lead => lead.followUpDate && lead.followUpDate <= today && !['booked', 'lost'].includes(lead.stage))
       .sort((a, b) => (a.followUpDate || '').localeCompare(b.followUpDate || ''))
@@ -67,7 +85,11 @@ export default function SalesDashboardPage() {
   const liveFeed = useMemo(() => {
     return leads
       .slice()
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .sort((a, b) => {
+        const quoteA = a.quoteId ? quoteMap.get(a.quoteId) : undefined
+        const quoteB = b.quoteId ? quoteMap.get(b.quoteId) : undefined
+        return new Date(latestActivityDate(b, quoteB)).getTime() - new Date(latestActivityDate(a, quoteA)).getTime()
+      })
       .slice(0, 6)
       .map(lead => {
         const quote = lead.quoteId ? quoteMap.get(lead.quoteId) : undefined
@@ -87,8 +109,8 @@ export default function SalesDashboardPage() {
       <div className="space-y-10">
         <section className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="font-display text-[2rem] font-semibold tracking-tight text-[var(--app-ink)] md:text-[28px]">Good morning, Alex.</h1>
-            <div className="mt-2 text-sm text-[var(--app-muted)]">Here&apos;s what&apos;s happening with your moves today.</div>
+            <h1 className="font-display text-[2rem] font-semibold tracking-tight text-[var(--app-ink)] md:text-[28px]">Sales Overview</h1>
+            <div className="mt-2 text-sm text-[var(--app-muted)]">Live pipeline, urgent follow-ups, and recent customer activity.</div>
           </div>
           <div className="flex items-center gap-3">
             <button onClick={() => void refresh()} className="crm-button">Refresh</button>
@@ -100,31 +122,23 @@ export default function SalesDashboardPage() {
         <div className="grid gap-0 border border-[var(--app-line)] bg-[var(--app-panel)] md:grid-cols-4">
           <div className="border-b border-[var(--app-line)] p-5 md:border-b-0 md:border-r">
             <div className="crm-label">Total Active Leads</div>
-            <div className="mt-2 flex items-end gap-3">
-              <div className="text-5xl font-semibold leading-none text-[var(--app-ink)]">{summary?.totalLeads ?? 0}</div>
-              <div className="pb-1 text-sm font-medium text-[var(--app-accent)]">+12%</div>
-            </div>
+            <div className="mt-2 text-5xl font-semibold leading-none text-[var(--app-ink)]">{summary?.totalLeads ?? 0}</div>
+            <div className="mt-2 text-sm text-[var(--app-muted)]">{summary?.leadsDueToday ?? 0} due today</div>
           </div>
           <div className="border-b border-[var(--app-line)] p-5 md:border-b-0 md:border-r">
             <div className="crm-label">Quotes Sent Today</div>
-            <div className="mt-2 flex items-end gap-3">
-              <div className="text-5xl font-semibold leading-none text-[var(--app-ink)]">{quotes.filter(item => item.sentAt).length}</div>
-              <div className="pb-1 text-sm font-medium text-[var(--app-accent)]">+5%</div>
-            </div>
+            <div className="mt-2 text-5xl font-semibold leading-none text-[var(--app-ink)]">{quotesSentToday}</div>
+            <div className="mt-2 text-sm text-[var(--app-muted)]">{quotes.filter(item => item.sentAt).length} total sent</div>
           </div>
           <div className="border-b border-[var(--app-line)] p-5 md:border-b-0 md:border-r">
-            <div className="crm-label">Jobs Booked</div>
-            <div className="mt-2 flex items-end gap-3">
-              <div className="text-5xl font-semibold leading-none text-[var(--app-ink)]">{quotes.filter(item => item.acceptedAt).length}</div>
-              <div className="pb-1 text-sm font-medium text-[var(--app-muted)]">-2%</div>
-            </div>
+            <div className="crm-label">Booked Jobs</div>
+            <div className="mt-2 text-5xl font-semibold leading-none text-[var(--app-ink)]">{summary?.bookedLeads ?? 0}</div>
+            <div className="mt-2 text-sm text-[var(--app-muted)]">{summary?.quotedLeads ?? 0} currently quoted</div>
           </div>
           <div className="p-5">
             <div className="crm-label">Projected Revenue</div>
-            <div className="mt-2 flex items-end gap-3">
-              <div className="text-5xl font-semibold leading-none text-[var(--app-ink)]">{formatMoney(summary?.bookedRevenue ?? 0)}</div>
-              <div className="pb-1 text-sm font-medium text-[var(--app-accent)]">+18%</div>
-            </div>
+            <div className="mt-2 text-5xl font-semibold leading-none text-[var(--app-ink)]">{formatMoney(summary?.bookedRevenue ?? 0)}</div>
+            <div className="mt-2 text-sm text-[var(--app-muted)]">{formatMoney(summary?.quotedPipelineValue ?? 0)} open pipeline</div>
           </div>
         </div>
 

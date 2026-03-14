@@ -535,8 +535,8 @@ Saturn Star Movers`
 
       <div className="overflow-hidden rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)]">
         <div className="grid min-h-[760px] xl:grid-cols-2">
-          <section className="border-r border-[var(--app-line)] bg-[var(--app-panel)]">
-            <div className="border-b border-[var(--app-line)] p-6">
+          <section className="border-b border-[var(--app-line)] bg-[var(--app-panel)] xl:border-b-0 xl:border-r">
+            <div className="border-b border-[var(--app-line)] p-4 md:p-6">
               <h1 className="font-display text-2xl font-semibold text-[var(--app-ink)]">Inventory Search</h1>
               <div className="relative mt-4">
                 <input className="crm-input h-12 pl-11" placeholder="Search items, e.g., Sofa, Boxes..." />
@@ -551,7 +551,7 @@ Saturn Star Movers`
               ) : null}
             </div>
 
-            <div className="space-y-8 p-6">
+            <div className="space-y-8 p-4 md:p-6">
               <section>
                 <div className="crm-label">Popular Items</div>
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -624,17 +624,17 @@ Saturn Star Movers`
             </div>
           </section>
 
-          <section className="relative flex flex-col bg-[var(--app-bg)]">
-            <div className="flex items-center justify-between border-b border-[var(--app-line)] bg-[var(--app-panel)] px-8 py-6">
+          <section className="flex flex-col bg-[var(--app-bg)]">
+            <div className="flex flex-col gap-3 border-b border-[var(--app-line)] bg-[var(--app-panel)] px-4 py-4 md:flex-row md:items-center md:justify-between md:px-8 md:py-6">
               <div>
                 <h2 className="font-display text-2xl font-semibold text-[var(--app-ink)]">Current Manifest</h2>
                 <div className="mt-1 text-sm text-[var(--app-muted)]">{client?.name || lead?.name || 'Unknown client'} • {quote.originCity || 'Origin'} → {quote.destCity || 'Destination'}</div>
               </div>
-              <button onClick={() => setLineItems([])} className="text-sm font-medium text-[var(--app-muted)] transition hover:text-[var(--app-ink)]">Clear All</button>
+              <button onClick={() => setLineItems([])} className="text-left text-sm font-medium text-[var(--app-muted)] transition hover:text-[var(--app-ink)] md:text-right">Clear All</button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-8 py-6 pb-44">
-              <div className="grid grid-cols-12 gap-4 border-b border-[var(--app-line)] pb-3 text-xs font-medium uppercase tracking-wider text-[var(--app-muted)]">
+            <div className="flex-1 overflow-y-auto px-4 py-5 md:px-8 md:py-6 md:pb-10 xl:pb-44">
+              <div className="hidden grid-cols-12 gap-4 border-b border-[var(--app-line)] pb-3 text-xs font-medium uppercase tracking-wider text-[var(--app-muted)] md:grid">
                 <div className="col-span-5">Item</div>
                 <div className="col-span-3 text-center">Details</div>
                 <div className="col-span-2 text-center">Qty</div>
@@ -642,8 +642,8 @@ Saturn Star Movers`
               </div>
               <div className="mt-2 space-y-1">
                 {lineItems.map((item, index) => (
-                  <div key={`${item.description}-${index}`} className="grid grid-cols-12 items-center gap-4 rounded px-2 py-3 transition hover:bg-black/[0.02]">
-                    <div className="col-span-5">
+                  <div key={`${item.description}-${index}`} className="grid gap-3 rounded border border-[var(--app-line)] bg-[var(--app-panel)] px-3 py-3 transition hover:bg-black/[0.02] md:grid-cols-12 md:items-center md:gap-4 md:border-0 md:bg-transparent md:px-2">
+                    <div className="md:col-span-5">
                       <input
                         value={item.description}
                         onChange={event => updateLineItem(index, 'description', event.target.value)}
@@ -651,7 +651,7 @@ Saturn Star Movers`
                         placeholder="Line item"
                       />
                     </div>
-                    <div className="col-span-3">
+                    <div className="md:col-span-3">
                       <input
                         value={item.details || ''}
                         onChange={event => updateLineItem(index, 'details', event.target.value)}
@@ -659,15 +659,16 @@ Saturn Star Movers`
                         placeholder="What this covers"
                       />
                     </div>
-                  <div className="col-span-2 flex justify-center">
-                      <div className="flex h-8 items-center rounded-[6px] border border-[var(--app-line)] bg-[var(--app-panel)]">
+                    <div className="flex items-center justify-between gap-3 md:col-span-2 md:block">
+                      <span className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--app-muted)] md:hidden">Amount Adjust</span>
+                      <div className="flex h-8 items-center rounded-[6px] border border-[var(--app-line)] bg-[var(--app-panel)] md:justify-center">
                         <button className="flex h-full w-8 items-center justify-center text-[var(--app-muted)]" onClick={() => updateLineItem(index, 'amount', String(Math.max(0, Number(item.amount) - 25)))}>−</button>
                         <div className="flex h-full w-10 items-center justify-center border-x border-[var(--app-line)] text-sm font-medium text-[var(--app-ink)]">1</div>
                         <button className="flex h-full w-8 items-center justify-center text-[var(--app-muted)]" onClick={() => updateLineItem(index, 'amount', String(Number(item.amount) + 25))}>＋</button>
                       </div>
                     </div>
-                    <div className="col-span-2 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                    <div className="md:col-span-2 md:text-right">
+                      <div className="flex items-center justify-between gap-2 md:justify-end">
                         <input
                           type="number"
                           value={item.amount}
@@ -684,9 +685,9 @@ Saturn Star Movers`
               {aiQuoteNote(quote.moveType, routeSummary)}
             </div>
 
-            <div className="absolute bottom-0 left-0 right-0 border-t border-[var(--app-line)] bg-[var(--app-panel)] shadow-[0_-10px_40px_rgba(0,0,0,0.03)]">
-              <div className="px-8 py-5">
-                <div className="mb-5 grid gap-6 md:grid-cols-4">
+            <div className="border-t border-[var(--app-line)] bg-[var(--app-panel)] shadow-[0_-10px_40px_rgba(0,0,0,0.03)] xl:absolute xl:bottom-0 xl:left-0 xl:right-0">
+              <div className="px-4 py-5 md:px-8">
+                <div className="mb-5 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
                   <div>
                     <div className="text-xs font-medium uppercase tracking-wider text-[var(--app-muted)]">Subtotal</div>
                     <div className="mt-1 text-xl font-semibold text-[var(--app-ink)]">{formatMoney(quoteTotals.subtotal)}</div>
@@ -704,15 +705,15 @@ Saturn Star Movers`
                     <div className="mt-1 text-xl font-semibold text-[var(--app-ink)]">{formatMoney(quoteTotals.total)}</div>
                   </div>
                 </div>
-                <div className="flex items-center justify-between border-t border-[var(--app-line)] pt-4">
+                <div className="flex flex-col gap-4 border-t border-[var(--app-line)] pt-4 md:flex-row md:items-center md:justify-between">
                   <div>
                     <div className="text-sm text-[var(--app-muted)]">Deposit</div>
                     <div className="text-3xl font-bold tracking-tight text-[var(--app-ink)]">{formatMoney(quoteTotals.deposit)}</div>
                   </div>
-                  <div className="flex gap-3">
-                    <button onClick={() => void copyText(acceptUrl, 'accept')} className="crm-button">{copied === 'accept' ? 'Copied' : 'Copy Link'}</button>
-                    <button onClick={() => void sendNow()} disabled={sendBusy} className="crm-button disabled:opacity-60">{sendBusy ? 'Sending...' : 'Send Quote'}</button>
-                    <button onClick={() => void logDraftAsSent()} disabled={logBusy} className="crm-button-dark disabled:opacity-60">
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <button onClick={() => void copyText(acceptUrl, 'accept')} className="crm-button w-full sm:w-auto">{copied === 'accept' ? 'Copied' : 'Copy Link'}</button>
+                    <button onClick={() => void sendNow()} disabled={sendBusy} className="crm-button w-full disabled:opacity-60 sm:w-auto">{sendBusy ? 'Sending...' : 'Send Quote'}</button>
+                    <button onClick={() => void logDraftAsSent()} disabled={logBusy} className="crm-button-dark w-full disabled:opacity-60 sm:w-auto">
                       {logBusy ? 'Logging...' : 'Generate Quote'}
                     </button>
                   </div>

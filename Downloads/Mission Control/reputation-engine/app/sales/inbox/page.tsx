@@ -55,7 +55,8 @@ function displayLeadName(item: InboundLead | null) {
 export default function SalesInboxPage() {
   const router = useRouter()
   const [items, setItems] = useState<InboundLead[]>([])
-  const [viewMode, setViewMode] = useState<'active' | 'junk'>('active')
+  const [viewMode, setViewMode] = useState<'active' | 'closed'>('active')
+  const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -68,7 +69,7 @@ export default function SalesInboxPage() {
   async function refresh() {
     try {
       setLoading(true)
-      const data = await fetchInboundLeads(viewMode === 'junk' ? 'junk' : undefined)
+      const data = await fetchInboundLeads(viewMode === 'closed' ? 'closed' : undefined)
       setItems(data)
       setSelectedId(current => (current && data.some(item => item.id === current) ? current : data[0]?.id || null))
       setError(null)
@@ -83,7 +84,31 @@ export default function SalesInboxPage() {
     void refresh()
   }, [viewMode])
 
-  const selected = useMemo(() => items.find(item => item.id === selectedId) || null, [items, selectedId])
+  const filteredItems = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    if (!query) return items
+
+    return items.filter(item => {
+      const raw = parseRawData(item.raw_data)
+      const text = [
+        displayLeadName(item),
+        item.phone,
+        item.email,
+        item.message,
+        raw?.routeText,
+        raw?.originCity,
+        raw?.destCity,
+        raw?.transcript,
+        raw?.aiSummary?.summary,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+
+      return text.includes(query)
+    })
+  }, [items, search])
+  const selected = useMemo(() => filteredItems.find(item => item.id === selectedId) || null, [filteredItems, selectedId])
   const selectedRaw = useMemo(() => parseRawData(selected?.raw_data), [selected?.raw_data])
   const aiSummary = selectedRaw?.aiSummary as
     | {
@@ -140,7 +165,7 @@ export default function SalesInboxPage() {
   }, [aiSummary?.summary, selected, transcript])
 
   useEffect(() => {
-    if (!selected || viewMode === 'junk') return
+    if (!selected || viewMode === 'closed') return
     const isCall = selected.source === 'twilio_call'
     const needsRefresh =
       isCall &&
@@ -159,13 +184,17 @@ export default function SalesInboxPage() {
 
   useEffect(() => {
     if (!selected) return
-      const first = displayLeadName(selected).split(' ')[0]
+    const first = displayLeadName(selected).split(' ')[0]
     setCompose({
       emailSubject: 'Following up — Saturn Star Moving',
       emailBody: `Hi ${first},\n\nThanks for reaching out to Saturn Star Moving. We'd love to help with your move.\n\nCould you share your move date and the addresses involved so we can prepare the right estimate?\n\nBest,\nSaturn Star Moving`,
       smsBody: `Hi ${first}, thanks for contacting Saturn Star Moving. We can help with your move. What date and locations are you planning for?`,
     })
   }, [selected])
+
+  useEffect(() => {
+    setSelectedId(current => (current && filteredItems.some(item => item.id === current) ? current : filteredItems[0]?.id || null))
+  }, [filteredItems])
 
   async function claimSelected() {
     if (!selected) return
@@ -246,15 +275,17 @@ export default function SalesInboxPage() {
         {loading ? (
           <div className="p-16 text-center text-sm text-[var(--app-muted)]">Loading lead inbox...</div>
         ) : (
-          <div className="flex min-h-[calc(100vh-42px)]">
-            <section className="flex w-[360px] flex-shrink-0 flex-col border-r border-[var(--app-line)] bg-[var(--app-panel)]">
+          <div className="min-h-[calc(100vh-42px)] md:flex">
+            <section className={`${selected ? 'hidden md:flex' : 'flex'} w-full flex-shrink-0 flex-col border-r border-[var(--app-line)] bg-[var(--app-panel)] md:w-[360px]`}>
               <div className="border-b border-[var(--app-line)] p-4">
                 <div className="mb-4 flex items-center justify-between">
                   <div>
                     <h1 className="text-[2rem] font-semibold tracking-tight text-[var(--app-ink)]">Lead Inbox</h1>
                     <div className="mt-1 text-sm text-[var(--app-muted)]">New conversations, missed calls, and inbound messages.</div>
                   </div>
-                  <button className="text-[var(--app-muted)]">☰</button>
+                  <div className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-1 text-xs font-medium text-[var(--app-muted)]">
+                    {filteredItems.length} shown
+                  </div>
                 </div>
                 <div className="mb-4 flex items-center gap-4">
                   <button
@@ -263,20 +294,34 @@ export default function SalesInboxPage() {
                   >
                     Active <span className="ml-1 text-xs text-[var(--app-muted)]">{viewMode === 'active' ? items.length : unreadCount}</span>
                   </button>
-                  <button className="pb-1 text-sm font-medium text-[var(--app-muted)]">Unread <span className="ml-1 text-xs text-[var(--app-accent)]">{unreadCount}</span></button>
                   <button
-                    onClick={() => setViewMode('junk')}
-                    className={`${viewMode === 'junk' ? 'border-b-2 border-[var(--app-accent)] text-[var(--app-accent)]' : 'text-[var(--app-muted)]'} pb-1 text-sm font-medium`}
+                    onClick={() => setViewMode('closed')}
+                    className={`${viewMode === 'closed' ? 'border-b-2 border-[var(--app-accent)] text-[var(--app-accent)]' : 'text-[var(--app-muted)]'} pb-1 text-sm font-medium`}
                   >
-                    Junk
+                    Closed
                   </button>
+                  <div className="pb-1 text-sm font-medium text-[var(--app-muted)]">
+                    Unread <span className="ml-1 text-xs text-[var(--app-accent)]">{unreadCount}</span>
+                  </div>
                 </div>
-                <input className="crm-input" placeholder="Search leads..." />
+                <input
+                  className="crm-input"
+                  placeholder="Search conversations..."
+                  value={search}
+                  onChange={event => setSearch(event.target.value)}
+                />
               </div>
               <div className="flex-1 overflow-y-auto bg-[var(--app-panel)]">
-                {items.map(item => {
+                {filteredItems.length === 0 ? (
+                  <div className="p-6 text-sm text-[var(--app-muted)]">
+                    {search.trim() ? 'No conversations match this search.' : 'No conversations in this view.'}
+                  </div>
+                ) : filteredItems.map(item => {
                   const raw = parseRawData(item.raw_data)
                   const selectedState = item.id === selectedId
+                  const itemSummary = raw?.aiSummary?.summary as string | undefined
+                  const itemMoveReadiness = raw?.aiSummary?.moveReadiness as 'hot' | 'warm' | 'cold' | undefined
+                  const itemTranscript = raw?.transcript as string | undefined
                   return (
                     <button
                       key={item.id}
@@ -295,17 +340,21 @@ export default function SalesInboxPage() {
                         {(raw?.routeText as string | undefined) || item.message || `${item.phone || item.email || 'No contact details'} lead`}
                       </p>
                       <p className="line-clamp-2 text-xs text-[var(--app-muted)]">
-                        {aiSummary?.summary || transcript || item.message || 'No summary yet.'}
+                        {itemSummary || itemTranscript || item.message || 'No summary yet.'}
                       </p>
                       <div className="mt-2 flex gap-2">
                         <span className="rounded-[4px] border border-[rgba(228,226,220,1)] bg-[var(--app-bg)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--app-muted)]">
                           {SOURCE_LABELS[item.source] || item.source}
                         </span>
-                        {viewMode === 'junk' ? (
+                        {viewMode === 'closed' && item.linkedLeadId ? (
+                          <span className="rounded-[4px] border border-[rgba(15,106,83,0.2)] bg-[rgba(15,106,83,0.08)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--app-accent)]">
+                            Moved to Pipeline
+                          </span>
+                        ) : viewMode === 'closed' ? (
                           <span className="rounded-[4px] border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-rose-700">
                             Junk
                           </span>
-                        ) : aiSummary?.moveReadiness === 'hot' ? (
+                        ) : itemMoveReadiness === 'hot' ? (
                           <span className="rounded-[4px] border border-[rgba(34,72,56,0.2)] bg-[rgba(34,72,56,0.08)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--app-accent)]">
                             High Intent
                           </span>
@@ -317,20 +366,29 @@ export default function SalesInboxPage() {
               </div>
             </section>
 
-            <section className="flex-1 overflow-y-auto bg-[var(--app-bg)]">
+            <section className={`${selected ? 'block' : 'hidden md:block'} flex-1 overflow-y-auto bg-[var(--app-bg)]`}>
               {!selected ? (
                 <div className="p-16 text-center text-sm text-[var(--app-muted)]">Select an inbound lead.</div>
               ) : (
                 <div className="min-h-full">
-                  <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--app-line)] bg-[var(--app-panel)] px-8 py-4">
-                    <div className="flex items-center gap-4">
+                  <div className="sticky top-0 z-10 flex flex-col gap-4 border-b border-[var(--app-line)] bg-[var(--app-panel)] px-4 py-4 md:flex-row md:items-center md:justify-between md:px-8">
+                    <div className="flex items-center gap-3 md:gap-4">
+                      <button onClick={() => setSelectedId(null)} className="crm-button px-3 md:hidden">
+                        Back
+                      </button>
                       <div className="flex h-12 w-12 items-center justify-center rounded-[6px] bg-[rgba(15,106,83,0.1)] text-xl font-semibold text-[var(--app-accent)]">
                         {displayLeadName(selected).slice(0, 2).toUpperCase()}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
                           <h2 className="text-[2rem] font-semibold tracking-tight text-[var(--app-ink)]">{displayLeadName(selected)}</h2>
-                          <span className="rounded-[4px] border border-[rgba(15,106,83,0.2)] bg-[rgba(15,106,83,0.08)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--app-accent)]">New</span>
+                          <span className={`rounded-[4px] border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+                            selected.linkedLeadId
+                              ? 'border-[rgba(15,106,83,0.2)] bg-[rgba(15,106,83,0.08)] text-[var(--app-accent)]'
+                              : 'border-[rgba(15,106,83,0.2)] bg-[rgba(15,106,83,0.08)] text-[var(--app-accent)]'
+                          }`}>
+                            {selected.linkedLeadId ? 'Moved to Pipeline' : viewMode === 'closed' ? 'Junk' : 'New'}
+                          </span>
                         </div>
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[var(--app-muted)]">
                           {selected.email ? <span>{selected.email}</span> : null}
@@ -339,20 +397,26 @@ export default function SalesInboxPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-3">
-                      {viewMode === 'junk' ? (
-                        <button onClick={() => void restoreSelected()} disabled={restoreBusy} className="crm-button">
-                          {restoreBusy ? 'Restoring...' : 'Restore'}
-                        </button>
+                    <div className="flex flex-wrap gap-3">
+                      {viewMode === 'closed' ? (
+                        selected.linkedLeadId ? (
+                          <button onClick={() => router.push(`/sales/leads/${selected.linkedLeadId}`)} className="crm-button">
+                            Open Lead
+                          </button>
+                        ) : (
+                          <button onClick={() => void restoreSelected()} disabled={restoreBusy} className="crm-button">
+                            {restoreBusy ? 'Restoring...' : 'Restore'}
+                          </button>
+                        )
                       ) : (
                         <button onClick={() => void junkSelected()} disabled={junkBusy} className="crm-button">{junkBusy ? 'Rejecting...' : 'Reject'}</button>
                       )}
                       {selected.phone ? <button onClick={() => openDialer(selected.phone, selected.name || undefined, selected.linkedLeadId)} className="crm-button">Call</button> : null}
-                      <button onClick={() => void claimSelected()} disabled={busy || viewMode === 'junk'} className="crm-button-dark">{selected.linkedLeadId ? 'Open Lead' : busy ? 'Creating...' : 'Open Lead'}</button>
+                      <button onClick={() => void claimSelected()} disabled={busy || viewMode === 'closed'} className="crm-button-dark">{selected.linkedLeadId ? 'Open Lead' : busy ? 'Creating...' : 'Move to Pipeline'}</button>
                     </div>
                   </div>
 
-                  <div className="mx-auto flex max-w-6xl flex-col gap-6 p-8">
+                  <div className="mx-auto flex max-w-6xl flex-col gap-6 p-4 md:p-8">
                     <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-4">
                       <div className="flex items-center gap-4">
                         <div className="flex-1">

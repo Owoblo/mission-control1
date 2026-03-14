@@ -142,7 +142,7 @@ export async function sendSalesMessage(payload: {
   return readJson(response)
 }
 
-export async function fetchInboundLeads(mode?: 'junk'): Promise<InboundLead[]> {
+export async function fetchInboundLeads(mode?: 'junk' | 'closed'): Promise<InboundLead[]> {
   const response = await fetch(`/api/sales/inbox${mode ? `?mode=${mode}` : ''}`, { cache: 'no-store', credentials: 'include' })
   return readJson(response)
 }

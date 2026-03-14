@@ -160,13 +160,10 @@ export function LeadTimeline({
             value={activityNotes}
             onChange={event => onActivityNotesChange(event.target.value)}
             className="min-h-[72px] w-full resize-none bg-transparent text-sm outline-none"
-            placeholder="Add a note or type '/' for commands..."
+            placeholder="Add a note for the team..."
           />
           <div className="mt-3 flex items-center justify-between border-t border-[var(--app-line)] pt-3">
-            <div className="flex items-center gap-2 text-[var(--app-muted)]">
-              <button className="rounded p-1.5 hover:bg-[var(--app-bg)]">＋</button>
-              <button className="rounded p-1.5 hover:bg-[var(--app-bg)]">⌕</button>
-            </div>
+            <div className="text-xs text-[var(--app-muted)]">Logs to the living timeline instantly.</div>
             <div className="flex items-center gap-3">
               <select value={activityType} onChange={event => onActivityTypeChange(event.target.value as FollowUpLog['type'])} className="crm-input max-w-[120px] py-2">
                 <option value="call">Call</option>

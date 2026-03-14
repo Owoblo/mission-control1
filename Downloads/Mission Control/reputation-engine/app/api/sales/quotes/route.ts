@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { estimateLeadQuote, genQuoteNumber, normalizeClient, normalizeQuote, syncLeadFromQuoteStatus, uid } from '@/lib/sales'
-import { getSalesLead, listSalesClients, saveSalesClient, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
+import { getLatestSalesQuoteByLeadId, getSalesLead, listSalesClients, saveSalesClient, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
 import type { CRMClient, CRMQuote } from '@/lib/types'
 
 export async function POST(request: Request) {
@@ -17,6 +17,12 @@ export async function POST(request: Request) {
 
     if (lead.quoteId) {
       return NextResponse.json({ error: 'Lead already has a linked quote', quoteId: lead.quoteId }, { status: 409 })
+    }
+
+    const existingQuote = await getLatestSalesQuoteByLeadId(lead.id)
+    if (existingQuote) {
+      const savedLead = await saveSalesLead(syncLeadFromQuoteStatus({ ...lead, quoteId: existingQuote.id }, existingQuote))
+      return NextResponse.json({ quote: existingQuote, lead: savedLead })
     }
 
     const clients = await listSalesClients()

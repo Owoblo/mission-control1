@@ -254,9 +254,9 @@ export function FloatingDialer() {
   }
 
   return (
-    <div className="fixed bottom-5 right-5 z-50">
+    <div className="fixed inset-x-3 bottom-3 z-50 flex justify-end sm:inset-x-auto sm:bottom-5 sm:right-5">
       {open && (
-        <div className="mb-3 w-[320px] overflow-hidden rounded-[20px] border border-white/10 bg-[#111111] p-5 text-white shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
+        <div className="mb-3 w-full max-w-[420px] overflow-hidden rounded-[24px] border border-white/10 bg-[#111111] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-white shadow-[0_30px_80px_rgba(0,0,0,0.35)] sm:w-[360px] sm:p-5">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -288,7 +288,7 @@ export function FloatingDialer() {
                 </div>
               ) : null}
             </div>
-            <button onClick={() => setOpen(false)} className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium text-white/80 transition hover:bg-white/15 hover:text-white">Hide</button>
+            <button onClick={() => setOpen(false)} className="rounded-full bg-white/10 px-3 py-2 text-xs font-medium text-white/80 transition hover:bg-white/15 hover:text-white">Hide</button>
           </div>
 
           {status === 'incoming' ? (
@@ -338,7 +338,7 @@ export function FloatingDialer() {
           )}
         </div>
       )}
-      <button onClick={() => setOpen(current => !current)} className="flex items-center gap-2 rounded-full bg-[var(--app-accent)] px-5 py-3 text-sm font-medium text-white shadow-[0_18px_44px_rgba(15,106,83,0.24)] transition hover:bg-[#0a5b47]">
+      <button onClick={() => setOpen(current => !current)} className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--app-accent)] px-5 py-3 text-sm font-medium text-white shadow-[0_18px_44px_rgba(15,106,83,0.24)] transition hover:bg-[#0a5b47] sm:w-auto">
         <span className="inline-block h-2.5 w-2.5 rounded-full bg-white/80" />
         {open ? 'Hide dialer' : 'Dialer'}
       </button>

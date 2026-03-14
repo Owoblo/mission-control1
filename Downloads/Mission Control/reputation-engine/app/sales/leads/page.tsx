@@ -75,28 +75,61 @@ export default function SalesLeadsIndexPage() {
         <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] px-5 py-16 text-center text-sm text-[var(--app-muted)]">Loading leads...</div>
       ) : (
         <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)]">
-          <div className="grid grid-cols-[minmax(0,1.2fr)_150px_170px_180px] gap-4 border-b border-[var(--app-line)] px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">
-            <div>Lead</div>
-            <div>Stage</div>
-            <div>Move</div>
-            <div>Follow-Up</div>
-          </div>
-          <div>
+          <div className="space-y-3 p-3 md:hidden">
             {sorted.map(lead => (
               <Link
                 key={lead.id}
                 href={`/sales/leads/${lead.id}`}
-                className="grid grid-cols-[minmax(0,1.2fr)_150px_170px_180px] gap-4 border-b border-[var(--app-line)] px-5 py-4 text-sm transition hover:bg-[var(--app-bg)]"
+                className="block rounded-[18px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 transition hover:border-[var(--app-ink)]"
               >
-                <div>
-                  <div className="font-medium text-[var(--app-ink)]">{lead.name}</div>
-                  <div className="mt-1 text-xs text-[var(--app-muted)]">{lead.originCity || 'Origin TBD'} → {lead.destCity || 'Destination TBD'}</div>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate font-medium text-[var(--app-ink)]">{lead.name}</div>
+                    <div className="mt-1 text-xs text-[var(--app-muted)]">
+                      {lead.originCity || 'Origin TBD'} → {lead.destCity || 'Destination TBD'}
+                    </div>
+                  </div>
+                  <div className="shrink-0 rounded-full border border-[var(--app-line)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
+                    {lead.stage}
+                  </div>
                 </div>
-                <div className="text-[var(--app-ink)] capitalize">{lead.stage}</div>
-                <div className="text-[var(--app-muted)]">{lead.moveDate ? formatDate(lead.moveDate) : 'Date TBD'}</div>
-                <div className="text-[var(--app-muted)]">{lead.followUpDate ? formatDate(lead.followUpDate) : 'None set'}</div>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Move</div>
+                    <div className="mt-1 text-[var(--app-ink)]">{lead.moveDate ? formatDate(lead.moveDate) : 'Date TBD'}</div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Follow-Up</div>
+                    <div className="mt-1 text-[var(--app-ink)]">{lead.followUpDate ? formatDate(lead.followUpDate) : 'None set'}</div>
+                  </div>
+                </div>
               </Link>
             ))}
+          </div>
+          <div className="hidden md:block">
+            <div className="grid grid-cols-[minmax(0,1.2fr)_150px_170px_180px] gap-4 border-b border-[var(--app-line)] px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">
+              <div>Lead</div>
+              <div>Stage</div>
+              <div>Move</div>
+              <div>Follow-Up</div>
+            </div>
+            <div>
+              {sorted.map(lead => (
+                <Link
+                  key={lead.id}
+                  href={`/sales/leads/${lead.id}`}
+                  className="grid grid-cols-[minmax(0,1.2fr)_150px_170px_180px] gap-4 border-b border-[var(--app-line)] px-5 py-4 text-sm transition hover:bg-[var(--app-bg)]"
+                >
+                  <div>
+                    <div className="font-medium text-[var(--app-ink)]">{lead.name}</div>
+                    <div className="mt-1 text-xs text-[var(--app-muted)]">{lead.originCity || 'Origin TBD'} → {lead.destCity || 'Destination TBD'}</div>
+                  </div>
+                  <div className="text-[var(--app-ink)] capitalize">{lead.stage}</div>
+                  <div className="text-[var(--app-muted)]">{lead.moveDate ? formatDate(lead.moveDate) : 'Date TBD'}</div>
+                  <div className="text-[var(--app-muted)]">{lead.followUpDate ? formatDate(lead.followUpDate) : 'None set'}</div>
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       )}

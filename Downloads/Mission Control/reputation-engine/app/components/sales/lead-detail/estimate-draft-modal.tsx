@@ -78,12 +78,12 @@ export function EstimateDraftModal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/35 px-4 py-6" onClick={onClose}>
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/35 px-0 py-0 md:px-4 md:py-6" onClick={onClose}>
       <div
-        className="mx-auto my-4 flex min-h-0 w-full max-w-5xl flex-col overflow-hidden rounded-[12px] border border-[var(--app-line)] bg-[var(--app-panel)] shadow-2xl"
+        className="mx-auto flex min-h-screen w-full max-w-5xl flex-col overflow-hidden rounded-none border border-[var(--app-line)] bg-[var(--app-panel)] shadow-2xl md:my-4 md:min-h-0 md:rounded-[12px]"
         onClick={event => event.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-[var(--app-line)] px-6 py-4">
+        <div className="flex flex-col gap-3 border-b border-[var(--app-line)] px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6">
           <div>
             <div className="crm-label">Estimate Draft</div>
             <div className="mt-1 text-2xl font-semibold text-[var(--app-ink)]">{quote?.number || 'Preparing draft...'}</div>
@@ -91,13 +91,13 @@ export function EstimateDraftModal({
               {originAddress || originCity || lead.originAddress || lead.originCity || 'Origin TBD'} → {destCity || lead.destCity || 'Destination TBD'} • {inventoryMetrics.totalCubicFeet} cu ft • {inventoryMetrics.totalWeightLbs} lbs
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            {quote ? <Link href={`/sales/quotes/${quote.id}`} className="crm-button">Open Full Workspace</Link> : null}
-            <button onClick={onClose} className="crm-button">Close</button>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            {quote ? <Link href={`/sales/quotes/${quote.id}`} className="crm-button w-full sm:w-auto">Open Full Workspace</Link> : null}
+            <button onClick={onClose} className="crm-button w-full sm:w-auto">Close</button>
           </div>
         </div>
         <div className="grid xl:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="overflow-y-auto p-6">
+          <div className="overflow-y-auto p-4 md:p-6">
             <div className="mb-5 grid gap-4 sm:grid-cols-2">
               <div className="crm-kpi">
                 <div className="crm-label">Origin Address</div>
@@ -197,7 +197,7 @@ export function EstimateDraftModal({
               ) : null}
             </div>
           </div>
-          <aside className="border-l border-[var(--app-line)] bg-[var(--app-bg)] p-6">
+          <aside className="border-t border-[var(--app-line)] bg-[var(--app-bg)] p-4 md:p-6 xl:border-l xl:border-t-0">
             <div className="crm-label">Draft Summary</div>
             <div className="mt-5 space-y-4">
               <div>

@@ -138,7 +138,15 @@ export default function SalesLeadDetailPage() {
       const quotePayload = nextLead?.quoteId ? await fetchSalesQuote(nextLead.quoteId) : null
       setQuote(quotePayload?.quote || null)
       const data = await fetchSalesOverview()
-      setFollowUps(data.followUps.filter(item => item.leadId === currentLeadId || item.quoteId === nextLead?.quoteId))
+      setFollowUps(
+        data.followUps.filter(item => {
+          if (item.leadId === currentLeadId) {
+            return true
+          }
+
+          return !!nextLead?.quoteId && item.quoteId === nextLead.quoteId
+        })
+      )
       if (nextLead) {
         applyLeadSnapshot(nextLead, { hydrateForm: true })
       }
@@ -817,7 +825,7 @@ Saturn Star Moving`
       {error && <div className="rounded-[8px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div>}
 
       <div className="overflow-hidden rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)]">
-        <div className="grid min-h-[760px] xl:grid-cols-[250px_minmax(0,1fr)_280px]">
+        <div className="grid min-h-[760px] lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[250px_minmax(0,1fr)_280px]">
           <LeadBasicsPanel
             lead={lead}
             leadName={leadName}
@@ -850,30 +858,7 @@ Saturn Star Moving`
             onParkingNotesChange={setParkingNotes}
           />
 
-          <LeadTimeline
-            lead={lead}
-            quote={quote}
-            timeline={timeline}
-            inventoryCubicFeet={inventoryMetrics.totalCubicFeet}
-            activityType={activityType}
-            activityNotes={activityNotes}
-            loggingActivity={loggingActivity}
-            consultationActive={consultationActive}
-            consultationSaving={consultationSaving}
-            consultationNotes={consultationNotes}
-            consultationSummary={consultationSummary}
-            consultationSeconds={consultationSeconds}
-            onActivityTypeChange={setActivityType}
-            onActivityNotesChange={setActivityNotes}
-            onLogActivity={() => void logActivity()}
-            onOpenQuoteBuilder={() => void openQuoteBuilder()}
-            onStartConsultation={() => void startConsultation()}
-            onConsultationNotesChange={setConsultationNotes}
-            onConsultationSummaryChange={setConsultationSummary}
-            onStopConsultation={() => void stopConsultation()}
-          />
-
-          <aside className="border-l border-[var(--app-line)] bg-[var(--app-panel)]">
+          <aside className="order-2 border-t border-[var(--app-line)] bg-[var(--app-panel)] lg:order-3 lg:border-l lg:border-t-0 xl:order-3">
             <div className="space-y-3 border-b border-[var(--app-line)] p-5">
               {lead.phone ? <button onClick={openDialer} className="crm-button-dark w-full justify-center">Call Lead</button> : null}
               <div className="grid grid-cols-2 gap-3">
@@ -950,6 +935,31 @@ Saturn Star Moving`
               </button>
             </div>
           </aside>
+
+          <div className="order-3 lg:order-2 xl:order-2">
+            <LeadTimeline
+              lead={lead}
+              quote={quote}
+              timeline={timeline}
+              inventoryCubicFeet={inventoryMetrics.totalCubicFeet}
+              activityType={activityType}
+              activityNotes={activityNotes}
+              loggingActivity={loggingActivity}
+              consultationActive={consultationActive}
+              consultationSaving={consultationSaving}
+              consultationNotes={consultationNotes}
+              consultationSummary={consultationSummary}
+              consultationSeconds={consultationSeconds}
+              onActivityTypeChange={setActivityType}
+              onActivityNotesChange={setActivityNotes}
+              onLogActivity={() => void logActivity()}
+              onOpenQuoteBuilder={() => void openQuoteBuilder()}
+              onStartConsultation={() => void startConsultation()}
+              onConsultationNotesChange={setConsultationNotes}
+              onConsultationSummaryChange={setConsultationSummary}
+              onStopConsultation={() => void stopConsultation()}
+            />
+          </div>
         </div>
       </div>
 
@@ -1188,9 +1198,9 @@ Saturn Star Moving`
       </div>
 
       {composerOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-          <div className="w-full max-w-2xl rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[var(--app-line)] px-5 py-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 p-0 md:items-center md:p-4">
+          <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-[14px] border border-[var(--app-line)] bg-[var(--app-panel)] shadow-2xl md:max-w-2xl md:rounded-[10px]">
+            <div className="flex items-center justify-between border-b border-[var(--app-line)] px-4 py-4 md:px-5">
               <div>
                 <div className="crm-label">{composerChannel === 'sms' ? 'SMS Composer' : 'Email Composer'}</div>
                 <div className="mt-1 text-sm text-[var(--app-muted)]">
@@ -1199,7 +1209,7 @@ Saturn Star Moving`
               </div>
               <button onClick={() => setComposerOpen(false)} className="crm-button">Close</button>
             </div>
-            <div className="space-y-4 px-5 py-5">
+            <div className="space-y-4 px-4 py-5 md:px-5">
               {composerChannel === 'email' ? (
                 <input
                   value={composerSubject}
@@ -1215,8 +1225,8 @@ Saturn Star Moving`
                 placeholder={composerChannel === 'sms' ? 'Type your SMS...' : 'Type your email...'}
               />
             </div>
-            <div className="flex items-center justify-end gap-3 border-t border-[var(--app-line)] px-5 py-4">
-              <button onClick={() => setComposerOpen(false)} className="crm-button">Cancel</button>
+            <div className="flex flex-col-reverse gap-3 border-t border-[var(--app-line)] px-4 py-4 md:flex-row md:items-center md:justify-end md:px-5">
+              <button onClick={() => setComposerOpen(false)} className="crm-button w-full md:w-auto">Cancel</button>
               <button onClick={() => void sendComposerMessage()} disabled={composerBusy || !composerBody.trim()} className="crm-button-dark disabled:opacity-60">
                 {composerBusy ? 'Sending...' : composerChannel === 'sms' ? 'Send SMS' : 'Send Email'}
               </button>

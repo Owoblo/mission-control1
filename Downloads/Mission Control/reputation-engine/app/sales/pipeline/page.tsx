@@ -49,6 +49,9 @@ export default function SalesPipelinePage() {
     if (typeof window === 'undefined') return
     const params = new URLSearchParams(window.location.search)
     setQuery((params.get('q') || '').trim().toLowerCase())
+    if (window.innerWidth < 768) {
+      setViewMode('list')
+    }
   }, [])
 
   async function removeLead(event: MouseEvent, lead: CRMLead) {
@@ -95,17 +98,18 @@ export default function SalesPipelinePage() {
         .sort((a, b) => (b.leadScore || 0) - (a.leadScore || 0)),
     }))
   }, [leads, query])
+  const visibleLeads = useMemo(() => grouped.flatMap(column => column.cards), [grouped])
 
   return (
     <div className="crm-shell space-y-8">
-      <section className="flex items-end justify-between gap-4">
+      <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="font-display text-[28px] font-semibold tracking-tight text-[var(--app-ink)]">Pipeline Board</h1>
           <div className="mt-2 text-sm text-[var(--app-muted)]">
             {leads.length} active leads · {quotes.length} quotes · {formatMoney(quotes.reduce((sum, item) => sum + item.total, 0))} total quote value
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-panel)] p-1">
             <button
               onClick={() => setViewMode('board')}
@@ -188,7 +192,43 @@ export default function SalesPipelinePage() {
           </div>
         </div>
       ) : (
-        <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)]">
+        <>
+          <div className="space-y-3 md:hidden">
+            {visibleLeads.map(lead => {
+              const quote = lead.quoteId ? quoteMap.get(lead.quoteId) : undefined
+              return (
+                <Link
+                  key={lead.id}
+                  href={`/sales/leads/${lead.id}`}
+                  className="block rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-4 transition hover:border-[var(--app-ink)]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="font-medium text-[var(--app-ink)]">{lead.name}</div>
+                      <div className="mt-1 text-xs text-[var(--app-muted)]">{COLUMN_LABELS[lead.stage]} · {lead.moveDate ? formatDate(lead.moveDate) : 'Date TBD'}</div>
+                    </div>
+                    <button
+                      onClick={event => void removeLead(event, lead)}
+                      className="text-xs text-[var(--app-muted)] hover:text-rose-700"
+                    >
+                      {deleteBusyId === lead.id ? 'Deleting...' : 'Delete'}
+                    </button>
+                  </div>
+                  <div className="mt-3 text-sm text-[var(--app-muted)]">{lead.originCity || 'Origin TBD'} → {lead.destCity || 'Destination TBD'}</div>
+                  <div className="mt-3 flex items-center justify-between border-t border-[var(--app-line)] pt-3 text-xs text-[var(--app-muted)]">
+                    <span>{quote ? formatMoney(quote.total) : 'Estimate pending'}</span>
+                    <span>{lead.followUpDate ? `Follow up ${formatDate(lead.followUpDate)}` : 'No follow-up set'}</span>
+                  </div>
+                </Link>
+              )
+            })}
+            {visibleLeads.length === 0 ? (
+              <div className="rounded-[8px] border border-dashed border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-10 text-center text-sm text-[var(--app-muted)]">
+                No leads matched this view.
+              </div>
+            ) : null}
+          </div>
+          <div className="hidden rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] md:block">
           <div className="grid grid-cols-[minmax(0,1.2fr)_140px_150px_170px_110px] gap-4 border-b border-[var(--app-line)] px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">
             <div>Lead</div>
             <div>Stage</div>
@@ -196,7 +236,7 @@ export default function SalesPipelinePage() {
             <div>Route</div>
             <div>Action</div>
           </div>
-          {grouped.flatMap(column => column.cards).map(lead => {
+          {visibleLeads.map(lead => {
             const quote = lead.quoteId ? quoteMap.get(lead.quoteId) : undefined
             return (
               <Link
@@ -222,10 +262,11 @@ export default function SalesPipelinePage() {
               </Link>
             )
           })}
-          {grouped.flatMap(column => column.cards).length === 0 ? (
+          {visibleLeads.length === 0 ? (
             <div className="px-5 py-16 text-center text-sm text-[var(--app-muted)]">No leads matched this view.</div>
           ) : null}
         </div>
+        </>
       )}
     </div>
   )

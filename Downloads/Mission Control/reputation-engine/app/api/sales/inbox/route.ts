@@ -4,6 +4,7 @@ import { recordLeadUpdateAudit } from '@/lib/server/sales-audit'
 import {
   getInboundLead,
   getSalesLeadByInboundId,
+  listClosedInboundLeads,
   listInboundJunkLeads,
   listInboundLeads,
   listSalesLeads,
@@ -166,7 +167,10 @@ function ensureLeadForInbound(item: InboundLead, existingLeadIdsByInboundId: Map
 export async function GET(request: Request) {
   try {
     const mode = new URL(request.url).searchParams.get('mode')
-    const [items, leads] = await Promise.all([mode === 'junk' ? listInboundJunkLeads() : listInboundLeads(), listSalesLeads()])
+    const [items, leads] = await Promise.all([
+      mode === 'junk' ? listInboundJunkLeads() : mode === 'closed' ? listClosedInboundLeads() : listInboundLeads(),
+      listSalesLeads(),
+    ])
     const existingLeadIdsByInboundId = new Map(
       leads.filter(lead => lead.inboundId).map(lead => [lead.inboundId as string, lead.id])
     )
@@ -175,7 +179,7 @@ export async function GET(request: Request) {
     )
 
     const hydrated =
-      mode === 'junk'
+      mode === 'junk' || mode === 'closed'
         ? items.map(item => ({
             ...item,
             name: item.name || leadByInboundId.get(item.id)?.name || 'New Caller',

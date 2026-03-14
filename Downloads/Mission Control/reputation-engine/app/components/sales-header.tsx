@@ -34,48 +34,59 @@ export function SalesHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-[var(--app-line)] bg-[var(--app-panel-strong)]">
-      <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-6 px-4 py-4 md:px-8">
-        <div className="flex items-center gap-8">
-          <Link href="/sales" className="flex items-center gap-3">
+      <div className="mx-auto flex max-w-[1400px] flex-col gap-4 px-4 py-4 md:px-8">
+        <div className="flex items-center justify-between gap-4">
+          <Link href="/sales" className="flex min-w-0 items-center gap-3">
             <div className="flex h-6 w-6 items-center justify-center rounded-[4px] bg-[var(--app-ink)] text-[11px] font-semibold text-white">S</div>
-            <div className="font-semibold tracking-tight text-[var(--app-ink)]">Saturn Star OS</div>
+            <div className="truncate font-semibold tracking-tight text-[var(--app-ink)]">Saturn Star OS</div>
           </Link>
-          <nav className="hidden items-center gap-8 md:flex">
+          <div className="flex items-center gap-2">
+            <Link href="/sales/new" className="crm-button-dark h-9 px-3 text-sm">New Lead</Link>
+            <div className="hidden h-8 w-8 items-center justify-center rounded bg-[var(--app-line)] text-xs font-semibold text-[var(--app-ink)] sm:flex">JD</div>
+            <LogoutButton />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <nav className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1 md:gap-6 md:px-0 md:pb-0">
             {NAV_ITEMS.map(item => {
               const active = item.match(pathname)
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`border-b-2 pb-1 text-sm font-medium transition ${
+                  className={`shrink-0 rounded-full border px-3 py-2 text-sm font-medium transition md:rounded-none md:border-x-0 md:border-t-0 md:border-b-2 md:px-0 md:py-1 ${
                     active
-                      ? 'border-[var(--app-ink)] text-[var(--app-ink)]'
-                      : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-ink)]'
+                      ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white md:bg-transparent md:text-[var(--app-ink)]'
+                      : 'border-[var(--app-line)] text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] md:border-transparent'
                   }`}
                 >
                   {item.label}
                 </Link>
               )
             })}
+            <Link
+              href="/sales/leads"
+              className={`shrink-0 rounded-full border px-3 py-2 text-sm font-medium transition md:hidden ${
+                pathname.startsWith('/sales/leads')
+                  ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white'
+                  : 'border-[var(--app-line)] text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)]'
+              }`}
+            >
+              Leads
+            </Link>
           </nav>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="relative hidden lg:block">
+
+          <div className="relative w-full md:max-w-[280px]">
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[var(--app-muted)]">⌕</span>
             <input
               type="text"
               placeholder="Search leads, quotes..."
               value={query}
               onChange={event => updateQuery(event.target.value)}
-              className="h-9 w-64 rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] pl-9 pr-4 text-sm text-[var(--app-ink)] outline-none transition focus:border-[var(--app-ink)]"
+              className="h-10 w-full rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] pl-9 pr-4 text-sm text-[var(--app-ink)] outline-none transition focus:border-[var(--app-ink)]"
             />
           </div>
-          <button className="flex h-9 w-9 items-center justify-center rounded-[6px] text-[var(--app-muted)] transition hover:bg-[var(--app-bg)] hover:text-[var(--app-ink)]">
-            <span className="text-base">◌</span>
-          </button>
-          <Link href="/sales/new" className="crm-button-dark">New Lead</Link>
-          <div className="hidden h-8 w-8 items-center justify-center rounded bg-[var(--app-line)] text-xs font-semibold text-[var(--app-ink)] sm:flex">JD</div>
-          <LogoutButton />
         </div>
       </div>
     </header>
