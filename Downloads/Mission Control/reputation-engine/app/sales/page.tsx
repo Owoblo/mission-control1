@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { formatDate, formatMoney } from '@/lib/sales'
+import { dateStamp, formatDate, formatMoney } from '@/lib/sales'
 import { fetchSalesOverview } from '@/lib/sales-api'
 import type { CRMLead, CRMQuote, SalesDashboardSummary } from '@/lib/types'
 
@@ -71,7 +71,7 @@ export default function SalesDashboardPage() {
   }, [])
 
   const quoteMap = useMemo(() => new Map(quotes.map(item => [item.id, item])), [quotes])
-  const today = new Date().toISOString().slice(0, 10)
+  const today = dateStamp()
   const quotesSentToday = useMemo(
     () => quotes.filter(item => item.sentAt && item.sentAt.slice(0, 10) === today).length,
     [quotes, today]
@@ -185,8 +185,8 @@ export default function SalesDashboardPage() {
                     <input type="checkbox" readOnly className="mt-1 h-4 w-4 rounded border-[var(--app-line)]" />
                     <div>
                       <div className="text-sm text-[var(--app-ink)]">{lead.followUpNote || latestTimelineText(lead, lead.quoteId ? quoteMap.get(lead.quoteId) : undefined)}</div>
-                      <div className={`mt-1 text-xs ${lead.followUpDate && lead.followUpDate < new Date().toISOString().slice(0, 10) ? 'text-[var(--app-warm)]' : 'text-[var(--app-muted)]'}`}>
-                        {lead.followUpDate && lead.followUpDate < new Date().toISOString().slice(0, 10) ? 'Due now' : lead.followUpDate || 'Due today'}
+                      <div className={`mt-1 text-xs ${lead.followUpDate && lead.followUpDate < today ? 'text-[var(--app-warm)]' : 'text-[var(--app-muted)]'}`}>
+                        {lead.followUpDate && lead.followUpDate < today ? 'Due now' : lead.followUpDate || 'Due today'}
                       </div>
                     </div>
                   </Link>

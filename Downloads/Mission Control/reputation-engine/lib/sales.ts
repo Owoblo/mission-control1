@@ -40,6 +40,27 @@ export function formatMoney(value: number) {
   })}`
 }
 
+export const SALES_TIME_ZONE = 'America/Toronto'
+
+export function dateStamp(value: Date = new Date(), timeZone = SALES_TIME_ZONE) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(value)
+
+  const year = parts.find(part => part.type === 'year')?.value
+  const month = parts.find(part => part.type === 'month')?.value
+  const day = parts.find(part => part.type === 'day')?.value
+
+  if (!year || !month || !day) {
+    return value.toISOString().slice(0, 10)
+  }
+
+  return `${year}-${month}-${day}`
+}
+
 export function formatDate(value?: string) {
   if (!value) return '—'
   try {
@@ -461,7 +482,7 @@ export function deriveInventoryMetrics(inventory: InventoryItem[]) {
 }
 
 export function buildSalesSummary(leads: CRMLead[], quotes: CRMQuote[]): SalesDashboardSummary {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = dateStamp()
   const activeLeads = leads.filter(lead => !['booked', 'lost'].includes(lead.stage))
   const quotedLeads = leads.filter(lead => lead.stage === 'quoted')
   const bookedLeads = leads.filter(lead => lead.stage === 'booked')

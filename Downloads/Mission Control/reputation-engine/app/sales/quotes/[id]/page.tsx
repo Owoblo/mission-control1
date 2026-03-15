@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { PACKING_MATERIAL_PRESETS } from '@/lib/packing-materials'
-import { QUOTE_STATUSES, computeQuoteTotals, estimateLeadQuote, formatDate, formatMoney, getCrewRate, getDefaultDepositRate, validUntil } from '@/lib/sales'
+import { QUOTE_STATUSES, computeQuoteTotals, dateStamp, estimateLeadQuote, formatDate, formatMoney, getCrewRate, getDefaultDepositRate, validUntil } from '@/lib/sales'
 import { estimateSalesRoute, fetchSalesQuote, saveSalesFollowUp, sendSalesMessage, updateSalesLead, updateSalesQuote } from '@/lib/sales-api'
 import type { CRMClient, CRMLead, CRMQuote, FollowUpLog, QuoteLineItem } from '@/lib/types'
 
@@ -302,7 +302,7 @@ Saturn Star Movers`
         longDistanceMiscCost,
         longDistanceMarkupRate,
         validDays,
-        acceptedAt: status === 'accepted' ? new Date().toISOString().slice(0, 10) : quote.acceptedAt,
+        acceptedAt: status === 'accepted' ? dateStamp() : quote.acceptedAt,
         respondedAt: ['accepted', 'declined'].includes(status) ? new Date().toISOString() : quote.respondedAt,
       })
       setQuote(result.quote)
@@ -341,7 +341,7 @@ Saturn Star Movers`
         longDistanceMiscCost,
         longDistanceMarkupRate,
         validDays,
-        sentAt: new Date().toISOString().slice(0, 10),
+        sentAt: dateStamp(),
       })
 
       let nextLead = sentResult.lead
@@ -410,7 +410,7 @@ Saturn Star Movers`
         longDistanceMiscCost,
         longDistanceMarkupRate,
         validDays,
-        sentAt: new Date().toISOString().slice(0, 10),
+        sentAt: dateStamp(),
       })
 
       let nextLead = sentResult.lead

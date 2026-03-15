@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { estimateLeadQuote, genQuoteNumber, normalizeClient, normalizeQuote, syncLeadFromQuoteStatus, uid } from '@/lib/sales'
+import { dateStamp, estimateLeadQuote, genQuoteNumber, normalizeClient, normalizeQuote, syncLeadFromQuoteStatus, uid } from '@/lib/sales'
 import { getLatestSalesQuoteByLeadId, getSalesLead, listSalesClients, saveSalesClient, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
 import type { CRMClient, CRMQuote } from '@/lib/types'
 
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
         email: lead.email,
         type: lead.moveType === 'long-distance' ? 'long-distance' : 'residential',
         company: '',
-        createdAt: new Date().toISOString().slice(0, 10),
+        createdAt: dateStamp(),
       })
       client = await saveSalesClient(newClient)
     }
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
       total: estimate.total,
       deposit: estimate.deposit,
       balance: estimate.balance,
-      createdAt: new Date().toISOString().slice(0, 10),
+      createdAt: dateStamp(),
     })
 
     const savedQuote = await saveSalesQuote(quote)

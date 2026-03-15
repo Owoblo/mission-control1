@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { normalizeQuote, syncLeadFromQuoteStatus } from '@/lib/sales'
+import { dateStamp, normalizeQuote, syncLeadFromQuoteStatus } from '@/lib/sales'
 import { getSalesClient, getSalesLead, getSalesQuote, listFollowUpLogs, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
@@ -38,7 +38,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
     const updates = (await request.json()) as Partial<typeof current>
     const nextStatus = updates.status || current.status
-    const today = new Date().toISOString().slice(0, 10)
+    const today = dateStamp()
     const respondedAt =
       ['accepted', 'declined'].includes(nextStatus) ? updates.respondedAt || current.respondedAt || new Date().toISOString() : current.respondedAt
     const savedQuote = await saveSalesQuote(
