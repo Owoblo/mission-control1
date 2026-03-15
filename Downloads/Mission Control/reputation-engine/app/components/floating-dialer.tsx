@@ -57,6 +57,7 @@ export function FloatingDialer() {
   const [error, setError] = useState<string | null>(null)
   const [activeLeadId, setActiveLeadId] = useState<string | null>(null)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const [muted, setMuted] = useState(false)
   const deviceRef = useRef<any>(null)
   const activeCallRef = useRef<any>(null)
   const incomingCallRef = useRef<any>(null)
@@ -205,7 +206,16 @@ export function FloatingDialer() {
     incomingCallRef.current?.disconnect?.()
     activeCallRef.current = null
     incomingCallRef.current = null
+    setMuted(false)
     setStatus('ready')
+  }
+
+  function toggleMute() {
+    const call = activeCallRef.current
+    if (!call) return
+    const next = !muted
+    call.mute(next)
+    setMuted(next)
   }
 
   function answerIncoming() {
@@ -318,19 +328,22 @@ export function FloatingDialer() {
                 ))}
               </div>
               <div className="mt-4 grid grid-cols-2 gap-2">
-                <button onClick={() => void makeCall()} disabled={!phone.trim() || !deviceRef.current || status === 'connecting'} className="h-11 rounded-[12px] bg-white text-sm font-medium text-[#111111] transition hover:bg-white/90 disabled:opacity-60">
+                <button onClick={() => void makeCall()} disabled={!phone.trim() || !deviceRef.current || status === 'connecting' || status === 'active'} className="h-11 rounded-[12px] bg-white text-sm font-medium text-[#111111] transition hover:bg-white/90 disabled:opacity-60">
                   {status === 'connecting' ? 'Calling...' : 'Call'}
                 </button>
-                <button onClick={hangUp} disabled={!activeCallRef.current} className="h-11 rounded-[12px] bg-white/8 text-sm font-medium text-white/80 transition hover:bg-white/12 hover:text-white disabled:opacity-50">
+                <button onClick={hangUp} disabled={!activeCallRef.current} className="h-11 rounded-[12px] bg-rose-500/80 text-sm font-medium text-white transition hover:bg-rose-500 disabled:opacity-40">
                   Hang up
                 </button>
-                <a href={phone.trim() ? `sms:${phone.trim()}` : '#'} className="flex h-11 items-center justify-center rounded-[12px] bg-white/8 text-sm font-medium text-white/80 transition hover:bg-white/12 hover:text-white">
-                  SMS
-                </a>
+                <button onClick={toggleMute} disabled={status !== 'active'} className={`h-11 rounded-[12px] text-sm font-medium transition disabled:opacity-40 ${muted ? 'bg-amber-500/80 text-white hover:bg-amber-500' : 'bg-white/8 text-white/80 hover:bg-white/12 hover:text-white'}`}>
+                  {muted ? 'Unmute' : 'Mute'}
+                </button>
                 <button onClick={backspace} className="flex h-11 items-center justify-center rounded-[12px] bg-white/8 text-sm font-medium text-white/80 transition hover:bg-white/12 hover:text-white">
                   Delete
                 </button>
               </div>
+              <a href={phone.trim() ? `sms:${phone.trim()}` : '#'} className="mt-2 flex h-10 items-center justify-center rounded-[12px] bg-white/8 text-sm font-medium text-white/80 transition hover:bg-white/12 hover:text-white">
+                Open SMS
+              </a>
               <Link href="/sales/new" className="mt-2 flex h-11 items-center justify-center rounded-[12px] bg-white/8 text-sm font-medium text-white/80 transition hover:bg-white/12 hover:text-white">
                 New lead
               </Link>

@@ -448,6 +448,37 @@ export async function restoreInboundLead(id: string) {
   }
 }
 
+export async function getCrmCallSidMapping(callSid: string) {
+  const { url, headers } = requireSupabase()
+  const response = await fetch(
+    `${url}/rest/v1/crm_call_sids?call_sid=eq.${encodeURIComponent(callSid)}&limit=1`,
+    { headers }
+  )
+  if (!response.ok) return null
+  const data = (await response.json()) as Array<{ lead_id: string; call_log_id: string }>
+  if (!Array.isArray(data) || data.length === 0) return null
+  return { leadId: data[0].lead_id, callLogId: data[0].call_log_id }
+}
+
+export async function updateLeadCallLogEntry(
+  leadId: string,
+  callLogId: string,
+  updates: Partial<import('@/lib/types').CallLogEntry>
+) {
+  const lead = await getSalesLead(leadId)
+  if (!lead) throw new Error(`Lead ${leadId} not found`)
+
+  const updatedCallLogs = (lead.callLogs || []).map(entry => {
+    if (entry.id !== callLogId) return entry
+    const notes = updates.transcript
+      ? (entry.notes || '').replace(' Recording processing…', ' Recording transcribed.')
+      : entry.notes
+    return { ...entry, ...updates, notes }
+  })
+
+  return saveSalesLead({ ...lead, callLogs: updatedCallLogs })
+}
+
 export async function saveCrmCallSidMapping(callSid: string, leadId: string, callLogId: string) {
   const { url, headers } = requireSupabase()
   const response = await fetch(`${url}/rest/v1/crm_call_sids`, {
