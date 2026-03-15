@@ -429,6 +429,34 @@ export async function getInboundLead(id: string) {
   return records[0] || null
 }
 
+export async function getInboundLeadByCallSid(callSid: string) {
+  const { url, headers } = requireSupabase()
+  // raw_data is stored as jsonb — filter by the callSid field inside it
+  const response = await fetch(
+    `${url}/rest/v1/inbound_leads?raw_data->>callSid=eq.${encodeURIComponent(callSid)}&select=id,source,name,phone,email,message,raw_data,created_at,claimed,claimed_at&limit=1`,
+    { headers, cache: 'no-store' }
+  )
+  if (!response.ok) return null
+  const records = (await response.json()) as InboundLead[]
+  return records[0] || null
+}
+
+export async function updateInboundLeadRawData(id: string, patch: Record<string, unknown>) {
+  const { url, headers } = requireSupabase()
+  // First read current raw_data, then merge
+  const existing = await getInboundLead(id)
+  const current = typeof existing?.raw_data === 'object' && existing.raw_data ? existing.raw_data : {}
+  const merged = { ...current, ...patch }
+  const response = await fetch(`${url}/rest/v1/inbound_leads?id=eq.${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ raw_data: merged }),
+  })
+  if (!response.ok) {
+    throw new Error(`Failed to update inbound lead raw_data ${id}`)
+  }
+}
+
 export async function markInboundLeadClaimed(id: string) {
   const { url, headers } = requireSupabase()
   const response = await fetch(`${url}/rest/v1/inbound_leads?id=eq.${encodeURIComponent(id)}`, {
