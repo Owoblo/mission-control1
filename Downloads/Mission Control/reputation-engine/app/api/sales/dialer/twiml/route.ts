@@ -3,6 +3,7 @@ import { uid } from '@/lib/sales'
 
 const CALLER_ID = '+12267732993'
 const CLIENT_IDENTITY = 'saturn-star-rep'
+const FALLBACK_PHONE = '+12267241730' // John's cell — rings simultaneously with browser
 
 function getAppUrl() {
   return (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '')
@@ -40,7 +41,8 @@ export async function POST(request: Request) {
       .filter(Boolean)
       .join(' ')
 
-    const twiml = `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrs}><Client>${CLIENT_IDENTITY}</Client></Dial></Response>`
+    // Ring browser CRM + cell phone simultaneously
+    const twiml = `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrs}><Client>${CLIENT_IDENTITY}</Client><Number>${FALLBACK_PHONE}</Number></Dial></Response>`
     return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } })
   }
 
