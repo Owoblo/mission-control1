@@ -352,6 +352,26 @@ export async function getSalesOverview(): Promise<{
   }
 }
 
+export async function saveInboundLead(lead: {
+  id: string
+  source: string
+  name?: string
+  phone?: string
+  email?: string
+  message?: string
+  raw_data?: Record<string, unknown>
+}) {
+  const { url, headers } = requireSupabase()
+  const response = await fetch(`${url}/rest/v1/inbound_leads`, {
+    method: 'POST',
+    headers: { ...headers, Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify({ ...lead, claimed: false, created_at: new Date().toISOString() }),
+  })
+  if (!response.ok) {
+    throw new Error('Failed to save inbound lead')
+  }
+}
+
 export async function listInboundLeads() {
   const { url, headers } = requireSupabase()
   const response = await fetch(
