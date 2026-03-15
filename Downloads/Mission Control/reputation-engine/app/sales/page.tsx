@@ -6,41 +6,42 @@ import { formatDate, formatMoney } from '@/lib/sales'
 import { fetchSalesOverview } from '@/lib/sales-api'
 import type { CRMLead, CRMQuote, SalesDashboardSummary } from '@/lib/types'
 
-function latestTimelineText(lead: CRMLead, quote?: CRMQuote) {
-  const events: Array<{ text: string; date: string }> = []
+type LiveFeedEvent = {
+  text: string
+  date: string
+  tone: 'accepted' | 'viewed' | 'new' | 'neutral'
+}
+
+function buildLiveFeedEvents(lead: CRMLead, quote?: CRMQuote): LiveFeedEvent[] {
+  const events: LiveFeedEvent[] = []
   ;(lead.callLogs || []).forEach(item => {
     events.push({
       text: item.aiSummary?.summary || item.notes || item.type,
       date: item.date,
+      tone: lead.stage === 'new' ? 'new' : lead.source?.includes('call') ? 'viewed' : 'neutral',
     })
   })
-  if (quote?.status === 'declined') events.push({ text: `${quote.number} declined.`, date: quote.respondedAt || quote.createdAt })
-  if (quote?.acceptedAt) events.push({ text: `${quote.number} accepted.`, date: quote.acceptedAt })
-  if (quote?.viewedAt) events.push({ text: `${quote.number} viewed.`, date: quote.viewedAt })
-  if (quote?.sentAt) events.push({ text: `${quote.number} sent.`, date: quote.sentAt })
+  if (quote?.status === 'declined') events.push({ text: `${quote.number} declined.`, date: quote.respondedAt || quote.createdAt, tone: 'neutral' })
+  if (quote?.acceptedAt) events.push({ text: `${quote.number} accepted.`, date: quote.acceptedAt, tone: 'accepted' })
+  if (quote?.viewedAt) events.push({ text: `${quote.number} viewed.`, date: quote.viewedAt, tone: 'viewed' })
+  if (quote?.sentAt) events.push({ text: `${quote.number} sent.`, date: quote.sentAt, tone: 'neutral' })
+  if (events.length === 0) {
+    events.push({
+      text: 'Lead created.',
+      date: lead.createdAt,
+      tone: lead.stage === 'new' ? 'new' : 'neutral',
+    })
+  }
   events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-  return events[0]?.text || 'No timeline activity yet.'
+  return events
 }
 
-function stageTone(lead: CRMLead, quote?: CRMQuote) {
-  if (lead.stage === 'new') return 'bg-[rgba(34,72,56,0.08)] text-[var(--app-accent)]'
-  if (quote?.viewedAt) return 'bg-[rgba(194,122,78,0.10)] text-[var(--app-warm)]'
-  if (lead.source?.includes('call')) return 'bg-[rgba(194,122,78,0.10)] text-[var(--app-warm)]'
-  return 'bg-[var(--app-bg)] text-[var(--app-muted)]'
+function latestTimelineText(lead: CRMLead, quote?: CRMQuote) {
+  return buildLiveFeedEvents(lead, quote)[0]?.text || 'Lead created.'
 }
 
 function latestActivityDate(lead: CRMLead, quote?: CRMQuote) {
-  const dates = [
-    lead.createdAt,
-    ...(lead.callLogs || []).map(item => item.date),
-    quote?.respondedAt,
-    quote?.acceptedAt,
-    quote?.viewedAt,
-    quote?.sentAt,
-    quote?.createdAt,
-  ].filter(Boolean) as string[]
-
-  return dates.sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] || lead.createdAt
+  return buildLiveFeedEvents(lead, quote)[0]?.date || lead.createdAt
 }
 
 export default function SalesDashboardPage() {
@@ -93,13 +94,14 @@ export default function SalesDashboardPage() {
       .slice(0, 6)
       .map(lead => {
         const quote = lead.quoteId ? quoteMap.get(lead.quoteId) : undefined
+        const latestEvent = buildLiveFeedEvents(lead, quote)[0]
         return {
           id: lead.id,
           href: `/sales/leads/${lead.id}`,
-          title: latestTimelineText(lead, quote),
+          title: latestEvent?.text || 'Lead created.',
           subtitle: `${lead.name} · ${lead.originCity || 'Origin TBD'} to ${lead.destCity || 'Destination TBD'}`,
-          date: lead.createdAt,
-          tone: quote?.acceptedAt ? 'accepted' : quote?.viewedAt ? 'viewed' : lead.stage === 'new' ? 'new' : 'neutral',
+          date: latestEvent?.date || lead.createdAt,
+          tone: latestEvent?.tone || 'neutral',
         }
       })
   }, [leads, quoteMap])
@@ -199,8 +201,14 @@ export default function SalesDashboardPage() {
 }
 
 function timeLabel(value: string) {
-  const diff = Date.now() - new Date(value).getTime()
+  const parsed = new Date(value.length === 10 ? `${value}T12:00:00` : value)
+  const timestamp = parsed.getTime()
+  if (Number.isNaN(timestamp)) return '—'
+
+  const diff = Date.now() - timestamp
+  if (diff < 0) return formatDate(value)
   const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'Just now'
   if (mins < 60) return `${mins}m ago`
   const hours = Math.floor(mins / 60)
   if (hours < 24) return `${hours}h ago`
