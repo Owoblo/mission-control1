@@ -95,6 +95,25 @@ export default function TriggerPage() {
     return `mailto:${form.customerEmail}?subject=${subject}&body=${body}`
   }
 
+  function dayBeforeSmsLink() {
+    const message = encodeURIComponent(
+      `Hi ${form.customerName}! Your Saturn Star Moving crew arrives TOMORROW for your move from ${form.moveFrom} to ${form.moveTo}.\n\n` +
+        `Please ensure clear access at both addresses. Any questions? Call/text us: 226-773-2993\n\nSee you tomorrow! — Saturn Star Movers`
+    )
+    return `sms:${form.customerPhone}?body=${message}`
+  }
+
+  function dayBeforeEmailLink() {
+    const subject = encodeURIComponent('Your move is tomorrow — Saturn Star Moving')
+    const body = encodeURIComponent(
+      `Hi ${form.customerName},\n\nJust a reminder — your Saturn Star Moving crew arrives TOMORROW!\n\n` +
+        `Move: ${form.moveFrom} → ${form.moveTo}\nDate: ${form.moveDate}\n\n` +
+        `Please ensure clear access at both addresses and have any specialty items flagged.\n\n` +
+        `Questions? Call or text us: 226-773-2993\n\nSee you tomorrow!\nSaturn Star Movers`
+    )
+    return `mailto:${form.customerEmail}?subject=${subject}&body=${body}`
+  }
+
   if (done) {
     return (
       <div className="mx-auto max-w-lg animate-slide-up">
@@ -125,12 +144,29 @@ export default function TriggerPage() {
             >
               {copied ? 'Copied' : 'Copy'}
             </button>
-            <a href={smsLink()} className="rounded-xl border border-[#2D4A6A] py-2.5 text-sm font-medium text-slate-300 transition-all hover:border-gold hover:text-gold">
+            <a href={smsLink()} className="rounded-xl border border-[#2D4A6A] py-2.5 text-center text-sm font-medium text-slate-300 transition-all hover:border-gold hover:text-gold">
               Text Customer
             </a>
-            <a href={emailLink()} className="rounded-xl border border-[#2D4A6A] py-2.5 text-sm font-medium text-slate-300 transition-all hover:border-gold hover:text-gold">
+            <a href={emailLink()} className="rounded-xl border border-[#2D4A6A] py-2.5 text-center text-sm font-medium text-slate-300 transition-all hover:border-gold hover:text-gold">
               Email Customer
             </a>
+          </div>
+
+          <div className="space-y-2 rounded-xl border border-[#2D4A6A] bg-[#0F1B2D] p-4 text-left">
+            <p className="text-xs uppercase tracking-wider text-slate-500">Day-Before Reminder</p>
+            <p className="text-sm text-slate-400">Send a heads-up the evening before the move.</p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {form.customerPhone ? (
+                <a href={dayBeforeSmsLink()} className="rounded-xl border border-[#2D4A6A] py-2.5 text-center text-sm font-medium text-slate-300 transition-all hover:border-gold hover:text-gold">
+                  Text Reminder
+                </a>
+              ) : null}
+              {form.customerEmail ? (
+                <a href={dayBeforeEmailLink()} className="rounded-xl border border-[#2D4A6A] py-2.5 text-center text-sm font-medium text-slate-300 transition-all hover:border-gold hover:text-gold">
+                  Email Reminder
+                </a>
+              ) : null}
+            </div>
           </div>
 
           <button

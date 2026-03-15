@@ -78,7 +78,17 @@ export async function POST(request: Request) {
     })
 
     const savedQuote = await saveSalesQuote(quote)
-    const savedLead = await saveSalesLead(syncLeadFromQuoteStatus({ ...lead, quoteId: savedQuote.id }, savedQuote))
+
+    let savedLead
+    try {
+      savedLead = await saveSalesLead(syncLeadFromQuoteStatus({ ...lead, quoteId: savedQuote.id }, savedQuote))
+    } catch (leadError) {
+      // Quote was created but lead link failed. On retry, getLatestSalesQuoteByLeadId will
+      // find and re-link the orphaned quote automatically — no data loss.
+      throw new Error(
+        `Quote ${savedQuote.id} saved but lead update failed: ${leadError instanceof Error ? leadError.message : 'unknown'}`
+      )
+    }
 
     return NextResponse.json({ quote: savedQuote, lead: savedLead })
   } catch (error) {

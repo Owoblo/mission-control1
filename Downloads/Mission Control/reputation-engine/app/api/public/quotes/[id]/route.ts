@@ -9,6 +9,7 @@ import {
   saveSalesQuote,
 } from '@/lib/server/sales-repository'
 import { uid } from '@/lib/sales'
+import { saveJobRecord } from '@/lib/server/repository'
 
 function isTokenValid(token: string | null, expected?: string) {
   return !!token && !!expected && token === expected
@@ -136,6 +137,34 @@ export async function POST(request: Request, { params }: { params: { id: string 
       createdAt: now.toISOString(),
       notes: action === 'decline' ? 'Customer declined quote from public link.' : 'Customer accepted quote from public link.',
     })
+
+    if (action === 'accept') {
+      try {
+        const client = await getSalesClient(nextQuote.clientId)
+        const customerName = savedLead?.name || client?.name || 'Customer'
+        const customerEmail = client?.email || ''
+        const customerPhone = client?.phone || savedLead?.phone || ''
+        await saveJobRecord({
+          id: uid('job'),
+          customerName,
+          customerEmail,
+          customerPhone,
+          moveDate: nextQuote.moveDate || now.toISOString().slice(0, 10),
+          moveFrom: savedLead?.originCity || nextQuote.originCity || '',
+          moveTo: savedLead?.destCity || nextQuote.destCity || '',
+          crewLead: '',
+          status: 'pending',
+          reviews: { google: false, yelp: false, facebook: false, media: false },
+          reviewConfirmedAt: {},
+          incentiveEarned: false,
+          incentivePaid: false,
+          proofSentToPartner: false,
+          createdAt: now.toISOString(),
+        })
+      } catch {
+        // Non-fatal: job record creation failure should not block the accept response
+      }
+    }
 
     return NextResponse.json({ ok: true, quote: nextQuote, lead: savedLead })
   } catch (error) {

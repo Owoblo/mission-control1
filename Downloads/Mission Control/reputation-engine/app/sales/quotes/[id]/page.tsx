@@ -712,6 +712,7 @@ Saturn Star Movers`
                   </div>
                   <div className="flex flex-col gap-3 sm:flex-row">
                     <button onClick={() => void copyText(acceptUrl, 'accept')} className="crm-button w-full sm:w-auto">{copied === 'accept' ? 'Copied' : 'Copy Link'}</button>
+                    <button onClick={() => window.print()} className="crm-button w-full sm:w-auto">Print / PDF</button>
                     <button onClick={() => void sendNow()} disabled={sendBusy} className="crm-button w-full disabled:opacity-60 sm:w-auto">{sendBusy ? 'Sending...' : 'Send Quote'}</button>
                     <button onClick={() => void logDraftAsSent()} disabled={logBusy} className="crm-button-dark w-full disabled:opacity-60 sm:w-auto">
                       {logBusy ? 'Logging...' : 'Generate Quote'}

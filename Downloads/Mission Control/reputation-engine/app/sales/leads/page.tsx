@@ -1,16 +1,18 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { fetchSalesOverview } from '@/lib/sales-api'
 import { formatDate } from '@/lib/sales'
 import type { CRMLead } from '@/lib/types'
 
-export default function SalesLeadsIndexPage() {
+function SalesLeadsIndexContent() {
+  const searchParams = useSearchParams()
+  const query = searchParams.get('q')?.trim().toLowerCase() ?? ''
   const [leads, setLeads] = useState<CRMLead[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [query, setQuery] = useState('')
 
   async function refresh() {
     try {
@@ -27,12 +29,6 @@ export default function SalesLeadsIndexPage() {
 
   useEffect(() => {
     void refresh()
-  }, [])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const params = new URLSearchParams(window.location.search)
-    setQuery((params.get('q') || '').trim().toLowerCase())
   }, [])
 
   const sorted = useMemo(
@@ -68,6 +64,7 @@ export default function SalesLeadsIndexPage() {
         </div>
         <button onClick={() => void refresh()} className="crm-button">Refresh</button>
       </section>
+
 
       {error ? <div className="rounded-[8px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
 
@@ -134,5 +131,13 @@ export default function SalesLeadsIndexPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function SalesLeadsIndexPage() {
+  return (
+    <Suspense fallback={<div className="crm-shell"><div className="crm-panel px-5 py-16 text-center text-sm text-[var(--app-muted)]">Loading leads...</div></div>}>
+      <SalesLeadsIndexContent />
+    </Suspense>
   )
 }

@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: '/sales/pipeline', label: 'Pipeline', match: (path: string) => path.startsWith('/sales/pipeline') },
   { href: '/sales/inbox', label: 'Inbox', match: (path: string) => path.startsWith('/sales/inbox') },
   { href: '/sales/quotes', label: 'Quotes', match: (path: string) => path.startsWith('/sales/quotes') },
+  { href: '/trigger', label: 'Complete Job', match: (path: string) => path === '/trigger' },
 ]
 
 export function SalesHeader() {
@@ -42,7 +43,7 @@ export function SalesHeader() {
           </Link>
           <div className="flex items-center gap-2">
             <Link href="/sales/new" className="crm-button-dark h-9 px-3 text-sm">New Lead</Link>
-            <div className="hidden h-8 w-8 items-center justify-center rounded bg-[var(--app-line)] text-xs font-semibold text-[var(--app-ink)] sm:flex">JD</div>
+            <div className="hidden h-8 w-8 items-center justify-center rounded bg-[var(--app-line)] text-xs font-semibold text-[var(--app-ink)] sm:flex">SS</div>
             <LogoutButton />
           </div>
         </div>

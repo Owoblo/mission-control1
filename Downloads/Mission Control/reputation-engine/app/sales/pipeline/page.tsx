@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState, type MouseEvent } from 'react'
+import { Suspense, useEffect, useMemo, useState, type MouseEvent } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { deleteSalesLead, fetchSalesOverview } from '@/lib/sales-api'
 import { formatDate, formatMoney } from '@/lib/sales'
 import type { CRMLead, CRMQuote } from '@/lib/types'
@@ -18,13 +19,14 @@ const COLUMN_LABELS: Record<CRMLead['stage'], string> = {
   lost: 'Lost',
 }
 
-export default function SalesPipelinePage() {
+function SalesPipelineContent() {
+  const searchParams = useSearchParams()
+  const query = searchParams.get('q')?.trim().toLowerCase() ?? ''
   const [leads, setLeads] = useState<CRMLead[]>([])
   const [quotes, setQuotes] = useState<CRMQuote[]>([])
   const [loading, setLoading] = useState(true)
   const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [query, setQuery] = useState('')
   const [viewMode, setViewMode] = useState<'board' | 'list'>('board')
 
   async function refresh() {
@@ -46,10 +48,7 @@ export default function SalesPipelinePage() {
   }, [])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    const params = new URLSearchParams(window.location.search)
-    setQuery((params.get('q') || '').trim().toLowerCase())
-    if (window.innerWidth < 768) {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
       setViewMode('list')
     }
   }, [])
@@ -269,5 +268,13 @@ export default function SalesPipelinePage() {
         </>
       )}
     </div>
+  )
+}
+
+export default function SalesPipelinePage() {
+  return (
+    <Suspense fallback={<div className="crm-shell"><div className="crm-panel px-5 py-16 text-center text-sm text-[var(--app-muted)]">Loading pipeline...</div></div>}>
+      <SalesPipelineContent />
+    </Suspense>
   )
 }

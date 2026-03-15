@@ -66,6 +66,44 @@ export default function SalesInboxPage() {
   const [error, setError] = useState<string | null>(null)
   const [compose, setCompose] = useState({ emailSubject: 'Following up — Saturn Star Moving', emailBody: '', smsBody: '' })
 
+  function applyTemplate(templateId: string, firstName: string, lead: typeof selected) {
+    const phone = '226-773-2993'
+    switch (templateId) {
+      case 'initial':
+        setCompose(c => ({
+          ...c,
+          emailSubject: 'Following up — Saturn Star Moving',
+          emailBody: `Hi ${firstName},\n\nThanks for reaching out to Saturn Star Moving. We'd love to help with your move.\n\nCould you share your move date and the addresses involved so we can prepare the right estimate?\n\nBest,\nSaturn Star Moving\n${phone}`,
+          smsBody: `Hi ${firstName}, thanks for contacting Saturn Star Moving. We can help with your move. What date and locations are you planning for? — Saturn Star (${phone})`,
+        }))
+        break
+      case 'quote_ready':
+        setCompose(c => ({
+          ...c,
+          emailSubject: 'Your Saturn Star Moving estimate is ready',
+          emailBody: `Hi ${firstName},\n\nYour binding hourly estimate is ready for review. You can accept, decline, or ask us to adjust it.\n\nWe'll hold this rate for 30 days.\n\nBest,\nSaturn Star Moving\n${phone}`,
+          smsBody: `Hi ${firstName}, your Saturn Star estimate is ready. Reply here or call us at ${phone} to review it.`,
+        }))
+        break
+      case 'booking_confirmed':
+        setCompose(c => ({
+          ...c,
+          emailSubject: "You're booked — Saturn Star Moving",
+          emailBody: `Hi ${firstName},\n\nYou're officially booked with Saturn Star Moving!\n\nWe'll confirm your crew and truck assignment 48 hours before your move.\n\nIf anything changes, just reach out: ${phone}\n\nLooking forward to moving day!\nSaturn Star Moving`,
+          smsBody: `Hi ${firstName}, you're booked with Saturn Star! We'll confirm your crew 48 hrs before the move. Questions? Call/text ${phone}.`,
+        }))
+        break
+      case 'day_before':
+        setCompose(c => ({
+          ...c,
+          emailSubject: 'Move day is tomorrow — Saturn Star Moving',
+          emailBody: `Hi ${firstName},\n\nJust a reminder — your move is tomorrow! Here's what to expect:\n\n• Your crew will arrive at the scheduled time\n• Please have any fragile or specialty items flagged\n• Ensure clear access at both addresses\n\nCall or text us if anything changes: ${phone}\n\nSee you tomorrow!\nSaturn Star Moving`,
+          smsBody: `Hi ${firstName}, your Saturn Star move is TOMORROW! Crew will arrive on time. Any last-minute questions? Call/text ${phone}.`,
+        }))
+        break
+    }
+  }
+
   async function refresh() {
     try {
       setLoading(true)
@@ -530,6 +568,30 @@ export default function SalesInboxPage() {
                               <div className="mt-4 max-h-72 overflow-y-auto whitespace-pre-wrap text-sm leading-7 text-[var(--app-muted)]">
                                 {transcript || 'Transcript still processing.'}
                               </div>
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {(selected.email || selected.phone) ? (
+                          <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
+                            <div className="mb-3 flex items-center justify-between">
+                              <div className="crm-label">Quick Templates</div>
+                            </div>
+                            <div className="mb-4 flex flex-wrap gap-2">
+                              {[
+                                { id: 'initial', label: 'Initial Follow-up' },
+                                { id: 'quote_ready', label: 'Quote Ready' },
+                                { id: 'booking_confirmed', label: 'Booking Confirmed' },
+                                { id: 'day_before', label: 'Day-Before Reminder' },
+                              ].map(t => (
+                                <button
+                                  key={t.id}
+                                  onClick={() => applyTemplate(t.id, displayLeadName(selected).split(' ')[0], selected)}
+                                  className="rounded-full border border-[var(--app-line)] px-3 py-1.5 text-xs font-medium text-[var(--app-muted)] transition hover:border-[var(--app-ink)] hover:text-[var(--app-ink)]"
+                                >
+                                  {t.label}
+                                </button>
+                              ))}
                             </div>
                           </div>
                         ) : null}
