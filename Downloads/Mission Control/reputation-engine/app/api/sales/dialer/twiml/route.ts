@@ -9,31 +9,62 @@ function getAppUrl() {
   return (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '')
 }
 
+function xmlResponse(twiml: string) {
+  return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } })
+}
+
+// Bare-minimum TwiML — used if anything goes wrong so the call ALWAYS gets through
+function fallbackTwiml() {
+  return xmlResponse(
+    `<?xml version="1.0" encoding="UTF-8"?><Response><Dial><Number>${FALLBACK_PHONE}</Number></Dial></Response>`
+  )
+}
+
 export async function POST(request: Request) {
-  const formData = await request.formData()
-  const to = (formData.get('To') as string | null)?.trim()
-  const from = (formData.get('From') as string | null)?.trim()
-  const direction = (formData.get('Direction') as string | null)?.trim()
-  const callSid = (formData.get('CallSid') as string | null)?.trim()
+  try {
+    const formData = await request.formData()
+    const to = (formData.get('To') as string | null)?.trim()
+    const from = (formData.get('From') as string | null)?.trim()
+    const direction = (formData.get('Direction') as string | null)?.trim()
+    const callSid = (formData.get('CallSid') as string | null)?.trim()
 
-  // Inbound call — someone called our number directly
-  const isInbound = direction === 'inbound' || to === CALLER_ID
+    const isInbound = direction === 'inbound' || to === CALLER_ID
 
-  if (isInbound) {
-    // Log to inbound_leads so it appears in the CRM inbox
-    if (from) {
-      void saveInboundLead({
-        id: uid('inb'),
-        source: 'twilio_call',
-        phone: from,
-        message: `Inbound call from ${from}`,
-        raw_data: { callSid, from, direction: 'inbound' },
-      }).catch(() => {})
+    if (isInbound) {
+      // Fire-and-forget CRM log — never blocks the call
+      if (from) {
+        void saveInboundLead({
+          id: uid('inb'),
+          source: 'twilio_call',
+          phone: from,
+          message: `Inbound call from ${from}`,
+          raw_data: { callSid, from, direction: 'inbound' },
+        }).catch(() => {})
+      }
+
+      const appUrl = getAppUrl()
+      const recordingCallback = appUrl ? `${appUrl}/api/sales/dialer/recording-callback` : ''
+      const dialAttrs = [
+        `record="record-from-answer"`,
+        recordingCallback ? `recordingStatusCallback="${recordingCallback}"` : '',
+        recordingCallback ? `recordingStatusCallbackMethod="POST"` : '',
+      ]
+        .filter(Boolean)
+        .join(' ')
+
+      // Ring browser CRM + cell simultaneously
+      return xmlResponse(
+        `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrs}><Client>${CLIENT_IDENTITY}</Client><Number>${FALLBACK_PHONE}</Number></Dial></Response>`
+      )
     }
+
+    // Outbound call — browser SDK dialing out
+    if (!to) return fallbackTwiml()
 
     const appUrl = getAppUrl()
     const recordingCallback = appUrl ? `${appUrl}/api/sales/dialer/recording-callback` : ''
     const dialAttrs = [
+      `callerId="${CALLER_ID}"`,
       `record="record-from-answer"`,
       recordingCallback ? `recordingStatusCallback="${recordingCallback}"` : '',
       recordingCallback ? `recordingStatusCallbackMethod="POST"` : '',
@@ -41,30 +72,11 @@ export async function POST(request: Request) {
       .filter(Boolean)
       .join(' ')
 
-    // Ring browser CRM + cell phone simultaneously
-    const twiml = `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrs}><Client>${CLIENT_IDENTITY}</Client><Number>${FALLBACK_PHONE}</Number></Dial></Response>`
-    return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } })
-  }
-
-  // Outbound call — browser SDK dialing out
-  if (!to) {
-    return new Response(
-      `<?xml version="1.0" encoding="UTF-8"?><Response><Say>Invalid destination.</Say></Response>`,
-      { status: 400, headers: { 'Content-Type': 'text/xml' } }
+    return xmlResponse(
+      `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrs}><Number>${to}</Number></Dial></Response>`
     )
+  } catch {
+    // If anything at all goes wrong, still put the call through to the cell
+    return fallbackTwiml()
   }
-
-  const appUrl = getAppUrl()
-  const recordingCallback = appUrl ? `${appUrl}/api/sales/dialer/recording-callback` : ''
-  const dialAttrs = [
-    `callerId="${CALLER_ID}"`,
-    `record="record-from-answer"`,
-    recordingCallback ? `recordingStatusCallback="${recordingCallback}"` : '',
-    recordingCallback ? `recordingStatusCallbackMethod="POST"` : '',
-  ]
-    .filter(Boolean)
-    .join(' ')
-
-  const twiml = `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrs}><Number>${to}</Number></Dial></Response>`
-  return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } })
 }
