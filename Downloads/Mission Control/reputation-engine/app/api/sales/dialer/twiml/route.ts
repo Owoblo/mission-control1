@@ -52,9 +52,9 @@ export async function POST(request: Request) {
         .filter(Boolean)
         .join(' ')
 
-      // Ring browser CRM + cell simultaneously
+      // Ring cell — browser receives via SDK incoming event when open
       return xmlResponse(
-        `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrs}><Client>${CLIENT_IDENTITY}</Client><Number>${FALLBACK_PHONE}</Number></Dial></Response>`
+        `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrs}><Number>${FALLBACK_PHONE}</Number></Dial></Response>`
       )
     }
 
