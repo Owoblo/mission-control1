@@ -96,19 +96,22 @@ export function InventoryItemRow({ item, index, onUpdate, onToggle, onRemove }: 
           )}
         </div>
 
-        {/* Qty */}
-        <div className="shrink-0">
-          {editing ? (
-            <input
-              type="number"
-              min="1"
-              value={qty}
-              onChange={e => onUpdate(index, 'qty', e.target.value)}
-              className="w-12 rounded border border-stone-300 px-1.5 py-0.5 text-center text-sm text-stone-900 outline-none focus:border-stone-600"
-            />
-          ) : (
-            <span className="text-sm text-stone-500 font-medium">×{qty}</span>
-          )}
+        {/* Qty stepper */}
+        <div className="flex items-center gap-0.5 shrink-0">
+          <button
+            onClick={() => qty > 1 && onUpdate(index, 'qty', String(qty - 1))}
+            className="w-5 h-5 flex items-center justify-center rounded text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors disabled:opacity-30"
+            disabled={qty <= 1}
+          >
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14" /></svg>
+          </button>
+          <span className="w-6 text-center text-sm text-stone-700 font-medium tabular-nums">{qty}</span>
+          <button
+            onClick={() => onUpdate(index, 'qty', String(qty + 1))}
+            className="w-5 h-5 flex items-center justify-center rounded text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors"
+          >
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+          </button>
         </div>
 
         {/* Action icons */}

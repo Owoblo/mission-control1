@@ -185,7 +185,9 @@ export function EstimateDraftModal({
       totalWeightLbs: inventoryMetrics.totalWeightLbs,
       moveType: route?.category === 'long-distance' ? ('long-distance' as const) : lead.moveType,
     }
-    return estimateLeadQuote(snapshot, { driveHours: route?.driveHours }, jobFactors).pricingBreakdown
+    // Only apply drive time when we have a real route — no phantom defaults
+    const driveHours = route?.driveHours ?? (destFull ? undefined : 0)
+    return estimateLeadQuote(snapshot, { driveHours }, jobFactors).pricingBreakdown
   }, [open, lead, inventoryMetrics.totalCubicFeet, inventoryMetrics.totalWeightLbs, jobFactors, route])
 
   if (!open) return null
@@ -386,13 +388,16 @@ export function EstimateDraftModal({
                     <div className="mt-3 overflow-hidden rounded-[8px] border border-[var(--app-line)]">
                       <img src={listingPhotos[activePhotoIndex]} alt="MLS reference" className="h-40 w-full object-cover" />
                     </div>
-                    <div className="mt-3 grid grid-cols-4 gap-2">
-                      {listingPhotos.slice(0, 8).map((photo, index) => (
+                    <div className="mt-3 grid grid-cols-4 gap-1.5 max-h-64 overflow-y-auto pr-0.5">
+                      {listingPhotos.map((photo, index) => (
                         <button key={`${photo}-${index}`} onClick={() => onSetActivePhotoIndex(index)} className={`overflow-hidden rounded-[6px] border ${activePhotoIndex === index ? 'border-[var(--app-ink)]' : 'border-[var(--app-line)]'}`}>
                           <img src={photo} alt={`MLS thumb ${index + 1}`} className="h-14 w-full object-cover" />
                         </button>
                       ))}
                     </div>
+                    {listingPhotos.length > 8 && (
+                      <div className="mt-1.5 text-[10px] text-[var(--app-muted)] text-right">{listingPhotos.length} photos total</div>
+                    )}
                   </>
                 ) : (
                   <div className="mt-3 rounded-[6px] border border-dashed border-[var(--app-line)] px-3 py-8 text-sm text-[var(--app-muted)]">
@@ -715,7 +720,9 @@ export function EstimateDraftModal({
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-[var(--app-muted)]">Drive (portal-to-portal)</span>
-                      <span className="text-[var(--app-ink)]">{pricingBreakdown.driveHours}h</span>
+                      <span className={pricingBreakdown.driveHours === 0 && !destFull ? 'text-amber-600' : 'text-[var(--app-ink)]'}>
+                        {pricingBreakdown.driveHours === 0 && !destFull ? '— add destination' : `${pricingBreakdown.driveHours}h`}
+                      </span>
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-[var(--app-muted)]">Unloading (unwrap + assemble)</span>
