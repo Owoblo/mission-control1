@@ -1360,7 +1360,7 @@ Saturn Star Moving`
                             {!item.included && <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-[10px] text-stone-500">excluded</span>}
                           </div>
                           <div className="mt-0.5 text-sm font-medium text-[var(--app-ink)]">
-                            {item.qty > 1 ? `${item.qty}× ` : ''}{item.name}{item.size ? ` · ${item.size}` : ''}
+                            {(item.qty ?? 1) > 1 ? `${item.qty}× ` : ''}{item.name}{item.size ? ` · ${item.size}` : ''}
                           </div>
                           {item.notes && <div className="mt-0.5 text-xs text-[var(--app-muted)]">{item.notes}</div>}
                         </div>
