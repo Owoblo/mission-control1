@@ -112,7 +112,7 @@ export default function SalesQuoteDetailPage() {
   const [sendBothBusy, setSendBothBusy] = useState(false)
   const [sendBothResult, setSendBothResult] = useState<{ email?: boolean; sms?: boolean } | null>(null)
   const [showPreview, setShowPreview] = useState<'both' | 'email' | null>(null)
-  const [previewTab, setPreviewTab] = useState<'email' | 'sms'>('email')
+  const [previewTab, setPreviewTab] = useState<'email' | 'sms' | 'quote'>('email')
   const [routeBusy, setRouteBusy] = useState(false)
   const [packingQuantities, setPackingQuantities] = useState<Record<string, number>>({})
   const [copied, setCopied] = useState<'accept' | 'email' | 'sms' | null>(null)
@@ -1062,8 +1062,8 @@ Saturn Star Movers`
               )}
               {acceptUrl && (
                 <button
-                  onClick={() => setPreviewTab('quote' as 'email')}
-                  className={`-mb-px border-b-2 px-4 py-3 text-sm font-medium transition ${previewTab === ('quote' as 'email') ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}
+                  onClick={() => setPreviewTab('quote')}
+                  className={`-mb-px border-b-2 px-4 py-3 text-sm font-medium transition ${previewTab === ('quote') ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}
                 >
                   📄 Customer Quote View
                 </button>
@@ -1072,7 +1072,7 @@ Saturn Star Movers`
 
             {/* Preview content */}
             <div className="flex-1 overflow-y-auto">
-              {previewTab === ('quote' as 'email') ? (
+              {previewTab === ('quote') ? (
                 <iframe
                   src={acceptUrl}
                   className="w-full border-0"

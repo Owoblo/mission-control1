@@ -76,6 +76,12 @@ export default function SalesLeadDetailPage() {
   // Deposit
   const [depositAmount, setDepositAmount] = useState<string>('')
   const [depositMethod, setDepositMethod] = useState<string>('')
+  const [depositLinkBusy, setDepositLinkBusy] = useState(false)
+  const [logDepositOpen, setLogDepositOpen] = useState(false)
+  const [logDepositMethod, setLogDepositMethod] = useState<'cash' | 'etransfer' | 'cheque'>('etransfer')
+  const [logDepositNote, setLogDepositNote] = useState('')
+  const [logDepositBusy, setLogDepositBusy] = useState(false)
+  const [chargeBalanceBusy, setChargeBalanceBusy] = useState(false)
   const [quoteModalOpen, setQuoteModalOpen] = useState(false)
   const [quoteModalBusy, setQuoteModalBusy] = useState(false)
   const [quoteModalDirty, setQuoteModalDirty] = useState(false)
@@ -654,6 +660,80 @@ export default function SalesLeadDetailPage() {
     router.push(`/sales/quotes/${quote.id}?send=1`)
   }
 
+  async function sendDepositLink() {
+    if (!quote || !lead) return
+    try {
+      setDepositLinkBusy(true)
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+      const acceptUrl = `${appUrl}/quote-accept?id=${encodeURIComponent(quote.id)}&token=${encodeURIComponent(quote.acceptToken || '')}`
+      const r = await fetch('/api/sales/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ quoteId: quote.id }),
+      })
+      const payload = await r.json() as { url?: string; error?: string }
+      if (!r.ok || !payload.url) throw new Error(payload.error || 'Could not create payment link')
+      // Open payment link — rep copies it or forwards to customer
+      window.open(payload.url, '_blank')
+      // Also send via SMS if phone available
+      if (lead.phone) {
+        const smsBody = encodeURIComponent(
+          `Hi ${lead.name?.split(' ')[0] || 'there'}, please complete your Saturn Star deposit here to lock in your move date: ${payload.url}`
+        )
+        window.open(`sms:${lead.phone}?body=${smsBody}`)
+      }
+      void acceptUrl // used above
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setDepositLinkBusy(false)
+    }
+  }
+
+  async function logManualDeposit() {
+    if (!lead || !quote) return
+    try {
+      setLogDepositBusy(true)
+      const methodLabels = { cash: 'Cash', etransfer: 'E-Transfer', cheque: 'Cheque' }
+      const updatedLead = await updateSalesLead(lead.id, {
+        paymentStatus: 'deposit_received',
+        depositAmount: quote.deposit,
+        depositMethod: methodLabels[logDepositMethod],
+        depositDate: new Date().toISOString().slice(0, 10),
+      })
+      setLead(updatedLead)
+      setLogDepositOpen(false)
+      setLogDepositNote('')
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setLogDepositBusy(false)
+    }
+  }
+
+  async function chargeBalance() {
+    if (!lead || !quote) return
+    if (!window.confirm(`Charge the remaining balance of ${formatMoney(quote.balance)} to the card on file?`)) return
+    try {
+      setChargeBalanceBusy(true)
+      const r = await fetch('/api/sales/stripe/charge-balance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ leadId: lead.id, quoteId: quote.id }),
+      })
+      const payload = await r.json() as { ok?: boolean; error?: string }
+      if (!r.ok || !payload.ok) throw new Error(payload.error || 'Charge failed')
+      const updatedLead = await updateSalesLead(lead.id, { paymentStatus: 'paid_in_full' })
+      setLead(updatedLead)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setChargeBalanceBusy(false)
+    }
+  }
+
   async function closeQuoteModal() {
     if (quoteModalDirty) {
       await saveQuoteDraft()
@@ -1142,20 +1222,82 @@ Saturn Star Moving`
                 </button>
               </div>
             ) : lead.stage === 'booked' ? (
-              <div className="border-b border-[var(--app-line)] bg-[#f0faf5] p-5">
-                <div className="crm-label text-[var(--app-accent)]">Booked</div>
-                <div className="mt-2 flex items-center gap-2">
+              <div className="border-b border-[var(--app-line)] bg-[#f0faf5] p-5 space-y-3">
+                <div className="flex items-center gap-2">
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                     Job Confirmed
                   </span>
-                  {lead.paymentStatus === 'deposit_received' && (
-                    <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">Deposit Received</span>
-                  )}
-                  {lead.paymentStatus === 'paid_in_full' && (
-                    <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">Paid in Full</span>
-                  )}
                 </div>
+
+                {/* DEPOSIT STATUS */}
+                {lead.paymentStatus === 'paid_in_full' ? (
+                  <div className="rounded-[8px] bg-emerald-600 px-3 py-2.5 text-center text-xs font-bold text-white">
+                    ✓ Paid in Full
+                  </div>
+                ) : lead.paymentStatus === 'deposit_received' ? (
+                  <div className="space-y-2">
+                    <div className="rounded-[8px] border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
+                      ✓ Deposit Received — {lead.depositMethod || 'On file'}
+                    </div>
+                    {quote && (
+                      <button
+                        onClick={() => void chargeBalance()}
+                        disabled={chargeBalanceBusy}
+                        className="w-full rounded-[8px] bg-[var(--app-accent)] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                      >
+                        {chargeBalanceBusy ? 'Charging...' : `Charge Balance — ${formatMoney(quote.balance)}`}
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  /* No deposit yet — collection required */
+                  <div className="rounded-[8px] border border-amber-300 bg-amber-50 p-3 space-y-2">
+                    <div className="text-xs font-semibold text-amber-800">⚠ Deposit Required</div>
+                    <p className="text-[11px] text-amber-700">{quote ? `${formatMoney(quote.deposit)} needed to confirm this job.` : 'A deposit is required before this job moves to operations.'}</p>
+                    {quote && (
+                      <button
+                        onClick={() => void sendDepositLink()}
+                        disabled={depositLinkBusy}
+                        className="w-full rounded-[8px] bg-[#1a2744] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                      >
+                        {depositLinkBusy ? 'Opening...' : '💳 Send Card Payment Link'}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setLogDepositOpen(open => !open)}
+                      className="w-full rounded-[8px] border border-amber-300 bg-white px-3 py-2 text-xs font-medium text-amber-800 hover:bg-amber-50"
+                    >
+                      Log Cash / E-Transfer / Cheque
+                    </button>
+                    {logDepositOpen && (
+                      <div className="space-y-2 pt-1">
+                        <select
+                          value={logDepositMethod}
+                          onChange={e => setLogDepositMethod(e.target.value as 'cash' | 'etransfer' | 'cheque')}
+                          className="crm-input w-full text-xs"
+                        >
+                          <option value="cash">Cash</option>
+                          <option value="etransfer">Interac E-Transfer</option>
+                          <option value="cheque">Cheque</option>
+                        </select>
+                        <input
+                          className="crm-input w-full text-xs"
+                          placeholder="Note (optional — ref number, who collected...)"
+                          value={logDepositNote}
+                          onChange={e => setLogDepositNote(e.target.value)}
+                        />
+                        <button
+                          onClick={() => void logManualDeposit()}
+                          disabled={logDepositBusy}
+                          className="w-full rounded-[8px] bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                        >
+                          {logDepositBusy ? 'Saving...' : '✓ Mark Deposit Received'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ) : null}
 

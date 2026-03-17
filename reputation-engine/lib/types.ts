@@ -29,6 +29,7 @@ export interface Job {
   proofSentToPartner: boolean
   createdAt: string
   reviewSentAt?: string
+  crmLeadId?: string
 }
 
 export type PartnerType = 'realtor' | 'property-manager' | 'builder' | 'supply-chain' | 'other'
@@ -231,6 +232,12 @@ export interface CRMLead {
   // Cancellation
   cancelledAt?: string
   cancelReason?: string
+  // Post-job review lifecycle
+  reviewJobId?: string
+  reviewSentAt?: string
+  reviewCompletedAt?: string
+  reviewRating?: number
+  reviewNotes?: string
   createdAt: string
 }
 
@@ -286,6 +293,19 @@ export interface CRMQuote {
   viewedAt?: string
   acceptedAt?: string
   respondedAt?: string
+  // Deposit payment tracking
+  depositPaidAt?: string
+  depositPaidAmount?: number
+  depositPaidMethod?: 'stripe' | 'etransfer' | 'cash' | 'cheque' | 'other'
+  depositPaidNote?: string
+  depositStripeSessionId?: string
+  depositStripePaymentIntentId?: string
+  depositStripeCustomerId?: string
+  depositStripePaymentMethodId?: string
+  // Balance charge
+  balancePaidAt?: string
+  balancePaidAmount?: number
+  balancePaidMethod?: 'stripe' | 'etransfer' | 'cash' | 'cheque' | 'other'
 }
 
 export interface FollowUpLog {

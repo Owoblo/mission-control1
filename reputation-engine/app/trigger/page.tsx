@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { fetchPartners, saveJob } from '@/lib/api'
+import { updateSalesLead } from '@/lib/sales-api'
 import { generateId } from '@/lib/store'
-import type { Job, Partner } from '@/lib/types'
+import type { CRMLead, Job, Partner } from '@/lib/types'
 
 export default function TriggerPage() {
   const [partners, setPartners] = useState<Partner[]>([])
@@ -12,6 +13,8 @@ export default function TriggerPage() {
   const [jobLink, setJobLink] = useState('')
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [matchedLead, setMatchedLead] = useState<CRMLead | null>(null)
+  const [lookingUpLead, setLookingUpLead] = useState(false)
 
   const [form, setForm] = useState({
     customerName: '',
@@ -32,6 +35,33 @@ export default function TriggerPage() {
 
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm(current => ({ ...current, [key]: value }))
+  }
+
+  async function lookupLeadByPhone(phone: string) {
+    if (phone.replace(/\D/g, '').length < 10) return
+    try {
+      setLookingUpLead(true)
+      const response = await fetch(`/api/sales/leads/match-phone?phone=${encodeURIComponent(phone)}`, { credentials: 'include' })
+      if (response.ok) {
+        const data = (await response.json()) as { lead: CRMLead | null }
+        setMatchedLead(data.lead)
+        // Auto-fill from lead if fields are empty
+        if (data.lead) {
+          setForm(current => ({
+            ...current,
+            customerName: current.customerName || data.lead!.name || '',
+            customerEmail: current.customerEmail || data.lead!.email || '',
+            moveFrom: current.moveFrom || data.lead!.originAddress || data.lead!.originCity || '',
+            moveTo: current.moveTo || data.lead!.destCity || '',
+            moveDate: current.moveDate || data.lead!.moveDate || current.moveDate,
+          }))
+        }
+      }
+    } catch {
+      // silently ignore — lead lookup is best-effort
+    } finally {
+      setLookingUpLead(false)
+    }
   }
 
   async function handleSubmit(event: React.FormEvent) {
