@@ -1,6 +1,6 @@
 import { getSalesLead } from '@/lib/server/sales-repository'
 import { analyzePhotoBatch } from '@/lib/server/inventory-enrichment'
-import { requireSession } from '@/lib/server/session'
+import { hasInternalSession } from '@/lib/server/session'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -8,11 +8,8 @@ export const maxDuration = 300
 const BATCH_SIZE = 7
 
 export async function POST(_req: Request, { params }: { params: { id: string } }) {
-  try {
-    await requireSession()
-  } catch {
-    return new Response('Unauthorized', { status: 401 })
-  }
+  const authed = await hasInternalSession()
+  if (!authed) return new Response('Unauthorized', { status: 401 })
 
   const lead = await getSalesLead(params.id)
   if (!lead) return new Response('Lead not found', { status: 404 })
