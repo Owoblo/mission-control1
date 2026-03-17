@@ -17,6 +17,20 @@ const SOURCES = [
 
 const MOVE_TYPES: CRMLead['moveType'][] = ['residential', 'long-distance', 'commercial', 'senior', 'labor-only', 'packing']
 
+const MOVE_REASONS = [
+  'Downsizing',
+  'Upsizing / Growing family',
+  'Job relocation',
+  'New home purchase',
+  'End of lease',
+  'Divorce / Separation',
+  'Retirement',
+  'School / University',
+  'Investment property',
+  'Senior living transition',
+  'Other',
+]
+
 export default function NewSalesLeadPage() {
   const router = useRouter()
   const [form, setForm] = useState({
@@ -30,8 +44,8 @@ export default function NewSalesLeadPage() {
     originCity: '',
     destCity: '',
     moveReason: '',
+    moveReasonCustom: '',
     notes: '',
-    followUpDate: '',
   })
   const [saving, setSaving] = useState(false)
   const [lookupBusy, setLookupBusy] = useState(false)
@@ -58,6 +72,8 @@ export default function NewSalesLeadPage() {
   async function submit() {
     try {
       setSaving(true)
+      const resolvedCity = listingMatch?.city || form.originCity || ''
+      const resolvedReason = form.moveReason === 'Other' ? form.moveReasonCustom : form.moveReason
       const lead = await createSalesLead({
         name: form.name,
         source: form.source,
@@ -66,19 +82,19 @@ export default function NewSalesLeadPage() {
         moveDate: form.moveDate || undefined,
         moveType: form.moveType as CRMLead['moveType'],
         originAddress: form.originAddress,
-        originCity: form.originCity,
+        originCity: resolvedCity,
         destCity: form.destCity,
         supabaseListing: listingMatch || undefined,
-        moveReason: form.moveReason,
+        moveReason: resolvedReason,
         notes: form.notes,
-        followUpDate: form.followUpDate || undefined,
         directMailAttributed: !!listingMatch,
         inventory: inventoryDraft?.inventory || [],
         totalItems: inventoryDraft?.totalItems || 0,
         totalCubicFeet: inventoryDraft?.totalCubicFeet || 0,
         totalWeightLbs: inventoryDraft?.totalWeightLbs || 0,
         roomBreakdown: inventoryDraft?.roomBreakdown || {},
-      })
+        forceNew: true,
+      } as Partial<CRMLead> & { forceNew: boolean })
       router.push(`/sales/leads/${lead.id}`)
     } catch (err) {
       setError((err as Error).message)
@@ -99,6 +115,10 @@ export default function NewSalesLeadPage() {
       setListingMatch(result.listing)
       setInventoryDraft(result.scan)
       setAnalysisAvailable(result.analysisAvailable)
+      // Auto-fill origin city from matched listing
+      if (result.listing?.city && !form.originCity) {
+        setField('originCity', result.listing.city)
+      }
       setError(null)
     } catch (err) {
       setError((err as Error).message)
@@ -228,20 +248,21 @@ export default function NewSalesLeadPage() {
           </div>
           <label>
             <span className="crm-label">Origin City</span>
-            <input className="crm-input mt-2" value={form.originCity} onChange={e => setField('originCity', e.target.value)} />
+            <input className="crm-input mt-2" placeholder="Auto-filled from listing" value={form.originCity} onChange={e => setField('originCity', e.target.value)} />
           </label>
           <label>
             <span className="crm-label">Destination City</span>
-            <input className="crm-input mt-2" value={form.destCity} onChange={e => setField('destCity', e.target.value)} />
+            <input className="crm-input mt-2" placeholder="e.g. Toronto, London" value={form.destCity} onChange={e => setField('destCity', e.target.value)} />
           </label>
-          <label>
-            <span className="crm-label">Follow-Up Date</span>
-            <input type="date" className="crm-input mt-2" value={form.followUpDate} onChange={e => setField('followUpDate', e.target.value)} />
-          </label>
-          <div />
           <label className="md:col-span-2">
             <span className="crm-label">Move Reason</span>
-            <textarea className="crm-input mt-2 min-h-28" value={form.moveReason} onChange={e => setField('moveReason', e.target.value)} />
+            <select className="crm-input mt-2" value={form.moveReason} onChange={e => setField('moveReason', e.target.value)}>
+              <option value="">— Select reason —</option>
+              {MOVE_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
+            {form.moveReason === 'Other' && (
+              <input className="crm-input mt-2" placeholder="Describe reason..." value={form.moveReasonCustom} onChange={e => setField('moveReasonCustom', e.target.value)} />
+            )}
           </label>
           <label className="md:col-span-2">
             <span className="crm-label">Notes</span>

@@ -31,9 +31,11 @@ function findMatchingActiveLead(leads: CRMLead[], phone?: string, email?: string
 
 export async function POST(request: Request) {
   try {
-    const payload = (await request.json()) as Partial<CRMLead>
+    const payload = (await request.json()) as Partial<CRMLead> & { forceNew?: boolean }
     const validated = validateLeadPayload(payload)
-    const existingLead = findMatchingActiveLead(await listSalesLeads(), validated.phone, validated.email)
+    const existingLead = payload.forceNew
+      ? null
+      : findMatchingActiveLead(await listSalesLeads(), validated.phone, validated.email)
 
     if (existingLead) {
       const mergedLead = normalizeLead({

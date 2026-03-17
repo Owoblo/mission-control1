@@ -1,10 +1,21 @@
 'use client'
 
 import Link from 'next/link'
-import { formatMoney } from '@/lib/sales'
-import type { CRMLead, CRMQuote, InventoryItem, QuoteLineItem } from '@/lib/types'
+import { useEffect, useMemo, useState } from 'react'
+import { estimateLeadQuote, formatMoney } from '@/lib/sales'
+import { DEFAULT_ROOM_OPTIONS } from './helpers'
+import type { JobFactors, CRMLead, CRMQuote, InventoryItem, QuoteLineItem } from '@/lib/types'
 
-type GroupedInventory = Array<[string, Array<{ item: InventoryItem; index: number }> ]>
+type RouteResult = {
+  distanceKm: number
+  distanceMiles: number
+  driveHours: number
+  category: 'local' | 'medium' | 'long-distance'
+  originResolved: string
+  destResolved: string
+}
+
+type GroupedInventory = Array<[string, Array<{ item: InventoryItem; index: number }>]>
 
 type Props = {
   open: boolean
@@ -15,6 +26,7 @@ type Props = {
   destCity: string
   listingLookupBusy: boolean
   analysisBusy: boolean
+  recalculateBusy: boolean
   listingPhotos: string[]
   activePhotoIndex: number
   inventoryMetrics: {
@@ -31,18 +43,65 @@ type Props = {
     deposit: number
   }
   quoteModalBusy: boolean
+  jobFactors: JobFactors
+  destAddress: string
   onClose: () => void
   onOriginAddressChange: (value: string) => void
   onOriginCityChange: (value: string) => void
   onDestCityChange: (value: string) => void
+  onDestAddressChange: (value: string) => void
   onLookupListing: () => void
   onRefreshInventory: () => void
+  onRecalculate: () => void
   onAddLineItem: () => void
   onSetActivePhotoIndex: (index: number) => void
   onAddPreset: (presetId: string) => void
   onUpdateLineItem: (index: number, field: keyof QuoteLineItem, value: string) => void
   onRemoveLineItem: (index: number) => void
   onSaveDraft: () => void
+  onJobFactorsChange: (factors: JobFactors) => void
+  onAddInventoryItems: (items: InventoryItem[]) => void
+}
+
+function Toggle({ label, value, onChange }: { label: string; value: boolean | undefined; onChange: (v: boolean) => void }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-xs text-[var(--app-muted)]">{label}</span>
+      <div className="flex rounded-[6px] border border-[var(--app-line)] overflow-hidden text-[10px] font-semibold">
+        <button
+          type="button"
+          onClick={() => onChange(true)}
+          className={`px-2.5 py-1 ${value === true ? 'bg-[var(--app-ink)] text-white' : 'bg-white text-[var(--app-muted)]'}`}
+        >
+          Yes
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange(false)}
+          className={`px-2.5 py-1 border-l border-[var(--app-line)] ${value === false ? 'bg-[var(--app-ink)] text-white' : 'bg-white text-[var(--app-muted)]'}`}
+        >
+          No
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function FloorSelect({ label, value, onChange }: { label: string; value: number | undefined; onChange: (v: number) => void }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-xs text-[var(--app-muted)]">{label}</span>
+      <select
+        value={value ?? 1}
+        onChange={e => onChange(Number(e.target.value))}
+        className="crm-input w-24 py-1 text-xs"
+      >
+        {[1, 2, 3, 4, 5].map(n => (
+          <option key={n} value={n}>{n === 1 ? '1 – Bungalow' : `${n} storeys`}</option>
+        ))}
+      </select>
+    </div>
+  )
 }
 
 export function EstimateDraftModal({
@@ -52,8 +111,10 @@ export function EstimateDraftModal({
   originAddress,
   originCity,
   destCity,
+  destAddress,
   listingLookupBusy,
   analysisBusy,
+  recalculateBusy,
   listingPhotos,
   activePhotoIndex,
   inventoryMetrics,
@@ -62,33 +123,124 @@ export function EstimateDraftModal({
   quoteLineItems,
   quoteModalTotals,
   quoteModalBusy,
+  jobFactors,
   onClose,
   onOriginAddressChange,
   onOriginCityChange,
   onDestCityChange,
+  onDestAddressChange,
   onLookupListing,
   onRefreshInventory,
+  onRecalculate,
   onAddLineItem,
   onSetActivePhotoIndex,
   onAddPreset,
   onUpdateLineItem,
   onRemoveLineItem,
   onSaveDraft,
+  onJobFactorsChange,
+  onAddInventoryItems,
 }: Props) {
+  const [route, setRoute] = useState<RouteResult | null>(null)
+  const [routeBusy, setRouteBusy] = useState(false)
+  const [routeError, setRouteError] = useState<string | null>(null)
+
+  // Manual inventory quick-add state
+  const [quickRoom, setQuickRoom] = useState('Living Room')
+  const [quickItem, setQuickItem] = useState('')
+  const [quickQty, setQuickQty] = useState(1)
+  const [quickCuFt, setQuickCuFt] = useState('')
+
+  // Auto-calculate route when both origin and destination are present
+  const originFull = [originAddress || lead.originAddress, originCity || lead.originCity].filter(Boolean).join(', ')
+  const destFull = [destAddress || lead.destAddress, destCity || lead.destCity].filter(Boolean).join(', ')
+
+  useEffect(() => {
+    if (!open || !originFull || !destFull) return
+    let cancelled = false
+    setRouteBusy(true)
+    setRouteError(null)
+    fetch('/api/sales/route-estimate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ origin: originFull, destination: destFull }),
+      credentials: 'include',
+    })
+      .then(r => r.json())
+      .then((data: RouteResult & { error?: string }) => {
+        if (cancelled) return
+        if (data.error) { setRouteError(data.error); setRoute(null) }
+        else setRoute(data)
+      })
+      .catch(() => { if (!cancelled) setRouteError('Could not calculate route') })
+      .finally(() => { if (!cancelled) setRouteBusy(false) })
+    return () => { cancelled = true }
+  }, [open, originFull, destFull])
+
+  const pricingBreakdown = useMemo(() => {
+    if (!open) return null
+    const snapshot = {
+      ...lead,
+      totalCubicFeet: inventoryMetrics.totalCubicFeet,
+      totalWeightLbs: inventoryMetrics.totalWeightLbs,
+      moveType: route?.category === 'long-distance' ? ('long-distance' as const) : lead.moveType,
+    }
+    return estimateLeadQuote(snapshot, { driveHours: route?.driveHours }, jobFactors).pricingBreakdown
+  }, [open, lead, inventoryMetrics.totalCubicFeet, inventoryMetrics.totalWeightLbs, jobFactors, route])
+
   if (!open) return null
+
+  function setFactor<K extends keyof JobFactors>(key: K, value: JobFactors[K]) {
+    onJobFactorsChange({ ...jobFactors, [key]: value })
+  }
+
+  const hasWarnings = jobFactors.hasHotTub || jobFactors.hasPoolTable
+  const flags = pricingBreakdown?.intelligenceFlags
+  const needsTwoTrucks = flags?.twoTruckRequired ?? false
+
+  function addQuickItem() {
+    if (!quickItem.trim()) return
+    const cf = Number(quickCuFt) || 0
+    onAddInventoryItems([{
+      id: `manual-${Date.now()}`,
+      room: quickRoom,
+      name: quickItem.trim(),
+      item: quickItem.trim(),
+      qty: quickQty,
+      cubicFeet: cf,
+      weightLbs: Math.round(cf * 7),
+      included: true,
+    }])
+    setQuickItem('')
+    setQuickQty(1)
+    setQuickCuFt('')
+  }
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/35 px-0 py-0 md:px-4 md:py-6" onClick={onClose}>
       <div
-        className="mx-auto flex min-h-screen w-full max-w-5xl flex-col overflow-hidden rounded-none border border-[var(--app-line)] bg-[var(--app-panel)] shadow-2xl md:my-4 md:min-h-0 md:rounded-[12px]"
+        className="mx-auto flex min-h-screen w-full max-w-6xl flex-col overflow-hidden rounded-none border border-[var(--app-line)] bg-[var(--app-panel)] shadow-2xl md:my-4 md:min-h-0 md:rounded-[12px]"
         onClick={event => event.stopPropagation()}
       >
+        {/* Header */}
         <div className="flex flex-col gap-3 border-b border-[var(--app-line)] px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6">
           <div>
             <div className="crm-label">Estimate Draft</div>
             <div className="mt-1 text-2xl font-semibold text-[var(--app-ink)]">{quote?.number || 'Preparing draft...'}</div>
-            <div className="mt-1 text-sm text-[var(--app-muted)]">
-              {originAddress || originCity || lead.originAddress || lead.originCity || 'Origin TBD'} → {destCity || lead.destCity || 'Destination TBD'} • {inventoryMetrics.totalCubicFeet} cu ft • {inventoryMetrics.totalWeightLbs} lbs
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[var(--app-muted)]">
+              <span>{originAddress || originCity || lead.originAddress || lead.originCity || 'Origin TBD'} → {destCity || lead.destCity || 'Destination TBD'}</span>
+              <span>· {inventoryMetrics.totalCubicFeet} cu ft · {inventoryMetrics.totalWeightLbs} lbs</span>
+              {routeBusy && <span className="text-[10px] text-[var(--app-muted)]">Calculating route...</span>}
+              {route && !routeBusy && (
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${
+                  route.category === 'local' ? 'bg-emerald-50 text-emerald-700' :
+                  route.category === 'medium' ? 'bg-amber-50 text-amber-700' :
+                  'bg-rose-50 text-rose-700'
+                }`}>
+                  {route.distanceKm} km · {route.driveHours}h drive · {route.category === 'local' ? 'Local' : route.category === 'medium' ? 'Medium Distance' : 'Long Distance'}
+                </span>
+              )}
+              {routeError && !routeBusy && <span className="text-[10px] text-rose-500">{routeError}</span>}
             </div>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -96,29 +248,36 @@ export function EstimateDraftModal({
             <button onClick={onClose} className="crm-button w-full sm:w-auto">Close</button>
           </div>
         </div>
-        <div className="grid xl:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="overflow-y-auto p-4 md:p-6">
-            <div className="mb-5 grid gap-4 sm:grid-cols-2">
+
+        <div className="grid xl:grid-cols-[minmax(0,1fr)_340px]">
+          {/* Main content */}
+          <div className="overflow-y-auto p-4 md:p-6 space-y-6">
+
+            {/* Addresses */}
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="crm-kpi">
                 <div className="crm-label">Origin Address</div>
-                <input value={originAddress} onChange={event => onOriginAddressChange(event.target.value)} className="mt-3 crm-input" placeholder="Search or enter origin address" />
-                <input value={originCity} onChange={event => onOriginCityChange(event.target.value)} className="mt-2 crm-input" placeholder="Origin city" />
+                <input value={originAddress} onChange={e => onOriginAddressChange(e.target.value)} className="mt-3 crm-input" placeholder="Search or enter origin address" />
+                <input value={originCity} onChange={e => onOriginCityChange(e.target.value)} className="mt-2 crm-input" placeholder="Origin city" />
                 <button onClick={onLookupListing} disabled={listingLookupBusy} className="mt-3 crm-button disabled:opacity-60">
                   {listingLookupBusy ? 'Matching...' : 'Match Listing'}
                 </button>
               </div>
               <div className="crm-kpi">
                 <div className="crm-label">Destination + Scope</div>
-                <input value={destCity} onChange={event => onDestCityChange(event.target.value)} className="mt-3 crm-input" placeholder="Destination city" />
+                <input value={destAddress} onChange={e => onDestAddressChange(e.target.value)} className="mt-3 crm-input" placeholder="Destination address" />
+                <input value={destCity} onChange={e => onDestCityChange(e.target.value)} className="mt-2 crm-input" placeholder="Destination city" />
                 <div className="mt-3 flex gap-2">
                   <button onClick={onRefreshInventory} disabled={analysisBusy || !lead.supabaseListing?.address} className="crm-button disabled:opacity-60">
-                    {analysisBusy ? 'Refreshing...' : 'Refresh Inventory'}
+                    {analysisBusy ? 'Scanning...' : 'Refresh Inventory'}
                   </button>
                   <button onClick={onAddLineItem} className="crm-button">Add Line Item</button>
                 </div>
               </div>
             </div>
-            <div className="mb-5 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+
+            {/* Inventory + Photos */}
+            <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
               <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
                 <div className="crm-label">Inventory Snapshot</div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -136,26 +295,90 @@ export function EstimateDraftModal({
                   </div>
                 </div>
                 <div className="mt-4 space-y-2">
-                  {groupedInventory.slice(0, 4).map(([room, items]) => (
-                    <div key={room} className="flex items-center justify-between rounded-[6px] border border-[var(--app-line)] bg-[var(--app-panel)] px-3 py-2">
-                      <div className="text-sm font-medium text-[var(--app-ink)]">{room}</div>
-                      <div className="text-xs text-[var(--app-muted)]">{items.length} items</div>
+                  {groupedInventory.length === 0 && (
+                    <div className="rounded-[6px] border border-dashed border-[var(--app-line)] px-3 py-3 text-xs text-[var(--app-muted)]">
+                      No inventory yet. Add items below or match a listing above.
                     </div>
-                  ))}
+                  )}
+                  {groupedInventory.map(([room, items]) => {
+                    const roomCuFt = items.reduce((s, el) => s + (el.item.cubicFeet || 0) * (el.item.qty || 1), 0).toFixed(0)
+                    return (
+                      <details key={room} className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-panel)]">
+                        <summary className="flex cursor-pointer items-center justify-between px-3 py-2" style={{ listStyle: 'none' }}>
+                          <div className="text-sm font-medium text-[var(--app-ink)]">{room}</div>
+                          <div className="text-xs text-[var(--app-muted)]">{items.length} items · {roomCuFt} cu ft</div>
+                        </summary>
+                        <div className="border-t border-[var(--app-line)] px-3 py-2 space-y-1">
+                          {items.map(el => (
+                            <div key={el.index} className="flex items-center justify-between gap-2 text-xs text-[var(--app-muted)]">
+                              <span className="text-[var(--app-ink)]">{el.item.name || el.item.item}</span>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span>×{el.item.qty || 1}</span>
+                                {el.item.cubicFeet ? <span>{((el.item.cubicFeet || 0) * (el.item.qty || 1)).toFixed(0)} cu ft</span> : null}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )
+                  })}
                   <div className="flex flex-wrap gap-2 pt-2">
                     {presetMatches.slice(0, 4).map(preset => (
-                      <button key={preset.id} onClick={() => onAddPreset(preset.id)} className="crm-button">
-                        + {preset.label}
-                      </button>
+                      <button key={preset.id} onClick={() => onAddPreset(preset.id)} className="crm-button">+ {preset.label}</button>
                     ))}
                   </div>
-                  {groupedInventory.length === 0 ? (
-                    <div className="rounded-[6px] border border-dashed border-[var(--app-line)] px-3 py-4 text-sm text-[var(--app-muted)]">
-                      No inventory on this lead yet. Add the address or run the MLS scan to populate it.
+                  {/* Quick-add manual inventory — always visible */}
+                  <div className="space-y-3">
+                    <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3 space-y-2">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Quick Add Item</div>
+                        <div className="grid grid-cols-[1fr_auto] gap-2">
+                          <select
+                            value={quickRoom}
+                            onChange={e => setQuickRoom(e.target.value)}
+                            className="crm-input py-1 text-xs"
+                          >
+                            {DEFAULT_ROOM_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                          </select>
+                          <input
+                            type="number"
+                            min={1}
+                            value={quickQty}
+                            onChange={e => setQuickQty(Math.max(1, Number(e.target.value)))}
+                            className="crm-input w-14 py-1 text-right text-xs"
+                            placeholder="Qty"
+                          />
+                        </div>
+                        <div className="grid grid-cols-[1fr_80px_auto] gap-2">
+                          <input
+                            value={quickItem}
+                            onChange={e => setQuickItem(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && addQuickItem()}
+                            className="crm-input py-1 text-xs"
+                            placeholder="Item name (e.g. Sofa)"
+                          />
+                          <input
+                            type="number"
+                            min={0}
+                            value={quickCuFt}
+                            onChange={e => setQuickCuFt(e.target.value)}
+                            className="crm-input py-1 text-right text-xs"
+                            placeholder="cu ft"
+                          />
+                          <button
+                            type="button"
+                            onClick={addQuickItem}
+                            disabled={!quickItem.trim()}
+                            className="crm-button-dark text-xs px-3 disabled:opacity-40"
+                          >
+                            Add
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-[var(--app-muted)]">Leave cu ft blank for common items — weight inferred at 7 lbs/cu ft.</p>
+                      </div>
                     </div>
-                  ) : null}
                 </div>
               </div>
+
               <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
                 <div className="crm-label">Listing Photos</div>
                 {listingPhotos.length > 0 ? (
@@ -173,57 +396,379 @@ export function EstimateDraftModal({
                   </>
                 ) : (
                   <div className="mt-3 rounded-[6px] border border-dashed border-[var(--app-line)] px-3 py-8 text-sm text-[var(--app-muted)]">
-                    No MLS photos are linked yet. Add the address on the lead to match a listing.
+                    No MLS photos linked yet. Add the address to match a listing.
                   </div>
                 )}
               </div>
             </div>
-            <div className="mb-4 flex items-center justify-between">
-              <div className="crm-label">Estimate Line Items</div>
+
+            {/* ── JOB FACTORS ── */}
+            <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <div className="crm-label">Job Factors</div>
+                  <div className="mt-0.5 text-xs text-[var(--app-muted)]">Tier 2 details not visible in MLS photos — these directly affect the estimate.</div>
+                </div>
+                <button
+                  onClick={onRecalculate}
+                  disabled={recalculateBusy}
+                  className="crm-button-dark text-xs disabled:opacity-60"
+                >
+                  {recalculateBusy ? 'Recalculating...' : '↻ Recalculate'}
+                </button>
+              </div>
+
+              {/* Intelligence banners */}
+              {needsTwoTrucks && (
+                <div className="mb-3 rounded-[8px] border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
+                  <div className="font-semibold">🚚 2 trucks auto-assigned</div>
+                  <div className="mt-0.5 text-xs">Inventory exceeds our conservative safe-load limit (~1,400 cu ft with pads/wrapping; truck spec is ~1,650 cu ft). Crew minimum is 4 movers. Two trucks load in parallel — faster for the customer, cleaner for the crew.</div>
+                </div>
+              )}
+              {flags?.twoTripZone && !needsTwoTrucks && (
+                <div className="mb-3 rounded-[8px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  <div className="font-semibold">📦 2-trip zone ({inventoryMetrics.totalCubicFeet} cu ft)</div>
+                  <div className="mt-0.5 text-xs">Load is 71–99% of one truck. A tight single-truck load is possible with professional packing. Discuss with customer: 1 truck × 2 trips (saves truck cost, adds ~1.5–2h drive) vs. 2 trucks (faster, both locations load in parallel). Use the truck override above to lock it in.</div>
+                </div>
+              )}
+              {flags?.threeHourMinApplied && (
+                <div className="mb-3 rounded-[8px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                  <div className="font-semibold">⏱ 3-hour minimum applied</div>
+                  <div className="mt-0.5 text-xs">Natural estimate is under 3 hours — billing at the 3-hour floor. This is normal for studio or 1BR local moves.</div>
+                </div>
+              )}
+              {flags?.fullDayFlag && (
+                <div className="mb-3 rounded-[8px] border border-purple-200 bg-purple-50 px-4 py-3 text-sm text-purple-800">
+                  <div className="font-semibold">📅 Full-day move ({pricingBreakdown?.totalHours}h estimated)</div>
+                  <div className="mt-0.5 text-xs">This job runs 14+ hours. Consider discussing a 2-day option with the customer — Day 1: pack + load, Day 2: unload + setup. Prevents crew fatigue and reduces damage risk.</div>
+                </div>
+              )}
+              {hasWarnings && (
+                <div className="mb-3 rounded-[8px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  ⚠ Items flagged that Saturn Star does not move. Confirm with customer and arrange third-party movers.
+                </div>
+              )}
+              {(jobFactors.packingStatus === 'not-started' || jobFactors.packingStatus === 'partial') && (
+                <div className="mb-3 rounded-[8px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                  <div className="font-semibold">📦 Packing service opportunity</div>
+                  <div className="mt-0.5 text-xs">Customer {jobFactors.packingStatus === 'not-started' ? "hasn't started packing" : 'is partially packed'}. Offer packing as a service: 2 movers @ $150/hr. Typical add-on: 2–3h for a 2BR (~$300–450), 4–6h for a 3BR (~$600–900). Bill hourly, no flat rate.</div>
+                </div>
+              )}
+
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+
+                {/* Origin Access */}
+                <div className="space-y-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-ink)]">Origin Access</div>
+                  <FloorSelect label="Floors at origin" value={jobFactors.originFloors} onChange={v => setFactor('originFloors', v)} />
+                  <Toggle label="Has elevator?" value={jobFactors.originHasElevator} onChange={v => setFactor('originHasElevator', v)} />
+                  {jobFactors.originHasElevator && (
+                    <Toggle label="Elevator reserved?" value={jobFactors.originElevatorReserved} onChange={v => setFactor('originElevatorReserved', v)} />
+                  )}
+                  <Toggle label="Direct truck access?" value={jobFactors.originParkingOk} onChange={v => setFactor('originParkingOk', v)} />
+                </div>
+
+                {/* Destination Access */}
+                <div className="space-y-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-ink)]">Destination Access</div>
+                  <FloorSelect label="Floors at destination" value={jobFactors.destFloors} onChange={v => setFactor('destFloors', v)} />
+                  <Toggle label="Has elevator?" value={jobFactors.destHasElevator} onChange={v => setFactor('destHasElevator', v)} />
+                  {jobFactors.destHasElevator && (
+                    <Toggle label="Elevator reserved?" value={jobFactors.destElevatorReserved} onChange={v => setFactor('destElevatorReserved', v)} />
+                  )}
+                  <Toggle label="Direct truck access?" value={jobFactors.destParkingOk} onChange={v => setFactor('destParkingOk', v)} />
+                </div>
+
+                {/* Packing Status */}
+                <div className="space-y-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-ink)]">Packing Status</div>
+                  <div className="flex flex-col gap-1.5">
+                    {(['packed', 'partial', 'not-started'] as const).map(status => (
+                      <button
+                        key={status}
+                        type="button"
+                        onClick={() => setFactor('packingStatus', status)}
+                        className={`rounded-[6px] border px-3 py-2 text-left text-xs font-medium ${
+                          jobFactors.packingStatus === status
+                            ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white'
+                            : 'border-[var(--app-line)] bg-white text-[var(--app-muted)]'
+                        }`}
+                      >
+                        {status === 'packed' ? 'Fully packed' : status === 'partial' ? 'Partially packed' : 'Not started'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Boxes — always ask */}
+                <div className="space-y-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-ink)]">Boxes</div>
+                  <div className="text-xs text-[var(--app-muted)] leading-5">Always ask — boxes are the most commonly missed volume. Each standard box = ~1.5 cu ft.</div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs font-medium text-[var(--app-ink)]">Box count</span>
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="0"
+                      value={jobFactors.estimatedBoxes ?? ''}
+                      onChange={e => setFactor('estimatedBoxes', e.target.value ? Number(e.target.value) : undefined)}
+                      className="crm-input w-24 py-1.5 text-right text-sm font-semibold"
+                    />
+                  </div>
+                  {(jobFactors.estimatedBoxes || 0) > 0 && (
+                    <div className="rounded-[6px] bg-[var(--app-bg)] border border-[var(--app-line)] px-3 py-2 text-xs text-[var(--app-muted)]">
+                      +{Math.round((jobFactors.estimatedBoxes || 0) * 1.5)} cu ft added to estimate
+                    </div>
+                  )}
+                </div>
+
+                {/* Hidden Inventory */}
+                <div className="space-y-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-ink)]">Hidden Areas (cu ft)</div>
+                  {[
+                    { label: 'Garage', key: 'garageCubicFeet' as const },
+                    { label: 'Basement', key: 'basementCubicFeet' as const },
+                    { label: 'Shed', key: 'shedCubicFeet' as const },
+                  ].map(({ label, key }) => (
+                    <div key={key} className="flex items-center justify-between gap-3">
+                      <span className="text-xs text-[var(--app-muted)]">{label}</span>
+                      <input
+                        type="number"
+                        min={0}
+                        placeholder="0"
+                        value={jobFactors[key] ?? ''}
+                        onChange={e => setFactor(key, e.target.value ? Number(e.target.value) : undefined)}
+                        className="crm-input w-20 py-1 text-right text-xs"
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Specialty Items */}
+                <div className="space-y-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-ink)]">Specialty Items</div>
+                  {[
+                    { label: 'Piano (we can move)', key: 'hasPiano' as const, warning: false },
+                    { label: 'Heavy safe (we have dolly)', key: 'hasSafe' as const, warning: false },
+                    { label: 'Hot tub — DO NOT MOVE', key: 'hasHotTub' as const, warning: true },
+                    { label: 'Pool table — DO NOT MOVE', key: 'hasPoolTable' as const, warning: true },
+                  ].map(({ label, key, warning }) => (
+                    <label key={key} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!jobFactors[key]}
+                        onChange={e => setFactor(key, e.target.checked || undefined)}
+                        className="h-3.5 w-3.5 rounded"
+                      />
+                      <span className={`text-xs ${warning ? 'text-amber-700 font-medium' : 'text-[var(--app-muted)]'}`}>{label}</span>
+                    </label>
+                  ))}
+                </div>
+
+                {/* Trucks */}
+                <div className="space-y-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-ink)]">Trucks</div>
+                  <div className="text-xs text-[var(--app-muted)] leading-5">
+                    System auto-detects based on total volume (1 truck = up to 1,400 cu ft). Override if you already know.
+                  </div>
+                  <div className="flex gap-2">
+                    {[
+                      { label: 'Auto', value: undefined },
+                      { label: '1 Truck', value: 1 },
+                      { label: '2 Trucks', value: 2 },
+                    ].map(opt => (
+                      <button
+                        key={String(opt.value)}
+                        type="button"
+                        onClick={() => setFactor('truckCountOverride', opt.value)}
+                        className={`rounded-[6px] border px-3 py-2 text-xs font-medium flex-1 ${
+                          jobFactors.truckCountOverride === opt.value
+                            ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white'
+                            : 'border-[var(--app-line)] bg-white text-[var(--app-muted)]'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Disassembly */}
+                <div className="space-y-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-ink)]">Disassembly / Reassembly</div>
+                  <div className="text-xs text-[var(--app-muted)] leading-5">How many major items need to be taken apart and reassembled? (beds, IKEA wardrobes, wall units, etc.)</div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs text-[var(--app-muted)]">Number of items</span>
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="0"
+                      value={jobFactors.disassemblyItemCount ?? ''}
+                      onChange={e => setFactor('disassemblyItemCount', e.target.value ? Number(e.target.value) : undefined)}
+                      className="crm-input w-20 py-1 text-right text-xs"
+                    />
+                  </div>
+                  <textarea
+                    rows={2}
+                    placeholder="Any other specialty notes..."
+                    value={jobFactors.specialtyNotes ?? ''}
+                    onChange={e => setFactor('specialtyNotes', e.target.value || undefined)}
+                    className="crm-input w-full resize-none text-xs"
+                  />
+                </div>
+              </div>
             </div>
-            <div className="space-y-3">
-              {quoteLineItems.map((item, index) => (
-                <div key={`${item.description}-${index}`} className="grid gap-3 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_140px_44px]">
-                  <input value={item.description} onChange={event => onUpdateLineItem(index, 'description', event.target.value)} className="crm-input" placeholder="Line item" />
-                  <input value={item.details || ''} onChange={event => onUpdateLineItem(index, 'details', event.target.value)} className="crm-input" placeholder="Details" />
-                  <input type="number" value={item.amount} onChange={event => onUpdateLineItem(index, 'amount', event.target.value)} className="crm-input text-right" placeholder="Amount" />
-                  <button onClick={() => onRemoveLineItem(index)} className="crm-button justify-center text-rose-700 hover:bg-rose-50">×</button>
-                </div>
-              ))}
-              {quoteLineItems.length === 0 ? (
-                <div className="rounded-[8px] border border-dashed border-[var(--app-line)] px-4 py-12 text-center text-sm text-[var(--app-muted)]">
-                  No draft line items yet. Create the draft and shape the estimate here without leaving the lead.
-                </div>
-              ) : null}
+
+            {/* Line Items */}
+            <div>
+              <div className="mb-4 crm-label">Estimate Line Items</div>
+              <div className="space-y-3">
+                {quoteLineItems.map((item, index) => (
+                  <div key={`${item.description}-${index}`} className="grid gap-3 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_140px_44px]">
+                    <input value={item.description} onChange={e => onUpdateLineItem(index, 'description', e.target.value)} className="crm-input" placeholder="Line item" />
+                    <input value={item.details || ''} onChange={e => onUpdateLineItem(index, 'details', e.target.value)} className="crm-input" placeholder="Details" />
+                    <input type="number" value={item.amount} onChange={e => onUpdateLineItem(index, 'amount', e.target.value)} className="crm-input text-right" placeholder="Amount" />
+                    <button onClick={() => onRemoveLineItem(index)} className="crm-button justify-center text-rose-700 hover:bg-rose-50">×</button>
+                  </div>
+                ))}
+                {quoteLineItems.length === 0 ? (
+                  <div className="rounded-[8px] border border-dashed border-[var(--app-line)] px-4 py-12 text-center text-sm text-[var(--app-muted)]">
+                    No draft line items yet. Set job factors and click Recalculate, or create the draft first.
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
-          <aside className="border-t border-[var(--app-line)] bg-[var(--app-bg)] p-4 md:p-6 xl:border-l xl:border-t-0">
-            <div className="crm-label">Draft Summary</div>
-            <div className="mt-5 space-y-4">
+
+          {/* Sidebar */}
+          <aside className="border-t border-[var(--app-line)] bg-[var(--app-bg)] p-4 md:p-6 xl:border-l xl:border-t-0 space-y-6">
+
+            {/* Pricing Intelligence */}
+            {pricingBreakdown ? (
               <div>
-                <div className="text-xs text-[var(--app-muted)]">Subtotal</div>
-                <div className="mt-1 text-2xl font-semibold text-[var(--app-ink)]">{formatMoney(quoteModalTotals.subtotal)}</div>
+                <div className="crm-label mb-3">Pricing Intelligence</div>
+                <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-4 space-y-3">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-[var(--app-muted)]">Inventory</span>
+                    <span className="font-medium text-[var(--app-ink)]">{pricingBreakdown.baseCubicFeet} cu ft</span>
+                  </div>
+                  {pricingBreakdown.extraCubicFeet > 0 && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-[var(--app-muted)]">+ Hidden areas / boxes</span>
+                      <span className="font-medium text-amber-700">+{pricingBreakdown.extraCubicFeet} cu ft</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-xs border-t border-[var(--app-line)] pt-2">
+                    <span className="text-[var(--app-muted)]">Total volume</span>
+                    <span className="font-semibold text-[var(--app-ink)]">{pricingBreakdown.totalCubicFeet} cu ft</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-[var(--app-muted)]">Crew</span>
+                    <span className="font-medium text-[var(--app-ink)]">{pricingBreakdown.crewSize} movers @ ${pricingBreakdown.crewRatePerHour}/hr</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-[var(--app-muted)]">Trucks</span>
+                    <span className="font-medium text-[var(--app-ink)]">{pricingBreakdown.truckCount} × {pricingBreakdown.totalCubicFeet >= 800 ? '26ft' : '20ft'}</span>
+                  </div>
+                  {route && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-[var(--app-muted)]">Distance</span>
+                      <span className={`font-medium ${route.category === 'local' ? 'text-emerald-700' : route.category === 'medium' ? 'text-amber-700' : 'text-rose-700'}`}>
+                        {route.distanceKm} km · {route.driveHours}h · {route.category === 'local' ? 'Local' : route.category === 'medium' ? 'Medium' : 'Long Dist.'}
+                      </span>
+                    </div>
+                  )}
+
+                  {pricingBreakdown.penalties.filter(p => !p.isFlagOnly && p.hours > 0).length > 0 && (
+                    <div className="border-t border-[var(--app-line)] pt-3 space-y-1.5">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Adjustments Applied</div>
+                      {pricingBreakdown.penalties.filter(p => !p.isFlagOnly && p.hours > 0).map((p, i) => (
+                        <div key={i} className="flex justify-between gap-2 text-xs">
+                          <span className="text-[var(--app-muted)] leading-4">{p.label}</span>
+                          <span className="text-amber-700 font-medium whitespace-nowrap">+{p.hours}h</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {pricingBreakdown.penalties.filter(p => p.hours === 0 && !p.isFlagOnly).length > 0 && (
+                    <div className="border-t border-[var(--app-line)] pt-3 space-y-1.5">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Volume Added</div>
+                      {pricingBreakdown.penalties.filter(p => p.hours === 0 && !p.isFlagOnly).map((p, i) => (
+                        <div key={i} className="text-xs text-[var(--app-muted)] leading-4">{p.label}</div>
+                      ))}
+                    </div>
+                  )}
+
+                  {pricingBreakdown.penalties.filter(p => p.isFlagOnly).length > 0 && (
+                    <div className="border-t border-amber-200 pt-3 space-y-1.5">
+                      {pricingBreakdown.penalties.filter(p => p.isFlagOnly).map((p, i) => (
+                        <div key={i} className="text-xs text-amber-700 leading-4">{p.label}</div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="border-t border-[var(--app-line)] pt-3 space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-[var(--app-muted)]">Loading (wrap + load)</span>
+                      <span className="text-[var(--app-ink)]">~{pricingBreakdown.loadHours}h</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-[var(--app-muted)]">Drive (portal-to-portal)</span>
+                      <span className="text-[var(--app-ink)]">{pricingBreakdown.driveHours}h</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-[var(--app-muted)]">Unloading (unwrap + assemble)</span>
+                      <span className="text-[var(--app-ink)]">~{pricingBreakdown.unloadHours}h</span>
+                    </div>
+                    {pricingBreakdown.penaltyHours > 0 && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-[var(--app-muted)]">Job factor adjustments</span>
+                        <span className="text-amber-700">+{pricingBreakdown.penaltyHours}h</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-xs">
+                      <span className="text-[var(--app-muted)]">10% buffer</span>
+                      <span className="text-[var(--app-muted)]">+{pricingBreakdown.bufferHours}h</span>
+                    </div>
+                    <div className="flex justify-between text-xs font-semibold border-t border-[var(--app-line)] pt-1.5">
+                      <span className="text-[var(--app-ink)]">Total estimate</span>
+                      <span className="text-[var(--app-ink)]">{pricingBreakdown.totalHours}h (min. 3h)</span>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <div className="text-xs text-[var(--app-muted)]">Total</div>
-                <div className="mt-1 text-2xl font-semibold text-[var(--app-ink)]">{formatMoney(quoteModalTotals.total)}</div>
+            ) : null}
+
+            {/* Draft Summary */}
+            <div>
+              <div className="crm-label mb-3">Draft Summary</div>
+              <div className="space-y-4">
+                <div>
+                  <div className="text-xs text-[var(--app-muted)]">Subtotal</div>
+                  <div className="mt-1 text-2xl font-semibold text-[var(--app-ink)]">{formatMoney(quoteModalTotals.subtotal)}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-[var(--app-muted)]">Total (incl. HST)</div>
+                  <div className="mt-1 text-2xl font-semibold text-[var(--app-ink)]">{formatMoney(quoteModalTotals.total)}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-[var(--app-muted)]">Deposit (20%)</div>
+                  <div className="mt-1 text-lg font-medium text-[var(--app-ink)]">{formatMoney(quoteModalTotals.deposit)}</div>
+                </div>
               </div>
-              <div>
-                <div className="text-xs text-[var(--app-muted)]">Deposit</div>
-                <div className="mt-1 text-lg font-medium text-[var(--app-ink)]">{formatMoney(quoteModalTotals.deposit)}</div>
+              <div className="mt-6 space-y-3">
+                <button onClick={onSaveDraft} disabled={quoteModalBusy || !quote} className="crm-button-dark w-full justify-center disabled:opacity-60">
+                  {quoteModalBusy ? 'Saving...' : 'Save Draft'}
+                </button>
+                <button onClick={onClose} disabled={quoteModalBusy} className="crm-button w-full justify-center">
+                  Close
+                </button>
               </div>
+              <p className="mt-4 text-xs leading-6 text-[var(--app-muted)]">
+                Job factors and line items are saved with the draft. The pricing intelligence breakdown explains every adjustment made to the base estimate.
+              </p>
             </div>
-            <div className="mt-6 space-y-3">
-              <button onClick={onSaveDraft} disabled={quoteModalBusy || !quote} className="crm-button-dark w-full justify-center disabled:opacity-60">
-                {quoteModalBusy ? 'Saving...' : 'Save Draft'}
-              </button>
-              <button onClick={onClose} disabled={quoteModalBusy} className="crm-button w-full justify-center">
-                Save + Close
-              </button>
-            </div>
-            <p className="mt-4 text-xs leading-6 text-[var(--app-muted)]">
-              Click outside the modal or close it and the current draft will stay tied to the lead instead of forcing you into a separate screen.
-            </p>
           </aside>
         </div>
       </div>
