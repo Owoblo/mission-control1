@@ -21,9 +21,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ listing: null, scan: null, analysisAvailable: false })
     }
 
+    const photosAvailable = Array.isArray(listing.carouselphotos) && listing.carouselphotos.length > 0 && !!process.env.OPENAI_API_KEY
     const scan = await getListingInventoryScan(listing.zpid)
     if (scan && !(payload.analyze && payload.forceAnalyze)) {
-      return NextResponse.json({ listing, scan, analysisAvailable: false })
+      return NextResponse.json({ listing, scan, analysisAvailable: photosAvailable })
     }
 
     if (payload.analyze) {

@@ -200,9 +200,9 @@ export default function NewSalesLeadPage() {
               <button type="button" onClick={() => void lookupAddress(false)} disabled={lookupBusy} className="crm-button w-full justify-center disabled:opacity-60 sm:w-auto">
                 {lookupBusy ? 'Looking up...' : 'Lookup listing'}
               </button>
-              {analysisAvailable && !inventoryDraft && (
+              {analysisAvailable && (
                 <button type="button" onClick={() => void lookupAddress(true)} disabled={analysisBusy} className="crm-button-dark w-full justify-center disabled:opacity-60 sm:w-auto">
-                  {analysisBusy ? 'Analyzing photos...' : 'Analyze MLS photos'}
+                  {analysisBusy ? 'Analyzing photos...' : inventoryDraft ? 'Re-analyze with photos ↑' : 'Analyze MLS photos'}
                 </button>
               )}
             </div>
