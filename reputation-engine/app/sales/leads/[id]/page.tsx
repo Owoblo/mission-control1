@@ -88,6 +88,7 @@ export default function SalesLeadDetailPage() {
   const [composerBody, setComposerBody] = useState('')
   const [composerBusy, setComposerBusy] = useState(false)
   const [listingLookupBusy, setListingLookupBusy] = useState(false)
+  const [scanProgress, setScanProgress] = useState<{ batch: number; totalBatches: number; status: string } | null>(null)
   const [activeTab, setActiveTab] = useState<'timeline' | 'inventory'>('timeline')
   const [error, setError] = useState<string | null>(null)
   const [undoItem, setUndoItem] = useState<{ item: InventoryItem; index: number; timer: number } | null>(null)
@@ -662,6 +663,7 @@ export default function SalesLeadDetailPage() {
 
     try {
       setListingLookupBusy(true)
+      // Step 1: match the listing
       const result = await enrichSalesAddress(originAddress.trim(), false)
       if (!result.listing) {
         throw new Error('No listing match found for this address yet.')
@@ -672,24 +674,99 @@ export default function SalesLeadDetailPage() {
         originCity: originCity || result.listing.city || undefined,
         supabaseListing: result.listing,
       }
-
-      if (result.scan) {
-        updates.inventory = result.scan.inventory || []
-        updates.totalItems = result.scan.totalItems || 0
-        updates.totalCubicFeet = result.scan.totalCubicFeet || 0
-        updates.totalWeightLbs = result.scan.totalWeightLbs || 0
-        updates.roomBreakdown = buildRoomBreakdown(result.scan.inventory || [])
-        setInventory(result.scan.inventory || [])
-      }
-
       const saved = await updateSalesLead(lead.id, updates)
       setLead(saved)
       if (saved.originCity) setOriginCity(saved.originCity)
       setError(null)
+
+      // Step 2: immediately kick off streaming photo scan
+      void streamScanForLead(lead.id)
     } catch (err) {
       setError((err as Error).message)
+      setListingLookupBusy(false)
+    }
+  }
+
+  async function streamScanForLead(leadId: string) {
+    try {
+      setListingLookupBusy(true)
+      setInventory([])
+      setScanProgress({ batch: 0, totalBatches: 0, status: 'Starting photo scan…' })
+      setActiveTab('inventory')
+
+      const response = await fetch(`/api/sales/leads/${leadId}/scan-stream`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        throw new Error(await response.text())
+      }
+
+      const reader = response.body!.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let allItems: InventoryItem[] = []
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          try {
+            const event = JSON.parse(line.slice(6)) as {
+              type: string
+              batch?: number
+              totalBatches?: number
+              totalPhotos?: number
+              status?: string
+              items?: InventoryItem[]
+              runningCount?: number
+              allItems?: InventoryItem[]
+              error?: string
+            }
+
+            if (event.type === 'start') {
+              setScanProgress({ batch: 0, totalBatches: event.totalBatches ?? 0, status: `Starting scan of ${event.totalPhotos ?? 0} photos…` })
+            } else if (event.type === 'progress') {
+              setScanProgress({ batch: (event.batch ?? 1) - 1, totalBatches: event.totalBatches ?? 0, status: event.status ?? '' })
+            } else if (event.type === 'batch') {
+              allItems = [...allItems, ...(event.items ?? [])]
+              setInventory([...allItems])
+              setScanProgress({
+                batch: event.batch ?? 0,
+                totalBatches: event.totalBatches ?? 0,
+                status: `Batch ${event.batch}/${event.totalBatches} done — ${allItems.length} items found…`,
+              })
+            } else if (event.type === 'done') {
+              const metrics = deriveInventoryMetrics(allItems)
+              const finalSaved = await updateSalesLead(leadId, {
+                inventory: metrics.inventory,
+                totalItems: metrics.totalItems,
+                totalCubicFeet: metrics.totalCubicFeet,
+                totalWeightLbs: metrics.totalWeightLbs,
+                roomBreakdown: buildRoomBreakdown(metrics.inventory),
+              })
+              setLead(finalSaved)
+              setScanProgress(null)
+            } else if (event.type === 'error' || event.type === 'batch_error') {
+              setError(event.error ?? 'Scan error')
+            }
+          } catch {
+            // malformed SSE line — skip
+          }
+        }
+      }
+    } catch (err) {
+      setError((err as Error).message)
+      setScanProgress(null)
     } finally {
       setListingLookupBusy(false)
+      setScanProgress(null)
     }
   }
 
@@ -1037,7 +1114,13 @@ Saturn Star Moving`
             onParkingNotesChange={setParkingNotes}
             listingLookupBusy={listingLookupBusy}
             hasListing={!!lead.supabaseListing}
-            onScanListing={() => void lookupListingForLead()}
+            onScanListing={() => {
+              if (lead.supabaseListing) {
+                void streamScanForLead(lead.id)
+              } else {
+                void lookupListingForLead()
+              }
+            }}
           />
 
           <aside className="order-2 border-t border-[var(--app-line)] bg-[var(--app-panel)] lg:order-3 lg:border-l lg:border-t-0 xl:order-3">
@@ -1241,8 +1324,60 @@ Saturn Star Moving`
             />
             )}
             {activeTab === 'inventory' && (
-              <div className="flex-1 overflow-y-auto p-5 text-sm text-[var(--app-muted)]">
-                Switch to the Inventory tab to manage items. Add them from the panels below or scan MLS photos from the left panel.
+              <div className="flex-1 overflow-y-auto">
+                {/* Scan progress banner */}
+                {scanProgress && (
+                  <div className="border-b border-[var(--app-line)] bg-[var(--app-bg)] px-5 py-3">
+                    <div className="mb-2 flex items-center justify-between text-xs font-medium text-[var(--app-ink)]">
+                      <span>📷 {scanProgress.status}</span>
+                      {scanProgress.totalBatches > 0 && (
+                        <span className="text-[var(--app-muted)]">{scanProgress.batch}/{scanProgress.totalBatches} batches</span>
+                      )}
+                    </div>
+                    {scanProgress.totalBatches > 0 && (
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--app-line)]">
+                        <div
+                          className="h-full rounded-full bg-[var(--app-accent)] transition-all duration-500"
+                          style={{ width: `${Math.round((scanProgress.batch / scanProgress.totalBatches) * 100)}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Items populating in real-time */}
+                {inventory.length === 0 && !scanProgress ? (
+                  <div className="p-5 text-sm text-[var(--app-muted)]">
+                    No inventory yet. Use the Scan button on the left after entering the origin address, or add items manually from the panel below.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-[var(--app-line)]">
+                    {inventory.map((item, idx) => (
+                      <div key={idx} className="flex items-start justify-between gap-3 px-5 py-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">{item.room}</span>
+                            {!item.included && <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-[10px] text-stone-500">excluded</span>}
+                          </div>
+                          <div className="mt-0.5 text-sm font-medium text-[var(--app-ink)]">
+                            {item.qty > 1 ? `${item.qty}× ` : ''}{item.name}{item.size ? ` · ${item.size}` : ''}
+                          </div>
+                          {item.notes && <div className="mt-0.5 text-xs text-[var(--app-muted)]">{item.notes}</div>}
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <div className="text-sm font-semibold text-[var(--app-ink)]">{item.cubicFeet} cu ft</div>
+                          <div className="text-xs text-[var(--app-muted)]">{item.weightLbs} lbs</div>
+                        </div>
+                      </div>
+                    ))}
+                    {scanProgress && (
+                      <div className="flex items-center gap-2 px-5 py-3 text-xs text-[var(--app-muted)]">
+                        <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-[var(--app-accent)]" />
+                        Scanning next batch…
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

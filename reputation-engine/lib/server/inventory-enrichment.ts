@@ -21,6 +21,71 @@ function coerceJsonBlock(text: string) {
   }
 }
 
+export async function analyzePhotoBatch(photos: string[], batchIndex: number): Promise<InventoryItem[]> {
+  const config = getOpenAIConfig()
+  if (!config || photos.length === 0) return []
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 90000)
+
+  const response = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${config.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    signal: controller.signal,
+    body: JSON.stringify({
+      model: config.model,
+      input: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'input_text',
+              text:
+                `You are a professional moving estimator analyzing ${photos.length} home interior photos (batch ${batchIndex + 1}). ` +
+                'Identify every clearly visible movable furniture item. Be specific: not "chair" but "standard dining chair" or "large wingback armchair". ' +
+                'For each item return: room (string), name (descriptive), qty (number), cubicFeet (realistic), weightLbs (realistic, never 0), included (true/false), size (short descriptor), notes (material + handling tip). ' +
+                'Real weights: king bed frame 150-180 lbs, queen mattress 80-100 lbs, 3-seat sofa 200-250 lbs, large sectional 300-350 lbs, 6-seat dining table 130-160 lbs, 6-drawer dresser 120-150 lbs, 65-inch TV 80-100 lbs, washer 150-200 lbs, dryer 100-130 lbs. ' +
+                'EXCLUDE (set included:false): built-in wardrobes/closets, wall-mounted items, hardwired appliances, kitchen islands. ' +
+                'Fridges: included:false, notes "Standard fridge — excluded by default; add manually if customer is taking it." ' +
+                'Freestanding wardrobes only (not built-in). Flag specialty items (piano, pool table, hot tub, safe) in specialtyFlags. ' +
+                'Return ONLY strict JSON: { "inventory": [...], "specialtyFlags": [] } — no markdown, no explanation.',
+            },
+            ...photos.map(url => ({
+              type: 'input_image',
+              image_url: url,
+            })),
+          ],
+        },
+      ],
+    }),
+  })
+  clearTimeout(timeout)
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '')
+    throw new Error(`OpenAI batch ${batchIndex + 1} failed: ${response.status}${detail ? ` — ${detail.slice(0, 120)}` : ''}`)
+  }
+
+  const payload = (await response.json()) as {
+    output_text?: string
+    output?: Array<{ content?: Array<{ type?: string; text?: string }> }>
+  }
+  const outputText =
+    payload.output_text ||
+    payload.output?.flatMap(item => item.content || []).find(item => item.type === 'output_text')?.text ||
+    ''
+
+  try {
+    const parsed = coerceJsonBlock(outputText) as { inventory?: InventoryItem[] }
+    return Array.isArray(parsed.inventory) ? parsed.inventory : []
+  } catch {
+    return []
+  }
+}
+
 export async function analyzeListingPhotos(listing: ListingMatch): Promise<InventoryScanDraft | null> {
   const config = getOpenAIConfig()
   const photos = Array.from(new Set((listing.carouselphotos || [])
