@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { EstimateDraftModal } from '@/app/components/sales/lead-detail/estimate-draft-modal'
 import { LeadBasicsPanel } from '@/app/components/sales/lead-detail/lead-basics-panel'
 import { LeadTimeline } from '@/app/components/sales/lead-detail/lead-timeline'
@@ -14,13 +14,14 @@ import {
 } from '@/app/components/sales/lead-detail/helpers'
 import { InventoryRoomSection } from '@/app/components/sales/lead-detail/inventory-room-section'
 import { INVENTORY_PRESETS, createInventoryItemFromPreset } from '@/lib/item-presets'
-import { SALES_LEAD_STAGES, computeQuoteTotals, deriveInventoryMetrics, formatDate, formatDateTime, formatMoney } from '@/lib/sales'
-import { createLeadQuote, deleteSalesLead, enrichSalesAddress, fetchSalesLead, fetchSalesOverview, fetchSalesQuote, saveLeadConsultation, saveSalesFollowUp, sendSalesMessage, updateSalesLead, updateSalesQuote } from '@/lib/sales-api'
-import type { CRMLead, CRMQuote, FollowUpLog, InventoryItem, QuoteLineItem } from '@/lib/types'
+import { DEPOSIT_METHODS, LEAD_CONTEXT_FLAGS, LOST_REASONS, SALES_LEAD_STAGES, computeQuoteTotals, deriveInventoryMetrics, estimateLeadQuote, formatDate, formatDateTime, formatMoney } from '@/lib/sales'
+import { confirmJob, createLeadQuote, deleteSalesLead, enrichSalesAddress, fetchSalesLead, fetchSalesOverview, fetchSalesQuote, saveLeadConsultation, saveSalesFollowUp, sendSalesMessage, updateSalesLead, updateSalesQuote } from '@/lib/sales-api'
+import type { CRMLead, CRMQuote, FollowUpLog, InventoryItem, JobFactors, QuoteLineItem } from '@/lib/types'
 
 export default function SalesLeadDetailPage() {
   const params = useParams() as { id?: string }
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [lead, setLead] = useState<CRMLead | null>(null)
   const [quote, setQuote] = useState<CRMQuote | null>(null)
   const [followUps, setFollowUps] = useState<FollowUpLog[]>([])
@@ -58,10 +59,29 @@ export default function SalesLeadDetailPage() {
   const [consultationSummary, setConsultationSummary] = useState('')
   const [consultationSeconds, setConsultationSeconds] = useState(0)
   const [deleteBusy, setDeleteBusy] = useState(false)
+  const [contextFlag, setContextFlag] = useState<string>('')
+  const [assignedRep, setAssignedRep] = useState<string>('')
+  const [estimateDate, setEstimateDate] = useState<string>('')
+  const [estimateTime, setEstimateTime] = useState<string>('')
+  // Lost reason modal
+  const [showLostModal, setShowLostModal] = useState(false)
+  const [lostReason, setLostReason] = useState<string>('')
+  const [lostNotes, setLostNotes] = useState<string>('')
+  const [pendingStage, setPendingStage] = useState<CRMLead['stage'] | null>(null)
+  // Confirm job modal
+  const [showConfirmJobModal, setShowConfirmJobModal] = useState(false)
+  const [confirmJobDeposit, setConfirmJobDeposit] = useState<string>('')
+  const [confirmJobDepositMethod, setConfirmJobDepositMethod] = useState<string>('E-Transfer')
+  const [confirmJobBusy, setConfirmJobBusy] = useState(false)
+  // Deposit
+  const [depositAmount, setDepositAmount] = useState<string>('')
+  const [depositMethod, setDepositMethod] = useState<string>('')
   const [quoteModalOpen, setQuoteModalOpen] = useState(false)
   const [quoteModalBusy, setQuoteModalBusy] = useState(false)
   const [quoteModalDirty, setQuoteModalDirty] = useState(false)
   const [quoteLineItems, setQuoteLineItems] = useState<QuoteLineItem[]>([])
+  const [jobFactors, setJobFactors] = useState<JobFactors>({})
+  const [recalculateBusy, setRecalculateBusy] = useState(false)
   const [composerOpen, setComposerOpen] = useState(false)
   const [composerChannel, setComposerChannel] = useState<'sms' | 'email'>('sms')
   const [composerSubject, setComposerSubject] = useState('Following up — Saturn Star Moving')
@@ -124,6 +144,15 @@ export default function SalesLeadDetailPage() {
     setMoveReason(nextLead.moveReason || '')
     setNotes(nextLead.notes || '')
     setInventory(nextLead.inventory || [])
+    if (nextLead.jobFactors) setJobFactors(nextLead.jobFactors)
+    setContextFlag(nextLead.contextFlag || '')
+    setAssignedRep(nextLead.assignedRep || '')
+    setEstimateDate(nextLead.estimateDate || '')
+    setEstimateTime(nextLead.estimateTime || '')
+    setLostReason(nextLead.lostReason || '')
+    setLostNotes(nextLead.lostNotes || '')
+    setDepositAmount(nextLead.depositAmount ? String(nextLead.depositAmount) : '')
+    setDepositMethod(nextLead.depositMethod || '')
   }
 
   function mergeFollowUpLog(entry: FollowUpLog) {
@@ -162,7 +191,11 @@ export default function SalesLeadDetailPage() {
     setQuote(null)
     setFollowUps([])
     setError(null)
-    void refresh(params.id)
+    void refresh(params.id).then(() => {
+      if (searchParams?.get('estimate') === '1') {
+        setQuoteModalOpen(true)
+      }
+    })
   }, [params])
 
   useEffect(() => {
@@ -250,24 +283,28 @@ export default function SalesLeadDetailPage() {
     const logs = [...(lead?.callLogs || [])].map(item => {
       const isInboundCall = item.type === 'call' && (item.notes || '').toLowerCase().includes('inbound')
       const hasEnrichment = !!(item.recordingUrl || item.transcript || item.aiSummary)
+      const isVm = item.isVoicemail || (item.transcript || '').startsWith('[Voicemail]')
       const text =
-        item.type === 'call' && isInboundCall && hasEnrichment
-          ? `Inbound call completed${item.duration ? ` — ${item.duration}` : ''}.`
-          : item.type === 'consultation' && item.recordingUrl && !item.transcript && !item.aiSummary
-            ? 'In-house consultation recorded. Transcript and AI summary are processing.'
-            : item.notes || item.type
+        item.type === 'call' && isVm
+          ? `Went to voicemail${item.duration ? ` — ${item.duration}` : ''}.${item.transcript ? ' Recording transcribed.' : item.recordingUrl ? ' Recording processing…' : ''}`
+          : item.type === 'call' && isInboundCall && hasEnrichment
+            ? `Inbound call completed${item.duration ? ` — ${item.duration}` : ''}.`
+            : item.type === 'consultation' && item.recordingUrl && !item.transcript && !item.aiSummary
+              ? 'In-house consultation recorded. Transcript and AI summary are processing.'
+              : item.notes || item.type
 
       return {
         id: item.id,
         kind: item.type,
         text,
-      date: item.date,
-      actor: item.source === 'consultation' ? 'rep' : item.type === 'call' ? 'rep' : 'system',
-      recordingUrl: item.recordingUrl,
-      transcript: item.transcript,
-      aiSummary: item.aiSummary,
-      duration: item.duration,
-      phone: item.phone,
+        date: item.date,
+        actor: item.source === 'consultation' ? 'rep' : item.type === 'call' ? 'rep' : 'system',
+        recordingUrl: item.recordingUrl,
+        transcript: item.transcript,
+        aiSummary: item.aiSummary,
+        duration: item.duration,
+        phone: item.phone,
+        isVoicemail: isVm || undefined,
       }
     })
 
@@ -369,6 +406,34 @@ export default function SalesLeadDetailPage() {
       totalCubicFeet: inventoryMetrics.totalCubicFeet,
       totalWeightLbs: inventoryMetrics.totalWeightLbs,
       roomBreakdown: buildRoomBreakdown(inventoryMetrics.inventory),
+      jobFactors: Object.keys(jobFactors).length > 0 ? jobFactors : undefined,
+      contextFlag: contextFlag || undefined,
+      assignedRep: assignedRep || undefined,
+      estimateDate: estimateDate || undefined,
+      estimateTime: estimateTime || undefined,
+      lostReason: lostReason || undefined,
+      lostNotes: lostNotes || undefined,
+      depositAmount: depositAmount ? Number(depositAmount) : undefined,
+      depositMethod: depositMethod || undefined,
+    }
+  }
+
+  function recalculateEstimate() {
+    if (!lead) return
+    setRecalculateBusy(true)
+    try {
+      const snapshot: CRMLead = {
+        ...lead,
+        inventory,
+        totalCubicFeet: inventoryMetrics.totalCubicFeet,
+        totalWeightLbs: inventoryMetrics.totalWeightLbs,
+        moveType,
+      }
+      const estimate = estimateLeadQuote(snapshot, undefined, jobFactors)
+      setQuoteLineItems(estimate.lineItems)
+      setQuoteModalDirty(true)
+    } finally {
+      setRecalculateBusy(false)
     }
   }
 
@@ -420,19 +485,82 @@ export default function SalesLeadDetailPage() {
         window.clearTimeout(autosaveTimerRef.current)
       }
     }
-  }, [lead, leadName, leadPhone, leadEmail, moveDate, moveType, leadSource, originAddress, originCity, originAccess, destAddress, destCity, destAccess, parkingNotes, moveReason, notes, stage, followUpDate, inventory])
+  }, [lead, leadName, leadPhone, leadEmail, moveDate, moveType, leadSource, originAddress, originCity, originAccess, destAddress, destCity, destAccess, parkingNotes, moveReason, notes, stage, followUpDate, inventory, contextFlag, estimateDate, estimateTime, assignedRep])
 
-  async function saveLead() {
+  async function saveLead(options?: { skipLostCheck?: boolean; pendingStageName?: CRMLead['stage'] }) {
     if (!lead) return
+
+    // Intercept: moving to 'lost' requires a reason first
+    const targetStage = options?.pendingStageName ?? stage
+    if (targetStage === 'lost' && lead.stage !== 'lost' && !options?.skipLostCheck) {
+      setPendingStage(targetStage)
+      setShowLostModal(true)
+      return
+    }
+
+    const prevStage = lead.stage
+    const stageChanged = targetStage !== prevStage
+
     try {
       setSaving(true)
-      const saved = await updateSalesLead(lead.id, buildLeadDraftPayload())
+      const payload = { ...buildLeadDraftPayload(), stage: targetStage }
+      if (targetStage === 'lost' && !payload.lostReason) {
+        payload.lostReason = lostReason || undefined
+        payload.lostNotes = lostNotes || undefined
+      }
+      const saved = await updateSalesLead(lead.id, payload)
       applyLeadSnapshot(saved, { hydrateForm: true })
+
+      // Log stage change to timeline automatically
+      if (stageChanged) {
+        const prevLabel = SALES_LEAD_STAGES.find(s => s.id === prevStage)?.label || prevStage
+        const nextLabel = SALES_LEAD_STAGES.find(s => s.id === targetStage)?.label || targetStage
+        const lostNote = targetStage === 'lost' && lostReason
+          ? ` Reason: ${LOST_REASONS.find(r => r.id === lostReason)?.label || lostReason}.`
+          : ''
+        await saveSalesFollowUp({
+          leadId: lead.id,
+          type: 'status_change',
+          notes: `Stage: ${prevLabel} → ${nextLabel}.${lostNote}`,
+          date: new Date().toISOString(),
+        }).catch(() => {})
+        const updatedLead = await fetchSalesLead(lead.id).catch(() => null)
+        if (updatedLead) setFollowUps(updatedLead.callLogs as unknown as FollowUpLog[] ?? [])
+        void refresh(lead.id)
+      }
+
       setError(null)
     } catch (err) {
       setError((err as Error).message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleConfirmLost() {
+    if (!lostReason) return
+    setShowLostModal(false)
+    const target = pendingStage || 'lost'
+    setPendingStage(null)
+    await saveLead({ skipLostCheck: true, pendingStageName: target })
+  }
+
+  async function handleConfirmJob() {
+    if (!lead) return
+    try {
+      setConfirmJobBusy(true)
+      const saved = await confirmJob(lead.id, {
+        depositAmount: confirmJobDeposit ? Number(confirmJobDeposit) : undefined,
+        depositMethod: confirmJobDepositMethod || undefined,
+        sendConfirmation: true,
+      })
+      applyLeadSnapshot(saved, { hydrateForm: true })
+      setShowConfirmJobModal(false)
+      void refresh(lead.id)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setConfirmJobBusy(false)
     }
   }
 
@@ -506,6 +634,10 @@ export default function SalesLeadDetailPage() {
       if (result.lead) setLead(result.lead)
       setQuoteLineItems(result.quote.lineItems || [])
       setQuoteModalDirty(false)
+      // Persist job factors to lead alongside the quote save
+      if (lead && Object.keys(jobFactors).length > 0) {
+        void updateSalesLead(lead.id, { jobFactors }).catch(() => {})
+      }
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -561,7 +693,7 @@ export default function SalesLeadDetailPage() {
 
   function openDialer() {
     if (!lead?.phone || typeof window === 'undefined') return
-    window.dispatchEvent(new CustomEvent('crm:open-dialer', { detail: { phone: lead.phone, name: lead.name } }))
+    window.dispatchEvent(new CustomEvent('crm:open-dialer', { detail: { phone: lead.phone, leadId: lead.id } }))
   }
 
   function openComposer(channel: 'sms' | 'email') {
@@ -825,6 +957,32 @@ Saturn Star Moving`
       {error && <div className="rounded-[8px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div>}
 
       <div className="overflow-hidden rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)]">
+        {/* Lead header bar */}
+        <div className="flex flex-wrap items-center gap-3 border-b border-[var(--app-line)] bg-white px-5 py-3">
+          <h1 className="font-display text-base font-semibold text-[var(--app-ink)]">{lead.name}</h1>
+          <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] ${
+            lead.stage === 'booked' ? 'bg-emerald-100 text-emerald-700' :
+            lead.stage === 'lost' ? 'bg-rose-100 text-rose-600' :
+            lead.stage === 'quoted' || lead.stage === 'pricing' ? 'bg-amber-100 text-amber-700' :
+            lead.stage === 'estimate_scheduled' || lead.stage === 'estimate_completed' ? 'bg-violet-100 text-violet-700' :
+            'bg-stone-100 text-stone-600'
+          }`}>
+            {SALES_LEAD_STAGES.find(s => s.id === lead.stage)?.label || lead.stage}
+          </span>
+          {lead.contextFlag ? (
+            <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-[10px] font-semibold text-sky-700">
+              {LEAD_CONTEXT_FLAGS.find(f => f.id === lead.contextFlag)?.label || lead.contextFlag}
+            </span>
+          ) : null}
+          {lead.assignedRep ? (
+            <span className="ml-auto text-xs text-[var(--app-muted)]">Rep: {lead.assignedRep}</span>
+          ) : null}
+          {lead.stage === 'estimate_scheduled' && lead.estimateDate ? (
+            <span className="rounded-full bg-violet-50 px-2.5 py-0.5 text-[10px] font-semibold text-violet-700">
+              Estimate: {formatDate(lead.estimateDate)}{lead.estimateTime ? ` @ ${lead.estimateTime}` : ''}
+            </span>
+          ) : null}
+        </div>
         <div className="grid min-h-[760px] lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[250px_minmax(0,1fr)_280px]">
           <LeadBasicsPanel
             lead={lead}
@@ -859,6 +1017,35 @@ Saturn Star Moving`
           />
 
           <aside className="order-2 border-t border-[var(--app-line)] bg-[var(--app-panel)] lg:order-3 lg:border-l lg:border-t-0 xl:order-3">
+            {/* Confirm Job CTA — prominent when lead has a quote and isn't booked yet */}
+            {quote && lead.stage !== 'booked' && lead.stage !== 'lost' ? (
+              <div className="border-b border-[var(--app-line)] bg-[#f0faf5] p-5">
+                <div className="crm-label text-[var(--app-accent)]">Ready to close?</div>
+                <button
+                  onClick={() => setShowConfirmJobModal(true)}
+                  className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-[10px] bg-[var(--app-accent)] text-sm font-semibold text-white transition hover:bg-[#0a5b47]"
+                >
+                  Confirm Job + Send Booking
+                </button>
+              </div>
+            ) : lead.stage === 'booked' ? (
+              <div className="border-b border-[var(--app-line)] bg-[#f0faf5] p-5">
+                <div className="crm-label text-[var(--app-accent)]">Booked</div>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    Job Confirmed
+                  </span>
+                  {lead.paymentStatus === 'deposit_received' && (
+                    <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">Deposit Received</span>
+                  )}
+                  {lead.paymentStatus === 'paid_in_full' && (
+                    <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">Paid in Full</span>
+                  )}
+                </div>
+              </div>
+            ) : null}
+
             <div className="space-y-3 border-b border-[var(--app-line)] p-5">
               {lead.phone ? <button onClick={openDialer} className="crm-button-dark w-full justify-center">Call Lead</button> : null}
               <div className="grid grid-cols-2 gap-3">
@@ -923,10 +1110,57 @@ Saturn Star Moving`
                   ))}
                 </select>
               </label>
+
+              <label className="block">
+                <span className="crm-label">Lead Context</span>
+                <select value={contextFlag} onChange={event => setContextFlag(event.target.value)} className="crm-input mt-2">
+                  <option value="">— No flag —</option>
+                  {LEAD_CONTEXT_FLAGS.map(item => (
+                    <option key={item.id} value={item.id}>{item.label}</option>
+                  ))}
+                </select>
+              </label>
+
+              {(stage === 'estimate_scheduled' || stage === 'estimate_completed') && (
+                <div>
+                  <span className="crm-label">Estimate Appointment</span>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <input type="date" value={estimateDate} onChange={e => setEstimateDate(e.target.value)} className="crm-input" placeholder="Date" />
+                    <input type="time" value={estimateTime} onChange={e => setEstimateTime(e.target.value)} className="crm-input" placeholder="Time" />
+                  </div>
+                </div>
+              )}
+
               <label className="block">
                 <span className="crm-label">Follow-Up Date</span>
                 <input type="date" value={followUpDate} onChange={event => setFollowUpDate(event.target.value)} className="crm-input mt-2" />
               </label>
+
+              <label className="block">
+                <span className="crm-label">Assigned Rep</span>
+                <input value={assignedRep} onChange={e => setAssignedRep(e.target.value)} className="crm-input mt-2" placeholder="Rep name or initials" />
+              </label>
+
+              {/* Deposit section — visible when booked */}
+              {lead.stage === 'booked' && (
+                <div>
+                  <span className="crm-label">Deposit</span>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <input
+                      type="number"
+                      value={depositAmount}
+                      onChange={e => setDepositAmount(e.target.value)}
+                      className="crm-input"
+                      placeholder="Amount $"
+                    />
+                    <select value={depositMethod} onChange={e => setDepositMethod(e.target.value)} className="crm-input">
+                      <option value="">Method</option>
+                      {DEPOSIT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  </div>
+                </div>
+              )}
+
               <button onClick={() => void saveLead()} disabled={saving} className="crm-button w-full justify-center disabled:opacity-60">
                 {saving ? 'Saving...' : 'Save Lead'}
               </button>
@@ -958,6 +1192,7 @@ Saturn Star Moving`
               onConsultationNotesChange={setConsultationNotes}
               onConsultationSummaryChange={setConsultationSummary}
               onStopConsultation={() => void stopConsultation()}
+              onLeadUpdate={setLead}
             />
           </div>
         </div>
@@ -1235,6 +1470,88 @@ Saturn Star Moving`
         </div>
       ) : null}
 
+      {/* ── Lost Reason Modal ────────────────────────────────────── */}
+      {showLostModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[16px] border border-[var(--app-line)] bg-white p-6 shadow-2xl">
+            <h2 className="font-display text-lg font-semibold text-[var(--app-ink)]">Why was this lead lost?</h2>
+            <p className="mt-1 text-sm text-[var(--app-muted)]">Required before marking as lost. Helps improve your close rate over time.</p>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {LOST_REASONS.map(reason => (
+                <button
+                  key={reason.id}
+                  onClick={() => setLostReason(reason.id)}
+                  className={`rounded-[10px] border px-3 py-2.5 text-sm font-medium text-left transition ${lostReason === reason.id ? 'border-rose-400 bg-rose-50 text-rose-700' : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-ink)] hover:border-rose-300'}`}
+                >
+                  {reason.label}
+                </button>
+              ))}
+            </div>
+            <textarea
+              value={lostNotes}
+              onChange={e => setLostNotes(e.target.value)}
+              className="mt-3 min-h-[72px] w-full resize-none rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none"
+              placeholder="Optional notes (what they said, what we could improve)..."
+            />
+            <div className="mt-4 flex items-center justify-end gap-3">
+              <button onClick={() => { setShowLostModal(false); setStage(lead?.stage || 'new') }} className="crm-button text-sm">Cancel</button>
+              <button
+                onClick={() => void handleConfirmLost()}
+                disabled={!lostReason}
+                className="crm-button-dark text-sm disabled:opacity-50"
+              >
+                Mark as Lost
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* ── Confirm Job Modal ─────────────────────────────────────── */}
+      {showConfirmJobModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[16px] border border-[var(--app-line)] bg-white p-6 shadow-2xl">
+            <h2 className="font-display text-lg font-semibold text-[var(--app-ink)]">Confirm Job for {lead?.name}</h2>
+            <p className="mt-1 text-sm text-[var(--app-muted)]">This will mark the lead as Booked, log the deposit, and send a booking confirmation to the customer.</p>
+            <div className="mt-5 space-y-4">
+              <label className="block">
+                <span className="crm-label">Deposit Amount</span>
+                <input
+                  type="number"
+                  value={confirmJobDeposit}
+                  onChange={e => setConfirmJobDeposit(e.target.value)}
+                  className="crm-input mt-2"
+                  placeholder="e.g. 200"
+                />
+              </label>
+              <label className="block">
+                <span className="crm-label">Deposit Method</span>
+                <select value={confirmJobDepositMethod} onChange={e => setConfirmJobDepositMethod(e.target.value)} className="crm-input mt-2">
+                  {DEPOSIT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </label>
+              <div className="rounded-[10px] border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+                A booking confirmation will be sent to{' '}
+                {lead?.phone ? <strong>{lead.phone}</strong> : null}
+                {lead?.phone && lead?.email ? ' and ' : null}
+                {lead?.email ? <strong>{lead.email}</strong> : null}
+                {!lead?.phone && !lead?.email ? 'no contact info on file — add phone/email first' : null}
+              </div>
+            </div>
+            <div className="mt-5 flex items-center justify-end gap-3">
+              <button onClick={() => setShowConfirmJobModal(false)} className="crm-button text-sm">Cancel</button>
+              <button
+                onClick={() => void handleConfirmJob()}
+                disabled={confirmJobBusy}
+                className="flex items-center gap-2 rounded-[10px] bg-[var(--app-accent)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#0a5b47] disabled:opacity-60"
+              >
+                {confirmJobBusy ? 'Confirming...' : 'Confirm + Send'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <EstimateDraftModal
         open={quoteModalOpen}
         quote={quote}
@@ -1242,8 +1559,10 @@ Saturn Star Moving`
         originAddress={originAddress}
         originCity={originCity}
         destCity={destCity}
+        destAddress={destAddress}
         listingLookupBusy={listingLookupBusy}
         analysisBusy={analysisBusy}
+        recalculateBusy={recalculateBusy}
         listingPhotos={listingPhotos}
         activePhotoIndex={activePhotoIndex}
         inventoryMetrics={inventoryMetrics}
@@ -1252,18 +1571,23 @@ Saturn Star Moving`
         quoteLineItems={quoteLineItems}
         quoteModalTotals={quoteModalTotals}
         quoteModalBusy={quoteModalBusy}
+        jobFactors={jobFactors}
         onClose={() => void closeQuoteModal()}
         onOriginAddressChange={setOriginAddress}
         onOriginCityChange={setOriginCity}
         onDestCityChange={setDestCity}
+        onDestAddressChange={setDestAddress}
         onLookupListing={() => void lookupListingForLead()}
         onRefreshInventory={() => void generateInventoryFromPhotos(true)}
+        onRecalculate={recalculateEstimate}
         onAddLineItem={addQuoteLineItem}
         onSetActivePhotoIndex={setActivePhotoIndex}
         onAddPreset={addPresetItem}
         onUpdateLineItem={updateQuoteLineItem}
         onRemoveLineItem={removeQuoteLineItem}
         onSaveDraft={() => void saveQuoteDraft()}
+        onJobFactorsChange={setJobFactors}
+        onAddInventoryItems={items => setInventory(current => [...current, ...items])}
       />
     </div>
   )

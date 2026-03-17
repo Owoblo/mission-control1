@@ -69,33 +69,49 @@ export default function NewSalesLeadPage() {
     setForm(current => ({ ...current, [key]: value }))
   }
 
+  async function buildPayload() {
+    const resolvedCity = listingMatch?.city || form.originCity || ''
+    const resolvedReason = form.moveReason === 'Other' ? form.moveReasonCustom : form.moveReason
+    return createSalesLead({
+      name: form.name,
+      source: form.source,
+      phone: form.phone,
+      email: form.email,
+      moveDate: form.moveDate || undefined,
+      moveType: form.moveType as CRMLead['moveType'],
+      originAddress: form.originAddress,
+      originCity: resolvedCity,
+      destCity: form.destCity,
+      supabaseListing: listingMatch || undefined,
+      moveReason: resolvedReason,
+      notes: form.notes,
+      directMailAttributed: !!listingMatch,
+      inventory: inventoryDraft?.inventory || [],
+      totalItems: inventoryDraft?.totalItems || 0,
+      totalCubicFeet: inventoryDraft?.totalCubicFeet || 0,
+      totalWeightLbs: inventoryDraft?.totalWeightLbs || 0,
+      roomBreakdown: inventoryDraft?.roomBreakdown || {},
+      forceNew: true,
+    } as Partial<CRMLead> & { forceNew: boolean })
+  }
+
   async function submit() {
     try {
       setSaving(true)
-      const resolvedCity = listingMatch?.city || form.originCity || ''
-      const resolvedReason = form.moveReason === 'Other' ? form.moveReasonCustom : form.moveReason
-      const lead = await createSalesLead({
-        name: form.name,
-        source: form.source,
-        phone: form.phone,
-        email: form.email,
-        moveDate: form.moveDate || undefined,
-        moveType: form.moveType as CRMLead['moveType'],
-        originAddress: form.originAddress,
-        originCity: resolvedCity,
-        destCity: form.destCity,
-        supabaseListing: listingMatch || undefined,
-        moveReason: resolvedReason,
-        notes: form.notes,
-        directMailAttributed: !!listingMatch,
-        inventory: inventoryDraft?.inventory || [],
-        totalItems: inventoryDraft?.totalItems || 0,
-        totalCubicFeet: inventoryDraft?.totalCubicFeet || 0,
-        totalWeightLbs: inventoryDraft?.totalWeightLbs || 0,
-        roomBreakdown: inventoryDraft?.roomBreakdown || {},
-        forceNew: true,
-      } as Partial<CRMLead> & { forceNew: boolean })
+      const lead = await buildPayload()
       router.push(`/sales/leads/${lead.id}`)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function submitAndEstimate() {
+    try {
+      setSaving(true)
+      const lead = await buildPayload()
+      router.push(`/sales/leads/${lead.id}?estimate=1`)
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -271,7 +287,10 @@ export default function NewSalesLeadPage() {
         </div>
 
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          <button onClick={() => void submit()} disabled={saving} className="crm-button-dark w-full justify-center disabled:opacity-60 sm:w-auto">
+          <button onClick={() => void submitAndEstimate()} disabled={saving} className="crm-button-dark w-full justify-center disabled:opacity-60 sm:w-auto">
+            {saving ? 'Saving...' : 'Create + Build Estimate →'}
+          </button>
+          <button onClick={() => void submit()} disabled={saving} className="crm-button w-full justify-center disabled:opacity-60 sm:w-auto">
             {saving ? 'Saving...' : 'Create lead'}
           </button>
           <Link href="/sales" className="crm-button w-full justify-center sm:w-auto">Cancel</Link>
