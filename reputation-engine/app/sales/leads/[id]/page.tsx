@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { EstimateDraftModal } from '@/app/components/sales/lead-detail/estimate-draft-modal'
+import { CollectCardModal } from '@/app/components/sales/collect-card-modal'
 import { LeadBasicsPanel } from '@/app/components/sales/lead-detail/lead-basics-panel'
 import { LeadTimeline } from '@/app/components/sales/lead-detail/lead-timeline'
 import {
@@ -82,6 +83,7 @@ export default function SalesLeadDetailPage() {
   const [logDepositNote, setLogDepositNote] = useState('')
   const [logDepositBusy, setLogDepositBusy] = useState(false)
   const [chargeBalanceBusy, setChargeBalanceBusy] = useState(false)
+  const [collectCardOpen, setCollectCardOpen] = useState(false)
   const [quoteModalOpen, setQuoteModalOpen] = useState(false)
   const [quoteModalBusy, setQuoteModalBusy] = useState(false)
   const [quoteModalDirty, setQuoteModalDirty] = useState(false)
@@ -1256,13 +1258,21 @@ Saturn Star Moving`
                     <div className="text-xs font-semibold text-amber-800">⚠ Deposit Required</div>
                     <p className="text-[11px] text-amber-700">{quote ? `${formatMoney(quote.deposit)} needed to confirm this job.` : 'A deposit is required before this job moves to operations.'}</p>
                     {quote && (
-                      <button
-                        onClick={() => void sendDepositLink()}
-                        disabled={depositLinkBusy}
-                        className="w-full rounded-[8px] bg-[#1a2744] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
-                      >
-                        {depositLinkBusy ? 'Opening...' : '💳 Send Card Payment Link'}
-                      </button>
+                      <>
+                        <button
+                          onClick={() => setCollectCardOpen(true)}
+                          className="w-full rounded-[8px] bg-[var(--app-accent)] px-3 py-2 text-xs font-semibold text-white hover:opacity-90"
+                        >
+                          💳 Collect Card &amp; Charge Now
+                        </button>
+                        <button
+                          onClick={() => void sendDepositLink()}
+                          disabled={depositLinkBusy}
+                          className="w-full rounded-[8px] bg-[#1a2744] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                        >
+                          {depositLinkBusy ? 'Opening...' : '🔗 Send Self-Pay Link (SMS)'}
+                        </button>
+                      </>
                     )}
                     <button
                       onClick={() => setLogDepositOpen(open => !open)}
@@ -1933,6 +1943,21 @@ Saturn Star Moving`
         onSaveAndPreview={() => void saveAndPreviewQuote()}
         onJobFactorsChange={setJobFactors}
         onAddInventoryItems={items => setInventory(current => [...current, ...items])}
+      />
+
+      <CollectCardModal
+        open={collectCardOpen}
+        lead={lead}
+        quote={quote}
+        onClose={() => setCollectCardOpen(false)}
+        onSuccess={({ lead: updatedLead, depositCharged, cardLast4, cardBrand }) => {
+          setLead(updatedLead)
+          setCollectCardOpen(false)
+          if (depositCharged) {
+            setError(null)
+          }
+          console.info(`Card saved: ${cardBrand} ****${cardLast4}${depositCharged ? ' — deposit charged' : ''}`)
+        }}
       />
     </div>
   )
