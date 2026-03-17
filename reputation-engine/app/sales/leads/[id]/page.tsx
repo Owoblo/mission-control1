@@ -651,7 +651,7 @@ export default function SalesLeadDetailPage() {
   async function saveAndPreviewQuote() {
     if (!quote) return
     await saveQuoteDraft()
-    router.push(`/sales/quotes/${quote.id}`)
+    router.push(`/sales/quotes/${quote.id}?send=1`)
   }
 
   async function closeQuoteModal() {

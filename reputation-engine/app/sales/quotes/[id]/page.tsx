@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import { PACKING_MATERIAL_PRESETS } from '@/lib/packing-materials'
 import { QUOTE_STATUSES, computeQuoteTotals, dateStamp, estimateLeadQuote, formatDate, formatMoney, getCrewRate, getDefaultDepositRate, validUntil } from '@/lib/sales'
 import { fetchSalesQuote, saveSalesFollowUp, sendSalesMessage, updateSalesLead, updateSalesQuote } from '@/lib/sales-api'
@@ -117,6 +117,8 @@ export default function SalesQuoteDetailPage() {
   const [packingQuantities, setPackingQuantities] = useState<Record<string, number>>({})
   const [copied, setCopied] = useState<'accept' | 'email' | 'sms' | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false)
+  const searchParams = useSearchParams()
 
   function mergeFollowUpLog(entry: FollowUpLog) {
     setFollowUps(current =>
@@ -164,6 +166,14 @@ export default function SalesQuoteDetailPage() {
     if (!params?.id) return
     void refresh(params.id)
   }, [params])
+
+  // Auto-open preview when navigated from "Preview & Send" on estimate modal
+  useEffect(() => {
+    if (searchParams?.get('send') === '1' && quote) {
+      setShowPreview('both')
+      setPreviewTab('email')
+    }
+  }, [searchParams, quote?.id])
 
   useEffect(() => {
     const moveType = lead?.moveType || quote?.moveType
@@ -780,37 +790,37 @@ Saturn Star Movers`
           <button onClick={() => void copyText(acceptUrl, 'accept')} className="crm-button text-sm">
             {copied === 'accept' ? '✓ Copied' : 'Copy Link'}
           </button>
-          <button onClick={() => window.print()} className="crm-button text-sm">Print</button>
-          <button onClick={() => { setShowPreview('email'); setPreviewTab('email') }} disabled={sendBusy} className="crm-button text-sm disabled:opacity-60">
-            Email Only
-          </button>
-          <button
-            onClick={() => void markAsSentSkipEmail()}
-            disabled={logBusy}
-            className="crm-button text-sm disabled:opacity-60"
-          >
-            {logBusy ? '...' : 'Mark Sent'}
-          </button>
-          <button
-            onClick={() => void acceptOnBehalf()}
-            disabled={saveBusy}
-            className="crm-button text-sm disabled:opacity-60"
-          >
-            {saveBusy ? '...' : 'Accept on Behalf'}
-          </button>
-          <button
-            onClick={() => void logDraftAsSent()}
-            disabled={logBusy}
-            className="crm-button-dark text-sm disabled:opacity-60"
-          >
-            {logBusy ? 'Working...' : 'Generate Quote'}
-          </button>
+
+          {/* More ▾ dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setMoreMenuOpen(open => !open)}
+              onBlur={() => window.setTimeout(() => setMoreMenuOpen(false), 150)}
+              className="crm-button text-sm"
+            >
+              More ▾
+            </button>
+            {moreMenuOpen && (
+              <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-[8px] border border-[var(--app-line)] bg-white py-1 shadow-lg">
+                <button onClick={() => { setMoreMenuOpen(false); window.print() }} className="w-full px-4 py-2 text-left text-sm hover:bg-stone-50">🖨 Print</button>
+                <button onClick={() => { setMoreMenuOpen(false); setShowPreview('email'); setPreviewTab('email') }} className="w-full px-4 py-2 text-left text-sm hover:bg-stone-50">✉ Email Only</button>
+                <button onClick={() => { setMoreMenuOpen(false); void markAsSentSkipEmail() }} disabled={logBusy} className="w-full px-4 py-2 text-left text-sm hover:bg-stone-50 disabled:opacity-50">
+                  {logBusy ? '...' : '📋 Mark as Sent'}
+                </button>
+                <button onClick={() => { setMoreMenuOpen(false); void acceptOnBehalf() }} disabled={saveBusy} className="w-full px-4 py-2 text-left text-sm hover:bg-stone-50 disabled:opacity-50">
+                  {saveBusy ? '...' : '✅ Accept on Behalf'}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Primary CTA */}
           <button
             onClick={() => { setShowPreview('both'); setPreviewTab('email') }}
             disabled={sendBothBusy}
             className="rounded-[8px] bg-[var(--app-accent)] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
           >
-            {sendBothBusy ? 'Sending…' : '✉ Send Email + SMS'}
+            {sendBothBusy ? 'Sending…' : 'Preview & Send →'}
           </button>
         </div>
       </div>
@@ -1015,17 +1025,24 @@ Saturn Star Movers`
       {/* ── PREVIEW MODAL ── */}
       {showPreview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="flex w-full max-w-2xl flex-col overflow-hidden rounded-[12px] bg-white shadow-2xl" style={{ maxHeight: '90vh' }}>
+          <div className="flex w-full max-w-3xl flex-col overflow-hidden rounded-[12px] bg-white shadow-2xl" style={{ maxHeight: '92vh' }}>
             {/* Modal header */}
             <div className="flex items-center justify-between border-b border-[var(--app-line)] px-6 py-4">
               <div>
                 <h2 className="text-lg font-semibold text-[var(--app-ink)]">Preview before sending</h2>
-                <p className="mt-0.5 text-sm text-[var(--app-muted)]">
-                  {showPreview === 'both' ? 'This is exactly what the customer will receive.' : 'This is the email the customer will receive.'}
-                </p>
+                <p className="mt-0.5 text-sm text-[var(--app-muted)]">Review what the customer will see, then send.</p>
               </div>
               <button onClick={() => setShowPreview(null)} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-muted)] hover:bg-stone-100 hover:text-[var(--app-ink)]">✕</button>
             </div>
+
+            {/* Validation warnings */}
+            {(!(client?.email || lead?.email) || !(client?.phone || lead?.phone)) && (
+              <div className="border-b border-amber-200 bg-amber-50 px-6 py-3 text-sm text-amber-800">
+                {!(client?.email || lead?.email) && <div>⚠ No email on file — email send will be skipped.</div>}
+                {!(client?.phone || lead?.phone) && <div>⚠ No phone on file — SMS send will be skipped.</div>}
+                <div className="mt-1 text-xs text-amber-600">Go back to the lead and add contact details to enable full delivery.</div>
+              </div>
+            )}
 
             {/* Tabs */}
             <div className="flex border-b border-[var(--app-line)] px-6">
@@ -1043,15 +1060,35 @@ Saturn Star Movers`
                   💬 SMS
                 </button>
               )}
+              {acceptUrl && (
+                <button
+                  onClick={() => setPreviewTab('quote' as 'email')}
+                  className={`-mb-px border-b-2 px-4 py-3 text-sm font-medium transition ${previewTab === ('quote' as 'email') ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}
+                >
+                  📄 Customer Quote View
+                </button>
+              )}
             </div>
 
             {/* Preview content */}
             <div className="flex-1 overflow-y-auto">
-              {previewTab === 'email' ? (
+              {previewTab === ('quote' as 'email') ? (
+                <iframe
+                  src={acceptUrl}
+                  className="w-full border-0"
+                  style={{ height: '520px' }}
+                  title="Customer Quote View"
+                />
+              ) : previewTab === 'email' ? (
                 <div className="p-6">
                   <div className="mb-4 rounded-[8px] border border-[var(--app-line)] bg-stone-50 px-4 py-3 text-sm">
-                    <div className="flex gap-6">
-                      <span><span className="font-medium text-[var(--app-muted)]">To: </span>{client?.email || lead?.email || '(no email on file)'}</span>
+                    <div className="flex flex-wrap gap-4">
+                      <span>
+                        <span className="font-medium text-[var(--app-muted)]">To: </span>
+                        {client?.email || lead?.email
+                          ? <span className="text-[var(--app-ink)]">{client?.email || lead?.email}</span>
+                          : <span className="text-amber-600 font-medium">no email on file</span>}
+                      </span>
                       <span><span className="font-medium text-[var(--app-muted)]">Subject: </span>{emailSubject}</span>
                     </div>
                   </div>
@@ -1063,7 +1100,10 @@ Saturn Star Movers`
               ) : (
                 <div className="p-6">
                   <div className="mb-3 text-sm text-[var(--app-muted)]">
-                    Sending to: <span className="font-medium text-[var(--app-ink)]">{client?.phone || lead?.phone || '(no phone on file)'}</span>
+                    Sending to:{' '}
+                    {client?.phone || lead?.phone
+                      ? <span className="font-medium text-[var(--app-ink)]">{client?.phone || lead?.phone}</span>
+                      : <span className="text-amber-600 font-medium">no phone on file</span>}
                   </div>
                   <div className="inline-block max-w-sm rounded-[18px] rounded-tl-[4px] bg-stone-100 px-4 py-3 text-sm leading-relaxed text-[var(--app-ink)]">
                     {smsBody}
@@ -1083,7 +1123,7 @@ Saturn Star Movers`
                   if (showPreview === 'both') await sendBothNow()
                   else await sendNow()
                 }}
-                disabled={sendBusy || sendBothBusy}
+                disabled={sendBusy || sendBothBusy || (!(client?.email || lead?.email) && !(client?.phone || lead?.phone))}
                 className="rounded-[8px] bg-[var(--app-accent)] px-5 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
               >
                 {(sendBusy || sendBothBusy) ? 'Sending…' : showPreview === 'both' ? 'Confirm — Send Email + SMS' : 'Confirm — Send Email'}
