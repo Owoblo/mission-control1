@@ -90,6 +90,8 @@ function QuoteAcceptPageInner() {
   const [accepted, setAccepted] = useState(false)
   const [declined, setDeclined] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [stripeLoading, setStripeLoading] = useState(false)
+  const justPaid = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('paid') === '1' : false
 
   const id = searchParams.get('id')
   const token = searchParams.get('token')
@@ -144,6 +146,25 @@ function QuoteAcceptPageInner() {
       if (!r.ok) throw new Error(payload?.error || 'Failed to decline quote')
       setQuote(payload.quote); setAccepted(false); setDeclined(true)
     } catch (err) { setError((err as Error).message) } finally { setDeclining(false) }
+  }
+
+  async function payDepositStripe() {
+    if (!id) return
+    try {
+      setStripeLoading(true)
+      const r = await fetch('/api/sales/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quoteId: id }),
+      })
+      const payload = await r.json() as { url?: string; error?: string }
+      if (!r.ok || !payload.url) throw new Error(payload.error || 'Could not create payment session')
+      window.location.href = payload.url
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setStripeLoading(false)
+    }
   }
 
   if (loading) return (
@@ -336,9 +357,32 @@ function QuoteAcceptPageInner() {
                 </div>
               </div>
             ) : accepted ? (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-6 mb-8 text-center">
-                <div className="text-xl font-bold text-emerald-700 mb-1">✓ Move Confirmed</div>
-                <div className="text-sm text-emerald-700/80">Your booking is confirmed. Saturn Star will be in touch shortly to finalize move day details. Please send your deposit to secure the date.</div>
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-6 mb-8">
+                <div className="text-center mb-4">
+                  <div className="text-xl font-bold text-emerald-700 mb-1">✓ Move Confirmed</div>
+                  <div className="text-sm text-emerald-700/80">Your booking is confirmed. Saturn Star will be in touch shortly to finalize move day details.</div>
+                </div>
+                {justPaid ? (
+                  <div className="mt-4 rounded-xl bg-emerald-600 p-4 text-center text-white">
+                    <div className="text-base font-bold">✓ Deposit Received — You&apos;re All Set!</div>
+                    <div className="text-sm text-white/80 mt-1">Your deposit has been processed. We&apos;ll confirm your move date shortly.</div>
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-xl border border-emerald-300 bg-white p-5">
+                    <div className="text-sm font-semibold text-stone-900 mb-1">Secure your date with a deposit</div>
+                    <p className="text-xs text-stone-500 mb-4">A deposit of <strong>{formatMoney(quote.deposit)}</strong> is required to lock in your move date.</p>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <button
+                        onClick={() => void payDepositStripe()}
+                        disabled={stripeLoading}
+                        className="flex-1 rounded-xl bg-[#1a2744] px-5 py-3 text-sm font-bold text-white hover:bg-[#243460] disabled:opacity-60"
+                      >
+                        {stripeLoading ? 'Redirecting...' : `💳 Pay Deposit Online — ${formatMoney(quote.deposit)}`}
+                      </button>
+                    </div>
+                    <p className="mt-3 text-center text-xs text-stone-400">Prefer e-Transfer or cash? Send to <strong>business@starmovers.ca</strong> and reply to confirm.</p>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="rounded-xl border border-stone-200 bg-stone-50 p-6 mb-8 text-center">

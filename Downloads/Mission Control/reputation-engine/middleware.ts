@@ -11,6 +11,8 @@ const TWILIO_PATHS = new Set([
   '/api/sales/dialer/dial-status',
   '/api/sales/twilio/sms',
   '/api/sales/inbox/email-inbound',
+  '/api/sales/stripe/checkout',
+  '/api/sales/stripe/webhook',
 ])
 
 export async function middleware(request: NextRequest) {
