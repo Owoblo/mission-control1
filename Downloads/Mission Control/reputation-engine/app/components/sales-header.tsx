@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: '/sales/pipeline', label: 'Pipeline', match: (path: string) => path.startsWith('/sales/pipeline') },
   { href: '/sales/inbox', label: 'Inbox', match: (path: string) => path.startsWith('/sales/inbox') },
   { href: '/sales/quotes', label: 'Quotes', match: (path: string) => path.startsWith('/sales/quotes') },
+  { href: '/sales/booked', label: 'Booked', match: (path: string) => path.startsWith('/sales/booked') },
   { href: '/trigger', label: 'Complete Job', match: (path: string) => path === '/trigger' },
 ]
 

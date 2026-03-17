@@ -3,8 +3,16 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { fetchSalesOverview } from '@/lib/sales-api'
-import { formatDate, formatMoney, validUntil } from '@/lib/sales'
+import { dateStamp, formatDate, formatMoney, validUntil } from '@/lib/sales'
 import type { CRMLead, CRMQuote } from '@/lib/types'
+
+function daysUntilExpiry(quote: CRMQuote): number | null {
+  if (!quote.createdAt) return null
+  const base = new Date(`${quote.createdAt}T12:00:00`)
+  base.setDate(base.getDate() + (quote.validDays || 30))
+  const diff = base.getTime() - new Date().setHours(12, 0, 0, 0)
+  return Math.ceil(diff / 86400000)
+}
 
 export default function SalesQuotesIndexPage() {
   const [quotes, setQuotes] = useState<CRMQuote[]>([])
@@ -104,14 +112,24 @@ export default function SalesQuotesIndexPage() {
                 <div className="space-y-2">
                   {grouped[section.key].map(quote => {
                     const lead = quote.leadId ? leadMap.get(quote.leadId) : undefined
+                    const expiryDays = (quote.status === 'sent' || quote.status === 'viewed') ? daysUntilExpiry(quote) : null
+                    const isExpiringSoon = expiryDays !== null && expiryDays <= 7
+                    const today = dateStamp()
                     return (
                       <Link
                         key={quote.id}
                         href={`/sales/quotes/${quote.id}`}
-                        className="grid grid-cols-[minmax(0,1fr)_120px] items-start gap-4 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] px-4 py-4 transition hover:border-[var(--app-ink)]"
+                        className={`grid grid-cols-[minmax(0,1fr)_120px] items-start gap-4 rounded-[8px] border px-4 py-4 transition hover:border-[var(--app-ink)] ${isExpiringSoon ? 'border-amber-200 bg-amber-50/40' : 'border-[var(--app-line)] bg-[var(--app-panel)]'}`}
                       >
                         <div>
-                          <div className="text-lg font-semibold text-[var(--app-ink)]">{quote.number}</div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <div className="text-lg font-semibold text-[var(--app-ink)]">{quote.number}</div>
+                            {isExpiringSoon ? (
+                              <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${expiryDays !== null && expiryDays <= 2 ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
+                                {expiryDays === 0 ? 'Expires today' : expiryDays === 1 ? 'Expires tomorrow' : `${expiryDays}d left`}
+                              </span>
+                            ) : null}
+                          </div>
                           <div className="mt-1 text-sm text-[var(--app-muted)]">
                             {lead?.name || 'Unknown client'} · {quote.originCity || 'Origin TBD'} → {quote.destCity || 'Destination TBD'}
                           </div>
@@ -142,11 +160,34 @@ export default function SalesQuotesIndexPage() {
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <div>
                   <div className="text-3xl font-semibold text-[var(--app-ink)]">{grouped.sent.length}</div>
-                  <div className="text-sm text-[var(--app-muted)]">Awaiting customer response</div>
+                  <div className="text-sm text-[var(--app-muted)]">Awaiting response</div>
                 </div>
                 <div>
                   <div className="text-3xl font-semibold text-[var(--app-ink)]">{grouped.accepted.length}</div>
-                  <div className="text-sm text-[var(--app-muted)]">Accepted quotes</div>
+                  <div className="text-sm text-[var(--app-muted)]">Accepted</div>
+                </div>
+                <div>
+                  {(() => {
+                    const decided = grouped.accepted.length + grouped.declined.length
+                    const rate = decided > 0 ? Math.round((grouped.accepted.length / decided) * 100) : null
+                    return (
+                      <>
+                        <div className="text-3xl font-semibold text-[var(--app-ink)]">{rate !== null ? `${rate}%` : '—'}</div>
+                        <div className="text-sm text-[var(--app-muted)]">Close rate</div>
+                      </>
+                    )
+                  })()}
+                </div>
+                <div>
+                  {(() => {
+                    const expiring = quotes.filter(q => (q.status === 'sent' || q.status === 'viewed') && daysUntilExpiry(q) !== null && (daysUntilExpiry(q) as number) <= 7).length
+                    return (
+                      <>
+                        <div className={`text-3xl font-semibold ${expiring > 0 ? 'text-amber-600' : 'text-[var(--app-ink)]'}`}>{expiring}</div>
+                        <div className="text-sm text-[var(--app-muted)]">Expiring in 7d</div>
+                      </>
+                    )
+                  })()}
                 </div>
               </div>
             </div>

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { dateStamp, formatDate, formatMoney } from '@/lib/sales'
-import { fetchSalesOverview } from '@/lib/sales-api'
+import { fetchSalesOverview, updateSalesLead } from '@/lib/sales-api'
 import type { CRMLead, CRMQuote, SalesDashboardSummary } from '@/lib/types'
 
 type LiveFeedEvent = {
@@ -50,6 +50,7 @@ export default function SalesDashboardPage() {
   const [summary, setSummary] = useState<SalesDashboardSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set())
 
   async function refresh() {
     try {
@@ -70,6 +71,15 @@ export default function SalesDashboardPage() {
     void refresh()
   }, [])
 
+  async function dismissTask(lead: CRMLead) {
+    setDismissed(prev => new Set(Array.from(prev).concat(lead.id)))
+    try {
+      await updateSalesLead(lead.id, { followUpDate: undefined })
+    } catch {
+      setDismissed(prev => { const next = new Set(prev); next.delete(lead.id); return next })
+    }
+  }
+
   const quoteMap = useMemo(() => new Map(quotes.map(item => [item.id, item])), [quotes])
   const today = dateStamp()
   const quotesSentToday = useMemo(
@@ -78,10 +88,17 @@ export default function SalesDashboardPage() {
   )
   const followUpFocus = useMemo(() => {
     return leads
-      .filter(lead => lead.followUpDate && lead.followUpDate <= today && !['booked', 'lost'].includes(lead.stage))
+      .filter(lead => !dismissed.has(lead.id) && lead.followUpDate && lead.followUpDate <= today && !['booked', 'lost'].includes(lead.stage))
       .sort((a, b) => (a.followUpDate || '').localeCompare(b.followUpDate || ''))
       .slice(0, 5)
-  }, [leads])
+  }, [leads, dismissed, today])
+
+  const expiringQuotes = useMemo(() => {
+    return quotes
+      .filter(q => (q.status === 'sent' || q.status === 'viewed') && daysUntilExpiry(q) !== null && (daysUntilExpiry(q) as number) <= 7)
+      .sort((a, b) => (daysUntilExpiry(a) ?? 99) - (daysUntilExpiry(b) ?? 99))
+      .slice(0, 5)
+  }, [quotes])
 
   const liveFeed = useMemo(() => {
     return leads
@@ -180,24 +197,68 @@ export default function SalesDashboardPage() {
                 <span className="rounded-[4px] bg-[var(--app-wash)] px-2 py-0.5 text-xs text-[var(--app-muted)]">{followUpFocus.length} pending</span>
               </div>
               <div className="space-y-2">
-                {followUpFocus.map(lead => (
-                  <Link key={lead.id} href={`/sales/leads/${lead.id}`} className="flex items-start gap-3 rounded-[6px] border border-transparent p-3 transition hover:border-[var(--app-line)] hover:bg-[var(--app-panel)]">
-                    <input type="checkbox" readOnly className="mt-1 h-4 w-4 rounded border-[var(--app-line)]" />
-                    <div>
+                {followUpFocus.length === 0 ? (
+                  <div className="rounded-[6px] border border-dashed border-[var(--app-line)] px-4 py-8 text-center text-sm text-[var(--app-muted)]">All caught up!</div>
+                ) : followUpFocus.map(lead => (
+                  <div key={lead.id} className="flex items-start gap-3 rounded-[6px] border border-transparent p-3 transition hover:border-[var(--app-line)] hover:bg-[var(--app-panel)]">
+                    <button
+                      type="button"
+                      onClick={() => void dismissTask(lead)}
+                      className="mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded border border-[var(--app-line)] bg-white transition hover:border-emerald-500 hover:bg-emerald-50"
+                      title="Mark done"
+                    />
+                    <Link href={`/sales/leads/${lead.id}`} className="min-w-0 flex-1">
                       <div className="text-sm text-[var(--app-ink)]">{lead.followUpNote || latestTimelineText(lead, lead.quoteId ? quoteMap.get(lead.quoteId) : undefined)}</div>
                       <div className={`mt-1 text-xs ${lead.followUpDate && lead.followUpDate < today ? 'text-[var(--app-warm)]' : 'text-[var(--app-muted)]'}`}>
-                        {lead.followUpDate && lead.followUpDate < today ? 'Due now' : lead.followUpDate || 'Due today'}
+                        {lead.name} · {lead.followUpDate && lead.followUpDate < today ? 'Overdue' : 'Due today'}
                       </div>
-                    </div>
-                  </Link>
+                    </Link>
+                  </div>
                 ))}
               </div>
+
+              {expiringQuotes.length > 0 ? (
+                <div className="mt-6">
+                  <div className="mb-3 flex items-center justify-between border-b border-[var(--app-line)] pb-2">
+                    <h2 className="font-display text-[1.4rem] font-semibold tracking-tight text-[var(--app-ink)]">Expiring Quotes</h2>
+                    <span className="rounded-[4px] bg-amber-50 px-2 py-0.5 text-xs text-amber-700 border border-amber-200">{expiringQuotes.length} at risk</span>
+                  </div>
+                  <div className="space-y-2">
+                    {expiringQuotes.map(quote => {
+                      const days = daysUntilExpiry(quote)
+                      const lead = quote.leadId ? leads.find(l => l.id === quote.leadId) : undefined
+                      return (
+                        <Link key={quote.id} href={`/sales/quotes/${quote.id}`} className="flex items-start justify-between gap-3 rounded-[6px] border border-amber-100 bg-amber-50/50 p-3 transition hover:border-amber-200 hover:bg-amber-50">
+                          <div>
+                            <div className="text-sm font-medium text-[var(--app-ink)]">{quote.number}</div>
+                            <div className="mt-0.5 text-xs text-[var(--app-muted)]">{lead?.name || 'Unknown'}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className={`text-xs font-semibold ${days !== null && days <= 2 ? 'text-rose-600' : 'text-amber-700'}`}>
+                              {days === 0 ? 'Expires today' : days === 1 ? 'Expires tomorrow' : days !== null && days < 0 ? 'Expired' : `${days}d left`}
+                            </div>
+                            <div className="mt-0.5 text-xs text-[var(--app-muted)]">{formatMoney(quote.total)}</div>
+                          </div>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : null}
             </section>
           </div>
         )}
       </div>
     </div>
   )
+}
+
+function daysUntilExpiry(quote: CRMQuote): number | null {
+  if (!quote.createdAt) return null
+  const base = new Date(`${quote.createdAt}T12:00:00`)
+  base.setDate(base.getDate() + (quote.validDays || 30))
+  const diff = base.getTime() - new Date().setHours(12, 0, 0, 0)
+  return Math.ceil(diff / 86400000)
 }
 
 function timeLabel(value: string) {
