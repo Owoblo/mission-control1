@@ -7,16 +7,29 @@ import { deleteSalesLead, fetchSalesOverview } from '@/lib/sales-api'
 import { formatDate, formatMoney } from '@/lib/sales'
 import type { CRMLead, CRMQuote } from '@/lib/types'
 
-const COLUMN_ORDER: CRMLead['stage'][] = ['new', 'contacted', 'pricing', 'quoted', 'nurture', 'booked', 'lost']
+const COLUMN_ORDER: CRMLead['stage'][] = ['new', 'contacted', 'estimate_scheduled', 'estimate_completed', 'pricing', 'quoted', 'nurture', 'booked', 'lost']
 
 const COLUMN_LABELS: Record<CRMLead['stage'], string> = {
-  new: 'New Inquiry',
+  new: 'New Lead',
   contacted: 'Contacted',
-  pricing: 'Estimating',
+  estimate_scheduled: 'Estimate Scheduled',
+  estimate_completed: 'Estimate Done',
+  pricing: 'Building Quote',
   quoted: 'Quote Sent',
-  nurture: 'Nurture',
+  nurture: 'Shopping Around',
   booked: 'Booked',
   lost: 'Lost',
+}
+
+const SOURCE_LABELS: Record<string, string> = {
+  twilio_call: 'Inbound Call',
+  twilio_sms: 'SMS',
+  facebook_dm: 'Facebook',
+  instagram_dm: 'Instagram',
+  email: 'Email',
+  website_form: 'Website Form',
+  manual: 'Manual Entry',
+  direct_mail: 'Direct Mail',
 }
 
 function SalesPipelineContent() {
@@ -28,6 +41,9 @@ function SalesPipelineContent() {
   const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'board' | 'list'>('board')
+  const [filterSource, setFilterSource] = useState('')
+  const [filterCity, setFilterCity] = useState('')
+  const [filterRep, setFilterRep] = useState('')
 
   async function refresh() {
     try {
@@ -71,6 +87,24 @@ function SalesPipelineContent() {
   }
 
   const quoteMap = useMemo(() => new Map(quotes.map(item => [item.id, item])), [quotes])
+
+  const sourceOptions = useMemo(() => {
+    const set = new Set(leads.map(l => l.source).filter(Boolean) as string[])
+    return Array.from(set).sort()
+  }, [leads])
+
+  const cityOptions = useMemo(() => {
+    const set = new Set(leads.map(l => l.originCity).filter(Boolean) as string[])
+    return Array.from(set).sort()
+  }, [leads])
+
+  const repOptions = useMemo(() => {
+    const set = new Set(leads.map(l => l.assignedRep).filter(Boolean) as string[])
+    return Array.from(set).sort()
+  }, [leads])
+
+  const activeFilterCount = [filterSource, filterCity, filterRep].filter(Boolean).length
+
   const grouped = useMemo(() => {
     return COLUMN_ORDER.map(stage => ({
       stage,
@@ -94,9 +128,12 @@ function SalesPipelineContent() {
             .toLowerCase()
           return haystack.includes(query)
         })
+        .filter(lead => !filterSource || lead.source === filterSource)
+        .filter(lead => !filterCity || lead.originCity === filterCity)
+        .filter(lead => !filterRep || lead.assignedRep === filterRep)
         .sort((a, b) => (b.leadScore || 0) - (a.leadScore || 0)),
     }))
-  }, [leads, query])
+  }, [leads, query, filterSource, filterCity, filterRep])
   const visibleLeads = useMemo(() => grouped.flatMap(column => column.cards), [grouped])
 
   return (
@@ -131,6 +168,55 @@ function SalesPipelineContent() {
         </div>
       </section>
 
+      {/* ── FILTER BAR ── */}
+      <section className="flex flex-wrap items-center gap-2">
+        <select
+          value={filterSource}
+          onChange={e => setFilterSource(e.target.value)}
+          className={`crm-input h-9 w-auto cursor-pointer py-0 text-sm ${filterSource ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : ''}`}
+        >
+          <option value="">All Sources</option>
+          {sourceOptions.map(s => (
+            <option key={s} value={s}>{SOURCE_LABELS[s] || s}</option>
+          ))}
+        </select>
+
+        <select
+          value={filterCity}
+          onChange={e => setFilterCity(e.target.value)}
+          className={`crm-input h-9 w-auto cursor-pointer py-0 text-sm ${filterCity ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : ''}`}
+        >
+          <option value="">All Cities</option>
+          {cityOptions.map(c => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+
+        <select
+          value={filterRep}
+          onChange={e => setFilterRep(e.target.value)}
+          className={`crm-input h-9 w-auto cursor-pointer py-0 text-sm ${filterRep ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : ''}`}
+        >
+          <option value="">All Reps</option>
+          {repOptions.map(r => (
+            <option key={r} value={r}>{r}</option>
+          ))}
+        </select>
+
+        {activeFilterCount > 0 && (
+          <button
+            onClick={() => { setFilterSource(''); setFilterCity(''); setFilterRep('') }}
+            className="flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 transition hover:bg-rose-100"
+          >
+            Clear {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} ✕
+          </button>
+        )}
+
+        <span className="ml-auto text-xs text-[var(--app-muted)]">
+          {visibleLeads.length} of {leads.length} leads
+        </span>
+      </section>
+
       {error ? <div className="rounded-[8px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
 
       {loading ? (
@@ -148,36 +234,33 @@ function SalesPipelineContent() {
                   {column.cards.map(lead => {
                     const quote = lead.quoteId ? quoteMap.get(lead.quoteId) : undefined
                     return (
-                      <Link
-                        key={lead.id}
-                        href={`/sales/leads/${lead.id}`}
-                        className="block rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-4 transition hover:border-[var(--app-ink)]"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="text-sm font-semibold text-[var(--app-ink)]">{lead.name}</div>
-                            <div className="mt-1 text-xs text-[var(--app-muted)]">{lead.moveDate ? formatDate(lead.moveDate) : 'Date TBD'} · {lead.moveType || 'Move TBD'}</div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="rounded-[4px] bg-[rgba(15,106,83,0.08)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-accent)]">
+                      <div key={lead.id} className="relative rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] transition hover:border-[var(--app-ink)]">
+                        <button
+                          onClick={event => void removeLead(event, lead)}
+                          className="absolute right-3 top-3 z-10 text-xs text-[var(--app-muted)] hover:text-rose-700"
+                        >
+                          {deleteBusyId === lead.id ? 'Deleting...' : 'Delete'}
+                        </button>
+                        <Link href={`/sales/leads/${lead.id}`} className="block p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="text-sm font-semibold text-[var(--app-ink)]">{lead.name}</div>
+                              <div className="mt-1 text-xs text-[var(--app-muted)]">{lead.moveDate ? formatDate(lead.moveDate) : 'Date TBD'} · {lead.moveType || 'Move TBD'}</div>
+                            </div>
+                            <span className="mr-14 rounded-[4px] bg-[rgba(15,106,83,0.08)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-accent)]">
                               {lead.leadScore || 0}
                             </span>
-                            <button
-                              onClick={event => void removeLead(event, lead)}
-                              className="text-xs text-[var(--app-muted)] hover:text-rose-700"
-                            >
-                              {deleteBusyId === lead.id ? 'Deleting...' : 'Delete'}
-                            </button>
                           </div>
-                        </div>
-                        <div className="mt-3 flex items-center justify-between text-xs text-[var(--app-muted)]">
-                          <span>{lead.originCity || 'Origin TBD'} → {lead.destCity || 'Destination TBD'}</span>
-                          <span>{quote ? formatMoney(quote.total) : 'Est. pending'}</span>
-                        </div>
-                        <div className="mt-3 border-t border-[var(--app-line)] pt-3 text-xs text-[var(--app-muted)]">
-                          {quote?.viewedAt ? `Viewed ${formatDate(quote.viewedAt)}` : lead.followUpDate ? `Follow up ${formatDate(lead.followUpDate)}` : 'No follow-up set'}
-                        </div>
-                      </Link>
+                          <div className="mt-3 flex items-center justify-between text-xs text-[var(--app-muted)]">
+                            <span>{lead.originCity || 'Origin TBD'} → {lead.destCity || 'Destination TBD'}</span>
+                            <span>{quote ? formatMoney(quote.total) : 'Est. pending'}</span>
+                          </div>
+                          <div className="mt-3 flex items-center justify-between border-t border-[var(--app-line)] pt-3 text-xs text-[var(--app-muted)]">
+                            <span>{quote?.viewedAt ? `Viewed ${formatDate(quote.viewedAt)}` : lead.followUpDate ? `Follow up ${formatDate(lead.followUpDate)}` : 'No follow-up set'}</span>
+                            {lead.assignedRep ? <span className="rounded-full bg-[var(--app-wash)] px-2 py-0.5 font-medium text-[var(--app-ink)]">{lead.assignedRep}</span> : null}
+                          </div>
+                        </Link>
+                      </div>
                     )
                   })}
                   {column.cards.length === 0 ? (
@@ -196,29 +279,27 @@ function SalesPipelineContent() {
             {visibleLeads.map(lead => {
               const quote = lead.quoteId ? quoteMap.get(lead.quoteId) : undefined
               return (
-                <Link
-                  key={lead.id}
-                  href={`/sales/leads/${lead.id}`}
-                  className="block rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-4 transition hover:border-[var(--app-ink)]"
-                >
-                  <div className="flex items-start justify-between gap-3">
+                <div key={lead.id} className="relative rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] transition hover:border-[var(--app-ink)]">
+                  <button
+                    onClick={event => void removeLead(event, lead)}
+                    className="absolute right-3 top-3 z-10 text-xs text-[var(--app-muted)] hover:text-rose-700"
+                  >
+                    {deleteBusyId === lead.id ? 'Deleting...' : 'Delete'}
+                  </button>
+                  <Link href={`/sales/leads/${lead.id}`} className="block p-4">
+                  <div className="flex items-start justify-between gap-3 pr-12">
                     <div>
                       <div className="font-medium text-[var(--app-ink)]">{lead.name}</div>
                       <div className="mt-1 text-xs text-[var(--app-muted)]">{COLUMN_LABELS[lead.stage]} · {lead.moveDate ? formatDate(lead.moveDate) : 'Date TBD'}</div>
                     </div>
-                    <button
-                      onClick={event => void removeLead(event, lead)}
-                      className="text-xs text-[var(--app-muted)] hover:text-rose-700"
-                    >
-                      {deleteBusyId === lead.id ? 'Deleting...' : 'Delete'}
-                    </button>
                   </div>
                   <div className="mt-3 text-sm text-[var(--app-muted)]">{lead.originCity || 'Origin TBD'} → {lead.destCity || 'Destination TBD'}</div>
                   <div className="mt-3 flex items-center justify-between border-t border-[var(--app-line)] pt-3 text-xs text-[var(--app-muted)]">
                     <span>{quote ? formatMoney(quote.total) : 'Estimate pending'}</span>
                     <span>{lead.followUpDate ? `Follow up ${formatDate(lead.followUpDate)}` : 'No follow-up set'}</span>
                   </div>
-                </Link>
+                  </Link>
+                </div>
               )
             })}
             {visibleLeads.length === 0 ? (
@@ -228,11 +309,12 @@ function SalesPipelineContent() {
             ) : null}
           </div>
           <div className="hidden rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] md:block">
-          <div className="grid grid-cols-[minmax(0,1.2fr)_140px_150px_170px_110px] gap-4 border-b border-[var(--app-line)] px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">
+          <div className="grid grid-cols-[minmax(0,1.2fr)_140px_150px_170px_100px_110px] gap-4 border-b border-[var(--app-line)] px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">
             <div>Lead</div>
             <div>Stage</div>
             <div>Move Date</div>
             <div>Route</div>
+            <div>Rep</div>
             <div>Action</div>
           </div>
           {visibleLeads.map(lead => {
@@ -241,7 +323,7 @@ function SalesPipelineContent() {
               <Link
                 key={lead.id}
                 href={`/sales/leads/${lead.id}`}
-                className="grid grid-cols-[minmax(0,1.2fr)_140px_150px_170px_110px] gap-4 border-b border-[var(--app-line)] px-5 py-4 text-sm transition hover:bg-[var(--app-bg)]"
+                className="grid grid-cols-[minmax(0,1.2fr)_140px_150px_170px_100px_110px] gap-4 border-b border-[var(--app-line)] px-5 py-4 text-sm transition hover:bg-[var(--app-bg)]"
               >
                 <div>
                   <div className="font-medium text-[var(--app-ink)]">{lead.name}</div>
@@ -250,6 +332,7 @@ function SalesPipelineContent() {
                 <div className="text-[var(--app-ink)] capitalize">{COLUMN_LABELS[lead.stage]}</div>
                 <div className="text-[var(--app-muted)]">{lead.moveDate ? formatDate(lead.moveDate) : 'Date TBD'}</div>
                 <div className="text-[var(--app-muted)]">{lead.originCity || 'Origin TBD'} → {lead.destCity || 'Destination TBD'}</div>
+                <div className="text-[var(--app-muted)]">{lead.assignedRep || '—'}</div>
                 <div>
                   <button
                     onClick={event => void removeLead(event, lead)}
