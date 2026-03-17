@@ -52,13 +52,14 @@ type Props = {
   onDestAddressChange: (value: string) => void
   onLookupListing: () => void
   onRefreshInventory: () => void
-  onRecalculate: () => void
+  onRecalculate: (driveHours?: number) => void
   onAddLineItem: () => void
   onSetActivePhotoIndex: (index: number) => void
   onAddPreset: (presetId: string) => void
   onUpdateLineItem: (index: number, field: keyof QuoteLineItem, value: string) => void
   onRemoveLineItem: (index: number) => void
   onSaveDraft: () => void
+  onSaveAndPreview: () => void
   onJobFactorsChange: (factors: JobFactors) => void
   onAddInventoryItems: (items: InventoryItem[]) => void
 }
@@ -138,6 +139,7 @@ export function EstimateDraftModal({
   onUpdateLineItem,
   onRemoveLineItem,
   onSaveDraft,
+  onSaveAndPreview,
   onJobFactorsChange,
   onAddInventoryItems,
 }: Props) {
@@ -444,7 +446,7 @@ export function EstimateDraftModal({
                   <div className="mt-0.5 text-xs text-[var(--app-muted)]">Tier 2 details not visible in MLS photos — these directly affect the estimate.</div>
                 </div>
                 <button
-                  onClick={onRecalculate}
+                  onClick={() => onRecalculate(route?.driveHours)}
                   disabled={recalculateBusy}
                   className="crm-button-dark text-xs disabled:opacity-60"
                 >
@@ -794,8 +796,11 @@ export function EstimateDraftModal({
                 </div>
               </div>
               <div className="mt-6 space-y-3">
+                <button onClick={onSaveAndPreview} disabled={quoteModalBusy || !quote} className="w-full justify-center rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
+                  {quoteModalBusy ? 'Saving...' : 'Preview & Send →'}
+                </button>
                 <button onClick={onSaveDraft} disabled={quoteModalBusy || !quote} className="crm-button-dark w-full justify-center disabled:opacity-60">
-                  {quoteModalBusy ? 'Saving...' : 'Save Draft'}
+                  Save Draft
                 </button>
                 <button onClick={onClose} disabled={quoteModalBusy} className="crm-button w-full justify-center">
                   Close

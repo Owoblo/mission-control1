@@ -421,7 +421,7 @@ export default function SalesLeadDetailPage() {
     }
   }
 
-  function recalculateEstimate() {
+  function recalculateEstimate(driveHours?: number) {
     if (!lead) return
     setRecalculateBusy(true)
     try {
@@ -432,7 +432,7 @@ export default function SalesLeadDetailPage() {
         totalWeightLbs: inventoryMetrics.totalWeightLbs,
         moveType,
       }
-      const estimate = estimateLeadQuote(snapshot, undefined, jobFactors)
+      const estimate = estimateLeadQuote(snapshot, { driveHours }, jobFactors)
       setQuoteLineItems(estimate.lineItems)
       setQuoteModalDirty(true)
     } finally {
@@ -646,6 +646,12 @@ export default function SalesLeadDetailPage() {
     } finally {
       setQuoteModalBusy(false)
     }
+  }
+
+  async function saveAndPreviewQuote() {
+    if (!quote) return
+    await saveQuoteDraft()
+    router.push(`/sales/quotes/${quote.id}`)
   }
 
   async function closeQuoteModal() {
@@ -1782,6 +1788,7 @@ Saturn Star Moving`
         onUpdateLineItem={updateQuoteLineItem}
         onRemoveLineItem={removeQuoteLineItem}
         onSaveDraft={() => void saveQuoteDraft()}
+        onSaveAndPreview={() => void saveAndPreviewQuote()}
         onJobFactorsChange={setJobFactors}
         onAddInventoryItems={items => setInventory(current => [...current, ...items])}
       />
