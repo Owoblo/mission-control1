@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { formatDateTime, formatMoney } from '@/lib/sales'
-import type { CRMQuote } from '@/lib/types'
+import { retranscribeConsultation } from '@/lib/sales-api'
+import type { CRMQuote, CRMLead } from '@/lib/types'
 import type { TimelineItem } from './timeline-types'
 
 function kindLabel(kind: string) {
@@ -12,6 +13,7 @@ function kindLabel(kind: string) {
   if (kind === 'accept') return 'Quote Accepted'
   if (kind === 'decline') return 'Quote Declined'
   if (kind === 'consultation') return 'Consultation'
+  if (kind === 'status_change') return 'Stage Change'
   return kind.replace(/_/g, ' ')
 }
 
@@ -67,6 +69,14 @@ function eventTone(item: TimelineItem) {
           accent: 'text-rose-700',
         }
   }
+  if (kind.includes('status_change')) {
+    return {
+      dot: 'border-slate-300 text-slate-600 bg-slate-50',
+      badge: 'bg-slate-50 text-slate-600 border-slate-200',
+      panel: 'border-slate-200 bg-slate-50/30',
+      accent: 'text-slate-700',
+    }
+  }
   return {
     dot: 'border-[rgba(228,226,220,1)] text-[var(--app-muted)] bg-white',
     badge: 'bg-stone-50 text-stone-600 border-stone-200',
@@ -81,13 +91,71 @@ type Props = {
   quote: CRMQuote | null
   inventoryCubicFeet: number
   onOpenQuoteBuilder: () => void
+  leadId?: string
+  onLeadUpdate?: (lead: CRMLead) => void
 }
 
-export function TimelineEventCard({ item, expandedByDefault = false, quote, inventoryCubicFeet, onOpenQuoteBuilder }: Props) {
+export function TimelineEventCard({ item, expandedByDefault = false, quote, inventoryCubicFeet, onOpenQuoteBuilder, leadId, onLeadUpdate }: Props) {
   const [expanded, setExpanded] = useState(expandedByDefault)
+  const [transcribing, setTranscribing] = useState(false)
+  const [transcribeError, setTranscribeError] = useState<string | null>(null)
   const tone = eventTone(item)
+
+  const needsTranscription = item.kind === 'consultation' && !!item.recordingUrl && !item.transcript && !item.aiSummary
+
+  async function handleRetranscribe() {
+    if (!leadId || !item.id) return
+    setTranscribing(true)
+    setTranscribeError(null)
+    try {
+      const updated = await retranscribeConsultation(leadId, item.id)
+      onLeadUpdate?.(updated)
+    } catch (err) {
+      setTranscribeError((err as Error).message || 'Transcription failed')
+    } finally {
+      setTranscribing(false)
+    }
+  }
   const previewText = item.aiSummary?.summary || item.transcript || item.text
   const hasDetails = !!(item.recordingUrl || item.transcript || item.aiSummary || (quote && item.id === `quote-created-${quote.id}`))
+
+  // ── SMS / Email bubble rendering ──
+  const isMessage = item.kind === 'sms' || item.kind === 'email'
+  const isOutbound = item.actor === 'rep' || item.actor === 'system'
+
+  if (isMessage) {
+    return (
+      <div className={`flex flex-col gap-1 ${isOutbound ? 'items-end' : 'items-start'}`}>
+        <div className={`flex items-end gap-2 ${isOutbound ? 'flex-row-reverse' : 'flex-row'}`}>
+          {/* Avatar dot */}
+          <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[9px] font-bold uppercase tracking-wide ${
+            isOutbound
+              ? 'bg-[var(--app-ink)] text-white'
+              : 'bg-stone-200 text-stone-600'
+          }`}>
+            {isOutbound ? 'SS' : item.actor?.slice(0, 1).toUpperCase() || 'C'}
+          </div>
+          {/* Bubble */}
+          <div className={`relative max-w-[75%] rounded-[18px] px-4 py-2.5 text-sm leading-[1.5] shadow-sm ${
+            isOutbound
+              ? item.kind === 'sms'
+                ? 'rounded-br-[4px] bg-[var(--app-ink)] text-white'
+                : 'rounded-br-[4px] bg-violet-700 text-white'
+              : 'rounded-bl-[4px] bg-stone-100 text-stone-800'
+          }`}>
+            {item.text}
+          </div>
+        </div>
+        <div className={`flex items-center gap-1.5 px-9 text-[10px] text-[var(--app-muted)] ${isOutbound ? 'flex-row-reverse' : ''}`}>
+          <span className={`rounded-full border px-1.5 py-0.5 font-semibold uppercase tracking-[0.12em] ${tone.badge}`}>
+            {item.kind === 'sms' ? 'SMS' : 'Email'}
+          </span>
+          <span>{formatDateTime(item.date)}</span>
+          {isOutbound ? <span className="text-[var(--app-accent)]">Sent ✓</span> : <span className="text-stone-400">Received</span>}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="relative pl-12">
@@ -100,6 +168,9 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
             <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] ${tone.badge}`}>
               {kindLabel(item.kind)}
             </span>
+            {item.isVoicemail ? (
+              <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-700">Voicemail</span>
+            ) : null}
             {item.duration ? <span className="text-xs text-[var(--app-muted)]">· {item.duration}</span> : null}
             {item.phone ? <span className="text-xs text-[var(--app-muted)]">· {item.phone}</span> : null}
           </div>
@@ -127,8 +198,26 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
                   {item.duration ? <div className={`text-xs font-medium ${tone.accent}`}>{item.duration}</div> : null}
                 </div>
                 <div className="mt-2 text-sm leading-6 text-stone-800">
-                  {item.aiSummary?.summary || item.transcript || 'No transcript or summary attached yet.'}
+                  {item.aiSummary?.summary || item.transcript || (
+                    needsTranscription ? (
+                      <span className="text-amber-700">Recording saved — transcript not yet generated.</span>
+                    ) : 'No transcript or summary attached yet.'
+                  )}
                 </div>
+                {needsTranscription && (
+                  <div className="mt-3">
+                    {transcribeError && (
+                      <div className="mb-2 text-xs text-rose-600">{transcribeError}</div>
+                    )}
+                    <button
+                      onClick={() => void handleRetranscribe()}
+                      disabled={transcribing}
+                      className="rounded-[8px] bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                    >
+                      {transcribing ? 'Transcribing...' : 'Transcribe Now'}
+                    </button>
+                  </div>
+                )}
                 {item.recordingUrl ? (
                   <div className="mt-4 rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
                     <div className="mb-2 flex items-center justify-between text-xs font-medium text-[var(--app-muted)]">

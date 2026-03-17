@@ -1,90 +1,86 @@
 import { NextResponse } from 'next/server'
-import { getGoogleMapsApiKey } from '@/lib/server/runtime'
 
-const DEFAULT_TRUCK_MPG = 10
-const DEFAULT_GAS_PRICE_PER_GALLON = 4.75
+async function geocode(address: string): Promise<{ lat: number; lng: number; displayName: string } | null> {
+  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&countrycodes=ca,us`
+  const response = await fetch(url, {
+    headers: { 'User-Agent': 'SaturnStarMissionControl/1.0 (business@starmovers.ca)' },
+    cache: 'no-store',
+  })
+  if (!response.ok) return null
+  const results = (await response.json()) as Array<{ lat: string; lon: string; display_name: string }>
+  if (!results.length) return null
+  return {
+    lat: parseFloat(results[0].lat),
+    lng: parseFloat(results[0].lon),
+    displayName: results[0].display_name,
+  }
+}
 
-type DirectionsResponse = {
-  routes?: Array<{
-    legs?: Array<{
-      distance?: {
-        value?: number
-        text?: string
-      }
-      duration?: {
-        value?: number
-        text?: string
-      }
-    }>
-  }>
-  status?: string
-  error_message?: string
+async function getDrivingRoute(
+  origin: { lat: number; lng: number },
+  dest: { lat: number; lng: number }
+): Promise<{ distanceKm: number; driveHours: number } | null> {
+  const url = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${dest.lng},${dest.lat}?overview=false`
+  const response = await fetch(url, {
+    headers: { 'User-Agent': 'SaturnStarMissionControl/1.0 (business@starmovers.ca)' },
+    cache: 'no-store',
+  })
+  if (!response.ok) return null
+  const data = (await response.json()) as {
+    code: string
+    routes?: Array<{ distance: number; duration: number }>
+  }
+  if (data.code !== 'Ok' || !data.routes?.length) return null
+  const route = data.routes[0]
+  return {
+    distanceKm: Math.round(route.distance / 1000),
+    driveHours: Math.round((route.duration / 3600) * 4) / 4,
+  }
 }
 
 export async function POST(request: Request) {
   try {
-    const payload = (await request.json()) as {
+    const { origin, destination } = (await request.json()) as {
       origin?: string
       destination?: string
-      truckMpg?: number
-      gasPricePerGallon?: number
-      truckCount?: number
     }
 
-    if (!payload.origin?.trim() || !payload.destination?.trim()) {
-      return NextResponse.json({ error: 'Origin and destination are required' }, { status: 400 })
+    if (!origin?.trim() || !destination?.trim()) {
+      return NextResponse.json({ error: 'origin and destination are required' }, { status: 400 })
     }
 
-    const apiKey = getGoogleMapsApiKey()
-    if (!apiKey) {
-      return NextResponse.json({ error: 'Google Maps API key is not configured for route estimates.' }, { status: 400 })
+    const [originGeo, destGeo] = await Promise.all([
+      geocode(origin.trim()),
+      geocode(destination.trim()),
+    ])
+
+    if (!originGeo) {
+      return NextResponse.json({ error: `Could not locate: "${origin}"` }, { status: 422 })
+    }
+    if (!destGeo) {
+      return NextResponse.json({ error: `Could not locate: "${destination}"` }, { status: 422 })
     }
 
-    const origin = payload.origin.trim()
-    const destination = payload.destination.trim()
-    const truckMpg = Math.max(1, Number(payload.truckMpg || DEFAULT_TRUCK_MPG))
-    const gasPricePerGallon = Math.max(0, Number(payload.gasPricePerGallon || DEFAULT_GAS_PRICE_PER_GALLON))
-    const truckCount = Math.max(1, Number(payload.truckCount || 1))
-    const directionsUrl =
-      `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(origin)}` +
-      `&destination=${encodeURIComponent(destination)}&key=${encodeURIComponent(apiKey)}`
-
-    const response = await fetch(directionsUrl, { cache: 'no-store' })
-    if (!response.ok) {
-      throw new Error(`Failed to read Google Directions API (${response.status})`)
+    const route = await getDrivingRoute(originGeo, destGeo)
+    if (!route) {
+      return NextResponse.json({ error: 'Could not calculate driving route between these addresses' }, { status: 422 })
     }
 
-    const data = (await response.json()) as DirectionsResponse
-    if (data.status !== 'OK') {
-      throw new Error(data.error_message || `Google Directions returned ${data.status || 'an unknown status'}`)
-    }
-
-    const leg = data.routes?.[0]?.legs?.[0]
-    const meters = Number(leg?.distance?.value || 0)
-    if (!meters) {
-      throw new Error('No route distance was returned for this move.')
-    }
-
-    const distanceKm = Math.round((meters / 1000) * 10) / 10
-    const distanceMiles = Math.round((distanceKm * 0.621371) * 10) / 10
-    const fuelGallons = Math.round((distanceMiles / truckMpg) * truckCount * 10) / 10
-    const fuelCost = Math.round(fuelGallons * gasPricePerGallon)
-    const driveHours = Math.round(((Number(leg?.duration?.value || 0) / 3600) || 0) * 10) / 10
+    const category: 'local' | 'medium' | 'long-distance' =
+      route.distanceKm < 80 ? 'local' : route.distanceKm < 300 ? 'medium' : 'long-distance'
 
     return NextResponse.json({
-      distanceKm,
-      distanceMiles,
-      driveHours,
-      fuelGallons,
-      fuelCost,
-      truckMpg,
-      gasPricePerGallon,
-      routeText: `${leg?.distance?.text || `${distanceKm} km`} · ${leg?.duration?.text || `${driveHours} hrs`}`,
+      distanceKm: route.distanceKm,
+      distanceMiles: Math.round(route.distanceKm * 0.621),
+      driveHours: route.driveHours,
+      category,
+      originResolved: originGeo.displayName,
+      destResolved: destGeo.displayName,
     })
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to estimate route' },
-      { status: 400 }
+      { error: error instanceof Error ? error.message : 'Route estimate failed' },
+      { status: 500 }
     )
   }
 }

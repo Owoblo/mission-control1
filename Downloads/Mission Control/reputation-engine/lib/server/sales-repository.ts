@@ -429,6 +429,37 @@ export async function getInboundLead(id: string) {
   return records[0] || null
 }
 
+export async function getInboundLeadByPhone(phone: string) {
+  const { url, headers } = requireSupabase()
+  // Normalize to digits only for matching, then filter recent unclaimed leads by phone
+  const response = await fetch(
+    `${url}/rest/v1/inbound_leads?phone=eq.${encodeURIComponent(phone)}&claimed=eq.false&select=id,source,name,phone,email,message,raw_data,created_at,claimed,claimed_at&order=created_at.desc&limit=1`,
+    { headers, cache: 'no-store' }
+  )
+  if (!response.ok) return null
+  const records = (await response.json()) as InboundLead[]
+  return records[0] || null
+}
+
+export async function appendSmsToInboundLead(id: string, smsBody: string, messageSid: string) {
+  const existing = await getInboundLead(id)
+  if (!existing) throw new Error(`Inbound lead ${id} not found`)
+
+  const { url, headers } = requireSupabase()
+  const raw = typeof existing.raw_data === 'object' && existing.raw_data ? existing.raw_data as Record<string, unknown> : {}
+  const thread = Array.isArray(raw.smsThread) ? [...raw.smsThread as unknown[]] : []
+  thread.push({ direction: 'inbound', body: smsBody, messageSid, at: new Date().toISOString() })
+
+  const newMessage = `${existing.message || ''}\n\n[Reply] ${smsBody}`.trim()
+
+  const response = await fetch(`${url}/rest/v1/inbound_leads?id=eq.${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ message: newMessage, raw_data: { ...raw, smsThread: thread } }),
+  })
+  if (!response.ok) throw new Error(`Failed to append SMS to inbound lead ${id}`)
+}
+
 export async function getInboundLeadByCallSid(callSid: string) {
   const { url, headers } = requireSupabase()
   // raw_data is stored as jsonb — filter by the callSid field inside it

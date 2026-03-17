@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { uid } from '@/lib/sales'
 import { requireWorkerBaseUrl } from '@/lib/server/runtime'
-import { saveFollowUpLog, saveSalesEmail } from '@/lib/server/sales-repository'
+import { getSalesLead, saveFollowUpLog, saveSalesEmail, saveSalesLead } from '@/lib/server/sales-repository'
 import type { CRMEmail, FollowUpLog } from '@/lib/types'
 
 export async function POST(request: Request) {
@@ -81,6 +81,24 @@ export async function POST(request: Request) {
         status: 'sent',
         sentAt: new Date().toISOString(),
       })
+    }
+
+    // Auto follow-up: when a quote is sent, set 24h follow-up on the lead if none exists
+    if (payload.quoteId && payload.leadId && payload.channel === 'email') {
+      try {
+        const lead = await getSalesLead(payload.leadId)
+        if (lead && !lead.followUpDate) {
+          const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000)
+          const followUpDate = tomorrow.toISOString().slice(0, 10)
+          await saveSalesLead({
+            ...lead,
+            followUpDate,
+            followUpNote: 'Follow up on sent quote',
+          })
+        }
+      } catch {
+        // best-effort — don't fail the send because of this
+      }
     }
 
     return NextResponse.json({ ok: true, result, log: savedLog, email: emailRecord })

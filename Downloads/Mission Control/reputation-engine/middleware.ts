@@ -4,10 +4,19 @@ import { getSessionCookieName, verifySessionToken } from '@/lib/auth'
 
 const PUBLIC_PATHS = new Set(['/login'])
 
+// Twilio webhook routes — must be public (Twilio has no session cookie)
+const TWILIO_PATHS = new Set([
+  '/api/sales/dialer/twiml',
+  '/api/sales/dialer/recording-callback',
+  '/api/sales/dialer/dial-status',
+  '/api/sales/twilio/sms',
+  '/api/sales/inbox/email-inbound',
+])
+
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl
 
-  if (PUBLIC_PATHS.has(pathname)) {
+  if (PUBLIC_PATHS.has(pathname) || TWILIO_PATHS.has(pathname)) {
     return NextResponse.next()
   }
 

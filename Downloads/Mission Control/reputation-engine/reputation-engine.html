@@ -539,18 +539,6 @@
 </head>
 <body>
 
-<div id="legacy-guard" style="position:fixed;inset:0;background:rgba(15,23,42,.72);backdrop-filter:blur(8px);z-index:10000;display:flex;align-items:center;justify-content:center;padding:24px;">
-  <div style="width:min(560px,100%);background:white;border-radius:22px;padding:28px;box-shadow:0 24px 90px rgba(15,23,42,.28);">
-    <div style="font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#b45309;margin-bottom:10px;">Legacy Review Engine</div>
-    <h2 style="font-size:28px;line-height:1.1;color:#1a2744;margin-bottom:12px;">Use the Next.js review app.</h2>
-    <p style="font-size:14px;line-height:1.7;color:#475569;margin-bottom:18px;">This standalone HTML review engine still contains the old local-first architecture. The shared production path is the Next.js Mission Control app.</p>
-    <div style="display:flex;flex-wrap:wrap;gap:10px;">
-      <a id="legacy-guard-link" href="http://localhost:3000/" style="border-radius:999px;padding:11px 16px;font-size:13px;font-weight:700;text-decoration:none;background:#1a2744;color:white;border:1px solid #1a2744;">Open new review app</a>
-      <button onclick="document.getElementById('legacy-guard').remove()" style="border-radius:999px;padding:11px 16px;font-size:13px;font-weight:700;background:white;color:#1a2744;border:1px solid #e5e7eb;cursor:pointer;">Continue in legacy mode</button>
-    </div>
-  </div>
-</div>
-
 <!-- ═══════════════════════════════════════════════════════════════
      REVIEW OVERLAY (full-screen customer-facing flow)
 ═══════════════════════════════════════════════════════════════ -->
@@ -599,7 +587,7 @@
       </button>
     </div>
     <div class="sidebar-footer">
-      226-724-1730 · info@saturnstarmovers.ca
+      226-724-1730 · <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="85ecebe3eac5f6e4f1f0f7ebf6f1e4f7e8eaf3e0f7f6abe6e4">[email&#160;protected]</a>
     </div>
   </nav>
 
@@ -626,7 +614,7 @@
 <!-- Confetti container -->
 <div id="confetti-container" class="confetti-container"></div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 /* ═══════════════════════════════════════════════════════════════
    CONFIG
 ═══════════════════════════════════════════════════════════════ */
@@ -1959,16 +1947,6 @@ function checkURLForReview() {
   renderView()
   checkURLForReview()
 })()
-</script>
-<script>
-  (function () {
-    const link = document.getElementById('legacy-guard-link');
-    if (!link) return;
-    const base = window.location.origin && window.location.origin.startsWith('http')
-      ? window.location.origin
-      : 'http://localhost:3000';
-    link.href = base + '/';
-  })();
 </script>
 </body>
 </html>

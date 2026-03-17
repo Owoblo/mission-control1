@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { claimInboundLead, fetchInboundLeads, markInboundLeadJunk, restoreInboundLead, sendSalesMessage } from '@/lib/sales-api'
 import type { InboundLead } from '@/lib/types'
@@ -14,13 +14,30 @@ const SOURCE_LABELS: Record<string, string> = {
   website_form: 'Web Form',
 }
 
+function isMissedCall(item: InboundLead) {
+  if (item.source !== 'twilio_call') return false
+  const raw = typeof item.raw_data === 'object' && item.raw_data ? item.raw_data as Record<string, unknown> : {}
+  return raw.missedCall === true
+}
+
 function timeAgo(value: string) {
   const diff = Date.now() - new Date(value).getTime()
   const minutes = Math.floor(diff / 60000)
+  if (minutes < 1) return 'just now'
   if (minutes < 60) return `${minutes}m ago`
   const hours = Math.floor(minutes / 60)
   if (hours < 24) return `${hours}h ago`
-  return `${Math.floor(hours / 24)}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days}d ago`
+  return new Date(value).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })
+}
+
+function formatAbsoluteTime(value: string) {
+  try {
+    return new Date(value).toLocaleString('en-CA', {
+      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+    })
+  } catch { return value }
 }
 
 function parseRawData(value: InboundLead['raw_data']) {
@@ -55,7 +72,7 @@ function displayLeadName(item: InboundLead | null) {
 export default function SalesInboxPage() {
   const router = useRouter()
   const [items, setItems] = useState<InboundLead[]>([])
-  const [viewMode, setViewMode] = useState<'active' | 'closed'>('active')
+  const [viewMode, setViewMode] = useState<'active' | 'unread' | 'closed'>('active')
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -65,6 +82,8 @@ export default function SalesInboxPage() {
   const [restoreBusy, setRestoreBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [compose, setCompose] = useState({ emailSubject: 'Following up — Saturn Star Moving', emailBody: '', smsBody: '' })
+  const [notification, setNotification] = useState<{ id: string; name: string; source: string; time: string } | null>(null)
+  const knownIdsRef = useRef<Set<string>>(new Set())
 
   function applyTemplate(templateId: string, firstName: string, lead: typeof selected) {
     const phone = '226-773-2993'
@@ -104,10 +123,27 @@ export default function SalesInboxPage() {
     }
   }
 
-  async function refresh() {
+  async function refresh(silent = false) {
     try {
-      setLoading(true)
+      if (!silent) setLoading(true)
       const data = await fetchInboundLeads(viewMode === 'closed' ? 'closed' : undefined)
+
+      // Detect brand-new arrivals (items we haven't seen before)
+      if (knownIdsRef.current.size > 0) {
+        const newItems = data.filter(item => !knownIdsRef.current.has(item.id))
+        if (newItems.length > 0) {
+          const newest = newItems[0]
+          setNotification({
+            id: newest.id,
+            name: displayLeadName(newest),
+            source: SOURCE_LABELS[newest.source] || newest.source,
+            time: newest.created_at,
+          })
+          window.setTimeout(() => setNotification(null), 7000)
+        }
+      }
+      data.forEach(item => knownIdsRef.current.add(item.id))
+
       setItems(data)
       setSelectedId(current => (current && data.some(item => item.id === current) ? current : data[0]?.id || null))
       setError(null)
@@ -122,11 +158,20 @@ export default function SalesInboxPage() {
     void refresh()
   }, [viewMode])
 
+  // Poll for new inbound leads every 30 seconds
+  useEffect(() => {
+    if (viewMode === 'closed') return
+    const interval = window.setInterval(() => { void refresh(true) }, 30000)
+    return () => window.clearInterval(interval)
+  }, [viewMode])
+
   const filteredItems = useMemo(() => {
     const query = search.trim().toLowerCase()
-    if (!query) return items
+    let base = items
+    if (viewMode === 'unread') base = items.filter(item => !item.claimed)
+    if (!query) return base
 
-    return items.filter(item => {
+    return base.filter(item => {
       const raw = parseRawData(item.raw_data)
       const text = [
         displayLeadName(item),
@@ -308,6 +353,23 @@ export default function SalesInboxPage() {
 
   return (
     <div className="crm-shell">
+      {/* ── NEW LEAD NOTIFICATION TOAST ── */}
+      {notification && (
+        <div className="fixed bottom-6 right-6 z-50 flex max-w-sm items-start gap-3 rounded-[12px] border border-[var(--app-line)] bg-white p-4 shadow-xl">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[rgba(15,106,83,0.12)] text-lg">🔔</div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold text-[var(--app-ink)]">New inbound — {notification.source}</div>
+            <div className="mt-0.5 text-sm text-[var(--app-muted)] truncate">{notification.name} · {timeAgo(notification.time)}</div>
+            <button
+              onClick={() => { setSelectedId(notification.id); setViewMode('active'); setNotification(null) }}
+              className="mt-2 rounded-[6px] bg-[var(--app-accent)] px-3 py-1 text-xs font-semibold text-white"
+            >
+              View Now
+            </button>
+          </div>
+          <button onClick={() => setNotification(null)} className="text-[var(--app-muted)] hover:text-[var(--app-ink)]">✕</button>
+        </div>
+      )}
       <div className="min-h-[calc(100vh-40px)] overflow-hidden rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)]">
         {error ? <div className="border-b border-rose-200 bg-rose-50 px-5 py-3 text-sm text-rose-700">{error}</div> : null}
         {loading ? (
@@ -325,22 +387,25 @@ export default function SalesInboxPage() {
                     {filteredItems.length} shown
                   </div>
                 </div>
-                <div className="mb-4 flex items-center gap-4">
-                  <button
-                    onClick={() => setViewMode('active')}
-                    className={`${viewMode === 'active' ? 'border-b-2 border-[var(--app-accent)] text-[var(--app-accent)]' : 'text-[var(--app-muted)]'} pb-1 text-sm font-medium`}
-                  >
-                    Active <span className="ml-1 text-xs text-[var(--app-muted)]">{viewMode === 'active' ? items.length : unreadCount}</span>
-                  </button>
-                  <button
-                    onClick={() => setViewMode('closed')}
-                    className={`${viewMode === 'closed' ? 'border-b-2 border-[var(--app-accent)] text-[var(--app-accent)]' : 'text-[var(--app-muted)]'} pb-1 text-sm font-medium`}
-                  >
-                    Closed
-                  </button>
-                  <div className="pb-1 text-sm font-medium text-[var(--app-muted)]">
-                    Unread <span className="ml-1 text-xs text-[var(--app-accent)]">{unreadCount}</span>
-                  </div>
+                <div className="mb-4 flex items-center gap-1 border-b border-[var(--app-line)]">
+                  {([
+                    { id: 'active', label: 'Active', count: items.length },
+                    { id: 'unread', label: 'Unread', count: unreadCount },
+                    { id: 'closed', label: 'Closed', count: null },
+                  ] as const).map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setViewMode(tab.id)}
+                      className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 pb-2 pt-1 text-sm font-medium transition ${viewMode === tab.id ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}
+                    >
+                      {tab.label}
+                      {tab.count !== null && (
+                        <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${viewMode === tab.id ? 'bg-[rgba(15,106,83,0.12)] text-[var(--app-accent)]' : 'bg-stone-100 text-[var(--app-muted)]'}`}>
+                          {tab.count}
+                        </span>
+                      )}
+                    </button>
+                  ))}
                 </div>
                 <input
                   className="crm-input"
@@ -369,10 +434,10 @@ export default function SalesInboxPage() {
                       {selectedState ? <div className="absolute bottom-0 left-0 top-0 w-1 bg-[var(--app-accent)]" /> : null}
                       <div className="mb-1 flex items-start justify-between">
                         <div className="flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-[var(--app-accent)]" />
-                          <span className="text-sm font-semibold text-[var(--app-ink)]">{displayLeadName(item)}</span>
+                          {!item.claimed && <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--app-accent)]" />}
+                          <span className={`text-sm font-semibold ${item.claimed ? 'text-[var(--app-muted)]' : 'text-[var(--app-ink)]'}`}>{displayLeadName(item)}</span>
                         </div>
-                        <span className="text-xs text-[var(--app-muted)]">{timeAgo(item.created_at)}</span>
+                        <span className="text-xs text-[var(--app-muted)]" title={formatAbsoluteTime(item.created_at)}>{timeAgo(item.created_at)}</span>
                       </div>
                       <p className="mb-1 text-sm font-medium text-[var(--app-ink)] line-clamp-1">
                         {(raw?.routeText as string | undefined) || item.message || `${item.phone || item.email || 'No contact details'} lead`}
@@ -381,9 +446,15 @@ export default function SalesInboxPage() {
                         {itemSummary || itemTranscript || item.message || 'No summary yet.'}
                       </p>
                       <div className="mt-2 flex gap-2">
-                        <span className="rounded-[4px] border border-[rgba(228,226,220,1)] bg-[var(--app-bg)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--app-muted)]">
-                          {SOURCE_LABELS[item.source] || item.source}
-                        </span>
+                        {isMissedCall(item) ? (
+                          <span className="rounded-[4px] border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-rose-700">
+                            ☎ Missed Call
+                          </span>
+                        ) : (
+                          <span className="rounded-[4px] border border-[rgba(228,226,220,1)] bg-[var(--app-bg)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--app-muted)]">
+                            {SOURCE_LABELS[item.source] || item.source}
+                          </span>
+                        )}
                         {viewMode === 'closed' && item.linkedLeadId ? (
                           <span className="rounded-[4px] border border-[rgba(15,106,83,0.2)] bg-[rgba(15,106,83,0.08)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--app-accent)]">
                             Moved to Pipeline
@@ -420,13 +491,15 @@ export default function SalesInboxPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <h2 className="text-[2rem] font-semibold tracking-tight text-[var(--app-ink)]">{displayLeadName(selected)}</h2>
-                          <span className={`rounded-[4px] border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
-                            selected.linkedLeadId
-                              ? 'border-[rgba(15,106,83,0.2)] bg-[rgba(15,106,83,0.08)] text-[var(--app-accent)]'
-                              : 'border-[rgba(15,106,83,0.2)] bg-[rgba(15,106,83,0.08)] text-[var(--app-accent)]'
-                          }`}>
-                            {selected.linkedLeadId ? 'Moved to Pipeline' : viewMode === 'closed' ? 'Junk' : 'New'}
-                          </span>
+                          {isMissedCall(selected) ? (
+                            <span className="rounded-[4px] border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-rose-700">
+                              ☎ Missed Call
+                            </span>
+                          ) : (
+                            <span className="rounded-[4px] border border-[rgba(15,106,83,0.2)] bg-[rgba(15,106,83,0.08)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--app-accent)]">
+                              {selected.linkedLeadId ? 'Moved to Pipeline' : viewMode === 'closed' ? 'Junk' : 'New'}
+                            </span>
+                          )}
                         </div>
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[var(--app-muted)]">
                           {selected.email ? <span>{selected.email}</span> : null}
@@ -519,7 +592,7 @@ export default function SalesInboxPage() {
                                 <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-4">
                                   <div className="flex items-center justify-between gap-3">
                                     <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">{event.type}</div>
-                                    <div className="text-xs text-[var(--app-muted)]">{timeAgo(event.time)}</div>
+                                    <div className="text-xs text-[var(--app-muted)]" title={formatAbsoluteTime(event.time)}>{formatAbsoluteTime(event.time)}</div>
                                   </div>
                                   <div className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[var(--app-ink)]">{event.body}</div>
                                 </div>
@@ -533,21 +606,36 @@ export default function SalesInboxPage() {
                         <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
                           <div className="flex items-center justify-between">
                             <h3 className="font-display text-lg font-semibold text-[var(--app-ink)]">Original Inquiry</h3>
-                            <div className="text-xs text-[var(--app-muted)]">{timeAgo(selected.created_at)}</div>
+                            <div className="text-xs text-[var(--app-muted)]" title={formatAbsoluteTime(selected.created_at)}>
+                              {formatAbsoluteTime(selected.created_at)}
+                            </div>
                           </div>
                           <div className="mt-4 grid gap-6 md:grid-cols-2">
                             <div>
                               <div className="crm-label">Name</div>
                               <div className="mt-2 text-sm font-medium text-[var(--app-ink)]">{displayLeadName(selected)}</div>
                             </div>
-                            <div>
-                              <div className="crm-label">Move Size</div>
-                              <div className="mt-2 text-sm font-medium text-[var(--app-ink)]">{selectedRaw?.moveSize || 'Not captured yet'}</div>
-                            </div>
+                            {selected.source === 'email' && selectedRaw?.subject ? (
+                              <div>
+                                <div className="crm-label">Subject</div>
+                                <div className="mt-2 text-sm font-medium text-[var(--app-ink)]">{selectedRaw.subject as string}</div>
+                              </div>
+                            ) : (
+                              <div>
+                                <div className="crm-label">Move Size</div>
+                                <div className="mt-2 text-sm font-medium text-[var(--app-ink)]">{selectedRaw?.moveSize || 'Not captured yet'}</div>
+                              </div>
+                            )}
                           </div>
+                          {selected.source === 'email' && selected.email ? (
+                            <div className="mt-4">
+                              <div className="crm-label">From</div>
+                              <div className="mt-2 text-sm font-medium text-[var(--app-ink)]">{selectedRaw?.from as string || selected.email}</div>
+                            </div>
+                          ) : null}
                           <div className="mt-6">
                             <div className="crm-label">Message</div>
-                            <div className="mt-2 text-sm leading-7 text-[var(--app-muted)]">{selected.message || 'No message body provided.'}</div>
+                            <div className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[var(--app-muted)]">{selected.message || 'No message body provided.'}</div>
                           </div>
                         </div>
 

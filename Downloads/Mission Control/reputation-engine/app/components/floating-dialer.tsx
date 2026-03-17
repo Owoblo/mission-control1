@@ -40,7 +40,7 @@ async function loadTwilioSdk() {
     }
 
     const script = document.createElement('script')
-    script.src = 'https://unpkg.com/@twilio/voice-sdk@2.10.0/dist/twilio.js'
+    script.src = 'https://unpkg.com/@twilio/voice-sdk@2.11.0/dist/twilio.js'
     script.async = true
     script.dataset.twilioVoice = 'true'
     script.onload = () => resolve()
@@ -63,76 +63,90 @@ export function FloatingDialer() {
   const incomingCallRef = useRef<any>(null)
   const callStartRef = useRef<number | null>(null)
   const initializedRef = useRef(false)
+  const tokenRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  useEffect(() => {
-    async function initializeDialer() {
-      if (initializedRef.current) return
-      initializedRef.current = true
-
-      try {
-        await loadTwilioSdk()
-        const response = await fetch('/api/sales/dialer/token', { cache: 'no-store' })
-        const payload = await response.json()
-        if (!response.ok || !payload?.ok || !payload?.token) {
-          throw new Error(payload?.error || 'Dialer is not configured')
-        }
-
-        const device = new window.Twilio!.Device(payload.token, {
-          logLevel: 1,
-          codecPreferences: ['opus', 'pcmu'],
-          edge: 'roaming',
-          allowIncomingWhileBusy: false,
-        })
-
-        device.on('incoming', (call: any) => {
-          incomingCallRef.current = call
-          const from = call?.parameters?.From || call?.parameters?.from || 'Incoming call'
-          setIncomingFrom(from)
-          setActiveLeadId(null)
-          setStatus('incoming')
-          setOpen(true)
-          void matchLeadByPhone(from).then(lead => {
-            if (lead) {
-              setActiveLeadId(lead.id)
-              setPhone(lead.phone || from)
-            }
-          }).catch(() => {})
-
-          call.on('cancel', () => {
-            incomingCallRef.current = null
-            callStartRef.current = null
-            setStatus('ready')
-          })
-          call.on('disconnect', () => {
-            incomingCallRef.current = null
-            activeCallRef.current = null
-            callStartRef.current = null
-            setStatus('ready')
-          })
-        })
-
-        await device.register()
-        deviceRef.current = device
-        setStatus('ready')
-      } catch (nextError) {
-        setStatus('error')
-        setError((nextError as Error).message)
-      }
+  async function buildDevice() {
+    await loadTwilioSdk()
+    const response = await fetch('/api/sales/dialer/token', { cache: 'no-store' })
+    const payload = await response.json()
+    if (!response.ok || !payload?.ok || !payload?.token) {
+      throw new Error(payload?.error || 'Dialer token unavailable — check Twilio config')
     }
 
+    // Destroy existing device cleanly before creating a new one
+    if (deviceRef.current) {
+      try { deviceRef.current.destroy?.() } catch { /* ignore */ }
+      deviceRef.current = null
+    }
+
+    const device = new window.Twilio!.Device(payload.token, {
+      logLevel: 1,
+      codecPreferences: ['opus', 'pcmu'],
+      edge: 'ashburn',           // explicit US-East edge — more reliable for Canada
+      allowIncomingWhileBusy: false,
+      maxCallSignalingTimeoutMs: 30000,
+    })
+
+    device.on('incoming', (call: any) => {
+      incomingCallRef.current = call
+      const from = call?.parameters?.From || call?.parameters?.from || 'Incoming call'
+      setIncomingFrom(from)
+      setActiveLeadId(null)
+      setStatus('incoming')
+      setOpen(true)
+      void matchLeadByPhone(from).then(lead => {
+        if (lead) { setActiveLeadId(lead.id); setPhone(lead.phone || from) }
+      }).catch(() => {})
+      call.on('cancel', () => { incomingCallRef.current = null; callStartRef.current = null; setStatus('ready') })
+      call.on('disconnect', () => { incomingCallRef.current = null; activeCallRef.current = null; callStartRef.current = null; setStatus('ready') })
+    })
+
+    // Token expires in 60 min — refresh at 50 min to stay ahead
+    if (tokenRefreshTimerRef.current) clearTimeout(tokenRefreshTimerRef.current)
+    tokenRefreshTimerRef.current = setTimeout(() => {
+      void buildDevice().then(() => setError(null)).catch(() => {}) // silent refresh
+    }, 50 * 60 * 1000)
+
+    await device.register()
+    deviceRef.current = device
+  }
+
+  async function initializeDialer() {
+    if (initializedRef.current) return
+    initializedRef.current = true
+    try {
+      await buildDevice()
+      setStatus('ready')
+      setError(null)
+    } catch (nextError) {
+      initializedRef.current = false // allow retry
+      setStatus('error')
+      setError((nextError as Error).message)
+    }
+  }
+
+  async function retryConnection() {
+    initializedRef.current = false
+    setStatus('idle')
+    setError(null)
+    await initializeDialer()
+  }
+
+  useEffect(() => {
     void initializeDialer()
 
     function handleOpenDialer(event: Event) {
       const customEvent = event as CustomEvent<{ phone?: string; leadId?: string }>
-      if (customEvent.detail?.phone) {
-        setPhone(customEvent.detail.phone)
-      }
+      if (customEvent.detail?.phone) setPhone(customEvent.detail.phone)
       setActiveLeadId(customEvent.detail?.leadId || null)
       setOpen(true)
     }
 
     window.addEventListener('crm:open-dialer', handleOpenDialer)
-    return () => window.removeEventListener('crm:open-dialer', handleOpenDialer)
+    return () => {
+      window.removeEventListener('crm:open-dialer', handleOpenDialer)
+      if (tokenRefreshTimerRef.current) clearTimeout(tokenRefreshTimerRef.current)
+    }
   }, [])
 
   useEffect(() => {
@@ -192,8 +206,16 @@ export function FloatingDialer() {
       call.on('error', (nextError: Error) => {
         activeCallRef.current = null
         callStartRef.current = null
-        setStatus('error')
-        setError(nextError.message)
+        const msg = nextError.message || ''
+        // 31005 = gateway error — stale token or TwiML app issue → auto-reinit
+        if (msg.includes('31005') || msg.includes('31000') || msg.includes('31003')) {
+          setError('Connection lost. Reconnecting...')
+          setStatus('idle')
+          void retryConnection()
+        } else {
+          setStatus('error')
+          setError(msg)
+        }
       })
     } catch (nextError) {
       setStatus('error')
@@ -314,7 +336,19 @@ export function FloatingDialer() {
                 className="mt-4 h-11 w-full rounded-[12px] border border-white/10 bg-white/5 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20"
                 placeholder="Enter phone number"
               />
-              {error ? <div className="mt-3 text-sm text-rose-300">{error}</div> : null}
+              {error ? (
+                <div className="mt-3 rounded-[10px] border border-rose-400/20 bg-rose-400/10 p-3">
+                  <div className="text-sm text-rose-300">{error}</div>
+                  {status === 'error' && (
+                    <button
+                      onClick={() => void retryConnection()}
+                      className="mt-2 rounded-[8px] bg-white/10 px-3 py-1.5 text-xs font-medium text-white/80 transition hover:bg-white/15"
+                    >
+                      Retry Connection
+                    </button>
+                  )}
+                </div>
+              ) : null}
               <div className="mt-4 grid grid-cols-3 gap-2">
                 {['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'].map(key => (
                   <button

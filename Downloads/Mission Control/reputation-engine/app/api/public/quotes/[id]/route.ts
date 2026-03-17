@@ -58,8 +58,11 @@ export async function GET(request: Request, { params }: { params: { id: string }
         id: quote.id,
         number: quote.number,
         moveDate: quote.moveDate,
+        moveType: quote.moveType,
         originCity: quote.originCity,
+        originAddress: quote.originAddress,
         destCity: quote.destCity,
+        destAddress: lead?.destAddress,
         status: quote.status,
         validDays: quote.validDays,
         lineItems: quote.lineItems,
@@ -68,12 +71,17 @@ export async function GET(request: Request, { params }: { params: { id: string }
         total: quote.total,
         deposit: quote.deposit,
         balance: quote.balance,
+        discountAmount: quote.discountAmount,
+        discountLabel: quote.discountLabel,
         createdAt: quote.createdAt,
         viewedAt: quote.viewedAt,
         acceptedAt: quote.acceptedAt,
       },
       client: client ? { name: client.name, email: client.email, phone: client.phone } : null,
-      lead: lead ? { name: lead.name } : null,
+      lead: lead ? {
+        name: lead.name,
+        inventory: (lead.inventory || []).filter((item: { included?: boolean }) => item.included !== false).slice(0, 60),
+      } : null,
     })
   } catch (error) {
     return NextResponse.json(

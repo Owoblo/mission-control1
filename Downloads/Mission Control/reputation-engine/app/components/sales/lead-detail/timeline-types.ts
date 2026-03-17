@@ -13,4 +13,5 @@ export type TimelineItem = {
   aiSummary?: CallLogEntry['aiSummary']
   duration?: string
   phone?: string
+  isVoicemail?: boolean
 }

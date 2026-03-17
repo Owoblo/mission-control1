@@ -89,6 +89,7 @@ export default function SalesLeadDetailPage() {
   const [composerBusy, setComposerBusy] = useState(false)
   const [listingLookupBusy, setListingLookupBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [undoItem, setUndoItem] = useState<{ item: InventoryItem; index: number; timer: number } | null>(null)
   const autosaveTimerRef = useRef<number | null>(null)
   const lastSavedLeadStateRef = useRef('')
   const consultationRecorderRef = useRef<MediaRecorder | null>(null)
@@ -773,7 +774,26 @@ Saturn Star Moving`
   }
 
   function removeInventoryItem(index: number) {
-    setInventory(current => current.filter((_, itemIndex) => itemIndex !== index))
+    const removed = inventory[index]
+    if (!removed) return
+    setInventory(current => current.filter((_, i) => i !== index))
+    // Clear previous undo timer
+    setUndoItem(prev => {
+      if (prev) clearTimeout(prev.timer)
+      const timer = window.setTimeout(() => setUndoItem(null), 6000)
+      return { item: removed, index, timer }
+    })
+  }
+
+  function undoRemoveInventoryItem() {
+    if (!undoItem) return
+    clearTimeout(undoItem.timer)
+    setInventory(current => {
+      const next = [...current]
+      next.splice(undoItem.index, 0, undoItem.item)
+      return next
+    })
+    setUndoItem(null)
   }
 
   function addRoomSection() {
@@ -1323,6 +1343,16 @@ Saturn Star Moving`
                 ))
               )}
             </div>
+
+            {/* Undo toast */}
+            {undoItem && (
+              <div className="mt-3 flex items-center justify-between rounded-xl bg-stone-800 px-4 py-2.5 text-sm text-white">
+                <span className="text-stone-300">Removed <span className="font-medium text-white">{undoItem.item.name || undoItem.item.item}</span></span>
+                <button onClick={undoRemoveInventoryItem} className="ml-4 font-semibold text-amber-400 hover:text-amber-300 transition-colors">
+                  Undo
+                </button>
+              </div>
+            )}
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               <label>
                 <span className="crm-label">Move Reason</span>

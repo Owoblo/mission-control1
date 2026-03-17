@@ -28,7 +28,11 @@ export async function POST(request: Request) {
     const direction = (formData.get('Direction') as string | null)?.trim()
     const callSid = (formData.get('CallSid') as string | null)?.trim()
 
-    const isInbound = direction === 'inbound' || to === CALLER_ID
+    // Browser SDK outbound calls have From = "client:saturn-star-rep"
+    // Real inbound PSTN calls have From = a phone number like "+15195551234"
+    // Direction is "inbound" for BOTH — so we must use From to differentiate
+    const fromBrowser = (from || '').toLowerCase().startsWith('client:')
+    const isInbound = !fromBrowser && (to === CALLER_ID || direction === 'inbound')
 
     if (isInbound) {
       // Fire-and-forget CRM log — never blocks the call
@@ -44,8 +48,10 @@ export async function POST(request: Request) {
 
       const appUrl = getAppUrl()
       const recordingCallback = appUrl ? `${appUrl}/api/sales/dialer/recording-callback` : ''
+      const dialStatusCallback = appUrl ? `${appUrl}/api/sales/dialer/dial-status` : ''
       const dialAttrs = [
         `record="record-from-answer"`,
+        dialStatusCallback ? `action="${dialStatusCallback}"` : '',
         recordingCallback ? `recordingStatusCallback="${recordingCallback}"` : '',
         recordingCallback ? `recordingStatusCallbackMethod="POST"` : '',
       ]

@@ -26,6 +26,7 @@ type Props = {
   onConsultationNotesChange: (value: string) => void
   onConsultationSummaryChange: (value: string) => void
   onStopConsultation: () => void
+  onLeadUpdate?: (lead: CRMLead) => void
 }
 
 function formatSeconds(seconds: number) {
@@ -57,6 +58,7 @@ export function LeadTimeline({
   onConsultationNotesChange,
   onConsultationSummaryChange,
   onStopConsultation,
+  onLeadUpdate,
 }: Props) {
   const [filter, setFilter] = useState<TimelineFilter>('all')
 
@@ -115,6 +117,8 @@ export function LeadTimeline({
                   quote={quote}
                   inventoryCubicFeet={inventoryCubicFeet}
                   onOpenQuoteBuilder={onOpenQuoteBuilder}
+                  leadId={lead.id}
+                  onLeadUpdate={onLeadUpdate}
                 />
               ))
             )}

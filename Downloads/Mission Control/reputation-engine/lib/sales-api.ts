@@ -63,6 +63,16 @@ export async function deleteSalesLead(id: string): Promise<{ ok: boolean }> {
   return readJson(response)
 }
 
+export async function retranscribeConsultation(leadId: string, callLogId: string): Promise<CRMLead> {
+  const response = await fetch(`/api/sales/leads/${leadId}/retranscribe`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ callLogId }),
+  })
+  return readJson(response)
+}
+
 export async function saveLeadConsultation(
   id: string,
   payload: { notes?: string; summary?: string; recordingUrl?: string; durationSeconds?: number }
@@ -240,6 +250,21 @@ export async function logDialerCall(payload: {
     body: JSON.stringify(payload),
   })
   return readJson(response)
+}
+
+export async function confirmJob(leadId: string, payload: {
+  depositAmount?: number
+  depositMethod?: string
+  sendConfirmation?: boolean
+}): Promise<CRMLead> {
+  const response = await fetch(`/api/sales/leads/${leadId}/confirm-job`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  const result = await readJson<{ lead: CRMLead }>(response)
+  return result.lead
 }
 
 export async function matchLeadByPhone(phone: string): Promise<CRMLead | null> {

@@ -23,6 +23,10 @@ export async function POST(request: Request) {
 
     const mp3Url = `${recordingUrl}.mp3`
 
+    // Detect likely voicemail: short recording (≤30s) is a strong signal.
+    // The transcript check below adds a second layer of confidence.
+    const likelyVoicemail = recordingDuration > 0 && recordingDuration <= 30
+
     // Transcribe first (used by both paths)
     let transcript: string | null = null
     try {
@@ -32,11 +36,16 @@ export async function POST(request: Request) {
       // best-effort
     }
 
+    // Confirm voicemail by transcript keywords if available
+    const voicemailKeywords = ['leave a message', 'not available', 'please record', 'after the tone', 'after the beep', 'voicemail box', 'mailbox is full', 'call back', 'reach me at']
+    const isVoicemail = likelyVoicemail || (!!transcript && voicemailKeywords.some(kw => transcript!.toLowerCase().includes(kw)))
+
     // --- Path 1: outbound browser call (callSid mapped to a CRM lead) ---
     const mapping = await getCrmCallSidMapping(callSid).catch(() => null)
     if (mapping) {
       const lead = await getSalesLead(mapping.leadId).catch(() => null)
-      const aiSummary = transcript && lead
+      // Don't run AI summary on voicemail greetings — they're not useful
+      const aiSummary = transcript && lead && !isVoicemail
         ? await summarizePhoneCall(lead, transcript).catch(() => null)
         : null
 
@@ -44,10 +53,11 @@ export async function POST(request: Request) {
         recordingUrl: mp3Url,
         recordingSid: recordingSid || undefined,
         recordingDuration: recordingDuration > 0 ? recordingDuration : undefined,
-        transcript: transcript || undefined,
+        transcript: isVoicemail ? `[Voicemail]${transcript ? ' ' + transcript : ''}` : (transcript || undefined),
         aiSummary: (aiSummary as any) || undefined,
-      })
-      return NextResponse.json({ ok: true, path: 'crm-lead' })
+        isVoicemail: isVoicemail || undefined,
+      } as any)
+      return NextResponse.json({ ok: true, path: 'crm-lead', isVoicemail })
     }
 
     // --- Path 2: inbound call (stored in inbound_leads by callSid in raw_data) ---

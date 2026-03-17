@@ -1,5 +1,13 @@
-import { saveInboundLead } from '@/lib/server/sales-repository'
+import { appendSmsToInboundLead, getInboundLeadByPhone, saveInboundLead } from '@/lib/server/sales-repository'
 import { uid } from '@/lib/sales'
+
+// Normalize phone to E.164 for matching (strip formatting)
+function toE164(phone: string) {
+  const digits = phone.replace(/\D/g, '')
+  if (digits.length === 10) return `+1${digits}`
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`
+  return phone.startsWith('+') ? phone : `+${digits}`
+}
 
 // Twilio sends form-encoded data for SMS webhooks
 export async function POST(request: Request) {
@@ -10,17 +18,29 @@ export async function POST(request: Request) {
     const messageSid = (formData.get('MessageSid') as string | null)?.trim() || ''
 
     if (from) {
-      await saveInboundLead({
-        id: uid('inb'),
-        source: 'twilio_sms',
-        phone: from,
-        message: body || 'Inbound SMS (no body)',
-        raw_data: {
-          messageSid,
-          from,
-          body,
-        },
-      })
+      const normalized = toE164(from)
+
+      // Check if there's an existing unclaimed inbound lead from this number.
+      // If yes, thread the reply into that lead instead of creating a duplicate.
+      const existing = await getInboundLeadByPhone(normalized).catch(() => null)
+        ?? await getInboundLeadByPhone(from).catch(() => null)
+
+      if (existing) {
+        await appendSmsToInboundLead(existing.id, body || '(no body)', messageSid)
+      } else {
+        await saveInboundLead({
+          id: uid('inb'),
+          source: 'twilio_sms',
+          phone: normalized || from,
+          message: body || 'Inbound SMS (no body)',
+          raw_data: {
+            messageSid,
+            from,
+            body,
+            smsThread: [{ direction: 'inbound', body: body || '(no body)', messageSid, at: new Date().toISOString() }],
+          },
+        })
+      }
     }
   } catch {
     // Always return 200 to Twilio — never let errors cause retries

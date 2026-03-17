@@ -1,6 +1,9 @@
 import type {
   CRMLead,
   CRMQuote,
+  JobFactors,
+  JobPenalty,
+  PricingBreakdown,
   CRMClient,
   FollowUpLog,
   InventoryItem,
@@ -11,14 +14,36 @@ import type {
 } from './types'
 
 export const SALES_LEAD_STAGES: Array<{ id: SalesLeadStage; label: string }> = [
-  { id: 'new', label: 'New Call' },
+  { id: 'new', label: 'New Lead' },
   { id: 'contacted', label: 'Contacted' },
+  { id: 'estimate_scheduled', label: 'Estimate Scheduled' },
+  { id: 'estimate_completed', label: 'Estimate Done' },
   { id: 'pricing', label: 'Building Quote' },
   { id: 'quoted', label: 'Quoted' },
   { id: 'nurture', label: 'Shopping Around' },
   { id: 'booked', label: 'Booked' },
   { id: 'lost', label: 'Lost' },
 ]
+
+export const LOST_REASONS: Array<{ id: string; label: string }> = [
+  { id: 'price', label: 'Price — Too Expensive' },
+  { id: 'timing', label: 'Timing — Not Ready Yet' },
+  { id: 'competitor', label: 'Went with Competitor' },
+  { id: 'no_response', label: 'No Response / Ghost' },
+  { id: 'not_a_fit', label: 'Not a Fit' },
+  { id: 'cancelled_move', label: 'Cancelled Move' },
+]
+
+export const LEAD_CONTEXT_FLAGS: Array<{ id: string; label: string }> = [
+  { id: 'comparing_quotes', label: 'Comparing Quotes' },
+  { id: 'waiting_house_sale', label: 'Waiting on House Sale' },
+  { id: 'move_date_uncertain', label: 'Move Date Uncertain' },
+  { id: 'budget_concern', label: 'Budget Concern' },
+  { id: 'ready_to_book', label: 'Ready to Book' },
+  { id: 'need_storage', label: 'Needs Storage' },
+]
+
+export const DEPOSIT_METHODS = ['E-Transfer', 'Credit Card', 'Cash', 'Cheque', 'Other']
 
 export const QUOTE_STATUSES: Array<{ id: QuoteStatus; label: string }> = [
   { id: 'draft', label: 'Draft' },
@@ -186,8 +211,8 @@ export function normalizeQuote(quote: CRMQuote): CRMQuote {
 const LOCAL_CREW_RATES: Record<number, number> = {
   1: 100,
   2: 160,
-  3: 230,
-  4: 365,
+  3: 225,
+  4: 270,
 }
 
 const LABOR_ONLY_CREW_RATES: Record<number, number> = {
@@ -251,12 +276,134 @@ export function suggestCrewSize(totalWeightLbs: number, totalCubicFeet: number, 
   return 1
 }
 
+// 26ft U-Haul holds ~1,400 cu ft with safe loading buffer
+const TRUCK_CAPACITY_CF = 1400
+
+// Items that almost always require disassembly/reassembly — auto-detected from inventory scan
+// NOTE: wardrobes are excluded — they are typically built-in and stay with the property
+const DISASSEMBLY_KEYWORDS = [
+  'bed frame',
+  'bunk bed',
+  'crib',
+  'dining table',
+  'desk',
+  'wall unit',
+  'china cabinet',
+  'hutch',
+  'trampoline',
+]
+
+export function suggestDisassemblyCount(inventory: InventoryItem[]): number {
+  return inventory.reduce((count, item) => {
+    const name = (item.name || item.item || '').toLowerCase()
+    if (item.included === false) return count
+    return DISASSEMBLY_KEYWORDS.some(keyword => name.includes(keyword))
+      ? count + Math.max(1, Number(item.qty || 1))
+      : count
+  }, 0)
+}
+
 export function suggestTruckCount(totalCubicFeet: number, moveType?: CRMLead['moveType']) {
   if (moveType === 'long-distance') {
-    return totalCubicFeet >= 1500 ? 2 : 1
+    return totalCubicFeet >= TRUCK_CAPACITY_CF ? 2 : 1
+  }
+  return totalCubicFeet >= TRUCK_CAPACITY_CF ? 2 : 1
+}
+
+export function computeJobPenalties(factors: JobFactors): {
+  penalties: JobPenalty[]
+  extraHours: number
+  extraCubicFeet: number
+} {
+  const penalties: JobPenalty[] = []
+
+  // Origin access
+  const originFloors = factors.originFloors || 1
+  if (originFloors >= 2 && !factors.originHasElevator) {
+    penalties.push({
+      label: `Origin – ${originFloors}-storey, stairs (no elevator)`,
+      hours: (originFloors - 1) * 0.35,
+    })
+  }
+  if (factors.originHasElevator && !factors.originElevatorReserved) {
+    penalties.push({ label: 'Origin – elevator not reserved (shared, wait time)', hours: 0.75 })
+  }
+  if (factors.originParkingOk === false) {
+    penalties.push({ label: 'Origin – limited truck access (no direct parking)', hours: 0.75 })
   }
 
-  return totalCubicFeet >= 1600 ? 2 : 1
+  // Destination access
+  const destFloors = factors.destFloors || 1
+  if (destFloors >= 2 && !factors.destHasElevator) {
+    penalties.push({
+      label: `Destination – ${destFloors}-storey, stairs (no elevator)`,
+      hours: (destFloors - 1) * 0.35,
+    })
+  }
+  if (factors.destHasElevator && !factors.destElevatorReserved) {
+    penalties.push({ label: 'Destination – elevator not reserved (shared, wait time)', hours: 0.75 })
+  }
+  if (factors.destParkingOk === false) {
+    penalties.push({ label: 'Destination – limited truck access', hours: 0.75 })
+  }
+
+  // Packing status
+  if (factors.packingStatus === 'partial') {
+    penalties.push({ label: 'Partial packing – crew packing assist needed', hours: 1.5 })
+  } else if (factors.packingStatus === 'not-started') {
+    penalties.push({ label: 'Full pack – customer has not started packing', hours: 3.5 })
+  }
+
+  // Specialty items
+  if (factors.hasPiano) {
+    penalties.push({ label: 'Piano – specialty wrapping and handling', hours: 1.5 })
+  }
+  if (factors.hasSafe) {
+    penalties.push({ label: 'Heavy safe – dolly required, specialty handling', hours: 0.75 })
+  }
+
+  // Disassembly / reassembly
+  const disassemblyCount = factors.disassemblyItemCount || 0
+  if (disassemblyCount > 0) {
+    penalties.push({
+      label: `Disassembly + reassembly – ${disassemblyCount} major item${disassemblyCount > 1 ? 's' : ''} (beds, wardrobes, wall units)`,
+      hours: Math.round(disassemblyCount * 0.33 * 4) / 4,
+    })
+  }
+
+  // Hidden inventory — adds cubic feet (no direct hour penalty, feeds back into labor calc)
+  const extraCubicFeet =
+    (factors.garageCubicFeet || 0) +
+    (factors.basementCubicFeet || 0) +
+    (factors.shedCubicFeet || 0) +
+    (factors.estimatedBoxes || 0) * 1.5
+
+  if ((factors.garageCubicFeet || 0) > 0) {
+    penalties.push({ label: `Garage – ${factors.garageCubicFeet} cu ft (not in MLS photos)`, hours: 0 })
+  }
+  if ((factors.basementCubicFeet || 0) > 0) {
+    penalties.push({ label: `Basement – ${factors.basementCubicFeet} cu ft (not in MLS photos)`, hours: 0 })
+  }
+  if ((factors.shedCubicFeet || 0) > 0) {
+    penalties.push({ label: `Shed – ${factors.shedCubicFeet} cu ft (not in MLS photos)`, hours: 0 })
+  }
+  if ((factors.estimatedBoxes || 0) > 0) {
+    penalties.push({
+      label: `${factors.estimatedBoxes} boxes (~${Math.round((factors.estimatedBoxes || 0) * 1.5)} cu ft) – customer estimate`,
+      hours: 0,
+    })
+  }
+
+  // Items we do NOT move — flag only
+  if (factors.hasHotTub) {
+    penalties.push({ label: '⚠ Hot tub flagged – Saturn Star does not move hot tubs', hours: 0, isFlagOnly: true })
+  }
+  if (factors.hasPoolTable) {
+    penalties.push({ label: '⚠ Pool table flagged – Saturn Star does not move pool tables', hours: 0, isFlagOnly: true })
+  }
+
+  const extraHours = penalties.filter(p => !p.isFlagOnly).reduce((sum, p) => sum + p.hours, 0)
+  return { penalties, extraHours, extraCubicFeet }
 }
 
 export function normalizeFollowUp(log: FollowUpLog): FollowUpLog {
@@ -298,6 +445,14 @@ export function syncLeadFromQuoteStatus(lead: CRMLead, quote: CRMQuote): CRMLead
   })
 }
 
+// Full-service residential move labor rates (lbs per man-hour)
+// Load = wrap furniture + disassemble beds/tables + carry out + stack in truck (slowest phase)
+// Unload = carry in + unwrap + reassemble + place in rooms (~1.5× faster than loading)
+const LOAD_RATE_LBS_PER_MAN_HOUR = 175
+const UNLOAD_RATE_LBS_PER_MAN_HOUR = 265
+const LOAD_RATE_CF_PER_MAN_HOUR = 70    // cubic feet fallback when no weight data
+const UNLOAD_RATE_CF_PER_MAN_HOUR = 105 // cubic feet fallback: unloading
+
 export function estimateLeadQuote(
   lead: CRMLead,
   overrides?: Partial<
@@ -314,36 +469,87 @@ export function estimateLeadQuote(
       | 'longDistanceMiscCost'
       | 'longDistanceMarkupRate'
     >
-  >
+  > & { driveHours?: number },
+  factors?: JobFactors
 ) {
   const isLongDistance = lead.moveType === 'long-distance'
   const isLaborOnly = lead.moveType === 'labor-only'
   const isPacking = lead.moveType === 'packing'
   const metrics = deriveInventoryMetrics(lead.inventory || [])
-  const totalCubicFeet = lead.totalCubicFeet || metrics.totalCubicFeet
+
+  // Apply job factor penalties
+  // Auto-detect disassembly count from inventory if not manually set in job factors
+  const autoDisassemblyCount = suggestDisassemblyCount(lead.inventory || [])
+  const rawFactors = factors ?? lead.jobFactors
+  const activeFactors: JobFactors | undefined = rawFactors
+    ? {
+        ...rawFactors,
+        // Only auto-fill disassemblyItemCount if rep hasn't set it explicitly
+        disassemblyItemCount: rawFactors.disassemblyItemCount ?? autoDisassemblyCount,
+      }
+    : autoDisassemblyCount > 0
+      ? { disassemblyItemCount: autoDisassemblyCount }
+      : undefined
+  const { penalties, extraHours, extraCubicFeet } = activeFactors
+    ? computeJobPenalties(activeFactors)
+    : { penalties: [], extraHours: 0, extraCubicFeet: 0 }
+
+  const baseCubicFeet = lead.totalCubicFeet || metrics.totalCubicFeet
+  const totalCubicFeet = baseCubicFeet + extraCubicFeet
   const totalWeightLbs = Number(overrides?.estimatedWeightLbs || lead.totalWeightLbs || metrics.totalWeightLbs)
-  const crewSize = Number(overrides?.crewSize || suggestCrewSize(totalWeightLbs, totalCubicFeet, metrics.includedInventory))
-  const truckCount = Number(overrides?.truckCount || suggestTruckCount(totalCubicFeet, lead.moveType))
+  const suggestedCrew = Number(overrides?.crewSize || suggestCrewSize(totalWeightLbs, totalCubicFeet, metrics.includedInventory))
+  const truckCount = Number(overrides?.truckCount || activeFactors?.truckCountOverride || suggestTruckCount(totalCubicFeet, lead.moveType))
+  // 2 trucks requires minimum 4 movers (2 per truck) — enforce unless manually overridden
+  const crewSize = overrides?.crewSize ? suggestedCrew : Math.max(suggestedCrew, truckCount >= 2 ? 4 : 1)
   const crewRate = getCrewRate(crewSize, lead.moveType)
-  const longDistanceTruckCost = Number(overrides?.longDistanceTruckCost || (isLongDistance ? Math.max(650, truckCount * 650) : 0))
-  const longDistanceGasCost = Number(overrides?.longDistanceGasCost || (isLongDistance ? Math.max(250, truckCount * 250) : 0))
-  const longDistanceInsuranceCost = Number(overrides?.longDistanceInsuranceCost || (isLongDistance ? 150 : 0))
-  const longDistanceMiscCost = Number(overrides?.longDistanceMiscCost || (isLongDistance ? 150 : 0))
-  const longDistanceMarkupRate = Number(overrides?.longDistanceMarkupRate || (isLongDistance ? 40 : 0))
-  const portalHours = isLongDistance ? 1.5 : isLaborOnly ? 0.5 : 1
-  const laborHours =
+  // LD operational costs default to 0 — drive time at full hourly rate covers truck/gas overhead
+  // Reps can manually add these as overrides if needed for specific jobs
+  const longDistanceTruckCost = Number(overrides?.longDistanceTruckCost || 0)
+  const longDistanceGasCost = Number(overrides?.longDistanceGasCost || 0)
+  const longDistanceInsuranceCost = Number(overrides?.longDistanceInsuranceCost || 0)
+  const longDistanceMiscCost = Number(overrides?.longDistanceMiscCost || 0)
+  const longDistanceMarkupRate = Number(overrides?.longDistanceMarkupRate || 0)
+  // Drive time — portal-to-portal means shop→origin + origin→destination
+  // overrides.driveHours is the origin→destination leg from OSRM
+  // We add an equal shop-to-origin leg (same distance, crew travels both ways)
+  // For labor-only, crew is already on-site so only origin→dest travel counts
+  const originToDestHours = overrides?.driveHours ?? (isLongDistance ? 1.5 : 0.75)
+  const shopToOriginHours = isLaborOnly ? 0 : originToDestHours  // same distance, opposite direction
+  const driveHours = roundQuarterHour(isLaborOnly ? 0.5 : originToDestHours + shopToOriginHours)
+
+  // Phase 1: Loading (wrap, disassemble, carry out, load truck) — slowest phase
+  // Phase 2: Unloading (carry in, unwrap, reassemble, place) — ~50% faster than loading
+  const loadHours =
     totalWeightLbs > 0
-      ? totalWeightLbs / 350 / Math.max(1, crewSize)
+      ? totalWeightLbs / LOAD_RATE_LBS_PER_MAN_HOUR / Math.max(1, crewSize)
       : totalCubicFeet > 0
-        ? totalCubicFeet / (crewSize >= 4 ? 150 : crewSize === 3 ? 190 : crewSize === 2 ? 220 : 120)
-        : isLongDistance
-          ? 9
-          : crewSize >= 3
-            ? 5
-            : 4
-  const estimatedHours = Math.max(3, Number(overrides?.estimatedHours || roundQuarterHour(laborHours + portalHours)))
+        ? totalCubicFeet / (LOAD_RATE_CF_PER_MAN_HOUR * Math.max(1, crewSize))
+        : isLongDistance ? 4 : crewSize >= 3 ? 2.5 : 2
+
+  const unloadHours =
+    totalWeightLbs > 0
+      ? totalWeightLbs / UNLOAD_RATE_LBS_PER_MAN_HOUR / Math.max(1, crewSize)
+      : totalCubicFeet > 0
+        ? totalCubicFeet / (UNLOAD_RATE_CF_PER_MAN_HOUR * Math.max(1, crewSize))
+        : loadHours * 0.65
+
+  const rawLaborHours = loadHours + unloadHours  // pure work phases, excludes drive
+  const baseHours = roundQuarterHour(rawLaborHours + driveHours)
+  const preBufferHours = roundQuarterHour(baseHours + extraHours)
+  // 10% buffer to protect against surprises — baked in silently
+  const bufferHours = roundQuarterHour(preBufferHours * 0.1)
+  const estimatedHours = Math.max(3, Number(overrides?.estimatedHours || roundQuarterHour(preBufferHours + bufferHours)))
+  // Intelligence flags — inform the rep about job characteristics, not visible to customer
+  // 26ft truck spec: ~1,650 cu ft. We use 1,400 as a conservative safe-load buffer (pads/wrapping reduce usable space).
+  // 2-trip zone starts at 1,000 cu ft — load is 71%+ of truck and second trip becomes plausible for local moves.
+  const TWO_TRIP_ZONE_CF = 1000
+  const intelligenceFlags = {
+    twoTruckRequired: truckCount >= 2,
+    twoTripZone: !isLongDistance && !isPacking && !isLaborOnly && totalCubicFeet >= TWO_TRIP_ZONE_CF && totalCubicFeet < TRUCK_CAPACITY_CF,
+    threeHourMinApplied: roundQuarterHour(preBufferHours + bufferHours) < 3,
+    fullDayFlag: estimatedHours >= 14,
+  }
   const laborAmount = Math.round(estimatedHours * crewRate)
-  const travelAmount = isLaborOnly ? 0 : Math.round(Math.max(0, portalHours * crewRate * 0.35))
   const longDistanceOperationalBase = longDistanceTruckCost + longDistanceGasCost + longDistanceInsuranceCost + longDistanceMiscCost
   const longDistanceMarkupAmount = isLongDistance ? Math.round(longDistanceOperationalBase * (longDistanceMarkupRate / 100)) : 0
   const extraTruckAmount =
@@ -353,73 +559,69 @@ export function estimateLeadQuote(
         : Math.round((truckCount - 1) * estimatedHours * getCrewRate(2, lead.moveType) * 0.85)
       : 0
 
+  // Phase time labels for the line item details
+  const roundedLoad = roundQuarterHour(loadHours)
+  const roundedUnload = roundQuarterHour(unloadHours)
+  const phaseDetail =
+    totalWeightLbs > 0
+      ? `${totalWeightLbs} lbs · ${crewSize} movers · ~${roundedLoad}h loading + ${driveHours}h drive + ~${roundedUnload}h unloading (${estimatedHours}h total)`
+      : totalCubicFeet > 0
+        ? `${totalCubicFeet} cu ft · ${crewSize} movers · ~${roundedLoad}h loading + ${driveHours}h drive + ~${roundedUnload}h unloading (${estimatedHours}h total)`
+        : `${crewSize} movers · ${estimatedHours}h portal-to-portal`
+
+  // Build customer-facing service inclusions
+  const inclusions: string[] = []
+  inclusions.push(`${crewSize} professional mover${crewSize > 1 ? 's' : ''}`)
+  inclusions.push(`${truckCount} truck${truckCount > 1 ? 's' : ''}`)
+  if (!isLaborOnly && !isPacking) {
+    inclusions.push('furniture wrapping & padding')
+    inclusions.push('disassembly & reassembly')
+  }
+  if (isPacking) {
+    inclusions.push('professional packing service')
+    inclusions.push('all packing materials')
+  }
+  if (isLongDistance) {
+    inclusions.push(`full portal-to-portal travel (${driveHours}h drive covered)`)
+  } else if (!isLaborOnly) {
+    inclusions.push('portal-to-portal travel covered')
+  }
+  inclusions.push('fully insured')
+
+  const moveServiceTitle = isPacking
+    ? 'Professional Packing Service'
+    : isLaborOnly
+    ? 'Labor-Only Moving Crew'
+    : isLongDistance
+    ? `Long-Distance Moving Service`
+    : 'Full-Service Moving'
+
+  const totalServiceAmount = laborAmount + extraTruckAmount + longDistanceOperationalBase + longDistanceMarkupAmount
+
   const lineItems: QuoteLineItem[] = [
     {
-      description: isPacking ? 'Packing labor' : isLongDistance ? 'Long-distance moving labor' : isLaborOnly ? 'Labor-only moving crew' : 'Local moving labor',
-      details:
-        totalWeightLbs > 0
-          ? `${totalWeightLbs} lbs estimated · ${crewSize} movers · ${estimatedHours} portal-to-portal hours · 350 lbs/man-hour`
-          : totalCubicFeet > 0
-            ? `${totalCubicFeet} cu ft estimated · ${crewSize} movers · ${estimatedHours} portal-to-portal hours`
-            : `${isLongDistance ? 'Long-distance' : isLaborOnly ? 'Labor-only' : isPacking ? 'Packing' : 'Local'} estimate with ${crewSize} movers`,
-      amount: laborAmount,
+      description: moveServiceTitle,
+      details: inclusions.join(' · '),
+      amount: totalServiceAmount,
     },
   ]
 
-  if (travelAmount > 0) {
-    lineItems.push({
-      description: isLongDistance ? 'Dispatch and route coverage' : 'Portal-to-portal travel allowance',
-      details: isLongDistance ? 'Routing, dispatch, and staging allowance' : 'Crew travel buffer',
-      amount: travelAmount,
-    })
-  }
-
-  if (longDistanceTruckCost > 0) {
-    lineItems.push({
-      description: 'One-way truck rental',
-      details: `${truckCount} truck${truckCount > 1 ? 's' : ''} estimated for the long-distance route`,
-      amount: longDistanceTruckCost,
-    })
-  }
-
-  if (longDistanceGasCost > 0) {
-    lineItems.push({
-      description: 'Fuel allowance',
-      details: 'Estimated using default long-distance fuel assumptions',
-      amount: longDistanceGasCost,
-    })
-  }
-
-  if (longDistanceInsuranceCost > 0) {
-    lineItems.push({
-      description: 'Truck insurance allowance',
-      details: 'Default insurance coverage assumption',
-      amount: longDistanceInsuranceCost,
-    })
-  }
-
-  if (longDistanceMiscCost > 0) {
-    lineItems.push({
-      description: 'Long-distance misc allowance',
-      details: 'Rental car, tolls, and route contingency',
-      amount: longDistanceMiscCost,
-    })
-  }
-
-  if (longDistanceMarkupAmount > 0) {
-    lineItems.push({
-      description: 'Long-distance route markup',
-      details: `${longDistanceMarkupRate}% markup on truck, fuel, insurance, and misc`,
-      amount: longDistanceMarkupAmount,
-    })
-  }
-
-  if (extraTruckAmount > 0) {
-    lineItems.push({
-      description: 'Additional truck and crew package',
-      details: `${truckCount} trucks suggested from inventory volume`,
-      amount: extraTruckAmount,
-    })
+  const pricingBreakdown: PricingBreakdown = {
+    loadHours: roundQuarterHour(loadHours),
+    driveHours,
+    unloadHours: roundQuarterHour(unloadHours),
+    baseHours,
+    penaltyHours: extraHours,
+    bufferHours,
+    totalHours: estimatedHours,
+    crewSize,
+    crewRatePerHour: crewRate,
+    truckCount,
+    baseCubicFeet,
+    extraCubicFeet,
+    totalCubicFeet,
+    penalties,
+    intelligenceFlags,
   }
 
   return {
@@ -435,6 +637,7 @@ export function estimateLeadQuote(
     longDistanceMiscCost: longDistanceMiscCost || undefined,
     longDistanceMarkupRate: longDistanceMarkupRate || undefined,
     suggestedCrewRate: crewRate,
+    pricingBreakdown,
   }
 }
 
