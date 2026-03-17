@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { Suspense, useEffect, useMemo, useState, type MouseEvent } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { deleteSalesLead, fetchSalesOverview } from '@/lib/sales-api'
+import { deleteSalesLead, fetchSalesOverview, updateSalesLead } from '@/lib/sales-api'
 import { formatDate, formatMoney } from '@/lib/sales'
 import type { CRMLead, CRMQuote } from '@/lib/types'
 
@@ -45,6 +45,10 @@ function SalesPipelineContent() {
   const [filterCity, setFilterCity] = useState('')
   const [filterRep, setFilterRep] = useState('')
 
+  // Drag-and-drop state
+  const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null)
+  const [dragOverStage, setDragOverStage] = useState<CRMLead['stage'] | null>(null)
+
   async function refresh() {
     try {
       setLoading(true)
@@ -73,6 +77,8 @@ function SalesPipelineContent() {
     event.preventDefault()
     event.stopPropagation()
 
+    if (!window.confirm(`Delete lead for ${lead.name}?`)) return
+
     const previousLeads = leads
     try {
       setDeleteBusyId(lead.id)
@@ -84,6 +90,49 @@ function SalesPipelineContent() {
     } finally {
       setDeleteBusyId(null)
     }
+  }
+
+  async function moveLeadToStage(leadId: string, newStage: CRMLead['stage']) {
+    const lead = leads.find(l => l.id === leadId)
+    if (!lead || lead.stage === newStage) return
+
+    // Optimistic update
+    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage: newStage } : l))
+
+    try {
+      await updateSalesLead(leadId, { stage: newStage })
+    } catch (err) {
+      // Rollback
+      setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage: lead.stage } : l))
+      setError((err as Error).message)
+    }
+  }
+
+  function handleDragStart(leadId: string) {
+    setDraggedLeadId(leadId)
+  }
+
+  function handleDragEnd() {
+    setDraggedLeadId(null)
+    setDragOverStage(null)
+  }
+
+  function handleDragOver(e: React.DragEvent, stage: CRMLead['stage']) {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOverStage(stage)
+  }
+
+  function handleDragLeave() {
+    setDragOverStage(null)
+  }
+
+  async function handleDrop(e: React.DragEvent, stage: CRMLead['stage']) {
+    e.preventDefault()
+    setDragOverStage(null)
+    if (!draggedLeadId) return
+    await moveLeadToStage(draggedLeadId, stage)
+    setDraggedLeadId(null)
   }
 
   const quoteMap = useMemo(() => new Map(quotes.map(item => [item.id, item])), [quotes])
@@ -214,6 +263,7 @@ function SalesPipelineContent() {
 
         <span className="ml-auto text-xs text-[var(--app-muted)]">
           {visibleLeads.length} of {leads.length} leads
+          {draggedLeadId && <span className="ml-2 text-[var(--app-accent)]">· Drop to move stage</span>}
         </span>
       </section>
 
@@ -225,29 +275,57 @@ function SalesPipelineContent() {
         <div className="overflow-x-auto pb-4">
           <div className="flex min-w-max gap-4">
             {grouped.map(column => (
-              <div key={column.stage} className="w-[290px]">
+              <div
+                key={column.stage}
+                className="w-[290px]"
+                onDragOver={e => handleDragOver(e, column.stage)}
+                onDragLeave={handleDragLeave}
+                onDrop={e => void handleDrop(e, column.stage)}
+              >
                 <div className="mb-3 flex items-center justify-between border-b border-[var(--app-line)] pb-3">
                   <h2 className="font-display text-sm font-semibold uppercase tracking-[0.16em] text-[var(--app-ink)]">{column.label}</h2>
                   <span className="rounded-[4px] bg-[var(--app-wash)] px-2 py-0.5 text-xs text-[var(--app-muted)]">{column.cards.length}</span>
                 </div>
-                <div className="space-y-3">
+
+                {/* Drop zone — highlighted when dragging over */}
+                <div
+                  className={`min-h-[120px] space-y-3 rounded-[8px] transition-all duration-150 ${
+                    dragOverStage === column.stage
+                      ? 'bg-[rgba(15,106,83,0.06)] ring-2 ring-[var(--app-accent)] ring-inset'
+                      : draggedLeadId
+                      ? 'bg-[var(--app-bg)] ring-1 ring-[var(--app-line)] ring-inset'
+                      : ''
+                  } p-1`}
+                >
                   {column.cards.map(lead => {
                     const quote = lead.quoteId ? quoteMap.get(lead.quoteId) : undefined
+                    const isDragging = draggedLeadId === lead.id
                     return (
-                      <div key={lead.id} className="relative rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] transition hover:border-[var(--app-ink)]">
+                      <div
+                        key={lead.id}
+                        draggable
+                        onDragStart={() => handleDragStart(lead.id)}
+                        onDragEnd={handleDragEnd}
+                        className={`relative rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] transition hover:border-[var(--app-ink)] ${
+                          isDragging ? 'opacity-40 ring-2 ring-[var(--app-accent)]' : 'cursor-grab active:cursor-grabbing'
+                        }`}
+                      >
+                        {/* Drag handle hint */}
+                        <div className="absolute left-2 top-1/2 -translate-y-1/2 select-none text-[10px] text-[var(--app-line)] hover:text-[var(--app-muted)]">⠿</div>
+
                         <button
-                          onClick={event => { event.preventDefault(); event.stopPropagation(); if (window.confirm(`Delete lead for ${lead.name}?`)) void removeLead(event, lead) }}
+                          onClick={event => void removeLead(event, lead)}
                           className="absolute right-3 top-3 z-10 text-xs text-[var(--app-muted)] hover:text-rose-700"
                         >
-                          {deleteBusyId === lead.id ? 'Deleting...' : 'Delete'}
+                          {deleteBusyId === lead.id ? 'Deleting...' : '✕'}
                         </button>
-                        <Link href={`/sales/leads/${lead.id}`} className="block p-4">
+                        <Link href={`/sales/leads/${lead.id}`} className="block pl-6 pr-4 pt-4 pb-4">
                           <div className="flex items-start justify-between gap-3">
                             <div>
                               <div className="text-sm font-semibold text-[var(--app-ink)]">{lead.name}</div>
                               <div className="mt-1 text-xs text-[var(--app-muted)]">{lead.moveDate ? formatDate(lead.moveDate) : 'Date TBD'} · {lead.moveType || 'Move TBD'}</div>
                             </div>
-                            <span className="mr-14 rounded-[4px] bg-[rgba(15,106,83,0.08)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-accent)]">
+                            <span className="mr-5 rounded-[4px] bg-[rgba(15,106,83,0.08)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-accent)]">
                               {lead.leadScore || 0}
                             </span>
                           </div>
@@ -257,24 +335,30 @@ function SalesPipelineContent() {
                           </div>
                           <div className="mt-3 flex items-center justify-between border-t border-[var(--app-line)] pt-3 text-xs text-[var(--app-muted)]">
                             <span>{quote?.viewedAt ? `Viewed ${formatDate(quote.viewedAt)}` : lead.followUpDate ? `Follow up ${formatDate(lead.followUpDate)}` : 'No follow-up set'}</span>
-                            {lead.assignedRep ? <span className="rounded-full bg-[var(--app-wash)] px-2 py-0.5 font-medium text-[var(--app-ink)]">{lead.assignedRep}</span> : null}
-                            {lead.phone ? (
-                              <button
-                                onClick={e => { e.preventDefault(); e.stopPropagation(); window.dispatchEvent(new CustomEvent('crm:open-dialer', { detail: { phone: lead.phone, leadId: lead.id, name: lead.name } })) }}
-                                className="flex h-6 w-6 items-center justify-center rounded-full border border-[var(--app-line)] bg-white text-[var(--app-muted)] transition hover:border-[var(--app-accent)] hover:text-[var(--app-accent)]"
-                                title={`Call ${lead.phone}`}
-                              >
-                                ☎
-                              </button>
-                            ) : null}
+                            <div className="flex items-center gap-1.5">
+                              {lead.assignedRep ? <span className="rounded-full bg-[var(--app-wash)] px-2 py-0.5 font-medium text-[var(--app-ink)]">{lead.assignedRep}</span> : null}
+                              {lead.phone ? (
+                                <button
+                                  onClick={e => { e.preventDefault(); e.stopPropagation(); window.dispatchEvent(new CustomEvent('crm:open-dialer', { detail: { phone: lead.phone, leadId: lead.id, name: lead.name } })) }}
+                                  className="flex h-6 w-6 items-center justify-center rounded-full border border-[var(--app-line)] bg-white text-[var(--app-muted)] transition hover:border-[var(--app-accent)] hover:text-[var(--app-accent)]"
+                                  title={`Call ${lead.phone}`}
+                                >
+                                  ☎
+                                </button>
+                              ) : null}
+                            </div>
                           </div>
                         </Link>
                       </div>
                     )
                   })}
                   {column.cards.length === 0 ? (
-                    <div className="rounded-[8px] border border-dashed border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-12 text-center text-sm text-[var(--app-muted)]">
-                      No leads here yet.
+                    <div className={`rounded-[8px] border border-dashed px-4 py-12 text-center text-sm transition ${
+                      dragOverStage === column.stage
+                        ? 'border-[var(--app-accent)] text-[var(--app-accent)]'
+                        : 'border-[var(--app-line)] text-[var(--app-muted)]'
+                    }`}>
+                      {dragOverStage === column.stage ? 'Drop here →' : 'No leads here yet.'}
                     </div>
                   ) : null}
                 </div>
@@ -293,7 +377,7 @@ function SalesPipelineContent() {
                     onClick={event => void removeLead(event, lead)}
                     className="absolute right-3 top-3 z-10 text-xs text-[var(--app-muted)] hover:text-rose-700"
                   >
-                    {deleteBusyId === lead.id ? 'Deleting...' : 'Delete'}
+                    {deleteBusyId === lead.id ? 'Deleting...' : '✕'}
                   </button>
                   <Link href={`/sales/leads/${lead.id}`} className="block p-4">
                   <div className="flex items-start justify-between gap-3 pr-12">

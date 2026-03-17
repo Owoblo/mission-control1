@@ -69,6 +69,17 @@ export default function SalesDashboardPage() {
 
   useEffect(() => {
     void refresh()
+    // Silent background refresh every 60s — no loading spinner
+    const interval = setInterval(() => {
+      fetchSalesOverview()
+        .then(data => {
+          setLeads(data.leads)
+          setQuotes(data.quotes)
+          setSummary(data.summary)
+        })
+        .catch(() => {/* silently ignore — stale data is fine */})
+    }, 60_000)
+    return () => clearInterval(interval)
   }, [])
 
   async function dismissTask(lead: CRMLead) {
@@ -132,7 +143,11 @@ export default function SalesDashboardPage() {
             <div className="mt-2 text-sm text-[var(--app-muted)]">Live pipeline, urgent follow-ups, and recent customer activity.</div>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={() => void refresh()} className="crm-button">Refresh</button>
+            <div className="flex items-center gap-1.5 text-xs text-[var(--app-muted)]">
+              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-[var(--app-accent)]" />
+              Auto-refreshes every 60s
+            </div>
+            <button onClick={() => void refresh()} className="crm-button">Refresh now</button>
           </div>
         </section>
 
