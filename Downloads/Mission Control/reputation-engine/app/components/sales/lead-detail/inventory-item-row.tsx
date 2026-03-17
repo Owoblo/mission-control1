@@ -1,82 +1,154 @@
 'use client'
 
-import { inventoryCategoryCode, normalizeRoomName } from './helpers'
+import { useState } from 'react'
 import type { InventoryItem } from '@/lib/types'
+
+const CATEGORY_EMOJI: Record<string, string> = {
+  SF: '🛋️',
+  BD: '🛏️',
+  DR: '🗄️',
+  TB: '🪑',
+  CH: '🪑',
+  BX: '📦',
+  TV: '📺',
+  AP: '🏠',
+  SP: '⚠️',
+  IT: '📦',
+}
+
+function itemEmoji(name?: string) {
+  const v = (name || '').toLowerCase()
+  if (v.includes('sofa') || v.includes('sectional') || v.includes('couch') || v.includes('loveseat')) return '🛋️'
+  if (v.includes('bed') || v.includes('mattress')) return '🛏️'
+  if (v.includes('nightstand') || v.includes('end table')) return '🛏️'
+  if (v.includes('dresser') || v.includes('wardrobe') || v.includes('armoire')) return '🗄️'
+  if (v.includes('cabinet') || v.includes('hutch') || v.includes('shelf') || v.includes('bookcase')) return '🗄️'
+  if (v.includes('dining table') || v.includes('kitchen table')) return '🍽️'
+  if (v.includes('desk') || v.includes('office')) return '💼'
+  if (v.includes('table') || v.includes('coffee')) return '🪑'
+  if (v.includes('chair') || v.includes('stool') || v.includes('ottoman')) return '🪑'
+  if (v.includes('box') || v.includes('bin') || v.includes('tote')) return '📦'
+  if (v.includes('tv') || v.includes('television') || v.includes('monitor')) return '📺'
+  if (v.includes('fridge') || v.includes('refrigerator') || v.includes('freezer')) return '🧊'
+  if (v.includes('washer') || v.includes('dryer') || v.includes('dishwasher')) return '🔧'
+  if (v.includes('stove') || v.includes('oven') || v.includes('microwave')) return '🍳'
+  if (v.includes('piano')) return '🎹'
+  if (v.includes('treadmill') || v.includes('gym') || v.includes('exercise')) return '🏋️'
+  if (v.includes('safe')) return '🔒'
+  if (v.includes('plant') || v.includes('tree')) return '🌿'
+  if (v.includes('lamp') || v.includes('light')) return '💡'
+  if (v.includes('mirror')) return '🪞'
+  if (v.includes('bike') || v.includes('bicycle')) return '🚲'
+  return '📦'
+}
 
 type Props = {
   item: InventoryItem
   index: number
-  roomOptions: string[]
   onUpdate: (index: number, field: keyof InventoryItem, value: string) => void
   onToggle: (index: number) => void
   onRemove: (index: number) => void
 }
 
-export function InventoryItemRow({ item, index, roomOptions, onUpdate, onToggle, onRemove }: Props) {
+export function InventoryItemRow({ item, index, onUpdate, onToggle, onRemove }: Props) {
+  const [editing, setEditing] = useState(false)
+  const qty = Math.max(1, Number(item.qty || 1))
+  const cuFt = Number(item.cubicFeet || 0)
+  const lbs = Number(item.weightLbs || 0)
+  const excluded = item.included === false
+
   return (
-    <div className={`rounded-xl border px-3 py-3 ${item.included === false ? 'border-amber-200 bg-amber-50' : 'border-stone-200 bg-stone-50'}`}>
-      <div className="grid gap-2 lg:grid-cols-[128px_minmax(0,1fr)_92px_92px]">
-        <select value={normalizeRoomName(item.room)} onChange={event => onUpdate(index, 'room', event.target.value)} className="crm-input">
-          {roomOptions.map(option => (
-            <option key={option} value={option}>{option}</option>
-          ))}
-        </select>
-        <div className="flex min-w-0 items-center gap-2 rounded-[4px] border border-[var(--app-line)] bg-white px-2.5">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[4px] bg-[var(--app-accent-soft)] text-[10px] font-semibold tracking-[0.12em] text-[var(--app-accent)]">
-            {inventoryCategoryCode(item.name || item.item)}
+    <div className={excluded ? 'opacity-50' : ''}>
+      {/* Compact row */}
+      <div className="flex items-center gap-2 py-1.5 group">
+        {/* Emoji icon */}
+        <span className="w-6 text-center text-base shrink-0 select-none">{itemEmoji(item.name || item.item)}</span>
+
+        {/* Name + meta */}
+        <div className="flex-1 min-w-0">
+          {editing ? (
+            <input
+              autoFocus
+              value={item.name || item.item || ''}
+              onChange={e => onUpdate(index, 'name', e.target.value)}
+              className="w-full border-0 border-b border-stone-300 bg-transparent text-sm font-medium text-stone-900 outline-none focus:border-stone-600 py-0.5"
+              placeholder="Item name"
+            />
+          ) : (
+            <span className="text-sm font-medium text-stone-900 truncate">{item.name || item.item}</span>
+          )}
+          <div className="text-[11px] text-stone-400 mt-0.5">
+            {cuFt > 0 ? `${cuFt} cu ft` : null}{lbs > 0 ? `${cuFt > 0 ? ' · ' : ''}${lbs} lbs` : null}
+            {excluded ? ' · excluded' : null}
           </div>
-          <input
-            value={item.name || item.item || ''}
-            onChange={event => onUpdate(index, 'name', event.target.value)}
-            className="min-w-0 flex-1 border-0 bg-transparent py-2 text-sm text-[var(--app-ink)] outline-none placeholder:text-stone-400"
-            placeholder="Item name"
-          />
         </div>
-        <button onClick={() => onToggle(index)} className="crm-button justify-center">
-          {item.included === false ? 'Include' : 'Exclude'}
-        </button>
-        <button onClick={() => onRemove(index)} className="crm-button justify-center">Remove</button>
-      </div>
-      <div className="mt-2 grid gap-2 sm:grid-cols-3">
-        <div>
-          <div className="mb-1 crm-label">Qty</div>
-          <input
-            type="number"
-            min="0"
-            value={item.qty || 0}
-            onChange={event => onUpdate(index, 'qty', event.target.value)}
-            className="crm-input"
-            placeholder="Qty"
-          />
+
+        {/* Qty */}
+        <div className="shrink-0">
+          {editing ? (
+            <input
+              type="number"
+              min="1"
+              value={qty}
+              onChange={e => onUpdate(index, 'qty', e.target.value)}
+              className="w-12 rounded border border-stone-300 px-1.5 py-0.5 text-center text-sm text-stone-900 outline-none focus:border-stone-600"
+            />
+          ) : (
+            <span className="text-sm text-stone-500 font-medium">×{qty}</span>
+          )}
         </div>
-        <div>
-          <div className="mb-1 crm-label">Cubic Feet</div>
-          <input
-            type="number"
-            min="0"
-            value={item.cubicFeet || 0}
-            onChange={event => onUpdate(index, 'cubicFeet', event.target.value)}
-            className="crm-input"
-            placeholder="Cu ft"
-          />
-        </div>
-        <div>
-          <div className="mb-1 crm-label">Weight (lbs)</div>
-          <input
-            type="number"
-            min="0"
-            value={item.weightLbs || 0}
-            onChange={event => onUpdate(index, 'weightLbs', event.target.value)}
-            className="crm-input"
-            placeholder="Lbs"
-          />
+
+        {/* Action icons */}
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={() => setEditing(e => !e)}
+            title={editing ? 'Done' : 'Edit'}
+            className={`rounded p-1 text-xs transition-colors ${editing ? 'text-emerald-600 hover:bg-emerald-50' : 'text-stone-400 hover:text-stone-700 hover:bg-stone-100'}`}
+          >
+            {editing ? (
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+            ) : (
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
+            )}
+          </button>
+          <button
+            onClick={() => onRemove(index)}
+            title="Remove"
+            className="rounded p-1 text-stone-300 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+          </button>
         </div>
       </div>
-      {item.included === false ? (
-        <div className="mt-2 text-[11px] text-amber-700">
-          Excluded from pricing{item.exclusionReason ? `: ${item.exclusionReason}` : '.'}
+
+      {/* Expanded edit: cu ft + lbs */}
+      {editing && (
+        <div className="ml-8 mb-2 flex items-center gap-3">
+          <label className="flex items-center gap-1.5">
+            <span className="text-[11px] text-stone-400">Cu ft</span>
+            <input
+              type="number"
+              min="0"
+              value={cuFt}
+              onChange={e => onUpdate(index, 'cubicFeet', e.target.value)}
+              className="w-16 rounded border border-stone-200 px-1.5 py-0.5 text-sm text-stone-900 outline-none focus:border-stone-400"
+            />
+          </label>
+          <label className="flex items-center gap-1.5">
+            <span className="text-[11px] text-stone-400">Lbs</span>
+            <input
+              type="number"
+              min="0"
+              value={lbs}
+              onChange={e => onUpdate(index, 'weightLbs', e.target.value)}
+              className="w-16 rounded border border-stone-200 px-1.5 py-0.5 text-sm text-stone-900 outline-none focus:border-stone-400"
+            />
+          </label>
+          <button onClick={() => onToggle(index)} className="text-[11px] text-stone-400 hover:text-stone-700 underline underline-offset-2">
+            {excluded ? 'Include' : 'Exclude'}
+          </button>
         </div>
-      ) : null}
+      )}
     </div>
   )
 }
