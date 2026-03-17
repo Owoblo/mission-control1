@@ -324,10 +324,39 @@ export function EstimateDraftModal({
                       </details>
                     )
                   })}
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    {presetMatches.slice(0, 4).map(preset => (
-                      <button key={preset.id} onClick={() => onAddPreset(preset.id)} className="crm-button">+ {preset.label}</button>
-                    ))}
+                  {/* Quick-add preset buttons — boxes first, then matched presets */}
+                  <div className="space-y-2 pt-2">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">📦 Boxes — ask every customer</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {['box-small','box-medium','box-large','box-xl','tv-box-55','mirror-box'].map(id => {
+                        const p = presetMatches.find(x => x.id === id) || { id, label: id }
+                        return <button key={id} onClick={() => onAddPreset(id)} className="crm-button text-xs py-1 px-2.5">+ {p.label}</button>
+                      })}
+                    </div>
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] pt-1">🏠 Appliances (opt-in)</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {['fridge-standard','fridge-large','stove-freestanding','dishwasher','freezer-standalone','washer-freestanding','dryer-freestanding'].map(id => {
+                        const p = presetMatches.find(x => x.id === id) || { id, label: id }
+                        return <button key={id} onClick={() => onAddPreset(id)} className="crm-button text-xs py-1 px-2.5">+ {p.label}</button>
+                      })}
+                    </div>
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] pt-1">🚗 Garage & Outdoor</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {['tool-chest','lawn-mower-push','wheelbarrow','bicycle','garage-shelving','barbecue','patio-set','hot-tub','junk-item-large'].map(id => {
+                        const p = presetMatches.find(x => x.id === id) || { id, label: id }
+                        return <button key={id} onClick={() => onAddPreset(id)} className="crm-button text-xs py-1 px-2.5">+ {p.label}</button>
+                      })}
+                    </div>
+                    {presetMatches.some(p => !['box-small','box-medium','box-large','box-xl','tv-box-55','mirror-box','fridge-standard','fridge-large','stove-freestanding','dishwasher','freezer-standalone','washer-freestanding','dryer-freestanding','tool-chest','lawn-mower-push','wheelbarrow','bicycle','garage-shelving','barbecue','patio-set','hot-tub','junk-item-large'].includes(p.id)) && (
+                      <>
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] pt-1">🛋️ Furniture</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {presetMatches.filter(p => !['box-small','box-medium','box-large','box-xl','tv-box-55','mirror-box','fridge-standard','fridge-large','stove-freestanding','dishwasher','freezer-standalone','washer-freestanding','dryer-freestanding','tool-chest','lawn-mower-push','wheelbarrow','bicycle','garage-shelving','barbecue','patio-set','hot-tub','junk-item-large'].includes(p.id)).map(preset => (
+                            <button key={preset.id} onClick={() => onAddPreset(preset.id)} className="crm-button text-xs py-1 px-2.5">+ {preset.label}</button>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
                   {/* Quick-add manual inventory — always visible */}
                   <div className="space-y-3">

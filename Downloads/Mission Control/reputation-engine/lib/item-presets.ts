@@ -42,6 +42,37 @@ export const INVENTORY_PRESETS: InventoryPreset[] = [
   { id: 'file-cabinet', label: 'File Cabinet', room: 'Office', item: { name: 'File Cabinet', qty: 1, cubicFeet: 15, weightLbs: 65, included: true } },
   { id: 'bin-stack', label: 'Storage Bins · 5', room: 'Storage', item: { name: 'Storage Bins', qty: 5, cubicFeet: 3, weightLbs: 12, included: true } },
   { id: 'wardrobe-boxes', label: 'Wardrobe Boxes · 4', room: 'Bedroom', item: { name: 'Wardrobe Boxes', qty: 4, cubicFeet: 10, weightLbs: 18, included: true } },
+
+  // ── Boxes (most common add-on — must ask every customer) ──────────────────
+  { id: 'box-small', label: 'Box · Small', room: 'Boxes', item: { name: 'Small Box', qty: 1, cubicFeet: 1.5, weightLbs: 30, included: true, notes: 'Books, dishes, heavy items' } },
+  { id: 'box-medium', label: 'Box · Medium', room: 'Boxes', item: { name: 'Medium Box', qty: 1, cubicFeet: 3, weightLbs: 40, included: true, notes: 'Clothes, toys, general household' } },
+  { id: 'box-large', label: 'Box · Large', room: 'Boxes', item: { name: 'Large Box', qty: 1, cubicFeet: 4.5, weightLbs: 50, included: true, notes: 'Pillows, linens, lightweight bulky items' } },
+  { id: 'box-xl', label: 'Box · XL', room: 'Boxes', item: { name: 'XL Box', qty: 1, cubicFeet: 6, weightLbs: 50, included: true, notes: 'Oversized lightweight items' } },
+  { id: 'tv-box-55', label: 'TV Box · 55–65"', room: 'Boxes', item: { name: 'TV Box (55–65 inch)', qty: 1, cubicFeet: 12, weightLbs: 15, included: true, notes: 'Custom TV moving box — wrap included' } },
+  { id: 'mirror-box', label: 'Mirror / Picture Box', room: 'Boxes', item: { name: 'Mirror Box', qty: 1, cubicFeet: 5, weightLbs: 10, included: true, notes: 'Flat art, mirrors, framed items' } },
+
+  // ── Appliances (customer opt-in — excluded from AI scan by default) ────────
+  { id: 'fridge-standard', label: 'Fridge · Standard (add-on)', room: 'Kitchen', item: { name: 'Standard Refrigerator', qty: 1, cubicFeet: 45, weightLbs: 250, included: true, notes: 'Customer confirmed taking fridge — requires dolly and door removal' } },
+  { id: 'fridge-large', label: 'Fridge · Large French Door', room: 'Kitchen', item: { name: 'Large French Door Refrigerator', qty: 1, cubicFeet: 60, weightLbs: 320, included: true, notes: 'Large fridge — door removal likely required' } },
+  { id: 'stove-freestanding', label: 'Stove · Freestanding', room: 'Kitchen', item: { name: 'Freestanding Stove', qty: 1, cubicFeet: 30, weightLbs: 150, included: true, notes: 'Disconnect from gas/electric before move' } },
+  { id: 'dishwasher', label: 'Dishwasher · Freestanding', room: 'Kitchen', item: { name: 'Freestanding Dishwasher', qty: 1, cubicFeet: 22, weightLbs: 80, included: true, notes: 'Freestanding only — not built-in' } },
+
+  // ── Garage ────────────────────────────────────────────────────────────────
+  { id: 'lawn-mower-push', label: 'Lawn Mower · Push', room: 'Garage', item: { name: 'Push Lawn Mower', qty: 1, cubicFeet: 15, weightLbs: 65, included: true, notes: 'Drain fuel before loading' } },
+  { id: 'lawn-mower-riding', label: 'Lawn Mower · Riding', room: 'Garage', item: { name: 'Riding Lawn Mower', qty: 1, cubicFeet: 55, weightLbs: 400, included: true, notes: 'Specialty item — drain fuel, ramp required' } },
+  { id: 'wheelbarrow', label: 'Wheelbarrow', room: 'Garage', item: { name: 'Wheelbarrow', qty: 1, cubicFeet: 10, weightLbs: 35, included: true } },
+  { id: 'bicycle', label: 'Bicycle', room: 'Garage', item: { name: 'Bicycle', qty: 1, cubicFeet: 12, weightLbs: 25, included: true, notes: 'Remove pedals, lower seat for packing' } },
+  { id: 'garage-shelving', label: 'Garage Shelving Unit', room: 'Garage', item: { name: 'Garage Shelving Unit', qty: 1, cubicFeet: 30, weightLbs: 55, included: true, notes: 'Disassembly required' } },
+  { id: 'workbench', label: 'Workbench', room: 'Garage', item: { name: 'Workbench', qty: 1, cubicFeet: 40, weightLbs: 120, included: true } },
+  { id: 'storage-cabinet-metal', label: 'Metal Storage Cabinet', room: 'Garage', item: { name: 'Metal Storage Cabinet', qty: 1, cubicFeet: 25, weightLbs: 90, included: true } },
+
+  // ── Outdoor / Misc ────────────────────────────────────────────────────────
+  { id: 'hot-tub', label: 'Hot Tub', room: 'Outdoor', item: { name: 'Hot Tub', qty: 1, cubicFeet: 120, weightLbs: 750, included: true, notes: 'Specialty move — drain first, 4 movers minimum, rigging likely required' } },
+  { id: 'playground-set', label: 'Playground Set', room: 'Outdoor', item: { name: 'Playground Set', qty: 1, cubicFeet: 80, weightLbs: 200, included: true, notes: 'Full disassembly required' } },
+  { id: 'garden-pots', label: 'Large Garden Pots · 5', room: 'Outdoor', item: { name: 'Large Garden Pots', qty: 5, cubicFeet: 4, weightLbs: 30, included: true } },
+
+  // ── Junk / Donation (billable disposal items) ─────────────────────────────
+  { id: 'junk-item-large', label: 'Junk Removal · Large Item', room: 'Other', item: { name: 'Junk Removal Item', qty: 1, cubicFeet: 20, weightLbs: 60, included: true, notes: 'Disposal fee applies — confirm with customer' } },
 ]
 
 export function createInventoryItemFromPreset(preset: InventoryPreset): InventoryItem {
