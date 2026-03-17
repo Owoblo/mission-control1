@@ -49,10 +49,15 @@ export async function analyzeListingPhotos(listing: ListingMatch): Promise<Inven
             {
               type: 'input_text',
               text:
-                'Estimate household moving inventory from these MLS listing photos. Return strict JSON with keys inventory, totalItems, totalCubicFeet, totalWeightLbs, roomBreakdown, specialtyFlags, notes, confidence. ' +
-                'Scan every photo provided before answering. Each inventory item should include room, name, qty, cubicFeet, weightLbs, included. ' +
-                'Exclude fixed appliances, built-ins, wall-mounted items, and things movers do not usually take unless clearly movable. Treat this as a draft estimate only and be conservative. ' +
-                'Do not ignore later photos just because earlier ones show the same room from another angle.',
+                'You are a professional moving estimator. Analyze every single photo provided — do not skip any. ' +
+                'Your job is to identify every movable furniture item and estimate its specific weight and cubic footage based on your knowledge of real furniture dimensions and weights. ' +
+                'Be specific: do not say "chair" — say "large wingback armchair" or "standard dining chair" or "office task chair". ' +
+                'Use your real-world knowledge of furniture weights. Examples: king bed frame 150-180 lbs, queen mattress 80-100 lbs, 3-seat sofa 200-250 lbs, large sectional 280-350 lbs, dining table 6-seat 120-160 lbs, upright dresser 6-drawer 120-150 lbs, 65-inch TV 80-100 lbs, standard washer 150-200 lbs, standard dryer 100-130 lbs. ' +
+                'For each item in the inventory array include: room (string), name (specific descriptive name), qty (number), cubicFeet (realistic volume), weightLbs (realistic weight — never 0), included (true unless fixed/built-in), size (concise size descriptor, e.g. "Queen (60×80 in)", "6-drawer", "65 inch", "3-seat", "L-shape sectional", "6-person" — keep it short), notes (1 short sentence covering material, condition, and handling flag e.g. "Dark walnut dresser, appears heavy — wrap recommended" or "Wall-mounted TV, needs dismount and wrap"). ' +
+                'Exclude: fixed appliances hardwired to the wall, built-in shelving, wall-mounted items that stay with the property. ' +
+                'Flag specialty items (piano, pool table, hot tub, safe, large gym equipment) in specialtyFlags. ' +
+                'Return strict JSON with keys: inventory, totalItems, totalCubicFeet, totalWeightLbs, roomBreakdown, specialtyFlags, notes, confidence. ' +
+                'totalWeightLbs and totalCubicFeet must equal the sum of all included items. confidence should reflect how many photos were available.',
             },
             ...photos.map(url => ({
               type: 'input_image',

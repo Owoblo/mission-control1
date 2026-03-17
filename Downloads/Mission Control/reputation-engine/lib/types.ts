@@ -45,10 +45,11 @@ export interface Partner {
   createdAt: string
 }
 
-export type SalesLeadStage = 'new' | 'contacted' | 'pricing' | 'quoted' | 'nurture' | 'booked' | 'lost'
+export type SalesLeadStage = 'new' | 'contacted' | 'estimate_scheduled' | 'estimate_completed' | 'pricing' | 'quoted' | 'nurture' | 'booked' | 'lost'
 export type MoveType = 'residential' | 'long-distance' | 'commercial' | 'senior' | 'labor-only' | 'packing'
 export type QuoteStatus = 'draft' | 'sent' | 'viewed' | 'accepted' | 'declined' | 'invoiced'
-export type FollowUpType = 'note' | 'call' | 'sms' | 'email' | 'visit' | 'view' | 'accept' | 'decline' | 'consultation'
+export type PaymentStatus = 'pending' | 'deposit_received' | 'paid_in_full'
+export type FollowUpType = 'note' | 'call' | 'sms' | 'email' | 'visit' | 'view' | 'accept' | 'decline' | 'consultation' | 'status_change'
 
 export interface CallLogEntry {
   id: string
@@ -63,6 +64,7 @@ export interface CallLogEntry {
   recordingSid?: string
   recordingDuration?: number
   transcript?: string
+  isVoicemail?: boolean
   source?: 'dialer' | 'inbound' | 'consultation' | 'manual'
   aiSummary?: {
     summary?: string
@@ -86,6 +88,8 @@ export interface InventoryItem {
   weightLbs?: number
   included?: boolean
   exclusionReason?: string
+  notes?: string
+  size?: string
 }
 
 export interface ListingMatch {
@@ -107,6 +111,73 @@ export interface InventoryScanDraft {
   confidence?: 'low' | 'medium' | 'high'
   specialtyFlags?: string[]
   notes?: string
+}
+
+export interface JobPenalty {
+  label: string
+  hours: number
+  isFlagOnly?: boolean
+}
+
+export interface PricingBreakdown {
+  loadHours: number       // wrap + disassemble + carry out + load truck
+  driveHours: number      // portal-to-portal drive time
+  unloadHours: number     // carry in + unwrap + reassemble + place
+  baseHours: number       // loadHours + driveHours + unloadHours (pre-penalties)
+  penaltyHours: number
+  bufferHours: number
+  totalHours: number
+  crewSize: number
+  crewRatePerHour: number
+  truckCount: number
+  baseCubicFeet: number
+  extraCubicFeet: number
+  totalCubicFeet: number
+  penalties: JobPenalty[]
+  intelligenceFlags: {
+    twoTruckRequired: boolean    // volume >= 1,400 cu ft (full 26ft truck)
+    twoTripZone: boolean         // local move, 900–1,399 cu ft — second trip possible
+    threeHourMinApplied: boolean // natural estimate < 3h, billing at floor
+    fullDayFlag: boolean         // estimated hours >= 14 — heads-up for customer
+  }
+}
+
+export interface JobFactors {
+  // Origin access
+  originFloors?: number
+  originHasElevator?: boolean
+  originElevatorReserved?: boolean
+  originParkingOk?: boolean
+
+  // Destination access
+  destFloors?: number
+  destHasElevator?: boolean
+  destElevatorReserved?: boolean
+  destParkingOk?: boolean
+
+  // Hidden inventory (not visible in MLS photos)
+  garageCubicFeet?: number
+  basementCubicFeet?: number
+  shedCubicFeet?: number
+  estimatedBoxes?: number
+
+  // Packing status
+  packingStatus?: 'packed' | 'partial' | 'not-started'
+
+  // Specialty items
+  hasPiano?: boolean
+  hasSafe?: boolean
+  disassemblyItemCount?: number
+
+  // Items we do NOT move (flag only — do not price, alert the rep)
+  hasHotTub?: boolean
+  hasPoolTable?: boolean
+
+  // Manual overrides
+  truckCountOverride?: number   // rep can force 1 or 2 trucks
+
+  // Free notes from rep
+  specialtyNotes?: string
 }
 
 export interface CRMLead {
@@ -141,8 +212,25 @@ export interface CRMLead {
   totalWeightLbs?: number
   roomBreakdown?: Record<string, number>
   callLogs?: CallLogEntry[]
+  jobFactors?: JobFactors
   lostReason?: string
+  lostNotes?: string
   lostAt?: string
+  // Context + assignment
+  contextFlag?: string
+  assignedRep?: string
+  // Estimate appointment
+  estimateDate?: string
+  estimateTime?: string
+  // Booking + payment
+  bookedAt?: string
+  depositAmount?: number
+  depositMethod?: string
+  depositDate?: string
+  paymentStatus?: PaymentStatus
+  // Cancellation
+  cancelledAt?: string
+  cancelReason?: string
   createdAt: string
 }
 

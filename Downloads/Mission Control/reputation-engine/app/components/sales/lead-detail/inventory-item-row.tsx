@@ -75,12 +75,25 @@ export function InventoryItemRow({ item, index, onUpdate, onToggle, onRemove }: 
               placeholder="Item name"
             />
           ) : (
-            <span className="text-sm font-medium text-stone-900 truncate">{item.name || item.item}</span>
+            <span className="text-sm font-medium text-stone-900 truncate block">{item.name || item.item}</span>
           )}
-          <div className="text-[11px] text-stone-400 mt-0.5">
-            {cuFt > 0 ? `${cuFt} cu ft` : null}{lbs > 0 ? `${cuFt > 0 ? ' · ' : ''}${lbs} lbs` : null}
-            {excluded ? ' · excluded' : null}
-          </div>
+          {!editing && (
+            <div className="mt-0.5 space-y-0.5">
+              {item.size && (
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-stone-400">📐</span>
+                  <span className="text-[11px] text-stone-500 font-medium">{item.size}</span>
+                </div>
+              )}
+              <div className="text-[11px] text-stone-400 truncate">
+                {[cuFt > 0 ? `${cuFt} cu ft` : '', lbs > 0 ? `${lbs} lbs` : ''].filter(Boolean).join(' · ')}
+                {excluded ? ' · excluded' : null}
+              </div>
+              {item.notes && (
+                <div className="text-[11px] text-stone-400 truncate italic">{item.notes}</div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Qty */}
@@ -121,32 +134,46 @@ export function InventoryItemRow({ item, index, onUpdate, onToggle, onRemove }: 
         </div>
       </div>
 
-      {/* Expanded edit: cu ft + lbs */}
+      {/* Expanded edit: cu ft + lbs + notes */}
       {editing && (
-        <div className="ml-8 mb-2 flex items-center gap-3">
-          <label className="flex items-center gap-1.5">
-            <span className="text-[11px] text-stone-400">Cu ft</span>
-            <input
-              type="number"
-              min="0"
-              value={cuFt}
-              onChange={e => onUpdate(index, 'cubicFeet', e.target.value)}
-              className="w-16 rounded border border-stone-200 px-1.5 py-0.5 text-sm text-stone-900 outline-none focus:border-stone-400"
-            />
-          </label>
-          <label className="flex items-center gap-1.5">
-            <span className="text-[11px] text-stone-400">Lbs</span>
-            <input
-              type="number"
-              min="0"
-              value={lbs}
-              onChange={e => onUpdate(index, 'weightLbs', e.target.value)}
-              className="w-16 rounded border border-stone-200 px-1.5 py-0.5 text-sm text-stone-900 outline-none focus:border-stone-400"
-            />
-          </label>
-          <button onClick={() => onToggle(index)} className="text-[11px] text-stone-400 hover:text-stone-700 underline underline-offset-2">
-            {excluded ? 'Include' : 'Exclude'}
-          </button>
+        <div className="ml-8 mb-2 space-y-1.5">
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-1.5">
+              <span className="text-[11px] text-stone-400">Cu ft</span>
+              <input
+                type="number"
+                min="0"
+                value={cuFt}
+                onChange={e => onUpdate(index, 'cubicFeet', e.target.value)}
+                className="w-16 rounded border border-stone-200 px-1.5 py-0.5 text-sm text-stone-900 outline-none focus:border-stone-400"
+              />
+            </label>
+            <label className="flex items-center gap-1.5">
+              <span className="text-[11px] text-stone-400">Lbs</span>
+              <input
+                type="number"
+                min="0"
+                value={lbs}
+                onChange={e => onUpdate(index, 'weightLbs', e.target.value)}
+                className="w-16 rounded border border-stone-200 px-1.5 py-0.5 text-sm text-stone-900 outline-none focus:border-stone-400"
+              />
+            </label>
+            <button onClick={() => onToggle(index)} className="text-[11px] text-stone-400 hover:text-stone-700 underline underline-offset-2">
+              {excluded ? 'Include' : 'Exclude'}
+            </button>
+          </div>
+          <input
+            value={item.size || ''}
+            onChange={e => onUpdate(index, 'size', e.target.value)}
+            className="w-full rounded border border-stone-200 px-2 py-1 text-[11px] text-stone-600 outline-none focus:border-stone-400 placeholder:text-stone-300"
+            placeholder="Size — e.g. Queen (60×80 in), 6-drawer, 65 inch..."
+          />
+          <input
+            value={item.notes || ''}
+            onChange={e => onUpdate(index, 'notes', e.target.value)}
+            className="w-full rounded border border-stone-200 px-2 py-1 text-[11px] text-stone-600 outline-none focus:border-stone-400 placeholder:text-stone-300"
+            placeholder="Notes — condition, special handling, access issues..."
+          />
         </div>
       )}
     </div>
