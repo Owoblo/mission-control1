@@ -33,6 +33,9 @@ type Props = {
   onDestCityChange: (value: string) => void
   onDestAccessChange: (value: string) => void
   onParkingNotesChange: (value: string) => void
+  listingLookupBusy?: boolean
+  hasListing?: boolean
+  onScanListing?: () => void
 }
 
 export function LeadBasicsPanel({
@@ -65,6 +68,9 @@ export function LeadBasicsPanel({
   onDestCityChange,
   onDestAccessChange,
   onParkingNotesChange,
+  listingLookupBusy,
+  hasListing,
+  onScanListing,
 }: Props) {
   const customerSummary = [
     leadName || lead.name || 'New contact',
@@ -132,6 +138,32 @@ export function LeadBasicsPanel({
           <input value={originAddress} onChange={event => onOriginAddressChange(event.target.value)} className="crm-input" placeholder="Origin address" />
           <input value={originCity} onChange={event => onOriginCityChange(event.target.value)} className="crm-input" placeholder="Origin city" />
           <input value={originAccess} onChange={event => onOriginAccessChange(event.target.value)} className="crm-input" placeholder="Origin access, stairs, elevator, long carry" />
+          {/* MLS Scan Prompt */}
+          {(originAddress || originCity) && onScanListing && (
+            hasListing ? (
+              <div className="flex items-center gap-2 rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-2">
+                <span className="text-[11px] font-semibold text-emerald-700">📷 Listing matched</span>
+                <span className="ml-1 text-[10px] text-emerald-600">— inventory auto-loaded</span>
+                <button onClick={onScanListing} disabled={listingLookupBusy} className="ml-auto text-[10px] font-semibold text-emerald-700 hover:text-emerald-900 disabled:opacity-60">
+                  {listingLookupBusy ? 'Rescanning...' : 'Rescan'}
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 rounded-[8px] border border-dashed border-[var(--app-accent)] bg-[rgba(34,72,56,0.04)] px-3 py-2.5">
+                <span className="flex-1 text-[11px] text-[var(--app-accent)]">
+                  <span className="font-semibold">📷 Scan MLS photos</span>
+                  <span className="ml-1 opacity-70">— auto-build inventory from listing</span>
+                </span>
+                <button
+                  onClick={onScanListing}
+                  disabled={listingLookupBusy}
+                  className="shrink-0 rounded-[6px] bg-[var(--app-accent)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white transition hover:bg-[#0a5b47] disabled:opacity-60"
+                >
+                  {listingLookupBusy ? 'Scanning...' : 'Scan'}
+                </button>
+              </div>
+            )
+          )}
           <input value={destAddress} onChange={event => onDestAddressChange(event.target.value)} className="crm-input" placeholder="Destination address" />
           <input value={destCity} onChange={event => onDestCityChange(event.target.value)} className="crm-input" placeholder="Destination city" />
           <input value={destAccess} onChange={event => onDestAccessChange(event.target.value)} className="crm-input" placeholder="Destination access, stairs, elevator, long carry" />

@@ -88,6 +88,7 @@ export default function SalesLeadDetailPage() {
   const [composerBody, setComposerBody] = useState('')
   const [composerBusy, setComposerBusy] = useState(false)
   const [listingLookupBusy, setListingLookupBusy] = useState(false)
+  const [activeTab, setActiveTab] = useState<'timeline' | 'inventory'>('timeline')
   const [error, setError] = useState<string | null>(null)
   const [undoItem, setUndoItem] = useState<{ item: InventoryItem; index: number; timer: number } | null>(null)
   const autosaveTimerRef = useRef<number | null>(null)
@@ -1034,6 +1035,9 @@ Saturn Star Moving`
             onDestCityChange={setDestCity}
             onDestAccessChange={setDestAccess}
             onParkingNotesChange={setParkingNotes}
+            listingLookupBusy={listingLookupBusy}
+            hasListing={!!lead.supabaseListing}
+            onScanListing={() => void lookupListingForLead()}
           />
 
           <aside className="order-2 border-t border-[var(--app-line)] bg-[var(--app-panel)] lg:order-3 lg:border-l lg:border-t-0 xl:order-3">
@@ -1190,7 +1194,28 @@ Saturn Star Moving`
             </div>
           </aside>
 
-          <div className="order-3 lg:order-2 xl:order-2">
+          <div className="order-3 flex flex-col lg:order-2 xl:order-2">
+            {/* Tab bar */}
+            <div className="flex items-center gap-1 border-b border-[var(--app-line)] bg-[var(--app-panel)] px-4 pt-3">
+              <button
+                onClick={() => setActiveTab('timeline')}
+                className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 pb-3 pt-1 text-sm font-medium transition ${activeTab === 'timeline' ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}
+              >
+                Timeline
+              </button>
+              <button
+                onClick={() => setActiveTab('inventory')}
+                className={`-mb-px flex items-center gap-2 border-b-2 px-3 pb-3 pt-1 text-sm font-medium transition ${activeTab === 'inventory' ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}
+              >
+                Inventory
+                {inventoryMetrics.totalCubicFeet > 0 && (
+                  <span className="rounded-full bg-[rgba(34,72,56,0.1)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--app-accent)]">
+                    {inventoryMetrics.totalCubicFeet} cu ft
+                  </span>
+                )}
+              </button>
+            </div>
+            {activeTab === 'timeline' && (
             <LeadTimeline
               lead={lead}
               quote={quote}
@@ -1214,6 +1239,12 @@ Saturn Star Moving`
               onStopConsultation={() => void stopConsultation()}
               onLeadUpdate={setLead}
             />
+            )}
+            {activeTab === 'inventory' && (
+              <div className="flex-1 overflow-y-auto p-5 text-sm text-[var(--app-muted)]">
+                Switch to the Inventory tab to manage items. Add them from the panels below or scan MLS photos from the left panel.
+              </div>
+            )}
           </div>
         </div>
       </div>

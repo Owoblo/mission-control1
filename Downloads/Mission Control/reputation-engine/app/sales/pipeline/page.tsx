@@ -236,7 +236,7 @@ function SalesPipelineContent() {
                     return (
                       <div key={lead.id} className="relative rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] transition hover:border-[var(--app-ink)]">
                         <button
-                          onClick={event => void removeLead(event, lead)}
+                          onClick={event => { event.preventDefault(); event.stopPropagation(); if (window.confirm(`Delete lead for ${lead.name}?`)) void removeLead(event, lead) }}
                           className="absolute right-3 top-3 z-10 text-xs text-[var(--app-muted)] hover:text-rose-700"
                         >
                           {deleteBusyId === lead.id ? 'Deleting...' : 'Delete'}
@@ -258,6 +258,15 @@ function SalesPipelineContent() {
                           <div className="mt-3 flex items-center justify-between border-t border-[var(--app-line)] pt-3 text-xs text-[var(--app-muted)]">
                             <span>{quote?.viewedAt ? `Viewed ${formatDate(quote.viewedAt)}` : lead.followUpDate ? `Follow up ${formatDate(lead.followUpDate)}` : 'No follow-up set'}</span>
                             {lead.assignedRep ? <span className="rounded-full bg-[var(--app-wash)] px-2 py-0.5 font-medium text-[var(--app-ink)]">{lead.assignedRep}</span> : null}
+                            {lead.phone ? (
+                              <button
+                                onClick={e => { e.preventDefault(); e.stopPropagation(); window.dispatchEvent(new CustomEvent('crm:open-dialer', { detail: { phone: lead.phone, leadId: lead.id, name: lead.name } })) }}
+                                className="flex h-6 w-6 items-center justify-center rounded-full border border-[var(--app-line)] bg-white text-[var(--app-muted)] transition hover:border-[var(--app-accent)] hover:text-[var(--app-accent)]"
+                                title={`Call ${lead.phone}`}
+                              >
+                                ☎
+                              </button>
+                            ) : null}
                           </div>
                         </Link>
                       </div>
