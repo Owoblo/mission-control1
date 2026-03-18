@@ -7,6 +7,7 @@ import type {
   CRMClient,
   FollowUpLog,
   InventoryItem,
+  EstimateRouteContext,
   QuoteLineItem,
   QuoteStatus,
   SalesDashboardSummary,
@@ -213,6 +214,8 @@ const LOCAL_CREW_RATES: Record<number, number> = {
   2: 160,
   3: 225,
   4: 270,
+  5: 330,
+  6: 390,
 }
 
 const LABOR_ONLY_CREW_RATES: Record<number, number> = {
@@ -220,6 +223,8 @@ const LABOR_ONLY_CREW_RATES: Record<number, number> = {
   2: 120,
   3: 150,
   4: 200,
+  5: 250,
+  6: 300,
 }
 
 const PACKING_CREW_RATES: Record<number, number> = {
@@ -227,21 +232,31 @@ const PACKING_CREW_RATES: Record<number, number> = {
   2: 150,
   3: 150,
   4: 200,
+  5: 250,
+  6: 300,
 }
 
 function roundQuarterHour(value: number) {
   return Math.round(Math.max(0, value) * 4) / 4
 }
 
+function roundCurrency(value: number) {
+  return Math.round(Number(value || 0) * 100) / 100
+}
+
 export function getCrewRate(crewSize: number, moveType?: CRMLead['moveType'] | CRMQuote['moveType']) {
-  const normalizedCrew = Math.max(1, Math.min(4, Math.round(crewSize || 3)))
+  const normalizedCrew = Math.max(1, Math.min(6, Math.round(crewSize || 3)))
   const rateTable =
     moveType === 'labor-only'
       ? LABOR_ONLY_CREW_RATES
       : moveType === 'packing'
         ? PACKING_CREW_RATES
         : LOCAL_CREW_RATES
-  return rateTable[normalizedCrew] || rateTable[3]
+  if (rateTable[normalizedCrew]) return rateTable[normalizedCrew]
+  if (normalizedCrew > 4) {
+    return (rateTable[4] || rateTable[3]) + (normalizedCrew - 4) * 60
+  }
+  return rateTable[3]
 }
 
 export function getDefaultDepositRate(moveType?: CRMLead['moveType'] | CRMQuote['moveType']) {
@@ -278,6 +293,12 @@ export function suggestCrewSize(totalWeightLbs: number, totalCubicFeet: number, 
 
 // 26ft U-Haul holds ~1,400 cu ft with safe loading buffer
 const TRUCK_CAPACITY_CF = 1400
+const TRUCK_PAYLOAD_LBS = 8500
+const TWO_TRIP_ZONE_CF = 1000
+const EXTRA_TRUCK_RATE_MULTIPLIER = 1.5
+const THREE_TRUCK_RATE_MULTIPLIER = 2.05
+const LABOR_COST_PER_MOVER_HOUR = 20
+const TRUCK_OPS_COST_PER_KM = 1.1
 
 // Items that almost always require disassembly/reassembly — auto-detected from inventory scan
 // NOTE: wardrobes are excluded — they are typically built-in and stay with the property
@@ -287,11 +308,22 @@ const DISASSEMBLY_KEYWORDS = [
   'crib',
   'dining table',
   'desk',
-  'wall unit',
   'china cabinet',
   'hutch',
   'trampoline',
 ]
+
+function getTruckRateMultiplier(truckCount: number) {
+  if (truckCount >= 3) return THREE_TRUCK_RATE_MULTIPLIER
+  if (truckCount === 2) return EXTRA_TRUCK_RATE_MULTIPLIER
+  return 1
+}
+
+function estimateRequiredTrucks(totalCubicFeet: number, totalWeightLbs: number) {
+  const byVolume = Math.max(1, Math.ceil((totalCubicFeet || 0) / TRUCK_CAPACITY_CF))
+  const byWeight = totalWeightLbs > 0 ? Math.max(1, Math.ceil(totalWeightLbs / TRUCK_PAYLOAD_LBS)) : 1
+  return Math.max(byVolume, byWeight)
+}
 
 export function suggestDisassemblyCount(inventory: InventoryItem[]): number {
   return inventory.reduce((count, item) => {
@@ -303,11 +335,12 @@ export function suggestDisassemblyCount(inventory: InventoryItem[]): number {
   }, 0)
 }
 
-export function suggestTruckCount(totalCubicFeet: number, moveType?: CRMLead['moveType']) {
+export function suggestTruckCount(totalCubicFeet: number, totalWeightLbs = 0, moveType?: CRMLead['moveType']) {
+  const required = estimateRequiredTrucks(totalCubicFeet, totalWeightLbs)
   if (moveType === 'long-distance') {
-    return totalCubicFeet >= TRUCK_CAPACITY_CF ? 2 : 1
+    return Math.max(1, required)
   }
-  return totalCubicFeet >= TRUCK_CAPACITY_CF ? 2 : 1
+  return Math.max(1, required)
 }
 
 export function computeJobPenalties(factors: JobFactors): {
@@ -323,13 +356,14 @@ export function computeJobPenalties(factors: JobFactors): {
     penalties.push({
       label: `Origin – ${originFloors}-storey, stairs (no elevator)`,
       hours: (originFloors - 1) * 0.35,
+      category: 'access',
     })
   }
   if (factors.originHasElevator && !factors.originElevatorReserved) {
-    penalties.push({ label: 'Origin – elevator not reserved (shared, wait time)', hours: 0.75 })
+    penalties.push({ label: 'Origin – elevator not reserved (shared, wait time)', hours: 0.75, category: 'access' })
   }
   if (factors.originParkingOk === false) {
-    penalties.push({ label: 'Origin – limited truck access (no direct parking)', hours: 0.75 })
+    penalties.push({ label: 'Origin – limited truck access (no direct parking)', hours: 0.75, category: 'access' })
   }
 
   // Destination access
@@ -338,36 +372,39 @@ export function computeJobPenalties(factors: JobFactors): {
     penalties.push({
       label: `Destination – ${destFloors}-storey, stairs (no elevator)`,
       hours: (destFloors - 1) * 0.35,
+      category: 'access',
     })
   }
   if (factors.destHasElevator && !factors.destElevatorReserved) {
-    penalties.push({ label: 'Destination – elevator not reserved (shared, wait time)', hours: 0.75 })
+    penalties.push({ label: 'Destination – elevator not reserved (shared, wait time)', hours: 0.75, category: 'access' })
   }
   if (factors.destParkingOk === false) {
-    penalties.push({ label: 'Destination – limited truck access', hours: 0.75 })
+    penalties.push({ label: 'Destination – limited truck access', hours: 0.75, category: 'access' })
   }
 
   // Packing status
   if (factors.packingStatus === 'partial') {
-    penalties.push({ label: 'Partial packing – crew packing assist needed', hours: 1.5 })
+    penalties.push({ label: 'Partial packing – crew packing assist needed', hours: 1.5, category: 'packing' })
   } else if (factors.packingStatus === 'not-started') {
-    penalties.push({ label: 'Full pack – customer has not started packing', hours: 3.5 })
+    penalties.push({ label: 'Full pack – customer has not started packing', hours: 3.5, category: 'packing' })
   }
 
   // Specialty items
   if (factors.hasPiano) {
-    penalties.push({ label: 'Piano – specialty wrapping and handling', hours: 1.5 })
+    penalties.push({ label: 'Piano – specialty wrapping and handling', hours: 1.5, category: 'specialty' })
   }
   if (factors.hasSafe) {
-    penalties.push({ label: 'Heavy safe – dolly required, specialty handling', hours: 0.75 })
+    penalties.push({ label: 'Heavy safe – dolly required, specialty handling', hours: 0.75, category: 'specialty' })
   }
 
   // Disassembly / reassembly
   const disassemblyCount = factors.disassemblyItemCount || 0
   if (disassemblyCount > 0) {
     penalties.push({
-      label: `Disassembly + reassembly – ${disassemblyCount} major item${disassemblyCount > 1 ? 's' : ''} (beds, wardrobes, wall units)`,
+      label: `Disassembly + reassembly – ${disassemblyCount} furniture assembly item${disassemblyCount > 1 ? 's' : ''}`,
       hours: Math.round(disassemblyCount * 0.33 * 4) / 4,
+      category: 'disassembly',
+      details: ['Beds, dining tables, hutches, desks, trampolines, similar freestanding assemblies'],
     })
   }
 
@@ -379,27 +416,28 @@ export function computeJobPenalties(factors: JobFactors): {
     (factors.estimatedBoxes || 0) * 1.5
 
   if ((factors.garageCubicFeet || 0) > 0) {
-    penalties.push({ label: `Garage – ${factors.garageCubicFeet} cu ft (not in MLS photos)`, hours: 0 })
+    penalties.push({ label: `Garage – ${factors.garageCubicFeet} cu ft (not in MLS photos)`, hours: 0, category: 'hidden_inventory' })
   }
   if ((factors.basementCubicFeet || 0) > 0) {
-    penalties.push({ label: `Basement – ${factors.basementCubicFeet} cu ft (not in MLS photos)`, hours: 0 })
+    penalties.push({ label: `Basement – ${factors.basementCubicFeet} cu ft (not in MLS photos)`, hours: 0, category: 'hidden_inventory' })
   }
   if ((factors.shedCubicFeet || 0) > 0) {
-    penalties.push({ label: `Shed – ${factors.shedCubicFeet} cu ft (not in MLS photos)`, hours: 0 })
+    penalties.push({ label: `Shed – ${factors.shedCubicFeet} cu ft (not in MLS photos)`, hours: 0, category: 'hidden_inventory' })
   }
   if ((factors.estimatedBoxes || 0) > 0) {
     penalties.push({
       label: `${factors.estimatedBoxes} boxes (~${Math.round((factors.estimatedBoxes || 0) * 1.5)} cu ft) – customer estimate`,
       hours: 0,
+      category: 'hidden_inventory',
     })
   }
 
   // Items we do NOT move — flag only
   if (factors.hasHotTub) {
-    penalties.push({ label: '⚠ Hot tub flagged – Saturn Star does not move hot tubs', hours: 0, isFlagOnly: true })
+    penalties.push({ label: '⚠ Hot tub flagged – Saturn Star does not move hot tubs', hours: 0, isFlagOnly: true, category: 'warning' })
   }
   if (factors.hasPoolTable) {
-    penalties.push({ label: '⚠ Pool table flagged – Saturn Star does not move pool tables', hours: 0, isFlagOnly: true })
+    penalties.push({ label: '⚠ Pool table flagged – Saturn Star does not move pool tables', hours: 0, isFlagOnly: true, category: 'warning' })
   }
 
   const extraHours = penalties.filter(p => !p.isFlagOnly).reduce((sum, p) => sum + p.hours, 0)
@@ -469,18 +507,25 @@ export function estimateLeadQuote(
       | 'longDistanceMiscCost'
       | 'longDistanceMarkupRate'
     >
-  > & { driveHours?: number; quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'; distanceKm?: number },
+  > & {
+    driveHours?: number
+    quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'
+    distanceKm?: number
+    routeContext?: EstimateRouteContext
+  },
   factors?: JobFactors
 ) {
-  // quoteType from overrides takes priority, then lead.quoteType, then infer from moveType
   const resolvedQuoteType = overrides?.quoteType || lead.quoteType
   const isLongDistance = resolvedQuoteType === 'long_distance' || lead.moveType === 'long-distance'
   const isLaborOnly = resolvedQuoteType === 'labor_only' || resolvedQuoteType === 'storage' || lead.moveType === 'labor-only'
   const isPacking = resolvedQuoteType === 'packing_only' || lead.moveType === 'packing'
   const metrics = deriveInventoryMetrics(lead.inventory || [])
+  const routeContext = overrides?.routeContext
+  const routeCategory = routeContext?.routeCategory || (isLongDistance ? 'long-distance' : 'local')
+  const pricingStatus = routeContext?.pricingStatus || 'ready'
+  const missingRequirements = routeContext?.missingRequirements || []
+  const missingDestination = pricingStatus === 'provisional' || missingRequirements.length > 0
 
-  // Apply job factor penalties
-  // Auto-detect disassembly count from inventory if not manually set in job factors
   const autoDisassemblyCount = suggestDisassemblyCount(lead.inventory || [])
   const rawFactors = factors ?? lead.jobFactors
   const activeFactors: JobFactors | undefined = rawFactors
@@ -500,27 +545,61 @@ export function estimateLeadQuote(
   const totalCubicFeet = baseCubicFeet + extraCubicFeet
   const totalWeightLbs = Number(overrides?.estimatedWeightLbs || lead.totalWeightLbs || metrics.totalWeightLbs)
   const suggestedCrew = Number(overrides?.crewSize || suggestCrewSize(totalWeightLbs, totalCubicFeet, metrics.includedInventory))
-  const truckCount = Number(overrides?.truckCount || activeFactors?.truckCountOverride || suggestTruckCount(totalCubicFeet, lead.moveType))
-  // 2 trucks requires minimum 4 movers (2 per truck) — enforce unless manually overridden
-  const crewSize = overrides?.crewSize ? suggestedCrew : Math.max(suggestedCrew, truckCount >= 2 ? 4 : 1)
-  const crewRate = getCrewRate(crewSize, lead.moveType)
-  // LD operational costs default to 0 — drive time at full hourly rate covers truck/gas overhead
-  // Reps can manually add these as overrides if needed for specific jobs
+  const suggestedTruckCount = suggestTruckCount(totalCubicFeet, totalWeightLbs, lead.moveType)
+  const truckCount = Number(overrides?.truckCount || activeFactors?.truckCountOverride || suggestedTruckCount)
+  const threeTruckReview = truckCount >= 3
+  const crewMinimum = truckCount >= 3 ? 6 : truckCount === 2 ? 4 : 1
+  const crewSize = overrides?.crewSize ? suggestedCrew : Math.max(suggestedCrew, crewMinimum)
+  const baseCrewRate = getCrewRate(crewSize, lead.moveType)
+  const truckRateMultiplier = getTruckRateMultiplier(truckCount)
+  const crewRate = roundCurrency(baseCrewRate * truckRateMultiplier)
   const longDistanceTruckCost = Number(overrides?.longDistanceTruckCost || 0)
   const longDistanceGasCost = Number(overrides?.longDistanceGasCost || 0)
   const longDistanceInsuranceCost = Number(overrides?.longDistanceInsuranceCost || 0)
   const longDistanceMiscCost = Number(overrides?.longDistanceMiscCost || 0)
   const longDistanceMarkupRate = Number(overrides?.longDistanceMarkupRate || 0)
-  // Drive time — portal-to-portal means shop→origin + origin→destination
-  // overrides.driveHours is the origin→destination leg from OSRM
-  // We add an equal shop-to-origin leg (same distance, crew travels both ways)
-  // For labor-only, crew is already on-site so only origin→dest travel counts
-  const originToDestHours = overrides?.driveHours ?? (isLongDistance ? 1.5 : 0.75)
-  const shopToOriginHours = isLaborOnly ? 0 : originToDestHours  // same distance, opposite direction
-  const driveHours = roundQuarterHour(isLaborOnly ? 0.5 : originToDestHours + shopToOriginHours)
+  const originToDestHours = roundQuarterHour(
+    routeContext?.originToDestinationHours ?? overrides?.driveHours ?? (isLongDistance ? 1.5 : 0.75)
+  )
+  const yardToOriginHours = roundQuarterHour(isLaborOnly ? 0 : routeContext?.yardToOriginHours ?? 0)
+  const returnTripHours = roundQuarterHour(
+    routeContext?.returnTripHours ??
+      (routeCategory === 'long-distance' && !missingDestination ? originToDestHours : 0)
+  )
+  const billableDriveHours = roundQuarterHour(
+    routeContext?.billableDriveHours ??
+      (missingDestination
+        ? 0
+        : routeCategory === 'long-distance'
+          ? originToDestHours + returnTripHours
+          : isLaborOnly
+            ? 0.5
+            : yardToOriginHours + originToDestHours)
+  )
+  const operationalDriveHours = roundQuarterHour(
+    routeContext?.operationalDriveHours ??
+      (missingDestination
+        ? 0
+        : routeCategory === 'long-distance'
+          ? yardToOriginHours + originToDestHours + returnTripHours
+          : isLaborOnly
+            ? 0.5
+            : yardToOriginHours + originToDestHours)
+  )
+  const billableDistanceKm = routeContext?.billableDistanceKm ?? overrides?.distanceKm
+  const operationalDistanceKm = routeContext?.operationalDistanceKm ?? billableDistanceKm
+  const forcedSingleTruckTwoTrips =
+    !missingDestination &&
+    !isLongDistance &&
+    !isPacking &&
+    !isLaborOnly &&
+    truckCount === 1 &&
+    suggestedTruckCount >= 2
+  const additionalTripDriveHours = forcedSingleTruckTwoTrips ? roundQuarterHour(returnTripHours + originToDestHours) : 0
+  const additionalTripDistanceKm = forcedSingleTruckTwoTrips
+    ? (routeContext?.returnTripDistanceKm || 0) + (routeContext?.originToDestinationDistanceKm || 0)
+    : 0
 
-  // Phase 1: Loading (wrap, disassemble, carry out, load truck) — slowest phase
-  // Phase 2: Unloading (carry in, unwrap, reassemble, place) — ~50% faster than loading
   const loadHours =
     totalWeightLbs > 0
       ? totalWeightLbs / LOAD_RATE_LBS_PER_MAN_HOUR / Math.max(1, crewSize)
@@ -535,32 +614,27 @@ export function estimateLeadQuote(
         ? totalCubicFeet / (UNLOAD_RATE_CF_PER_MAN_HOUR * Math.max(1, crewSize))
         : loadHours * 0.65
 
-  const rawLaborHours = loadHours + unloadHours  // pure work phases, excludes drive
-  const baseHours = roundQuarterHour(rawLaborHours + driveHours)
+  const secondTripHandlingHours = forcedSingleTruckTwoTrips
+    ? roundQuarterHour(loadHours * 0.5 + unloadHours * 0.4)
+    : 0
+  const rawLaborHours = loadHours + unloadHours
+  const effectiveBillableDriveHours = roundQuarterHour(billableDriveHours + additionalTripDriveHours)
+  const effectiveOperationalDriveHours = roundQuarterHour(operationalDriveHours + additionalTripDriveHours)
+  const baseHours = roundQuarterHour(rawLaborHours + secondTripHandlingHours + effectiveBillableDriveHours)
   const preBufferHours = roundQuarterHour(baseHours + extraHours)
-  // 10% buffer to protect against surprises — baked in silently
-  const bufferHours = roundQuarterHour(preBufferHours * 0.1)
+  const driveBufferHours = roundQuarterHour(routeCategory === 'long-distance' ? 0 : effectiveBillableDriveHours * 0.1)
+  const loadUnloadBufferHours = roundQuarterHour((rawLaborHours + secondTripHandlingHours + extraHours) * 0.1)
+  const bufferHours = roundQuarterHour(driveBufferHours + loadUnloadBufferHours)
   const estimatedHours = Math.max(3, Number(overrides?.estimatedHours || roundQuarterHour(preBufferHours + bufferHours)))
-  // Intelligence flags — inform the rep about job characteristics, not visible to customer
-  // 26ft truck spec: ~1,650 cu ft. We use 1,400 as a conservative safe-load buffer (pads/wrapping reduce usable space).
-  // 2-trip zone starts at 1,000 cu ft — load is 71%+ of truck and second trip becomes plausible for local moves.
-  const TWO_TRIP_ZONE_CF = 1000
-
-  const laborAmount = Math.round(estimatedHours * crewRate)
+  const operationalPreBufferHours = roundQuarterHour(rawLaborHours + secondTripHandlingHours + effectiveOperationalDriveHours + extraHours)
+  const operationalHours = roundQuarterHour(operationalPreBufferHours + loadUnloadBufferHours + (routeCategory === 'long-distance' ? 0 : driveBufferHours))
+  const laborAmount = roundCurrency(estimatedHours * crewRate)
   const longDistanceOperationalBase = longDistanceTruckCost + longDistanceGasCost + longDistanceInsuranceCost + longDistanceMiscCost
-  const longDistanceMarkupAmount = isLongDistance ? Math.round(longDistanceOperationalBase * (longDistanceMarkupRate / 100)) : 0
-  const extraTruckAmount =
-    truckCount > 1
-      ? isLongDistance
-        ? Math.round((truckCount - 1) * estimatedHours * getCrewRate(2, lead.moveType))
-        : Math.round((truckCount - 1) * estimatedHours * getCrewRate(2, lead.moveType) * 0.85)
-      : 0
+  const longDistanceMarkupAmount = isLongDistance ? roundCurrency(longDistanceOperationalBase * (longDistanceMarkupRate / 100)) : 0
+  const extraTruckAmount = 0
+  const tripStrategy: PricingBreakdown['tripStrategy'] =
+    truckCount >= 3 ? 'three_trucks' : forcedSingleTruckTwoTrips ? 'single_truck_two_trips' : truckCount === 2 ? 'two_trucks' : 'single_truck'
 
-  // --- Two-trip comparison (local moves only) ---
-  // When 2 trucks are required OR in the 2-trip zone, calculate what it costs
-  // to do the same job with 1 truck and 2 trips instead of 2 trucks simultaneously.
-  // 2-trip: same load/unload labor, but adds 1 extra return drive (origin→dest empty).
-  // Uses 3 movers (standard) instead of 4 — saves on crew rate.
   let twoTripComparison: {
     crewSize: number
     totalHours: number
@@ -570,69 +644,107 @@ export function estimateLeadQuote(
     note: string
   } | null = null
 
-  if (!isLongDistance && !isPacking && !isLaborOnly && (truckCount >= 2 || totalCubicFeet >= TWO_TRIP_ZONE_CF)) {
-    const tripCrewSize = 3
-    const tripCrewRate = getCrewRate(tripCrewSize, lead.moveType)
-    const returnTripHours = roundQuarterHour(originToDestHours)
-    const twoTripRawHours = rawLaborHours + driveHours + returnTripHours + originToDestHours
-    const twoTripBuffered = roundQuarterHour(twoTripRawHours + twoTripRawHours * 0.1)
-    const twoTripHours = Math.max(3, twoTripBuffered)
-    const twoTripAmount = Math.round(twoTripHours * tripCrewRate)
-    const twoTruckTotalAmount = laborAmount + extraTruckAmount
-    const savings = twoTruckTotalAmount - twoTripAmount
+  let multiTruckOption: PricingBreakdown['intelligenceFlags']['multiTruckOption'] = null
+
+  if (!missingDestination && !isLongDistance && !isPacking && !isLaborOnly && (truckCount >= 2 || totalCubicFeet >= TWO_TRIP_ZONE_CF)) {
+    const tripCrewSize = Math.max(3, Math.min(crewSize, 4))
+    const oneTruckRate = roundCurrency(getCrewRate(tripCrewSize, lead.moveType))
+    const reloadFactor = totalCubicFeet > TRUCK_CAPACITY_CF ? 0.5 : 0.35
+    const secondTripHandlingHours = roundQuarterHour(loadHours * reloadFactor + unloadHours * reloadFactor * 0.85)
+    const extraTripDriveHours = roundQuarterHour(originToDestHours * 2)
+    const twoTripBaseHours = roundQuarterHour(rawLaborHours + billableDriveHours + secondTripHandlingHours + extraTripDriveHours + extraHours)
+    const twoTripDriveBuffer = roundQuarterHour(extraTripDriveHours * 0.1)
+    const twoTripLoadBuffer = roundQuarterHour((rawLaborHours + secondTripHandlingHours + extraHours) * 0.1)
+    const twoTripHours = Math.max(3, roundQuarterHour(twoTripBaseHours + twoTripDriveBuffer + twoTripLoadBuffer))
+    const twoTripAmount = roundCurrency(twoTripHours * oneTruckRate)
+    const multiTruckAmount = laborAmount + longDistanceOperationalBase + longDistanceMarkupAmount
+    const savings = roundCurrency(multiTruckAmount - twoTripAmount)
     twoTripComparison = {
       crewSize: tripCrewSize,
       totalHours: twoTripHours,
       totalAmount: twoTripAmount,
       savings,
-      extraHours: roundQuarterHour(returnTripHours + originToDestHours),
+      extraHours: roundQuarterHour(extraTripDriveHours + secondTripHandlingHours),
       note: savings > 0
-        ? `1 truck, 2 trips saves ~$${savings} but adds ~${returnTripHours + originToDestHours}h`
+        ? `1 truck, 2 trips saves ~${formatMoney(savings)} but adds ~${roundQuarterHour(extraTripDriveHours + secondTripHandlingHours)}h`
         : '2 trucks is more cost-effective for this load',
+    }
+
+    multiTruckOption = {
+      totalHours: estimatedHours,
+      totalAmount: laborAmount,
+      truckCount,
+      note: `${truckCount} trucks reduces repeat travel but carries a higher hourly rate`,
     }
   }
 
-  // --- Packing day estimate (add-on to any standard move) ---
   const packingCrewSize = Math.max(2, Math.min(crewSize, 3))
   const packingCrewRate = PACKING_CREW_RATES[packingCrewSize] || PACKING_CREW_RATES[3]
   const packingHours = Math.max(3, roundQuarterHour(rawLaborHours))
-  const packingDayAmount = Math.round(packingHours * packingCrewRate)
+  const packingDayAmount = roundCurrency(packingHours * packingCrewRate)
   const packingDayEstimate = {
     crewSize: packingCrewSize,
     hours: packingHours,
     amountBeforeHst: packingDayAmount,
-    total: Math.round(packingDayAmount * 1.13),
+    total: roundCurrency(packingDayAmount * 1.13),
     note: `${packingCrewSize} packers · ~${packingHours}h · separate day before move`,
   }
 
-  // --- 2-day move cost (when fullDayFlag is true) ---
   const twoDayMoveEstimate = estimatedHours >= 14 ? {
-    day1Hours: Math.max(3, roundQuarterHour(loadHours + shopToOriginHours + originToDestHours + loadHours * 0.1)),
-    day2Hours: Math.max(3, roundQuarterHour(unloadHours + shopToOriginHours + originToDestHours + unloadHours * 0.1)),
+    day1Hours: Math.max(3, roundQuarterHour(loadHours + yardToOriginHours + originToDestHours + loadHours * 0.1)),
+    day2Hours: Math.max(3, roundQuarterHour(unloadHours + returnTripHours + unloadHours * 0.1)),
     note: 'Split load day / unload day — reduces crew fatigue and damage risk on large jobs',
   } : null
+
+  const adjustmentCategories: Array<{ category: 'access' | 'disassembly' | 'specialty' | 'packing' | 'hidden_inventory'; label: string }> = [
+    { category: 'access', label: 'Access & parking' },
+    { category: 'disassembly', label: 'Disassembly / reassembly' },
+    { category: 'specialty', label: 'Specialty handling' },
+    { category: 'packing', label: 'Packing readiness' },
+    { category: 'hidden_inventory', label: 'Hidden inventory' },
+  ]
+  const adjustmentBreakdown = adjustmentCategories
+    .map(entry => ({
+      category: entry.category,
+      label: entry.label,
+      hours: roundQuarterHour(
+        penalties
+          .filter(penalty => penalty.category === entry.category && !penalty.isFlagOnly)
+          .reduce((sum, penalty) => sum + penalty.hours, 0)
+      ),
+    }))
+    .filter(entry => entry.hours > 0 || (entry.category === 'hidden_inventory' && extraCubicFeet > 0))
+
+  const effectiveBillableDistanceKm = roundCurrency((billableDistanceKm || 0) + additionalTripDistanceKm)
+  const effectiveOperationalDistanceKm = roundCurrency((operationalDistanceKm || 0) + additionalTripDistanceKm)
+  const laborCost = roundCurrency(crewSize * operationalHours * LABOR_COST_PER_MOVER_HOUR)
+  const truckOpsCost = roundCurrency((effectiveOperationalDistanceKm || 0) * truckCount * TRUCK_OPS_COST_PER_KM)
+  const directCost = roundCurrency(laborCost + truckOpsCost)
+  const grossProfit = roundCurrency(laborAmount - directCost)
+  const grossMarginPct = laborAmount > 0 ? Math.round((grossProfit / laborAmount) * 1000) / 10 : 0
 
   const intelligenceFlags = {
     twoTruckRequired: truckCount >= 2,
     twoTripZone: !isLongDistance && !isPacking && !isLaborOnly && totalCubicFeet >= TWO_TRIP_ZONE_CF && totalCubicFeet < TRUCK_CAPACITY_CF,
+    threeTruckReview,
     threeHourMinApplied: roundQuarterHour(preBufferHours + bufferHours) < 3,
     fullDayFlag: estimatedHours >= 14,
+    missingDestination,
     twoTripComparison,
+    multiTruckOption,
     packingDayEstimate,
     twoDayMoveEstimate,
   }
 
-  // Phase time labels for the line item details
   const roundedLoad = roundQuarterHour(loadHours)
   const roundedUnload = roundQuarterHour(unloadHours)
   const phaseDetail =
     totalWeightLbs > 0
-      ? `${totalWeightLbs} lbs · ${crewSize} movers · ~${roundedLoad}h loading + ${driveHours}h drive + ~${roundedUnload}h unloading (${estimatedHours}h total)`
+      ? `${totalWeightLbs} lbs · ${crewSize} movers · ~${roundedLoad}h loading + ${effectiveBillableDriveHours}h drive + ~${roundedUnload}h unloading (${estimatedHours}h total)`
       : totalCubicFeet > 0
-        ? `${totalCubicFeet} cu ft · ${crewSize} movers · ~${roundedLoad}h loading + ${driveHours}h drive + ~${roundedUnload}h unloading (${estimatedHours}h total)`
-        : `${crewSize} movers · ${estimatedHours}h portal-to-portal`
+        ? `${totalCubicFeet} cu ft · ${crewSize} movers · ~${roundedLoad}h loading + ${effectiveBillableDriveHours}h drive + ~${roundedUnload}h unloading (${estimatedHours}h total)`
+        : `${crewSize} movers · ${estimatedHours}h estimated service`
 
-  // Build customer-facing service inclusions
   const inclusions: string[] = []
   inclusions.push(`${crewSize} professional mover${crewSize > 1 ? 's' : ''}`)
   inclusions.push(`${truckCount} truck${truckCount > 1 ? 's' : ''}`)
@@ -644,10 +756,12 @@ export function estimateLeadQuote(
     inclusions.push('professional packing service')
     inclusions.push('all packing materials')
   }
-  if (isLongDistance) {
-    inclusions.push(`full portal-to-portal travel (${driveHours}h drive covered)`)
+  if (missingDestination) {
+    inclusions.push('travel pending final destination confirmation')
+  } else if (isLongDistance) {
+    inclusions.push(`round-trip travel from customer origin (${effectiveBillableDriveHours}h drive covered)`)
   } else if (!isLaborOnly) {
-    inclusions.push('portal-to-portal travel covered')
+    inclusions.push(forcedSingleTruckTwoTrips ? 'extra return trip included in local pricing' : 'yard-to-home travel covered')
   }
   inclusions.push('fully insured')
 
@@ -671,21 +785,49 @@ export function estimateLeadQuote(
     },
   ]
 
+  if (missingDestination) {
+    lineItems.push({
+      description: 'Travel & destination handling pending',
+      details: missingRequirements.length
+        ? `Provisional quote — ${missingRequirements.join(' · ')}`
+        : 'Destination route still needed to finalize drive time and unloading scope',
+      amount: 0,
+    })
+  }
+
   const pricingBreakdown: PricingBreakdown = {
     loadHours: roundQuarterHour(loadHours),
-    driveHours,
+    driveHours: effectiveBillableDriveHours,
+    operationalDriveHours: effectiveOperationalDriveHours,
     unloadHours: roundQuarterHour(unloadHours),
     baseHours,
     penaltyHours: extraHours,
+    driveBufferHours,
+    loadUnloadBufferHours,
     bufferHours,
     totalHours: estimatedHours,
+    operationalHours,
     crewSize,
     crewRatePerHour: crewRate,
     truckCount,
+    truckRateMultiplier,
+    tripStrategy,
+    pricingStatus,
+    routeCategory,
+    billableDistanceKm: effectiveBillableDistanceKm,
+    operationalDistanceKm: effectiveOperationalDistanceKm,
     baseCubicFeet,
     extraCubicFeet,
     totalCubicFeet,
     penalties,
+    adjustmentBreakdown,
+    internalCostEstimate: {
+      laborCost,
+      truckOpsCost,
+      totalCost: directCost,
+      grossProfit,
+      grossMarginPct,
+    },
     intelligenceFlags,
   }
 

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { EstimateDraftModal } from '@/app/components/sales/lead-detail/estimate-draft-modal'
 import { CollectCardModal } from '@/app/components/sales/collect-card-modal'
@@ -17,7 +17,7 @@ import { InventoryRoomSection } from '@/app/components/sales/lead-detail/invento
 import { INVENTORY_PRESETS, createInventoryItemFromPreset } from '@/lib/item-presets'
 import { DEPOSIT_METHODS, LEAD_CONTEXT_FLAGS, LOST_REASONS, SALES_LEAD_STAGES, computeQuoteTotals, deriveInventoryMetrics, estimateLeadQuote, formatDate, formatDateTime, formatMoney } from '@/lib/sales'
 import { confirmJob, createLeadQuote, deleteSalesLead, enrichSalesAddress, fetchSalesLead, fetchSalesOverview, fetchSalesQuote, saveLeadConsultation, saveSalesFollowUp, sendSalesMessage, updateSalesLead, updateSalesQuote } from '@/lib/sales-api'
-import type { CRMLead, CRMQuote, FollowUpLog, InventoryItem, JobFactors, QuoteLineItem } from '@/lib/types'
+import type { CRMLead, CRMQuote, EstimateRouteContext, FollowUpLog, InventoryItem, JobFactors, QuoteLineItem } from '@/lib/types'
 
 export default function SalesLeadDetailPage() {
   const params = useParams() as { id?: string }
@@ -452,7 +452,11 @@ export default function SalesLeadDetailPage() {
     }
   }
 
-  function recalculateEstimate(driveHours?: number, quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage', distanceKm?: number) {
+  function recalculateEstimate(options?: {
+    quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'
+    distanceKm?: number
+    routeContext?: EstimateRouteContext
+  }) {
     if (!lead) return
     setRecalculateBusy(true)
     try {
@@ -462,15 +466,27 @@ export default function SalesLeadDetailPage() {
         totalCubicFeet: inventoryMetrics.totalCubicFeet,
         totalWeightLbs: inventoryMetrics.totalWeightLbs,
         moveType,
-        quoteType,
+        quoteType: options?.quoteType,
       }
-      const estimate = estimateLeadQuote(snapshot, { driveHours, quoteType, distanceKm }, jobFactors)
+      const estimate = estimateLeadQuote(snapshot, {
+        quoteType: options?.quoteType,
+        distanceKm: options?.distanceKm,
+        routeContext: options?.routeContext,
+      }, jobFactors)
       setQuoteLineItems(estimate.lineItems)
       setQuoteModalDirty(true)
     } finally {
       setRecalculateBusy(false)
     }
   }
+
+  const handleModalRecalculate = useCallback((options?: {
+    quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'
+    distanceKm?: number
+    routeContext?: EstimateRouteContext
+  }) => {
+    recalculateEstimate(options)
+  }, [lead, inventory, inventoryMetrics.totalCubicFeet, inventoryMetrics.totalWeightLbs, moveType, jobFactors])
 
   useEffect(() => {
     if (!lead) return
@@ -2246,7 +2262,7 @@ Saturn Star Moving`
         onDestAddressChange={setDestAddress}
         onLookupListing={() => void lookupListingForLead()}
         onRefreshInventory={() => void generateInventoryFromPhotos(true)}
-        onRecalculate={(driveHours, quoteType, distanceKm) => recalculateEstimate(driveHours, quoteType, distanceKm)}
+        onRecalculate={handleModalRecalculate}
         onAddLineItem={addQuoteLineItem}
         onSetActivePhotoIndex={setActivePhotoIndex}
         onAddPreset={addPresetItem}
@@ -2256,6 +2272,9 @@ Saturn Star Moving`
         onSaveAndPreview={() => void saveAndPreviewQuote()}
         onJobFactorsChange={setJobFactors}
         onAddInventoryItems={items => setInventory(current => [...current, ...items])}
+        onUpdateInventoryItem={updateInventoryItem}
+        onToggleInventoryItem={toggleInventoryItem}
+        onRemoveInventoryItem={removeInventoryItem}
       />
 
       <CollectCardModal

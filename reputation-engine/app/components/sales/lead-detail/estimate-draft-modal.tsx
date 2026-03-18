@@ -4,15 +4,34 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { estimateLeadQuote, formatMoney } from '@/lib/sales'
 import { DEFAULT_ROOM_OPTIONS } from './helpers'
-import type { JobFactors, CRMLead, CRMQuote, InventoryItem, QuoteLineItem } from '@/lib/types'
+import type { EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, QuoteLineItem } from '@/lib/types'
 
 type RouteResult = {
-  distanceKm: number
-  distanceMiles: number
-  driveHours: number
+  pricingStatus: 'ready' | 'provisional'
   category: 'local' | 'medium' | 'long-distance'
   originResolved: string
-  destResolved: string
+  destResolved?: string
+  yardResolved?: string
+  distanceKm?: number
+  distanceMiles?: number
+  driveHours?: number
+  billableDistanceKm?: number
+  operationalDistanceKm?: number
+  billableDriveHours?: number
+  operationalDriveHours?: number
+  yardToOrigin?: {
+    distanceKm: number
+    driveHours: number
+  } | null
+  originToDestination?: {
+    distanceKm: number
+    driveHours: number
+  } | null
+  returnToOrigin?: {
+    distanceKm: number
+    driveHours: number
+  } | null
+  missingRequirements?: string[]
 }
 
 type GroupedInventory = Array<[string, Array<{ item: InventoryItem; index: number }>]>
@@ -52,7 +71,11 @@ type Props = {
   onDestAddressChange: (value: string) => void
   onLookupListing: () => void
   onRefreshInventory: () => void
-  onRecalculate: (driveHours?: number, quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage', distanceKm?: number) => void
+  onRecalculate: (options?: {
+    quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'
+    distanceKm?: number
+    routeContext?: EstimateRouteContext
+  }) => void
   onAddLineItem: () => void
   onSetActivePhotoIndex: (index: number) => void
   onAddPreset: (presetId: string) => void
@@ -62,6 +85,9 @@ type Props = {
   onSaveAndPreview: () => void
   onJobFactorsChange: (factors: JobFactors) => void
   onAddInventoryItems: (items: InventoryItem[]) => void
+  onUpdateInventoryItem: (index: number, field: keyof InventoryItem, value: string) => void
+  onToggleInventoryItem: (index: number) => void
+  onRemoveInventoryItem: (index: number) => void
 }
 
 function Toggle({ label, value, onChange }: { label: string; value: boolean | undefined; onChange: (v: boolean) => void }) {
@@ -142,6 +168,9 @@ export function EstimateDraftModal({
   onSaveAndPreview,
   onJobFactorsChange,
   onAddInventoryItems,
+  onUpdateInventoryItem,
+  onToggleInventoryItem,
+  onRemoveInventoryItem,
 }: Props) {
   const [route, setRoute] = useState<RouteResult | null>(null)
   const [routeBusy, setRouteBusy] = useState(false)
@@ -161,15 +190,42 @@ export function EstimateDraftModal({
   const originFull = [originAddress || lead.originAddress, originCity || lead.originCity].filter(Boolean).join(', ')
   const destFull = [destAddress || lead.destAddress, destCity || lead.destCity].filter(Boolean).join(', ')
 
+  const routeContext = useMemo<EstimateRouteContext | undefined>(() => {
+    if (!originFull) return undefined
+    if (!route) {
+      if (destFull) return undefined
+      return {
+        pricingStatus: 'provisional',
+        routeCategory: quoteType === 'long_distance' ? 'long-distance' : 'local',
+        missingRequirements: ['Destination address or city needed for travel estimate'],
+      }
+    }
+    return {
+      pricingStatus: route.pricingStatus,
+      routeCategory: route.category,
+      billableDriveHours: route.billableDriveHours,
+      operationalDriveHours: route.operationalDriveHours,
+      originToDestinationHours: route.originToDestination?.driveHours ?? route.driveHours,
+      yardToOriginHours: route.yardToOrigin?.driveHours,
+      returnTripHours: route.returnToOrigin?.driveHours,
+      originToDestinationDistanceKm: route.originToDestination?.distanceKm ?? route.distanceKm,
+      yardToOriginDistanceKm: route.yardToOrigin?.distanceKm,
+      returnTripDistanceKm: route.returnToOrigin?.distanceKm,
+      billableDistanceKm: route.billableDistanceKm,
+      operationalDistanceKm: route.operationalDistanceKm,
+      missingRequirements: route.missingRequirements,
+    }
+  }, [destFull, originFull, quoteType, route])
+
   useEffect(() => {
-    if (!open || !originFull || !destFull) return
+    if (!open || !originFull) return
     let cancelled = false
     setRouteBusy(true)
     setRouteError(null)
     fetch('/api/sales/route-estimate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ origin: originFull, destination: destFull }),
+      body: JSON.stringify({ origin: originFull, destination: destFull || undefined }),
       credentials: 'include',
     })
       .then(r => r.json())
@@ -183,6 +239,32 @@ export function EstimateDraftModal({
     return () => { cancelled = true }
   }, [open, originFull, destFull])
 
+  useEffect(() => {
+    if (!open || !originFull) return
+    onRecalculate({
+      quoteType,
+      distanceKm: distanceKm || route?.distanceKm || undefined,
+      routeContext,
+    })
+  }, [
+    open,
+    originFull,
+    quoteType,
+    distanceKm,
+    route?.pricingStatus,
+    route?.category,
+    route?.billableDriveHours,
+    route?.operationalDriveHours,
+    route?.billableDistanceKm,
+    route?.operationalDistanceKm,
+    route?.originToDestination?.driveHours,
+    route?.yardToOrigin?.driveHours,
+    route?.returnToOrigin?.driveHours,
+    route?.missingRequirements,
+    onRecalculate,
+    routeContext,
+  ])
+
   const pricingBreakdown = useMemo(() => {
     if (!open) return null
     const snapshot = {
@@ -191,10 +273,12 @@ export function EstimateDraftModal({
       totalWeightLbs: inventoryMetrics.totalWeightLbs,
       moveType: route?.category === 'long-distance' ? ('long-distance' as const) : lead.moveType,
     }
-    // Only apply drive time when we have a real route — no phantom defaults
-    const driveHours = route?.driveHours ?? (destFull ? undefined : 0)
-    return estimateLeadQuote(snapshot, { driveHours }, jobFactors).pricingBreakdown
-  }, [open, lead, inventoryMetrics.totalCubicFeet, inventoryMetrics.totalWeightLbs, jobFactors, route])
+    return estimateLeadQuote(snapshot, {
+      quoteType,
+      distanceKm: distanceKm || route?.distanceKm || undefined,
+      routeContext,
+    }, jobFactors).pricingBreakdown
+  }, [open, lead, inventoryMetrics.totalCubicFeet, inventoryMetrics.totalWeightLbs, jobFactors, quoteType, distanceKm, route, routeContext])
 
   if (!open) return null
 
@@ -245,7 +329,10 @@ export function EstimateDraftModal({
                   route.category === 'medium' ? 'bg-amber-50 text-amber-700' :
                   'bg-rose-50 text-rose-700'
                 }`}>
-                  {route.distanceKm} km · {route.driveHours}h drive · {route.category === 'local' ? 'Local' : route.category === 'medium' ? 'Medium Distance' : 'Long Distance'}
+                  {route.pricingStatus === 'provisional'
+                    ? 'Provisional — destination pending'
+                    : `${route.billableDistanceKm || route.distanceKm} km billable · ${route.billableDriveHours || route.driveHours}h drive · ${route.category === 'local' ? 'Local' : route.category === 'medium' ? 'Medium Distance' : 'Long Distance'}`
+                  }
                 </span>
               )}
               {routeError && !routeBusy && <span className="text-[10px] text-rose-500">{routeError}</span>}
@@ -277,7 +364,11 @@ export function EstimateDraftModal({
                     type="button"
                     onClick={() => {
                       setQuoteType(opt.id)
-                      onRecalculate(route?.driveHours, opt.id, distanceKm || undefined)
+                      onRecalculate({
+                        quoteType: opt.id,
+                        distanceKm: distanceKm || route?.distanceKm || undefined,
+                        routeContext,
+                      })
                     }}
                     className={quoteType === opt.id
                       ? 'rounded-full px-4 py-1.5 text-sm font-semibold bg-[#1a2744] text-white'
@@ -358,12 +449,39 @@ export function EstimateDraftModal({
                         </summary>
                         <div className="border-t border-[var(--app-line)] px-3 py-2 space-y-1">
                           {items.map(el => (
-                            <div key={el.index} className="flex items-center justify-between gap-2 text-xs text-[var(--app-muted)]">
-                              <span className="text-[var(--app-ink)]">{el.item.name || el.item.item}</span>
-                              <div className="flex items-center gap-2 shrink-0">
-                                <span>×{el.item.qty || 1}</span>
-                                {el.item.cubicFeet ? <span>{((el.item.cubicFeet || 0) * (el.item.qty || 1)).toFixed(0)} cu ft</span> : null}
+                            <div key={el.index} className={`rounded-[6px] border px-2 py-2 text-xs ${el.item.included === false ? 'border-slate-200 bg-slate-50 text-slate-400' : 'border-transparent bg-white text-[var(--app-muted)]'}`}>
+                              <div className="flex items-center justify-between gap-2">
+                                <span className={`font-medium ${el.item.included === false ? 'text-slate-500 line-through' : 'text-[var(--app-ink)]'}`}>{el.item.name || el.item.item}</span>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    value={el.item.qty || 1}
+                                    onChange={event => onUpdateInventoryItem(el.index, 'qty', event.target.value)}
+                                    className="crm-input h-8 w-16 py-1 text-right text-xs"
+                                  />
+                                  {el.item.cubicFeet ? <span>{((el.item.cubicFeet || 0) * (el.item.qty || 1)).toFixed(0)} cu ft</span> : null}
+                                </div>
                               </div>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => onToggleInventoryItem(el.index)}
+                                  className={`rounded-[6px] px-2.5 py-1 text-[10px] font-semibold ${el.item.included === false ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'}`}
+                                >
+                                  {el.item.included === false ? 'Include Back' : 'Stays Behind'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => onRemoveInventoryItem(el.index)}
+                                  className="rounded-[6px] bg-rose-50 px-2.5 py-1 text-[10px] font-semibold text-rose-700"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                              {el.item.included === false && el.item.exclusionReason ? (
+                                <div className="mt-1 text-[10px] text-slate-500">{el.item.exclusionReason}</div>
+                              ) : null}
                             </div>
                           ))}
                         </div>
@@ -490,7 +608,11 @@ export function EstimateDraftModal({
                   <div className="mt-0.5 text-xs text-[var(--app-muted)]">Tier 2 details not visible in MLS photos — these directly affect the estimate.</div>
                 </div>
                 <button
-                  onClick={() => onRecalculate(route?.driveHours, quoteType, distanceKm || undefined)}
+                  onClick={() => onRecalculate({
+                    quoteType,
+                    distanceKm: distanceKm || route?.distanceKm || undefined,
+                    routeContext,
+                  })}
                   disabled={recalculateBusy}
                   className="crm-button-dark text-xs disabled:opacity-60"
                 >
@@ -509,9 +631,9 @@ export function EstimateDraftModal({
                   <div className="mt-2 grid grid-cols-2 gap-2">
                     <div className="rounded-[6px] border-2 border-sky-300 bg-white p-2.5">
                       <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-sky-700">Option A — 2 Trucks</div>
-                      <div className="mt-1 text-lg font-bold text-[var(--app-ink)]">{formatMoney(quoteModalTotals.subtotal)}</div>
+                      <div className="mt-1 text-lg font-bold text-[var(--app-ink)]">{formatMoney(flags.multiTruckOption?.totalAmount ?? quoteModalTotals.subtotal)}</div>
                       <div className="mt-0.5 text-[10px] text-sky-700">
-                        {pricingBreakdown?.crewSize} movers · {pricingBreakdown?.totalHours}h · both trucks load in parallel — faster
+                        {pricingBreakdown?.crewSize} movers · {flags.multiTruckOption?.totalHours ?? pricingBreakdown?.totalHours}h · both trucks load in parallel — faster
                       </div>
                     </div>
                     <div className="rounded-[6px] border border-sky-200 bg-white p-2.5">
@@ -520,7 +642,7 @@ export function EstimateDraftModal({
                       <div className="mt-0.5 text-[10px] text-slate-500">
                         {flags.twoTripComparison.crewSize} movers · {flags.twoTripComparison.totalHours}h · adds ~{flags.twoTripComparison.extraHours}h return drive
                         {flags.twoTripComparison.savings > 0
-                          ? ` · saves client $${flags.twoTripComparison.savings}`
+                          ? ` · saves client ${formatMoney(flags.twoTripComparison.savings)}`
                           : ' · 2 trucks is more efficient'}
                       </div>
                     </div>
@@ -557,6 +679,20 @@ export function EstimateDraftModal({
                 <div className="mb-3 rounded-[8px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
                   <div className="font-semibold">⏱ 3-hour minimum applied</div>
                   <div className="mt-0.5 text-xs">Natural estimate is under 3 hours — billing at the 3-hour floor. Normal for studio or 1BR local moves.</div>
+                </div>
+              )}
+
+              {flags?.missingDestination && (
+                <div className="mb-3 rounded-[8px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  <div className="font-semibold">Destination still missing</div>
+                  <div className="mt-0.5 text-xs">This draft only includes loading, handling, and known access factors. Travel and destination-side work will finalize once the destination is added.</div>
+                </div>
+              )}
+
+              {flags?.threeTruckReview && (
+                <div className="mb-3 rounded-[8px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+                  <div className="font-semibold">3-truck move detected</div>
+                  <div className="mt-0.5 text-xs">The load is beyond a standard 2-truck job. Keep the estimate moving, but dispatch or management should review the final truck plan before sending.</div>
                 </div>
               )}
 
@@ -723,13 +859,14 @@ export function EstimateDraftModal({
                 <div className="space-y-3">
                   <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-ink)]">Trucks</div>
                   <div className="text-xs text-[var(--app-muted)] leading-5">
-                    System auto-detects based on total volume (1 truck = up to 1,400 cu ft). Override if you already know.
+                    System auto-detects based on safe load and weight. Override only if dispatch already knows the right setup.
                   </div>
                   <div className="flex gap-2">
                     {[
                       { label: 'Auto', value: undefined },
                       { label: '1 Truck', value: 1 },
                       { label: '2 Trucks', value: 2 },
+                      { label: '3 Trucks', value: 3 },
                     ].map(opt => (
                       <button
                         key={String(opt.value)}
@@ -750,7 +887,7 @@ export function EstimateDraftModal({
                 {/* Disassembly */}
                 <div className="space-y-3">
                   <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-ink)]">Disassembly / Reassembly</div>
-                  <div className="text-xs text-[var(--app-muted)] leading-5">How many major items need to be taken apart and reassembled? (beds, IKEA wardrobes, wall units, etc.)</div>
+                  <div className="text-xs text-[var(--app-muted)] leading-5">Count only freestanding assemblies that truly come apart for the move, like beds, dining tables, hutches, or trampolines. Built-ins and wall-mounted pieces usually stay with the house.</div>
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-xs text-[var(--app-muted)]">Number of items</span>
                     <input
@@ -824,22 +961,48 @@ export function EstimateDraftModal({
                     <span className="text-[var(--app-muted)]">Trucks</span>
                     <span className="font-medium text-[var(--app-ink)]">{pricingBreakdown.truckCount} × {pricingBreakdown.totalCubicFeet >= 800 ? '26ft' : '20ft'}</span>
                   </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-[var(--app-muted)]">Trip strategy</span>
+                    <span className="font-medium text-[var(--app-ink)]">
+                      {pricingBreakdown.tripStrategy === 'single_truck'
+                        ? '1 truck · 1 trip'
+                        : pricingBreakdown.tripStrategy === 'single_truck_two_trips'
+                          ? '1 truck · 2 trips'
+                          : pricingBreakdown.tripStrategy === 'three_trucks'
+                            ? '3 trucks'
+                            : '2 trucks'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-[var(--app-muted)]">Pricing status</span>
+                    <span className={`font-medium ${pricingBreakdown.pricingStatus === 'ready' ? 'text-emerald-700' : 'text-amber-700'}`}>
+                      {pricingBreakdown.pricingStatus === 'ready' ? 'Ready to send' : 'Provisional'}
+                    </span>
+                  </div>
                   {route && (
-                    <div className="flex justify-between text-xs">
-                      <span className="text-[var(--app-muted)]">Distance</span>
-                      <span className={`font-medium ${route.category === 'local' ? 'text-emerald-700' : route.category === 'medium' ? 'text-amber-700' : 'text-rose-700'}`}>
-                        {route.distanceKm} km · {route.driveHours}h · {route.category === 'local' ? 'Local' : route.category === 'medium' ? 'Medium' : 'Long Dist.'}
-                      </span>
-                    </div>
+                    <>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-[var(--app-muted)]">Billable distance</span>
+                        <span className={`font-medium ${route.category === 'local' ? 'text-emerald-700' : route.category === 'medium' ? 'text-amber-700' : 'text-rose-700'}`}>
+                          {pricingBreakdown.billableDistanceKm ?? 0} km · {pricingBreakdown.driveHours}h
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-[var(--app-muted)]">Operational distance</span>
+                        <span className="font-medium text-[var(--app-ink)]">
+                          {pricingBreakdown.operationalDistanceKm ?? 0} km · {pricingBreakdown.operationalDriveHours}h
+                        </span>
+                      </div>
+                    </>
                   )}
 
-                  {pricingBreakdown.penalties.filter(p => !p.isFlagOnly && p.hours > 0).length > 0 && (
+                  {pricingBreakdown.adjustmentBreakdown.length > 0 && (
                     <div className="border-t border-[var(--app-line)] pt-3 space-y-1.5">
                       <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Adjustments Applied</div>
-                      {pricingBreakdown.penalties.filter(p => !p.isFlagOnly && p.hours > 0).map((p, i) => (
+                      {pricingBreakdown.adjustmentBreakdown.map((p, i) => (
                         <div key={i} className="flex justify-between gap-2 text-xs">
                           <span className="text-[var(--app-muted)] leading-4">{p.label}</span>
-                          <span className="text-amber-700 font-medium whitespace-nowrap">+{p.hours}h</span>
+                          <span className="text-amber-700 font-medium whitespace-nowrap">{p.hours > 0 ? `+${p.hours}h` : 'scope'}</span>
                         </div>
                       ))}
                     </div>
@@ -868,11 +1031,17 @@ export function EstimateDraftModal({
                       <span className="text-[var(--app-ink)]">~{pricingBreakdown.loadHours}h</span>
                     </div>
                     <div className="flex justify-between text-xs">
-                      <span className="text-[var(--app-muted)]">Drive (portal-to-portal)</span>
+                      <span className="text-[var(--app-muted)]">Drive (billable)</span>
                       <span className={pricingBreakdown.driveHours === 0 && !destFull ? 'text-amber-600' : 'text-[var(--app-ink)]'}>
                         {pricingBreakdown.driveHours === 0 && !destFull ? '— add destination' : `${pricingBreakdown.driveHours}h`}
                       </span>
                     </div>
+                    {pricingBreakdown.operationalDriveHours !== pricingBreakdown.driveHours && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-[var(--app-muted)]">Drive (operational)</span>
+                        <span className="text-[var(--app-ink)]">{pricingBreakdown.operationalDriveHours}h</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-xs">
                       <span className="text-[var(--app-muted)]">Unloading (unwrap + assemble)</span>
                       <span className="text-[var(--app-ink)]">~{pricingBreakdown.unloadHours}h</span>
@@ -884,12 +1053,74 @@ export function EstimateDraftModal({
                       </div>
                     )}
                     <div className="flex justify-between text-xs">
-                      <span className="text-[var(--app-muted)]">10% buffer</span>
-                      <span className="text-[var(--app-muted)]">+{pricingBreakdown.bufferHours}h</span>
+                      <span className="text-[var(--app-muted)]">Load/unload buffer</span>
+                      <span className="text-[var(--app-muted)]">+{pricingBreakdown.loadUnloadBufferHours}h</span>
+                    </div>
+                    {pricingBreakdown.driveBufferHours > 0 && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-[var(--app-muted)]">Drive buffer</span>
+                        <span className="text-[var(--app-muted)]">+{pricingBreakdown.driveBufferHours}h</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-xs">
+                      <span className="text-[var(--app-muted)]">Operational hours</span>
+                      <span className="text-[var(--app-muted)]">{pricingBreakdown.operationalHours}h</span>
                     </div>
                     <div className="flex justify-between text-xs font-semibold border-t border-[var(--app-line)] pt-1.5">
                       <span className="text-[var(--app-ink)]">Total estimate</span>
                       <span className="text-[var(--app-ink)]">{pricingBreakdown.totalHours}h (min. 3h)</span>
+                    </div>
+                  </div>
+
+                  {route?.yardToOrigin || route?.originToDestination || route?.returnToOrigin ? (
+                    <div className="border-t border-[var(--app-line)] pt-3 space-y-1.5">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Operational Legs</div>
+                      {route?.yardToOrigin ? (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-[var(--app-muted)]">Yard → Origin</span>
+                          <span className="text-[var(--app-ink)]">{route.yardToOrigin.distanceKm} km · {route.yardToOrigin.driveHours}h</span>
+                        </div>
+                      ) : null}
+                      {route?.originToDestination ? (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-[var(--app-muted)]">Origin → Destination</span>
+                          <span className="text-[var(--app-ink)]">{route.originToDestination.distanceKm} km · {route.originToDestination.driveHours}h</span>
+                        </div>
+                      ) : null}
+                      {route?.returnToOrigin && pricingBreakdown.routeCategory === 'long-distance' ? (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-[var(--app-muted)]">Destination → Origin</span>
+                          <span className="text-[var(--app-ink)]">{route.returnToOrigin.distanceKm} km · {route.returnToOrigin.driveHours}h</span>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  <div className="border-t border-[var(--app-line)] pt-3 space-y-1.5">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Internal Margin View</div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-[var(--app-muted)]">Labor cost assumption</span>
+                      <span className="text-[var(--app-ink)]">{formatMoney(pricingBreakdown.internalCostEstimate.laborCost)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-[var(--app-muted)]">Truck / fuel / ops</span>
+                      <span className="text-[var(--app-ink)]">{formatMoney(pricingBreakdown.internalCostEstimate.truckOpsCost)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-[var(--app-muted)]">Projected direct cost</span>
+                      <span className="text-[var(--app-ink)]">{formatMoney(pricingBreakdown.internalCostEstimate.totalCost)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-[var(--app-muted)]">Projected gross profit</span>
+                      <span className={`${pricingBreakdown.internalCostEstimate.grossProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'} font-medium`}>
+                        {formatMoney(pricingBreakdown.internalCostEstimate.grossProfit)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-xs font-semibold">
+                      <span className="text-[var(--app-ink)]">Projected margin</span>
+                      <span className={`${pricingBreakdown.internalCostEstimate.grossMarginPct >= 40 ? 'text-emerald-700' : pricingBreakdown.internalCostEstimate.grossMarginPct >= 30 ? 'text-amber-700' : 'text-rose-700'}`}>
+                        {pricingBreakdown.internalCostEstimate.grossMarginPct.toFixed(1)}%
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -925,7 +1156,7 @@ export function EstimateDraftModal({
                 </button>
               </div>
               <p className="mt-4 text-xs leading-6 text-[var(--app-muted)]">
-                Job factors and line items are saved with the draft. The pricing intelligence breakdown explains every adjustment made to the base estimate.
+                Job factors and line items are saved with the draft. The pricing intelligence breakdown explains every adjustment made to the base estimate, and the margin panel stays internal only.
               </p>
             </div>
           </aside>

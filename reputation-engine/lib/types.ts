@@ -122,34 +122,82 @@ export interface JobPenalty {
   label: string
   hours: number
   isFlagOnly?: boolean
+  category?: 'access' | 'disassembly' | 'specialty' | 'packing' | 'hidden_inventory' | 'warning'
+  details?: string[]
+}
+
+export interface EstimateRouteContext {
+  routeCategory?: 'local' | 'medium' | 'long-distance'
+  pricingStatus?: 'ready' | 'provisional'
+  billableDriveHours?: number
+  operationalDriveHours?: number
+  originToDestinationHours?: number
+  yardToOriginHours?: number
+  returnTripHours?: number
+  originToDestinationDistanceKm?: number
+  yardToOriginDistanceKm?: number
+  returnTripDistanceKm?: number
+  billableDistanceKm?: number
+  operationalDistanceKm?: number
+  missingRequirements?: string[]
 }
 
 export interface PricingBreakdown {
   loadHours: number       // wrap + disassemble + carry out + load truck
-  driveHours: number      // portal-to-portal drive time
+  driveHours: number      // customer-facing billable drive time
+  operationalDriveHours: number
   unloadHours: number     // carry in + unwrap + reassemble + place
   baseHours: number       // loadHours + driveHours + unloadHours (pre-penalties)
   penaltyHours: number
+  driveBufferHours: number
+  loadUnloadBufferHours: number
   bufferHours: number
   totalHours: number
+  operationalHours: number
   crewSize: number
   crewRatePerHour: number
   truckCount: number
+  truckRateMultiplier: number
+  tripStrategy: 'single_truck' | 'single_truck_two_trips' | 'two_trucks' | 'three_trucks'
+  pricingStatus: 'ready' | 'provisional'
+  routeCategory: 'local' | 'medium' | 'long-distance'
+  billableDistanceKm?: number
+  operationalDistanceKm?: number
   baseCubicFeet: number
   extraCubicFeet: number
   totalCubicFeet: number
   penalties: JobPenalty[]
+  adjustmentBreakdown: Array<{
+    category: 'access' | 'disassembly' | 'specialty' | 'packing' | 'hidden_inventory'
+    label: string
+    hours: number
+  }>
+  internalCostEstimate: {
+    laborCost: number
+    truckOpsCost: number
+    totalCost: number
+    grossProfit: number
+    grossMarginPct: number
+  }
   intelligenceFlags: {
     twoTruckRequired: boolean    // volume >= 1,400 cu ft (full 26ft truck)
     twoTripZone: boolean         // local move, 900–1,399 cu ft — second trip possible
+    threeTruckReview: boolean
     threeHourMinApplied: boolean // natural estimate < 3h, billing at floor
     fullDayFlag: boolean         // estimated hours >= 14 — heads-up for customer
+    missingDestination: boolean
     twoTripComparison?: {
       crewSize: number
       totalHours: number
       totalAmount: number
       savings: number
       extraHours: number
+      note: string
+    } | null
+    multiTruckOption?: {
+      totalHours: number
+      totalAmount: number
+      truckCount: number
       note: string
     } | null
     packingDayEstimate?: {

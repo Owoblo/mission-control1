@@ -1,6 +1,14 @@
 import { NextResponse } from 'next/server'
 
-async function geocode(address: string): Promise<{ lat: number; lng: number; displayName: string } | null> {
+const BASE_YARD_ADDRESS = 'Windsor, ON, Canada'
+
+type GeocodeResult = {
+  lat: number
+  lng: number
+  displayName: string
+}
+
+async function geocode(address: string): Promise<GeocodeResult | null> {
   const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&countrycodes=ca,us`
   const response = await fetch(url, {
     headers: { 'User-Agent': 'SaturnStarMissionControl/1.0 (business@starmovers.ca)' },
@@ -45,37 +53,98 @@ export async function POST(request: Request) {
       destination?: string
     }
 
-    if (!origin?.trim() || !destination?.trim()) {
-      return NextResponse.json({ error: 'origin and destination are required' }, { status: 400 })
+    if (!origin?.trim()) {
+      return NextResponse.json({ error: 'origin is required' }, { status: 400 })
     }
 
-    const [originGeo, destGeo] = await Promise.all([
+    const [originGeo, yardGeo, destGeo] = await Promise.all([
       geocode(origin.trim()),
-      geocode(destination.trim()),
+      geocode(BASE_YARD_ADDRESS),
+      destination?.trim() ? geocode(destination.trim()) : Promise.resolve(null),
     ])
 
     if (!originGeo) {
       return NextResponse.json({ error: `Could not locate: "${origin}"` }, { status: 422 })
     }
+    if (!yardGeo) {
+      return NextResponse.json({ error: 'Could not locate Saturn Star yard/base' }, { status: 500 })
+    }
+
+    const yardToOrigin = await getDrivingRoute(yardGeo, originGeo)
+    if (!yardToOrigin) {
+      return NextResponse.json({ error: 'Could not calculate yard to origin drive time' }, { status: 422 })
+    }
+
+    if (!destination?.trim()) {
+      return NextResponse.json({
+        pricingStatus: 'provisional',
+        category: 'local',
+        originResolved: originGeo.displayName,
+        yardResolved: yardGeo.displayName,
+        yardToOrigin,
+        originToDestination: null,
+        returnToOrigin: null,
+        billableDistanceKm: yardToOrigin.distanceKm,
+        operationalDistanceKm: yardToOrigin.distanceKm,
+        billableDriveHours: yardToOrigin.driveHours,
+        operationalDriveHours: yardToOrigin.driveHours,
+        missingRequirements: ['Destination address or city needed for travel estimate'],
+      })
+    }
+
     if (!destGeo) {
       return NextResponse.json({ error: `Could not locate: "${destination}"` }, { status: 422 })
     }
 
-    const route = await getDrivingRoute(originGeo, destGeo)
-    if (!route) {
+    const [originToDestination, returnToOrigin] = await Promise.all([
+      getDrivingRoute(originGeo, destGeo),
+      getDrivingRoute(destGeo, originGeo),
+    ])
+
+    if (!originToDestination || !returnToOrigin) {
       return NextResponse.json({ error: 'Could not calculate driving route between these addresses' }, { status: 422 })
     }
 
     const category: 'local' | 'medium' | 'long-distance' =
-      route.distanceKm < 80 ? 'local' : route.distanceKm < 300 ? 'medium' : 'long-distance'
+      originToDestination.distanceKm < 80 ? 'local' : originToDestination.distanceKm < 300 ? 'medium' : 'long-distance'
+
+    const billableDistanceKm =
+      category === 'long-distance'
+        ? originToDestination.distanceKm + returnToOrigin.distanceKm
+        : yardToOrigin.distanceKm + originToDestination.distanceKm
+
+    const operationalDistanceKm =
+      category === 'long-distance'
+        ? yardToOrigin.distanceKm + originToDestination.distanceKm + returnToOrigin.distanceKm
+        : yardToOrigin.distanceKm + originToDestination.distanceKm
+
+    const billableDriveHours =
+      category === 'long-distance'
+        ? originToDestination.driveHours + returnToOrigin.driveHours
+        : yardToOrigin.driveHours + originToDestination.driveHours
+
+    const operationalDriveHours =
+      category === 'long-distance'
+        ? yardToOrigin.driveHours + originToDestination.driveHours + returnToOrigin.driveHours
+        : yardToOrigin.driveHours + originToDestination.driveHours
 
     return NextResponse.json({
-      distanceKm: route.distanceKm,
-      distanceMiles: Math.round(route.distanceKm * 0.621),
-      driveHours: route.driveHours,
+      pricingStatus: 'ready',
       category,
+      distanceKm: originToDestination.distanceKm,
+      distanceMiles: Math.round(originToDestination.distanceKm * 0.621),
+      driveHours: originToDestination.driveHours,
       originResolved: originGeo.displayName,
       destResolved: destGeo.displayName,
+      yardResolved: yardGeo.displayName,
+      yardToOrigin,
+      originToDestination,
+      returnToOrigin,
+      billableDistanceKm,
+      operationalDistanceKm,
+      billableDriveHours,
+      operationalDriveHours,
+      missingRequirements: [] as string[],
     })
   } catch (error) {
     return NextResponse.json(
