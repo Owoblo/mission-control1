@@ -39,6 +39,7 @@ function SalesPipelineContent() {
   const [quotes, setQuotes] = useState<CRMQuote[]>([])
   const [loading, setLoading] = useState(true)
   const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ lead: CRMLead; typed: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'board' | 'list'>('board')
   const [filterSource, setFilterSource] = useState('')
@@ -83,13 +84,17 @@ function SalesPipelineContent() {
     }
   }, [])
 
-  async function removeLead(event: MouseEvent, lead: CRMLead) {
+  function removeLead(event: MouseEvent, lead: CRMLead) {
     event.preventDefault()
     event.stopPropagation()
+    setDeleteConfirm({ lead, typed: '' })
+  }
 
-    if (!window.confirm(`Delete lead for ${lead.name}?`)) return
-
+  async function confirmDelete() {
+    if (!deleteConfirm) return
+    const { lead } = deleteConfirm
     const previousLeads = leads
+    setDeleteConfirm(null)
     try {
       setDeleteBusyId(lead.id)
       setLeads(current => current.filter(item => item.id !== lead.id))
@@ -452,6 +457,49 @@ function SalesPipelineContent() {
           ) : null}
         </div>
         </>
+      )}
+
+      {/* Delete confirmation modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-2xl">
+            <h3 className="text-base font-semibold text-[#1a2744]">Delete lead?</h3>
+            <p className="mt-2 text-sm text-stone-500">
+              This will permanently remove <span className="font-semibold text-[#1a2744]">{deleteConfirm.lead.name}</span> from the pipeline. Type their name to confirm.
+            </p>
+            <input
+              autoFocus
+              type="text"
+              value={deleteConfirm.typed}
+              onChange={e => setDeleteConfirm({ ...deleteConfirm, typed: e.target.value })}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && deleteConfirm.typed.trim().toLowerCase() === deleteConfirm.lead.name.trim().toLowerCase()) {
+                  void confirmDelete()
+                }
+                if (e.key === 'Escape') setDeleteConfirm(null)
+              }}
+              placeholder={deleteConfirm.lead.name}
+              className="mt-4 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm outline-none focus:border-[#1a2744] focus:ring-1 focus:ring-[#1a2744]"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirm(null)}
+                className="rounded-lg border border-stone-200 px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmDelete()}
+                disabled={deleteConfirm.typed.trim().toLowerCase() !== deleteConfirm.lead.name.trim().toLowerCase()}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
