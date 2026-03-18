@@ -1,12 +1,5 @@
 'use client'
 
-/**
- * CollectCardModal
- * Opens a Stripe Elements card form inside the CRM so the rep can collect
- * card details directly (customer reads card over the phone, or hands device).
- * On submit: saves card to Stripe + optionally charges the deposit immediately.
- */
-
 import { useEffect, useState } from 'react'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
@@ -26,12 +19,14 @@ type Props = {
 const CARD_STYLE = {
   style: {
     base: {
-      fontSize: '14px',
-      color: '#1a1a1a',
+      fontSize: '15px',
+      color: '#1a2744',
       fontFamily: 'ui-sans-serif, system-ui, sans-serif',
-      '::placeholder': { color: '#9ca3af' },
+      fontWeight: '500',
+      letterSpacing: '0.02em',
+      '::placeholder': { color: '#94a3b8' },
     },
-    invalid: { color: '#ef4444' },
+    invalid: { color: '#dc2626' },
   },
 }
 
@@ -76,22 +71,13 @@ function CardForm({ lead, quote, onClose, onSuccess }: Omit<Props, 'open'>) {
       const cardElement = elements.getElement(CardElement)
       if (!cardElement) throw new Error('Card field not found')
 
-      // Confirm the SetupIntent client-side — tokenises the card securely
       const { error, setupIntent } = await stripe.confirmCardSetup(clientSecret, {
         payment_method: { card: cardElement },
       })
 
-      if (error) {
-        setCardError(error.message || 'Card declined')
-        return
-      }
+      if (error) { setCardError(error.message || 'Card declined'); return }
+      if (setupIntent?.status !== 'succeeded') { setCardError('Card setup did not complete. Please try again.'); return }
 
-      if (setupIntent?.status !== 'succeeded') {
-        setCardError('Card setup did not complete. Please try again.')
-        return
-      }
-
-      // Server-side: save payment method + optionally charge deposit
       const r = await fetch('/api/sales/stripe/save-payment-method', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -105,12 +91,8 @@ function CardForm({ lead, quote, onClose, onSuccess }: Omit<Props, 'open'>) {
         }),
       })
       const result = await r.json() as {
-        ok?: boolean
-        depositCharged?: boolean
-        cardBrand?: string
-        cardLast4?: string
-        lead?: CRMLead
-        error?: string
+        ok?: boolean; depositCharged?: boolean; cardBrand?: string
+        cardLast4?: string; lead?: CRMLead; error?: string
       }
       if (!r.ok || !result.ok) throw new Error(result.error || 'Save failed')
 
@@ -128,82 +110,119 @@ function CardForm({ lead, quote, onClose, onSuccess }: Omit<Props, 'open'>) {
   }
 
   if (initError) return (
-    <div className="p-6 text-sm text-red-600">{initError}</div>
-  )
-
-  if (!clientSecret) return (
-    <div className="flex items-center justify-center p-8 text-sm text-[var(--app-muted)]">
-      <span className="animate-pulse">Initialising secure card form…</span>
+    <div className="px-6 py-8 text-center">
+      <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-red-50">
+        <span className="text-lg">⚠</span>
+      </div>
+      <p className="text-sm font-medium text-red-600">{initError}</p>
     </div>
   )
 
+  if (!clientSecret) return (
+    <div className="flex flex-col items-center justify-center gap-3 px-6 py-10">
+      <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#1a2744] border-t-transparent" />
+      <p className="text-xs text-slate-400">Connecting to Stripe…</p>
+    </div>
+  )
+
+  const depositPct = quote ? Math.round((quote.deposit / quote.total) * 100) : 20
+
   return (
-    <form onSubmit={e => void handleSubmit(e)} className="space-y-5 p-6">
-      {/* Customer info row */}
-      <div className="rounded-[8px] border border-[var(--app-line)] bg-stone-50 px-4 py-3 text-sm">
-        <div className="font-medium text-[var(--app-ink)]">{lead.name}</div>
-        {lead.email && <div className="text-xs text-[var(--app-muted)]">{lead.email}</div>}
-        {lead.phone && <div className="text-xs text-[var(--app-muted)]">{lead.phone}</div>}
+    <form onSubmit={e => void handleSubmit(e)} className="px-6 pb-6 pt-5 space-y-4">
+
+      {/* Customer pill */}
+      <div className="flex items-center gap-3 rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-slate-100">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#1a2744] text-xs font-bold text-white">
+          {lead.name?.slice(0, 2).toUpperCase() || 'CX'}
+        </div>
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-[#1a2744]">{lead.name}</div>
+          <div className="truncate text-xs text-slate-400">{[lead.email, lead.phone].filter(Boolean).join(' · ')}</div>
+        </div>
       </div>
 
       {/* Card input */}
       <div>
-        <label className="crm-label mb-2 block">Card Details</label>
-        <div className="rounded-[8px] border border-[var(--app-line)] bg-white px-4 py-3 focus-within:border-[var(--app-accent)] focus-within:ring-1 focus-within:ring-[var(--app-accent)]">
-          <CardElement options={CARD_STYLE} onChange={e => { if (e.error) { setCardError(e.error.message || '') } else { setCardError('') } }} />
+        <div className="mb-1.5 flex items-center justify-between">
+          <label className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Card Details</label>
+          <div className="flex items-center gap-1 text-[10px] text-slate-300">
+            <svg width="11" height="13" viewBox="0 0 11 13" fill="none"><path d="M5.5 0L0 2.6V6c0 3.3 2.3 6.3 5.5 7C8.7 12.3 11 9.3 11 6V2.6L5.5 0z" fill="#94a3b8"/></svg>
+            Encrypted by Stripe
+          </div>
         </div>
-        {cardError && <p className="mt-1.5 text-xs text-red-600">{cardError}</p>}
-        <p className="mt-1.5 text-[11px] text-[var(--app-muted)]">
-          Card is encrypted and stored securely by Stripe. Never touches our servers in plain text.
-        </p>
+        <div
+          className={`rounded-xl border bg-white px-4 py-3.5 transition-all ${
+            cardError
+              ? 'border-red-300 ring-1 ring-red-200'
+              : 'border-slate-200 focus-within:border-[#f5a623] focus-within:ring-1 focus-within:ring-[#f5a623]/40'
+          }`}
+        >
+          <CardElement
+            options={CARD_STYLE}
+            onChange={e => { if (e.error) setCardError(e.error.message || ''); else setCardError('') }}
+          />
+        </div>
+        {cardError && (
+          <p className="mt-1.5 flex items-center gap-1 text-xs text-red-500">
+            <span>✕</span> {cardError}
+          </p>
+        )}
       </div>
 
-      {/* Charge now option */}
+      {/* Charge now toggle */}
       {quote && (
-        <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 space-y-3">
-          <label className="flex cursor-pointer items-start gap-3">
+        <label className={`flex cursor-pointer items-start gap-3 rounded-xl p-4 ring-1 transition-all ${
+          chargeNow
+            ? 'bg-[#1a2744] ring-[#1a2744]'
+            : 'bg-slate-50 ring-slate-100 hover:ring-slate-200'
+        }`}>
+          <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-all ${
+            chargeNow ? 'border-[#f5a623] bg-[#f5a623]' : 'border-slate-300 bg-white'
+          }`}>
+            {chargeNow && (
+              <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                <path d="M1 4l3 3 5-6" stroke="#1a2744" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            )}
+          </div>
+          <div className="flex-1">
             <input
               type="checkbox"
               checked={chargeNow}
               onChange={e => setChargeNow(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-stone-300 accent-[var(--app-accent)]"
+              className="sr-only"
             />
-            <div>
-              <div className="text-sm font-medium text-[var(--app-ink)]">
-                Charge deposit now — {formatMoney(quote.deposit)}
-              </div>
-              <div className="text-xs text-[var(--app-muted)] mt-0.5">
-                Card will be immediately charged for the {Math.round((quote.deposit / quote.total) * 100)}% deposit. The remaining {formatMoney(quote.balance)} can be charged after the job.
-              </div>
+            <div className={`text-sm font-semibold ${chargeNow ? 'text-white' : 'text-[#1a2744]'}`}>
+              Charge {depositPct}% deposit now — <span className={chargeNow ? 'text-[#f5a623]' : ''}>{formatMoney(quote.deposit)}</span>
             </div>
-          </label>
-          {!chargeNow && (
-            <div className="text-xs text-amber-700 bg-amber-50 rounded-[6px] px-3 py-2">
-              Card saved on file only — no charge yet. Use "Charge Deposit" or "Charge Balance" buttons on the lead.
+            <div className={`mt-0.5 text-xs ${chargeNow ? 'text-slate-300' : 'text-slate-400'}`}>
+              {chargeNow
+                ? `Remaining ${formatMoney(quote.balance)} charged after the job from saved card.`
+                : 'Card saved on file only — charge deposit later from the lead page.'}
             </div>
-          )}
-        </div>
+          </div>
+        </label>
       )}
 
       {/* Actions */}
-      <div className="flex gap-3 pt-1">
+      <div className="flex gap-2.5 pt-1">
         <button
           type="button"
           onClick={onClose}
           disabled={busy}
-          className="crm-button flex-1 justify-center"
+          className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-50 transition-colors"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={busy || !stripe}
-          className="flex-1 rounded-[8px] bg-[var(--app-accent)] py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 transition-opacity"
+          className="flex-1 rounded-xl bg-[#1a2744] py-2.5 text-sm font-semibold text-white hover:bg-[#243460] disabled:opacity-50 transition-colors"
         >
           {busy
-            ? chargeNow ? 'Charging…' : 'Saving…'
+            ? (chargeNow ? 'Charging…' : 'Saving…')
             : chargeNow && quote
-              ? `Charge ${formatMoney(quote.deposit)} Deposit`
+              ? `Charge ${formatMoney(quote.deposit)}`
               : 'Save Card on File'}
         </button>
       </div>
@@ -214,20 +233,36 @@ function CardForm({ lead, quote, onClose, onSuccess }: Omit<Props, 'open'>) {
 export function CollectCardModal({ open, lead, quote, onClose, onSuccess }: Props) {
   if (!open) return null
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-md overflow-hidden rounded-[12px] bg-white shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-[var(--app-line)] px-6 py-4">
-          <div>
-            <h2 className="text-base font-semibold text-[var(--app-ink)]">Collect Card Details</h2>
-            <p className="mt-0.5 text-xs text-[var(--app-muted)]">
-              {quote ? `Charge ${formatMoney(quote.deposit)} deposit + save card for balance` : 'Save card on file for future charges'}
-            </p>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(15,27,56,0.55)', backdropFilter: 'blur(2px)' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="w-full max-w-[420px] overflow-hidden rounded-2xl bg-white shadow-2xl">
+
+        {/* Header — navy band */}
+        <div className="relative bg-[#1a2744] px-6 py-5">
+          {/* gold rule */}
+          <div className="absolute inset-x-0 bottom-0 h-[2px] bg-[#f5a623]" />
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="text-base font-bold text-white tracking-tight">Collect Card Details</h2>
+              <p className="mt-0.5 text-xs text-slate-300">
+                {quote
+                  ? `${formatMoney(quote.deposit)} deposit · card saved for balance`
+                  : 'Save card on file for future charges'}
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="ml-4 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-white/10 hover:text-white transition-colors"
+            >
+              ✕
+            </button>
           </div>
-          <button onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--app-muted)] hover:bg-stone-100">✕</button>
         </div>
 
-        {/* Stripe Elements wrapper */}
+        {/* Body */}
         <Elements stripe={stripePromise}>
           <CardForm lead={lead} quote={quote} onClose={onClose} onSuccess={onSuccess} />
         </Elements>
