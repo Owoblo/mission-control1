@@ -126,28 +126,47 @@ export function LeadTimeline({
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-6">
-        {/* Quick note input */}
-        <div className="mb-6 flex items-start gap-2">
-          <textarea
-            value={quickNote}
-            onChange={event => setQuickNote(event.target.value)}
-            onKeyDown={event => {
-              if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-                void handlePostNote()
-              }
-            }}
-            rows={1}
-            className="flex-1 resize-none rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2 text-sm leading-5 outline-none focus:border-[#1a2744] focus:ring-1 focus:ring-[#1a2744]"
-            placeholder="Add a note…"
-          />
-          <button
-            type="button"
-            onClick={() => void handlePostNote()}
-            disabled={postingNote || !quickNote.trim()}
-            className="shrink-0 rounded-[8px] bg-[#1a2744] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#243560] disabled:opacity-50"
-          >
-            {postingNote ? 'Posting…' : 'Post'}
-          </button>
+        {/* Quick note / recording bar */}
+        <div className="mb-6 flex items-center gap-2">
+          {consultationActive ? (
+            <>
+              <div className="flex flex-1 items-center gap-3 rounded-[8px] border border-emerald-200 bg-emerald-50 px-4 py-2.5">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-rose-500" />
+                <span className="text-sm font-medium text-emerald-900">Recording live • {formatSeconds(consultationSeconds)}</span>
+              </div>
+              <button
+                type="button"
+                onClick={onStopConsultation}
+                disabled={consultationSaving}
+                className="shrink-0 rounded-[8px] bg-[#1a2744] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#243560] disabled:opacity-50"
+              >
+                {consultationSaving ? 'Saving…' : 'Stop + Save'}
+              </button>
+            </>
+          ) : (
+            <>
+              <textarea
+                value={quickNote}
+                onChange={event => setQuickNote(event.target.value)}
+                onKeyDown={event => {
+                  if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+                    void handlePostNote()
+                  }
+                }}
+                rows={1}
+                className="flex-1 resize-none rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2 text-sm leading-5 outline-none focus:border-[#1a2744] focus:ring-1 focus:ring-[#1a2744]"
+                placeholder="Add a note…"
+              />
+              <button
+                type="button"
+                onClick={() => void handlePostNote()}
+                disabled={postingNote || !quickNote.trim()}
+                className="shrink-0 rounded-[8px] bg-[#1a2744] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#243560] disabled:opacity-50"
+              >
+                {postingNote ? 'Posting…' : 'Post'}
+              </button>
+            </>
+          )}
         </div>
 
         <div className="relative">
@@ -175,38 +194,6 @@ export function LeadTimeline({
 
       <div className="border-t border-[var(--app-line)] bg-[var(--app-bg)] p-4">
         <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-3">
-          {consultationActive ? (
-            <div className="mb-4 rounded-[8px] border border-emerald-200 bg-emerald-50 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="crm-label text-emerald-700">In-house Consultation Recording</div>
-                  <div className="mt-1 text-sm font-medium text-emerald-900">Recording live • {formatSeconds(consultationSeconds)}</div>
-                </div>
-                <div className="h-3 w-3 rounded-full bg-rose-500" />
-              </div>
-              <textarea
-                value={consultationNotes}
-                onChange={event => onConsultationNotesChange(event.target.value)}
-                className="mt-4 min-h-[88px] w-full resize-none rounded-[8px] border border-emerald-200 bg-white px-3 py-3 text-sm outline-none"
-                placeholder="Log what was discussed during the walkthrough or consultation..."
-              />
-              <textarea
-                value={consultationSummary}
-                onChange={event => onConsultationSummaryChange(event.target.value)}
-                className="mt-3 min-h-[72px] w-full resize-none rounded-[8px] border border-emerald-200 bg-white px-3 py-3 text-sm outline-none"
-                placeholder="Add a short summary or next step for the team..."
-              />
-              <div className="mt-3 flex items-center justify-end gap-3">
-                <button
-                  onClick={onStopConsultation}
-                  disabled={consultationSaving}
-                  className="crm-button-dark disabled:opacity-60"
-                >
-                  {consultationSaving ? 'Saving...' : 'Stop + Save Consultation'}
-                </button>
-              </div>
-            </div>
-          ) : null}
           <textarea
             value={activityNotes}
             onChange={event => onActivityNotesChange(event.target.value)}
