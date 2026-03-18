@@ -3,6 +3,23 @@ import { calculateLeadScore, normalizeLead, syncLeadFromQuoteStatus } from '@/li
 import { logEvent, daysBetween } from '@/lib/server/analytics'
 import { recordLeadArchivedAudit, recordLeadUpdateAudit } from '@/lib/server/sales-audit'
 import { deleteSalesLead, getSalesLead, getSalesQuote, saveSalesLead } from '@/lib/server/sales-repository'
+import { requireWorkerBaseUrl } from '@/lib/server/runtime'
+
+async function sendAppointmentSms(lead: import('@/lib/types').CRMLead) {
+  try {
+    const workerSecret = process.env.WORKER_SHARED_SECRET
+    if (!workerSecret || !lead.phone) return
+    const dateStr = lead.moveDate ? new Date(lead.moveDate + 'T12:00:00').toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' }) : ''
+    const body = `Hi ${lead.name?.split(' ')[0] || 'there'}! This is Saturn Star Moving — just confirming your in-home estimate${dateStr ? ` for ${dateStr}` : ''}. We'll take a look at your items and put together your personalized quote on the spot. Any questions, call or text us at 226-773-2993. See you soon! 🌟`
+    await fetch(`${requireWorkerBaseUrl()}/send-sms`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-internal-secret': workerSecret },
+      body: JSON.stringify({ to: lead.phone, body }),
+    })
+  } catch {
+    // best-effort — never fail the lead update because of this
+  }
+}
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
   try {
@@ -72,6 +89,11 @@ export async function PATCH(request: Request, { params }: { params: { id: string
         },
       })
     }
+    // Auto-send appointment confirmation SMS when estimate is scheduled
+    if (saved.stage === 'estimate_scheduled' && current.stage !== 'estimate_scheduled' && saved.phone) {
+      void sendAppointmentSms(saved)
+    }
+
     if (saved.stage === 'booked' && current.stage !== 'booked') {
       void logEvent('job_booked', {
         lead: saved,
