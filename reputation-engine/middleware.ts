@@ -16,10 +16,15 @@ const PUBLIC_API_PATHS = new Set([
   '/api/sales/stripe/webhook',
 ])
 
+// QR code tracking is public (scanned by mail recipient, no login)
+function isPublicMarketingPath(pathname: string) {
+  return pathname.startsWith('/api/marketing/qr/')
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl
 
-  if (PUBLIC_PATHS.has(pathname) || PUBLIC_API_PATHS.has(pathname)) {
+  if (PUBLIC_PATHS.has(pathname) || PUBLIC_API_PATHS.has(pathname) || isPublicMarketingPath(pathname)) {
     return NextResponse.next()
   }
 

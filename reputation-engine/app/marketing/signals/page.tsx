@@ -38,6 +38,8 @@ export default function SignalsPage() {
   const [addOpen, setAddOpen] = useState(false)
   const [form, setForm] = useState({ signal_type: '', company: '', city: 'Windsor', description: '', contact_name: '', time_sensitivity: '', action_required: '' })
   const [busy, setBusy] = useState(false)
+  const [blasting, setBlasting] = useState<string | null>(null)
+  const [blasted, setBlasted] = useState<Set<string>>(new Set())
 
   async function load() {
     setLoading(true)
@@ -56,6 +58,25 @@ export default function SignalsPage() {
       body: JSON.stringify({ id, status, notes }),
     })
     setSignals(prev => prev.map(s => s.id === id ? { ...s, status } : s))
+  }
+
+  async function blastSignal(s: Signal) {
+    setBlasting(s.id)
+    await fetch('/api/marketing/queue', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        action: 'blast_signal',
+        signal_id: s.id,
+        signal_company: s.company,
+        signal_type: s.signal_type,
+        signal_description: s.description,
+      }),
+    })
+    setBlasted(prev => new Set(Array.from(prev).concat(s.id)))
+    setSignals(prev => prev.map(x => x.id === s.id ? { ...x, status: 'watching' } : x))
+    setBlasting(null)
   }
 
   async function addSignal() {
@@ -127,6 +148,19 @@ export default function SignalsPage() {
                     )}
 
                     <div className="flex flex-wrap gap-2">
+                      {blasted.has(s.id) ? (
+                        <span className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">
+                          🚀 Blasted — 4 tasks added to Queue
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => void blastSignal(s)}
+                          disabled={blasting === s.id}
+                          className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-100 transition disabled:opacity-60"
+                        >
+                          {blasting === s.id ? 'Blasting...' : '🚨 Hit All Channels'}
+                        </button>
+                      )}
                       {s.status === 'new' && (
                         <button onClick={() => void updateStatus(s.id, 'watching')} className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 transition">
                           👁 Watch
