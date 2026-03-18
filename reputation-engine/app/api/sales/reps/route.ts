@@ -12,11 +12,12 @@ export async function GET() {
 
   const { url, headers } = requireSupabaseEnv()
 
-  const [leads, followUps, quotesRes] = await Promise.all([
-    listSalesLeads().catch(() => []),
+  const [leadsRaw, followUps, quotesRes] = await Promise.all([
+    listSalesLeads().catch(() => [] as CRMLead[]),
     listFollowUpLogs().catch(() => []),
     fetch(`${url}/rest/v1/crm_quotes?select=id,lead_id,total,status&limit=10000`, { headers, cache: 'no-store' }),
   ])
+  const leads: CRMLead[] = leadsRaw
 
   const quotes = quotesRes.ok ? (await quotesRes.json()) as Array<{ id: string; lead_id: string; total: number; status: string }> : []
   const quotesByLead = new Map<string, typeof quotes[0][]>()
