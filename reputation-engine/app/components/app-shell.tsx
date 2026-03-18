@@ -8,7 +8,7 @@ import { CrewHeader } from '@/app/components/crew-header'
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
-  if (pathname.startsWith('/sales') || pathname.startsWith('/admin')) {
+  if (pathname.startsWith('/sales') || pathname.startsWith('/admin') || pathname.startsWith('/marketing')) {
     return (
       <div className="min-h-screen bg-[var(--app-bg)]">
         <SalesHeader />

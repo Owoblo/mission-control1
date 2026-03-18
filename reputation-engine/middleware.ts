@@ -30,6 +30,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/crew') ||
     pathname.startsWith('/admin') ||
     pathname.startsWith('/api/admin') ||
+    pathname.startsWith('/marketing') ||
+    pathname.startsWith('/api/marketing') ||
     pathname.startsWith('/partners') ||
     pathname.startsWith('/trigger') ||
     pathname.startsWith('/api/partners') ||
@@ -79,6 +81,8 @@ export const config = {
     '/api/crew/:path*',
     '/admin/:path*',
     '/api/admin/:path*',
+    '/marketing/:path*',
+    '/api/marketing/:path*',
     '/partners/:path*',
     '/trigger',
     '/api/partners/:path*',

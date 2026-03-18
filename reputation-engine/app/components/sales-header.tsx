@@ -15,6 +15,7 @@ const BASE_NAV = [
   { href: '/sales/booked', label: 'Booked', match: (p: string) => p.startsWith('/sales/booked'), roles: ['owner', 'manager', 'sales_rep'] },
   { href: '/sales/operations', label: 'Operations', match: (p: string) => p.startsWith('/sales/operations'), roles: ['owner', 'manager'] },
   { href: '/admin/users', label: 'Team', match: (p: string) => p.startsWith('/admin'), roles: ['owner'] },
+  { href: '/marketing', label: 'Market Engine', match: (p: string) => p.startsWith('/marketing'), roles: ['owner', 'manager'] },
 ]
 
 export function SalesHeader() {
