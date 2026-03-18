@@ -138,12 +138,12 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
       setTranscribing(false)
     }
   }
-  const previewText = (!isMessage && (item.aiSummary?.summary || item.transcript)) || item.text
-  const hasDetails = !!(item.recordingUrl || item.transcript || item.aiSummary || (quote && item.id === `quote-created-${quote.id}`))
-
   // ── SMS / Email bubble rendering ──
   const isMessage = item.kind === 'sms' || item.kind === 'email'
   const isOutbound = item.actor === 'rep' || item.actor === 'system'
+
+  const previewText = (!isMessage && (item.aiSummary?.summary || item.transcript)) || item.text
+  const hasDetails = !!(item.recordingUrl || item.transcript || item.aiSummary || (quote && item.id === `quote-created-${quote.id}`))
 
   if (isMessage) {
     const sentimentColor = item.aiSummary?.sentiment === 'positive' ? 'text-emerald-600' : item.aiSummary?.sentiment === 'negative' ? 'text-rose-500' : 'text-amber-500'
