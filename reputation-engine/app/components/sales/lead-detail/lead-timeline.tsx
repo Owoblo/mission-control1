@@ -184,6 +184,7 @@ export function LeadTimeline({
                   inventoryCubicFeet={inventoryCubicFeet}
                   onOpenQuoteBuilder={onOpenQuoteBuilder}
                   leadId={lead.id}
+                  lead={lead}
                   onLeadUpdate={onLeadUpdate}
                 />
               ))

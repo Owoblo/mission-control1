@@ -114,18 +114,66 @@ type Props = {
   inventoryCubicFeet: number
   onOpenQuoteBuilder: () => void
   leadId?: string
+  lead?: CRMLead
   onLeadUpdate?: (lead: CRMLead) => void
 }
 
-export function TimelineEventCard({ item, expandedByDefault = false, quote, inventoryCubicFeet, onOpenQuoteBuilder, leadId, onLeadUpdate }: Props) {
+function buildVoicemailSms(lead?: CRMLead): string {
+  const first = lead?.name?.split(' ')[0] || 'there'
+  const moveMonth = lead?.moveDate ? new Date(lead.moveDate + 'T12:00:00').toLocaleString('en-CA', { month: 'long' }) : null
+  const moveRef = moveMonth ? ` for your ${moveMonth} move` : ''
+  return `Hey ${first} — just tried you and left a quick voicemail! Happy to lock in your estimate${moveRef}. Feel free to reply here or call us back at 226-773-2993. – John @ Saturn Star Movers ⭐`
+}
+
+function buildVoicemailEmail(lead?: CRMLead): { subject: string; body: string } {
+  const first = lead?.name?.split(' ')[0] || 'there'
+  const moveMonth = lead?.moveDate ? new Date(lead.moveDate + 'T12:00:00').toLocaleString('en-CA', { month: 'long' }) : null
+  const moveRef = moveMonth ? ` for your ${moveMonth} move` : ''
+  return {
+    subject: `Quick note re: your upcoming move${moveMonth ? ' in ' + moveMonth : ''}`,
+    body: `Hi ${first},\n\nJust left you a voicemail — wanted to follow up on your move${moveRef}. We'd love to put together a quick estimate for you.\n\nFeel free to reply to this email or give us a call at 226-773-2993 and we'll get everything sorted.\n\nLooking forward to helping!\n\nJohn\nSaturn Star Movers\n226-773-2993 | starmovers.ca`,
+  }
+}
+
+export function TimelineEventCard({ item, expandedByDefault = false, quote, inventoryCubicFeet, onOpenQuoteBuilder, leadId, lead, onLeadUpdate }: Props) {
   const [expanded, setExpanded] = useState(expandedByDefault)
   const [transcribing, setTranscribing] = useState(false)
   const [transcribeError, setTranscribeError] = useState<string | null>(null)
+
+  // Post-voicemail follow-up state
+  const [vmFollowUpMode, setVmFollowUpMode] = useState<'sms' | 'email' | null>(null)
+  const [vmSmsText, setVmSmsText] = useState(() => buildVoicemailSms(lead))
+  const [vmEmailSubject, setVmEmailSubject] = useState(() => buildVoicemailEmail(lead).subject)
+  const [vmEmailBody, setVmEmailBody] = useState(() => buildVoicemailEmail(lead).body)
+  const [vmSending, setVmSending] = useState(false)
+  const [vmSent, setVmSent] = useState<'sms' | 'email' | null>(null)
   const tone = eventTone(item)
 
   const isCallKind = item.kind === 'call' || item.kind === 'consultation'
   // Show analyze button if there's a recording URL and no AI summary yet (includes voicemails with transcripts)
   const needsTranscription = isCallKind && !!item.recordingUrl && !item.aiSummary
+
+  async function handleVmSend(channel: 'sms' | 'email') {
+    if (!leadId) return
+    setVmSending(true)
+    try {
+      const body = channel === 'sms'
+        ? { leadId, channel: 'sms', message: vmSmsText }
+        : { leadId, channel: 'email', subject: vmEmailSubject, message: vmEmailBody }
+      await fetch('/api/sales/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        credentials: 'include',
+      })
+      setVmSent(channel)
+      setVmFollowUpMode(null)
+    } catch {
+      // best-effort
+    } finally {
+      setVmSending(false)
+    }
+  }
 
   async function handleRetranscribe() {
     if (!leadId || !item.id) return
@@ -258,6 +306,91 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
             ) : null}
           </div>
         </div>
+        {/* Post-voicemail follow-up strip — always visible on voicemail cards */}
+        {item.isVoicemail && (
+          <div className="rounded-[8px] border border-amber-200 bg-amber-50 px-4 py-3">
+            {vmSent ? (
+              <div className="flex items-center gap-2 text-sm font-medium text-emerald-700">
+                <span>✓</span>
+                <span>{vmSent === 'sms' ? 'Follow-up SMS sent' : 'Follow-up email sent'} — they'll hear from you on multiple channels.</span>
+                <button type="button" onClick={() => setVmSent(null)} className="ml-auto text-xs text-[var(--app-muted)] underline">Send another</button>
+              </div>
+            ) : vmFollowUpMode === null ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold text-amber-800">Voicemail dropped —</span>
+                <span className="text-xs text-amber-700">hit them on all channels while you're top of mind:</span>
+                <button
+                  type="button"
+                  onClick={() => { setVmSmsText(buildVoicemailSms(lead)); setVmFollowUpMode('sms') }}
+                  className="rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+                >
+                  💬 Send Follow-Up SMS
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { const e = buildVoicemailEmail(lead); setVmEmailSubject(e.subject); setVmEmailBody(e.body); setVmFollowUpMode('email') }}
+                  className="rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+                >
+                  📧 Send Follow-Up Email
+                </button>
+              </div>
+            ) : vmFollowUpMode === 'sms' ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-amber-800">Follow-Up SMS</span>
+                  <button type="button" onClick={() => setVmFollowUpMode(null)} className="text-xs text-[var(--app-muted)]">✕ Cancel</button>
+                </div>
+                <textarea
+                  value={vmSmsText}
+                  onChange={e => setVmSmsText(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-[6px] border border-amber-200 bg-white px-3 py-2 text-sm text-stone-800 outline-none focus:border-[#1a2744]"
+                />
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-[var(--app-muted)]">{vmSmsText.length} chars</span>
+                  <button
+                    type="button"
+                    onClick={() => void handleVmSend('sms')}
+                    disabled={vmSending || !vmSmsText.trim()}
+                    className="rounded-[6px] bg-[#1a2744] px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                  >
+                    {vmSending ? 'Sending…' : 'Send SMS'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-amber-800">Follow-Up Email</span>
+                  <button type="button" onClick={() => setVmFollowUpMode(null)} className="text-xs text-[var(--app-muted)]">✕ Cancel</button>
+                </div>
+                <input
+                  value={vmEmailSubject}
+                  onChange={e => setVmEmailSubject(e.target.value)}
+                  placeholder="Subject"
+                  className="w-full rounded-[6px] border border-amber-200 bg-white px-3 py-2 text-sm text-stone-800 outline-none focus:border-[#1a2744]"
+                />
+                <textarea
+                  value={vmEmailBody}
+                  onChange={e => setVmEmailBody(e.target.value)}
+                  rows={6}
+                  className="w-full rounded-[6px] border border-amber-200 bg-white px-3 py-2 text-sm text-stone-800 outline-none focus:border-[#1a2744]"
+                />
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => void handleVmSend('email')}
+                    disabled={vmSending || !vmEmailBody.trim()}
+                    className="rounded-[6px] bg-[#1a2744] px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                  >
+                    {vmSending ? 'Sending…' : 'Send Email'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className={`rounded-[8px] border p-4 ${tone.panel}`}>
           <div className="text-sm leading-6 text-[var(--app-ink)]">{expanded ? item.text : previewText}</div>
 
