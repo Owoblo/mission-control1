@@ -697,16 +697,57 @@ export default function SalesLeadDetailPage() {
     if (!lead || !quote) return
     try {
       setLogDepositBusy(true)
-      const methodLabels = { cash: 'Cash', etransfer: 'E-Transfer', cheque: 'Cheque' }
+      const methodLabels = { cash: 'Cash', etransfer: 'Interac E-Transfer', cheque: 'Cheque' }
+      const methodLabel = methodLabels[logDepositMethod]
+
+      // Update CRM lead
       const updatedLead = await updateSalesLead(lead.id, {
         paymentStatus: 'deposit_received',
         depositAmount: quote.deposit,
-        depositMethod: methodLabels[logDepositMethod],
+        depositMethod: methodLabel,
         depositDate: new Date().toISOString().slice(0, 10),
       })
       setLead(updatedLead)
       setLogDepositOpen(false)
       setLogDepositNote('')
+
+      // Record in Stripe as out-of-band invoice (fire & forget — don't block UI)
+      void fetch('/api/sales/stripe/record-cash', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          leadId: lead.id,
+          leadName: lead.name,
+          leadEmail: lead.email,
+          leadPhone: lead.phone,
+          quoteNumber: quote.number,
+          amount: quote.deposit,
+          method: logDepositMethod,
+          description: `Deposit – ${quote.number} – ${lead.name} – ${methodLabel}`,
+        }),
+      }).catch(() => null)
+
+      // Send receipt email if we have an email address
+      if (lead.email) {
+        void fetch('/api/sales/deposit-receipt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            toEmail: lead.email,
+            toName: lead.name,
+            quoteNumber: quote.number,
+            moveDate: quote.moveDate,
+            originCity: quote.originCity,
+            destCity: quote.destCity,
+            depositAmount: quote.deposit,
+            balanceAmount: quote.balance,
+            totalAmount: quote.total,
+            paymentMethod: methodLabel,
+          }),
+        }).catch(() => null)
+      }
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -1955,8 +1996,28 @@ Saturn Star Moving`
           setCollectCardOpen(false)
           if (depositCharged) {
             setError(null)
+            // Send receipt email after card deposit
+            if (updatedLead.email && quote) {
+              void fetch('/api/sales/deposit-receipt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                  toEmail: updatedLead.email,
+                  toName: updatedLead.name,
+                  quoteNumber: quote.number,
+                  moveDate: quote.moveDate,
+                  originCity: quote.originCity,
+                  destCity: quote.destCity,
+                  depositAmount: quote.deposit,
+                  balanceAmount: quote.balance,
+                  totalAmount: quote.total,
+                  paymentMethod: 'Credit Card',
+                  cardLast4,
+                }),
+              }).catch(() => null)
+            }
           }
-          console.info(`Card saved: ${cardBrand} ****${cardLast4}${depositCharged ? ' — deposit charged' : ''}`)
         }}
       />
     </div>
