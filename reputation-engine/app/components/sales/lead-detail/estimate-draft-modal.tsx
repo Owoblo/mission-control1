@@ -499,39 +499,113 @@ export function EstimateDraftModal({
               </div>
 
               {/* Intelligence banners */}
-              {needsTwoTrucks && (
-                <div className="mb-3 rounded-[8px] border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
-                  <div className="font-semibold">🚚 2 trucks auto-assigned</div>
-                  <div className="mt-0.5 text-xs">Inventory exceeds our conservative safe-load limit (~1,400 cu ft with pads/wrapping; truck spec is ~1,650 cu ft). Crew minimum is 4 movers. Two trucks load in parallel — faster for the customer, cleaner for the crew.</div>
+
+              {/* 2-truck vs 2-trip comparison — shows real dollar difference */}
+              {(needsTwoTrucks || flags?.twoTripZone) && flags?.twoTripComparison && (
+                <div className="mb-3 rounded-[8px] border border-sky-200 bg-sky-50 px-4 py-3">
+                  <div className="text-sm font-semibold text-sky-800">
+                    🚚 {needsTwoTrucks ? '2 trucks required — or 1 truck + 2 trips?' : '2-trip zone — compare your options'}
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <div className="rounded-[6px] border-2 border-sky-300 bg-white p-2.5">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-sky-700">Option A — 2 Trucks</div>
+                      <div className="mt-1 text-lg font-bold text-[var(--app-ink)]">{formatMoney(quoteModalTotals.subtotal)}</div>
+                      <div className="mt-0.5 text-[10px] text-sky-700">
+                        {pricingBreakdown?.crewSize} movers · {pricingBreakdown?.totalHours}h · both trucks load in parallel — faster
+                      </div>
+                    </div>
+                    <div className="rounded-[6px] border border-sky-200 bg-white p-2.5">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Option B — 1 Truck, 2 Trips</div>
+                      <div className="mt-1 text-lg font-bold text-[var(--app-ink)]">{formatMoney(flags.twoTripComparison.totalAmount)}</div>
+                      <div className="mt-0.5 text-[10px] text-slate-500">
+                        {flags.twoTripComparison.crewSize} movers · {flags.twoTripComparison.totalHours}h · adds ~{flags.twoTripComparison.extraHours}h return drive
+                        {flags.twoTripComparison.savings > 0
+                          ? ` · saves client $${flags.twoTripComparison.savings}`
+                          : ' · 2 trucks is more efficient'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-1.5 text-[10px] text-sky-700">
+                    {needsTwoTrucks
+                      ? 'Inventory exceeds 1 truck (1,400 cu ft safe-load limit). For local moves only — 2 trips is a real option. Long distance must use 2 trucks.'
+                      : 'Local move: both options are viable. Discuss with client — time vs. savings.'}
+                  </div>
                 </div>
               )}
-              {flags?.twoTripZone && !needsTwoTrucks && (
-                <div className="mb-3 rounded-[8px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                  <div className="font-semibold">📦 2-trip zone ({inventoryMetrics.totalCubicFeet} cu ft)</div>
-                  <div className="mt-0.5 text-xs">Load is 71–99% of one truck. A tight single-truck load is possible with professional packing. Discuss with customer: 1 truck × 2 trips (saves truck cost, adds ~1.5–2h drive) vs. 2 trucks (faster, both locations load in parallel). Use the truck override above to lock it in.</div>
+
+              {/* Full-day + 2-day option with actual hours */}
+              {flags?.fullDayFlag && flags?.twoDayMoveEstimate && (
+                <div className="mb-3 rounded-[8px] border border-purple-200 bg-purple-50 px-4 py-3">
+                  <div className="text-sm font-semibold text-purple-800">📅 Full-day move ({pricingBreakdown?.totalHours}h) — consider 2-day split</div>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <div className="rounded-[6px] border border-purple-200 bg-white p-2.5">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-purple-700">Day 1 — Load</div>
+                      <div className="mt-1 text-base font-bold text-[var(--app-ink)]">~{flags.twoDayMoveEstimate.day1Hours}h</div>
+                      <div className="mt-0.5 text-[10px] text-purple-700">Pack, wrap, load truck, drive to destination</div>
+                    </div>
+                    <div className="rounded-[6px] border border-purple-200 bg-white p-2.5">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-purple-700">Day 2 — Unload</div>
+                      <div className="mt-1 text-base font-bold text-[var(--app-ink)]">~{flags.twoDayMoveEstimate.day2Hours}h</div>
+                      <div className="mt-0.5 text-[10px] text-purple-700">Unload, unwrap, place, assemble — fresh crew</div>
+                    </div>
+                  </div>
+                  <div className="mt-1.5 text-[10px] text-purple-700">Same total price. Crew arrives fresh on Day 2 — less fatigue, lower damage risk, better customer experience.</div>
                 </div>
               )}
+
               {flags?.threeHourMinApplied && (
                 <div className="mb-3 rounded-[8px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
                   <div className="font-semibold">⏱ 3-hour minimum applied</div>
-                  <div className="mt-0.5 text-xs">Natural estimate is under 3 hours — billing at the 3-hour floor. This is normal for studio or 1BR local moves.</div>
+                  <div className="mt-0.5 text-xs">Natural estimate is under 3 hours — billing at the 3-hour floor. Normal for studio or 1BR local moves.</div>
                 </div>
               )}
-              {flags?.fullDayFlag && (
-                <div className="mb-3 rounded-[8px] border border-purple-200 bg-purple-50 px-4 py-3 text-sm text-purple-800">
-                  <div className="font-semibold">📅 Full-day move ({pricingBreakdown?.totalHours}h estimated)</div>
-                  <div className="mt-0.5 text-xs">This job runs 14+ hours. Consider discussing a 2-day option with the customer — Day 1: pack + load, Day 2: unload + setup. Prevents crew fatigue and reduces damage risk.</div>
+
+              {/* Packing add-on opportunity — with real dollar estimate */}
+              {(jobFactors.packingStatus === 'not-started' || jobFactors.packingStatus === 'partial') && flags?.packingDayEstimate && (
+                <div className="mb-3 rounded-[8px] border border-emerald-200 bg-emerald-50 px-4 py-3">
+                  <div className="text-sm font-semibold text-emerald-800">📦 Packing day add-on opportunity</div>
+                  <div className="mt-1.5 flex items-start justify-between gap-4">
+                    <div className="text-xs text-emerald-700">
+                      Customer {jobFactors.packingStatus === 'not-started' ? "hasn't started packing" : 'is only partially packed'}.
+                      Packing happens the day before the move — separate charge.
+                      <br />
+                      <span className="mt-0.5 block font-medium">
+                        Estimated: {flags.packingDayEstimate.crewSize} packers · ~{flags.packingDayEstimate.hours}h ·{' '}
+                        <span className="text-emerald-900">{formatMoney(flags.packingDayEstimate.amountBeforeHst)} + HST = {formatMoney(flags.packingDayEstimate.total)}</span>
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const packingItem = {
+                          description: 'Professional Packing Service (Day Before Move)',
+                          details: `${flags.packingDayEstimate!.crewSize} packers · ~${flags.packingDayEstimate!.hours}h · all packing materials included`,
+                          amount: flags.packingDayEstimate!.amountBeforeHst,
+                        }
+                        onAddInventoryItems([])  // trigger re-render
+                        onUpdateLineItem(-1, 'description', '')  // no-op placeholder
+                        // Add as a real line item via the onSaveDraft path — use onRecalculate workaround
+                        // Actually append via the quoteLineItems path through onAddLineItem then onUpdateLineItem
+                        void (async () => {
+                          onAddLineItem()
+                          await new Promise(r => setTimeout(r, 50))
+                          const last = quoteLineItems.length
+                          onUpdateLineItem(last, 'description', packingItem.description)
+                          onUpdateLineItem(last, 'details', packingItem.details)
+                          onUpdateLineItem(last, 'amount', String(packingItem.amount))
+                        })()
+                      }}
+                      className="shrink-0 rounded-[6px] bg-emerald-700 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-800"
+                    >
+                      + Add to Quote
+                    </button>
+                  </div>
                 </div>
               )}
+
               {hasWarnings && (
                 <div className="mb-3 rounded-[8px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                   ⚠ Items flagged that Saturn Star does not move. Confirm with customer and arrange third-party movers.
-                </div>
-              )}
-              {(jobFactors.packingStatus === 'not-started' || jobFactors.packingStatus === 'partial') && (
-                <div className="mb-3 rounded-[8px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                  <div className="font-semibold">📦 Packing service opportunity</div>
-                  <div className="mt-0.5 text-xs">Customer {jobFactors.packingStatus === 'not-started' ? "hasn't started packing" : 'is partially packed'}. Offer packing as a service: 2 movers @ $150/hr. Typical add-on: 2–3h for a 2BR (~$300–450), 4–6h for a 3BR (~$600–900). Bill hourly, no flat rate.</div>
                 </div>
               )}
 

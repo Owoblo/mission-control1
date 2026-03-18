@@ -545,12 +545,7 @@ export function estimateLeadQuote(
   // 26ft truck spec: ~1,650 cu ft. We use 1,400 as a conservative safe-load buffer (pads/wrapping reduce usable space).
   // 2-trip zone starts at 1,000 cu ft — load is 71%+ of truck and second trip becomes plausible for local moves.
   const TWO_TRIP_ZONE_CF = 1000
-  const intelligenceFlags = {
-    twoTruckRequired: truckCount >= 2,
-    twoTripZone: !isLongDistance && !isPacking && !isLaborOnly && totalCubicFeet >= TWO_TRIP_ZONE_CF && totalCubicFeet < TRUCK_CAPACITY_CF,
-    threeHourMinApplied: roundQuarterHour(preBufferHours + bufferHours) < 3,
-    fullDayFlag: estimatedHours >= 14,
-  }
+
   const laborAmount = Math.round(estimatedHours * crewRate)
   const longDistanceOperationalBase = longDistanceTruckCost + longDistanceGasCost + longDistanceInsuranceCost + longDistanceMiscCost
   const longDistanceMarkupAmount = isLongDistance ? Math.round(longDistanceOperationalBase * (longDistanceMarkupRate / 100)) : 0
@@ -560,6 +555,72 @@ export function estimateLeadQuote(
         ? Math.round((truckCount - 1) * estimatedHours * getCrewRate(2, lead.moveType))
         : Math.round((truckCount - 1) * estimatedHours * getCrewRate(2, lead.moveType) * 0.85)
       : 0
+
+  // --- Two-trip comparison (local moves only) ---
+  // When 2 trucks are required OR in the 2-trip zone, calculate what it costs
+  // to do the same job with 1 truck and 2 trips instead of 2 trucks simultaneously.
+  // 2-trip: same load/unload labor, but adds 1 extra return drive (origin→dest empty).
+  // Uses 3 movers (standard) instead of 4 — saves on crew rate.
+  let twoTripComparison: {
+    crewSize: number
+    totalHours: number
+    totalAmount: number
+    savings: number
+    extraHours: number
+    note: string
+  } | null = null
+
+  if (!isLongDistance && !isPacking && !isLaborOnly && (truckCount >= 2 || totalCubicFeet >= TWO_TRIP_ZONE_CF)) {
+    const tripCrewSize = 3
+    const tripCrewRate = getCrewRate(tripCrewSize, lead.moveType)
+    const returnTripHours = roundQuarterHour(originToDestHours)
+    const twoTripRawHours = rawLaborHours + driveHours + returnTripHours + originToDestHours
+    const twoTripBuffered = roundQuarterHour(twoTripRawHours + twoTripRawHours * 0.1)
+    const twoTripHours = Math.max(3, twoTripBuffered)
+    const twoTripAmount = Math.round(twoTripHours * tripCrewRate)
+    const twoTruckTotalAmount = laborAmount + extraTruckAmount
+    const savings = twoTruckTotalAmount - twoTripAmount
+    twoTripComparison = {
+      crewSize: tripCrewSize,
+      totalHours: twoTripHours,
+      totalAmount: twoTripAmount,
+      savings,
+      extraHours: roundQuarterHour(returnTripHours + originToDestHours),
+      note: savings > 0
+        ? `1 truck, 2 trips saves ~$${savings} but adds ~${returnTripHours + originToDestHours}h`
+        : '2 trucks is more cost-effective for this load',
+    }
+  }
+
+  // --- Packing day estimate (add-on to any standard move) ---
+  const packingCrewSize = Math.max(2, Math.min(crewSize, 3))
+  const packingCrewRate = PACKING_CREW_RATES[packingCrewSize] || PACKING_CREW_RATES[3]
+  const packingHours = Math.max(3, roundQuarterHour(rawLaborHours))
+  const packingDayAmount = Math.round(packingHours * packingCrewRate)
+  const packingDayEstimate = {
+    crewSize: packingCrewSize,
+    hours: packingHours,
+    amountBeforeHst: packingDayAmount,
+    total: Math.round(packingDayAmount * 1.13),
+    note: `${packingCrewSize} packers · ~${packingHours}h · separate day before move`,
+  }
+
+  // --- 2-day move cost (when fullDayFlag is true) ---
+  const twoDayMoveEstimate = estimatedHours >= 14 ? {
+    day1Hours: Math.max(3, roundQuarterHour(loadHours + shopToOriginHours + originToDestHours + loadHours * 0.1)),
+    day2Hours: Math.max(3, roundQuarterHour(unloadHours + shopToOriginHours + originToDestHours + unloadHours * 0.1)),
+    note: 'Split load day / unload day — reduces crew fatigue and damage risk on large jobs',
+  } : null
+
+  const intelligenceFlags = {
+    twoTruckRequired: truckCount >= 2,
+    twoTripZone: !isLongDistance && !isPacking && !isLaborOnly && totalCubicFeet >= TWO_TRIP_ZONE_CF && totalCubicFeet < TRUCK_CAPACITY_CF,
+    threeHourMinApplied: roundQuarterHour(preBufferHours + bufferHours) < 3,
+    fullDayFlag: estimatedHours >= 14,
+    twoTripComparison,
+    packingDayEstimate,
+    twoDayMoveEstimate,
+  }
 
   // Phase time labels for the line item details
   const roundedLoad = roundQuarterHour(loadHours)

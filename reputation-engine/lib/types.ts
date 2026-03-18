@@ -144,6 +144,26 @@ export interface PricingBreakdown {
     twoTripZone: boolean         // local move, 900–1,399 cu ft — second trip possible
     threeHourMinApplied: boolean // natural estimate < 3h, billing at floor
     fullDayFlag: boolean         // estimated hours >= 14 — heads-up for customer
+    twoTripComparison?: {
+      crewSize: number
+      totalHours: number
+      totalAmount: number
+      savings: number
+      extraHours: number
+      note: string
+    } | null
+    packingDayEstimate?: {
+      crewSize: number
+      hours: number
+      amountBeforeHst: number
+      total: number
+      note: string
+    }
+    twoDayMoveEstimate?: {
+      day1Hours: number
+      day2Hours: number
+      note: string
+    } | null
   }
 }
 
