@@ -24,7 +24,7 @@ export async function POST(request: Request) {
       chargeDepositNow?: boolean
     }
 
-    const stripe = new Stripe(stripeKey, { apiVersion: '2024-06-20' })
+    const stripe = new Stripe(stripeKey, { apiVersion: '2026-02-25.clover', httpClient: Stripe.createNodeHttpClient() })
 
     // Confirm the SetupIntent is succeeded and get the payment method
     const si = await stripe.setupIntents.retrieve(setupIntentId)
