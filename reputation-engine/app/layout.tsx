@@ -1,17 +1,36 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { AppShell } from '@/app/components/app-shell'
+import { PWAInit } from '@/app/components/pwa-init'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Saturn Star — Mission Control',
-  description: 'Sales CRM, quotes, reviews, and referral ops for Saturn Star Movers',
+  title: 'Saturn Star OS',
+  description: 'Sales CRM, quotes, operations, and reviews for Saturn Star Moving',
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Saturn Star OS',
+  },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#1a2744',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <meta name="mobile-web-app-capable" content="yes" />
+      </head>
       <body className="min-h-screen">
         <AppShell>{children}</AppShell>
+        <PWAInit />
       </body>
     </html>
   )

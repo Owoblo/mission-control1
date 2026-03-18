@@ -1978,43 +1978,78 @@ Saturn Star Moving`
 
       {/* ── Confirm Job Modal ─────────────────────────────────────── */}
       {showConfirmJobModal ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-[16px] border border-[var(--app-line)] bg-white p-6 shadow-2xl">
-            <h2 className="font-display text-lg font-semibold text-[var(--app-ink)]">Confirm Job for {lead?.name}</h2>
-            <p className="mt-1 text-sm text-[var(--app-muted)]">This will mark the lead as Booked, log the deposit, and send a booking confirmation to the customer.</p>
-            <div className="mt-5 space-y-4">
-              <label className="block">
-                <span className="crm-label">Deposit Amount</span>
-                <input
-                  type="number"
-                  value={confirmJobDeposit}
-                  onChange={e => setConfirmJobDeposit(e.target.value)}
-                  className="crm-input mt-2"
-                  placeholder="e.g. 200"
-                />
-              </label>
-              <label className="block">
-                <span className="crm-label">Deposit Method</span>
-                <select value={confirmJobDepositMethod} onChange={e => setConfirmJobDepositMethod(e.target.value)} className="crm-input mt-2">
-                  {DEPOSIT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </label>
-              <div className="rounded-[10px] border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-                A booking confirmation will be sent to{' '}
-                {lead?.phone ? <strong>{lead.phone}</strong> : null}
-                {lead?.phone && lead?.email ? ' and ' : null}
-                {lead?.email ? <strong>{lead.email}</strong> : null}
-                {!lead?.phone && !lead?.email ? 'no contact info on file — add phone/email first' : null}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(15,27,56,0.55)', backdropFilter: 'blur(2px)' }}>
+          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+            {/* Navy header */}
+            <div className="relative bg-[#1a2744] px-6 py-5">
+              <div className="absolute inset-x-0 bottom-0 h-[2px] bg-[#f5a623]" />
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-base font-bold text-white">Confirm Job — {lead?.name}</h2>
+                  <p className="mt-0.5 text-xs text-slate-300">Deposit required to lock in this booking.</p>
+                </div>
+                <button onClick={() => setShowConfirmJobModal(false)} className="ml-4 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-white/10 hover:text-white transition-colors">✕</button>
               </div>
             </div>
-            <div className="mt-5 flex items-center justify-end gap-3">
-              <button onClick={() => setShowConfirmJobModal(false)} className="crm-button text-sm">Cancel</button>
+
+            <div className="space-y-4 px-6 py-5">
+              {/* Deposit already received — skip form */}
+              {lead?.paymentStatus === 'deposit_received' || lead?.paymentStatus === 'paid_in_full' ? (
+                <div className="flex items-center gap-3 rounded-xl bg-emerald-50 p-4 ring-1 ring-emerald-200">
+                  <span className="text-2xl">✅</span>
+                  <div>
+                    <div className="text-sm font-semibold text-emerald-800">Deposit already received</div>
+                    <div className="text-xs text-emerald-600 mt-0.5">{formatMoney(lead.depositAmount || 0)} via {lead.depositMethod}</div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Deposit gate notice */}
+                  <div className="flex items-start gap-3 rounded-xl bg-amber-50 p-4 ring-1 ring-amber-200">
+                    <span className="text-lg mt-0.5">⚠️</span>
+                    <div className="text-sm text-amber-800">
+                      <strong>Deposit required.</strong> No job moves to Booked without a confirmed deposit. Collect it now or use the Collect Card / Send Link options on the lead.
+                    </div>
+                  </div>
+                  <label className="block">
+                    <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Deposit Amount</span>
+                    <input
+                      type="number"
+                      value={confirmJobDeposit}
+                      onChange={e => setConfirmJobDeposit(e.target.value)}
+                      className="crm-input mt-1.5 w-full"
+                      placeholder={quote ? `${formatMoney(quote.deposit)} (20% of total)` : 'e.g. 400'}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Payment Method</span>
+                    <select value={confirmJobDepositMethod} onChange={e => setConfirmJobDepositMethod(e.target.value)} className="crm-input mt-1.5 w-full">
+                      {DEPOSIT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  </label>
+                </>
+              )}
+
+              {/* Confirmation recipients */}
+              <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600 ring-1 ring-slate-100">
+                Booking confirmation → {lead?.phone ? <strong className="text-[#1a2744]">{lead.phone}</strong> : null}
+                {lead?.phone && lead?.email ? ' & ' : null}
+                {lead?.email ? <strong className="text-[#1a2744]">{lead.email}</strong> : null}
+                {!lead?.phone && !lead?.email ? <span className="text-red-500">No contact info — add phone or email first</span> : null}
+              </div>
+            </div>
+
+            <div className="flex gap-2.5 border-t border-slate-100 px-6 py-4">
+              <button onClick={() => setShowConfirmJobModal(false)} className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-medium text-slate-500 hover:bg-slate-50 transition-colors">Cancel</button>
               <button
                 onClick={() => void handleConfirmJob()}
-                disabled={confirmJobBusy}
-                className="flex items-center gap-2 rounded-[10px] bg-[var(--app-accent)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#0a5b47] disabled:opacity-60"
+                disabled={
+                  confirmJobBusy ||
+                  (lead?.paymentStatus !== 'deposit_received' && lead?.paymentStatus !== 'paid_in_full' && !confirmJobDeposit)
+                }
+                className="flex-1 rounded-xl bg-[#1a2744] py-2.5 text-sm font-semibold text-white hover:bg-[#243460] disabled:opacity-40 transition-colors"
               >
-                {confirmJobBusy ? 'Confirming...' : 'Confirm + Send'}
+                {confirmJobBusy ? 'Confirming…' : 'Confirm Booking'}
               </button>
             </div>
           </div>
