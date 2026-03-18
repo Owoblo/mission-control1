@@ -886,19 +886,34 @@ export function EstimateDraftModal({
 
                 {/* Disassembly */}
                 <div className="space-y-3">
-                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-ink)]">Disassembly / Reassembly</div>
-                  <div className="text-xs text-[var(--app-muted)] leading-5">Count only freestanding assemblies that truly come apart for the move, like beds, dining tables, hutches, or trampolines. Built-ins and wall-mounted pieces usually stay with the house.</div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-xs text-[var(--app-muted)]">Number of items</span>
-                    <input
-                      type="number"
-                      min={0}
-                      placeholder="0"
-                      value={jobFactors.disassemblyItemCount ?? ''}
-                      onChange={e => setFactor('disassemblyItemCount', e.target.value ? Number(e.target.value) : undefined)}
-                      className="crm-input w-20 py-1 text-right text-xs"
-                    />
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-ink)]">Disassembly / Reassembly</div>
+                    <button
+                      type="button"
+                      onClick={() => setFactor('disassemblyItemCount', jobFactors.disassemblyItemCount === 0 ? undefined : 0)}
+                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-colors ${jobFactors.disassemblyItemCount === 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-50 text-emerald-700 hover:bg-rose-50 hover:text-rose-600'}`}
+                    >
+                      {jobFactors.disassemblyItemCount === 0 ? 'Excluded' : 'Included'}
+                    </button>
                   </div>
+                  {jobFactors.disassemblyItemCount === 0 ? (
+                    <div className="rounded-[6px] bg-rose-50 px-3 py-2 text-xs text-rose-700">Customer will self-disassemble — no crew time added.</div>
+                  ) : (
+                    <>
+                      <div className="text-xs text-[var(--app-muted)] leading-5">Count only freestanding assemblies that truly come apart: beds, dining tables, hutches, trampolines. Built-ins and wall-mounted pieces stay with the house.</div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs text-[var(--app-muted)]">Number of items</span>
+                        <input
+                          type="number"
+                          min={0}
+                          placeholder="auto"
+                          value={jobFactors.disassemblyItemCount ?? ''}
+                          onChange={e => setFactor('disassemblyItemCount', e.target.value ? Number(e.target.value) : undefined)}
+                          className="crm-input w-20 py-1 text-right text-xs"
+                        />
+                      </div>
+                    </>
+                  )}
                   <textarea
                     rows={2}
                     placeholder="Any other specialty notes..."

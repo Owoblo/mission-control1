@@ -549,9 +549,13 @@ export async function updateLeadCallLogEntry(
 
   const updatedCallLogs = (lead.callLogs || []).map(entry => {
     if (entry.id !== callLogId) return entry
-    const notes = updates.transcript
-      ? (entry.notes || '').replace(' Recording processing…', ' Recording transcribed.')
-      : entry.notes
+    // Replace "Recording processing…" whenever the recording is actually ready
+    // (either transcribed, or just saved with a URL when the call was too short to transcribe)
+    let notes = entry.notes
+    if (updates.recordingUrl || updates.transcript) {
+      const replacement = updates.transcript ? ' Recording transcribed.' : ' Recording saved.'
+      notes = (entry.notes || '').replace(' Recording processing…', replacement)
+    }
     return { ...entry, ...updates, notes }
   })
 

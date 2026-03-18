@@ -44,10 +44,11 @@ export const INVENTORY_PRESETS: InventoryPreset[] = [
   { id: 'wardrobe-boxes', label: 'Wardrobe Boxes · 4', room: 'Bedroom', item: { name: 'Wardrobe Boxes', qty: 4, cubicFeet: 10, weightLbs: 18, included: true } },
 
   // ── Boxes (most common add-on — must ask every customer) ──────────────────
-  { id: 'box-small', label: 'Box · Small', room: 'Boxes', item: { name: 'Small Box', qty: 1, cubicFeet: 1.5, weightLbs: 30, included: true, notes: 'Books, dishes, heavy items' } },
-  { id: 'box-medium', label: 'Box · Medium', room: 'Boxes', item: { name: 'Medium Box', qty: 1, cubicFeet: 3, weightLbs: 40, included: true, notes: 'Clothes, toys, general household' } },
-  { id: 'box-large', label: 'Box · Large', room: 'Boxes', item: { name: 'Large Box', qty: 1, cubicFeet: 4.5, weightLbs: 50, included: true, notes: 'Pillows, linens, lightweight bulky items' } },
-  { id: 'box-xl', label: 'Box · XL', room: 'Boxes', item: { name: 'XL Box', qty: 1, cubicFeet: 6, weightLbs: 50, included: true, notes: 'Oversized lightweight items' } },
+  // Weights are average packed weights (not max capacity) for realistic labor estimation
+  { id: 'box-small', label: 'Box · Small', room: 'Boxes', item: { name: 'Small Box', qty: 1, cubicFeet: 1.5, weightLbs: 15, included: true, notes: 'Books, dishes, small heavy items — avg 15 lbs packed' } },
+  { id: 'box-medium', label: 'Box · Medium', room: 'Boxes', item: { name: 'Medium Box', qty: 1, cubicFeet: 3, weightLbs: 25, included: true, notes: 'Clothes, toys, general household — avg 25 lbs packed' } },
+  { id: 'box-large', label: 'Box · Large', room: 'Boxes', item: { name: 'Large Box', qty: 1, cubicFeet: 4.5, weightLbs: 30, included: true, notes: 'Pillows, linens, lightweight bulky items — avg 30 lbs packed' } },
+  { id: 'box-xl', label: 'Box · XL', room: 'Boxes', item: { name: 'XL Box', qty: 1, cubicFeet: 6, weightLbs: 25, included: true, notes: 'Oversized lightweight items — avg 25 lbs packed' } },
   { id: 'tv-box-55', label: 'TV Box · 55–65"', room: 'Boxes', item: { name: 'TV Box (55–65 inch)', qty: 1, cubicFeet: 12, weightLbs: 15, included: true, notes: 'Custom TV moving box — wrap included' } },
   { id: 'mirror-box', label: 'Mirror / Picture Box', room: 'Boxes', item: { name: 'Mirror Box', qty: 1, cubicFeet: 5, weightLbs: 10, included: true, notes: 'Flat art, mirrors, framed items' } },
 

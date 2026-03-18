@@ -62,6 +62,7 @@ export function FloatingDialer() {
   const activeCallRef = useRef<any>(null)
   const incomingCallRef = useRef<any>(null)
   const callStartRef = useRef<number | null>(null)
+  const callSidRef = useRef<string | undefined>(undefined)
   const initializedRef = useRef(false)
   const tokenRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -189,18 +190,21 @@ export function FloatingDialer() {
 
       call.on('accept', () => {
         callStartRef.current = Date.now()
+        callSidRef.current = call.parameters?.CallSid || call.parameters?.callsid || undefined
         setStatus('active')
       })
       call.on('disconnect', () => {
         void finalizeCall('outbound')
         activeCallRef.current = null
         callStartRef.current = null
+        callSidRef.current = undefined
         setStatus('ready')
       })
       call.on('cancel', () => {
         void finalizeCall('outbound', false)
         activeCallRef.current = null
         callStartRef.current = null
+        callSidRef.current = undefined
         setStatus('ready')
       })
       call.on('error', (nextError: Error) => {
@@ -224,10 +228,15 @@ export function FloatingDialer() {
   }
 
   function hangUp() {
+    // Finalize before clearing refs — disconnect fires async so finalizeCall would see null refs otherwise
+    if (activeLeadId && activeCallRef.current) {
+      void finalizeCall('outbound')
+    }
     activeCallRef.current?.disconnect()
     incomingCallRef.current?.disconnect?.()
     activeCallRef.current = null
     incomingCallRef.current = null
+    callSidRef.current = undefined
     setMuted(false)
     setStatus('ready')
   }
@@ -247,10 +256,12 @@ export function FloatingDialer() {
     activeCallRef.current = call
     incomingCallRef.current = null
     callStartRef.current = Date.now()
+    callSidRef.current = call.parameters?.CallSid || call.parameters?.callsid || undefined
     call.on('disconnect', () => {
       void finalizeCall('inbound')
       activeCallRef.current = null
       callStartRef.current = null
+      callSidRef.current = undefined
       setStatus('ready')
     })
     setStatus('active')
@@ -263,10 +274,11 @@ export function FloatingDialer() {
   }
 
   async function finalizeCall(direction: 'inbound' | 'outbound', answered = true) {
-    if (!activeLeadId || !activeCallRef.current) return
+    if (!activeLeadId) return
     const startedAt = callStartRef.current
     const durationSeconds = startedAt ? Math.max(0, Math.floor((Date.now() - startedAt) / 1000)) : 0
-    const callSid =
+    // Use callSidRef — activeCallRef may already be null when hangUp calls finalizeCall
+    const callSid = callSidRef.current ||
       activeCallRef.current?.parameters?.CallSid ||
       activeCallRef.current?.parameters?.callsid ||
       undefined
