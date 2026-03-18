@@ -1,0 +1,388 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { formatMoney } from '@/lib/sales'
+
+interface JobCost {
+  id: string
+  lead_id: string
+  category: string
+  description: string | null
+  amount_cents: number
+  cost_date: string
+}
+
+interface BookedJob {
+  id: string
+  name: string
+  moveDate?: string
+  revenue: number
+}
+
+const CATEGORIES = [
+  { value: 'labor',        label: 'Labor',            icon: '👷' },
+  { value: 'truck',        label: 'Truck / Rental',   icon: '🚛' },
+  { value: 'fuel',         label: 'Fuel / Gas',       icon: '⛽' },
+  { value: 'supplies',     label: 'Supplies',         icon: '📦' },
+  { value: 'food',         label: 'Food / Crew',      icon: '🍕' },
+  { value: 'equipment',    label: 'Equipment',        icon: '🔧' },
+  { value: 'marketing',    label: 'Marketing',        icon: '📢' },
+  { value: 'insurance',    label: 'Insurance',        icon: '🛡️' },
+  { value: 'other',        label: 'Other',            icon: '📋' },
+]
+
+const CAT_META: Record<string, { label: string; icon: string }> = Object.fromEntries(
+  CATEGORIES.map(c => [c.value, { label: c.label, icon: c.icon }])
+)
+
+export default function FinancePage() {
+  const [costs, setCosts] = useState<JobCost[]>([])
+  const [jobs, setJobs] = useState<BookedJob[]>([])
+  const [loading, setLoading] = useState(true)
+  const [addOpen, setAddOpen] = useState(false)
+  const [selectedJob, setSelectedJob] = useState<string>('overhead')
+  const [form, setForm] = useState({
+    lead_id: 'overhead',
+    category: 'labor',
+    description: '',
+    amount: '',
+    cost_date: new Date().toISOString().slice(0, 10),
+  })
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState<string | null>(null)
+  const [tab, setTab] = useState<'jobs' | 'overhead' | 'all'>('jobs')
+
+  async function load() {
+    setLoading(true)
+    const [costsRes, jobsRes] = await Promise.all([
+      fetch('/api/sales/finance', { credentials: 'include' }),
+      fetch('/api/sales/overview', { credentials: 'include' }),
+    ])
+    if (costsRes.ok) setCosts(await costsRes.json())
+    if (jobsRes.ok) {
+      const d = await jobsRes.json()
+      // Extract booked leads + their quote totals
+      const booked: BookedJob[] = (d.leads || [])
+        .filter((l: { stage: string }) => l.stage === 'booked')
+        .map((l: { id: string; name: string; moveDate?: string; quotes?: { status: string; total?: number }[] }) => {
+          const acceptedQuote = (l.quotes || []).find(
+            (q: { status: string; total?: number }) => ['accepted', 'invoiced'].includes(q.status)
+          )
+          return {
+            id: l.id,
+            name: l.name,
+            moveDate: l.moveDate,
+            revenue: acceptedQuote?.total || 0,
+          }
+        })
+      setJobs(booked)
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => { void load() }, [])
+
+  async function saveCost() {
+    if (!form.amount || !form.category || !form.cost_date) return
+    setSaving(true)
+    await fetch('/api/sales/finance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        lead_id: form.lead_id || 'overhead',
+        category: form.category,
+        description: form.description || undefined,
+        amount_cents: Math.round(parseFloat(form.amount) * 100),
+        cost_date: form.cost_date,
+      }),
+    })
+    setSaving(false)
+    setAddOpen(false)
+    setForm(f => ({ ...f, amount: '', description: '' }))
+    void load()
+  }
+
+  async function deleteCost(id: string) {
+    setDeleting(id)
+    await fetch(`/api/sales/finance?id=${id}`, { method: 'DELETE', credentials: 'include' })
+    setCosts(prev => prev.filter(c => c.id !== id))
+    setDeleting(null)
+  }
+
+  // Compute P&L per job
+  const jobPL = jobs.map(job => {
+    const jobCosts = costs.filter(c => c.lead_id === job.id)
+    const totalCosts = jobCosts.reduce((s, c) => s + c.amount_cents, 0) / 100
+    const profit = job.revenue - totalCosts
+    return { ...job, jobCosts, totalCosts, profit }
+  })
+
+  const overheadCosts = costs.filter(c => c.lead_id === 'overhead')
+  const totalOverhead = overheadCosts.reduce((s, c) => s + c.amount_cents, 0) / 100
+
+  const allRevenue = jobPL.reduce((s, j) => s + j.revenue, 0)
+  const allJobCosts = jobPL.reduce((s, j) => s + j.totalCosts, 0)
+  const netProfit = allRevenue - allJobCosts - totalOverhead
+
+  const visibleCosts =
+    tab === 'jobs' ? costs.filter(c => c.lead_id !== 'overhead') :
+    tab === 'overhead' ? overheadCosts :
+    costs
+
+  return (
+    <div className="crm-shell space-y-8">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-[#1a2744]">Finance</h1>
+          <p className="mt-1 text-sm text-[var(--app-muted)]">Job P&L, cost tracking, and expense log.</p>
+        </div>
+        <button
+          onClick={() => { setForm(f => ({ ...f, lead_id: selectedJob })); setAddOpen(true) }}
+          className="crm-button-dark text-sm"
+        >
+          + Log Cost
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="crm-panel p-16 text-center text-sm text-[var(--app-muted)]">Loading...</div>
+      ) : (
+        <>
+          {/* Summary strip */}
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div className="crm-panel p-5">
+              <div className="text-xs font-bold uppercase tracking-wider text-[var(--app-muted)]">Total Revenue</div>
+              <div className="mt-2 text-2xl font-bold text-[#1a2744]">{formatMoney(allRevenue)}</div>
+              <div className="mt-0.5 text-xs text-[var(--app-muted)]">{jobPL.length} booked jobs</div>
+            </div>
+            <div className="crm-panel p-5">
+              <div className="text-xs font-bold uppercase tracking-wider text-[var(--app-muted)]">Job Costs</div>
+              <div className="mt-2 text-2xl font-bold text-rose-600">{formatMoney(allJobCosts)}</div>
+              <div className="mt-0.5 text-xs text-[var(--app-muted)]">labor, truck, fuel, etc.</div>
+            </div>
+            <div className="crm-panel p-5">
+              <div className="text-xs font-bold uppercase tracking-wider text-[var(--app-muted)]">Overhead</div>
+              <div className="mt-2 text-2xl font-bold text-amber-600">{formatMoney(totalOverhead)}</div>
+              <div className="mt-0.5 text-xs text-[var(--app-muted)]">marketing, insurance, etc.</div>
+            </div>
+            <div className="crm-panel p-5">
+              <div className="text-xs font-bold uppercase tracking-wider text-[var(--app-muted)]">Net Profit</div>
+              <div className={`mt-2 text-2xl font-bold ${netProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                {formatMoney(netProfit)}
+              </div>
+              <div className="mt-0.5 text-xs text-[var(--app-muted)]">after all logged costs</div>
+            </div>
+          </div>
+
+          {/* Job P&L table */}
+          {jobPL.length > 0 && (
+            <div className="crm-panel overflow-hidden">
+              <div className="border-b border-[var(--app-line)] px-6 py-4">
+                <h2 className="font-semibold text-[#1a2744]">Job P&L Breakdown</h2>
+              </div>
+              <div className="divide-y divide-[var(--app-line)]">
+                {jobPL.map(job => (
+                  <div key={job.id} className="px-6 py-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className="font-semibold text-[#1a2744]">{job.name}</span>
+                          {job.moveDate && <span className="text-xs text-[var(--app-muted)]">Move: {job.moveDate}</span>}
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                          <span className="text-[var(--app-muted)]">Revenue: <span className="font-semibold text-[#1a2744]">{formatMoney(job.revenue)}</span></span>
+                          <span className="text-[var(--app-muted)]">Costs: <span className="font-semibold text-rose-600">{formatMoney(job.totalCosts)}</span></span>
+                          <span className="text-[var(--app-muted)]">Profit: <span className={`font-bold ${job.profit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatMoney(job.profit)}</span></span>
+                          {job.revenue > 0 && (
+                            <span className="text-[var(--app-muted)]">Margin: <span className={`font-semibold ${(job.profit / job.revenue) >= 0.4 ? 'text-emerald-600' : 'text-amber-600'}`}>{Math.round((job.profit / job.revenue) * 100)}%</span></span>
+                          )}
+                        </div>
+                        {/* Cost breakdown */}
+                        {job.jobCosts.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {job.jobCosts.map(c => (
+                              <div key={c.id} className="flex items-center gap-1.5 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-2 py-1 text-xs">
+                                <span>{CAT_META[c.category]?.icon ?? '📋'}</span>
+                                <span className="text-[var(--app-muted)]">{CAT_META[c.category]?.label ?? c.category}</span>
+                                <span className="font-semibold text-[#1a2744]">{formatMoney(c.amount_cents / 100)}</span>
+                                {c.description && <span className="text-[var(--app-muted)]">· {c.description}</span>}
+                                <button
+                                  onClick={() => void deleteCost(c.id)}
+                                  disabled={deleting === c.id}
+                                  className="ml-1 text-slate-300 hover:text-rose-500 transition"
+                                >×</button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {job.jobCosts.length === 0 && (
+                          <div className="mt-1 text-xs text-[var(--app-muted)]">No costs logged yet.</div>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => { setForm(f => ({ ...f, lead_id: job.id })); setAddOpen(true) }}
+                        className="shrink-0 rounded-lg border border-[var(--app-line)] px-3 py-1.5 text-xs font-medium text-[var(--app-muted)] hover:border-[#1a2744] hover:text-[#1a2744] transition"
+                      >
+                        + Cost
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {jobPL.length === 0 && (
+            <div className="crm-panel p-10 text-center space-y-2">
+              <div className="text-3xl">📊</div>
+              <div className="font-semibold text-[#1a2744]">No booked jobs yet</div>
+              <p className="text-sm text-[var(--app-muted)]">Once you book jobs in the CRM, they'll appear here with P&L tracking.</p>
+            </div>
+          )}
+
+          {/* Expense log */}
+          <div className="crm-panel overflow-hidden">
+            <div className="flex items-center justify-between border-b border-[var(--app-line)] px-6 py-4">
+              <h2 className="font-semibold text-[#1a2744]">Expense Log</h2>
+              <div className="flex gap-1">
+                {(['jobs', 'overhead', 'all'] as const).map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setTab(t)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-medium capitalize transition ${tab === t ? 'bg-[#1a2744] text-white' : 'text-[var(--app-muted)] hover:bg-[var(--app-bg)]'}`}
+                  >
+                    {t === 'jobs' ? 'Job Costs' : t === 'overhead' ? 'Overhead' : 'All'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {visibleCosts.length === 0 ? (
+              <div className="p-10 text-center text-sm text-[var(--app-muted)]">
+                No {tab === 'overhead' ? 'overhead expenses' : 'costs'} logged yet. Click "+ Log Cost" to add one.
+              </div>
+            ) : (
+              <div className="divide-y divide-[var(--app-line)]">
+                {visibleCosts.map(c => {
+                  const job = jobs.find(j => j.id === c.lead_id)
+                  return (
+                    <div key={c.id} className="flex items-center gap-4 px-6 py-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--app-bg)] text-base">
+                        {CAT_META[c.category]?.icon ?? '📋'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-[#1a2744]">
+                          {CAT_META[c.category]?.label ?? c.category}
+                          {c.description && <span className="ml-1 font-normal text-[var(--app-muted)]">— {c.description}</span>}
+                        </div>
+                        <div className="text-xs text-[var(--app-muted)]">
+                          {c.cost_date}
+                          {job ? <span> · {job.name}</span> : c.lead_id === 'overhead' ? ' · Overhead' : null}
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-sm font-semibold text-rose-600">
+                        −{formatMoney(c.amount_cents / 100)}
+                      </div>
+                      <button
+                        onClick={() => void deleteCost(c.id)}
+                        disabled={deleting === c.id}
+                        className="shrink-0 text-slate-300 hover:text-rose-500 transition text-lg"
+                      >×</button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Log cost modal */}
+      {addOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center p-4 md:items-center" style={{ background: 'rgba(15,27,56,0.55)', backdropFilter: 'blur(2px)' }} onClick={e => { if (e.target === e.currentTarget) setAddOpen(false) }}>
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
+            <div className="bg-[#1a2744] px-6 py-5" style={{ borderBottom: '2px solid #f5a623' }}>
+              <h2 className="font-bold text-white">Log a Cost</h2>
+              <p className="mt-0.5 text-xs text-white/60">Track expenses per job or as general overhead.</p>
+            </div>
+            <div className="p-6 space-y-4">
+              {/* Job selector */}
+              <label className="block">
+                <span className="crm-label">Linked to</span>
+                <select
+                  className="crm-input mt-1"
+                  value={form.lead_id}
+                  onChange={e => setForm(f => ({ ...f, lead_id: e.target.value }))}
+                >
+                  <option value="overhead">General Overhead</option>
+                  {jobs.map(j => (
+                    <option key={j.id} value={j.id}>{j.name}{j.moveDate ? ` (${j.moveDate})` : ''}</option>
+                  ))}
+                </select>
+              </label>
+
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="crm-label">Category</span>
+                  <select
+                    className="crm-input mt-1"
+                    value={form.category}
+                    onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+                  >
+                    {CATEGORIES.map(c => (
+                      <option key={c.value} value={c.value}>{c.icon} {c.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="crm-label">Amount ($)</span>
+                  <input
+                    className="crm-input mt-1"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={form.amount}
+                    onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
+                  />
+                </label>
+              </div>
+
+              <label className="block">
+                <span className="crm-label">Description <span className="text-[var(--app-muted)] font-normal">(optional)</span></span>
+                <input
+                  className="crm-input mt-1"
+                  placeholder="e.g. John + Mike 6h each, Penske 26ft, Shell Dougall Ave"
+                  value={form.description}
+                  onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                />
+              </label>
+
+              <label className="block">
+                <span className="crm-label">Date</span>
+                <input
+                  className="crm-input mt-1"
+                  type="date"
+                  value={form.cost_date}
+                  onChange={e => setForm(f => ({ ...f, cost_date: e.target.value }))}
+                />
+              </label>
+
+              <div className="flex gap-3 pt-2">
+                <button onClick={() => setAddOpen(false)} className="flex-1 rounded-xl border border-[var(--app-line)] py-2.5 text-sm font-medium text-[var(--app-muted)]">Cancel</button>
+                <button
+                  onClick={() => void saveCost()}
+                  disabled={saving || !form.amount || !form.cost_date}
+                  className="flex-1 rounded-xl bg-[#1a2744] py-2.5 text-sm font-bold text-white disabled:opacity-60"
+                >
+                  {saving ? 'Saving...' : 'Log Cost'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

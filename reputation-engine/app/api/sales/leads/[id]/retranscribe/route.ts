@@ -1,3 +1,5 @@
+export const maxDuration = 60
+
 import { NextResponse } from 'next/server'
 import { getSalesLead, saveSalesLead } from '@/lib/server/sales-repository'
 import { transcribeConsultationRecording, summarizeConsultation } from '@/lib/server/call-intelligence'

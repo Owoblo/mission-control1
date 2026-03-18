@@ -1,3 +1,5 @@
+export const maxDuration = 60 // allow time for Whisper transcription
+
 import { NextResponse } from 'next/server'
 import {
   getCrmCallSidMapping,

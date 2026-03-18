@@ -307,7 +307,7 @@ export default function SalesLeadDetailPage() {
           : item.type === 'call' && isInboundCall && hasEnrichment
             ? `Inbound call completed${item.duration ? ` — ${item.duration}` : ''}.`
             : item.type === 'consultation' && item.recordingUrl && !item.transcript && !item.aiSummary
-              ? 'In-house consultation recorded. Transcript and AI summary are processing.'
+              ? 'In-house consultation recorded. Click to retry transcription.'
               : item.notes || item.type
 
       return {
