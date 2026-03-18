@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     const lead = leads.find(l => l.id === leadId)
     if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
 
-    const stripe = new Stripe(stripeKey, { apiVersion: '2026-02-25.clover' })
+    const stripe = new Stripe(stripeKey, { apiVersion: '2024-06-20' })
 
     // Create or reuse Stripe customer for this lead
     let customerId: string | undefined

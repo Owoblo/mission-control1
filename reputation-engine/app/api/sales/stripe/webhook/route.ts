@@ -12,7 +12,7 @@ export async function POST(request: Request) {
 
   let event: Stripe.Event
   try {
-    const stripe = new Stripe(stripeKey, { apiVersion: '2026-02-25.clover' })
+    const stripe = new Stripe(stripeKey, { apiVersion: '2024-06-20' })
     event = webhookSecret
       ? stripe.webhooks.constructEvent(body, sig, webhookSecret)
       : JSON.parse(body) as Stripe.Event
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
 
     if (quoteId) {
       try {
-        const stripe = new Stripe(stripeKey, { apiVersion: '2026-02-25.clover' })
+        const stripe = new Stripe(stripeKey, { apiVersion: '2024-06-20' })
         const now = new Date().toISOString()
 
         // Retrieve payment intent to get payment method ID for future balance charge

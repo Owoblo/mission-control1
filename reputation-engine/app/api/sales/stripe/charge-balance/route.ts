@@ -56,7 +56,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Balance amount is zero — nothing to charge.' }, { status: 400 })
     }
 
-    const stripe = new Stripe(stripeKey, { apiVersion: '2026-02-25.clover' })
+    const stripe = new Stripe(stripeKey, { apiVersion: '2024-06-20' })
 
     // Create off-session payment intent using saved card
     const pi = await stripe.paymentIntents.create({
