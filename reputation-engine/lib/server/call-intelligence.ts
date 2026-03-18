@@ -83,9 +83,29 @@ export async function transcribeFromUrl(audioUrl: string, accountSid: string, au
   return payload.text?.trim() || null
 }
 
+function isMeaninglessTranscript(transcript: string): boolean {
+  const words = transcript.trim().split(/\s+/).filter(Boolean)
+  if (words.length < 5) return true
+  // Check if it's all filler words / single words
+  const fillers = new Set(['you', 'uh', 'um', 'hmm', 'yeah', 'yes', 'no', 'okay', 'ok', 'hi', 'hello', 'bye', 'thanks'])
+  const meaningfulWords = words.filter(w => !fillers.has(w.toLowerCase().replace(/[^a-z]/g, '')))
+  return meaningfulWords.length < 4
+}
+
+const NO_CONVERSATION = {
+  summary: 'No conversation captured — recording was too short or contained no speech.',
+  leadConcern: undefined,
+  nextAction: 'Try recording again during the next call or consultation.',
+  followUpDays: undefined,
+  followUpReason: undefined,
+  coachingTip: undefined,
+  moveReadiness: undefined,
+} as const
+
 export async function summarizePhoneCall(lead: CRMLead, transcript: string, direction: 'inbound' | 'outbound' = 'outbound') {
   const apiKey = getOpenAIKey()
   if (!apiKey || !transcript.trim()) return null
+  if (isMeaninglessTranscript(transcript)) return NO_CONVERSATION
 
   const systemPrompt = `You are an AI moving-sales assistant for Saturn Star Moving. Analyze this phone call transcript and return JSON only.
 
@@ -161,6 +181,7 @@ Focus on: move scope, objections, budget signals, timeline, and commitment level
 export async function summarizeConsultation(lead: CRMLead, transcript: string, repNotes?: string) {
   const apiKey = getOpenAIKey()
   if (!apiKey || !transcript.trim()) return null
+  if (isMeaninglessTranscript(transcript) && !repNotes?.trim()) return NO_CONVERSATION
 
   const systemPrompt = `You are an AI moving-sales assistant for Saturn Star Moving. Analyze this in-house consultation transcript and return JSON only.
 
