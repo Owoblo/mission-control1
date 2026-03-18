@@ -16,6 +16,7 @@ const BASE_NAV = [
   { href: '/sales/operations', label: 'Operations', match: (p: string) => p.startsWith('/sales/operations'), roles: ['owner', 'manager'], badge: false },
   { href: '/sales/finance', label: 'Finance', match: (p: string) => p.startsWith('/sales/finance'), roles: ['owner', 'manager'], badge: false },
   { href: '/sales/analytics', label: 'Analytics', match: (p: string) => p.startsWith('/sales/analytics'), roles: ['owner', 'manager'], badge: false },
+  { href: '/sales/reps', label: 'Reps', match: (p: string) => p.startsWith('/sales/reps'), roles: ['owner', 'manager'], badge: false },
   { href: '/admin/users', label: 'Team', match: (p: string) => p.startsWith('/admin'), roles: ['owner'], badge: false },
   { href: '/marketing', label: 'Market Engine', match: (p: string) => p.startsWith('/marketing'), roles: ['owner', 'manager'], badge: false },
 ]

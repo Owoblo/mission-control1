@@ -123,14 +123,30 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
   const [transcribeError, setTranscribeError] = useState<string | null>(null)
   const tone = eventTone(item)
 
-  const needsTranscription = item.kind === 'consultation' && !!item.recordingUrl && !item.transcript && !item.aiSummary
+  const isCallKind = item.kind === 'call' || item.kind === 'consultation'
+  const needsTranscription = isCallKind && !!item.recordingUrl && !item.aiSummary
 
   async function handleRetranscribe() {
     if (!leadId || !item.id) return
     setTranscribing(true)
     setTranscribeError(null)
     try {
-      const updated = await retranscribeConsultation(leadId, item.id)
+      let updated: CRMLead
+      if (item.kind === 'consultation' && item.recordingUrl?.startsWith('data:audio/')) {
+        updated = await retranscribeConsultation(leadId, item.id)
+      } else {
+        const res = await fetch(`/api/sales/leads/${leadId}/reanalyze-call`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ callLogId: item.id }),
+          credentials: 'include',
+        })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error((err as any).error || 'Reanalysis failed')
+        }
+        updated = await res.json() as CRMLead
+      }
       onLeadUpdate?.(updated)
     } catch (err) {
       setTranscribeError((err as Error).message || 'Transcription failed')
@@ -277,7 +293,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
                       disabled={transcribing}
                       className="rounded-[8px] bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
                     >
-                      {transcribing ? 'Transcribing...' : 'Transcribe Now'}
+                      {transcribing ? 'Analyzing...' : item.transcript ? '✦ Re-run AI Analysis' : 'Transcribe + Analyze'}
                     </button>
                   </div>
                 )}

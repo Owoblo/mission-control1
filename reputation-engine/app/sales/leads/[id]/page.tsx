@@ -96,6 +96,16 @@ export default function SalesLeadDetailPage() {
   const [quoteLineItems, setQuoteLineItems] = useState<QuoteLineItem[]>([])
   const [jobFactors, setJobFactors] = useState<JobFactors>({})
   const [recalculateBusy, setRecalculateBusy] = useState(false)
+  const [outcomeOpen, setOutcomeOpen] = useState(false)
+  const [outcomeActualHours, setOutcomeActualHours] = useState('')
+  const [outcomeActualCrew, setOutcomeActualCrew] = useState('')
+  const [outcomeDamage, setOutcomeDamage] = useState(false)
+  const [outcomeRating, setOutcomeRating] = useState<number>(0)
+  const [outcomeReview, setOutcomeReview] = useState(false)
+  const [outcomeReferral, setOutcomeReferral] = useState(false)
+  const [outcomeNotes, setOutcomeNotes] = useState('')
+  const [outcomeBusy, setOutcomeBusy] = useState(false)
+  const [outcomeSaved, setOutcomeSaved] = useState(false)
   const [composerOpen, setComposerOpen] = useState(false)
   const [composerChannel, setComposerChannel] = useState<'sms' | 'email'>('sms')
   const [composerSubject, setComposerSubject] = useState('Following up — Saturn Star Moving')
@@ -785,6 +795,33 @@ export default function SalesLeadDetailPage() {
     }
   }
 
+  async function saveOutcome() {
+    if (!lead) return
+    setOutcomeBusy(true)
+    try {
+      await fetch(`/api/sales/leads/${lead.id}/outcome`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          actual_hours: outcomeActualHours ? Number(outcomeActualHours) : undefined,
+          actual_crew: outcomeActualCrew ? Number(outcomeActualCrew) : undefined,
+          damage_flag: outcomeDamage,
+          customer_rating: outcomeRating || undefined,
+          review_left: outcomeReview,
+          referral_generated: outcomeReferral,
+          notes: outcomeNotes.trim() || undefined,
+        }),
+      })
+      setOutcomeSaved(true)
+      setOutcomeOpen(false)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setOutcomeBusy(false)
+    }
+  }
+
   async function sendReviewRequest() {
     if (!lead) return
     setReviewSentBusy(true)
@@ -1341,6 +1378,53 @@ Saturn Star Moving`
                   >
                     {reviewSent ? '⭐ Review Request Sent!' : reviewSentBusy ? 'Sending...' : '⭐ Send Review Request'}
                   </button>
+                )}
+                <button
+                  onClick={() => setOutcomeOpen(o => !o)}
+                  className="w-full rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2 text-xs font-medium text-[var(--app-ink)] hover:border-[var(--app-ink)]"
+                >
+                  {outcomeSaved ? '✓ Outcome Logged' : '📋 Log Job Outcome'}
+                </button>
+                {outcomeOpen && (
+                  <div className="space-y-3 rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
+                    <div className="crm-label">Post-Job Outcome</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Actual Hours</label>
+                        <input type="number" min="0" step="0.5" value={outcomeActualHours} onChange={e => setOutcomeActualHours(e.target.value)} className="crm-input w-full text-xs" placeholder="e.g. 4.5" />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Actual Crew</label>
+                        <input type="number" min="1" max="10" value={outcomeActualCrew} onChange={e => setOutcomeActualCrew(e.target.value)} className="crm-input w-full text-xs" placeholder="e.g. 3" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Customer Rating</label>
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5].map(star => (
+                          <button key={star} type="button" onClick={() => setOutcomeRating(star)} className={`text-xl transition ${outcomeRating >= star ? 'text-amber-400' : 'text-stone-300'}`}>★</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-xs text-[var(--app-ink)]">
+                        <input type="checkbox" checked={outcomeDamage} onChange={e => setOutcomeDamage(e.target.checked)} className="rounded" />
+                        Damage / Incident reported
+                      </label>
+                      <label className="flex items-center gap-2 text-xs text-[var(--app-ink)]">
+                        <input type="checkbox" checked={outcomeReview} onChange={e => setOutcomeReview(e.target.checked)} className="rounded" />
+                        Google/Yelp review left
+                      </label>
+                      <label className="flex items-center gap-2 text-xs text-[var(--app-ink)]">
+                        <input type="checkbox" checked={outcomeReferral} onChange={e => setOutcomeReferral(e.target.checked)} className="rounded" />
+                        Referral generated
+                      </label>
+                    </div>
+                    <textarea value={outcomeNotes} onChange={e => setOutcomeNotes(e.target.value)} className="crm-input w-full resize-none text-xs" rows={2} placeholder="Any notes about the job..." />
+                    <button onClick={() => void saveOutcome()} disabled={outcomeBusy} className="w-full rounded-[8px] bg-[#1a2744] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60">
+                      {outcomeBusy ? 'Saving...' : 'Save Outcome'}
+                    </button>
+                  </div>
                 )}
 
                 {/* DEPOSIT STATUS */}
