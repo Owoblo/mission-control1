@@ -32,6 +32,8 @@ export default function SalesLeadDetailPage() {
   const [leadPhone, setLeadPhone] = useState('')
   const [leadEmail, setLeadEmail] = useState('')
   const [moveDate, setMoveDate] = useState('')
+  const [moveDateFlexible, setMoveDateFlexible] = useState(false)
+  const [moveDateFlexibleReason, setMoveDateFlexibleReason] = useState('')
   const [moveType, setMoveType] = useState<CRMLead['moveType']>('residential')
   const [leadSource, setLeadSource] = useState('')
   const [originAddress, setOriginAddress] = useState('')
@@ -159,6 +161,8 @@ export default function SalesLeadDetailPage() {
     setLeadPhone(nextLead.phone || '')
     setLeadEmail(nextLead.email || '')
     setMoveDate(nextLead.moveDate || '')
+    setMoveDateFlexible(!!nextLead.moveDateFlexible)
+    setMoveDateFlexibleReason(nextLead.moveDateFlexibleReason || '')
     setMoveType((nextLead.moveType || 'residential') as CRMLead['moveType'])
     setLeadSource(nextLead.source || '')
     setOriginAddress(nextLead.originAddress || '')
@@ -416,6 +420,8 @@ export default function SalesLeadDetailPage() {
       phone: leadPhone || undefined,
       email: leadEmail || undefined,
       moveDate: moveDate || undefined,
+      moveDateFlexible: moveDateFlexible || undefined,
+      moveDateFlexibleReason: moveDateFlexibleReason || undefined,
       moveType: moveType || undefined,
       source: leadSource || undefined,
       originAddress: originAddress || undefined,
@@ -1315,6 +1321,8 @@ Saturn Star Moving`
             leadEmail={leadEmail}
             leadSource={leadSource}
             moveDate={moveDate}
+            moveDateFlexible={moveDateFlexible}
+            moveDateFlexibleReason={moveDateFlexibleReason}
             moveType={moveType}
             originAddress={originAddress}
             originCity={originCity}
@@ -1330,6 +1338,15 @@ Saturn Star Moving`
             onLeadEmailChange={setLeadEmail}
             onLeadSourceChange={setLeadSource}
             onMoveDateChange={setMoveDate}
+            onMoveDateFlexibleChange={v => {
+              setMoveDateFlexible(v)
+              // Auto-set 3-day follow-up when Date TBD is toggled on
+              if (v && !followUpDate) {
+                const d = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
+                setFollowUpDate(d.toISOString().slice(0, 10))
+              }
+            }}
+            onMoveDateFlexibleReasonChange={setMoveDateFlexibleReason}
             onMoveTypeChange={setMoveType}
             onOriginAddressChange={setOriginAddress}
             onOriginCityChange={setOriginCity}

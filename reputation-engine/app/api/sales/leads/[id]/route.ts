@@ -58,6 +58,13 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       }
     }
 
+    // When Date TBD is active and no explicit followUpDate was sent in this update,
+    // keep a rolling 3-day follow-up so the lead never goes cold
+    if (nextLead.moveDateFlexible && !updates.followUpDate) {
+      const threeDaysOut = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+      nextLead = { ...nextLead, followUpDate: threeDaysOut, followUpNote: nextLead.followUpNote || 'Check in — pending house close' }
+    }
+
     nextLead = normalizeLead({
       ...nextLead,
       leadScore: calculateLeadScore(nextLead),

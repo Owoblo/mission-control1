@@ -24,7 +24,11 @@ type Props = {
   onLeadPhoneChange: (value: string) => void
   onLeadEmailChange: (value: string) => void
   onLeadSourceChange: (value: string) => void
+  moveDateFlexible: boolean
+  moveDateFlexibleReason: string
   onMoveDateChange: (value: string) => void
+  onMoveDateFlexibleChange: (value: boolean) => void
+  onMoveDateFlexibleReasonChange: (value: string) => void
   onMoveTypeChange: (value: CRMLead['moveType']) => void
   onOriginAddressChange: (value: string) => void
   onOriginCityChange: (value: string) => void
@@ -45,6 +49,8 @@ export function LeadBasicsPanel({
   leadEmail,
   leadSource,
   moveDate,
+  moveDateFlexible,
+  moveDateFlexibleReason,
   moveType,
   originAddress,
   originCity,
@@ -60,6 +66,8 @@ export function LeadBasicsPanel({
   onLeadEmailChange,
   onLeadSourceChange,
   onMoveDateChange,
+  onMoveDateFlexibleChange,
+  onMoveDateFlexibleReasonChange,
   onMoveTypeChange,
   onOriginAddressChange,
   onOriginCityChange,
@@ -127,6 +135,24 @@ export function LeadBasicsPanel({
         <div className="crm-label">Move Details</div>
         <div className="mt-4 grid gap-3">
           <input type="date" value={moveDate} onChange={event => onMoveDateChange(event.target.value)} className="crm-input" />
+          {/* Date TBD toggle */}
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              checked={moveDateFlexible}
+              onChange={e => onMoveDateFlexibleChange(e.target.checked)}
+              className="h-3.5 w-3.5 rounded accent-[#1a2744]"
+            />
+            <span className="text-xs font-medium text-[var(--app-muted)]">Date TBD — waiting on house closing / sale</span>
+          </label>
+          {moveDateFlexible && (
+            <input
+              value={moveDateFlexibleReason}
+              onChange={e => onMoveDateFlexibleReasonChange(e.target.value)}
+              className="crm-input text-xs"
+              placeholder="Context (e.g. Waiting on buyer, new house not closed yet)"
+            />
+          )}
           <select value={moveType} onChange={event => onMoveTypeChange(event.target.value as CRMLead['moveType'])} className="crm-input">
             <option value="residential">Residential</option>
             <option value="long-distance">Long-distance</option>

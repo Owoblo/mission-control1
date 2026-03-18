@@ -195,6 +195,8 @@ export interface CRMLead {
   phone?: string
   email?: string
   moveDate?: string
+  moveDateFlexible?: boolean      // true = date TBD (e.g. waiting on house closing)
+  moveDateFlexibleReason?: string // e.g. "Waiting on buyer", "New house not closed yet"
   moveType?: MoveType
   quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'
   additionalStops?: number

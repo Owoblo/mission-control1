@@ -338,7 +338,12 @@ function SalesPipelineContent() {
                           <div className="flex items-start justify-between gap-3">
                             <div>
                               <div className="text-sm font-semibold text-[var(--app-ink)]">{lead.name}</div>
-                              <div className="mt-1 text-xs text-[var(--app-muted)]">{lead.moveDate ? formatDate(lead.moveDate) : 'Date TBD'} · {lead.moveType || 'Move TBD'}</div>
+                              <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-[var(--app-muted)]">
+                                <span>{lead.moveDate ? formatDate(lead.moveDate) : 'Date TBD'} · {lead.moveType || 'Move TBD'}</span>
+                                {lead.moveDateFlexible && (
+                                  <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Pending close</span>
+                                )}
+                              </div>
                             </div>
                             <span className="mr-5 rounded-[4px] bg-[rgba(15,106,83,0.08)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-accent)]">
                               {lead.leadScore || 0}
