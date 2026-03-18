@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
 import { listSalesLeads, listFollowUpLogs } from '@/lib/server/sales-repository'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
+import type { CRMLead } from '@/lib/types'
 
 export async function GET() {
   const session = await getSessionUser()
@@ -27,9 +28,9 @@ export async function GET() {
   // Group leads by rep
   const repMap = new Map<string, {
     name: string
-    leads: typeof leads
-    booked: typeof leads
-    lost: typeof leads
+    leads: CRMLead[]
+    booked: CRMLead[]
+    lost: CRMLead[]
   }>()
 
   for (const lead of leads) {
