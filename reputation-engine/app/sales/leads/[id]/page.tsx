@@ -1520,6 +1520,7 @@ Saturn Star Moving`
               onConsultationSummaryChange={setConsultationSummary}
               onStopConsultation={() => void stopConsultation()}
               onLeadUpdate={setLead}
+              onNoteAdded={mergeFollowUpLog}
             />
             )}
             {activeTab === 'inventory' && (

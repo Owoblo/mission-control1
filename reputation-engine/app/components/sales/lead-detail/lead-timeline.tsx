@@ -27,6 +27,7 @@ type Props = {
   onConsultationSummaryChange: (value: string) => void
   onStopConsultation: () => void
   onLeadUpdate?: (lead: CRMLead) => void
+  onNoteAdded?: (note: FollowUpLog) => void
 }
 
 function formatSeconds(seconds: number) {
@@ -59,8 +60,30 @@ export function LeadTimeline({
   onConsultationSummaryChange,
   onStopConsultation,
   onLeadUpdate,
+  onNoteAdded,
 }: Props) {
   const [filter, setFilter] = useState<TimelineFilter>('all')
+  const [quickNote, setQuickNote] = useState('')
+  const [postingNote, setPostingNote] = useState(false)
+
+  async function handlePostNote() {
+    if (!quickNote.trim() || postingNote) return
+    setPostingNote(true)
+    try {
+      const res = await fetch('/api/sales/leads/note', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadId: lead.id, text: quickNote.trim() }),
+      })
+      if (res.ok) {
+        const data = await res.json() as { ok: boolean; log: FollowUpLog }
+        setQuickNote('')
+        onNoteAdded?.(data.log)
+      }
+    } finally {
+      setPostingNote(false)
+    }
+  }
 
   const filteredTimeline = useMemo(() => {
     if (filter === 'all') return timeline
@@ -103,6 +126,30 @@ export function LeadTimeline({
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-6">
+        {/* Quick note input */}
+        <div className="mb-6 flex items-start gap-2">
+          <textarea
+            value={quickNote}
+            onChange={event => setQuickNote(event.target.value)}
+            onKeyDown={event => {
+              if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+                void handlePostNote()
+              }
+            }}
+            rows={1}
+            className="flex-1 resize-none rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2 text-sm leading-5 outline-none focus:border-[#1a2744] focus:ring-1 focus:ring-[#1a2744]"
+            placeholder="Add a note…"
+          />
+          <button
+            type="button"
+            onClick={() => void handlePostNote()}
+            disabled={postingNote || !quickNote.trim()}
+            className="shrink-0 rounded-[8px] bg-[#1a2744] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#243560] disabled:opacity-50"
+          >
+            {postingNote ? 'Posting…' : 'Post'}
+          </button>
+        </div>
+
         <div className="relative">
           <div className="absolute bottom-0 left-[15px] top-0 w-px bg-[rgba(228,226,220,1)]" />
           <div className="space-y-8 pb-8">

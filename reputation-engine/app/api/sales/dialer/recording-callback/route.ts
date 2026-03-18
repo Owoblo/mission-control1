@@ -3,6 +3,7 @@ import {
   getCrmCallSidMapping,
   getInboundLeadByCallSid,
   getSalesLead,
+  saveSalesLead,
   updateInboundLeadRawData,
   updateLeadCallLogEntry,
 } from '@/lib/server/sales-repository'
@@ -57,6 +58,14 @@ export async function POST(request: Request) {
         aiSummary: (aiSummary as any) || undefined,
         isVoicemail: isVoicemail || undefined,
       } as any)
+
+      // Auto follow-up from AI summary
+      if (aiSummary && typeof (aiSummary as any).followUpDays === 'number' && lead && !lead.followUpDate) {
+        const followUpDate = new Date(Date.now() + (aiSummary as any).followUpDays * 24 * 60 * 60 * 1000)
+          .toISOString().slice(0, 10)
+        await saveSalesLead({ ...lead, followUpDate, followUpNote: (aiSummary as any).nextAction || 'AI recommended follow-up' }).catch(() => null)
+      }
+
       return NextResponse.json({ ok: true, path: 'crm-lead', isVoicemail })
     }
 

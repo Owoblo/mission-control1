@@ -7,6 +7,7 @@ import type { CRMQuote, CRMLead } from '@/lib/types'
 import type { TimelineItem } from './timeline-types'
 
 function kindLabel(kind: string) {
+  if (kind === 'note') return 'Note'
   if (kind === 'sms') return 'SMS'
   if (kind === 'email') return 'Email'
   if (kind === 'view') return 'Quote Viewed'
@@ -21,6 +22,14 @@ function eventTone(item: TimelineItem) {
   const kind = item.kind.toLowerCase()
   const text = item.text.toLowerCase()
 
+  if (kind === 'note') {
+    return {
+      dot: 'border-amber-300 text-amber-700 bg-amber-50',
+      badge: 'bg-amber-50 text-amber-700 border-amber-200',
+      panel: 'border-amber-100 bg-amber-50/30',
+      accent: 'text-amber-700',
+    }
+  }
   if (kind.includes('consultation')) {
     return {
       dot: 'border-emerald-300 text-emerald-700 bg-emerald-50',
@@ -194,7 +203,16 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
             <div className="mt-4 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
               <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-4">
                 <div className="flex items-center justify-between">
-                  <div className="crm-label">{item.kind === 'consultation' ? 'Consultation Intelligence' : 'Call Intelligence'}</div>
+                  <div className="flex items-center gap-2">
+                    <div className="crm-label">{item.kind === 'consultation' ? 'Consultation Intelligence' : 'Call Intelligence'}</div>
+                    {item.aiSummary?.moveReadiness === 'hot' ? (
+                      <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700">🔥 Hot Lead</span>
+                    ) : item.aiSummary?.moveReadiness === 'warm' ? (
+                      <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">⚡ Warm</span>
+                    ) : item.aiSummary?.moveReadiness === 'cold' ? (
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-600">❄ Cold</span>
+                    ) : null}
+                  </div>
                   {item.duration ? <div className={`text-xs font-medium ${tone.accent}`}>{item.duration}</div> : null}
                 </div>
                 <div className="mt-2 text-sm leading-6 text-stone-800">
@@ -257,6 +275,18 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
                   <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-4">
                     <div className="crm-label">Next Action</div>
                     <div className="mt-2 text-sm leading-6 text-stone-800">{item.aiSummary.nextAction}</div>
+                  </div>
+                ) : null}
+                {item.aiSummary?.coachingTip ? (
+                  <div className="rounded-[8px] border border-[var(--app-line)] bg-[#1a2744] p-4">
+                    <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Rep Coaching</div>
+                    <div className="mt-2 text-sm leading-6 text-white">{item.aiSummary.coachingTip}</div>
+                  </div>
+                ) : null}
+                {item.aiSummary?.followUpReason ? (
+                  <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-4">
+                    <div className="crm-label">Follow-up Timing</div>
+                    <div className="mt-2 text-sm leading-6 text-stone-800">{item.aiSummary.followUpReason}</div>
                   </div>
                 ) : null}
               </div>
