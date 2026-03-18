@@ -209,13 +209,30 @@ export function normalizeQuote(quote: CRMQuote): CRMQuote {
   }
 }
 
+// Base crew rates for 1-truck jobs (customer-facing $/hr)
 const LOCAL_CREW_RATES: Record<number, number> = {
   1: 100,
   2: 160,
   3: 225,
   4: 270,
-  5: 330,
-  6: 390,
+  5: 325,
+  6: 375,
+}
+
+// Truck-aware combined rates: key = `${crewSize}-${truckCount}`
+// 2-truck jobs get a built-in volume discount vs raw base × multiplier
+// because the customer is paying for speed/efficiency, not just headcount
+const LOCAL_CREW_RATES_TRUCK_AWARE: Record<string, number> = {
+  '1-1': 100,
+  '2-1': 160,
+  '3-1': 225,
+  '4-1': 270,   // rare — 4 movers, 1 large truck
+  '4-2': 350,   // standard 2-truck job — built-in efficiency discount
+  '5-2': 395,
+  '6-2': 445,
+  '6-3': 530,
+  '7-3': 580,
+  '8-3': 630,
 }
 
 const LABOR_ONLY_CREW_RATES: Record<number, number> = {
@@ -244,8 +261,26 @@ function roundCurrency(value: number) {
   return Math.round(Number(value || 0) * 100) / 100
 }
 
-export function getCrewRate(crewSize: number, moveType?: CRMLead['moveType'] | CRMQuote['moveType']) {
-  const normalizedCrew = Math.max(1, Math.min(6, Math.round(crewSize || 3)))
+export function getCrewRate(
+  crewSize: number,
+  moveType?: CRMLead['moveType'] | CRMQuote['moveType'],
+  truckCount?: number
+) {
+  const normalizedCrew = Math.max(1, Math.min(8, Math.round(crewSize || 3)))
+  const normalizedTrucks = Math.max(1, Math.round(truckCount || 1))
+
+  // For standard local moves, use the truck-aware table so 2-truck jobs get
+  // the built-in efficiency discount (e.g. 4 movers + 2 trucks = $350/hr, not $405)
+  if (!moveType || moveType === 'residential' || moveType === 'commercial' || moveType === 'senior' || moveType === 'long-distance') {
+    const key = `${normalizedCrew}-${normalizedTrucks}`
+    if (LOCAL_CREW_RATES_TRUCK_AWARE[key] !== undefined) {
+      return LOCAL_CREW_RATES_TRUCK_AWARE[key]
+    }
+    // Fallback: base rate × truck multiplier for unlisted combos
+    const baseRate = LOCAL_CREW_RATES[normalizedCrew] || LOCAL_CREW_RATES[6] + (normalizedCrew - 6) * 50
+    return Math.round(baseRate * getTruckRateMultiplier(normalizedTrucks))
+  }
+
   const rateTable =
     moveType === 'labor-only'
       ? LABOR_ONLY_CREW_RATES
@@ -550,9 +585,11 @@ export function estimateLeadQuote(
   const threeTruckReview = truckCount >= 3
   const crewMinimum = truckCount >= 3 ? 6 : truckCount === 2 ? 4 : 1
   const crewSize = overrides?.crewSize ? suggestedCrew : Math.max(suggestedCrew, crewMinimum)
-  const baseCrewRate = getCrewRate(crewSize, lead.moveType)
-  const truckRateMultiplier = getTruckRateMultiplier(truckCount)
-  const crewRate = roundCurrency(baseCrewRate * truckRateMultiplier)
+  // Truck-aware rate: 2-truck jobs use LOCAL_CREW_RATES_TRUCK_AWARE which builds in
+  // the efficiency discount (e.g. 4 movers + 2 trucks = $350/hr, not $270 × 1.5 = $405)
+  const crewRate = getCrewRate(crewSize, lead.moveType, truckCount)
+  const baseCrewRate = crewRate  // kept for cost estimate calculations
+  const truckRateMultiplier = getTruckRateMultiplier(truckCount)  // kept for display only
   const longDistanceTruckCost = Number(overrides?.longDistanceTruckCost || 0)
   const longDistanceGasCost = Number(overrides?.longDistanceGasCost || 0)
   const longDistanceInsuranceCost = Number(overrides?.longDistanceInsuranceCost || 0)

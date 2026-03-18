@@ -26,9 +26,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       durationSeconds?: number
     }
 
-    if (!payload.notes?.trim() && !payload.recordingUrl?.trim()) {
-      return NextResponse.json({ error: 'Consultation notes or recording are required' }, { status: 400 })
-    }
+    // Allow save even with no notes and no recording — default note is added below
 
     const durationSeconds = Math.max(0, Number(payload.durationSeconds || 0))
     const transcript =
