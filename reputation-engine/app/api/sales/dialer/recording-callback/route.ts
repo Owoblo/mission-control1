@@ -10,6 +10,7 @@ import {
   updateLeadCallLogEntry,
 } from '@/lib/server/sales-repository'
 import { transcribeFromUrl, summarizePhoneCall } from '@/lib/server/call-intelligence'
+import { logEvent } from '@/lib/server/analytics'
 import { getTwilioCredentials } from '@/lib/server/runtime'
 
 export async function POST(request: Request) {
@@ -67,6 +68,20 @@ export async function POST(request: Request) {
           .toISOString().slice(0, 10)
         await saveSalesLead({ ...lead, followUpDate, followUpNote: (aiSummary as any).nextAction || 'AI recommended follow-up' }).catch(() => null)
       }
+
+      void logEvent(isVoicemail ? 'voicemail_left' : 'call_completed', {
+        leadId: mapping.leadId,
+        lead: lead || undefined,
+        properties: {
+          call_direction: 'outbound',
+          call_duration_seconds: recordingDuration || undefined,
+          is_voicemail: isVoicemail,
+          move_readiness: (aiSummary as any)?.moveReadiness,
+          ai_sentiment: (aiSummary as any)?.sentiment,
+          ai_lead_concern: (aiSummary as any)?.leadConcern,
+          ai_next_action: (aiSummary as any)?.nextAction,
+        },
+      })
 
       return NextResponse.json({ ok: true, path: 'crm-lead', isVoicemail })
     }

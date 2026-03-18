@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { uid } from '@/lib/sales'
 import { summarizeMessage } from '@/lib/server/call-intelligence'
+import { logEvent } from '@/lib/server/analytics'
 import { requireWorkerBaseUrl } from '@/lib/server/runtime'
 import { getSalesLead, listFollowUpLogs, saveFollowUpLog, saveSalesEmail, saveSalesLead } from '@/lib/server/sales-repository'
 import type { CRMEmail, FollowUpLog } from '@/lib/types'
@@ -67,22 +68,35 @@ export async function POST(request: Request) {
     }
     const savedLog = await saveFollowUpLog(log)
 
-    // AI summary — fire async, don't block the response
+    // AI summary + analytics — fire async, don't block the response
     if (payload.leadId && payload.body) {
       ;(async () => {
         try {
           const lead = await getSalesLead(payload.leadId!)
           if (!lead) return
-          // Build thread from existing followup logs for this lead
           const allLogs = await listFollowUpLogs()
-          const thread = allLogs
-            .filter(l => l.leadId === payload.leadId && (l.type === 'sms' || l.type === 'email') && l.notes)
+          const sameLeadMsgLogs = allLogs.filter(l => l.leadId === payload.leadId && (l.type === 'sms' || l.type === 'email') && l.notes)
+          const thread = sameLeadMsgLogs
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
             .map(l => ({ direction: 'outbound' as const, text: l.notes!, date: l.date }))
           const aiSummary = await summarizeMessage(lead, payload.body!, payload.channel as 'sms' | 'email', 'outbound', thread)
           if (aiSummary) {
             await saveFollowUpLog({ ...savedLog, aiSummary })
           }
+          void logEvent(payload.channel === 'sms' ? 'sms_sent' : 'email_sent', {
+            leadId: payload.leadId,
+            lead,
+            properties: {
+              channel: payload.channel as 'sms' | 'email',
+              message_direction: 'outbound',
+              message_length: payload.body!.length,
+              thread_length: sameLeadMsgLogs.length,
+              has_ai_summary: !!aiSummary,
+              move_readiness: aiSummary?.moveReadiness,
+              ai_sentiment: aiSummary?.sentiment,
+              ai_intent: aiSummary?.intent,
+            },
+          })
         } catch {
           // best-effort — never fail the send
         }

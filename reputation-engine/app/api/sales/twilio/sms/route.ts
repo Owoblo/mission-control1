@@ -1,4 +1,5 @@
 import { appendSmsToInboundLead, getInboundLeadByPhone, saveInboundLead } from '@/lib/server/sales-repository'
+import { logEvent } from '@/lib/server/analytics'
 import { uid } from '@/lib/sales'
 
 // Normalize phone to E.164 for matching (strip formatting)
@@ -42,6 +43,13 @@ export async function POST(request: Request) {
         })
       }
     }
+    void logEvent('sms_received', {
+      properties: {
+        channel: 'sms',
+        message_direction: 'inbound',
+        message_length: body?.length || 0,
+      },
+    })
   } catch {
     // Always return 200 to Twilio — never let errors cause retries
   }

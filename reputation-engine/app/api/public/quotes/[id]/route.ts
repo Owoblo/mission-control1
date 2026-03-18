@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { syncLeadFromQuoteStatus } from '@/lib/sales'
+import { logEvent, daysBetween } from '@/lib/server/analytics'
 import {
   getSalesClient,
   getSalesLead,
@@ -52,6 +53,15 @@ export async function GET(request: Request, { params }: { params: { id: string }
     if (lead && quote.leadId && (lead.stage === 'pricing' || lead.stage === 'contacted' || lead.stage === 'new')) {
       await saveSalesLead(syncLeadFromQuoteStatus(lead, quote))
     }
+
+    void logEvent('quote_viewed', {
+      leadId: quote.leadId,
+      lead: lead || undefined,
+      quote,
+      properties: {
+        days_since_created: lead ? daysBetween(lead.createdAt, new Date().toISOString()) : undefined,
+      },
+    })
 
     return NextResponse.json({
       quote: {
@@ -173,6 +183,16 @@ export async function POST(request: Request, { params }: { params: { id: string 
         // Non-fatal: job record creation failure should not block the accept response
       }
     }
+
+    void logEvent(action === 'accept' ? 'quote_accepted' : 'quote_declined', {
+      leadId: nextQuote.leadId,
+      lead: savedLead || undefined,
+      quote: nextQuote,
+      properties: {
+        days_from_lead_to_booked: savedLead ? daysBetween(savedLead.createdAt, new Date().toISOString()) : undefined,
+        touchpoints_to_close: savedLead ? (savedLead.callLogs || []).length : undefined,
+      },
+    })
 
     return NextResponse.json({ ok: true, quote: nextQuote, lead: savedLead })
   } catch (error) {
