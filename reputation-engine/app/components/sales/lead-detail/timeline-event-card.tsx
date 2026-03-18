@@ -6,7 +6,12 @@ import { retranscribeConsultation } from '@/lib/sales-api'
 import type { CRMQuote, CRMLead } from '@/lib/types'
 import type { TimelineItem } from './timeline-types'
 
-function kindLabel(kind: string) {
+function isIncidentText(text: string) {
+  return text.startsWith('[INCIDENT')
+}
+
+function kindLabel(kind: string, text?: string) {
+  if (kind === 'note' && text && isIncidentText(text)) return 'Incident'
   if (kind === 'note') return 'Note'
   if (kind === 'sms') return 'SMS'
   if (kind === 'email') return 'Email'
@@ -22,6 +27,14 @@ function eventTone(item: TimelineItem) {
   const kind = item.kind.toLowerCase()
   const text = item.text.toLowerCase()
 
+  if (kind === 'note' && item.text && isIncidentText(item.text)) {
+    return {
+      dot: 'border-red-300 text-red-700 bg-red-50',
+      badge: 'bg-red-50 text-red-700 border-red-200',
+      panel: 'border-red-100 bg-red-50/30',
+      accent: 'text-red-700',
+    }
+  }
   if (kind === 'note') {
     return {
       dot: 'border-amber-300 text-amber-700 bg-amber-50',
@@ -175,7 +188,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-sm font-medium text-[var(--app-ink)]">
             <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] ${tone.badge}`}>
-              {kindLabel(item.kind)}
+              {kindLabel(item.kind, item.text)}
             </span>
             {item.isVoicemail ? (
               <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-700">Voicemail</span>

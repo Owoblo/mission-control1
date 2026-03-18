@@ -192,6 +192,8 @@ export interface CRMLead {
   email?: string
   moveDate?: string
   moveType?: MoveType
+  quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'
+  additionalStops?: number
   originAddress?: string
   originCity?: string
   originAccess?: string
@@ -264,6 +266,7 @@ export interface CRMQuote {
   leadId?: string
   moveDate?: string
   moveType?: string
+  quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'
   originAddress?: string
   originCity?: string
   destCity?: string

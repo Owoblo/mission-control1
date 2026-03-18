@@ -469,12 +469,14 @@ export function estimateLeadQuote(
       | 'longDistanceMiscCost'
       | 'longDistanceMarkupRate'
     >
-  > & { driveHours?: number },
+  > & { driveHours?: number; quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'; distanceKm?: number },
   factors?: JobFactors
 ) {
-  const isLongDistance = lead.moveType === 'long-distance'
-  const isLaborOnly = lead.moveType === 'labor-only'
-  const isPacking = lead.moveType === 'packing'
+  // quoteType from overrides takes priority, then lead.quoteType, then infer from moveType
+  const resolvedQuoteType = overrides?.quoteType || lead.quoteType
+  const isLongDistance = resolvedQuoteType === 'long_distance' || lead.moveType === 'long-distance'
+  const isLaborOnly = resolvedQuoteType === 'labor_only' || resolvedQuoteType === 'storage' || lead.moveType === 'labor-only'
+  const isPacking = resolvedQuoteType === 'packing_only' || lead.moveType === 'packing'
   const metrics = deriveInventoryMetrics(lead.inventory || [])
 
   // Apply job factor penalties
@@ -590,10 +592,12 @@ export function estimateLeadQuote(
 
   const moveServiceTitle = isPacking
     ? 'Professional Packing Service'
+    : resolvedQuoteType === 'storage'
+    ? 'Storage Load/Unload Service'
     : isLaborOnly
     ? 'Labor-Only Moving Crew'
     : isLongDistance
-    ? `Long-Distance Moving Service`
+    ? 'Long-Distance Moving Service'
     : 'Full-Service Moving'
 
   const totalServiceAmount = laborAmount + extraTruckAmount + longDistanceOperationalBase + longDistanceMarkupAmount

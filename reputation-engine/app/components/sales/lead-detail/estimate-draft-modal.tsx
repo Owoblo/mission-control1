@@ -52,7 +52,7 @@ type Props = {
   onDestAddressChange: (value: string) => void
   onLookupListing: () => void
   onRefreshInventory: () => void
-  onRecalculate: (driveHours?: number) => void
+  onRecalculate: (driveHours?: number, quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage', distanceKm?: number) => void
   onAddLineItem: () => void
   onSetActivePhotoIndex: (index: number) => void
   onAddPreset: (presetId: string) => void
@@ -146,6 +146,10 @@ export function EstimateDraftModal({
   const [route, setRoute] = useState<RouteResult | null>(null)
   const [routeBusy, setRouteBusy] = useState(false)
   const [routeError, setRouteError] = useState<string | null>(null)
+  const [quoteType, setQuoteType] = useState<'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'>(
+    lead.quoteType || 'standard'
+  )
+  const [distanceKm, setDistanceKm] = useState<number>(0)
 
   // Manual inventory quick-add state
   const [quickRoom, setQuickRoom] = useState('Living Room')
@@ -256,6 +260,46 @@ export function EstimateDraftModal({
         <div className="grid xl:grid-cols-[minmax(0,1fr)_340px]">
           {/* Main content */}
           <div className="overflow-y-auto p-4 md:p-6 space-y-6">
+
+            {/* Quote Type Selector */}
+            <div>
+              <div className="crm-label mb-2">Quote Type</div>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  { id: 'standard', label: 'Standard Move' },
+                  { id: 'labor_only', label: 'Labor Only' },
+                  { id: 'packing_only', label: 'Packing Only' },
+                  { id: 'long_distance', label: 'Long Distance' },
+                  { id: 'storage', label: 'Storage' },
+                ] as const).map(opt => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => {
+                      setQuoteType(opt.id)
+                      onRecalculate(route?.driveHours, opt.id, distanceKm || undefined)
+                    }}
+                    className={quoteType === opt.id
+                      ? 'rounded-full px-4 py-1.5 text-sm font-semibold bg-[#1a2744] text-white'
+                      : 'rounded-full border border-slate-200 bg-white text-slate-500 px-4 py-1.5 text-sm hover:border-[#1a2744] transition'}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              {quoteType === 'long_distance' && (
+                <div className="mt-3">
+                  <label className="crm-label">Distance (km)</label>
+                  <input
+                    type="number"
+                    value={distanceKm || ''}
+                    onChange={e => setDistanceKm(Number(e.target.value))}
+                    className="crm-input mt-1 w-full"
+                    placeholder="e.g. 450"
+                  />
+                </div>
+              )}
+            </div>
 
             {/* Addresses */}
             <div className="grid gap-4 sm:grid-cols-2">
@@ -446,7 +490,7 @@ export function EstimateDraftModal({
                   <div className="mt-0.5 text-xs text-[var(--app-muted)]">Tier 2 details not visible in MLS photos — these directly affect the estimate.</div>
                 </div>
                 <button
-                  onClick={() => onRecalculate(route?.driveHours)}
+                  onClick={() => onRecalculate(route?.driveHours, quoteType, distanceKm || undefined)}
                   disabled={recalculateBusy}
                   className="crm-button-dark text-xs disabled:opacity-60"
                 >

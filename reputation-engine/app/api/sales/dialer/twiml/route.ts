@@ -49,9 +49,13 @@ export async function POST(request: Request) {
       const appUrl = getAppUrl()
       const recordingCallback = appUrl ? `${appUrl}/api/sales/dialer/recording-callback` : ''
       const dialStatusCallback = appUrl ? `${appUrl}/api/sales/dialer/dial-status` : ''
+      const callStatusCallback = appUrl ? `${appUrl}/api/sales/dialer/call-status` : ''
       const dialAttrs = [
         `record="record-from-answer"`,
         dialStatusCallback ? `action="${dialStatusCallback}"` : '',
+        callStatusCallback ? `statusCallback="${callStatusCallback}"` : '',
+        callStatusCallback ? `statusCallbackMethod="POST"` : '',
+        callStatusCallback ? `statusCallbackEvent="completed no-answer busy failed"` : '',
         recordingCallback ? `recordingStatusCallback="${recordingCallback}"` : '',
         recordingCallback ? `recordingStatusCallbackMethod="POST"` : '',
       ]

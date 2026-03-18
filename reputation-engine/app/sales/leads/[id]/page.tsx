@@ -83,7 +83,13 @@ export default function SalesLeadDetailPage() {
   const [logDepositNote, setLogDepositNote] = useState('')
   const [logDepositBusy, setLogDepositBusy] = useState(false)
   const [chargeBalanceBusy, setChargeBalanceBusy] = useState(false)
+  const [reviewSentBusy, setReviewSentBusy] = useState(false)
+  const [reviewSent, setReviewSent] = useState(false)
   const [collectCardOpen, setCollectCardOpen] = useState(false)
+  const [incidentOpen, setIncidentOpen] = useState(false)
+  const [incidentType, setIncidentType] = useState<'damage' | 'complaint' | 'lost_item' | 'delay' | 'other'>('damage')
+  const [incidentDesc, setIncidentDesc] = useState('')
+  const [incidentBusy, setIncidentBusy] = useState(false)
   const [quoteModalOpen, setQuoteModalOpen] = useState(false)
   const [quoteModalBusy, setQuoteModalBusy] = useState(false)
   const [quoteModalDirty, setQuoteModalDirty] = useState(false)
@@ -429,7 +435,7 @@ export default function SalesLeadDetailPage() {
     }
   }
 
-  function recalculateEstimate(driveHours?: number) {
+  function recalculateEstimate(driveHours?: number, quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage', distanceKm?: number) {
     if (!lead) return
     setRecalculateBusy(true)
     try {
@@ -439,8 +445,9 @@ export default function SalesLeadDetailPage() {
         totalCubicFeet: inventoryMetrics.totalCubicFeet,
         totalWeightLbs: inventoryMetrics.totalWeightLbs,
         moveType,
+        quoteType,
       }
-      const estimate = estimateLeadQuote(snapshot, { driveHours }, jobFactors)
+      const estimate = estimateLeadQuote(snapshot, { driveHours, quoteType, distanceKm }, jobFactors)
       setQuoteLineItems(estimate.lineItems)
       setQuoteModalDirty(true)
     } finally {
@@ -777,6 +784,31 @@ export default function SalesLeadDetailPage() {
     }
   }
 
+  async function sendReviewRequest() {
+    if (!lead) return
+    setReviewSentBusy(true)
+    try {
+      await fetch('/api/sales/review-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          leadName: lead.name,
+          leadEmail: lead.email,
+          leadPhone: lead.phone,
+          quoteNumber: quote?.number,
+          channel: 'both',
+        }),
+      })
+      setReviewSent(true)
+      setError(null)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setReviewSentBusy(false)
+    }
+  }
+
   async function closeQuoteModal() {
     if (quoteModalDirty) {
       await saveQuoteDraft()
@@ -1039,6 +1071,31 @@ Saturn Star Moving`
     }
   }
 
+  async function logIncident() {
+    if (!lead || !incidentDesc.trim()) return
+    setIncidentBusy(true)
+    try {
+      const r = await fetch('/api/sales/leads/note', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          leadId: lead.id,
+          text: `[INCIDENT — ${incidentType.replace('_', ' ').toUpperCase()}] ${incidentDesc.trim()}`,
+          type: 'incident',
+        }),
+      })
+      const result = await r.json() as { log?: FollowUpLog }
+      if (result.log) mergeFollowUpLog(result.log)
+      setIncidentOpen(false)
+      setIncidentDesc('')
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setIncidentBusy(false)
+    }
+  }
+
   async function startConsultation() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
@@ -1266,12 +1323,22 @@ Saturn Star Moving`
               </div>
             ) : lead.stage === 'booked' ? (
               <div className="border-b border-[var(--app-line)] bg-[#f0faf5] p-5 space-y-3">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between gap-2">
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                     Job Confirmed
                   </span>
                 </div>
+                {/* Post-job review request */}
+                {(lead.email || lead.phone) && (
+                  <button
+                    onClick={() => void sendReviewRequest()}
+                    disabled={reviewSentBusy || reviewSent}
+                    className="w-full rounded-[8px] bg-[#f5a623] px-3 py-2 text-xs font-semibold text-[#1a2744] hover:opacity-90 disabled:opacity-60"
+                  >
+                    {reviewSent ? '⭐ Review Request Sent!' : reviewSentBusy ? 'Sending...' : '⭐ Send Review Request'}
+                  </button>
+                )}
 
                 {/* DEPOSIT STATUS */}
                 {lead.paymentStatus === 'paid_in_full' ? (
@@ -1472,6 +1539,12 @@ Saturn Star Moving`
               </button>
               <button onClick={() => void removeLead()} disabled={deleteBusy} className="crm-button w-full justify-center border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-60">
                 {deleteBusy ? 'Deleting...' : 'Delete Lead'}
+              </button>
+              <button
+                onClick={() => setIncidentOpen(true)}
+                className="crm-button w-full justify-center border-red-200 text-red-600 bg-white hover:bg-red-50"
+              >
+                ⚠ Log Incident
               </button>
             </div>
           </aside>
@@ -1948,6 +2021,62 @@ Saturn Star Moving`
         </div>
       ) : null}
 
+      {/* ── Incident Modal ────────────────────────────────────────── */}
+      {incidentOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-[16px] border border-[var(--app-line)] bg-white shadow-2xl">
+            <div className="border-b border-[var(--app-line)] bg-[#1a2744] px-6 py-4">
+              <h2 className="font-display text-base font-semibold text-white">Log Incident</h2>
+              <div className="mt-1 h-0.5 w-10 bg-[#f5a623]" />
+            </div>
+            <div className="space-y-4 px-6 py-5">
+              <div>
+                <div className="crm-label mb-2">Incident Type</div>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { id: 'damage', label: 'Damage' },
+                    { id: 'lost_item', label: 'Lost Item' },
+                    { id: 'complaint', label: 'Customer Complaint' },
+                    { id: 'delay', label: 'Delay' },
+                    { id: 'other', label: 'Other' },
+                  ] as const).map(opt => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setIncidentType(opt.id)}
+                      className={incidentType === opt.id
+                        ? 'rounded-full bg-[#1a2744] px-3 py-1 text-xs font-semibold text-white'
+                        : 'rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600 hover:border-[#1a2744] transition'}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <label className="block">
+                <span className="crm-label">Description</span>
+                <textarea
+                  value={incidentDesc}
+                  onChange={e => setIncidentDesc(e.target.value)}
+                  className="crm-input mt-2 min-h-24 w-full resize-none"
+                  placeholder="Describe what happened in detail..."
+                />
+              </label>
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t border-[var(--app-line)] px-6 py-4">
+              <button onClick={() => { setIncidentOpen(false); setIncidentDesc('') }} className="crm-button text-sm">Cancel</button>
+              <button
+                onClick={() => void logIncident()}
+                disabled={incidentBusy || !incidentDesc.trim()}
+                className="rounded-[10px] bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-60"
+              >
+                {incidentBusy ? 'Logging...' : 'Log Incident'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <EstimateDraftModal
         open={quoteModalOpen}
         quote={quote}
@@ -1975,7 +2104,7 @@ Saturn Star Moving`
         onDestAddressChange={setDestAddress}
         onLookupListing={() => void lookupListingForLead()}
         onRefreshInventory={() => void generateInventoryFromPhotos(true)}
-        onRecalculate={recalculateEstimate}
+        onRecalculate={(driveHours, quoteType, distanceKm) => recalculateEstimate(driveHours, quoteType, distanceKm)}
         onAddLineItem={addQuoteLineItem}
         onSetActivePhotoIndex={setActivePhotoIndex}
         onAddPreset={addPresetItem}
