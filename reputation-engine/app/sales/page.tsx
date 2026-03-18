@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { dateStamp, formatDate, formatMoney } from '@/lib/sales'
 import { fetchSalesOverview, updateSalesLead } from '@/lib/sales-api'
-import type { CRMLead, CRMQuote, SalesDashboardSummary } from '@/lib/types'
+import type { CRMLead, CRMQuote, FollowUpLog, SalesDashboardSummary } from '@/lib/types'
 
 type LiveFeedEvent = {
   text: string
@@ -12,41 +12,41 @@ type LiveFeedEvent = {
   tone: 'accepted' | 'viewed' | 'new' | 'neutral'
 }
 
-function buildLiveFeedEvents(lead: CRMLead, quote?: CRMQuote): LiveFeedEvent[] {
+function buildLiveFeedEvents(lead: CRMLead, quote?: CRMQuote, followUps?: FollowUpLog[]): LiveFeedEvent[] {
   const events: LiveFeedEvent[] = []
   ;(lead.callLogs || []).forEach(item => {
-    events.push({
-      text: item.aiSummary?.summary || item.notes || item.type,
-      date: item.date,
-      tone: lead.stage === 'new' ? 'new' : lead.source?.includes('call') ? 'viewed' : 'neutral',
-    })
+    const label = item.isVoicemail ? 'Voicemail dropped' : item.aiSummary?.summary || item.notes || 'Call logged'
+    events.push({ text: label, date: item.date, tone: 'neutral' })
+  })
+  // Include follow-up logs (SMS, email, notes) for this lead
+  ;(followUps || []).filter(f => f.leadId === lead.id && f.type !== 'note').forEach(f => {
+    const prefix = f.type === 'sms' ? 'SMS sent' : f.type === 'email' ? 'Email sent' : f.type
+    const preview = f.message ? ` — "${f.message.slice(0, 60)}${f.message.length > 60 ? '…' : ''}"` : ''
+    events.push({ text: `${prefix}${preview}`, date: f.date || f.createdAt, tone: 'neutral' })
   })
   if (quote?.status === 'declined') events.push({ text: `${quote.number} declined.`, date: quote.respondedAt || quote.createdAt, tone: 'neutral' })
   if (quote?.acceptedAt) events.push({ text: `${quote.number} accepted.`, date: quote.acceptedAt, tone: 'accepted' })
   if (quote?.viewedAt) events.push({ text: `${quote.number} viewed.`, date: quote.viewedAt, tone: 'viewed' })
   if (quote?.sentAt) events.push({ text: `${quote.number} sent.`, date: quote.sentAt, tone: 'neutral' })
   if (events.length === 0) {
-    events.push({
-      text: 'Lead created.',
-      date: lead.createdAt,
-      tone: lead.stage === 'new' ? 'new' : 'neutral',
-    })
+    events.push({ text: 'Lead created.', date: lead.createdAt, tone: lead.stage === 'new' ? 'new' : 'neutral' })
   }
   events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   return events
 }
 
-function latestTimelineText(lead: CRMLead, quote?: CRMQuote) {
-  return buildLiveFeedEvents(lead, quote)[0]?.text || 'Lead created.'
+function latestTimelineText(lead: CRMLead, quote?: CRMQuote, followUps?: FollowUpLog[]) {
+  return buildLiveFeedEvents(lead, quote, followUps)[0]?.text || 'Lead created.'
 }
 
-function latestActivityDate(lead: CRMLead, quote?: CRMQuote) {
-  return buildLiveFeedEvents(lead, quote)[0]?.date || lead.createdAt
+function latestActivityDate(lead: CRMLead, quote?: CRMQuote, followUps?: FollowUpLog[]) {
+  return buildLiveFeedEvents(lead, quote, followUps)[0]?.date || lead.createdAt
 }
 
 export default function SalesDashboardPage() {
   const [leads, setLeads] = useState<CRMLead[]>([])
   const [quotes, setQuotes] = useState<CRMQuote[]>([])
+  const [followUps, setFollowUps] = useState<FollowUpLog[]>([])
   const [summary, setSummary] = useState<SalesDashboardSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -58,6 +58,7 @@ export default function SalesDashboardPage() {
       const data = await fetchSalesOverview()
       setLeads(data.leads)
       setQuotes(data.quotes)
+      setFollowUps(data.followUps)
       setSummary(data.summary)
       setError(null)
     } catch (err) {
@@ -69,16 +70,17 @@ export default function SalesDashboardPage() {
 
   useEffect(() => {
     void refresh()
-    // Silent background refresh every 60s — no loading spinner
+    // Silent background refresh every 30s
     const interval = setInterval(() => {
       fetchSalesOverview()
         .then(data => {
           setLeads(data.leads)
           setQuotes(data.quotes)
+          setFollowUps(data.followUps)
           setSummary(data.summary)
         })
         .catch(() => {/* silently ignore — stale data is fine */})
-    }, 60_000)
+    }, 30_000)
     return () => clearInterval(interval)
   }, [])
 
@@ -117,12 +119,14 @@ export default function SalesDashboardPage() {
       .sort((a, b) => {
         const quoteA = a.quoteId ? quoteMap.get(a.quoteId) : undefined
         const quoteB = b.quoteId ? quoteMap.get(b.quoteId) : undefined
-        return new Date(latestActivityDate(b, quoteB)).getTime() - new Date(latestActivityDate(a, quoteA)).getTime()
+        const aDate = buildLiveFeedEvents(a, quoteA, followUps)[0]?.date || a.createdAt
+        const bDate = buildLiveFeedEvents(b, quoteB, followUps)[0]?.date || b.createdAt
+        return new Date(bDate).getTime() - new Date(aDate).getTime()
       })
-      .slice(0, 6)
+      .slice(0, 8)
       .map(lead => {
         const quote = lead.quoteId ? quoteMap.get(lead.quoteId) : undefined
-        const latestEvent = buildLiveFeedEvents(lead, quote)[0]
+        const latestEvent = buildLiveFeedEvents(lead, quote, followUps)[0]
         return {
           id: lead.id,
           href: `/sales/leads/${lead.id}`,
@@ -132,7 +136,7 @@ export default function SalesDashboardPage() {
           tone: latestEvent?.tone || 'neutral',
         }
       })
-  }, [leads, quoteMap])
+  }, [leads, quoteMap, followUps])
 
   return (
     <div className="crm-shell">
@@ -223,7 +227,7 @@ export default function SalesDashboardPage() {
                       title="Mark done"
                     />
                     <Link href={`/sales/leads/${lead.id}`} className="min-w-0 flex-1">
-                      <div className="text-sm text-[var(--app-ink)]">{lead.followUpNote || latestTimelineText(lead, lead.quoteId ? quoteMap.get(lead.quoteId) : undefined)}</div>
+                      <div className="text-sm text-[var(--app-ink)]">{lead.followUpNote || latestTimelineText(lead, lead.quoteId ? quoteMap.get(lead.quoteId) : undefined, followUps)}</div>
                       <div className={`mt-1 text-xs ${lead.followUpDate && lead.followUpDate < today ? 'text-[var(--app-warm)]' : 'text-[var(--app-muted)]'}`}>
                         {lead.name} · {lead.followUpDate && lead.followUpDate < today ? 'Overdue' : 'Due today'}
                       </div>

@@ -1449,14 +1449,17 @@ Saturn Star Moving`
                   </div>
                 ) : (
                   /* No deposit yet — collection required */
-                  <div className="rounded-[8px] border border-amber-300 bg-amber-50 p-3 space-y-2">
-                    <div className="text-xs font-semibold text-amber-800">⚠ Deposit Required</div>
-                    <p className="text-[11px] text-amber-700">{quote ? `${formatMoney(quote.deposit)} needed to confirm this job.` : 'A deposit is required before this job moves to operations.'}</p>
+                  <div className="rounded-[8px] border border-[#1a2744]/20 bg-[#1a2744]/5 p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-widest text-[#1a2744]">Deposit Required</span>
+                      {quote && <span className="text-xs font-semibold text-[#1a2744]">{formatMoney(quote.deposit)}</span>}
+                    </div>
+                    <p className="text-[11px] text-[var(--app-muted)]">{quote ? 'Needed to confirm this job.' : 'Required before this job moves to operations.'}</p>
                     {quote && (
                       <>
                         <button
                           onClick={() => setCollectCardOpen(true)}
-                          className="w-full rounded-[8px] bg-[var(--app-accent)] px-3 py-2 text-xs font-semibold text-white hover:opacity-90"
+                          className="w-full rounded-[8px] bg-[#f5a623] px-3 py-2 text-xs font-bold text-[#1a2744] hover:opacity-90"
                         >
                           💳 Collect Card &amp; Charge Now
                         </button>
@@ -1465,13 +1468,13 @@ Saturn Star Moving`
                           disabled={depositLinkBusy}
                           className="w-full rounded-[8px] bg-[#1a2744] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
                         >
-                          {depositLinkBusy ? 'Opening...' : '🔗 Send Self-Pay Link (SMS)'}
+                          {depositLinkBusy ? 'Sending...' : '🔗 Send Self-Pay Link (SMS)'}
                         </button>
                       </>
                     )}
                     <button
                       onClick={() => setLogDepositOpen(open => !open)}
-                      className="w-full rounded-[8px] border border-amber-300 bg-white px-3 py-2 text-xs font-medium text-amber-800 hover:bg-amber-50"
+                      className="w-full rounded-[8px] border border-[#1a2744]/20 bg-white px-3 py-2 text-xs font-medium text-[#1a2744] hover:bg-[#1a2744]/5"
                     >
                       Log Cash / E-Transfer / Cheque
                     </button>
@@ -1495,7 +1498,7 @@ Saturn Star Moving`
                         <button
                           onClick={() => void logManualDeposit()}
                           disabled={logDepositBusy}
-                          className="w-full rounded-[8px] bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                          className="w-full rounded-[8px] bg-[#1a2744] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
                         >
                           {logDepositBusy ? 'Saving...' : '✓ Mark Deposit Received'}
                         </button>

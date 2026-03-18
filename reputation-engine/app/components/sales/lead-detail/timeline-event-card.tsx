@@ -141,33 +141,52 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
   const [transcribeError, setTranscribeError] = useState<string | null>(null)
 
   // Post-voicemail follow-up state
-  const [vmFollowUpMode, setVmFollowUpMode] = useState<'sms' | 'email' | null>(null)
+  const [vmFollowUpMode, setVmFollowUpMode] = useState<'sms' | 'email' | 'both' | null>(null)
   const [vmSmsText, setVmSmsText] = useState(() => buildVoicemailSms(lead))
   const [vmEmailSubject, setVmEmailSubject] = useState(() => buildVoicemailEmail(lead).subject)
   const [vmEmailBody, setVmEmailBody] = useState(() => buildVoicemailEmail(lead).body)
   const [vmSending, setVmSending] = useState(false)
-  const [vmSent, setVmSent] = useState<'sms' | 'email' | null>(null)
+  const [vmSent, setVmSent] = useState<'sms' | 'email' | 'both' | null>(null)
   const tone = eventTone(item)
 
   const isCallKind = item.kind === 'call' || item.kind === 'consultation'
   // Show analyze button if there's a recording URL and no AI summary yet (includes voicemails with transcripts)
   const needsTranscription = isCallKind && !!item.recordingUrl && !item.aiSummary
 
-  async function handleVmSend(channel: 'sms' | 'email') {
+  async function sendOne(channel: 'sms' | 'email') {
+    const body = channel === 'sms'
+      ? { leadId, channel: 'sms', message: vmSmsText }
+      : { leadId, channel: 'email', subject: vmEmailSubject, message: vmEmailBody }
+    await fetch('/api/sales/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      credentials: 'include',
+    })
+  }
+
+  async function refreshLead() {
+    if (!leadId) return
+    const res = await fetch(`/api/sales/leads/${leadId}`, { credentials: 'include' })
+    if (res.ok) {
+      const updated = await res.json() as CRMLead
+      onLeadUpdate?.(updated)
+    }
+  }
+
+  async function handleVmSend(channel: 'sms' | 'email' | 'both') {
     if (!leadId) return
     setVmSending(true)
     try {
-      const body = channel === 'sms'
-        ? { leadId, channel: 'sms', message: vmSmsText }
-        : { leadId, channel: 'email', subject: vmEmailSubject, message: vmEmailBody }
-      await fetch('/api/sales/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        credentials: 'include',
-      })
+      if (channel === 'both') {
+        await Promise.all([sendOne('sms'), sendOne('email')])
+      } else {
+        await sendOne(channel)
+      }
       setVmSent(channel)
       setVmFollowUpMode(null)
+      // Refresh timeline so new SMS/email entries appear
+      await refreshLead()
     } catch {
       // best-effort
     } finally {
@@ -308,43 +327,71 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
         </div>
         {/* Post-voicemail follow-up strip — always visible on voicemail cards */}
         {item.isVoicemail && (
-          <div className="rounded-[8px] border border-amber-200 bg-amber-50 px-4 py-3">
+          <div className="rounded-[8px] border border-[#1a2744]/20 bg-[#1a2744]/5 px-4 py-3">
             {vmSent ? (
-              <div className="flex items-center gap-2 text-sm font-medium text-emerald-700">
-                <span>✓</span>
-                <span>{vmSent === 'sms' ? 'Follow-up SMS sent' : 'Follow-up email sent'} — they'll hear from you on multiple channels.</span>
-                <button type="button" onClick={() => setVmSent(null)} className="ml-auto text-xs text-[var(--app-muted)] underline">Send another</button>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-sm font-semibold text-[#1a2744]">
+                  <span className="text-emerald-600">✓</span>
+                  <span>
+                    {vmSent === 'both' ? 'SMS + Email sent' : vmSent === 'sms' ? 'Follow-up SMS sent' : 'Follow-up email sent'}
+                  </span>
+                </div>
+                <div className="text-[11px] text-[var(--app-muted)]">
+                  {vmSent !== 'email' && lead?.phone && <span>SMS → {lead.phone}</span>}
+                  {vmSent === 'both' && lead?.phone && lead?.email && <span> &nbsp;·&nbsp; </span>}
+                  {vmSent !== 'sms' && lead?.email && <span>Email → {lead.email}</span>}
+                </div>
+                <button type="button" onClick={() => setVmSent(null)} className="text-[10px] text-[var(--app-muted)] underline">Send another</button>
               </div>
             ) : vmFollowUpMode === null ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold text-amber-800">Voicemail dropped —</span>
-                <span className="text-xs text-amber-700">hit them on all channels while you're top of mind:</span>
-                <button
-                  type="button"
-                  onClick={() => { setVmSmsText(buildVoicemailSms(lead)); setVmFollowUpMode('sms') }}
-                  className="rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-900 hover:bg-amber-100"
-                >
-                  💬 Send Follow-Up SMS
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { const e = buildVoicemailEmail(lead); setVmEmailSubject(e.subject); setVmEmailBody(e.body); setVmFollowUpMode('email') }}
-                  className="rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-900 hover:bg-amber-100"
-                >
-                  📧 Send Follow-Up Email
-                </button>
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#1a2744]">Voicemail dropped</span>
+                  <span className="text-[10px] text-[var(--app-muted)]">— follow up while you're top of mind</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void handleVmSend('both')}
+                    disabled={vmSending}
+                    className="rounded-[6px] bg-[#1a2744] px-3 py-1.5 text-xs font-bold text-white hover:opacity-90 disabled:opacity-50"
+                  >
+                    {vmSending ? 'Sending…' : '🚀 Send SMS + Email'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setVmSmsText(buildVoicemailSms(lead)); setVmFollowUpMode('sms') }}
+                    className="rounded-[6px] border border-[#1a2744]/30 bg-white px-3 py-1.5 text-xs font-semibold text-[#1a2744] hover:bg-[#1a2744]/5"
+                  >
+                    💬 SMS only
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { const e = buildVoicemailEmail(lead); setVmEmailSubject(e.subject); setVmEmailBody(e.body); setVmFollowUpMode('email') }}
+                    className="rounded-[6px] border border-[#1a2744]/30 bg-white px-3 py-1.5 text-xs font-semibold text-[#1a2744] hover:bg-[#1a2744]/5"
+                  >
+                    📧 Email only
+                  </button>
+                </div>
+                {(lead?.phone || lead?.email) && (
+                  <div className="text-[10px] text-[var(--app-muted)]">
+                    {lead?.phone && <span>SMS → {lead.phone}</span>}
+                    {lead?.phone && lead?.email && <span> &nbsp;·&nbsp; </span>}
+                    {lead?.email && <span>Email → {lead.email}</span>}
+                  </div>
+                )}
               </div>
             ) : vmFollowUpMode === 'sms' ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-amber-800">Follow-Up SMS</span>
-                  <button type="button" onClick={() => setVmFollowUpMode(null)} className="text-xs text-[var(--app-muted)]">✕ Cancel</button>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#1a2744]">Follow-Up SMS → {lead?.phone}</span>
+                  <button type="button" onClick={() => setVmFollowUpMode(null)} className="text-xs text-[var(--app-muted)]">✕</button>
                 </div>
                 <textarea
                   value={vmSmsText}
                   onChange={e => setVmSmsText(e.target.value)}
                   rows={3}
-                  className="w-full rounded-[6px] border border-amber-200 bg-white px-3 py-2 text-sm text-stone-800 outline-none focus:border-[#1a2744]"
+                  className="w-full rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-sm text-stone-800 outline-none focus:border-[#1a2744]"
                 />
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] text-[var(--app-muted)]">{vmSmsText.length} chars</span>
@@ -361,20 +408,20 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
             ) : (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-amber-800">Follow-Up Email</span>
-                  <button type="button" onClick={() => setVmFollowUpMode(null)} className="text-xs text-[var(--app-muted)]">✕ Cancel</button>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#1a2744]">Follow-Up Email → {lead?.email}</span>
+                  <button type="button" onClick={() => setVmFollowUpMode(null)} className="text-xs text-[var(--app-muted)]">✕</button>
                 </div>
                 <input
                   value={vmEmailSubject}
                   onChange={e => setVmEmailSubject(e.target.value)}
                   placeholder="Subject"
-                  className="w-full rounded-[6px] border border-amber-200 bg-white px-3 py-2 text-sm text-stone-800 outline-none focus:border-[#1a2744]"
+                  className="w-full rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-sm text-stone-800 outline-none focus:border-[#1a2744]"
                 />
                 <textarea
                   value={vmEmailBody}
                   onChange={e => setVmEmailBody(e.target.value)}
-                  rows={6}
-                  className="w-full rounded-[6px] border border-amber-200 bg-white px-3 py-2 text-sm text-stone-800 outline-none focus:border-[#1a2744]"
+                  rows={5}
+                  className="w-full rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-sm text-stone-800 outline-none focus:border-[#1a2744]"
                 />
                 <div className="flex justify-end">
                   <button

@@ -1,0 +1,13 @@
+# Next.js build artifacts
+reputation-engine/.next/
+reputation-engine/node_modules/
+
+# Environment secrets
+reputation-engine/.env.local
+reputation-engine/.env*.local
+
+# OS / editor
+.DS_Store
+**/.DS_Store
+.vercel
+reputation-engine/.vercel

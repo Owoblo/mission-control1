@@ -65,6 +65,16 @@ function SalesPipelineContent() {
 
   useEffect(() => {
     void refresh()
+    // Auto-refresh every 30s so new leads and stage changes appear without manual refresh
+    const interval = setInterval(() => {
+      fetchSalesOverview()
+        .then(data => {
+          setLeads(data.leads)
+          setQuotes(data.quotes)
+        })
+        .catch(() => {/* silently ignore */})
+    }, 30_000)
+    return () => clearInterval(interval)
   }, [])
 
   useEffect(() => {
