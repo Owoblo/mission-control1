@@ -1,4 +1,4 @@
-import type { CallLogEntry } from '@/lib/types'
+import type { AISummary } from '@/lib/types'
 
 export type TimelineItem = {
   id: string
@@ -10,7 +10,7 @@ export type TimelineItem = {
   quoteId?: string
   recordingUrl?: string
   transcript?: string
-  aiSummary?: CallLogEntry['aiSummary']
+  aiSummary?: AISummary
   duration?: string
   phone?: string
   isVoicemail?: boolean

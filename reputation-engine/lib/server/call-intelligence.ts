@@ -1,4 +1,4 @@
-import type { CRMLead } from '@/lib/types'
+import type { AISummary, CRMLead } from '@/lib/types'
 
 function getOpenAIKey() {
   return process.env.OPENAI_API_KEY || ''
@@ -255,6 +255,82 @@ Focus on:
       coachingTip?: string
       moveReadiness?: 'hot' | 'warm' | 'cold'
     }
+  } catch {
+    return { summary: content }
+  }
+}
+export async function summarizeMessage(
+  lead: CRMLead,
+  message: string,
+  channel: 'sms' | 'email',
+  direction: 'inbound' | 'outbound',
+  thread?: Array<{ direction: 'inbound' | 'outbound'; text: string; date: string }>
+): Promise<AISummary | null> {
+  const apiKey = getOpenAIKey()
+  if (!apiKey || !message.trim()) return null
+
+  const channelLabel = channel === 'sms' ? 'SMS' : 'Email'
+
+  const systemPrompt = `You are an AI sales coach for Saturn Star Moving. Analyze this ${channelLabel} message in context of the conversation thread and return JSON only.
+
+Return:
+{
+  "summary": "1-2 sentence plain-English summary of what this message is about and why it matters",
+  "sentiment": "positive|neutral|negative",
+  "intent": "what the sender is trying to accomplish (e.g. re-engage lead, answer objection, confirm booking)",
+  "leadConcern": "any concern or objection detected — omit field entirely if none",
+  "nextAction": "best next step for the rep based on this message",
+  "coachingTip": "one coaching note for the rep",
+  "moveReadiness": "hot|warm|cold"
+}
+
+Use the thread context to understand where this message fits in the relationship. Focus on tone, intent, buying signals, objections, urgency.`
+
+  const threadLines = thread && thread.length > 0
+    ? thread
+        .slice(-10)
+        .map(m => `[${m.direction === 'outbound' ? 'Rep' : 'Lead'} — ${new Date(m.date).toLocaleDateString()}]: ${m.text}`)
+        .join('\n')
+    : null
+
+  const userPrompt = [
+    `Lead: ${lead.name || 'Unknown'}`,
+    `Channel: ${direction === 'outbound' ? 'Outbound' : 'Inbound'} ${channelLabel}`,
+    lead.stage ? `Lead Stage: ${lead.stage}` : '',
+    lead.moveType ? `Move Type: ${lead.moveType}` : '',
+    lead.originCity ? `Origin: ${lead.originCity}` : '',
+    lead.destCity ? `Destination: ${lead.destCity}` : '',
+    threadLines ? `\nConversation Thread:\n${threadLines}` : '',
+    `\nThis Message (${direction === 'outbound' ? 'Rep → Lead' : 'Lead → Rep'}):\n${message}`,
+  ].filter(Boolean).join('\n')
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      max_tokens: 400,
+    }),
+  })
+
+  if (!response.ok) return null
+
+  const payload = (await response.json()) as {
+    choices?: Array<{ message?: { content?: string } }>
+  }
+  const content = payload.choices?.[0]?.message?.content || ''
+  if (!content) return null
+
+  try {
+    return JSON.parse(content) as AISummary
   } catch {
     return { summary: content }
   }

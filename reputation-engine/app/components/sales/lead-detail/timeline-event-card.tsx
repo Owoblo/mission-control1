@@ -138,7 +138,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
       setTranscribing(false)
     }
   }
-  const previewText = item.aiSummary?.summary || item.transcript || item.text
+  const previewText = (!isMessage && (item.aiSummary?.summary || item.transcript)) || item.text
   const hasDetails = !!(item.recordingUrl || item.transcript || item.aiSummary || (quote && item.id === `quote-created-${quote.id}`))
 
   // ── SMS / Email bubble rendering ──
@@ -146,18 +146,15 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
   const isOutbound = item.actor === 'rep' || item.actor === 'system'
 
   if (isMessage) {
+    const sentimentColor = item.aiSummary?.sentiment === 'positive' ? 'text-emerald-600' : item.aiSummary?.sentiment === 'negative' ? 'text-rose-500' : 'text-amber-500'
     return (
       <div className={`flex flex-col gap-1 ${isOutbound ? 'items-end' : 'items-start'}`}>
         <div className={`flex items-end gap-2 ${isOutbound ? 'flex-row-reverse' : 'flex-row'}`}>
-          {/* Avatar dot */}
           <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[9px] font-bold uppercase tracking-wide ${
-            isOutbound
-              ? 'bg-[var(--app-ink)] text-white'
-              : 'bg-stone-200 text-stone-600'
+            isOutbound ? 'bg-[var(--app-ink)] text-white' : 'bg-stone-200 text-stone-600'
           }`}>
             {isOutbound ? 'SS' : item.actor?.slice(0, 1).toUpperCase() || 'C'}
           </div>
-          {/* Bubble */}
           <div className={`relative max-w-[75%] rounded-[18px] px-4 py-2.5 text-sm leading-[1.5] shadow-sm ${
             isOutbound
               ? item.kind === 'sms'
@@ -174,7 +171,42 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
           </span>
           <span>{formatDateTime(item.date)}</span>
           {isOutbound ? <span className="text-[var(--app-accent)]">Sent ✓</span> : <span className="text-stone-400">Received</span>}
+          {item.aiSummary && (
+            <button
+              type="button"
+              onClick={() => setExpanded(v => !v)}
+              className="rounded-full border border-[var(--app-line)] bg-white px-2 py-0.5 font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] hover:border-[var(--app-ink)]"
+            >
+              {expanded ? 'Hide AI' : '✦ AI'}
+            </button>
+          )}
         </div>
+        {expanded && item.aiSummary && (
+          <div className={`w-full max-w-[90%] rounded-[10px] border border-[var(--app-line)] bg-white p-4 ${isOutbound ? 'self-end' : 'self-start'}`}>
+            <div className="mb-2 flex items-center gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Message Intelligence</span>
+              {item.aiSummary.moveReadiness === 'hot' && <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700">🔥 Hot</span>}
+              {item.aiSummary.moveReadiness === 'warm' && <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">⚡ Warm</span>}
+              {item.aiSummary.moveReadiness === 'cold' && <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-500">❄ Cold</span>}
+              {item.aiSummary.sentiment && (
+                <span className={`text-[10px] font-semibold capitalize ${sentimentColor}`}>● {item.aiSummary.sentiment}</span>
+              )}
+            </div>
+            <p className="text-sm leading-6 text-stone-800">{item.aiSummary.summary}</p>
+            {item.aiSummary.intent && (
+              <p className="mt-1 text-xs text-[var(--app-muted)]"><span className="font-semibold">Intent:</span> {item.aiSummary.intent}</p>
+            )}
+            {item.aiSummary.leadConcern && (
+              <p className="mt-1 text-xs text-rose-600"><span className="font-semibold">Concern:</span> {item.aiSummary.leadConcern}</p>
+            )}
+            {item.aiSummary.nextAction && (
+              <p className="mt-2 rounded-[6px] bg-[var(--app-bg)] px-3 py-2 text-xs font-medium text-[var(--app-ink)]">→ {item.aiSummary.nextAction}</p>
+            )}
+            {item.aiSummary.coachingTip && (
+              <p className="mt-2 rounded-[6px] bg-[#1a2744] px-3 py-2 text-xs text-white"><span className="font-semibold opacity-60">Coach:</span> {item.aiSummary.coachingTip}</p>
+            )}
+          </div>
+        )}
       </div>
     )
   }

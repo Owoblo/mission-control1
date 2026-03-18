@@ -331,6 +331,7 @@ export default function SalesLeadDetailPage() {
       text: item.notes || 'Follow-up logged',
       date: item.date,
       actor: 'rep',
+      aiSummary: item.aiSummary,
     }))
 
     return [...systemEvents, ...logs, ...fu].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())

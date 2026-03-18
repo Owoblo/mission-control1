@@ -52,6 +52,19 @@ export type QuoteStatus = 'draft' | 'sent' | 'viewed' | 'accepted' | 'declined' 
 export type PaymentStatus = 'pending' | 'deposit_received' | 'paid_in_full'
 export type FollowUpType = 'note' | 'call' | 'sms' | 'email' | 'visit' | 'view' | 'accept' | 'decline' | 'consultation' | 'status_change'
 
+export interface AISummary {
+  summary?: string
+  sentiment?: 'positive' | 'neutral' | 'negative'
+  intent?: string
+  leadConcern?: string
+  decisionMaker?: string
+  nextAction?: string
+  followUpDays?: number
+  followUpReason?: string
+  coachingTip?: string
+  moveReadiness?: 'hot' | 'warm' | 'cold'
+}
+
 export interface CallLogEntry {
   id: string
   type: string
@@ -67,16 +80,7 @@ export interface CallLogEntry {
   transcript?: string
   isVoicemail?: boolean
   source?: 'dialer' | 'inbound' | 'consultation' | 'manual'
-  aiSummary?: {
-    summary?: string
-    leadConcern?: string
-    decisionMaker?: string
-    nextAction?: string
-    followUpDays?: number
-    followUpReason?: string
-    coachingTip?: string
-    moveReadiness?: 'hot' | 'warm' | 'cold'
-  }
+  aiSummary?: AISummary
 }
 
 export interface InventoryItem {
@@ -322,6 +326,7 @@ export interface FollowUpLog {
   date: string
   createdAt: string
   notes?: string
+  aiSummary?: AISummary
 }
 
 export interface SalesDashboardSummary {
