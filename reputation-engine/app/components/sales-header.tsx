@@ -5,20 +5,24 @@ import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { LogoutButton } from '@/app/components/logout-button'
 import { NewLeadModal } from '@/app/components/sales/new-lead-modal'
+import { useCurrentUser } from '@/lib/hooks/use-current-user'
 
-const NAV_ITEMS = [
-  { href: '/sales', label: 'Dashboard', match: (path: string) => path === '/sales' },
-  { href: '/sales/pipeline', label: 'Pipeline', match: (path: string) => path.startsWith('/sales/pipeline') },
-  { href: '/sales/inbox', label: 'Inbox', match: (path: string) => path.startsWith('/sales/inbox') },
-  { href: '/sales/quotes', label: 'Quotes', match: (path: string) => path.startsWith('/sales/quotes') },
-  { href: '/sales/booked', label: 'Booked', match: (path: string) => path.startsWith('/sales/booked') },
-  { href: '/sales/operations', label: 'Operations', match: (path: string) => path.startsWith('/sales/operations') },
-  { href: '/trigger', label: 'Complete Job', match: (path: string) => path === '/trigger' },
+const BASE_NAV = [
+  { href: '/sales', label: 'Dashboard', match: (p: string) => p === '/sales', roles: ['owner', 'manager', 'sales_rep'] },
+  { href: '/sales/pipeline', label: 'Pipeline', match: (p: string) => p.startsWith('/sales/pipeline'), roles: ['owner', 'manager', 'sales_rep'] },
+  { href: '/sales/inbox', label: 'Inbox', match: (p: string) => p.startsWith('/sales/inbox'), roles: ['owner', 'manager', 'sales_rep'] },
+  { href: '/sales/quotes', label: 'Quotes', match: (p: string) => p.startsWith('/sales/quotes'), roles: ['owner', 'manager', 'sales_rep'] },
+  { href: '/sales/booked', label: 'Booked', match: (p: string) => p.startsWith('/sales/booked'), roles: ['owner', 'manager', 'sales_rep'] },
+  { href: '/sales/operations', label: 'Operations', match: (p: string) => p.startsWith('/sales/operations'), roles: ['owner', 'manager'] },
+  { href: '/admin/users', label: 'Team', match: (p: string) => p.startsWith('/admin'), roles: ['owner'] },
 ]
 
 export function SalesHeader() {
   const pathname = usePathname()
   const router = useRouter()
+  const user = useCurrentUser()
+  const role = user?.role ?? 'owner'
+
   const [query, setQuery] = useState('')
   const [newLeadOpen, setNewLeadOpen] = useState(false)
 
@@ -28,7 +32,6 @@ export function SalesHeader() {
     setQuery(params.get('q') || '')
   }, [pathname])
 
-  // Allow other components to open the modal via a custom event
   useEffect(() => {
     function onOpen() { setNewLeadOpen(true) }
     window.addEventListener('crm:new-lead', onOpen)
@@ -44,6 +47,9 @@ export function SalesHeader() {
     router.replace(next ? `${pathname}?${next}` : pathname)
   }
 
+  const navItems = BASE_NAV.filter(item => item.roles.includes(role))
+  const initials = user?.name ? user.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : 'SS'
+
   return (
     <>
       <header className="sticky top-0 z-40 border-b border-[var(--app-line)] bg-[var(--app-panel-strong)]">
@@ -54,20 +60,27 @@ export function SalesHeader() {
               <div className="truncate font-semibold tracking-tight text-[var(--app-ink)]">Saturn Star OS</div>
             </Link>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setNewLeadOpen(true)}
-                className="crm-button-dark h-9 px-3 text-sm"
+              {(role === 'owner' || role === 'manager' || role === 'sales_rep') && (
+                <button
+                  onClick={() => setNewLeadOpen(true)}
+                  className="crm-button-dark h-9 px-3 text-sm"
+                >
+                  New Lead
+                </button>
+              )}
+              <div
+                title={user?.name ?? ''}
+                className="hidden h-8 w-8 items-center justify-center rounded bg-[var(--app-line)] text-xs font-semibold text-[var(--app-ink)] sm:flex"
               >
-                New Lead
-              </button>
-              <div className="hidden h-8 w-8 items-center justify-center rounded bg-[var(--app-line)] text-xs font-semibold text-[var(--app-ink)] sm:flex">SS</div>
+                {initials}
+              </div>
               <LogoutButton />
             </div>
           </div>
 
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <nav className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1 md:gap-6 md:px-0 md:pb-0">
-              {NAV_ITEMS.map(item => {
+              {navItems.map(item => {
                 const active = item.match(pathname)
                 return (
                   <Link
@@ -83,6 +96,7 @@ export function SalesHeader() {
                   </Link>
                 )
               })}
+              {/* Mobile-only Leads link */}
               <Link
                 href="/sales/leads"
                 className={`shrink-0 rounded-full border px-3 py-2 text-sm font-medium transition md:hidden ${

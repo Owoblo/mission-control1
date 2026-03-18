@@ -1,6 +1,15 @@
 const SESSION_COOKIE = 'mc_session'
 const SESSION_TTL_MS = 1000 * 60 * 60 * 12
 
+export type UserRole = 'owner' | 'manager' | 'sales_rep' | 'crew'
+
+export interface SessionPayload {
+  exp: number
+  userId?: string
+  role?: UserRole
+  name?: string
+}
+
 function toBase64Url(input: ArrayBuffer | string) {
   const bytes =
     typeof input === 'string'
@@ -46,27 +55,39 @@ export function getSessionCookieName() {
   return SESSION_COOKIE
 }
 
-export async function createSessionToken() {
-  const payload = {
+export async function createSessionToken(options?: {
+  userId?: string
+  role?: UserRole
+  name?: string
+}) {
+  const payload: SessionPayload = {
     exp: Date.now() + SESSION_TTL_MS,
+    ...options,
   }
   const encodedPayload = toBase64Url(JSON.stringify(payload))
   const encodedSignature = await sign(encodedPayload, getAuthSecret())
   return `${encodedPayload}.${encodedSignature}`
 }
 
-export async function verifySessionToken(token?: string | null) {
-  if (!token) return false
+export async function getSessionPayload(token?: string | null): Promise<SessionPayload | null> {
+  if (!token) return null
   const [encodedPayload, encodedSignature] = token.split('.')
-  if (!encodedPayload || !encodedSignature) return false
+  if (!encodedPayload || !encodedSignature) return null
 
   const expectedSignature = await sign(encodedPayload, getAuthSecret())
-  if (expectedSignature !== encodedSignature) return false
+  if (expectedSignature !== encodedSignature) return null
 
   try {
-    const payload = JSON.parse(new TextDecoder().decode(fromBase64Url(encodedPayload))) as { exp?: number }
-    return typeof payload.exp === 'number' && payload.exp > Date.now()
+    const payload = JSON.parse(
+      new TextDecoder().decode(fromBase64Url(encodedPayload))
+    ) as SessionPayload
+    if (typeof payload.exp !== 'number' || payload.exp <= Date.now()) return null
+    return payload
   } catch {
-    return false
+    return null
   }
+}
+
+export async function verifySessionToken(token?: string | null): Promise<boolean> {
+  return (await getSessionPayload(token)) !== null
 }

@@ -4,7 +4,14 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { updateSalesLead } from '@/lib/sales-api'
 import { formatDate, formatMoney } from '@/lib/sales'
+import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import type { CRMLead, CRMQuote } from '@/lib/types'
+
+interface CrewMember {
+  id: string
+  name: string
+  role: string
+}
 
 type Job = {
   lead: CRMLead
@@ -51,11 +58,14 @@ function PaymentBadge({ lead }: { lead: CRMLead }) {
 }
 
 export default function OperationsPage() {
+  const currentUser = useCurrentUser()
   const [jobs, setJobs] = useState<Job[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [completingId, setCompletingId] = useState<string | null>(null)
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set())
+  const [crewPool, setCrewPool] = useState<CrewMember[]>([])
+  const [assigningJob, setAssigningJob] = useState<Job | null>(null)
 
   async function loadJobs() {
     try {
@@ -74,6 +84,11 @@ export default function OperationsPage() {
 
   useEffect(() => {
     void loadJobs()
+    // Load crew pool for managers/owners
+    fetch('/api/admin/users', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : [])
+      .then((users: CrewMember[]) => setCrewPool(users.filter(u => u.role === 'crew' || u.role === 'manager')))
+      .catch(() => null)
   }, [])
 
   async function markComplete(job: Job) {
@@ -161,6 +176,21 @@ export default function OperationsPage() {
           </div>
         )}
 
+        {/* Assigned crew */}
+        {(lead.assignedCrew?.length ?? 0) > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {lead.assignedCrew!.map(id => {
+              const member = crewPool.find(c => c.id === id)
+              if (!member) return null
+              return (
+                <span key={id} className="inline-flex items-center gap-1 rounded-full bg-[#1a2744]/10 px-2.5 py-1 text-xs font-medium text-[#1a2744]">
+                  👤 {member.name}
+                </span>
+              )
+            })}
+          </div>
+        )}
+
         {/* Contact + actions */}
         <div className="flex flex-wrap items-center gap-2">
           {lead.phone ? (
@@ -174,6 +204,14 @@ export default function OperationsPage() {
             </a>
           ) : null}
           <div className="ml-auto flex gap-2">
+            {(currentUser?.role === 'owner' || currentUser?.role === 'manager') && crewPool.length > 0 && (
+              <button
+                onClick={() => setAssigningJob(job)}
+                className="rounded-lg border border-[#1a2744]/30 px-3 py-1.5 text-xs font-medium text-[#1a2744] hover:bg-[#1a2744]/5 transition"
+              >
+                👥 Crew
+              </button>
+            )}
             <Link
               href={`/sales/leads/${lead.id}`}
               className="rounded-lg bg-[#1a2744] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 transition"
@@ -261,6 +299,111 @@ export default function OperationsPage() {
           )}
         </>
       )}
+
+      {/* Crew Assignment Modal */}
+      {assigningJob && (
+        <CrewAssignModal
+          job={assigningJob}
+          crewPool={crewPool}
+          onClose={() => setAssigningJob(null)}
+          onSave={updated => {
+            setJobs(prev => prev.map(j => j.lead.id === updated.id ? { ...j, lead: updated } : j))
+            setAssigningJob(null)
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function CrewAssignModal({
+  job,
+  crewPool,
+  onClose,
+  onSave,
+}: {
+  job: Job
+  crewPool: CrewMember[]
+  onClose: () => void
+  onSave: (lead: CRMLead) => void
+}) {
+  const [selected, setSelected] = useState<string[]>(job.lead.assignedCrew ?? [])
+  const [note, setNote] = useState(job.lead.crewNote ?? '')
+  const [busy, setBusy] = useState(false)
+
+  function toggle(id: string) {
+    setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  async function save() {
+    setBusy(true)
+    try {
+      const { updateSalesLead } = await import('@/lib/sales-api')
+      const updated = await updateSalesLead(job.lead.id, {
+        assignedCrew: selected,
+        crewNote: note || undefined,
+      } as Partial<CRMLead>)
+      onSave(updated as CRMLead)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(15,27,56,0.55)', backdropFilter: 'blur(2px)' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
+        <div className="bg-[#1a2744] px-6 py-5" style={{ borderBottom: '2px solid #f5a623' }}>
+          <h2 className="text-base font-bold text-white">Assign Crew</h2>
+          <p className="mt-0.5 text-xs text-white/60">{job.lead.name} — {job.quote?.moveDate || job.lead.moveDate || 'Date TBD'}</p>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="space-y-2">
+            {crewPool.map(member => (
+              <label key={member.id} className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50 transition">
+                <input
+                  type="checkbox"
+                  checked={selected.includes(member.id)}
+                  onChange={() => toggle(member.id)}
+                  className="h-4 w-4 accent-[#1a2744]"
+                />
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1a2744] text-xs font-bold text-[#f5a623]">
+                  {member.name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)}
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-[#1a2744]">{member.name}</div>
+                  <div className="text-xs capitalize text-slate-400">{member.role.replace('_', ' ')}</div>
+                </div>
+              </label>
+            ))}
+            {crewPool.length === 0 && (
+              <p className="text-sm text-slate-400">No crew members added yet. Go to Team → Add Team Member.</p>
+            )}
+          </div>
+          <label className="block">
+            <span className="crm-label">Crew Notes</span>
+            <textarea
+              className="crm-input mt-1 h-20 resize-none"
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              placeholder="e.g. Marcus leads, bring extra wardrobe boxes"
+            />
+          </label>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition">Cancel</button>
+            <button
+              onClick={() => void save()}
+              disabled={busy}
+              className="flex-1 rounded-xl bg-[#1a2744] px-4 py-2.5 text-sm font-bold text-white hover:opacity-90 transition disabled:opacity-60"
+            >
+              {busy ? 'Saving...' : 'Save Assignment'}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

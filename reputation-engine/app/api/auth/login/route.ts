@@ -1,26 +1,72 @@
 import { NextResponse } from 'next/server'
-import { createSessionToken, getSessionCookieName } from '@/lib/auth'
+import bcrypt from 'bcryptjs'
+import { createSessionToken, getSessionCookieName, type UserRole } from '@/lib/auth'
+import { requireSupabaseEnv } from '@/lib/server/runtime'
+
+interface AppUser {
+  id: string
+  email: string
+  password_hash: string
+  name: string
+  role: UserRole
+}
+
+async function findUserByEmail(email: string): Promise<AppUser | null> {
+  const { url, headers } = requireSupabaseEnv()
+  const res = await fetch(
+    `${url}/rest/v1/app_users?email=eq.${encodeURIComponent(email.toLowerCase())}&limit=1`,
+    { headers, cache: 'no-store' }
+  )
+  if (!res.ok) return null
+  const rows = (await res.json()) as AppUser[]
+  return rows[0] ?? null
+}
+
+function cookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: 60 * 60 * 12,
+  }
+}
 
 export async function POST(request: Request) {
   try {
-    const payload = (await request.json()) as { password?: string }
-    const expectedPassword = process.env.AUTH_PASSWORD
-    if (!expectedPassword) {
-      return NextResponse.json({ error: 'Missing AUTH_PASSWORD' }, { status: 500 })
+    const payload = (await request.json()) as { email?: string; password?: string }
+
+    if (!payload.password) {
+      return NextResponse.json({ error: 'Password required' }, { status: 400 })
     }
 
-    if (!payload.password || payload.password !== expectedPassword) {
+    // --- Multi-user path: email + password ---
+    if (payload.email) {
+      const user = await findUserByEmail(payload.email)
+      if (!user) {
+        return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
+      }
+
+      const match = await bcrypt.compare(payload.password, user.password_hash)
+      if (!match) {
+        return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
+      }
+
+      const token = await createSessionToken({ userId: user.id, role: user.role, name: user.name })
+      const response = NextResponse.json({ ok: true, role: user.role, name: user.name })
+      response.cookies.set(getSessionCookieName(), token, cookieOptions())
+      return response
+    }
+
+    // --- Legacy owner path: password only (AUTH_PASSWORD env var) ---
+    const expectedPassword = process.env.AUTH_PASSWORD
+    if (!expectedPassword || payload.password !== expectedPassword) {
       return NextResponse.json({ error: 'Invalid password' }, { status: 401 })
     }
 
-    const response = NextResponse.json({ ok: true })
-    response.cookies.set(getSessionCookieName(), await createSessionToken(), {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      path: '/',
-      maxAge: 60 * 60 * 12,
-    })
+    const token = await createSessionToken({ role: 'owner', name: 'Owner' })
+    const response = NextResponse.json({ ok: true, role: 'owner', name: 'Owner' })
+    response.cookies.set(getSessionCookieName(), token, cookieOptions())
     return response
   } catch (error) {
     return NextResponse.json(

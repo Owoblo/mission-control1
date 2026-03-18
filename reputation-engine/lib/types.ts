@@ -222,6 +222,9 @@ export interface CRMLead {
   // Context + assignment
   contextFlag?: string
   assignedRep?: string
+  // Crew assignment (array of app_user IDs)
+  assignedCrew?: string[]
+  crewNote?: string
   // Estimate appointment
   estimateDate?: string
   estimateTime?: string
