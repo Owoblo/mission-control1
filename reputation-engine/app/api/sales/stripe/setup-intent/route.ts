@@ -2,12 +2,23 @@
  * POST /api/sales/stripe/setup-intent
  * Creates a Stripe SetupIntent so we can collect and save card details
  * directly in the CRM without redirecting to Stripe Checkout.
- * Returns a client_secret for use with Stripe Elements on the frontend.
+ * Uses raw fetch (no SDK) — same pattern as the checkout route.
  */
 import { NextResponse } from 'next/server'
-import Stripe from 'stripe'
 import { hasInternalSession } from '@/lib/server/session'
 import { listSalesLeads } from '@/lib/server/sales-repository'
+
+async function stripePost(path: string, key: string, body: URLSearchParams) {
+  const res = await fetch(`https://api.stripe.com/v1/${path}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: body.toString(),
+  })
+  return res.json() as Promise<Record<string, unknown>>
+}
 
 export async function POST(request: Request) {
   const authed = await hasInternalSession()
@@ -24,38 +35,34 @@ export async function POST(request: Request) {
     const lead = leads.find(l => l.id === leadId)
     if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
 
-    const stripe = new Stripe(stripeKey, { apiVersion: '2026-02-25.clover', httpClient: Stripe.createNodeHttpClient() })
+    // Create Stripe customer
+    const custParams = new URLSearchParams()
+    if (lead.name)  custParams.set('name',  lead.name)
+    if (lead.email) custParams.set('email', lead.email)
+    if (lead.phone) custParams.set('phone', lead.phone)
+    custParams.set('metadata[leadId]', leadId)
 
-    // Create or reuse Stripe customer for this lead
-    let customerId: string | undefined
-    const existing = await stripe.customers.search({
-      query: `email:"${lead.email || ''}" AND metadata["leadId"]:"${leadId}"`,
-      limit: 1,
-    }).catch(() => ({ data: [] }))
-
-    if (existing.data.length > 0) {
-      customerId = existing.data[0].id
-    } else {
-      const customer = await stripe.customers.create({
-        name: lead.name || undefined,
-        email: lead.email || undefined,
-        phone: lead.phone || undefined,
-        metadata: { leadId },
-      })
-      customerId = customer.id
+    const customer = await stripePost('customers', stripeKey, custParams) as { id?: string; error?: { message?: string } }
+    if (!customer.id) {
+      return NextResponse.json({ error: customer.error?.message || 'Could not create Stripe customer' }, { status: 502 })
     }
 
-    const setupIntent = await stripe.setupIntents.create({
-      customer: customerId,
-      payment_method_types: ['card'],
-      usage: 'off_session',
-      metadata: { leadId },
-    })
+    // Create SetupIntent
+    const siParams = new URLSearchParams()
+    siParams.set('customer', customer.id)
+    siParams.set('payment_method_types[0]', 'card')
+    siParams.set('usage', 'off_session')
+    siParams.set('metadata[leadId]', leadId)
+
+    const si = await stripePost('setup_intents', stripeKey, siParams) as { id?: string; client_secret?: string; error?: { message?: string } }
+    if (!si.client_secret) {
+      return NextResponse.json({ error: si.error?.message || 'Could not create SetupIntent' }, { status: 502 })
+    }
 
     return NextResponse.json({
-      clientSecret: setupIntent.client_secret,
-      customerId,
-      setupIntentId: setupIntent.id,
+      clientSecret: si.client_secret,
+      customerId: customer.id,
+      setupIntentId: si.id,
     })
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Setup failed' }, { status: 500 })

@@ -1,12 +1,30 @@
 /**
  * POST /api/sales/stripe/save-payment-method
  * After client-side Stripe Elements confirmation, saves the payment method
- * details to the lead's quote so we can charge deposit + balance later.
+ * and optionally charges the deposit. Uses raw fetch (no SDK).
  */
 import { NextResponse } from 'next/server'
-import Stripe from 'stripe'
 import { hasInternalSession } from '@/lib/server/session'
 import { getSalesQuote, listSalesLeads, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
+
+async function stripeGet(path: string, key: string) {
+  const res = await fetch(`https://api.stripe.com/v1/${path}`, {
+    headers: { Authorization: `Bearer ${key}` },
+  })
+  return res.json() as Promise<Record<string, unknown>>
+}
+
+async function stripePost(path: string, key: string, body: URLSearchParams) {
+  const res = await fetch(`https://api.stripe.com/v1/${path}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: body.toString(),
+  })
+  return res.json() as Promise<Record<string, unknown>>
+}
 
 export async function POST(request: Request) {
   const authed = await hasInternalSession()
@@ -24,21 +42,25 @@ export async function POST(request: Request) {
       chargeDepositNow?: boolean
     }
 
-    const stripe = new Stripe(stripeKey, { apiVersion: '2026-02-25.clover', httpClient: Stripe.createNodeHttpClient() })
-
-    // Confirm the SetupIntent is succeeded and get the payment method
-    const si = await stripe.setupIntents.retrieve(setupIntentId)
+    // Verify SetupIntent succeeded and get payment method
+    const si = await stripeGet(`setup_intents/${setupIntentId}`, stripeKey) as {
+      status?: string
+      payment_method?: string
+      error?: { message?: string }
+    }
     if (si.status !== 'succeeded') {
       return NextResponse.json({ error: `Card not confirmed — status: ${si.status}` }, { status: 400 })
     }
 
-    const paymentMethodId = typeof si.payment_method === 'string' ? si.payment_method : si.payment_method?.id
+    const paymentMethodId = si.payment_method
     if (!paymentMethodId) {
       return NextResponse.json({ error: 'No payment method on setup intent' }, { status: 400 })
     }
 
-    // Get payment method details for display (last4, brand)
-    const pm = await stripe.paymentMethods.retrieve(paymentMethodId)
+    // Get card details (brand + last4)
+    const pm = await stripeGet(`payment_methods/${paymentMethodId}`, stripeKey) as {
+      card?: { brand?: string; last4?: string }
+    }
     const cardBrand = pm.card?.brand || 'card'
     const cardLast4 = pm.card?.last4 || '????'
 
@@ -49,22 +71,26 @@ export async function POST(request: Request) {
     let depositCharged = false
     let depositAmount = 0
 
-    // Optionally charge the deposit immediately
     if (chargeDepositNow && quoteId) {
       const quote = await getSalesQuote(quoteId)
       if (quote && quote.deposit > 0) {
-        const pi = await stripe.paymentIntents.create({
-          amount: Math.round(quote.deposit * 100),
-          currency: 'cad',
-          customer: customerId,
-          payment_method: paymentMethodId,
-          confirm: true,
-          off_session: true,
-          description: `Deposit – ${quote.number} – ${lead.name}`,
-          metadata: { quoteId: quote.id, leadId, type: 'deposit' },
-        })
+        const piParams = new URLSearchParams()
+        piParams.set('amount', String(Math.round(quote.deposit * 100)))
+        piParams.set('currency', 'cad')
+        piParams.set('customer', customerId)
+        piParams.set('payment_method', paymentMethodId)
+        piParams.set('confirm', 'true')
+        piParams.set('off_session', 'true')
+        piParams.set('description', `Deposit – ${quote.number} – ${lead.name}`)
+        piParams.set('metadata[quoteId]', quote.id)
+        piParams.set('metadata[leadId]', leadId)
+        piParams.set('metadata[type]', 'deposit')
 
-        if (pi.status === 'succeeded') {
+        const pi = await stripePost('payment_intents', stripeKey, piParams) as {
+          id?: string; status?: string; error?: { message?: string }
+        }
+
+        if (pi.status === 'succeeded' && pi.id) {
           depositCharged = true
           depositAmount = quote.deposit
           const now = new Date().toISOString()
@@ -77,10 +103,11 @@ export async function POST(request: Request) {
             depositStripeCustomerId: customerId,
             depositStripePaymentMethodId: paymentMethodId,
           })
+        } else if (pi.error?.message) {
+          return NextResponse.json({ error: pi.error.message }, { status: 402 })
         }
       }
     } else if (quoteId) {
-      // Just save the card — don't charge yet
       const quote = await getSalesQuote(quoteId)
       if (quote) {
         await saveSalesQuote({
@@ -91,7 +118,6 @@ export async function POST(request: Request) {
       }
     }
 
-    // Update lead payment status
     const updatedLead = await saveSalesLead({
       ...lead,
       paymentStatus: depositCharged ? 'deposit_received' : lead.paymentStatus,
