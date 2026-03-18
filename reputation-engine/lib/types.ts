@@ -179,6 +179,8 @@ export interface PricingBreakdown {
     grossProfit: number
     grossMarginPct: number
   }
+  disassemblyItems: string[]     // item names detected as needing disassembly/reassembly
+  specialtyItemFlags: string[]   // piano, safe, etc. that are included in the move
   intelligenceFlags: {
     twoTruckRequired: boolean    // volume >= 1,400 cu ft (full 26ft truck)
     twoTripZone: boolean         // local move, 900–1,399 cu ft — second trip possible

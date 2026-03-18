@@ -562,6 +562,23 @@ export function estimateLeadQuote(
   const missingDestination = pricingStatus === 'provisional' || missingRequirements.length > 0
 
   const autoDisassemblyCount = suggestDisassemblyCount(lead.inventory || [])
+
+  // Detect which specific items need disassembly — listed by name for scope of work display
+  const disassemblyItemNames = (lead.inventory || [])
+    .filter(item => item.included !== false)
+    .flatMap(item => {
+      const name = (item.name || item.item || '').toLowerCase()
+      if (!DISASSEMBLY_KEYWORDS.some(kw => name.includes(kw))) return []
+      const qty = Math.max(1, Number(item.qty || 1))
+      const displayName = item.name || item.item || ''
+      return qty > 1 ? [`${qty}× ${displayName}`] : [displayName]
+    })
+
+  // Specialty items that ARE being moved (not flagged as "do not move")
+  const specialtyItemFlags: string[] = []
+  if (factors?.hasPiano ?? lead.jobFactors?.hasPiano) specialtyItemFlags.push('Upright Piano')
+  if (factors?.hasSafe ?? lead.jobFactors?.hasSafe) specialtyItemFlags.push('Heavy Safe')
+
   const rawFactors = factors ?? lead.jobFactors
   const activeFactors: JobFactors | undefined = rawFactors
     ? {
@@ -856,6 +873,8 @@ export function estimateLeadQuote(
     baseCubicFeet,
     extraCubicFeet,
     totalCubicFeet,
+    disassemblyItems: disassemblyItemNames,
+    specialtyItemFlags,
     penalties,
     adjustmentBreakdown,
     internalCostEstimate: {

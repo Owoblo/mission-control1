@@ -179,6 +179,7 @@ export function EstimateDraftModal({
     lead.quoteType || 'standard'
   )
   const [distanceKm, setDistanceKm] = useState<number>(0)
+  const [bookTodayActive, setBookTodayActive] = useState(false)
 
   // Manual inventory quick-add state
   const [quickRoom, setQuickRoom] = useState('Living Room')
@@ -949,6 +950,183 @@ export function EstimateDraftModal({
           {/* Sidebar */}
           <aside className="border-t border-[var(--app-line)] bg-[var(--app-bg)] p-4 md:p-6 xl:border-l xl:border-t-0 space-y-6">
 
+            {/* ── MOVE BREAKDOWN ── */}
+            {pricingBreakdown ? (
+              <div>
+                <div className="crm-label mb-3">Move Breakdown</div>
+                <div className="rounded-[8px] border border-[var(--app-line)] bg-white divide-y divide-[var(--app-line)] text-xs overflow-hidden">
+
+                  {/* Foundation */}
+                  <div className="px-3 py-2.5 bg-slate-50">
+                    <div className="font-semibold text-[var(--app-ink)]">{inventoryMetrics.totalCubicFeet} cu ft · {inventoryMetrics.totalWeightLbs.toLocaleString()} lbs</div>
+                    <div className="text-[var(--app-muted)] mt-0.5">{inventoryMetrics.totalItems} items across all rooms</div>
+                  </div>
+
+                  {/* BASE LABOR */}
+                  <div className="px-3 py-2.5 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-[var(--app-ink)] uppercase tracking-wide text-[10px]">Base Labor</span>
+                      <span className="font-semibold text-[var(--app-ink)]">{pricingBreakdown.loadHours + pricingBreakdown.unloadHours}h</span>
+                    </div>
+                    <div className="flex justify-between text-[var(--app-muted)]">
+                      <span>Load (wrap + carry + load)</span>
+                      <span>~{pricingBreakdown.loadHours}h</span>
+                    </div>
+                    <div className="flex justify-between text-[var(--app-muted)]">
+                      <span>Unload (carry + unwrap + place)</span>
+                      <span>~{pricingBreakdown.unloadHours}h</span>
+                    </div>
+                  </div>
+
+                  {/* OUTER — TRAVEL */}
+                  <div className="px-3 py-2.5 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-sky-700 uppercase tracking-wide text-[10px]">Outer — Travel & Access</span>
+                      <span className="font-semibold text-sky-700">{pricingBreakdown.driveHours > 0 ? `+${pricingBreakdown.driveHours}h` : '—'}</span>
+                    </div>
+                    {route?.yardToOrigin && (
+                      <div className="flex justify-between text-[var(--app-muted)]">
+                        <span>Yard → Origin ({route.yardToOrigin.distanceKm} km)</span>
+                        <span>{route.yardToOrigin.driveHours}h</span>
+                      </div>
+                    )}
+                    {route?.originToDestination && (
+                      <div className="flex justify-between text-[var(--app-muted)]">
+                        <span>Origin → Dest ({route.originToDestination.distanceKm} km)</span>
+                        <span>{route.originToDestination.driveHours}h</span>
+                      </div>
+                    )}
+                    {route?.returnToOrigin && (
+                      <div className="flex justify-between text-[var(--app-muted)]">
+                        <span>Return to yard ({route.returnToOrigin.distanceKm} km)</span>
+                        <span>{route.returnToOrigin.driveHours}h</span>
+                      </div>
+                    )}
+                    {!route && pricingBreakdown.driveHours === 0 && (
+                      <div className="text-amber-600">Add destination to calculate travel</div>
+                    )}
+                    {/* Floor / elevator access penalties */}
+                    {pricingBreakdown.adjustmentBreakdown.filter(a => a.category === 'access').map((a, i) => (
+                      <div key={i} className="flex justify-between text-sky-600">
+                        <span>{a.label}</span>
+                        <span>{a.hours > 0 ? `+${a.hours}h` : 'flagged'}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* INNER — ON-SITE SCOPE */}
+                  {(pricingBreakdown.disassemblyItems.length > 0 || pricingBreakdown.specialtyItemFlags.length > 0 || pricingBreakdown.adjustmentBreakdown.some(a => a.category === 'disassembly' || a.category === 'specialty' || a.category === 'packing')) && (
+                    <div className="px-3 py-2.5 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-amber-700 uppercase tracking-wide text-[10px]">Inner — On-site Scope</span>
+                        <span className="font-semibold text-amber-700">
+                          +{pricingBreakdown.adjustmentBreakdown.filter(a => a.category === 'disassembly' || a.category === 'specialty' || a.category === 'packing').reduce((s, a) => s + a.hours, 0)}h
+                        </span>
+                      </div>
+                      {pricingBreakdown.disassemblyItems.length > 0 && (
+                        <>
+                          <div className="flex justify-between text-amber-600">
+                            <span>Disassembly ({pricingBreakdown.disassemblyItems.length} items)</span>
+                            <span>+{pricingBreakdown.adjustmentBreakdown.find(a => a.category === 'disassembly')?.hours ?? 0}h</span>
+                          </div>
+                          <div className="text-[10px] text-[var(--app-muted)] leading-4 pl-2">
+                            {pricingBreakdown.disassemblyItems.join(' · ')}
+                          </div>
+                        </>
+                      )}
+                      {pricingBreakdown.specialtyItemFlags.map((item, i) => (
+                        <div key={i} className="flex justify-between text-amber-600">
+                          <span>{item}</span>
+                          <span className="text-[var(--app-muted)]">specialty</span>
+                        </div>
+                      ))}
+                      {pricingBreakdown.adjustmentBreakdown.filter(a => a.category === 'packing').map((a, i) => (
+                        <div key={i} className="flex justify-between text-amber-600">
+                          <span>{a.label}</span>
+                          <span>+{a.hours}h</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* BUFFERS */}
+                  <div className="px-3 py-2.5 space-y-1">
+                    <div className="flex justify-between text-[var(--app-muted)]">
+                      <span className="uppercase tracking-wide text-[10px]">Buffers</span>
+                      <span>+{pricingBreakdown.bufferHours}h</span>
+                    </div>
+                  </div>
+
+                  {/* TOTAL */}
+                  <div className="px-3 py-3 bg-[#1a2744] text-white space-y-1">
+                    <div className="flex justify-between font-semibold">
+                      <span>{pricingBreakdown.crewSize} movers · {pricingBreakdown.truckCount} truck{pricingBreakdown.truckCount > 1 ? 's' : ''} · ${pricingBreakdown.crewRatePerHour}/hr</span>
+                      <span>{pricingBreakdown.totalHours}h</span>
+                    </div>
+                    <div className="flex justify-between text-sm font-bold text-[#f5a623]">
+                      <span>Estimate</span>
+                      <span>{formatMoney(pricingBreakdown.totalHours * pricingBreakdown.crewRatePerHour)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Plain English — Why This Price */}
+                {(() => {
+                  const baseH = pricingBreakdown.loadHours + pricingBreakdown.unloadHours
+                  const driveH = pricingBreakdown.driveHours
+                  const innerH = pricingBreakdown.adjustmentBreakdown.filter(a => a.category === 'disassembly' || a.category === 'specialty').reduce((s,a) => s + a.hours, 0)
+                  const disItems = pricingBreakdown.disassemblyItems.slice(0, 3).join(', ')
+                  const twoTruck = pricingBreakdown.truckCount >= 2
+                  return (
+                    <div className="mt-3 rounded-[8px] border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-600 leading-5">
+                      <div className="font-semibold text-slate-800 mb-1">Why this price</div>
+                      Loading and unloading {inventoryMetrics.totalCubicFeet} cu ft takes ~{baseH}h base.
+                      {innerH > 0 && disItems && ` Disassembly of ${pricingBreakdown.disassemblyItems.length} items (${disItems}) adds ${innerH}h.`}
+                      {driveH > 0 && ` Travel adds ${driveH}h (${pricingBreakdown.billableDistanceKm ?? '?'} km).`}
+                      {twoTruck && ` Two trucks load in parallel — same crew, faster for the customer.`}
+                    </div>
+                  )
+                })()}
+              </div>
+            ) : null}
+
+            {/* ── SCOPE OF WORK ── */}
+            {pricingBreakdown ? (
+              <div>
+                <div className="crm-label mb-3">Scope of Work</div>
+                <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 px-4 py-3 space-y-1.5 text-xs text-emerald-800">
+                  <div>✓ Moving {inventoryMetrics.totalItems} items ({inventoryMetrics.totalCubicFeet} cu ft)</div>
+                  <div>✓ Wrapping + padding all furniture</div>
+                  {pricingBreakdown.disassemblyItems.length > 0 && (
+                    <div>✓ Disassembly + reassembly: {pricingBreakdown.disassemblyItems.join(', ')}</div>
+                  )}
+                  {pricingBreakdown.specialtyItemFlags.map((item, i) => (
+                    <div key={i}>✓ Specialty handling: {item}</div>
+                  ))}
+                  {/* Boxes from inventory */}
+                  {(() => {
+                    const inventory = lead.inventory || []
+                    const boxSummary: string[] = []
+                    const smallBoxes = inventory.filter(i => i.included !== false && (i.name || '').toLowerCase().includes('small box')).reduce((s, i) => s + (i.qty || 1), 0)
+                    const medBoxes = inventory.filter(i => i.included !== false && (i.name || '').toLowerCase().includes('medium box')).reduce((s, i) => s + (i.qty || 1), 0)
+                    const largeBoxes = inventory.filter(i => i.included !== false && (i.name || '').toLowerCase().includes('large box')).reduce((s, i) => s + (i.qty || 1), 0)
+                    const xlBoxes = inventory.filter(i => i.included !== false && (i.name || '').toLowerCase().includes('xl box')).reduce((s, i) => s + (i.qty || 1), 0)
+                    const tvBoxes = inventory.filter(i => i.included !== false && (i.name || '').toLowerCase().includes('tv box')).reduce((s, i) => s + (i.qty || 1), 0)
+                    if (smallBoxes > 0) boxSummary.push(`${smallBoxes} small`)
+                    if (medBoxes > 0) boxSummary.push(`${medBoxes} medium`)
+                    if (largeBoxes > 0) boxSummary.push(`${largeBoxes} large`)
+                    if (xlBoxes > 0) boxSummary.push(`${xlBoxes} XL`)
+                    if (tvBoxes > 0) boxSummary.push(`${tvBoxes} TV box${tvBoxes > 1 ? 'es' : ''}`)
+                    if (boxSummary.length === 0) return null
+                    return <div>✓ Boxes included: {boxSummary.join(', ')}</div>
+                  })()}
+                  {pricingBreakdown.pricingStatus === 'provisional' && (
+                    <div className="text-amber-700 mt-1">⚠ Travel time provisional — add destination address</div>
+                  )}
+                </div>
+              </div>
+            ) : null}
+
             {/* Pricing Intelligence */}
             {pricingBreakdown ? (
               <div>
@@ -1159,7 +1337,45 @@ export function EstimateDraftModal({
                   <div className="mt-1 text-lg font-medium text-[var(--app-ink)]">{formatMoney(quoteModalTotals.deposit)}</div>
                 </div>
               </div>
-              <div className="mt-6 space-y-3">
+              {/* Book Today Discount */}
+              <div className="mt-4 rounded-[8px] border border-[var(--app-line)] bg-white p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-semibold text-[var(--app-ink)]">Book Today Discount</div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !bookTodayActive
+                      setBookTodayActive(next)
+                      if (next) {
+                        // Add $150 early booking discount as a line item
+                        void (async () => {
+                          onAddLineItem()
+                          await new Promise(r => setTimeout(r, 50))
+                          const last = quoteLineItems.length
+                          onUpdateLineItem(last, 'description', 'Early Booking Discount')
+                          onUpdateLineItem(last, 'details', 'Book today — price guaranteed until your move date')
+                          onUpdateLineItem(last, 'amount', '-150')
+                        })()
+                      } else {
+                        // Remove the discount line item if it exists
+                        const idx = quoteLineItems.findIndex(li => li.description === 'Early Booking Discount')
+                        if (idx >= 0) onRemoveLineItem(idx)
+                      }
+                    }}
+                    className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-colors ${bookTodayActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}
+                  >
+                    {bookTodayActive ? 'Active' : 'Off'}
+                  </button>
+                </div>
+                {bookTodayActive && (
+                  <div className="text-xs text-[var(--app-muted)] leading-5">
+                    A <span className="font-semibold text-emerald-700">$150 early-booking discount</span> will be added to the quote.
+                    Customer locks in the price today — deal holds until their move date.
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-4 space-y-3">
                 <button onClick={onSaveAndPreview} disabled={quoteModalBusy || !quote} className="w-full justify-center rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
                   {quoteModalBusy ? 'Saving...' : 'Preview & Send →'}
                 </button>
