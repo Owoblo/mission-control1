@@ -124,6 +124,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
   const tone = eventTone(item)
 
   const isCallKind = item.kind === 'call' || item.kind === 'consultation'
+  // Show analyze button if there's a recording URL and no AI summary yet (includes voicemails with transcripts)
   const needsTranscription = isCallKind && !!item.recordingUrl && !item.aiSummary
 
   async function handleRetranscribe() {
@@ -303,7 +304,15 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
                       <span>Recording</span>
                       <span>{item.phone || 'Attached audio'}</span>
                     </div>
-                    <audio controls className="w-full" src={item.recordingUrl}>
+                    <audio
+                      controls
+                      className="w-full"
+                      src={
+                        item.recordingUrl.startsWith('https://api.twilio.com/')
+                          ? `/api/sales/dialer/recording?url=${encodeURIComponent(item.recordingUrl)}`
+                          : item.recordingUrl
+                      }
+                    >
                       Your browser does not support audio playback.
                     </audio>
                   </div>

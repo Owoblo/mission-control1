@@ -48,9 +48,11 @@ export async function POST(request: Request) {
     const mapping = await getCrmCallSidMapping(callSid).catch(() => null)
     if (mapping) {
       const lead = await getSalesLead(mapping.leadId).catch(() => null)
-      // Don't run AI summary on voicemail greetings — they're not useful
-      const aiSummary = transcript && lead && !isVoicemail
-        ? await summarizePhoneCall(lead, transcript).catch(() => null)
+      // Run AI summary on all calls including voicemails — isMeaninglessTranscript()
+      // inside summarizePhoneCall will catch true blanks. Voicemails often contain
+      // useful info (move date, what was discussed, callback number).
+      const aiSummary = transcript && lead
+        ? await summarizePhoneCall(lead, transcript, isVoicemail ? 'outbound' : undefined).catch(() => null)
         : null
 
       await updateLeadCallLogEntry(mapping.leadId, mapping.callLogId, {
