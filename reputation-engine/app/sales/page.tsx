@@ -21,7 +21,7 @@ function buildLiveFeedEvents(lead: CRMLead, quote?: CRMQuote, followUps?: Follow
   // Include follow-up logs (SMS, email, notes) for this lead
   ;(followUps || []).filter(f => f.leadId === lead.id && f.type !== 'note').forEach(f => {
     const prefix = f.type === 'sms' ? 'SMS sent' : f.type === 'email' ? 'Email sent' : f.type
-    const preview = f.message ? ` — "${f.message.slice(0, 60)}${f.message.length > 60 ? '…' : ''}"` : ''
+    const preview = f.notes ? ` — "${f.notes.slice(0, 60)}${f.notes.length > 60 ? '…' : ''}"` : ''
     events.push({ text: `${prefix}${preview}`, date: f.date || f.createdAt, tone: 'neutral' })
   })
   if (quote?.status === 'declined') events.push({ text: `${quote.number} declined.`, date: quote.respondedAt || quote.createdAt, tone: 'neutral' })
