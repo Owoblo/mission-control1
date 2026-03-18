@@ -488,6 +488,14 @@ export default function SalesLeadDetailPage() {
     recalculateEstimate(options)
   }, [lead, inventory, inventoryMetrics.totalCubicFeet, inventoryMetrics.totalWeightLbs, moveType, jobFactors])
 
+  // Re-derive line items whenever inventory changes while the modal is open
+  // This fixes stale subtotals that were saved before the inventory scan ran
+  useEffect(() => {
+    if (!quoteModalOpen || !lead) return
+    recalculateEstimate()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inventoryMetrics.totalCubicFeet, inventoryMetrics.totalWeightLbs, quoteModalOpen])
+
   useEffect(() => {
     if (!lead) return
     const autosaveSignature = buildLeadSignature({

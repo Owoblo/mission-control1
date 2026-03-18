@@ -240,7 +240,7 @@ export function EstimateDraftModal({
   }, [open, originFull, destFull])
 
   useEffect(() => {
-    if (!open || !originFull) return
+    if (!open) return
     onRecalculate({
       quoteType,
       distanceKm: distanceKm || route?.distanceKm || undefined,
