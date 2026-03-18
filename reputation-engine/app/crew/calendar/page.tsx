@@ -138,6 +138,35 @@ function JobCard({ job }: { job: Job }) {
         </div>
       ) : null}
 
+      {/* Job nature */}
+      {(lead.moveType || lead.moveReason || (lead.inventory && lead.inventory.length > 0)) && (
+        <div className="rounded-xl border border-[var(--app-line)] bg-slate-50 px-3 py-2.5 space-y-1.5 text-xs text-slate-600">
+          {lead.moveType && (
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-[#1a2744]">Move type:</span>
+              <span className="capitalize">{lead.moveType.replace(/_/g, ' ')}</span>
+            </div>
+          )}
+          {lead.inventory && lead.inventory.length > 0 && (
+            <div>
+              <span className="font-semibold text-[#1a2744]">Key items: </span>
+              {lead.inventory.slice(0, 6).map(i => i.name).join(', ')}
+              {lead.inventory.length > 6 ? ` +${lead.inventory.length - 6} more` : ''}
+            </div>
+          )}
+          {lead.jobFactors?.specialtyNotes && (
+            <div className="font-medium text-amber-700">
+              ⚠️ Specialty items: {lead.jobFactors.specialtyNotes}
+            </div>
+          )}
+          {lead.crewNote && (
+            <div className="rounded-lg bg-amber-50 border border-amber-100 px-2 py-1.5 text-amber-800">
+              <span className="font-semibold">Note: </span>{lead.crewNote}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Contact */}
       {lead.phone && (
         <a

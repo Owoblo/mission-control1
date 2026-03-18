@@ -8,14 +8,14 @@ import { NewLeadModal } from '@/app/components/sales/new-lead-modal'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 
 const BASE_NAV = [
-  { href: '/sales', label: 'Dashboard', match: (p: string) => p === '/sales', roles: ['owner', 'manager', 'sales_rep'] },
-  { href: '/sales/pipeline', label: 'Pipeline', match: (p: string) => p.startsWith('/sales/pipeline'), roles: ['owner', 'manager', 'sales_rep'] },
-  { href: '/sales/inbox', label: 'Inbox', match: (p: string) => p.startsWith('/sales/inbox'), roles: ['owner', 'manager', 'sales_rep'] },
-  { href: '/sales/quotes', label: 'Quotes', match: (p: string) => p.startsWith('/sales/quotes'), roles: ['owner', 'manager', 'sales_rep'] },
-  { href: '/sales/booked', label: 'Booked', match: (p: string) => p.startsWith('/sales/booked'), roles: ['owner', 'manager', 'sales_rep'] },
-  { href: '/sales/operations', label: 'Operations', match: (p: string) => p.startsWith('/sales/operations'), roles: ['owner', 'manager'] },
-  { href: '/admin/users', label: 'Team', match: (p: string) => p.startsWith('/admin'), roles: ['owner'] },
-  { href: '/marketing', label: 'Market Engine', match: (p: string) => p.startsWith('/marketing'), roles: ['owner', 'manager'] },
+  { href: '/sales', label: 'Dashboard', match: (p: string) => p === '/sales', roles: ['owner', 'manager', 'sales_rep'], badge: false },
+  { href: '/sales/pipeline', label: 'Pipeline', match: (p: string) => p.startsWith('/sales/pipeline'), roles: ['owner', 'manager', 'sales_rep'], badge: false },
+  { href: '/sales/inbox', label: 'Inbox', match: (p: string) => p.startsWith('/sales/inbox'), roles: ['owner', 'manager', 'sales_rep'], badge: true },
+  { href: '/sales/quotes', label: 'Quotes', match: (p: string) => p.startsWith('/sales/quotes'), roles: ['owner', 'manager', 'sales_rep'], badge: false },
+  { href: '/sales/booked', label: 'Booked', match: (p: string) => p.startsWith('/sales/booked'), roles: ['owner', 'manager', 'sales_rep'], badge: false },
+  { href: '/sales/operations', label: 'Operations', match: (p: string) => p.startsWith('/sales/operations'), roles: ['owner', 'manager'], badge: false },
+  { href: '/admin/users', label: 'Team', match: (p: string) => p.startsWith('/admin'), roles: ['owner'], badge: false },
+  { href: '/marketing', label: 'Market Engine', match: (p: string) => p.startsWith('/marketing'), roles: ['owner', 'manager'], badge: false },
 ]
 
 export function SalesHeader() {
@@ -26,6 +26,20 @@ export function SalesHeader() {
 
   const [query, setQuery] = useState('')
   const [newLeadOpen, setNewLeadOpen] = useState(false)
+  const [inboxCount, setInboxCount] = useState(0)
+
+  // Poll inbox count every 30 seconds
+  useEffect(() => {
+    function fetchCount() {
+      fetch('/api/sales/inbox/count', { credentials: 'include' })
+        .then(r => r.ok ? r.json() : { count: 0 })
+        .then((d: { count: number }) => setInboxCount(d.count))
+        .catch(() => null)
+    }
+    fetchCount()
+    const interval = setInterval(fetchCount, 30_000)
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -83,17 +97,23 @@ export function SalesHeader() {
             <nav className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1 md:gap-6 md:px-0 md:pb-0">
               {navItems.map(item => {
                 const active = item.match(pathname)
+                const showBadge = item.badge && inboxCount > 0
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`shrink-0 rounded-full border px-3 py-2 text-sm font-medium transition md:rounded-none md:border-x-0 md:border-t-0 md:border-b-2 md:px-0 md:py-1 ${
+                    className={`relative shrink-0 rounded-full border px-3 py-2 text-sm font-medium transition md:rounded-none md:border-x-0 md:border-t-0 md:border-b-2 md:px-0 md:py-1 ${
                       active
                         ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white md:bg-transparent md:text-[var(--app-ink)]'
                         : 'border-[var(--app-line)] text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] md:border-transparent'
                     }`}
                   >
                     {item.label}
+                    {showBadge && (
+                      <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white md:-right-3 md:-top-0.5">
+                        {inboxCount > 99 ? '99+' : inboxCount}
+                      </span>
+                    )}
                   </Link>
                 )
               })}
