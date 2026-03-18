@@ -5,7 +5,8 @@ function getOpenAIKey() {
 }
 
 function parseAudioDataUrl(dataUrl: string) {
-  const match = dataUrl.match(/^data:(audio\/[a-zA-Z0-9.+-]+);base64,(.+)$/)
+  // Handle MIME types with codec params e.g. "audio/webm;codecs=opus;base64,..."
+  const match = dataUrl.match(/^data:(audio\/[a-zA-Z0-9.+-]+)(?:;[^,]*)?;base64,(.+)$/)
   if (!match) {
     throw new Error('Invalid audio recording payload')
   }

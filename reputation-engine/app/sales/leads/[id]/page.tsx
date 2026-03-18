@@ -1129,7 +1129,9 @@ Saturn Star Moving`
       if (recorder && recorder.state !== 'inactive') {
         const audioBlob = await new Promise<Blob>(resolve => {
           recorder.onstop = () => {
-            resolve(new Blob(consultationChunksRef.current, { type: recorder.mimeType || 'audio/webm' }))
+            // Strip codec params (e.g. "audio/webm;codecs=opus" → "audio/webm") so data URL parses cleanly
+            const mimeBase = (recorder.mimeType || 'audio/webm').split(';')[0]
+            resolve(new Blob(consultationChunksRef.current, { type: mimeBase }))
           }
           recorder.stop()
         })
