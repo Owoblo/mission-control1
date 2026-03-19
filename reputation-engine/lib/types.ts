@@ -174,10 +174,13 @@ export interface PricingBreakdown {
   }>
   internalCostEstimate: {
     laborCost: number
+    truckDailyCost: number
+    truckFuelMileageCost: number
     truckOpsCost: number
     totalCost: number
     grossProfit: number
     grossMarginPct: number
+    computedRevenue: number
   }
   disassemblyItems: string[]     // item names detected as needing disassembly/reassembly
   specialtyItemFlags: string[]   // piano, safe, etc. that are included in the move
@@ -250,6 +253,7 @@ export interface JobFactors {
 
   // Manual overrides
   truckCountOverride?: number   // rep can force 1 or 2 trucks
+  crewSizeOverride?: number     // rep can force crew size (2/3/4/5 movers)
 
   // Free notes from rep
   specialtyNotes?: string

@@ -81,6 +81,7 @@ type Props = {
   onAddPreset: (presetId: string) => void
   onUpdateLineItem: (index: number, field: keyof QuoteLineItem, value: string) => void
   onRemoveLineItem: (index: number) => void
+  onSetLineItems: (items: QuoteLineItem[]) => void
   onSaveDraft: () => void
   onSaveAndPreview: () => void
   onJobFactorsChange: (factors: JobFactors) => void
@@ -164,6 +165,7 @@ export function EstimateDraftModal({
   onAddPreset,
   onUpdateLineItem,
   onRemoveLineItem,
+  onSetLineItems,
   onSaveDraft,
   onSaveAndPreview,
   onJobFactorsChange,
@@ -180,6 +182,10 @@ export function EstimateDraftModal({
   )
   const [distanceKm, setDistanceKm] = useState<number>(0)
   const [bookTodayActive, setBookTodayActive] = useState(false)
+  const [tenPctActive, setTenPctActive] = useState(false)
+  const [overrideInput, setOverrideInput] = useState('')
+  const [overrideReason, setOverrideReason] = useState('relationship')
+  const [overrideApplied, setOverrideApplied] = useState(false)
 
   // Manual inventory quick-add state
   const [quickRoom, setQuickRoom] = useState('Living Room')
@@ -242,6 +248,7 @@ export function EstimateDraftModal({
 
   useEffect(() => {
     if (!open) return
+    if (routeBusy) return  // wait for route API to settle — prevents provisional→final price flicker
     onRecalculate({
       quoteType,
       distanceKm: distanceKm || route?.distanceKm || undefined,
@@ -249,6 +256,7 @@ export function EstimateDraftModal({
     })
   }, [
     open,
+    routeBusy,
     originFull,
     quoteType,
     distanceKm,
@@ -856,6 +864,36 @@ export function EstimateDraftModal({
                   ))}
                 </div>
 
+                {/* Crew Size */}
+                <div className="space-y-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-ink)]">Crew Size</div>
+                  <div className="text-xs text-[var(--app-muted)] leading-5">
+                    Auto-calculates from volume and weight. Override to lock in a specific crew for this job.
+                  </div>
+                  <div className="flex gap-2">
+                    {[
+                      { label: 'Auto', value: undefined },
+                      { label: '2', value: 2 },
+                      { label: '3', value: 3 },
+                      { label: '4', value: 4 },
+                      { label: '5', value: 5 },
+                    ].map(opt => (
+                      <button
+                        key={String(opt.value)}
+                        type="button"
+                        onClick={() => setFactor('crewSizeOverride', opt.value)}
+                        className={`rounded-[6px] border px-3 py-2 text-xs font-medium flex-1 ${
+                          jobFactors.crewSizeOverride === opt.value
+                            ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white'
+                            : 'border-[var(--app-line)] bg-white text-[var(--app-muted)]'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Trucks */}
                 <div className="space-y-3">
                   <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-ink)]">Trucks</div>
@@ -1289,33 +1327,82 @@ export function EstimateDraftModal({
                     </div>
                   ) : null}
 
-                  <div className="border-t border-[var(--app-line)] pt-3 space-y-1.5">
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Internal Margin View</div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-[var(--app-muted)]">Labor cost assumption</span>
-                      <span className="text-[var(--app-ink)]">{formatMoney(pricingBreakdown.internalCostEstimate.laborCost)}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-[var(--app-muted)]">Truck / fuel / ops</span>
-                      <span className="text-[var(--app-ink)]">{formatMoney(pricingBreakdown.internalCostEstimate.truckOpsCost)}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-[var(--app-muted)]">Projected direct cost</span>
-                      <span className="text-[var(--app-ink)]">{formatMoney(pricingBreakdown.internalCostEstimate.totalCost)}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-[var(--app-muted)]">Projected gross profit</span>
-                      <span className={`${pricingBreakdown.internalCostEstimate.grossProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'} font-medium`}>
-                        {formatMoney(pricingBreakdown.internalCostEstimate.grossProfit)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-xs font-semibold">
-                      <span className="text-[var(--app-ink)]">Projected margin</span>
-                      <span className={`${pricingBreakdown.internalCostEstimate.grossMarginPct >= 40 ? 'text-emerald-700' : pricingBreakdown.internalCostEstimate.grossMarginPct >= 30 ? 'text-amber-700' : 'text-rose-700'}`}>
-                        {pricingBreakdown.internalCostEstimate.grossMarginPct.toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
+                  {/* Live Margin — uses actual quoted revenue, not computed */}
+                  {(() => {
+                    const ic = pricingBreakdown.internalCostEstimate
+                    // Cost of complimentary deals added as $0 line items
+                    const DEAL_COSTS: Record<string, number> = {
+                      '20 Complimentary Moving Boxes': 30,
+                      '40 Complimentary Moving Boxes': 60,
+                      '5 Wardrobe Boxes (Complimentary)': 40,
+                      'TV Box (Complimentary)': 15,
+                      'Mattress Covers (Complimentary)': 10,
+                    }
+                    const dealCost = quoteLineItems
+                      .filter(li => li.amount === 0 || Number(li.amount) === 0)
+                      .reduce((s, li) => s + (DEAL_COSTS[li.description] || 0), 0)
+                    const actualRevenue = quoteModalTotals.subtotal
+                    const rc = (n: number) => Math.round(n * 100) / 100
+                    const totalCost = rc(ic.laborCost + ic.truckOpsCost + dealCost)
+                    const liveProfit = rc(actualRevenue - totalCost)
+                    const liveMargin = actualRevenue > 0 ? Math.round((liveProfit / actualRevenue) * 1000) / 10 : 0
+                    const marginColor = liveMargin >= 65 ? 'text-emerald-700' : liveMargin >= 55 ? 'text-amber-700' : 'text-rose-700'
+                    const marginBg = liveMargin >= 65 ? 'bg-emerald-500' : liveMargin >= 55 ? 'bg-amber-500' : 'bg-rose-500'
+                    return (
+                      <div className="border-t border-[var(--app-line)] pt-3 space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Live Margin View</div>
+                          <div className={`text-[10px] font-bold ${marginColor}`}>{liveMargin.toFixed(1)}%</div>
+                        </div>
+                        {/* Margin gauge */}
+                        <div className="relative h-2 rounded-full bg-slate-100 overflow-hidden">
+                          <div className={`absolute inset-y-0 left-0 rounded-full ${marginBg} transition-all`} style={{ width: `${Math.min(100, liveMargin)}%` }} />
+                          {/* Target band 65–68% */}
+                          <div className="absolute inset-y-0 bg-emerald-200/60 rounded-sm" style={{ left: '65%', width: '3%' }} />
+                        </div>
+                        <div className="flex justify-between text-[10px] text-[var(--app-muted)]">
+                          <span>0%</span>
+                          <span className="text-emerald-700 font-semibold">Target 65–68%</span>
+                          <span>100%</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-[var(--app-muted)]">Quoted revenue</span>
+                          <span className="text-[var(--app-ink)] font-medium">{formatMoney(actualRevenue)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-[var(--app-muted)]">Labor ({pricingBreakdown.crewSize} × $20/hr × {pricingBreakdown.operationalHours}h)</span>
+                          <span className="text-[var(--app-ink)]">{formatMoney(ic.laborCost)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-[var(--app-muted)]">Truck daily ({pricingBreakdown.truckCount} × $50)</span>
+                          <span className="text-[var(--app-ink)]">{formatMoney(ic.truckDailyCost)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-[var(--app-muted)]">Fuel + mileage ({pricingBreakdown.operationalDistanceKm ?? 0} km)</span>
+                          <span className="text-[var(--app-ink)]">{formatMoney(ic.truckFuelMileageCost)}</span>
+                        </div>
+                        {dealCost > 0 && (
+                          <div className="flex justify-between text-xs">
+                            <span className="text-[var(--app-muted)]">Complimentary items cost</span>
+                            <span className="text-amber-700">{formatMoney(dealCost)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-xs border-t border-[var(--app-line)] pt-1">
+                          <span className="text-[var(--app-muted)]">Total direct cost</span>
+                          <span className="text-[var(--app-ink)]">{formatMoney(totalCost)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs font-semibold">
+                          <span className="text-[var(--app-ink)]">Gross profit</span>
+                          <span className={liveProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'}>{formatMoney(liveProfit)}</span>
+                        </div>
+                        {liveMargin < 65 && actualRevenue > 0 && (
+                          <div className="rounded-[6px] bg-amber-50 border border-amber-200 px-2 py-1.5 text-[10px] text-amber-800">
+                            ⚠ Below 65% target — need {formatMoney(Math.max(0, totalCost / 0.35 - actualRevenue))} more or cut costs
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
                 </div>
               </div>
             ) : null}
@@ -1337,42 +1424,198 @@ export function EstimateDraftModal({
                   <div className="mt-1 text-lg font-medium text-[var(--app-ink)]">{formatMoney(quoteModalTotals.deposit)}</div>
                 </div>
               </div>
-              {/* Book Today Discount */}
-              <div className="mt-4 rounded-[8px] border border-[var(--app-line)] bg-white p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs font-semibold text-[var(--app-ink)]">Book Today Discount</div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const next = !bookTodayActive
-                      setBookTodayActive(next)
-                      if (next) {
-                        // Add $150 early booking discount as a line item
-                        void (async () => {
-                          onAddLineItem()
-                          await new Promise(r => setTimeout(r, 50))
-                          const last = quoteLineItems.length
-                          onUpdateLineItem(last, 'description', 'Early Booking Discount')
-                          onUpdateLineItem(last, 'details', 'Book today — price guaranteed until your move date')
-                          onUpdateLineItem(last, 'amount', '-150')
-                        })()
-                      } else {
-                        // Remove the discount line item if it exists
-                        const idx = quoteLineItems.findIndex(li => li.description === 'Early Booking Discount')
-                        if (idx >= 0) onRemoveLineItem(idx)
-                      }
-                    }}
-                    className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-colors ${bookTodayActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}
-                  >
-                    {bookTodayActive ? 'Active' : 'Off'}
-                  </button>
-                </div>
-                {bookTodayActive && (
-                  <div className="text-xs text-[var(--app-muted)] leading-5">
-                    A <span className="font-semibold text-emerald-700">$150 early-booking discount</span> will be added to the quote.
-                    Customer locks in the price today — deal holds until their move date.
+              {/* Discounts & Deals */}
+              <div className="mt-4 space-y-2">
+
+                {/* Price Override */}
+                {overrideApplied && (
+                  <div className="rounded-[8px] border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 flex items-center justify-between gap-2">
+                    <span>⚠ Override active — customer pays {formatMoney(Number(overrideInput) || 0)} total incl. HST</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOverrideApplied(false)
+                        setOverrideInput('')
+                      }}
+                      className="text-[10px] underline"
+                    >
+                      Clear
+                    </button>
                   </div>
                 )}
+
+                <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3 space-y-2">
+                  <div className="text-xs font-semibold text-[var(--app-ink)]">Price Override</div>
+                  <div className="text-[10px] text-[var(--app-muted)] leading-4">Enter the <span className="font-semibold text-[var(--app-ink)]">total the customer pays</span> (incl. HST). Type $6,000 → customer sees $6,000.</div>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--app-muted)]">$</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={50}
+                        value={overrideInput}
+                        onChange={e => { setOverrideInput(e.target.value); setOverrideApplied(false) }}
+                        placeholder="e.g. 6000"
+                        className="crm-input pl-5 w-full text-sm font-semibold"
+                      />
+                    </div>
+                    <select
+                      value={overrideReason}
+                      onChange={e => setOverrideReason(e.target.value)}
+                      className="crm-input text-xs w-36"
+                    >
+                      <option value="relationship">Relationship</option>
+                      <option value="competitor">Match competitor</option>
+                      <option value="spot_booking">Spot booking</option>
+                      <option value="volume">Volume deal</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  {overrideInput && Number(overrideInput) > 0 && (
+                    <div className="text-[10px] text-[var(--app-muted)]">
+                      Subtotal: {formatMoney(Math.round(Number(overrideInput) / 1.13 * 100) / 100)} + HST = <span className="font-semibold text-[var(--app-ink)]">{formatMoney(Number(overrideInput))}</span>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    disabled={!overrideInput || Number(overrideInput) <= 0}
+                    onClick={() => {
+                      const total = Math.round(Number(overrideInput) * 100) / 100
+                      if (total <= 0) return
+                      // Back-calculate subtotal so that subtotal * 1.13 = total
+                      const amount = Math.round(total / 1.13 * 100) / 100
+                      const reasonLabels: Record<string, string> = {
+                        relationship: 'Relationship pricing',
+                        competitor: 'Matched competitor quote',
+                        spot_booking: 'Spot booking rate',
+                        volume: 'Volume discount',
+                        other: 'Rep-agreed rate',
+                      }
+                      onSetLineItems([{
+                        description: 'Moving Services — Agreed Rate',
+                        details: reasonLabels[overrideReason] || 'Rep-agreed rate',
+                        amount,
+                      }])
+                      setOverrideApplied(true)
+                      setBookTodayActive(false)
+                      setTenPctActive(false)
+                    }}
+                    className="w-full rounded-[6px] bg-rose-700 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-rose-800 disabled:opacity-40 transition"
+                  >
+                    Apply Override
+                  </button>
+                </div>
+
+                {/* Book Today Discount */}
+                <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-semibold text-[var(--app-ink)]">Book Today — $150 off</div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = !bookTodayActive
+                        setBookTodayActive(next)
+                        if (next) {
+                          void (async () => {
+                            onAddLineItem()
+                            await new Promise(r => setTimeout(r, 50))
+                            const last = quoteLineItems.length
+                            onUpdateLineItem(last, 'description', 'Early Booking Discount')
+                            onUpdateLineItem(last, 'details', 'Book today — price guaranteed until your move date')
+                            onUpdateLineItem(last, 'amount', '-150')
+                          })()
+                        } else {
+                          const idx = quoteLineItems.findIndex(li => li.description === 'Early Booking Discount')
+                          if (idx >= 0) onRemoveLineItem(idx)
+                        }
+                      }}
+                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-colors ${bookTodayActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}
+                    >
+                      {bookTodayActive ? 'Active' : 'Off'}
+                    </button>
+                  </div>
+                  {bookTodayActive && (
+                    <div className="text-[10px] text-emerald-700">$150 early-booking discount added — holds until move date.</div>
+                  )}
+                </div>
+
+                {/* 10% Spot Discount */}
+                <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-semibold text-[var(--app-ink)]">10% Spot Discount</div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = !tenPctActive
+                        setTenPctActive(next)
+                        if (next) {
+                          const base = quoteLineItems
+                            .filter(li => li.description !== '10% Spot Discount' && li.description !== 'Early Booking Discount')
+                            .reduce((s, li) => s + Number(li.amount || 0), 0)
+                          const discAmt = -(Math.round(Math.max(0, base) * 0.10 * 100) / 100)
+                          void (async () => {
+                            onAddLineItem()
+                            await new Promise(r => setTimeout(r, 50))
+                            const last = quoteLineItems.length
+                            onUpdateLineItem(last, 'description', '10% Spot Discount')
+                            onUpdateLineItem(last, 'details', 'Applied today only')
+                            onUpdateLineItem(last, 'amount', String(discAmt))
+                          })()
+                        } else {
+                          const idx = quoteLineItems.findIndex(li => li.description === '10% Spot Discount')
+                          if (idx >= 0) onRemoveLineItem(idx)
+                        }
+                      }}
+                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-colors ${tenPctActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}
+                    >
+                      {tenPctActive ? 'Active' : 'Off'}
+                    </button>
+                  </div>
+                  {tenPctActive && (
+                    <div className="text-[10px] text-emerald-700">
+                      10% off base price — {formatMoney(Math.abs(quoteLineItems.find(li => li.description === '10% Spot Discount')?.amount ?? 0))} saved.
+                    </div>
+                  )}
+                </div>
+
+                {/* Complimentary Deals */}
+                <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3 space-y-2">
+                  <div className="text-xs font-semibold text-[var(--app-ink)]">Free Add-ons (Deals)</div>
+                  <div className="text-[10px] text-[var(--app-muted)] leading-4">Show the customer what they&apos;re getting free. Appears on the quote at $0.</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { label: '20 Boxes free', desc: '20 Complimentary Moving Boxes', details: 'Small & medium boxes — keep or recycle after your move' },
+                      { label: '40 Boxes free', desc: '40 Complimentary Moving Boxes', details: 'Full box kit — small, medium & large' },
+                      { label: '5 Wardrobe boxes', desc: '5 Wardrobe Boxes (Complimentary)', details: 'Hanging clothes stay on hangers — no folding needed' },
+                      { label: 'TV box', desc: 'TV Box (Complimentary)', details: 'Custom TV box for safe transport' },
+                      { label: 'Mattress covers', desc: 'Mattress Covers (Complimentary)', details: 'All mattresses wrapped and protected at no charge' },
+                      { label: 'Shrink wrap', desc: 'Shrink Wrap & Moving Blankets (Included)', details: 'All furniture wrapped — no extra charge' },
+                    ].map(deal => {
+                      const alreadyAdded = quoteLineItems.some(li => li.description === deal.desc)
+                      return (
+                        <button
+                          key={deal.desc}
+                          type="button"
+                          disabled={alreadyAdded}
+                          onClick={() => {
+                            void (async () => {
+                              onAddLineItem()
+                              await new Promise(r => setTimeout(r, 50))
+                              const last = quoteLineItems.length
+                              onUpdateLineItem(last, 'description', deal.desc)
+                              onUpdateLineItem(last, 'details', deal.details)
+                              onUpdateLineItem(last, 'amount', '0')
+                            })()
+                          }}
+                          className={`rounded-[6px] px-2.5 py-1 text-[10px] font-semibold transition-colors ${alreadyAdded ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-[var(--app-bg)] text-[var(--app-ink)] border border-[var(--app-line)] hover:border-[var(--app-ink)]'}`}
+                        >
+                          {alreadyAdded ? '✓ ' : '+ '}{deal.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
               </div>
 
               <div className="mt-4 space-y-3">

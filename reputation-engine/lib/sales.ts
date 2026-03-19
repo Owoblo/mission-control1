@@ -326,14 +326,16 @@ export function suggestCrewSize(totalWeightLbs: number, totalCubicFeet: number, 
   return 1
 }
 
-// 26ft U-Haul holds ~1,400 cu ft with safe loading buffer
+// 26ft U-Haul holds ~1,400 cu ft with safe loading buffer (local); long-distance packed tighter → 1,700
 const TRUCK_CAPACITY_CF = 1400
+const LD_TRUCK_CAPACITY_CF = 1700
 const TRUCK_PAYLOAD_LBS = 8500
 const TWO_TRIP_ZONE_CF = 1000
 const EXTRA_TRUCK_RATE_MULTIPLIER = 1.5
 const THREE_TRUCK_RATE_MULTIPLIER = 2.05
 const LABOR_COST_PER_MOVER_HOUR = 20
-const TRUCK_OPS_COST_PER_KM = 1.1
+const TRUCK_DAILY_COST = 50          // rental/depreciation per truck per day
+const TRUCK_OPS_COST_PER_KM = 1.1   // fuel + wear at ~$1.10 CAD/km per truck
 
 // Items that almost always require disassembly/reassembly — auto-detected from inventory scan
 // NOTE: wardrobes are excluded — they are typically built-in and stay with the property
@@ -371,11 +373,13 @@ export function suggestDisassemblyCount(inventory: InventoryItem[]): number {
 }
 
 export function suggestTruckCount(totalCubicFeet: number, totalWeightLbs = 0, moveType?: CRMLead['moveType']) {
-  const required = estimateRequiredTrucks(totalCubicFeet, totalWeightLbs)
   if (moveType === 'long-distance') {
-    return Math.max(1, required)
+    // Long-distance trucks are packed more efficiently — 26ft truck handles ~1,700 cu ft
+    const byVolume = Math.max(1, Math.ceil((totalCubicFeet || 0) / LD_TRUCK_CAPACITY_CF))
+    const byWeight = totalWeightLbs > 0 ? Math.max(1, Math.ceil(totalWeightLbs / TRUCK_PAYLOAD_LBS)) : 1
+    return Math.max(1, Math.max(byVolume, byWeight))
   }
-  return Math.max(1, required)
+  return Math.max(1, estimateRequiredTrucks(totalCubicFeet, totalWeightLbs))
 }
 
 export function computeJobPenalties(factors: JobFactors): {
@@ -601,7 +605,10 @@ export function estimateLeadQuote(
   const truckCount = Number(overrides?.truckCount || activeFactors?.truckCountOverride || suggestedTruckCount)
   const threeTruckReview = truckCount >= 3
   const crewMinimum = truckCount >= 3 ? 6 : truckCount === 2 ? 4 : 1
-  const crewSize = overrides?.crewSize ? suggestedCrew : Math.max(suggestedCrew, crewMinimum)
+  const crewSizeOverride = activeFactors?.crewSizeOverride
+  const crewSize = crewSizeOverride
+    ? Math.max(crewSizeOverride, crewMinimum)  // honour override but never below truck minimum
+    : overrides?.crewSize ? suggestedCrew : Math.max(suggestedCrew, crewMinimum)
   // Truck-aware rate: 2-truck jobs use LOCAL_CREW_RATES_TRUCK_AWARE which builds in
   // the efficiency discount (e.g. 4 movers + 2 trucks = $350/hr, not $270 × 1.5 = $405)
   const crewRate = getCrewRate(crewSize, lead.moveType, truckCount)
@@ -772,7 +779,9 @@ export function estimateLeadQuote(
   const effectiveBillableDistanceKm = roundCurrency((billableDistanceKm || 0) + additionalTripDistanceKm)
   const effectiveOperationalDistanceKm = roundCurrency((operationalDistanceKm || 0) + additionalTripDistanceKm)
   const laborCost = roundCurrency(crewSize * operationalHours * LABOR_COST_PER_MOVER_HOUR)
-  const truckOpsCost = roundCurrency((effectiveOperationalDistanceKm || 0) * truckCount * TRUCK_OPS_COST_PER_KM)
+  const truckDailyCost = roundCurrency(truckCount * TRUCK_DAILY_COST)
+  const truckFuelMileageCost = roundCurrency((effectiveOperationalDistanceKm || 0) * truckCount * TRUCK_OPS_COST_PER_KM)
+  const truckOpsCost = roundCurrency(truckDailyCost + truckFuelMileageCost)
   const directCost = roundCurrency(laborCost + truckOpsCost)
   const grossProfit = roundCurrency(laborAmount - directCost)
   const grossMarginPct = laborAmount > 0 ? Math.round((grossProfit / laborAmount) * 1000) / 10 : 0
@@ -879,10 +888,13 @@ export function estimateLeadQuote(
     adjustmentBreakdown,
     internalCostEstimate: {
       laborCost,
+      truckDailyCost,
+      truckFuelMileageCost,
       truckOpsCost,
       totalCost: directCost,
       grossProfit,
       grossMarginPct,
+      computedRevenue: laborAmount,
     },
     intelligenceFlags,
   }
