@@ -526,12 +526,13 @@ export function syncLeadFromQuoteStatus(lead: CRMLead, quote: CRMQuote): CRMLead
 }
 
 // Full-service residential move labor rates (lbs per man-hour)
-// Load = wrap furniture + disassemble beds/tables + carry out + stack in truck (slowest phase)
-// Unload = carry in + unwrap + reassemble + place in rooms (~1.5× faster than loading)
-const LOAD_RATE_LBS_PER_MAN_HOUR = 175
-const UNLOAD_RATE_LBS_PER_MAN_HOUR = 265
-const LOAD_RATE_CF_PER_MAN_HOUR = 70    // cubic feet fallback when no weight data
-const UNLOAD_RATE_CF_PER_MAN_HOUR = 105 // cubic feet fallback: unloading
+// Load = wrap furniture + carry out + stack in truck
+// Unload = carry in + unwrap + place in rooms (~1.5× faster than loading)
+// Calibrated: 3 movers load a 1,400 cu ft house in ~5h, unload in ~3.5h
+const LOAD_RATE_LBS_PER_MAN_HOUR = 260
+const UNLOAD_RATE_LBS_PER_MAN_HOUR = 380
+const LOAD_RATE_CF_PER_MAN_HOUR = 100   // cubic feet fallback when no weight data
+const UNLOAD_RATE_CF_PER_MAN_HOUR = 150 // cubic feet fallback: unloading
 
 export function estimateLeadQuote(
   lead: CRMLead,
