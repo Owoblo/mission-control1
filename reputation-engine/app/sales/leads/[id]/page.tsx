@@ -193,7 +193,7 @@ export default function SalesLeadDetailPage() {
     )
   }
 
-  async function refresh(currentLeadId: string) {
+  async function refresh(currentLeadId: string): Promise<{ quoteId?: string } | null> {
     try {
       const nextLead = await fetchSalesLead(currentLeadId)
       const quotePayload = nextLead?.quoteId ? await fetchSalesQuote(nextLead.quoteId) : null
@@ -212,8 +212,10 @@ export default function SalesLeadDetailPage() {
         applyLeadSnapshot(nextLead, { hydrateForm: true })
       }
       setError(nextLead ? null : 'Lead not found')
+      return nextLead ? { quoteId: nextLead.quoteId } : null
     } catch (err) {
       setError((err as Error).message)
+      return null
     }
   }
 
@@ -223,9 +225,14 @@ export default function SalesLeadDetailPage() {
     setQuote(null)
     setFollowUps([])
     setError(null)
-    void refresh(params.id).then(() => {
+    void refresh(params.id).then(async (data) => {
       if (searchParams?.get('estimate') === '1') {
-        setQuoteModalOpen(true)
+        if (data?.quoteId) {
+          setQuoteModalOpen(true)
+        } else {
+          // No quote yet — create one so Save Draft / Preview & Send are enabled
+          await createQuote()
+        }
       }
     })
   }, [params])
