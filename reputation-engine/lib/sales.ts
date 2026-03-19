@@ -326,10 +326,13 @@ export function suggestCrewSize(totalWeightLbs: number, totalCubicFeet: number, 
   return 1
 }
 
-// 26ft U-Haul holds ~1,400 cu ft with safe loading buffer (local); long-distance packed tighter → 1,700
-const TRUCK_CAPACITY_CF = 1400
-const LD_TRUCK_CAPACITY_CF = 1700
-const TRUCK_PAYLOAD_LBS = 8500
+// 26ft box truck: 1,600–1,800 cu ft actual (U-Haul lists 1,682 cu ft)
+// Local: 1,600 cu ft practical limit (less tight packing, items stay accessible)
+// Long-distance: 1,800 cu ft (everything wrapped + stacked, maximum efficiency)
+// Payload: 10,000–12,859 lbs actual; use 10,000 as safe operational limit
+const TRUCK_CAPACITY_CF = 1600
+const LD_TRUCK_CAPACITY_CF = 1800
+const TRUCK_PAYLOAD_LBS = 10000
 const TWO_TRIP_ZONE_CF = 1000
 const EXTRA_TRUCK_RATE_MULTIPLIER = 1.5
 const THREE_TRUCK_RATE_MULTIPLIER = 2.05
