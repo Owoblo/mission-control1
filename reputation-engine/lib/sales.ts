@@ -687,7 +687,8 @@ export function estimateLeadQuote(
   const baseHours = roundQuarterHour(rawLaborHours + secondTripHandlingHours + effectiveBillableDriveHours)
   const preBufferHours = roundQuarterHour(baseHours + extraHours)
   const driveBufferHours = roundQuarterHour(routeCategory === 'long-distance' ? 0 : effectiveBillableDriveHours * 0.1)
-  const loadUnloadBufferHours = roundQuarterHour((rawLaborHours + secondTripHandlingHours + extraHours) * 0.1)
+  // Long-distance: no buffer — it's a planned full-day job, experienced crew, no padding needed
+  const loadUnloadBufferHours = routeCategory === 'long-distance' ? 0 : roundQuarterHour((rawLaborHours + secondTripHandlingHours + extraHours) * 0.1)
   const bufferHours = roundQuarterHour(driveBufferHours + loadUnloadBufferHours)
   const estimatedHours = Math.max(3, Number(overrides?.estimatedHours || roundQuarterHour(preBufferHours + bufferHours)))
   const operationalPreBufferHours = roundQuarterHour(rawLaborHours + secondTripHandlingHours + effectiveOperationalDriveHours + extraHours)
