@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { useParams, useSearchParams } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { PACKING_MATERIAL_PRESETS } from '@/lib/packing-materials'
 import { QUOTE_STATUSES, computeQuoteTotals, dateStamp, estimateLeadQuote, formatDate, formatMoney, getCrewRate, getDefaultDepositRate, validUntil } from '@/lib/sales'
 import { fetchSalesQuote, saveSalesFollowUp, sendSalesMessage, updateSalesLead, updateSalesQuote } from '@/lib/sales-api'
@@ -80,6 +80,7 @@ function buildQuoteEmailHtml({
 
 export default function SalesQuoteDetailPage() {
   const params = useParams() as { id?: string }
+  const router = useRouter()
   const [quote, setQuote] = useState<CRMQuote | null>(null)
   const [lead, setLead] = useState<CRMLead | null>(null)
   const [client, setClient] = useState<CRMClient | null>(null)
@@ -255,6 +256,9 @@ Saturn Star Movers`
 
   useEffect(() => {
     if (!lead || !quote) return
+    // If a price override is active, the line items were manually set — do NOT recalculate
+    const hasOverride = (quote.lineItems || []).some(li => li.description === 'Moving Services — Agreed Rate')
+    if (hasOverride) return
     const rebuilt = estimateLeadQuote(lead, {
       crewSize,
       estimatedHours,
@@ -277,12 +281,10 @@ Saturn Star Movers`
         'Portal-to-portal travel allowance',
         'Mileage and linehaul',
         'Additional truck and crew package',
-        // Consolidated service titles
         'Full-Service Moving',
         'Long-Distance Moving Service',
         'Labor-Only Moving Crew',
         'Professional Packing Service',
-        // LD operational items (if rep manually adds them)
         'One-way truck rental',
         'Fuel allowance',
         'Truck insurance allowance',
@@ -364,7 +366,7 @@ Saturn Star Movers`
         longDistanceMiscCost,
         longDistanceMarkupRate,
         validDays,
-        sentAt: dateStamp(),
+        sentAt: new Date().toISOString(),
       })
 
       let nextLead = sentResult.lead
@@ -416,7 +418,7 @@ Saturn Star Movers`
         longDistanceMiscCost,
         longDistanceMarkupRate,
         validDays,
-        sentAt: dateStamp(),
+        sentAt: new Date().toISOString(),
       })
       if (lead) {
         await updateSalesLead(lead.id, { followUpDate })
@@ -456,8 +458,8 @@ Saturn Star Movers`
         longDistanceMiscCost,
         longDistanceMarkupRate,
         validDays,
-        sentAt: quote.sentAt || dateStamp(),
-        acceptedAt: dateStamp(),
+        sentAt: quote.sentAt || new Date().toISOString(),
+        acceptedAt: new Date().toISOString(),
         respondedAt: new Date().toISOString(),
       })
       if (lead) {
@@ -553,7 +555,7 @@ Saturn Star Movers`
         longDistanceMiscCost,
         longDistanceMarkupRate,
         validDays,
-        sentAt: dateStamp(),
+        sentAt: new Date().toISOString(),
       })
 
       let nextLead = sentResult.lead
@@ -574,6 +576,8 @@ Saturn Star Movers`
       setLead(nextLead)
       setStatus(sentResult.quote.status)
       setError(null)
+      // Navigate back to lead after sending
+      if (lead) router.push(`/sales/leads/${lead.id}`)
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -623,7 +627,7 @@ Saturn Star Movers`
         longDistanceMiscCost,
         longDistanceMarkupRate,
         validDays,
-        sentAt: dateStamp(),
+        sentAt: new Date().toISOString(),
       })
 
       let nextLead = sentResult.lead
@@ -643,6 +647,8 @@ Saturn Star Movers`
       setQuote(sentResult.quote)
       setLead(nextLead)
       setStatus(sentResult.quote.status)
+      // Navigate back to lead after sending
+      if (lead) router.push(`/sales/leads/${lead.id}`)
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -836,6 +842,11 @@ Saturn Star Movers`
               {/* Pricing assumptions */}
               <div>
                 <div className="crm-label mb-3">Pricing</div>
+                {lineItems.some(li => li.description === 'Moving Services — Agreed Rate') && (
+                  <div className="mb-3 rounded-[6px] border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] text-rose-700 font-medium">
+                    ⚠ Price override active — editing crew/hours won&apos;t change the quote total. Go back to the estimate modal to adjust.
+                  </div>
+                )}
                 <div className="space-y-3">
                   <label className="block">
                     <span className="mb-1 block text-xs text-[var(--app-muted)]">Crew Size</span>

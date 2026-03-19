@@ -31,7 +31,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
         ? await saveSalesQuote({
             ...currentQuote,
             status: currentQuote.status === 'draft' ? 'viewed' : 'viewed',
-            viewedAt: currentQuote.viewedAt || viewedStamp.slice(0, 10),
+            viewedAt: currentQuote.viewedAt || viewedStamp,
           })
         : currentQuote
 

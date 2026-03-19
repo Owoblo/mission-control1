@@ -98,6 +98,7 @@ export default function SalesLeadDetailPage() {
   const [quoteLineItems, setQuoteLineItems] = useState<QuoteLineItem[]>([])
   const [jobFactors, setJobFactors] = useState<JobFactors>({})
   const [recalculateBusy, setRecalculateBusy] = useState(false)
+  const pricingMetaRef = useRef<{ crewSize: number; estimatedHours: number; truckCount: number }>({ crewSize: 3, estimatedHours: 3, truckCount: 1 })
   const [outcomeOpen, setOutcomeOpen] = useState(false)
   const [outcomeActualHours, setOutcomeActualHours] = useState('')
   const [outcomeActualCrew, setOutcomeActualCrew] = useState('')
@@ -475,6 +476,11 @@ export default function SalesLeadDetailPage() {
       }, jobFactors)
       setQuoteLineItems(estimate.lineItems)
       setQuoteModalDirty(true)
+      pricingMetaRef.current = {
+        crewSize: estimate.crewSize || 3,
+        estimatedHours: estimate.estimatedHours || 3,
+        truckCount: estimate.truckCount || 1,
+      }
     } finally {
       setRecalculateBusy(false)
     }
@@ -688,6 +694,9 @@ export default function SalesLeadDetailPage() {
         total: totals.total,
         deposit: totals.deposit,
         balance: totals.balance,
+        crewSize: pricingMetaRef.current.crewSize,
+        estimatedHours: pricingMetaRef.current.estimatedHours,
+        truckCount: pricingMetaRef.current.truckCount,
       })
       setQuote(result.quote)
       if (result.lead) setLead(result.lead)
@@ -2276,6 +2285,7 @@ Saturn Star Moving`
         onAddPreset={addPresetItem}
         onUpdateLineItem={updateQuoteLineItem}
         onRemoveLineItem={removeQuoteLineItem}
+        onSetLineItems={setQuoteLineItems}
         onSaveDraft={() => void saveQuoteDraft()}
         onSaveAndPreview={() => void saveAndPreviewQuote()}
         onJobFactorsChange={setJobFactors}
