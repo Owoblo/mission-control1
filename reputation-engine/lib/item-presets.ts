@@ -16,7 +16,7 @@ export const INVENTORY_PRESETS: InventoryPreset[] = [
   { id: 'coffee-table', label: 'Coffee Table', room: 'Living Room', item: { name: 'Coffee Table', qty: 1, cubicFeet: 15, weightLbs: 35, included: true } },
   { id: 'tv-console-large', label: 'TV Console · Large', room: 'Living Room', item: { name: 'Large TV Console', qty: 1, cubicFeet: 35, weightLbs: 95, included: true } },
   { id: 'dining-table-6', label: 'Dining Table · 6 Seat', room: 'Dining Room', item: { name: 'Dining Table', qty: 1, cubicFeet: 45, weightLbs: 110, included: true } },
-  { id: 'dining-chair', label: 'Dining Chair', room: 'Dining Room', item: { name: 'Dining Chair', qty: 1, cubicFeet: 8, weightLbs: 15, included: true } },
+  { id: 'dining-chair', label: 'Dining Chair', room: 'Dining Room', item: { name: 'Dining Chair', qty: 1, cubicFeet: 5, weightLbs: 15, included: true } },
   { id: 'queen-bed', label: 'Queen Bed Set', room: 'Primary Bedroom', item: { name: 'Queen Bed Set', qty: 1, cubicFeet: 65, weightLbs: 165, included: true } },
   { id: 'king-bed', label: 'King Bed Set', room: 'Primary Bedroom', item: { name: 'King Bed Set', qty: 1, cubicFeet: 80, weightLbs: 210, included: true } },
   { id: 'dresser-long', label: 'Dresser · Long', room: 'Primary Bedroom', item: { name: 'Long Dresser', qty: 1, cubicFeet: 40, weightLbs: 120, included: true } },
@@ -41,7 +41,7 @@ export const INVENTORY_PRESETS: InventoryPreset[] = [
   { id: 'tool-chest', label: 'Tool Chest', room: 'Garage', item: { name: 'Tool Chest', qty: 1, cubicFeet: 30, weightLbs: 160, included: true } },
   { id: 'file-cabinet', label: 'File Cabinet', room: 'Office', item: { name: 'File Cabinet', qty: 1, cubicFeet: 15, weightLbs: 65, included: true } },
   { id: 'bin-stack', label: 'Storage Bins · 5', room: 'Storage', item: { name: 'Storage Bins', qty: 5, cubicFeet: 3, weightLbs: 12, included: true } },
-  { id: 'wardrobe-boxes', label: 'Wardrobe Boxes · 4', room: 'Bedroom', item: { name: 'Wardrobe Boxes', qty: 4, cubicFeet: 10, weightLbs: 18, included: true } },
+  { id: 'wardrobe-boxes', label: 'Wardrobe Boxes · 4', room: 'Bedroom', item: { name: 'Wardrobe Boxes', qty: 4, cubicFeet: 13, weightLbs: 35, included: true, notes: 'Hanging clothes — avg 35 lbs packed per box' } },
 
   // ── Boxes (most common add-on — must ask every customer) ──────────────────
   // Weights are average packed weights (not max capacity) for realistic labor estimation
