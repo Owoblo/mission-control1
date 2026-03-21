@@ -106,7 +106,7 @@ export default function QueuePage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-bold text-[#1a2744]">Outreach Queue</h1>
+          <h1 className="font-display text-2xl font-bold text-[#1a2744]">Daily Partnership Queue</h1>
           <p className="mt-1 text-sm text-[var(--app-muted)]">
             {new Date().toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' })}
             {total > 0 && ` · ${total} action${total !== 1 ? 's' : ''} waiting`}
@@ -133,7 +133,7 @@ export default function QueuePage() {
           <div className="text-lg font-bold text-[#1a2744]">Queue is clear</div>
           <p className="text-sm text-[var(--app-muted)]">
             {view === 'today'
-              ? 'Nothing due today. Check the Upcoming tab or add contacts to the queue from the Partner Pipeline.'
+              ? 'Nothing due today. Check Upcoming or move mailed / due accounts into the queue from Partnerships.'
               : 'No actions scheduled for this period.'}
           </p>
         </div>

@@ -1,25 +1,45 @@
 'use client'
 
-import { Suspense, useCallback, useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import {
+  PARTNERSHIP_STAGE_META,
+  PARTNERSHIP_STAGE_ORDER,
+  defaultFollowUpDate,
+  getPipelineBucket,
+  normalizePartnershipStage,
+  toDateInput,
+} from '@/lib/marketing'
 
 interface MarketContact {
   id: string
   name: string
   company: string
   title: string
-  email: string
-  phone: string
-  website: string
-  address: string
-  city: string
-  industry: string
-  tier: string
-  tracking_code: string
-  stage: string
-  notes: string
+  email: string | null
+  phone: string | null
+  website: string | null
+  address: string | null
+  city: string | null
+  industry: string | null
+  tier: string | null
+  tracking_code: string | null
+  stage: string | null
+  normalized_stage: string
+  notes: string | null
   last_touch_at: string | null
   next_follow_up: string | null
+  created_at: string
+  pipeline: 'partners' | 'corporate'
+  touch_count: number
+  pending_queue_count: number
+  next_queue_due: string | null
+  next_queue_label: string | null
+  last_direct_mail_at: string | null
+  last_call_at: string | null
+  last_email_at: string | null
+  needs_follow_up: boolean
+  has_reply: boolean
 }
 
 interface Touch {
@@ -31,114 +51,126 @@ interface Touch {
   created_at: string
 }
 
-const STAGES = ['cold','contacted','engaged','qualified','partnered','referring','revisit','dnc']
-const STAGE_LABELS: Record<string, string> = {
-  cold: 'Cold', contacted: 'Contacted', engaged: 'Engaged',
-  qualified: 'Qualified', partnered: 'Partnered', referring: 'Referring',
-  revisit: 'Revisit', dnc: 'DNC',
-}
-const STAGE_COLORS: Record<string, string> = {
-  cold: 'bg-slate-100 text-slate-600',
-  contacted: 'bg-sky-100 text-sky-700',
-  engaged: 'bg-amber-100 text-amber-700',
-  qualified: 'bg-orange-100 text-orange-700',
-  partnered: 'bg-emerald-100 text-emerald-700',
-  referring: 'bg-green-600 text-white',
-  revisit: 'bg-purple-100 text-purple-700',
-  dnc: 'bg-red-100 text-red-600',
-}
-const TIERS = ['A','B','C','D','E']
-const CHANNELS = ['email','direct_mail','phone','in_person','linkedin','sms']
-const CHANNEL_ICONS: Record<string, string> = {
-  email: '📧', direct_mail: '✉️', phone: '📞', in_person: '🤝', linkedin: '💼', sms: '💬',
+const CHANNELS = [
+  { value: 'phone', label: 'Call' },
+  { value: 'email', label: 'Email' },
+  { value: 'direct_mail', label: 'Direct Mail' },
+  { value: 'linkedin', label: 'LinkedIn' },
+  { value: 'sms', label: 'SMS' },
+  { value: 'in_person', label: 'In Person' },
+] as const
+
+function fmtDate(date?: string | null) {
+  if (!date) return '—'
+  return new Date(date).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })
 }
 
-function daysSince(dateStr: string | null) {
-  if (!dateStr) return null
-  return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000)
+function daysUntil(date?: string | null) {
+  if (!date) return null
+  const today = new Date(toDateInput(new Date())).getTime()
+  const target = new Date(toDateInput(date)).getTime()
+  return Math.round((target - today) / 86400000)
 }
 
 function PartnersInner() {
   const searchParams = useSearchParams()
-  const router = useRouter()
-
   const [contacts, setContacts] = useState<MarketContact[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [offset, setOffset] = useState(0)
-  const LIMIT = 30
-
-  const [stageFilter, setStageFilter] = useState(searchParams.get('stage') ?? '')
-  const [tierFilter, setTierFilter] = useState(searchParams.get('tier') ?? '')
   const [query, setQuery] = useState('')
-
+  const [pipeline, setPipeline] = useState<'all' | 'partners' | 'corporate'>(searchParams.get('pipeline') === 'corporate' ? 'corporate' : searchParams.get('pipeline') === 'partners' ? 'partners' : 'all')
+  const [focus, setFocus] = useState<'all' | 'due'>((searchParams.get('focus') === 'due') ? 'due' : 'all')
+  const [stageFilter, setStageFilter] = useState(searchParams.get('stage') ?? '')
   const [selected, setSelected] = useState<MarketContact | null>(null)
   const [touches, setTouches] = useState<Touch[]>([])
   const [touchLoading, setTouchLoading] = useState(false)
-  const [logOpen, setLogOpen] = useState(false)
-  const [logForm, setLogForm] = useState({ channel: 'phone', direction: 'outbound', notes: '', new_stage: '' })
+  const [saving, setSaving] = useState(false)
   const [editNotes, setEditNotes] = useState('')
   const [editFollowUp, setEditFollowUp] = useState('')
-  const [saving, setSaving] = useState(false)
+  const [logForm, setLogForm] = useState({
+    channel: 'phone',
+    notes: '',
+    new_stage: '',
+    schedule_follow_up_days: 7,
+  })
 
-  const load = useCallback(async (reset = false) => {
+  const load = useCallback(async () => {
     setLoading(true)
-    const off = reset ? 0 : offset
-    const params = new URLSearchParams({
-      limit: String(LIMIT),
-      offset: String(off),
-    })
-    if (stageFilter) params.set('stage', stageFilter)
-    if (tierFilter) params.set('tier', tierFilter)
+    const params = new URLSearchParams({ limit: '200', offset: '0' })
     if (query.trim()) params.set('q', query.trim())
-
     const r = await fetch(`/api/marketing/contacts?${params}`, { credentials: 'include' })
     if (r.ok) {
       const data = await r.json()
-      if (reset) {
-        setContacts(data.contacts)
-        setOffset(0)
-      } else {
-        setContacts(prev => [...prev, ...data.contacts])
-      }
+      setContacts(data.contacts)
       setTotal(data.total)
+      if (!selected && data.contacts[0]) {
+        setSelected(data.contacts[0])
+        setEditNotes(data.contacts[0].notes ?? '')
+        setEditFollowUp(data.contacts[0].next_follow_up ?? '')
+      }
     }
     setLoading(false)
-  }, [stageFilter, tierFilter, query, offset])
+  }, [query, selected])
 
-  useEffect(() => { void load(true) }, [stageFilter, tierFilter]) // eslint-disable-line
+  useEffect(() => {
+    void load()
+  }, [load])
 
-  async function openContact(c: MarketContact) {
-    setSelected(c)
-    setEditNotes(c.notes ?? '')
-    setEditFollowUp(c.next_follow_up ?? '')
+  async function openContact(contact: MarketContact) {
+    setSelected(contact)
+    setEditNotes(contact.notes ?? '')
+    setEditFollowUp(contact.next_follow_up ?? '')
     setTouchLoading(true)
-    const r = await fetch(`/api/marketing/touches?contact_id=${c.id}`, { credentials: 'include' })
+    const r = await fetch(`/api/marketing/touches?contact_id=${contact.id}`, { credentials: 'include' })
     setTouches(r.ok ? await r.json() : [])
     setTouchLoading(false)
   }
 
-  async function saveContact() {
+  async function saveProfile() {
     if (!selected) return
     setSaving(true)
-    await fetch('/api/marketing/contacts', {
+    const r = await fetch('/api/marketing/contacts', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ id: selected.id, notes: editNotes, next_follow_up: editFollowUp }),
+      body: JSON.stringify({ id: selected.id, notes: editNotes, next_follow_up: editFollowUp || null }),
     })
+    if (r.ok) {
+      const data = await r.json()
+      setSelected(current => current ? { ...current, ...data.contact } : current)
+      await load()
+    }
     setSaving(false)
   }
 
-  async function updateStage(c: MarketContact, stage: string) {
-    await fetch('/api/marketing/contacts', {
+  async function quickAction(action: 'mark_mail_sent' | 'mark_follow_up_due' | 'mark_partnership_active' | 'snooze_21_days') {
+    if (!selected) return
+    setSaving(true)
+    const touchNote = action === 'mark_mail_sent'
+      ? 'Initial mail package sent'
+      : action === 'mark_partnership_active'
+        ? 'Partnership secured'
+        : action === 'snooze_21_days'
+          ? 'Relationship snoozed for next nurture cycle'
+          : 'Marked for immediate follow-up'
+    const r = await fetch('/api/marketing/contacts', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ id: c.id, stage }),
+      body: JSON.stringify({
+        id: selected.id,
+        quick_action: action,
+        next_follow_up: action === 'mark_mail_sent' ? defaultFollowUpDate(new Date(), 21) : undefined,
+        touch_note: touchNote,
+      }),
     })
-    setContacts(prev => prev.map(x => x.id === c.id ? { ...x, stage } : x))
-    if (selected?.id === c.id) setSelected(prev => prev ? { ...prev, stage } : prev)
+    if (r.ok) {
+      const data = await r.json()
+      setSelected(current => current ? { ...current, ...data.contact } : current)
+      await openContact({ ...selected, ...data.contact })
+      await load()
+    }
+    setSaving(false)
   }
 
   async function logTouch() {
@@ -148,274 +180,364 @@ function PartnersInner() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ contact_id: selected.id, ...logForm }),
+      body: JSON.stringify({
+        contact_id: selected.id,
+        channel: logForm.channel,
+        notes: logForm.notes,
+        new_stage: logForm.new_stage || undefined,
+        schedule_follow_up_days: logForm.schedule_follow_up_days,
+      }),
     })
-    // Reload touches
-    const r = await fetch(`/api/marketing/touches?contact_id=${selected.id}`, { credentials: 'include' })
-    setTouches(r.ok ? await r.json() : [])
-    if (logForm.new_stage) {
-      setContacts(prev => prev.map(x => x.id === selected.id ? { ...x, stage: logForm.new_stage } : x))
-      setSelected(prev => prev ? { ...prev, stage: logForm.new_stage, last_touch_at: new Date().toISOString() } : prev)
-    } else {
-      setSelected(prev => prev ? { ...prev, last_touch_at: new Date().toISOString() } : prev)
-    }
-    setLogForm({ channel: 'phone', direction: 'outbound', notes: '', new_stage: '' })
-    setLogOpen(false)
+    setLogForm({ channel: 'phone', notes: '', new_stage: '', schedule_follow_up_days: 7 })
+    await load()
+    await openContact(selected)
     setSaving(false)
   }
 
+  const filtered = useMemo(() => {
+    return contacts
+      .filter(contact => pipeline === 'all' ? true : contact.pipeline === pipeline)
+      .filter(contact => focus === 'due' ? contact.needs_follow_up : true)
+      .filter(contact => stageFilter ? normalizePartnershipStage(contact.stage) === stageFilter : true)
+      .sort((a, b) => {
+        if (a.needs_follow_up !== b.needs_follow_up) return a.needs_follow_up ? -1 : 1
+        const aDate = a.next_follow_up || a.next_queue_due || a.last_touch_at || a.created_at
+        const bDate = b.next_follow_up || b.next_queue_due || b.last_touch_at || b.created_at
+        return new Date(aDate).getTime() - new Date(bDate).getTime()
+      })
+  }, [contacts, focus, pipeline, stageFilter])
+
+  const counts = useMemo(() => {
+    return filtered.reduce<Record<string, number>>((acc, contact) => {
+      const stage = normalizePartnershipStage(contact.stage)
+      acc[stage] = (acc[stage] ?? 0) + 1
+      return acc
+    }, {})
+  }, [filtered])
+
+  const dueNowCount = filtered.filter(contact => contact.needs_follow_up).length
+  const mailedCount = filtered.filter(contact => normalizePartnershipStage(contact.stage) === 'mail_sent').length
+
   return (
-    <div className="crm-shell flex gap-0 overflow-hidden" style={{ height: 'calc(100vh - 120px)' }}>
-      {/* Left panel — contact list */}
-      <div className="flex w-full flex-col md:w-[420px] md:shrink-0 border-r border-slate-100">
-        {/* Filters */}
-        <div className="border-b border-slate-100 bg-white p-4 space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <h1 className="font-bold text-[#1a2744]">Partner Pipeline</h1>
-            <span className="text-xs text-slate-400">{total.toLocaleString()} contacts</span>
+    <div className="grid gap-6 xl:grid-cols-[420px,minmax(0,1fr)]">
+      <section className="overflow-hidden rounded-[26px] border border-[var(--app-line)] bg-white">
+        <div className="border-b border-slate-200 px-5 py-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h1 className="text-xl font-semibold tracking-tight text-[#1a2744]">Partnerships Workspace</h1>
+              <p className="mt-1 text-sm text-slate-500">Mail sent, follow-up due, relationship stage, and daily outreach all in one queue.</p>
+            </div>
+            <div className="rounded-2xl bg-slate-100 px-3 py-2 text-right">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Loaded</div>
+              <div className="text-lg font-semibold text-[#1a2744]">{total}</div>
+            </div>
           </div>
 
-          <input
-            type="text"
-            placeholder="Search name, company, city..."
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && load(true)}
-            className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-[#1a2744]"
-          />
+          <div className="mt-4 grid grid-cols-3 gap-3">
+            <MiniStat label="Due Now" value={dueNowCount} tone="text-rose-600" />
+            <MiniStat label="Mailed" value={mailedCount} tone="text-amber-700" />
+            <MiniStat label="Active" value={counts.partnership_active ?? 0} tone="text-emerald-700" />
+          </div>
 
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            <button
-              onClick={() => setStageFilter('')}
-              className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition ${!stageFilter ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-            >
-              All
-            </button>
-            {STAGES.slice(0, 6).map(s => (
+          <div className="mt-4 flex gap-2">
+            {(['all', 'partners', 'corporate'] as const).map(value => (
               <button
-                key={s}
-                onClick={() => setStageFilter(stageFilter === s ? '' : s)}
-                className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition ${stageFilter === s ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                key={value}
+                onClick={() => setPipeline(value)}
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${pipeline === value ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
               >
-                {STAGE_LABELS[s]}
+                {value === 'all' ? 'All' : value === 'partners' ? 'Partner Pipeline' : 'Corporate'}
               </button>
             ))}
+            <button
+              onClick={() => setFocus(focus === 'due' ? 'all' : 'due')}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${focus === 'due' ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            >
+              Due Now Only
+            </button>
           </div>
 
-          <div className="flex gap-2 overflow-x-auto">
-            <button onClick={() => setTierFilter('')} className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold transition ${!tierFilter ? 'bg-[#1a2744] text-[#f5a623]' : 'bg-slate-100 text-slate-600'}`}>All tiers</button>
-            {TIERS.map(t => (
-              <button key={t} onClick={() => setTierFilter(tierFilter === t ? '' : t)} className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold transition ${tierFilter === t ? 'bg-[#1a2744] text-[#f5a623]' : 'bg-slate-100 text-slate-600'}`}>Tier {t}</button>
+          <div className="mt-4">
+            <input
+              type="text"
+              placeholder="Search name, company, city..."
+              value={query}
+              onChange={event => setQuery(event.target.value)}
+              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-[#1a2744] outline-none transition focus:border-[#1a2744]"
+            />
+          </div>
+
+          <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+            <button
+              onClick={() => setStageFilter('')}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${!stageFilter ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600'}`}
+            >
+              All stages
+            </button>
+            {PARTNERSHIP_STAGE_ORDER.slice(0, 7).map(stage => (
+              <button
+                key={stage}
+                onClick={() => setStageFilter(stageFilter === stage ? '' : stage)}
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${stageFilter === stage ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600'}`}
+              >
+                {PARTNERSHIP_STAGE_META[stage].shortLabel}
+              </button>
             ))}
           </div>
         </div>
 
-        {/* Contact list */}
-        <div className="flex-1 overflow-y-auto divide-y divide-slate-50">
-          {loading && contacts.length === 0 ? (
-            <div className="p-8 text-center text-sm text-slate-400">Loading...</div>
-          ) : contacts.length === 0 ? (
-            <div className="p-8 text-center text-sm text-slate-400">No contacts found.</div>
-          ) : contacts.map(c => {
-            const days = daysSince(c.last_touch_at)
-            const isSelected = selected?.id === c.id
+        <div className="max-h-[calc(100vh-270px)] overflow-y-auto">
+          {loading ? (
+            <div className="p-8 text-center text-sm text-slate-500">Loading partnership accounts...</div>
+          ) : filtered.length === 0 ? (
+            <div className="p-8 text-center text-sm text-slate-500">No accounts match the current filters.</div>
+          ) : filtered.map(contact => {
+            const meta = PARTNERSHIP_STAGE_META[normalizePartnershipStage(contact.stage)]
+            const selectedId = selected?.id === contact.id
+            const dueIn = daysUntil(contact.next_follow_up || contact.next_queue_due)
             return (
               <button
-                key={c.id}
-                onClick={() => void openContact(c)}
-                className={`w-full px-4 py-3 text-left transition hover:bg-slate-50 ${isSelected ? 'bg-slate-50 border-l-2 border-[#1a2744]' : ''}`}
+                key={contact.id}
+                onClick={() => void openContact(contact)}
+                className={`w-full border-b border-slate-100 px-5 py-4 text-left transition hover:bg-slate-50 ${selectedId ? 'bg-slate-50' : ''}`}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-[#1a2744]">{c.name}</div>
-                    <div className="truncate text-xs text-slate-500">{c.company || c.industry}</div>
-                    <div className="text-xs text-slate-400">{c.city}</div>
-                  </div>
-                  <div className="shrink-0 flex flex-col items-end gap-1">
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${STAGE_COLORS[c.stage] ?? 'bg-slate-100 text-slate-600'}`}>
-                      {STAGE_LABELS[c.stage]}
-                    </span>
-                    {days !== null && (
-                      <span className={`text-[10px] ${days > 14 ? 'text-rose-500' : 'text-slate-400'}`}>
-                        {days === 0 ? 'today' : `${days}d ago`}
+                <div className="flex items-start gap-3">
+                  <div className={`mt-0.5 h-11 w-1.5 rounded-full ${contact.needs_follow_up ? 'bg-rose-500' : contact.pipeline === 'corporate' ? 'bg-sky-500' : 'bg-[#1a2744]'}`} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-[#1a2744]">{contact.name}</div>
+                        <div className="truncate text-xs text-slate-500">{contact.company || contact.industry || 'Unassigned company'}</div>
+                      </div>
+                      <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold ${meta.color}`}>
+                        {meta.shortLabel}
                       </span>
-                    )}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-500">
+                      <span>{contact.pipeline === 'corporate' ? 'Corporate' : 'Partner'}</span>
+                      {contact.city && <span>• {contact.city}</span>}
+                      {contact.tracking_code && <span>• {contact.tracking_code}</span>}
+                      {contact.last_direct_mail_at && <span>• mailed {fmtDate(contact.last_direct_mail_at)}</span>}
+                      {contact.last_call_at && <span>• called {fmtDate(contact.last_call_at)}</span>}
+                    </div>
+                    <div className="mt-2 flex items-center justify-between gap-3 text-[11px]">
+                      <span className={`${contact.needs_follow_up ? 'text-rose-600' : 'text-slate-400'}`}>
+                        {contact.next_follow_up ? `follow-up ${dueIn !== null && dueIn < 0 ? `${Math.abs(dueIn)}d overdue` : dueIn === 0 ? 'today' : `in ${dueIn}d`}` : 'no follow-up date'}
+                      </span>
+                      <span className="text-slate-400">{contact.touch_count} touches</span>
+                    </div>
                   </div>
                 </div>
               </button>
             )
           })}
-          {contacts.length < total && !loading && (
-            <button
-              onClick={() => { setOffset(contacts.length); void load() }}
-              className="w-full py-4 text-xs font-medium text-[#1a2744] hover:bg-slate-50"
-            >
-              Load more ({total - contacts.length} remaining)
-            </button>
-          )}
         </div>
-      </div>
+      </section>
 
-      {/* Right panel — contact detail */}
-      <div className="hidden flex-1 flex-col overflow-y-auto md:flex">
+      <section className="overflow-hidden rounded-[26px] border border-[var(--app-line)] bg-white">
         {!selected ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
-            <div className="text-4xl">👥</div>
-            <div className="font-semibold text-[#1a2744]">Select a contact</div>
-            <div className="text-sm text-slate-400">Click any name on the left to view their profile and log interactions.</div>
-          </div>
+          <div className="flex min-h-[620px] items-center justify-center p-10 text-center text-sm text-slate-500">Select an account to work the relationship.</div>
         ) : (
-          <div className="p-6 space-y-6">
-            {/* Contact header */}
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#1a2744] text-base font-bold text-[#f5a623]">
-                  {selected.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2)}
-                </div>
+          <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr),360px]">
+            <div className="border-b border-slate-200 p-6 xl:border-b-0 xl:border-r">
+              <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-bold text-[#1a2744]">{selected.name}</h2>
-                  {selected.title && <div className="text-sm text-slate-500">{selected.title}</div>}
-                  {selected.company && <div className="text-sm font-medium text-slate-700">{selected.company}</div>}
-                  <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-400">
-                    {selected.city && <span>📍 {selected.city}</span>}
-                    {selected.phone && <a href={`tel:${selected.phone}`} className="hover:text-[#1a2744]">📞 {selected.phone}</a>}
-                    {selected.email && <a href={`mailto:${selected.email}`} className="hover:text-[#1a2744]">📧 {selected.email}</a>}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-2xl font-semibold tracking-tight text-[#1a2744]">{selected.name}</h2>
+                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${PARTNERSHIP_STAGE_META[normalizePartnershipStage(selected.stage)].color}`}>
+                      {PARTNERSHIP_STAGE_META[normalizePartnershipStage(selected.stage)].label}
+                    </span>
+                  </div>
+                  <div className="mt-2 text-sm text-slate-600">
+                    {[selected.title, selected.company || selected.industry, selected.city].filter(Boolean).join(' · ') || 'Partnership target'}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+                    {selected.phone && <a href={`tel:${selected.phone}`} className="rounded-full bg-slate-100 px-3 py-1.5 hover:text-[#1a2744]">📞 {selected.phone}</a>}
+                    {selected.email && <a href={`mailto:${selected.email}`} className="rounded-full bg-slate-100 px-3 py-1.5 hover:text-[#1a2744]">✉️ {selected.email}</a>}
+                    {selected.website && <a href={selected.website} target="_blank" rel="noreferrer" className="rounded-full bg-slate-100 px-3 py-1.5 hover:text-[#1a2744]">Website ↗</a>}
                   </div>
                 </div>
+                <div className="grid min-w-[220px] grid-cols-2 gap-3 rounded-[20px] border border-slate-200 bg-slate-50 p-4 text-sm">
+                  <Metric label="Mail Sent" value={fmtDate(selected.last_direct_mail_at)} />
+                  <Metric label="Next Follow-Up" value={fmtDate(selected.next_follow_up)} />
+                  <Metric label="Last Call" value={fmtDate(selected.last_call_at)} />
+                  <Metric label="Pending Tasks" value={String(selected.pending_queue_count)} />
+                </div>
               </div>
-              <div className="flex shrink-0 flex-col items-end gap-2">
-                <span className={`rounded-full px-3 py-1 text-xs font-bold ${STAGE_COLORS[selected.stage]}`}>
-                  {STAGE_LABELS[selected.stage]}
-                </span>
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
-                  Tier {selected.tier} · {selected.tracking_code}
-                </span>
-              </div>
-            </div>
 
-            {/* Move stage */}
-            <div>
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Move Stage</div>
-              <div className="flex flex-wrap gap-2">
-                {STAGES.filter(s => s !== 'dnc').map(s => (
-                  <button
-                    key={s}
-                    onClick={() => void updateStage(selected, s)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${selected.stage === s ? STAGE_COLORS[s] + ' ring-2 ring-offset-1 ring-[#1a2744]' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
-                  >
-                    {STAGE_LABELS[s]}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Log touch */}
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Activity</div>
-                <button onClick={() => setLogOpen(true)} className="rounded-lg bg-[#1a2744] px-3 py-1.5 text-xs font-bold text-white hover:opacity-90">
-                  + Log Touch
+              <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <button onClick={() => void quickAction('mark_mail_sent')} disabled={saving} className="rounded-[18px] border border-amber-200 bg-amber-50 p-4 text-left transition hover:bg-amber-100 disabled:opacity-60">
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">Mail</div>
+                  <div className="mt-2 text-sm font-semibold text-[#1a2744]">Mark Mail Sent</div>
+                  <div className="mt-1 text-xs text-slate-500">Logs the mail touch and sets a 21-day follow-up.</div>
+                </button>
+                <button onClick={() => void quickAction('mark_follow_up_due')} disabled={saving} className="rounded-[18px] border border-rose-200 bg-rose-50 p-4 text-left transition hover:bg-rose-100 disabled:opacity-60">
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-700">Urgent</div>
+                  <div className="mt-2 text-sm font-semibold text-[#1a2744]">Needs Follow-Up Now</div>
+                  <div className="mt-1 text-xs text-slate-500">Pull this account into the active rep queue immediately.</div>
+                </button>
+                <button onClick={() => void quickAction('mark_partnership_active')} disabled={saving} className="rounded-[18px] border border-emerald-200 bg-emerald-50 p-4 text-left transition hover:bg-emerald-100 disabled:opacity-60">
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Won</div>
+                  <div className="mt-2 text-sm font-semibold text-[#1a2744]">Partnership Secured</div>
+                  <div className="mt-1 text-xs text-slate-500">Use this when they have replied positively or agreed to refer.</div>
+                </button>
+                <button onClick={() => void quickAction('snooze_21_days')} disabled={saving} className="rounded-[18px] border border-slate-200 bg-slate-50 p-4 text-left transition hover:bg-slate-100 disabled:opacity-60">
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Later</div>
+                  <div className="mt-2 text-sm font-semibold text-[#1a2744]">Snooze 21 Days</div>
+                  <div className="mt-1 text-xs text-slate-500">Keep the relationship warm without clogging the immediate queue.</div>
                 </button>
               </div>
 
-              {logOpen && (
-                <div className="mb-4 rounded-xl border border-[#1a2744]/20 bg-[#1a2744]/5 p-4 space-y-3">
-                  <div className="flex gap-2 flex-wrap">
-                    {CHANNELS.map(ch => (
-                      <button key={ch} onClick={() => setLogForm(f => ({ ...f, channel: ch }))} className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition ${logForm.channel === ch ? 'bg-[#1a2744] text-white' : 'bg-white border border-slate-200 text-slate-600'}`}>
-                        {CHANNEL_ICONS[ch]} {ch.replace('_',' ')}
-                      </button>
-                    ))}
+              <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr,0.8fr]">
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Relationship Notes</h3>
+                    <textarea
+                      value={editNotes}
+                      onChange={event => setEditNotes(event.target.value)}
+                      className="mt-2 h-36 w-full rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-[#1a2744] outline-none transition focus:border-[#1a2744]"
+                      placeholder="What have we sent? Did they reply? Who is the gatekeeper? What script worked?"
+                    />
                   </div>
-                  <div className="flex gap-2">
-                    {['outbound','inbound'].map(d => (
-                      <button key={d} onClick={() => setLogForm(f => ({ ...f, direction: d }))} className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${logForm.direction === d ? 'bg-[#1a2744] text-white' : 'bg-white border border-slate-200 text-slate-600'}`}>
-                        {d === 'inbound' ? '← Inbound' : '→ Outbound'}
-                      </button>
-                    ))}
-                  </div>
-                  <textarea
-                    className="crm-input h-16 resize-none text-xs"
-                    placeholder="What happened? What did they say?"
-                    value={logForm.notes}
-                    onChange={e => setLogForm(f => ({ ...f, notes: e.target.value }))}
-                  />
-                  <div className="flex items-center gap-2">
-                    <select className="crm-input text-xs flex-1" value={logForm.new_stage} onChange={e => setLogForm(f => ({ ...f, new_stage: e.target.value }))}>
-                      <option value="">Keep current stage</option>
-                      {STAGES.map(s => <option key={s} value={s}>→ Move to {STAGE_LABELS[s]}</option>)}
-                    </select>
-                    <button onClick={() => void logTouch()} disabled={saving} className="rounded-lg bg-[#f5a623] px-4 py-2 text-xs font-bold text-[#1a2744] hover:opacity-90 disabled:opacity-60">
-                      {saving ? '...' : 'Save'}
-                    </button>
-                    <button onClick={() => setLogOpen(false)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-500 hover:bg-slate-50">✕</button>
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                {touchLoading ? (
-                  <div className="text-xs text-slate-400 py-2">Loading history...</div>
-                ) : touches.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-400">No touches logged yet. Log your first interaction above.</div>
-                ) : touches.map(t => (
-                  <div key={t.id} className="flex items-start gap-3 rounded-xl bg-slate-50 p-3">
-                    <span className="text-base">{CHANNEL_ICONS[t.channel] ?? '📋'}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 text-xs">
-                        <span className="font-semibold capitalize text-[#1a2744]">{t.channel.replace('_',' ')}</span>
-                        <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold ${t.direction === 'inbound' ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700'}`}>
-                          {t.direction}
-                        </span>
-                        <span className="text-slate-400">{new Date(t.created_at).toLocaleDateString('en-CA')}</span>
-                        {t.created_by && <span className="text-slate-400">· {t.created_by}</span>}
-                      </div>
-                      {t.notes && <div className="mt-1 text-xs text-slate-600">{t.notes}</div>}
+                  <div className="grid gap-4 md:grid-cols-[220px,1fr]">
+                    <div>
+                      <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Next Follow-Up</h3>
+                      <input
+                        type="date"
+                        value={editFollowUp || ''}
+                        onChange={event => setEditFollowUp(event.target.value)}
+                        className="mt-2 h-12 w-full rounded-[18px] border border-slate-200 bg-slate-50 px-4 text-sm text-[#1a2744] outline-none transition focus:border-[#1a2744]"
+                      />
+                    </div>
+                    <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4">
+                      <div className="text-sm font-semibold text-[#1a2744]">Rep Prompt</div>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        “Hi, this is Saturn Star Movers following up on the partnership package we mailed over. I wanted to confirm it reached you and see whether there’s a fit to support your clients or staff with relocations.”
+                      </p>
                     </div>
                   </div>
-                ))}
+                  <div className="flex gap-3">
+                    <button onClick={() => void saveProfile()} disabled={saving} className="rounded-xl bg-[#1a2744] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
+                      {saving ? 'Saving...' : 'Save Profile'}
+                    </button>
+                    {selected.website && (
+                      <a href={selected.website} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:border-[#1a2744] hover:text-[#1a2744]">
+                        Open Website
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-[22px] border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Log Outreach</h3>
+                    <span className="text-xs text-slate-400">Every touch should live here.</span>
+                  </div>
+                  <div className="mt-4 space-y-3">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-500">Channel</label>
+                      <select
+                        value={logForm.channel}
+                        onChange={event => setLogForm(current => ({ ...current, channel: event.target.value }))}
+                        className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#1a2744] outline-none"
+                      >
+                        {CHANNELS.map(channel => <option key={channel.value} value={channel.value}>{channel.label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-500">Stage After Touch</label>
+                      <select
+                        value={logForm.new_stage}
+                        onChange={event => setLogForm(current => ({ ...current, new_stage: event.target.value }))}
+                        className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#1a2744] outline-none"
+                      >
+                        <option value="">Auto</option>
+                        {PARTNERSHIP_STAGE_ORDER.map(stage => (
+                          <option key={stage} value={stage}>{PARTNERSHIP_STAGE_META[stage].label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-500">Next Follow-Up (days)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={logForm.schedule_follow_up_days}
+                        onChange={event => setLogForm(current => ({ ...current, schedule_follow_up_days: Number(event.target.value) }))}
+                        className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#1a2744] outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-500">What happened?</label>
+                      <textarea
+                        value={logForm.notes}
+                        onChange={event => setLogForm(current => ({ ...current, notes: event.target.value }))}
+                        className="mt-1 h-28 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-[#1a2744] outline-none"
+                        placeholder="Left voicemail, confirmed package arrived, gatekeeper asked for another postcard, booked meeting..."
+                      />
+                    </div>
+                    <button onClick={() => void logTouch()} disabled={saving || !logForm.notes.trim()} className="w-full rounded-xl bg-[#1a2744] py-2.5 text-sm font-semibold text-white disabled:opacity-60">
+                      Log Touch
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Notes + follow-up */}
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="block">
-                <span className="crm-label">Notes</span>
-                <textarea
-                  className="crm-input mt-1 h-24 resize-none text-sm"
-                  value={editNotes}
-                  onChange={e => setEditNotes(e.target.value)}
-                  placeholder="Relationship notes, preferences, context..."
-                />
-              </label>
-              <label className="block">
-                <span className="crm-label">Next Follow-up</span>
-                <input
-                  type="date"
-                  className="crm-input mt-1"
-                  value={editFollowUp}
-                  onChange={e => setEditFollowUp(e.target.value)}
-                />
-                {selected.website && (
-                  <a href={selected.website} target="_blank" rel="noopener noreferrer" className="mt-2 flex items-center gap-1 text-xs text-[#1a2744] underline underline-offset-2">
-                    🌐 {selected.website.replace(/https?:\/\//,'')}
-                  </a>
-                )}
-              </label>
-            </div>
-            <button onClick={() => void saveContact()} disabled={saving} className="crm-button-dark text-sm disabled:opacity-60">
-              {saving ? 'Saving...' : 'Save Notes'}
-            </button>
+            <aside className="p-6">
+              <div className="rounded-[22px] border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Timeline</h3>
+                  <span className="text-xs text-slate-400">{touches.length} events</span>
+                </div>
+                <div className="mt-4 max-h-[560px] space-y-3 overflow-y-auto pr-1">
+                  {touchLoading ? (
+                    <div className="text-sm text-slate-500">Loading activity...</div>
+                  ) : touches.length === 0 ? (
+                    <div className="rounded-[18px] border border-dashed border-slate-200 p-5 text-sm text-slate-500">
+                      No touches logged yet. Start by marking the original mail or logging the latest follow-up call.
+                    </div>
+                  ) : touches.map(touch => (
+                    <div key={touch.id} className="rounded-[18px] border border-slate-200 bg-white p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase text-slate-600">{touch.channel.replace('_', ' ')}</span>
+                        <span className="text-[11px] text-slate-400">{fmtDate(touch.created_at)}</span>
+                      </div>
+                      <div className="mt-2 text-sm leading-6 text-slate-700">{touch.notes || 'No note provided.'}</div>
+                      <div className="mt-2 text-[11px] text-slate-400">{touch.created_by || 'Rep'}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </aside>
           </div>
         )}
-      </div>
+      </section>
+    </div>
+  )
+}
+
+function MiniStat({ label, value, tone }: { label: string; value: number; tone: string }) {
+  return (
+    <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-3">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</div>
+      <div className={`mt-1 text-2xl font-semibold tracking-tight ${tone}`}>{value}</div>
+    </div>
+  )
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</div>
+      <div className="mt-1 text-sm font-semibold text-[#1a2744]">{value}</div>
     </div>
   )
 }
 
 export default function PartnersPage() {
   return (
-    <Suspense fallback={<div className="crm-shell p-16 text-center text-sm text-slate-400">Loading...</div>}>
+    <Suspense fallback={<div className="rounded-[24px] border border-[var(--app-line)] bg-white p-16 text-center text-sm text-slate-500">Loading partnerships...</div>}>
       <PartnersInner />
     </Suspense>
   )

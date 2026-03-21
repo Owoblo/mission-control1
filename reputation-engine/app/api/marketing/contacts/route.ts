@@ -1,6 +1,46 @@
 import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
+import { defaultFollowUpDate, getPipelineBucket, isDateDue, normalizePartnershipStage } from '@/lib/marketing'
+
+interface MarketContact {
+  id: string
+  name: string
+  company: string
+  title: string
+  email: string | null
+  phone: string | null
+  website: string | null
+  address: string | null
+  city: string | null
+  industry: string | null
+  tier: string | null
+  tracking_code: string | null
+  stage: string | null
+  notes: string | null
+  last_touch_at: string | null
+  next_follow_up: string | null
+  created_at: string
+}
+
+interface MarketTouch {
+  id: string
+  contact_id: string
+  channel: string
+  direction: string | null
+  notes: string | null
+  created_by: string | null
+  created_at: string
+}
+
+interface QueueItem {
+  id: string
+  contact_id: string
+  channel: string
+  due_date: string
+  label: string
+  status: string
+}
 
 export async function GET(request: Request) {
   const session = await getSessionUser()
@@ -25,17 +65,88 @@ export async function GET(request: Request) {
   const res = await fetch(query, { headers: { ...headers, Prefer: 'count=exact' }, cache: 'no-store' })
   if (!res.ok) return NextResponse.json({ error: 'Failed to load contacts' }, { status: 500 })
 
-  const contacts = await res.json()
+  const contacts = await res.json() as MarketContact[]
   const total = parseInt(res.headers.get('content-range')?.split('/')[1] ?? '0')
 
-  return NextResponse.json({ contacts, total })
+  if (contacts.length === 0) {
+    return NextResponse.json({ contacts: [], total })
+  }
+
+  const contactIds = contacts.map(contact => `"${contact.id}"`).join(',')
+  const [touchRes, queueRes] = await Promise.all([
+    fetch(
+      `${url}/rest/v1/market_touches?select=id,contact_id,channel,direction,notes,created_by,created_at&contact_id=in.(${contactIds})&order=created_at.desc`,
+      { headers, cache: 'no-store' }
+    ),
+    fetch(
+      `${url}/rest/v1/market_queue?select=id,contact_id,channel,due_date,label,status&contact_id=in.(${contactIds})&status=eq.pending&order=due_date.asc`,
+      { headers, cache: 'no-store' }
+    ),
+  ])
+
+  const touches = (touchRes.ok ? await touchRes.json() : []) as MarketTouch[]
+  const queueItems = (queueRes.ok ? await queueRes.json() : []) as QueueItem[]
+
+  const touchMap = new Map<string, MarketTouch[]>()
+  for (const touch of touches) {
+    const list = touchMap.get(touch.contact_id) ?? []
+    list.push(touch)
+    touchMap.set(touch.contact_id, list)
+  }
+
+  const queueMap = new Map<string, QueueItem[]>()
+  for (const item of queueItems) {
+    const list = queueMap.get(item.contact_id) ?? []
+    list.push(item)
+    queueMap.set(item.contact_id, list)
+  }
+
+  const today = new Date()
+  const enriched = contacts.map(contact => {
+    const contactTouches = touchMap.get(contact.id) ?? []
+    const pending = queueMap.get(contact.id) ?? []
+    const lastDirectMail = contactTouches.find(touch => touch.channel === 'direct_mail')
+    const lastCall = contactTouches.find(touch => touch.channel === 'phone')
+    const lastEmail = contactTouches.find(touch => touch.channel === 'email')
+    const nextQueue = pending[0] ?? null
+    const normalizedStage = normalizePartnershipStage(contact.stage)
+    const hasReply = contactTouches.some(touch => /replied|responded|connected|booked|secured|meeting/i.test(touch.notes ?? ''))
+    const needsFollowUp = isDateDue(contact.next_follow_up, today) || isDateDue(nextQueue?.due_date, today)
+
+    return {
+      ...contact,
+      normalized_stage: normalizedStage,
+      pipeline: getPipelineBucket(contact.tier, contact.industry),
+      touch_count: contactTouches.length,
+      pending_queue_count: pending.length,
+      next_queue_due: nextQueue?.due_date ?? null,
+      next_queue_label: nextQueue?.label ?? null,
+      last_direct_mail_at: lastDirectMail?.created_at ?? null,
+      last_call_at: lastCall?.created_at ?? null,
+      last_email_at: lastEmail?.created_at ?? null,
+      needs_follow_up: needsFollowUp,
+      has_reply: hasReply,
+    }
+  })
+
+  return NextResponse.json({ contacts: enriched, total })
 }
 
 export async function PATCH(request: Request) {
   const session = await getSessionUser()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = (await request.json()) as { id: string; stage?: string; notes?: string; next_follow_up?: string; email?: string }
+  const body = (await request.json()) as {
+    id: string
+    stage?: string
+    notes?: string
+    next_follow_up?: string
+    email?: string
+    quick_action?: 'mark_mail_sent' | 'mark_follow_up_due' | 'mark_partnership_active' | 'snooze_21_days'
+    touch_note?: string
+    touch_channel?: string
+    touch_date?: string
+  }
   if (!body.id) return NextResponse.json({ error: 'id required' }, { status: 400 })
 
   const updates: Record<string, unknown> = {}
@@ -46,6 +157,41 @@ export async function PATCH(request: Request) {
   if (body.stage) updates.last_touch_at = new Date().toISOString()
 
   const { url, headers } = requireSupabaseEnv()
+
+  const touchDate = body.touch_date || new Date().toISOString()
+  if (body.quick_action === 'mark_mail_sent') {
+    updates.stage = 'mail_sent'
+    updates.next_follow_up = body.next_follow_up || defaultFollowUpDate(touchDate, 21)
+    updates.last_touch_at = touchDate
+    await fetch(`${url}/rest/v1/market_touches`, {
+      method: 'POST',
+      headers: { ...headers, Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        contact_id: body.id,
+        channel: body.touch_channel || 'direct_mail',
+        direction: 'outbound',
+        notes: body.touch_note || 'Direct mail sent',
+        created_by: session.name ?? 'Rep',
+        created_at: touchDate,
+      }),
+    })
+  }
+
+  if (body.quick_action === 'mark_follow_up_due') {
+    updates.stage = 'follow_up_due'
+    updates.next_follow_up = body.next_follow_up || new Date().toISOString().slice(0, 10)
+  }
+
+  if (body.quick_action === 'mark_partnership_active') {
+    updates.stage = 'partnership_active'
+    updates.next_follow_up = null
+  }
+
+  if (body.quick_action === 'snooze_21_days') {
+    updates.next_follow_up = defaultFollowUpDate(new Date(), 21)
+    if (!updates.stage) updates.stage = 'dormant'
+  }
+
   const res = await fetch(
     `${url}/rest/v1/market_contacts?id=eq.${encodeURIComponent(body.id)}`,
     { method: 'PATCH', headers: { ...headers, Prefer: 'return=representation' }, body: JSON.stringify(updates) }

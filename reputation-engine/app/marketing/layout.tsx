@@ -4,11 +4,11 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const MARKET_NAV = [
-  { href: '/marketing',           label: 'Overview',  match: (p: string) => p === '/marketing' },
-  { href: '/marketing/partners',  label: 'Partners',  match: (p: string) => p.startsWith('/marketing/partners') },
-  { href: '/marketing/queue',     label: 'Queue',     match: (p: string) => p.startsWith('/marketing/queue') },
+  { href: '/marketing',           label: 'Overview',      match: (p: string) => p === '/marketing' },
+  { href: '/marketing/partners',  label: 'Partnerships',  match: (p: string) => p.startsWith('/marketing/partners') },
+  { href: '/marketing/queue',     label: 'Daily Queue',   match: (p: string) => p.startsWith('/marketing/queue') },
   { href: '/marketing/campaigns', label: 'Campaigns', match: (p: string) => p.startsWith('/marketing/campaigns') },
-  { href: '/marketing/signals',   label: 'Signals',   match: (p: string) => p.startsWith('/marketing/signals') },
+  { href: '/marketing/signals',   label: 'Signals',       match: (p: string) => p.startsWith('/marketing/signals') },
 ]
 
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {

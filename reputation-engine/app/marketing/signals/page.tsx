@@ -100,8 +100,8 @@ export default function SignalsPage() {
     <div className="crm-shell space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-bold text-[#1a2744]">Signal Board</h1>
-          <p className="mt-1 text-sm text-slate-500">Move opportunities before competitors see them.</p>
+          <h1 className="font-display text-2xl font-bold text-[#1a2744]">Signals</h1>
+          <p className="mt-1 text-sm text-slate-500">Fast-response opportunities that should feed the partnership and corporate outreach queue.</p>
         </div>
         <button onClick={() => setAddOpen(true)} className="crm-button-dark text-sm">+ Add Signal</button>
       </div>

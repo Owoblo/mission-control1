@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
+import { defaultFollowUpDate, normalizePartnershipStage } from '@/lib/marketing'
 
 interface QueueItem {
   id: string
@@ -28,6 +29,7 @@ interface Contact {
   stage: string
   notes: string
   website: string
+  next_follow_up?: string | null
 }
 
 interface SequenceStep {
@@ -65,7 +67,7 @@ export async function GET(request: Request) {
   // Fetch matching contacts (signal blasts have null contact_id)
   const contactIds = Array.from(new Set(queueItems.map(q => q.contact_id).filter(Boolean))) as string[]
   const contactsRes = await fetch(
-    `${url}/rest/v1/market_contacts?id=in.(${contactIds.map(id => `"${id}"`).join(',')})&select=id,name,company,title,email,phone,city,industry,tier,tracking_code,stage,notes,website`,
+    `${url}/rest/v1/market_contacts?id=in.(${contactIds.map(id => `"${id}"`).join(',')})&select=id,name,company,title,email,phone,city,industry,tier,tracking_code,stage,notes,website,next_follow_up`,
     { headers, cache: 'no-store' }
   )
   const contacts = (contactsRes.ok ? await contactsRes.json() : []) as Contact[]
@@ -169,36 +171,58 @@ export async function POST(request: Request) {
   }
 
   if ((body.action === 'complete' || body.action === 'skip') && body.queue_id) {
+    const completedAt = new Date().toISOString()
     // Mark current item done
     await fetch(`${url}/rest/v1/market_queue?id=eq.${body.queue_id}`, {
       method: 'PATCH',
       headers,
-      body: JSON.stringify({ status: body.action === 'complete' ? 'done' : 'skipped', completed_at: new Date().toISOString() }),
+      body: JSON.stringify({ status: body.action === 'complete' ? 'done' : 'skipped', completed_at: completedAt }),
     })
 
     if (body.action === 'complete') {
       // Get current item to find contact + step
-      const itemRes = await fetch(`${url}/rest/v1/market_queue?id=eq.${body.queue_id}&select=contact_id,step_number`, { headers, cache: 'no-store' })
-      const [item] = (await itemRes.json()) as { contact_id: string; step_number: number }[]
+      const itemRes = await fetch(`${url}/rest/v1/market_queue?id=eq.${body.queue_id}&select=contact_id,step_number,channel,label`, { headers, cache: 'no-store' })
+      const [item] = (await itemRes.json()) as { contact_id: string; step_number: number; channel: string; label: string }[]
       if (!item) return NextResponse.json({ ok: true })
 
       // Get contact tier
-      const cRes = await fetch(`${url}/rest/v1/market_contacts?id=eq.${item.contact_id}&select=tier,stage`, { headers, cache: 'no-store' })
-      const [contact] = (await cRes.json()) as { tier: string; stage: string }[]
+      const cRes = await fetch(`${url}/rest/v1/market_contacts?id=eq.${item.contact_id}&select=tier,stage,next_follow_up`, { headers, cache: 'no-store' })
+      const [contact] = (await cRes.json()) as { tier: string; stage: string; next_follow_up?: string | null }[]
       if (!contact) return NextResponse.json({ ok: true })
 
-      // Auto-advance stage if still cold
-      if (contact.stage === 'cold') {
-        await fetch(`${url}/rest/v1/market_contacts?id=eq.${item.contact_id}`, {
-          method: 'PATCH', headers,
-          body: JSON.stringify({ stage: 'contacted', last_touch_at: new Date().toISOString() }),
-        })
-      } else {
-        await fetch(`${url}/rest/v1/market_contacts?id=eq.${item.contact_id}`, {
-          method: 'PATCH', headers,
-          body: JSON.stringify({ last_touch_at: new Date().toISOString() }),
-        })
+      const currentStage = normalizePartnershipStage(contact.stage)
+      let stageUpdate: string | undefined
+      let nextFollowUp = contact.next_follow_up ?? null
+
+      if (item.channel === 'direct_mail') {
+        stageUpdate = 'mail_sent'
+        nextFollowUp = defaultFollowUpDate(completedAt, 21)
+      } else if (['phone', 'email', 'linkedin', 'sms'].includes(item.channel) && ['target', 'mail_sent', 'follow_up_due'].includes(currentStage)) {
+        stageUpdate = 'attempting_contact'
       }
+
+      await fetch(`${url}/rest/v1/market_touches`, {
+        method: 'POST',
+        headers: { ...headers, Prefer: 'return=minimal' },
+        body: JSON.stringify({
+          contact_id: item.contact_id,
+          channel: item.channel,
+          direction: 'outbound',
+          notes: `Queue complete: ${item.label}`,
+          created_by: session.name ?? 'Rep',
+          created_at: completedAt,
+        }),
+      })
+
+      await fetch(`${url}/rest/v1/market_contacts?id=eq.${item.contact_id}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          stage: stageUpdate ?? contact.stage,
+          last_touch_at: completedAt,
+          next_follow_up: nextFollowUp,
+        }),
+      })
 
       // Schedule next step
       const nextStep = item.step_number + 1
