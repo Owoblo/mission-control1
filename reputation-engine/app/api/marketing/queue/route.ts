@@ -13,6 +13,8 @@ interface QueueItem {
   message_draft: string | null
   status: string
   signal_id?: string | null
+  assigned_to?: string | null
+  priority?: string | null
 }
 
 interface Contact {
@@ -176,7 +178,11 @@ export async function POST(request: Request) {
     await fetch(`${url}/rest/v1/market_queue?id=eq.${body.queue_id}`, {
       method: 'PATCH',
       headers,
-      body: JSON.stringify({ status: body.action === 'complete' ? 'done' : 'skipped', completed_at: completedAt }),
+      body: JSON.stringify({
+        status: body.action === 'complete' ? 'done' : 'skipped',
+        completed_at: completedAt,
+        completed_by: session.name ?? 'Rep',
+      }),
     })
 
     if (body.action === 'complete') {

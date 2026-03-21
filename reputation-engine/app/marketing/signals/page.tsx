@@ -14,6 +14,7 @@ interface Signal {
   status: string
   notes: string
   created_at: string
+  claimed_by?: string | null
 }
 
 const SIGNAL_COLORS: Record<string, string> = {
@@ -50,14 +51,14 @@ export default function SignalsPage() {
 
   useEffect(() => { void load() }, [])
 
-  async function updateStatus(id: string, status: string, notes?: string) {
+  async function updateStatus(id: string, status: string, notes?: string, claim = false) {
     await fetch('/api/marketing/signals', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ id, status, notes }),
+      body: JSON.stringify({ id, status, notes, claim }),
     })
-    setSignals(prev => prev.map(s => s.id === id ? { ...s, status } : s))
+    setSignals(prev => prev.map(s => s.id === id ? { ...s, status, claimed_by: claim ? 'Claimed' : s.claimed_by } : s))
   }
 
   async function blastSignal(s: Signal) {
@@ -139,6 +140,7 @@ export default function SignalsPage() {
                     <div className="flex flex-wrap gap-4 text-xs text-slate-500">
                       {s.contact_name && <span>👤 {s.contact_name}</span>}
                       {s.time_sensitivity && <span className="font-medium text-rose-600">⚡ {s.time_sensitivity}</span>}
+                      {s.claimed_by && <span>🧷 {s.claimed_by}</span>}
                     </div>
 
                     {s.action_required && (
@@ -162,8 +164,8 @@ export default function SignalsPage() {
                         </button>
                       )}
                       {s.status === 'new' && (
-                        <button onClick={() => void updateStatus(s.id, 'watching')} className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 transition">
-                          👁 Watch
+                        <button onClick={() => void updateStatus(s.id, 'watching', undefined, true)} className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 transition">
+                          👁 Claim
                         </button>
                       )}
                       <button onClick={() => void updateStatus(s.id, 'actioned')} className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition">

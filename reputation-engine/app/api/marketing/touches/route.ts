@@ -33,6 +33,9 @@ export async function POST(request: Request) {
     touch_date?: string
     next_follow_up?: string | null
     schedule_follow_up_days?: number
+    outcome_code?: string
+    next_step?: string
+    metadata?: Record<string, unknown>
   }
 
   if (!body.contact_id || !body.channel) {
@@ -59,6 +62,10 @@ export async function POST(request: Request) {
       notes: body.notes ?? null,
       created_by: session.name ?? 'Rep',
       created_at: touchDate,
+      outcome_code: body.outcome_code ?? null,
+      next_step: body.next_step ?? null,
+      next_follow_up_on: body.next_follow_up ?? null,
+      metadata: body.metadata ?? {},
     }),
   })
 
@@ -80,6 +87,33 @@ export async function POST(request: Request) {
     updates.next_follow_up = defaultFollowUpDate(touchDate, body.schedule_follow_up_days)
   } else if (body.channel === 'direct_mail' && !contact?.next_follow_up) {
     updates.next_follow_up = defaultFollowUpDate(touchDate, 21)
+  }
+
+  if ((body.direction ?? 'outbound') === 'inbound') {
+    updates.last_inbound_at = touchDate
+  }
+
+  if (body.outcome_code === 'meeting_booked') {
+    updates.stage = body.new_stage || 'qualified'
+    updates.meeting_booked_at = touchDate
+  } else if (body.outcome_code === 'partnership_secured') {
+    updates.stage = body.new_stage || 'partnership_active'
+    updates.partnership_outcome = 'secured'
+    updates.partnership_outcome_at = touchDate
+    updates.partnership_started_at = touchDate
+    updates.account_status = 'active'
+    updates.next_follow_up = null
+  } else if (body.outcome_code === 'not_fit') {
+    updates.stage = body.new_stage || 'closed_lost'
+    updates.partnership_outcome = 'not_fit'
+    updates.partnership_outcome_at = touchDate
+    updates.account_status = 'closed'
+  } else if (body.outcome_code === 'replied_positive') {
+    updates.stage = body.new_stage || 'connected'
+  } else if (body.outcome_code === 'replied_negative') {
+    updates.stage = body.new_stage || 'closed_lost'
+    updates.partnership_outcome = 'declined'
+    updates.partnership_outcome_at = touchDate
   }
 
   await fetch(

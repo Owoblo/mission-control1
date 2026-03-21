@@ -29,6 +29,18 @@ interface MarketContact {
   notes: string | null
   last_touch_at: string | null
   next_follow_up: string | null
+  owner_name?: string | null
+  owner_email?: string | null
+  priority?: string | null
+  account_status?: string | null
+  mailed_at?: string | null
+  mailed_by?: string | null
+  meeting_booked_at?: string | null
+  partnership_outcome?: string | null
+  partnership_outcome_at?: string | null
+  partnership_started_at?: string | null
+  last_inbound_at?: string | null
+  referred_lead_count?: number | null
   created_at: string
   pipeline: 'partners' | 'corporate'
   touch_count: number
@@ -49,6 +61,9 @@ interface Touch {
   notes: string
   created_by: string
   created_at: string
+  outcome_code?: string | null
+  next_step?: string | null
+  next_follow_up_on?: string | null
 }
 
 const CHANNELS = [
@@ -58,6 +73,18 @@ const CHANNELS = [
   { value: 'linkedin', label: 'LinkedIn' },
   { value: 'sms', label: 'SMS' },
   { value: 'in_person', label: 'In Person' },
+] as const
+
+const OUTCOME_OPTIONS = [
+  { value: '', label: 'General touch' },
+  { value: 'no_answer', label: 'No answer' },
+  { value: 'voicemail', label: 'Voicemail left' },
+  { value: 'gatekeeper', label: 'Gatekeeper spoke' },
+  { value: 'replied_positive', label: 'Positive reply' },
+  { value: 'meeting_booked', label: 'Meeting booked' },
+  { value: 'partnership_secured', label: 'Partnership secured' },
+  { value: 'replied_negative', label: 'Declined / not interested' },
+  { value: 'not_fit', label: 'Not a fit' },
 ] as const
 
 function fmtDate(date?: string | null) {
@@ -87,11 +114,20 @@ function PartnersInner() {
   const [saving, setSaving] = useState(false)
   const [editNotes, setEditNotes] = useState('')
   const [editFollowUp, setEditFollowUp] = useState('')
+  const [ownerName, setOwnerName] = useState('')
+  const [ownerEmail, setOwnerEmail] = useState('')
+  const [priority, setPriority] = useState('normal')
+  const [accountStatus, setAccountStatus] = useState('active')
+  const [meetingBookedAt, setMeetingBookedAt] = useState('')
+  const [partnershipOutcome, setPartnershipOutcome] = useState('')
+  const [referredLeadCount, setReferredLeadCount] = useState(0)
   const [logForm, setLogForm] = useState({
     channel: 'phone',
     notes: '',
     new_stage: '',
     schedule_follow_up_days: 7,
+    outcome_code: '',
+    next_step: '',
   })
 
   const load = useCallback(async () => {
@@ -107,6 +143,13 @@ function PartnersInner() {
         setSelected(data.contacts[0])
         setEditNotes(data.contacts[0].notes ?? '')
         setEditFollowUp(data.contacts[0].next_follow_up ?? '')
+        setOwnerName(data.contacts[0].owner_name ?? '')
+        setOwnerEmail(data.contacts[0].owner_email ?? '')
+        setPriority(data.contacts[0].priority ?? 'normal')
+        setAccountStatus(data.contacts[0].account_status ?? 'active')
+        setMeetingBookedAt(data.contacts[0].meeting_booked_at ? toDateInput(data.contacts[0].meeting_booked_at) : '')
+        setPartnershipOutcome(data.contacts[0].partnership_outcome ?? '')
+        setReferredLeadCount(data.contacts[0].referred_lead_count ?? 0)
       }
     }
     setLoading(false)
@@ -120,6 +163,13 @@ function PartnersInner() {
     setSelected(contact)
     setEditNotes(contact.notes ?? '')
     setEditFollowUp(contact.next_follow_up ?? '')
+    setOwnerName(contact.owner_name ?? '')
+    setOwnerEmail(contact.owner_email ?? '')
+    setPriority(contact.priority ?? 'normal')
+    setAccountStatus(contact.account_status ?? 'active')
+    setMeetingBookedAt(contact.meeting_booked_at ? toDateInput(contact.meeting_booked_at) : '')
+    setPartnershipOutcome(contact.partnership_outcome ?? '')
+    setReferredLeadCount(contact.referred_lead_count ?? 0)
     setTouchLoading(true)
     const r = await fetch(`/api/marketing/touches?contact_id=${contact.id}`, { credentials: 'include' })
     setTouches(r.ok ? await r.json() : [])
@@ -133,7 +183,18 @@ function PartnersInner() {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ id: selected.id, notes: editNotes, next_follow_up: editFollowUp || null }),
+      body: JSON.stringify({
+        id: selected.id,
+        notes: editNotes,
+        next_follow_up: editFollowUp || null,
+        owner_name: ownerName || null,
+        owner_email: ownerEmail || null,
+        priority,
+        account_status: accountStatus,
+        meeting_booked_at: meetingBookedAt || null,
+        partnership_outcome: partnershipOutcome || null,
+        referred_lead_count: referredLeadCount,
+      }),
     })
     if (r.ok) {
       const data = await r.json()
@@ -186,9 +247,11 @@ function PartnersInner() {
         notes: logForm.notes,
         new_stage: logForm.new_stage || undefined,
         schedule_follow_up_days: logForm.schedule_follow_up_days,
+        outcome_code: logForm.outcome_code || undefined,
+        next_step: logForm.next_step || undefined,
       }),
     })
-    setLogForm({ channel: 'phone', notes: '', new_stage: '', schedule_follow_up_days: 7 })
+    setLogForm({ channel: 'phone', notes: '', new_stage: '', schedule_follow_up_days: 7, outcome_code: '', next_step: '' })
     await load()
     await openContact(selected)
     setSaving(false)
@@ -317,7 +380,7 @@ function PartnersInner() {
                       <span>{contact.pipeline === 'corporate' ? 'Corporate' : 'Partner'}</span>
                       {contact.city && <span>• {contact.city}</span>}
                       {contact.tracking_code && <span>• {contact.tracking_code}</span>}
-                      {contact.last_direct_mail_at && <span>• mailed {fmtDate(contact.last_direct_mail_at)}</span>}
+                      {(contact.mailed_at || contact.last_direct_mail_at) && <span>• mailed {fmtDate(contact.mailed_at || contact.last_direct_mail_at)}</span>}
                       {contact.last_call_at && <span>• called {fmtDate(contact.last_call_at)}</span>}
                     </div>
                     <div className="mt-2 flex items-center justify-between gap-3 text-[11px]">
@@ -358,7 +421,7 @@ function PartnersInner() {
                   </div>
                 </div>
                 <div className="grid min-w-[220px] grid-cols-2 gap-3 rounded-[20px] border border-slate-200 bg-slate-50 p-4 text-sm">
-                  <Metric label="Mail Sent" value={fmtDate(selected.last_direct_mail_at)} />
+                  <Metric label="Mail Sent" value={fmtDate(selected.mailed_at || selected.last_direct_mail_at)} />
                   <Metric label="Next Follow-Up" value={fmtDate(selected.next_follow_up)} />
                   <Metric label="Last Call" value={fmtDate(selected.last_call_at)} />
                   <Metric label="Pending Tasks" value={String(selected.pending_queue_count)} />
@@ -388,8 +451,53 @@ function PartnersInner() {
                 </button>
               </div>
 
-              <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr,0.8fr]">
+              <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">
                 <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    <div>
+                      <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Owner</h3>
+                      <input value={ownerName} onChange={event => setOwnerName(event.target.value)} className="mt-2 h-11 w-full rounded-[18px] border border-slate-200 bg-slate-50 px-4 text-sm text-[#1a2744] outline-none transition focus:border-[#1a2744]" placeholder="Rep name" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Owner Email</h3>
+                      <input value={ownerEmail} onChange={event => setOwnerEmail(event.target.value)} className="mt-2 h-11 w-full rounded-[18px] border border-slate-200 bg-slate-50 px-4 text-sm text-[#1a2744] outline-none transition focus:border-[#1a2744]" placeholder="rep@company.com" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Priority</h3>
+                      <select value={priority} onChange={event => setPriority(event.target.value)} className="mt-2 h-11 w-full rounded-[18px] border border-slate-200 bg-slate-50 px-4 text-sm text-[#1a2744] outline-none transition focus:border-[#1a2744]">
+                        <option value="normal">Normal</option>
+                        <option value="high">High</option>
+                        <option value="urgent">Urgent</option>
+                      </select>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Account Status</h3>
+                      <select value={accountStatus} onChange={event => setAccountStatus(event.target.value)} className="mt-2 h-11 w-full rounded-[18px] border border-slate-200 bg-slate-50 px-4 text-sm text-[#1a2744] outline-none transition focus:border-[#1a2744]">
+                        <option value="active">Active</option>
+                        <option value="dormant">Dormant</option>
+                        <option value="closed">Closed</option>
+                      </select>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Meeting Booked</h3>
+                      <input type="date" value={meetingBookedAt} onChange={event => setMeetingBookedAt(event.target.value)} className="mt-2 h-11 w-full rounded-[18px] border border-slate-200 bg-slate-50 px-4 text-sm text-[#1a2744] outline-none transition focus:border-[#1a2744]" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Referral Count</h3>
+                      <input type="number" min={0} value={referredLeadCount} onChange={event => setReferredLeadCount(Number(event.target.value))} className="mt-2 h-11 w-full rounded-[18px] border border-slate-200 bg-slate-50 px-4 text-sm text-[#1a2744] outline-none transition focus:border-[#1a2744]" />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Partnership Outcome</h3>
+                    <select value={partnershipOutcome} onChange={event => setPartnershipOutcome(event.target.value)} className="mt-2 h-11 w-full rounded-[18px] border border-slate-200 bg-slate-50 px-4 text-sm text-[#1a2744] outline-none transition focus:border-[#1a2744]">
+                      <option value="">Not decided</option>
+                      <option value="secured">Secured</option>
+                      <option value="meeting_booked">Meeting booked</option>
+                      <option value="nurture">Nurture</option>
+                      <option value="declined">Declined</option>
+                      <option value="not_fit">Not a fit</option>
+                    </select>
+                  </div>
                   <div>
                     <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Relationship Notes</h3>
                     <textarea
@@ -458,6 +566,16 @@ function PartnersInner() {
                       </select>
                     </div>
                     <div>
+                      <label className="text-xs font-semibold text-slate-500">Outcome</label>
+                      <select
+                        value={logForm.outcome_code}
+                        onChange={event => setLogForm(current => ({ ...current, outcome_code: event.target.value }))}
+                        className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#1a2744] outline-none"
+                      >
+                        {OUTCOME_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                      </select>
+                    </div>
+                    <div>
                       <label className="text-xs font-semibold text-slate-500">Next Follow-Up (days)</label>
                       <input
                         type="number"
@@ -465,6 +583,15 @@ function PartnersInner() {
                         value={logForm.schedule_follow_up_days}
                         onChange={event => setLogForm(current => ({ ...current, schedule_follow_up_days: Number(event.target.value) }))}
                         className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#1a2744] outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-500">Next Step</label>
+                      <input
+                        value={logForm.next_step}
+                        onChange={event => setLogForm(current => ({ ...current, next_step: event.target.value }))}
+                        className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#1a2744] outline-none"
+                        placeholder="Send postcard, call office manager, book coffee..."
                       />
                     </div>
                     <div>
@@ -503,7 +630,12 @@ function PartnersInner() {
                         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase text-slate-600">{touch.channel.replace('_', ' ')}</span>
                         <span className="text-[11px] text-slate-400">{fmtDate(touch.created_at)}</span>
                       </div>
+                      {touch.outcome_code && (
+                        <div className="mt-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">{touch.outcome_code.replace(/_/g, ' ')}</div>
+                      )}
                       <div className="mt-2 text-sm leading-6 text-slate-700">{touch.notes || 'No note provided.'}</div>
+                      {touch.next_step && <div className="mt-2 text-xs text-[#1a2744]">Next: {touch.next_step}</div>}
+                      {touch.next_follow_up_on && <div className="mt-1 text-[11px] text-slate-400">Follow up on {fmtDate(touch.next_follow_up_on)}</div>}
                       <div className="mt-2 text-[11px] text-slate-400">{touch.created_by || 'Rep'}</div>
                     </div>
                   ))}

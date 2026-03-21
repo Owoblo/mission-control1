@@ -19,7 +19,13 @@ export async function PATCH(request: Request) {
   const session = await getSessionUser()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = await request.json() as { id: string; status: string; notes?: string }
+  const body = await request.json() as {
+    id: string
+    status: string
+    notes?: string
+    claim?: boolean
+    converted_contact_id?: string | null
+  }
   if (!body.id) return NextResponse.json({ error: 'id required' }, { status: 400 })
 
   const { url, headers } = requireSupabaseEnv()
@@ -30,6 +36,10 @@ export async function PATCH(request: Request) {
       status: body.status,
       notes: body.notes ?? null,
       actioned_at: body.status !== 'new' ? new Date().toISOString() : null,
+      claimed_by: body.claim ? (session.name ?? 'Rep') : undefined,
+      claimed_at: body.claim ? new Date().toISOString() : undefined,
+      converted_contact_id: body.converted_contact_id ?? undefined,
+      converted_at: body.converted_contact_id ? new Date().toISOString() : undefined,
     }),
   })
   return NextResponse.json({ ok: true })

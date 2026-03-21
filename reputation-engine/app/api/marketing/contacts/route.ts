@@ -20,6 +20,18 @@ interface MarketContact {
   notes: string | null
   last_touch_at: string | null
   next_follow_up: string | null
+  owner_name?: string | null
+  owner_email?: string | null
+  priority?: string | null
+  account_status?: string | null
+  mailed_at?: string | null
+  mailed_by?: string | null
+  meeting_booked_at?: string | null
+  partnership_outcome?: string | null
+  partnership_outcome_at?: string | null
+  partnership_started_at?: string | null
+  last_inbound_at?: string | null
+  referred_lead_count?: number | null
   created_at: string
 }
 
@@ -142,6 +154,14 @@ export async function PATCH(request: Request) {
     notes?: string
     next_follow_up?: string
     email?: string
+    owner_name?: string | null
+    owner_email?: string | null
+    priority?: string | null
+    account_status?: string | null
+    mailed_at?: string | null
+    meeting_booked_at?: string | null
+    partnership_outcome?: string | null
+    referred_lead_count?: number | null
     quick_action?: 'mark_mail_sent' | 'mark_follow_up_due' | 'mark_partnership_active' | 'snooze_21_days'
     touch_note?: string
     touch_channel?: string
@@ -154,6 +174,17 @@ export async function PATCH(request: Request) {
   if (body.notes !== undefined) updates.notes = body.notes
   if (body.next_follow_up !== undefined) updates.next_follow_up = body.next_follow_up || null
   if (body.email !== undefined) updates.email = body.email
+  if (body.owner_name !== undefined) updates.owner_name = body.owner_name || null
+  if (body.owner_email !== undefined) updates.owner_email = body.owner_email || null
+  if (body.priority !== undefined) updates.priority = body.priority || 'normal'
+  if (body.account_status !== undefined) updates.account_status = body.account_status || 'active'
+  if (body.mailed_at !== undefined) updates.mailed_at = body.mailed_at || null
+  if (body.meeting_booked_at !== undefined) updates.meeting_booked_at = body.meeting_booked_at || null
+  if (body.partnership_outcome !== undefined) {
+    updates.partnership_outcome = body.partnership_outcome || null
+    updates.partnership_outcome_at = body.partnership_outcome ? new Date().toISOString() : null
+  }
+  if (body.referred_lead_count !== undefined) updates.referred_lead_count = Math.max(0, body.referred_lead_count ?? 0)
   if (body.stage) updates.last_touch_at = new Date().toISOString()
 
   const { url, headers } = requireSupabaseEnv()
@@ -163,6 +194,8 @@ export async function PATCH(request: Request) {
     updates.stage = 'mail_sent'
     updates.next_follow_up = body.next_follow_up || defaultFollowUpDate(touchDate, 21)
     updates.last_touch_at = touchDate
+    updates.mailed_at = touchDate
+    updates.mailed_by = session.name ?? 'Rep'
     await fetch(`${url}/rest/v1/market_touches`, {
       method: 'POST',
       headers: { ...headers, Prefer: 'return=minimal' },
@@ -185,6 +218,9 @@ export async function PATCH(request: Request) {
   if (body.quick_action === 'mark_partnership_active') {
     updates.stage = 'partnership_active'
     updates.next_follow_up = null
+    updates.partnership_outcome = 'secured'
+    updates.partnership_outcome_at = new Date().toISOString()
+    updates.partnership_started_at = new Date().toISOString()
   }
 
   if (body.quick_action === 'snooze_21_days') {
