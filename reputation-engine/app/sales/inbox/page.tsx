@@ -72,7 +72,7 @@ function displayLeadName(item: InboundLead | null) {
 export default function SalesInboxPage() {
   const router = useRouter()
   const [items, setItems] = useState<InboundLead[]>([])
-  const [viewMode, setViewMode] = useState<'active' | 'unread' | 'closed'>('active')
+  const [viewMode, setViewMode] = useState<'active' | 'unread' | 'closed' | 'messages'>('active')
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -83,6 +83,51 @@ export default function SalesInboxPage() {
   const [error, setError] = useState<string | null>(null)
   const [compose, setCompose] = useState({ emailSubject: 'Following up — Saturn Star Moving', emailBody: '', smsBody: '' })
   const [notification, setNotification] = useState<{ id: string; name: string; source: string; time: string } | null>(null)
+  const [scGoalOpen, setScGoalOpen] = useState<'email' | 'sms' | null>(null)
+  const [scBusy, setScBusy] = useState(false)
+  // SMS threads (2-way messages view)
+  const [smsThreads, setSmsThreads] = useState<Array<{
+    contactPhone: string; messages: Array<{ id: string; from_number: string; to_number: string; body: string; direction: 'inbound' | 'outbound'; created_at: string; lead_id: string | null }>
+    lastMessage: string; lastAt: string; unread: boolean; leadId: string | null
+  }>>([])
+  const [threadsLoading, setThreadsLoading] = useState(false)
+  const [selectedThread, setSelectedThread] = useState<string | null>(null)
+  const [smsReply, setSmsReply] = useState('')
+  const [smsReplyBusy, setSmsReplyBusy] = useState(false)
+
+  const SC_GOALS = [
+    { id: 'follow_up', label: '👋 Follow-up', desc: 'Check in after first contact' },
+    { id: 'quote_ready', label: '📋 Quote ready', desc: 'Estimate is prepared for them' },
+    { id: 'address_objection', label: '🤝 Handle objection', desc: 'Price or timing concern' },
+    { id: 're_engage', label: '🔁 Re-engage', desc: 'Cold lead, bring them back' },
+    { id: 'confirm_booking', label: '✅ Confirm booking', desc: 'Finalize the job' },
+    { id: 'move_reminder', label: '📅 Move day reminder', desc: 'Day-before heads up' },
+  ]
+
+  async function runSmartCompose(goal: string, channel: 'email' | 'sms') {
+    if (!selected) return
+    try {
+      setScBusy(true)
+      const res = await fetch('https://saturn-lead-intake.johnowolabi80.workers.dev/smart-compose', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lead: selected, smsHistory: [], emailHistory: [], goal, channel }),
+      })
+      const data = await res.json() as { ok: boolean; draft?: string; subject?: string; error?: string }
+      if (data.ok && data.draft) {
+        if (channel === 'email') {
+          setCompose(c => ({ ...c, emailBody: data.draft!, ...(data.subject ? { emailSubject: data.subject } : {}) }))
+        } else {
+          setCompose(c => ({ ...c, smsBody: data.draft! }))
+        }
+        setScGoalOpen(null)
+      }
+    } catch {
+      // fail silently — user still has compose box
+    } finally {
+      setScBusy(false)
+    }
+  }
   const knownIdsRef = useRef<Set<string>>(new Set())
 
   function applyTemplate(templateId: string, firstName: string, lead: typeof selected) {
@@ -155,7 +200,11 @@ export default function SalesInboxPage() {
   }
 
   useEffect(() => {
-    void refresh()
+    if (viewMode === 'messages') {
+      void fetchSmsThreads()
+    } else {
+      void refresh()
+    }
   }, [viewMode])
 
   // Poll for new inbound leads every 30 seconds
@@ -351,6 +400,34 @@ export default function SalesInboxPage() {
     }
   }
 
+  async function fetchSmsThreads() {
+    try {
+      setThreadsLoading(true)
+      const res = await fetch('/api/sales/sms-threads')
+      if (res.ok) {
+        const data = await res.json() as typeof smsThreads
+        setSmsThreads(data)
+        if (!selectedThread && data.length > 0) setSelectedThread(data[0].contactPhone)
+      }
+    } catch { /* non-fatal */ } finally {
+      setThreadsLoading(false)
+    }
+  }
+
+  async function sendSmsReply() {
+    if (!selectedThread || !smsReply.trim()) return
+    try {
+      setSmsReplyBusy(true)
+      await sendSalesMessage({ channel: 'sms', to: selectedThread, body: smsReply.trim(), notes: 'Reply from inbox messages view' })
+      setSmsReply('')
+      await fetchSmsThreads()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSmsReplyBusy(false)
+    }
+  }
+
   return (
     <div className="crm-shell">
       {/* ── NEW LEAD NOTIFICATION TOAST ── */}
@@ -389,17 +466,18 @@ export default function SalesInboxPage() {
                 </div>
                 <div className="mb-4 flex items-center gap-1 border-b border-[var(--app-line)]">
                   {([
-                    { id: 'active', label: 'Active', count: items.length },
+                    { id: 'active', label: 'Leads', count: items.length },
                     { id: 'unread', label: 'Unread', count: unreadCount },
+                    { id: 'messages', label: '💬 Messages', count: smsThreads.filter(t => t.unread).length || null },
                     { id: 'closed', label: 'Closed', count: null },
                   ] as const).map(tab => (
                     <button
                       key={tab.id}
-                      onClick={() => setViewMode(tab.id)}
+                      onClick={() => setViewMode(tab.id as typeof viewMode)}
                       className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 pb-2 pt-1 text-sm font-medium transition ${viewMode === tab.id ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}
                     >
                       {tab.label}
-                      {tab.count !== null && (
+                      {tab.count !== null && tab.count > 0 && (
                         <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${viewMode === tab.id ? 'bg-[rgba(15,106,83,0.12)] text-[var(--app-accent)]' : 'bg-stone-100 text-[var(--app-muted)]'}`}>
                           {tab.count}
                         </span>
@@ -415,7 +493,29 @@ export default function SalesInboxPage() {
                 />
               </div>
               <div className="flex-1 overflow-y-auto bg-[var(--app-panel)]">
-                {filteredItems.length === 0 ? (
+                {viewMode === 'messages' ? (
+                  threadsLoading ? (
+                    <div className="p-6 text-sm text-[var(--app-muted)]">Loading conversations...</div>
+                  ) : smsThreads.length === 0 ? (
+                    <div className="p-6 text-sm text-[var(--app-muted)]">No SMS conversations yet. Messages from leads will appear here.</div>
+                  ) : smsThreads.map(thread => (
+                    <button
+                      key={thread.contactPhone}
+                      onClick={() => setSelectedThread(thread.contactPhone)}
+                      className={`relative block w-full border-b border-[var(--app-line)] p-4 text-left transition ${selectedThread === thread.contactPhone ? 'bg-[rgba(15,106,83,0.05)]' : 'bg-[var(--app-panel)] hover:bg-[var(--app-bg)]'}`}
+                    >
+                      {selectedThread === thread.contactPhone ? <div className="absolute bottom-0 left-0 top-0 w-1 bg-[var(--app-accent)]" /> : null}
+                      <div className="mb-1 flex items-start justify-between">
+                        <div className="flex items-center gap-2">
+                          {thread.unread && <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--app-accent)]" />}
+                          <span className={`text-sm font-semibold ${thread.unread ? 'text-[var(--app-ink)]' : 'text-[var(--app-muted)]'}`}>{thread.contactPhone}</span>
+                        </div>
+                        <span className="text-xs text-[var(--app-muted)]">{timeAgo(thread.lastAt)}</span>
+                      </div>
+                      <p className="text-xs text-[var(--app-muted)] line-clamp-1">{thread.lastMessage || '(no message)'}</p>
+                    </button>
+                  ))
+                ) : filteredItems.length === 0 ? (
                   <div className="p-6 text-sm text-[var(--app-muted)]">
                     {search.trim() ? 'No conversations match this search.' : 'No conversations in this view.'}
                   </div>
@@ -475,8 +575,63 @@ export default function SalesInboxPage() {
               </div>
             </section>
 
-            <section className={`${selected ? 'block' : 'hidden md:block'} flex-1 overflow-y-auto bg-[var(--app-bg)]`}>
-              {!selected ? (
+            <section className={`${selected || (viewMode === 'messages' && selectedThread) ? 'block' : 'hidden md:block'} flex-1 overflow-y-auto bg-[var(--app-bg)]`}>
+              {viewMode === 'messages' ? (
+                // ── 2-WAY SMS THREAD VIEW ───────────────────────────────────
+                (() => {
+                  const thread = smsThreads.find(t => t.contactPhone === selectedThread)
+                  if (!thread) return <div className="p-16 text-center text-sm text-[var(--app-muted)]">Select a conversation.</div>
+                  return (
+                    <div className="flex h-full flex-col">
+                      <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-[var(--app-line)] bg-[var(--app-panel)] px-4 py-4">
+                        <button onClick={() => setSelectedThread(null)} className="crm-button px-3 md:hidden">Back</button>
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[rgba(15,106,83,0.1)] text-sm font-bold text-[var(--app-accent)]">
+                          {thread.contactPhone.slice(-4)}
+                        </div>
+                        <div>
+                          <div className="text-base font-semibold text-[var(--app-ink)]">{thread.contactPhone}</div>
+                          <div className="text-xs text-[var(--app-muted)]">{thread.messages.length} messages</div>
+                        </div>
+                        {thread.leadId && (
+                          <a href={`/sales/leads/${thread.leadId}`} className="ml-auto crm-button text-xs">View Lead →</a>
+                        )}
+                      </div>
+                      <div className="flex-1 overflow-y-auto space-y-2 px-4 py-4">
+                        {thread.messages.map(msg => (
+                          <div key={msg.id} className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`max-w-[75%] rounded-[14px] px-3 py-2 text-sm ${msg.direction === 'outbound' ? 'rounded-br-[4px] bg-[var(--app-accent)] text-white' : 'rounded-bl-[4px] bg-white text-[var(--app-ink)] border border-[var(--app-line)]'}`}>
+                              <p>{msg.body}</p>
+                              <p className={`mt-1 text-[10px] ${msg.direction === 'outbound' ? 'text-white/70' : 'text-[var(--app-muted)]'}`}>
+                                {new Date(msg.created_at).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="border-t border-[var(--app-line)] bg-[var(--app-panel)] p-4">
+                        <div className="flex gap-3">
+                          <textarea
+                            className="crm-input flex-1 resize-none"
+                            rows={2}
+                            placeholder="Type a reply..."
+                            value={smsReply}
+                            onChange={e => setSmsReply(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void sendSmsReply() }}
+                          />
+                          <button
+                            onClick={() => void sendSmsReply()}
+                            disabled={smsReplyBusy || !smsReply.trim()}
+                            className="crm-button-dark self-end disabled:opacity-50"
+                          >
+                            {smsReplyBusy ? '...' : 'Send'}
+                          </button>
+                        </div>
+                        <p className="mt-1.5 text-xs text-[var(--app-muted)]">Cmd+Enter to send</p>
+                      </div>
+                    </div>
+                  )
+                })()
+              ) : !selected ? (
                 <div className="p-16 text-center text-sm text-[var(--app-muted)]">Select an inbound lead.</div>
               ) : (
                 <div className="min-h-full">
@@ -686,7 +841,24 @@ export default function SalesInboxPage() {
 
                         {selected.email ? (
                           <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
-                            <div className="crm-label">Email Reply</div>
+                            <div className="flex items-center justify-between">
+                              <div className="crm-label">Email Reply</div>
+                              <button onClick={() => setScGoalOpen(scGoalOpen === 'email' ? null : 'email')} className="text-xs text-[var(--app-accent)] hover:underline">✨ Smart Compose</button>
+                            </div>
+                            {scGoalOpen === 'email' ? (
+                              <div className="mt-3 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
+                                <div className="mb-2 text-xs font-medium text-[var(--app-ink)]">What's the goal?</div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  {SC_GOALS.map(g => (
+                                    <button key={g.id} onClick={() => void runSmartCompose(g.id, 'email')} disabled={scBusy}
+                                      className="flex flex-col items-start rounded-[6px] border border-[var(--app-line)] px-2 py-1.5 text-left text-xs hover:border-[var(--app-accent)] disabled:opacity-50">
+                                      <span className="font-medium text-[var(--app-ink)]">{scBusy ? '...' : g.label}</span>
+                                      <span className="text-[var(--app-muted)]">{g.desc}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null}
                             <input
                               className="crm-input mt-4"
                               value={compose.emailSubject}
@@ -705,7 +877,24 @@ export default function SalesInboxPage() {
 
                         {selected.phone ? (
                           <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
-                            <div className="crm-label">SMS Reply</div>
+                            <div className="flex items-center justify-between">
+                              <div className="crm-label">SMS Reply</div>
+                              <button onClick={() => setScGoalOpen(scGoalOpen === 'sms' ? null : 'sms')} className="text-xs text-[var(--app-accent)] hover:underline">✨ Smart Compose</button>
+                            </div>
+                            {scGoalOpen === 'sms' ? (
+                              <div className="mt-3 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
+                                <div className="mb-2 text-xs font-medium text-[var(--app-ink)]">What's the goal?</div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  {SC_GOALS.map(g => (
+                                    <button key={g.id} onClick={() => void runSmartCompose(g.id, 'sms')} disabled={scBusy}
+                                      className="flex flex-col items-start rounded-[6px] border border-[var(--app-line)] px-2 py-1.5 text-left text-xs hover:border-[var(--app-accent)] disabled:opacity-50">
+                                      <span className="font-medium text-[var(--app-ink)]">{scBusy ? '...' : g.label}</span>
+                                      <span className="text-[var(--app-muted)]">{g.desc}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null}
                             <textarea
                               className="crm-input mt-4 min-h-40"
                               value={compose.smsBody}

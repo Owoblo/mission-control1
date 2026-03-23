@@ -114,6 +114,7 @@ export default function SalesLeadDetailPage() {
   const [composerSubject, setComposerSubject] = useState('Following up — Saturn Star Moving')
   const [composerBody, setComposerBody] = useState('')
   const [composerBusy, setComposerBusy] = useState(false)
+  const [scBusy, setScBusy] = useState(false)
   const [listingLookupBusy, setListingLookupBusy] = useState(false)
   const [scanProgress, setScanProgress] = useState<{ batch: number; totalBatches: number; status: string } | null>(null)
   const [activeTab, setActiveTab] = useState<'timeline' | 'inventory'>('timeline')
@@ -1025,18 +1026,15 @@ export default function SalesLeadDetailPage() {
     const firstName = (lead.name || 'there').split(' ')[0]
     setComposerChannel(channel)
     setComposerSubject(channel === 'email' ? 'Following up — Saturn Star Moving' : '')
+    // Set a brief placeholder while AI drafts — user can start typing immediately
     setComposerBody(
       channel === 'sms'
-        ? `Hi ${firstName}, this is Saturn Star Moving. I’m following up on your move request. What date and locations are you planning for?`
-        : `Hi ${firstName},
-
-I’m following up on your move request with Saturn Star Moving.
-
-Let me know your move date, origin, destination, and any inventory or access details you already know, and I’ll keep your estimate moving.
-
-Saturn Star Moving`
+        ? `Hi ${firstName}, this is Saturn Star Moving — just following up on your move. What date are you working with?`
+        : `Hi ${firstName},\n\nJust following up on your move with Saturn Star Moving. Let me know if you have any questions or want to lock in a date.\n\nJohn\nSaturn Star Moving`
     )
     setComposerOpen(true)
+    // Immediately kick off AI — it will replace the placeholder if it returns in time
+    void runSmartCompose(channel, lead)
   }
 
   async function sendComposerMessage() {
@@ -1062,6 +1060,29 @@ Saturn Star Moving`
       setError((err as Error).message)
     } finally {
       setComposerBusy(false)
+    }
+  }
+
+  async function runSmartCompose(channel: 'sms' | 'email', currentLead: typeof lead) {
+    if (!currentLead) return
+    try {
+      setScBusy(true)
+      const smsHistory = followUps.filter(f => f.type === 'sms').map(f => ({ direction: 'outbound', body: f.notes || '', created_at: f.date }))
+      const emailHistory = followUps.filter(f => f.type === 'email').map(f => ({ direction: 'outbound', subject: f.notes || '', body_preview: '', created_at: f.date }))
+      const res = await fetch('https://saturn-lead-intake.johnowolabi80.workers.dev/smart-compose', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lead: currentLead, smsHistory, emailHistory, channel }),
+      })
+      const data = await res.json() as { ok: boolean; draft?: string; subject?: string; error?: string }
+      if (data.ok && data.draft) {
+        setComposerBody(data.draft)
+        if (channel === 'email' && data.subject) setComposerSubject(data.subject)
+      }
+    } catch {
+      // AI failed silently — user still has the default template in the box
+    } finally {
+      setScBusy(false)
     }
   }
 
@@ -2072,15 +2093,24 @@ Saturn Star Moving`
               <textarea
                 value={composerBody}
                 onChange={event => setComposerBody(event.target.value)}
-                className="crm-input min-h-56"
+                className={`crm-input min-h-56 transition-opacity ${scBusy ? 'opacity-50' : 'opacity-100'}`}
                 placeholder={composerChannel === 'sms' ? 'Type your SMS...' : 'Type your email...'}
               />
             </div>
-            <div className="flex flex-col-reverse gap-3 border-t border-[var(--app-line)] px-4 py-4 md:flex-row md:items-center md:justify-end md:px-5">
-              <button onClick={() => setComposerOpen(false)} className="crm-button w-full md:w-auto">Cancel</button>
-              <button onClick={() => void sendComposerMessage()} disabled={composerBusy || !composerBody.trim()} className="crm-button-dark disabled:opacity-60">
-                {composerBusy ? 'Sending...' : composerChannel === 'sms' ? 'Send SMS' : 'Send Email'}
+            <div className="flex flex-col-reverse gap-3 border-t border-[var(--app-line)] px-4 py-4 md:flex-row md:items-center md:justify-between md:px-5">
+              <button
+                onClick={() => void runSmartCompose(composerChannel, lead)}
+                disabled={scBusy}
+                className="text-sm text-[var(--app-muted)] hover:text-[var(--app-accent)] disabled:opacity-40 transition-colors"
+              >
+                {scBusy ? '✨ AI drafting...' : '✨ Regenerate'}
               </button>
+              <div className="flex flex-col-reverse gap-3 md:flex-row md:items-center">
+                <button onClick={() => setComposerOpen(false)} className="crm-button w-full md:w-auto">Cancel</button>
+                <button onClick={() => void sendComposerMessage()} disabled={composerBusy || !composerBody.trim()} className="crm-button-dark disabled:opacity-60">
+                  {composerBusy ? 'Sending...' : composerChannel === 'sms' ? 'Send SMS' : 'Send Email'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
