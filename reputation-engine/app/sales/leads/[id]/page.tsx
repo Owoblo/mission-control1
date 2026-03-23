@@ -115,6 +115,7 @@ export default function SalesLeadDetailPage() {
   const [composerBody, setComposerBody] = useState('')
   const [composerBusy, setComposerBusy] = useState(false)
   const [scBusy, setScBusy] = useState(false)
+  const [emailMessages, setEmailMessages] = useState<Array<{ id: string; from_address: string; to_address: string; subject: string | null; body_preview: string | null; direction: 'inbound' | 'outbound'; created_at: string }>>([])
   const [listingLookupBusy, setListingLookupBusy] = useState(false)
   const [scanProgress, setScanProgress] = useState<{ batch: number; totalBatches: number; status: string } | null>(null)
   const [activeTab, setActiveTab] = useState<'timeline' | 'inventory'>('timeline')
@@ -211,6 +212,13 @@ export default function SalesLeadDetailPage() {
       )
       if (nextLead) {
         applyLeadSnapshot(nextLead, { hydrateForm: true })
+        // Fetch inbound emails from Zoho (stored in email_messages table) for this lead's email
+        if (nextLead.email) {
+          fetch(`/api/sales/email-messages?email=${encodeURIComponent(nextLead.email)}`)
+            .then(r => r.ok ? r.json() : [])
+            .then((msgs: typeof emailMessages) => setEmailMessages(msgs))
+            .catch(() => {})
+        }
       }
       setError(nextLead ? null : 'Lead not found')
       return nextLead ? { quoteId: nextLead.quoteId } : null
@@ -357,12 +365,75 @@ export default function SalesLeadDetailPage() {
       aiSummary: item.aiSummary,
     }))
 
-    return [...systemEvents, ...logs, ...fu].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-  }, [followUps, lead, quote])
+    // Merge inbound emails from Zoho (email_messages table) — these won't be in followUps
+    const inboundEmails = emailMessages
+      .filter(m => m.direction === 'inbound')
+      .map(m => ({
+        id: m.id,
+        kind: 'email' as const,
+        text: m.subject || '(no subject)',
+        date: m.created_at,
+        actor: 'customer' as const,
+        _preview: m.body_preview || '',
+        _inbound: true,
+      }))
+
+    return [...systemEvents, ...logs, ...fu, ...inboundEmails].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  }, [followUps, lead, quote, emailMessages])
   const latestCallInsight = useMemo(() => {
     const callLogs = lead?.callLogs || []
     return callLogs.find(item => item.aiSummary || item.transcript || item.recordingUrl) || null
   }, [lead?.callLogs])
+
+  const aiNudge = useMemo(() => {
+    if (!lead) return null
+    const now = Date.now()
+    const dayMs = 86400000
+
+    // Follow-up date overdue
+    if (lead.followUpDate) {
+      const due = new Date(lead.followUpDate).getTime()
+      const daysOver = Math.floor((now - due) / dayMs)
+      if (daysOver > 0) return { urgency: 'high', icon: '⚠️', text: `Follow-up was due ${daysOver === 1 ? 'yesterday' : `${daysOver} days ago`}`, action: 'Reach out now' }
+      if (daysOver === 0) return { urgency: 'high', icon: '📅', text: 'Follow-up is due today', action: 'Reach out today' }
+    }
+
+    // Quote sent but not viewed in 3+ days
+    if (quote?.sentAt && !quote.viewedAt) {
+      const daysSinceSent = Math.floor((now - new Date(quote.sentAt).getTime()) / dayMs)
+      if (daysSinceSent >= 3) return { urgency: 'medium', icon: '👀', text: `Quote sent ${daysSinceSent} days ago — not opened yet`, action: 'Send a quick nudge' }
+    }
+
+    // Quote viewed but no response in 2+ days
+    if (quote?.viewedAt && quote.status === 'sent') {
+      const daysSinceViewed = Math.floor((now - new Date(quote.viewedAt).getTime()) / dayMs)
+      if (daysSinceViewed >= 2) return { urgency: 'medium', icon: '⏳', text: `Quote viewed ${daysSinceViewed} days ago — no response`, action: 'Check in on their decision' }
+    }
+
+    // AI-suggested next action from last call
+    if (latestCallInsight?.aiSummary?.nextAction) {
+      const callDate = latestCallInsight.date ? new Date(latestCallInsight.date).getTime() : 0
+      const daysSinceCall = Math.floor((now - callDate) / dayMs)
+      const followUpDays = latestCallInsight.aiSummary.followUpDays || 2
+      if (daysSinceCall >= followUpDays) {
+        return { urgency: 'medium', icon: '💡', text: latestCallInsight.aiSummary.nextAction, action: latestCallInsight.aiSummary.followUpReason || `${daysSinceCall} days since last call` }
+      }
+    }
+
+    // No contact in 7+ days for active leads
+    if (lead.stage !== 'booked' && lead.stage !== 'lost') {
+      const allDates = [
+        ...followUps.map(f => f.date),
+        ...(lead.callLogs || []).map(c => c.date),
+        lead.createdAt,
+      ].filter(Boolean).map(d => new Date(d).getTime())
+      const lastContact = Math.max(...allDates)
+      const daysSince = Math.floor((now - lastContact) / dayMs)
+      if (daysSince >= 7) return { urgency: 'low', icon: '💤', text: `No contact in ${daysSince} days`, action: 'Time to check in' }
+    }
+
+    return null
+  }, [lead, quote, latestCallInsight, followUps])
   const quoteEngagement = useMemo(() => {
     if (!quote) {
       return [
@@ -1616,16 +1687,33 @@ export default function SalesLeadDetailPage() {
                 <div className="crm-label">Tasks</div>
                 <span className="text-xs text-[var(--app-muted)]">AI + follow-up</span>
               </div>
-              <div className="mt-5 space-y-4 text-sm">
-                <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-3">
-                  <div className="text-sm font-medium text-[var(--app-ink)]">
-                    {latestCallInsight?.aiSummary?.nextAction || lead.followUpNote || (quote ? 'Follow up on the open estimate.' : 'No active task yet')}
+              <div className="mt-4 space-y-3 text-sm">
+                {aiNudge ? (
+                  <div className={`rounded-[8px] border px-3 py-3 ${aiNudge.urgency === 'high' ? 'border-amber-200 bg-amber-50' : aiNudge.urgency === 'medium' ? 'border-sky-200 bg-sky-50' : 'border-[var(--app-line)] bg-[var(--app-bg)]'}`}>
+                    <div className={`flex items-start gap-2 text-sm font-medium ${aiNudge.urgency === 'high' ? 'text-amber-800' : aiNudge.urgency === 'medium' ? 'text-sky-800' : 'text-[var(--app-ink)]'}`}>
+                      <span>{aiNudge.icon}</span>
+                      <span>{aiNudge.text}</span>
+                    </div>
+                    <div className={`mt-1.5 text-xs ${aiNudge.urgency === 'high' ? 'text-amber-700' : aiNudge.urgency === 'medium' ? 'text-sky-700' : 'text-[var(--app-muted)]'}`}>
+                      {aiNudge.action}
+                    </div>
+                    {(aiNudge.urgency === 'high' || aiNudge.urgency === 'medium') && (lead.phone || lead.email) ? (
+                      <div className="mt-3 flex gap-2">
+                        {lead.phone ? <button onClick={() => openComposer('sms')} className="rounded-[6px] bg-white px-3 py-1.5 text-xs font-medium text-[var(--app-ink)] shadow-sm ring-1 ring-inset ring-[var(--app-line)] hover:bg-[var(--app-bg)]">Send SMS</button> : null}
+                        {lead.email ? <button onClick={() => openComposer('email')} className="rounded-[6px] bg-white px-3 py-1.5 text-xs font-medium text-[var(--app-ink)] shadow-sm ring-1 ring-inset ring-[var(--app-line)] hover:bg-[var(--app-bg)]">Email</button> : null}
+                      </div>
+                    ) : null}
                   </div>
-                  <div className="mt-2 text-xs leading-5 text-[var(--app-muted)]">
-                    {latestCallInsight?.aiSummary?.followUpReason ||
-                      (lead.followUpDate ? `Follow up on ${formatDate(lead.followUpDate)}.` : 'The next step will appear here once a call, consultation, or quote creates one.')}
+                ) : (
+                  <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-3">
+                    <div className="text-sm font-medium text-[var(--app-ink)]">
+                      {lead.followUpNote || (quote ? 'Follow up on the open estimate.' : 'No active task yet')}
+                    </div>
+                    <div className="mt-2 text-xs leading-5 text-[var(--app-muted)]">
+                      {lead.followUpDate ? `Follow up on ${formatDate(lead.followUpDate)}.` : 'Steps will appear here once you have a call, consultation, or quote.'}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
 

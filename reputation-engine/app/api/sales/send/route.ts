@@ -2,9 +2,32 @@ import { NextResponse } from 'next/server'
 import { uid } from '@/lib/sales'
 import { summarizeMessage } from '@/lib/server/call-intelligence'
 import { logEvent } from '@/lib/server/analytics'
-import { requireWorkerBaseUrl } from '@/lib/server/runtime'
+import { requireSupabaseEnv, requireWorkerBaseUrl } from '@/lib/server/runtime'
 import { getSalesLead, listFollowUpLogs, saveFollowUpLog, saveSalesEmail, saveSalesLead } from '@/lib/server/sales-repository'
 import type { CRMEmail, FollowUpLog } from '@/lib/types'
+
+const MY_NUMBER = '+12267732993'
+
+async function logSmsToSupabase(to: string, body: string, leadId: string | undefined) {
+  try {
+    const { url, headers } = requireSupabaseEnv()
+    await fetch(`${url}/rest/v1/sms_messages`, {
+      method: 'POST',
+      headers: { ...headers, Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        id: uid('sms'),
+        from_number: MY_NUMBER,
+        to_number: to,
+        body,
+        direction: 'outbound',
+        lead_id: leadId || null,
+        created_at: new Date().toISOString(),
+      }),
+    })
+  } catch {
+    // non-fatal
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -101,6 +124,11 @@ export async function POST(request: Request) {
           // best-effort — never fail the send
         }
       })()
+    }
+
+    // Log outbound SMS to sms_messages so it appears in the 2-way thread view
+    if (payload.channel === 'sms') {
+      void logSmsToSupabase(payload.to, payload.body, payload.leadId)
     }
 
     let emailRecord: CRMEmail | null = null
