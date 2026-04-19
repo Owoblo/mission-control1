@@ -340,25 +340,21 @@ const LABOR_COST_PER_MOVER_HOUR = 20
 const TRUCK_DAILY_COST = 50          // rental/depreciation per truck per day
 const TRUCK_OPS_COST_PER_KM = 1.1   // fuel + wear at ~$1.10 CAD/km per truck
 
-// Items that almost always require disassembly/reassembly — auto-detected from inventory scan
-// NOTE: wardrobes excluded — typically built-in and stay with property
-const DISASSEMBLY_KEYWORDS = [
-  'bed frame',
-  'bunk bed',
-  'crib',
-  'dining table',
-  'desk',
-  'china cabinet',
-  'hutch',
-  'trampoline',
-]
+// Per-item disassembly + reassembly times in minutes — context-aware, not a flat rate
+// disMin = time to take apart at origin; reMin = time to reassemble at destination
+const DISASSEMBLY_ITEM_TIMES: Record<string, { disMin: number; reMin: number }> = {
+  'dining table':  { disMin: 5,  reMin: 5  },  // typically 4 bolt-on legs
+  'desk':          { disMin: 8,  reMin: 8  },  // 4-6 screws, straight frame
+  'crib':          { disMin: 10, reMin: 15 },  // bolt-together panels
+  'bed frame':     { disMin: 10, reMin: 15 },  // slats + side rails
+  'china cabinet': { disMin: 15, reMin: 20 },  // top/bottom separation + hardware
+  'hutch':         { disMin: 15, reMin: 20 },  // same as china cabinet
+  'bunk bed':      { disMin: 25, reMin: 30 },  // full frame + ladder + guard rail
+  'trampoline':    { disMin: 35, reMin: 40 },  // legs + frame + springs
+}
 
 // Items that should NEVER be flagged for disassembly even if name partially matches
-const NO_DISASSEMBLY_KEYWORDS = [
-  'patio',
-  'barbecue',
-  'grill',
-]
+const NO_DISASSEMBLY_KEYWORDS = ['patio', 'barbecue', 'grill']
 
 function getTruckRateMultiplier(truckCount: number) {
   if (truckCount >= 3) return THREE_TRUCK_RATE_MULTIPLIER
@@ -396,14 +392,49 @@ export function tvBoxPrice(sizeInches: number | null): number {
 }
 
 export function suggestDisassemblyCount(inventory: InventoryItem[]): number {
+  const keywords = Object.keys(DISASSEMBLY_ITEM_TIMES)
   return inventory.reduce((count, item) => {
     const name = (item.name || item.item || '').toLowerCase()
     if (item.included === false) return count
     if (NO_DISASSEMBLY_KEYWORDS.some(kw => name.includes(kw))) return count
-    return DISASSEMBLY_KEYWORDS.some(keyword => name.includes(keyword))
+    return keywords.some(kw => name.includes(kw))
       ? count + Math.max(1, Number(item.qty || 1))
       : count
   }, 0)
+}
+
+export function getDisassemblyBreakdown(inventory: InventoryItem[]): {
+  count: number
+  totalHours: number
+  details: string[]
+} {
+  const keywords = Object.keys(DISASSEMBLY_ITEM_TIMES)
+  let totalMinutes = 0
+  const details: string[] = []
+  let count = 0
+
+  for (const item of inventory) {
+    if (item.included === false) continue
+    const name = (item.name || item.item || '').toLowerCase()
+    if (NO_DISASSEMBLY_KEYWORDS.some(kw => name.includes(kw))) continue
+    const matchedKey = keywords.find(kw => name.includes(kw))
+    if (!matchedKey) continue
+
+    const { disMin, reMin } = DISASSEMBLY_ITEM_TIMES[matchedKey]
+    const qty = Math.max(1, Number(item.qty || 1))
+    totalMinutes += (disMin + reMin) * qty
+    count += qty
+
+    const displayName = item.name || item.item || matchedKey
+    const prefix = qty > 1 ? `${qty}× ` : ''
+    details.push(`${prefix}${displayName} — ~${disMin} min dis + ~${reMin} min re`)
+  }
+
+  return {
+    count,
+    totalHours: Math.round((totalMinutes / 60) * 4) / 4,
+    details,
+  }
 }
 
 export function suggestTruckCount(totalCubicFeet: number, totalWeightLbs = 0, moveType?: CRMLead['moveType']) {
@@ -473,14 +504,18 @@ export function computeJobPenalties(factors: JobFactors): {
   // Disassembly / reassembly
   const disassemblyCount = factors.disassemblyItemCount || 0
   if (disassemblyCount > 0) {
-    const totalHrs = Math.round(disassemblyCount * 0.33 * 4) / 4
-    const perItemMin = 20
+    // Use per-item breakdown if available (computed by getDisassemblyBreakdown);
+    // fall back to flat ~20 min/item when rep manually set a count with no detail
+    const totalHrs = factors.disassemblyHours ?? Math.round(disassemblyCount * 0.33 * 4) / 4
+    const detailLines: string[] = factors.disassemblyDetails?.length
+      ? factors.disassemblyDetails
+      : [`~20 min total per item × ${disassemblyCount} item${disassemblyCount > 1 ? 's' : ''}`]
     penalties.push({
       label: `Disassembly + reassembly – ${disassemblyCount} item${disassemblyCount > 1 ? 's' : ''} (~${totalHrs} hr${totalHrs !== 1 ? 's' : ''} total)`,
       hours: totalHrs,
       category: 'disassembly',
       details: [
-        `~${perItemMin} min disassembly + ~${perItemMin} min reassembly per item (${disassemblyCount} item${disassemblyCount > 1 ? 's' : ''} × ${perItemMin * 2} min)`,
+        ...detailLines,
         'Includes: beds, dining tables, desks, hutches, cribs, trampolines, and similar freestanding assemblies',
       ],
     })
@@ -605,18 +640,11 @@ export function estimateLeadQuote(
   const missingRequirements = routeContext?.missingRequirements || []
   const missingDestination = pricingStatus === 'provisional' || missingRequirements.length > 0
 
-  const autoDisassemblyCount = suggestDisassemblyCount(lead.inventory || [])
+  const { count: autoDisassemblyCount, totalHours: autoDisassemblyHours, details: autoDisassemblyDetails } =
+    getDisassemblyBreakdown(lead.inventory || [])
 
-  // Detect which specific items need disassembly — listed by name for scope of work display
-  const disassemblyItemNames = (lead.inventory || [])
-    .filter(item => item.included !== false)
-    .flatMap(item => {
-      const name = (item.name || item.item || '').toLowerCase()
-      if (!DISASSEMBLY_KEYWORDS.some(kw => name.includes(kw))) return []
-      const qty = Math.max(1, Number(item.qty || 1))
-      const displayName = item.name || item.item || ''
-      return qty > 1 ? [`${qty}× ${displayName}`] : [displayName]
-    })
+  // Names list used for scope-of-work display (unchanged — just the item names)
+  const disassemblyItemNames = autoDisassemblyDetails.map(line => line.split(' — ')[0].trim())
 
   // Specialty items that ARE being moved (not flagged as "do not move")
   const specialtyItemFlags: string[] = []
@@ -627,11 +655,13 @@ export function estimateLeadQuote(
   const activeFactors: JobFactors | undefined = rawFactors
     ? {
         ...rawFactors,
-        // Only auto-fill disassemblyItemCount if rep hasn't set it explicitly
         disassemblyItemCount: rawFactors.disassemblyItemCount ?? autoDisassemblyCount,
+        // Thread per-item hours + details unless rep has already set a manual override
+        disassemblyHours: rawFactors.disassemblyHours ?? (autoDisassemblyCount > 0 ? autoDisassemblyHours : undefined),
+        disassemblyDetails: rawFactors.disassemblyDetails ?? (autoDisassemblyCount > 0 ? autoDisassemblyDetails : undefined),
       }
     : autoDisassemblyCount > 0
-      ? { disassemblyItemCount: autoDisassemblyCount }
+      ? { disassemblyItemCount: autoDisassemblyCount, disassemblyHours: autoDisassemblyHours, disassemblyDetails: autoDisassemblyDetails }
       : undefined
   const { penalties, extraHours, extraCubicFeet } = activeFactors
     ? computeJobPenalties(activeFactors)

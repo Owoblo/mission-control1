@@ -246,6 +246,8 @@ export interface JobFactors {
   hasPiano?: boolean
   hasSafe?: boolean
   disassemblyItemCount?: number
+  disassemblyHours?: number      // pre-computed from per-item times; overrides count-based flat calc
+  disassemblyDetails?: string[]  // per-item breakdown for display (e.g. "Queen Bed: 10 dis + 15 re")
 
   // Items we do NOT move (flag only — do not price, alert the rep)
   hasHotTub?: boolean
