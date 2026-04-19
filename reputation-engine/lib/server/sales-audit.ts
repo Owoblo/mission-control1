@@ -53,8 +53,13 @@ export async function recordLeadUpdateAudit(previous: CRMLead, next: CRMLead) {
     logs.push(buildLog(next.id, 'note', `Follow-up scheduled for ${next.followUpDate}.`))
   }
 
-  if ((previous.inventory?.length || 0) !== (next.inventory?.length || 0) && (next.inventory?.length || 0) > 0) {
-    logs.push(buildLog(next.id, 'note', `Inventory updated with ${next.inventory?.length || 0} item${next.inventory?.length === 1 ? '' : 's'}.`))
+  // Only log inventory changes once a quote has been sent (stage = quoted/nurture/booked/lost)
+  // Before first quote send, inventory tweaks are just drafting noise — no need to spam the timeline
+  const postQuoteStages: CRMLead['stage'][] = ['quoted', 'nurture', 'booked', 'lost']
+  const quoteHasBeenSent = postQuoteStages.includes(next.stage)
+  const inventoryCountChanged = (previous.inventory?.length || 0) !== (next.inventory?.length || 0)
+  if (inventoryCountChanged && (next.inventory?.length || 0) > 0 && quoteHasBeenSent) {
+    logs.push(buildLog(next.id, 'note', `Inventory updated — ${next.inventory?.length || 0} item${next.inventory?.length === 1 ? '' : 's'} on file.`))
   }
 
   if (logs.length > 0) {

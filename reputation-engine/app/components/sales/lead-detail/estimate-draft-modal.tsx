@@ -89,6 +89,8 @@ type Props = {
   onUpdateInventoryItem: (index: number, field: keyof InventoryItem, value: string) => void
   onToggleInventoryItem: (index: number) => void
   onRemoveInventoryItem: (index: number) => void
+  customerNotes: string
+  onCustomerNotesChange: (value: string) => void
 }
 
 function Toggle({ label, value, onChange }: { label: string; value: boolean | undefined; onChange: (v: boolean) => void }) {
@@ -173,6 +175,8 @@ export function EstimateDraftModal({
   onUpdateInventoryItem,
   onToggleInventoryItem,
   onRemoveInventoryItem,
+  customerNotes,
+  onCustomerNotesChange,
 }: Props) {
   const [route, setRoute] = useState<RouteResult | null>(null)
   const [routeBusy, setRouteBusy] = useState(false)
@@ -181,6 +185,7 @@ export function EstimateDraftModal({
     lead.quoteType || 'standard'
   )
   const [distanceKm, setDistanceKm] = useState<number>(0)
+  const [manualDriveHours, setManualDriveHours] = useState<number | undefined>(undefined)
   const [bookTodayActive, setBookTodayActive] = useState(false)
   const [tenPctActive, setTenPctActive] = useState(false)
   const [overrideInput, setOverrideInput] = useState('')
@@ -232,7 +237,12 @@ export function EstimateDraftModal({
     fetch('/api/sales/route-estimate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ origin: originFull, destination: destFull || undefined }),
+      body: JSON.stringify({
+        origin: originFull,
+        destination: destFull || undefined,
+        originCity: originCity || lead.originCity || undefined,
+        manualDriveHours: manualDriveHours,
+      }),
       credentials: 'include',
     })
       .then(r => r.json())
@@ -399,6 +409,30 @@ export function EstimateDraftModal({
                   />
                 </div>
               )}
+              {/* Manual drive time override — use when Google Maps gives wrong result */}
+              <div className="mt-3 flex items-end gap-2">
+                <div className="flex-1">
+                  <label className="crm-label">Manual Drive Time Override (hrs)</label>
+                  <input
+                    type="number"
+                    step="0.25"
+                    min="0"
+                    value={manualDriveHours || ''}
+                    onChange={e => setManualDriveHours(e.target.value ? Number(e.target.value) : undefined)}
+                    className="crm-input mt-1 w-full"
+                    placeholder="e.g. 6 — overrides Google Maps"
+                  />
+                </div>
+                {manualDriveHours !== undefined && (
+                  <button
+                    type="button"
+                    onClick={() => setManualDriveHours(undefined)}
+                    className="crm-button text-rose-600 hover:bg-rose-50 shrink-0"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Addresses */}
@@ -982,6 +1016,19 @@ export function EstimateDraftModal({
                   </div>
                 ) : null}
               </div>
+            </div>
+
+            {/* Customer Notes / Extras */}
+            <div>
+              <div className="mb-2 crm-label">Notes &amp; Extras for Customer</div>
+              <textarea
+                rows={3}
+                placeholder="e.g. Junk removal included, TV boxes provided, piano wrap included — shown on the customer's quote"
+                value={customerNotes}
+                onChange={e => onCustomerNotesChange(e.target.value)}
+                className="crm-input w-full resize-none text-sm"
+              />
+              <div className="mt-1 text-[10px] text-[var(--app-muted)]">Shown on the customer-facing quote below the pricing summary.</div>
             </div>
           </div>
 

@@ -341,7 +341,7 @@ const TRUCK_DAILY_COST = 50          // rental/depreciation per truck per day
 const TRUCK_OPS_COST_PER_KM = 1.1   // fuel + wear at ~$1.10 CAD/km per truck
 
 // Items that almost always require disassembly/reassembly — auto-detected from inventory scan
-// NOTE: wardrobes are excluded — they are typically built-in and stay with the property
+// NOTE: wardrobes excluded — typically built-in and stay with property
 const DISASSEMBLY_KEYWORDS = [
   'bed frame',
   'bunk bed',
@@ -351,6 +351,13 @@ const DISASSEMBLY_KEYWORDS = [
   'china cabinet',
   'hutch',
   'trampoline',
+]
+
+// Items that should NEVER be flagged for disassembly even if name partially matches
+const NO_DISASSEMBLY_KEYWORDS = [
+  'patio',
+  'barbecue',
+  'grill',
 ]
 
 function getTruckRateMultiplier(truckCount: number) {
@@ -365,10 +372,34 @@ function estimateRequiredTrucks(totalCubicFeet: number, totalWeightLbs: number) 
   return Math.max(byVolume, byWeight)
 }
 
+/** Parse TV size in inches from the size/name/notes fields. Returns null if unknown. */
+export function parseTvSizeInches(item: InventoryItem): number | null {
+  const text = `${item.size || ''} ${item.name || ''} ${item.notes || ''}`.toLowerCase()
+  const match = text.match(/(\d{2,3})\s*[-–]?\s*(?:inch|in|")/i) || text.match(/(\d{2,3})\+/)
+  return match ? parseInt(match[1], 10) : null
+}
+
+/** Pick the right TV box preset ID based on screen size in inches. */
+export function tvBoxPresetId(sizeInches: number | null): 'tv-box-50' | 'tv-box-55' | 'tv-box-66' {
+  if (!sizeInches) return 'tv-box-55' // default to mid-size when unknown
+  if (sizeInches <= 50) return 'tv-box-50'
+  if (sizeInches <= 65) return 'tv-box-55'
+  return 'tv-box-66'
+}
+
+/** TV box price by size tier */
+export function tvBoxPrice(sizeInches: number | null): number {
+  if (!sizeInches) return 35
+  if (sizeInches <= 50) return 25
+  if (sizeInches <= 65) return 35
+  return 55
+}
+
 export function suggestDisassemblyCount(inventory: InventoryItem[]): number {
   return inventory.reduce((count, item) => {
     const name = (item.name || item.item || '').toLowerCase()
     if (item.included === false) return count
+    if (NO_DISASSEMBLY_KEYWORDS.some(kw => name.includes(kw))) return count
     return DISASSEMBLY_KEYWORDS.some(keyword => name.includes(keyword))
       ? count + Math.max(1, Number(item.qty || 1))
       : count
@@ -442,11 +473,16 @@ export function computeJobPenalties(factors: JobFactors): {
   // Disassembly / reassembly
   const disassemblyCount = factors.disassemblyItemCount || 0
   if (disassemblyCount > 0) {
+    const totalHrs = Math.round(disassemblyCount * 0.33 * 4) / 4
+    const perItemMin = 20
     penalties.push({
-      label: `Disassembly + reassembly – ${disassemblyCount} furniture assembly item${disassemblyCount > 1 ? 's' : ''}`,
-      hours: Math.round(disassemblyCount * 0.33 * 4) / 4,
+      label: `Disassembly + reassembly – ${disassemblyCount} item${disassemblyCount > 1 ? 's' : ''} (~${totalHrs} hr${totalHrs !== 1 ? 's' : ''} total)`,
+      hours: totalHrs,
       category: 'disassembly',
-      details: ['Beds, dining tables, hutches, desks, trampolines, similar freestanding assemblies'],
+      details: [
+        `~${perItemMin} min disassembly + ~${perItemMin} min reassembly per item (${disassemblyCount} item${disassemblyCount > 1 ? 's' : ''} × ${perItemMin * 2} min)`,
+        'Includes: beds, dining tables, desks, hutches, cribs, trampolines, and similar freestanding assemblies',
+      ],
     })
   }
 
@@ -852,6 +888,24 @@ export function estimateLeadQuote(
       amount: totalServiceAmount,
     },
   ]
+
+  // TV box line items — one per TV in included inventory
+  const tvItems = (lead.inventory || []).filter(item => {
+    if (item.included === false) return false
+    const name = (item.name || item.item || '').toLowerCase()
+    return /\btv\b|television/.test(name)
+  })
+  for (const tv of tvItems) {
+    const qty = Math.max(1, Number(tv.qty || 1))
+    const sizeInches = parseTvSizeInches(tv)
+    const boxPrice = tvBoxPrice(sizeInches)
+    const sizeLabel = sizeInches ? `${sizeInches}"` : 'Standard'
+    lineItems.push({
+      description: `TV Box — ${sizeLabel} (×${qty})`,
+      details: `Custom protective TV moving box${sizeInches ? ` for ${sizeInches}" screen` : ''} — wrap + packaging included`,
+      amount: boxPrice * qty,
+    })
+  }
 
   if (missingDestination) {
     lineItems.push({

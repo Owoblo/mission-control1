@@ -90,13 +90,19 @@ export async function POST(request: Request) {
               if (crmLead) {
                 // Log the call and map the callSid so recording-callback finds it
                 const callLogId = uid('cl')
+                const callLogEntry = {
+                  id: callLogId,
+                  type: 'call',
+                  source: 'inbound' as const,
+                  callSid,
+                  notes: `Inbound call from ${from} — Recording processing…`,
+                  date: new Date().toISOString(),
+                  phone: from,
+                }
                 const withCallLog: CRMLead = {
                   ...crmLead,
                   stage: crmLead.stage === 'new' || crmLead.stage === 'nurture' ? 'contacted' : crmLead.stage,
-                  callLogs: [
-                    { id: callLogId, type: 'call', notes: `Inbound call from ${from} — Recording processing…`, date: new Date().toISOString(), phone: from, direction: 'inbound' } as any,
-                    ...(crmLead.callLogs || []),
-                  ],
+                  callLogs: [callLogEntry, ...(crmLead.callLogs || [])],
                 }
                 const saved = await saveSalesLead(withCallLog).catch(() => null)
                 if (saved) {

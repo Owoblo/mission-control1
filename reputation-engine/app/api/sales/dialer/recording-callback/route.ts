@@ -5,6 +5,7 @@ import {
   getCrmCallSidMapping,
   getInboundLeadByCallSid,
   getSalesLead,
+  listSalesLeads,
   saveSalesLead,
   updateInboundLeadRawData,
   updateLeadCallLogEntry,
@@ -88,21 +89,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, path: 'crm-lead', isVoicemail })
     }
 
-    // --- Path 2: inbound call (stored in inbound_leads by callSid in raw_data) ---
+    // --- Path 2: inbound call (mapping missed — find via inbound_leads by callSid) ---
     const inboundLead = await getInboundLeadByCallSid(callSid).catch(() => null)
     if (inboundLead) {
       let aiSummary: Record<string, unknown> | null = null
       if (transcript) {
-        // Build a minimal lead-like object for the summarizer
-        const raw = typeof inboundLead.raw_data === 'object' ? inboundLead.raw_data as Record<string, unknown> : {}
         aiSummary = await summarizePhoneCall(
           { name: inboundLead.name || 'Unknown', phone: inboundLead.phone || '' } as any,
           transcript,
           'inbound'
         ).catch(() => null)
-        void raw
       }
 
+      // Update the inbound lead record
       await updateInboundLeadRawData(inboundLead.id, {
         recordingUrl: mp3Url,
         recordingSid: recordingSid || undefined,
@@ -110,6 +109,41 @@ export async function POST(request: Request) {
         transcript: transcript || undefined,
         aiSummary: aiSummary || undefined,
       })
+
+      // Also update the CRM lead call log if we can find it by phone — the mapping
+      // save may have failed in twiml/route.ts but the call log entry was still created
+      if (inboundLead.phone) {
+        try {
+          const digitsOnly = (p: string) => p.replace(/\D/g, '')
+          const inboundDigits = digitsOnly(inboundLead.phone)
+          const allLeads = await listSalesLeads().catch(() => [])
+          const crmLead = allLeads.find(l => {
+            const ld = digitsOnly(l.phone || '')
+            return ld && (ld === inboundDigits || ld.endsWith(inboundDigits) || inboundDigits.endsWith(ld))
+          })
+          if (crmLead) {
+            // Find the call log entry that matches this callSid or the most recent inbound entry without a recording
+            const matchingEntry = (crmLead.callLogs || []).find(
+              entry =>
+                (entry.callSid && entry.callSid === callSid) ||
+                (entry.source === 'inbound' && !entry.recordingUrl && entry.notes?.includes('Recording processing'))
+            )
+            if (matchingEntry) {
+              await updateLeadCallLogEntry(crmLead.id, matchingEntry.id, {
+                recordingUrl: mp3Url,
+                recordingSid: recordingSid || undefined,
+                recordingDuration: recordingDuration > 0 ? recordingDuration : undefined,
+                transcript: isVoicemail ? `[Voicemail]${transcript ? ' ' + transcript : ''}` : (transcript || undefined),
+                aiSummary: (aiSummary as any) || undefined,
+                isVoicemail: isVoicemail || undefined,
+              } as any).catch(() => null)
+            }
+          }
+        } catch {
+          // best-effort — don't let this fail the inbound lead update
+        }
+      }
+
       return NextResponse.json({ ok: true, path: 'inbound-lead' })
     }
 

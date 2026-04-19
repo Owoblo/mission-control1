@@ -32,7 +32,7 @@ export const INVENTORY_PRESETS: InventoryPreset[] = [
   { id: 'dryer-freestanding', label: 'Dryer · Freestanding', room: 'Basement', item: { name: 'Dryer', qty: 1, cubicFeet: 28, weightLbs: 135, included: true } },
   { id: 'crib', label: 'Crib', room: 'Bedroom', item: { name: 'Crib', qty: 1, cubicFeet: 28, weightLbs: 65, included: true } },
   { id: 'bunk-bed', label: 'Bunk Bed', room: 'Bedroom', item: { name: 'Bunk Bed', qty: 1, cubicFeet: 75, weightLbs: 180, included: true } },
-  { id: 'patio-set', label: 'Patio Set', room: 'Outdoor', item: { name: 'Patio Set', qty: 1, cubicFeet: 55, weightLbs: 95, included: true } },
+  { id: 'patio-set', label: 'Patio Set', room: 'Outdoor', item: { name: 'Patio Set', qty: 1, cubicFeet: 55, weightLbs: 95, included: true, notes: 'Move as-is — no disassembly required' } },
   { id: 'barbecue', label: 'Barbecue', room: 'Outdoor', item: { name: 'Barbecue Grill', qty: 1, cubicFeet: 35, weightLbs: 90, included: true } },
   { id: 'upright-piano', label: 'Piano · Upright', room: 'Living Room', item: { name: 'Upright Piano', qty: 1, cubicFeet: 55, weightLbs: 450, included: true } },
   { id: 'gun-safe', label: 'Safe', room: 'Basement', item: { name: 'Safe', qty: 1, cubicFeet: 18, weightLbs: 350, included: true } },
@@ -49,7 +49,9 @@ export const INVENTORY_PRESETS: InventoryPreset[] = [
   { id: 'box-medium', label: 'Box · Medium', room: 'Boxes', item: { name: 'Medium Box', qty: 1, cubicFeet: 3, weightLbs: 25, included: true, notes: 'Clothes, toys, general household — avg 25 lbs packed' } },
   { id: 'box-large', label: 'Box · Large', room: 'Boxes', item: { name: 'Large Box', qty: 1, cubicFeet: 4.5, weightLbs: 30, included: true, notes: 'Pillows, linens, lightweight bulky items — avg 30 lbs packed' } },
   { id: 'box-xl', label: 'Box · XL', room: 'Boxes', item: { name: 'XL Box', qty: 1, cubicFeet: 6, weightLbs: 25, included: true, notes: 'Oversized lightweight items — avg 25 lbs packed' } },
-  { id: 'tv-box-55', label: 'TV Box · 55–65"', room: 'Boxes', item: { name: 'TV Box (55–65 inch)', qty: 1, cubicFeet: 12, weightLbs: 15, included: true, notes: 'Custom TV moving box — wrap included' } },
+  { id: 'tv-box-50', label: 'TV Box · ≤50"', room: 'Boxes', item: { name: 'TV Box (≤50 inch)', qty: 1, cubicFeet: 8, weightLbs: 10, included: true, notes: 'Custom TV moving box — wrap included — $25 box fee' } },
+  { id: 'tv-box-55', label: 'TV Box · 51–65"', room: 'Boxes', item: { name: 'TV Box (51–65 inch)', qty: 1, cubicFeet: 12, weightLbs: 15, included: true, notes: 'Custom TV moving box — wrap included — $35 box fee' } },
+  { id: 'tv-box-66', label: 'TV Box · 66"+"', room: 'Boxes', item: { name: 'TV Box (66+ inch)', qty: 1, cubicFeet: 16, weightLbs: 18, included: true, notes: 'Custom TV moving box — wrap included — $55 box fee' } },
   { id: 'mirror-box', label: 'Mirror / Picture Box', room: 'Boxes', item: { name: 'Mirror Box', qty: 1, cubicFeet: 5, weightLbs: 10, included: true, notes: 'Flat art, mirrors, framed items' } },
 
   // ── Appliances (customer opt-in — excluded from AI scan by default) ────────
@@ -64,12 +66,14 @@ export const INVENTORY_PRESETS: InventoryPreset[] = [
   { id: 'wheelbarrow', label: 'Wheelbarrow', room: 'Garage', item: { name: 'Wheelbarrow', qty: 1, cubicFeet: 10, weightLbs: 35, included: true } },
   { id: 'bicycle', label: 'Bicycle', room: 'Garage', item: { name: 'Bicycle', qty: 1, cubicFeet: 12, weightLbs: 25, included: true, notes: 'Remove pedals, lower seat for packing' } },
   { id: 'garage-shelving', label: 'Garage Shelving Unit', room: 'Garage', item: { name: 'Garage Shelving Unit', qty: 1, cubicFeet: 30, weightLbs: 55, included: true, notes: 'Disassembly required' } },
+  { id: 'metal-rack', label: 'Metal Rack / Wire Shelving', room: 'Garage', item: { name: 'Metal Rack', qty: 1, cubicFeet: 20, weightLbs: 45, included: true, notes: 'Disassembly required — shelves detach from frame' } },
   { id: 'workbench', label: 'Workbench', room: 'Garage', item: { name: 'Workbench', qty: 1, cubicFeet: 40, weightLbs: 120, included: true } },
   { id: 'storage-cabinet-metal', label: 'Metal Storage Cabinet', room: 'Garage', item: { name: 'Metal Storage Cabinet', qty: 1, cubicFeet: 25, weightLbs: 90, included: true } },
 
   // ── Outdoor / Misc ────────────────────────────────────────────────────────
   { id: 'hot-tub', label: 'Hot Tub', room: 'Outdoor', item: { name: 'Hot Tub', qty: 1, cubicFeet: 120, weightLbs: 750, included: true, notes: 'Specialty move — drain first, 4 movers minimum, rigging likely required' } },
   { id: 'playground-set', label: 'Playground Set', room: 'Outdoor', item: { name: 'Playground Set', qty: 1, cubicFeet: 80, weightLbs: 200, included: true, notes: 'Full disassembly required' } },
+  { id: 'basketball-hoop-kids', label: 'Kids Basketball Hoop', room: 'Outdoor', item: { name: 'Kids Basketball Hoop', qty: 1, cubicFeet: 18, weightLbs: 35, included: true, notes: 'Portable/adjustable hoop — lower height, detach backboard if needed' } },
   { id: 'garden-pots', label: 'Large Garden Pots · 5', room: 'Outdoor', item: { name: 'Large Garden Pots', qty: 5, cubicFeet: 4, weightLbs: 30, included: true } },
 
   // ── Junk / Donation (billable disposal items) ─────────────────────────────

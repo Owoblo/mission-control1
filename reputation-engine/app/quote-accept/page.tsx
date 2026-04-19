@@ -23,6 +23,7 @@ type PublicQuote = {
   status: string
   validDays?: number
   lineItems: Array<{ description: string; details?: string; amount: number }>
+  customerNotes?: string
   subtotal: number
   hst: number
   total: number
@@ -293,6 +294,14 @@ function QuoteAcceptPageInner() {
                 </div>
               ))}
             </div>
+
+            {/* Customer Notes / Extras */}
+            {quote.customerNotes && (
+              <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <div className="text-[10px] font-bold uppercase tracking-widest text-amber-700 mb-2">Included &amp; Notes</div>
+                <p className="text-sm text-stone-700 whitespace-pre-line leading-6">{quote.customerNotes}</p>
+              </div>
+            )}
 
             {/* Totals */}
             <div className="ml-auto max-w-xs space-y-1.5 text-sm mb-8">

@@ -15,7 +15,12 @@ type LiveFeedEvent = {
 function buildLiveFeedEvents(lead: CRMLead, quote?: CRMQuote, followUps?: FollowUpLog[]): LiveFeedEvent[] {
   const events: LiveFeedEvent[] = []
   ;(lead.callLogs || []).forEach(item => {
-    const label = item.isVoicemail ? 'Voicemail dropped' : item.aiSummary?.summary || item.notes || 'Call logged'
+    const isInbound = item.source === 'inbound' || (item.notes || '').toLowerCase().includes('inbound call')
+    const label = item.isVoicemail
+      ? `Voicemail${isInbound ? ' (inbound)' : ''} dropped`
+      : item.aiSummary?.summary
+        || (isInbound ? `Inbound call${item.notes?.includes('Recording processing') ? ' — recording processing' : ''}` : item.notes)
+        || 'Call logged'
     events.push({ text: label, date: item.date, tone: 'neutral' })
   })
   // Include follow-up logs (SMS, email, notes) for this lead

@@ -199,17 +199,27 @@ Return ONLY valid JSON array, no other text.`
   }
 
   // Map to InventoryItem shape
-  return processed.map(d => ({
-    room: roomName.replace(/_\d+$/, '').replace(/_/g, ' '),
-    name: String(d.label || d.name || ''),
-    item: String(d.label || d.name || ''),
-    qty: Number(d.qty || 1),
-    cubicFeet: Number(d.cubicFeet || 10),
-    weightLbs: Number(d.weightLbs || d.weight || 0) || Math.round(Number(d.cubicFeet || 10) * 7),
-    included: true,
-    size: d.size ? String(d.size) : undefined,
-    notes: d.notes ? String(d.notes) : undefined,
-  }))
+  return processed.map(d => {
+    const name = String(d.label || d.name || '')
+    const isTV = /\btv\b|television/i.test(name)
+    let size = d.size ? String(d.size) : undefined
+    // Ensure TVs always have a size — default to 55" if AI didn't detect one
+    if (isTV && !size) {
+      const inchMatch = name.match(/(\d{2,3})["\s-]*(inch|in\b)/i) || name.match(/(\d{2,3})\+/)
+      size = inchMatch ? `${inchMatch[1]} inch` : '55 inch (estimated)'
+    }
+    return {
+      room: roomName.replace(/_\d+$/, '').replace(/_/g, ' '),
+      name,
+      item: name,
+      qty: Number(d.qty || 1),
+      cubicFeet: Number(d.cubicFeet || 10),
+      weightLbs: Number(d.weightLbs || d.weight || 0) || Math.round(Number(d.cubicFeet || 10) * 7),
+      included: true,
+      size,
+      notes: d.notes ? String(d.notes) : undefined,
+    }
+  })
 }
 
 // ── Phase 3: Validate and flag anomalies ─────────────────────────────────────

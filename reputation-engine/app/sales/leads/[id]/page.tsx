@@ -97,6 +97,7 @@ export default function SalesLeadDetailPage() {
   const [quoteModalDirty, setQuoteModalDirty] = useState(false)
   const [quoteLineItems, setQuoteLineItems] = useState<QuoteLineItem[]>([])
   const [jobFactors, setJobFactors] = useState<JobFactors>({})
+  const [customerNotes, setCustomerNotes] = useState('')
   const [recalculateBusy, setRecalculateBusy] = useState(false)
   const pricingMetaRef = useRef<{ crewSize: number; estimatedHours: number; truckCount: number }>({ crewSize: 3, estimatedHours: 3, truckCount: 1 })
   const [outcomeOpen, setOutcomeOpen] = useState(false)
@@ -732,6 +733,7 @@ export default function SalesLeadDetailPage() {
       return
     }
     setQuoteLineItems(quote.lineItems || [])
+    setCustomerNotes(quote.customerNotes || '')
     setQuoteModalDirty(false)
     setQuoteModalOpen(true)
   }
@@ -776,6 +778,7 @@ export default function SalesLeadDetailPage() {
         crewSize: pricingMetaRef.current.crewSize,
         estimatedHours: pricingMetaRef.current.estimatedHours,
         truckCount: pricingMetaRef.current.truckCount,
+        customerNotes: customerNotes || undefined,
       })
       setQuote(result.quote)
       if (result.lead) setLead(result.lead)
@@ -2418,6 +2421,8 @@ export default function SalesLeadDetailPage() {
         onUpdateInventoryItem={updateInventoryItem}
         onToggleInventoryItem={toggleInventoryItem}
         onRemoveInventoryItem={removeInventoryItem}
+        customerNotes={customerNotes}
+        onCustomerNotesChange={setCustomerNotes}
       />
 
       <CollectCardModal

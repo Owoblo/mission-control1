@@ -392,6 +392,8 @@ export interface CRMQuote {
   balancePaidAt?: string
   balancePaidAmount?: number
   balancePaidMethod?: 'stripe' | 'etransfer' | 'cash' | 'cheque' | 'other'
+  // Customer-facing notes (shown on quote — extras, inclusions, special offers)
+  customerNotes?: string
 }
 
 export interface FollowUpLog {
