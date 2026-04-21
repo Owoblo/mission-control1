@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { RecordingPlayer } from '@/app/components/sales/recording-player'
 import { getSaturnBranchLabel, getSaturnBranchNumberFromRawData } from '@/lib/sales-phones'
-import { getRecordingPlaybackUrl } from '@/lib/recording-playback'
 import { claimInboundLead, fetchInboundLeads, markInboundLeadJunk, restoreInboundLead, sendSalesMessage } from '@/lib/sales-api'
 import type { CRMEmail, InboundLead } from '@/lib/types'
 
@@ -282,7 +282,6 @@ export default function SalesInboxPage() {
     | undefined
   const transcript = selectedRaw?.transcript as string | undefined
   const recordingUrl = (selectedRaw?.recordingUrl || selectedRaw?.recUrl) as string | undefined
-  const recordingPlaybackUrl = getRecordingPlaybackUrl(recordingUrl)
   const unreadCount = useMemo(() => items.filter(item => !item.claimed).length, [items])
   const selectedRoute = useMemo(
     () => ({
@@ -1055,9 +1054,9 @@ export default function SalesInboxPage() {
                             <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
                               <div className="crm-label">Call Recording</div>
                               {recordingUrl ? (
-                                <audio controls preload="none" className="mt-4 w-full" src={recordingPlaybackUrl}>
-                                  Your browser does not support audio playback.
-                                </audio>
+                                <div className="mt-4">
+                                  <RecordingPlayer recordingUrl={recordingUrl} />
+                                </div>
                               ) : (
                                 <div className="mt-4 text-sm text-[var(--app-muted)]">Recording still processing.</div>
                               )}

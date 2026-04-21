@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { getRecordingPlaybackUrl } from '@/lib/recording-playback'
+import { RecordingPlayer } from '@/app/components/sales/recording-player'
 import { formatDateTime, formatMoney } from '@/lib/sales'
 import { retranscribeConsultation } from '@/lib/sales-api'
 import type { CRMQuote, CRMLead } from '@/lib/types'
@@ -525,13 +525,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
                       <span>Recording</span>
                       <span>{item.phone || 'Attached audio'}</span>
                     </div>
-                    <audio
-                      controls
-                      className="w-full"
-                      src={getRecordingPlaybackUrl(item.recordingUrl)}
-                    >
-                      Your browser does not support audio playback.
-                    </audio>
+                    <RecordingPlayer recordingUrl={item.recordingUrl} />
                   </div>
                 ) : null}
                 {item.transcript ? (
