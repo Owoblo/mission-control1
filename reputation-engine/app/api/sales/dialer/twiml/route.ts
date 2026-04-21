@@ -1,4 +1,5 @@
 import { saveInboundLead, listSalesLeads, saveSalesLead, saveCrmCallSidMapping } from '@/lib/server/sales-repository'
+import { getAppBaseUrl } from '@/lib/server/runtime'
 import { uid } from '@/lib/sales'
 import type { CRMLead } from '@/lib/types'
 
@@ -6,12 +7,43 @@ const CALLER_ID = '+12267732993'
 const CLIENT_IDENTITY = 'saturn-star-rep'
 const FALLBACK_PHONE = '+12267241730' // John's cell — rings simultaneously with browser
 
+// All Saturn Star branch numbers — inbound calls to any of these are routed to the sales tower
+const BRANCH_NUMBERS: Record<string, string> = {
+  '+12267732993': 'Windsor',
+  '+12262423319': 'Kitchener',
+  '+12266055767': 'Kitchener',
+  '+16135193236': 'Ottawa',
+  '+15484883245': 'London',
+}
+
 function getAppUrl() {
-  return (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '')
+  return getAppBaseUrl()
+}
+
+function getRequestOrigin(request: Request) {
+  try {
+    return new URL(request.url).origin.replace(/\/$/, '')
+  } catch {
+    return ''
+  }
 }
 
 function xmlResponse(twiml: string) {
   return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } })
+}
+
+function digitsOnly(value?: string) {
+  return (value || '').replace(/\D/g, '')
+}
+
+function matchesPhone(phone: string, lead?: CRMLead | null) {
+  const fromDigits = digitsOnly(phone)
+  const leadDigits = digitsOnly(lead?.phone)
+  return !!fromDigits && !!leadDigits && (
+    leadDigits === fromDigits ||
+    leadDigits.endsWith(fromDigits) ||
+    fromDigits.endsWith(leadDigits)
+  )
 }
 
 // Bare-minimum TwiML — used if anything goes wrong so the call ALWAYS gets through
@@ -19,6 +51,14 @@ function fallbackTwiml() {
   return xmlResponse(
     `<?xml version="1.0" encoding="UTF-8"?><Response><Dial><Number>${FALLBACK_PHONE}</Number></Dial></Response>`
   )
+}
+
+export async function GET() {
+  return Response.json({
+    ok: true,
+    route: 'sales-dialer-twiml',
+    checks: ['voice-webhook', 'branch-routing', 'recording-callback'],
+  })
 }
 
 export async function POST(request: Request) {
@@ -33,87 +73,100 @@ export async function POST(request: Request) {
     // Real inbound PSTN calls have From = a phone number like "+15195551234"
     // Direction is "inbound" for BOTH — so we must use From to differentiate
     const fromBrowser = (from || '').toLowerCase().startsWith('client:')
-    const isInbound = !fromBrowser && (to === CALLER_ID || direction === 'inbound')
+    const isOurNumber = !!to && !!BRANCH_NUMBERS[to]
+    const isInbound = !fromBrowser && (isOurNumber || direction === 'inbound')
+    const branchCity = (to && BRANCH_NUMBERS[to]) || 'Windsor'
 
     if (isInbound) {
-      // Fire-and-forget: save inbound lead + auto-create/attach CRM lead — never blocks the call
       if (from) {
-        void (async () => {
-          try {
-            const inbId = uid('inb')
-            await saveInboundLead({
-              id: inbId,
-              source: 'twilio_call',
-              phone: from,
-              message: `Inbound call from ${from}`,
-              raw_data: { callSid, from, direction: 'inbound' },
-            }).catch(() => {})
+        try {
+          const now = new Date().toISOString()
+          const inboundId = crypto.randomUUID()
+          await saveInboundLead({
+            id: inboundId,
+            source: 'twilio_call',
+            phone: from,
+            message: `Inbound call from ${from}`,
+            raw_data: { callSid, from, to, branchCity, direction: 'inbound' },
+          }).catch(() => {})
 
-            if (callSid) {
-              // Find existing CRM lead by phone, or create one automatically
-              const digitsOnly = (p: string) => p.replace(/\D/g, '')
-              const fromDigits = digitsOnly(from)
-              const allLeads = await listSalesLeads().catch(() => [] as CRMLead[])
-              let crmLead = allLeads.find(l => {
-                const ld = digitsOnly(l.phone || '')
-                return ld && (ld === fromDigits || ld.endsWith(fromDigits) || fromDigits.endsWith(ld))
-              }) ?? null
+          if (callSid) {
+            const allLeads = await listSalesLeads().catch(() => [] as CRMLead[])
+            let crmLead = allLeads.find(lead => matchesPhone(from, lead)) ?? null
 
-              if (!crmLead) {
-                // Auto-create a new CRM lead for this caller
-                const newLead: CRMLead = {
-                  id: uid('lead'),
-                  name: 'Unknown Caller',
-                  phone: from,
-                  email: '',
-                  stage: 'new',
-                  source: 'twilio_call',
-                  moveType: 'residential',
-                  moveDate: '',
-                  originCity: '',
-                  destCity: '',
-                  originAddress: '',
-                  notes: '',
-                  leadScore: 30,
-                  totalCubicFeet: 0,
-                  totalWeightLbs: 0,
-                  totalItems: 0,
-                  inventory: [],
-                  roomBreakdown: {},
-                  callLogs: [],
-                  createdAt: new Date().toISOString().slice(0, 10),
-                  inboundId: inbId,
-                }
-                crmLead = await saveSalesLead(newLead).catch(() => null)
+            if (!crmLead) {
+              const newLead: CRMLead = {
+                id: uid('lead'),
+                name: 'Unknown Caller',
+                phone: from,
+                email: '',
+                stage: 'new',
+                source: 'twilio_call',
+                moveType: 'residential',
+                moveDate: '',
+                originCity: '',
+                destCity: '',
+                originAddress: '',
+                notes: '',
+                leadScore: 30,
+                totalCubicFeet: 0,
+                totalWeightLbs: 0,
+                totalItems: 0,
+                inventory: [],
+                roomBreakdown: {},
+                callLogs: [],
+                createdAt: now.slice(0, 10),
+                inboundId,
               }
+              crmLead = await saveSalesLead(newLead).catch(() => null)
+            }
 
-              if (crmLead) {
-                // Log the call and map the callSid so recording-callback finds it
-                const callLogId = uid('cl')
-                const withCallLog: CRMLead = {
-                  ...crmLead,
-                  stage: crmLead.stage === 'new' || crmLead.stage === 'nurture' ? 'contacted' : crmLead.stage,
-                  callLogs: [
-                    { id: callLogId, type: 'call', notes: `Inbound call from ${from} — Recording processing…`, date: new Date().toISOString(), phone: from, direction: 'inbound' } as any,
-                    ...(crmLead.callLogs || []),
-                  ],
-                }
-                const saved = await saveSalesLead(withCallLog).catch(() => null)
-                if (saved) {
-                  await saveCrmCallSidMapping(callSid, saved.id, callLogId).catch(() => {})
-                }
+            if (crmLead) {
+              const existingCallLog = (crmLead.callLogs || []).find(entry => entry.callSid === callSid)
+              const callLogId = existingCallLog?.id || uid('cl')
+              const nextLead: CRMLead = existingCallLog
+                ? {
+                    ...crmLead,
+                    inboundId: crmLead.inboundId || inboundId,
+                    lastInboundAt: now,
+                  }
+                : {
+                    ...crmLead,
+                    inboundId: crmLead.inboundId || inboundId,
+                    stage: crmLead.stage === 'new' || crmLead.stage === 'nurture' ? 'contacted' : crmLead.stage,
+                    lastInboundAt: now,
+                    callLogs: [
+                      {
+                        id: callLogId,
+                        type: 'call',
+                        notes: `Incoming call from ${from} → ${branchCity} line — routing to rep…`,
+                        date: now,
+                        phone: from,
+                        branchNumber: to || undefined,
+                        direction: 'inbound',
+                        callSid,
+                        source: 'inbound',
+                      } as any,
+                      ...(crmLead.callLogs || []),
+                    ],
+                  }
+
+              const saved = await saveSalesLead(nextLead).catch(() => null)
+              if (saved) {
+                await saveCrmCallSidMapping(callSid, saved.id, callLogId).catch(() => {})
               }
             }
-          } catch {
-            // best-effort — call must never be blocked
           }
-        })()
+        } catch {
+          // best-effort — call must never be blocked
+        }
       }
 
-      const appUrl = getAppUrl()
+      const appUrl = getRequestOrigin(request) || getAppUrl()
+      const branchQuery = to ? `?branchNumber=${encodeURIComponent(to)}` : ''
       const recordingCallback = appUrl ? `${appUrl}/api/sales/dialer/recording-callback` : ''
-      const dialStatusCallback = appUrl ? `${appUrl}/api/sales/dialer/dial-status` : ''
-      const callStatusCallback = appUrl ? `${appUrl}/api/sales/dialer/call-status` : ''
+      const dialStatusCallback = appUrl ? `${appUrl}/api/sales/dialer/dial-status${branchQuery}` : ''
+      const callStatusCallback = appUrl ? `${appUrl}/api/sales/dialer/call-status${branchQuery}` : ''
       const dialAttrs = [
         `record="record-from-answer"`,
         dialStatusCallback ? `action="${dialStatusCallback}"` : '',
@@ -132,14 +185,16 @@ export async function POST(request: Request) {
       )
     }
 
-    // Outbound call — browser SDK dialing out
+    // Outbound call — browser SDK or Linphone dialing out
     if (!to) return fallbackTwiml()
 
-    const appUrl = getAppUrl()
+    const appUrl = getRequestOrigin(request) || getAppUrl()
     const recordingCallback = appUrl ? `${appUrl}/api/sales/dialer/recording-callback` : ''
+    const dialStatusCallback = appUrl ? `${appUrl}/api/sales/dialer/dial-status` : ''
     const dialAttrs = [
       `callerId="${CALLER_ID}"`,
       `record="record-from-answer"`,
+      dialStatusCallback ? `action="${dialStatusCallback}"` : '',
       recordingCallback ? `recordingStatusCallback="${recordingCallback}"` : '',
       recordingCallback ? `recordingStatusCallbackMethod="POST"` : '',
     ]

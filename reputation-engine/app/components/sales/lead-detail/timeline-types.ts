@@ -13,5 +13,9 @@ export type TimelineItem = {
   aiSummary?: AISummary
   duration?: string
   phone?: string
+  branchLabel?: string
+  branchNumber?: string
   isVoicemail?: boolean
+  emailSubject?: string
+  callSid?: string
 }

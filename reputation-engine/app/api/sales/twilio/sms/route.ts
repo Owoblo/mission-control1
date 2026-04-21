@@ -1,9 +1,18 @@
+import { processInboundAutomationEvent } from '@/lib/server/sales-automation'
+import { DEFAULT_SATURN_BRANCH_NUMBER } from '@/lib/sales-phones'
 import { appendSmsToInboundLead, getInboundLeadByPhone, saveInboundLead } from '@/lib/server/sales-repository'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { logEvent } from '@/lib/server/analytics'
-import { uid } from '@/lib/sales'
 
-const MY_NUMBER = '+12267732993'
+const MY_NUMBER = DEFAULT_SATURN_BRANCH_NUMBER
+
+export async function GET() {
+  return Response.json({
+    ok: true,
+    route: 'sales-twilio-sms',
+    checks: ['sms-webhook', 'thread-writeback'],
+  })
+}
 
 // Normalize phone to E.164 for matching (strip formatting)
 function toE164(phone: string) {
@@ -14,16 +23,16 @@ function toE164(phone: string) {
 }
 
 // Write to sms_messages table so the HTML CRM inbox can show the thread
-async function writeSmsMessage(from: string, body: string, messageSid: string, leadId?: string) {
+async function writeSmsMessage(from: string, toNumber: string, body: string, messageSid: string, leadId?: string) {
   try {
     const { url, headers } = requireSupabaseEnv()
     await fetch(`${url}/rest/v1/sms_messages`, {
       method: 'POST',
       headers: { ...headers, Prefer: 'return=minimal' },
       body: JSON.stringify({
-        id: uid('sms'),
+        id: crypto.randomUUID(),
         from_number: from,
-        to_number: MY_NUMBER,
+        to_number: toNumber || MY_NUMBER,
         body,
         direction: 'inbound',
         lead_id: leadId ?? null,
@@ -41,6 +50,7 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData()
     const from = (formData.get('From') as string | null)?.trim() || ''
+    const toField = (formData.get('To') as string | null)?.trim() || MY_NUMBER
     const body = (formData.get('Body') as string | null)?.trim() || ''
     const messageSid = (formData.get('MessageSid') as string | null)?.trim() || ''
 
@@ -52,24 +62,37 @@ export async function POST(request: Request) {
       const existing = await getInboundLeadByPhone(normalized).catch(() => null)
         ?? await getInboundLeadByPhone(from).catch(() => null)
 
+      const inboundLeadId = existing?.id || crypto.randomUUID()
+
       if (existing) {
-        await appendSmsToInboundLead(existing.id, body || '(no body)', messageSid)
-        void writeSmsMessage(normalized || from, body || '(no body)', messageSid, existing.id)
+        await appendSmsToInboundLead(inboundLeadId, body || '(no body)', messageSid)
       } else {
         await saveInboundLead({
-          id: uid('inb'),
+          id: inboundLeadId,
           source: 'twilio_sms',
           phone: normalized || from,
           message: body || 'Inbound SMS (no body)',
           raw_data: {
             messageSid,
             from,
+            to: toField,
             body,
             smsThread: [{ direction: 'inbound', body: body || '(no body)', messageSid, at: new Date().toISOString() }],
           },
         })
-        void writeSmsMessage(normalized || from, body || '(no body)', messageSid)
       }
+
+      const automation = await processInboundAutomationEvent({
+        inboundLeadId,
+        source: 'twilio_sms',
+        channel: 'sms',
+        phone: normalized || from,
+        message: body || '(no body)',
+        receivedAt: new Date().toISOString(),
+        raw: { messageSid, from, body },
+      }).catch(() => null)
+
+      void writeSmsMessage(normalized || from, toField, body || '(no body)', messageSid, automation?.lead?.id)
     }
     void logEvent('sms_received', {
       properties: {

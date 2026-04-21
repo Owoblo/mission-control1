@@ -152,6 +152,8 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
   const isCallKind = item.kind === 'call' || item.kind === 'consultation'
   // Show analyze button if there's a recording URL and no AI summary yet (includes voicemails with transcripts)
   const needsTranscription = isCallKind && !!item.recordingUrl && !item.aiSummary
+  const [fetchingRec, setFetchingRec] = useState(false)
+  const [fetchRecError, setFetchRecError] = useState<string | null>(null)
 
   async function sendOne(channel: 'sms' | 'email') {
     const body = channel === 'sms'
@@ -194,6 +196,28 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
     }
   }
 
+  async function handleFetchRecording() {
+    if (!leadId || !item.callSid) return
+    setFetchingRec(true)
+    setFetchRecError(null)
+    try {
+      const res = await fetch('/api/sales/dialer/fetch-recording', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ callSid: item.callSid, leadId }),
+        credentials: 'include',
+      })
+      const data = await res.json() as { ok?: boolean; error?: string; recordingUrl?: string }
+      if (!res.ok || data.error) throw new Error(data.error || 'Failed to fetch recording')
+      // Refresh the lead so the recording URL appears
+      await refreshLead()
+    } catch (err) {
+      setFetchRecError((err as Error).message || 'Could not fetch recording')
+    } finally {
+      setFetchingRec(false)
+    }
+  }
+
   async function handleRetranscribe() {
     if (!leadId || !item.id) return
     setTranscribing(true)
@@ -227,7 +251,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
   const isOutbound = item.actor === 'rep' || item.actor === 'system'
 
   const previewText = (!isMessage && (item.aiSummary?.summary || item.transcript)) || item.text
-  const hasDetails = !!(item.recordingUrl || item.transcript || item.aiSummary || (quote && item.id === `quote-created-${quote.id}`))
+  const hasDetails = !!(isCallKind || item.recordingUrl || item.transcript || item.aiSummary || (quote && item.id === `quote-created-${quote.id}`))
 
   if (isMessage) {
     const sentimentColor = item.aiSummary?.sentiment === 'positive' ? 'text-emerald-600' : item.aiSummary?.sentiment === 'negative' ? 'text-rose-500' : 'text-amber-500'
@@ -235,17 +259,22 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
       <div className={`flex flex-col gap-1 ${isOutbound ? 'items-end' : 'items-start'}`}>
         <div className={`flex items-end gap-2 ${isOutbound ? 'flex-row-reverse' : 'flex-row'}`}>
           <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[9px] font-bold uppercase tracking-wide ${
-            isOutbound ? 'bg-[var(--app-ink)] text-white' : 'bg-stone-200 text-stone-600'
+            isOutbound ? 'bg-[#0b84ff] text-white' : 'bg-[#d1d1d6] text-[#3a3a3c]'
           }`}>
             {isOutbound ? 'SS' : item.actor?.slice(0, 1).toUpperCase() || 'C'}
           </div>
           <div className={`relative max-w-[75%] rounded-[18px] px-4 py-2.5 text-sm leading-[1.5] shadow-sm ${
             isOutbound
               ? item.kind === 'sms'
-                ? 'rounded-br-[4px] bg-[var(--app-ink)] text-white'
-                : 'rounded-br-[4px] bg-violet-700 text-white'
-              : 'rounded-bl-[4px] bg-stone-100 text-stone-800'
+                ? 'rounded-br-[4px] bg-[#0b84ff] text-white'
+                : 'rounded-br-[4px] bg-violet-600 text-white'
+              : item.kind === 'sms'
+                ? 'rounded-bl-[4px] bg-[#e9e9eb] text-[#1c1c1e]'
+                : 'rounded-bl-[4px] bg-[#f0edf8] text-[#2c1f4a]'
           }`}>
+            {!isOutbound && item.emailSubject && (
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] opacity-50">Re: {item.emailSubject}</div>
+            )}
             {item.text}
           </div>
         </div>
@@ -254,7 +283,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
             {item.kind === 'sms' ? 'SMS' : 'Email'}
           </span>
           <span>{formatDateTime(item.date)}</span>
-          {isOutbound ? <span className="text-[var(--app-accent)]">Sent ✓</span> : <span className="text-stone-400">Received</span>}
+          {isOutbound ? <span className="text-[#0b84ff]">Sent ✓</span> : <span className="text-stone-400">Received</span>}
           {item.aiSummary && (
             <button
               type="button"
@@ -308,6 +337,11 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
             </span>
             {item.isVoicemail ? (
               <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-700">Voicemail</span>
+            ) : null}
+            {item.branchLabel ? (
+              <span className="rounded-full border border-[rgba(15,106,83,0.2)] bg-[rgba(15,106,83,0.08)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-accent)]">
+                {item.branchLabel}
+              </span>
             ) : null}
             {item.duration ? <span className="text-xs text-[var(--app-muted)]">· {item.duration}</span> : null}
             {item.phone ? <span className="text-xs text-[var(--app-muted)]">· {item.phone}</span> : null}
@@ -441,6 +475,26 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
         <div className={`rounded-[8px] border p-4 ${tone.panel}`}>
           <div className="text-sm leading-6 text-[var(--app-ink)]">{expanded ? item.text : previewText}</div>
 
+          {expanded && isCallKind && !item.recordingUrl && !item.transcript && !item.aiSummary && (
+            <div className="mt-3 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-3 space-y-2">
+              <p className="text-xs text-[var(--app-muted)] italic">
+                {item.callSid ? 'Recording not yet available — may still be processing.' : 'No recording for this call.'}
+              </p>
+              {item.callSid && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => void handleFetchRecording()}
+                    disabled={fetchingRec}
+                    className="rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:bg-[var(--app-bg)] disabled:opacity-50"
+                  >
+                    {fetchingRec ? 'Fetching…' : 'Fetch Recording'}
+                  </button>
+                  {fetchRecError && <span className="text-xs text-rose-600">{fetchRecError}</span>}
+                </div>
+              )}
+            </div>
+          )}
           {expanded && (item.recordingUrl || item.transcript || item.aiSummary) ? (
             <div className="mt-4 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
               <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-4">
@@ -460,24 +514,10 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
                 <div className="mt-2 text-sm leading-6 text-stone-800">
                   {item.aiSummary?.summary || item.transcript || (
                     needsTranscription ? (
-                      <span className="text-amber-700">Recording saved — transcript not yet generated.</span>
-                    ) : 'No transcript or summary attached yet.'
+                      <span className="text-[var(--app-muted)] italic">Transcribing recording… check back in a moment.</span>
+                    ) : 'No transcript available for this call.'
                   )}
                 </div>
-                {needsTranscription && (
-                  <div className="mt-3">
-                    {transcribeError && (
-                      <div className="mb-2 text-xs text-rose-600">{transcribeError}</div>
-                    )}
-                    <button
-                      onClick={() => void handleRetranscribe()}
-                      disabled={transcribing}
-                      className="rounded-[8px] bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
-                    >
-                      {transcribing ? 'Analyzing...' : item.transcript ? '✦ Re-run AI Analysis' : 'Transcribe + Analyze'}
-                    </button>
-                  </div>
-                )}
                 {item.recordingUrl ? (
                   <div className="mt-4 rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
                     <div className="mb-2 flex items-center justify-between text-xs font-medium text-[var(--app-muted)]">

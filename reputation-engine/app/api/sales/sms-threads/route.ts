@@ -1,4 +1,11 @@
 import { NextResponse } from 'next/server'
+import {
+  getSaturnBranchLabel,
+  getSaturnBusinessNumberFromSmsMessage,
+  getSmsContactPhone,
+  isSaturnBranchPhoneNumber,
+  normalizePhone,
+} from '@/lib/sales-phones'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 
 export interface SmsMessage {
@@ -19,37 +26,44 @@ export interface SmsThread {
   lastAt: string
   unread: boolean
   leadId: string | null
+  businessNumber: string
+  branchLabel: string
 }
 
-const MY_NUMBER = '+12267732993'
-
-function normalizePhone(p: string) {
-  const d = (p || '').replace(/\D/g, '')
-  if (d.length === 10) return `+1${d}`
-  if (d.length === 11 && d.startsWith('1')) return `+${d}`
-  return p.startsWith('+') ? p : `+${d}`
-}
-
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url)
+    const filterPhone = searchParams.get('phone') ?? ''
+
     const { url, headers } = requireSupabaseEnv()
-    const res = await fetch(
-      `${url}/rest/v1/sms_messages?select=*&order=created_at.desc&limit=500`,
-      { headers, cache: 'no-store' }
-    )
+
+    let endpoint: string
+    if (filterPhone) {
+      // Return messages for one specific contact, oldest→newest
+      const norm = normalizePhone(filterPhone)
+      const enc  = encodeURIComponent(norm)
+      endpoint = `${url}/rest/v1/sms_messages?select=*&or=(from_number.eq.${enc},to_number.eq.${enc})&order=created_at.asc&limit=500`
+    } else {
+      endpoint = `${url}/rest/v1/sms_messages?select=*&order=created_at.desc&limit=500`
+    }
+
+    const res = await fetch(endpoint, { headers, cache: 'no-store' })
     if (!res.ok) {
       const text = await res.text()
       return NextResponse.json({ error: `Supabase error: ${text}` }, { status: 500 })
     }
     const msgs = (await res.json()) as SmsMessage[]
 
+    // If phone filter: return flat message list for that thread
+    if (filterPhone) {
+      return NextResponse.json(msgs)
+    }
+
     // Group by contact phone (the non-Saturn number)
     const threadMap = new Map<string, SmsThread>()
     for (const msg of msgs) {
-      const contactPhone = normalizePhone(
-        msg.direction === 'inbound' ? msg.from_number : msg.to_number
-      )
-      if (!contactPhone || contactPhone === MY_NUMBER) continue
+      const contactPhone = getSmsContactPhone(msg)
+      if (!contactPhone || isSaturnBranchPhoneNumber(contactPhone)) continue
 
       if (!threadMap.has(contactPhone)) {
         threadMap.set(contactPhone, {
@@ -59,10 +73,16 @@ export async function GET() {
           lastAt: msg.created_at,
           unread: false,
           leadId: msg.lead_id,
+          businessNumber: getSaturnBusinessNumberFromSmsMessage(msg),
+          branchLabel: getSaturnBranchLabel(getSaturnBusinessNumberFromSmsMessage(msg)),
         })
       }
       const thread = threadMap.get(contactPhone)!
       thread.messages.push(msg)
+      // Keep the most recent non-null lead_id so the thread links to the correct CRM lead
+      if (msg.lead_id) thread.leadId = msg.lead_id
+      thread.businessNumber = getSaturnBusinessNumberFromSmsMessage(msg)
+      thread.branchLabel = getSaturnBranchLabel(thread.businessNumber)
     }
 
     // Sort messages within each thread oldest→newest, set lastMessage

@@ -1,10 +1,15 @@
 export const maxDuration = 60 // allow time for Whisper transcription
 
 import { NextResponse } from 'next/server'
+import { getSaturnBranchNumberFromRawData } from '@/lib/sales-phones'
+import { createSalesSystemAlert } from '@/lib/server/sales-alerts'
 import {
   getCrmCallSidMapping,
   getInboundLeadByCallSid,
   getSalesLead,
+  getSalesLeadByInboundId,
+  listSalesLeads,
+  saveCrmCallSidMapping,
   saveSalesLead,
   updateInboundLeadRawData,
   updateLeadCallLogEntry,
@@ -12,6 +17,110 @@ import {
 import { transcribeFromUrl, summarizePhoneCall } from '@/lib/server/call-intelligence'
 import { logEvent } from '@/lib/server/analytics'
 import { getTwilioCredentials } from '@/lib/server/runtime'
+import { uid } from '@/lib/sales'
+import type { CRMLead, InboundLead } from '@/lib/types'
+
+export async function GET() {
+  return Response.json({
+    ok: true,
+    route: 'sales-dialer-recording-callback',
+    checks: ['recording-capture', 'transcription'],
+  })
+}
+
+function digitsOnly(value?: string) {
+  return (value || '').replace(/\D/g, '')
+}
+
+function phonesMatch(phone?: string, lead?: CRMLead | null) {
+  const inputDigits = digitsOnly(phone)
+  const leadDigits = digitsOnly(lead?.phone)
+  return !!inputDigits && !!leadDigits && (
+    leadDigits === inputDigits ||
+    leadDigits.endsWith(inputDigits) ||
+    inputDigits.endsWith(leadDigits)
+  )
+}
+
+async function findLeadByPhone(phone?: string) {
+  if (!digitsOnly(phone)) return null
+  const leads = await listSalesLeads().catch(() => [] as CRMLead[])
+  return leads.find(lead => phonesMatch(phone, lead)) || null
+}
+
+async function ensureInboundLeadCallMapping(callSid: string, inboundLead: InboundLead) {
+  let lead = await getSalesLeadByInboundId(inboundLead.id).catch(() => null)
+  if (!lead) {
+    lead = await findLeadByPhone(inboundLead.phone).catch(() => null)
+  }
+
+  const occurredAt = inboundLead.created_at || new Date().toISOString()
+
+  if (!lead) {
+    lead = await saveSalesLead({
+      id: uid('lead'),
+      name: inboundLead.name || 'Unknown Caller',
+      phone: inboundLead.phone || '',
+      email: inboundLead.email || '',
+      stage: 'contacted',
+      source: inboundLead.source || 'twilio_call',
+      moveType: 'residential',
+      moveDate: '',
+      originCity: '',
+      destCity: '',
+      originAddress: '',
+      notes: inboundLead.message || '',
+      leadScore: 30,
+      totalCubicFeet: 0,
+      totalWeightLbs: 0,
+      totalItems: 0,
+      inventory: [],
+      roomBreakdown: {},
+      callLogs: [],
+      createdAt: new Date(occurredAt).toISOString().slice(0, 10),
+      inboundId: inboundLead.id,
+      lastInboundAt: occurredAt,
+    }).catch(() => null)
+  }
+
+  if (!lead) return null
+
+  const existingLog = (lead.callLogs || []).find(entry => entry.callSid === callSid)
+  if (existingLog) {
+    await saveCrmCallSidMapping(callSid, lead.id, existingLog.id).catch(() => {})
+    return { lead, callLogId: existingLog.id }
+  }
+
+  const callLogId = uid('cl')
+  const branchNumber = getSaturnBranchNumberFromRawData(inboundLead.raw_data)
+  const saved = await saveSalesLead({
+    ...lead,
+    inboundId: lead.inboundId || inboundLead.id,
+    phone: lead.phone || inboundLead.phone || '',
+    email: lead.email || inboundLead.email || '',
+    stage: lead.stage === 'new' || lead.stage === 'nurture' ? 'contacted' : lead.stage,
+    lastInboundAt: occurredAt,
+    callLogs: [
+      {
+        id: callLogId,
+        type: 'call',
+        notes: `Inbound call from ${inboundLead.phone || 'unknown number'} — Recording processing…`,
+        date: occurredAt,
+        phone: inboundLead.phone || '',
+        branchNumber: branchNumber || undefined,
+        callSid,
+        direction: 'inbound',
+        source: 'manual',
+      },
+      ...(lead.callLogs || []),
+    ],
+  }).catch(() => null)
+
+  if (!saved) return null
+
+  await saveCrmCallSidMapping(callSid, saved.id, callLogId).catch(() => {})
+  return { lead: saved, callLogId }
+}
 
 export async function POST(request: Request) {
   try {
@@ -26,56 +135,79 @@ export async function POST(request: Request) {
     }
 
     const mp3Url = `${recordingUrl}.mp3`
-
-    // Detect likely voicemail: short recording (≤30s) is a strong signal.
-    // The transcript check below adds a second layer of confidence.
     const likelyVoicemail = recordingDuration > 0 && recordingDuration <= 30
 
-    // Transcribe first (used by both paths)
     let transcript: string | null = null
+    let transcriptionError: string | null = null
     try {
       const { accountSid, authToken } = getTwilioCredentials()
       transcript = await transcribeFromUrl(mp3Url, accountSid, authToken)
-    } catch {
-      // best-effort
+    } catch (error) {
+      transcriptionError = error instanceof Error ? error.message : 'Unknown transcription failure'
     }
 
-    // Confirm voicemail by transcript keywords if available
     const voicemailKeywords = ['leave a message', 'not available', 'please record', 'after the tone', 'after the beep', 'voicemail box', 'mailbox is full', 'call back', 'reach me at']
     const isVoicemail = likelyVoicemail || (!!transcript && voicemailKeywords.some(kw => transcript!.toLowerCase().includes(kw)))
 
-    // --- Path 1: outbound browser call (callSid mapped to a CRM lead) ---
     const mapping = await getCrmCallSidMapping(callSid).catch(() => null)
-    if (mapping) {
-      const lead = await getSalesLead(mapping.leadId).catch(() => null)
-      // Run AI summary on all calls including voicemails — isMeaninglessTranscript()
-      // inside summarizePhoneCall will catch true blanks. Voicemails often contain
-      // useful info (move date, what was discussed, callback number).
-      const aiSummary = transcript && lead
-        ? await summarizePhoneCall(lead, transcript, isVoicemail ? 'outbound' : undefined).catch(() => null)
+    const inboundLead = await getInboundLeadByCallSid(callSid).catch(() => null)
+
+    let lead = mapping ? await getSalesLead(mapping.leadId).catch(() => null) : null
+    let leadId = mapping?.leadId
+    let callLogId = mapping?.callLogId
+    const branchNumber = getSaturnBranchNumberFromRawData(inboundLead?.raw_data) || null
+
+    if ((!lead || !callLogId) && inboundLead) {
+      const ensured = await ensureInboundLeadCallMapping(callSid, inboundLead)
+      if (ensured) {
+        lead = ensured.lead
+        leadId = ensured.lead.id
+        callLogId = ensured.callLogId
+      }
+    }
+
+    const currentCallLog = lead && callLogId
+      ? (lead.callLogs || []).find(entry => entry.id === callLogId)
+      : null
+    const callDirection = currentCallLog?.direction || (inboundLead ? 'inbound' : 'outbound')
+
+    const aiSummary = transcript && lead
+      ? await summarizePhoneCall(lead, transcript, callDirection).catch(() => null)
+      : transcript && inboundLead
+        ? await summarizePhoneCall(
+            { name: inboundLead.name || 'Unknown', phone: inboundLead.phone || '' } as any,
+            transcript,
+            'inbound'
+          ).catch(() => null)
         : null
 
-      await updateLeadCallLogEntry(mapping.leadId, mapping.callLogId, {
+    if (leadId && callLogId) {
+      await updateLeadCallLogEntry(leadId, callLogId, {
         recordingUrl: mp3Url,
         recordingSid: recordingSid || undefined,
         recordingDuration: recordingDuration > 0 ? recordingDuration : undefined,
+        branchNumber: branchNumber || undefined,
         transcript: isVoicemail ? `[Voicemail]${transcript ? ' ' + transcript : ''}` : (transcript || undefined),
         aiSummary: (aiSummary as any) || undefined,
         isVoicemail: isVoicemail || undefined,
+        source: 'manual',
       } as any)
 
-      // Auto follow-up from AI summary
       if (aiSummary && typeof (aiSummary as any).followUpDays === 'number' && lead && !lead.followUpDate) {
         const followUpDate = new Date(Date.now() + (aiSummary as any).followUpDays * 24 * 60 * 60 * 1000)
           .toISOString().slice(0, 10)
-        await saveSalesLead({ ...lead, followUpDate, followUpNote: (aiSummary as any).nextAction || 'AI recommended follow-up' }).catch(() => null)
+        await saveSalesLead({
+          ...lead,
+          followUpDate,
+          followUpNote: (aiSummary as any).nextAction || 'AI recommended follow-up',
+        }).catch(() => null)
       }
 
       void logEvent(isVoicemail ? 'voicemail_left' : 'call_completed', {
-        leadId: mapping.leadId,
+        leadId,
         lead: lead || undefined,
         properties: {
-          call_direction: 'outbound',
+          call_direction: callDirection,
           call_duration_seconds: recordingDuration || undefined,
           is_voicemail: isVoicemail,
           move_readiness: (aiSummary as any)?.moveReadiness,
@@ -84,25 +216,30 @@ export async function POST(request: Request) {
           ai_next_action: (aiSummary as any)?.nextAction,
         },
       })
-
-      return NextResponse.json({ ok: true, path: 'crm-lead', isVoicemail })
     }
 
-    // --- Path 2: inbound call (stored in inbound_leads by callSid in raw_data) ---
-    const inboundLead = await getInboundLeadByCallSid(callSid).catch(() => null)
-    if (inboundLead) {
-      let aiSummary: Record<string, unknown> | null = null
-      if (transcript) {
-        // Build a minimal lead-like object for the summarizer
-        const raw = typeof inboundLead.raw_data === 'object' ? inboundLead.raw_data as Record<string, unknown> : {}
-        aiSummary = await summarizePhoneCall(
-          { name: inboundLead.name || 'Unknown', phone: inboundLead.phone || '' } as any,
-          transcript,
-          'inbound'
-        ).catch(() => null)
-        void raw
-      }
+    if (leadId && isVoicemail) {
+      void createSalesSystemAlert({
+        title: 'Voicemail captured',
+        leadId,
+        branchNumber,
+        details: `Call ${callSid} reached voicemail${recordingDuration ? ` after ${recordingDuration}s` : ''}. Recording saved for follow-up.`,
+        occurredAt: new Date().toISOString(),
+      })
+    }
 
+    if (leadId && transcriptionError) {
+      void createSalesSystemAlert({
+        title: 'Call transcription failed',
+        leadId,
+        severity: 'critical',
+        branchNumber,
+        details: transcriptionError,
+        occurredAt: new Date().toISOString(),
+      })
+    }
+
+    if (inboundLead) {
       await updateInboundLeadRawData(inboundLead.id, {
         recordingUrl: mp3Url,
         recordingSid: recordingSid || undefined,
@@ -110,6 +247,13 @@ export async function POST(request: Request) {
         transcript: transcript || undefined,
         aiSummary: aiSummary || undefined,
       })
+    }
+
+    if (leadId && callLogId) {
+      return NextResponse.json({ ok: true, path: 'crm-lead', isVoicemail })
+    }
+
+    if (inboundLead) {
       return NextResponse.json({ ok: true, path: 'inbound-lead' })
     }
 

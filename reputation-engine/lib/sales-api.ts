@@ -86,6 +86,19 @@ export async function saveLeadConsultation(
   return readJson(response)
 }
 
+export async function handoffRealtorOpportunityLead(
+  id: string,
+  payload: { name: string; phone?: string; email?: string }
+): Promise<{ lead: CRMLead; log: FollowUpLog }> {
+  const response = await fetch(`/api/sales/leads/${id}/handoff`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  return readJson(response)
+}
+
 export async function createLeadQuote(leadId: string): Promise<{ quote: CRMQuote; lead: CRMLead }> {
   const response = await fetch('/api/sales/quotes', {
     method: 'POST',
@@ -142,7 +155,8 @@ export async function sendSalesMessage(payload: {
   leadId?: string
   quoteId?: string
   notes?: string
-}): Promise<{ ok: boolean; log: FollowUpLog }> {
+  fromNumber?: string
+}): Promise<{ ok: boolean; log: FollowUpLog; result?: { fromNumber?: string; branchLabel?: string } }> {
   const response = await fetch('/api/sales/send', {
     method: 'POST',
     credentials: 'include',

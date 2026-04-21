@@ -15,14 +15,21 @@ import {
 } from '@/app/components/sales/lead-detail/helpers'
 import { InventoryRoomSection } from '@/app/components/sales/lead-detail/inventory-room-section'
 import { INVENTORY_PRESETS, createInventoryItemFromPreset } from '@/lib/item-presets'
-import { DEPOSIT_METHODS, LEAD_CONTEXT_FLAGS, LOST_REASONS, SALES_LEAD_STAGES, computeQuoteTotals, deriveInventoryMetrics, estimateLeadQuote, formatDate, formatDateTime, formatMoney } from '@/lib/sales'
-import { confirmJob, createLeadQuote, deleteSalesLead, enrichSalesAddress, fetchSalesLead, fetchSalesOverview, fetchSalesQuote, saveLeadConsultation, saveSalesFollowUp, sendSalesMessage, updateSalesLead, updateSalesQuote } from '@/lib/sales-api'
+import {
+  getDefaultSaturnBranchNumber,
+  getSaturnBranchLabel,
+  getSaturnBusinessNumberFromSmsMessage,
+  pickSaturnBranchPhoneNumber,
+} from '@/lib/sales-phones'
+import { DEPOSIT_METHODS, LEAD_CONTEXT_FLAGS, LOST_REASONS, SALES_LEAD_STAGES, computeQuoteTotals, deriveInventoryMetrics, estimateLeadQuote, formatDate, formatDateTime, formatMoney, getSalesBranchLabel } from '@/lib/sales'
+import { confirmJob, createLeadQuote, deleteSalesLead, enrichSalesAddress, fetchSalesLead, fetchSalesOverview, fetchSalesQuote, handoffRealtorOpportunityLead, saveLeadConsultation, saveSalesFollowUp, sendSalesMessage, updateSalesLead, updateSalesQuote } from '@/lib/sales-api'
 import type { CRMLead, CRMQuote, EstimateRouteContext, FollowUpLog, InventoryItem, JobFactors, QuoteLineItem } from '@/lib/types'
 
 export default function SalesLeadDetailPage() {
   const params = useParams() as { id?: string }
   const router = useRouter()
   const searchParams = useSearchParams()
+  const estimateIntent = searchParams?.get('estimate') === '1'
   const [lead, setLead] = useState<CRMLead | null>(null)
   const [quote, setQuote] = useState<CRMQuote | null>(null)
   const [followUps, setFollowUps] = useState<FollowUpLog[]>([])
@@ -35,6 +42,7 @@ export default function SalesLeadDetailPage() {
   const [moveDateFlexible, setMoveDateFlexible] = useState(false)
   const [moveDateFlexibleReason, setMoveDateFlexibleReason] = useState('')
   const [moveType, setMoveType] = useState<CRMLead['moveType']>('residential')
+  const [branch, setBranch] = useState<CRMLead['branch']>()
   const [leadSource, setLeadSource] = useState('')
   const [originAddress, setOriginAddress] = useState('')
   const [originCity, setOriginCity] = useState('')
@@ -45,6 +53,7 @@ export default function SalesLeadDetailPage() {
   const [parkingNotes, setParkingNotes] = useState('')
   const [moveReason, setMoveReason] = useState('')
   const [notes, setNotes] = useState('')
+  const [realtorBrokerage, setRealtorBrokerage] = useState('')
   const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [inventoryLoading, setInventoryLoading] = useState(false)
   const [analysisBusy, setAnalysisBusy] = useState(false)
@@ -55,6 +64,8 @@ export default function SalesLeadDetailPage() {
   const [presetSearch, setPresetSearch] = useState('')
   const [saving, setSaving] = useState(false)
   const [creatingQuote, setCreatingQuote] = useState(false)
+  const [surveyBusy, setSurveyBusy] = useState(false)
+  const [surveyUrl, setSurveyUrl] = useState<string | null>((lead as unknown as Record<string, unknown>)?.surveyToken ? null : null)
   const [loggingActivity, setLoggingActivity] = useState(false)
   const [consultationActive, setConsultationActive] = useState(false)
   const [consultationSaving, setConsultationSaving] = useState(false)
@@ -95,10 +106,14 @@ export default function SalesLeadDetailPage() {
   const [quoteModalOpen, setQuoteModalOpen] = useState(false)
   const [quoteModalBusy, setQuoteModalBusy] = useState(false)
   const [quoteModalDirty, setQuoteModalDirty] = useState(false)
+  const [additionalQuotes, setAdditionalQuotes] = useState<CRMQuote[]>([])
   const [quoteLineItems, setQuoteLineItems] = useState<QuoteLineItem[]>([])
+  const [quoteMoveDescription, setQuoteMoveDescription] = useState('')
+  const [quoteInternalNotes, setQuoteInternalNotes] = useState('')
   const [jobFactors, setJobFactors] = useState<JobFactors>({})
   const [recalculateBusy, setRecalculateBusy] = useState(false)
   const pricingMetaRef = useRef<{ crewSize: number; estimatedHours: number; truckCount: number }>({ crewSize: 3, estimatedHours: 3, truckCount: 1 })
+  const composerUserEdited = useRef(false)
   const [outcomeOpen, setOutcomeOpen] = useState(false)
   const [outcomeActualHours, setOutcomeActualHours] = useState('')
   const [outcomeActualCrew, setOutcomeActualCrew] = useState('')
@@ -115,14 +130,26 @@ export default function SalesLeadDetailPage() {
   const [composerBody, setComposerBody] = useState('')
   const [composerBusy, setComposerBusy] = useState(false)
   const [scBusy, setScBusy] = useState(false)
-  const [emailMessages, setEmailMessages] = useState<Array<{ id: string; from_address: string; to_address: string; subject: string | null; body_preview: string | null; direction: 'inbound' | 'outbound'; created_at: string }>>([])
+  const [emailMessages, setEmailMessages] = useState<Array<{ id: string; from: string; to: string; subject: string; body: string; direction: 'inbound' | 'outbound'; sentAt: string; leadId?: string | null }>>([])
+  const [emailsLoading, setEmailsLoading] = useState(false)
+  const [smsMessages, setSmsMessages] = useState<Array<{ id: string; from_number: string; to_number: string; body: string; direction: 'inbound' | 'outbound'; lead_id: string | null; created_at: string }>>([])
+  const [smsLoading, setSmsLoading] = useState(false)
+  const [smsSending, setSmsSending] = useState(false)
+  const [smsInput, setSmsInput] = useState('')
+  const smsAreaRef = useRef<HTMLDivElement>(null)
   const [listingLookupBusy, setListingLookupBusy] = useState(false)
   const [scanProgress, setScanProgress] = useState<{ batch: number; totalBatches: number; status: string } | null>(null)
-  const [activeTab, setActiveTab] = useState<'timeline' | 'inventory'>('timeline')
+  const [activeTab, setActiveTab] = useState<'timeline' | 'inventory' | 'emails' | 'sms'>('timeline')
   const [error, setError] = useState<string | null>(null)
+  const [handoffName, setHandoffName] = useState('')
+  const [handoffPhone, setHandoffPhone] = useState('')
+  const [handoffEmail, setHandoffEmail] = useState('')
+  const [handoffBusy, setHandoffBusy] = useState(false)
+  const [opportunityNotice, setOpportunityNotice] = useState<string | null>(null)
   const [undoItem, setUndoItem] = useState<{ item: InventoryItem; index: number; timer: number } | null>(null)
   const autosaveTimerRef = useRef<number | null>(null)
   const lastSavedLeadStateRef = useRef('')
+  const previousOpportunityLeadIdRef = useRef<string | undefined>(undefined)
   const consultationRecorderRef = useRef<MediaRecorder | null>(null)
   const consultationStreamRef = useRef<MediaStream | null>(null)
   const consultationChunksRef = useRef<Blob[]>([])
@@ -134,6 +161,7 @@ export default function SalesLeadDetailPage() {
       email: nextLead.email || '',
       moveDate: nextLead.moveDate || '',
       moveType: nextLead.moveType || 'residential',
+      branch: nextLead.branch || '',
       source: nextLead.source || '',
       originAddress: nextLead.originAddress || '',
       originCity: nextLead.originCity || '',
@@ -142,6 +170,7 @@ export default function SalesLeadDetailPage() {
       destCity: nextLead.destCity || '',
       destAccess: nextLead.destAccess || '',
       parkingNotes: nextLead.parkingNotes || '',
+      realtorBrokerage: nextLead.realtorBrokerage || '',
       moveReason: nextLead.moveReason || '',
       notes: nextLead.notes || '',
       stage: nextLead.stage || 'new',
@@ -167,6 +196,7 @@ export default function SalesLeadDetailPage() {
     setMoveDateFlexible(!!nextLead.moveDateFlexible)
     setMoveDateFlexibleReason(nextLead.moveDateFlexibleReason || '')
     setMoveType((nextLead.moveType || 'residential') as CRMLead['moveType'])
+    setBranch(nextLead.branch)
     setLeadSource(nextLead.source || '')
     setOriginAddress(nextLead.originAddress || '')
     setOriginCity(nextLead.originCity || '')
@@ -177,6 +207,7 @@ export default function SalesLeadDetailPage() {
     setParkingNotes(nextLead.parkingNotes || '')
     setMoveReason(nextLead.moveReason || '')
     setNotes(nextLead.notes || '')
+    setRealtorBrokerage(nextLead.realtorBrokerage || '')
     setInventory(nextLead.inventory || [])
     if (nextLead.jobFactors) setJobFactors(nextLead.jobFactors)
     setContextFlag(nextLead.contextFlag || '')
@@ -187,6 +218,9 @@ export default function SalesLeadDetailPage() {
     setLostNotes(nextLead.lostNotes || '')
     setDepositAmount(nextLead.depositAmount ? String(nextLead.depositAmount) : '')
     setDepositMethod(nextLead.depositMethod || '')
+    setHandoffName('')
+    setHandoffPhone('')
+    setHandoffEmail('')
   }
 
   function mergeFollowUpLog(entry: FollowUpLog) {
@@ -200,6 +234,16 @@ export default function SalesLeadDetailPage() {
       const nextLead = await fetchSalesLead(currentLeadId)
       const quotePayload = nextLead?.quoteId ? await fetchSalesQuote(nextLead.quoteId) : null
       setQuote(quotePayload?.quote || null)
+      // Load additional quotes (multi-job leads)
+      const extraIds = (nextLead?.quoteIds || []).filter(qid => qid !== nextLead?.quoteId)
+      if (extraIds.length > 0) {
+        const extras = await Promise.all(
+          extraIds.map(qid => fetchSalesQuote(qid).then(r => r?.quote).catch(() => null))
+        )
+        setAdditionalQuotes(extras.filter(Boolean) as CRMQuote[])
+      } else {
+        setAdditionalQuotes([])
+      }
       const data = await fetchSalesOverview()
       setFollowUps(
         data.followUps.filter(item => {
@@ -235,7 +279,7 @@ export default function SalesLeadDetailPage() {
     setFollowUps([])
     setError(null)
     void refresh(params.id).then(async (data) => {
-      if (searchParams?.get('estimate') === '1') {
+      if (estimateIntent) {
         if (data?.quoteId) {
           setQuoteModalOpen(true)
         } else {
@@ -244,7 +288,69 @@ export default function SalesLeadDetailPage() {
         }
       }
     })
-  }, [params])
+  }, [estimateIntent, params?.id])
+
+  useEffect(() => {
+    if (!lead || lead.leadKind === 'realtor_opportunity') {
+      previousOpportunityLeadIdRef.current = lead?.destinationOpportunityLeadId
+      return
+    }
+
+    if (lead.destinationOpportunityLeadId && lead.destinationOpportunityLeadId !== previousOpportunityLeadIdRef.current) {
+      setOpportunityNotice('Realtor opportunity lead generated from this destination.')
+    }
+
+    previousOpportunityLeadIdRef.current = lead.destinationOpportunityLeadId
+  }, [lead?.destinationOpportunityLeadId, lead?.leadKind])
+
+  // ── Auto-poll lead every 20s to pick up new calls/SMS in real-time ────────
+  useEffect(() => {
+    if (!params?.id) return
+    const interval = window.setInterval(async () => {
+      const nextLead = await fetchSalesLead(params.id!).catch(() => null)
+      if (nextLead) {
+        setLead(prev => {
+          if (!prev) return nextLead
+          // Only update call logs (don't overwrite active form edits)
+          return { ...prev, callLogs: nextLead.callLogs }
+        })
+      }
+    }, 20_000)
+    return () => clearInterval(interval)
+  }, [params?.id])
+
+  // ── Auto-transcribe: fire silently when calls have recording but no transcript ──
+  useEffect(() => {
+    if (!lead?.id) return
+    const needsTranscription = (lead.callLogs || []).some(
+      c => c.recordingUrl?.startsWith('https://api.twilio.com/') && !c.transcript
+    )
+    if (!needsTranscription) return
+    // Fire and forget — updates will appear on next poll
+    void fetch(`/api/sales/leads/${lead.id}/transcribe-calls`, { method: 'POST', credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then((data: { ok?: boolean; transcribed?: number; lead?: typeof lead } | null) => {
+        if (data?.transcribed && data.lead) {
+          setLead(prev => prev ? { ...prev, callLogs: data.lead!.callLogs } : data.lead!)
+        }
+      })
+      .catch(() => null)
+  // Count calls that have a recording but no transcript — changes when sync-calls patches a recording in
+  }, [lead?.id, (lead?.callLogs || []).filter((c: any) => c.recordingUrl?.startsWith('https://api.twilio.com/') && !c.transcript).length])
+
+  // ── Auto-sync calls: pull any unmapped Twilio calls for this lead's number ──
+  useEffect(() => {
+    if (!lead?.id || !lead?.phone) return
+    void fetch(`/api/sales/leads/${lead.id}/sync-calls`, { method: 'POST', credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then((data: { ok?: boolean; synced?: number; lead?: typeof lead } | null) => {
+        if (data?.synced && data.lead) {
+          setLead(prev => prev ? { ...prev, callLogs: data.lead!.callLogs } : data.lead!)
+        }
+      })
+      .catch(() => null)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lead?.id])
 
   useEffect(() => {
     if (!lead?.supabaseListing?.address) return
@@ -332,6 +438,7 @@ export default function SalesLeadDetailPage() {
       const isInboundCall = item.type === 'call' && (item.notes || '').toLowerCase().includes('inbound')
       const hasEnrichment = !!(item.recordingUrl || item.transcript || item.aiSummary)
       const isVm = item.isVoicemail || (item.transcript || '').startsWith('[Voicemail]')
+      const branchLabel = getSaturnBranchLabel(item.branchNumber)
       const text =
         item.type === 'call' && isVm
           ? `Went to voicemail${item.duration ? ` — ${item.duration}` : ''}.${item.transcript ? ' Recording transcribed.' : item.recordingUrl ? ' Recording processing…' : ''}`
@@ -352,7 +459,10 @@ export default function SalesLeadDetailPage() {
         aiSummary: item.aiSummary,
         duration: item.duration,
         phone: item.phone,
+        branchLabel: branchLabel || undefined,
+        branchNumber: item.branchNumber,
         isVoicemail: isVm || undefined,
+        callSid: (item as any).callSid || undefined,
       }
     })
 
@@ -371,11 +481,10 @@ export default function SalesLeadDetailPage() {
       .map(m => ({
         id: m.id,
         kind: 'email' as const,
-        text: m.subject || '(no subject)',
-        date: m.created_at,
+        text: m.body || m.subject || '(no body)',
+        emailSubject: m.subject || undefined,
+        date: m.sentAt,
         actor: 'customer' as const,
-        _preview: m.body_preview || '',
-        _inbound: true,
       }))
 
     return [...systemEvents, ...logs, ...fu, ...inboundEmails].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
@@ -503,6 +612,7 @@ export default function SalesLeadDetailPage() {
       moveDateFlexible: moveDateFlexible || undefined,
       moveDateFlexibleReason: moveDateFlexibleReason || undefined,
       moveType: moveType || undefined,
+      branch: branch || undefined,
       source: leadSource || undefined,
       originAddress: originAddress || undefined,
       originCity: originCity || undefined,
@@ -513,6 +623,10 @@ export default function SalesLeadDetailPage() {
       parkingNotes: parkingNotes || undefined,
       stage,
       followUpDate: followUpDate || undefined,
+      realtorName: lead?.leadKind === 'realtor_opportunity' && lead?.primaryContactRole !== 'customer' ? (leadName || undefined) : lead?.realtorName,
+      realtorPhone: lead?.leadKind === 'realtor_opportunity' && lead?.primaryContactRole !== 'customer' ? (leadPhone || undefined) : lead?.realtorPhone,
+      realtorEmail: lead?.leadKind === 'realtor_opportunity' && lead?.primaryContactRole !== 'customer' ? (leadEmail || undefined) : lead?.realtorEmail,
+      realtorBrokerage: realtorBrokerage || undefined,
       moveReason,
       notes,
       inventory: inventoryMetrics.inventory,
@@ -573,13 +687,13 @@ export default function SalesLeadDetailPage() {
     recalculateEstimate(options)
   }, [lead, inventory, inventoryMetrics.totalCubicFeet, inventoryMetrics.totalWeightLbs, moveType, jobFactors])
 
-  // Re-derive line items whenever inventory changes while the modal is open
-  // This fixes stale subtotals that were saved before the inventory scan ran
+  // Re-derive line items whenever inventory or job factors change while the modal is open
+  // This keeps Draft Summary in sync with the live breakdown whenever factors are toggled
   useEffect(() => {
     if (!quoteModalOpen || !lead) return
     recalculateEstimate()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inventoryMetrics.totalCubicFeet, inventoryMetrics.totalWeightLbs, quoteModalOpen])
+  }, [inventoryMetrics.totalCubicFeet, inventoryMetrics.totalWeightLbs, quoteModalOpen, jobFactors])
 
   useEffect(() => {
     if (!lead) return
@@ -589,6 +703,7 @@ export default function SalesLeadDetailPage() {
       email: leadEmail,
       moveDate,
       moveType,
+      branch: branch || '',
       source: leadSource,
       originAddress,
       originCity,
@@ -597,6 +712,7 @@ export default function SalesLeadDetailPage() {
       destCity,
       destAccess,
       parkingNotes,
+      realtorBrokerage,
       moveReason,
       notes,
       stage,
@@ -629,7 +745,7 @@ export default function SalesLeadDetailPage() {
         window.clearTimeout(autosaveTimerRef.current)
       }
     }
-  }, [lead, leadName, leadPhone, leadEmail, moveDate, moveType, leadSource, originAddress, originCity, originAccess, destAddress, destCity, destAccess, parkingNotes, moveReason, notes, stage, followUpDate, inventory, contextFlag, estimateDate, estimateTime, assignedRep])
+  }, [lead, leadName, leadPhone, leadEmail, moveDate, moveType, branch, leadSource, originAddress, originCity, originAccess, destAddress, destCity, destAccess, parkingNotes, realtorBrokerage, moveReason, notes, stage, followUpDate, inventory, contextFlag, estimateDate, estimateTime, assignedRep])
 
   async function saveLead(options?: { skipLostCheck?: boolean; pendingStageName?: CRMLead['stage'] }) {
     if (!lead) return
@@ -668,8 +784,6 @@ export default function SalesLeadDetailPage() {
           notes: `Stage: ${prevLabel} → ${nextLabel}.${lostNote}`,
           date: new Date().toISOString(),
         }).catch(() => {})
-        const updatedLead = await fetchSalesLead(lead.id).catch(() => null)
-        if (updatedLead) setFollowUps(updatedLead.callLogs as unknown as FollowUpLog[] ?? [])
         void refresh(lead.id)
       }
 
@@ -708,20 +822,49 @@ export default function SalesLeadDetailPage() {
     }
   }
 
-  async function createQuote() {
+  async function createQuote(asAdditionalJob = false) {
     if (!lead) return
     try {
       setCreatingQuote(true)
       const result = await createLeadQuote(lead.id)
-      setQuote(result.quote)
       setLead(result.lead)
+      if (asAdditionalJob) {
+        // Adding a new job to an existing lead — track it in additionalQuotes and open it in the builder
+        setAdditionalQuotes(prev => [result.quote, ...prev.filter(q => q.id !== result.quote.id)])
+      }
+      // Open the new quote in the builder regardless
+      setQuote(result.quote)
       setQuoteLineItems(result.quote.lineItems || [])
+      setQuoteMoveDescription(result.quote.moveDescription || '')
+      setQuoteInternalNotes(result.quote.internalNotes || '')
       setQuoteModalDirty(false)
       setQuoteModalOpen(true)
     } catch (err) {
       setError((err as Error).message)
     } finally {
       setCreatingQuote(false)
+    }
+  }
+
+  async function requestPhotoSurvey() {
+    if (!lead) return
+    setSurveyBusy(true)
+    try {
+      const res = await fetch(`/api/sales/leads/${lead.id}/survey`, { method: 'POST' })
+      const data = await res.json() as { surveyUrl?: string; error?: string }
+      if (!res.ok || data.error) throw new Error(data.error || 'Failed to generate survey link')
+      setSurveyUrl(data.surveyUrl || null)
+      setLead(prev => prev ? { ...prev, surveyToken: 'set', surveyRequestedAt: new Date().toISOString() } as typeof prev : prev)
+      if (lead.phone) {
+        alert(`Survey link sent via SMS to ${lead.phone}!\n\nLink: ${data.surveyUrl}`)
+      } else {
+        alert(`Survey link generated!\n\nShare this with ${lead.name}:\n${data.surveyUrl}`)
+      }
+    } catch (err) {
+      alert('Could not generate survey link. Please try again.')
+      console.error(err)
+    } finally {
+      setSurveyBusy(false)
     }
   }
 
@@ -732,6 +875,8 @@ export default function SalesLeadDetailPage() {
       return
     }
     setQuoteLineItems(quote.lineItems || [])
+    setQuoteMoveDescription(quote.moveDescription || '')
+    setQuoteInternalNotes(quote.internalNotes || '')
     setQuoteModalDirty(false)
     setQuoteModalOpen(true)
   }
@@ -776,6 +921,8 @@ export default function SalesLeadDetailPage() {
         crewSize: pricingMetaRef.current.crewSize,
         estimatedHours: pricingMetaRef.current.estimatedHours,
         truckCount: pricingMetaRef.current.truckCount,
+        moveDescription: quoteMoveDescription || undefined,
+        internalNotes: quoteInternalNotes || undefined,
       })
       setQuote(result.quote)
       if (result.lead) setLead(result.lead)
@@ -1092,19 +1239,116 @@ export default function SalesLeadDetailPage() {
     window.dispatchEvent(new CustomEvent('crm:open-dialer', { detail: { phone: lead.phone, leadId: lead.id } }))
   }
 
+  async function fetchLeadEmails(leadId: string) {
+    try {
+      setEmailsLoading(true)
+      const res = await fetch(`/api/sales/emails?leadId=${leadId}`)
+      if (res.ok) {
+        const data = await res.json() as typeof emailMessages
+        setEmailMessages(data)
+      }
+    } catch { /* non-fatal */ } finally {
+      setEmailsLoading(false)
+    }
+  }
+
+  const fetchLeadSms = useCallback(async (phone: string, showSpinner = false) => {
+    try {
+      if (showSpinner) setSmsLoading(true)
+      const res = await fetch(`/api/sales/sms-threads?phone=${encodeURIComponent(phone)}`)
+      if (res.ok) {
+        const data = await res.json() as typeof smsMessages
+        setSmsMessages(data)
+        setTimeout(() => {
+          if (smsAreaRef.current) smsAreaRef.current.scrollTop = smsAreaRef.current.scrollHeight
+        }, 40)
+      }
+    } catch { /* non-fatal */ } finally {
+      if (showSpinner) setSmsLoading(false)
+    }
+  }, [])
+
+  // Poll SMS every 15 s while SMS tab is active
+  useEffect(() => {
+    if (activeTab !== 'sms' || !lead?.phone) return
+    void fetchLeadSms(lead.phone, true)
+    const interval = window.setInterval(() => void fetchLeadSms(lead!.phone!), 15_000)
+    return () => clearInterval(interval)
+  }, [activeTab, lead?.phone, fetchLeadSms])
+
+  const leadPreferredBranchNumber = useMemo(() => {
+    for (let index = smsMessages.length - 1; index >= 0; index -= 1) {
+      const branchNumber = getSaturnBusinessNumberFromSmsMessage(smsMessages[index])
+      if (branchNumber) return branchNumber
+    }
+
+    const recentCallBranch = (lead?.callLogs || [])
+      .slice()
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .map(item => item.branchNumber)
+      .find(Boolean)
+
+    return pickSaturnBranchPhoneNumber(recentCallBranch, getDefaultSaturnBranchNumber())
+  }, [lead?.callLogs, smsMessages])
+
+  const leadPreferredBranchLabel = useMemo(
+    () => getSaturnBranchLabel(leadPreferredBranchNumber),
+    [leadPreferredBranchNumber]
+  )
+
+  function getLeadFirstName(currentLead: CRMLead) {
+    const rawName =
+      currentLead.primaryContactRole === 'customer'
+        ? currentLead.name
+        : currentLead.realtorName || currentLead.name
+    if (!rawName || /^realtor lead\b/i.test(rawName)) return 'there'
+    return rawName.split(' ')[0]
+  }
+
+  function getDestinationOpportunityStatusLabel(currentLead: CRMLead) {
+    if (currentLead.destinationOpportunityStatus === 'generated') return 'Lead generated'
+    if (currentLead.destinationOpportunityStatus === 'linked_existing') return 'Existing lead linked'
+    if (currentLead.destinationOpportunityStatus === 'outside_area') return 'Outside local branch area'
+    if (currentLead.destinationOpportunityStatus === 'no_match') return 'No MLS match found'
+    return 'Not checked'
+  }
+
+  function getRealtorLookupStatusLabel(currentLead: CRMLead) {
+    if (currentLead.realtorLookupStatus === 'matched') return 'Realtor contact matched'
+    if (currentLead.realtorLookupStatus === 'partial') return 'Brokerage matched, contact still needed'
+    if (currentLead.realtorLookupStatus === 'missing') return 'Realtor contact still missing'
+    return 'Lookup not started'
+  }
+
   function openComposer(channel: 'sms' | 'email') {
     if (!lead) return
-    const firstName = (lead.name || 'there').split(' ')[0]
+    const firstName = getLeadFirstName(lead)
+    const opportunityAddress = lead.opportunityAddress || lead.originAddress || 'the property'
+    composerUserEdited.current = false   // reset — AI may write the first draft
     setComposerChannel(channel)
-    setComposerSubject(channel === 'email' ? 'Following up — Saturn Star Moving' : '')
+    setComposerSubject(
+      channel === 'email'
+        ? lead.leadKind === 'realtor_opportunity' && lead.primaryContactRole === 'realtor'
+          ? `Move opportunity at ${opportunityAddress} — Saturn Star Moving`
+          : 'Following up — Saturn Star Moving'
+        : ''
+    )
     // Set a brief placeholder while AI drafts — user can start typing immediately
     setComposerBody(
-      channel === 'sms'
-        ? `Hi ${firstName}, this is Saturn Star Moving — just following up on your move. What date are you working with?`
-        : `Hi ${firstName},\n\nJust following up on your move with Saturn Star Moving. Let me know if you have any questions or want to lock in a date.\n\nJohn\nSaturn Star Moving`
+      lead.leadKind === 'realtor_opportunity' && lead.primaryContactRole === 'realtor'
+        ? (
+            channel === 'sms'
+              ? `Hi ${firstName}, this is Saturn Star Moving. We're already coordinating a move into ${opportunityAddress} and wanted to see if your client there needs a quote as well. We may be able to offer a discounted rate since our trucks are already heading that way.`
+              : `Hi ${firstName},\n\nThis is Saturn Star Moving. We are already coordinating a move into ${opportunityAddress} and wanted to see if the current occupant also needs a moving quote.\n\nBecause our trucks are already scheduled for that address, we may be able to offer a discounted rate and move quickly. If helpful, we can also review the move remotely and keep the process simple for your client.\n\nLet me know if you would like us to reach out directly or send over details.\n\nSaturn Star Moving`
+          )
+        : (
+            channel === 'sms'
+              ? `Hi ${firstName}, this is Saturn Star Moving — just following up on your move. What date are you working with?`
+              : `Hi ${firstName},\n\nJust following up on your move with Saturn Star Moving. Let me know if you have any questions or want to lock in a date.\n\nJohn\nSaturn Star Moving`
+          )
     )
     setComposerOpen(true)
-    // Immediately kick off AI — it will replace the placeholder if it returns in time
+    // Immediately kick off AI — it will replace the placeholder only if user hasn't edited yet
     void runSmartCompose(channel, lead)
   }
 
@@ -1122,6 +1366,7 @@ export default function SalesLeadDetailPage() {
         body: composerBody.trim(),
         leadId: lead.id,
         quoteId: quote?.id,
+        fromNumber: composerChannel === 'sms' ? leadPreferredBranchNumber : undefined,
         notes: `${composerChannel.toUpperCase()} sent from lead detail`,
       })
       setComposerOpen(false)
@@ -1134,19 +1379,40 @@ export default function SalesLeadDetailPage() {
     }
   }
 
+  async function handleClientHandoff() {
+    if (!lead) return
+
+    try {
+      setHandoffBusy(true)
+      const result = await handoffRealtorOpportunityLead(lead.id, {
+        name: handoffName.trim(),
+        phone: handoffPhone.trim() || undefined,
+        email: handoffEmail.trim() || undefined,
+      })
+      applyLeadSnapshot(result.lead, { hydrateForm: true })
+      mergeFollowUpLog(result.log)
+      setOpportunityNotice('Lead switched from realtor contact to client contact.')
+      setError(null)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setHandoffBusy(false)
+    }
+  }
+
   async function runSmartCompose(channel: 'sms' | 'email', currentLead: typeof lead) {
     if (!currentLead) return
     try {
       setScBusy(true)
       const smsHistory = followUps.filter(f => f.type === 'sms').map(f => ({ direction: 'outbound', body: f.notes || '', created_at: f.date }))
-      const emailHistory = followUps.filter(f => f.type === 'email').map(f => ({ direction: 'outbound', subject: f.notes || '', body_preview: '', created_at: f.date }))
+      const emailHistory = followUps.filter(f => f.type === 'email').map(f => ({ direction: 'outbound', subject: f.notes || '', body: '', created_at: f.date }))
       const res = await fetch('https://saturn-lead-intake.johnowolabi80.workers.dev/smart-compose', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lead: currentLead, smsHistory, emailHistory, channel }),
       })
       const data = await res.json() as { ok: boolean; draft?: string; subject?: string; error?: string }
-      if (data.ok && data.draft) {
+      if (data.ok && data.draft && !composerUserEdited.current) {
         setComposerBody(data.draft)
         if (channel === 'email' && data.subject) setComposerSubject(data.subject)
       }
@@ -1417,6 +1683,11 @@ export default function SalesLeadDetailPage() {
   return (
     <div className="crm-shell space-y-6">
       {error && <div className="rounded-[8px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div>}
+      {opportunityNotice ? (
+        <div className="rounded-[8px] border border-sky-200 bg-sky-50 px-5 py-4 text-sm text-sky-800">
+          {opportunityNotice}
+        </div>
+      ) : null}
 
       <div className="overflow-hidden rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)]">
         {/* Lead header bar */}
@@ -1436,6 +1707,21 @@ export default function SalesLeadDetailPage() {
               {LEAD_CONTEXT_FLAGS.find(f => f.id === lead.contextFlag)?.label || lead.contextFlag}
             </span>
           ) : null}
+          {lead.leadKind === 'realtor_opportunity' ? (
+            <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-semibold text-amber-700">
+              Realtor Opportunity
+            </span>
+          ) : null}
+          {lead.branch ? (
+            <span className="rounded-full border border-stone-200 bg-stone-50 px-2.5 py-0.5 text-[10px] font-semibold text-stone-700">
+              {getSalesBranchLabel(lead.branch)}
+            </span>
+          ) : null}
+          {lead.leadKind === 'realtor_opportunity' ? (
+            <span className="rounded-full border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-0.5 text-[10px] font-semibold text-[var(--app-ink)]">
+              Active contact: {lead.primaryContactRole === 'customer' ? 'Client' : 'Realtor'}
+            </span>
+          ) : null}
           {lead.assignedRep ? (
             <span className="ml-auto text-xs text-[var(--app-muted)]">Rep: {lead.assignedRep}</span>
           ) : null}
@@ -1453,6 +1739,7 @@ export default function SalesLeadDetailPage() {
             leadEmail={leadEmail}
             leadSource={leadSource}
             moveDate={moveDate}
+            branch={branch}
             moveDateFlexible={moveDateFlexible}
             moveDateFlexibleReason={moveDateFlexibleReason}
             moveType={moveType}
@@ -1480,6 +1767,7 @@ export default function SalesLeadDetailPage() {
             }}
             onMoveDateFlexibleReasonChange={setMoveDateFlexibleReason}
             onMoveTypeChange={setMoveType}
+            onBranchChange={setBranch}
             onOriginAddressChange={setOriginAddress}
             onOriginCityChange={setOriginCity}
             onOriginAccessChange={setOriginAccess}
@@ -1499,8 +1787,102 @@ export default function SalesLeadDetailPage() {
           />
 
           <aside className="order-2 border-t border-[var(--app-line)] bg-[var(--app-panel)] lg:order-3 lg:border-l lg:border-t-0 xl:order-3">
+            {lead.leadKind === 'realtor_opportunity' ? (
+              <div className="border-b border-[var(--app-line)] p-5">
+                <div className="crm-label">Realtor Opportunity</div>
+                <div className="mt-3 rounded-[10px] border border-amber-200 bg-amber-50/70 p-4">
+                  <div className="text-sm font-semibold text-amber-900">
+                    {lead.opportunityAddress || lead.originAddress || 'Address pending'}
+                  </div>
+                  <div className="mt-1 text-xs leading-5 text-amber-800">
+                    {lead.sourceLeadName ? `Generated from ${lead.sourceLeadName}.` : 'Auto-generated from another move.'}
+                    {lead.sourceLeadMoveDate ? ` Source move date: ${formatDate(lead.sourceLeadMoveDate)}.` : ''}
+                  </div>
+                  {lead.sourceLeadId ? (
+                    <Link
+                      href={`/sales/leads/${lead.sourceLeadId}`}
+                      className="mt-3 inline-flex text-xs font-semibold text-amber-900 underline decoration-amber-300 underline-offset-4"
+                    >
+                      Open source lead
+                    </Link>
+                  ) : null}
+                  <div className="mt-3 space-y-2 text-xs text-amber-900">
+                    <div>Branch: {lead.branch ? getSalesBranchLabel(lead.branch) : 'Auto-detect pending'}</div>
+                    <div>Lookup: {getRealtorLookupStatusLabel(lead)}</div>
+                    <div>Brokerage: {lead.realtorBrokerage || lead.supabaseListing?.brokername || 'Not captured yet'}</div>
+                    <div>Realtor name: {lead.realtorName || (lead.primaryContactRole === 'realtor' ? lead.name : 'Not captured yet')}</div>
+                    <div>Realtor email: {lead.realtorEmail || (lead.primaryContactRole === 'realtor' ? lead.email || 'Not captured yet' : 'Not captured yet')}</div>
+                    <div>Realtor phone: {lead.realtorPhone || (lead.primaryContactRole === 'realtor' ? lead.phone || 'Not captured yet' : 'Not captured yet')}</div>
+                  </div>
+                </div>
+
+                {lead.primaryContactRole === 'realtor' ? (
+                  <div className="mt-4 space-y-3 rounded-[10px] border border-[var(--app-line)] bg-white p-4">
+                    <div>
+                      <div className="text-sm font-semibold text-[var(--app-ink)]">Client Handoff</div>
+                      <div className="mt-1 text-xs leading-5 text-[var(--app-muted)]">
+                        When the realtor gives you the actual client, switch this lead to the client contact so quote, booking, receipt, and reminder messages go to the right person.
+                      </div>
+                    </div>
+                    <input
+                      value={handoffName}
+                      onChange={event => setHandoffName(event.target.value)}
+                      className="crm-input"
+                      placeholder="Client name"
+                    />
+                    <input
+                      value={handoffPhone}
+                      onChange={event => setHandoffPhone(event.target.value)}
+                      className="crm-input"
+                      placeholder="Client phone"
+                    />
+                    <input
+                      value={handoffEmail}
+                      onChange={event => setHandoffEmail(event.target.value)}
+                      className="crm-input"
+                      placeholder="Client email"
+                    />
+                    <button
+                      onClick={() => void handleClientHandoff()}
+                      disabled={handoffBusy || !handoffName.trim() || (!handoffPhone.trim() && !handoffEmail.trim())}
+                      className="crm-button w-full justify-center disabled:opacity-60"
+                    >
+                      {handoffBusy ? 'Switching Contact...' : 'Switch Active Contact To Client'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-[10px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs leading-5 text-emerald-800">
+                    Client contact is now active on this lead. Realtor details stay here for reference and follow-up.
+                  </div>
+                )}
+              </div>
+            ) : (
+              (lead.destinationOpportunityStatus || lead.destinationOpportunityLeadId) ? (
+                <div className="border-b border-[var(--app-line)] p-5">
+                  <div className="crm-label">Destination Opportunity</div>
+                  <div className="mt-3 rounded-[10px] border border-sky-200 bg-sky-50/70 p-4">
+                    <div className="text-sm font-semibold text-sky-900">
+                      {getDestinationOpportunityStatusLabel(lead)}
+                    </div>
+                    <div className="mt-1 text-xs leading-5 text-sky-800">
+                      Destination saved as {lead.destAddress || lead.destCity || 'pending destination'}.
+                      {lead.destinationOpportunityLastCheckedAt ? ` Last checked ${formatDateTime(lead.destinationOpportunityLastCheckedAt)}.` : ''}
+                    </div>
+                    {lead.destinationOpportunityLeadId ? (
+                      <Link
+                        href={`/sales/leads/${lead.destinationOpportunityLeadId}`}
+                        className="mt-3 inline-flex text-xs font-semibold text-sky-900 underline decoration-sky-300 underline-offset-4"
+                      >
+                        Open generated realtor lead
+                      </Link>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null
+            )}
+
             {/* Confirm Job CTA — prominent when lead has a quote and isn't booked yet */}
-            {quote && lead.stage !== 'booked' && lead.stage !== 'lost' ? (
+            {quote && lead.stage !== 'booked' && lead.stage !== 'lost' && !(lead.leadKind === 'realtor_opportunity' && lead.primaryContactRole === 'realtor') ? (
               <div className="border-b border-[var(--app-line)] bg-[#f0faf5] p-5">
                 <div className="crm-label text-[var(--app-accent)]">Ready to close?</div>
                 <button
@@ -1509,6 +1891,13 @@ export default function SalesLeadDetailPage() {
                 >
                   Confirm Job + Send Booking
                 </button>
+              </div>
+            ) : quote && lead.leadKind === 'realtor_opportunity' && lead.primaryContactRole === 'realtor' ? (
+              <div className="border-b border-[var(--app-line)] bg-amber-50 p-5">
+                <div className="crm-label text-amber-700">Waiting on client handoff</div>
+                <div className="mt-2 text-sm leading-6 text-amber-900">
+                  Quote work can continue, but booking stays locked until the realtor hands over the actual client contact.
+                </div>
               </div>
             ) : lead.stage === 'booked' ? (
               <div className="border-b border-[var(--app-line)] bg-[#f0faf5] p-5 space-y-3">
@@ -1680,6 +2069,54 @@ export default function SalesLeadDetailPage() {
                   {creatingQuote ? 'Building...' : 'Build Estimate'}
                 </button>
               )}
+              {/* Add a second job for the same contact (e.g. residential + commercial) */}
+              {quote && (
+                <button
+                  onClick={() => void createQuote(true)}
+                  disabled={creatingQuote}
+                  className="crm-button w-full justify-center disabled:opacity-60"
+                  title="Create a separate quote for a different job (e.g. commercial, second move)"
+                >
+                  {creatingQuote ? 'Building...' : '+ Add Another Job'}
+                </button>
+              )}
+              {/* Linked jobs panel */}
+              {additionalQuotes.length > 0 && (
+                <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3 space-y-1.5">
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">All Linked Jobs</div>
+                  {quote && (
+                    <Link href={`/sales/quotes/${quote.id}`} className="flex items-center justify-between rounded-[6px] bg-white px-3 py-2 text-xs hover:bg-[var(--app-panel)]">
+                      <span className="font-medium text-[var(--app-ink)]">{quote.number}</span>
+                      <span className="text-[var(--app-muted)] capitalize">{quote.moveType || 'residential'} · {quote.status}</span>
+                    </Link>
+                  )}
+                  {additionalQuotes.map(aq => (
+                    <Link key={aq.id} href={`/sales/quotes/${aq.id}`} className="flex items-center justify-between rounded-[6px] bg-white px-3 py-2 text-xs hover:bg-[var(--app-panel)]">
+                      <span className="font-medium text-[var(--app-ink)]">{aq.number}</span>
+                      <span className="text-[var(--app-muted)] capitalize">{aq.moveType || 'residential'} · {aq.status}</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+              {/* Photo survey request */}
+              <button
+                onClick={() => void requestPhotoSurvey()}
+                disabled={surveyBusy}
+                className="crm-button w-full justify-center disabled:opacity-60"
+                title="Generate a link to send to customer — they take photos, AI scans them into inventory"
+              >
+                {surveyBusy ? '⏳ Generating link…' : (lead as unknown as Record<string,unknown>)?.surveyCompletedAt ? '✅ Photos Received' : (lead as unknown as Record<string,unknown>)?.surveyRequestedAt ? '📷 Resend Photo Request' : '📷 Request Photos'}
+              </button>
+              {surveyUrl && (
+                <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-2.5 text-[10px] text-[var(--app-muted)] break-all">
+                  {surveyUrl}
+                  <button
+                    type="button"
+                    onClick={() => { void navigator.clipboard.writeText(surveyUrl) }}
+                    className="ml-1.5 text-[var(--app-accent)] font-semibold"
+                  >Copy</button>
+                </div>
+              )}
             </div>
 
             <div className="border-b border-[var(--app-line)] p-5">
@@ -1825,6 +2262,32 @@ export default function SalesLeadDetailPage() {
                   </span>
                 )}
               </button>
+              {lead.email && (
+                <button
+                  onClick={() => { setActiveTab('emails'); if (lead.id) void fetchLeadEmails(lead.id) }}
+                  className={`-mb-px flex items-center gap-2 border-b-2 px-3 pb-3 pt-1 text-sm font-medium transition ${activeTab === 'emails' ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}
+                >
+                  Emails
+                  {emailMessages.length > 0 && (
+                    <span className="rounded-full bg-[rgba(34,72,56,0.1)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--app-accent)]">
+                      {emailMessages.length}
+                    </span>
+                  )}
+                </button>
+              )}
+              {lead.phone && (
+                <button
+                  onClick={() => setActiveTab('sms')}
+                  className={`-mb-px flex items-center gap-2 border-b-2 px-3 pb-3 pt-1 text-sm font-medium transition ${activeTab === 'sms' ? 'border-[#f5a623] text-[#f5a623]' : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}
+                >
+                  💬 SMS
+                  {smsMessages.filter(m => m.direction === 'inbound').length > 0 && (
+                    <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold text-white" style={{ background: '#f5a623' }}>
+                      {smsMessages.filter(m => m.direction === 'inbound').length}
+                    </span>
+                  )}
+                </button>
+              )}
             </div>
             {activeTab === 'timeline' && (
             <LeadTimeline
@@ -1907,6 +2370,235 @@ export default function SalesLeadDetailPage() {
                     )}
                   </div>
                 )}
+              </div>
+            )}
+            {activeTab === 'emails' && (
+              <div className="flex h-full flex-col overflow-hidden">
+                {/* Email thread header */}
+                <div className="flex items-center justify-between border-b border-[var(--app-line)] bg-[var(--app-panel)] px-5 py-3">
+                  <div>
+                    <div className="text-sm font-semibold text-[var(--app-ink)]">Email Thread</div>
+                    <div className="text-xs text-[var(--app-muted)]">{lead.email}</div>
+                  </div>
+                  <button
+                    onClick={() => openComposer('email')}
+                    className="crm-button-dark text-xs"
+                  >
+                    ✉️ Compose
+                  </button>
+                </div>
+
+                {/* Email list */}
+                {emailsLoading ? (
+                  <div className="flex flex-1 items-center justify-center p-8 text-sm text-[var(--app-muted)]">Loading emails…</div>
+                ) : emailMessages.length === 0 ? (
+                  <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+                    <div className="text-3xl">✉️</div>
+                    <div className="text-sm font-medium text-[var(--app-ink)]">No emails yet</div>
+                    <div className="text-xs text-[var(--app-muted)]">Emails sent and received from {lead.email} will appear here.</div>
+                    <button onClick={() => openComposer('email')} className="crm-button-dark mt-1 text-xs">Send First Email</button>
+                  </div>
+                ) : (
+                  <div className="flex-1 overflow-y-auto divide-y divide-[var(--app-line)]">
+                    {emailMessages.map((msg, idx) => (
+                      <div key={msg.id} className={`px-5 py-4 ${msg.direction === 'inbound' ? 'bg-[rgba(245,166,35,0.04)]' : 'bg-[var(--app-panel)]'}`}>
+                        <div className="flex items-start gap-3">
+                          {/* Avatar */}
+                          <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${msg.direction === 'inbound' ? 'bg-[var(--app-ink)]' : 'bg-[var(--app-accent)]'}`}>
+                            {msg.direction === 'inbound' ? (lead.name?.slice(0, 1) || msg.from.slice(0, 1)).toUpperCase() : 'S'}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-[var(--app-ink)]">
+                                  {msg.direction === 'inbound' ? (lead.name || msg.from) : 'Saturn Star Movers'}
+                                </span>
+                                {idx === 0 && msg.direction === 'inbound' && (
+                                  <span className="rounded-[4px] border border-[var(--app-warm)] bg-[rgba(245,166,35,0.1)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--app-warm)]">New</span>
+                                )}
+                              </div>
+                              <span className="shrink-0 text-xs text-[var(--app-muted)]">
+                                {new Date(msg.sentAt).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            <div className="mt-0.5 text-xs text-[var(--app-muted)] truncate">{msg.subject}</div>
+                            <div className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[var(--app-ink)]">{msg.body}</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Quick reply bar */}
+                {emailMessages.length > 0 && (
+                  <div className="border-t border-[var(--app-line)] bg-[var(--app-panel)] px-5 py-3">
+                    <button
+                      onClick={() => {
+                        const lastInbound = emailMessages.find(e => e.direction === 'inbound')
+                        const subj = lastInbound ? `Re: ${lastInbound.subject}` : 'Following up — Saturn Star Moving'
+                        setComposerSubject(subj)
+                        setComposerChannel('email')
+                        setComposerBody('')
+                        setComposerOpen(true)
+                        void runSmartCompose('email', lead)
+                      }}
+                      className="w-full rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-2.5 text-left text-sm text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition-colors"
+                    >
+                      ↑ Write a reply…
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── SMS Thread Tab ───────────────────────────────────── */}
+            {activeTab === 'sms' && (
+              <div className="flex h-full flex-col overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-[var(--app-line)] bg-[var(--app-panel)] px-5 py-3">
+                  <div>
+                    <div className="text-sm font-semibold" style={{ color: '#1a2744' }}>SMS Conversation</div>
+                    <div className="text-xs text-[var(--app-muted)]">
+                      {lead.phone}
+                      {leadPreferredBranchLabel ? ` • replying as ${leadPreferredBranchLabel}` : ''}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => lead.phone && void fetchLeadSms(lead.phone, true)}
+                      className="rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-1.5 text-xs text-[var(--app-muted)] hover:text-[var(--app-ink)] transition-colors"
+                      disabled={smsLoading}
+                    >
+                      {smsLoading ? '…' : '↺ Sync'}
+                    </button>
+                    <button
+                      onClick={() => openComposer('sms')}
+                      className="rounded-lg px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90"
+                      style={{ background: '#1a2744' }}
+                    >
+                      ✨ AI Draft
+                    </button>
+                  </div>
+                </div>
+
+                {/* Messages area */}
+                <div ref={smsAreaRef} className="flex-1 overflow-y-auto px-4 py-4" style={{ background: '#f9fafb' }}>
+                  {smsLoading && smsMessages.length === 0 ? (
+                    <div className="flex h-full items-center justify-center text-sm text-[var(--app-muted)]">Loading messages…</div>
+                  ) : smsMessages.length === 0 ? (
+                    <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+                      <div className="text-4xl">💬</div>
+                      <div className="text-sm font-semibold" style={{ color: '#1a2744' }}>No messages yet</div>
+                      <div className="text-xs text-[var(--app-muted)]">Send the first message to {lead.name || lead.phone} below.</div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {smsMessages.map((msg) => {
+                        const isOut = msg.direction === 'outbound'
+                        const branchLabel = getSaturnBranchLabel(getSaturnBusinessNumberFromSmsMessage(msg))
+                        return (
+                          <div key={msg.id} className={`flex flex-col ${isOut ? 'items-end' : 'items-start'}`}>
+                            <div
+                              className="max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed"
+                              style={isOut
+                                ? { background: '#1a2744', color: 'white', borderBottomRightRadius: '4px' }
+                                : { background: 'white', color: '#1a2744', border: '1px solid #e5e7eb', borderBottomLeftRadius: '4px' }}
+                            >
+                              {msg.body}
+                            </div>
+                            <div className="mt-0.5 px-1 text-[10px] text-[var(--app-muted)]">
+                              {new Date(msg.created_at).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                              {branchLabel ? ` • ${branchLabel}` : ''}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Compose */}
+                <div className="border-t border-[var(--app-line)] bg-[var(--app-panel)] px-4 py-3">
+                  {leadPreferredBranchLabel ? (
+                    <div className="mb-2 text-xs text-[var(--app-muted)]">
+                      Outbound texts send from <span className="font-semibold text-[var(--app-ink)]">{leadPreferredBranchLabel}</span> ({leadPreferredBranchNumber}).
+                    </div>
+                  ) : null}
+                  <div className="flex items-end gap-2">
+                    <textarea
+                      value={smsInput}
+                      onChange={e => setSmsInput(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault()
+                          if (!smsSending && smsInput.trim() && lead.phone) {
+                            const body = smsInput.trim()
+                            setSmsInput('')
+                            setSmsSending(true)
+                            void sendSalesMessage({ channel: 'sms', to: lead.phone, body, leadId: lead.id, fromNumber: leadPreferredBranchNumber })
+                              .then((result) => {
+                                setSmsMessages(prev => [...prev, {
+                                  id: `local_${Date.now()}`,
+                                  from_number: result.result?.fromNumber || getDefaultSaturnBranchNumber(),
+                                  to_number: lead.phone!,
+                                  body,
+                                  direction: 'outbound',
+                                  lead_id: lead.id ?? null,
+                                  created_at: new Date().toISOString(),
+                                }])
+                                setTimeout(() => {
+                                  if (smsAreaRef.current) smsAreaRef.current.scrollTop = smsAreaRef.current.scrollHeight
+                                }, 40)
+                              })
+                              .finally(() => setSmsSending(false))
+                          }
+                        }
+                      }}
+                      placeholder={`Message ${lead.name?.split(' ')[0] || lead.phone}…`}
+                      rows={1}
+                      disabled={smsSending}
+                      className="flex-1 resize-none rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2.5 text-sm text-[var(--app-ink)] placeholder:text-[var(--app-muted)] focus:outline-none focus:ring-1"
+                      style={{ maxHeight: '120px', overflowY: 'auto', ['--tw-ring-color' as string]: '#f5a623' }}
+                      onInput={e => { const el = e.currentTarget; el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px` }}
+                    />
+                    <button
+                      disabled={smsSending || !smsInput.trim()}
+                      onClick={() => {
+                        if (!smsSending && smsInput.trim() && lead.phone) {
+                          const body = smsInput.trim()
+                          setSmsInput('')
+                          setSmsSending(true)
+                          void sendSalesMessage({ channel: 'sms', to: lead.phone, body, leadId: lead.id, fromNumber: leadPreferredBranchNumber })
+                            .then((result) => {
+                              setSmsMessages(prev => [...prev, {
+                                id: `local_${Date.now()}`,
+                                from_number: result.result?.fromNumber || getDefaultSaturnBranchNumber(),
+                                to_number: lead.phone!,
+                                body,
+                                direction: 'outbound',
+                                lead_id: lead.id ?? null,
+                                created_at: new Date().toISOString(),
+                              }])
+                              setTimeout(() => {
+                                if (smsAreaRef.current) smsAreaRef.current.scrollTop = smsAreaRef.current.scrollHeight
+                              }, 40)
+                            })
+                            .finally(() => setSmsSending(false))
+                        }
+                      }}
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white transition-opacity disabled:opacity-40"
+                      style={{ background: smsSending ? '#ccc' : '#f5a623' }}
+                    >
+                      {smsSending ? (
+                        <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeDashoffset="12" /></svg>
+                      ) : (
+                        <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
+                      )}
+                    </button>
+                  </div>
+                  <div className="mt-1.5 text-[10px] text-[var(--app-muted)]">Enter to send · Shift+Enter for new line · ✨ AI Draft for a smart opener</div>
+                </div>
               </div>
             )}
           </div>
@@ -2180,14 +2872,14 @@ export default function SalesLeadDetailPage() {
               ) : null}
               <textarea
                 value={composerBody}
-                onChange={event => setComposerBody(event.target.value)}
+                onChange={event => { composerUserEdited.current = true; setComposerBody(event.target.value) }}
                 className={`crm-input min-h-56 transition-opacity ${scBusy ? 'opacity-50' : 'opacity-100'}`}
                 placeholder={composerChannel === 'sms' ? 'Type your SMS...' : 'Type your email...'}
               />
             </div>
             <div className="flex flex-col-reverse gap-3 border-t border-[var(--app-line)] px-4 py-4 md:flex-row md:items-center md:justify-between md:px-5">
               <button
-                onClick={() => void runSmartCompose(composerChannel, lead)}
+                onClick={() => { composerUserEdited.current = false; void runSmartCompose(composerChannel, lead) }}
                 disabled={scBusy}
                 className="text-sm text-[var(--app-muted)] hover:text-[var(--app-accent)] disabled:opacity-40 transition-colors"
               >
@@ -2381,6 +3073,8 @@ export default function SalesLeadDetailPage() {
         open={quoteModalOpen}
         quote={quote}
         lead={lead}
+        inventory={inventory}
+        branch={branch}
         originAddress={originAddress}
         originCity={originCity}
         destCity={destCity}
@@ -2397,6 +3091,10 @@ export default function SalesLeadDetailPage() {
         quoteModalTotals={quoteModalTotals}
         quoteModalBusy={quoteModalBusy}
         jobFactors={jobFactors}
+        moveDescription={quoteMoveDescription}
+        internalNotes={quoteInternalNotes}
+        onMoveDescriptionChange={v => { setQuoteMoveDescription(v); setQuoteModalDirty(true) }}
+        onInternalNotesChange={v => { setQuoteInternalNotes(v); setQuoteModalDirty(true) }}
         onClose={() => void closeQuoteModal()}
         onOriginAddressChange={setOriginAddress}
         onOriginCityChange={setOriginCity}
@@ -2413,6 +3111,7 @@ export default function SalesLeadDetailPage() {
         onSetLineItems={setQuoteLineItems}
         onSaveDraft={() => void saveQuoteDraft()}
         onSaveAndPreview={() => void saveAndPreviewQuote()}
+        onBranchChange={setBranch}
         onJobFactorsChange={setJobFactors}
         onAddInventoryItems={items => setInventory(current => [...current, ...items])}
         onUpdateInventoryItem={updateInventoryItem}

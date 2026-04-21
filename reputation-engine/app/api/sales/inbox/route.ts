@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server'
 import { calculateLeadScore, normalizeLead, uid } from '@/lib/sales'
+import {
+  getSalesBranchFromSaturnLabel,
+  getSalesBranchFromSaturnPhone,
+  getSaturnBranchLabel,
+  getSaturnBranchNumberFromRawData,
+} from '@/lib/sales-phones'
 import { recordLeadUpdateAudit } from '@/lib/server/sales-audit'
 import {
   getInboundLead,
@@ -55,10 +61,18 @@ function parseRawData(value: InboundLead['raw_data']) {
 
 function buildInboundCallLog(item: InboundLead) {
   const raw = parseRawData(item.raw_data)
+  const branchNumber = getSaturnBranchNumberFromRawData(raw)
   const recordingDuration = Number(raw?.recordingDuration || raw?.duration || 0)
   const aiSummary =
     raw?.aiSummary && typeof raw.aiSummary === 'object'
       ? (raw.aiSummary as CallLogEntry['aiSummary'])
+      : undefined
+  const direction: CallLogEntry['direction'] = item.source === 'twilio_call' ? 'inbound' : undefined
+  const source: CallLogEntry['source'] =
+    item.source === 'twilio_call'
+      ? (typeof raw?.recordingUrl === 'string' || typeof raw?.transcript === 'string' || typeof raw?.recordingSid === 'string'
+          ? 'manual'
+          : 'inbound')
       : undefined
 
   return {
@@ -74,13 +88,24 @@ function buildInboundCallLog(item: InboundLead) {
     notes: item.message?.trim() || 'Inbound lead created from queue',
     date: item.created_at || new Date().toISOString(),
     phone: item.phone,
+    branchNumber: branchNumber || undefined,
+    direction,
     callSid: typeof raw?.callSid === 'string' ? raw.callSid : undefined,
     recordingUrl: typeof raw?.recordingUrl === 'string' ? raw.recordingUrl : undefined,
     recordingSid: typeof raw?.recordingSid === 'string' ? raw.recordingSid : undefined,
     recordingDuration: Number.isFinite(recordingDuration) && recordingDuration > 0 ? recordingDuration : undefined,
     transcript: typeof raw?.transcript === 'string' ? raw.transcript : undefined,
+    source,
     aiSummary,
   }
+}
+
+function inferLeadBranchFromInbound(item: InboundLead) {
+  const raw = parseRawData(item.raw_data)
+  return (
+    getSalesBranchFromSaturnPhone(getSaturnBranchNumberFromRawData(raw)) ||
+    getSalesBranchFromSaturnLabel(typeof raw?.branchCity === 'string' ? raw.branchCity : '')
+  )
 }
 
 async function ensureInboundCallMapping(item: InboundLead, lead?: CRMLead) {
@@ -112,6 +137,10 @@ function getLatestCallIntelligence(lead?: CRMLead) {
 function mergeInboxRawData(item: InboundLead, lead?: CRMLead): InboundLead['raw_data'] {
   const raw = parseRawData(item.raw_data) || {}
   const latestCall = getLatestCallIntelligence(lead)
+  const branchNumber =
+    getSaturnBranchNumberFromRawData(raw) ||
+    (typeof latestCall?.branchNumber === 'string' ? latestCall.branchNumber : null) ||
+    null
 
   return {
     ...raw,
@@ -125,6 +154,12 @@ function mergeInboxRawData(item: InboundLead, lead?: CRMLead): InboundLead['raw_
     transcript: (raw.transcript as string | undefined) || latestCall?.transcript || '',
     aiSummary: raw.aiSummary || latestCall?.aiSummary || undefined,
     lastCallAt: latestCall?.date || undefined,
+    branchNumber: branchNumber || undefined,
+    branchLabel:
+      (typeof raw.branchLabel === 'string' && raw.branchLabel) ||
+      getSaturnBranchLabel(branchNumber) ||
+      (typeof raw.branchCity === 'string' ? raw.branchCity : '') ||
+      undefined,
   }
 }
 
@@ -261,6 +296,7 @@ export async function POST(request: Request) {
         email: duplicateLead.email || validated.email || inbound.email || undefined,
         source: duplicateLead.source || payload.source || inbound.source || 'other',
         moveType: duplicateLead.moveType || validated.moveType || 'residential',
+        branch: duplicateLead.branch || inferLeadBranchFromInbound(inbound),
         notes: duplicateLead.notes || payload.notes?.trim() || inbound.message?.trim() || '',
         followUpDate: duplicateLead.followUpDate || inferFollowUp(inbound).followUpDate,
         callLogs: hasMatchingCallLog ? duplicateLead.callLogs || [] : [...(duplicateLead.callLogs || []), inboundCallLog],
@@ -287,6 +323,7 @@ export async function POST(request: Request) {
       source: payload.source || inbound.source || 'other',
       stage: payload.stage || inferStageFromInbound(inbound),
       moveType: validated.moveType || 'residential',
+      branch: inferLeadBranchFromInbound(inbound),
       moveDate: '',
       originAddress: '',
       originCity: '',
