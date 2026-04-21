@@ -1,5 +1,9 @@
 import { processInboundAutomationEvent } from '@/lib/server/sales-automation'
-import { DEFAULT_SATURN_BRANCH_NUMBER } from '@/lib/sales-phones'
+import {
+  DEFAULT_SATURN_BRANCH_NUMBER,
+  getSaturnTrackingLabel,
+  getSaturnTrackingSource,
+} from '@/lib/sales-phones'
 import { appendSmsToInboundLead, getInboundLeadByPhone, saveInboundLead } from '@/lib/server/sales-repository'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { logEvent } from '@/lib/server/analytics'
@@ -67,6 +71,8 @@ export async function POST(request: Request) {
       if (existing) {
         await appendSmsToInboundLead(inboundLeadId, body || '(no body)', messageSid)
       } else {
+        const trackingLabel = getSaturnTrackingLabel(toField)
+        const trackingSource = getSaturnTrackingSource(toField)
         await saveInboundLead({
           id: inboundLeadId,
           source: 'twilio_sms',
@@ -77,6 +83,8 @@ export async function POST(request: Request) {
             from,
             to: toField,
             body,
+            trackingLabel: trackingLabel || undefined,
+            trackingSource: trackingSource || undefined,
             smsThread: [{ direction: 'inbound', body: body || '(no body)', messageSid, at: new Date().toISOString() }],
           },
         })

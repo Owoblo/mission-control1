@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import {
   getSaturnBranchLabel,
   getSaturnBranchNumberFromRawData,
+  getSaturnTrackingLabel,
   getSmsContactPhone,
   getSaturnBusinessNumberFromSmsMessage,
   isSaturnBranchPhoneNumber,
@@ -21,6 +22,7 @@ export interface NotificationItem {
   leadId: string | null
   phone: string | null
   branchLabel?: string
+  trackingLabel?: string
   href: string
 }
 
@@ -59,6 +61,10 @@ export async function GET() {
         getSaturnBranchLabel(branchNumber) ||
         (typeof raw?.branchCity === 'string' ? raw.branchCity : '') ||
         undefined
+      const trackingLabel =
+        (typeof raw?.trackingLabel === 'string' ? raw.trackingLabel : '') ||
+        getSaturnTrackingLabel(branchNumber) ||
+        undefined
       const inboundName = l.name?.trim()
       const name = inboundName && !/^unknown/i.test(inboundName)
         ? inboundName
@@ -70,11 +76,12 @@ export async function GET() {
         type: 'lead' as const,
         source: l.source,
         title: name,
-        preview: `${SOURCE_LABELS[l.source] || l.source}${branchLabel ? ` • ${branchLabel}` : ''}`,
+        preview: `${SOURCE_LABELS[l.source] || l.source}${branchLabel ? ` • ${branchLabel}` : ''}${trackingLabel ? ` • ${trackingLabel}` : ''}`,
         time: l.created_at,
         leadId: null,
         phone: l.phone || null,
         branchLabel,
+        trackingLabel,
         href: '/sales/inbox',
       }
     })
@@ -129,6 +136,7 @@ export async function GET() {
         leadId: thread.leadId,
         phone,
         branchLabel: getSaturnBranchLabel(thread.branchNumber),
+        trackingLabel: getSaturnTrackingLabel(thread.branchNumber) || undefined,
         href: thread.leadId ? `/sales/leads/${thread.leadId}` : '/sales/inbox',
       })
     }

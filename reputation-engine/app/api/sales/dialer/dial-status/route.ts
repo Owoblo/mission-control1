@@ -9,6 +9,8 @@ import {
 import {
   digitsOnly,
   getSaturnBranchLabel,
+  getSaturnTrackingLabel,
+  getSaturnTrackingSource,
   isSaturnBranchPhoneNumber,
   normalizePhone,
   pickSaturnBranchPhoneNumber,
@@ -53,6 +55,8 @@ export async function POST(request: Request) {
       normalizePhone(to)
     )
     const branchLabel = getSaturnBranchLabel(branchNumber)
+    const trackingLabel = getSaturnTrackingLabel(branchNumber)
+    const trackingSource = getSaturnTrackingSource(branchNumber)
 
     // ── Log completed outbound calls (Linphone) ──────────────────────────────
     // Browser dialer already logs via /api/sales/dialer/calls before the call ends,
@@ -180,6 +184,8 @@ export async function POST(request: Request) {
               missedAt: new Date().toISOString(),
               branchNumber,
               branchLabel: branchLabel || undefined,
+              trackingLabel: trackingLabel || undefined,
+              trackingSource: trackingSource || undefined,
             },
           }),
         })

@@ -1,6 +1,7 @@
 import { saveInboundLead, listSalesLeads, saveSalesLead, saveCrmCallSidMapping } from '@/lib/server/sales-repository'
 import { getAppBaseUrl } from '@/lib/server/runtime'
 import { uid } from '@/lib/sales'
+import { getSaturnTrackingLabel, getSaturnTrackingSource } from '@/lib/sales-phones'
 import type { CRMLead } from '@/lib/types'
 
 const CALLER_ID = '+12267732993'
@@ -82,12 +83,22 @@ export async function POST(request: Request) {
         try {
           const now = new Date().toISOString()
           const inboundId = crypto.randomUUID()
+          const trackingLabel = getSaturnTrackingLabel(to)
+          const trackingSource = getSaturnTrackingSource(to)
           await saveInboundLead({
             id: inboundId,
             source: 'twilio_call',
             phone: from,
             message: `Inbound call from ${from}`,
-            raw_data: { callSid, from, to, branchCity, direction: 'inbound' },
+            raw_data: {
+              callSid,
+              from,
+              to,
+              branchCity,
+              direction: 'inbound',
+              trackingLabel: trackingLabel || undefined,
+              trackingSource: trackingSource || undefined,
+            },
           }).catch(() => {})
 
           if (callSid) {

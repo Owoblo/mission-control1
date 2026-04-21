@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import {
   getSaturnBranchLabel,
   getSaturnBusinessNumberFromSmsMessage,
+  getSaturnTrackingLabel,
   getSmsContactPhone,
   isSaturnBranchPhoneNumber,
   normalizePhone,
@@ -28,6 +29,7 @@ export interface SmsThread {
   leadId: string | null
   businessNumber: string
   branchLabel: string
+  trackingLabel?: string
 }
 
 export async function GET(request: Request) {
@@ -75,6 +77,7 @@ export async function GET(request: Request) {
           leadId: msg.lead_id,
           businessNumber: getSaturnBusinessNumberFromSmsMessage(msg),
           branchLabel: getSaturnBranchLabel(getSaturnBusinessNumberFromSmsMessage(msg)),
+          trackingLabel: getSaturnTrackingLabel(getSaturnBusinessNumberFromSmsMessage(msg)) || undefined,
         })
       }
       const thread = threadMap.get(contactPhone)!
@@ -83,6 +86,7 @@ export async function GET(request: Request) {
       if (msg.lead_id) thread.leadId = msg.lead_id
       thread.businessNumber = getSaturnBusinessNumberFromSmsMessage(msg)
       thread.branchLabel = getSaturnBranchLabel(thread.businessNumber)
+      thread.trackingLabel = getSaturnTrackingLabel(thread.businessNumber) || undefined
     }
 
     // Sort messages within each thread oldest→newest, set lastMessage

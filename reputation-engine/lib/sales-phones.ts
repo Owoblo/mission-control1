@@ -2,23 +2,39 @@ import type { SalesBranch } from './types'
 
 export const DEFAULT_SATURN_BRANCH_NUMBER = '+12267732993'
 
-export const SATURN_BRANCH_PHONE_LABELS = {
-  '+12267732993': 'Windsor',
-  '+12262423319': 'Kitchener',
-  '+12266055767': 'Kitchener',
-  '+16135193236': 'Ottawa',
-  '+15484883245': 'London',
-} as const
-
-export type SaturnBranchPhoneNumber = keyof typeof SATURN_BRANCH_PHONE_LABELS
-
-const SATURN_BRANCH_PHONE_TO_SALES_BRANCH: Record<SaturnBranchPhoneNumber, SalesBranch> = {
-  '+12267732993': 'windsor',
-  '+12262423319': 'waterloo',
-  '+12266055767': 'waterloo',
-  '+16135193236': 'ottawa',
-  '+15484883245': 'london',
+type SaturnPhoneMetadata = {
+  branchLabel: string
+  salesBranch: SalesBranch
+  trackingLabel?: string
+  trackingSource?: string
 }
+
+export const SATURN_BRANCH_PHONE_DIRECTORY = {
+  '+12267732993': {
+    branchLabel: 'Windsor',
+    salesBranch: 'windsor',
+    trackingLabel: 'Direct Mail',
+    trackingSource: 'direct_mail',
+  },
+  '+12262423319': {
+    branchLabel: 'Kitchener',
+    salesBranch: 'waterloo',
+  },
+  '+12266055767': {
+    branchLabel: 'Kitchener',
+    salesBranch: 'waterloo',
+  },
+  '+16135193236': {
+    branchLabel: 'Ottawa',
+    salesBranch: 'ottawa',
+  },
+  '+15484883245': {
+    branchLabel: 'London',
+    salesBranch: 'london',
+  },
+} as const satisfies Record<string, SaturnPhoneMetadata>
+
+export type SaturnBranchPhoneNumber = keyof typeof SATURN_BRANCH_PHONE_DIRECTORY
 
 export interface SmsMessageLike {
   direction: 'inbound' | 'outbound'
@@ -44,7 +60,7 @@ export function normalizePhone(value?: string | null) {
 }
 
 export function getSaturnBranchPhoneNumbers() {
-  return Object.keys(SATURN_BRANCH_PHONE_LABELS) as SaturnBranchPhoneNumber[]
+  return Object.keys(SATURN_BRANCH_PHONE_DIRECTORY) as SaturnBranchPhoneNumber[]
 }
 
 export function getDefaultSaturnBranchNumber() {
@@ -58,7 +74,7 @@ export function coerceSaturnBranchPhoneNumber(value?: string | null): SaturnBran
 
 export function isSaturnBranchPhoneNumber(value?: string | null): value is SaturnBranchPhoneNumber {
   const normalized = normalizePhone(value)
-  return !!normalized && Object.prototype.hasOwnProperty.call(SATURN_BRANCH_PHONE_LABELS, normalized)
+  return !!normalized && Object.prototype.hasOwnProperty.call(SATURN_BRANCH_PHONE_DIRECTORY, normalized)
 }
 
 export function pickSaturnBranchPhoneNumber(...candidates: Array<string | null | undefined>) {
@@ -73,15 +89,31 @@ export function pickSaturnBranchPhoneNumber(...candidates: Array<string | null |
 }
 
 export function getSaturnBranchLabel(value?: string | null) {
-  const normalized = normalizePhone(value)
-  return isSaturnBranchPhoneNumber(normalized)
-    ? SATURN_BRANCH_PHONE_LABELS[normalized]
-    : ''
+  return getSaturnPhoneMetadata(value)?.branchLabel || ''
 }
 
 export function getSalesBranchFromSaturnPhone(value?: string | null): SalesBranch | undefined {
   const normalized = coerceSaturnBranchPhoneNumber(value)
-  return normalized ? SATURN_BRANCH_PHONE_TO_SALES_BRANCH[normalized] : undefined
+  return normalized ? SATURN_BRANCH_PHONE_DIRECTORY[normalized].salesBranch : undefined
+}
+
+export function getSaturnTrackingLabel(value?: string | null) {
+  return getSaturnPhoneMetadata(value)?.trackingLabel || ''
+}
+
+export function getSaturnTrackingSource(value?: string | null) {
+  return getSaturnPhoneMetadata(value)?.trackingSource || ''
+}
+
+export function getSaturnDisplayLabel(value?: string | null) {
+  const meta = getSaturnPhoneMetadata(value)
+  if (!meta) return ''
+  return [meta.branchLabel, meta.trackingLabel].filter(Boolean).join(' · ')
+}
+
+export function getSaturnPhoneMetadata(value?: string | null) {
+  const normalized = coerceSaturnBranchPhoneNumber(value)
+  return normalized ? (SATURN_BRANCH_PHONE_DIRECTORY[normalized] as SaturnPhoneMetadata) : undefined
 }
 
 export function getSalesBranchFromSaturnLabel(value?: string | null): SalesBranch | undefined {
@@ -111,6 +143,8 @@ export function getSaturnBranchNumberFromRawData(raw?: Record<string, unknown> |
     typeof raw.branchNumber === 'string' ? raw.branchNumber : null,
     typeof raw.to === 'string' ? raw.to : null,
   ]
+
+  if (!candidates.some(Boolean)) return null
 
   return pickSaturnBranchPhoneNumber(...candidates)
 }

@@ -5,6 +5,8 @@ import {
   getSalesBranchFromSaturnPhone,
   getSaturnBranchLabel,
   getSaturnBranchNumberFromRawData,
+  getSaturnTrackingLabel,
+  getSaturnTrackingSource,
 } from '@/lib/sales-phones'
 import { recordLeadUpdateAudit } from '@/lib/server/sales-audit'
 import {
@@ -159,6 +161,14 @@ function mergeInboxRawData(item: InboundLead, lead?: CRMLead): InboundLead['raw_
       (typeof raw.branchLabel === 'string' && raw.branchLabel) ||
       getSaturnBranchLabel(branchNumber) ||
       (typeof raw.branchCity === 'string' ? raw.branchCity : '') ||
+      undefined,
+    trackingLabel:
+      (typeof raw.trackingLabel === 'string' && raw.trackingLabel) ||
+      getSaturnTrackingLabel(branchNumber) ||
+      undefined,
+    trackingSource:
+      (typeof raw.trackingSource === 'string' && raw.trackingSource) ||
+      getSaturnTrackingSource(branchNumber) ||
       undefined,
   }
 }

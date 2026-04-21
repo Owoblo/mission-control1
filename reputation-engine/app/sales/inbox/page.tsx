@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { RecordingPlayer } from '@/app/components/sales/recording-player'
-import { getSaturnBranchLabel, getSaturnBranchNumberFromRawData } from '@/lib/sales-phones'
+import { getSaturnBranchLabel, getSaturnBranchNumberFromRawData, getSaturnTrackingLabel } from '@/lib/sales-phones'
 import { claimInboundLead, fetchInboundLeads, markInboundLeadJunk, restoreInboundLead, sendSalesMessage } from '@/lib/sales-api'
 import type { CRMEmail, InboundLead } from '@/lib/types'
 
@@ -61,10 +61,15 @@ function getInboundBranchMeta(item: InboundLead | null) {
     getSaturnBranchLabel(branchNumber) ||
     (typeof raw?.branchCity === 'string' ? raw.branchCity : '') ||
     ''
+  const trackingLabel =
+    (typeof raw?.trackingLabel === 'string' ? raw.trackingLabel : '') ||
+    getSaturnTrackingLabel(branchNumber) ||
+    ''
 
   return {
     branchNumber: branchNumber || undefined,
     branchLabel: branchLabel || undefined,
+    trackingLabel: trackingLabel || undefined,
   }
 }
 
@@ -104,7 +109,7 @@ export default function SalesInboxPage() {
   // SMS threads (2-way messages view)
   const [smsThreads, setSmsThreads] = useState<Array<{
     contactPhone: string; messages: Array<{ id: string; from_number: string; to_number: string; body: string; direction: 'inbound' | 'outbound'; created_at: string; lead_id: string | null }>
-    lastMessage: string; lastAt: string; unread: boolean; leadId: string | null; businessNumber: string; branchLabel: string
+    lastMessage: string; lastAt: string; unread: boolean; leadId: string | null; businessNumber: string; branchLabel: string; trackingLabel?: string
   }>>([])
   const [threadsLoading, setThreadsLoading] = useState(false)
   const [selectedThread, setSelectedThread] = useState<string | null>(null)
@@ -629,6 +634,11 @@ export default function SalesInboxPage() {
                           <span className="rounded-[4px] border border-[rgba(15,106,83,0.18)] bg-[rgba(15,106,83,0.08)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--app-accent)]">
                             Replies as {thread.branchLabel}
                           </span>
+                          {thread.trackingLabel ? (
+                            <span className="ml-2 rounded-[4px] border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700">
+                              {thread.trackingLabel}
+                            </span>
+                          ) : null}
                         </div>
                       ) : null}
                       <p className="text-xs text-[var(--app-muted)] line-clamp-1">{thread.lastMessage || '(no message)'}</p>
@@ -644,7 +654,7 @@ export default function SalesInboxPage() {
                   const itemSummary = raw?.aiSummary?.summary as string | undefined
                   const itemMoveReadiness = raw?.aiSummary?.moveReadiness as 'hot' | 'warm' | 'cold' | undefined
                   const itemTranscript = raw?.transcript as string | undefined
-                  const branchLabel = getInboundBranchMeta(item).branchLabel
+                  const { branchLabel, trackingLabel } = getInboundBranchMeta(item)
                   return (
                     <button
                       key={item.id}
@@ -669,6 +679,11 @@ export default function SalesInboxPage() {
                         {branchLabel ? (
                           <span className="rounded-[4px] border border-[rgba(15,106,83,0.18)] bg-[rgba(15,106,83,0.08)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--app-accent)]">
                             {branchLabel}
+                          </span>
+                        ) : null}
+                        {trackingLabel ? (
+                          <span className="rounded-[4px] border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700">
+                            {trackingLabel}
                           </span>
                         ) : null}
                         {isMissedCall(item) ? (
@@ -835,6 +850,7 @@ export default function SalesInboxPage() {
                           <div className="text-xs text-[var(--app-muted)]">
                             {thread.messages.length} messages
                             {thread.branchLabel ? ` • replying as ${thread.branchLabel}` : ''}
+                            {thread.trackingLabel ? ` • ${thread.trackingLabel}` : ''}
                           </div>
                         </div>
                         {thread.leadId && (
@@ -857,6 +873,7 @@ export default function SalesInboxPage() {
                         {thread.branchLabel ? (
                           <div className="mb-2 text-xs text-[var(--app-muted)]">
                             Outbound replies go out from <span className="font-semibold text-[var(--app-ink)]">{thread.branchLabel}</span> ({thread.businessNumber}).
+                            {thread.trackingLabel ? <span className="ml-1">Tracking: <span className="font-semibold text-[var(--app-ink)]">{thread.trackingLabel}</span>.</span> : null}
                           </div>
                         ) : null}
                         <div className="flex gap-3">
@@ -899,6 +916,11 @@ export default function SalesInboxPage() {
                           {selectedBranch.branchLabel ? (
                             <span className="rounded-[4px] border border-[rgba(15,106,83,0.2)] bg-[rgba(15,106,83,0.08)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--app-accent)]">
                               {selectedBranch.branchLabel}
+                            </span>
+                          ) : null}
+                          {selectedBranch.trackingLabel ? (
+                            <span className="rounded-[4px] border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700">
+                              {selectedBranch.trackingLabel}
                             </span>
                           ) : null}
                           {isMissedCall(selected) ? (
