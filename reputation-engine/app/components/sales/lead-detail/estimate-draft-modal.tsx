@@ -37,11 +37,6 @@ type RouteResult = {
   missingRequirements?: string[]
 }
 
-type AddressSuggestion = {
-  label: string
-  city?: string
-}
-
 type GroupedInventory = Array<[string, Array<{ item: InventoryItem; index: number }>]>
 
 type Props = {
@@ -53,8 +48,6 @@ type Props = {
   originAddress: string
   originCity: string
   destCity: string
-  listingLookupBusy: boolean
-  analysisBusy: boolean
   recalculateBusy: boolean
   listingPhotos: string[]
   activePhotoIndex: number
@@ -77,12 +70,6 @@ type Props = {
   jobFactors: JobFactors
   destAddress: string
   onClose: () => void
-  onOriginAddressChange: (value: string) => void
-  onOriginCityChange: (value: string) => void
-  onDestCityChange: (value: string) => void
-  onDestAddressChange: (value: string) => void
-  onLookupListing: () => void
-  onRefreshInventory: () => void
   onRecalculate: (options?: {
     quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'
     distanceKm?: number
@@ -151,108 +138,6 @@ function FloorSelect({ label, value, onChange }: { label: string; value: number 
   )
 }
 
-function AddressAutocompleteField({
-  value,
-  onChange,
-  onSuggestionSelect,
-  placeholder,
-  verifiedLabel,
-  helperText,
-}: {
-  value: string
-  onChange: (value: string) => void
-  onSuggestionSelect?: (suggestion: AddressSuggestion) => void
-  placeholder: string
-  verifiedLabel?: string
-  helperText?: string
-}) {
-  const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([])
-  const [busy, setBusy] = useState(false)
-  const [open, setOpen] = useState(false)
-
-  useEffect(() => {
-    const query = value.trim()
-    if (query.length < 5) {
-      setSuggestions([])
-      setBusy(false)
-      return
-    }
-
-    let cancelled = false
-    const timer = window.setTimeout(() => {
-      setBusy(true)
-      fetch(`/api/sales/address-suggest?q=${encodeURIComponent(query)}`, { credentials: 'include' })
-        .then(async response => {
-          const payload = (await response.json().catch(() => null)) as { suggestions?: AddressSuggestion[]; error?: string } | null
-          if (!response.ok) {
-            throw new Error(payload?.error || 'Address suggestion lookup failed')
-          }
-          return payload?.suggestions || []
-        })
-        .then(results => {
-          if (cancelled) return
-          setSuggestions(results)
-        })
-        .catch(() => {
-          if (!cancelled) setSuggestions([])
-        })
-        .finally(() => {
-          if (!cancelled) setBusy(false)
-        })
-    }, 250)
-
-    return () => {
-      cancelled = true
-      window.clearTimeout(timer)
-    }
-  }, [value])
-
-  return (
-    <div className="relative">
-      <input
-        value={value}
-        onChange={event => {
-          onChange(event.target.value)
-          setOpen(true)
-        }}
-        onFocus={() => setOpen(true)}
-        onBlur={() => {
-          window.setTimeout(() => setOpen(false), 120)
-        }}
-        className="mt-3 crm-input"
-        placeholder={placeholder}
-      />
-      {open && suggestions.length > 0 ? (
-        <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-[8px] border border-[var(--app-line)] bg-white shadow-xl">
-          {suggestions.map(suggestion => (
-            <button
-              key={suggestion.label}
-              type="button"
-              onMouseDown={event => event.preventDefault()}
-              onClick={() => {
-                onChange(suggestion.label)
-                onSuggestionSelect?.(suggestion)
-                setSuggestions([])
-                setOpen(false)
-              }}
-              className="flex w-full items-start justify-between gap-3 border-b border-[var(--app-line)] px-3 py-2 text-left last:border-b-0 hover:bg-[var(--app-bg)]"
-            >
-              <span className="text-xs leading-5 text-[var(--app-ink)]">{suggestion.label}</span>
-              {suggestion.city ? <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">{suggestion.city}</span> : null}
-            </button>
-          ))}
-        </div>
-      ) : null}
-      <div className="mt-1.5 flex items-center justify-between gap-3 text-[10px] leading-4">
-        <span className={verifiedLabel ? 'text-emerald-700' : 'text-[var(--app-muted)]'}>
-          {verifiedLabel || helperText || 'Type at least 5 characters to verify the address.'}
-        </span>
-        {busy ? <span className="text-[var(--app-muted)]">Checking…</span> : null}
-      </div>
-    </div>
-  )
-}
-
 export function EstimateDraftModal({
   open,
   quote,
@@ -263,8 +148,6 @@ export function EstimateDraftModal({
   originCity,
   destCity,
   destAddress,
-  listingLookupBusy,
-  analysisBusy,
   recalculateBusy,
   listingPhotos,
   activePhotoIndex,
@@ -282,12 +165,6 @@ export function EstimateDraftModal({
   onMoveDescriptionChange,
   onInternalNotesChange,
   onClose,
-  onOriginAddressChange,
-  onOriginCityChange,
-  onDestCityChange,
-  onDestAddressChange,
-  onLookupListing,
-  onRefreshInventory,
   onRecalculate,
   onAddLineItem,
   onSetActivePhotoIndex,
@@ -676,99 +553,6 @@ export function EstimateDraftModal({
                   className="crm-input w-full resize-none text-sm"
                   placeholder="e.g. Customer confirmed piano needs 4 people, tight staircase at origin"
                 />
-              </div>
-            </div>
-
-            {/* Customer + address confirmation */}
-            <div className="grid gap-4 xl:grid-cols-[0.9fr_1fr_1fr]">
-              <div className="crm-kpi">
-                <div className="crm-label">Customer</div>
-                <div className="mt-3 text-base font-semibold text-[var(--app-ink)]">{lead.name || 'Customer not named yet'}</div>
-                <div className="mt-2 space-y-1.5 text-xs text-[var(--app-muted)]">
-                  <div>{lead.phone || 'Phone not captured yet'}</div>
-                  <div>{lead.email || 'Email not captured yet'}</div>
-                  <div>{lead.moveDate || 'Move date pending'}</div>
-                </div>
-                <div className="mt-3 rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-[10px] leading-4 text-[var(--app-muted)]">
-                  Customer identity should already be handled before the estimate. This card is just a quick check so reps know they are pricing the right lead.
-                </div>
-              </div>
-
-              <div className="crm-kpi">
-                <div className="crm-label">Origin Address</div>
-                <AddressAutocompleteField
-                  value={originAddress}
-                  onChange={onOriginAddressChange}
-                  onSuggestionSelect={suggestion => {
-                    if (suggestion.city) onOriginCityChange(suggestion.city)
-                  }}
-                  placeholder="Search or enter origin address"
-                  verifiedLabel={route?.originResolved ? `Verified: ${route.originResolved}` : undefined}
-                  helperText="Origin address is used for MLS matching and inventory extraction."
-                />
-                <input value={originCity} onChange={e => onOriginCityChange(e.target.value)} className="mt-2 crm-input" placeholder="Origin city" />
-                <button onClick={onLookupListing} disabled={listingLookupBusy} className="mt-3 crm-button disabled:opacity-60">
-                  {listingLookupBusy ? 'Matching...' : 'Match Origin Listing'}
-                </button>
-              </div>
-
-              <div className="crm-kpi">
-                <div className="crm-label">Destination Address</div>
-                <AddressAutocompleteField
-                  value={destAddress}
-                  onChange={onDestAddressChange}
-                  onSuggestionSelect={suggestion => {
-                    if (suggestion.city) onDestCityChange(suggestion.city)
-                  }}
-                  placeholder="Destination address"
-                  verifiedLabel={route?.destResolved ? `Verified: ${route.destResolved}` : undefined}
-                  helperText="Destination is used for route timing and unloading scope, not for the origin MLS inventory scan."
-                />
-                <input value={destCity} onChange={e => onDestCityChange(e.target.value)} className="mt-2 crm-input" placeholder="Destination city" />
-                <div className="mt-3 rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-[10px] leading-4 text-[var(--app-muted)]">
-                  Routing uses the full path: yard → origin → destination{route?.category === 'long-distance' ? ' → return leg' : ''}. This box is only for the destination stop.
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-              <div className="crm-kpi">
-                <div className="crm-label">Route Confirmation</div>
-                <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3">
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Yard</div>
-                    <div className="mt-2 text-sm font-medium text-[var(--app-ink)]">{route?.yardResolved || selectedBranch}</div>
-                  </div>
-                  <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3">
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Origin</div>
-                    <div className="mt-2 text-sm font-medium text-[var(--app-ink)]">{route?.originResolved || originFull || 'Origin pending'}</div>
-                  </div>
-                  <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3">
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Destination</div>
-                    <div className="mt-2 text-sm font-medium text-[var(--app-ink)]">{route?.destResolved || destFull || 'Destination pending'}</div>
-                  </div>
-                </div>
-                <div className="mt-3 space-y-1.5 rounded-[8px] border border-[var(--app-line)] bg-white p-3 text-xs text-[var(--app-muted)]">
-                  <div className="font-semibold text-[var(--app-ink)]">How the route is priced</div>
-                  <div>Operational path always starts from the selected yard, then goes to the origin, then to the destination.</div>
-                  {route?.yardToOrigin ? <div>Yard → Origin: {route.yardToOrigin.distanceKm} km · {route.yardToOrigin.driveHours}h</div> : null}
-                  {route?.originToDestination ? <div>Origin → Destination: {route.originToDestination.distanceKm} km · {route.originToDestination.driveHours}h</div> : null}
-                  {route?.returnToOrigin && route.category === 'long-distance' ? <div>Destination → Origin return: {route.returnToOrigin.distanceKm} km · {route.returnToOrigin.driveHours}h</div> : null}
-                  {!route ? <div>Enter both addresses to verify the exact route before sending the estimate.</div> : null}
-                </div>
-              </div>
-
-              <div className="crm-kpi">
-                <div className="crm-label">Inventory + Scope Tools</div>
-                <div className="mt-3 space-y-2">
-                  <button onClick={onRefreshInventory} disabled={analysisBusy || !lead.supabaseListing?.address} className="crm-button w-full justify-center disabled:opacity-60">
-                    {analysisBusy ? 'Scanning...' : 'Refresh Origin Inventory'}
-                  </button>
-                  <button onClick={onAddLineItem} className="crm-button w-full justify-center">Add Manual Line Item</button>
-                </div>
-                <div className="mt-3 rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-[10px] leading-4 text-[var(--app-muted)]">
-                  Inventory refresh only re-reads the matched origin listing and MLS photos. It does not change the destination route.
-                </div>
               </div>
             </div>
 

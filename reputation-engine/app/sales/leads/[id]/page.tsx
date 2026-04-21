@@ -2738,8 +2738,6 @@ export default function SalesLeadDetailPage() {
         originCity={originCity}
         destCity={destCity}
         destAddress={destAddress}
-        listingLookupBusy={listingLookupBusy}
-        analysisBusy={analysisBusy}
         recalculateBusy={recalculateBusy}
         listingPhotos={listingPhotos}
         activePhotoIndex={activePhotoIndex}
@@ -2757,12 +2755,6 @@ export default function SalesLeadDetailPage() {
         onMoveDescriptionChange={v => { setQuoteMoveDescription(v); setQuoteModalDirty(true) }}
         onInternalNotesChange={v => { setQuoteInternalNotes(v); setQuoteModalDirty(true) }}
         onClose={() => void closeQuoteModal()}
-        onOriginAddressChange={setOriginAddress}
-        onOriginCityChange={setOriginCity}
-        onDestCityChange={setDestCity}
-        onDestAddressChange={setDestAddress}
-        onLookupListing={() => void lookupListingForLead()}
-        onRefreshInventory={() => void generateInventoryFromPhotos(true)}
         onRecalculate={handleModalRecalculate}
         onAddLineItem={addQuoteLineItem}
         onSetActivePhotoIndex={setActivePhotoIndex}
