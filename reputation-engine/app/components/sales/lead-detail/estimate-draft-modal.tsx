@@ -3,6 +3,9 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { estimateLeadQuote, formatMoney } from '@/lib/sales'
+import { INVENTORY_PRESETS } from '@/lib/item-presets'
+import { getDisassemblyServiceLabel, getIncludedDisassemblyItems } from '@/lib/move-scope'
+import { getTvBoxMaterialPresetForSize } from '@/lib/packing-materials'
 import { DEFAULT_ROOM_OPTIONS } from './helpers'
 import type { EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, QuoteLineItem } from '@/lib/types'
 
@@ -34,12 +37,19 @@ type RouteResult = {
   missingRequirements?: string[]
 }
 
+type AddressSuggestion = {
+  label: string
+  city?: string
+}
+
 type GroupedInventory = Array<[string, Array<{ item: InventoryItem; index: number }>]>
 
 type Props = {
   open: boolean
   quote: CRMQuote | null
   lead: CRMLead
+  inventory: InventoryItem[]
+  branch?: CRMLead['branch']
   originAddress: string
   originCity: string
   destCity: string
@@ -56,6 +66,8 @@ type Props = {
   groupedInventory: GroupedInventory
   presetMatches: Array<{ id: string; label: string }>
   quoteLineItems: QuoteLineItem[]
+  quoteDiscountAmount: number
+  quoteDiscountLabel: string
   quoteModalTotals: {
     subtotal: number
     total: number
@@ -79,11 +91,18 @@ type Props = {
   onAddLineItem: () => void
   onSetActivePhotoIndex: (index: number) => void
   onAddPreset: (presetId: string) => void
+  onQuoteDiscountAmountChange: (amount: number) => void
+  onQuoteDiscountLabelChange: (label: string) => void
   onUpdateLineItem: (index: number, field: keyof QuoteLineItem, value: string) => void
   onRemoveLineItem: (index: number) => void
   onSetLineItems: (items: QuoteLineItem[]) => void
+  moveDescription: string
+  internalNotes: string
+  onMoveDescriptionChange: (v: string) => void
+  onInternalNotesChange: (v: string) => void
   onSaveDraft: () => void
   onSaveAndPreview: () => void
+  onBranchChange?: (value: NonNullable<CRMLead['branch']>) => void
   onJobFactorsChange: (factors: JobFactors) => void
   onAddInventoryItems: (items: InventoryItem[]) => void
   onUpdateInventoryItem: (index: number, field: keyof InventoryItem, value: string) => void
@@ -132,10 +151,114 @@ function FloorSelect({ label, value, onChange }: { label: string; value: number 
   )
 }
 
+function AddressAutocompleteField({
+  value,
+  onChange,
+  onSuggestionSelect,
+  placeholder,
+  verifiedLabel,
+  helperText,
+}: {
+  value: string
+  onChange: (value: string) => void
+  onSuggestionSelect?: (suggestion: AddressSuggestion) => void
+  placeholder: string
+  verifiedLabel?: string
+  helperText?: string
+}) {
+  const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([])
+  const [busy, setBusy] = useState(false)
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    const query = value.trim()
+    if (query.length < 5) {
+      setSuggestions([])
+      setBusy(false)
+      return
+    }
+
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      setBusy(true)
+      fetch(`/api/sales/address-suggest?q=${encodeURIComponent(query)}`, { credentials: 'include' })
+        .then(async response => {
+          const payload = (await response.json().catch(() => null)) as { suggestions?: AddressSuggestion[]; error?: string } | null
+          if (!response.ok) {
+            throw new Error(payload?.error || 'Address suggestion lookup failed')
+          }
+          return payload?.suggestions || []
+        })
+        .then(results => {
+          if (cancelled) return
+          setSuggestions(results)
+        })
+        .catch(() => {
+          if (!cancelled) setSuggestions([])
+        })
+        .finally(() => {
+          if (!cancelled) setBusy(false)
+        })
+    }, 250)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [value])
+
+  return (
+    <div className="relative">
+      <input
+        value={value}
+        onChange={event => {
+          onChange(event.target.value)
+          setOpen(true)
+        }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => {
+          window.setTimeout(() => setOpen(false), 120)
+        }}
+        className="mt-3 crm-input"
+        placeholder={placeholder}
+      />
+      {open && suggestions.length > 0 ? (
+        <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-[8px] border border-[var(--app-line)] bg-white shadow-xl">
+          {suggestions.map(suggestion => (
+            <button
+              key={suggestion.label}
+              type="button"
+              onMouseDown={event => event.preventDefault()}
+              onClick={() => {
+                onChange(suggestion.label)
+                onSuggestionSelect?.(suggestion)
+                setSuggestions([])
+                setOpen(false)
+              }}
+              className="flex w-full items-start justify-between gap-3 border-b border-[var(--app-line)] px-3 py-2 text-left last:border-b-0 hover:bg-[var(--app-bg)]"
+            >
+              <span className="text-xs leading-5 text-[var(--app-ink)]">{suggestion.label}</span>
+              {suggestion.city ? <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">{suggestion.city}</span> : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <div className="mt-1.5 flex items-center justify-between gap-3 text-[10px] leading-4">
+        <span className={verifiedLabel ? 'text-emerald-700' : 'text-[var(--app-muted)]'}>
+          {verifiedLabel || helperText || 'Type at least 5 characters to verify the address.'}
+        </span>
+        {busy ? <span className="text-[var(--app-muted)]">Checking…</span> : null}
+      </div>
+    </div>
+  )
+}
+
 export function EstimateDraftModal({
   open,
   quote,
   lead,
+  inventory,
+  branch,
   originAddress,
   originCity,
   destCity,
@@ -149,9 +272,15 @@ export function EstimateDraftModal({
   groupedInventory,
   presetMatches,
   quoteLineItems,
+  quoteDiscountAmount,
+  quoteDiscountLabel,
   quoteModalTotals,
   quoteModalBusy,
   jobFactors,
+  moveDescription,
+  internalNotes,
+  onMoveDescriptionChange,
+  onInternalNotesChange,
   onClose,
   onOriginAddressChange,
   onOriginCityChange,
@@ -163,11 +292,14 @@ export function EstimateDraftModal({
   onAddLineItem,
   onSetActivePhotoIndex,
   onAddPreset,
+  onQuoteDiscountAmountChange,
+  onQuoteDiscountLabelChange,
   onUpdateLineItem,
   onRemoveLineItem,
   onSetLineItems,
   onSaveDraft,
   onSaveAndPreview,
+  onBranchChange,
   onJobFactorsChange,
   onAddInventoryItems,
   onUpdateInventoryItem,
@@ -180,9 +312,11 @@ export function EstimateDraftModal({
   const [quoteType, setQuoteType] = useState<'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'>(
     lead.quoteType || 'standard'
   )
+  const [localBranch, setLocalBranch] = useState<'windsor' | 'waterloo' | 'london' | 'ottawa'>(lead.branch || 'windsor')
   const [distanceKm, setDistanceKm] = useState<number>(0)
   const [bookTodayActive, setBookTodayActive] = useState(false)
   const [tenPctActive, setTenPctActive] = useState(false)
+  const [excludedDisassemblyItems, setExcludedDisassemblyItems] = useState<Set<string>>(new Set())
   const [overrideInput, setOverrideInput] = useState('')
   const [overrideReason, setOverrideReason] = useState('relationship')
   const [overrideApplied, setOverrideApplied] = useState(false)
@@ -192,10 +326,66 @@ export function EstimateDraftModal({
   const [quickItem, setQuickItem] = useState('')
   const [quickQty, setQuickQty] = useState(1)
   const [quickCuFt, setQuickCuFt] = useState('')
+  // Preset search
+  const [presetSearch, setPresetSearch] = useState('')
+  const presetSearchResults = useMemo(() => {
+    const q = presetSearch.trim().toLowerCase()
+    if (!q) return []
+    return INVENTORY_PRESETS.filter(p =>
+      p.label.toLowerCase().includes(q) ||
+      (p.item.name || '').toLowerCase().includes(q) ||
+      (p.room || '').toLowerCase().includes(q)
+    ).slice(0, 12)
+  }, [presetSearch])
 
   // Auto-calculate route when both origin and destination are present
   const originFull = [originAddress || lead.originAddress, originCity || lead.originCity].filter(Boolean).join(', ')
   const destFull = [destAddress || lead.destAddress, destCity || lead.destCity].filter(Boolean).join(', ')
+  const selectedBranch = (branch || localBranch || lead.branch || 'windsor') as 'windsor' | 'waterloo' | 'london' | 'ottawa'
+  const baseQuoteSubtotal = useMemo(
+    () => quoteLineItems.reduce((sum, item) => {
+      const amount = Number(item.amount || 0)
+      if (item.description === 'Early Booking Discount' || amount <= 0) return sum
+      return sum + amount
+    }, 0),
+    [quoteLineItems]
+  )
+  const lineItemDiscountTotal = useMemo(
+    () => Math.abs(
+      quoteLineItems.reduce((sum, item) => {
+        const amount = Number(item.amount || 0)
+        return amount < 0 ? sum + amount : sum
+      }, 0)
+    ),
+    [quoteLineItems]
+  )
+  const tenPctDiscountAmount = useMemo(
+    () => Math.round(Math.max(0, baseQuoteSubtotal) * 0.1 * 100) / 100,
+    [baseQuoteSubtotal]
+  )
+
+  useEffect(() => {
+    if (!open) return
+    setLocalBranch((branch || lead.branch || 'windsor') as 'windsor' | 'waterloo' | 'london' | 'ottawa')
+  }, [branch, lead.branch, open])
+
+  useEffect(() => {
+    const hasBookTodayDiscount = quoteLineItems.some(item => item.description === 'Early Booking Discount')
+    setBookTodayActive(current => current === hasBookTodayDiscount ? current : hasBookTodayDiscount)
+  }, [quoteLineItems])
+
+  useEffect(() => {
+    const hasSpotDiscount = quoteDiscountAmount > 0 && (quoteDiscountLabel || '').toLowerCase() === '10% spot discount'.toLowerCase()
+    setTenPctActive(current => current === hasSpotDiscount ? current : hasSpotDiscount)
+  }, [quoteDiscountAmount, quoteDiscountLabel])
+
+  useEffect(() => {
+    if (!tenPctActive) return
+    const nextLabel = tenPctDiscountAmount > 0 ? '10% Spot Discount' : ''
+    if (quoteDiscountAmount === tenPctDiscountAmount && quoteDiscountLabel === nextLabel) return
+    onQuoteDiscountAmountChange(tenPctDiscountAmount)
+    onQuoteDiscountLabelChange(nextLabel)
+  }, [tenPctActive, tenPctDiscountAmount, quoteDiscountAmount, quoteDiscountLabel, onQuoteDiscountAmountChange, onQuoteDiscountLabelChange])
 
   const routeContext = useMemo<EstimateRouteContext | undefined>(() => {
     if (!originFull) return undefined
@@ -232,7 +422,7 @@ export function EstimateDraftModal({
     fetch('/api/sales/route-estimate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ origin: originFull, destination: destFull || undefined }),
+      body: JSON.stringify({ origin: originFull, destination: destFull || undefined, branch: selectedBranch }),
       credentials: 'include',
     })
       .then(r => r.json())
@@ -244,7 +434,7 @@ export function EstimateDraftModal({
       .catch(() => { if (!cancelled) setRouteError('Could not calculate route') })
       .finally(() => { if (!cancelled) setRouteBusy(false) })
     return () => { cancelled = true }
-  }, [open, originFull, destFull])
+  }, [open, originFull, destFull, selectedBranch])
 
   useEffect(() => {
     if (!open) return
@@ -289,15 +479,51 @@ export function EstimateDraftModal({
     }, jobFactors).pricingBreakdown
   }, [open, lead, inventoryMetrics.totalCubicFeet, inventoryMetrics.totalWeightLbs, jobFactors, quoteType, distanceKm, route, routeContext])
 
-  if (!open) return null
-
   function setFactor<K extends keyof JobFactors>(key: K, value: JobFactors[K]) {
     onJobFactorsChange({ ...jobFactors, [key]: value })
+  }
+
+  function toggleDisassemblyItem(itemName: string) {
+    const next = new Set(excludedDisassemblyItems)
+    if (next.has(itemName)) {
+      next.delete(itemName)
+    } else {
+      next.add(itemName)
+    }
+    setExcludedDisassemblyItems(next)
+    const totalItems = pricingBreakdown?.disassemblyItems.length ?? 0
+    const newCount = Math.max(0, totalItems - next.size)
+    onJobFactorsChange({ ...jobFactors, disassemblyItemCount: newCount === 0 && next.size > 0 ? 0 : newCount })
   }
 
   const hasWarnings = jobFactors.hasHotTub || jobFactors.hasPoolTable
   const flags = pricingBreakdown?.intelligenceFlags
   const needsTwoTrucks = flags?.twoTruckRequired ?? false
+  const includedDisassemblyItems = pricingBreakdown
+    ? getIncludedDisassemblyItems(pricingBreakdown.disassemblyItems, excludedDisassemblyItems)
+    : []
+  const disassemblyScopeLabel = getDisassemblyServiceLabel(jobFactors.disassemblyMode)
+  const tvRecommendations = useMemo(() => {
+    return inventory
+      .filter(item => item.included !== false)
+      .filter(item => {
+        const lower = (item.name || item.item || '').toLowerCase()
+        return lower.includes('tv') && !lower.includes('tv box')
+      })
+      .map((item, index) => ({
+        key: item.id || `${item.name || item.item || 'tv'}-${index}`,
+        itemLabel: item.name || item.item || `TV ${index + 1}`,
+        sizeLabel: item.size?.trim() || 'Avg 55"',
+        recommendedMaterial: getTvBoxMaterialPresetForSize(item.size || item.name || item.notes),
+      }))
+  }, [inventory])
+
+  if (!open) return null
+
+  function handleBranchChange(nextBranch: 'windsor' | 'waterloo' | 'london' | 'ottawa') {
+    setLocalBranch(nextBranch)
+    onBranchChange?.(nextBranch)
+  }
 
   function addQuickItem() {
     if (!quickItem.trim()) return
@@ -387,39 +613,161 @@ export function EstimateDraftModal({
                   </button>
                 ))}
               </div>
-              {quoteType === 'long_distance' && (
-                <div className="mt-3">
-                  <label className="crm-label">Distance (km)</label>
-                  <input
-                    type="number"
-                    value={distanceKm || ''}
-                    onChange={e => setDistanceKm(Number(e.target.value))}
-                    className="crm-input mt-1 w-full"
-                    placeholder="e.g. 450"
-                  />
-                </div>
-              )}
             </div>
 
-            {/* Addresses */}
+            {/* Branch Selector */}
+            <div>
+              <div className="crm-label mb-2">Branch / Yard Origin</div>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  { id: 'windsor', label: 'Windsor' },
+                  { id: 'waterloo', label: 'Waterloo / KW' },
+                  { id: 'london', label: 'London' },
+                  { id: 'ottawa', label: 'Ottawa' },
+                ] as const).map(opt => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => handleBranchChange(opt.id)}
+                    className={selectedBranch === opt.id
+                      ? 'rounded-full px-4 py-1.5 text-sm font-semibold bg-[#1a2744] text-white'
+                      : 'rounded-full border border-slate-200 bg-white text-slate-500 px-4 py-1.5 text-sm hover:border-[#1a2744] transition'}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-1.5 text-xs text-[var(--app-muted)]">
+                Sets which Saturn Star yard is used as the drive origin. Drive time and billable distance update automatically.
+              </div>
+              <div className="mt-3">
+                <label className="crm-label">Manual Billable KM Override <span className="font-normal normal-case text-[var(--app-muted)]">— optional correction</span></label>
+                <input
+                  type="number"
+                  value={distanceKm || ''}
+                  onChange={e => setDistanceKm(Number(e.target.value))}
+                  className="crm-input mt-1 w-full"
+                  placeholder={route?.billableDistanceKm ? `Auto: ${route.billableDistanceKm} km` : quoteType === 'long_distance' ? 'e.g. 450' : 'Use only if route needs a manual fix'}
+                />
+                <div className="mt-1.5 text-xs text-[var(--app-muted)]">
+                  Override only when routing needs a manual correction. Leave blank to keep the live branch-to-yard calculation.
+                </div>
+              </div>
+            </div>
+
+            {/* Move Description + Internal Notes */}
             <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <div className="crm-label mb-1.5">Move Description <span className="font-normal normal-case text-[var(--app-muted)]">— shown on quote</span></div>
+                <textarea
+                  rows={2}
+                  value={moveDescription}
+                  onChange={e => onMoveDescriptionChange(e.target.value)}
+                  className="crm-input w-full resize-none text-sm"
+                  placeholder={`e.g. 3-bedroom house move from ${originCity || lead.originCity || 'Windsor'} to ${destCity || lead.destCity || 'destination'}`}
+                />
+              </div>
+              <div>
+                <div className="crm-label mb-1.5">Internal Notes <span className="font-normal normal-case text-[var(--app-muted)]">— crew only, not on quote</span></div>
+                <textarea
+                  rows={2}
+                  value={internalNotes}
+                  onChange={e => onInternalNotesChange(e.target.value)}
+                  className="crm-input w-full resize-none text-sm"
+                  placeholder="e.g. Customer confirmed piano needs 4 people, tight staircase at origin"
+                />
+              </div>
+            </div>
+
+            {/* Customer + address confirmation */}
+            <div className="grid gap-4 xl:grid-cols-[0.9fr_1fr_1fr]">
+              <div className="crm-kpi">
+                <div className="crm-label">Customer</div>
+                <div className="mt-3 text-base font-semibold text-[var(--app-ink)]">{lead.name || 'Customer not named yet'}</div>
+                <div className="mt-2 space-y-1.5 text-xs text-[var(--app-muted)]">
+                  <div>{lead.phone || 'Phone not captured yet'}</div>
+                  <div>{lead.email || 'Email not captured yet'}</div>
+                  <div>{lead.moveDate || 'Move date pending'}</div>
+                </div>
+                <div className="mt-3 rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-[10px] leading-4 text-[var(--app-muted)]">
+                  Customer identity should already be handled before the estimate. This card is just a quick check so reps know they are pricing the right lead.
+                </div>
+              </div>
+
               <div className="crm-kpi">
                 <div className="crm-label">Origin Address</div>
-                <input value={originAddress} onChange={e => onOriginAddressChange(e.target.value)} className="mt-3 crm-input" placeholder="Search or enter origin address" />
+                <AddressAutocompleteField
+                  value={originAddress}
+                  onChange={onOriginAddressChange}
+                  onSuggestionSelect={suggestion => {
+                    if (suggestion.city) onOriginCityChange(suggestion.city)
+                  }}
+                  placeholder="Search or enter origin address"
+                  verifiedLabel={route?.originResolved ? `Verified: ${route.originResolved}` : undefined}
+                  helperText="Origin address is used for MLS matching and inventory extraction."
+                />
                 <input value={originCity} onChange={e => onOriginCityChange(e.target.value)} className="mt-2 crm-input" placeholder="Origin city" />
                 <button onClick={onLookupListing} disabled={listingLookupBusy} className="mt-3 crm-button disabled:opacity-60">
-                  {listingLookupBusy ? 'Matching...' : 'Match Listing'}
+                  {listingLookupBusy ? 'Matching...' : 'Match Origin Listing'}
                 </button>
               </div>
+
               <div className="crm-kpi">
-                <div className="crm-label">Destination + Scope</div>
-                <input value={destAddress} onChange={e => onDestAddressChange(e.target.value)} className="mt-3 crm-input" placeholder="Destination address" />
+                <div className="crm-label">Destination Address</div>
+                <AddressAutocompleteField
+                  value={destAddress}
+                  onChange={onDestAddressChange}
+                  onSuggestionSelect={suggestion => {
+                    if (suggestion.city) onDestCityChange(suggestion.city)
+                  }}
+                  placeholder="Destination address"
+                  verifiedLabel={route?.destResolved ? `Verified: ${route.destResolved}` : undefined}
+                  helperText="Destination is used for route timing and unloading scope, not for the origin MLS inventory scan."
+                />
                 <input value={destCity} onChange={e => onDestCityChange(e.target.value)} className="mt-2 crm-input" placeholder="Destination city" />
-                <div className="mt-3 flex gap-2">
-                  <button onClick={onRefreshInventory} disabled={analysisBusy || !lead.supabaseListing?.address} className="crm-button disabled:opacity-60">
-                    {analysisBusy ? 'Scanning...' : 'Refresh Inventory'}
+                <div className="mt-3 rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-[10px] leading-4 text-[var(--app-muted)]">
+                  Routing uses the full path: yard → origin → destination{route?.category === 'long-distance' ? ' → return leg' : ''}. This box is only for the destination stop.
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+              <div className="crm-kpi">
+                <div className="crm-label">Route Confirmation</div>
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Yard</div>
+                    <div className="mt-2 text-sm font-medium text-[var(--app-ink)]">{route?.yardResolved || selectedBranch}</div>
+                  </div>
+                  <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Origin</div>
+                    <div className="mt-2 text-sm font-medium text-[var(--app-ink)]">{route?.originResolved || originFull || 'Origin pending'}</div>
+                  </div>
+                  <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Destination</div>
+                    <div className="mt-2 text-sm font-medium text-[var(--app-ink)]">{route?.destResolved || destFull || 'Destination pending'}</div>
+                  </div>
+                </div>
+                <div className="mt-3 space-y-1.5 rounded-[8px] border border-[var(--app-line)] bg-white p-3 text-xs text-[var(--app-muted)]">
+                  <div className="font-semibold text-[var(--app-ink)]">How the route is priced</div>
+                  <div>Operational path always starts from the selected yard, then goes to the origin, then to the destination.</div>
+                  {route?.yardToOrigin ? <div>Yard → Origin: {route.yardToOrigin.distanceKm} km · {route.yardToOrigin.driveHours}h</div> : null}
+                  {route?.originToDestination ? <div>Origin → Destination: {route.originToDestination.distanceKm} km · {route.originToDestination.driveHours}h</div> : null}
+                  {route?.returnToOrigin && route.category === 'long-distance' ? <div>Destination → Origin return: {route.returnToOrigin.distanceKm} km · {route.returnToOrigin.driveHours}h</div> : null}
+                  {!route ? <div>Enter both addresses to verify the exact route before sending the estimate.</div> : null}
+                </div>
+              </div>
+
+              <div className="crm-kpi">
+                <div className="crm-label">Inventory + Scope Tools</div>
+                <div className="mt-3 space-y-2">
+                  <button onClick={onRefreshInventory} disabled={analysisBusy || !lead.supabaseListing?.address} className="crm-button w-full justify-center disabled:opacity-60">
+                    {analysisBusy ? 'Scanning...' : 'Refresh Origin Inventory'}
                   </button>
-                  <button onClick={onAddLineItem} className="crm-button">Add Line Item</button>
+                  <button onClick={onAddLineItem} className="crm-button w-full justify-center">Add Manual Line Item</button>
+                </div>
+                <div className="mt-3 rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-[10px] leading-4 text-[var(--app-muted)]">
+                  Inventory refresh only re-reads the matched origin listing and MLS photos. It does not change the destination route.
                 </div>
               </div>
             </div>
@@ -472,6 +820,20 @@ export function EstimateDraftModal({
                                   {el.item.cubicFeet ? <span>{((el.item.cubicFeet || 0) * (el.item.qty || 1)).toFixed(0)} cu ft</span> : null}
                                 </div>
                               </div>
+                              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                                <input
+                                  value={el.item.size || ''}
+                                  onChange={event => onUpdateInventoryItem(el.index, 'size', event.target.value)}
+                                  className="crm-input h-8 py-1 text-xs"
+                                  placeholder="Size / dimensions"
+                                />
+                                <input
+                                  value={el.item.notes || ''}
+                                  onChange={event => onUpdateInventoryItem(el.index, 'notes', event.target.value)}
+                                  className="crm-input h-8 py-1 text-xs"
+                                  placeholder="Notes / scope details"
+                                />
+                              </div>
                               <div className="mt-2 flex flex-wrap gap-2">
                                 <button
                                   type="button"
@@ -497,11 +859,49 @@ export function EstimateDraftModal({
                       </details>
                     )
                   })}
+                  {/* Preset search */}
+                  <div className="pt-2">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={presetSearch}
+                        onChange={e => setPresetSearch(e.target.value)}
+                        className="crm-input w-full py-1.5 pl-8 text-sm"
+                        placeholder="Search items — sofa, dresser, bike, fridge…"
+                      />
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)] text-sm pointer-events-none">🔍</span>
+                      {presetSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setPresetSearch('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--app-muted)] hover:text-[var(--app-ink)] text-xs"
+                        >✕</button>
+                      )}
+                    </div>
+                    {presetSearchResults.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {presetSearchResults.map(p => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => { onAddPreset(p.id); setPresetSearch('') }}
+                            className="crm-button text-xs py-1 px-2.5 bg-[#f0f7ff] border-[#c5d9f5] text-[#1a4a8a]"
+                          >
+                            + {p.label}
+                            <span className="ml-1 opacity-50">{p.item.cubicFeet} cu ft</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {presetSearch.trim() && presetSearchResults.length === 0 && (
+                      <div className="mt-1.5 text-xs text-[var(--app-muted)]">No presets match — use Quick Add below to enter manually.</div>
+                    )}
+                  </div>
                   {/* Quick-add preset buttons — boxes first, then matched presets */}
                   <div className="space-y-2 pt-2">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">📦 Boxes — ask every customer</div>
                     <div className="flex flex-wrap gap-1.5">
-                      {['box-small','box-medium','box-large','box-xl','tv-box-55','mirror-box'].map(id => {
+                      {['box-small','box-medium','box-large','box-xl','tv-box-32','tv-box-55','tv-box-70','mirror-box'].map(id => {
                         const p = presetMatches.find(x => x.id === id) || { id, label: id }
                         return <button key={id} onClick={() => onAddPreset(id)} className="crm-button text-xs py-1 px-2.5">+ {p.label}</button>
                       })}
@@ -520,11 +920,37 @@ export function EstimateDraftModal({
                         return <button key={id} onClick={() => onAddPreset(id)} className="crm-button text-xs py-1 px-2.5">+ {p.label}</button>
                       })}
                     </div>
-                    {presetMatches.some(p => !['box-small','box-medium','box-large','box-xl','tv-box-55','mirror-box','fridge-standard','fridge-large','stove-freestanding','dishwasher','freezer-standalone','washer-freestanding','dryer-freestanding','tool-chest','lawn-mower-push','wheelbarrow','bicycle','garage-shelving','barbecue','patio-set','hot-tub','junk-item-large'].includes(p.id)) && (
+                    {tvRecommendations.length > 0 && (
+                      <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">TV Protection</div>
+                        <div className="mt-2 space-y-2">
+                          {tvRecommendations.map(rec => (
+                            <div key={rec.key} className="flex items-center justify-between gap-3 rounded-[6px] border border-[var(--app-line)] px-2.5 py-2">
+                              <div className="min-w-0">
+                                <div className="text-xs font-medium text-[var(--app-ink)]">{rec.itemLabel}</div>
+                                <div className="text-[10px] text-[var(--app-muted)]">
+                                  {rec.sizeLabel} · Recommended {rec.recommendedMaterial?.label || 'TV box'}{rec.recommendedMaterial ? ` · ${formatMoney(rec.recommendedMaterial.unitPrice)}` : ''}
+                                </div>
+                              </div>
+                              {rec.recommendedMaterial ? (
+                                <button
+                                  type="button"
+                                  onClick={() => onAddPreset(rec.recommendedMaterial!.id)}
+                                  className="crm-button text-[10px] px-2.5 py-1"
+                                >
+                                  + Box
+                                </button>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {presetMatches.some(p => !['box-small','box-medium','box-large','box-xl','tv-box-32','tv-box-55','tv-box-70','mirror-box','fridge-standard','fridge-large','stove-freestanding','dishwasher','freezer-standalone','washer-freestanding','dryer-freestanding','tool-chest','lawn-mower-push','wheelbarrow','bicycle','garage-shelving','barbecue','patio-set','hot-tub','junk-item-large'].includes(p.id)) && (
                       <>
                         <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] pt-1">🛋️ Furniture</div>
                         <div className="flex flex-wrap gap-1.5">
-                          {presetMatches.filter(p => !['box-small','box-medium','box-large','box-xl','tv-box-55','mirror-box','fridge-standard','fridge-large','stove-freestanding','dishwasher','freezer-standalone','washer-freestanding','dryer-freestanding','tool-chest','lawn-mower-push','wheelbarrow','bicycle','garage-shelving','barbecue','patio-set','hot-tub','junk-item-large'].includes(p.id)).map(preset => (
+                          {presetMatches.filter(p => !['box-small','box-medium','box-large','box-xl','tv-box-32','tv-box-55','tv-box-70','mirror-box','fridge-standard','fridge-large','stove-freestanding','dishwasher','freezer-standalone','washer-freestanding','dryer-freestanding','tool-chest','lawn-mower-push','wheelbarrow','bicycle','garage-shelving','barbecue','patio-set','hot-tub','junk-item-large'].includes(p.id)).map(preset => (
                             <button key={preset.id} onClick={() => onAddPreset(preset.id)} className="crm-button text-xs py-1 px-2.5">+ {preset.label}</button>
                           ))}
                         </div>
@@ -940,6 +1366,29 @@ export function EstimateDraftModal({
                   ) : (
                     <>
                       <div className="text-xs text-[var(--app-muted)] leading-5">Count only freestanding assemblies that truly come apart: beds, dining tables, hutches, trampolines. Built-ins and wall-mounted pieces stay with the house.</div>
+                      {/* Disassembly mode */}
+                      <div className="flex flex-col gap-1">
+                        <div className="text-xs text-[var(--app-muted)]">Service scope</div>
+                        {([
+                          { id: 'both', label: 'Dis + Reassembly', sub: 'Crew does both — at origin and destination' },
+                          { id: 'disassemble_only', label: 'Disassemble only', sub: 'Customer will reassemble at destination' },
+                          { id: 'reassemble_only', label: 'Reassemble only', sub: 'Customer disassembles — crew reassembles at destination' },
+                        ] as const).map(opt => (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => setFactor('disassemblyMode', opt.id)}
+                            className={`rounded-[6px] border px-2.5 py-1.5 text-left text-[10px] leading-4 ${
+                              (jobFactors.disassemblyMode || 'both') === opt.id
+                                ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white'
+                                : 'border-[var(--app-line)] bg-white text-[var(--app-muted)]'
+                            }`}
+                          >
+                            <div className="font-semibold">{opt.label}</div>
+                            <div className="opacity-75">{opt.sub}</div>
+                          </button>
+                        ))}
+                      </div>
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-xs text-[var(--app-muted)]">Number of items</span>
                         <input
@@ -1064,14 +1513,39 @@ export function EstimateDraftModal({
                       {pricingBreakdown.disassemblyItems.length > 0 && (
                         <>
                           <div className="flex justify-between text-amber-600">
-                            <span>Disassembly ({pricingBreakdown.disassemblyItems.length} items)</span>
-                            <span>+{pricingBreakdown.adjustmentBreakdown.find(a => a.category === 'disassembly')?.hours ?? 0}h</span>
+                            <span>{disassemblyScopeLabel} ({includedDisassemblyItems.length} of {pricingBreakdown.disassemblyItems.length} items)</span>
+                            <span>{pricingBreakdown.adjustmentBreakdown.find(a => a.category === 'disassembly')?.hours ?? 0 > 0 ? `+${pricingBreakdown.adjustmentBreakdown.find(a => a.category === 'disassembly')?.hours}h` : '—'}</span>
                           </div>
-                          <div className="text-[10px] text-[var(--app-muted)] leading-4 pl-2">
-                            {pricingBreakdown.disassemblyItems.join(' · ')}
+                          <div className="pl-2 space-y-0.5">
+                            {pricingBreakdown.disassemblyItems.map((item, i) => {
+                              const excluded = excludedDisassemblyItems.has(item)
+                              return (
+                                <div key={i} className="flex items-center justify-between gap-1">
+                                  <span className={`text-[10px] leading-4 ${excluded ? 'line-through text-slate-400' : 'text-[var(--app-muted)]'}`}>{item}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleDisassemblyItem(item)}
+                                    title={excluded ? 'Add back' : 'Remove from estimate'}
+                                    className={`shrink-0 rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold leading-none transition-colors ${excluded ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-slate-100 text-slate-500 hover:bg-rose-100 hover:text-rose-600'}`}
+                                  >
+                                    {excluded ? '+' : '−'}
+                                  </button>
+                                </div>
+                              )
+                            })}
                           </div>
+                          {excludedDisassemblyItems.size > 0 && (
+                            <div className="mt-1 rounded-[4px] bg-slate-50 border border-slate-200 px-2 py-1 text-[10px] text-slate-500">
+                              {excludedDisassemblyItems.size} item{excludedDisassemblyItems.size > 1 ? 's' : ''} excluded — customer handles that part of the assembly scope
+                            </div>
+                          )}
                         </>
                       )}
+                      {jobFactors.specialtyNotes?.trim() ? (
+                        <div className="rounded-[4px] border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] text-amber-700">
+                          Scope note: {jobFactors.specialtyNotes.trim()}
+                        </div>
+                      ) : null}
                       {pricingBreakdown.specialtyItemFlags.map((item, i) => (
                         <div key={i} className="flex justify-between text-amber-600">
                           <span>{item}</span>
@@ -1113,13 +1587,13 @@ export function EstimateDraftModal({
                   const baseH = pricingBreakdown.loadHours + pricingBreakdown.unloadHours
                   const driveH = pricingBreakdown.driveHours
                   const innerH = pricingBreakdown.adjustmentBreakdown.filter(a => a.category === 'disassembly' || a.category === 'specialty').reduce((s,a) => s + a.hours, 0)
-                  const disItems = pricingBreakdown.disassemblyItems.slice(0, 3).join(', ')
+                  const disItems = includedDisassemblyItems.slice(0, 3).join(', ')
                   const twoTruck = pricingBreakdown.truckCount >= 2
                   return (
                     <div className="mt-3 rounded-[8px] border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-600 leading-5">
                       <div className="font-semibold text-slate-800 mb-1">Why this price</div>
                       Loading and unloading {inventoryMetrics.totalCubicFeet} cu ft takes ~{baseH}h base.
-                      {innerH > 0 && disItems && ` Disassembly of ${pricingBreakdown.disassemblyItems.length} items (${disItems}) adds ${innerH}h.`}
+                      {innerH > 0 && disItems && ` ${disassemblyScopeLabel} of ${includedDisassemblyItems.length} items (${disItems}) adds ${innerH}h.`}
                       {driveH > 0 && ` Travel adds ${driveH}h (${pricingBreakdown.billableDistanceKm ?? '?'} km).`}
                       {twoTruck && ` Two trucks load in parallel — same crew, faster for the customer.`}
                     </div>
@@ -1135,26 +1609,32 @@ export function EstimateDraftModal({
                 <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 px-4 py-3 space-y-1.5 text-xs text-emerald-800">
                   <div>✓ Moving {inventoryMetrics.totalItems} items ({inventoryMetrics.totalCubicFeet} cu ft)</div>
                   <div>✓ Wrapping + padding all furniture</div>
-                  {pricingBreakdown.disassemblyItems.length > 0 && (
-                    <div>✓ Disassembly + reassembly: {pricingBreakdown.disassemblyItems.join(', ')}</div>
+                  {includedDisassemblyItems.length > 0 && (
+                    <div>✓ {disassemblyScopeLabel}: {includedDisassemblyItems.join(', ')}</div>
                   )}
                   {pricingBreakdown.specialtyItemFlags.map((item, i) => (
                     <div key={i}>✓ Specialty handling: {item}</div>
                   ))}
+                  {jobFactors.specialtyNotes?.trim() ? (
+                    <div>✓ Additional scope notes: {jobFactors.specialtyNotes.trim()}</div>
+                  ) : null}
                   {/* Boxes from inventory */}
                   {(() => {
-                    const inventory = lead.inventory || []
-                    const boxSummary: string[] = []
                     const smallBoxes = inventory.filter(i => i.included !== false && (i.name || '').toLowerCase().includes('small box')).reduce((s, i) => s + (i.qty || 1), 0)
                     const medBoxes = inventory.filter(i => i.included !== false && (i.name || '').toLowerCase().includes('medium box')).reduce((s, i) => s + (i.qty || 1), 0)
                     const largeBoxes = inventory.filter(i => i.included !== false && (i.name || '').toLowerCase().includes('large box')).reduce((s, i) => s + (i.qty || 1), 0)
                     const xlBoxes = inventory.filter(i => i.included !== false && (i.name || '').toLowerCase().includes('xl box')).reduce((s, i) => s + (i.qty || 1), 0)
-                    const tvBoxes = inventory.filter(i => i.included !== false && (i.name || '').toLowerCase().includes('tv box')).reduce((s, i) => s + (i.qty || 1), 0)
+                    const tvBoxes = inventory.filter(i => i.included !== false && (i.name || '').toLowerCase().includes('tv box'))
+                    const boxSummary: string[] = []
+                    const tvBoxCount = tvBoxes.reduce((s, i) => s + (i.qty || 1), 0)
+                    const tvBoxSizes = Array.from(new Set(tvBoxes.map(i => i.size || i.name).filter(Boolean))).join(', ')
                     if (smallBoxes > 0) boxSummary.push(`${smallBoxes} small`)
                     if (medBoxes > 0) boxSummary.push(`${medBoxes} medium`)
                     if (largeBoxes > 0) boxSummary.push(`${largeBoxes} large`)
                     if (xlBoxes > 0) boxSummary.push(`${xlBoxes} XL`)
-                    if (tvBoxes > 0) boxSummary.push(`${tvBoxes} TV box${tvBoxes > 1 ? 'es' : ''}`)
+                    if (tvBoxCount > 0) {
+                      boxSummary.push(`${tvBoxCount} TV box${tvBoxCount > 1 ? 'es' : ''}${tvBoxSizes ? ` (${tvBoxSizes})` : ''}`)
+                    }
                     if (boxSummary.length === 0) return null
                     return <div>✓ Boxes included: {boxSummary.join(', ')}</div>
                   })()}
@@ -1412,6 +1892,22 @@ export function EstimateDraftModal({
               <div className="crm-label mb-3">Draft Summary</div>
               <div className="space-y-4">
                 <div>
+                  <div className="text-xs text-[var(--app-muted)]">Original estimate</div>
+                  <div className="mt-1 text-lg font-medium text-[var(--app-ink)]">{formatMoney(baseQuoteSubtotal)}</div>
+                </div>
+                {lineItemDiscountTotal > 0 ? (
+                  <div>
+                    <div className="text-xs text-[var(--app-muted)]">Line-item promos</div>
+                    <div className="mt-1 text-base font-medium text-emerald-700">−{formatMoney(lineItemDiscountTotal)}</div>
+                  </div>
+                ) : null}
+                {quoteDiscountAmount > 0 ? (
+                  <div>
+                    <div className="text-xs text-[var(--app-muted)]">{quoteDiscountLabel || 'Quote discount'}</div>
+                    <div className="mt-1 text-base font-medium text-emerald-700">−{formatMoney(quoteDiscountAmount)}</div>
+                  </div>
+                ) : null}
+                <div>
                   <div className="text-xs text-[var(--app-muted)]">Subtotal</div>
                   <div className="mt-1 text-2xl font-semibold text-[var(--app-ink)]">{formatMoney(quoteModalTotals.subtotal)}</div>
                 </div>
@@ -1550,21 +2046,13 @@ export function EstimateDraftModal({
                         const next = !tenPctActive
                         setTenPctActive(next)
                         if (next) {
-                          const base = quoteLineItems
-                            .filter(li => li.description !== '10% Spot Discount' && li.description !== 'Early Booking Discount')
-                            .reduce((s, li) => s + Number(li.amount || 0), 0)
-                          const discAmt = -(Math.round(Math.max(0, base) * 0.10 * 100) / 100)
-                          void (async () => {
-                            onAddLineItem()
-                            await new Promise(r => setTimeout(r, 50))
-                            const last = quoteLineItems.length
-                            onUpdateLineItem(last, 'description', '10% Spot Discount')
-                            onUpdateLineItem(last, 'details', 'Applied today only')
-                            onUpdateLineItem(last, 'amount', String(discAmt))
-                          })()
+                          onQuoteDiscountAmountChange(tenPctDiscountAmount)
+                          onQuoteDiscountLabelChange(tenPctDiscountAmount > 0 ? '10% Spot Discount' : '')
                         } else {
-                          const idx = quoteLineItems.findIndex(li => li.description === '10% Spot Discount')
-                          if (idx >= 0) onRemoveLineItem(idx)
+                          onQuoteDiscountAmountChange(0)
+                          if ((quoteDiscountLabel || '').toLowerCase() === '10% spot discount'.toLowerCase()) {
+                            onQuoteDiscountLabelChange('')
+                          }
                         }
                       }}
                       className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-colors ${tenPctActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}
@@ -1574,7 +2062,7 @@ export function EstimateDraftModal({
                   </div>
                   {tenPctActive && (
                     <div className="text-[10px] text-emerald-700">
-                      10% off base price — {formatMoney(Math.abs(quoteLineItems.find(li => li.description === '10% Spot Discount')?.amount ?? 0))} saved.
+                      10% off the current base estimate — {formatMoney(tenPctDiscountAmount)} saved. It will recalculate automatically if the estimate changes.
                     </div>
                   )}
                 </div>

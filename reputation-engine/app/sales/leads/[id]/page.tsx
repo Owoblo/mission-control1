@@ -108,6 +108,8 @@ export default function SalesLeadDetailPage() {
   const [quoteModalDirty, setQuoteModalDirty] = useState(false)
   const [additionalQuotes, setAdditionalQuotes] = useState<CRMQuote[]>([])
   const [quoteLineItems, setQuoteLineItems] = useState<QuoteLineItem[]>([])
+  const [quoteDiscountAmount, setQuoteDiscountAmount] = useState(0)
+  const [quoteDiscountLabel, setQuoteDiscountLabel] = useState('')
   const [quoteMoveDescription, setQuoteMoveDescription] = useState('')
   const [quoteInternalNotes, setQuoteInternalNotes] = useState('')
   const [jobFactors, setJobFactors] = useState<JobFactors>({})
@@ -234,6 +236,8 @@ export default function SalesLeadDetailPage() {
       const nextLead = await fetchSalesLead(currentLeadId)
       const quotePayload = nextLead?.quoteId ? await fetchSalesQuote(nextLead.quoteId) : null
       setQuote(quotePayload?.quote || null)
+      setQuoteDiscountAmount(Number(quotePayload?.quote?.discountAmount || 0))
+      setQuoteDiscountLabel(quotePayload?.quote?.discountLabel || '')
       // Load additional quotes (multi-job leads)
       const extraIds = (nextLead?.quoteIds || []).filter(qid => qid !== nextLead?.quoteId)
       if (extraIds.length > 0) {
@@ -578,8 +582,8 @@ export default function SalesLeadDetailPage() {
   const inventoryMetrics = useMemo(() => deriveInventoryMetrics(inventory), [inventory])
   const quoteModalTotals = useMemo(() => {
     const depositRate = quote && quote.total > 0 ? quote.deposit / quote.total : 0.2
-    return computeQuoteTotals(quoteLineItems, depositRate, Number(quote?.discountAmount || 0))
-  }, [quote, quoteLineItems])
+    return computeQuoteTotals(quoteLineItems, depositRate, quoteDiscountAmount)
+  }, [quote, quoteDiscountAmount, quoteLineItems])
   const hasGeneratedInventory = inventoryMetrics.inventory.length > 0
   const hasListingPhotos = listingPhotos.length > 0
   const roomOptions = useMemo(() => {
@@ -835,6 +839,8 @@ export default function SalesLeadDetailPage() {
       // Open the new quote in the builder regardless
       setQuote(result.quote)
       setQuoteLineItems(result.quote.lineItems || [])
+      setQuoteDiscountAmount(Number(result.quote.discountAmount || 0))
+      setQuoteDiscountLabel(result.quote.discountLabel || '')
       setQuoteMoveDescription(result.quote.moveDescription || '')
       setQuoteInternalNotes(result.quote.internalNotes || '')
       setQuoteModalDirty(false)
@@ -875,6 +881,8 @@ export default function SalesLeadDetailPage() {
       return
     }
     setQuoteLineItems(quote.lineItems || [])
+    setQuoteDiscountAmount(Number(quote.discountAmount || 0))
+    setQuoteDiscountLabel(quote.discountLabel || '')
     setQuoteMoveDescription(quote.moveDescription || '')
     setQuoteInternalNotes(quote.internalNotes || '')
     setQuoteModalDirty(false)
@@ -910,9 +918,11 @@ export default function SalesLeadDetailPage() {
     try {
       setQuoteModalBusy(true)
       const depositRate = quote.total > 0 ? quote.deposit / quote.total : 0.2
-      const totals = computeQuoteTotals(quoteLineItems, depositRate, Number(quote.discountAmount || 0))
+      const totals = computeQuoteTotals(quoteLineItems, depositRate, quoteDiscountAmount)
       const result = await updateSalesQuote(quote.id, {
         lineItems: totals.lineItems,
+        discountAmount: quoteDiscountAmount,
+        discountLabel: quoteDiscountLabel || undefined,
         subtotal: totals.subtotal,
         hst: totals.hst,
         total: totals.total,
@@ -927,6 +937,8 @@ export default function SalesLeadDetailPage() {
       setQuote(result.quote)
       if (result.lead) setLead(result.lead)
       setQuoteLineItems(result.quote.lineItems || [])
+      setQuoteDiscountAmount(Number(result.quote.discountAmount || 0))
+      setQuoteDiscountLabel(result.quote.discountLabel || '')
       setQuoteModalDirty(false)
       // Persist job factors to lead alongside the quote save
       if (lead && Object.keys(jobFactors).length > 0) {
@@ -3088,6 +3100,8 @@ export default function SalesLeadDetailPage() {
         groupedInventory={groupedInventory}
         presetMatches={presetMatches}
         quoteLineItems={quoteLineItems}
+        quoteDiscountAmount={quoteDiscountAmount}
+        quoteDiscountLabel={quoteDiscountLabel}
         quoteModalTotals={quoteModalTotals}
         quoteModalBusy={quoteModalBusy}
         jobFactors={jobFactors}
@@ -3106,6 +3120,8 @@ export default function SalesLeadDetailPage() {
         onAddLineItem={addQuoteLineItem}
         onSetActivePhotoIndex={setActivePhotoIndex}
         onAddPreset={addPresetItem}
+        onQuoteDiscountAmountChange={value => { setQuoteDiscountAmount(value); setQuoteModalDirty(true) }}
+        onQuoteDiscountLabelChange={value => { setQuoteDiscountLabel(value); setQuoteModalDirty(true) }}
         onUpdateLineItem={updateQuoteLineItem}
         onRemoveLineItem={removeQuoteLineItem}
         onSetLineItems={setQuoteLineItems}
