@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { getRecordingPlaybackUrl } from '@/lib/recording-playback'
 import { formatDateTime, formatMoney } from '@/lib/sales'
 import { retranscribeConsultation } from '@/lib/sales-api'
 import type { CRMQuote, CRMLead } from '@/lib/types'
@@ -527,11 +528,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
                     <audio
                       controls
                       className="w-full"
-                      src={
-                        item.recordingUrl.startsWith('https://api.twilio.com/')
-                          ? `/api/sales/dialer/recording?url=${encodeURIComponent(item.recordingUrl)}`
-                          : item.recordingUrl
-                      }
+                      src={getRecordingPlaybackUrl(item.recordingUrl)}
                     >
                       Your browser does not support audio playback.
                     </audio>

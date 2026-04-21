@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getSaturnBranchLabel, getSaturnBranchNumberFromRawData } from '@/lib/sales-phones'
+import { getRecordingPlaybackUrl } from '@/lib/recording-playback'
 import { claimInboundLead, fetchInboundLeads, markInboundLeadJunk, restoreInboundLead, sendSalesMessage } from '@/lib/sales-api'
 import type { CRMEmail, InboundLead } from '@/lib/types'
 
@@ -281,10 +282,7 @@ export default function SalesInboxPage() {
     | undefined
   const transcript = selectedRaw?.transcript as string | undefined
   const recordingUrl = (selectedRaw?.recordingUrl || selectedRaw?.recUrl) as string | undefined
-  const recordingPlaybackUrl =
-    typeof recordingUrl === 'string' && recordingUrl.startsWith('https://api.twilio.com/')
-      ? `/api/sales/dialer/recording?url=${encodeURIComponent(recordingUrl)}`
-      : recordingUrl
+  const recordingPlaybackUrl = getRecordingPlaybackUrl(recordingUrl)
   const unreadCount = useMemo(() => items.filter(item => !item.claimed).length, [items])
   const selectedRoute = useMemo(
     () => ({

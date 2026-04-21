@@ -14,7 +14,10 @@ export function PWAInit() {
   useEffect(() => {
     // Register service worker
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => null)
+      navigator.serviceWorker
+        .register('/sw.js', { updateViaCache: 'none' })
+        .then(registration => registration.update().catch(() => null))
+        .catch(() => null)
     }
 
     // Capture install prompt

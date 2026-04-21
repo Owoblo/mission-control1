@@ -8,12 +8,10 @@ import { CollectCardModal } from '@/app/components/sales/collect-card-modal'
 import { LeadBasicsPanel } from '@/app/components/sales/lead-detail/lead-basics-panel'
 import { LeadTimeline } from '@/app/components/sales/lead-detail/lead-timeline'
 import {
-  DEFAULT_ROOM_OPTIONS,
   buildLeadSignature,
   buildRoomBreakdown,
   normalizeRoomName,
 } from '@/app/components/sales/lead-detail/helpers'
-import { InventoryRoomSection } from '@/app/components/sales/lead-detail/inventory-room-section'
 import { INVENTORY_PRESETS, createInventoryItemFromPreset } from '@/lib/item-presets'
 import {
   getDefaultSaturnBranchNumber,
@@ -60,7 +58,6 @@ export default function SalesLeadDetailPage() {
   const [activePhotoIndex, setActivePhotoIndex] = useState(0)
   const [activityType, setActivityType] = useState<FollowUpLog['type']>('call')
   const [activityNotes, setActivityNotes] = useState('')
-  const [newRoomName, setNewRoomName] = useState('')
   const [presetSearch, setPresetSearch] = useState('')
   const [saving, setSaving] = useState(false)
   const [creatingQuote, setCreatingQuote] = useState(false)
@@ -140,15 +137,14 @@ export default function SalesLeadDetailPage() {
   const [smsInput, setSmsInput] = useState('')
   const smsAreaRef = useRef<HTMLDivElement>(null)
   const [listingLookupBusy, setListingLookupBusy] = useState(false)
-  const [scanProgress, setScanProgress] = useState<{ batch: number; totalBatches: number; status: string } | null>(null)
-  const [activeTab, setActiveTab] = useState<'timeline' | 'inventory' | 'emails' | 'sms'>('timeline')
+  const [, setScanProgress] = useState<{ batch: number; totalBatches: number; status: string } | null>(null)
+  const [activeTab, setActiveTab] = useState<'timeline' | 'emails' | 'sms'>('timeline')
   const [error, setError] = useState<string | null>(null)
   const [handoffName, setHandoffName] = useState('')
   const [handoffPhone, setHandoffPhone] = useState('')
   const [handoffEmail, setHandoffEmail] = useState('')
   const [handoffBusy, setHandoffBusy] = useState(false)
   const [opportunityNotice, setOpportunityNotice] = useState<string | null>(null)
-  const [undoItem, setUndoItem] = useState<{ item: InventoryItem; index: number; timer: number } | null>(null)
   const autosaveTimerRef = useRef<number | null>(null)
   const lastSavedLeadStateRef = useRef('')
   const previousOpportunityLeadIdRef = useRef<string | undefined>(undefined)
@@ -584,13 +580,6 @@ export default function SalesLeadDetailPage() {
     const depositRate = quote && quote.total > 0 ? quote.deposit / quote.total : 0.2
     return computeQuoteTotals(quoteLineItems, depositRate, quoteDiscountAmount)
   }, [quote, quoteDiscountAmount, quoteLineItems])
-  const hasGeneratedInventory = inventoryMetrics.inventory.length > 0
-  const hasListingPhotos = listingPhotos.length > 0
-  const roomOptions = useMemo(() => {
-    const rooms = new Set(DEFAULT_ROOM_OPTIONS)
-    inventory.forEach(item => rooms.add(normalizeRoomName(item.room)))
-    return Array.from(rooms)
-  }, [inventory])
   const groupedInventory = useMemo(() => {
     const groups = new Map<string, Array<{ item: InventoryItem; index: number }>>()
     inventory.forEach((item, index) => {
@@ -1168,7 +1157,6 @@ export default function SalesLeadDetailPage() {
       setListingLookupBusy(true)
       setInventory([])
       setScanProgress({ batch: 0, totalBatches: 0, status: 'Starting photo scan…' })
-      setActiveTab('inventory')
 
       const response = await fetch(`/api/sales/leads/${leadId}/scan-stream`, {
         method: 'POST',
@@ -1462,37 +1450,8 @@ export default function SalesLeadDetailPage() {
     )
   }
 
-  function addInventoryItem(room = 'Unassigned') {
-    setInventory(current => [...current, { id: `inv-${Date.now()}`, room, name: '', qty: 1, cubicFeet: 0, weightLbs: 0, included: true }])
-  }
-
   function removeInventoryItem(index: number) {
-    const removed = inventory[index]
-    if (!removed) return
     setInventory(current => current.filter((_, i) => i !== index))
-    // Clear previous undo timer
-    setUndoItem(prev => {
-      if (prev) clearTimeout(prev.timer)
-      const timer = window.setTimeout(() => setUndoItem(null), 6000)
-      return { item: removed, index, timer }
-    })
-  }
-
-  function undoRemoveInventoryItem() {
-    if (!undoItem) return
-    clearTimeout(undoItem.timer)
-    setInventory(current => {
-      const next = [...current]
-      next.splice(undoItem.index, 0, undoItem.item)
-      return next
-    })
-    setUndoItem(null)
-  }
-
-  function addRoomSection() {
-    const room = normalizeRoomName(newRoomName)
-    addInventoryItem(room)
-    setNewRoomName('')
   }
 
   function addPresetItem(presetId: string) {
@@ -2263,17 +2222,6 @@ export default function SalesLeadDetailPage() {
               >
                 Timeline
               </button>
-              <button
-                onClick={() => setActiveTab('inventory')}
-                className={`-mb-px flex items-center gap-2 border-b-2 px-3 pb-3 pt-1 text-sm font-medium transition ${activeTab === 'inventory' ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}
-              >
-                Inventory
-                {inventoryMetrics.totalCubicFeet > 0 && (
-                  <span className="rounded-full bg-[rgba(34,72,56,0.1)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--app-accent)]">
-                    {inventoryMetrics.totalCubicFeet} cu ft
-                  </span>
-                )}
-              </button>
               {lead.email && (
                 <button
                   onClick={() => { setActiveTab('emails'); if (lead.id) void fetchLeadEmails(lead.id) }}
@@ -2326,63 +2274,6 @@ export default function SalesLeadDetailPage() {
               onLeadUpdate={setLead}
               onNoteAdded={mergeFollowUpLog}
             />
-            )}
-            {activeTab === 'inventory' && (
-              <div className="flex-1 overflow-y-auto">
-                {/* Scan progress banner */}
-                {scanProgress && (
-                  <div className="border-b border-[var(--app-line)] bg-[var(--app-bg)] px-5 py-3">
-                    <div className="mb-2 flex items-center justify-between text-xs font-medium text-[var(--app-ink)]">
-                      <span>📷 {scanProgress.status}</span>
-                      {scanProgress.totalBatches > 0 && (
-                        <span className="text-[var(--app-muted)]">{scanProgress.batch}/{scanProgress.totalBatches} batches</span>
-                      )}
-                    </div>
-                    {scanProgress.totalBatches > 0 && (
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--app-line)]">
-                        <div
-                          className="h-full rounded-full bg-[var(--app-accent)] transition-all duration-500"
-                          style={{ width: `${Math.round((scanProgress.batch / scanProgress.totalBatches) * 100)}%` }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Items populating in real-time */}
-                {inventory.length === 0 && !scanProgress ? (
-                  <div className="p-5 text-sm text-[var(--app-muted)]">
-                    No inventory yet. Use the Scan button on the left after entering the origin address, or add items manually from the panel below.
-                  </div>
-                ) : (
-                  <div className="divide-y divide-[var(--app-line)]">
-                    {inventory.map((item, idx) => (
-                      <div key={idx} className="flex items-start justify-between gap-3 px-5 py-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">{item.room}</span>
-                            {!item.included && <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-[10px] text-stone-500">excluded</span>}
-                          </div>
-                          <div className="mt-0.5 text-sm font-medium text-[var(--app-ink)]">
-                            {(item.qty ?? 1) > 1 ? `${item.qty}× ` : ''}{item.name}{item.size ? ` · ${item.size}` : ''}
-                          </div>
-                          {item.notes && <div className="mt-0.5 text-xs text-[var(--app-muted)]">{item.notes}</div>}
-                        </div>
-                        <div className="shrink-0 text-right">
-                          <div className="text-sm font-semibold text-[var(--app-ink)]">{item.cubicFeet} cu ft</div>
-                          <div className="text-xs text-[var(--app-muted)]">{item.weightLbs} lbs</div>
-                        </div>
-                      </div>
-                    ))}
-                    {scanProgress && (
-                      <div className="flex items-center gap-2 px-5 py-3 text-xs text-[var(--app-muted)]">
-                        <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-[var(--app-accent)]" />
-                        Scanning next batch…
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
             )}
             {activeTab === 'emails' && (
               <div className="flex h-full flex-col overflow-hidden">
@@ -2613,250 +2504,6 @@ export default function SalesLeadDetailPage() {
                 </div>
               </div>
             )}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-        <div className="space-y-6">
-          <div className="crm-panel">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <div className="crm-label">Inventory + Scope</div>
-                <div className="mt-2 text-xl font-semibold text-stone-900">Build the inventory before you price.</div>
-                <p className="mt-2 crm-helper">AI can give you a fast draft. Reps still decide what is actually included in the move.</p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {lead.supabaseListing && (
-                  <button
-                    onClick={() => void refresh(lead.id)}
-                    disabled={inventoryLoading}
-                    className="crm-button disabled:opacity-60"
-                  >
-                    {inventoryLoading ? 'Loading scan...' : 'Reload scan'}
-                  </button>
-                )}
-                {lead.supabaseListing?.carouselphotos && lead.supabaseListing.carouselphotos.length > 0 && inventoryMetrics.inventory.length === 0 && (
-                  <button
-                    onClick={() => void generateInventoryFromPhotos(true)}
-                    disabled={analysisBusy}
-                    className="crm-button disabled:opacity-60"
-                  >
-                    {analysisBusy ? 'Analyzing photos...' : 'Generate from MLS photos'}
-                  </button>
-                )}
-                {lead.supabaseListing?.carouselphotos && lead.supabaseListing.carouselphotos.length > 0 && inventoryMetrics.inventory.length > 0 && (
-                  <button
-                    onClick={() => void generateInventoryFromPhotos(true)}
-                    disabled={analysisBusy}
-                    className="crm-button disabled:opacity-60"
-                  >
-                    {analysisBusy ? 'Re-scanning photos...' : 'Re-scan all MLS photos'}
-                  </button>
-                )}
-                <button onClick={() => addInventoryItem()} className="crm-button">Add item</button>
-                <input
-                  value={newRoomName}
-                  onChange={event => setNewRoomName(event.target.value)}
-                  className="crm-input min-w-40"
-                  placeholder="Add room"
-                />
-                <button onClick={addRoomSection} className="crm-button">Create room</button>
-              </div>
-            </div>
-            {lead.supabaseListing && (
-              <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-800">
-                <div>Direct mail match: {lead.supabaseListing.address}</div>
-                {lead.supabaseListing.furniture_scan_date && inventoryMetrics.inventory.length > 0 && (
-                  <div className="mt-1 text-xs text-emerald-700">Saved inventory scan loaded into this lead.</div>
-                )}
-                {lead.supabaseListing.furniture_scan_date && !inventoryLoading && inventoryMetrics.inventory.length === 0 && (
-                  <div className="mt-1 text-xs text-amber-700">
-                    Listing metadata says a scan exists, but there is no saved inventory record for this property in `listing_inventory_scans`.
-                  </div>
-                )}
-              </div>
-            )}
-            <div className="mt-5 grid gap-3 sm:grid-cols-3">
-              <div className="crm-kpi">
-                <div className="crm-label">Inventory Lines</div>
-                <div className="crm-value">{inventoryMetrics.inventory.length}</div>
-              </div>
-              <div className="crm-kpi">
-                <div className="crm-label">Estimated Items</div>
-                <div className="crm-value">{inventoryMetrics.totalItems}</div>
-              </div>
-                <div className="crm-kpi">
-                  <div className="crm-label">Estimated Cubic Feet</div>
-                  <div className="crm-value">{inventoryMetrics.totalCubicFeet}</div>
-                </div>
-                <div className="crm-kpi">
-                  <div className="crm-label">Estimated Weight</div>
-                  <div className="crm-value">{inventoryMetrics.totalWeightLbs}</div>
-                </div>
-            </div>
-            <div className="mt-5 space-y-3">
-              <div className="crm-subsection">
-                <div className="crm-label">Preset Library</div>
-                <div className="mt-2 text-sm text-stone-700">Use this to add anything the scan missed without rebuilding the whole scope manually.</div>
-                <div className="mt-3 flex flex-col gap-3">
-                  <input
-                    value={presetSearch}
-                    onChange={event => setPresetSearch(event.target.value)}
-                    className="crm-input"
-                    placeholder="Search common items like sofa, dresser, freezer, treadmill..."
-                  />
-                  <div className="grid gap-2 md:grid-cols-2">
-                    {presetMatches.map(preset => (
-                      <button key={preset.id} onClick={() => addPresetItem(preset.id)} className="flex items-center justify-between rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-left transition hover:border-stone-900 hover:bg-white">
-                        <span>
-                          <span className="block text-sm text-stone-800">{preset.label}</span>
-                          <span className="block text-xs text-stone-500">{preset.item.cubicFeet || 0} cu ft</span>
-                        </span>
-                        <span className="text-xs text-stone-500">{preset.item.weightLbs || 0} lbs</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              {inventoryLoading ? (
-                <div className="rounded-2xl border border-dashed border-stone-200 px-4 py-6 text-sm text-stone-500">
-                  Loading saved inventory scan from the matched listing...
-                </div>
-              ) : inventory.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-stone-200 px-4 py-6 text-sm text-stone-500">
-                  No inventory entered yet. Add items manually or pull them from the MLS scan before building the quote.
-                </div>
-              ) : (
-                groupedInventory.map(([roomName, roomItems]) => (
-                  <InventoryRoomSection
-                    key={roomName}
-                    roomName={roomName}
-                    roomItems={roomItems}
-                    roomOptions={roomOptions}
-                    onAddToRoom={addInventoryItem}
-                    onUpdateItem={updateInventoryItem}
-                    onToggleItem={toggleInventoryItem}
-                    onRemoveItem={removeInventoryItem}
-                  />
-                ))
-              )}
-            </div>
-
-            {/* Undo toast */}
-            {undoItem && (
-              <div className="mt-3 flex items-center justify-between rounded-xl bg-stone-800 px-4 py-2.5 text-sm text-white">
-                <span className="text-stone-300">Removed <span className="font-medium text-white">{undoItem.item.name || undoItem.item.item}</span></span>
-                <button onClick={undoRemoveInventoryItem} className="ml-4 font-semibold text-amber-400 hover:text-amber-300 transition-colors">
-                  Undo
-                </button>
-              </div>
-            )}
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <label>
-                <span className="crm-label">Move Reason</span>
-                <textarea value={moveReason} onChange={event => setMoveReason(event.target.value)} className="crm-input mt-2 min-h-24" />
-              </label>
-              <label>
-                <span className="crm-label">Internal Notes</span>
-                <textarea value={notes} onChange={event => setNotes(event.target.value)} className="crm-input mt-2 min-h-24" />
-              </label>
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="crm-kpi">
-              <div className="crm-label">Items</div>
-              <div className="crm-value">{inventoryMetrics.totalItems}</div>
-            </div>
-            <div className="crm-kpi">
-              <div className="crm-label">Cubic Feet</div>
-              <div className="crm-value">{inventoryMetrics.totalCubicFeet}</div>
-            </div>
-            <div className="crm-kpi">
-              <div className="crm-label">Weight</div>
-              <div className="crm-value">{inventoryMetrics.totalWeightLbs}</div>
-            </div>
-            <div className="crm-kpi">
-              <div className="crm-label">Current Quote</div>
-              <div className="crm-value text-lg">{quote ? formatMoney(quote.total) : '—'}</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          {listingPhotos.length > 0 && (
-            <div className="crm-panel">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="crm-label">MLS Photos</div>
-                  <div className="mt-2 text-sm text-stone-700">
-                    {listingPhotos.length} photos linked to this listing.
-                    {analysisBusy ? ' Reviewing all images now.' : ' Keep this visible while reviewing the AI draft.'}
-                  </div>
-                </div>
-                {analysisBusy && (
-                  <div className="rounded-full bg-stone-900 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-white">
-                    Scanning
-                  </div>
-                )}
-              </div>
-              {analysisBusy && (
-                <div className="mt-3">
-                  <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-[0.14em] text-stone-500">
-                    <span>Scan Progress</span>
-                    <span>{Math.min(activePhotoIndex + 1, listingPhotos.length)} / {listingPhotos.length} photos</span>
-                  </div>
-                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-stone-200">
-                    <div
-                      className="h-full rounded-full bg-[var(--app-accent)] transition-all duration-500"
-                      style={{ width: `${(Math.min(activePhotoIndex + 1, listingPhotos.length) / Math.max(listingPhotos.length, 1)) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-              <div className="mt-4 overflow-hidden rounded-3xl border border-stone-200 bg-stone-100">
-                <img
-                  src={listingPhotos[activePhotoIndex]}
-                  alt="MLS listing reference"
-                  className={`h-72 w-full object-cover transition duration-500 ${analysisBusy ? 'scale-[1.02] opacity-95' : 'opacity-100'}`}
-                />
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <span className="crm-chip">{analysisBusy ? 'AI reviewing full set' : 'Photo source locked'}</span>
-                <span className="crm-chip">{listingPhotos.length} photos</span>
-                <span className="crm-chip">{hasGeneratedInventory ? 'Draft on lead' : 'No saved draft yet'}</span>
-                {analysisBusy ? <span className="crm-chip">{Math.min(activePhotoIndex + 1, listingPhotos.length)} scanned</span> : null}
-              </div>
-              <div className="mt-4 grid grid-cols-4 gap-2">
-                {listingPhotos.map((photo, index) => (
-                  <button
-                    key={`${photo}-${index}`}
-                    type="button"
-                    onClick={() => setActivePhotoIndex(index)}
-                    className={`overflow-hidden rounded-2xl border ${activePhotoIndex === index ? 'border-stone-900' : 'border-stone-200'}`}
-                  >
-                    <img src={photo} alt={`MLS thumbnail ${index + 1}`} className="h-20 w-full object-cover" />
-                  </button>
-                ))}
-              </div>
-              <div className="mt-3 text-xs leading-5 text-stone-500">
-                {analysisBusy
-                  ? 'The inventory will save back to the listing cache after this scan finishes.'
-                  : 'Use Re-scan all MLS photos whenever you want to refresh the cached inventory draft from the full photo set.'}
-              </div>
-            </div>
-          )}
-
-          <div className="crm-panel">
-            <div className="crm-label">Next Action</div>
-            <div className="mt-3 text-sm leading-6 text-stone-700">
-              {quote
-                ? `Quote ${quote.number} is ${quote.status}. ${lead.followUpDate ? `Follow up on ${formatDate(lead.followUpDate)}.` : 'Set a follow-up date.'}`
-                : inventoryMetrics.totalCubicFeet > 0
-                  ? 'Inventory is on file. Build the quote next, then review price overrides before sharing.'
-                  : 'Finish the intake, add inventory, and then build the first quote.'}
-            </div>
           </div>
         </div>
       </div>
