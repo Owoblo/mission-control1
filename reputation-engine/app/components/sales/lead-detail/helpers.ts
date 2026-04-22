@@ -33,6 +33,7 @@ export function buildLeadSignature(payload: {
   email: string
   moveDate: string
   moveType?: string
+  branch?: string
   source: string
   originAddress: string
   originCity: string
@@ -41,10 +42,16 @@ export function buildLeadSignature(payload: {
   destCity: string
   destAccess?: string
   parkingNotes?: string
+  realtorBrokerage?: string
   moveReason: string
   notes: string
   stage?: string
+  contextFlag?: string
   followUpDate: string
+  assignedRepName?: string
+  assignedRepUserId?: string
+  estimateDate?: string
+  estimateTime?: string
   inventory: InventoryItem[]
 }) {
   return JSON.stringify(payload)

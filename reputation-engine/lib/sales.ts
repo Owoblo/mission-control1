@@ -1,4 +1,5 @@
 import type {
+  LeadKind,
   CRMLead,
   CRMQuote,
   JobFactors,
@@ -10,9 +11,15 @@ import type {
   EstimateRouteContext,
   QuoteLineItem,
   QuoteStatus,
+  SalesBranch,
   SalesDashboardSummary,
   SalesLeadStage,
 } from './types'
+
+function normalizeOptionalText(value?: string | null) {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : undefined
+}
 
 export const SALES_LEAD_STAGES: Array<{ id: SalesLeadStage; label: string }> = [
   { id: 'new', label: 'New Lead' },
@@ -45,6 +52,56 @@ export const LEAD_CONTEXT_FLAGS: Array<{ id: string; label: string }> = [
 ]
 
 export const DEPOSIT_METHODS = ['E-Transfer', 'Credit Card', 'Cash', 'Cheque', 'Other']
+
+export const SALES_BRANCHES: Array<{ id: SalesBranch; label: string }> = [
+  { id: 'windsor', label: 'Windsor' },
+  { id: 'waterloo', label: 'Waterloo / KW' },
+  { id: 'london', label: 'London' },
+  { id: 'ottawa', label: 'Ottawa' },
+]
+
+const SALES_BRANCH_AREAS: Record<SalesBranch, string[]> = {
+  windsor: ['windsor', 'tecumseh', 'lasalle', 'la salle', 'amherstburg', 'essex', 'lakeshore', 'belle river', 'leamington', 'kingsville', 'chatham', 'chatham kent'],
+  waterloo: ['waterloo', 'kitchener', 'cambridge', 'guelph', 'elmira', 'st jacobs', 'st. jacobs', 'baden', 'kw', 'k w'],
+  london: ['london', 'st thomas', 'st. thomas', 'woodstock', 'strathroy', 'dorchester', 'ingersoll', 'komoka', 'lambeth'],
+  ottawa: ['ottawa', 'kanata', 'orleans', 'orleans', 'orléans', 'nepean', 'barrhaven', 'gloucester', 'stittsville', 'manotick'],
+}
+
+function normalizeLocationText(...values: Array<string | null | undefined>) {
+  return values
+    .filter(Boolean)
+    .join(' ')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+export function getSalesBranchLabel(branch?: SalesBranch) {
+  return SALES_BRANCHES.find(item => item.id === branch)?.label || 'Unassigned'
+}
+
+export function detectSalesBranchFromLocation(...values: Array<string | null | undefined>): SalesBranch | undefined {
+  const normalized = normalizeLocationText(...values)
+  if (!normalized) return undefined
+
+  for (const [branch, aliases] of Object.entries(SALES_BRANCH_AREAS) as Array<[SalesBranch, string[]]>) {
+    if (aliases.some(alias => normalized.includes(normalizeLocationText(alias)))) {
+      return branch
+    }
+  }
+
+  return undefined
+}
+
+export function isLocationWithinBranchServiceArea(branch: SalesBranch | undefined, ...values: Array<string | null | undefined>) {
+  if (!branch) return false
+  const normalized = normalizeLocationText(...values)
+  if (!normalized) return false
+  return SALES_BRANCH_AREAS[branch].some(alias => normalized.includes(normalizeLocationText(alias)))
+}
 
 export const QUOTE_STATUSES: Array<{ id: QuoteStatus; label: string }> = [
   { id: 'draft', label: 'Draft' },
@@ -143,6 +200,7 @@ export function calculateLeadScore(lead: CRMLead) {
   else if (lead.source === 'google') score += 20
   else if (lead.source === 'direct_mail') score += 15
   else if (lead.source === 'repeat') score += 30
+  else if (lead.source === 'destination_opportunity') score += 12
 
   if (lead.stage === 'quoted') score += 20
   else if (lead.stage === 'booked') score += 40
@@ -153,6 +211,7 @@ export function calculateLeadScore(lead: CRMLead) {
   if ((lead.inventory || []).length > 0) score += 10
   if (lead.phone) score += 5
   if (lead.quoteId) score += 15
+  if (lead.leadKind === 'realtor_opportunity') score += 5
 
   const daysSince = (Date.now() - new Date(lead.createdAt).getTime()) / (1000 * 60 * 60 * 24)
   if (daysSince < 3) score += 10
@@ -161,17 +220,42 @@ export function calculateLeadScore(lead: CRMLead) {
   return Math.max(0, Math.min(100, score))
 }
 
+export function getLeadAssignedRepName(lead?: Pick<CRMLead, 'assignedRep' | 'assignedRepName'> | null) {
+  return normalizeOptionalText(lead?.assignedRepName) || normalizeOptionalText(lead?.assignedRep)
+}
+
+export function getLeadAssignedRepKey(lead?: Pick<CRMLead, 'assignedRep' | 'assignedRepName' | 'assignedRepUserId'> | null) {
+  return normalizeOptionalText(lead?.assignedRepUserId) || getLeadAssignedRepName(lead)
+}
+
 export function normalizeLead(lead: CRMLead): CRMLead {
+  const leadKind: LeadKind = lead.leadKind || 'customer'
+  const assignedRepName = getLeadAssignedRepName(lead)
+  const assignedRepUserId = normalizeOptionalText(lead.assignedRepUserId)
+  const lastTouchedByName = normalizeOptionalText(lead.lastTouchedByName)
+  const lastTouchedByUserId = normalizeOptionalText(lead.lastTouchedByUserId)
+  const lastTouchedAt = normalizeOptionalText(lead.lastTouchedAt)
   return {
     ...lead,
+    leadKind,
+    primaryContactRole: lead.primaryContactRole || (leadKind === 'realtor_opportunity' ? 'realtor' : 'customer'),
     stage: lead.stage || 'new',
     callLogs: Array.isArray(lead.callLogs) ? lead.callLogs : [],
     inventory: Array.isArray(lead.inventory) ? lead.inventory : [],
+    mediaAssets: Array.isArray(lead.mediaAssets) ? lead.mediaAssets : [],
     totalItems: lead.totalItems ?? lead.inventory?.length ?? 0,
     totalCubicFeet: lead.totalCubicFeet ?? 0,
     totalWeightLbs: lead.totalWeightLbs ?? 0,
     createdAt: lead.createdAt || new Date().toISOString().slice(0, 10),
     leadScore: lead.leadScore ?? calculateLeadScore(lead),
+    assignedRep: assignedRepName,
+    assignedRepName,
+    assignedRepUserId,
+    leadOwnerStatus: assignedRepName ? lead.leadOwnerStatus || 'assigned' : 'unassigned',
+    ownedAt: assignedRepName ? normalizeOptionalText(lead.ownedAt) : undefined,
+    lastTouchedByName,
+    lastTouchedByUserId,
+    lastTouchedAt,
   }
 }
 
@@ -347,11 +431,30 @@ const DISASSEMBLY_KEYWORDS = [
   'bunk bed',
   'crib',
   'dining table',
-  'desk',
+  'executive desk',
+  'corner desk',
+  'l-shaped desk',
+  'standing desk',
+  'desk frame',
+  'workstation desk',
   'china cabinet',
   'hutch',
   'trampoline',
 ]
+
+// Names that contain a keyword but should NOT be flagged for disassembly
+const DISASSEMBLY_EXCLUSIONS = [
+  'desk chair',   // "office desk chair", "ergonomic desk chair" — chairs, not desks
+  'patio set',
+  'patio table',
+  'office table',
+]
+
+export function needsDisassembly(name: string): boolean {
+  const lower = name.toLowerCase()
+  if (DISASSEMBLY_EXCLUSIONS.some(ex => lower.includes(ex))) return false
+  return DISASSEMBLY_KEYWORDS.some(kw => lower.includes(kw))
+}
 
 function getTruckRateMultiplier(truckCount: number) {
   if (truckCount >= 3) return THREE_TRUCK_RATE_MULTIPLIER
@@ -367,9 +470,8 @@ function estimateRequiredTrucks(totalCubicFeet: number, totalWeightLbs: number) 
 
 export function suggestDisassemblyCount(inventory: InventoryItem[]): number {
   return inventory.reduce((count, item) => {
-    const name = (item.name || item.item || '').toLowerCase()
     if (item.included === false) return count
-    return DISASSEMBLY_KEYWORDS.some(keyword => name.includes(keyword))
+    return needsDisassembly(item.name || item.item || '')
       ? count + Math.max(1, Number(item.qty || 1))
       : count
   }, 0)
@@ -442,20 +544,32 @@ export function computeJobPenalties(factors: JobFactors): {
   // Disassembly / reassembly
   const disassemblyCount = factors.disassemblyItemCount || 0
   if (disassemblyCount > 0) {
+    const mode = factors.disassemblyMode || 'both'
+    // Both = 0.33h/item (full service), single side = 0.2h/item
+    const hoursPerItem = mode === 'both' ? 0.33 : 0.2
+    const modeLabel = mode === 'both'
+      ? 'Disassembly + reassembly'
+      : mode === 'disassemble_only'
+        ? 'Disassembly only (crew reassembles at origin, customer handles destination)'
+        : 'Reassembly only (customer disassembles, crew reassembles at destination)'
     penalties.push({
-      label: `Disassembly + reassembly – ${disassemblyCount} furniture assembly item${disassemblyCount > 1 ? 's' : ''}`,
-      hours: Math.round(disassemblyCount * 0.33 * 4) / 4,
+      label: `${modeLabel} – ${disassemblyCount} item${disassemblyCount > 1 ? 's' : ''}`,
+      hours: Math.round(disassemblyCount * hoursPerItem * 4) / 4,
       category: 'disassembly',
       details: ['Beds, dining tables, hutches, desks, trampolines, similar freestanding assemblies'],
     })
   }
 
   // Hidden inventory — adds cubic feet (no direct hour penalty, feeds back into labor calc)
+  // Boxes: first 50 are standard and included — only count the overage above 50
+  const BOX_STANDARD_ALLOWANCE = 50
+  const totalBoxes = factors.estimatedBoxes || 0
+  const billableBoxes = Math.max(0, totalBoxes - BOX_STANDARD_ALLOWANCE)
   const extraCubicFeet =
     (factors.garageCubicFeet || 0) +
     (factors.basementCubicFeet || 0) +
     (factors.shedCubicFeet || 0) +
-    (factors.estimatedBoxes || 0) * 1.5
+    billableBoxes * 1.5
 
   if ((factors.garageCubicFeet || 0) > 0) {
     penalties.push({ label: `Garage – ${factors.garageCubicFeet} cu ft (not in MLS photos)`, hours: 0, category: 'hidden_inventory' })
@@ -466,9 +580,11 @@ export function computeJobPenalties(factors: JobFactors): {
   if ((factors.shedCubicFeet || 0) > 0) {
     penalties.push({ label: `Shed – ${factors.shedCubicFeet} cu ft (not in MLS photos)`, hours: 0, category: 'hidden_inventory' })
   }
-  if ((factors.estimatedBoxes || 0) > 0) {
+  if (totalBoxes > 0) {
     penalties.push({
-      label: `${factors.estimatedBoxes} boxes (~${Math.round((factors.estimatedBoxes || 0) * 1.5)} cu ft) – customer estimate`,
+      label: totalBoxes <= BOX_STANDARD_ALLOWANCE
+        ? `${totalBoxes} boxes – included in standard pricing`
+        : `${totalBoxes} boxes – ${billableBoxes} over standard allowance (~${Math.round(billableBoxes * 1.5)} cu ft added)`,
       hours: 0,
       category: 'hidden_inventory',
     })
@@ -576,7 +692,7 @@ export function estimateLeadQuote(
     .filter(item => item.included !== false)
     .flatMap(item => {
       const name = (item.name || item.item || '').toLowerCase()
-      if (!DISASSEMBLY_KEYWORDS.some(kw => name.includes(kw))) return []
+      if (!needsDisassembly(name)) return []
       const qty = Math.max(1, Number(item.qty || 1))
       const displayName = item.name || item.item || ''
       return qty > 1 ? [`${qty}× ${displayName}`] : [displayName]
@@ -597,9 +713,10 @@ export function estimateLeadQuote(
     : autoDisassemblyCount > 0
       ? { disassemblyItemCount: autoDisassemblyCount }
       : undefined
-  const { penalties, extraHours, extraCubicFeet } = activeFactors
+  const { penalties, extraHours: penaltyHoursFromFactors, extraCubicFeet } = activeFactors
     ? computeJobPenalties(activeFactors)
     : { penalties: [], extraHours: 0, extraCubicFeet: 0 }
+  let extraHours = penaltyHoursFromFactors
 
   const baseCubicFeet = lead.totalCubicFeet || metrics.totalCubicFeet
   const totalCubicFeet = baseCubicFeet + extraCubicFeet
@@ -607,6 +724,20 @@ export function estimateLeadQuote(
   const suggestedCrew = Number(overrides?.crewSize || suggestCrewSize(totalWeightLbs, totalCubicFeet, metrics.includedInventory))
   const suggestedTruckCount = suggestTruckCount(totalCubicFeet, totalWeightLbs, lead.moveType)
   const truckCount = Number(overrides?.truckCount || activeFactors?.truckCountOverride || suggestedTruckCount)
+
+  // Multi-truck coordination overhead: each additional truck adds ~30 min for
+  // parallel loading logistics, crew briefing, and staging at origin.
+  // Only applies to local full-service moves (not long-distance, labor-only, or packing).
+  if (!isLongDistance && !isPacking && !isLaborOnly && truckCount >= 2) {
+    const coordHours = roundQuarterHour(0.5 * (truckCount - 1))
+    penalties.push({
+      label: `${truckCount}-truck coordination — load sequence, parallel staging, crew sync`,
+      hours: coordHours,
+      category: 'access',
+    })
+    extraHours += coordHours
+  }
+
   const threeTruckReview = truckCount >= 3
   const crewMinimum = truckCount >= 3 ? 6 : truckCount === 2 ? 4 : 1
   const crewSizeOverride = activeFactors?.crewSizeOverride

@@ -59,6 +59,7 @@ export type DestinationOpportunityStatus = 'outside_area' | 'no_match' | 'genera
 export type RealtorWarmth = 'warm' | 'cold' | 'unknown'
 export type RealtorOutreachStatus = 'not_started' | 'queued' | 'sent' | 'responded' | 'closed'
 export type AutomationStatus = 'idle' | 'active' | 'paused' | 'handoff' | 'do_not_contact'
+export type LeadOwnerStatus = 'unassigned' | 'assigned' | 'reassigned' | 'handoff'
 export type ConversationChannel = 'sms' | 'email'
 export type ConversationThreadStatus = 'open' | 'human_handoff' | 'closed'
 export type AutomationJobKind = 'lead_response' | 'quote_followup' | 'survey_followup' | 'move_reminder' | 'stale_reactivation'
@@ -124,6 +125,20 @@ export interface InventoryItem {
   exclusionReason?: string
   notes?: string
   size?: string
+}
+
+export interface LeadMediaAsset {
+  id: string
+  url: string
+  kind: 'image' | 'video'
+  source: 'survey' | 'rep_upload' | 'mms'
+  room?: string
+  filename?: string
+  mimeType?: string
+  uploadedAt: string
+  uploadedByUserId?: string
+  uploadedByName?: string
+  notes?: string
 }
 
 export interface ListingMatch {
@@ -363,6 +378,9 @@ export interface CRMLead {
   automationHandoffAt?: string
   automationHandoffReason?: string
   automationLastJobAt?: string
+  lastMissedCallAt?: string
+  lastMissedCallAutoReplyAt?: string
+  lastVoicemailAt?: string
   automatedQuoteSentAt?: string
   automatedQuoteId?: string
   automatedQuoteChannel?: ConversationChannel
@@ -370,6 +388,7 @@ export interface CRMLead {
   qualificationState?: LeadQualificationState
   directMailAttributed?: boolean
   inventory?: InventoryItem[]
+  mediaAssets?: LeadMediaAsset[]
   totalItems?: number
   totalCubicFeet?: number
   totalWeightLbs?: number
@@ -382,6 +401,13 @@ export interface CRMLead {
   // Context + assignment
   contextFlag?: string
   assignedRep?: string
+  assignedRepName?: string
+  assignedRepUserId?: string
+  leadOwnerStatus?: LeadOwnerStatus
+  ownedAt?: string
+  lastTouchedByUserId?: string
+  lastTouchedByName?: string
+  lastTouchedAt?: string
   // Crew assignment (array of app_user IDs)
   assignedCrew?: string[]
   crewNote?: string

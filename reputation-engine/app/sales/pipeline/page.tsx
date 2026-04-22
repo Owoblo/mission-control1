@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { Suspense, useEffect, useMemo, useState, type MouseEvent } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { deleteSalesLead, fetchSalesOverview, updateSalesLead } from '@/lib/sales-api'
-import { formatDate, formatMoney } from '@/lib/sales'
+import { formatDate, formatMoney, getLeadAssignedRepName, getSalesBranchLabel, SALES_BRANCHES } from '@/lib/sales'
+import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import type { CRMLead, CRMQuote } from '@/lib/types'
 
 const COLUMN_ORDER: CRMLead['stage'][] = ['new', 'contacted', 'estimate_scheduled', 'estimate_completed', 'pricing', 'quoted', 'nurture', 'booked', 'lost']
@@ -30,10 +31,12 @@ const SOURCE_LABELS: Record<string, string> = {
   website_form: 'Website Form',
   manual: 'Manual Entry',
   direct_mail: 'Direct Mail',
+  destination_opportunity: 'Destination Opportunity',
 }
 
 function SalesPipelineContent() {
   const searchParams = useSearchParams()
+  const currentUser = useCurrentUser()
   const query = searchParams.get('q')?.trim().toLowerCase() ?? ''
   const [leads, setLeads] = useState<CRMLead[]>([])
   const [quotes, setQuotes] = useState<CRMQuote[]>([])
@@ -45,6 +48,8 @@ function SalesPipelineContent() {
   const [filterSource, setFilterSource] = useState('')
   const [filterCity, setFilterCity] = useState('')
   const [filterRep, setFilterRep] = useState('')
+  const [filterBranch, setFilterBranch] = useState('')
+  const [ownershipView, setOwnershipView] = useState<'all' | 'mine' | 'unassigned'>('all')
 
   // Drag-and-drop state
   const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null)
@@ -83,6 +88,12 @@ function SalesPipelineContent() {
       setViewMode('list')
     }
   }, [])
+
+  useEffect(() => {
+    if (currentUser?.role === 'sales_rep') {
+      setOwnershipView(current => (current === 'all' ? 'mine' : current))
+    }
+  }, [currentUser?.role])
 
   function removeLead(event: MouseEvent, lead: CRMLead) {
     event.preventDefault()
@@ -163,11 +174,18 @@ function SalesPipelineContent() {
   }, [leads])
 
   const repOptions = useMemo(() => {
-    const set = new Set(leads.map(l => l.assignedRep).filter(Boolean) as string[])
-    return Array.from(set).sort()
+    const options = new Map<string, string>()
+    leads.forEach(lead => {
+      const label = getLeadAssignedRepName(lead)
+      if (!label) return
+      options.set(lead.assignedRepUserId || label, label)
+    })
+    return Array.from(options.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label))
   }, [leads])
 
-  const activeFilterCount = [filterSource, filterCity, filterRep].filter(Boolean).length
+  const activeFilterCount = [filterSource, filterCity, filterRep, filterBranch].filter(Boolean).length
 
   const grouped = useMemo(() => {
     return COLUMN_ORDER.map(stage => ({
@@ -186,6 +204,9 @@ function SalesPipelineContent() {
             lead.destAddress,
             lead.destCity,
             lead.moveType,
+            lead.branch,
+            lead.realtorName,
+            lead.realtorBrokerage,
           ]
             .filter(Boolean)
             .join(' ')
@@ -194,10 +215,19 @@ function SalesPipelineContent() {
         })
         .filter(lead => !filterSource || lead.source === filterSource)
         .filter(lead => !filterCity || lead.originCity === filterCity)
-        .filter(lead => !filterRep || lead.assignedRep === filterRep)
+        .filter(lead => !filterRep || (lead.assignedRepUserId ? lead.assignedRepUserId === filterRep : getLeadAssignedRepName(lead) === filterRep))
+        .filter(lead => !filterBranch || lead.branch === filterBranch)
+        .filter(lead => {
+          if (ownershipView === 'all') return true
+          if (ownershipView === 'unassigned') return !lead.assignedRepUserId && !getLeadAssignedRepName(lead)
+          return (
+            (!!currentUser?.userId && lead.assignedRepUserId === currentUser.userId) ||
+            (!!currentUser?.name && getLeadAssignedRepName(lead) === currentUser.name)
+          )
+        })
         .sort((a, b) => (b.leadScore || 0) - (a.leadScore || 0)),
     }))
-  }, [leads, query, filterSource, filterCity, filterRep])
+  }, [leads, query, filterSource, filterCity, filterRep, filterBranch, ownershipView, currentUser?.name, currentUser?.userId])
   const visibleLeads = useMemo(() => grouped.flatMap(column => column.cards), [grouped])
 
   return (
@@ -234,6 +264,26 @@ function SalesPipelineContent() {
 
       {/* ── FILTER BAR ── */}
       <section className="flex flex-wrap items-center gap-2">
+        <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-1">
+          <button
+            onClick={() => setOwnershipView('all')}
+            className={`rounded-[6px] px-3 py-1.5 text-xs font-semibold ${ownershipView === 'all' ? 'bg-[var(--app-ink)] text-white' : 'text-[var(--app-muted)]'}`}
+          >
+            Team
+          </button>
+          <button
+            onClick={() => setOwnershipView('mine')}
+            className={`rounded-[6px] px-3 py-1.5 text-xs font-semibold ${ownershipView === 'mine' ? 'bg-[var(--app-ink)] text-white' : 'text-[var(--app-muted)]'}`}
+          >
+            My Leads
+          </button>
+          <button
+            onClick={() => setOwnershipView('unassigned')}
+            className={`rounded-[6px] px-3 py-1.5 text-xs font-semibold ${ownershipView === 'unassigned' ? 'bg-[var(--app-ink)] text-white' : 'text-[var(--app-muted)]'}`}
+          >
+            Unassigned
+          </button>
+        </div>
         <select
           value={filterSource}
           onChange={e => setFilterSource(e.target.value)}
@@ -262,14 +312,25 @@ function SalesPipelineContent() {
           className={`crm-input h-9 w-auto cursor-pointer py-0 text-sm ${filterRep ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : ''}`}
         >
           <option value="">All Reps</option>
-          {repOptions.map(r => (
-            <option key={r} value={r}>{r}</option>
+          {repOptions.map(rep => (
+            <option key={rep.value} value={rep.value}>{rep.label}</option>
+          ))}
+        </select>
+
+        <select
+          value={filterBranch}
+          onChange={e => setFilterBranch(e.target.value)}
+          className={`crm-input h-9 w-auto cursor-pointer py-0 text-sm ${filterBranch ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : ''}`}
+        >
+          <option value="">All Branches</option>
+          {SALES_BRANCHES.map(branch => (
+            <option key={branch.id} value={branch.id}>{branch.label}</option>
           ))}
         </select>
 
         {activeFilterCount > 0 && (
           <button
-            onClick={() => { setFilterSource(''); setFilterCity(''); setFilterRep('') }}
+            onClick={() => { setFilterSource(''); setFilterCity(''); setFilterRep(''); setFilterBranch('') }}
             className="flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 transition hover:bg-rose-100"
           >
             Clear {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} ✕
@@ -343,6 +404,16 @@ function SalesPipelineContent() {
                                 {lead.moveDateFlexible && (
                                   <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Pending close</span>
                                 )}
+                                {lead.branch ? (
+                                  <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-700">
+                                    {getSalesBranchLabel(lead.branch)}
+                                  </span>
+                                ) : null}
+                                {lead.leadKind === 'realtor_opportunity' ? (
+                                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                                    Realtor Lead
+                                  </span>
+                                ) : null}
                               </div>
                             </div>
                             <span className="mr-5 rounded-[4px] bg-[rgba(15,106,83,0.08)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-accent)]">
@@ -356,7 +427,7 @@ function SalesPipelineContent() {
                           <div className="mt-3 flex items-center justify-between border-t border-[var(--app-line)] pt-3 text-xs text-[var(--app-muted)]">
                             <span>{quote?.viewedAt ? `Viewed ${formatDate(quote.viewedAt)}` : lead.followUpDate ? `Follow up ${formatDate(lead.followUpDate)}` : 'No follow-up set'}</span>
                             <div className="flex items-center gap-1.5">
-                              {lead.assignedRep ? <span className="rounded-full bg-[var(--app-wash)] px-2 py-0.5 font-medium text-[var(--app-ink)]">{lead.assignedRep}</span> : null}
+                              {getLeadAssignedRepName(lead) ? <span className="rounded-full bg-[var(--app-wash)] px-2 py-0.5 font-medium text-[var(--app-ink)]">{getLeadAssignedRepName(lead)}</span> : null}
                               {lead.phone ? (
                                 <button
                                   onClick={e => { e.preventDefault(); e.stopPropagation(); window.dispatchEvent(new CustomEvent('crm:open-dialer', { detail: { phone: lead.phone, leadId: lead.id, name: lead.name } })) }}
@@ -403,7 +474,19 @@ function SalesPipelineContent() {
                   <div className="flex items-start justify-between gap-3 pr-12">
                     <div>
                       <div className="font-medium text-[var(--app-ink)]">{lead.name}</div>
-                      <div className="mt-1 text-xs text-[var(--app-muted)]">{COLUMN_LABELS[lead.stage]} · {lead.moveDate ? formatDate(lead.moveDate) : 'Date TBD'}</div>
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-[var(--app-muted)]">
+                        <span>{COLUMN_LABELS[lead.stage]} · {lead.moveDate ? formatDate(lead.moveDate) : 'Date TBD'}</span>
+                        {lead.branch ? (
+                          <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-700">
+                            {getSalesBranchLabel(lead.branch)}
+                          </span>
+                        ) : null}
+                        {lead.leadKind === 'realtor_opportunity' ? (
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                            Realtor Lead
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                   <div className="mt-3 text-sm text-[var(--app-muted)]">{lead.originCity || 'Origin TBD'} → {lead.destCity || 'Destination TBD'}</div>
@@ -440,12 +523,24 @@ function SalesPipelineContent() {
               >
                 <div>
                   <div className="font-medium text-[var(--app-ink)]">{lead.name}</div>
-                  <div className="mt-1 text-xs text-[var(--app-muted)]">{quote ? formatMoney(quote.total) : 'Estimate pending'}</div>
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-[var(--app-muted)]">
+                    <span>{quote ? formatMoney(quote.total) : 'Estimate pending'}</span>
+                    {lead.branch ? (
+                      <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-700">
+                        {getSalesBranchLabel(lead.branch)}
+                      </span>
+                    ) : null}
+                    {lead.leadKind === 'realtor_opportunity' ? (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                        Realtor Lead
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
                 <div className="text-[var(--app-ink)] capitalize">{COLUMN_LABELS[lead.stage]}</div>
                 <div className="text-[var(--app-muted)]">{lead.moveDate ? formatDate(lead.moveDate) : 'Date TBD'}</div>
                 <div className="text-[var(--app-muted)]">{lead.originCity || 'Origin TBD'} → {lead.destCity || 'Destination TBD'}</div>
-                <div className="text-[var(--app-muted)]">{lead.assignedRep || '—'}</div>
+                <div className="text-[var(--app-muted)]">{getLeadAssignedRepName(lead) || '—'}</div>
                 <div>
                   <button
                     onClick={event => void removeLead(event, lead)}

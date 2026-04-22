@@ -4,11 +4,12 @@ import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { uid } from '@/lib/sales'
 import { logEvent } from '@/lib/server/analytics'
 import { getSalesLead } from '@/lib/server/sales-repository'
+import { canAccessSalesWorkspace, canEditLead } from '@/lib/server/sales-permissions'
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
   try {
     const session = await getSessionUser()
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!canAccessSalesWorkspace(session)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { url, headers } = requireSupabaseEnv()
     const res = await fetch(
@@ -25,7 +26,7 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   try {
     const session = await getSessionUser()
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!canAccessSalesWorkspace(session)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const body = (await request.json()) as {
       actual_hours?: number
@@ -39,6 +40,10 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     const { url, headers } = requireSupabaseEnv()
     const lead = await getSalesLead(params.id)
+    if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
+    if (!canEditLead(session, lead)) {
+      return NextResponse.json({ error: 'You can only log outcomes for leads you own.' }, { status: 403 })
+    }
 
     // Get the quote for revenue
     let revenueCents = 0

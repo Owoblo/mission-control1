@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server'
-import { calculateLeadScore, normalizeLead, uid } from '@/lib/sales'
+import { applyDetectedBranch } from '@/lib/server/sales-opportunities'
+import { calculateLeadScore, getLeadAssignedRepName, normalizeLead, uid } from '@/lib/sales'
+import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { recordLeadCreatedAudit, recordLeadUpdateAudit } from '@/lib/server/sales-audit'
 import { listSalesLeads, saveSalesLead } from '@/lib/server/sales-repository'
+import { getSessionUser } from '@/lib/server/session'
 import { normalizeEmail, validateLeadPayload } from '@/lib/server/sales-validation'
 import type { CRMLead } from '@/lib/types'
 
@@ -31,9 +34,21 @@ function findMatchingActiveLead(leads: CRMLead[], phone?: string, email?: string
 
 export async function POST(request: Request) {
   try {
+    const session = await getSessionUser()
+    if (!canAccessSalesWorkspace(session)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const now = new Date().toISOString()
     const payload = (await request.json()) as Partial<CRMLead> & { forceNew?: boolean }
     const validated = validateLeadPayload(payload)
+    const creatorOwnsLead = session?.role === 'sales_rep'
+    const requestedAssignedRepName = payload.assignedRepName?.trim() || payload.assignedRep?.trim()
+    const requestedAssignedRepUserId = payload.assignedRepUserId?.trim()
+    const assignedRepName = requestedAssignedRepName || (creatorOwnsLead ? session?.name?.trim() : undefined)
+    const assignedRepUserId = requestedAssignedRepUserId || (creatorOwnsLead ? session?.userId : undefined)
     const existingLead = payload.forceNew
+      || payload.leadKind === 'realtor_opportunity'
       ? null
       : findMatchingActiveLead(await listSalesLeads(), validated.phone, validated.email)
 
@@ -52,20 +67,26 @@ export async function POST(request: Request) {
         moveReason: existingLead.moveReason || payload.moveReason?.trim(),
         notes: existingLead.notes || payload.notes?.trim(),
         followUpDate: existingLead.followUpDate || payload.followUpDate,
+        lastTouchedAt: now,
+        lastTouchedByUserId: session?.userId || existingLead.lastTouchedByUserId,
+        lastTouchedByName: session?.name?.trim() || existingLead.lastTouchedByName,
       })
 
-      const saved = await saveSalesLead({
+      const saved = await saveSalesLead(applyDetectedBranch({
         ...mergedLead,
         leadScore: calculateLeadScore(mergedLead),
-      })
+      }))
       await recordLeadUpdateAudit(existingLead, saved)
       return NextResponse.json(saved)
     }
 
-    const lead = normalizeLead({
+    const lead = applyDetectedBranch(normalizeLead({
       id: payload.id || uid('lead'),
       name: validated.name,
       stage: payload.stage || 'new',
+      branch: payload.branch,
+      leadKind: payload.leadKind || 'customer',
+      primaryContactRole: payload.primaryContactRole || 'customer',
       source: payload.source || 'other',
       inboundId: payload.inboundId,
       inboundMessage: payload.inboundMessage?.trim(),
@@ -75,12 +96,24 @@ export async function POST(request: Request) {
       moveType: validated.moveType || 'residential',
       originAddress: payload.originAddress?.trim(),
       originCity: payload.originCity?.trim(),
+      destAddress: payload.destAddress?.trim(),
       destCity: payload.destCity?.trim(),
+      originAccess: payload.originAccess?.trim(),
+      destAccess: payload.destAccess?.trim(),
+      parkingNotes: payload.parkingNotes?.trim(),
       supabaseListing: payload.supabaseListing || null,
       moveReason: payload.moveReason?.trim(),
       notes: payload.notes?.trim(),
       followUpDate: payload.followUpDate,
       quoteId: payload.quoteId,
+      assignedRep: assignedRepName,
+      assignedRepName,
+      assignedRepUserId,
+      leadOwnerStatus: assignedRepName ? 'assigned' : 'unassigned',
+      ownedAt: assignedRepName ? now : undefined,
+      lastTouchedAt: now,
+      lastTouchedByUserId: session?.userId,
+      lastTouchedByName: session?.name?.trim(),
       directMailAttributed: payload.directMailAttributed || false,
       inventory: payload.inventory || [],
       totalItems: payload.totalItems || 0,
@@ -90,10 +123,11 @@ export async function POST(request: Request) {
       callLogs: payload.callLogs || [],
       createdAt: payload.createdAt || new Date().toISOString().slice(0, 10),
       leadScore: 0,
-    })
+    }))
 
     const saved = await saveSalesLead({
       ...lead,
+      assignedRep: getLeadAssignedRepName(lead),
       leadScore: calculateLeadScore(lead),
     })
     await recordLeadCreatedAudit(saved)

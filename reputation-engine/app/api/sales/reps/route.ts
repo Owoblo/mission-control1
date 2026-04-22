@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { getLeadAssignedRepKey, getLeadAssignedRepName } from '@/lib/sales'
 import { getSessionUser } from '@/lib/server/session'
 import { listSalesLeads, listFollowUpLogs } from '@/lib/server/sales-repository'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
@@ -35,9 +36,10 @@ export async function GET() {
   }>()
 
   for (const lead of leads) {
-    const rep = lead.assignedRep || 'Unassigned'
-    if (!repMap.has(rep)) repMap.set(rep, { name: rep, leads: [], booked: [], lost: [] })
-    const bucket = repMap.get(rep)!
+    const repId = getLeadAssignedRepKey(lead) || 'Unassigned'
+    const repName = getLeadAssignedRepName(lead) || 'Unassigned'
+    if (!repMap.has(repId)) repMap.set(repId, { name: repName, leads: [], booked: [], lost: [] })
+    const bucket = repMap.get(repId)!
     bucket.leads.push(lead)
     if (lead.stage === 'booked') bucket.booked.push(lead)
     if (lead.stage === 'lost') bucket.lost.push(lead)
@@ -112,6 +114,7 @@ export async function GET() {
 
     return {
       repId,
+      repName: data.name,
       totalLeads,
       bookedLeads,
       lostLeads,

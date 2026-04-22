@@ -193,6 +193,13 @@ export async function POST(request: Request) {
         source: 'manual',
       } as any)
 
+      if (lead && isVoicemail) {
+        await saveSalesLead({
+          ...lead,
+          lastVoicemailAt: new Date().toISOString(),
+        }).catch(() => null)
+      }
+
       if (aiSummary && typeof (aiSummary as any).followUpDays === 'number' && lead && !lead.followUpDate) {
         const followUpDate = new Date(Date.now() + (aiSummary as any).followUpDays * 24 * 60 * 60 * 1000)
           .toISOString().slice(0, 10)

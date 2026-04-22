@@ -7,7 +7,9 @@ import { EstimateDraftModal } from '@/app/components/sales/lead-detail/estimate-
 import { CollectCardModal } from '@/app/components/sales/collect-card-modal'
 import { LeadBasicsPanel } from '@/app/components/sales/lead-detail/lead-basics-panel'
 import { LeadTimeline } from '@/app/components/sales/lead-detail/lead-timeline'
+import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import {
+  DEFAULT_ROOM_OPTIONS,
   buildLeadSignature,
   buildRoomBreakdown,
   normalizeRoomName,
@@ -19,14 +21,22 @@ import {
   getSaturnBusinessNumberFromSmsMessage,
   pickSaturnBranchPhoneNumber,
 } from '@/lib/sales-phones'
-import { DEPOSIT_METHODS, LEAD_CONTEXT_FLAGS, LOST_REASONS, SALES_LEAD_STAGES, computeQuoteTotals, deriveInventoryMetrics, estimateLeadQuote, formatDate, formatDateTime, formatMoney, getSalesBranchLabel } from '@/lib/sales'
-import { confirmJob, createLeadQuote, deleteSalesLead, enrichSalesAddress, fetchSalesLead, fetchSalesOverview, fetchSalesQuote, handoffRealtorOpportunityLead, saveLeadConsultation, saveSalesFollowUp, sendSalesMessage, updateSalesLead, updateSalesQuote } from '@/lib/sales-api'
+import { DEPOSIT_METHODS, LEAD_CONTEXT_FLAGS, LOST_REASONS, SALES_LEAD_STAGES, computeQuoteTotals, deriveInventoryMetrics, estimateLeadQuote, formatDate, formatDateTime, formatMoney, getLeadAssignedRepName, getSalesBranchLabel } from '@/lib/sales'
+import { confirmJob, createLeadQuote, deleteSalesLead, enrichSalesAddress, fetchSalesLead, fetchSalesOverview, fetchSalesQuote, fetchSalesUsers, handoffRealtorOpportunityLead, saveLeadConsultation, saveSalesFollowUp, sendSalesMessage, updateSalesLead, updateSalesQuote, uploadLeadMedia } from '@/lib/sales-api'
+import type { UserRole } from '@/lib/auth'
 import type { CRMLead, CRMQuote, EstimateRouteContext, FollowUpLog, InventoryItem, JobFactors, QuoteLineItem } from '@/lib/types'
+
+interface SalesUserOption {
+  id: string
+  name: string
+  role: UserRole
+}
 
 export default function SalesLeadDetailPage() {
   const params = useParams() as { id?: string }
   const router = useRouter()
   const searchParams = useSearchParams()
+  const currentUser = useCurrentUser()
   const estimateIntent = searchParams?.get('estimate') === '1'
   const [lead, setLead] = useState<CRMLead | null>(null)
   const [quote, setQuote] = useState<CRMQuote | null>(null)
@@ -63,6 +73,10 @@ export default function SalesLeadDetailPage() {
   const [creatingQuote, setCreatingQuote] = useState(false)
   const [surveyBusy, setSurveyBusy] = useState(false)
   const [surveyUrl, setSurveyUrl] = useState<string | null>((lead as unknown as Record<string, unknown>)?.surveyToken ? null : null)
+  const [mediaUploadRoom, setMediaUploadRoom] = useState<string>('Living Room')
+  const [mediaUploadFiles, setMediaUploadFiles] = useState<File[]>([])
+  const [mediaUploadBusy, setMediaUploadBusy] = useState(false)
+  const [mediaUploadNotice, setMediaUploadNotice] = useState<string | null>(null)
   const [loggingActivity, setLoggingActivity] = useState(false)
   const [consultationActive, setConsultationActive] = useState(false)
   const [consultationSaving, setConsultationSaving] = useState(false)
@@ -72,6 +86,8 @@ export default function SalesLeadDetailPage() {
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [contextFlag, setContextFlag] = useState<string>('')
   const [assignedRep, setAssignedRep] = useState<string>('')
+  const [assignedRepUserId, setAssignedRepUserId] = useState<string>('')
+  const [salesUsers, setSalesUsers] = useState<SalesUserOption[]>([])
   const [estimateDate, setEstimateDate] = useState<string>('')
   const [estimateTime, setEstimateTime] = useState<string>('')
   // Lost reason modal
@@ -151,6 +167,46 @@ export default function SalesLeadDetailPage() {
   const consultationRecorderRef = useRef<MediaRecorder | null>(null)
   const consultationStreamRef = useRef<MediaStream | null>(null)
   const consultationChunksRef = useRef<Blob[]>([])
+  const mediaUploadInputRef = useRef<HTMLInputElement | null>(null)
+  const assignmentOptions = useMemo(() => {
+    const options = [...salesUsers]
+    if (assignedRep && !options.some(user => user.id === assignedRepUserId || user.name === assignedRep)) {
+      options.unshift({
+        id: assignedRepUserId || `legacy:${assignedRep}`,
+        name: assignedRep,
+        role: 'sales_rep',
+      })
+    }
+    return options
+  }, [assignedRep, assignedRepUserId, salesUsers])
+  const assignedRepSelectValue = useMemo(() => {
+    if (assignedRepUserId) return assignedRepUserId
+    return assignmentOptions.find(user => user.name === assignedRep)?.id || ''
+  }, [assignedRep, assignedRepUserId, assignmentOptions])
+  const leadOwnerName = useMemo(() => getLeadAssignedRepName(lead) || 'Unassigned', [lead])
+  const canReassignCurrentLead = currentUser?.role === 'owner' || currentUser?.role === 'manager'
+  const canDeleteCurrentLead = currentUser?.role === 'owner' || currentUser?.role === 'manager'
+  const canEditCurrentLead = useMemo(() => {
+    if (!lead || !currentUser) return false
+    if (currentUser.role === 'owner' || currentUser.role === 'manager') return true
+    const ownerUserId = lead.assignedRepUserId?.trim()
+    const ownerName = getLeadAssignedRepName(lead)?.trim()
+    if (!ownerUserId && !ownerName) return true
+    return currentUser.userId === ownerUserId || (!!currentUser.name && currentUser.name === ownerName)
+  }, [currentUser, lead])
+  const leadReadOnlyReason = useMemo(() => {
+    if (!lead || !currentUser || canEditCurrentLead) return null
+    const ownerName = getLeadAssignedRepName(lead)
+    return ownerName
+      ? `This lead is assigned to ${ownerName}. Sales reps can inspect team leads, but only the assigned rep, a manager, or the owner can change it.`
+      : 'This lead is view-only for you right now.'
+  }, [canEditCurrentLead, currentUser, lead])
+
+  function ensureLeadEditable() {
+    if (canEditCurrentLead) return true
+    setError(leadReadOnlyReason || 'This lead is view-only for you.')
+    return false
+  }
 
   function buildSavedLeadSignature(nextLead: CRMLead) {
     return buildLeadSignature({
@@ -172,7 +228,12 @@ export default function SalesLeadDetailPage() {
       moveReason: nextLead.moveReason || '',
       notes: nextLead.notes || '',
       stage: nextLead.stage || 'new',
+      contextFlag: nextLead.contextFlag || '',
       followUpDate: nextLead.followUpDate || '',
+      assignedRepName: getLeadAssignedRepName(nextLead) || '',
+      assignedRepUserId: nextLead.assignedRepUserId || '',
+      estimateDate: nextLead.estimateDate || '',
+      estimateTime: nextLead.estimateTime || '',
       inventory: nextLead.inventory || [],
     })
   }
@@ -209,13 +270,15 @@ export default function SalesLeadDetailPage() {
     setInventory(nextLead.inventory || [])
     if (nextLead.jobFactors) setJobFactors(nextLead.jobFactors)
     setContextFlag(nextLead.contextFlag || '')
-    setAssignedRep(nextLead.assignedRep || '')
+    setAssignedRep(getLeadAssignedRepName(nextLead) || '')
+    setAssignedRepUserId(nextLead.assignedRepUserId || '')
     setEstimateDate(nextLead.estimateDate || '')
     setEstimateTime(nextLead.estimateTime || '')
     setLostReason(nextLead.lostReason || '')
     setLostNotes(nextLead.lostNotes || '')
     setDepositAmount(nextLead.depositAmount ? String(nextLead.depositAmount) : '')
     setDepositMethod(nextLead.depositMethod || '')
+    setMediaUploadNotice(null)
     setHandoffName('')
     setHandoffPhone('')
     setHandoffEmail('')
@@ -271,6 +334,12 @@ export default function SalesLeadDetailPage() {
       return null
     }
   }
+
+  useEffect(() => {
+    fetchSalesUsers()
+      .then(setSalesUsers)
+      .catch(() => setSalesUsers([]))
+  }, [])
 
   useEffect(() => {
     if (!params?.id) return
@@ -629,7 +698,9 @@ export default function SalesLeadDetailPage() {
       roomBreakdown: buildRoomBreakdown(inventoryMetrics.inventory),
       jobFactors: Object.keys(jobFactors).length > 0 ? jobFactors : undefined,
       contextFlag: contextFlag || undefined,
-      assignedRep: assignedRep || undefined,
+      assignedRep,
+      assignedRepName: assignedRep,
+      assignedRepUserId,
       estimateDate: estimateDate || undefined,
       estimateTime: estimateTime || undefined,
       lostReason: lostReason || undefined,
@@ -689,7 +760,7 @@ export default function SalesLeadDetailPage() {
   }, [inventoryMetrics.totalCubicFeet, inventoryMetrics.totalWeightLbs, quoteModalOpen, jobFactors])
 
   useEffect(() => {
-    if (!lead) return
+    if (!lead || !canEditCurrentLead) return
     const autosaveSignature = buildLeadSignature({
       name: leadName,
       phone: leadPhone,
@@ -709,7 +780,12 @@ export default function SalesLeadDetailPage() {
       moveReason,
       notes,
       stage,
+      contextFlag,
       followUpDate,
+      assignedRepName: assignedRep,
+      assignedRepUserId,
+      estimateDate,
+      estimateTime,
       inventory,
     })
 
@@ -738,10 +814,11 @@ export default function SalesLeadDetailPage() {
         window.clearTimeout(autosaveTimerRef.current)
       }
     }
-  }, [lead, leadName, leadPhone, leadEmail, moveDate, moveType, branch, leadSource, originAddress, originCity, originAccess, destAddress, destCity, destAccess, parkingNotes, realtorBrokerage, moveReason, notes, stage, followUpDate, inventory, contextFlag, estimateDate, estimateTime, assignedRep])
+  }, [assignedRep, assignedRepUserId, branch, canEditCurrentLead, contextFlag, destAccess, destAddress, destCity, estimateDate, estimateTime, followUpDate, inventory, lead, leadEmail, leadName, leadPhone, leadSource, moveDate, moveReason, moveType, notes, originAccess, originAddress, originCity, parkingNotes, realtorBrokerage, stage])
 
   async function saveLead(options?: { skipLostCheck?: boolean; pendingStageName?: CRMLead['stage'] }) {
     if (!lead) return
+    if (!ensureLeadEditable()) return
 
     // Intercept: moving to 'lost' requires a reason first
     const targetStage = options?.pendingStageName ?? stage
@@ -798,6 +875,7 @@ export default function SalesLeadDetailPage() {
 
   async function handleConfirmJob() {
     if (!lead) return
+    if (!ensureLeadEditable()) return
     try {
       setConfirmJobBusy(true)
       const saved = await confirmJob(lead.id, {
@@ -817,6 +895,7 @@ export default function SalesLeadDetailPage() {
 
   async function createQuote(asAdditionalJob = false) {
     if (!lead) return
+    if (!ensureLeadEditable()) return
     try {
       setCreatingQuote(true)
       const result = await createLeadQuote(lead.id)
@@ -843,6 +922,7 @@ export default function SalesLeadDetailPage() {
 
   async function requestPhotoSurvey() {
     if (!lead) return
+    if (!ensureLeadEditable()) return
     setSurveyBusy(true)
     try {
       const res = await fetch(`/api/sales/leads/${lead.id}/survey`, { method: 'POST' })
@@ -863,8 +943,34 @@ export default function SalesLeadDetailPage() {
     }
   }
 
+  async function handleRepMediaUpload() {
+    if (!lead || mediaUploadFiles.length === 0) return
+    if (!ensureLeadEditable()) return
+    setMediaUploadBusy(true)
+    setMediaUploadNotice(null)
+    try {
+      const result = await uploadLeadMedia(lead.id, {
+        room: normalizeRoomName(mediaUploadRoom),
+        files: mediaUploadFiles,
+      })
+      applyLeadSnapshot(result.lead, { hydrateForm: true })
+      setMediaUploadFiles([])
+      if (mediaUploadInputRef.current) {
+        mediaUploadInputRef.current.value = ''
+      }
+      setMediaUploadNotice(
+        `Uploaded ${result.uploadedCount} file${result.uploadedCount === 1 ? '' : 's'} · scanned ${result.analyzedImageCount} image${result.analyzedImageCount === 1 ? '' : 's'} · detected ${result.detectedItems.length} inventory item${result.detectedItems.length === 1 ? '' : 's'}${result.skippedVideoCount ? ` · stored ${result.skippedVideoCount} video${result.skippedVideoCount === 1 ? '' : 's'} for manual review` : ''}.`
+      )
+    } catch (err) {
+      setMediaUploadNotice((err as Error).message)
+    } finally {
+      setMediaUploadBusy(false)
+    }
+  }
+
   async function openQuoteBuilder() {
     if (!lead) return
+    if (!ensureLeadEditable()) return
     if (!quote) {
       await createQuote()
       return
@@ -904,6 +1010,7 @@ export default function SalesLeadDetailPage() {
 
   async function saveQuoteDraft() {
     if (!quote) return
+    if (!ensureLeadEditable()) return
     try {
       setQuoteModalBusy(true)
       const depositRate = quote.total > 0 ? quote.deposit / quote.total : 0.2
@@ -942,12 +1049,14 @@ export default function SalesLeadDetailPage() {
 
   async function saveAndPreviewQuote() {
     if (!quote) return
+    if (!ensureLeadEditable()) return
     await saveQuoteDraft()
     router.push(`/sales/quotes/${quote.id}?send=1`)
   }
 
   async function sendDepositLink() {
     if (!quote || !lead) return
+    if (!ensureLeadEditable()) return
     try {
       setDepositLinkBusy(true)
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
@@ -979,6 +1088,7 @@ export default function SalesLeadDetailPage() {
 
   async function logManualDeposit() {
     if (!lead || !quote) return
+    if (!ensureLeadEditable()) return
     try {
       setLogDepositBusy(true)
       const methodLabels = { cash: 'Cash', etransfer: 'Interac E-Transfer', cheque: 'Cheque' }
@@ -1041,6 +1151,7 @@ export default function SalesLeadDetailPage() {
 
   async function chargeBalance() {
     if (!lead || !quote) return
+    if (!ensureLeadEditable()) return
     if (!window.confirm(`Charge the remaining balance of ${formatMoney(quote.balance)} to the card on file?`)) return
     try {
       setChargeBalanceBusy(true)
@@ -1063,6 +1174,7 @@ export default function SalesLeadDetailPage() {
 
   async function saveOutcome() {
     if (!lead) return
+    if (!ensureLeadEditable()) return
     setOutcomeBusy(true)
     try {
       await fetch(`/api/sales/leads/${lead.id}/outcome`, {
@@ -1090,6 +1202,7 @@ export default function SalesLeadDetailPage() {
 
   async function sendReviewRequest() {
     if (!lead) return
+    if (!ensureLeadEditable()) return
     setReviewSentBusy(true)
     try {
       await fetch('/api/sales/review-request', {
@@ -1125,6 +1238,7 @@ export default function SalesLeadDetailPage() {
       setError('Add an origin address first so the CRM can match the listing.')
       return
     }
+    if (!ensureLeadEditable()) return
 
     try {
       setListingLookupBusy(true)
@@ -1153,6 +1267,7 @@ export default function SalesLeadDetailPage() {
   }
 
   async function streamScanForLead(leadId: string) {
+    if (!ensureLeadEditable()) return
     try {
       setListingLookupBusy(true)
       setInventory([])
@@ -1322,6 +1437,7 @@ export default function SalesLeadDetailPage() {
 
   function openComposer(channel: 'sms' | 'email') {
     if (!lead) return
+    if (!ensureLeadEditable()) return
     const firstName = getLeadFirstName(lead)
     const opportunityAddress = lead.opportunityAddress || lead.originAddress || 'the property'
     composerUserEdited.current = false   // reset — AI may write the first draft
@@ -1354,6 +1470,7 @@ export default function SalesLeadDetailPage() {
 
   async function sendComposerMessage() {
     if (!lead) return
+    if (!ensureLeadEditable()) return
     const to = composerChannel === 'sms' ? lead.phone : lead.email
     if (!to || !composerBody.trim()) return
 
@@ -1381,6 +1498,7 @@ export default function SalesLeadDetailPage() {
 
   async function handleClientHandoff() {
     if (!lead) return
+    if (!ensureLeadEditable()) return
 
     try {
       setHandoffBusy(true)
@@ -1463,6 +1581,7 @@ export default function SalesLeadDetailPage() {
 
   async function logActivity() {
     if (!lead || !activityNotes.trim()) return
+    if (!ensureLeadEditable()) return
     try {
       setLoggingActivity(true)
       const result = await saveSalesFollowUp({
@@ -1486,6 +1605,7 @@ export default function SalesLeadDetailPage() {
 
   async function logIncident() {
     if (!lead || !incidentDesc.trim()) return
+    if (!ensureLeadEditable()) return
     setIncidentBusy(true)
     try {
       const r = await fetch('/api/sales/leads/note', {
@@ -1510,6 +1630,7 @@ export default function SalesLeadDetailPage() {
   }
 
   async function startConsultation() {
+    if (!ensureLeadEditable()) return
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const recorder = new MediaRecorder(stream)
@@ -1532,6 +1653,7 @@ export default function SalesLeadDetailPage() {
 
   async function stopConsultation() {
     if (!lead) return
+    if (!ensureLeadEditable()) return
 
     try {
       setConsultationSaving(true)
@@ -1585,6 +1707,10 @@ export default function SalesLeadDetailPage() {
 
   async function removeLead() {
     if (!lead) return
+    if (!canDeleteCurrentLead) {
+      setError('Only a manager or the owner can delete a lead.')
+      return
+    }
 
     try {
       setDeleteBusy(true)
@@ -1615,6 +1741,7 @@ export default function SalesLeadDetailPage() {
 
   async function generateInventoryFromPhotos(forceAnalyze = false) {
     if (!lead?.supabaseListing?.address) return
+    if (!ensureLeadEditable()) return
     try {
       setAnalysisBusy(true)
       const result = await enrichSalesAddress(lead.supabaseListing.address, true, forceAnalyze)
@@ -1659,6 +1786,11 @@ export default function SalesLeadDetailPage() {
           {opportunityNotice}
         </div>
       ) : null}
+      {leadReadOnlyReason ? (
+        <div className="rounded-[8px] border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
+          {leadReadOnlyReason}
+        </div>
+      ) : null}
 
       <div className="overflow-hidden rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)]">
         {/* Lead header bar */}
@@ -1693,8 +1825,13 @@ export default function SalesLeadDetailPage() {
               Active contact: {lead.primaryContactRole === 'customer' ? 'Client' : 'Realtor'}
             </span>
           ) : null}
-          {lead.assignedRep ? (
-            <span className="ml-auto text-xs text-[var(--app-muted)]">Rep: {lead.assignedRep}</span>
+          <span className="ml-auto text-xs text-[var(--app-muted)]">
+            Owner: {leadOwnerName}
+          </span>
+          {!canEditCurrentLead ? (
+            <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-semibold text-amber-700">
+              View only
+            </span>
           ) : null}
           {lead.stage === 'estimate_scheduled' && lead.estimateDate ? (
             <span className="rounded-full bg-violet-50 px-2.5 py-0.5 text-[10px] font-semibold text-violet-700">
@@ -1723,6 +1860,7 @@ export default function SalesLeadDetailPage() {
             parkingNotes={parkingNotes}
             moveReason={moveReason}
             totalCubicFeet={inventoryMetrics.totalCubicFeet}
+            disabled={!canEditCurrentLead}
             onLeadNameChange={setLeadName}
             onLeadPhoneChange={setLeadPhone}
             onLeadEmailChange={setLeadEmail}
@@ -1815,7 +1953,7 @@ export default function SalesLeadDetailPage() {
                     />
                     <button
                       onClick={() => void handleClientHandoff()}
-                      disabled={handoffBusy || !handoffName.trim() || (!handoffPhone.trim() && !handoffEmail.trim())}
+                      disabled={!canEditCurrentLead || handoffBusy || !handoffName.trim() || (!handoffPhone.trim() && !handoffEmail.trim())}
                       className="crm-button w-full justify-center disabled:opacity-60"
                     >
                       {handoffBusy ? 'Switching Contact...' : 'Switch Active Contact To Client'}
@@ -1858,6 +1996,7 @@ export default function SalesLeadDetailPage() {
                 <div className="crm-label text-[var(--app-accent)]">Ready to close?</div>
                 <button
                   onClick={() => setShowConfirmJobModal(true)}
+                  disabled={!canEditCurrentLead}
                   className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-[10px] bg-[var(--app-accent)] text-sm font-semibold text-white transition hover:bg-[#0a5b47]"
                 >
                   Confirm Job + Send Booking
@@ -1882,7 +2021,7 @@ export default function SalesLeadDetailPage() {
                 {(lead.email || lead.phone) && (
                   <button
                     onClick={() => void sendReviewRequest()}
-                    disabled={reviewSentBusy || reviewSent}
+                    disabled={!canEditCurrentLead || reviewSentBusy || reviewSent}
                     className="w-full rounded-[8px] bg-[#f5a623] px-3 py-2 text-xs font-semibold text-[#1a2744] hover:opacity-90 disabled:opacity-60"
                   >
                     {reviewSent ? '⭐ Review Request Sent!' : reviewSentBusy ? 'Sending...' : '⭐ Send Review Request'}
@@ -1890,6 +2029,7 @@ export default function SalesLeadDetailPage() {
                 )}
                 <button
                   onClick={() => setOutcomeOpen(o => !o)}
+                  disabled={!canEditCurrentLead}
                   className="w-full rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2 text-xs font-medium text-[var(--app-ink)] hover:border-[var(--app-ink)]"
                 >
                   {outcomeSaved ? '✓ Outcome Logged' : '📋 Log Job Outcome'}
@@ -1911,7 +2051,7 @@ export default function SalesLeadDetailPage() {
                       <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Customer Rating</label>
                       <div className="flex gap-1">
                         {[1, 2, 3, 4, 5].map(star => (
-                          <button key={star} type="button" onClick={() => setOutcomeRating(star)} className={`text-xl transition ${outcomeRating >= star ? 'text-amber-400' : 'text-stone-300'}`}>★</button>
+                          <button key={star} type="button" disabled={!canEditCurrentLead} onClick={() => setOutcomeRating(star)} className={`text-xl transition ${outcomeRating >= star ? 'text-amber-400' : 'text-stone-300'}`}>★</button>
                         ))}
                       </div>
                     </div>
@@ -1929,8 +2069,8 @@ export default function SalesLeadDetailPage() {
                         Referral generated
                       </label>
                     </div>
-                    <textarea value={outcomeNotes} onChange={e => setOutcomeNotes(e.target.value)} className="crm-input w-full resize-none text-xs" rows={2} placeholder="Any notes about the job..." />
-                    <button onClick={() => void saveOutcome()} disabled={outcomeBusy} className="w-full rounded-[8px] bg-[#1a2744] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60">
+                    <textarea value={outcomeNotes} onChange={e => setOutcomeNotes(e.target.value)} disabled={!canEditCurrentLead} className="crm-input w-full resize-none text-xs" rows={2} placeholder="Any notes about the job..." />
+                    <button onClick={() => void saveOutcome()} disabled={!canEditCurrentLead || outcomeBusy} className="w-full rounded-[8px] bg-[#1a2744] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60">
                       {outcomeBusy ? 'Saving...' : 'Save Outcome'}
                     </button>
                   </div>
@@ -1949,7 +2089,7 @@ export default function SalesLeadDetailPage() {
                     {quote && (
                       <button
                         onClick={() => void chargeBalance()}
-                        disabled={chargeBalanceBusy}
+                        disabled={!canEditCurrentLead || chargeBalanceBusy}
                         className="w-full rounded-[8px] bg-[var(--app-accent)] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
                       >
                         {chargeBalanceBusy ? 'Charging...' : `Charge Balance — ${formatMoney(quote.balance)}`}
@@ -1968,13 +2108,14 @@ export default function SalesLeadDetailPage() {
                       <>
                         <button
                           onClick={() => setCollectCardOpen(true)}
+                          disabled={!canEditCurrentLead}
                           className="w-full rounded-[8px] bg-[#f5a623] px-3 py-2 text-xs font-bold text-[#1a2744] hover:opacity-90"
                         >
                           💳 Collect Card &amp; Charge Now
                         </button>
                         <button
                           onClick={() => void sendDepositLink()}
-                          disabled={depositLinkBusy}
+                          disabled={!canEditCurrentLead || depositLinkBusy}
                           className="w-full rounded-[8px] bg-[#1a2744] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
                         >
                           {depositLinkBusy ? 'Sending...' : '🔗 Send Self-Pay Link (SMS)'}
@@ -1983,6 +2124,7 @@ export default function SalesLeadDetailPage() {
                     )}
                     <button
                       onClick={() => setLogDepositOpen(open => !open)}
+                      disabled={!canEditCurrentLead}
                       className="w-full rounded-[8px] border border-[#1a2744]/20 bg-white px-3 py-2 text-xs font-medium text-[#1a2744] hover:bg-[#1a2744]/5"
                     >
                       Log Cash / E-Transfer / Cheque
@@ -2006,7 +2148,7 @@ export default function SalesLeadDetailPage() {
                         />
                         <button
                           onClick={() => void logManualDeposit()}
-                          disabled={logDepositBusy}
+                          disabled={!canEditCurrentLead || logDepositBusy}
                           className="w-full rounded-[8px] bg-[#1a2744] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
                         >
                           {logDepositBusy ? 'Saving...' : '✓ Mark Deposit Received'}
@@ -2019,24 +2161,24 @@ export default function SalesLeadDetailPage() {
             ) : null}
 
             <div className="space-y-3 border-b border-[var(--app-line)] p-5">
-              {lead.phone ? <button onClick={openDialer} className="crm-button-dark w-full justify-center">Call Lead</button> : null}
+              {lead.phone ? <button onClick={openDialer} disabled={!canEditCurrentLead} className="crm-button-dark w-full justify-center disabled:opacity-60">Call Lead</button> : null}
               <div className="grid grid-cols-2 gap-3">
-                {lead.phone ? <button onClick={() => openComposer('sms')} className="crm-button justify-center">Send SMS</button> : <div />}
-                {lead.email ? <button onClick={() => openComposer('email')} className="crm-button justify-center">Email</button> : <div />}
+                {lead.phone ? <button onClick={() => openComposer('sms')} disabled={!canEditCurrentLead} className="crm-button justify-center disabled:opacity-60">Send SMS</button> : <div />}
+                {lead.email ? <button onClick={() => openComposer('email')} disabled={!canEditCurrentLead} className="crm-button justify-center disabled:opacity-60">Email</button> : <div />}
               </div>
               <button
                 onClick={() => void startConsultation()}
-                disabled={consultationActive || consultationSaving}
+                disabled={!canEditCurrentLead || consultationActive || consultationSaving}
                 className="crm-button w-full justify-center"
               >
                 {consultationActive ? `Recording Consultation • ${formatSeconds(consultationSeconds)}` : consultationSaving ? 'Saving Consultation...' : 'Record Consultation'}
               </button>
               {quote ? (
-                <button onClick={() => void openQuoteBuilder()} className="crm-button w-full justify-center border-[rgba(34,72,56,0.2)] bg-[rgba(34,72,56,0.08)] text-[var(--app-accent)]">
+                <button onClick={() => void openQuoteBuilder()} disabled={!canEditCurrentLead} className="crm-button w-full justify-center border-[rgba(34,72,56,0.2)] bg-[rgba(34,72,56,0.08)] text-[var(--app-accent)] disabled:opacity-60">
                   Build Estimate
                 </button>
               ) : (
-                <button onClick={() => void openQuoteBuilder()} disabled={creatingQuote} className="crm-button w-full justify-center border-[rgba(34,72,56,0.2)] bg-[rgba(34,72,56,0.08)] text-[var(--app-accent)] disabled:opacity-60">
+                <button onClick={() => void openQuoteBuilder()} disabled={!canEditCurrentLead || creatingQuote} className="crm-button w-full justify-center border-[rgba(34,72,56,0.2)] bg-[rgba(34,72,56,0.08)] text-[var(--app-accent)] disabled:opacity-60">
                   {creatingQuote ? 'Building...' : 'Build Estimate'}
                 </button>
               )}
@@ -2044,7 +2186,7 @@ export default function SalesLeadDetailPage() {
               {quote && (
                 <button
                   onClick={() => void createQuote(true)}
-                  disabled={creatingQuote}
+                  disabled={!canEditCurrentLead || creatingQuote}
                   className="crm-button w-full justify-center disabled:opacity-60"
                   title="Create a separate quote for a different job (e.g. commercial, second move)"
                 >
@@ -2072,7 +2214,7 @@ export default function SalesLeadDetailPage() {
               {/* Photo survey request */}
               <button
                 onClick={() => void requestPhotoSurvey()}
-                disabled={surveyBusy}
+                disabled={!canEditCurrentLead || surveyBusy}
                 className="crm-button w-full justify-center disabled:opacity-60"
                 title="Generate a link to send to customer — they take photos, AI scans them into inventory"
               >
@@ -2088,6 +2230,60 @@ export default function SalesLeadDetailPage() {
                   >Copy</button>
                 </div>
               )}
+              <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">Rep Media Upload</div>
+                    <div className="mt-1 text-xs text-[var(--app-muted)]">
+                      Upload customer photos or videos directly into this lead when MLS photos are missing or the move is custom.
+                    </div>
+                  </div>
+                  <div className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-[var(--app-muted)]">
+                    {(lead.mediaAssets || []).length} file{(lead.mediaAssets || []).length === 1 ? '' : 's'}
+                  </div>
+                </div>
+                <div className="mt-3 grid gap-2">
+                  <select
+                    value={mediaUploadRoom}
+                    onChange={event => setMediaUploadRoom(event.target.value)}
+                    disabled={!canEditCurrentLead}
+                    className="crm-input"
+                  >
+                    {DEFAULT_ROOM_OPTIONS.map(option => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                  <input
+                    ref={mediaUploadInputRef}
+                    type="file"
+                    accept="image/*,video/*"
+                    multiple
+                    className="hidden"
+                    onChange={event => setMediaUploadFiles(Array.from(event.target.files || []))}
+                  />
+                  <button
+                    type="button"
+                    disabled={!canEditCurrentLead}
+                    onClick={() => mediaUploadInputRef.current?.click()}
+                    className="crm-button justify-center disabled:opacity-60"
+                  >
+                    {mediaUploadFiles.length > 0 ? `Selected ${mediaUploadFiles.length} file${mediaUploadFiles.length === 1 ? '' : 's'}` : 'Choose Photos Or Videos'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleRepMediaUpload()}
+                    disabled={!canEditCurrentLead || mediaUploadBusy || mediaUploadFiles.length === 0}
+                    className="crm-button w-full justify-center disabled:opacity-60"
+                  >
+                    {mediaUploadBusy ? 'Scanning upload…' : 'Upload And Scan Inventory'}
+                  </button>
+                  {mediaUploadNotice ? (
+                    <div className="rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-[11px] text-[var(--app-muted)]">
+                      {mediaUploadNotice}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
             </div>
 
             <div className="border-b border-[var(--app-line)] p-5">
@@ -2107,8 +2303,8 @@ export default function SalesLeadDetailPage() {
                     </div>
                     {(aiNudge.urgency === 'high' || aiNudge.urgency === 'medium') && (lead.phone || lead.email) ? (
                       <div className="mt-3 flex gap-2">
-                        {lead.phone ? <button onClick={() => openComposer('sms')} className="rounded-[6px] bg-white px-3 py-1.5 text-xs font-medium text-[var(--app-ink)] shadow-sm ring-1 ring-inset ring-[var(--app-line)] hover:bg-[var(--app-bg)]">Send SMS</button> : null}
-                        {lead.email ? <button onClick={() => openComposer('email')} className="rounded-[6px] bg-white px-3 py-1.5 text-xs font-medium text-[var(--app-ink)] shadow-sm ring-1 ring-inset ring-[var(--app-line)] hover:bg-[var(--app-bg)]">Email</button> : null}
+                        {lead.phone ? <button onClick={() => openComposer('sms')} disabled={!canEditCurrentLead} className="rounded-[6px] bg-white px-3 py-1.5 text-xs font-medium text-[var(--app-ink)] shadow-sm ring-1 ring-inset ring-[var(--app-line)] hover:bg-[var(--app-bg)] disabled:opacity-60">Send SMS</button> : null}
+                        {lead.email ? <button onClick={() => openComposer('email')} disabled={!canEditCurrentLead} className="rounded-[6px] bg-white px-3 py-1.5 text-xs font-medium text-[var(--app-ink)] shadow-sm ring-1 ring-inset ring-[var(--app-line)] hover:bg-[var(--app-bg)] disabled:opacity-60">Email</button> : null}
                       </div>
                     ) : null}
                   </div>
@@ -2139,73 +2335,93 @@ export default function SalesLeadDetailPage() {
             </div>
 
             <div className="space-y-4 p-5">
-              <label className="block">
-                <span className="crm-label">Stage</span>
-                <select value={stage} onChange={event => setStage(event.target.value as CRMLead['stage'])} className="crm-input mt-2">
-                  {SALES_LEAD_STAGES.map(item => (
-                    <option key={item.id} value={item.id}>{item.label}</option>
-                  ))}
-                </select>
-              </label>
+              <fieldset disabled={!canEditCurrentLead} className="space-y-4">
+                <label className="block">
+                  <span className="crm-label">Stage</span>
+                  <select value={stage} onChange={event => setStage(event.target.value as CRMLead['stage'])} className="crm-input mt-2">
+                    {SALES_LEAD_STAGES.map(item => (
+                      <option key={item.id} value={item.id}>{item.label}</option>
+                    ))}
+                  </select>
+                </label>
 
-              <label className="block">
-                <span className="crm-label">Lead Context</span>
-                <select value={contextFlag} onChange={event => setContextFlag(event.target.value)} className="crm-input mt-2">
-                  <option value="">— No flag —</option>
-                  {LEAD_CONTEXT_FLAGS.map(item => (
-                    <option key={item.id} value={item.id}>{item.label}</option>
-                  ))}
-                </select>
-              </label>
+                <label className="block">
+                  <span className="crm-label">Lead Context</span>
+                  <select value={contextFlag} onChange={event => setContextFlag(event.target.value)} className="crm-input mt-2">
+                    <option value="">— No flag —</option>
+                    {LEAD_CONTEXT_FLAGS.map(item => (
+                      <option key={item.id} value={item.id}>{item.label}</option>
+                    ))}
+                  </select>
+                </label>
 
-              {(stage === 'estimate_scheduled' || stage === 'estimate_completed') && (
-                <div>
-                  <span className="crm-label">Estimate Appointment</span>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    <input type="date" value={estimateDate} onChange={e => setEstimateDate(e.target.value)} className="crm-input" placeholder="Date" />
-                    <input type="time" value={estimateTime} onChange={e => setEstimateTime(e.target.value)} className="crm-input" placeholder="Time" />
+                {(stage === 'estimate_scheduled' || stage === 'estimate_completed') && (
+                  <div>
+                    <span className="crm-label">Estimate Appointment</span>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <input type="date" value={estimateDate} onChange={e => setEstimateDate(e.target.value)} className="crm-input" placeholder="Date" />
+                      <input type="time" value={estimateTime} onChange={e => setEstimateTime(e.target.value)} className="crm-input" placeholder="Time" />
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              <label className="block">
-                <span className="crm-label">Follow-Up Date</span>
-                <input type="date" value={followUpDate} onChange={event => setFollowUpDate(event.target.value)} className="crm-input mt-2" />
-              </label>
+                <label className="block">
+                  <span className="crm-label">Follow-Up Date</span>
+                  <input type="date" value={followUpDate} onChange={event => setFollowUpDate(event.target.value)} className="crm-input mt-2" />
+                </label>
 
-              <label className="block">
-                <span className="crm-label">Assigned Rep</span>
-                <input value={assignedRep} onChange={e => setAssignedRep(e.target.value)} className="crm-input mt-2" placeholder="Rep name or initials" />
-              </label>
+                <label className="block">
+                  <span className="crm-label">Assigned Rep</span>
+                  <select
+                    value={assignedRepSelectValue}
+                    disabled={!canReassignCurrentLead}
+                    onChange={event => {
+                      const nextUserId = event.target.value
+                      const selected = assignmentOptions.find(user => user.id === nextUserId)
+                      setAssignedRepUserId(nextUserId.startsWith('legacy:') ? '' : nextUserId)
+                      setAssignedRep(selected?.name || '')
+                    }}
+                    className="crm-input mt-2"
+                  >
+                    <option value="">— Unassigned —</option>
+                    {assignmentOptions.map(user => (
+                      <option key={user.id} value={user.id}>{user.name}</option>
+                    ))}
+                  </select>
+                </label>
 
-              {/* Deposit section — visible when booked */}
-              {lead.stage === 'booked' && (
-                <div>
-                  <span className="crm-label">Deposit</span>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    <input
-                      type="number"
-                      value={depositAmount}
-                      onChange={e => setDepositAmount(e.target.value)}
-                      className="crm-input"
-                      placeholder="Amount $"
-                    />
-                    <select value={depositMethod} onChange={e => setDepositMethod(e.target.value)} className="crm-input">
-                      <option value="">Method</option>
-                      {DEPOSIT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
+                {/* Deposit section — visible when booked */}
+                {lead.stage === 'booked' && (
+                  <div>
+                    <span className="crm-label">Deposit</span>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <input
+                        type="number"
+                        value={depositAmount}
+                        onChange={e => setDepositAmount(e.target.value)}
+                        className="crm-input"
+                        placeholder="Amount $"
+                      />
+                      <select value={depositMethod} onChange={e => setDepositMethod(e.target.value)} className="crm-input">
+                        <option value="">Method</option>
+                        {DEPOSIT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </fieldset>
 
-              <button onClick={() => void saveLead()} disabled={saving} className="crm-button w-full justify-center disabled:opacity-60">
+              <button onClick={() => void saveLead()} disabled={!canEditCurrentLead || saving} className="crm-button w-full justify-center disabled:opacity-60">
                 {saving ? 'Saving...' : 'Save Lead'}
               </button>
-              <button onClick={() => void removeLead()} disabled={deleteBusy} className="crm-button w-full justify-center border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-60">
-                {deleteBusy ? 'Deleting...' : 'Delete Lead'}
-              </button>
+              {canDeleteCurrentLead ? (
+                <button onClick={() => void removeLead()} disabled={deleteBusy} className="crm-button w-full justify-center border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-60">
+                  {deleteBusy ? 'Deleting...' : 'Delete Lead'}
+                </button>
+              ) : null}
               <button
                 onClick={() => setIncidentOpen(true)}
+                disabled={!canEditCurrentLead}
                 className="crm-button w-full justify-center border-red-200 text-red-600 bg-white hover:bg-red-50"
               >
                 ⚠ Log Incident
@@ -2254,6 +2470,7 @@ export default function SalesLeadDetailPage() {
               lead={lead}
               quote={quote}
               timeline={timeline}
+              readOnly={!canEditCurrentLead}
               inventoryCubicFeet={inventoryMetrics.totalCubicFeet}
               activityType={activityType}
               activityNotes={activityNotes}
@@ -2460,13 +2677,13 @@ export default function SalesLeadDetailPage() {
                       }}
                       placeholder={`Message ${lead.name?.split(' ')[0] || lead.phone}…`}
                       rows={1}
-                      disabled={smsSending}
+                      disabled={!canEditCurrentLead || smsSending}
                       className="flex-1 resize-none rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2.5 text-sm text-[var(--app-ink)] placeholder:text-[var(--app-muted)] focus:outline-none focus:ring-1"
                       style={{ maxHeight: '120px', overflowY: 'auto', ['--tw-ring-color' as string]: '#f5a623' }}
                       onInput={e => { const el = e.currentTarget; el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px` }}
                     />
                     <button
-                      disabled={smsSending || !smsInput.trim()}
+                      disabled={!canEditCurrentLead || smsSending || !smsInput.trim()}
                       onClick={() => {
                         if (!smsSending && smsInput.trim() && lead.phone) {
                           const body = smsInput.trim()
@@ -2525,6 +2742,7 @@ export default function SalesLeadDetailPage() {
                 <input
                   value={composerSubject}
                   onChange={event => setComposerSubject(event.target.value)}
+                  disabled={!canEditCurrentLead}
                   className="crm-input"
                   placeholder="Email subject"
                 />
@@ -2532,6 +2750,7 @@ export default function SalesLeadDetailPage() {
               <textarea
                 value={composerBody}
                 onChange={event => { composerUserEdited.current = true; setComposerBody(event.target.value) }}
+                disabled={!canEditCurrentLead}
                 className={`crm-input min-h-56 transition-opacity ${scBusy ? 'opacity-50' : 'opacity-100'}`}
                 placeholder={composerChannel === 'sms' ? 'Type your SMS...' : 'Type your email...'}
               />
@@ -2539,14 +2758,14 @@ export default function SalesLeadDetailPage() {
             <div className="flex flex-col-reverse gap-3 border-t border-[var(--app-line)] px-4 py-4 md:flex-row md:items-center md:justify-between md:px-5">
               <button
                 onClick={() => { composerUserEdited.current = false; void runSmartCompose(composerChannel, lead) }}
-                disabled={scBusy}
+                disabled={!canEditCurrentLead || scBusy}
                 className="text-sm text-[var(--app-muted)] hover:text-[var(--app-accent)] disabled:opacity-40 transition-colors"
               >
                 {scBusy ? '✨ AI drafting...' : '✨ Regenerate'}
               </button>
               <div className="flex flex-col-reverse gap-3 md:flex-row md:items-center">
                 <button onClick={() => setComposerOpen(false)} className="crm-button w-full md:w-auto">Cancel</button>
-                <button onClick={() => void sendComposerMessage()} disabled={composerBusy || !composerBody.trim()} className="crm-button-dark disabled:opacity-60">
+                <button onClick={() => void sendComposerMessage()} disabled={!canEditCurrentLead || composerBusy || !composerBody.trim()} className="crm-button-dark disabled:opacity-60">
                   {composerBusy ? 'Sending...' : composerChannel === 'sms' ? 'Send SMS' : 'Send Email'}
                 </button>
               </div>

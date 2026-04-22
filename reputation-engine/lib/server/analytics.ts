@@ -10,6 +10,7 @@
  * NEVER throws — always best-effort so it never breaks normal app flow.
  */
 
+import { getLeadAssignedRepName } from '@/lib/sales'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { uid } from '@/lib/sales'
 import type { CRMLead, CRMQuote } from '@/lib/types'
@@ -149,7 +150,8 @@ export async function logEvent(
       enriched.dest_city = l.destCity
       enriched.move_date = l.moveDate
       enriched.lead_score = l.leadScore
-      enriched.assigned_rep = l.assignedRep
+      enriched.assigned_rep = getLeadAssignedRepName(l)
+      enriched.assigned_rep_user_id = l.assignedRepUserId
       enriched.has_specialty_items = !!(l.jobFactors?.hasPiano || l.jobFactors?.hasSafe || l.jobFactors?.specialtyNotes)
       enriched.floors_origin = l.jobFactors?.originFloors
       enriched.floors_dest = l.jobFactors?.destFloors
@@ -185,7 +187,7 @@ export async function logEvent(
       id: uid('ev'),
       event_type: eventType,
       lead_id: options.leadId || options.lead?.id,
-      rep_id: options.repId || options.lead?.assignedRep,
+      rep_id: options.repId || options.lead?.assignedRepUserId || options.lead?.assignedRep,
       ts: now,
       properties: { ...enriched, ...options.properties },
       created_at: now,

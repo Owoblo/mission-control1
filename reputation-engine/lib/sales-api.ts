@@ -4,10 +4,12 @@ import type {
   CRMClient,
   FollowUpLog,
   InboundLead,
+  InventoryItem,
   InventoryScanDraft,
   ListingMatch,
   SalesDashboardSummary,
 } from './types'
+import type { UserRole } from './auth'
 
 async function readJson<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -55,6 +57,11 @@ export async function updateSalesLead(id: string, updates: Partial<CRMLead>): Pr
   return readJson(response)
 }
 
+export async function fetchSalesUsers(): Promise<Array<{ id: string; name: string; role: UserRole }>> {
+  const response = await fetch('/api/sales/users', { cache: 'no-store', credentials: 'include' })
+  return readJson(response)
+}
+
 export async function deleteSalesLead(id: string): Promise<{ ok: boolean }> {
   const response = await fetch(`/api/sales/leads/${id}`, {
     method: 'DELETE',
@@ -83,6 +90,24 @@ export async function saveLeadConsultation(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
+  return readJson(response)
+}
+
+export async function uploadLeadMedia(
+  id: string,
+  payload: { room: string; files: File[]; notes?: string }
+): Promise<{ ok: boolean; lead: CRMLead; uploadedCount: number; analyzedImageCount: number; skippedVideoCount: number; detectedItems: InventoryItem[] }> {
+  const form = new FormData()
+  form.append('room', payload.room)
+  if (payload.notes) form.append('notes', payload.notes)
+  payload.files.forEach(file => form.append('files', file))
+
+  const response = await fetch(`/api/sales/leads/${id}/media-upload`, {
+    method: 'POST',
+    credentials: 'include',
+    body: form,
+  })
+
   return readJson(response)
 }
 

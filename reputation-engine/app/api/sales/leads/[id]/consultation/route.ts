@@ -1,7 +1,9 @@
 export const maxDuration = 60 // allow time for Whisper transcription
 
 import { NextResponse } from 'next/server'
+import { canAccessSalesWorkspace, canEditLead } from '@/lib/server/sales-permissions'
 import { getSalesLead, saveSalesLead } from '@/lib/server/sales-repository'
+import { getSessionUser } from '@/lib/server/session'
 import { calculateLeadScore, normalizeLead, uid } from '@/lib/sales'
 import { summarizeConsultation, transcribeConsultationRecording } from '@/lib/server/call-intelligence'
 import type { CallLogEntry } from '@/lib/types'
@@ -14,9 +16,18 @@ function formatDuration(seconds: number) {
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   try {
+    const session = await getSessionUser()
+    if (!canAccessSalesWorkspace(session)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const lead = await getSalesLead(params.id)
     if (!lead) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
+    }
+
+    if (!canEditLead(session, lead)) {
+      return NextResponse.json({ error: 'You can only save consultations on leads you own.' }, { status: 403 })
     }
 
     const payload = (await request.json()) as {
@@ -67,6 +78,11 @@ export async function POST(request: Request, { params }: { params: { id: string 
       ...lead,
       stage: lead.stage === 'new' ? 'contacted' : lead.stage,
       callLogs: [consultationLog, ...(lead.callLogs || [])],
+      automationStatus: 'handoff',
+      automationPausedUntil: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      automationPauseReason: 'consultation_in_progress',
+      automationHandoffAt: new Date().toISOString(),
+      automationHandoffReason: 'In-person consultation or rep review in progress.',
       notes: payload.notes?.trim()
         ? [lead.notes, `Consultation: ${payload.notes.trim()}`].filter(Boolean).join('\n\n')
         : lead.notes,

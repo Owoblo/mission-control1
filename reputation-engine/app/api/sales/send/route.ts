@@ -1,8 +1,16 @@
 import { NextResponse } from 'next/server'
+import { canAccessSalesWorkspace, canEditLead } from '@/lib/server/sales-permissions'
+import { getSalesLead, getSalesQuote } from '@/lib/server/sales-repository'
+import { getSessionUser } from '@/lib/server/session'
 import { sendSalesMessage } from '@/lib/server/sales-messaging'
 
 export async function POST(request: Request) {
   try {
+    const session = await getSessionUser()
+    if (!canAccessSalesWorkspace(session)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const payload = (await request.json()) as {
       channel?: 'email' | 'sms'
       to?: string
@@ -21,6 +29,23 @@ export async function POST(request: Request) {
 
     if (!payload.channel || !payload.to || !body) {
       return NextResponse.json({ error: 'channel, to, and body are required' }, { status: 400 })
+    }
+
+    const targetLeadId =
+      payload.leadId ||
+      (payload.quoteId
+        ? (await getSalesQuote(payload.quoteId))?.leadId
+        : undefined)
+
+    if (targetLeadId) {
+      const lead = await getSalesLead(targetLeadId)
+      if (!lead) {
+        return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
+      }
+
+      if (!canEditLead(session, lead)) {
+        return NextResponse.json({ error: 'You can only send messages for leads you own.' }, { status: 403 })
+      }
     }
 
     const result = await sendSalesMessage({

@@ -1,9 +1,13 @@
+import { createSalesSystemAlert } from '@/lib/server/sales-alerts'
+import { sendSalesMessage } from '@/lib/server/sales-messaging'
 import {
   getCrmCallSidMapping,
   getInboundLeadByCallSid,
+  getSalesLead,
   listSalesLeads,
   saveCrmCallSidMapping,
   saveSalesLead,
+  updateInboundLeadRawData,
   updateLeadCallLogEntry,
 } from '@/lib/server/sales-repository'
 import {
@@ -30,6 +34,12 @@ export async function GET() {
 function formatDuration(s: number) {
   const m = Math.floor(s / 60)
   return m > 0 ? `${m}m ${s % 60}s` : `${s}s`
+}
+
+function shouldSendFallbackReply(lastSentAt?: string | null) {
+  if (!lastSentAt) return true
+  const deltaMs = Date.now() - new Date(lastSentAt).getTime()
+  return deltaMs > 30 * 60 * 1000
 }
 
 // Twilio calls this URL after the <Dial> verb completes (action attribute).
@@ -151,8 +161,21 @@ export async function POST(request: Request) {
 
     // ── Mark inbound missed calls ─────────────────────────────────────────────
     const isMissed = ['no-answer', 'busy', 'failed', 'canceled'].includes(dialCallStatus)
-    if (isMissed && callSid) {
+    if (isMissed && callSid && !isOutbound) {
       const mapping = await getCrmCallSidMapping(callSid).catch(() => null)
+      const crmLead = mapping ? await getSalesLead(mapping.leadId).catch(() => null) : null
+      const inboundLead = await getInboundLeadByCallSid(callSid).catch(() => null)
+      const inboundRaw = typeof inboundLead?.raw_data === 'object' && inboundLead.raw_data
+        ? (inboundLead.raw_data as Record<string, unknown>)
+        : {}
+      const fallbackPhone = normalizePhone(normalizedFrom || inboundLead?.phone || '')
+      const lastFallbackReplyAt =
+        (typeof inboundRaw.missedCallAutoReplyAt === 'string' ? inboundRaw.missedCallAutoReplyAt : null) ||
+        crmLead?.lastMissedCallAutoReplyAt ||
+        null
+      const sendFallbackReply = !!fallbackPhone && !isSaturnBranchPhoneNumber(fallbackPhone) && shouldSendFallbackReply(lastFallbackReplyAt)
+      const now = new Date().toISOString()
+
       if (mapping) {
         await updateLeadCallLogEntry(mapping.leadId, mapping.callLogId, {
           notes: `Missed inbound call from ${normalizedFrom || 'unknown number'}${branchLabel ? ` on the ${branchLabel} line` : ''}.`,
@@ -166,29 +189,48 @@ export async function POST(request: Request) {
         } as any).catch(() => {})
       }
 
-      const lead = await getInboundLeadByCallSid(callSid).catch(() => null)
-      if (lead) {
-        const { url, headers } = requireSupabaseEnv()
-        const raw = typeof lead.raw_data === 'object' && lead.raw_data
-          ? (lead.raw_data as Record<string, unknown>)
-          : {}
-        await fetch(`${url}/rest/v1/inbound_leads?id=eq.${encodeURIComponent(lead.id)}`, {
-          method: 'PATCH',
-          headers,
-          body: JSON.stringify({
-            message: `Missed call from ${from || lead.phone || 'unknown number'}`,
-            raw_data: {
-              ...raw,
-              missedCall: true,
-              dialCallStatus,
-              missedAt: new Date().toISOString(),
-              branchNumber,
-              branchLabel: branchLabel || undefined,
-              trackingLabel: trackingLabel || undefined,
-              trackingSource: trackingSource || undefined,
-            },
-          }),
+      if (crmLead) {
+        await saveSalesLead({
+          ...crmLead,
+          lastMissedCallAt: now,
+          lastMissedCallAutoReplyAt: sendFallbackReply ? now : crmLead.lastMissedCallAutoReplyAt,
+        }).catch(() => null)
+      }
+
+      if (inboundLead) {
+        await updateInboundLeadRawData(inboundLead.id, {
+          missedCall: true,
+          dialCallStatus,
+          missedAt: now,
+          branchNumber,
+          branchLabel: branchLabel || undefined,
+          trackingLabel: trackingLabel || undefined,
+          trackingSource: trackingSource || undefined,
+          missedCallAutoReplyAt: sendFallbackReply ? now : inboundRaw.missedCallAutoReplyAt,
+        }).catch(() => {})
+      }
+
+      if (mapping?.leadId || inboundLead?.id) {
+        void createSalesSystemAlert({
+          title: 'Missed call needs callback',
+          leadId: mapping?.leadId,
+          branchNumber,
+          details: `Missed inbound call from ${fallbackPhone || 'unknown number'}${branchLabel ? ` on the ${branchLabel} line` : ''}.`,
+          occurredAt: now,
         })
+      }
+
+      if (sendFallbackReply && fallbackPhone) {
+        const branchText = branchLabel ? ` on the ${branchLabel} line` : ''
+        void sendSalesMessage({
+          channel: 'sms',
+          to: fallbackPhone,
+          body: `Sorry we missed your call${branchText}. Reply here and Saturn Star will text or call you right back.`,
+          leadId: mapping?.leadId,
+          fromNumber: branchNumber || undefined,
+          actor: 'automation',
+          notes: `Automation missed-call SMS sent to ${fallbackPhone}`,
+        }).catch(() => {})
       }
     }
   } catch {

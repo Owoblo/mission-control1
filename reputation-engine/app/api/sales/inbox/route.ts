@@ -8,7 +8,8 @@ import {
   getSaturnTrackingLabel,
   getSaturnTrackingSource,
 } from '@/lib/sales-phones'
-import { recordLeadUpdateAudit } from '@/lib/server/sales-audit'
+import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
+import { recordLeadCreatedAudit, recordLeadUpdateAudit } from '@/lib/server/sales-audit'
 import {
   getInboundLead,
   getSalesLeadByInboundId,
@@ -22,6 +23,7 @@ import {
   saveCrmCallSidMapping,
   saveSalesLead,
 } from '@/lib/server/sales-repository'
+import { getSessionUser } from '@/lib/server/session'
 import { validateLeadPayload } from '@/lib/server/sales-validation'
 import type { CallLogEntry, CRMLead, InboundLead } from '@/lib/types'
 
@@ -211,6 +213,11 @@ function ensureLeadForInbound(item: InboundLead, existingLeadIdsByInboundId: Map
 
 export async function GET(request: Request) {
   try {
+    const session = await getSessionUser()
+    if (!canAccessSalesWorkspace(session)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const mode = new URL(request.url).searchParams.get('mode')
     const [items, leads] = await Promise.all([
       mode === 'junk' ? listInboundJunkLeads() : mode === 'closed' ? listClosedInboundLeads() : listInboundLeads(),
@@ -254,6 +261,14 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const session = await getSessionUser()
+    if (!canAccessSalesWorkspace(session)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const now = new Date().toISOString()
+    const claimerName = session?.name?.trim()
+    const claimerUserId = session?.userId || undefined
     const payload = (await request.json()) as {
       inboundId?: string
       name?: string
@@ -290,6 +305,12 @@ export async function POST(request: Request) {
 
     if (duplicateLead) {
       const inboundCallLog = buildInboundCallLog(inbound)
+      const claimChangesOwner =
+        !!claimerName &&
+        (
+          (duplicateLead.assignedRepUserId || '') !== (claimerUserId || '') ||
+          (duplicateLead.assignedRepName || duplicateLead.assignedRep || '') !== claimerName
+        )
       const hasMatchingCallLog = duplicateLead.callLogs?.some(entry => {
         if (inboundCallLog.callSid && entry.callSid === inboundCallLog.callSid) {
           return true
@@ -309,6 +330,16 @@ export async function POST(request: Request) {
         branch: duplicateLead.branch || inferLeadBranchFromInbound(inbound),
         notes: duplicateLead.notes || payload.notes?.trim() || inbound.message?.trim() || '',
         followUpDate: duplicateLead.followUpDate || inferFollowUp(inbound).followUpDate,
+        assignedRep: claimerName || duplicateLead.assignedRep,
+        assignedRepName: claimerName || duplicateLead.assignedRepName || duplicateLead.assignedRep,
+        assignedRepUserId: claimerUserId || duplicateLead.assignedRepUserId,
+        leadOwnerStatus: claimerName
+          ? (claimChangesOwner ? (duplicateLead.assignedRep ? 'reassigned' : 'assigned') : duplicateLead.leadOwnerStatus)
+          : duplicateLead.leadOwnerStatus,
+        ownedAt: claimerName ? (claimChangesOwner ? now : duplicateLead.ownedAt) : duplicateLead.ownedAt,
+        lastTouchedAt: now,
+        lastTouchedByUserId: claimerUserId || duplicateLead.lastTouchedByUserId,
+        lastTouchedByName: claimerName || duplicateLead.lastTouchedByName,
         callLogs: hasMatchingCallLog ? duplicateLead.callLogs || [] : [...(duplicateLead.callLogs || []), inboundCallLog],
       })
 
@@ -341,6 +372,14 @@ export async function POST(request: Request) {
       moveReason: '',
       notes: payload.notes?.trim() || inbound.message?.trim() || '',
       ...inferFollowUp(inbound),
+      assignedRep: claimerName,
+      assignedRepName: claimerName,
+      assignedRepUserId: claimerUserId,
+      leadOwnerStatus: claimerName ? 'assigned' : 'unassigned',
+      ownedAt: claimerName ? now : undefined,
+      lastTouchedAt: now,
+      lastTouchedByUserId: claimerUserId,
+      lastTouchedByName: claimerName,
       directMailAttributed: false,
       inventory: [],
       totalItems: 0,
@@ -355,6 +394,7 @@ export async function POST(request: Request) {
       ...lead,
       leadScore: calculateLeadScore(lead),
     })
+    await recordLeadCreatedAudit(savedLead)
     await ensureInboundCallMapping(inbound, savedLead)
     await markInboundLeadClaimed(payload.inboundId)
 
@@ -369,6 +409,11 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    const session = await getSessionUser()
+    if (!canAccessSalesWorkspace(session)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const payload = (await request.json()) as { inboundId?: string; action?: 'junk' | 'restore' }
     if (!payload.inboundId || !payload.action) {
       return NextResponse.json({ error: 'inboundId and action are required' }, { status: 400 })

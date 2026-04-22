@@ -1,7 +1,8 @@
 'use client'
 
-import { formatDate } from '@/lib/sales'
+import { formatDate, getSalesBranchLabel } from '@/lib/sales'
 import type { CRMLead } from '@/lib/types'
+import { SALES_BRANCHES } from '@/lib/sales'
 
 type Props = {
   lead: CRMLead
@@ -10,6 +11,7 @@ type Props = {
   leadEmail: string
   leadSource: string
   moveDate: string
+  branch?: CRMLead['branch']
   moveType: CRMLead['moveType']
   originAddress: string
   originCity: string
@@ -30,6 +32,7 @@ type Props = {
   onMoveDateFlexibleChange: (value: boolean) => void
   onMoveDateFlexibleReasonChange: (value: string) => void
   onMoveTypeChange: (value: CRMLead['moveType']) => void
+  onBranchChange: (value: CRMLead['branch']) => void
   onOriginAddressChange: (value: string) => void
   onOriginCityChange: (value: string) => void
   onOriginAccessChange: (value: string) => void
@@ -40,6 +43,7 @@ type Props = {
   listingLookupBusy?: boolean
   hasListing?: boolean
   onScanListing?: () => void
+  disabled?: boolean
 }
 
 export function LeadBasicsPanel({
@@ -49,6 +53,7 @@ export function LeadBasicsPanel({
   leadEmail,
   leadSource,
   moveDate,
+  branch,
   moveDateFlexible,
   moveDateFlexibleReason,
   moveType,
@@ -69,6 +74,7 @@ export function LeadBasicsPanel({
   onMoveDateFlexibleChange,
   onMoveDateFlexibleReasonChange,
   onMoveTypeChange,
+  onBranchChange,
   onOriginAddressChange,
   onOriginCityChange,
   onOriginAccessChange,
@@ -79,7 +85,12 @@ export function LeadBasicsPanel({
   listingLookupBusy,
   hasListing,
   onScanListing,
+  disabled,
 }: Props) {
+  const activeContactLabel =
+    lead.leadKind === 'realtor_opportunity' && lead.primaryContactRole !== 'customer'
+      ? 'Realtor contact'
+      : 'Customer contact'
   const customerSummary = [
     leadName || lead.name || 'New contact',
     moveType ? `${moveType} move` : 'Move type pending',
@@ -103,19 +114,23 @@ export function LeadBasicsPanel({
           </div>
         </div>
         <div className="mt-5 space-y-3 text-sm text-[var(--app-ink)]">
+          <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">{activeContactLabel}</div>
           <div>{leadEmail || 'No email on file'}</div>
           <div>{leadPhone || 'No phone on file'}</div>
+          {branch ? (
+            <div className="text-xs text-[var(--app-muted)]">Branch: {getSalesBranchLabel(branch)}</div>
+          ) : null}
         </div>
         <div className="mt-5 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-3">
-          <div className="crm-label">Customer Summary</div>
+          <div className="crm-label">Contact Summary</div>
           <div className="mt-2 text-sm leading-6 text-[var(--app-ink)]">{customerSummary}</div>
         </div>
       </div>
 
       <div className="border-b border-[var(--app-line)] p-5">
         <div className="crm-label">Lead Basics</div>
-        <div className="mt-4 grid gap-3">
-          <input value={leadName} onChange={event => onLeadNameChange(event.target.value)} className="crm-input" placeholder="Add customer name" />
+        <fieldset disabled={disabled} className="mt-4 grid gap-3">
+          <input value={leadName} onChange={event => onLeadNameChange(event.target.value)} className="crm-input" placeholder={lead.leadKind === 'realtor_opportunity' ? 'Add active contact name' : 'Add customer name'} />
           <input value={leadPhone} onChange={event => onLeadPhoneChange(event.target.value)} className="crm-input" placeholder="Phone number" />
           <input value={leadEmail} onChange={event => onLeadEmailChange(event.target.value)} className="crm-input" placeholder="Email address" />
           <select value={leadSource} onChange={event => onLeadSourceChange(event.target.value)} className="crm-input">
@@ -126,14 +141,15 @@ export function LeadBasicsPanel({
             <option value="email">Email</option>
             <option value="referral">Referral</option>
             <option value="direct_mail">Direct mail</option>
+            <option value="destination_opportunity">Destination opportunity</option>
             <option value="other">Other</option>
           </select>
-        </div>
+        </fieldset>
       </div>
 
       <div className="border-b border-[var(--app-line)] p-5">
         <div className="crm-label">Move Details</div>
-        <div className="mt-4 grid gap-3">
+        <fieldset disabled={disabled} className="mt-4 grid gap-3">
           <input type="date" value={moveDate} onChange={event => onMoveDateChange(event.target.value)} className="crm-input" />
           {/* Date TBD toggle */}
           <label className="flex cursor-pointer items-center gap-2">
@@ -160,6 +176,12 @@ export function LeadBasicsPanel({
             <option value="senior">Senior</option>
             <option value="labor-only">Labor-only</option>
             <option value="packing">Packing</option>
+          </select>
+          <select value={branch || ''} onChange={event => onBranchChange((event.target.value || undefined) as CRMLead['branch'])} className="crm-input">
+            <option value="">Auto-detect branch / service area</option>
+            {SALES_BRANCHES.map(option => (
+              <option key={option.id} value={option.id}>{option.label}</option>
+            ))}
           </select>
           <input value={originAddress} onChange={event => onOriginAddressChange(event.target.value)} className="crm-input" placeholder="Origin address" />
           <input value={originCity} onChange={event => onOriginCityChange(event.target.value)} className="crm-input" placeholder="Origin city" />
@@ -194,7 +216,7 @@ export function LeadBasicsPanel({
           <input value={destCity} onChange={event => onDestCityChange(event.target.value)} className="crm-input" placeholder="Destination city" />
           <input value={destAccess} onChange={event => onDestAccessChange(event.target.value)} className="crm-input" placeholder="Destination access, stairs, elevator, long carry" />
           <input value={parkingNotes} onChange={event => onParkingNotesChange(event.target.value)} className="crm-input" placeholder="Parking / truck notes" />
-        </div>
+        </fieldset>
         <div className="relative mt-5 pl-4">
           <div className="absolute bottom-0 left-0 top-2 w-px bg-[rgba(228,226,220,1)]" />
           <div className="relative mb-6 pl-4">

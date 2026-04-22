@@ -1,4 +1,4 @@
-import { normalizeFollowUp, uid } from '@/lib/sales'
+import { getLeadAssignedRepName, normalizeFollowUp, uid } from '@/lib/sales'
 import { saveFollowUpLog } from '@/lib/server/sales-repository'
 import type { CRMLead, FollowUpLog } from '@/lib/types'
 
@@ -31,7 +31,12 @@ async function persistLogs(logs: FollowUpLog[]) {
 }
 
 export async function recordLeadCreatedAudit(lead: CRMLead) {
-  await persistLogs([buildLog(lead.id, 'note', 'Lead created in sales CRM.')])
+  const logs = [buildLog(lead.id, 'note', 'Lead created in sales CRM.')]
+  const assignedRep = getLeadAssignedRepName(lead)
+  if (assignedRep) {
+    logs.push(buildLog(lead.id, 'note', `Lead owner assigned to ${assignedRep}.`))
+  }
+  await persistLogs(logs)
 }
 
 export async function recordLeadArchivedAudit(leadId: string) {
@@ -44,16 +49,31 @@ export async function recordLeadRestoredAudit(leadId: string) {
 
 export async function recordLeadUpdateAudit(previous: CRMLead, next: CRMLead) {
   const logs: FollowUpLog[] = []
+  const previousAssignedRep = getLeadAssignedRepName(previous)
+  const nextAssignedRep = getLeadAssignedRepName(next)
+  const previousAssignedRepUserId = previous.assignedRepUserId || ''
+  const nextAssignedRepUserId = next.assignedRepUserId || ''
 
   if (previous.stage !== next.stage) {
     logs.push(buildLog(next.id, 'note', `Stage updated from ${previous.stage} to ${next.stage}.`))
+  }
+
+  if (previousAssignedRep !== nextAssignedRep || previousAssignedRepUserId !== nextAssignedRepUserId) {
+    if (!previousAssignedRep && nextAssignedRep) {
+      logs.push(buildLog(next.id, 'note', `Lead owner assigned to ${nextAssignedRep}.`))
+    } else if (previousAssignedRep && nextAssignedRep) {
+      logs.push(buildLog(next.id, 'note', `Lead reassigned from ${previousAssignedRep} to ${nextAssignedRep}.`))
+    } else if (previousAssignedRep && !nextAssignedRep) {
+      logs.push(buildLog(next.id, 'note', `Lead owner cleared from ${previousAssignedRep}.`))
+    }
   }
 
   if ((previous.followUpDate || '') !== (next.followUpDate || '') && next.followUpDate) {
     logs.push(buildLog(next.id, 'note', `Follow-up scheduled for ${next.followUpDate}.`))
   }
 
-  if ((previous.inventory?.length || 0) !== (next.inventory?.length || 0) && (next.inventory?.length || 0) > 0) {
+  const hasSentInitialEstimate = !!(previous.quoteId || next.quoteId || previous.quoteIds?.length || next.quoteIds?.length)
+  if (hasSentInitialEstimate && (previous.inventory?.length || 0) !== (next.inventory?.length || 0) && (next.inventory?.length || 0) > 0) {
     logs.push(buildLog(next.id, 'note', `Inventory updated with ${next.inventory?.length || 0} item${next.inventory?.length === 1 ? '' : 's'}.`))
   }
 

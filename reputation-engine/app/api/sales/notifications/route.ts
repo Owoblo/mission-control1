@@ -7,8 +7,9 @@ import {
   getSaturnBusinessNumberFromSmsMessage,
   isSaturnBranchPhoneNumber,
 } from '@/lib/sales-phones'
+import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { parseSalesAlertNote } from '@/lib/server/sales-alerts'
-import { hasInternalSession } from '@/lib/server/session'
+import { getSessionUser } from '@/lib/server/session'
 import { listFollowUpLogs, listInboundLeads, listSalesEmails } from '@/lib/server/sales-repository'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 
@@ -36,7 +37,8 @@ const SOURCE_LABELS: Record<string, string> = {
 }
 
 export async function GET() {
-  if (!await hasInternalSession()) {
+  const session = await getSessionUser()
+  if (!canAccessSalesWorkspace(session)) {
     return NextResponse.json({ items: [], totalCount: 0, breakdown: { leads: 0, sms: 0, emails: 0, alerts: 0 } })
   }
 
