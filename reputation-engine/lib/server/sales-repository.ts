@@ -201,6 +201,23 @@ export async function getSalesLeadByInboundId(inboundId: string) {
   return record?.data ? normalizeLead(record.data) : null
 }
 
+export async function listSalesOpportunityLeadsBySourceLeadId(sourceLeadId: string) {
+  const { url, headers } = requireSupabase()
+  const response = await fetch(
+    `${url}/rest/v1/crm_leads?select=id,data,deleted&data->>sourceLeadId=eq.${encodeURIComponent(sourceLeadId)}&data->>leadKind=eq.realtor_opportunity&deleted=eq.false&order=updated_at.desc&limit=20`,
+    { headers, cache: 'no-store' }
+  )
+
+  if (!response.ok) {
+    throw new Error(`Failed to read crm_leads opportunity list for source ${sourceLeadId}`)
+  }
+
+  const records = (await response.json()) as PersistedRecord<CRMLead>[]
+  return records
+    .filter(record => !record.deleted)
+    .map(record => normalizeLead(record.data))
+}
+
 export async function saveSalesLead(lead: CRMLead) {
   return normalizeLead(await upsert<CRMLead>('crm_leads', normalizeLead(lead)))
 }
@@ -551,10 +568,10 @@ export async function updateLeadCallLogEntry(
     if (entry.id !== callLogId) return entry
     // Replace "Recording processing…" whenever the recording is actually ready
     // (either transcribed, or just saved with a URL when the call was too short to transcribe)
-    let notes = entry.notes
+    let notes = updates.notes ?? entry.notes
     if (updates.recordingUrl || updates.transcript) {
       const replacement = updates.transcript ? ' Recording transcribed.' : ' Recording saved.'
-      notes = (entry.notes || '').replace(' Recording processing…', replacement)
+      notes = (notes || '').replace(' Recording processing…', replacement)
     }
     return { ...entry, ...updates, notes }
   })
@@ -665,7 +682,7 @@ async function queryListingsByAddressVariant(address: string): Promise<ListingMa
   const { url, headers } = requireSupabase()
   const encoded = encodeURIComponent(`%${address}%`)
   const response = await fetch(
-    `${url}/rest/v1/listings?address=ilike.${encoded}&select=zpid,address,city,is_furnished,furniture_scan_date,carouselphotos&limit=5`,
+    `${url}/rest/v1/listings?address=ilike.${encoded}&select=zpid,address,city,brokername,is_furnished,furniture_scan_date,carouselphotos&limit=5`,
     { headers, cache: 'no-store' }
   )
 

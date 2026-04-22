@@ -1,10 +1,32 @@
-export function requireSupabaseEnv() {
-  const url = process.env.SUPABASE_URL
-  const key = process.env.SUPABASE_KEY
+function normalizeEnvValue(value?: string | null) {
+  return (value || '').trim()
+}
 
-  if (!url || !key) {
-    throw new Error('Missing SUPABASE_URL or SUPABASE_KEY')
+export function readEnv(name: string) {
+  return normalizeEnvValue(process.env[name])
+}
+
+export function requireEnv(name: string, message = `Missing ${name}`) {
+  const value = readEnv(name)
+  if (!value) {
+    throw new Error(message)
   }
+  return value
+}
+
+export function getAppBaseUrl(fallback = '') {
+  const normalizedFallback = fallback.trim()
+  const url = readEnv('NEXT_PUBLIC_APP_URL') || normalizedFallback
+  return url.replace(/\/$/, '')
+}
+
+export function getWorkerSharedSecret() {
+  return readEnv('WORKER_SHARED_SECRET')
+}
+
+export function requireSupabaseEnv() {
+  const url = requireEnv('SUPABASE_URL', 'Missing SUPABASE_URL or SUPABASE_KEY')
+  const key = requireEnv('SUPABASE_KEY', 'Missing SUPABASE_URL or SUPABASE_KEY')
 
   return {
     url,
@@ -17,17 +39,12 @@ export function requireSupabaseEnv() {
 }
 
 export function requireWorkerBaseUrl() {
-  const url = process.env.WORKER_BASE_URL
-  if (!url) {
-    throw new Error('Missing WORKER_BASE_URL for outbound messaging')
-  }
-
-  return url.replace(/\/$/, '')
+  return requireEnv('WORKER_BASE_URL', 'Missing WORKER_BASE_URL for outbound messaging').replace(/\/$/, '')
 }
 
 export function getTwilioCredentials() {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID || ''
-  const authToken = process.env.TWILIO_AUTH_TOKEN || ''
+  const accountSid = readEnv('TWILIO_ACCOUNT_SID')
+  const authToken = readEnv('TWILIO_AUTH_TOKEN')
   if (!accountSid || !authToken) {
     throw new Error('Missing TWILIO_ACCOUNT_SID or TWILIO_AUTH_TOKEN')
   }
@@ -36,9 +53,9 @@ export function getTwilioCredentials() {
 
 export function getGoogleMapsApiKey() {
   return (
-    process.env.GOOGLE_MAPS_API_KEY ||
-    process.env.GOOGLE_GEOCODING_API_KEY ||
-    process.env.GOOGLE_DIRECTIONS_API_KEY ||
+    readEnv('GOOGLE_MAPS_API_KEY') ||
+    readEnv('GOOGLE_GEOCODING_API_KEY') ||
+    readEnv('GOOGLE_DIRECTIONS_API_KEY') ||
     ''
   )
 }
