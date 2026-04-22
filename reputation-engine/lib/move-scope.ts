@@ -1,0 +1,53 @@
+import type { JobFactors } from './types'
+
+export function getIncludedDisassemblyItems(items: string[], excludedItems?: Iterable<string>) {
+  const excluded = new Set(excludedItems || [])
+  return items.filter(item => !excluded.has(item))
+}
+
+export function getDisassemblyServiceLabel(mode?: JobFactors['disassemblyMode']) {
+  if (mode === 'disassemble_only') return 'Disassembly only'
+  if (mode === 'reassemble_only') return 'Reassembly only'
+  return 'Disassembly + reassembly'
+}
+
+export function buildMoveSpecificNotes(jobFactors?: JobFactors | null) {
+  if (!jobFactors) return []
+
+  const notes: string[] = []
+
+  if (jobFactors.originFloors && jobFactors.originFloors > 1) {
+    notes.push(`${jobFactors.originFloors}-floor walk-up at origin — stair time included`)
+  }
+  if (jobFactors.destFloors && jobFactors.destFloors > 1) {
+    notes.push(`${jobFactors.destFloors}-floor walk-up at destination — stair time included`)
+  }
+  if (jobFactors.originHasElevator) {
+    notes.push('Elevator at origin — reservation required day of move')
+  }
+  if (jobFactors.destHasElevator) {
+    notes.push('Elevator at destination — reservation required day of move')
+  }
+  if (jobFactors.hasPiano) {
+    notes.push('Piano included — specialized handling and equipment')
+  }
+  if (jobFactors.hasSafe) {
+    notes.push('Safe included — extra crew and equipment allocated')
+  }
+  if (jobFactors.disassemblyItemCount && jobFactors.disassemblyItemCount > 0) {
+    notes.push(
+      `${jobFactors.disassemblyItemCount} item${jobFactors.disassemblyItemCount > 1 ? 's' : ''} requiring ${getDisassemblyServiceLabel(jobFactors.disassemblyMode).toLowerCase()} — time included`
+    )
+  }
+  if (jobFactors.estimatedBoxes && jobFactors.estimatedBoxes > 0) {
+    notes.push(`~${jobFactors.estimatedBoxes} boxes estimated — included in load time`)
+  }
+  if (jobFactors.garageCubicFeet || jobFactors.basementCubicFeet || jobFactors.shedCubicFeet) {
+    notes.push('Garage, basement, or shed items included in volume estimate')
+  }
+  if (jobFactors.specialtyNotes?.trim()) {
+    notes.push(jobFactors.specialtyNotes.trim())
+  }
+
+  return notes
+}
