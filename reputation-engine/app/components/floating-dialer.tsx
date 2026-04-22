@@ -63,6 +63,8 @@ export function FloatingDialer() {
   const incomingCallRef = useRef<any>(null)
   const callStartRef = useRef<number | null>(null)
   const callSidRef = useRef<string | undefined>(undefined)
+  const activeLeadIdRef = useRef<string | null>(null)
+  const finalizedCallRef = useRef(false)
   const initializedRef = useRef(false)
   const tokenRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -93,10 +95,15 @@ export function FloatingDialer() {
       const from = call?.parameters?.From || call?.parameters?.from || 'Incoming call'
       setIncomingFrom(from)
       setActiveLeadId(null)
+      activeLeadIdRef.current = null
       setStatus('incoming')
       setOpen(true)
       void matchLeadByPhone(from).then(lead => {
-        if (lead) { setActiveLeadId(lead.id); setPhone(lead.phone || from) }
+        if (lead) {
+          setActiveLeadId(lead.id)
+          activeLeadIdRef.current = lead.id
+          setPhone(lead.phone || from)
+        }
       }).catch(() => {})
       call.on('cancel', () => { incomingCallRef.current = null; callStartRef.current = null; setStatus('ready') })
       call.on('disconnect', () => { incomingCallRef.current = null; activeCallRef.current = null; callStartRef.current = null; setStatus('ready') })
@@ -139,7 +146,9 @@ export function FloatingDialer() {
     function handleOpenDialer(event: Event) {
       const customEvent = event as CustomEvent<{ phone?: string; leadId?: string }>
       if (customEvent.detail?.phone) setPhone(customEvent.detail.phone)
-      setActiveLeadId(customEvent.detail?.leadId || null)
+      const nextLeadId = customEvent.detail?.leadId || null
+      setActiveLeadId(nextLeadId)
+      activeLeadIdRef.current = nextLeadId
       setOpen(true)
     }
 
@@ -149,6 +158,10 @@ export function FloatingDialer() {
       if (tokenRefreshTimerRef.current) clearTimeout(tokenRefreshTimerRef.current)
     }
   }, [])
+
+  useEffect(() => {
+    activeLeadIdRef.current = activeLeadId
+  }, [activeLeadId])
 
   useEffect(() => {
     if (status !== 'active') {
@@ -185,6 +198,7 @@ export function FloatingDialer() {
     try {
       setStatus('connecting')
       setError(null)
+      finalizedCallRef.current = false
       const call = await deviceRef.current.connect({ params: { To: e164 } })
       activeCallRef.current = call
 
@@ -198,6 +212,8 @@ export function FloatingDialer() {
         activeCallRef.current = null
         callStartRef.current = null
         callSidRef.current = undefined
+        finalizedCallRef.current = false
+        setMuted(false)
         setStatus('ready')
       })
       call.on('cancel', () => {
@@ -205,11 +221,16 @@ export function FloatingDialer() {
         activeCallRef.current = null
         callStartRef.current = null
         callSidRef.current = undefined
+        finalizedCallRef.current = false
+        setMuted(false)
         setStatus('ready')
       })
       call.on('error', (nextError: Error) => {
         activeCallRef.current = null
         callStartRef.current = null
+        callSidRef.current = undefined
+        finalizedCallRef.current = false
+        setMuted(false)
         const msg = nextError.message || ''
         // 31005 = gateway error — stale token or TwiML app issue → auto-reinit
         if (msg.includes('31005') || msg.includes('31000') || msg.includes('31003')) {
@@ -228,17 +249,8 @@ export function FloatingDialer() {
   }
 
   function hangUp() {
-    // Finalize before clearing refs — disconnect fires async so finalizeCall would see null refs otherwise
-    if (activeLeadId && activeCallRef.current) {
-      void finalizeCall('outbound')
-    }
     activeCallRef.current?.disconnect()
     incomingCallRef.current?.disconnect?.()
-    activeCallRef.current = null
-    incomingCallRef.current = null
-    callSidRef.current = undefined
-    setMuted(false)
-    setStatus('ready')
   }
 
   function toggleMute() {
@@ -257,11 +269,14 @@ export function FloatingDialer() {
     incomingCallRef.current = null
     callStartRef.current = Date.now()
     callSidRef.current = call.parameters?.CallSid || call.parameters?.callsid || undefined
+    finalizedCallRef.current = false
     call.on('disconnect', () => {
       void finalizeCall('inbound')
       activeCallRef.current = null
       callStartRef.current = null
       callSidRef.current = undefined
+      finalizedCallRef.current = false
+      setMuted(false)
       setStatus('ready')
     })
     setStatus('active')
@@ -274,7 +289,9 @@ export function FloatingDialer() {
   }
 
   async function finalizeCall(direction: 'inbound' | 'outbound', answered = true) {
-    if (!activeLeadId) return
+    const leadId = activeLeadIdRef.current
+    if (!leadId || finalizedCallRef.current) return
+    finalizedCallRef.current = true
     const startedAt = callStartRef.current
     const durationSeconds = startedAt ? Math.max(0, Math.floor((Date.now() - startedAt) / 1000)) : 0
     // Use callSidRef — activeCallRef may already be null when hangUp calls finalizeCall
@@ -284,15 +301,26 @@ export function FloatingDialer() {
       undefined
 
     try {
-      await logDialerCall({
-        leadId: activeLeadId,
+      const updatedLead = await logDialerCall({
+        leadId,
         phone: phone.trim() || incomingFrom,
         direction,
         durationSeconds,
         callSid,
         answered: answered && durationSeconds > 0,
       })
+      window.dispatchEvent(
+        new CustomEvent('crm:lead-call-logged', {
+          detail: {
+            leadId,
+            callSid,
+            direction,
+            lead: updatedLead,
+          },
+        })
+      )
     } catch (nextError) {
+      finalizedCallRef.current = false
       setError((nextError as Error).message)
     }
   }

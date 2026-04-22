@@ -388,6 +388,31 @@ export default function SalesLeadDetailPage() {
     return () => clearInterval(interval)
   }, [params?.id])
 
+  useEffect(() => {
+    if (!params?.id) return
+
+    function handleDialerLeadCallLogged(event: Event) {
+      const customEvent = event as CustomEvent<{ leadId?: string; lead?: CRMLead | null }>
+      if (!customEvent.detail?.leadId || customEvent.detail.leadId !== params.id || !customEvent.detail.lead) return
+
+      setLead(prev => {
+        if (!prev) return customEvent.detail!.lead!
+        return {
+          ...prev,
+          callLogs: customEvent.detail!.lead!.callLogs,
+          lastInboundAt: customEvent.detail!.lead!.lastInboundAt,
+          lastOutboundAt: customEvent.detail!.lead!.lastOutboundAt,
+          lastHumanOutboundAt: customEvent.detail!.lead!.lastHumanOutboundAt,
+        }
+      })
+    }
+
+    window.addEventListener('crm:lead-call-logged', handleDialerLeadCallLogged)
+    return () => {
+      window.removeEventListener('crm:lead-call-logged', handleDialerLeadCallLogged)
+    }
+  }, [params?.id])
+
   // ── Auto-transcribe: fire silently when calls have recording but no transcript ──
   useEffect(() => {
     if (!lead?.id) return
