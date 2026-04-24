@@ -4,6 +4,7 @@ import {
   getSaturnTrackingLabel,
   getSaturnTrackingSource,
 } from '@/lib/sales-phones'
+import { pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
 import { appendSmsToInboundLead, getInboundLeadByPhone, saveInboundLead } from '@/lib/server/sales-repository'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { logEvent } from '@/lib/server/analytics'
@@ -57,50 +58,65 @@ export async function POST(request: Request) {
     const toField = (formData.get('To') as string | null)?.trim() || MY_NUMBER
     const body = (formData.get('Body') as string | null)?.trim() || ''
     const messageSid = (formData.get('MessageSid') as string | null)?.trim() || ''
+    const receivedAt = new Date().toISOString()
 
     if (from) {
       const normalized = toE164(from)
-
-      // Check if there's an existing unclaimed inbound lead from this number.
-      // If yes, thread the reply into that lead instead of creating a duplicate.
-      const existing = await getInboundLeadByPhone(normalized).catch(() => null)
-        ?? await getInboundLeadByPhone(from).catch(() => null)
-
-      const inboundLeadId = existing?.id || crypto.randomUUID()
-
-      if (existing) {
-        await appendSmsToInboundLead(inboundLeadId, body || '(no body)', messageSid)
-      } else {
-        const trackingLabel = getSaturnTrackingLabel(toField)
-        const trackingSource = getSaturnTrackingSource(toField)
-        await saveInboundLead({
-          id: inboundLeadId,
-          source: 'twilio_sms',
-          phone: normalized || from,
-          message: body || 'Inbound SMS (no body)',
-          raw_data: {
-            messageSid,
-            from,
-            to: toField,
-            body,
-            trackingLabel: trackingLabel || undefined,
-            trackingSource: trackingSource || undefined,
-            smsThread: [{ direction: 'inbound', body: body || '(no body)', messageSid, at: new Date().toISOString() }],
-          },
-        })
-      }
-
-      const automation = await processInboundAutomationEvent({
-        inboundLeadId,
-        source: 'twilio_sms',
+      const partnership = await pausePartnershipSequenceForInbound({
         channel: 'sms',
         phone: normalized || from,
-        message: body || '(no body)',
-        receivedAt: new Date().toISOString(),
-        raw: { messageSid, from, body },
-      }).catch(() => null)
+        occurredAt: receivedAt,
+        notes: body ? `Inbound SMS: ${body}` : 'Inbound SMS reply received',
+        metadata: {
+          from,
+          to: toField,
+          messageSid,
+        },
+      }).catch(() => ({ matched: false as const }))
 
-      void writeSmsMessage(normalized || from, toField, body || '(no body)', messageSid, automation?.lead?.id)
+      if (!partnership.matched) {
+
+        // Check if there's an existing unclaimed inbound lead from this number.
+        // If yes, thread the reply into that lead instead of creating a duplicate.
+        const existing = await getInboundLeadByPhone(normalized).catch(() => null)
+          ?? await getInboundLeadByPhone(from).catch(() => null)
+
+        const inboundLeadId = existing?.id || crypto.randomUUID()
+
+        if (existing) {
+          await appendSmsToInboundLead(inboundLeadId, body || '(no body)', messageSid)
+        } else {
+          const trackingLabel = getSaturnTrackingLabel(toField)
+          const trackingSource = getSaturnTrackingSource(toField)
+          await saveInboundLead({
+            id: inboundLeadId,
+            source: 'twilio_sms',
+            phone: normalized || from,
+            message: body || 'Inbound SMS (no body)',
+            raw_data: {
+              messageSid,
+              from,
+              to: toField,
+              body,
+              trackingLabel: trackingLabel || undefined,
+              trackingSource: trackingSource || undefined,
+              smsThread: [{ direction: 'inbound', body: body || '(no body)', messageSid, at: receivedAt }],
+            },
+          })
+        }
+
+        const automation = await processInboundAutomationEvent({
+          inboundLeadId,
+          source: 'twilio_sms',
+          channel: 'sms',
+          phone: normalized || from,
+          message: body || '(no body)',
+          receivedAt,
+          raw: { messageSid, from, body },
+        }).catch(() => null)
+
+        void writeSmsMessage(normalized || from, toField, body || '(no body)', messageSid, automation?.lead?.id)
+      }
     }
     void logEvent('sms_received', {
       properties: {
