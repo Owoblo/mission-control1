@@ -1064,11 +1064,11 @@ function MaintenanceView({ contacts, onSelect }: { contacts: Contact[]; onSelect
 }
 
 function CommsView({ contacts, batches }: { contacts: Contact[]; batches: Batch[] }) {
-  const eligibleContacts = contacts.filter(contact => contact.email || contact.phone)
+  const activeBatch = batches.find(batch => batch.status === 'active' && batch.mail_sent_date) ?? batches[0] ?? null
+  const batchContacts = activeBatch ? contacts.filter(contact => contact.batch_id === activeBatch.id) : contacts
+  const eligibleContacts = batchContacts.filter(contact => contact.email || contact.phone)
   const [selectedId, setSelectedId] = useState<string>(eligibleContacts[0]?.id ?? '')
   const [channel, setChannel] = useState<'email' | 'sms' | 'health'>('email')
-  const [emailMessages, setEmailMessages] = useState<EmailMessage[]>([])
-  const [smsMessages, setSmsMessages] = useState<Array<{ id: string; from_number: string; to_number: string; body: string; direction: 'inbound' | 'outbound'; created_at: string }>>([])
   const [health, setHealth] = useState<TelephonyHealth | null>(null)
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
@@ -1085,19 +1085,7 @@ function CommsView({ contacts, batches }: { contacts: Contact[]; batches: Batch[
 
   useEffect(() => {
     if (!selected) return
-    if (channel === 'email' && selected.email) {
-      setLoading(true)
-      fetch(`/api/sales/emails?email=${encodeURIComponent(selected.email)}`, { credentials: 'include' })
-        .then(r => r.ok ? r.json() : [])
-        .then(setEmailMessages)
-        .finally(() => setLoading(false))
-    } else if (channel === 'sms' && selected.phone) {
-      setLoading(true)
-      fetch(`/api/sales/sms-threads?phone=${encodeURIComponent(selected.phone)}`, { credentials: 'include' })
-        .then(r => r.ok ? r.json() : [])
-        .then(data => setSmsMessages(Array.isArray(data) ? data : []))
-        .finally(() => setLoading(false))
-    } else if (channel === 'health') {
+    if (channel === 'health') {
       setLoading(true)
       fetch('/api/sales/telephony-health', { credentials: 'include' })
         .then(r => r.ok ? r.json() : null)
@@ -1149,19 +1137,33 @@ function CommsView({ contacts, batches }: { contacts: Contact[]; batches: Batch[
     <div className="space-y-5">
       <section className="grid gap-4 md:grid-cols-3">
         <div className="rounded-[24px] border border-[var(--app-line)] bg-white p-5">
-          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Email Inbox</div>
-          <div className="mt-2 text-3xl font-semibold tracking-tight text-[#1a2744]">{emailMessages.length}</div>
-          <div className="mt-1 text-sm text-slate-500">Loaded for the selected partnership contact.</div>
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Batch Contacts</div>
+          <div className="mt-2 text-3xl font-semibold tracking-tight text-[#1a2744]">{batchContacts.length}</div>
+          <div className="mt-1 text-sm text-slate-500">{activeBatch ? activeBatch.name : 'Current partnership batch.'}</div>
         </div>
         <div className="rounded-[24px] border border-[var(--app-line)] bg-white p-5">
-          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">SMS Thread</div>
-          <div className="mt-2 text-3xl font-semibold tracking-tight text-[#1a2744]">{smsMessages.length}</div>
-          <div className="mt-1 text-sm text-slate-500">2-way text history and reply status.</div>
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Email Ready</div>
+          <div className="mt-2 text-3xl font-semibold tracking-tight text-[#1a2744]">{batchContacts.filter(contact => !!contact.email).length}</div>
+          <div className="mt-1 text-sm text-slate-500">Contacts with a deliverable email address.</div>
         </div>
+        <div className="rounded-[24px] border border-[var(--app-line)] bg-white p-5">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">SMS Ready</div>
+          <div className="mt-2 text-3xl font-semibold tracking-tight text-[#1a2744]">{batchContacts.filter(contact => !!contact.phone).length}</div>
+          <div className="mt-1 text-sm text-slate-500">Contacts with a deliverable mobile number.</div>
+        </div>
+      </section>
+
+      <section className="grid gap-4 md:grid-cols-3">
         <div className="rounded-[24px] border border-[var(--app-line)] bg-white p-5">
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Inbound Health</div>
           <div className="mt-2 text-3xl font-semibold tracking-tight text-[#1a2744]">{inboundAlerts}</div>
           <div className="mt-1 text-sm text-slate-500">Recent alerts from voice, SMS, and recordings.</div>
+        </div>
+        <div className="rounded-[24px] border border-[var(--app-line)] bg-white p-5 md:col-span-2">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Routing Note</div>
+          <div className="mt-2 text-sm text-slate-600">
+            Partnership replies are handled in the partnership pipeline. Sales inbox history is intentionally not shown here so the two CRM streams stay separate.
+          </div>
         </div>
       </section>
 
@@ -1208,7 +1210,7 @@ function CommsView({ contacts, batches }: { contacts: Contact[]; batches: Batch[
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold tracking-tight text-[#1a2744]">Inbound Detection and Replies</h2>
-              <p className="text-sm text-slate-500">Email, SMS, and webhook health in one place.</p>
+              <p className="text-sm text-slate-500">Email, SMS, and webhook health for the current partnership batch only.</p>
             </div>
             <div className="flex gap-2">
               {(['email', 'sms', 'health'] as const).map(item => (
@@ -1257,51 +1259,42 @@ function CommsView({ contacts, batches }: { contacts: Contact[]; batches: Batch[
             </div>
           ) : channel === 'email' ? (
             <div className="grid gap-5 xl:grid-cols-[1fr,360px]">
-              <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4">
-                <div className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Thread</div>
-                {loading ? (
-                  <div className="text-sm text-slate-500">Loading emails...</div>
-                ) : emailMessages.length === 0 ? (
-                  <div className="text-sm text-slate-500">No email history yet for this contact.</div>
-                ) : emailMessages.map(msg => (
-                  <div key={msg.id} className="mb-3 rounded-[16px] border border-slate-200 bg-white p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-sm font-semibold text-[#1a2744]">{msg.direction === 'inbound' ? 'Received' : 'Sent'}</div>
-                        <div className="text-xs text-slate-500">{msg.subject || '(no subject)'}</div>
-                      </div>
-                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${msg.direction === 'inbound' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                        {msg.direction}
-                      </span>
-                    </div>
-                    <div className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-600">{msg.body_preview || msg.body || 'No preview'}</div>
-                    <div className="mt-2 text-[11px] text-slate-400">{new Date(msg.created_at).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</div>
-                  </div>
-                ))}
+              <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4 space-y-3">
+                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Partnership Email Reply</div>
+                <div className="text-sm text-slate-600">
+                  Send from Eric to the selected partnership contact. Inbound email replies should appear in the partnership pipeline as a paused contact, not inside the sales CRM view here.
+                </div>
+                <div className="rounded-[16px] border border-slate-200 bg-white p-3 text-sm text-slate-600">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">To</div>
+                  <div className="mt-1 break-words text-[#1a2744]">{selected.email || 'No email on file'}</div>
+                  <div className="mt-2 text-xs text-slate-500">Batch: {selectedBatch?.name ?? activeBatch?.name ?? 'Current batch'}</div>
+                </div>
+                <input
+                  className="crm-input"
+                  value={reply.subject}
+                  onChange={e => setReply(prev => ({ ...prev, subject: e.target.value }))}
+                  placeholder="Subject"
+                />
+                <textarea
+                  className="crm-input min-h-[220px]"
+                  value={reply.body}
+                  onChange={e => setReply(prev => ({ ...prev, body: e.target.value }))}
+                  placeholder="Write your partnership email..."
+                />
+                <div className="flex gap-2">
+                  <button onClick={() => void sendReply()} disabled={sending || !selected.email || !reply.body.trim()} className="rounded-xl bg-[#1a2744] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
+                    {sending ? 'Sending...' : 'Send Email'}
+                  </button>
+                  <Link href="/sales/inbox" className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+                    Open Sales Inbox
+                  </Link>
+                </div>
               </div>
               <div className="space-y-3">
-                <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4">
-                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Reply</div>
-                  <div className="mt-3 space-y-3">
-                    <input
-                      className="crm-input"
-                      value={reply.subject}
-                      onChange={e => setReply(prev => ({ ...prev, subject: e.target.value }))}
-                      placeholder="Subject"
-                    />
-                    <textarea
-                      className="crm-input min-h-[180px]"
-                      value={reply.body}
-                      onChange={e => setReply(prev => ({ ...prev, body: e.target.value }))}
-                      placeholder="Write your email reply..."
-                    />
-                    <button
-                      onClick={() => void sendReply()}
-                      disabled={sending || !selected.email || !reply.body.trim()}
-                      className="w-full rounded-xl bg-[#1a2744] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                    >
-                      {sending ? 'Sending...' : 'Send Email'}
-                    </button>
+                <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Inbound Handling</div>
+                  <div className="mt-2">
+                    Email replies pause the sequence, SMS replies pause the sequence, and the contact moves into Today&apos;s Actions for Eric.
                   </div>
                 </div>
                 <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
@@ -1312,46 +1305,41 @@ function CommsView({ contacts, batches }: { contacts: Contact[]; batches: Batch[
             </div>
           ) : (
             <div className="grid gap-5 xl:grid-cols-[1fr,360px]">
-              <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4">
-                <div className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Thread</div>
-                {loading ? (
-                  <div className="text-sm text-slate-500">Loading SMS thread...</div>
-                ) : smsMessages.length === 0 ? (
-                  <div className="text-sm text-slate-500">No SMS history yet for this contact.</div>
-                ) : smsMessages.map(msg => (
-                  <div key={msg.id} className={`mb-3 flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[80%] rounded-[16px] px-4 py-3 text-sm ${msg.direction === 'outbound' ? 'bg-[#1a2744] text-white' : 'bg-white text-slate-700'}`}>
-                      <div className="whitespace-pre-wrap leading-6">{msg.body}</div>
-                      <div className={`mt-2 text-[11px] ${msg.direction === 'outbound' ? 'text-white/60' : 'text-slate-400'}`}>
-                        {new Date(msg.created_at).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4 space-y-3">
+                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Partnership SMS Reply</div>
+                <div className="text-sm text-slate-600">
+                  Send from Eric to the selected partnership contact. Inbound SMS replies should pause the sequence and move the contact into the rep queue.
+                </div>
+                <div className="rounded-[16px] border border-slate-200 bg-white p-3 text-sm text-slate-600">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">To</div>
+                  <div className="mt-1 break-words text-[#1a2744]">{selected.phone || 'No phone on file'}</div>
+                  <div className="mt-2 text-xs text-slate-500">Batch: {selectedBatch?.name ?? activeBatch?.name ?? 'Current batch'}</div>
+                </div>
+                <textarea
+                  className="crm-input min-h-[220px]"
+                  value={smsReply}
+                  onChange={e => setSmsReply(e.target.value)}
+                  placeholder="Write your partnership SMS..."
+                />
+                <div className="flex gap-2">
+                  <button onClick={() => void sendReply()} disabled={sending || !selected.phone || !smsReply.trim()} className="rounded-xl bg-[#1a2744] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
+                    {sending ? 'Sending...' : 'Send SMS'}
+                  </button>
+                  <Link href="/sales/sms-threads" className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+                    Open SMS Threads
+                  </Link>
+                </div>
               </div>
               <div className="space-y-3">
-                <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4">
-                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Reply</div>
-                  <div className="mt-3 space-y-3">
-                    <textarea
-                      className="crm-input min-h-[180px]"
-                      value={smsReply}
-                      onChange={e => setSmsReply(e.target.value)}
-                      placeholder="Write your SMS reply..."
-                    />
-                    <button
-                      onClick={() => void sendReply()}
-                      disabled={sending || !selected.phone || !smsReply.trim()}
-                      className="w-full rounded-xl bg-[#1a2744] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                    >
-                      {sending ? 'Sending...' : 'Send SMS'}
-                    </button>
+                <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Inbound Handling</div>
+                  <div className="mt-2">
+                    SMS replies pause the sequence, cancel pending jobs, and surface the contact in Today&apos;s Actions for Eric.
                   </div>
                 </div>
                 <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
                   <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Texting To</div>
                   <div className="mt-2 break-words">{selected.phone || 'No phone on file'}</div>
-                  {selectedBatch ? <div className="mt-2 text-xs text-slate-400">Batch: {selectedBatch.name}</div> : null}
                 </div>
               </div>
             </div>
