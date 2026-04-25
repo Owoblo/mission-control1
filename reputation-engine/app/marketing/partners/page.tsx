@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { PARTNERSHIP_STAGE_META } from '@/lib/marketing'
+import { sendSalesMessage } from '@/lib/sales-api'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -61,6 +62,26 @@ interface Touch {
   created_by: string
   created_at: string
   outcome_code?: string | null
+}
+
+interface EmailMessage {
+  id: string
+  from_address: string
+  to_address: string
+  subject: string | null
+  body_preview: string | null
+  body: string | null
+  direction: 'inbound' | 'outbound'
+  lead_id: string | null
+  created_at: string
+}
+
+interface TelephonyHealth {
+  ok: boolean
+  generatedAt: string
+  probes: Array<{ name: string; status: 'ok' | 'idle'; lastSeenAt: string | null }>
+  recentAlertCount: number
+  recentAlerts: string[]
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -1042,12 +1063,312 @@ function MaintenanceView({ contacts, onSelect }: { contacts: Contact[]; onSelect
   )
 }
 
+function CommsView({ contacts, batches }: { contacts: Contact[]; batches: Batch[] }) {
+  const eligibleContacts = contacts.filter(contact => contact.email || contact.phone)
+  const [selectedId, setSelectedId] = useState<string>(eligibleContacts[0]?.id ?? '')
+  const [channel, setChannel] = useState<'email' | 'sms' | 'health'>('email')
+  const [emailMessages, setEmailMessages] = useState<EmailMessage[]>([])
+  const [smsMessages, setSmsMessages] = useState<Array<{ id: string; from_number: string; to_number: string; body: string; direction: 'inbound' | 'outbound'; created_at: string }>>([])
+  const [health, setHealth] = useState<TelephonyHealth | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [reply, setReply] = useState({ subject: '', body: '' })
+  const [smsReply, setSmsReply] = useState('')
+  const selected = eligibleContacts.find(contact => contact.id === selectedId) ?? null
+  const selectedBatch = selected?.batch_id ? batches.find(batch => batch.id === selected.batch_id) ?? null : null
+
+  useEffect(() => {
+    if (!selectedId && eligibleContacts.length > 0) {
+      setSelectedId(eligibleContacts[0].id)
+    }
+  }, [eligibleContacts, selectedId])
+
+  useEffect(() => {
+    if (!selected) return
+    if (channel === 'email' && selected.email) {
+      setLoading(true)
+      fetch(`/api/sales/emails?email=${encodeURIComponent(selected.email)}`, { credentials: 'include' })
+        .then(r => r.ok ? r.json() : [])
+        .then(setEmailMessages)
+        .finally(() => setLoading(false))
+    } else if (channel === 'sms' && selected.phone) {
+      setLoading(true)
+      fetch(`/api/sales/sms-threads?phone=${encodeURIComponent(selected.phone)}`, { credentials: 'include' })
+        .then(r => r.ok ? r.json() : [])
+        .then(data => setSmsMessages(Array.isArray(data) ? data : []))
+        .finally(() => setLoading(false))
+    } else if (channel === 'health') {
+      setLoading(true)
+      fetch('/api/sales/telephony-health', { credentials: 'include' })
+        .then(r => r.ok ? r.json() : null)
+        .then(setHealth)
+        .finally(() => setLoading(false))
+    }
+  }, [channel, selected])
+
+  useEffect(() => {
+    if (!selected) return
+    setReply({
+      subject: `Re: ${selected.name}`,
+      body: `Hi ${selected.name.split(' ')[0] || 'there'},\n\nThanks for getting in touch. I wanted to follow up on the partnership letter we sent to ${selected.company || selected.industry || 'your team'}.\n\nWould you be open to a quick 10-minute conversation?\n\nEric\nHead of Partnerships | Saturn Star Movers\n+12267746581 | eric@starmovers.ca`,
+    })
+    setSmsReply(`Hi ${selected.name.split(' ')[0] || 'there'}, Eric from Saturn Star Movers here. We sent ${selected.company || selected.industry || 'your team'} a letter about partnering with us. Open to a quick call?`)
+  }, [selected?.id])
+
+  async function sendReply() {
+    if (!selected) return
+    try {
+      setSending(true)
+      if (channel === 'email') {
+        if (!selected.email || !reply.body.trim()) return
+        await sendSalesMessage({
+          channel: 'email',
+          to: selected.email,
+          subject: reply.subject || `Re: ${selected.name}`,
+          body: reply.body,
+          notes: `Partnership email reply from the comms panel for ${selected.name}.`,
+        })
+      } else if (channel === 'sms') {
+        if (!selected.phone || !smsReply.trim()) return
+        await sendSalesMessage({
+          channel: 'sms',
+          to: selected.phone,
+          body: smsReply,
+          fromNumber: '+12267746581',
+          notes: `Partnership SMS reply from the comms panel for ${selected.name}.`,
+        })
+      }
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const inboundAlerts = health?.recentAlertCount ?? 0
+
+  return (
+    <div className="space-y-5">
+      <section className="grid gap-4 md:grid-cols-3">
+        <div className="rounded-[24px] border border-[var(--app-line)] bg-white p-5">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Email Inbox</div>
+          <div className="mt-2 text-3xl font-semibold tracking-tight text-[#1a2744]">{emailMessages.length}</div>
+          <div className="mt-1 text-sm text-slate-500">Loaded for the selected partnership contact.</div>
+        </div>
+        <div className="rounded-[24px] border border-[var(--app-line)] bg-white p-5">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">SMS Thread</div>
+          <div className="mt-2 text-3xl font-semibold tracking-tight text-[#1a2744]">{smsMessages.length}</div>
+          <div className="mt-1 text-sm text-slate-500">2-way text history and reply status.</div>
+        </div>
+        <div className="rounded-[24px] border border-[var(--app-line)] bg-white p-5">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Inbound Health</div>
+          <div className="mt-2 text-3xl font-semibold tracking-tight text-[#1a2744]">{inboundAlerts}</div>
+          <div className="mt-1 text-sm text-slate-500">Recent alerts from voice, SMS, and recordings.</div>
+        </div>
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[320px,1fr]">
+        <div className="rounded-[24px] border border-[var(--app-line)] bg-white p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight text-[#1a2744]">Contacts</h2>
+              <p className="text-sm text-slate-500">Pick a partnership contact to review email and SMS history.</p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {eligibleContacts.length === 0 ? (
+              <div className="rounded-[18px] border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500">No contacts with email or phone yet.</div>
+            ) : eligibleContacts.slice(0, 40).map(contact => {
+              const batchName = contact.batch_id ? batches.find(batch => batch.id === contact.batch_id)?.name : null
+              const active = contact.id === selectedId
+              return (
+                <button
+                  key={contact.id}
+                  onClick={() => setSelectedId(contact.id)}
+                  className={`w-full rounded-[18px] border p-4 text-left transition ${active ? 'border-[#1a2744] bg-slate-50' : 'border-slate-200 bg-white hover:border-[#1a2744]/25'}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold text-[#1a2744]">{contact.name}</div>
+                      <div className="mt-1 truncate text-xs text-slate-500">{contact.company ?? contact.industry ?? 'Partnership contact'}</div>
+                    </div>
+                    <div className="flex shrink-0 gap-1.5">
+                      {contact.email ? <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700">Email</span> : null}
+                      {contact.phone ? <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700">SMS</span> : null}
+                    </div>
+                  </div>
+                  <div className="mt-2 text-[11px] text-slate-400">
+                    {batchName ? batchName : 'No batch label'}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className="rounded-[24px] border border-[var(--app-line)] bg-white p-5">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight text-[#1a2744]">Inbound Detection and Replies</h2>
+              <p className="text-sm text-slate-500">Email, SMS, and webhook health in one place.</p>
+            </div>
+            <div className="flex gap-2">
+              {(['email', 'sms', 'health'] as const).map(item => (
+                <button
+                  key={item}
+                  onClick={() => setChannel(item)}
+                  className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition ${channel === item ? 'bg-[#1a2744] text-white' : 'border border-slate-200 bg-slate-50 text-slate-600 hover:bg-white'}`}
+                >
+                  {item === 'email' ? 'Email' : item === 'sms' ? 'SMS' : 'Health'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {!selected ? (
+            <div className="rounded-[18px] border border-dashed border-slate-200 p-10 text-center text-sm text-slate-500">
+              Select a contact to load email and SMS history.
+            </div>
+          ) : channel === 'health' ? (
+            <div className="space-y-4">
+              {loading ? (
+                <div className="text-sm text-slate-500">Loading webhook health...</div>
+              ) : (
+                <>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {(health?.probes ?? []).map(probe => (
+                      <div key={probe.name} className="rounded-[18px] border border-slate-200 bg-slate-50 p-4">
+                        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{probe.name}</div>
+                        <div className={`mt-2 text-sm font-semibold ${probe.status === 'ok' ? 'text-emerald-700' : 'text-amber-700'}`}>
+                          {probe.status === 'ok' ? 'Receiving' : 'Idle'}
+                        </div>
+                        <div className="mt-1 text-xs text-slate-500">{probe.lastSeenAt ? new Date(probe.lastSeenAt).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'No recent event'}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4">
+                    <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Recent Alerts</div>
+                    <div className="mt-2 space-y-2">
+                      {(health?.recentAlerts ?? []).length > 0 ? health?.recentAlerts.map((alert, index) => (
+                        <div key={index} className="rounded-xl bg-white px-3 py-2 text-sm text-slate-600">{alert}</div>
+                      )) : <div className="text-sm text-slate-500">No recent alerts.</div>}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : channel === 'email' ? (
+            <div className="grid gap-5 xl:grid-cols-[1fr,360px]">
+              <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4">
+                <div className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Thread</div>
+                {loading ? (
+                  <div className="text-sm text-slate-500">Loading emails...</div>
+                ) : emailMessages.length === 0 ? (
+                  <div className="text-sm text-slate-500">No email history yet for this contact.</div>
+                ) : emailMessages.map(msg => (
+                  <div key={msg.id} className="mb-3 rounded-[16px] border border-slate-200 bg-white p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-[#1a2744]">{msg.direction === 'inbound' ? 'Received' : 'Sent'}</div>
+                        <div className="text-xs text-slate-500">{msg.subject || '(no subject)'}</div>
+                      </div>
+                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${msg.direction === 'inbound' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                        {msg.direction}
+                      </span>
+                    </div>
+                    <div className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-600">{msg.body_preview || msg.body || 'No preview'}</div>
+                    <div className="mt-2 text-[11px] text-slate-400">{new Date(msg.created_at).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="space-y-3">
+                <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Reply</div>
+                  <div className="mt-3 space-y-3">
+                    <input
+                      className="crm-input"
+                      value={reply.subject}
+                      onChange={e => setReply(prev => ({ ...prev, subject: e.target.value }))}
+                      placeholder="Subject"
+                    />
+                    <textarea
+                      className="crm-input min-h-[180px]"
+                      value={reply.body}
+                      onChange={e => setReply(prev => ({ ...prev, body: e.target.value }))}
+                      placeholder="Write your email reply..."
+                    />
+                    <button
+                      onClick={() => void sendReply()}
+                      disabled={sending || !selected.email || !reply.body.trim()}
+                      className="w-full rounded-xl bg-[#1a2744] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                    >
+                      {sending ? 'Sending...' : 'Send Email'}
+                    </button>
+                  </div>
+                </div>
+                <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Addressed To</div>
+                  <div className="mt-2 break-words">{selected.email || 'No email on file'}</div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-5 xl:grid-cols-[1fr,360px]">
+              <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4">
+                <div className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Thread</div>
+                {loading ? (
+                  <div className="text-sm text-slate-500">Loading SMS thread...</div>
+                ) : smsMessages.length === 0 ? (
+                  <div className="text-sm text-slate-500">No SMS history yet for this contact.</div>
+                ) : smsMessages.map(msg => (
+                  <div key={msg.id} className={`mb-3 flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[80%] rounded-[16px] px-4 py-3 text-sm ${msg.direction === 'outbound' ? 'bg-[#1a2744] text-white' : 'bg-white text-slate-700'}`}>
+                      <div className="whitespace-pre-wrap leading-6">{msg.body}</div>
+                      <div className={`mt-2 text-[11px] ${msg.direction === 'outbound' ? 'text-white/60' : 'text-slate-400'}`}>
+                        {new Date(msg.created_at).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="space-y-3">
+                <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Reply</div>
+                  <div className="mt-3 space-y-3">
+                    <textarea
+                      className="crm-input min-h-[180px]"
+                      value={smsReply}
+                      onChange={e => setSmsReply(e.target.value)}
+                      placeholder="Write your SMS reply..."
+                    />
+                    <button
+                      onClick={() => void sendReply()}
+                      disabled={sending || !selected.phone || !smsReply.trim()}
+                      className="w-full rounded-xl bg-[#1a2744] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                    >
+                      {sending ? 'Sending...' : 'Send SMS'}
+                    </button>
+                  </div>
+                </div>
+                <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Texting To</div>
+                  <div className="mt-2 break-words">{selected.phone || 'No phone on file'}</div>
+                  {selectedBatch ? <div className="mt-2 text-xs text-slate-400">Batch: {selectedBatch.name}</div> : null}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+    </div>
+  )
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 const TABS = [
   { key: 'today',       label: "Today's Actions" },
   { key: 'pipeline',    label: 'Pipeline' },
   { key: 'batches',     label: 'Batches' },
+  { key: 'comms',       label: 'Comms' },
   { key: 'maintenance', label: 'Partners' },
 ] as const
 
@@ -1394,16 +1715,19 @@ function PartnershipEngineInner() {
         {tab === 'pipeline' && (
           <PipelineView contacts={contacts} onSelect={setSelectedContact} />
         )}
-        {tab === 'batches' && (
-          <BatchManager
-            batches={batches}
-            loading={batchesLoading}
-            onRefresh={() => { void loadBatches(); void loadContacts() }}
-          />
-        )}
-        {tab === 'maintenance' && (
-          <MaintenanceView contacts={contacts} onSelect={setSelectedContact} />
-        )}
+      {tab === 'batches' && (
+        <BatchManager
+          batches={batches}
+          loading={batchesLoading}
+          onRefresh={() => { void loadBatches(); void loadContacts() }}
+        />
+      )}
+      {tab === 'comms' && (
+        <CommsView contacts={contacts} batches={batches} />
+      )}
+      {tab === 'maintenance' && (
+        <MaintenanceView contacts={contacts} onSelect={setSelectedContact} />
+      )}
       </div>
 
       {/* Contact drawer */}
