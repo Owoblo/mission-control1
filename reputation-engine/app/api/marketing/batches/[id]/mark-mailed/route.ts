@@ -55,6 +55,7 @@ export async function POST(
 
   const contactIds = contacts.map(c => `"${c.id}"`).join(',')
   const now = new Date().toISOString()
+  const secondaryChannel = sequenceType === 'corporate' ? 'linkedin' : 'sms'
 
   // Bulk update contacts
   await fetch(`${url}/rest/v1/market_contacts?id=in.(${contactIds})`, {
@@ -63,12 +64,59 @@ export async function POST(
     body: JSON.stringify({
       stage: 'mail_sent',
       sequence_step: 1,
-      email_scheduled_at: emailDate.toISOString(),
-      sms_scheduled_at: smsDate.toISOString(),
+      email_scheduled_at: null,
+      sms_scheduled_at: null,
       last_touch_at: now,
-      next_follow_up: emailDate.toISOString().slice(0, 10),
+      next_follow_up: null,
     }),
   })
+
+  const contactsWithEmail = contacts.filter(contact => typeof contact.email === 'string' && contact.email.trim())
+  const contactsWithSecondary = contacts.filter(contact => (
+    secondaryChannel === 'linkedin'
+      ? true
+      : typeof contact.phone === 'string' && contact.phone.trim()
+  ))
+
+  if (contactsWithEmail.length > 0) {
+    const emailIds = contactsWithEmail.map(contact => `"${contact.id}"`).join(',')
+    await fetch(`${url}/rest/v1/market_contacts?id=in.(${emailIds})`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({
+        email_scheduled_at: emailDate.toISOString(),
+        next_follow_up: emailDate.toISOString().slice(0, 10),
+      }),
+    })
+  }
+
+  const secondaryDate = smsDate.toISOString()
+  if (contactsWithSecondary.length > 0) {
+    const secondaryIds = contactsWithSecondary.map(contact => `"${contact.id}"`).join(',')
+    await fetch(`${url}/rest/v1/market_contacts?id=in.(${secondaryIds})`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({
+        sms_scheduled_at: secondaryDate,
+        next_follow_up: emailDate.toISOString().slice(0, 10),
+      }),
+    })
+  }
+
+  const contactsWithSecondaryOnly = contacts.filter(contact => (
+    !contactsWithEmail.some(withEmail => withEmail.id === contact.id)
+    && contactsWithSecondary.some(withSecondary => withSecondary.id === contact.id)
+  ))
+  if (contactsWithSecondaryOnly.length > 0) {
+    const secondaryOnlyIds = contactsWithSecondaryOnly.map(contact => `"${contact.id}"`).join(',')
+    await fetch(`${url}/rest/v1/market_contacts?id=in.(${secondaryOnlyIds})`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({
+        next_follow_up: secondaryDate.slice(0, 10),
+      }),
+    })
+  }
 
   // Log direct mail touch for each contact (batch insert in chunks)
   const touches = contacts.map(contact => ({
@@ -89,10 +137,8 @@ export async function POST(
   }
 
   // Create sequence jobs (email + SMS or LinkedIn for corporate)
-  const secondaryChannel = sequenceType === 'corporate' ? 'linkedin' : 'sms'
-
   const jobs = [
-    ...contacts.map(c => ({
+    ...contactsWithEmail.map(c => ({
       contact_id: c.id,
       batch_id: id,
       channel: 'email',
@@ -100,7 +146,7 @@ export async function POST(
       status: 'pending',
       template_key: `${sequenceType}_email_1`,
     })),
-    ...contacts.map(c => ({
+    ...contactsWithSecondary.map(c => ({
       contact_id: c.id,
       batch_id: id,
       channel: secondaryChannel,

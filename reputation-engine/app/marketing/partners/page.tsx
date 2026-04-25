@@ -1,7 +1,9 @@
 'use client'
 
+import Link from 'next/link'
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { PARTNERSHIP_STAGE_META } from '@/lib/marketing'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -1060,6 +1062,7 @@ function PartnershipEngineInner() {
   const [contactsLoading, setContactsLoading] = useState(true)
   const [batchesLoading, setBatchesLoading] = useState(true)
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
+  const [batchStatusFilter, setBatchStatusFilter] = useState<'all' | 'active' | 'completed' | 'draft'>('all')
 
   const loadContacts = useCallback(async () => {
     setContactsLoading(true)
@@ -1089,10 +1092,278 @@ function PartnershipEngineInner() {
   }
 
   const responded = contacts.filter(c => c.sequence_paused && !c.decision).length
+  const stageCounts = contacts.reduce<Record<string, number>>((acc, contact) => {
+    const key = contact.normalized_stage
+    acc[key] = (acc[key] ?? 0) + 1
+    return acc
+  }, {})
+  const activeBatch = batches.find(batch => batch.mail_sent_date && batch.status === 'active') ?? batches[0] ?? null
+  const visibleBatches = batches.filter(batch => {
+    if (batchStatusFilter !== 'all' && batch.status !== batchStatusFilter) return false
+    return true
+  }).slice(0, 6)
+  const totalResponded = batches.reduce((sum, batch) => sum + (batch.responded_count ?? 0), 0)
+  const totalPartners = batches.reduce((sum, batch) => sum + (batch.partner_count ?? 0), 0)
+  const summaryCards = [
+    { label: 'Total Accounts', value: contacts.length, hint: 'partner + corporate targets' },
+    { label: 'Mail Sent Pool', value: stageCounts.mail_sent ?? 0, hint: 'waiting for timed follow-up' },
+    { label: 'Connected', value: (stageCounts.connected ?? 0) + (stageCounts.qualified ?? 0), hint: 'real conversations in motion' },
+    { label: 'Active Partnerships', value: stageCounts.partnership_active ?? 0, hint: 'referral / relocation relationships' },
+  ]
+  const stageFlow = [
+    'target',
+    'mail_sent',
+    'follow_up_due',
+    'attempting_contact',
+    'connected',
+    'qualified',
+    'partnership_active',
+  ].map(stage => ({
+    key: stage,
+    count: stageCounts[stage] ?? 0,
+    meta: PARTNERSHIP_STAGE_META[stage as keyof typeof PARTNERSHIP_STAGE_META],
+  }))
 
   return (
-    <div className="space-y-5">
-      {/* Tab bar */}
+    <div className="space-y-6">
+      <section className="overflow-hidden rounded-[28px] border border-[var(--app-line)] bg-[linear-gradient(135deg,#0c1830_0%,#173057_52%,#f3f0e8_170%)]">
+        <div className="grid gap-8 px-6 py-7 md:grid-cols-[1.55fr,1fr] md:px-8">
+          <div className="space-y-4">
+            <div className="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/75">
+              Partnership Pipeline
+            </div>
+            <div>
+              <h1 className="max-w-3xl text-3xl font-semibold tracking-tight text-white md:text-4xl">
+                Track batches, stages, and rep handoff from one workspace.
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-white/70">
+                Start with the batch, watch it move through mail and reply stages, then hand real conversations to Eric when the sequence pauses.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button onClick={() => handleTabChange('batches')} className="rounded-xl bg-[#f5a623] px-4 py-2.5 text-sm font-semibold text-[#142849] transition hover:brightness-95">
+                Open Batch Manager
+              </button>
+              <button onClick={() => handleTabChange('today')} className="rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/15">
+                Work Due Follow-Ups
+              </button>
+              <button onClick={() => handleTabChange('pipeline')} className="rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/15">
+                Review Pipeline
+              </button>
+            </div>
+          </div>
+
+          <div className="grid gap-3 rounded-[24px] border border-white/10 bg-white/10 p-4 backdrop-blur">
+            <HeroStat label="Total Batches" value={batchesLoading ? '—' : batches.length} tone="text-white" />
+            <HeroStat label="Active Now" value={batchesLoading ? '—' : batches.filter(batch => batch.status === 'active').length} tone="text-emerald-200" />
+            <HeroStat label="Total Responded" value={batchesLoading ? '—' : totalResponded} tone="text-cyan-200" />
+            <HeroStat label="New Partners" value={batchesLoading ? '—' : totalPartners} tone="text-amber-200" />
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-4 md:grid-cols-4">
+        {summaryCards.map(card => (
+          <div key={card.label} className="rounded-[24px] border border-[var(--app-line)] bg-white p-5">
+            <div className="mb-4 h-1.5 w-12 rounded-full bg-[#1a2744]" />
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{card.label}</div>
+            <div className="mt-2 text-4xl font-semibold tracking-tight text-[#1a2744]">{card.value.toLocaleString()}</div>
+            <div className="mt-1 text-sm text-slate-500">{card.hint}</div>
+          </div>
+        ))}
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[1.35fr,0.95fr]">
+        <div className="rounded-[24px] border border-[var(--app-line)] bg-white p-6">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight text-[#1a2744]">Batch Tracker</h2>
+              <p className="text-sm text-slate-500">A batch-first view of mailed outreach and stage movement.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              {(['all', 'active', 'completed', 'draft'] as const).map(status => (
+                <button
+                  key={status}
+                  onClick={() => setBatchStatusFilter(status)}
+                  className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition ${
+                    batchStatusFilter === status
+                      ? 'border-[#1a2744] bg-[#1a2744] text-white'
+                      : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-white'
+                  }`}
+                >
+                  {status === 'all' ? 'All Statuses' : status.charAt(0).toUpperCase() + status.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {visibleBatches.length === 0 ? (
+              <div className="rounded-[20px] border border-dashed border-slate-200 p-10 text-center text-sm text-slate-500 lg:col-span-2">
+                No batches available.
+              </div>
+            ) : visibleBatches.map(batch => {
+              const completion = batch.total_contacts > 0
+                ? Math.min(100, Math.round((batch.partner_count / batch.total_contacts) * 100))
+                : 0
+              const tone = batch.status === 'active'
+                ? 'bg-emerald-100 text-emerald-700'
+                : batch.status === 'completed'
+                  ? 'bg-slate-100 text-slate-600'
+                  : 'bg-amber-100 text-amber-700'
+
+              return (
+                <button
+                  key={batch.id}
+                  onClick={() => handleTabChange('batches')}
+                  className="rounded-[24px] border border-slate-200 bg-white p-5 text-left transition hover:border-[#1a2744]/25 hover:shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${tone}`}>
+                        {batch.status}
+                      </span>
+                      <div className="mt-3 text-[22px] font-semibold tracking-tight text-[#1a2744] leading-tight">
+                        {batch.name}
+                      </div>
+                    </div>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-600">
+                      {batch.tracking_code ?? 'Batch'}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 space-y-1.5 text-sm text-slate-600">
+                    <div className="flex items-center gap-2"><span>🏷️</span><span>{batch.industry ?? 'Partnership'}</span></div>
+                    <div className="flex items-center gap-2"><span>📍</span><span>{batch.city ?? '—'}</span></div>
+                    <div className="flex items-center gap-2"><span>📬</span><span>Sent: {fmtDate(batch.mail_sent_date)}</span></div>
+                  </div>
+
+                  <div className="mt-5 rounded-[18px] border border-slate-100 bg-slate-50 p-4">
+                    <div className="mb-2 flex items-center justify-between text-xs text-slate-500">
+                      <span>Stage progression</span>
+                      <span>{completion}% to active</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-slate-200">
+                      <div className="h-2 rounded-full bg-[#1a2744]" style={{ width: `${completion}%` }} />
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid grid-cols-3 gap-2 text-center">
+                    <Metric value={batch.responded_count} label="Responded" tone="text-[#1a2744]" />
+                    <Metric value={batch.engaged_count} label="Engaged" tone="text-violet-600" />
+                    <Metric value={batch.partner_count} label="Partners" tone="text-emerald-600" />
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <div className="rounded-[24px] border border-[var(--app-line)] bg-white p-6">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold tracking-tight text-[#1a2744]">Immediate Work</h2>
+              <p className="text-sm text-slate-500">The rep should be able to step into one of these queues immediately.</p>
+            </div>
+            <div className="space-y-3">
+              <ActionLink href="/marketing/partners?focus=due" title="Follow-Up Due Now" desc={`${responded} contacts are paused and need a rep decision.`} />
+              <ActionLink href="/marketing/partners?tab=batches" title="Current Batch" desc={activeBatch ? `${activeBatch.name} is the active mailed batch.` : 'No active batch selected.'} />
+              <ActionLink href="/marketing/partners?tab=pipeline" title="Responded Contacts" desc={`${stageCounts.connected ?? 0} connected contacts are ready for human follow-up.`} />
+              <ActionLink href="/marketing/signals" title="Fast Signal Response" desc={`${responded} fresh partnership replies should be actioned the same day.`} />
+            </div>
+          </div>
+
+          <div className="rounded-[24px] border border-[var(--app-line)] bg-white p-6">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold tracking-tight text-[#1a2744]">Batch Focus</h2>
+              <p className="text-sm text-slate-500">The current live batch and its scheduled next step.</p>
+            </div>
+            {activeBatch ? (
+              <div className="rounded-[22px] border border-slate-200 bg-slate-50 p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-[#1a2744]">{activeBatch.name}</div>
+                    <div className="mt-1 text-xs text-slate-500">{activeBatch.city ?? '—'} · {activeBatch.industry ?? 'Partnership'}</div>
+                  </div>
+                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-semibold text-emerald-700">
+                    {activeBatch.status}
+                  </span>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <MiniStat label="Mailed" value={fmtDate(activeBatch.mail_sent_date)} />
+                  <MiniStat label="Email Delay" value={`+${activeBatch.email_delay_days}d`} />
+                  <MiniStat label="SMS Delay" value={`+${activeBatch.sms_delay_days}d`} />
+                  <MiniStat label="Partners" value={activeBatch.partner_count.toString()} />
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-[20px] border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500">
+                No active batch yet.
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[1fr,1fr]">
+        <div className="rounded-[24px] border border-[var(--app-line)] bg-white p-6">
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight text-[#1a2744]">Stage Flow</h2>
+              <p className="text-sm text-slate-500">This is the live movement from target to active partnership.</p>
+            </div>
+            <button onClick={() => handleTabChange('pipeline')} className="text-sm font-medium text-[#1a2744] underline underline-offset-4">
+              Open Pipeline
+            </button>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {stageFlow.map(stage => (
+              <div key={stage.key} className="rounded-[20px] border border-slate-200 bg-slate-50/70 p-4">
+                <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${stage.meta.color}`}>
+                  {stage.meta.shortLabel}
+                </span>
+                <div className="mt-4 text-3xl font-semibold tracking-tight text-[#1a2744]">{stage.count.toLocaleString()}</div>
+                <div className="mt-1 text-xs text-slate-500">{stage.meta.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-[24px] border border-[var(--app-line)] bg-white p-6">
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight text-[#1a2744]">Recent Batches</h2>
+              <p className="text-sm text-slate-500">Track direct mail batches beside follow-up work so outreach stays accountable.</p>
+            </div>
+            <button onClick={() => handleTabChange('batches')} className="text-sm font-medium text-[#1a2744] underline underline-offset-4">
+              Batch Manager
+            </button>
+          </div>
+          <div className="space-y-3">
+            {batches.slice(0, 5).length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500">
+                No campaign batches logged yet.
+              </div>
+            ) : batches.slice(0, 5).map(batch => (
+              <button key={batch.id} onClick={() => handleTabChange('batches')} className="w-full rounded-[18px] border border-slate-200 p-4 text-left transition hover:border-[#1a2744]/25 hover:bg-slate-50">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-[#1a2744]">{batch.name}</div>
+                    <div className="text-xs text-slate-500">{fmtDate(batch.mail_sent_date)}</div>
+                  </div>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-600">{batch.status}</span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-500">
+                  <span>{batch.total_contacts} contacts</span>
+                  <span>{batch.responded_count} responded</span>
+                  <span>{batch.partner_count} partners</span>
+                  <span className="font-semibold text-emerald-700">{batch.city ?? '—'}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <div className="flex items-center gap-1 overflow-x-auto rounded-[22px] border border-slate-200 bg-white p-1.5 shadow-sm">
         {TABS.map(t => (
           <button
@@ -1111,27 +1382,29 @@ function PartnershipEngineInner() {
       </div>
 
       {/* Tab content */}
-      {tab === 'today' && (
-        <TodayActions
-          contacts={contacts}
-          loading={contactsLoading}
-          onSelect={setSelectedContact}
-          onRefresh={() => void loadContacts()}
-        />
-      )}
-      {tab === 'pipeline' && (
-        <PipelineView contacts={contacts} onSelect={setSelectedContact} />
-      )}
-      {tab === 'batches' && (
-        <BatchManager
-          batches={batches}
-          loading={batchesLoading}
-          onRefresh={() => { void loadBatches(); void loadContacts() }}
-        />
-      )}
-      {tab === 'maintenance' && (
-        <MaintenanceView contacts={contacts} onSelect={setSelectedContact} />
-      )}
+      <div className="rounded-[28px] border border-[var(--app-line)] bg-white p-5 md:p-6">
+        {tab === 'today' && (
+          <TodayActions
+            contacts={contacts}
+            loading={contactsLoading}
+            onSelect={setSelectedContact}
+            onRefresh={() => void loadContacts()}
+          />
+        )}
+        {tab === 'pipeline' && (
+          <PipelineView contacts={contacts} onSelect={setSelectedContact} />
+        )}
+        {tab === 'batches' && (
+          <BatchManager
+            batches={batches}
+            loading={batchesLoading}
+            onRefresh={() => { void loadBatches(); void loadContacts() }}
+          />
+        )}
+        {tab === 'maintenance' && (
+          <MaintenanceView contacts={contacts} onSelect={setSelectedContact} />
+        )}
+      </div>
 
       {/* Contact drawer */}
       {selectedContact && (
@@ -1142,6 +1415,42 @@ function PartnershipEngineInner() {
         />
       )}
     </div>
+  )
+}
+
+function HeroStat({ label, value, tone }: { label: string; value: string | number; tone: string }) {
+  return (
+    <div className="rounded-[18px] border border-white/10 bg-black/10 p-4">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">{label}</div>
+      <div className={`mt-2 text-3xl font-semibold tracking-tight ${tone}`}>{value}</div>
+    </div>
+  )
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[14px] bg-white p-3">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">{label}</div>
+      <div className="mt-1 text-sm font-semibold text-[#1a2744]">{value}</div>
+    </div>
+  )
+}
+
+function Metric({ value, label, tone }: { value: number; label: string; tone: string }) {
+  return (
+    <div className="rounded-[14px] border border-slate-100 bg-slate-50 p-3">
+      <div className={`text-lg font-semibold tracking-tight ${tone}`}>{value}</div>
+      <div className="mt-0.5 text-[10px] uppercase tracking-[0.16em] text-slate-400">{label}</div>
+    </div>
+  )
+}
+
+function ActionLink({ href, title, desc }: { href: string; title: string; desc: string }) {
+  return (
+    <Link href={href} className="block rounded-[18px] border border-slate-200 bg-slate-50/70 p-4 transition hover:border-[#1a2744]/25 hover:bg-white">
+      <div className="text-sm font-semibold text-[#1a2744]">{title}</div>
+      <div className="mt-1 text-sm leading-6 text-slate-500">{desc}</div>
+    </Link>
   )
 }
 
