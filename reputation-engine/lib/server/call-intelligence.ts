@@ -452,3 +452,139 @@ Business hours are Monday–Saturday 9am–7pm. Never suggest Sunday or late eve
     return null
   }
 }
+
+// ─── Extract lead details from call transcript ─────────────────────────────
+
+export interface ExtractedLeadDetails {
+  name?: string
+  originAddress?: string
+  originCity?: string
+  destAddress?: string
+  destCity?: string
+  moveDate?: string          // YYYY-MM-DD if mentioned
+  depositMentioned?: boolean
+  depositAmount?: number
+}
+
+export async function extractLeadDetailsFromTranscript(transcript: string): Promise<ExtractedLeadDetails | null> {
+  const apiKey = getOpenAIKey()
+  if (!apiKey || !transcript.trim()) return null
+
+  const today = new Date().toISOString().slice(0, 10)
+
+  const systemPrompt = `You are a data extraction assistant for a moving company. Extract lead information from this phone call transcript and return JSON only.
+
+Today is ${today}. If the caller says "tomorrow" or "next Friday", resolve it to a YYYY-MM-DD date.
+
+Return:
+{
+  "name": "caller's full name if mentioned, else null",
+  "originAddress": "full street address of move origin if mentioned, else null",
+  "originCity": "city of move origin if mentioned, else null",
+  "destAddress": "full street address of move destination if mentioned, else null",
+  "destCity": "city of move destination if mentioned, else null",
+  "moveDate": "YYYY-MM-DD if a specific date was mentioned, else null",
+  "depositMentioned": true/false,
+  "depositAmount": dollar amount of deposit if mentioned, else null
+}
+
+Only extract values explicitly mentioned. Use null for anything not clearly stated.`
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Transcript:\n${transcript.slice(0, 3000)}` },
+        ],
+        max_tokens: 300,
+        temperature: 0,
+      }),
+    })
+    if (!response.ok) return null
+    const payload = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> }
+    const content = payload.choices?.[0]?.message?.content || ''
+    return content ? (JSON.parse(content) as ExtractedLeadDetails) : null
+  } catch {
+    return null
+  }
+}
+
+// ─── Context-aware SMS bot reply ──────────────────────────────────────────
+
+type SmsMessage = { direction: 'inbound' | 'outbound'; body: string; createdAt: string }
+
+const STOP_KEYWORDS = [
+  'leave a message', "i'm at work", 'at work', 'busy right now', 'call me later',
+  'stop texting', 'stop messaging', 'unsubscribe', 'stop', 'dont text', "don't text",
+  'not interested', 'remove me', 'wrong number',
+]
+
+export async function generateSmsBotReply(
+  incomingMessage: string,
+  conversationHistory: SmsMessage[],
+  lastOutboundAt: string | null,
+): Promise<string | null> {
+  // Dedup guard — if we sent something within the last 90 seconds, don't reply again
+  if (lastOutboundAt) {
+    const secondsSinceLast = (Date.now() - new Date(lastOutboundAt).getTime()) / 1000
+    if (secondsSinceLast < 90) return null
+  }
+
+  // Stop signal detection — check the incoming message
+  const normalizedMsg = incomingMessage.toLowerCase()
+  if (STOP_KEYWORDS.some(kw => normalizedMsg.includes(kw))) return null
+
+  const apiKey = getOpenAIKey()
+  if (!apiKey) {
+    // Fallback if no API key — just send a simple intro if it's the first message
+    const hasOutbound = conversationHistory.some(m => m.direction === 'outbound')
+    if (hasOutbound) return null
+    return "Hi! Thanks for reaching out to Saturn Star Moving. What date are you looking to move, and where are you moving from and to?"
+  }
+
+  const threadText = conversationHistory
+    .slice(-12)
+    .map(m => `${m.direction === 'inbound' ? 'Customer' : 'Us'}: ${m.body}`)
+    .join('\n')
+
+  const systemPrompt = `You are a friendly SMS assistant for Saturn Star Moving (serving Windsor, Kitchener-Waterloo, and surrounding Ontario cities).
+
+Your job is to qualify inbound moving leads via SMS — collect move date, origin city/address, destination city/address, and approximate move size (bedrooms).
+
+Rules:
+- If the customer says anything like "leave a message", "at work", "stop", "busy", "not interested", "unsubscribe" → reply with exactly: STOP_SIGNAL
+- Never repeat a question the customer already answered — read the full conversation
+- If origin AND destination AND date are all confirmed → say a specialist will follow up and stop asking questions
+- Keep replies to 1-2 short sentences max
+- Sound human, friendly, not robotic
+- Never use the customer's phone number as their name — use "there" if name unknown
+- Respond ONLY with the message text itself (no labels, no JSON)`
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Conversation so far:\n${threadText}\n\nLatest message from customer: "${incomingMessage}"\n\nWhat should we reply?` },
+        ],
+        max_tokens: 160,
+        temperature: 0.5,
+      }),
+    })
+    if (!response.ok) return null
+    const payload = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> }
+    const reply = payload.choices?.[0]?.message?.content?.trim() || null
+    if (!reply || reply === 'STOP_SIGNAL') return null
+    return reply
+  } catch {
+    return null
+  }
+}
