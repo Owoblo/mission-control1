@@ -1,4 +1,4 @@
-import type { AISummary, CRMLead } from '@/lib/types'
+import type { AISummary, CRMLead, CRMQuote, FollowUpLog } from '@/lib/types'
 
 function getOpenAIKey() {
   return process.env.OPENAI_API_KEY || ''
@@ -333,5 +333,258 @@ Use the thread context to understand where this message fits in the relationship
     return JSON.parse(content) as AISummary
   } catch {
     return { summary: content }
+  }
+}
+
+export interface FollowUpAnalysis {
+  suggestedDate: string          // ISO date YYYY-MM-DD
+  suggestedTime?: string         // e.g. "10:00" — best time to call
+  followUpNote: string           // why this date/time was chosen
+  suggestedChannel: 'call' | 'sms' | 'email'
+  suggestedMessage: string       // ready-to-send draft message
+  commitmentDetected?: string    // verbatim commitment phrase if found ("I'll let you know by Friday")
+  urgency: 'low' | 'medium' | 'high'
+  reasoning: string              // brief explanation of the AI's logic
+}
+
+export async function analyzeLeadForFollowUp(
+  lead: CRMLead,
+  followUpLogs: FollowUpLog[],
+  quote: CRMQuote | null,
+): Promise<FollowUpAnalysis | null> {
+  const apiKey = getOpenAIKey()
+  if (!apiKey) return null
+
+  const today = new Date().toISOString().slice(0, 10)
+  const firstName = (lead.name || 'the customer').split(' ')[0]
+
+  // Build a timeline summary from all available context
+  const recentLogs = [...followUpLogs]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 20)
+
+  const timelineText = recentLogs
+    .map(log => {
+      const date = new Date(log.date).toLocaleDateString('en-CA')
+      const type = log.type.toUpperCase()
+      const note = log.notes || '(no note)'
+      const aiNote = log.aiSummary?.nextAction ? ` → AI: ${log.aiSummary.nextAction}` : ''
+      return `[${date}] ${type}: ${note}${aiNote}`
+    })
+    .join('\n')
+
+  const callTranscripts = (lead.callLogs || [])
+    .filter(c => c.transcript)
+    .slice(0, 3)
+    .map(c => `CALL (${c.date?.slice(0, 10) || 'unknown date'}): ${c.transcript?.slice(0, 800)}`)
+    .join('\n\n')
+
+  const systemPrompt = `You are an AI sales assistant for Saturn Star Moving. Your job is to analyze all available context for a lead and determine the optimal follow-up action so nothing falls through the cracks.
+
+Today's date: ${today}
+
+Analyze the conversation history and:
+1. Detect any commitment phrases (e.g. "I'll let you know by end of week", "call me next Tuesday", "I'll decide after the weekend")
+2. Determine the BEST date and time to follow up
+3. Select the best channel (call, sms, email) based on what has worked
+4. Draft a short, natural follow-up message in the rep's voice
+5. Rate urgency based on move date proximity and lead heat
+
+Return JSON only:
+{
+  "suggestedDate": "YYYY-MM-DD",
+  "suggestedTime": "HH:MM",
+  "followUpNote": "why this date/time",
+  "suggestedChannel": "call|sms|email",
+  "suggestedMessage": "ready-to-send message draft",
+  "commitmentDetected": "exact commitment phrase if found or null",
+  "urgency": "low|medium|high",
+  "reasoning": "brief explanation"
+}
+
+Business hours are Monday–Saturday 9am–7pm. Never suggest Sunday or late evening.`
+
+  const userPrompt = [
+    `Lead: ${lead.name} | Phone: ${lead.phone || 'unknown'} | Email: ${lead.email || 'none'}`,
+    `Stage: ${lead.stage} | Move Date: ${lead.moveDate || 'TBD'} | Move Type: ${lead.moveType || 'residential'}`,
+    `Route: ${lead.originCity || '?'} → ${lead.destCity || '?'}`,
+    lead.followUpDate ? `Current follow-up date: ${lead.followUpDate}` : '',
+    lead.notes ? `Rep notes: ${lead.notes}` : '',
+    quote ? `Quote sent: ${quote.number} | Total: $${quote.total} | Deposit: $${quote.deposit} | Status: ${quote.status}` : 'No quote sent yet',
+    timelineText ? `\nTimeline (most recent first):\n${timelineText}` : '',
+    callTranscripts ? `\nCall transcripts:\n${callTranscripts}` : '',
+  ].filter(Boolean).join('\n')
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: process.env.OPENAI_VISION_MODEL || 'gpt-4o-mini',
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        max_tokens: 800,
+        temperature: 0.3,
+      }),
+    })
+
+    if (!response.ok) return null
+
+    const payload = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> }
+    const content = payload.choices?.[0]?.message?.content || ''
+    if (!content) return null
+
+    const result = JSON.parse(content) as FollowUpAnalysis
+
+    // Ensure message is personalized
+    if (result.suggestedMessage && !result.suggestedMessage.includes(firstName)) {
+      result.suggestedMessage = result.suggestedMessage.replace(/^(Hi|Hello|Hey)\b/, `$1 ${firstName}`)
+    }
+
+    return result
+  } catch {
+    return null
+  }
+}
+
+// ─── Extract lead details from call transcript ─────────────────────────────
+
+export interface ExtractedLeadDetails {
+  name?: string
+  originAddress?: string
+  originCity?: string
+  destAddress?: string
+  destCity?: string
+  moveDate?: string          // YYYY-MM-DD if mentioned
+  depositMentioned?: boolean
+  depositAmount?: number
+}
+
+export async function extractLeadDetailsFromTranscript(transcript: string): Promise<ExtractedLeadDetails | null> {
+  const apiKey = getOpenAIKey()
+  if (!apiKey || !transcript.trim()) return null
+
+  const today = new Date().toISOString().slice(0, 10)
+
+  const systemPrompt = `You are a data extraction assistant for a moving company. Extract lead information from this phone call transcript and return JSON only.
+
+Today is ${today}. If the caller says "tomorrow" or "next Friday", resolve it to a YYYY-MM-DD date.
+
+Return:
+{
+  "name": "caller's full name if mentioned, else null",
+  "originAddress": "full street address of move origin if mentioned, else null",
+  "originCity": "city of move origin if mentioned, else null",
+  "destAddress": "full street address of move destination if mentioned, else null",
+  "destCity": "city of move destination if mentioned, else null",
+  "moveDate": "YYYY-MM-DD if a specific date was mentioned, else null",
+  "depositMentioned": true/false,
+  "depositAmount": dollar amount of deposit if mentioned, else null
+}
+
+Only extract values explicitly mentioned. Use null for anything not clearly stated.`
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Transcript:\n${transcript.slice(0, 3000)}` },
+        ],
+        max_tokens: 300,
+        temperature: 0,
+      }),
+    })
+    if (!response.ok) return null
+    const payload = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> }
+    const content = payload.choices?.[0]?.message?.content || ''
+    return content ? (JSON.parse(content) as ExtractedLeadDetails) : null
+  } catch {
+    return null
+  }
+}
+
+// ─── Context-aware SMS bot reply ──────────────────────────────────────────
+
+type SmsMessage = { direction: 'inbound' | 'outbound'; body: string; createdAt: string }
+
+const STOP_KEYWORDS = [
+  'leave a message', "i'm at work", 'at work', 'busy right now', 'call me later',
+  'stop texting', 'stop messaging', 'unsubscribe', 'stop', 'dont text', "don't text",
+  'not interested', 'remove me', 'wrong number',
+]
+
+export async function generateSmsBotReply(
+  incomingMessage: string,
+  conversationHistory: SmsMessage[],
+  lastOutboundAt: string | null,
+): Promise<string | null> {
+  // Dedup guard — if we sent something within the last 90 seconds, don't reply again
+  if (lastOutboundAt) {
+    const secondsSinceLast = (Date.now() - new Date(lastOutboundAt).getTime()) / 1000
+    if (secondsSinceLast < 90) return null
+  }
+
+  // Stop signal detection — check the incoming message
+  const normalizedMsg = incomingMessage.toLowerCase()
+  if (STOP_KEYWORDS.some(kw => normalizedMsg.includes(kw))) return null
+
+  const apiKey = getOpenAIKey()
+  if (!apiKey) {
+    // Fallback if no API key — just send a simple intro if it's the first message
+    const hasOutbound = conversationHistory.some(m => m.direction === 'outbound')
+    if (hasOutbound) return null
+    return "Hi! Thanks for reaching out to Saturn Star Moving. What date are you looking to move, and where are you moving from and to?"
+  }
+
+  const threadText = conversationHistory
+    .slice(-12)
+    .map(m => `${m.direction === 'inbound' ? 'Customer' : 'Us'}: ${m.body}`)
+    .join('\n')
+
+  const systemPrompt = `You are a friendly SMS assistant for Saturn Star Moving (serving Windsor, Kitchener-Waterloo, and surrounding Ontario cities).
+
+Your job is to qualify inbound moving leads via SMS — collect move date, origin city/address, destination city/address, and approximate move size (bedrooms).
+
+Rules:
+- If the customer says anything like "leave a message", "at work", "stop", "busy", "not interested", "unsubscribe" → reply with exactly: STOP_SIGNAL
+- Never repeat a question the customer already answered — read the full conversation
+- If origin AND destination AND date are all confirmed → say a specialist will follow up and stop asking questions
+- Keep replies to 1-2 short sentences max
+- Sound human, friendly, not robotic
+- Never use the customer's phone number as their name — use "there" if name unknown
+- Respond ONLY with the message text itself (no labels, no JSON)`
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Conversation so far:\n${threadText}\n\nLatest message from customer: "${incomingMessage}"\n\nWhat should we reply?` },
+        ],
+        max_tokens: 160,
+        temperature: 0.5,
+      }),
+    })
+    if (!response.ok) return null
+    const payload = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> }
+    const reply = payload.choices?.[0]?.message?.content?.trim() || null
+    if (!reply || reply === 'STOP_SIGNAL') return null
+    return reply
+  } catch {
+    return null
   }
 }

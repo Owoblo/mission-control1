@@ -10,7 +10,7 @@ import {
   updateInboundLeadRawData,
   updateLeadCallLogEntry,
 } from '@/lib/server/sales-repository'
-import { transcribeFromUrl, summarizePhoneCall } from '@/lib/server/call-intelligence'
+import { transcribeFromUrl, summarizePhoneCall, extractLeadDetailsFromTranscript } from '@/lib/server/call-intelligence'
 import { logEvent } from '@/lib/server/analytics'
 import { getTwilioCredentials } from '@/lib/server/runtime'
 
@@ -101,6 +101,9 @@ export async function POST(request: Request) {
         ).catch(() => null)
       }
 
+      // Extract structured contact details from transcript (name, cities, date, deposit)
+      const extracted = transcript ? await extractLeadDetailsFromTranscript(transcript).catch(() => null) : null
+
       // Update the inbound lead record
       await updateInboundLeadRawData(inboundLead.id, {
         recordingUrl: mp3Url,
@@ -108,6 +111,15 @@ export async function POST(request: Request) {
         recordingDuration: recordingDuration > 0 ? recordingDuration : undefined,
         transcript: transcript || undefined,
         aiSummary: aiSummary || undefined,
+        // Write extracted fields so inbox and "Move to Pipeline" can pre-fill them
+        ...(extracted?.name && !inboundLead.name ? { extractedName: extracted.name } : {}),
+        ...(extracted?.originCity ? { originCity: extracted.originCity } : {}),
+        ...(extracted?.originAddress ? { originAddress: extracted.originAddress } : {}),
+        ...(extracted?.destCity ? { destCity: extracted.destCity } : {}),
+        ...(extracted?.destAddress ? { destAddress: extracted.destAddress } : {}),
+        ...(extracted?.moveDate ? { moveDate: extracted.moveDate } : {}),
+        ...(extracted?.depositMentioned ? { depositMentioned: true } : {}),
+        ...(extracted?.depositAmount ? { depositAmount: extracted.depositAmount } : {}),
       })
 
       // Also update the CRM lead call log if we can find it by phone — the mapping
@@ -137,6 +149,20 @@ export async function POST(request: Request) {
                 aiSummary: (aiSummary as any) || undefined,
                 isVoicemail: isVoicemail || undefined,
               } as any).catch(() => null)
+            }
+
+            // Patch CRM lead with AI-extracted fields (only fill empty fields)
+            if (extracted) {
+              const patch: Partial<typeof crmLead> = {}
+              if (extracted.name && !crmLead.name?.trim()) patch.name = extracted.name
+              if (extracted.originCity && !crmLead.originCity) patch.originCity = extracted.originCity
+              if (extracted.originAddress && !crmLead.originAddress) patch.originAddress = extracted.originAddress
+              if (extracted.destCity && !crmLead.destCity) patch.destCity = extracted.destCity
+              if (extracted.destAddress && !crmLead.destAddress) patch.destAddress = extracted.destAddress
+              if (extracted.moveDate && !crmLead.moveDate) patch.moveDate = extracted.moveDate
+              if (Object.keys(patch).length > 0) {
+                await saveSalesLead({ ...crmLead, ...patch }).catch(() => null)
+              }
             }
           }
         } catch {

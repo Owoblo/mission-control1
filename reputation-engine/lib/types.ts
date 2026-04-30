@@ -319,6 +319,17 @@ export interface CRMLead {
   // Cancellation
   cancelledAt?: string
   cancelReason?: string
+  // Move execution
+  startTime?: string          // scheduled start time e.g. "08:00"
+  actualHours?: number        // hours logged by crew lead after move
+  actualHoursNote?: string    // reason if over/under estimate (extra items, etc.)
+  actualHoursLoggedAt?: string
+  actualHoursLoggedBy?: string
+  // Truck logistics
+  truckReserved?: boolean
+  truckCompany?: string
+  truckReservationNumber?: string
+  truckPickupTime?: string
   // Post-job review lifecycle
   reviewJobId?: string
   reviewSentAt?: string
@@ -452,4 +463,18 @@ export interface QuoteDocumentPayload {
   quote: CRMQuote
   clientName?: string
   leadName?: string
+}
+
+export type WorkerRole = 'mover' | 'driver' | 'lead' | 'packer'
+export type WorkerCity = 'kitchener' | 'windsor' | 'toronto' | 'hamilton' | 'ottawa' | 'london' | 'other'
+
+export interface CRMWorker {
+  id: string
+  name: string
+  phone: string
+  city: WorkerCity
+  role: WorkerRole
+  available: boolean   // false = currently inactive / not taking jobs
+  notes?: string
+  createdAt: string
 }

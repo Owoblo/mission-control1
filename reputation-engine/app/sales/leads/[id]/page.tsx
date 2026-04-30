@@ -15,9 +15,9 @@ import {
 } from '@/app/components/sales/lead-detail/helpers'
 import { InventoryRoomSection } from '@/app/components/sales/lead-detail/inventory-room-section'
 import { INVENTORY_PRESETS, createInventoryItemFromPreset } from '@/lib/item-presets'
-import { DEPOSIT_METHODS, LEAD_CONTEXT_FLAGS, LOST_REASONS, SALES_LEAD_STAGES, computeQuoteTotals, deriveInventoryMetrics, estimateLeadQuote, formatDate, formatDateTime, formatMoney } from '@/lib/sales'
-import { confirmJob, createLeadQuote, deleteSalesLead, enrichSalesAddress, fetchSalesLead, fetchSalesOverview, fetchSalesQuote, saveLeadConsultation, saveSalesFollowUp, sendSalesMessage, updateSalesLead, updateSalesQuote } from '@/lib/sales-api'
-import type { CRMLead, CRMQuote, EstimateRouteContext, FollowUpLog, InventoryItem, JobFactors, QuoteLineItem } from '@/lib/types'
+import { DEPOSIT_METHODS, LEAD_CONTEXT_FLAGS, LOST_REASONS, SALES_LEAD_STAGES, computeQuoteTotals, deriveInventoryMetrics, estimateLeadQuote, formatDate, formatDateTime, formatMoney, detectTripType, getTruckSuggestionsForCity } from '@/lib/sales'
+import { assignCrew, confirmJob, createLeadQuote, deleteSalesLead, enrichSalesAddress, fetchSalesLead, fetchSalesOverview, fetchSalesQuote, fetchWorkers, saveLeadConsultation, saveSalesFollowUp, sendSalesMessage, updateSalesLead, updateSalesQuote } from '@/lib/sales-api'
+import type { CRMLead, CRMQuote, CRMWorker, EstimateRouteContext, FollowUpLog, InventoryItem, JobFactors, QuoteLineItem } from '@/lib/types'
 
 export default function SalesLeadDetailPage() {
   const params = useParams() as { id?: string }
@@ -66,6 +66,21 @@ export default function SalesLeadDetailPage() {
   const [assignedRep, setAssignedRep] = useState<string>('')
   const [estimateDate, setEstimateDate] = useState<string>('')
   const [estimateTime, setEstimateTime] = useState<string>('')
+  const [startTime, setStartTime] = useState<string>('')
+  const [crewNote, setCrewNote] = useState<string>('')
+  // Crew roster
+  const [workers, setWorkers] = useState<CRMWorker[]>([])
+  const [selectedWorkerIds, setSelectedWorkerIds] = useState<string[]>([])
+  const [crewAssignBusy, setCrewAssignBusy] = useState(false)
+  const [crewAssignResult, setCrewAssignResult] = useState<string | null>(null)
+  // Truck logistics
+  const [truckReserved, setTruckReserved] = useState(false)
+  const [truckCompany, setTruckCompany] = useState('')
+  const [truckReservationNumber, setTruckReservationNumber] = useState('')
+  const [truckPickupTime, setTruckPickupTime] = useState('')
+  // Change notice banner (shown after saving a booked lead with critical field changes)
+  const [changeNoticePending, setChangeNoticePending] = useState<{ changes: string[]; newMoveDate?: string } | null>(null)
+  const [changeNoticeSending, setChangeNoticeSending] = useState(false)
   // Lost reason modal
   const [showLostModal, setShowLostModal] = useState(false)
   const [lostReason, setLostReason] = useState<string>('')
@@ -100,6 +115,8 @@ export default function SalesLeadDetailPage() {
   const [customerNotes, setCustomerNotes] = useState('')
   const [recalculateBusy, setRecalculateBusy] = useState(false)
   const pricingMetaRef = useRef<{ crewSize: number; estimatedHours: number; truckCount: number }>({ crewSize: 3, estimatedHours: 3, truckCount: 1 })
+  const [aiFollowUpBusy, setAiFollowUpBusy] = useState(false)
+  const [aiFollowUpResult, setAiFollowUpResult] = useState<{ suggestedDate: string; followUpNote: string; suggestedChannel: string; suggestedMessage: string; commitmentDetected?: string; urgency: string; reasoning: string } | null>(null)
   const [outcomeOpen, setOutcomeOpen] = useState(false)
   const [outcomeActualHours, setOutcomeActualHours] = useState('')
   const [outcomeActualCrew, setOutcomeActualCrew] = useState('')
@@ -184,6 +201,13 @@ export default function SalesLeadDetailPage() {
     setAssignedRep(nextLead.assignedRep || '')
     setEstimateDate(nextLead.estimateDate || '')
     setEstimateTime(nextLead.estimateTime || '')
+    setStartTime(nextLead.startTime || '')
+    setCrewNote(nextLead.crewNote || '')
+    setTruckReserved(!!nextLead.truckReserved)
+    setTruckCompany(nextLead.truckCompany || '')
+    setTruckReservationNumber(nextLead.truckReservationNumber || '')
+    setTruckPickupTime(nextLead.truckPickupTime || '')
+    setSelectedWorkerIds(nextLead.assignedCrew || [])
     setLostReason(nextLead.lostReason || '')
     setLostNotes(nextLead.lostNotes || '')
     setDepositAmount(nextLead.depositAmount ? String(nextLead.depositAmount) : '')
@@ -245,6 +269,8 @@ export default function SalesLeadDetailPage() {
         }
       }
     })
+    // Pre-load crew roster (lightweight, needed for booked jobs)
+    fetchWorkers().then(setWorkers).catch(() => {})
   }, [params])
 
   useEffect(() => {
@@ -526,6 +552,12 @@ export default function SalesLeadDetailPage() {
       assignedRep: assignedRep || undefined,
       estimateDate: estimateDate || undefined,
       estimateTime: estimateTime || undefined,
+      startTime: startTime || undefined,
+      crewNote: crewNote || undefined,
+      truckReserved: truckReserved || undefined,
+      truckCompany: truckCompany || undefined,
+      truckReservationNumber: truckReservationNumber || undefined,
+      truckPickupTime: truckPickupTime || undefined,
       lostReason: lostReason || undefined,
       lostNotes: lostNotes || undefined,
       depositAmount: depositAmount ? Number(depositAmount) : undefined,
@@ -646,6 +678,26 @@ export default function SalesLeadDetailPage() {
     const prevStage = lead.stage
     const stageChanged = targetStage !== prevStage
 
+    // Detect critical field changes on booked jobs (before saving)
+    const criticalChanges: string[] = []
+    if (prevStage === 'booked' && !stageChanged) {
+      if (moveDate && moveDate !== (lead.moveDate || '')) {
+        criticalChanges.push(`Move date: ${lead.moveDate ? formatDate(lead.moveDate) : 'unset'} → ${formatDate(moveDate)}`)
+      }
+      if (originAddress && originAddress !== (lead.originAddress || '')) {
+        criticalChanges.push(`Origin address: "${lead.originAddress || '—'}" → "${originAddress}"`)
+      }
+      if (destAddress && destAddress !== (lead.destAddress || '')) {
+        criticalChanges.push(`Destination address: "${lead.destAddress || '—'}" → "${destAddress}"`)
+      }
+      if (originCity && originCity !== (lead.originCity || '')) {
+        criticalChanges.push(`Origin city: ${lead.originCity || '—'} → ${originCity}`)
+      }
+      if (destCity && destCity !== (lead.destCity || '')) {
+        criticalChanges.push(`Destination city: ${lead.destCity || '—'} → ${destCity}`)
+      }
+    }
+
     try {
       setSaving(true)
       const payload = { ...buildLeadDraftPayload(), stage: targetStage }
@@ -655,6 +707,21 @@ export default function SalesLeadDetailPage() {
       }
       const saved = await updateSalesLead(lead.id, payload)
       applyLeadSnapshot(saved, { hydrateForm: true })
+
+      // Log booking changes to timeline
+      if (criticalChanges.length > 0) {
+        await saveSalesFollowUp({
+          leadId: lead.id,
+          type: 'note',
+          notes: `📝 Booking updated:\n${criticalChanges.join('\n')}`,
+          date: new Date().toISOString(),
+        }).catch(() => {})
+        // Offer to notify customer
+        if (lead.email) {
+          setChangeNoticePending({ changes: criticalChanges, newMoveDate: moveDate || undefined })
+        }
+        void refresh(lead.id)
+      }
 
       // Log stage change to timeline automatically
       if (stageChanged) {
@@ -690,17 +757,84 @@ export default function SalesLeadDetailPage() {
     await saveLead({ skipLostCheck: true, pendingStageName: target })
   }
 
+  async function sendChangeNotice() {
+    if (!lead?.email || !changeNoticePending) return
+    try {
+      setChangeNoticeSending(true)
+      await fetch(`/api/sales/leads/${lead.id}/change-notice`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          toEmail: lead.email,
+          toName: lead.name,
+          quoteNumber: quote?.number,
+          changes: changeNoticePending.changes,
+          newMoveDate: changeNoticePending.newMoveDate,
+          originCity: originCity || lead.originCity,
+          destCity: destCity || lead.destCity,
+        }),
+      })
+      setChangeNoticePending(null)
+    } catch {
+      // non-fatal
+    } finally {
+      setChangeNoticeSending(false)
+    }
+  }
+
+  async function handleAssignCrew(workerIds: string[], sendSms: boolean) {
+    if (!lead) return
+    try {
+      setCrewAssignBusy(true)
+      setCrewAssignResult(null)
+      const result = await assignCrew(lead.id, workerIds, sendSms)
+      setSelectedWorkerIds(workerIds)
+      setCrewAssignResult(sendSms && result.notified > 0
+        ? `✓ Assigned & SMS sent to ${result.notified} worker${result.notified !== 1 ? 's' : ''}`
+        : '✓ Crew assigned')
+      void refresh(lead.id)
+    } catch (err) {
+      setCrewAssignResult(`Error: ${(err as Error).message}`)
+    } finally {
+      setCrewAssignBusy(false)
+    }
+  }
+
   async function handleConfirmJob() {
     if (!lead) return
     try {
       setConfirmJobBusy(true)
+      const depositAmt = confirmJobDeposit ? Number(confirmJobDeposit) : undefined
       const saved = await confirmJob(lead.id, {
-        depositAmount: confirmJobDeposit ? Number(confirmJobDeposit) : undefined,
+        depositAmount: depositAmt,
         depositMethod: confirmJobDepositMethod || undefined,
         sendConfirmation: true,
       })
       applyLeadSnapshot(saved, { hydrateForm: true })
       setShowConfirmJobModal(false)
+
+      // Send deposit receipt when a deposit was collected at booking time
+      if (depositAmt && lead.email && quote) {
+        void fetch('/api/sales/deposit-receipt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            toEmail: lead.email,
+            toName: lead.name,
+            quoteNumber: quote.number,
+            moveDate: quote.moveDate,
+            originCity: quote.originCity || originCity,
+            destCity: quote.destCity || destCity,
+            depositAmount: depositAmt,
+            balanceAmount: (quote.total || 0) - depositAmt,
+            totalAmount: quote.total || 0,
+            paymentMethod: confirmJobDepositMethod || 'E-Transfer',
+          }),
+        }).catch(() => null)
+      }
+
       void refresh(lead.id)
     } catch (err) {
       setError((err as Error).message)
@@ -709,11 +843,11 @@ export default function SalesLeadDetailPage() {
     }
   }
 
-  async function createQuote() {
+  async function createQuote(force = false) {
     if (!lead) return
     try {
       setCreatingQuote(true)
-      const result = await createLeadQuote(lead.id)
+      const result = await createLeadQuote(lead.id, force)
       setQuote(result.quote)
       setLead(result.lead)
       setQuoteLineItems(result.quote.lineItems || [])
@@ -724,6 +858,12 @@ export default function SalesLeadDetailPage() {
     } finally {
       setCreatingQuote(false)
     }
+  }
+
+  async function resetAndRebuildQuote() {
+    if (!lead) return
+    if (!window.confirm('This will invalidate the current quote link and generate a fresh one with updated pricing. The customer\'s old link will no longer work. Continue?')) return
+    await createQuote(true)
   }
 
   async function openQuoteBuilder() {
@@ -920,26 +1060,67 @@ export default function SalesLeadDetailPage() {
     if (!lead) return
     setOutcomeBusy(true)
     try {
-      await fetch(`/api/sales/leads/${lead.id}/outcome`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          actual_hours: outcomeActualHours ? Number(outcomeActualHours) : undefined,
-          actual_crew: outcomeActualCrew ? Number(outcomeActualCrew) : undefined,
-          damage_flag: outcomeDamage,
-          customer_rating: outcomeRating || undefined,
-          review_left: outcomeReview,
-          referral_generated: outcomeReferral,
-          notes: outcomeNotes.trim() || undefined,
+      const sends: Promise<unknown>[] = [
+        fetch(`/api/sales/leads/${lead.id}/outcome`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            actual_hours: outcomeActualHours ? Number(outcomeActualHours) : undefined,
+            actual_crew: outcomeActualCrew ? Number(outcomeActualCrew) : undefined,
+            damage_flag: outcomeDamage,
+            customer_rating: outcomeRating || undefined,
+            review_left: outcomeReview,
+            referral_generated: outcomeReferral,
+            notes: outcomeNotes.trim() || undefined,
+          }),
         }),
-      })
+      ]
+      // Also persist actual hours to the lead record for crew calendar + balance calc
+      if (outcomeActualHours) {
+        sends.push(
+          fetch(`/api/sales/leads/${lead.id}/actual-hours`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              actualHours: Number(outcomeActualHours),
+              actualHoursNote: outcomeNotes.trim() || undefined,
+            }),
+          })
+        )
+      }
+      await Promise.allSettled(sends)
       setOutcomeSaved(true)
       setOutcomeOpen(false)
+      void refresh(lead.id)
     } catch (err) {
       setError((err as Error).message)
     } finally {
       setOutcomeBusy(false)
+    }
+  }
+
+  async function runAiFollowUp() {
+    if (!lead) return
+    setAiFollowUpBusy(true)
+    setAiFollowUpResult(null)
+    try {
+      const r = await fetch(`/api/sales/leads/${lead.id}/ai-followup`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      const payload = await r.json() as { analysis?: typeof aiFollowUpResult; lead?: CRMLead; error?: string }
+      if (!r.ok) throw new Error(payload.error || 'AI follow-up failed')
+      if (payload.analysis) {
+        setAiFollowUpResult(payload.analysis)
+        setFollowUpDate(payload.analysis.suggestedDate || followUpDate)
+        if (payload.lead) applyLeadSnapshot(payload.lead, { hydrateForm: false })
+      }
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setAiFollowUpBusy(false)
     }
   }
 
@@ -1092,7 +1273,8 @@ export default function SalesLeadDetailPage() {
 
   function openDialer() {
     if (!lead?.phone || typeof window === 'undefined') return
-    window.dispatchEvent(new CustomEvent('crm:open-dialer', { detail: { phone: lead.phone, leadId: lead.id } }))
+    const city = lead.originCity || lead.destCity || originCity || destCity || ''
+    window.dispatchEvent(new CustomEvent('crm:open-dialer', { detail: { phone: lead.phone, leadId: lead.id, city } }))
   }
 
   function openComposer(channel: 'sms' | 'email') {
@@ -1543,13 +1725,44 @@ export default function SalesLeadDetailPage() {
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Actual Hours</label>
-                        <input type="number" min="0" step="0.5" value={outcomeActualHours} onChange={e => setOutcomeActualHours(e.target.value)} className="crm-input w-full text-xs" placeholder="e.g. 4.5" />
+                        <input type="number" min="0" step="0.25" value={outcomeActualHours} onChange={e => setOutcomeActualHours(e.target.value)} className="crm-input w-full text-xs" placeholder="e.g. 4.5" />
                       </div>
                       <div>
                         <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Actual Crew</label>
                         <input type="number" min="1" max="10" value={outcomeActualCrew} onChange={e => setOutcomeActualCrew(e.target.value)} className="crm-input w-full text-xs" placeholder="e.g. 3" />
                       </div>
                     </div>
+                    {/* Overtime balance recalculation */}
+                    {outcomeActualHours && quote && (() => {
+                      const estHours = quote.estimatedHours || 0
+                      const actHours = parseFloat(outcomeActualHours)
+                      const ratePerHour = estHours > 0 ? (quote.subtotal / estHours) : 0
+                      const revisedSubtotal = actHours * ratePerHour
+                      const revisedHst = revisedSubtotal * 0.13
+                      const revisedTotal = revisedSubtotal + revisedHst
+                      const depositPaid = lead.depositAmount || 0
+                      const balanceDue = Math.max(0, revisedTotal - depositPaid)
+                      const overBy = actHours - estHours
+                      return (
+                        <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3 text-xs space-y-1.5">
+                          <div className="font-semibold text-[var(--app-ink)] mb-2">
+                            {overBy > 0 ? `⚠️ +${overBy}h over — Revised Balance` : overBy < 0 ? `✅ ${Math.abs(overBy)}h under estimate` : '✅ On estimate'}
+                          </div>
+                          <div className="flex justify-between text-[var(--app-muted)]">
+                            <span>Revised total ({actHours}h)</span>
+                            <span>{formatMoney(revisedTotal)}</span>
+                          </div>
+                          <div className="flex justify-between text-emerald-600">
+                            <span>Deposit paid</span>
+                            <span>−{formatMoney(depositPaid)}</span>
+                          </div>
+                          <div className="flex justify-between font-bold text-[var(--app-ink)] pt-1 border-t border-[var(--app-line)]">
+                            <span>Balance due</span>
+                            <span>{formatMoney(balanceDue)}</span>
+                          </div>
+                        </div>
+                      )
+                    })()}
                     <div>
                       <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Customer Rating</label>
                       <div className="flex gap-1">
@@ -1675,9 +1888,19 @@ export default function SalesLeadDetailPage() {
                 {consultationActive ? `Recording Consultation • ${formatSeconds(consultationSeconds)}` : consultationSaving ? 'Saving Consultation...' : 'Record Consultation'}
               </button>
               {quote ? (
-                <button onClick={() => void openQuoteBuilder()} className="crm-button w-full justify-center border-[rgba(34,72,56,0.2)] bg-[rgba(34,72,56,0.08)] text-[var(--app-accent)]">
-                  Build Estimate
-                </button>
+                <div className="grid grid-cols-[1fr_auto] gap-2">
+                  <button onClick={() => void openQuoteBuilder()} className="crm-button justify-center border-[rgba(34,72,56,0.2)] bg-[rgba(34,72,56,0.08)] text-[var(--app-accent)]">
+                    Build Estimate
+                  </button>
+                  <button
+                    onClick={() => void resetAndRebuildQuote()}
+                    disabled={creatingQuote}
+                    title="Reset quote — generate fresh pricing + new customer link"
+                    className="crm-button justify-center border-rose-200 text-rose-600 hover:bg-rose-50 disabled:opacity-50 px-2.5"
+                  >
+                    ↺
+                  </button>
+                </div>
               ) : (
                 <button onClick={() => void openQuoteBuilder()} disabled={creatingQuote} className="crm-button w-full justify-center border-[rgba(34,72,56,0.2)] bg-[rgba(34,72,56,0.08)] text-[var(--app-accent)] disabled:opacity-60">
                   {creatingQuote ? 'Building...' : 'Build Estimate'}
@@ -1768,10 +1991,208 @@ export default function SalesLeadDetailPage() {
                 <input type="date" value={followUpDate} onChange={event => setFollowUpDate(event.target.value)} className="crm-input mt-2" />
               </label>
 
+              {/* AI Follow-Up Analyzer */}
+              <div>
+                <button
+                  onClick={() => void runAiFollowUp()}
+                  disabled={aiFollowUpBusy}
+                  className="crm-button w-full justify-center border-[rgba(34,72,56,0.2)] bg-[rgba(34,72,56,0.06)] text-[var(--app-accent)] disabled:opacity-60"
+                >
+                  {aiFollowUpBusy ? '🤖 Analyzing...' : '🤖 AI Schedule Follow-Up'}
+                </button>
+                {aiFollowUpResult && (
+                  <div className="mt-2 rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3 space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-[var(--app-ink)]">
+                        {aiFollowUpResult.urgency === 'high' ? '🔴' : aiFollowUpResult.urgency === 'medium' ? '🟡' : '🟢'}
+                        {' '}{aiFollowUpResult.suggestedChannel.toUpperCase()} on {formatDate(aiFollowUpResult.suggestedDate)}
+                      </span>
+                      <button onClick={() => setAiFollowUpResult(null)} className="text-[var(--app-muted)] hover:text-[var(--app-ink)]">×</button>
+                    </div>
+                    {aiFollowUpResult.commitmentDetected && (
+                      <div className="rounded-[6px] bg-amber-50 border border-amber-200 px-2 py-1.5 text-amber-800">
+                        💬 Commitment: &quot;{aiFollowUpResult.commitmentDetected}&quot;
+                      </div>
+                    )}
+                    <p className="text-[var(--app-muted)]">{aiFollowUpResult.followUpNote}</p>
+                    <div className="rounded-[6px] border border-[var(--app-line)] bg-white p-2">
+                      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Suggested Message</div>
+                      <p className="leading-5 text-[var(--app-ink)]">{aiFollowUpResult.suggestedMessage}</p>
+                      <button
+                        onClick={() => {
+                          setComposerBody(aiFollowUpResult.suggestedMessage)
+                          setComposerChannel(aiFollowUpResult.suggestedChannel === 'email' ? 'email' : 'sms')
+                          setComposerOpen(true)
+                          setAiFollowUpResult(null)
+                        }}
+                        className="mt-2 rounded-[6px] bg-[var(--app-accent)] px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-[#0a5b47]"
+                      >
+                        Use this message
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <label className="block">
                 <span className="crm-label">Assigned Rep</span>
                 <input value={assignedRep} onChange={e => setAssignedRep(e.target.value)} className="crm-input mt-2" placeholder="Rep name or initials" />
               </label>
+
+              {/* Crew & Operations — visible when booked */}
+              {lead.stage === 'booked' && (
+                <div>
+                  <span className="crm-label">Crew & Operations</span>
+                  <div className="mt-2 grid gap-2">
+                    <input
+                      type="time"
+                      value={startTime}
+                      onChange={e => setStartTime(e.target.value)}
+                      className="crm-input"
+                      title="Scheduled start time"
+                    />
+                    <textarea
+                      value={crewNote}
+                      onChange={e => setCrewNote(e.target.value)}
+                      className="crm-input resize-none text-xs"
+                      rows={2}
+                      placeholder="Crew note (e.g. Disassemble 2 beds, TV box needed, elevator reserved)"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Crew Assignment — visible when booked */}
+              {lead.stage === 'booked' && (() => {
+                // Filter workers to this job's city, fall back to all available
+                const jobCity = (originCity || lead.originCity || '').toLowerCase()
+                const cityWorkers = workers.filter(w => w.available && (
+                  !jobCity || jobCity.includes(w.city) || w.city === 'other'
+                ))
+                const displayWorkers = cityWorkers.length > 0 ? cityWorkers : workers.filter(w => w.available)
+
+                return (
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="crm-label">Crew Assignment</span>
+                      <Link href="/crew/workers" className="text-[11px] text-[var(--app-accent)] hover:underline" target="_blank">Manage roster →</Link>
+                    </div>
+                    {displayWorkers.length === 0 ? (
+                      <div className="mt-2 rounded-[8px] border border-dashed border-[var(--app-line)] px-3 py-3 text-center text-xs text-[var(--app-muted)]">
+                        No workers in roster.{' '}
+                        <Link href="/crew/workers" className="text-[var(--app-accent)] hover:underline" target="_blank">Add workers</Link>
+                      </div>
+                    ) : (
+                      <div className="mt-2 space-y-1.5">
+                        {displayWorkers.map(worker => {
+                          const selected = selectedWorkerIds.includes(worker.id)
+                          return (
+                            <label key={worker.id} className={`flex cursor-pointer items-center gap-2 rounded-[8px] border px-2.5 py-2 transition ${selected ? 'border-[var(--app-accent)] bg-emerald-50' : 'border-[var(--app-line)] hover:bg-[var(--app-bg)]'}`}>
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={e => {
+                                  setSelectedWorkerIds(ids =>
+                                    e.target.checked ? [...ids, worker.id] : ids.filter(id => id !== worker.id)
+                                  )
+                                  setCrewAssignResult(null)
+                                }}
+                                className="h-3.5 w-3.5 rounded accent-[var(--app-accent)]"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-xs font-semibold text-[var(--app-ink)]">{worker.name}</span>
+                                  <span className="text-[10px] text-[var(--app-muted)] capitalize">{worker.role}</span>
+                                </div>
+                                <div className="text-[10px] text-[var(--app-muted)]">{worker.phone}</div>
+                              </div>
+                            </label>
+                          )
+                        })}
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            onClick={() => void handleAssignCrew(selectedWorkerIds, true)}
+                            disabled={crewAssignBusy || selectedWorkerIds.length === 0}
+                            className="flex-1 rounded-[8px] bg-[var(--app-accent)] py-1.5 text-xs font-semibold text-white hover:bg-[#0a5b47] disabled:opacity-50"
+                          >
+                            {crewAssignBusy ? 'Sending…' : `Assign + SMS (${selectedWorkerIds.length})`}
+                          </button>
+                          <button
+                            onClick={() => void handleAssignCrew(selectedWorkerIds, false)}
+                            disabled={crewAssignBusy || selectedWorkerIds.length === 0}
+                            className="rounded-[8px] border border-[var(--app-line)] px-2.5 py-1.5 text-xs text-[var(--app-muted)] hover:bg-[var(--app-bg)] disabled:opacity-50"
+                            title="Save assignment without sending SMS"
+                          >
+                            Save only
+                          </button>
+                        </div>
+                        {crewAssignResult && (
+                          <div className={`text-xs font-medium ${crewAssignResult.startsWith('Error') ? 'text-rose-600' : 'text-emerald-700'}`}>
+                            {crewAssignResult}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+
+              {/* Truck Logistics — visible when booked */}
+              {lead.stage === 'booked' && (() => {
+                const tripType = detectTripType(originCity || lead.originCity || '', destCity || lead.destCity || '')
+                const truckSuggestions = getTruckSuggestionsForCity(originCity || lead.originCity || '')
+                return (
+                  <div>
+                    <span className="crm-label">Truck Logistics</span>
+                    {tripType && (
+                      <div className={`mt-2 flex items-center gap-1.5 rounded-[6px] px-3 py-2 text-xs font-semibold ${tripType === 'one-way' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-blue-50 text-blue-700 border border-blue-200'}`}>
+                        {tripType === 'one-way' ? '→ One-way' : '↺ Return trip'}
+                        <span className="font-normal opacity-80">{tripType === 'one-way' ? '— truck stays at destination' : '— truck returns to base'}</span>
+                      </div>
+                    )}
+                    <div className="mt-2 grid gap-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={truckReserved}
+                          onChange={e => setTruckReserved(e.target.checked)}
+                          className="h-4 w-4 rounded border-[var(--app-line)] accent-[var(--app-accent)]"
+                        />
+                        <span className={`text-sm ${truckReserved ? 'font-semibold text-emerald-700' : 'text-[var(--app-ink)]'}`}>
+                          {truckReserved ? '✓ Truck reserved' : 'Truck reserved?'}
+                        </span>
+                      </label>
+                      {truckReserved && (
+                        <>
+                          <select value={truckCompany} onChange={e => setTruckCompany(e.target.value)} className="crm-input text-xs">
+                            <option value="">Select rental company…</option>
+                            {truckSuggestions.map(c => <option key={c} value={c}>{c}</option>)}
+                            <option value="Other">Other</option>
+                          </select>
+                          <input
+                            value={truckReservationNumber}
+                            onChange={e => setTruckReservationNumber(e.target.value)}
+                            className="crm-input text-xs"
+                            placeholder="Reservation # or confirmation code"
+                          />
+                          <input
+                            type="time"
+                            value={truckPickupTime}
+                            onChange={e => setTruckPickupTime(e.target.value)}
+                            className="crm-input text-xs"
+                            title="Truck pickup time"
+                          />
+                        </>
+                      )}
+                      {!truckReserved && (
+                        <div className="text-[11px] text-[var(--app-muted)] leading-relaxed">
+                          Nearby: {truckSuggestions.slice(0, 2).join(' · ')}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })()}
 
               {/* Deposit section — visible when booked */}
               {lead.stage === 'booked' && (
@@ -1796,6 +2217,31 @@ export default function SalesLeadDetailPage() {
               <button onClick={() => void saveLead()} disabled={saving} className="crm-button w-full justify-center disabled:opacity-60">
                 {saving ? 'Saving...' : 'Save Lead'}
               </button>
+
+              {/* Change notice banner — shown after saving a booked lead with critical changes */}
+              {changeNoticePending && lead.email && (
+                <div className="rounded-[8px] border border-amber-300 bg-amber-50 p-3">
+                  <div className="mb-1.5 text-xs font-semibold text-amber-800">Booking details changed</div>
+                  <ul className="mb-2 space-y-0.5 text-[11px] text-amber-700">
+                    {changeNoticePending.changes.map((c, i) => <li key={i}>• {c}</li>)}
+                  </ul>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => void sendChangeNotice()}
+                      disabled={changeNoticeSending}
+                      className="rounded-[6px] bg-amber-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
+                    >
+                      {changeNoticeSending ? 'Sending…' : `Notify ${lead.name.split(' ')[0]}`}
+                    </button>
+                    <button
+                      onClick={() => setChangeNoticePending(null)}
+                      className="rounded-[6px] px-2 py-1 text-[11px] text-amber-700 hover:bg-amber-100"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              )}
               <button onClick={() => void removeLead()} disabled={deleteBusy} className="crm-button w-full justify-center border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-60">
                 {deleteBusy ? 'Deleting...' : 'Delete Lead'}
               </button>

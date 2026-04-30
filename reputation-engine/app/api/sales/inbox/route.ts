@@ -277,9 +277,18 @@ export async function POST(request: Request) {
       return NextResponse.json(savedLead)
     }
 
+    // Pull AI-extracted fields from raw_data so they pre-fill the new lead
+    const rawForExtracted = parseRawData(inbound.raw_data) || {}
+    const extractedOriginCity = (rawForExtracted.originCity as string | undefined) || ''
+    const extractedOriginAddress = (rawForExtracted.originAddress as string | undefined) || ''
+    const extractedDestCity = (rawForExtracted.destCity as string | undefined) || ''
+    const extractedDestAddress = (rawForExtracted.destAddress as string | undefined) || ''
+    const extractedMoveDate = (rawForExtracted.moveDate as string | undefined) || ''
+    const extractedName = (rawForExtracted.extractedName as string | undefined) || ''
+
     const lead = normalizeLead({
       id: uid('lead'),
-      name: payload.name.trim(),
+      name: payload.name.trim() || extractedName || 'New Lead',
       inboundId: payload.inboundId,
       inboundMessage: inbound.message?.trim() || payload.notes?.trim() || '',
       phone: validated.phone || inbound.phone || undefined,
@@ -287,10 +296,11 @@ export async function POST(request: Request) {
       source: payload.source || inbound.source || 'other',
       stage: payload.stage || inferStageFromInbound(inbound),
       moveType: validated.moveType || 'residential',
-      moveDate: '',
-      originAddress: '',
-      originCity: '',
-      destCity: '',
+      moveDate: extractedMoveDate,
+      originAddress: extractedOriginAddress,
+      originCity: extractedOriginCity,
+      destAddress: extractedDestAddress,
+      destCity: extractedDestCity,
       moveReason: '',
       notes: payload.notes?.trim() || inbound.message?.trim() || '',
       ...inferFollowUp(inbound),

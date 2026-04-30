@@ -5,7 +5,7 @@ import type { CRMClient, CRMQuote } from '@/lib/types'
 
 export async function POST(request: Request) {
   try {
-    const payload = (await request.json()) as { leadId?: string }
+    const payload = (await request.json()) as { leadId?: string; force?: boolean }
     if (!payload.leadId) {
       return NextResponse.json({ error: 'leadId is required' }, { status: 400 })
     }
@@ -15,14 +15,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
     }
 
-    if (lead.quoteId) {
-      return NextResponse.json({ error: 'Lead already has a linked quote', quoteId: lead.quoteId }, { status: 409 })
+    // Without force=true, return existing quote if one exists (prevents accidental duplicates)
+    if (!payload.force) {
+      if (lead.quoteId) {
+        return NextResponse.json({ error: 'Lead already has a linked quote', quoteId: lead.quoteId }, { status: 409 })
+      }
+      const existingQuote = await getLatestSalesQuoteByLeadId(lead.id)
+      if (existingQuote) {
+        const savedLead = await saveSalesLead(syncLeadFromQuoteStatus({ ...lead, quoteId: existingQuote.id }, existingQuote))
+        return NextResponse.json({ quote: existingQuote, lead: savedLead })
+      }
     }
 
-    const existingQuote = await getLatestSalesQuoteByLeadId(lead.id)
-    if (existingQuote) {
-      const savedLead = await saveSalesLead(syncLeadFromQuoteStatus({ ...lead, quoteId: existingQuote.id }, existingQuote))
-      return NextResponse.json({ quote: existingQuote, lead: savedLead })
+    // force=true: supersede any existing quote with a brand-new one (fresh pricing, new token)
+    if (payload.force) {
+      const existingQuote = await getLatestSalesQuoteByLeadId(lead.id)
+      if (existingQuote && existingQuote.status !== 'accepted') {
+        // Invalidate old quote by clearing its token
+        await saveSalesQuote({ ...existingQuote, acceptToken: '', status: 'declined' })
+      }
     }
 
     const clients = await listSalesClients()

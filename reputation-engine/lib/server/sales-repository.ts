@@ -12,6 +12,7 @@ import type {
   CRMEmail,
   CRMLead,
   CRMQuote,
+  CRMWorker,
   FollowUpLog,
   InboundLead,
   InventoryScanDraft,
@@ -19,7 +20,7 @@ import type {
   SalesDashboardSummary,
 } from '@/lib/types'
 
-type TableName = 'crm_leads' | 'crm_quotes' | 'crm_clients' | 'crm_emails' | 'crm_followup_logs'
+type TableName = 'crm_leads' | 'crm_quotes' | 'crm_clients' | 'crm_emails' | 'crm_followup_logs' | 'crm_workers'
 type PersistedRecord<T> = { id: string; data: T; updated_at?: string; deleted?: boolean }
 
 function requireSupabase() {
@@ -783,4 +784,30 @@ export async function saveListingInventoryScan(zpid: string, scan: InventoryScan
   }
 
   return response.json()
+}
+
+// ─── Crew Workers ─────────────────────────────────────────────────────────
+
+export async function listWorkers(): Promise<CRMWorker[]> {
+  try {
+    return await selectAll<CRMWorker>('crm_workers')
+  } catch {
+    return []
+  }
+}
+
+export async function getWorker(id: string): Promise<CRMWorker | null> {
+  try {
+    return await selectById<CRMWorker>('crm_workers', id)
+  } catch {
+    return null
+  }
+}
+
+export async function saveWorker(worker: CRMWorker): Promise<CRMWorker> {
+  return upsert<CRMWorker>('crm_workers', worker)
+}
+
+export async function deleteWorker(id: string): Promise<void> {
+  await markDeleted('crm_workers', id)
 }

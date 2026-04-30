@@ -1085,3 +1085,197 @@ export function getClientMap(clients: CRMClient[]) {
 export function getQuoteMap(quotes: CRMQuote[]) {
   return new Map(quotes.map(quote => [quote.id, quote]))
 }
+
+export interface CrewWorkDoc {
+  customerName: string
+  customerPhone?: string
+  moveDate?: string
+  startTime?: string
+  origin: string
+  destination: string
+  crewSize: number
+  truckCount: number
+  estimatedHours: number
+  scopeLines: string[]     // crew-language instructions
+  specialAlerts: string[]  // bold warnings (piano, safe, fragile, etc.)
+  accessNotes: string[]
+  parkingNotes?: string
+  crewNote?: string
+}
+
+export function buildCrewWorkDoc(lead: CRMLead, quote?: CRMQuote | null): CrewWorkDoc {
+  const factors = lead.jobFactors
+  const inventory = (lead.inventory || []).filter(i => i.included !== false)
+  const { details: disassemblyDetails } = getDisassemblyBreakdown(inventory)
+
+  const crewSize = quote?.crewSize ?? 2
+  const truckCount = quote?.truckCount ?? 1
+  const estimatedHours = quote?.estimatedHours ?? 3
+  const origin = [lead.originAddress, lead.originCity].filter(Boolean).join(', ') || 'TBD'
+  const destination = [lead.destAddress, lead.destCity].filter(Boolean).join(', ') || 'TBD'
+
+  const scopeLines: string[] = []
+  const specialAlerts: string[] = []
+  const accessNotes: string[] = []
+
+  // Truck + crew assignment line
+  scopeLines.push(
+    truckCount === 1
+      ? `1 × 26ft truck · ${crewSize} movers`
+      : `${truckCount} trucks · ${crewSize} movers`
+  )
+
+  // Disassembly items
+  if (disassemblyDetails.length > 0) {
+    scopeLines.push('Disassemble + reassemble:')
+    disassemblyDetails.forEach(line => scopeLines.push(`  • ${line}`))
+  }
+
+  // TV boxes
+  const tvItems = inventory.filter(i => (i.name || i.item || '').toLowerCase().includes('tv') || (i.name || i.item || '').toLowerCase().includes('television'))
+  if (tvItems.length > 0) {
+    const tvQty = tvItems.reduce((s, i) => s + (i.qty || 1), 0)
+    specialAlerts.push(`${tvQty} TV${tvQty > 1 ? 's' : ''} — TV box required for each`)
+  }
+
+  // Piano / safe
+  if (factors?.hasPiano) specialAlerts.push('🎹 Upright piano — additional padding + team lift required')
+  if (factors?.hasSafe) specialAlerts.push('🔒 Heavy safe — dolly + extra crew care required')
+
+  // Packing status
+  if (factors?.packingStatus === 'not-started') {
+    specialAlerts.push('⚠️ Customer is NOT packed — confirm before dispatch')
+  } else if (factors?.packingStatus === 'partial') {
+    scopeLines.push('Partial packing by crew may be needed — confirm on arrival')
+  }
+
+  // Boxes / hidden inventory
+  if (factors?.estimatedBoxes && factors.estimatedBoxes > 0) {
+    scopeLines.push(`Approx. ${factors.estimatedBoxes} boxes (garage/basement not in photos)`)
+  }
+
+  // Specialty notes from rep
+  if (factors?.specialtyNotes) {
+    scopeLines.push(`Rep note: ${factors.specialtyNotes}`)
+  }
+
+  // Tall items — infer from inventory
+  const tallItems = inventory.filter(i => {
+    const n = (i.name || i.item || '').toLowerCase()
+    return n.includes('wardrobe') || n.includes('armoire') || n.includes('bookcase') || n.includes('bookshelf') || n.includes('hutch') || n.includes('china cabinet')
+  })
+  if (tallItems.length > 0) {
+    scopeLines.push(`${tallItems.length} tall item${tallItems.length > 1 ? 's' : ''} (wardrobe/bookcase) — strap upright, blanket wrap`)
+  }
+
+  // Key room summary
+  const roomMap: Record<string, number> = {}
+  inventory.forEach(i => {
+    if (!i.room) return
+    roomMap[i.room] = (roomMap[i.room] || 0) + (i.qty || 1)
+  })
+  const rooms = Object.entries(roomMap)
+  if (rooms.length > 0) {
+    scopeLines.push('Rooms: ' + rooms.map(([r, n]) => `${r} (${n} items)`).join(', '))
+  }
+
+  // Access notes
+  const originFloors = factors?.originFloors ?? 1
+  const destFloors = factors?.destFloors ?? 1
+  if (originFloors > 1 && !factors?.originHasElevator) {
+    accessNotes.push(`Origin: ${originFloors}-storey — stairs carry`)
+  } else if (factors?.originHasElevator) {
+    accessNotes.push(`Origin: elevator${factors.originElevatorReserved ? ' (reserved)' : ' — needs reservation'}`)
+  }
+  if (destFloors > 1 && !factors?.destHasElevator) {
+    accessNotes.push(`Destination: ${destFloors}-storey — stairs carry`)
+  } else if (factors?.destHasElevator) {
+    accessNotes.push(`Destination: elevator${factors.destElevatorReserved ? ' (reserved)' : ' — needs reservation'}`)
+  }
+  if (lead.originAccess) accessNotes.push(`Origin access: ${lead.originAccess}`)
+  if (lead.destAccess) accessNotes.push(`Destination access: ${lead.destAccess}`)
+
+  return {
+    customerName: lead.name,
+    customerPhone: lead.phone,
+    moveDate: lead.moveDate,
+    startTime: lead.startTime,
+    origin,
+    destination,
+    crewSize,
+    truckCount,
+    estimatedHours,
+    scopeLines,
+    specialAlerts,
+    accessNotes,
+    parkingNotes: lead.parkingNotes,
+    crewNote: lead.crewNote,
+  }
+}
+
+// ─── Trip type detection ───────────────────────────────────────────────────
+
+const METRO_REGIONS: string[][] = [
+  ['kitchener', 'waterloo', 'cambridge', 'guelph', 'elora', 'elmira'],
+  ['windsor', 'lakeshore', 'tecumseh', 'lasalle', 'amherstburg', 'leamington', 'kingsville'],
+  ['toronto', 'scarborough', 'north york', 'etobicoke', 'mississauga', 'brampton', 'vaughan', 'markham', 'richmond hill', 'ajax', 'whitby', 'oshawa', 'pickering'],
+  ['hamilton', 'burlington', 'oakville', 'stoney creek', 'ancaster', 'dundas'],
+  ['ottawa', 'gatineau', 'kanata', 'nepean', 'gloucester', 'barrhaven', 'orléans'],
+  ['london', 'strathroy', 'st thomas', 'saint thomas', 'woodstock'],
+  ['barrie', 'innisfil', 'orillia', 'midland'],
+]
+
+export function detectTripType(originCity: string, destCity: string): 'one-way' | 'return' | null {
+  if (!originCity || !destCity) return null
+  const o = originCity.toLowerCase().trim()
+  const d = destCity.toLowerCase().trim()
+  if (o === d) return 'return'
+  for (const region of METRO_REGIONS) {
+    const inOrigin = region.some(kw => o.includes(kw))
+    const inDest = region.some(kw => d.includes(kw))
+    if (inOrigin && inDest) return 'return'
+  }
+  return 'one-way'
+}
+
+// ─── Truck rental suggestions by city ─────────────────────────────────────
+
+const TRUCK_SUGGESTIONS: Array<{ regions: string[]; rentals: string[] }> = [
+  {
+    regions: ['kitchener', 'waterloo', 'cambridge'],
+    rentals: ['U-Haul (Ottawa St N, Kitchener)', 'Penske (Fairway Rd, Kitchener)', 'Budget (King St E, Kitchener)'],
+  },
+  {
+    regions: ['windsor'],
+    rentals: ['U-Haul (Howard Ave, Windsor)', 'Penske (Wyandotte E, Windsor)', 'Budget (Tecumseh Rd, Windsor)'],
+  },
+  {
+    regions: ['toronto', 'scarborough', 'north york', 'etobicoke'],
+    rentals: ['U-Haul (multiple Toronto locations)', 'Penske (Toronto)', 'Budget (Toronto)'],
+  },
+  {
+    regions: ['mississauga', 'brampton'],
+    rentals: ['U-Haul (Dixie Rd, Mississauga)', 'Penske (Mississauga)', 'Budget (Airport Rd, Brampton)'],
+  },
+  {
+    regions: ['hamilton'],
+    rentals: ['U-Haul (Upper James, Hamilton)', 'Penske (Hamilton)', 'Budget (King St, Hamilton)'],
+  },
+  {
+    regions: ['ottawa'],
+    rentals: ['U-Haul (multiple Ottawa locations)', 'Penske (Ottawa)', 'Budget (Ottawa)'],
+  },
+  {
+    regions: ['london'],
+    rentals: ['U-Haul (Wellington Rd, London)', 'Penske (London)', 'Budget (Dundas St, London)'],
+  },
+]
+
+export function getTruckSuggestionsForCity(city: string): string[] {
+  if (!city) return ['U-Haul', 'Penske', 'Budget']
+  const c = city.toLowerCase()
+  for (const entry of TRUCK_SUGGESTIONS) {
+    if (entry.regions.some(r => c.includes(r))) return entry.rentals
+  }
+  return ['U-Haul', 'Penske', 'Budget']
+}
