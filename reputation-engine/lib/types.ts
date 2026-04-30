@@ -319,6 +319,12 @@ export interface CRMLead {
   // Cancellation
   cancelledAt?: string
   cancelReason?: string
+  // Move execution
+  startTime?: string          // scheduled start time e.g. "08:00"
+  actualHours?: number        // hours logged by crew lead after move
+  actualHoursNote?: string    // reason if over/under estimate (extra items, etc.)
+  actualHoursLoggedAt?: string
+  actualHoursLoggedBy?: string
   // Post-job review lifecycle
   reviewJobId?: string
   reviewSentAt?: string

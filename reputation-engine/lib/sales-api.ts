@@ -86,12 +86,12 @@ export async function saveLeadConsultation(
   return readJson(response)
 }
 
-export async function createLeadQuote(leadId: string): Promise<{ quote: CRMQuote; lead: CRMLead }> {
+export async function createLeadQuote(leadId: string, force = false): Promise<{ quote: CRMQuote; lead: CRMLead }> {
   const response = await fetch('/api/sales/quotes', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ leadId }),
+    body: JSON.stringify({ leadId, force }),
   })
   return readJson(response)
 }

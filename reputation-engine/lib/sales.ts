@@ -1085,3 +1085,130 @@ export function getClientMap(clients: CRMClient[]) {
 export function getQuoteMap(quotes: CRMQuote[]) {
   return new Map(quotes.map(quote => [quote.id, quote]))
 }
+
+export interface CrewWorkDoc {
+  customerName: string
+  customerPhone?: string
+  moveDate?: string
+  startTime?: string
+  origin: string
+  destination: string
+  crewSize: number
+  truckCount: number
+  estimatedHours: number
+  scopeLines: string[]     // crew-language instructions
+  specialAlerts: string[]  // bold warnings (piano, safe, fragile, etc.)
+  accessNotes: string[]
+  parkingNotes?: string
+  crewNote?: string
+}
+
+export function buildCrewWorkDoc(lead: CRMLead, quote?: CRMQuote | null): CrewWorkDoc {
+  const factors = lead.jobFactors
+  const inventory = (lead.inventory || []).filter(i => i.included !== false)
+  const { details: disassemblyDetails } = getDisassemblyBreakdown(inventory)
+
+  const crewSize = quote?.crewSize ?? 2
+  const truckCount = quote?.truckCount ?? 1
+  const estimatedHours = quote?.estimatedHours ?? 3
+  const origin = [lead.originAddress, lead.originCity].filter(Boolean).join(', ') || 'TBD'
+  const destination = [lead.destAddress, lead.destCity].filter(Boolean).join(', ') || 'TBD'
+
+  const scopeLines: string[] = []
+  const specialAlerts: string[] = []
+  const accessNotes: string[] = []
+
+  // Truck + crew assignment line
+  scopeLines.push(
+    truckCount === 1
+      ? `1 × 26ft truck · ${crewSize} movers`
+      : `${truckCount} trucks · ${crewSize} movers`
+  )
+
+  // Disassembly items
+  if (disassemblyDetails.length > 0) {
+    scopeLines.push('Disassemble + reassemble:')
+    disassemblyDetails.forEach(line => scopeLines.push(`  • ${line}`))
+  }
+
+  // TV boxes
+  const tvItems = inventory.filter(i => (i.name || i.item || '').toLowerCase().includes('tv') || (i.name || i.item || '').toLowerCase().includes('television'))
+  if (tvItems.length > 0) {
+    const tvQty = tvItems.reduce((s, i) => s + (i.qty || 1), 0)
+    specialAlerts.push(`${tvQty} TV${tvQty > 1 ? 's' : ''} — TV box required for each`)
+  }
+
+  // Piano / safe
+  if (factors?.hasPiano) specialAlerts.push('🎹 Upright piano — additional padding + team lift required')
+  if (factors?.hasSafe) specialAlerts.push('🔒 Heavy safe — dolly + extra crew care required')
+
+  // Packing status
+  if (factors?.packingStatus === 'not-started') {
+    specialAlerts.push('⚠️ Customer is NOT packed — confirm before dispatch')
+  } else if (factors?.packingStatus === 'partial') {
+    scopeLines.push('Partial packing by crew may be needed — confirm on arrival')
+  }
+
+  // Boxes / hidden inventory
+  if (factors?.estimatedBoxes && factors.estimatedBoxes > 0) {
+    scopeLines.push(`Approx. ${factors.estimatedBoxes} boxes (garage/basement not in photos)`)
+  }
+
+  // Specialty notes from rep
+  if (factors?.specialtyNotes) {
+    scopeLines.push(`Rep note: ${factors.specialtyNotes}`)
+  }
+
+  // Tall items — infer from inventory
+  const tallItems = inventory.filter(i => {
+    const n = (i.name || i.item || '').toLowerCase()
+    return n.includes('wardrobe') || n.includes('armoire') || n.includes('bookcase') || n.includes('bookshelf') || n.includes('hutch') || n.includes('china cabinet')
+  })
+  if (tallItems.length > 0) {
+    scopeLines.push(`${tallItems.length} tall item${tallItems.length > 1 ? 's' : ''} (wardrobe/bookcase) — strap upright, blanket wrap`)
+  }
+
+  // Key room summary
+  const roomMap: Record<string, number> = {}
+  inventory.forEach(i => {
+    if (!i.room) return
+    roomMap[i.room] = (roomMap[i.room] || 0) + (i.qty || 1)
+  })
+  const rooms = Object.entries(roomMap)
+  if (rooms.length > 0) {
+    scopeLines.push('Rooms: ' + rooms.map(([r, n]) => `${r} (${n} items)`).join(', '))
+  }
+
+  // Access notes
+  const originFloors = factors?.originFloors ?? 1
+  const destFloors = factors?.destFloors ?? 1
+  if (originFloors > 1 && !factors?.originHasElevator) {
+    accessNotes.push(`Origin: ${originFloors}-storey — stairs carry`)
+  } else if (factors?.originHasElevator) {
+    accessNotes.push(`Origin: elevator${factors.originElevatorReserved ? ' (reserved)' : ' — needs reservation'}`)
+  }
+  if (destFloors > 1 && !factors?.destHasElevator) {
+    accessNotes.push(`Destination: ${destFloors}-storey — stairs carry`)
+  } else if (factors?.destHasElevator) {
+    accessNotes.push(`Destination: elevator${factors.destElevatorReserved ? ' (reserved)' : ' — needs reservation'}`)
+  }
+  if (lead.originAccess) accessNotes.push(`Origin access: ${lead.originAccess}`)
+  if (lead.destAccess) accessNotes.push(`Destination access: ${lead.destAccess}`)
+
+  return {
+    customerName: lead.name,
+    customerPhone: lead.phone,
+    moveDate: lead.moveDate,
+    startTime: lead.startTime,
+    origin,
+    destination,
+    crewSize,
+    truckCount,
+    estimatedHours,
+    scopeLines,
+    specialAlerts,
+    accessNotes,
+    parkingNotes: lead.parkingNotes,
+    crewNote: lead.crewNote,
+  }
+}

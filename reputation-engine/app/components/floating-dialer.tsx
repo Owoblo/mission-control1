@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { logDialerCall, matchLeadByPhone } from '@/lib/sales-api'
+import { matchCallerIdForCity } from '@/lib/config'
 
 declare global {
   interface Window {
@@ -52,6 +53,7 @@ async function loadTwilioSdk() {
 export function FloatingDialer() {
   const [open, setOpen] = useState(false)
   const [phone, setPhone] = useState('')
+  const [leadCity, setLeadCity] = useState('')
   const [status, setStatus] = useState<'idle' | 'ready' | 'connecting' | 'active' | 'incoming' | 'error'>('idle')
   const [incomingFrom, setIncomingFrom] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -137,9 +139,10 @@ export function FloatingDialer() {
     void initializeDialer()
 
     function handleOpenDialer(event: Event) {
-      const customEvent = event as CustomEvent<{ phone?: string; leadId?: string }>
+      const customEvent = event as CustomEvent<{ phone?: string; leadId?: string; city?: string }>
       if (customEvent.detail?.phone) setPhone(customEvent.detail.phone)
       setActiveLeadId(customEvent.detail?.leadId || null)
+      setLeadCity(customEvent.detail?.city || '')
       setOpen(true)
     }
 
@@ -185,7 +188,10 @@ export function FloatingDialer() {
     try {
       setStatus('connecting')
       setError(null)
-      const call = await deviceRef.current.connect({ params: { To: e164 } })
+      const callerMatch = matchCallerIdForCity(leadCity)
+      const callParams: Record<string, string> = { To: e164 }
+      if (callerMatch) callParams.CallerID = callerMatch.number
+      const call = await deviceRef.current.connect({ params: callParams })
       activeCallRef.current = call
 
       call.on('accept', () => {
@@ -348,6 +354,15 @@ export function FloatingDialer() {
                 className="mt-4 h-11 w-full rounded-[12px] border border-white/10 bg-white/5 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20"
                 placeholder="Enter phone number"
               />
+              {leadCity && (() => {
+                const match = matchCallerIdForCity(leadCity)
+                return match ? (
+                  <div className="mt-2 flex items-center gap-2 rounded-[10px] border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-xs text-emerald-300">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
+                    Calling from <span className="font-semibold">{match.label}</span> number
+                  </div>
+                ) : null
+              })()}
               {error ? (
                 <div className="mt-3 rounded-[10px] border border-rose-400/20 bg-rose-400/10 p-3">
                   <div className="text-sm text-rose-300">{error}</div>

@@ -2,6 +2,7 @@
 
 import { formatDate } from '@/lib/sales'
 import type { CRMLead } from '@/lib/types'
+import { AddressAutocomplete } from '@/app/components/address-autocomplete'
 
 type Props = {
   lead: CRMLead
@@ -161,7 +162,12 @@ export function LeadBasicsPanel({
             <option value="labor-only">Labor-only</option>
             <option value="packing">Packing</option>
           </select>
-          <input value={originAddress} onChange={event => onOriginAddressChange(event.target.value)} className="crm-input" placeholder="Origin address" />
+          <AddressAutocomplete
+            value={originAddress}
+            onChange={onOriginAddressChange}
+            onPlaceSelect={(addr, city) => { onOriginAddressChange(addr); if (city) onOriginCityChange(city) }}
+            placeholder="Origin address"
+          />
           <input value={originCity} onChange={event => onOriginCityChange(event.target.value)} className="crm-input" placeholder="Origin city" />
           <input value={originAccess} onChange={event => onOriginAccessChange(event.target.value)} className="crm-input" placeholder="Origin access, stairs, elevator, long carry" />
           {/* MLS Scan Prompt */}
@@ -190,7 +196,12 @@ export function LeadBasicsPanel({
               </div>
             )
           )}
-          <input value={destAddress} onChange={event => onDestAddressChange(event.target.value)} className="crm-input" placeholder="Destination address" />
+          <AddressAutocomplete
+            value={destAddress}
+            onChange={onDestAddressChange}
+            onPlaceSelect={(addr, city) => { onDestAddressChange(addr); if (city) onDestCityChange(city) }}
+            placeholder="Destination address"
+          />
           <input value={destCity} onChange={event => onDestCityChange(event.target.value)} className="crm-input" placeholder="Destination city" />
           <input value={destAccess} onChange={event => onDestAccessChange(event.target.value)} className="crm-input" placeholder="Destination access, stairs, elevator, long carry" />
           <input value={parkingNotes} onChange={event => onParkingNotesChange(event.target.value)} className="crm-input" placeholder="Parking / truck notes" />

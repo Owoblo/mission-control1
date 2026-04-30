@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { estimateLeadQuote, formatMoney } from '@/lib/sales'
 import { DEFAULT_ROOM_OPTIONS } from './helpers'
+import { AddressAutocomplete } from '@/app/components/address-autocomplete'
 import type { EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, QuoteLineItem } from '@/lib/types'
 
 type RouteResult = {
@@ -439,7 +440,13 @@ export function EstimateDraftModal({
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="crm-kpi">
                 <div className="crm-label">Origin Address</div>
-                <input value={originAddress} onChange={e => onOriginAddressChange(e.target.value)} className="mt-3 crm-input" placeholder="Search or enter origin address" />
+                <AddressAutocomplete
+                  value={originAddress}
+                  onChange={onOriginAddressChange}
+                  onPlaceSelect={(addr, city) => { onOriginAddressChange(addr); if (city) onOriginCityChange(city) }}
+                  placeholder="Search or enter origin address"
+                  className="mt-3 crm-input"
+                />
                 <input value={originCity} onChange={e => onOriginCityChange(e.target.value)} className="mt-2 crm-input" placeholder="Origin city" />
                 <button onClick={onLookupListing} disabled={listingLookupBusy} className="mt-3 crm-button disabled:opacity-60">
                   {listingLookupBusy ? 'Matching...' : 'Match Listing'}
@@ -447,7 +454,13 @@ export function EstimateDraftModal({
               </div>
               <div className="crm-kpi">
                 <div className="crm-label">Destination + Scope</div>
-                <input value={destAddress} onChange={e => onDestAddressChange(e.target.value)} className="mt-3 crm-input" placeholder="Destination address" />
+                <AddressAutocomplete
+                  value={destAddress}
+                  onChange={onDestAddressChange}
+                  onPlaceSelect={(addr, city) => { onDestAddressChange(addr); if (city) onDestCityChange(city) }}
+                  placeholder="Destination address"
+                  className="mt-3 crm-input"
+                />
                 <input value={destCity} onChange={e => onDestCityChange(e.target.value)} className="mt-2 crm-input" placeholder="Destination city" />
                 <div className="mt-3 flex gap-2">
                   <button onClick={onRefreshInventory} disabled={analysisBusy || !lead.supabaseListing?.address} className="crm-button disabled:opacity-60">
