@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
+import Link from 'next/link'
 import { buildCrewWorkDoc, formatDate, formatMoney } from '@/lib/sales'
-import type { CRMLead, CRMQuote } from '@/lib/types'
+import type { CRMLead, CRMQuote, CRMWorker } from '@/lib/types'
 
 type Job = { lead: CRMLead; quote: CRMQuote | null }
 
@@ -30,7 +31,7 @@ function MoveBadge({ dateStr }: { dateStr?: string }) {
   )
 }
 
-function JobCard({ job, onHoursLogged }: { job: Job; onHoursLogged: (leadId: string, hours: number) => void }) {
+function JobCard({ job, workers, onHoursLogged }: { job: Job; workers: CRMWorker[]; onHoursLogged: (leadId: string, hours: number) => void }) {
   const { lead, quote } = job
   const workDoc = buildCrewWorkDoc(lead, quote)
   const [expanded, setExpanded] = useState(daysUntil(workDoc.moveDate) !== null && (daysUntil(workDoc.moveDate) ?? 99) <= 3)
@@ -110,6 +111,22 @@ function JobCard({ job, onHoursLogged }: { job: Job; onHoursLogged: (leadId: str
           <span>⏱ ~{workDoc.estimatedHours}h estimated</span>
           {lead.actualHours && <span className="font-semibold text-emerald-700">✅ {lead.actualHours}h actual</span>}
         </div>
+
+        {/* Assigned crew */}
+        {(lead.assignedCrew?.length ?? 0) > 0 && (() => {
+          const assignedWorkers = workers.filter(w => lead.assignedCrew!.includes(w.id))
+          if (assignedWorkers.length === 0) return null
+          return (
+            <div className="flex flex-wrap gap-1.5">
+              {assignedWorkers.map(w => (
+                <span key={w.id} className="flex items-center gap-1 rounded-full bg-[#1a2744] bg-opacity-10 px-2.5 py-1 text-[11px] font-semibold text-[#1a2744]">
+                  {w.role === 'lead' ? '★' : '·'} {w.name.split(' ')[0]}
+                  <span className="opacity-50 font-normal capitalize">({w.role})</span>
+                </span>
+              ))}
+            </div>
+          )
+        })()}
 
         {/* Special alerts */}
         {workDoc.specialAlerts.length > 0 && (
@@ -260,14 +277,17 @@ function JobCard({ job, onHoursLogged }: { job: Job; onHoursLogged: (leadId: str
 export default function CrewCalendarPage() {
   const user = useCurrentUser()
   const [jobs, setJobs] = useState<Job[]>([])
+  const [workers, setWorkers] = useState<CRMWorker[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/crew/jobs', { credentials: 'include' })
-      .then(r => r.ok ? r.json() : { jobs: [] })
-      .then((d: { jobs: Job[] }) => setJobs(d.jobs))
-      .catch(() => null)
-      .finally(() => setLoading(false))
+    Promise.all([
+      fetch('/api/crew/jobs', { credentials: 'include' }).then(r => r.ok ? r.json() : { jobs: [] }).then((d: { jobs: Job[] }) => d.jobs),
+      fetch('/api/sales/workers', { credentials: 'include' }).then(r => r.ok ? r.json() : []),
+    ]).then(([jobsList, workersList]) => {
+      setJobs(jobsList as Job[])
+      setWorkers(workersList as CRMWorker[])
+    }).catch(() => null).finally(() => setLoading(false))
   }, [])
 
   function handleHoursLogged(leadId: string, hours: number) {
@@ -289,8 +309,13 @@ export default function CrewCalendarPage() {
   return (
     <div className="space-y-6">
       <div className="rounded-2xl bg-[#1a2744] px-6 py-5 text-white">
-        <div className="text-sm text-white/60">
-          {new Date().toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' })}
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-white/60">
+            {new Date().toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' })}
+          </div>
+          <Link href="/crew/workers" className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80 hover:bg-white/20">
+            👷 Roster ({workers.filter(w => w.available).length} available)
+          </Link>
         </div>
         <h1 className="mt-1 text-2xl font-bold">
           Hey {user?.name?.split(' ')[0] ?? 'there'} 👋
@@ -316,7 +341,7 @@ export default function CrewCalendarPage() {
             <section className="space-y-3">
               <h2 className="text-xs font-bold uppercase tracking-widest text-[#1a2744]">Upcoming Moves</h2>
               {upcoming.map(job => (
-                <JobCard key={job.lead.id} job={job} onHoursLogged={handleHoursLogged} />
+                <JobCard key={job.lead.id} job={job} workers={workers} onHoursLogged={handleHoursLogged} />
               ))}
             </section>
           )}
@@ -324,7 +349,7 @@ export default function CrewCalendarPage() {
             <section className="space-y-3">
               <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">Past Jobs</h2>
               {past.map(job => (
-                <JobCard key={job.lead.id} job={job} onHoursLogged={handleHoursLogged} />
+                <JobCard key={job.lead.id} job={job} workers={workers} onHoursLogged={handleHoursLogged} />
               ))}
             </section>
           )}

@@ -464,3 +464,17 @@ export interface QuoteDocumentPayload {
   clientName?: string
   leadName?: string
 }
+
+export type WorkerRole = 'mover' | 'driver' | 'lead' | 'packer'
+export type WorkerCity = 'kitchener' | 'windsor' | 'toronto' | 'hamilton' | 'ottawa' | 'london' | 'other'
+
+export interface CRMWorker {
+  id: string
+  name: string
+  phone: string
+  city: WorkerCity
+  role: WorkerRole
+  available: boolean   // false = currently inactive / not taking jobs
+  notes?: string
+  createdAt: string
+}

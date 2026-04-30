@@ -2,6 +2,7 @@ import type {
   CRMLead,
   CRMQuote,
   CRMClient,
+  CRMWorker,
   FollowUpLog,
   InboundLead,
   InventoryScanDraft,
@@ -271,4 +272,45 @@ export async function matchLeadByPhone(phone: string): Promise<CRMLead | null> {
   const response = await fetch(`/api/sales/leads/match-phone?phone=${encodeURIComponent(phone)}`, { cache: 'no-store', credentials: 'include' })
   const payload = await readJson<{ lead: CRMLead | null }>(response)
   return payload.lead
+}
+
+// ─── Crew Workers ──────────────────────────────────────────────────────────
+
+export async function fetchWorkers(): Promise<CRMWorker[]> {
+  const response = await fetch('/api/sales/workers', { cache: 'no-store', credentials: 'include' })
+  return readJson<CRMWorker[]>(response)
+}
+
+export async function saveWorker(worker: Partial<CRMWorker> & { id?: string }): Promise<CRMWorker> {
+  const response = await fetch('/api/sales/workers', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(worker),
+  })
+  return readJson<CRMWorker>(response)
+}
+
+export async function updateWorker(id: string, updates: Partial<CRMWorker>): Promise<CRMWorker> {
+  const response = await fetch(`/api/sales/workers/${id}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  })
+  return readJson<CRMWorker>(response)
+}
+
+export async function removeWorker(id: string): Promise<void> {
+  await fetch(`/api/sales/workers/${id}`, { method: 'DELETE', credentials: 'include' })
+}
+
+export async function assignCrew(leadId: string, workerIds: string[], sendSms: boolean): Promise<{ ok: boolean; notified: number }> {
+  const response = await fetch(`/api/sales/leads/${leadId}/assign-crew`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ workerIds, sendSms }),
+  })
+  return readJson(response)
 }

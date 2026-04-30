@@ -16,8 +16,8 @@ import {
 import { InventoryRoomSection } from '@/app/components/sales/lead-detail/inventory-room-section'
 import { INVENTORY_PRESETS, createInventoryItemFromPreset } from '@/lib/item-presets'
 import { DEPOSIT_METHODS, LEAD_CONTEXT_FLAGS, LOST_REASONS, SALES_LEAD_STAGES, computeQuoteTotals, deriveInventoryMetrics, estimateLeadQuote, formatDate, formatDateTime, formatMoney, detectTripType, getTruckSuggestionsForCity } from '@/lib/sales'
-import { confirmJob, createLeadQuote, deleteSalesLead, enrichSalesAddress, fetchSalesLead, fetchSalesOverview, fetchSalesQuote, saveLeadConsultation, saveSalesFollowUp, sendSalesMessage, updateSalesLead, updateSalesQuote } from '@/lib/sales-api'
-import type { CRMLead, CRMQuote, EstimateRouteContext, FollowUpLog, InventoryItem, JobFactors, QuoteLineItem } from '@/lib/types'
+import { assignCrew, confirmJob, createLeadQuote, deleteSalesLead, enrichSalesAddress, fetchSalesLead, fetchSalesOverview, fetchSalesQuote, fetchWorkers, saveLeadConsultation, saveSalesFollowUp, sendSalesMessage, updateSalesLead, updateSalesQuote } from '@/lib/sales-api'
+import type { CRMLead, CRMQuote, CRMWorker, EstimateRouteContext, FollowUpLog, InventoryItem, JobFactors, QuoteLineItem } from '@/lib/types'
 
 export default function SalesLeadDetailPage() {
   const params = useParams() as { id?: string }
@@ -68,6 +68,11 @@ export default function SalesLeadDetailPage() {
   const [estimateTime, setEstimateTime] = useState<string>('')
   const [startTime, setStartTime] = useState<string>('')
   const [crewNote, setCrewNote] = useState<string>('')
+  // Crew roster
+  const [workers, setWorkers] = useState<CRMWorker[]>([])
+  const [selectedWorkerIds, setSelectedWorkerIds] = useState<string[]>([])
+  const [crewAssignBusy, setCrewAssignBusy] = useState(false)
+  const [crewAssignResult, setCrewAssignResult] = useState<string | null>(null)
   // Truck logistics
   const [truckReserved, setTruckReserved] = useState(false)
   const [truckCompany, setTruckCompany] = useState('')
@@ -202,6 +207,7 @@ export default function SalesLeadDetailPage() {
     setTruckCompany(nextLead.truckCompany || '')
     setTruckReservationNumber(nextLead.truckReservationNumber || '')
     setTruckPickupTime(nextLead.truckPickupTime || '')
+    setSelectedWorkerIds(nextLead.assignedCrew || [])
     setLostReason(nextLead.lostReason || '')
     setLostNotes(nextLead.lostNotes || '')
     setDepositAmount(nextLead.depositAmount ? String(nextLead.depositAmount) : '')
@@ -263,6 +269,8 @@ export default function SalesLeadDetailPage() {
         }
       }
     })
+    // Pre-load crew roster (lightweight, needed for booked jobs)
+    fetchWorkers().then(setWorkers).catch(() => {})
   }, [params])
 
   useEffect(() => {
@@ -772,6 +780,24 @@ export default function SalesLeadDetailPage() {
       // non-fatal
     } finally {
       setChangeNoticeSending(false)
+    }
+  }
+
+  async function handleAssignCrew(workerIds: string[], sendSms: boolean) {
+    if (!lead) return
+    try {
+      setCrewAssignBusy(true)
+      setCrewAssignResult(null)
+      const result = await assignCrew(lead.id, workerIds, sendSms)
+      setSelectedWorkerIds(workerIds)
+      setCrewAssignResult(sendSms && result.notified > 0
+        ? `✓ Assigned & SMS sent to ${result.notified} worker${result.notified !== 1 ? 's' : ''}`
+        : '✓ Crew assigned')
+      void refresh(lead.id)
+    } catch (err) {
+      setCrewAssignResult(`Error: ${(err as Error).message}`)
+    } finally {
+      setCrewAssignBusy(false)
     }
   }
 
@@ -2035,6 +2061,81 @@ export default function SalesLeadDetailPage() {
                   </div>
                 </div>
               )}
+
+              {/* Crew Assignment — visible when booked */}
+              {lead.stage === 'booked' && (() => {
+                // Filter workers to this job's city, fall back to all available
+                const jobCity = (originCity || lead.originCity || '').toLowerCase()
+                const cityWorkers = workers.filter(w => w.available && (
+                  !jobCity || jobCity.includes(w.city) || w.city === 'other'
+                ))
+                const displayWorkers = cityWorkers.length > 0 ? cityWorkers : workers.filter(w => w.available)
+
+                return (
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="crm-label">Crew Assignment</span>
+                      <Link href="/crew/workers" className="text-[11px] text-[var(--app-accent)] hover:underline" target="_blank">Manage roster →</Link>
+                    </div>
+                    {displayWorkers.length === 0 ? (
+                      <div className="mt-2 rounded-[8px] border border-dashed border-[var(--app-line)] px-3 py-3 text-center text-xs text-[var(--app-muted)]">
+                        No workers in roster.{' '}
+                        <Link href="/crew/workers" className="text-[var(--app-accent)] hover:underline" target="_blank">Add workers</Link>
+                      </div>
+                    ) : (
+                      <div className="mt-2 space-y-1.5">
+                        {displayWorkers.map(worker => {
+                          const selected = selectedWorkerIds.includes(worker.id)
+                          return (
+                            <label key={worker.id} className={`flex cursor-pointer items-center gap-2 rounded-[8px] border px-2.5 py-2 transition ${selected ? 'border-[var(--app-accent)] bg-emerald-50' : 'border-[var(--app-line)] hover:bg-[var(--app-bg)]'}`}>
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={e => {
+                                  setSelectedWorkerIds(ids =>
+                                    e.target.checked ? [...ids, worker.id] : ids.filter(id => id !== worker.id)
+                                  )
+                                  setCrewAssignResult(null)
+                                }}
+                                className="h-3.5 w-3.5 rounded accent-[var(--app-accent)]"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-xs font-semibold text-[var(--app-ink)]">{worker.name}</span>
+                                  <span className="text-[10px] text-[var(--app-muted)] capitalize">{worker.role}</span>
+                                </div>
+                                <div className="text-[10px] text-[var(--app-muted)]">{worker.phone}</div>
+                              </div>
+                            </label>
+                          )
+                        })}
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            onClick={() => void handleAssignCrew(selectedWorkerIds, true)}
+                            disabled={crewAssignBusy || selectedWorkerIds.length === 0}
+                            className="flex-1 rounded-[8px] bg-[var(--app-accent)] py-1.5 text-xs font-semibold text-white hover:bg-[#0a5b47] disabled:opacity-50"
+                          >
+                            {crewAssignBusy ? 'Sending…' : `Assign + SMS (${selectedWorkerIds.length})`}
+                          </button>
+                          <button
+                            onClick={() => void handleAssignCrew(selectedWorkerIds, false)}
+                            disabled={crewAssignBusy || selectedWorkerIds.length === 0}
+                            className="rounded-[8px] border border-[var(--app-line)] px-2.5 py-1.5 text-xs text-[var(--app-muted)] hover:bg-[var(--app-bg)] disabled:opacity-50"
+                            title="Save assignment without sending SMS"
+                          >
+                            Save only
+                          </button>
+                        </div>
+                        {crewAssignResult && (
+                          <div className={`text-xs font-medium ${crewAssignResult.startsWith('Error') ? 'text-rose-600' : 'text-emerald-700'}`}>
+                            {crewAssignResult}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
 
               {/* Truck Logistics — visible when booked */}
               {lead.stage === 'booked' && (() => {
