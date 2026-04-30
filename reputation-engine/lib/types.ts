@@ -325,6 +325,11 @@ export interface CRMLead {
   actualHoursNote?: string    // reason if over/under estimate (extra items, etc.)
   actualHoursLoggedAt?: string
   actualHoursLoggedBy?: string
+  // Truck logistics
+  truckReserved?: boolean
+  truckCompany?: string
+  truckReservationNumber?: string
+  truckPickupTime?: string
   // Post-job review lifecycle
   reviewJobId?: string
   reviewSentAt?: string

@@ -15,7 +15,7 @@ import {
 } from '@/app/components/sales/lead-detail/helpers'
 import { InventoryRoomSection } from '@/app/components/sales/lead-detail/inventory-room-section'
 import { INVENTORY_PRESETS, createInventoryItemFromPreset } from '@/lib/item-presets'
-import { DEPOSIT_METHODS, LEAD_CONTEXT_FLAGS, LOST_REASONS, SALES_LEAD_STAGES, computeQuoteTotals, deriveInventoryMetrics, estimateLeadQuote, formatDate, formatDateTime, formatMoney } from '@/lib/sales'
+import { DEPOSIT_METHODS, LEAD_CONTEXT_FLAGS, LOST_REASONS, SALES_LEAD_STAGES, computeQuoteTotals, deriveInventoryMetrics, estimateLeadQuote, formatDate, formatDateTime, formatMoney, detectTripType, getTruckSuggestionsForCity } from '@/lib/sales'
 import { confirmJob, createLeadQuote, deleteSalesLead, enrichSalesAddress, fetchSalesLead, fetchSalesOverview, fetchSalesQuote, saveLeadConsultation, saveSalesFollowUp, sendSalesMessage, updateSalesLead, updateSalesQuote } from '@/lib/sales-api'
 import type { CRMLead, CRMQuote, EstimateRouteContext, FollowUpLog, InventoryItem, JobFactors, QuoteLineItem } from '@/lib/types'
 
@@ -68,6 +68,14 @@ export default function SalesLeadDetailPage() {
   const [estimateTime, setEstimateTime] = useState<string>('')
   const [startTime, setStartTime] = useState<string>('')
   const [crewNote, setCrewNote] = useState<string>('')
+  // Truck logistics
+  const [truckReserved, setTruckReserved] = useState(false)
+  const [truckCompany, setTruckCompany] = useState('')
+  const [truckReservationNumber, setTruckReservationNumber] = useState('')
+  const [truckPickupTime, setTruckPickupTime] = useState('')
+  // Change notice banner (shown after saving a booked lead with critical field changes)
+  const [changeNoticePending, setChangeNoticePending] = useState<{ changes: string[]; newMoveDate?: string } | null>(null)
+  const [changeNoticeSending, setChangeNoticeSending] = useState(false)
   // Lost reason modal
   const [showLostModal, setShowLostModal] = useState(false)
   const [lostReason, setLostReason] = useState<string>('')
@@ -190,6 +198,10 @@ export default function SalesLeadDetailPage() {
     setEstimateTime(nextLead.estimateTime || '')
     setStartTime(nextLead.startTime || '')
     setCrewNote(nextLead.crewNote || '')
+    setTruckReserved(!!nextLead.truckReserved)
+    setTruckCompany(nextLead.truckCompany || '')
+    setTruckReservationNumber(nextLead.truckReservationNumber || '')
+    setTruckPickupTime(nextLead.truckPickupTime || '')
     setLostReason(nextLead.lostReason || '')
     setLostNotes(nextLead.lostNotes || '')
     setDepositAmount(nextLead.depositAmount ? String(nextLead.depositAmount) : '')
@@ -534,6 +546,10 @@ export default function SalesLeadDetailPage() {
       estimateTime: estimateTime || undefined,
       startTime: startTime || undefined,
       crewNote: crewNote || undefined,
+      truckReserved: truckReserved || undefined,
+      truckCompany: truckCompany || undefined,
+      truckReservationNumber: truckReservationNumber || undefined,
+      truckPickupTime: truckPickupTime || undefined,
       lostReason: lostReason || undefined,
       lostNotes: lostNotes || undefined,
       depositAmount: depositAmount ? Number(depositAmount) : undefined,
@@ -654,6 +670,26 @@ export default function SalesLeadDetailPage() {
     const prevStage = lead.stage
     const stageChanged = targetStage !== prevStage
 
+    // Detect critical field changes on booked jobs (before saving)
+    const criticalChanges: string[] = []
+    if (prevStage === 'booked' && !stageChanged) {
+      if (moveDate && moveDate !== (lead.moveDate || '')) {
+        criticalChanges.push(`Move date: ${lead.moveDate ? formatDate(lead.moveDate) : 'unset'} → ${formatDate(moveDate)}`)
+      }
+      if (originAddress && originAddress !== (lead.originAddress || '')) {
+        criticalChanges.push(`Origin address: "${lead.originAddress || '—'}" → "${originAddress}"`)
+      }
+      if (destAddress && destAddress !== (lead.destAddress || '')) {
+        criticalChanges.push(`Destination address: "${lead.destAddress || '—'}" → "${destAddress}"`)
+      }
+      if (originCity && originCity !== (lead.originCity || '')) {
+        criticalChanges.push(`Origin city: ${lead.originCity || '—'} → ${originCity}`)
+      }
+      if (destCity && destCity !== (lead.destCity || '')) {
+        criticalChanges.push(`Destination city: ${lead.destCity || '—'} → ${destCity}`)
+      }
+    }
+
     try {
       setSaving(true)
       const payload = { ...buildLeadDraftPayload(), stage: targetStage }
@@ -663,6 +699,21 @@ export default function SalesLeadDetailPage() {
       }
       const saved = await updateSalesLead(lead.id, payload)
       applyLeadSnapshot(saved, { hydrateForm: true })
+
+      // Log booking changes to timeline
+      if (criticalChanges.length > 0) {
+        await saveSalesFollowUp({
+          leadId: lead.id,
+          type: 'note',
+          notes: `📝 Booking updated:\n${criticalChanges.join('\n')}`,
+          date: new Date().toISOString(),
+        }).catch(() => {})
+        // Offer to notify customer
+        if (lead.email) {
+          setChangeNoticePending({ changes: criticalChanges, newMoveDate: moveDate || undefined })
+        }
+        void refresh(lead.id)
+      }
 
       // Log stage change to timeline automatically
       if (stageChanged) {
@@ -696,6 +747,32 @@ export default function SalesLeadDetailPage() {
     const target = pendingStage || 'lost'
     setPendingStage(null)
     await saveLead({ skipLostCheck: true, pendingStageName: target })
+  }
+
+  async function sendChangeNotice() {
+    if (!lead?.email || !changeNoticePending) return
+    try {
+      setChangeNoticeSending(true)
+      await fetch(`/api/sales/leads/${lead.id}/change-notice`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          toEmail: lead.email,
+          toName: lead.name,
+          quoteNumber: quote?.number,
+          changes: changeNoticePending.changes,
+          newMoveDate: changeNoticePending.newMoveDate,
+          originCity: originCity || lead.originCity,
+          destCity: destCity || lead.destCity,
+        }),
+      })
+      setChangeNoticePending(null)
+    } catch {
+      // non-fatal
+    } finally {
+      setChangeNoticeSending(false)
+    }
   }
 
   async function handleConfirmJob() {
@@ -1959,6 +2036,63 @@ export default function SalesLeadDetailPage() {
                 </div>
               )}
 
+              {/* Truck Logistics — visible when booked */}
+              {lead.stage === 'booked' && (() => {
+                const tripType = detectTripType(originCity || lead.originCity || '', destCity || lead.destCity || '')
+                const truckSuggestions = getTruckSuggestionsForCity(originCity || lead.originCity || '')
+                return (
+                  <div>
+                    <span className="crm-label">Truck Logistics</span>
+                    {tripType && (
+                      <div className={`mt-2 flex items-center gap-1.5 rounded-[6px] px-3 py-2 text-xs font-semibold ${tripType === 'one-way' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-blue-50 text-blue-700 border border-blue-200'}`}>
+                        {tripType === 'one-way' ? '→ One-way' : '↺ Return trip'}
+                        <span className="font-normal opacity-80">{tripType === 'one-way' ? '— truck stays at destination' : '— truck returns to base'}</span>
+                      </div>
+                    )}
+                    <div className="mt-2 grid gap-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={truckReserved}
+                          onChange={e => setTruckReserved(e.target.checked)}
+                          className="h-4 w-4 rounded border-[var(--app-line)] accent-[var(--app-accent)]"
+                        />
+                        <span className={`text-sm ${truckReserved ? 'font-semibold text-emerald-700' : 'text-[var(--app-ink)]'}`}>
+                          {truckReserved ? '✓ Truck reserved' : 'Truck reserved?'}
+                        </span>
+                      </label>
+                      {truckReserved && (
+                        <>
+                          <select value={truckCompany} onChange={e => setTruckCompany(e.target.value)} className="crm-input text-xs">
+                            <option value="">Select rental company…</option>
+                            {truckSuggestions.map(c => <option key={c} value={c}>{c}</option>)}
+                            <option value="Other">Other</option>
+                          </select>
+                          <input
+                            value={truckReservationNumber}
+                            onChange={e => setTruckReservationNumber(e.target.value)}
+                            className="crm-input text-xs"
+                            placeholder="Reservation # or confirmation code"
+                          />
+                          <input
+                            type="time"
+                            value={truckPickupTime}
+                            onChange={e => setTruckPickupTime(e.target.value)}
+                            className="crm-input text-xs"
+                            title="Truck pickup time"
+                          />
+                        </>
+                      )}
+                      {!truckReserved && (
+                        <div className="text-[11px] text-[var(--app-muted)] leading-relaxed">
+                          Nearby: {truckSuggestions.slice(0, 2).join(' · ')}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })()}
+
               {/* Deposit section — visible when booked */}
               {lead.stage === 'booked' && (
                 <div>
@@ -1982,6 +2116,31 @@ export default function SalesLeadDetailPage() {
               <button onClick={() => void saveLead()} disabled={saving} className="crm-button w-full justify-center disabled:opacity-60">
                 {saving ? 'Saving...' : 'Save Lead'}
               </button>
+
+              {/* Change notice banner — shown after saving a booked lead with critical changes */}
+              {changeNoticePending && lead.email && (
+                <div className="rounded-[8px] border border-amber-300 bg-amber-50 p-3">
+                  <div className="mb-1.5 text-xs font-semibold text-amber-800">Booking details changed</div>
+                  <ul className="mb-2 space-y-0.5 text-[11px] text-amber-700">
+                    {changeNoticePending.changes.map((c, i) => <li key={i}>• {c}</li>)}
+                  </ul>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => void sendChangeNotice()}
+                      disabled={changeNoticeSending}
+                      className="rounded-[6px] bg-amber-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
+                    >
+                      {changeNoticeSending ? 'Sending…' : `Notify ${lead.name.split(' ')[0]}`}
+                    </button>
+                    <button
+                      onClick={() => setChangeNoticePending(null)}
+                      className="rounded-[6px] px-2 py-1 text-[11px] text-amber-700 hover:bg-amber-100"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              )}
               <button onClick={() => void removeLead()} disabled={deleteBusy} className="crm-button w-full justify-center border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-60">
                 {deleteBusy ? 'Deleting...' : 'Delete Lead'}
               </button>

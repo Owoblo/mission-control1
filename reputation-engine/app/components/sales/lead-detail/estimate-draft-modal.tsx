@@ -334,6 +334,16 @@ export function EstimateDraftModal({
         className="mx-auto flex min-h-screen w-full max-w-6xl flex-col overflow-hidden rounded-none border border-[var(--app-line)] bg-[var(--app-panel)] shadow-2xl md:my-4 md:min-h-0 md:rounded-[12px]"
         onClick={event => event.stopPropagation()}
       >
+        {/* Price lock warning — quote already accepted */}
+        {quote?.status === 'accepted' && (
+          <div className="flex items-start gap-2 border-b border-amber-300 bg-amber-50 px-4 py-3 md:px-6">
+            <span className="mt-0.5 text-amber-500 text-sm">⚠</span>
+            <div className="text-xs text-amber-800">
+              <span className="font-semibold">This quote has been accepted by the customer.</span> Any price changes will not automatically notify them. If you need to adjust the price, send the customer a separate update.
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex flex-col gap-3 border-b border-[var(--app-line)] px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6">
           <div>

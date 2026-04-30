@@ -1212,3 +1212,70 @@ export function buildCrewWorkDoc(lead: CRMLead, quote?: CRMQuote | null): CrewWo
     crewNote: lead.crewNote,
   }
 }
+
+// ─── Trip type detection ───────────────────────────────────────────────────
+
+const METRO_REGIONS: string[][] = [
+  ['kitchener', 'waterloo', 'cambridge', 'guelph', 'elora', 'elmira'],
+  ['windsor', 'lakeshore', 'tecumseh', 'lasalle', 'amherstburg', 'leamington', 'kingsville'],
+  ['toronto', 'scarborough', 'north york', 'etobicoke', 'mississauga', 'brampton', 'vaughan', 'markham', 'richmond hill', 'ajax', 'whitby', 'oshawa', 'pickering'],
+  ['hamilton', 'burlington', 'oakville', 'stoney creek', 'ancaster', 'dundas'],
+  ['ottawa', 'gatineau', 'kanata', 'nepean', 'gloucester', 'barrhaven', 'orléans'],
+  ['london', 'strathroy', 'st thomas', 'saint thomas', 'woodstock'],
+  ['barrie', 'innisfil', 'orillia', 'midland'],
+]
+
+export function detectTripType(originCity: string, destCity: string): 'one-way' | 'return' | null {
+  if (!originCity || !destCity) return null
+  const o = originCity.toLowerCase().trim()
+  const d = destCity.toLowerCase().trim()
+  if (o === d) return 'return'
+  for (const region of METRO_REGIONS) {
+    const inOrigin = region.some(kw => o.includes(kw))
+    const inDest = region.some(kw => d.includes(kw))
+    if (inOrigin && inDest) return 'return'
+  }
+  return 'one-way'
+}
+
+// ─── Truck rental suggestions by city ─────────────────────────────────────
+
+const TRUCK_SUGGESTIONS: Array<{ regions: string[]; rentals: string[] }> = [
+  {
+    regions: ['kitchener', 'waterloo', 'cambridge'],
+    rentals: ['U-Haul (Ottawa St N, Kitchener)', 'Penske (Fairway Rd, Kitchener)', 'Budget (King St E, Kitchener)'],
+  },
+  {
+    regions: ['windsor'],
+    rentals: ['U-Haul (Howard Ave, Windsor)', 'Penske (Wyandotte E, Windsor)', 'Budget (Tecumseh Rd, Windsor)'],
+  },
+  {
+    regions: ['toronto', 'scarborough', 'north york', 'etobicoke'],
+    rentals: ['U-Haul (multiple Toronto locations)', 'Penske (Toronto)', 'Budget (Toronto)'],
+  },
+  {
+    regions: ['mississauga', 'brampton'],
+    rentals: ['U-Haul (Dixie Rd, Mississauga)', 'Penske (Mississauga)', 'Budget (Airport Rd, Brampton)'],
+  },
+  {
+    regions: ['hamilton'],
+    rentals: ['U-Haul (Upper James, Hamilton)', 'Penske (Hamilton)', 'Budget (King St, Hamilton)'],
+  },
+  {
+    regions: ['ottawa'],
+    rentals: ['U-Haul (multiple Ottawa locations)', 'Penske (Ottawa)', 'Budget (Ottawa)'],
+  },
+  {
+    regions: ['london'],
+    rentals: ['U-Haul (Wellington Rd, London)', 'Penske (London)', 'Budget (Dundas St, London)'],
+  },
+]
+
+export function getTruckSuggestionsForCity(city: string): string[] {
+  if (!city) return ['U-Haul', 'Penske', 'Budget']
+  const c = city.toLowerCase()
+  for (const entry of TRUCK_SUGGESTIONS) {
+    if (entry.regions.some(r => c.includes(r))) return entry.rentals
+  }
+  return ['U-Haul', 'Penske', 'Budget']
+}
