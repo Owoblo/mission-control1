@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server'
+import { deriveOpsChecklist, getQuotedTruckCount, isTruckReservationComplete, normalizeCrewHours, normalizeCrewPayouts } from '@/lib/operations'
 import { calculateLeadScore, getLeadAssignedRepName, normalizeLead, syncLeadFromQuoteStatus } from '@/lib/sales'
 import { logEvent, daysBetween } from '@/lib/server/analytics'
+import { queueLeadIntelligenceRefresh } from '@/lib/server/lead-intelligence-refresh'
 import { scheduleMoveReminder } from '@/lib/server/sales-automation'
-import { recordLeadArchivedAudit, recordLeadUpdateAudit } from '@/lib/server/sales-audit'
+import { getBookedJobFieldDiffs, recordLeadArchivedAudit, recordLeadUpdateAudit, sendBookedJobChangeNotice } from '@/lib/server/sales-audit'
 import { applyDetectedBranch, maybeCreateDestinationOpportunityLead } from '@/lib/server/sales-opportunities'
-import { canAccessSalesWorkspace, canDeleteLead, canEditLead, canReassignLead, isLeadOwnedBySession } from '@/lib/server/sales-permissions'
+import { canAccessOperationsWorkspace, canAccessSalesWorkspace, canDeleteLead, canEditLead, canReassignLead, isLeadOwnedBySession } from '@/lib/server/sales-permissions'
 import { getSessionUser } from '@/lib/server/session'
 import {
   deleteSalesLead,
@@ -24,6 +26,113 @@ function normalizeOptional(value?: string) {
 
 function hasOwn(source: object, key: string) {
   return Object.prototype.hasOwnProperty.call(source, key)
+}
+
+const OPERATIONS_EDITABLE_FIELDS = new Set([
+  'assignedCrew',
+  'crewNote',
+  'crewHours',
+  'crewPayouts',
+  'truckReservationStatus',
+  'truckVendor',
+  'truckSize',
+  'truckPickupLocation',
+  'truckPickupTime',
+  'truckReturnLocation',
+  'truckReservationNumber',
+  'truckReservationNotes',
+  'opsChecklist',
+])
+
+function isOperationsOnlyUpdate(updates: Partial<import('@/lib/types').CRMLead>) {
+  const keys = Object.keys(updates)
+  return keys.length > 0 && keys.every(key => OPERATIONS_EDITABLE_FIELDS.has(key))
+}
+
+function canManageOperationsLead(
+  session: Awaited<ReturnType<typeof getSessionUser>>,
+  lead: import('@/lib/types').CRMLead
+) {
+  if (!canAccessOperationsWorkspace(session)) return false
+  if (session?.role === 'owner' || session?.role === 'manager') return true
+  if (session?.role === 'operations_lead') {
+    return !session.branch || !lead.branch || session.branch === lead.branch
+  }
+  return false
+}
+
+function applyCrewPayoutWorkflowMetadata(
+  currentEntries: import('@/lib/types').CRMLead['crewPayouts'],
+  nextEntries: import('@/lib/types').CRMLead['crewPayouts'],
+  actorName?: string
+) {
+  if (!nextEntries?.length) return nextEntries
+  const actor = normalizeOptional(actorName)
+  const now = new Date().toISOString()
+  const currentById = new Map((currentEntries || []).map(entry => [entry.id, entry]))
+
+  return nextEntries.map(entry => {
+    const previous = currentById.get(entry.id)
+    const payoutStatus = entry.payoutStatus || previous?.payoutStatus || 'submitted'
+    const approved = payoutStatus === 'approved' || payoutStatus === 'paid'
+    const paid = payoutStatus === 'paid'
+
+    return {
+      ...previous,
+      ...entry,
+      payoutStatus,
+      submittedAt: previous?.submittedAt || entry.submittedAt || now,
+      approvedAt: approved ? (entry.approvedAt || previous?.approvedAt || now) : undefined,
+      approvedBy: approved ? (normalizeOptional(entry.approvedBy) || previous?.approvedBy || actor) : undefined,
+      paidAt: paid ? (entry.paidAt || previous?.paidAt || now) : undefined,
+      paidBy: paid ? (normalizeOptional(entry.paidBy) || previous?.paidBy || actor) : undefined,
+      createdAt: previous?.createdAt || entry.createdAt || now,
+      updatedAt: now,
+    }
+  })
+}
+
+function applyOperationalDefaults(
+  current: import('@/lib/types').CRMLead,
+  nextLead: import('@/lib/types').CRMLead,
+  quote: import('@/lib/types').CRMQuote | null,
+  actorName?: string
+) {
+  const assignedCrew = Array.from(new Set((nextLead.assignedCrew || []).filter(Boolean)))
+  const stagedCrewPayouts = applyCrewPayoutWorkflowMetadata(current.crewPayouts, nextLead.crewPayouts, actorName)
+  const quotedTruckCount = getQuotedTruckCount(nextLead, quote)
+  const truckReservationStatus = quotedTruckCount
+    ? (nextLead.truckReservationStatus || current.truckReservationStatus || 'needs_booking')
+    : 'not_needed'
+  const truckReservationBookedAt = isTruckReservationComplete(truckReservationStatus)
+    ? (current.truckReservationBookedAt || nextLead.truckReservationBookedAt || new Date().toISOString())
+    : nextLead.truckReservationBookedAt
+  const truckReservationBookedBy = isTruckReservationComplete(truckReservationStatus)
+    ? (current.truckReservationBookedBy || nextLead.truckReservationBookedBy || normalizeOptional(actorName))
+    : nextLead.truckReservationBookedBy
+
+  const normalizedLead = {
+    ...nextLead,
+    assignedCrew: assignedCrew.length > 0 ? assignedCrew : undefined,
+    crewHours: normalizeCrewHours(nextLead.crewHours, assignedCrew),
+    crewPayouts: normalizeCrewPayouts(stagedCrewPayouts),
+    truckCountConfirmed: quotedTruckCount,
+    truckSize: quotedTruckCount ? normalizeOptional(nextLead.truckSize) || current.truckSize || '26ft' : undefined,
+    truckReservationStatus,
+    truckVendor: truckReservationStatus === 'not_needed' ? undefined : nextLead.truckVendor,
+    truckPickupLocation: truckReservationStatus === 'not_needed' ? undefined : normalizeOptional(nextLead.truckPickupLocation),
+    truckPickupTime: truckReservationStatus === 'not_needed' ? undefined : normalizeOptional(nextLead.truckPickupTime),
+    truckReturnLocation: truckReservationStatus === 'not_needed' ? undefined : normalizeOptional(nextLead.truckReturnLocation),
+    truckReservationNumber: truckReservationStatus === 'not_needed' ? undefined : normalizeOptional(nextLead.truckReservationNumber),
+    truckReservationNotes: truckReservationStatus === 'not_needed' ? undefined : normalizeOptional(nextLead.truckReservationNotes),
+    truckReservationBookedAt,
+    truckReservationBookedBy,
+  }
+
+  return {
+    ...normalizedLead,
+    opsChecklist: deriveOpsChecklist(normalizedLead),
+  }
 }
 
 function applyOwnershipMetadata(
@@ -107,8 +216,11 @@ async function syncLinkedQuoteAndClientFromLead(current: import('@/lib/types').C
     normalizeOptional(current.originCity) !== nextOriginCity ||
     normalizeOptional(current.destCity) !== nextDestCity
 
+  const quoteLocked = quote.status === 'accepted' || quote.status === 'invoiced' || !!quote.acceptedAt
   const syncedQuote = quoteNeedsSync
-    ? await saveSalesQuote({
+    ? quoteLocked
+      ? quote
+      : await saveSalesQuote({
         ...quote,
         moveDate: nextMoveDate,
         originAddress: nextOriginAddress,
@@ -181,26 +293,34 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   try {
     const session = await getSessionUser()
-    if (!canAccessSalesWorkspace(session)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
 
     const current = await getSalesLead(params.id)
     if (!current) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
     }
 
-    if (!canEditLead(session, current)) {
+    const rawBody = (await request.json()) as Partial<typeof current> & { sendAppointmentSms?: boolean }
+    const { sendAppointmentSms: sendApptSmsFlag, ...updates } = rawBody
+    const salesWorkspaceUser = canAccessSalesWorkspace(session)
+    const operationsOnlyUpdate = isOperationsOnlyUpdate(updates)
+
+    if (!salesWorkspaceUser) {
+      if (!canManageOperationsLead(session, current)) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+      if (!operationsOnlyUpdate) {
+        return NextResponse.json({ error: 'Operations users can only update dispatch fields.' }, { status: 403 })
+      }
+    } else if (!canEditLead(session, current)) {
       return NextResponse.json({ error: 'You can only edit unassigned leads or leads you own.' }, { status: 403 })
     }
 
-    const updates = (await request.json()) as Partial<typeof current>
     const assignmentRequested =
       hasOwn(updates, 'assignedRep') ||
       hasOwn(updates, 'assignedRepName') ||
       hasOwn(updates, 'assignedRepUserId')
 
-    if (assignmentRequested && !canReassignLead(session)) {
+    if (salesWorkspaceUser && assignmentRequested && !canReassignLead(session)) {
       const requestedAssignedRep = normalizeOptional(updates.assignedRepName) || normalizeOptional(updates.assignedRep)
       const requestedAssignedRepUserId = normalizeOptional(updates.assignedRepUserId)
       const currentAssignedRep = getLeadAssignedRepName(current)
@@ -228,11 +348,10 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       id: current.id,
     })
 
-    if (nextLead.quoteId && updates.stage === undefined) {
-      const quote = await getSalesQuote(nextLead.quoteId)
-      if (quote) {
-        nextLead = syncLeadFromQuoteStatus(nextLead, quote)
-      }
+    const quote = nextLead.quoteId ? await getSalesQuote(nextLead.quoteId).catch(() => null) : null
+
+    if (nextLead.quoteId && updates.stage === undefined && quote) {
+      nextLead = syncLeadFromQuoteStatus(nextLead, quote)
     }
 
     // When Date TBD is active and no explicit followUpDate was sent in this update,
@@ -247,6 +366,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       leadScore: calculateLeadScore(nextLead),
     })
     nextLead = applyDetectedBranch(nextLead)
+    nextLead = normalizeLead(applyOperationalDefaults(current, nextLead, quote, session?.name))
 
     const ownership = applyOwnershipMetadata(current, nextLead, updates, session)
     nextLead = ownership.nextLead
@@ -277,10 +397,21 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     }
     await syncLinkedQuoteAndClientFromLead(current, syncedOpportunityLead)
 
+    const bookedJobDiffs = getBookedJobFieldDiffs(current, syncedOpportunityLead)
+    if (bookedJobDiffs.some(diff => diff.customerFacing)) {
+      const linkedQuote = syncedOpportunityLead.quoteId ? await getSalesQuote(syncedOpportunityLead.quoteId).catch(() => null) : null
+      void sendBookedJobChangeNotice(syncedOpportunityLead, linkedQuote, bookedJobDiffs, {
+        actorName: session?.name,
+        actorUserId: session?.userId,
+      }).catch(() => {})
+    }
+
     // Analytics — fire background events for key transitions
     const stageChanged = current.stage !== syncedOpportunityLead.stage
     if (stageChanged) {
       void logEvent('lead_stage_changed', {
+        actorName: session?.name,
+        actorUserId: session?.userId,
         lead: syncedOpportunityLead,
         properties: {
           lead_prev_stage: current.stage,
@@ -291,6 +422,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     }
     if (syncedOpportunityLead.stage === 'lost' && current.stage !== 'lost') {
       void logEvent('lead_lost', {
+        actorName: session?.name,
+        actorUserId: session?.userId,
         lead: syncedOpportunityLead,
         properties: {
           lost_reason: syncedOpportunityLead.lostReason,
@@ -300,14 +433,16 @@ export async function PATCH(request: Request, { params }: { params: { id: string
         },
       })
     }
-    // Auto-send appointment confirmation SMS when estimate is scheduled
-    if (syncedOpportunityLead.stage === 'estimate_scheduled' && current.stage !== 'estimate_scheduled' && syncedOpportunityLead.phone) {
+    // Send appointment confirmation SMS only when explicitly requested by the rep
+    if (sendApptSmsFlag === true && syncedOpportunityLead.stage === 'estimate_scheduled' && syncedOpportunityLead.phone) {
       void sendAppointmentSms(syncedOpportunityLead)
     }
 
     if (syncedOpportunityLead.stage === 'booked' && current.stage !== 'booked') {
       void scheduleMoveReminder(syncedOpportunityLead.id)
       void logEvent('job_booked', {
+        actorName: session?.name,
+        actorUserId: session?.userId,
         lead: syncedOpportunityLead,
         properties: {
           days_from_lead_to_booked: daysBetween(syncedOpportunityLead.createdAt, new Date().toISOString()),
@@ -319,6 +454,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     }
     if (ownership.ownershipChanged) {
       void logEvent('lead_assigned', {
+        actorName: session?.name,
+        actorUserId: session?.userId,
         lead: syncedOpportunityLead,
         repId: syncedOpportunityLead.assignedRepUserId || syncedOpportunityLead.assignedRep,
         properties: {
@@ -330,6 +467,20 @@ export async function PATCH(request: Request, { params }: { params: { id: string
           lead_owner_status: syncedOpportunityLead.leadOwnerStatus,
         },
       })
+    }
+
+    const needsIntelligenceRefresh =
+      stageChanged ||
+      Object.prototype.hasOwnProperty.call(updates, 'contextFlag') ||
+      Object.prototype.hasOwnProperty.call(updates, 'moveDate') ||
+      Object.prototype.hasOwnProperty.call(updates, 'moveDateFlexible') ||
+      Object.prototype.hasOwnProperty.call(updates, 'moveType') ||
+      Object.prototype.hasOwnProperty.call(updates, 'originAddress') ||
+      Object.prototype.hasOwnProperty.call(updates, 'destAddress') ||
+      Object.prototype.hasOwnProperty.call(updates, 'notes')
+
+    if (needsIntelligenceRefresh) {
+      queueLeadIntelligenceRefresh(syncedOpportunityLead.id, new URL(request.url).origin)
     }
 
     return NextResponse.json(syncedOpportunityLead)

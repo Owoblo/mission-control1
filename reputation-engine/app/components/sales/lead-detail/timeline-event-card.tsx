@@ -24,6 +24,19 @@ function kindLabel(kind: string, text?: string) {
   return kind.replace(/_/g, ' ')
 }
 
+function isFailedOrMissedCallText(text: string) {
+  const normalized = text.toLowerCase()
+  return (
+    normalized.includes('failed') ||
+    normalized.includes('no answer') ||
+    normalized.includes('no-answer') ||
+    normalized.includes('busy') ||
+    normalized.includes('canceled') ||
+    normalized.includes('cancelled') ||
+    normalized.includes('missed')
+  )
+}
+
 function eventTone(item: TimelineItem) {
   const kind = item.kind.toLowerCase()
   const text = item.text.toLowerCase()
@@ -151,8 +164,11 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
   const tone = eventTone(item)
 
   const isCallKind = item.kind === 'call' || item.kind === 'consultation'
-  // Show analyze button if there's a recording URL and no AI summary yet (includes voicemails with transcripts)
-  const needsTranscription = isCallKind && !!item.recordingUrl && !item.aiSummary
+  // Show analyze button if there's a recording reference and no AI summary yet.
+  const hasRecording = !!(item.recordingUrl || item.recordingSid)
+  const recordingUnavailable = !!item.recordingUnavailable
+  const failedOrMissedCall = isCallKind && !item.duration && isFailedOrMissedCallText(item.text)
+  const needsTranscription = isCallKind && hasRecording && !item.aiSummary
   const [fetchingRec, setFetchingRec] = useState(false)
   const [fetchRecError, setFetchRecError] = useState<string | null>(null)
 
@@ -198,18 +214,26 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
   }
 
   async function handleFetchRecording() {
-    if (!leadId || !item.callSid) return
+    if (!leadId || (!item.callSid && !item.recordingSid)) return
     setFetchingRec(true)
     setFetchRecError(null)
     try {
       const res = await fetch('/api/sales/dialer/fetch-recording', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ callSid: item.callSid, leadId }),
+        body: JSON.stringify({ callSid: item.callSid, leadId, recordingSid: item.recordingSid }),
         credentials: 'include',
       })
-      const data = await res.json() as { ok?: boolean; error?: string; recordingUrl?: string }
-      if (!res.ok || data.error) throw new Error(data.error || 'Failed to fetch recording')
+      const data = await res.json() as {
+        ok?: boolean
+        error?: string
+        recordingUrl?: string
+        recordingUnavailable?: boolean
+      }
+      if (!res.ok || data.error) {
+        if (data.recordingUnavailable) await refreshLead()
+        throw new Error(data.error || 'Failed to fetch recording')
+      }
       // Refresh the lead so the recording URL appears
       await refreshLead()
     } catch (err) {
@@ -346,6 +370,11 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
             ) : null}
             {item.duration ? <span className="text-xs text-[var(--app-muted)]">· {item.duration}</span> : null}
             {item.phone ? <span className="text-xs text-[var(--app-muted)]">· {item.phone}</span> : null}
+            {item.repName && item.kind === 'call' ? (
+              <span className="rounded-full border border-[#1a2744]/20 bg-[#1a2744]/8 px-2 py-0.5 text-[10px] font-semibold text-[#1a2744]">
+                {item.repName}
+              </span>
+            ) : null}
           </div>
           <div className="flex items-center gap-3">
             <div className="text-xs text-[var(--app-muted)]">{formatDateTime(item.date)}</div>
@@ -476,7 +505,23 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
         <div className={`rounded-[8px] border p-4 ${tone.panel}`}>
           <div className="text-sm leading-6 text-[var(--app-ink)]">{expanded ? item.text : previewText}</div>
 
-          {expanded && isCallKind && !item.recordingUrl && !item.transcript && !item.aiSummary && (
+          {expanded && isCallKind && recordingUnavailable && !hasRecording && !item.transcript && !item.aiSummary ? (
+            <div className="mt-3 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-3">
+              <p className="text-xs text-[var(--app-muted)] italic">
+                {item.recordingUnavailableReason || 'Twilio did not retain a playable recording for this call.'}
+              </p>
+            </div>
+          ) : null}
+
+          {expanded && failedOrMissedCall && !recordingUnavailable && !hasRecording && !item.transcript && !item.aiSummary ? (
+            <div className="mt-3 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-3">
+              <p className="text-xs text-[var(--app-muted)] italic">
+                This call did not connect, so Twilio did not create a recording.
+              </p>
+            </div>
+          ) : null}
+
+          {expanded && isCallKind && !failedOrMissedCall && !recordingUnavailable && !hasRecording && !item.transcript && !item.aiSummary && (
             <div className="mt-3 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-3 space-y-2">
               <p className="text-xs text-[var(--app-muted)] italic">
                 {item.callSid ? 'Recording not yet available — may still be processing.' : 'No recording for this call.'}
@@ -496,7 +541,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
               )}
             </div>
           )}
-          {expanded && (item.recordingUrl || item.transcript || item.aiSummary) ? (
+          {expanded && (hasRecording || item.transcript || item.aiSummary) ? (
             <div className="mt-4 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
               <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-4">
                 <div className="flex items-center justify-between">
@@ -519,13 +564,13 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
                     ) : 'No transcript available for this call.'
                   )}
                 </div>
-                {item.recordingUrl ? (
+                {hasRecording ? (
                   <div className="mt-4 rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
                     <div className="mb-2 flex items-center justify-between text-xs font-medium text-[var(--app-muted)]">
                       <span>Recording</span>
                       <span>{item.phone || 'Attached audio'}</span>
                     </div>
-                    <RecordingPlayer recordingUrl={item.recordingUrl} />
+                    <RecordingPlayer recordingUrl={item.recordingUrl} recordingSid={item.recordingSid} />
                   </div>
                 ) : null}
                 {item.transcript ? (

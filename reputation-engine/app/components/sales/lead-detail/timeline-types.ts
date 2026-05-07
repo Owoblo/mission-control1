@@ -9,6 +9,9 @@ export type TimelineItem = {
   amount?: number
   quoteId?: string
   recordingUrl?: string
+  recordingSid?: string
+  recordingUnavailable?: boolean
+  recordingUnavailableReason?: string
   transcript?: string
   aiSummary?: AISummary
   duration?: string
@@ -18,4 +21,5 @@ export type TimelineItem = {
   isVoicemail?: boolean
   emailSubject?: string
   callSid?: string
+  repName?: string
 }

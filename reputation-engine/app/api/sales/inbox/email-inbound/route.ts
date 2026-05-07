@@ -6,6 +6,7 @@
 import { NextResponse } from 'next/server'
 import { uid } from '@/lib/sales'
 import { pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
+import { queueLeadIntelligenceRefresh } from '@/lib/server/lead-intelligence-refresh'
 import { processInboundAutomationEvent } from '@/lib/server/sales-automation'
 import { getWorkerSharedSecret, readEnv } from '@/lib/server/runtime'
 import { saveSalesEmail, saveFollowUpLog } from '@/lib/server/sales-repository'
@@ -123,6 +124,7 @@ export async function POST(request: Request) {
         createdAt: now,
         notes: `Email received from ${fromName || from}: ${subject || '(no subject)'}`,
       })
+      queueLeadIntelligenceRefresh(leadId, new URL(request.url).origin)
     }
 
     return NextResponse.json({ ok: true, matched: !!leadId, leadId })

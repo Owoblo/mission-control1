@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { syncLeadFromQuoteStatus } from '@/lib/sales'
 import { logEvent, daysBetween } from '@/lib/server/analytics'
+import { queueLeadIntelligenceRefresh } from '@/lib/server/lead-intelligence-refresh'
+import { scheduleQuoteExpiryFollowup, scheduleQuoteViewedFollowup } from '@/lib/server/sales-automation'
 import {
   getSalesClient,
   getSalesLead,
@@ -18,7 +20,9 @@ function isTokenValid(token: string | null, expected?: string) {
 
 export async function GET(request: Request, { params }: { params: { id: string } }) {
   try {
-    const token = new URL(request.url).searchParams.get('token')
+    const searchParams = new URL(request.url).searchParams
+    const token = searchParams.get('token')
+    const isPreview = searchParams.get('preview') === '1'
     const currentQuote = await getSalesQuote(params.id)
 
     if (!currentQuote || !isTokenValid(token, currentQuote.acceptToken)) {
@@ -26,36 +30,45 @@ export async function GET(request: Request, { params }: { params: { id: string }
     }
 
     const viewedStamp = new Date().toISOString()
-    const quote =
-      currentQuote.status === 'draft' || currentQuote.status === 'sent'
-        ? await saveSalesQuote({
-            ...currentQuote,
-            status: currentQuote.status === 'draft' ? 'viewed' : 'viewed',
-            viewedAt: currentQuote.viewedAt || viewedStamp,
-          })
-        : currentQuote
+    // Skip marking as viewed when opened as internal preview (avoids false positives)
+    const quote = (!isPreview && (currentQuote.status === 'draft' || currentQuote.status === 'sent'))
+      ? await saveSalesQuote({
+          ...currentQuote,
+          status: 'viewed',
+          viewedAt: currentQuote.viewedAt || viewedStamp,
+        })
+      : currentQuote
 
     const [client, lead] = await Promise.all([
       getSalesClient(quote.clientId),
       quote.leadId ? getSalesLead(quote.leadId) : Promise.resolve(null),
     ])
 
-    await saveFollowUpLog({
-      id: uid('fu'),
-      quoteId: quote.id,
-      leadId: quote.leadId,
-      type: 'view',
-      date: viewedStamp,
-      createdAt: viewedStamp,
-      notes: 'Public quote page viewed.',
-    })
+    if (!isPreview) {
+      await saveFollowUpLog({
+        id: uid('fu'),
+        quoteId: quote.id,
+        leadId: quote.leadId,
+        type: 'view',
+        date: viewedStamp,
+        createdAt: viewedStamp,
+        notes: 'Customer viewed quote.',
+      })
 
-    if (lead && quote.leadId && (lead.stage === 'pricing' || lead.stage === 'contacted' || lead.stage === 'new')) {
-      await saveSalesLead(syncLeadFromQuoteStatus(lead, quote))
+      if (lead && quote.leadId && (lead.stage === 'pricing' || lead.stage === 'contacted' || lead.stage === 'new')) {
+        await saveSalesLead(syncLeadFromQuoteStatus(lead, quote))
+      }
+
+      if (quote.leadId) {
+        void scheduleQuoteViewedFollowup(quote.leadId, quote.id)
+        void scheduleQuoteExpiryFollowup(quote.leadId, quote.id)
+        queueLeadIntelligenceRefresh(quote.leadId, new URL(request.url).origin)
+      }
     }
 
     void logEvent('quote_viewed', {
       leadId: quote.leadId,
+      actorName: 'Customer',
       lead: lead || undefined,
       quote,
       properties: {
@@ -87,10 +100,23 @@ export async function GET(request: Request, { params }: { params: { id: string }
         viewedAt: quote.viewedAt,
         acceptedAt: quote.acceptedAt,
       },
-      client: client ? { name: client.name, email: client.email, phone: client.phone } : null,
+      client: lead
+        ? {
+            name: lead.name || client?.name || '',
+            email: lead.email || client?.email || '',
+            phone: lead.phone || client?.phone || '',
+          }
+        : client
+          ? { name: client.name, email: client.email, phone: client.phone }
+          : null,
       lead: lead ? {
         name: lead.name,
         inventory: (lead.inventory || []).filter((item: { included?: boolean }) => item.included !== false).slice(0, 60),
+        listingPhotos: ((lead.supabaseListing as { carouselphotos?: Array<{ url: string } | string> } | null)?.carouselphotos || [])
+          .slice(0, 12)
+          .map((p: { url: string } | string) => typeof p === 'string' ? p : p.url)
+          .filter(Boolean),
+        jobFactors: lead.jobFactors || null,
       } : null,
     })
   } catch (error) {
@@ -186,6 +212,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     void logEvent(action === 'accept' ? 'quote_accepted' : 'quote_declined', {
       leadId: nextQuote.leadId,
+      actorName: 'Customer',
       lead: savedLead || undefined,
       quote: nextQuote,
       properties: {

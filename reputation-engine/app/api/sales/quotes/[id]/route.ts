@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { dateStamp, normalizeQuote, syncLeadFromQuoteStatus } from '@/lib/sales'
-import { canAccessSalesWorkspace, canEditQuote, validateQuotePricingPermissions } from '@/lib/server/sales-permissions'
-import { scheduleQuoteFollowup } from '@/lib/server/sales-automation'
+import { getAcceptedQuoteLockedFieldChanges, recordQuoteUpdatedAudit } from '@/lib/server/sales-audit'
+import { canAccessSalesWorkspace, canReviseExistingQuote, validateQuotePricingPermissions } from '@/lib/server/sales-permissions'
+import { scheduleQuoteExpiryFollowup, scheduleQuoteFollowup, scheduleQuoteViewedFollowup } from '@/lib/server/sales-automation'
 import { getSessionUser } from '@/lib/server/session'
 import { getSalesClient, getSalesLead, getSalesQuote, listFollowUpLogs, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
 
@@ -66,13 +67,23 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
     const updates = (await request.json()) as Partial<typeof current>
     const currentLead = current.leadId ? await getSalesLead(current.leadId) : null
-    if (!canEditQuote(session, currentLead)) {
-      return NextResponse.json({ error: 'You can only edit quotes tied to leads you own.' }, { status: 403 })
+    if (!canReviseExistingQuote(session)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
     const pricingError = validateQuotePricingPermissions(session, current, updates)
     if (pricingError) {
       return NextResponse.json({ error: pricingError }, { status: 403 })
+    }
+
+    const lockedFields = getAcceptedQuoteLockedFieldChanges(current, updates, currentLead)
+    if (lockedFields.length > 0) {
+      return NextResponse.json(
+        {
+          error: `This quote is already accepted/booked. Locked fields cannot be revised here: ${lockedFields.join(', ')}.`,
+        },
+        { status: 409 }
+      )
     }
 
     const nextStatus = updates.status || current.status
@@ -90,6 +101,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
         respondedAt,
       })
     )
+    await recordQuoteUpdatedAudit(current, savedQuote, session?.name)
 
     let lead = null
     if (savedQuote.leadId) {
@@ -110,6 +122,12 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
     if (savedQuote.leadId && savedQuote.status === 'sent' && current.status !== 'sent') {
       void scheduleQuoteFollowup(savedQuote.leadId, savedQuote.id)
+      void scheduleQuoteExpiryFollowup(savedQuote.leadId, savedQuote.id)
+    }
+
+    if (savedQuote.leadId && savedQuote.viewedAt && !current.viewedAt) {
+      void scheduleQuoteViewedFollowup(savedQuote.leadId, savedQuote.id)
+      void scheduleQuoteExpiryFollowup(savedQuote.leadId, savedQuote.id)
     }
 
     return NextResponse.json({ quote: savedQuote, lead })

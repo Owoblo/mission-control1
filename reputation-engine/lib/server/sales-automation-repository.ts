@@ -282,6 +282,41 @@ export async function getAutomationJobByDedupeKey(dedupeKey: string): Promise<CR
   return rows[0] ? normalizeAutomationJob(rows[0]) : null
 }
 
+export async function listAutomationJobsForLead(options: {
+  leadId: string
+  statuses?: AutomationJobStatus[]
+  kinds?: AutomationJobKind[]
+  limit?: number
+}): Promise<CRMAutomationJob[]> {
+  const { url, headers } = requireSupabaseEnv()
+  const filters = [
+    `lead_id=eq.${encodeURIComponent(options.leadId)}`,
+    options.statuses?.length
+      ? `status=in.(${options.statuses.map(status => encodeURIComponent(status)).join(',')})`
+      : '',
+    options.kinds?.length
+      ? `kind=in.(${options.kinds.map(kind => encodeURIComponent(kind)).join(',')})`
+      : '',
+    `select=${encodeURIComponent(JOB_SELECT)}`,
+    'order=due_at.asc',
+    `limit=${Math.max(1, Math.min(options.limit || 20, 100))}`,
+  ].filter(Boolean)
+
+  const response = await fetch(
+    `${url}/rest/v1/crm_automation_jobs?${filters.join('&')}`,
+    { headers, cache: 'no-store' }
+  )
+
+  if (!response.ok) {
+    const detail = await readError(response)
+    if (isMissingRelationError(detail)) return []
+    throw new Error(`Failed to list crm_automation_jobs for lead ${options.leadId}: ${detail}`)
+  }
+
+  const rows = (await response.json()) as AutomationJobRow[]
+  return rows.map(normalizeAutomationJob)
+}
+
 export async function saveAutomationJob(job: CRMAutomationJob): Promise<CRMAutomationJob | null> {
   const { url, headers } = requireSupabaseEnv()
   const response = await fetch(`${url}/rest/v1/crm_automation_jobs`, {

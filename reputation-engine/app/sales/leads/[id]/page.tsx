@@ -4,32 +4,69 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { EstimateDraftModal } from '@/app/components/sales/lead-detail/estimate-draft-modal'
+import { FastLaneModal } from '@/app/components/sales/fast-lane-modal'
 import { CollectCardModal } from '@/app/components/sales/collect-card-modal'
 import { LeadBasicsPanel } from '@/app/components/sales/lead-detail/lead-basics-panel'
+import { LeadIntelligencePanel } from '@/app/components/sales/lead-detail/lead-intelligence-panel'
 import { LeadTimeline } from '@/app/components/sales/lead-detail/lead-timeline'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import {
   DEFAULT_ROOM_OPTIONS,
-  buildLeadSignature,
   buildRoomBreakdown,
+  buildLeadSignature,
   normalizeRoomName,
 } from '@/app/components/sales/lead-detail/helpers'
 import { INVENTORY_PRESETS, createInventoryItemFromPreset } from '@/lib/item-presets'
+import { formatRelativeTime, getLeadGuidance } from '@/lib/lead-guidance'
 import {
   getDefaultSaturnBranchNumber,
   getSaturnBranchLabel,
   getSaturnBusinessNumberFromSmsMessage,
   pickSaturnBranchPhoneNumber,
 } from '@/lib/sales-phones'
-import { DEPOSIT_METHODS, LEAD_CONTEXT_FLAGS, LOST_REASONS, SALES_LEAD_STAGES, computeQuoteTotals, deriveInventoryMetrics, estimateLeadQuote, formatDate, formatDateTime, formatMoney, getLeadAssignedRepName, getSalesBranchLabel } from '@/lib/sales'
+import { DEPOSIT_METHODS, LEAD_CONTEXT_FLAGS, LOST_REASONS, SALES_LEAD_STAGES, computeQuoteTotals, deriveInventoryMetrics, estimateLeadQuote, formatDate, formatDateTime, formatMoney, getLeadAssignedRepName, getSalesBranchLabel, isBookedLikeStage, isClosedLeadStage } from '@/lib/sales'
 import { confirmJob, createLeadQuote, deleteSalesLead, enrichSalesAddress, fetchSalesLead, fetchSalesOverview, fetchSalesQuote, fetchSalesUsers, handoffRealtorOpportunityLead, saveLeadConsultation, saveSalesFollowUp, sendSalesMessage, updateSalesLead, updateSalesQuote, uploadLeadMedia } from '@/lib/sales-api'
 import type { UserRole } from '@/lib/auth'
-import type { CRMLead, CRMQuote, EstimateRouteContext, FollowUpLog, InventoryItem, JobFactors, QuoteLineItem } from '@/lib/types'
+import type {
+  CRMAutomationJob,
+  CRMLead,
+  CRMQuote,
+  EstimateRouteContext,
+  FollowUpLog,
+  InventoryItem,
+  JobFactors,
+  LeadAutomationSettings,
+  QuoteLineItem,
+} from '@/lib/types'
 
 interface SalesUserOption {
   id: string
   name: string
   role: UserRole
+}
+
+const DEFAULT_AUTOMATION_SETTINGS: Required<LeadAutomationSettings> = {
+  nudgeIfQuoteNotOpened: true,
+  nudgeIfSurveyNotCompleted: true,
+  nudgeIfQuoteViewedNoResponse: true,
+  nudgeBeforeQuoteExpires: true,
+}
+
+function resolveAutomationSettings(settings?: LeadAutomationSettings | null): Required<LeadAutomationSettings> {
+  return {
+    ...DEFAULT_AUTOMATION_SETTINGS,
+    ...(settings || {}),
+  }
+}
+
+function automationJobLabel(job: CRMAutomationJob) {
+  if (job.kind === 'quote_followup') return 'Quote not opened'
+  if (job.kind === 'quote_viewed_followup') return 'Quote viewed, no response'
+  if (job.kind === 'quote_expiry_followup') return 'Quote expires soon'
+  if (job.kind === 'survey_followup') return 'Survey incomplete'
+  if (job.kind === 'move_reminder') return 'Booked move reminder'
+  if (job.kind === 'stale_reactivation') return 'Stale lead reactivation'
+  return 'Scheduled automation'
 }
 
 export default function SalesLeadDetailPage() {
@@ -41,6 +78,12 @@ export default function SalesLeadDetailPage() {
   const [lead, setLead] = useState<CRMLead | null>(null)
   const [quote, setQuote] = useState<CRMQuote | null>(null)
   const [followUps, setFollowUps] = useState<FollowUpLog[]>([])
+  const [automationSettings, setAutomationSettings] = useState<Required<LeadAutomationSettings>>(DEFAULT_AUTOMATION_SETTINGS)
+  const [automationJobs, setAutomationJobs] = useState<CRMAutomationJob[]>([])
+  const [automationLoading, setAutomationLoading] = useState(false)
+  const [automationSavingKey, setAutomationSavingKey] = useState<string | null>(null)
+  const [showUnsavedLeaveModal, setShowUnsavedLeaveModal] = useState(false)
+  const [unsavedLeaveBusy, setUnsavedLeaveBusy] = useState(false)
   const [stage, setStage] = useState<CRMLead['stage']>('new')
   const [followUpDate, setFollowUpDate] = useState('')
   const [leadName, setLeadName] = useState('')
@@ -72,7 +115,12 @@ export default function SalesLeadDetailPage() {
   const [saving, setSaving] = useState(false)
   const [creatingQuote, setCreatingQuote] = useState(false)
   const [surveyBusy, setSurveyBusy] = useState(false)
-  const [surveyUrl, setSurveyUrl] = useState<string | null>((lead as unknown as Record<string, unknown>)?.surveyToken ? null : null)
+  const existingSurveyToken = (lead as unknown as Record<string, unknown>)?.surveyToken as string | undefined
+  const [surveyUrl, setSurveyUrl] = useState<string | null>(
+    existingSurveyToken && existingSurveyToken !== 'set'
+      ? (typeof window !== 'undefined' ? `${window.location.origin}/survey/${existingSurveyToken}` : null)
+      : null
+  )
   const [mediaUploadRoom, setMediaUploadRoom] = useState<string>('Living Room')
   const [mediaUploadFiles, setMediaUploadFiles] = useState<File[]>([])
   const [mediaUploadBusy, setMediaUploadBusy] = useState(false)
@@ -95,20 +143,28 @@ export default function SalesLeadDetailPage() {
   const [lostReason, setLostReason] = useState<string>('')
   const [lostNotes, setLostNotes] = useState<string>('')
   const [pendingStage, setPendingStage] = useState<CRMLead['stage'] | null>(null)
+  const [fastLaneOpen, setFastLaneOpen] = useState(false)
+  const [showApptSmsModal, setShowApptSmsModal] = useState(false)
+  const [apptSmsPendingPayload, setApptSmsPendingPayload] = useState<Record<string, unknown> | null>(null)
+  const [showPhotoRequestDialog, setShowPhotoRequestDialog] = useState(false)
+  const [photoRequestData, setPhotoRequestData] = useState<{ surveyUrl: string; draftSms: string; token: string } | null>(null)
+  const [photoRequestSmsBody, setPhotoRequestSmsBody] = useState('')
+  const [photoRequestSending, setPhotoRequestSending] = useState(false)
+  const [dispatchBriefOpen, setDispatchBriefOpen] = useState(false)
+  const [dispatchBriefText, setDispatchBriefText] = useState('')
+  const [dispatchBriefBusy, setDispatchBriefBusy] = useState(false)
   // Confirm job modal
   const [showConfirmJobModal, setShowConfirmJobModal] = useState(false)
   const [confirmJobDeposit, setConfirmJobDeposit] = useState<string>('')
   const [confirmJobDepositMethod, setConfirmJobDepositMethod] = useState<string>('E-Transfer')
   const [confirmJobBusy, setConfirmJobBusy] = useState(false)
-  // Deposit
-  const [depositAmount, setDepositAmount] = useState<string>('')
-  const [depositMethod, setDepositMethod] = useState<string>('')
   const [depositLinkBusy, setDepositLinkBusy] = useState(false)
   const [logDepositOpen, setLogDepositOpen] = useState(false)
   const [logDepositMethod, setLogDepositMethod] = useState<'cash' | 'etransfer' | 'cheque'>('etransfer')
   const [logDepositNote, setLogDepositNote] = useState('')
   const [logDepositBusy, setLogDepositBusy] = useState(false)
   const [chargeBalanceBusy, setChargeBalanceBusy] = useState(false)
+  const [sendInvoiceBusy, setSendInvoiceBusy] = useState(false)
   const [reviewSentBusy, setReviewSentBusy] = useState(false)
   const [reviewSent, setReviewSent] = useState(false)
   const [collectCardOpen, setCollectCardOpen] = useState(false)
@@ -127,7 +183,18 @@ export default function SalesLeadDetailPage() {
   const [quoteInternalNotes, setQuoteInternalNotes] = useState('')
   const [jobFactors, setJobFactors] = useState<JobFactors>({})
   const [recalculateBusy, setRecalculateBusy] = useState(false)
-  const pricingMetaRef = useRef<{ crewSize: number; estimatedHours: number; truckCount: number }>({ crewSize: 3, estimatedHours: 3, truckCount: 1 })
+  const pricingMetaRef = useRef<{
+    crewSize: number
+    estimatedHours: number
+    truckCount: number
+    estimatedWeightLbs?: number
+    longDistanceDistanceKm?: number
+    longDistanceTruckCost?: number
+    longDistanceGasCost?: number
+    longDistanceInsuranceCost?: number
+    longDistanceMiscCost?: number
+    longDistanceMarkupRate?: number
+  }>({ crewSize: 3, estimatedHours: 3, truckCount: 1 })
   const composerUserEdited = useRef(false)
   const [outcomeOpen, setOutcomeOpen] = useState(false)
   const [outcomeActualHours, setOutcomeActualHours] = useState('')
@@ -147,13 +214,14 @@ export default function SalesLeadDetailPage() {
   const [scBusy, setScBusy] = useState(false)
   const [emailMessages, setEmailMessages] = useState<Array<{ id: string; from: string; to: string; subject: string; body: string; direction: 'inbound' | 'outbound'; sentAt: string; leadId?: string | null }>>([])
   const [emailsLoading, setEmailsLoading] = useState(false)
-  const [smsMessages, setSmsMessages] = useState<Array<{ id: string; from_number: string; to_number: string; body: string; direction: 'inbound' | 'outbound'; lead_id: string | null; created_at: string }>>([])
+  const [smsMessages, setSmsMessages] = useState<Array<{ id: string; from_number: string; to_number: string; body: string; direction: 'inbound' | 'outbound'; lead_id: string | null; created_at: string; twilio_sid?: string | null }>>([])
   const [smsLoading, setSmsLoading] = useState(false)
   const [smsSending, setSmsSending] = useState(false)
   const [smsInput, setSmsInput] = useState('')
+  const [smsChannel, setSmsChannel] = useState<'sms' | 'whatsapp'>('sms')
   const smsAreaRef = useRef<HTMLDivElement>(null)
   const [listingLookupBusy, setListingLookupBusy] = useState(false)
-  const [, setScanProgress] = useState<{ batch: number; totalBatches: number; status: string } | null>(null)
+  const [scanProgress, setScanProgress] = useState<{ batch: number; totalBatches: number; status: string } | null>(null)
   const [activeTab, setActiveTab] = useState<'timeline' | 'emails' | 'sms'>('timeline')
   const [error, setError] = useState<string | null>(null)
   const [handoffName, setHandoffName] = useState('')
@@ -161,13 +229,14 @@ export default function SalesLeadDetailPage() {
   const [handoffEmail, setHandoffEmail] = useState('')
   const [handoffBusy, setHandoffBusy] = useState(false)
   const [opportunityNotice, setOpportunityNotice] = useState<string | null>(null)
-  const autosaveTimerRef = useRef<number | null>(null)
-  const lastSavedLeadStateRef = useRef('')
   const previousOpportunityLeadIdRef = useRef<string | undefined>(undefined)
   const consultationRecorderRef = useRef<MediaRecorder | null>(null)
   const consultationStreamRef = useRef<MediaStream | null>(null)
   const consultationChunksRef = useRef<Blob[]>([])
   const mediaUploadInputRef = useRef<HTMLInputElement | null>(null)
+  const pendingLeaveActionRef = useRef<'history-back' | null>(null)
+  const historyGuardArmedRef = useRef(false)
+  const bypassLeaveGuardRef = useRef(false)
   const assignmentOptions = useMemo(() => {
     const options = [...salesUsers]
     if (assignedRep && !options.some(user => user.id === assignedRepUserId || user.name === assignedRep)) {
@@ -186,6 +255,18 @@ export default function SalesLeadDetailPage() {
   const leadOwnerName = useMemo(() => getLeadAssignedRepName(lead) || 'Unassigned', [lead])
   const canReassignCurrentLead = currentUser?.role === 'owner' || currentUser?.role === 'manager'
   const canDeleteCurrentLead = currentUser?.role === 'owner' || currentUser?.role === 'manager'
+  const canControlLeadAutomation = useMemo(() => {
+    if (!lead || !currentUser) return false
+    if (currentUser.role === 'owner' || currentUser.role === 'manager') return true
+    const ownerUserId = lead.assignedRepUserId?.trim()
+    const ownerName = getLeadAssignedRepName(lead)?.trim()
+    if (!ownerUserId && !ownerName) return false
+    return currentUser.userId === ownerUserId || (!!currentUser.name && currentUser.name === ownerName)
+  }, [currentUser, lead])
+  const canHandleCurrentLeadCommunication = useMemo(() => {
+    if (!lead || !currentUser) return false
+    return currentUser.role === 'owner' || currentUser.role === 'manager' || currentUser.role === 'sales_rep'
+  }, [currentUser, lead])
   const canEditCurrentLead = useMemo(() => {
     if (!lead || !currentUser) return false
     if (currentUser.role === 'owner' || currentUser.role === 'manager') return true
@@ -198,7 +279,7 @@ export default function SalesLeadDetailPage() {
     if (!lead || !currentUser || canEditCurrentLead) return null
     const ownerName = getLeadAssignedRepName(lead)
     return ownerName
-      ? `This lead is assigned to ${ownerName}. Sales reps can inspect team leads, but only the assigned rep, a manager, or the owner can change it.`
+      ? `This lead is assigned to ${ownerName}. You can still handle calls, messages, consultations, and follow-ups here, but only the assigned rep, a manager, or the owner can change core lead details.`
       : 'This lead is view-only for you right now.'
   }, [canEditCurrentLead, currentUser, lead])
 
@@ -208,39 +289,14 @@ export default function SalesLeadDetailPage() {
     return false
   }
 
-  function buildSavedLeadSignature(nextLead: CRMLead) {
-    return buildLeadSignature({
-      name: nextLead.name || '',
-      phone: nextLead.phone || '',
-      email: nextLead.email || '',
-      moveDate: nextLead.moveDate || '',
-      moveType: nextLead.moveType || 'residential',
-      branch: nextLead.branch || '',
-      source: nextLead.source || '',
-      originAddress: nextLead.originAddress || '',
-      originCity: nextLead.originCity || '',
-      originAccess: nextLead.originAccess || '',
-      destAddress: nextLead.destAddress || '',
-      destCity: nextLead.destCity || '',
-      destAccess: nextLead.destAccess || '',
-      parkingNotes: nextLead.parkingNotes || '',
-      realtorBrokerage: nextLead.realtorBrokerage || '',
-      moveReason: nextLead.moveReason || '',
-      notes: nextLead.notes || '',
-      stage: nextLead.stage || 'new',
-      contextFlag: nextLead.contextFlag || '',
-      followUpDate: nextLead.followUpDate || '',
-      assignedRepName: getLeadAssignedRepName(nextLead) || '',
-      assignedRepUserId: nextLead.assignedRepUserId || '',
-      estimateDate: nextLead.estimateDate || '',
-      estimateTime: nextLead.estimateTime || '',
-      inventory: nextLead.inventory || [],
-    })
+  function ensureLeadCommunicationAccess() {
+    if (canHandleCurrentLeadCommunication) return true
+    setError('You do not have access to handle calls or follow-ups on this lead.')
+    return false
   }
 
   function applyLeadSnapshot(nextLead: CRMLead, options?: { hydrateForm?: boolean }) {
     setLead(nextLead)
-    lastSavedLeadStateRef.current = buildSavedLeadSignature(nextLead)
 
     if (!options?.hydrateForm) {
       return
@@ -268,7 +324,7 @@ export default function SalesLeadDetailPage() {
     setNotes(nextLead.notes || '')
     setRealtorBrokerage(nextLead.realtorBrokerage || '')
     setInventory(nextLead.inventory || [])
-    if (nextLead.jobFactors) setJobFactors(nextLead.jobFactors)
+    setJobFactors(nextLead.jobFactors || {})
     setContextFlag(nextLead.contextFlag || '')
     setAssignedRep(getLeadAssignedRepName(nextLead) || '')
     setAssignedRepUserId(nextLead.assignedRepUserId || '')
@@ -276,8 +332,7 @@ export default function SalesLeadDetailPage() {
     setEstimateTime(nextLead.estimateTime || '')
     setLostReason(nextLead.lostReason || '')
     setLostNotes(nextLead.lostNotes || '')
-    setDepositAmount(nextLead.depositAmount ? String(nextLead.depositAmount) : '')
-    setDepositMethod(nextLead.depositMethod || '')
+    setAutomationSettings(resolveAutomationSettings(nextLead.automationSettings))
     setMediaUploadNotice(null)
     setHandoffName('')
     setHandoffPhone('')
@@ -288,6 +343,127 @@ export default function SalesLeadDetailPage() {
     setFollowUps(current =>
       [...current.filter(item => item.id !== entry.id), entry].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     )
+  }
+
+  function applyAutomationLeadState(nextLead: CRMLead) {
+    setLead(current =>
+      current
+        ? {
+            ...current,
+            automationSettings: nextLead.automationSettings,
+            automationStatus: nextLead.automationStatus,
+            automationPausedUntil: nextLead.automationPausedUntil,
+            automationPauseReason: nextLead.automationPauseReason,
+            automationHandoffAt: nextLead.automationHandoffAt,
+            automationHandoffReason: nextLead.automationHandoffReason,
+            lastAutomationOutboundAt: nextLead.lastAutomationOutboundAt,
+            automationLastJobAt: nextLead.automationLastJobAt,
+          }
+        : nextLead
+    )
+    setAutomationSettings(resolveAutomationSettings(nextLead.automationSettings))
+  }
+
+  async function refreshAutomationState(leadId: string) {
+    setAutomationLoading(true)
+    try {
+      const response = await fetch(`/api/sales/leads/${leadId}/automation`, {
+        cache: 'no-store',
+        credentials: 'include',
+      })
+
+      if (response.status === 403) {
+        setAutomationJobs([])
+        setAutomationSettings(resolveAutomationSettings(lead?.automationSettings))
+        return
+      }
+
+      const payload = await response.json() as {
+        error?: string
+        lead?: CRMLead
+        settings?: Required<LeadAutomationSettings>
+        jobs?: CRMAutomationJob[]
+      }
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to load automation state')
+      }
+
+      if (payload.lead) {
+        applyAutomationLeadState(payload.lead)
+      } else if (payload.settings) {
+        setAutomationSettings(resolveAutomationSettings(payload.settings))
+      }
+      setAutomationJobs(payload.jobs || [])
+    } catch (err) {
+      setAutomationJobs([])
+      setError((err as Error).message)
+    } finally {
+      setAutomationLoading(false)
+    }
+  }
+
+  async function updateLeadAutomationSettings(patch: Partial<LeadAutomationSettings>, savingKey: string) {
+    if (!lead?.id) return
+    setAutomationSavingKey(savingKey)
+    try {
+      const response = await fetch(`/api/sales/leads/${lead.id}/automation`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: patch }),
+      })
+      const payload = await response.json() as {
+        error?: string
+        lead?: CRMLead
+        settings?: Required<LeadAutomationSettings>
+        jobs?: CRMAutomationJob[]
+      }
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to update automation settings')
+      }
+      if (payload.lead) {
+        applyAutomationLeadState(payload.lead)
+      } else if (payload.settings) {
+        setAutomationSettings(resolveAutomationSettings(payload.settings))
+      }
+      setAutomationJobs(payload.jobs || [])
+      setError(null)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setAutomationSavingKey(null)
+    }
+  }
+
+  async function cancelLeadAutomationJob(jobId: string) {
+    if (!lead?.id) return
+    setAutomationSavingKey(jobId)
+    try {
+      const response = await fetch(`/api/sales/leads/${lead.id}/automation`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancel_job', jobId }),
+      })
+      const payload = await response.json() as {
+        error?: string
+        lead?: CRMLead
+        jobs?: CRMAutomationJob[]
+      }
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to cancel scheduled nudge')
+      }
+      if (payload.lead) {
+        applyAutomationLeadState(payload.lead)
+      }
+      setAutomationJobs(payload.jobs || [])
+      setError(null)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setAutomationSavingKey(null)
+    }
   }
 
   async function refresh(currentLeadId: string): Promise<{ quoteId?: string } | null> {
@@ -319,6 +495,7 @@ export default function SalesLeadDetailPage() {
       )
       if (nextLead) {
         applyLeadSnapshot(nextLead, { hydrateForm: true })
+        setAutomationSettings(resolveAutomationSettings(nextLead.automationSettings))
         // Fetch inbound emails from Zoho (stored in email_messages table) for this lead's email
         if (nextLead.email) {
           fetch(`/api/sales/email-messages?email=${encodeURIComponent(nextLead.email)}`)
@@ -326,6 +503,7 @@ export default function SalesLeadDetailPage() {
             .then((msgs: typeof emailMessages) => setEmailMessages(msgs))
             .catch(() => {})
         }
+        void refreshAutomationState(nextLead.id)
       }
       setError(nextLead ? null : 'Lead not found')
       return nextLead ? { quoteId: nextLead.quoteId } : null
@@ -346,6 +524,8 @@ export default function SalesLeadDetailPage() {
     setLead(null)
     setQuote(null)
     setFollowUps([])
+    setAutomationJobs([])
+    setAutomationSettings(DEFAULT_AUTOMATION_SETTINGS)
     setError(null)
     void refresh(params.id).then(async (data) => {
       if (estimateIntent) {
@@ -455,26 +635,35 @@ export default function SalesLeadDetailPage() {
 
     let cancelled = false
 
+    const storedPhotoCount = (lead.supabaseListing?.carouselphotos || []).length
+
     async function hydrateInventoryFromListing() {
       try {
         setInventoryLoading(true)
         const result = await enrichSalesAddress(listingAddress, false)
-        if (cancelled || !result.scan) return
+        if (cancelled) return
 
-        const nextInventory = result.scan.inventory || []
-        const nextMetrics = deriveInventoryMetrics(nextInventory)
-        setInventory(nextInventory)
+        const updates: Partial<import('@/lib/types').CRMLead> = {}
 
-        const saved = await updateSalesLead(leadId, {
-          inventory: nextMetrics.inventory,
-          totalItems: nextMetrics.totalItems,
-          totalCubicFeet: nextMetrics.totalCubicFeet,
-          totalWeightLbs: nextMetrics.totalWeightLbs,
-          roomBreakdown: buildRoomBreakdown(nextMetrics.inventory),
-        })
+        // Refresh supabaseListing if fresh listing has photos but stored one doesn't
+        if (result.listing && (result.listing.carouselphotos || []).length > storedPhotoCount) {
+          updates.supabaseListing = result.listing
+        }
 
-        if (!cancelled) {
-          setLead(saved)
+        if (result.scan) {
+          const nextInventory = result.scan.inventory || []
+          const nextMetrics = deriveInventoryMetrics(nextInventory)
+          setInventory(nextInventory)
+          updates.inventory = nextMetrics.inventory
+          updates.totalItems = nextMetrics.totalItems
+          updates.totalCubicFeet = nextMetrics.totalCubicFeet
+          updates.totalWeightLbs = nextMetrics.totalWeightLbs
+          updates.roomBreakdown = buildRoomBreakdown(nextMetrics.inventory)
+        }
+
+        if (Object.keys(updates).length > 0) {
+          const saved = await updateSalesLead(leadId, updates)
+          if (!cancelled) setLead(saved)
         }
       } catch (err) {
         if (!cancelled) {
@@ -530,15 +719,15 @@ export default function SalesLeadDetailPage() {
 
     const logs = [...(lead?.callLogs || [])].map(item => {
       const isInboundCall = item.type === 'call' && (item.notes || '').toLowerCase().includes('inbound')
-      const hasEnrichment = !!(item.recordingUrl || item.transcript || item.aiSummary)
+      const hasEnrichment = !!(item.recordingUrl || item.recordingSid || item.transcript || item.aiSummary)
       const isVm = item.isVoicemail || (item.transcript || '').startsWith('[Voicemail]')
       const branchLabel = getSaturnBranchLabel(item.branchNumber)
       const text =
         item.type === 'call' && isVm
-          ? `Went to voicemail${item.duration ? ` — ${item.duration}` : ''}.${item.transcript ? ' Recording transcribed.' : item.recordingUrl ? ' Recording processing…' : ''}`
+          ? `Went to voicemail${item.duration ? ` — ${item.duration}` : ''}.${item.transcript ? ' Recording transcribed.' : (item.recordingUrl || item.recordingSid) ? ' Recording processing…' : ''}`
           : item.type === 'call' && isInboundCall && hasEnrichment
             ? `Inbound call completed${item.duration ? ` — ${item.duration}` : ''}.`
-            : item.type === 'consultation' && item.recordingUrl && !item.transcript && !item.aiSummary
+            : item.type === 'consultation' && (item.recordingUrl || item.recordingSid) && !item.transcript && !item.aiSummary
               ? 'In-house consultation recorded. Click to retry transcription.'
               : item.notes || item.type
 
@@ -549,6 +738,9 @@ export default function SalesLeadDetailPage() {
         date: item.date,
         actor: item.source === 'consultation' ? 'rep' : item.type === 'call' ? 'rep' : 'system',
         recordingUrl: item.recordingUrl,
+        recordingSid: item.recordingSid,
+        recordingUnavailable: item.recordingUnavailable,
+        recordingUnavailableReason: item.recordingUnavailableReason,
         transcript: item.transcript,
         aiSummary: item.aiSummary,
         duration: item.duration,
@@ -557,6 +749,7 @@ export default function SalesLeadDetailPage() {
         branchNumber: item.branchNumber,
         isVoicemail: isVm || undefined,
         callSid: (item as any).callSid || undefined,
+        repName: (item as any).repName || undefined,
       }
     })
 
@@ -585,7 +778,7 @@ export default function SalesLeadDetailPage() {
   }, [followUps, lead, quote, emailMessages])
   const latestCallInsight = useMemo(() => {
     const callLogs = lead?.callLogs || []
-    return callLogs.find(item => item.aiSummary || item.transcript || item.recordingUrl) || null
+    return callLogs.find(item => item.aiSummary || item.transcript || item.recordingUrl || item.recordingSid) || null
   }, [lead?.callLogs])
 
   const aiNudge = useMemo(() => {
@@ -624,7 +817,7 @@ export default function SalesLeadDetailPage() {
     }
 
     // No contact in 7+ days for active leads
-    if (lead.stage !== 'booked' && lead.stage !== 'lost') {
+    if (!isClosedLeadStage(lead.stage)) {
       const allDates = [
         ...followUps.map(f => f.date),
         ...(lead.callLogs || []).map(c => c.date),
@@ -660,6 +853,10 @@ export default function SalesLeadDetailPage() {
       },
     ]
   }, [quote])
+  const leadGuidance = useMemo(() => {
+    if (!lead) return null
+    return getLeadGuidance(lead, quote, followUps)
+  }, [followUps, lead, quote])
 
   useEffect(() => {
     if (!consultationActive) return
@@ -670,6 +867,112 @@ export default function SalesLeadDetailPage() {
   }, [consultationActive])
 
   const inventoryMetrics = useMemo(() => deriveInventoryMetrics(inventory), [inventory])
+  const savedLeadSignature = useMemo(() => {
+    if (!lead) return null
+    return buildLeadSignature({
+      name: lead.name || '',
+      phone: lead.phone || '',
+      email: lead.email || '',
+      moveDate: lead.moveDate || '',
+      moveDateFlexible: !!lead.moveDateFlexible,
+      moveDateFlexibleReason: lead.moveDateFlexibleReason || '',
+      moveType: lead.moveType || '',
+      branch: lead.branch || '',
+      source: lead.source || '',
+      originAddress: lead.originAddress || '',
+      originCity: lead.originCity || '',
+      originAccess: lead.originAccess || '',
+      destAddress: lead.destAddress || '',
+      destCity: lead.destCity || '',
+      destAccess: lead.destAccess || '',
+      parkingNotes: lead.parkingNotes || '',
+      realtorBrokerage: lead.realtorBrokerage || '',
+      moveReason: lead.moveReason || '',
+      notes: lead.notes || '',
+      stage: lead.stage || '',
+      contextFlag: lead.contextFlag || '',
+      followUpDate: lead.followUpDate || '',
+      assignedRepName: getLeadAssignedRepName(lead) || '',
+      assignedRepUserId: lead.assignedRepUserId || '',
+      estimateDate: lead.estimateDate || '',
+      estimateTime: lead.estimateTime || '',
+      lostReason: lead.lostReason || '',
+      lostNotes: lead.lostNotes || '',
+      jobFactors: lead.jobFactors || {},
+      inventory: lead.inventory || [],
+    })
+  }, [lead])
+  const draftLeadSignature = useMemo(() => {
+    if (!lead) return null
+    return buildLeadSignature({
+      name: leadName,
+      phone: leadPhone,
+      email: leadEmail,
+      moveDate,
+      moveDateFlexible,
+      moveDateFlexibleReason,
+      moveType: moveType || '',
+      branch: branch || '',
+      source: leadSource,
+      originAddress,
+      originCity,
+      originAccess,
+      destAddress,
+      destCity,
+      destAccess,
+      parkingNotes,
+      realtorBrokerage,
+      moveReason,
+      notes,
+      stage,
+      contextFlag,
+      followUpDate,
+      assignedRepName: assignedRep,
+      assignedRepUserId,
+      estimateDate,
+      estimateTime,
+      lostReason,
+      lostNotes,
+      jobFactors,
+      inventory: inventoryMetrics.inventory,
+    })
+  }, [
+    assignedRep,
+    assignedRepUserId,
+    branch,
+    contextFlag,
+    destAccess,
+    destAddress,
+    destCity,
+    estimateDate,
+    estimateTime,
+    followUpDate,
+    inventoryMetrics.inventory,
+    jobFactors,
+    lead,
+    leadEmail,
+    leadName,
+    leadPhone,
+    leadSource,
+    lostNotes,
+    lostReason,
+    moveDate,
+    moveDateFlexible,
+    moveDateFlexibleReason,
+    moveReason,
+    moveType,
+    notes,
+    originAccess,
+    originAddress,
+    originCity,
+    parkingNotes,
+    realtorBrokerage,
+    stage,
+  ])
+  const hasUnsavedChanges = useMemo(() => {
+    if (!canEditCurrentLead || !lead || !savedLeadSignature || !draftLeadSignature) return false
+    return savedLeadSignature !== draftLeadSignature
+  }, [canEditCurrentLead, draftLeadSignature, lead, savedLeadSignature])
   const quoteModalTotals = useMemo(() => {
     const depositRate = quote && quote.total > 0 ? quote.deposit / quote.total : 0.2
     return computeQuoteTotals(quoteLineItems, depositRate, quoteDiscountAmount)
@@ -689,6 +992,174 @@ export default function SalesLeadDetailPage() {
     if (!term) return INVENTORY_PRESETS.slice(0, 8)
     return INVENTORY_PRESETS.filter(preset => preset.label.toLowerCase().includes(term)).slice(0, 8)
   }, [presetSearch])
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return
+
+    function handleBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [hasUnsavedChanges])
+
+  useEffect(() => {
+    if (!lead?.id || !hasUnsavedChanges || historyGuardArmedRef.current) return
+    window.history.pushState({ leadLeaveGuard: lead.id }, '', window.location.href)
+    historyGuardArmedRef.current = true
+  }, [hasUnsavedChanges, lead?.id])
+
+  useEffect(() => {
+    function handlePopState() {
+      if (bypassLeaveGuardRef.current) {
+        bypassLeaveGuardRef.current = false
+        return
+      }
+
+      if (historyGuardArmedRef.current && !hasUnsavedChanges) {
+        bypassLeaveGuardRef.current = true
+        window.history.back()
+        return
+      }
+
+      if (!hasUnsavedChanges) return
+
+      pendingLeaveActionRef.current = 'history-back'
+      setShowUnsavedLeaveModal(true)
+      window.history.pushState({ leadLeaveGuard: lead?.id || 'lead' }, '', window.location.href)
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [hasUnsavedChanges, lead?.id])
+
+  function continuePendingLeave() {
+    const pendingLeaveAction = pendingLeaveActionRef.current
+    pendingLeaveActionRef.current = null
+    setShowUnsavedLeaveModal(false)
+    setUnsavedLeaveBusy(false)
+    bypassLeaveGuardRef.current = true
+
+    if (pendingLeaveAction === 'history-back') {
+      if (historyGuardArmedRef.current) {
+        window.history.go(-2)
+        return
+      }
+      if (window.history.length > 1) {
+        router.back()
+        return
+      }
+    }
+
+    router.push('/sales/leads')
+  }
+
+  function handleBackNavigation() {
+    if (!hasUnsavedChanges) {
+      if (window.history.length > 1) {
+        router.back()
+        return
+      }
+      router.push('/sales/leads')
+      return
+    }
+
+    pendingLeaveActionRef.current = 'history-back'
+    setShowUnsavedLeaveModal(true)
+  }
+
+  async function handleSaveAndLeave() {
+    setUnsavedLeaveBusy(true)
+    const saved = await saveLead()
+    if (!saved) {
+      setUnsavedLeaveBusy(false)
+      setShowUnsavedLeaveModal(false)
+      pendingLeaveActionRef.current = null
+      return
+    }
+    continuePendingLeave()
+  }
+
+  function handleDiscardAndLeave() {
+    continuePendingLeave()
+  }
+
+  function handleStayOnLead() {
+    pendingLeaveActionRef.current = null
+    setShowUnsavedLeaveModal(false)
+    setUnsavedLeaveBusy(false)
+  }
+
+  async function handleLeadCommandAction(action: string) {
+    if (!lead) return
+
+    if (action === 'call_now' || action === 'call_back') {
+      const targetPhone =
+        lead.primaryContactRole === 'realtor'
+          ? lead.realtorPhone || lead.phone
+          : lead.phone
+
+      if (targetPhone) {
+        window.dispatchEvent(new CustomEvent('crm:open-dialer', { detail: { phone: targetPhone, leadId: lead.id, name: lead.name } }))
+      }
+      return
+    }
+
+    if (action === 'send_sms' || action === 'reply_now') {
+      setActiveTab('sms')
+      return
+    }
+
+    if (action === 'send_deposit_sms') {
+      await sendDepositLink()
+      return
+    }
+
+    if (action === 'open_quote' || action === 'send_quote') {
+      if (quote?.id && (quote.sentAt || quote.viewedAt || quote.acceptedAt)) {
+        router.push(`/sales/quotes/${quote.id}`)
+        return
+      }
+      await openQuoteBuilder()
+      return
+    }
+
+    if (action === 'assign_to_me' && currentUser?.userId) {
+      const updated = await updateSalesLead(lead.id, {
+        assignedRep: currentUser.name || undefined,
+        assignedRepName: currentUser.name || undefined,
+        assignedRepUserId: currentUser.userId,
+      })
+      applyLeadSnapshot(updated, { hydrateForm: true })
+      return
+    }
+
+    if (action === 'collect_deposit') {
+      if (quote) {
+        setCollectCardOpen(true)
+      }
+      return
+    }
+
+    if (action === 'confirm_move_date') {
+      setActiveTab('timeline')
+      return
+    }
+
+    if (action === 'mark_lost') {
+      setPendingStage('lost')
+      setShowLostModal(true)
+      return
+    }
+
+    if (action === 'snooze') {
+      const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)
+      setFollowUpDate(tomorrow)
+      return
+    }
+  }
 
   function buildLeadDraftPayload() {
     return {
@@ -730,8 +1201,6 @@ export default function SalesLeadDetailPage() {
       estimateTime: estimateTime || undefined,
       lostReason: lostReason || undefined,
       lostNotes: lostNotes || undefined,
-      depositAmount: depositAmount ? Number(depositAmount) : undefined,
-      depositMethod: depositMethod || undefined,
     }
   }
 
@@ -762,6 +1231,13 @@ export default function SalesLeadDetailPage() {
         crewSize: estimate.crewSize || 3,
         estimatedHours: estimate.estimatedHours || 3,
         truckCount: estimate.truckCount || 1,
+        estimatedWeightLbs: estimate.estimatedWeightLbs || undefined,
+        longDistanceDistanceKm: estimate.longDistanceDistanceKm || undefined,
+        longDistanceTruckCost: estimate.longDistanceTruckCost || undefined,
+        longDistanceGasCost: estimate.longDistanceGasCost || undefined,
+        longDistanceInsuranceCost: estimate.longDistanceInsuranceCost || undefined,
+        longDistanceMiscCost: estimate.longDistanceMiscCost || undefined,
+        longDistanceMarkupRate: estimate.longDistanceMarkupRate || undefined,
       }
     } finally {
       setRecalculateBusy(false)
@@ -784,77 +1260,46 @@ export default function SalesLeadDetailPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inventoryMetrics.totalCubicFeet, inventoryMetrics.totalWeightLbs, quoteModalOpen, jobFactors])
 
-  useEffect(() => {
-    if (!lead || !canEditCurrentLead) return
-    const autosaveSignature = buildLeadSignature({
-      name: leadName,
-      phone: leadPhone,
-      email: leadEmail,
-      moveDate,
-      moveType,
-      branch: branch || '',
-      source: leadSource,
-      originAddress,
-      originCity,
-      originAccess,
-      destAddress,
-      destCity,
-      destAccess,
-      parkingNotes,
-      realtorBrokerage,
-      moveReason,
-      notes,
-      stage,
-      contextFlag,
-      followUpDate,
-      assignedRepName: assignedRep,
-      assignedRepUserId,
-      estimateDate,
-      estimateTime,
-      inventory,
-    })
-
-    if (autosaveSignature === lastSavedLeadStateRef.current) {
-      return
-    }
-
-    if (autosaveTimerRef.current) {
-      window.clearTimeout(autosaveTimerRef.current)
-    }
-
-    autosaveTimerRef.current = window.setTimeout(() => {
-      void (async () => {
-        try {
-          const saved = await updateSalesLead(lead.id, buildLeadDraftPayload())
-          applyLeadSnapshot(saved)
-          setError(null)
-        } catch (err) {
-          setError((err as Error).message)
-        }
-      })()
-    }, 700)
-
-    return () => {
-      if (autosaveTimerRef.current) {
-        window.clearTimeout(autosaveTimerRef.current)
-      }
-    }
-  }, [assignedRep, assignedRepUserId, branch, canEditCurrentLead, contextFlag, destAccess, destAddress, destCity, estimateDate, estimateTime, followUpDate, inventory, lead, leadEmail, leadName, leadPhone, leadSource, moveDate, moveReason, moveType, notes, originAccess, originAddress, originCity, parkingNotes, realtorBrokerage, stage])
-
   async function saveLead(options?: { skipLostCheck?: boolean; pendingStageName?: CRMLead['stage'] }) {
-    if (!lead) return
-    if (!ensureLeadEditable()) return
+    if (!lead) return false
+    if (!ensureLeadEditable()) return false
 
     // Intercept: moving to 'lost' requires a reason first
     const targetStage = options?.pendingStageName ?? stage
     if (targetStage === 'lost' && lead.stage !== 'lost' && !options?.skipLostCheck) {
       setPendingStage(targetStage)
       setShowLostModal(true)
-      return
+      return false
     }
 
     const prevStage = lead.stage
     const stageChanged = targetStage !== prevStage
+
+    // Intercept: moving to 'estimate_scheduled' — ask rep if they want to auto-send SMS
+    if (targetStage === 'estimate_scheduled' && prevStage !== 'estimate_scheduled' && lead.phone && !options?.skipLostCheck) {
+      const draftPayload = { ...buildLeadDraftPayload(), stage: targetStage }
+      setApptSmsPendingPayload(draftPayload)
+      setShowApptSmsModal(true)
+      return false
+    }
+
+    if (targetStage === 'booked' && prevStage !== 'booked') {
+      if (!quote) {
+        setError('Create and send a quote before moving this lead to Booked.')
+        setStage(prevStage)
+        return false
+      }
+      openConfirmJobModal()
+      return false
+    }
+
+    if (
+      stageChanged &&
+      !window.confirm(`Save this lead and move it from ${prevStage.replace(/_/g, ' ')} to ${targetStage.replace(/_/g, ' ')}?`)
+    ) {
+      setStage(prevStage)
+      return false
+    }
 
     try {
       setSaving(true)
@@ -883,8 +1328,10 @@ export default function SalesLeadDetailPage() {
       }
 
       setError(null)
+      return true
     } catch (err) {
       setError((err as Error).message)
+      return false
     } finally {
       setSaving(false)
     }
@@ -896,6 +1343,27 @@ export default function SalesLeadDetailPage() {
     const target = pendingStage || 'lost'
     setPendingStage(null)
     await saveLead({ skipLostCheck: true, pendingStageName: target })
+  }
+
+  async function handleApptSmsConfirm(sendSms: boolean) {
+    if (!lead || !apptSmsPendingPayload) return
+    setShowApptSmsModal(false)
+    const payload = apptSmsPendingPayload
+    setApptSmsPendingPayload(null)
+    try {
+      setSaving(true)
+      const saved = await updateSalesLead(lead.id, { ...payload, ...(sendSms ? { sendAppointmentSms: true } : {}) } as Parameters<typeof updateSalesLead>[1])
+      applyLeadSnapshot(saved, { hydrateForm: true })
+      const prevLabel = SALES_LEAD_STAGES.find(s => s.id === lead.stage)?.label || lead.stage
+      const nextLabel = SALES_LEAD_STAGES.find(s => s.id === 'estimate_scheduled')?.label || 'Estimate Scheduled'
+      await saveSalesFollowUp({ leadId: lead.id, type: 'status_change', notes: `Stage: ${prevLabel} → ${nextLabel}.`, date: new Date().toISOString() }).catch(() => {})
+      void refresh(lead.id)
+      setError(null)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function handleConfirmJob() {
@@ -916,6 +1384,25 @@ export default function SalesLeadDetailPage() {
     } finally {
       setConfirmJobBusy(false)
     }
+  }
+
+  function openConfirmJobModal() {
+    setConfirmJobDeposit(
+      lead?.paymentStatus === 'deposit_received' || lead?.paymentStatus === 'paid_in_full'
+        ? ''
+        : quote?.deposit
+          ? String(quote.deposit)
+          : ''
+    )
+    setConfirmJobDepositMethod(lead?.depositMethod || 'E-Transfer')
+    setShowConfirmJobModal(true)
+  }
+
+  function closeConfirmJobModal() {
+    setShowConfirmJobModal(false)
+    setConfirmJobDeposit('')
+    setConfirmJobDepositMethod(lead?.depositMethod || 'E-Transfer')
+    setStage(lead?.stage || 'new')
   }
 
   async function createQuote(asAdditionalJob = false) {
@@ -950,15 +1437,23 @@ export default function SalesLeadDetailPage() {
     if (!ensureLeadEditable()) return
     setSurveyBusy(true)
     try {
-      const res = await fetch(`/api/sales/leads/${lead.id}/survey`, { method: 'POST' })
-      const data = await res.json() as { surveyUrl?: string; error?: string }
+      // Generate link first (skipSms=true) — we'll show a dialog to let rep review before sending
+      const res = await fetch(`/api/sales/leads/${lead.id}/survey`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skipSms: true }),
+      })
+      const data = await res.json() as { surveyUrl?: string; defaultSmsTemplate?: string | null; token?: string; error?: string }
       if (!res.ok || data.error) throw new Error(data.error || 'Failed to generate survey link')
-      setSurveyUrl(data.surveyUrl || null)
+      const newSurveyUrl = data.surveyUrl || null
+      setSurveyUrl(newSurveyUrl)
       setLead(prev => prev ? { ...prev, surveyToken: 'set', surveyRequestedAt: new Date().toISOString() } as typeof prev : prev)
-      if (lead.phone) {
-        alert(`Survey link sent via SMS to ${lead.phone}!\n\nLink: ${data.surveyUrl}`)
-      } else {
-        alert(`Survey link generated!\n\nShare this with ${lead.name}:\n${data.surveyUrl}`)
+
+      if (lead.phone && newSurveyUrl) {
+        // Show the dialog so rep can review/edit the SMS before sending
+        setPhotoRequestData({ surveyUrl: newSurveyUrl, draftSms: data.defaultSmsTemplate || '', token: data.token || '' })
+        setPhotoRequestSmsBody(data.defaultSmsTemplate || '')
+        setShowPhotoRequestDialog(true)
       }
     } catch (err) {
       alert('Could not generate survey link. Please try again.')
@@ -966,6 +1461,45 @@ export default function SalesLeadDetailPage() {
     } finally {
       setSurveyBusy(false)
     }
+  }
+
+  async function sendPhotoRequestSms() {
+    if (!lead || !photoRequestData) return
+    setPhotoRequestSending(true)
+    try {
+      const phone = lead.phone!.replace(/\D/g, '')
+      const e164 = phone.startsWith('1') ? `+${phone}` : `+1${phone}`
+      await fetch('/api/sales/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ channel: 'sms', to: e164, body: photoRequestSmsBody, leadId: lead.id, notes: 'Photo survey request' }),
+      })
+      setSmsMessages(prev => [...prev, {
+        id: `survey_${Date.now()}`,
+        from_number: getDefaultSaturnBranchNumber(),
+        to_number: e164,
+        body: photoRequestSmsBody,
+        direction: 'outbound' as const,
+        lead_id: lead.id ?? null,
+        created_at: new Date().toISOString(),
+      }])
+      setActiveTab('sms')
+      setShowPhotoRequestDialog(false)
+      setTimeout(() => { if (smsAreaRef.current) smsAreaRef.current.scrollTop = smsAreaRef.current.scrollHeight }, 60)
+    } catch { /* ignore */ } finally { setPhotoRequestSending(false) }
+  }
+
+  async function generateDispatchBrief() {
+    if (!lead) return
+    setDispatchBriefBusy(true)
+    setDispatchBriefOpen(true)
+    try {
+      const res = await fetch(`/api/sales/leads/${lead.id}/dispatch-brief`, { method: 'POST', credentials: 'include' })
+      const data = await res.json() as { brief?: string; error?: string }
+      setDispatchBriefText(data.brief || 'Could not generate brief.')
+    } catch { setDispatchBriefText('Error generating brief.') }
+    finally { setDispatchBriefBusy(false) }
   }
 
   async function handleRepMediaUpload() {
@@ -1033,11 +1567,13 @@ export default function SalesLeadDetailPage() {
     setQuoteModalDirty(true)
   }
 
-  async function saveQuoteDraft() {
+  async function saveQuoteDraft(overrides?: { moveDescription?: string; internalNotes?: string }) {
     if (!quote) return
     if (!ensureLeadEditable()) return
     try {
       setQuoteModalBusy(true)
+      const nextMoveDescription = overrides?.moveDescription ?? quoteMoveDescription
+      const nextInternalNotes = overrides?.internalNotes ?? quoteInternalNotes
       const depositRate = quote.total > 0 ? quote.deposit / quote.total : 0.2
       const totals = computeQuoteTotals(quoteLineItems, depositRate, quoteDiscountAmount)
       const result = await updateSalesQuote(quote.id, {
@@ -1052,14 +1588,23 @@ export default function SalesLeadDetailPage() {
         crewSize: pricingMetaRef.current.crewSize,
         estimatedHours: pricingMetaRef.current.estimatedHours,
         truckCount: pricingMetaRef.current.truckCount,
-        moveDescription: quoteMoveDescription || undefined,
-        internalNotes: quoteInternalNotes || undefined,
+        estimatedWeightLbs: pricingMetaRef.current.estimatedWeightLbs,
+        longDistanceDistanceKm: pricingMetaRef.current.longDistanceDistanceKm,
+        longDistanceTruckCost: pricingMetaRef.current.longDistanceTruckCost,
+        longDistanceGasCost: pricingMetaRef.current.longDistanceGasCost,
+        longDistanceInsuranceCost: pricingMetaRef.current.longDistanceInsuranceCost,
+        longDistanceMiscCost: pricingMetaRef.current.longDistanceMiscCost,
+        longDistanceMarkupRate: pricingMetaRef.current.longDistanceMarkupRate,
+        moveDescription: nextMoveDescription || undefined,
+        internalNotes: nextInternalNotes || undefined,
       })
       setQuote(result.quote)
       if (result.lead) setLead(result.lead)
       setQuoteLineItems(result.quote.lineItems || [])
       setQuoteDiscountAmount(Number(result.quote.discountAmount || 0))
       setQuoteDiscountLabel(result.quote.discountLabel || '')
+      setQuoteMoveDescription(result.quote.moveDescription || '')
+      setQuoteInternalNotes(result.quote.internalNotes || '')
       setQuoteModalDirty(false)
       // Persist job factors to lead alongside the quote save
       if (lead && Object.keys(jobFactors).length > 0) {
@@ -1072,11 +1617,42 @@ export default function SalesLeadDetailPage() {
     }
   }
 
-  async function saveAndPreviewQuote() {
+  async function saveAndPreviewQuote(options?: {
+    provisional?: boolean
+    missingItems?: string[]
+    moveDescription?: string
+    internalNotes?: string
+  }) {
     if (!quote) return
     if (!ensureLeadEditable()) return
-    await saveQuoteDraft()
-    router.push(`/sales/quotes/${quote.id}?send=1`)
+    await saveQuoteDraft({
+      moveDescription: options?.moveDescription,
+      internalNotes: options?.internalNotes,
+    })
+    if (options?.provisional && lead) {
+      const followUpDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+      const missingSummary = (options.missingItems || []).filter(Boolean).join(' · ') || 'Missing quote details still need confirmation.'
+      const followUpText = `Provisional quote sent. Collect before final confirmation: ${missingSummary}`
+      try {
+        const followUpResult = await saveSalesFollowUp({
+          leadId: lead.id,
+          quoteId: quote.id,
+          type: 'note',
+          notes: followUpText,
+          followUpDate,
+        })
+        mergeFollowUpLog(followUpResult.log)
+        const refreshedLead = await updateSalesLead(lead.id, {
+          followUpDate,
+          followUpNote: followUpText,
+        })
+        setLead(refreshedLead)
+      } catch (err) {
+        setError((err as Error).message)
+        return
+      }
+    }
+    router.push(`/sales/quotes/${quote.id}?send=1${options?.provisional ? '&provisional=1' : ''}`)
   }
 
   async function sendDepositLink() {
@@ -1174,6 +1750,27 @@ export default function SalesLeadDetailPage() {
     }
   }
 
+  async function clearManualDepositMark() {
+    if (!lead) return
+    if (!ensureLeadEditable()) return
+    if (!window.confirm('Clear the recorded deposit status for this lead? Use this only when a deposit was marked by mistake.')) return
+    try {
+      setLogDepositBusy(true)
+      const updatedLead = await updateSalesLead(lead.id, {
+        paymentStatus: 'pending',
+        depositAmount: undefined,
+        depositMethod: undefined,
+        depositDate: undefined,
+      })
+      setLead(updatedLead)
+      setError(null)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setLogDepositBusy(false)
+    }
+  }
+
   async function chargeBalance() {
     if (!lead || !quote) return
     if (!ensureLeadEditable()) return
@@ -1186,14 +1783,66 @@ export default function SalesLeadDetailPage() {
         credentials: 'include',
         body: JSON.stringify({ leadId: lead.id, quoteId: quote.id }),
       })
-      const payload = await r.json() as { ok?: boolean; error?: string }
+      const payload = await r.json() as { ok?: boolean; error?: string; balance?: number; amount?: number }
       if (!r.ok || !payload.ok) throw new Error(payload.error || 'Charge failed')
       const updatedLead = await updateSalesLead(lead.id, { paymentStatus: 'paid_in_full' })
       setLead(updatedLead)
+      setQuote(current => current ? {
+        ...current,
+        balance: Number(payload.balance || 0),
+        balancePaidAt: new Date().toISOString(),
+        balancePaidAmount: Number((current.balancePaidAmount || 0) + Number(payload.amount || 0)),
+        balancePaidMethod: 'stripe',
+      } : current)
     } catch (err) {
       setError((err as Error).message)
     } finally {
       setChargeBalanceBusy(false)
+    }
+  }
+
+  async function sendBalanceInvoice() {
+    if (!lead || !quote) return
+    if (!ensureLeadEditable()) return
+    const defaultAmount = Number(quote.balance || 0).toFixed(2)
+    const amountInput = window.prompt('Invoice amount to send', defaultAmount)
+    if (amountInput === null) return
+    const amount = Math.round(Number(amountInput) * 100) / 100
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setError('Invoice amount must be greater than zero.')
+      return
+    }
+    const defaultDescription = `Remaining balance - ${quote.number} - ${lead.name}`
+    const description = window.prompt('Invoice note', defaultDescription)
+    if (description === null) return
+
+    try {
+      setSendInvoiceBusy(true)
+      const response = await fetch('/api/sales/stripe/send-invoice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          leadId: lead.id,
+          quoteId: quote.id,
+          amountOverride: amount,
+          description,
+        }),
+      })
+      const payload = await response.json() as {
+        ok?: boolean
+        error?: string
+        hostedInvoiceUrl?: string
+        quote?: CRMQuote
+      }
+      if (!response.ok || !payload.ok) throw new Error(payload.error || 'Failed to send invoice')
+      if (payload.quote) setQuote(payload.quote)
+      if (payload.hostedInvoiceUrl) window.open(payload.hostedInvoiceUrl, '_blank')
+      setError(null)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSendInvoiceBusy(false)
     }
   }
 
@@ -1202,7 +1851,7 @@ export default function SalesLeadDetailPage() {
     if (!ensureLeadEditable()) return
     setOutcomeBusy(true)
     try {
-      await fetch(`/api/sales/leads/${lead.id}/outcome`, {
+      const response = await fetch(`/api/sales/leads/${lead.id}/outcome`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -1216,6 +1865,10 @@ export default function SalesLeadDetailPage() {
           notes: outcomeNotes.trim() || undefined,
         }),
       })
+      const payload = await response.json() as { error?: string; lead?: CRMLead; quote?: CRMQuote | null }
+      if (!response.ok) throw new Error(payload.error || 'Failed to save outcome')
+      if (payload.lead) setLead(payload.lead)
+      if (payload.quote !== undefined) setQuote(payload.quote)
       setOutcomeSaved(true)
       setOutcomeOpen(false)
     } catch (err) {
@@ -1230,11 +1883,12 @@ export default function SalesLeadDetailPage() {
     if (!ensureLeadEditable()) return
     setReviewSentBusy(true)
     try {
-      await fetch('/api/sales/review-request', {
+      const response = await fetch('/api/sales/review-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
+          leadId: lead.id,
           leadName: lead.name,
           leadEmail: lead.email,
           leadPhone: lead.phone,
@@ -1242,6 +1896,9 @@ export default function SalesLeadDetailPage() {
           channel: 'both',
         }),
       })
+      const payload = await response.json() as { ok?: boolean; error?: string; lead?: CRMLead | null }
+      if (!response.ok || payload.error) throw new Error(payload.error || 'Failed to send review request')
+      if (payload.lead) setLead(payload.lead)
       setReviewSent(true)
       setError(null)
     } catch (err) {
@@ -1460,9 +2117,28 @@ export default function SalesLeadDetailPage() {
     return 'Lookup not started'
   }
 
+  function openRealtorPitchSms() {
+    if (!lead) return
+    if (!ensureLeadCommunicationAccess()) return
+    const firstName = (lead.realtorName || lead.name || 'there').split(' ')[0]
+    const address = lead.opportunityAddress || lead.destAddress || lead.originAddress || 'the property'
+    const moveMonth = (() => {
+      const d = lead.sourceLeadMoveDate || lead.moveDate
+      if (!d) return 'the coming weeks'
+      return new Date(d + 'T12:00:00').toLocaleDateString('en-CA', { month: 'long' })
+    })()
+    composerUserEdited.current = true  // lock template — skip AI override
+    setComposerChannel('sms')
+    setComposerSubject('')
+    setComposerBody(
+      `Hi ${firstName}, John here from Saturn Star Moving.\n\nQuick one — we're already coordinating a move at ${address} in ${moveMonth}.\n\nFor your clients: if they book through you, they get 20% off (our standard referral is 10%, but we double it for realtor partners). No paperwork on your end — just pass our number or send me theirs and I'll reach out directly.\n\nYour client saves more, you look great.\n\n— John | Saturn Star Moving | 226-773-2993`
+    )
+    setComposerOpen(true)
+  }
+
   function openComposer(channel: 'sms' | 'email') {
     if (!lead) return
-    if (!ensureLeadEditable()) return
+    if (!ensureLeadCommunicationAccess()) return
     const firstName = getLeadFirstName(lead)
     const opportunityAddress = lead.opportunityAddress || lead.originAddress || 'the property'
     composerUserEdited.current = false   // reset — AI may write the first draft
@@ -1495,7 +2171,7 @@ export default function SalesLeadDetailPage() {
 
   async function sendComposerMessage() {
     if (!lead) return
-    if (!ensureLeadEditable()) return
+    if (!ensureLeadCommunicationAccess()) return
     const to = composerChannel === 'sms' ? lead.phone : lead.email
     if (!to || !composerBody.trim()) return
 
@@ -1587,6 +2263,12 @@ export default function SalesLeadDetailPage() {
               ...item,
               included: item.included === false ? true : false,
               exclusionReason: item.included === false ? '' : item.exclusionReason || 'Excluded from move scope',
+              policyOverride:
+                item.included === false
+                  ? item.policyCategory === 'default_exclude'
+                    ? 'include'
+                    : undefined
+                  : undefined,
             }
           : item
       )
@@ -1606,7 +2288,7 @@ export default function SalesLeadDetailPage() {
 
   async function logActivity() {
     if (!lead || !activityNotes.trim()) return
-    if (!ensureLeadEditable()) return
+    if (!ensureLeadCommunicationAccess()) return
     try {
       setLoggingActivity(true)
       const result = await saveSalesFollowUp({
@@ -1655,7 +2337,7 @@ export default function SalesLeadDetailPage() {
   }
 
   async function startConsultation() {
-    if (!ensureLeadEditable()) return
+    if (!ensureLeadCommunicationAccess()) return
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const recorder = new MediaRecorder(stream)
@@ -1678,7 +2360,7 @@ export default function SalesLeadDetailPage() {
 
   async function stopConsultation() {
     if (!lead) return
-    if (!ensureLeadEditable()) return
+    if (!ensureLeadCommunicationAccess()) return
 
     try {
       setConsultationSaving(true)
@@ -1806,6 +2488,23 @@ export default function SalesLeadDetailPage() {
   return (
     <div className="crm-shell space-y-6">
       {error && <div className="rounded-[8px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div>}
+      {scanProgress && (
+        <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 px-5 py-3">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-sm font-medium text-emerald-800">📷 Scanning photos…</span>
+            <span className="text-xs text-emerald-700">
+              {scanProgress.totalBatches > 0 ? `Batch ${scanProgress.batch} of ${scanProgress.totalBatches}` : 'Starting…'}
+            </span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-emerald-200">
+            <div
+              className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+              style={{ width: scanProgress.totalBatches > 0 ? `${Math.round((scanProgress.batch / scanProgress.totalBatches) * 100)}%` : '5%' }}
+            />
+          </div>
+          <div className="mt-1.5 text-xs text-emerald-700">{scanProgress.status}</div>
+        </div>
+      )}
       {opportunityNotice ? (
         <div className="rounded-[8px] border border-sky-200 bg-sky-50 px-5 py-4 text-sm text-sky-800">
           {opportunityNotice}
@@ -1817,13 +2516,105 @@ export default function SalesLeadDetailPage() {
         </div>
       ) : null}
 
+      {leadGuidance ? (
+        <section className="sticky top-[92px] z-30 rounded-[12px] border border-[var(--app-line)] bg-white/95 shadow-sm backdrop-blur">
+          <div className="border-b border-[var(--app-line)] px-5 py-4">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-[var(--app-ink)]">
+                  <span className="truncate text-base">{lead.name}</span>
+                  <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-[var(--app-muted)]">{leadGuidance.stageLabel}</span>
+                  <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[10px] font-medium text-[var(--app-muted)]">{leadGuidance.branchLabel}</span>
+                  <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[10px] font-medium text-[var(--app-muted)]">Owner: {leadGuidance.ownerLabel}</span>
+                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                    leadGuidance.heat.tone === 'risk' ? 'border-rose-200 bg-rose-50 text-rose-700' :
+                    leadGuidance.heat.tone === 'hot' ? 'border-orange-200 bg-orange-50 text-orange-700' :
+                    leadGuidance.heat.tone === 'warm' ? 'border-amber-200 bg-amber-50 text-amber-700' :
+                    leadGuidance.heat.tone === 'dormant' ? 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700' :
+                    'border-slate-200 bg-slate-50 text-slate-600'
+                  }`}>
+                    {leadGuidance.heat.label} · {leadGuidance.heat.score}
+                  </span>
+                  {leadGuidance.action.goldenMoment ? (
+                    <span className="rounded-full border border-orange-200 bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-800">QUOTE VIEWED NOW</span>
+                  ) : null}
+                </div>
+
+                <div className="mt-2 flex flex-wrap gap-2 text-sm text-[var(--app-muted)]">
+                  <span>{leadGuidance.quoteStatusLine}</span>
+                  {lead.moveDate ? <span>Move date {formatDate(lead.moveDate)}</span> : null}
+                  <span>Last activity {leadGuidance.latestActivity.at ? formatRelativeTime(leadGuidance.latestActivity.at) : '—'}</span>
+                </div>
+
+                {leadGuidance.personaBadges.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {leadGuidance.personaBadges.map(badge => (
+                      <span key={badge.label} className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-medium text-sky-800">
+                        {badge.label} · {badge.confidence}%
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+
+                {leadGuidance.missingInfo.length > 0 ? (
+                  <div className="mt-3 text-sm text-amber-700">
+                    Missing: {leadGuidance.missingInfo.join(', ')}
+                  </div>
+                ) : null}
+
+                <div className="mt-3 rounded-[10px] bg-[#1a2744]/5 px-4 py-3">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#1a2744]/60">Next Action</div>
+                  <div className="mt-1 text-sm font-semibold text-[#1a2744]">{leadGuidance.action.nextAction}</div>
+                  <div className="mt-1 text-sm text-[#1a2744]/70">{leadGuidance.salesLanguage}</div>
+                </div>
+
+                {leadGuidance.ownerLabel === 'Unassigned' ? (
+                  <div className="mt-3 rounded-[8px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                    No owner assigned. This lead may be missed.
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="flex shrink-0 flex-wrap gap-2 xl:max-w-[320px] xl:justify-end">
+                <button onClick={() => void handleLeadCommandAction(leadGuidance.action.primaryCta.key)} className="rounded-[8px] bg-[var(--app-ink)] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f1b2d]">
+                  {leadGuidance.action.primaryCta.label}
+                </button>
+                {leadGuidance.action.secondaryCtas.slice(0, 3).map(cta => (
+                  <button key={cta.key} onClick={() => void handleLeadCommandAction(cta.key)} className="rounded-[8px] border border-[var(--app-line)] bg-white px-4 py-2 text-sm font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
+                    {cta.label}
+                  </button>
+                ))}
+                {leadGuidance.ownerLabel === 'Unassigned' ? (
+                  <button onClick={() => void handleLeadCommandAction('assign_to_me')} className="rounded-[8px] border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100">
+                    Assign to me
+                  </button>
+                ) : null}
+                <button onClick={() => void handleLeadCommandAction('mark_lost')} className="rounded-[8px] border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100">
+                  Mark Lost
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       <div className="overflow-hidden rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)]">
         {/* Lead header bar */}
         <div className="flex flex-wrap items-center gap-3 border-b border-[var(--app-line)] bg-white px-5 py-3">
+          <button
+            type="button"
+            onClick={handleBackNavigation}
+            className="inline-flex items-center gap-1 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--app-ink)] transition hover:border-[var(--app-ink)]"
+          >
+            ← Back
+          </button>
           <h1 className="font-display text-base font-semibold text-[var(--app-ink)]">{lead.name}</h1>
           <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] ${
+            lead.stage === 'customer_success' ? 'bg-sky-100 text-sky-700' :
+            lead.stage === 'completed' ? 'bg-indigo-100 text-indigo-700' :
             lead.stage === 'booked' ? 'bg-emerald-100 text-emerald-700' :
             lead.stage === 'lost' ? 'bg-rose-100 text-rose-600' :
+            lead.stage === 'tentative' ? 'bg-orange-100 text-orange-700' :
             lead.stage === 'quoted' || lead.stage === 'pricing' ? 'bg-amber-100 text-amber-700' :
             lead.stage === 'estimate_scheduled' || lead.stage === 'estimate_completed' ? 'bg-violet-100 text-violet-700' :
             'bg-stone-100 text-stone-600'
@@ -1909,18 +2700,34 @@ export default function SalesLeadDetailPage() {
             onDestCityChange={setDestCity}
             onDestAccessChange={setDestAccess}
             onParkingNotesChange={setParkingNotes}
+            onApartmentDetected={(field, info) => {
+              setJobFactors(prev => ({
+                ...prev,
+                ...(field === 'origin'
+                  ? { originFloors: info.floor, originHasElevator: info.hasElevator }
+                  : { destFloors: info.floor, destHasElevator: info.hasElevator }),
+              }))
+            }}
             listingLookupBusy={listingLookupBusy}
             hasListing={!!lead.supabaseListing}
             onScanListing={() => {
-              if (lead.supabaseListing) {
-                void streamScanForLead(lead.id)
-              } else {
-                void lookupListingForLead()
-              }
+              // Always re-fetch listing so supabaseListing.carouselphotos is fresh,
+              // then stream the photo scan. Needed because stored carouselphotos may be stale.
+              void lookupListingForLead()
             }}
           />
 
           <aside className="order-2 border-t border-[var(--app-line)] bg-[var(--app-panel)] lg:order-3 lg:border-l lg:border-t-0 xl:order-3">
+            <LeadIntelligencePanel
+              lead={lead}
+              onLeadUpdate={setLead}
+              onApplyFollowUp={(date, note) => {
+                setFollowUpDate(date)
+              }}
+              onApplyStage={(s) => {
+                setStage(s)
+              }}
+            />
             {lead.leadKind === 'realtor_opportunity' ? (
               <div className="border-b border-[var(--app-line)] p-5">
                 <div className="crm-label">Realtor Opportunity</div>
@@ -1948,6 +2755,50 @@ export default function SalesLeadDetailPage() {
                     <div>Realtor email: {lead.realtorEmail || (lead.primaryContactRole === 'realtor' ? lead.email || 'Not captured yet' : 'Not captured yet')}</div>
                     <div>Realtor phone: {lead.realtorPhone || (lead.primaryContactRole === 'realtor' ? lead.phone || 'Not captured yet' : 'Not captured yet')}</div>
                   </div>
+                  {/* Auto-find realtor info */}
+                  {canEditCurrentLead && !(lead.realtorName && lead.realtorPhone) && (
+                    <button
+                      onClick={() => void (async () => {
+                        setSaving(true)
+                        try {
+                          const res = await fetch(`/api/sales/leads/${lead.id}/realtor-lookup`, { method: 'POST', credentials: 'include' })
+                          const data = await res.json() as {
+                            realtorName?: string | null
+                            realtorPhone?: string | null
+                            realtorEmail?: string | null
+                            realtorBrokerage?: string | null
+                            confidence?: string
+                            source?: string
+                            error?: string
+                          }
+                          if (!res.ok || data.error) throw new Error(data.error)
+                          const updates: Record<string, string> = {}
+                          if (data.realtorName && !lead.realtorName) updates.realtorName = data.realtorName
+                          if (data.realtorPhone && !lead.realtorPhone) updates.realtorPhone = data.realtorPhone
+                          if (data.realtorEmail && !lead.realtorEmail) updates.realtorEmail = data.realtorEmail
+                          if (data.realtorBrokerage && !lead.realtorBrokerage) updates.realtorBrokerage = data.realtorBrokerage
+                          if (Object.keys(updates).length > 0) {
+                            const saved = await updateSalesLead(lead.id, updates as Parameters<typeof updateSalesLead>[1])
+                            applyLeadSnapshot(saved, { hydrateForm: true })
+                          }
+                          setError(null)
+                        } catch (err) { setError((err as Error).message) }
+                        finally { setSaving(false) }
+                      })()}
+                      disabled={saving}
+                      className="mt-3 w-full rounded-[6px] border border-amber-300 bg-amber-100 px-3 py-1.5 text-[10px] font-semibold text-amber-800 hover:bg-amber-200 disabled:opacity-60"
+                    >
+                      {saving ? '🔍 Searching…' : '🔍 Auto-find Realtor Info'}
+                    </button>
+                  )}
+                  {canHandleCurrentLeadCommunication && lead.primaryContactRole === 'realtor' && lead.phone && (
+                    <button
+                      onClick={() => openRealtorPitchSms()}
+                      className="mt-2 w-full rounded-[6px] border border-amber-400 bg-amber-200 px-3 py-1.5 text-[10px] font-semibold text-amber-900 hover:bg-amber-300 transition-colors"
+                    >
+                      📱 Pitch Realtor — Send SMS
+                    </button>
+                  )}
                 </div>
 
                 {lead.primaryContactRole === 'realtor' ? (
@@ -2016,11 +2867,11 @@ export default function SalesLeadDetailPage() {
             )}
 
             {/* Confirm Job CTA — prominent when lead has a quote and isn't booked yet */}
-            {quote && lead.stage !== 'booked' && lead.stage !== 'lost' && !(lead.leadKind === 'realtor_opportunity' && lead.primaryContactRole === 'realtor') ? (
+            {quote && !isClosedLeadStage(lead.stage) && !(lead.leadKind === 'realtor_opportunity' && lead.primaryContactRole === 'realtor') ? (
               <div className="border-b border-[var(--app-line)] bg-[#f0faf5] p-5">
                 <div className="crm-label text-[var(--app-accent)]">Ready to close?</div>
                 <button
-                  onClick={() => setShowConfirmJobModal(true)}
+                  onClick={() => openConfirmJobModal()}
                   disabled={!canEditCurrentLead}
                   className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-[10px] bg-[var(--app-accent)] text-sm font-semibold text-white transition hover:bg-[#0a5b47]"
                 >
@@ -2034,14 +2885,34 @@ export default function SalesLeadDetailPage() {
                   Quote work can continue, but booking stays locked until the realtor hands over the actual client contact.
                 </div>
               </div>
-            ) : lead.stage === 'booked' ? (
+            ) : isBookedLikeStage(lead.stage) ? (
               <div className="border-b border-[var(--app-line)] bg-[#f0faf5] p-5 space-y-3">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                    Job Confirmed
+                  <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
+                    lead.stage === 'customer_success'
+                      ? 'bg-sky-100 text-sky-700'
+                      : lead.stage === 'completed'
+                        ? 'bg-indigo-100 text-indigo-700'
+                        : 'bg-emerald-100 text-emerald-700'
+                  }`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${
+                      lead.stage === 'customer_success'
+                        ? 'bg-sky-500'
+                        : lead.stage === 'completed'
+                          ? 'bg-indigo-500'
+                          : 'bg-emerald-500'
+                    }`} />
+                    {lead.stage === 'customer_success' ? 'Customer Success' : lead.stage === 'completed' ? 'Move Completed' : 'Job Confirmed'}
                   </span>
                 </div>
+                {/* Crew Dispatch Brief */}
+                <button
+                  onClick={() => void generateDispatchBrief()}
+                  disabled={dispatchBriefBusy}
+                  className="w-full rounded-[8px] bg-[#1a2744] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                >
+                  {dispatchBriefBusy ? '⏳ Generating…' : '📋 Generate Crew Briefing'}
+                </button>
                 {/* Post-job review request */}
                 {(lead.email || lead.phone) && (
                   <button
@@ -2112,13 +2983,31 @@ export default function SalesLeadDetailPage() {
                       ✓ Deposit Received — {lead.depositMethod || 'On file'}
                     </div>
                     {quote && (
-                      <button
-                        onClick={() => void chargeBalance()}
-                        disabled={!canEditCurrentLead || chargeBalanceBusy}
-                        className="w-full rounded-[8px] bg-[var(--app-accent)] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
-                      >
-                        {chargeBalanceBusy ? 'Charging...' : `Charge Balance — ${formatMoney(quote.balance)}`}
-                      </button>
+                      <div className="space-y-2">
+                        <button
+                          onClick={() => void chargeBalance()}
+                          disabled={!canEditCurrentLead || chargeBalanceBusy}
+                          className="w-full rounded-[8px] bg-[var(--app-accent)] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                        >
+                          {chargeBalanceBusy ? 'Charging...' : `Charge Balance — ${formatMoney(quote.balance)}`}
+                        </button>
+                        <button
+                          onClick={() => void sendBalanceInvoice()}
+                          disabled={!canEditCurrentLead || sendInvoiceBusy || !lead.email}
+                          className="w-full rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2 text-xs font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)] disabled:opacity-60"
+                        >
+                          {sendInvoiceBusy ? 'Sending invoice...' : lead.email ? 'Send Balance Invoice' : 'Need customer email to invoice'}
+                        </button>
+                        {!quote.depositPaidAt && !quote.depositPaidAmount && !quote.depositStripePaymentIntentId && !quote.depositStripeSessionId ? (
+                          <button
+                            onClick={() => void clearManualDepositMark()}
+                            disabled={!canEditCurrentLead || logDepositBusy}
+                            className="w-full rounded-[8px] border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-60"
+                          >
+                            {logDepositBusy ? 'Clearing...' : 'Clear Deposit Mark'}
+                          </button>
+                        ) : null}
+                      </div>
                     )}
                   </div>
                 ) : (
@@ -2186,17 +3075,25 @@ export default function SalesLeadDetailPage() {
             ) : null}
 
             <div className="space-y-3 border-b border-[var(--app-line)] p-5">
-              {lead.phone ? <button onClick={openDialer} disabled={!canEditCurrentLead} className="crm-button-dark w-full justify-center disabled:opacity-60">Call Lead</button> : null}
+              {lead.phone ? <button onClick={openDialer} disabled={!canHandleCurrentLeadCommunication} className="crm-button-dark w-full justify-center disabled:opacity-60">Call Lead</button> : null}
               <div className="grid grid-cols-2 gap-3">
-                {lead.phone ? <button onClick={() => openComposer('sms')} disabled={!canEditCurrentLead} className="crm-button justify-center disabled:opacity-60">Send SMS</button> : <div />}
-                {lead.email ? <button onClick={() => openComposer('email')} disabled={!canEditCurrentLead} className="crm-button justify-center disabled:opacity-60">Email</button> : <div />}
+                {lead.phone ? <button onClick={() => openComposer('sms')} disabled={!canHandleCurrentLeadCommunication} className="crm-button justify-center disabled:opacity-60">Send SMS</button> : <div />}
+                {lead.email ? <button onClick={() => openComposer('email')} disabled={!canHandleCurrentLeadCommunication} className="crm-button justify-center disabled:opacity-60">Email</button> : <div />}
               </div>
               <button
                 onClick={() => void startConsultation()}
-                disabled={!canEditCurrentLead || consultationActive || consultationSaving}
+                disabled={!canHandleCurrentLeadCommunication || consultationActive || consultationSaving}
                 className="crm-button w-full justify-center"
               >
                 {consultationActive ? `Recording Consultation • ${formatSeconds(consultationSeconds)}` : consultationSaving ? 'Saving Consultation...' : 'Record Consultation'}
+              </button>
+              <button
+                onClick={() => setFastLaneOpen(true)}
+                disabled={!canEditCurrentLead || !lead.phone}
+                className="crm-button w-full justify-center border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 disabled:opacity-60"
+                title="Send a quick SMS quote — no inventory scan needed"
+              >
+                ⚡ Fast Lane Quote
               </button>
               {quote ? (
                 <button onClick={() => void openQuoteBuilder()} disabled={!canEditCurrentLead} className="crm-button w-full justify-center border-[rgba(34,72,56,0.2)] bg-[rgba(34,72,56,0.08)] text-[var(--app-accent)] disabled:opacity-60">
@@ -2241,10 +3138,49 @@ export default function SalesLeadDetailPage() {
                 onClick={() => void requestPhotoSurvey()}
                 disabled={!canEditCurrentLead || surveyBusy}
                 className="crm-button w-full justify-center disabled:opacity-60"
-                title="Generate a link to send to customer — they take photos, AI scans them into inventory"
+                title="Customer just takes photos — AI scanning happens on our side"
               >
-                {surveyBusy ? '⏳ Generating link…' : (lead as unknown as Record<string,unknown>)?.surveyCompletedAt ? '✅ Photos Received' : (lead as unknown as Record<string,unknown>)?.surveyRequestedAt ? '📷 Resend Photo Request' : '📷 Request Photos'}
+                {surveyBusy ? '⏳ Generating link…'
+                  : (lead as unknown as Record<string,unknown>)?.surveyCompletedAt ? '📷 Resend Photo Request'
+                  : (lead as unknown as Record<string,unknown>)?.surveyRequestedAt ? '📷 Resend Photo Request'
+                  : '📷 Request Photos'}
               </button>
+
+              {/* Survey photos received — scan button */}
+              {(() => {
+                const surveyPhotos = (lead.mediaAssets || []).filter((a: import('@/lib/types').LeadMediaAsset) => a.source === 'survey' && a.kind === 'image')
+                const surveyCompleted = !!(lead as unknown as Record<string,unknown>)?.surveyCompletedAt
+                const surveyScanned = !!(lead as unknown as Record<string,unknown>)?.surveyScannedAt
+                if (surveyPhotos.length === 0) return null
+                return (
+                  <div className={`rounded-[8px] border px-3 py-3 ${surveyCompleted && !surveyScanned ? 'border-emerald-300 bg-emerald-50' : 'border-[var(--app-line)] bg-[var(--app-bg)]'}`}>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div className="text-xs font-semibold text-[var(--app-ink)]">
+                        📷 {surveyPhotos.length} customer photo{surveyPhotos.length !== 1 ? 's' : ''} received
+                        {surveyCompleted && <span className="ml-1 text-emerald-600">· Survey complete</span>}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => void (async () => {
+                        setSurveyBusy(true)
+                        try {
+                          const res = await fetch(`/api/sales/leads/${lead.id}/scan-survey`, { method: 'POST', credentials: 'include' })
+                          const data = await res.json() as { ok?: boolean; detectedItems?: number; scannedRooms?: string[]; error?: string }
+                          if (!res.ok || data.error) throw new Error(data.error)
+                          await refresh(lead.id)
+                        } catch (err) { setError((err as Error).message) }
+                        finally { setSurveyBusy(false) }
+                      })()}
+                      disabled={surveyBusy}
+                      className={`w-full rounded-[6px] py-2 text-xs font-semibold transition ${surveyScanned ? 'bg-[var(--app-bg)] text-[var(--app-muted)] border border-[var(--app-line)]' : 'bg-emerald-600 text-white hover:bg-emerald-700'} disabled:opacity-60`}
+                    >
+                      {surveyBusy ? '⏳ Scanning…' : surveyScanned ? '✓ Re-scan customer photos' : '🔍 Scan customer photos into inventory'}
+                    </button>
+                    {surveyScanned && <div className="mt-1.5 text-[10px] text-[var(--app-muted)]">Last scanned {new Date((lead as unknown as Record<string,unknown>).surveyScannedAt as string).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</div>}
+                  </div>
+                )
+              })()}
+
               {surveyUrl && (
                 <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-2.5 text-[10px] text-[var(--app-muted)] break-all">
                   {surveyUrl}
@@ -2328,8 +3264,8 @@ export default function SalesLeadDetailPage() {
                     </div>
                     {(aiNudge.urgency === 'high' || aiNudge.urgency === 'medium') && (lead.phone || lead.email) ? (
                       <div className="mt-3 flex gap-2">
-                        {lead.phone ? <button onClick={() => openComposer('sms')} disabled={!canEditCurrentLead} className="rounded-[6px] bg-white px-3 py-1.5 text-xs font-medium text-[var(--app-ink)] shadow-sm ring-1 ring-inset ring-[var(--app-line)] hover:bg-[var(--app-bg)] disabled:opacity-60">Send SMS</button> : null}
-                        {lead.email ? <button onClick={() => openComposer('email')} disabled={!canEditCurrentLead} className="rounded-[6px] bg-white px-3 py-1.5 text-xs font-medium text-[var(--app-ink)] shadow-sm ring-1 ring-inset ring-[var(--app-line)] hover:bg-[var(--app-bg)] disabled:opacity-60">Email</button> : null}
+                        {lead.phone ? <button onClick={() => openComposer('sms')} disabled={!canHandleCurrentLeadCommunication} className="rounded-[6px] bg-white px-3 py-1.5 text-xs font-medium text-[var(--app-ink)] shadow-sm ring-1 ring-inset ring-[var(--app-line)] hover:bg-[var(--app-bg)] disabled:opacity-60">Send SMS</button> : null}
+                        {lead.email ? <button onClick={() => { setActiveTab('emails'); setComposerChannel('email') }} disabled={!canHandleCurrentLeadCommunication} className="rounded-[6px] bg-white px-3 py-1.5 text-xs font-medium text-[var(--app-ink)] shadow-sm ring-1 ring-inset ring-[var(--app-line)] hover:bg-[var(--app-bg)] disabled:opacity-60">Email</button> : null}
                       </div>
                     ) : null}
                   </div>
@@ -2339,10 +3275,153 @@ export default function SalesLeadDetailPage() {
                       {lead.followUpNote || (quote ? 'Follow up on the open estimate.' : 'No active task yet')}
                     </div>
                     <div className="mt-2 text-xs leading-5 text-[var(--app-muted)]">
-                      {lead.followUpDate ? `Follow up on ${formatDate(lead.followUpDate)}.` : 'Steps will appear here once you have a call, consultation, or quote.'}
+                      {lead.followUpDate ? `Follow up on ${formatDate(lead.followUpDate)}.` : 'Set a follow-up date below.'}
                     </div>
                   </div>
                 )}
+
+                <div className="rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Auto-Nudges</div>
+                      <div className="mt-1 text-xs text-[var(--app-muted)]">
+                        Business-hours only. Never more than one per lead per day. Suppressed after a recent rep touch or customer reply.
+                      </div>
+                    </div>
+                    <div className="rounded-full bg-[var(--app-bg)] px-2.5 py-1 text-[10px] font-semibold text-[var(--app-muted)]">
+                      {automationLoading ? 'Refreshing…' : `${automationJobs.length} scheduled`}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid gap-2">
+                    {[
+                      {
+                        key: 'nudgeIfQuoteNotOpened' as const,
+                        label: 'Nudge if quote not opened',
+                        detail: 'After 3 business hours if the estimate has not been opened.',
+                      },
+                      {
+                        key: 'nudgeIfSurveyNotCompleted' as const,
+                        label: 'Nudge if survey not completed',
+                        detail: 'Reminds the customer to finish the photo survey.',
+                      },
+                      {
+                        key: 'nudgeIfQuoteViewedNoResponse' as const,
+                        label: 'Nudge if quote viewed but no response',
+                        detail: 'After 30 minutes if the quote was reviewed but no deposit or reply came in.',
+                      },
+                      {
+                        key: 'nudgeBeforeQuoteExpires' as const,
+                        label: 'Nudge before quote expires',
+                        detail: 'Sends 48 hours before the estimate validity window runs out.',
+                      },
+                    ].map(item => {
+                      const enabled = automationSettings[item.key]
+                      const disabled = !canControlLeadAutomation || automationSavingKey === item.key
+
+                      return (
+                        <div key={item.key} className="flex items-center justify-between gap-3 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2.5">
+                          <div>
+                            <div className="text-sm font-medium text-[var(--app-ink)]">{item.label}</div>
+                            <div className="mt-1 text-[11px] leading-5 text-[var(--app-muted)]">{item.detail}</div>
+                          </div>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={enabled}
+                            disabled={disabled}
+                            onClick={() => void updateLeadAutomationSettings({ [item.key]: !enabled } as Partial<LeadAutomationSettings>, item.key)}
+                            className={`min-w-[64px] rounded-full px-3 py-1.5 text-[11px] font-semibold transition ${
+                              enabled
+                                ? 'bg-[var(--app-ink)] text-white'
+                                : 'border border-[var(--app-line)] bg-white text-[var(--app-muted)]'
+                            } disabled:opacity-50`}
+                          >
+                            {automationSavingKey === item.key ? 'Saving…' : enabled ? 'On' : 'Off'}
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {!canControlLeadAutomation ? (
+                    <div className="mt-3 rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+                      Assign this lead to yourself or ask a manager to take ownership before changing auto-nudge rules.
+                    </div>
+                  ) : null}
+
+                  <div className="mt-3">
+                    <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Scheduled Nudges</div>
+                    <div className="space-y-2">
+                      {automationJobs.length > 0 ? (
+                        automationJobs.map(job => (
+                          <div key={job.id} className="flex items-center justify-between gap-3 rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2.5">
+                            <div>
+                              <div className="text-sm font-medium text-[var(--app-ink)]">{automationJobLabel(job)}</div>
+                              <div className="mt-1 text-[11px] leading-5 text-[var(--app-muted)]">
+                                Due {formatDateTime(job.dueAt)}{job.channel ? ` · ${job.channel.toUpperCase()}` : ''}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              disabled={!canControlLeadAutomation || automationSavingKey === job.id}
+                              onClick={() => void cancelLeadAutomationJob(job.id)}
+                              className="rounded-[6px] border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50"
+                            >
+                              {automationSavingKey === job.id ? 'Cancelling…' : 'Cancel'}
+                            </button>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="rounded-[8px] border border-dashed border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-3 text-[11px] text-[var(--app-muted)]">
+                          {automationLoading ? 'Loading scheduled nudges…' : 'No nudges are scheduled on this lead right now.'}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Follow-up date quick setter */}
+                <div className="rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-3">
+                  <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
+                    Follow-up {followUpDate ? `— ${formatDate(followUpDate)}` : '— not set'}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {[
+                      { label: 'Tomorrow', days: 1 },
+                      { label: '+3 days', days: 3 },
+                      { label: 'Next week', days: 7 },
+                    ].map(({ label, days }) => (
+                      <button
+                        key={label}
+                        disabled={!canHandleCurrentLeadCommunication}
+                        onClick={() => {
+                          const d = new Date(); d.setDate(d.getDate() + days)
+                          setFollowUpDate(d.toISOString().slice(0, 10))
+                        }}
+                        className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1 text-[10px] font-medium text-[var(--app-ink)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] disabled:opacity-50"
+                      >
+                        {label}
+                      </button>
+                    ))}
+                    {followUpDate && (
+                      <button
+                        disabled={!canHandleCurrentLeadCommunication}
+                        onClick={() => setFollowUpDate('')}
+                        className="rounded-[6px] border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-medium text-rose-600 hover:bg-rose-100 disabled:opacity-50"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    type="date"
+                    value={followUpDate}
+                    disabled={!canHandleCurrentLeadCommunication}
+                    onChange={e => setFollowUpDate(e.target.value)}
+                    className="crm-input text-xs w-full"
+                  />
+                </div>
               </div>
             </div>
 
@@ -2416,26 +3495,36 @@ export default function SalesLeadDetailPage() {
                 </label>
 
                 {/* Deposit section — visible when booked */}
-                {lead.stage === 'booked' && (
-                  <div>
-                    <span className="crm-label">Deposit</span>
-                    <div className="mt-2 grid grid-cols-2 gap-2">
-                      <input
-                        type="number"
-                        value={depositAmount}
-                        onChange={e => setDepositAmount(e.target.value)}
-                        className="crm-input"
-                        placeholder="Amount $"
-                      />
-                      <select value={depositMethod} onChange={e => setDepositMethod(e.target.value)} className="crm-input">
-                        <option value="">Method</option>
-                        {DEPOSIT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
-                      </select>
+                {isBookedLikeStage(lead.stage) && (
+                  <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-3">
+                    <span className="crm-label">Payment Status</span>
+                    <div className="mt-2 text-sm font-semibold text-[var(--app-ink)]">
+                      {lead.paymentStatus === 'paid_in_full'
+                        ? 'Paid in full'
+                        : lead.paymentStatus === 'deposit_received'
+                          ? 'Deposit received'
+                          : 'Deposit still required'}
+                    </div>
+                    <div className="mt-1 text-xs text-[var(--app-muted)]">
+                      {lead.depositAmount
+                        ? `${formatMoney(lead.depositAmount)}${lead.depositMethod ? ` via ${lead.depositMethod}` : ''}`
+                        : 'Use the payment actions above to collect or log deposit activity.'}
                     </div>
                   </div>
                 )}
               </fieldset>
 
+              <div className={`rounded-[10px] border px-3 py-2.5 text-[11px] ${
+                hasUnsavedChanges
+                  ? 'border-amber-200 bg-amber-50 text-amber-800'
+                  : 'border-dashed border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-muted)]'
+              }`}>
+                {hasUnsavedChanges ? (
+                  <>You have unsaved changes. Click <strong className="text-[var(--app-ink)]">Save Lead</strong> before leaving.</>
+                ) : (
+                  <>Changes on this lead save only when you click <strong className="text-[var(--app-ink)]">Save Lead</strong>.</>
+                )}
+              </div>
               <button onClick={() => void saveLead()} disabled={!canEditCurrentLead || saving} className="crm-button w-full justify-center disabled:opacity-60">
                 {saving ? 'Saving...' : 'Save Lead'}
               </button>
@@ -2465,7 +3554,7 @@ export default function SalesLeadDetailPage() {
               </button>
               {lead.email && (
                 <button
-                  onClick={() => { setActiveTab('emails'); if (lead.id) void fetchLeadEmails(lead.id) }}
+                  onClick={() => { setActiveTab('emails'); setComposerChannel('email'); setComposerBody(''); if (lead.id) void fetchLeadEmails(lead.id) }}
                   className={`-mb-px flex items-center gap-2 border-b-2 px-3 pb-3 pt-1 text-sm font-medium transition ${activeTab === 'emails' ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}
                 >
                   Emails
@@ -2495,7 +3584,7 @@ export default function SalesLeadDetailPage() {
               lead={lead}
               quote={quote}
               timeline={timeline}
-              readOnly={!canEditCurrentLead}
+              readOnly={!canHandleCurrentLeadCommunication}
               inventoryCubicFeet={inventoryMetrics.totalCubicFeet}
               activityType={activityType}
               activityNotes={activityNotes}
@@ -2575,25 +3664,45 @@ export default function SalesLeadDetailPage() {
                   </div>
                 )}
 
-                {/* Quick reply bar */}
-                {emailMessages.length > 0 && (
-                  <div className="border-t border-[var(--app-line)] bg-[var(--app-panel)] px-5 py-3">
+                {/* Inline compose — always visible at bottom of email thread */}
+                <div className="shrink-0 border-t border-[var(--app-line)] bg-[var(--app-panel)] px-5 py-3 space-y-2">
+                  <input
+                    value={composerChannel === 'email' ? composerSubject : (() => {
+                      const lastInbound = emailMessages.find(e => e.direction === 'inbound')
+                      return lastInbound ? `Re: ${lastInbound.subject}` : 'Following up — Saturn Star Moving'
+                    })()}
+                    onChange={e => { setComposerChannel('email'); setComposerSubject(e.target.value) }}
+                    onFocus={() => { if (!composerSubject) { const last = emailMessages.find(e => e.direction === 'inbound'); setComposerSubject(last ? `Re: ${last.subject}` : 'Following up — Saturn Star Moving'); setComposerChannel('email') } }}
+                    className="w-full rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2 text-xs text-[var(--app-ink)] focus:border-[var(--app-accent)] focus:outline-none"
+                    placeholder="Subject…"
+                    disabled={!canHandleCurrentLeadCommunication}
+                  />
+                  <textarea
+                    value={composerChannel === 'email' ? composerBody : ''}
+                    onChange={e => { composerUserEdited.current = true; setComposerChannel('email'); setComposerBody(e.target.value) }}
+                    onFocus={() => { if (composerChannel !== 'email') { setComposerChannel('email'); if (!composerBody) void runSmartCompose('email', lead) } }}
+                    className="w-full resize-none rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-ink)] focus:border-[var(--app-accent)] focus:outline-none"
+                    placeholder="Write a reply…"
+                    rows={3}
+                    disabled={!canHandleCurrentLeadCommunication}
+                  />
+                  <div className="flex items-center justify-between gap-2">
                     <button
-                      onClick={() => {
-                        const lastInbound = emailMessages.find(e => e.direction === 'inbound')
-                        const subj = lastInbound ? `Re: ${lastInbound.subject}` : 'Following up — Saturn Star Moving'
-                        setComposerSubject(subj)
-                        setComposerChannel('email')
-                        setComposerBody('')
-                        setComposerOpen(true)
-                        void runSmartCompose('email', lead)
-                      }}
-                      className="w-full rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-2.5 text-left text-sm text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition-colors"
+                      onClick={() => { composerUserEdited.current = false; setComposerChannel('email'); void runSmartCompose('email', lead) }}
+                      disabled={!canHandleCurrentLeadCommunication || scBusy}
+                      className="text-xs text-[var(--app-muted)] hover:text-[var(--app-accent)] disabled:opacity-40"
                     >
-                      ↑ Write a reply…
+                      {scBusy ? '✨ Drafting…' : '✨ AI Draft'}
+                    </button>
+                    <button
+                      onClick={() => { setComposerChannel('email'); void sendComposerMessage() }}
+                      disabled={!canHandleCurrentLeadCommunication || composerBusy || !composerBody.trim() || composerChannel !== 'email'}
+                      className="rounded-[8px] bg-[var(--app-ink)] px-4 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
+                    >
+                      {composerBusy ? 'Sending…' : 'Send Email'}
                     </button>
                   </div>
-                )}
+                </div>
               </div>
             )}
 
@@ -2642,17 +3751,20 @@ export default function SalesLeadDetailPage() {
                       {smsMessages.map((msg) => {
                         const isOut = msg.direction === 'outbound'
                         const branchLabel = getSaturnBranchLabel(getSaturnBusinessNumberFromSmsMessage(msg))
+                        // Twilio WhatsApp SIDs start with WA; SMS SIDs start with SM
+                        const isWhatsApp = msg.twilio_sid?.startsWith('WA') ?? false
                         return (
                           <div key={msg.id} className={`flex flex-col ${isOut ? 'items-end' : 'items-start'}`}>
                             <div
                               className="max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed"
                               style={isOut
-                                ? { background: '#1a2744', color: 'white', borderBottomRightRadius: '4px' }
+                                ? { background: isWhatsApp ? '#25D366' : '#1a2744', color: 'white', borderBottomRightRadius: '4px' }
                                 : { background: 'white', color: '#1a2744', border: '1px solid #e5e7eb', borderBottomLeftRadius: '4px' }}
                             >
                               {msg.body}
                             </div>
                             <div className="mt-0.5 px-1 text-[10px] text-[var(--app-muted)]">
+                              {isWhatsApp && <span className="mr-1 text-[#25D366]">WhatsApp ·</span>}
                               {new Date(msg.created_at).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                               {branchLabel ? ` • ${branchLabel}` : ''}
                             </div>
@@ -2665,11 +3777,30 @@ export default function SalesLeadDetailPage() {
 
                 {/* Compose */}
                 <div className="border-t border-[var(--app-line)] bg-[var(--app-panel)] px-4 py-3">
-                  {leadPreferredBranchLabel ? (
-                    <div className="mb-2 text-xs text-[var(--app-muted)]">
-                      Outbound texts send from <span className="font-semibold text-[var(--app-ink)]">{leadPreferredBranchLabel}</span> ({leadPreferredBranchNumber}).
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    {leadPreferredBranchLabel ? (
+                      <div className="text-xs text-[var(--app-muted)]">
+                        From <span className="font-semibold text-[var(--app-ink)]">{leadPreferredBranchLabel}</span>
+                      </div>
+                    ) : <div />}
+                    {/* Channel toggle */}
+                    <div className="flex items-center gap-1 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setSmsChannel('sms')}
+                        className={`rounded-md px-2.5 py-1 text-[10px] font-semibold transition ${smsChannel === 'sms' ? 'bg-[#1a2744] text-white' : 'text-[var(--app-muted)]'}`}
+                      >
+                        SMS
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSmsChannel('whatsapp')}
+                        className={`rounded-md px-2.5 py-1 text-[10px] font-semibold transition ${smsChannel === 'whatsapp' ? 'bg-[#25D366] text-white' : 'text-[var(--app-muted)]'}`}
+                      >
+                        WhatsApp
+                      </button>
                     </div>
-                  ) : null}
+                  </div>
                   <div className="flex items-end gap-2">
                     <textarea
                       value={smsInput}
@@ -2681,7 +3812,7 @@ export default function SalesLeadDetailPage() {
                             const body = smsInput.trim()
                             setSmsInput('')
                             setSmsSending(true)
-                            void sendSalesMessage({ channel: 'sms', to: lead.phone, body, leadId: lead.id, fromNumber: leadPreferredBranchNumber })
+                            void sendSalesMessage({ channel: smsChannel, to: lead.phone, body, leadId: lead.id, fromNumber: leadPreferredBranchNumber })
                               .then((result) => {
                                 setSmsMessages(prev => [...prev, {
                                   id: `local_${Date.now()}`,
@@ -2702,19 +3833,19 @@ export default function SalesLeadDetailPage() {
                       }}
                       placeholder={`Message ${lead.name?.split(' ')[0] || lead.phone}…`}
                       rows={1}
-                      disabled={!canEditCurrentLead || smsSending}
+                      disabled={!canHandleCurrentLeadCommunication || smsSending}
                       className="flex-1 resize-none rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2.5 text-sm text-[var(--app-ink)] placeholder:text-[var(--app-muted)] focus:outline-none focus:ring-1"
                       style={{ maxHeight: '120px', overflowY: 'auto', ['--tw-ring-color' as string]: '#f5a623' }}
                       onInput={e => { const el = e.currentTarget; el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px` }}
                     />
                     <button
-                      disabled={!canEditCurrentLead || smsSending || !smsInput.trim()}
+                      disabled={!canHandleCurrentLeadCommunication || smsSending || !smsInput.trim()}
                       onClick={() => {
                         if (!smsSending && smsInput.trim() && lead.phone) {
                           const body = smsInput.trim()
                           setSmsInput('')
                           setSmsSending(true)
-                          void sendSalesMessage({ channel: 'sms', to: lead.phone, body, leadId: lead.id, fromNumber: leadPreferredBranchNumber })
+                          void sendSalesMessage({ channel: smsChannel, to: lead.phone, body, leadId: lead.id, fromNumber: leadPreferredBranchNumber })
                             .then((result) => {
                               setSmsMessages(prev => [...prev, {
                                 id: `local_${Date.now()}`,
@@ -2767,7 +3898,7 @@ export default function SalesLeadDetailPage() {
                 <input
                   value={composerSubject}
                   onChange={event => setComposerSubject(event.target.value)}
-                  disabled={!canEditCurrentLead}
+                  disabled={!canHandleCurrentLeadCommunication}
                   className="crm-input"
                   placeholder="Email subject"
                 />
@@ -2775,7 +3906,7 @@ export default function SalesLeadDetailPage() {
               <textarea
                 value={composerBody}
                 onChange={event => { composerUserEdited.current = true; setComposerBody(event.target.value) }}
-                disabled={!canEditCurrentLead}
+                disabled={!canHandleCurrentLeadCommunication}
                 className={`crm-input min-h-56 transition-opacity ${scBusy ? 'opacity-50' : 'opacity-100'}`}
                 placeholder={composerChannel === 'sms' ? 'Type your SMS...' : 'Type your email...'}
               />
@@ -2783,17 +3914,51 @@ export default function SalesLeadDetailPage() {
             <div className="flex flex-col-reverse gap-3 border-t border-[var(--app-line)] px-4 py-4 md:flex-row md:items-center md:justify-between md:px-5">
               <button
                 onClick={() => { composerUserEdited.current = false; void runSmartCompose(composerChannel, lead) }}
-                disabled={!canEditCurrentLead || scBusy}
+                disabled={!canHandleCurrentLeadCommunication || scBusy}
                 className="text-sm text-[var(--app-muted)] hover:text-[var(--app-accent)] disabled:opacity-40 transition-colors"
               >
                 {scBusy ? '✨ AI drafting...' : '✨ Regenerate'}
               </button>
               <div className="flex flex-col-reverse gap-3 md:flex-row md:items-center">
                 <button onClick={() => setComposerOpen(false)} className="crm-button w-full md:w-auto">Cancel</button>
-                <button onClick={() => void sendComposerMessage()} disabled={!canEditCurrentLead || composerBusy || !composerBody.trim()} className="crm-button-dark disabled:opacity-60">
+                <button onClick={() => void sendComposerMessage()} disabled={!canHandleCurrentLeadCommunication || composerBusy || !composerBody.trim()} className="crm-button-dark disabled:opacity-60">
                   {composerBusy ? 'Sending...' : composerChannel === 'sms' ? 'Send SMS' : 'Send Email'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showUnsavedLeaveModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[16px] border border-[var(--app-line)] bg-white p-6 shadow-2xl">
+            <h2 className="font-display text-lg font-semibold text-[var(--app-ink)]">Save this lead before leaving?</h2>
+            <p className="mt-2 text-sm leading-6 text-[var(--app-muted)]">
+              You have unsaved changes on <strong className="text-[var(--app-ink)]">{lead?.name || 'this lead'}</strong>. Save them now so nothing slips through the cracks.
+            </p>
+            <div className="mt-5 flex flex-col gap-3">
+              <button
+                onClick={() => void handleSaveAndLeave()}
+                disabled={unsavedLeaveBusy}
+                className="crm-button-dark w-full justify-center disabled:opacity-60"
+              >
+                {unsavedLeaveBusy ? 'Saving...' : 'Save Lead And Leave'}
+              </button>
+              <button
+                onClick={handleDiscardAndLeave}
+                disabled={unsavedLeaveBusy}
+                className="crm-button w-full justify-center border-amber-200 text-amber-700 hover:bg-amber-50 disabled:opacity-60"
+              >
+                Leave Without Saving
+              </button>
+              <button
+                onClick={handleStayOnLead}
+                disabled={unsavedLeaveBusy}
+                className="text-sm font-medium text-[var(--app-muted)] hover:text-[var(--app-ink)] disabled:opacity-60"
+              >
+                Stay Here
+              </button>
             </div>
           </div>
         </div>
@@ -2836,6 +4001,91 @@ export default function SalesLeadDetailPage() {
         </div>
       ) : null}
 
+      {/* ── Photo Request Dialog ──────────────────────────────────── */}
+      {showPhotoRequestDialog && photoRequestData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[16px] border border-[var(--app-line)] bg-white p-6 shadow-2xl">
+            <h2 className="font-display text-base font-semibold text-[var(--app-ink)]">📷 Send photo request</h2>
+            <p className="mt-1 text-xs text-[var(--app-muted)]">Review and edit the message before sending. The upload link is already included.</p>
+            <div className="mt-3 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2 text-xs text-[var(--app-muted)] break-all">
+              🔗 {photoRequestData.surveyUrl}
+            </div>
+            <textarea
+              value={photoRequestSmsBody}
+              onChange={e => setPhotoRequestSmsBody(e.target.value)}
+              className="mt-3 w-full rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-accent)] resize-none"
+              rows={5}
+            />
+            <div className="mt-4 flex items-center justify-end gap-3">
+              <button
+                onClick={() => { setShowPhotoRequestDialog(false) }}
+                className="crm-button text-sm"
+              >
+                Skip SMS
+              </button>
+              <button
+                onClick={() => void sendPhotoRequestSms()}
+                disabled={photoRequestSending || !photoRequestSmsBody.trim()}
+                className="crm-button-dark text-sm disabled:opacity-60"
+              >
+                {photoRequestSending ? 'Sending…' : `Send to ${lead?.phone}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Dispatch Brief Modal ───────────────────────────────────── */}
+      {dispatchBriefOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="flex w-full max-w-2xl flex-col rounded-[16px] border border-[var(--app-line)] bg-white shadow-2xl" style={{ maxHeight: '85vh' }}>
+            <div className="flex items-center justify-between border-b border-[var(--app-line)] px-5 py-4">
+              <div>
+                <h2 className="font-display text-base font-semibold text-[var(--app-ink)]">📋 Crew Briefing</h2>
+                <p className="text-xs text-[var(--app-muted)]">Generated from calls, quote, and notes. Share with crew before dispatch.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {!dispatchBriefBusy && dispatchBriefText && (
+                  <button
+                    onClick={() => void navigator.clipboard.writeText(dispatchBriefText)}
+                    className="crm-button text-xs"
+                  >
+                    Copy
+                  </button>
+                )}
+                <button onClick={() => setDispatchBriefOpen(false)} className="crm-button text-xs">Close</button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto px-5 py-4">
+              {dispatchBriefBusy ? (
+                <div className="flex items-center gap-3 py-8 text-sm text-[var(--app-muted)]">
+                  <span className="block h-4 w-4 animate-spin rounded-full border-2 border-[var(--app-accent)] border-t-transparent" />
+                  Generating crew briefing from all available context…
+                </div>
+              ) : (
+                <pre className="whitespace-pre-wrap font-sans text-sm leading-7 text-[var(--app-ink)]">{dispatchBriefText}</pre>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Appointment SMS Confirm Modal ─────────────────────────── */}
+      {showApptSmsModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-[16px] border border-[var(--app-line)] bg-white p-6 shadow-2xl">
+            <h2 className="font-display text-base font-semibold text-[var(--app-ink)]">Send appointment confirmation SMS?</h2>
+            <p className="mt-2 text-sm text-[var(--app-muted)]">
+              {`"Hi ${lead?.name?.split(' ')[0] || 'there'}! This is Saturn Star Moving — just confirming your in-home estimate${lead?.estimateDate ? ` for ${new Date(lead.estimateDate + 'T12:00:00').toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' })}` : ''}. We'll take a look at your items and put together your personalized quote on the spot. Any questions, call or text us at 226-773-2993. See you soon! 🌟"`}
+            </p>
+            <div className="mt-5 flex items-center justify-end gap-3">
+              <button onClick={() => void handleApptSmsConfirm(false)} className="crm-button text-sm">Skip SMS</button>
+              <button onClick={() => void handleApptSmsConfirm(true)} className="crm-button-dark text-sm">Send SMS</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* ── Confirm Job Modal ─────────────────────────────────────── */}
       {showConfirmJobModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(15,27,56,0.55)', backdropFilter: 'blur(2px)' }}>
@@ -2848,7 +4098,7 @@ export default function SalesLeadDetailPage() {
                   <h2 className="text-base font-bold text-white">Confirm Job — {lead?.name}</h2>
                   <p className="mt-0.5 text-xs text-slate-300">Deposit required to lock in this booking.</p>
                 </div>
-                <button onClick={() => setShowConfirmJobModal(false)} className="ml-4 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-white/10 hover:text-white transition-colors">✕</button>
+                <button onClick={closeConfirmJobModal} className="ml-4 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-white/10 hover:text-white transition-colors">✕</button>
               </div>
             </div>
 
@@ -2900,7 +4150,7 @@ export default function SalesLeadDetailPage() {
             </div>
 
             <div className="flex gap-2.5 border-t border-slate-100 px-6 py-4">
-              <button onClick={() => setShowConfirmJobModal(false)} className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-medium text-slate-500 hover:bg-slate-50 transition-colors">Cancel</button>
+              <button onClick={closeConfirmJobModal} className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-medium text-slate-500 hover:bg-slate-50 transition-colors">Cancel</button>
               <button
                 onClick={() => void handleConfirmJob()}
                 disabled={
@@ -2972,6 +4222,13 @@ export default function SalesLeadDetailPage() {
         </div>
       ) : null}
 
+      <FastLaneModal
+        open={fastLaneOpen}
+        lead={lead}
+        onClose={() => setFastLaneOpen(false)}
+        onBooked={updatedLead => { applyLeadSnapshot(updatedLead, { hydrateForm: true }); setFastLaneOpen(false) }}
+      />
+
       <EstimateDraftModal
         open={quoteModalOpen}
         quote={quote}
@@ -3008,10 +4265,14 @@ export default function SalesLeadDetailPage() {
         onUpdateLineItem={updateQuoteLineItem}
         onRemoveLineItem={removeQuoteLineItem}
         onSetLineItems={setQuoteLineItems}
-        onSaveDraft={() => void saveQuoteDraft()}
-        onSaveAndPreview={() => void saveAndPreviewQuote()}
+        onSaveDraft={options => void saveQuoteDraft(options)}
+        onSaveAndPreview={options => void saveAndPreviewQuote(options)}
         onBranchChange={setBranch}
         onJobFactorsChange={setJobFactors}
+        onOriginAddressChange={setOriginAddress}
+        onOriginCityChange={setOriginCity}
+        onDestAddressChange={setDestAddress}
+        onDestCityChange={setDestCity}
         onAddInventoryItems={items => setInventory(current => [...current, ...items])}
         onUpdateInventoryItem={updateInventoryItem}
         onToggleInventoryItem={toggleInventoryItem}

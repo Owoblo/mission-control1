@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 import type { CRMLead, CRMQuote, FollowUpLog } from '@/lib/types'
 import { TimelineEventCard } from './timeline-event-card'
 import type { TimelineItem } from './timeline-types'
@@ -37,7 +37,25 @@ function formatSeconds(seconds: number) {
   return `${minutes}:${remainder}`
 }
 
-type TimelineFilter = 'all' | 'calls' | 'messages' | 'quotes' | 'consultations'
+type TimelineFilter = 'sales' | 'engagement' | 'audit' | 'all'
+
+function isCustomerEngagementItem(item: TimelineItem) {
+  return (
+    item.actor === 'customer' ||
+    item.kind === 'sms' ||
+    item.kind === 'email' ||
+    item.kind === 'view' ||
+    item.kind === 'accept' ||
+    item.kind === 'decline' ||
+    item.kind === 'quote viewed' ||
+    item.kind === 'quote accepted' ||
+    item.kind === 'quote declined'
+  )
+}
+
+function isAuditItem(item: TimelineItem) {
+  return item.kind === 'quote draft' || item.kind === 'status_change' || (item.actor === 'system' && !isCustomerEngagementItem(item))
+}
 
 export function LeadTimeline({
   lead,
@@ -64,9 +82,29 @@ export function LeadTimeline({
   onNoteAdded,
   readOnly,
 }: Props) {
-  const [filter, setFilter] = useState<TimelineFilter>('all')
+  const [filter, setFilter] = useState<TimelineFilter>('sales')
   const [quickNote, setQuickNote] = useState('')
   const [postingNote, setPostingNote] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+
+  const syncCalls = useCallback(async () => {
+    if (syncing) return
+    setSyncing(true)
+    try {
+      const res = await fetch(`/api/sales/leads/${lead.id}/sync-calls`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      if (res.ok) {
+        const data = await res.json() as { ok?: boolean; lead?: CRMLead; synced?: number }
+        if (data.lead) onLeadUpdate?.(data.lead)
+      }
+    } catch {
+      // best-effort
+    } finally {
+      setSyncing(false)
+    }
+  }, [lead.id, syncing, onLeadUpdate])
 
   async function handlePostNote() {
     if (!quickNote.trim() || postingNote || readOnly) return
@@ -89,10 +127,9 @@ export function LeadTimeline({
 
   const filteredTimeline = useMemo(() => {
     if (filter === 'all') return timeline
-    if (filter === 'calls') return timeline.filter(item => item.kind === 'call')
-    if (filter === 'messages') return timeline.filter(item => item.kind === 'sms' || item.kind === 'email')
-    if (filter === 'quotes') return timeline.filter(item => item.kind.includes('quote') || item.kind === 'view' || item.kind === 'accept' || item.kind === 'decline')
-    if (filter === 'consultations') return timeline.filter(item => item.kind === 'consultation')
+    if (filter === 'engagement') return timeline.filter(item => isCustomerEngagementItem(item))
+    if (filter === 'audit') return timeline.filter(item => isAuditItem(item))
+    if (filter === 'sales') return timeline.filter(item => !isAuditItem(item) || item.kind === 'view' || item.kind === 'accept' || item.kind === 'decline')
     return timeline
   }, [filter, timeline])
 
@@ -100,16 +137,24 @@ export function LeadTimeline({
     <section className="flex min-h-[760px] flex-col bg-[var(--app-bg)]">
       <div className="flex items-center justify-between border-b border-[var(--app-line)] bg-[var(--app-bg)] px-5 py-4">
         <div className="flex items-center gap-3">
-          <h2 className="font-display text-lg font-semibold text-[var(--app-ink)]">Living Timeline</h2>
+          <h2 className="font-display text-lg font-semibold text-[var(--app-ink)]">Sales Timeline</h2>
           <span className="rounded-full bg-[rgba(228,226,220,1)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--app-ink)]">Recent First</span>
+          <button
+            type="button"
+            onClick={() => void syncCalls()}
+            disabled={syncing}
+            title="Pull latest calls from Twilio — captures calls made by any rep"
+            className="rounded-full border border-[var(--app-line)] bg-white px-2.5 py-1 text-[10px] font-semibold text-[var(--app-muted)] transition hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] disabled:opacity-50"
+          >
+            {syncing ? '↻ Syncing…' : '↻ Sync calls'}
+          </button>
         </div>
         <div className="flex items-center gap-2 text-[var(--app-muted)]">
           {[
+            ['sales', 'Sales Timeline'],
+            ['engagement', 'Customer Engagement'],
+            ['audit', 'System Audit'],
             ['all', 'All'],
-            ['calls', 'Calls'],
-            ['messages', 'Messages'],
-            ['quotes', 'Quotes'],
-            ['consultations', 'Consultations'],
           ].map(([value, label]) => (
             <button
               key={value}

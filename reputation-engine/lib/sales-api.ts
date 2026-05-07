@@ -47,7 +47,7 @@ export async function createSalesLead(payload: Partial<CRMLead>): Promise<CRMLea
   return readJson(response)
 }
 
-export async function updateSalesLead(id: string, updates: Partial<CRMLead>): Promise<CRMLead> {
+export async function updateSalesLead(id: string, updates: Partial<CRMLead> & { sendAppointmentSms?: boolean }): Promise<CRMLead> {
   const response = await fetch(`/api/sales/leads/${id}`, {
     method: 'PATCH',
     credentials: 'include',
@@ -172,7 +172,7 @@ export async function saveSalesFollowUp(payload: Partial<FollowUpLog> & { follow
 }
 
 export async function sendSalesMessage(payload: {
-  channel: 'email' | 'sms'
+  channel: 'email' | 'sms' | 'whatsapp'
   to: string
   subject?: string
   body: string
@@ -281,6 +281,12 @@ export async function logDialerCall(payload: {
   durationSeconds?: number
   callSid?: string
   answered?: boolean
+  callOutcome?: string
+  answeredBy?: 'browser' | 'mobile' | 'sip' | 'unknown'
+  audioConnected?: boolean
+  errorCode?: number | null
+  errorMessage?: string | null
+  failureReason?: string | null
 }): Promise<CRMLead> {
   const response = await fetch('/api/sales/dialer/calls', {
     method: 'POST',

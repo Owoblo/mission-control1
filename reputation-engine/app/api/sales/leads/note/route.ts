@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { canAccessSalesWorkspace, canEditLead } from '@/lib/server/sales-permissions'
+import { canAccessSalesWorkspace, canHandleLeadCommunications } from '@/lib/server/sales-permissions'
+import { queueLeadIntelligenceRefresh } from '@/lib/server/lead-intelligence-refresh'
 import { getSalesLead, saveFollowUpLog } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
 import { uid } from '@/lib/sales'
@@ -13,8 +14,8 @@ export async function POST(request: Request) {
 
   const lead = await getSalesLead(leadId)
   if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
-  if (!canEditLead(session, lead)) {
-    return NextResponse.json({ error: 'You can only post notes on leads you own.' }, { status: 403 })
+  if (!canHandleLeadCommunications(session, lead)) {
+    return NextResponse.json({ error: 'You do not have permission to post notes on this lead.' }, { status: 403 })
   }
 
   const logType = (type === 'incident' ? 'note' : type || 'note') as import('@/lib/types').FollowUpType
@@ -27,6 +28,8 @@ export async function POST(request: Request) {
     createdAt: new Date().toISOString(),
     notes: text.trim(),
   })
+
+  queueLeadIntelligenceRefresh(leadId, new URL(request.url).origin)
 
   return NextResponse.json({ ok: true, log })
 }

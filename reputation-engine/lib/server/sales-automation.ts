@@ -11,6 +11,7 @@ import {
   syncLeadFromQuoteStatus,
   uid,
 } from '@/lib/sales'
+import { getListingPropertyContext } from '@/lib/listing'
 import { logEvent } from '@/lib/server/analytics'
 import { analyzeListingPhotos } from '@/lib/server/inventory-enrichment'
 import { estimateRouteContext } from '@/lib/server/route-estimation'
@@ -52,6 +53,7 @@ import type {
   ConversationChannel,
   CRMAutomationJob,
   CRMConversationThread,
+  LeadAttribution,
   CRMLead,
   CRMClient,
   LeadQualificationState,
@@ -60,6 +62,16 @@ import type {
 
 const OPENAI_MODEL = readEnv('OPENAI_AUTOMATION_MODEL') || 'gpt-4o-mini'
 const SALES_PHONE = '226-773-2993'
+const AUTOMATION_LOCAL_TIMEZONE = 'America/Toronto'
+const QUOTE_NOT_OPENED_DELAY_MS = 3 * 60 * 60 * 1000
+const QUOTE_VIEWED_DELAY_MS = 30 * 60 * 1000
+const QUOTE_EXPIRY_REMINDER_MS = 48 * 60 * 60 * 1000
+const DEFAULT_LEAD_AUTOMATION_SETTINGS = {
+  nudgeIfQuoteNotOpened: true,
+  nudgeIfSurveyNotCompleted: true,
+  nudgeIfQuoteViewedNoResponse: true,
+  nudgeBeforeQuoteExpires: true,
+} as const
 
 type AutomationCopy = {
   reply?: string
@@ -71,6 +83,21 @@ type AutomationCopy = {
   capturedSummary?: string
   intent?: string
   missingFields?: string[]
+}
+
+function getLeadAutomationSettings(lead: Pick<CRMLead, 'automationSettings'> | null | undefined) {
+  return {
+    ...DEFAULT_LEAD_AUTOMATION_SETTINGS,
+    ...(lead?.automationSettings || {}),
+  }
+}
+
+function quoteExpiresAt(quote: { createdAt?: string; validDays?: number }) {
+  if (!quote.createdAt) return null
+  const base = new Date(`${quote.createdAt}T12:00:00`)
+  if (Number.isNaN(base.getTime())) return null
+  base.setDate(base.getDate() + (quote.validDays || 30))
+  return base
 }
 
 type ExtractedLeadSignals = {
@@ -97,6 +124,9 @@ type ExtractedLeadSignals = {
   hasPiano?: boolean
   hasSafe?: boolean
   moveReason?: string
+  depositConfirmed?: boolean
+  depositAmount?: number
+  depositMethod?: string
   summary?: string
   shouldHandoff?: boolean
   wantsHuman?: boolean
@@ -135,6 +165,7 @@ export interface InboundAutomationEvent {
   inboundLeadId?: string
   source?: string
   channel?: ConversationChannel
+  attribution?: LeadAttribution
   phone?: string
   email?: string
   name?: string
@@ -158,6 +189,208 @@ function normalizePhone(value?: string) {
 
 function normalizeEmail(value?: string) {
   return value?.trim().toLowerCase() || ''
+}
+
+function normalizeTrackingText(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined
+}
+
+function inferNormalizedSource(input: Partial<LeadAttribution>) {
+  const originalSource = (normalizeTrackingText(input.originalSource) || '').toLowerCase()
+  const utmSource = (normalizeTrackingText(input.utmSource) || '').toLowerCase()
+
+  if (input.gclid || input.gbraid || input.wbraid || utmSource.includes('google') || utmSource.includes('adwords')) {
+    return 'google'
+  }
+
+  if (input.fbclid || utmSource.includes('facebook') || utmSource.includes('instagram') || utmSource.includes('meta')) {
+    return 'facebook'
+  }
+
+  if (input.msclkid || utmSource.includes('bing') || utmSource.includes('microsoft')) {
+    return 'bing'
+  }
+
+  if (/(qr|mail|mailer|postcard|letter|direct)/i.test(originalSource) || /(qr|mail|mailer|postcard|letter|direct)/i.test(utmSource)) {
+    return 'direct_mail'
+  }
+
+  if (originalSource === 'website_form') return 'website_form'
+  if (utmSource) return utmSource.replace(/[^a-z0-9]+/g, '_')
+  if (originalSource) return originalSource.replace(/[^a-z0-9]+/g, '_')
+  return undefined
+}
+
+function normalizeLeadAttribution(input?: Partial<LeadAttribution> | null): LeadAttribution | undefined {
+  if (!input) return undefined
+
+  const normalized: LeadAttribution = {
+    originalSource: normalizeTrackingText(input.originalSource),
+    normalizedSource: normalizeTrackingText(input.normalizedSource),
+    landingPage: normalizeTrackingText(input.landingPage),
+    landingPath: normalizeTrackingText(input.landingPath),
+    referrer: normalizeTrackingText(input.referrer),
+    gclid: normalizeTrackingText(input.gclid),
+    gbraid: normalizeTrackingText(input.gbraid),
+    wbraid: normalizeTrackingText(input.wbraid),
+    fbclid: normalizeTrackingText(input.fbclid),
+    msclkid: normalizeTrackingText(input.msclkid),
+    utmSource: normalizeTrackingText(input.utmSource),
+    utmMedium: normalizeTrackingText(input.utmMedium),
+    utmCampaign: normalizeTrackingText(input.utmCampaign),
+    utmTerm: normalizeTrackingText(input.utmTerm),
+    utmContent: normalizeTrackingText(input.utmContent),
+    utmId: normalizeTrackingText(input.utmId),
+    firstCapturedAt: normalizeTrackingText(input.firstCapturedAt),
+    lastCapturedAt: normalizeTrackingText(input.lastCapturedAt),
+  }
+
+  if (!normalized.normalizedSource) {
+    normalized.normalizedSource = inferNormalizedSource(normalized)
+  }
+
+  return Object.values(normalized).some(Boolean) ? normalized : undefined
+}
+
+function extractEventAttribution(event: InboundAutomationEvent, inbound?: Awaited<ReturnType<typeof getInboundLead>> | null) {
+  const inboundRaw =
+    typeof inbound?.raw_data === 'object' && inbound.raw_data
+      ? (inbound.raw_data as Record<string, unknown>)
+      : {}
+  const rawEvent = event.raw || {}
+  const inboundAttribution =
+    typeof inboundRaw.attribution === 'object' && inboundRaw.attribution
+      ? (inboundRaw.attribution as Record<string, unknown>)
+      : {}
+  const eventAttribution =
+    typeof rawEvent.attribution === 'object' && rawEvent.attribution
+      ? (rawEvent.attribution as Record<string, unknown>)
+      : {}
+
+  return normalizeLeadAttribution({
+    originalSource:
+      normalizeTrackingText(event.attribution?.originalSource) ||
+      normalizeTrackingText(eventAttribution.originalSource) ||
+      normalizeTrackingText(inboundAttribution.originalSource) ||
+      normalizeTrackingText(rawEvent.source) ||
+      normalizeTrackingText(inboundRaw.source) ||
+      normalizeTrackingText(event.source) ||
+      normalizeTrackingText(inbound?.source),
+    normalizedSource:
+      normalizeTrackingText(event.attribution?.normalizedSource) ||
+      normalizeTrackingText(eventAttribution.normalizedSource) ||
+      normalizeTrackingText(inboundAttribution.normalizedSource),
+    landingPage:
+      normalizeTrackingText(event.attribution?.landingPage) ||
+      normalizeTrackingText(eventAttribution.landingPage) ||
+      normalizeTrackingText(inboundAttribution.landingPage) ||
+      normalizeTrackingText(rawEvent.landing_page) ||
+      normalizeTrackingText(rawEvent.page_url),
+    landingPath:
+      normalizeTrackingText(event.attribution?.landingPath) ||
+      normalizeTrackingText(eventAttribution.landingPath) ||
+      normalizeTrackingText(inboundAttribution.landingPath) ||
+      normalizeTrackingText(rawEvent.landing_path) ||
+      normalizeTrackingText(rawEvent.page_path),
+    referrer:
+      normalizeTrackingText(event.attribution?.referrer) ||
+      normalizeTrackingText(eventAttribution.referrer) ||
+      normalizeTrackingText(inboundAttribution.referrer) ||
+      normalizeTrackingText(rawEvent.referrer),
+    gclid:
+      normalizeTrackingText(event.attribution?.gclid) ||
+      normalizeTrackingText(eventAttribution.gclid) ||
+      normalizeTrackingText(inboundAttribution.gclid) ||
+      normalizeTrackingText(rawEvent.gclid),
+    gbraid:
+      normalizeTrackingText(event.attribution?.gbraid) ||
+      normalizeTrackingText(eventAttribution.gbraid) ||
+      normalizeTrackingText(inboundAttribution.gbraid) ||
+      normalizeTrackingText(rawEvent.gbraid),
+    wbraid:
+      normalizeTrackingText(event.attribution?.wbraid) ||
+      normalizeTrackingText(eventAttribution.wbraid) ||
+      normalizeTrackingText(inboundAttribution.wbraid) ||
+      normalizeTrackingText(rawEvent.wbraid),
+    fbclid:
+      normalizeTrackingText(event.attribution?.fbclid) ||
+      normalizeTrackingText(eventAttribution.fbclid) ||
+      normalizeTrackingText(inboundAttribution.fbclid) ||
+      normalizeTrackingText(rawEvent.fbclid),
+    msclkid:
+      normalizeTrackingText(event.attribution?.msclkid) ||
+      normalizeTrackingText(eventAttribution.msclkid) ||
+      normalizeTrackingText(inboundAttribution.msclkid) ||
+      normalizeTrackingText(rawEvent.msclkid),
+    utmSource:
+      normalizeTrackingText(event.attribution?.utmSource) ||
+      normalizeTrackingText(eventAttribution.utmSource) ||
+      normalizeTrackingText(inboundAttribution.utmSource) ||
+      normalizeTrackingText(rawEvent.utm_source),
+    utmMedium:
+      normalizeTrackingText(event.attribution?.utmMedium) ||
+      normalizeTrackingText(eventAttribution.utmMedium) ||
+      normalizeTrackingText(inboundAttribution.utmMedium) ||
+      normalizeTrackingText(rawEvent.utm_medium),
+    utmCampaign:
+      normalizeTrackingText(event.attribution?.utmCampaign) ||
+      normalizeTrackingText(eventAttribution.utmCampaign) ||
+      normalizeTrackingText(inboundAttribution.utmCampaign) ||
+      normalizeTrackingText(rawEvent.utm_campaign),
+    utmTerm:
+      normalizeTrackingText(event.attribution?.utmTerm) ||
+      normalizeTrackingText(eventAttribution.utmTerm) ||
+      normalizeTrackingText(inboundAttribution.utmTerm) ||
+      normalizeTrackingText(rawEvent.utm_term),
+    utmContent:
+      normalizeTrackingText(event.attribution?.utmContent) ||
+      normalizeTrackingText(eventAttribution.utmContent) ||
+      normalizeTrackingText(inboundAttribution.utmContent) ||
+      normalizeTrackingText(rawEvent.utm_content),
+    utmId:
+      normalizeTrackingText(event.attribution?.utmId) ||
+      normalizeTrackingText(eventAttribution.utmId) ||
+      normalizeTrackingText(inboundAttribution.utmId) ||
+      normalizeTrackingText(rawEvent.utm_id),
+    firstCapturedAt:
+      normalizeTrackingText(event.attribution?.firstCapturedAt) ||
+      normalizeTrackingText(eventAttribution.firstCapturedAt) ||
+      normalizeTrackingText(inboundAttribution.firstCapturedAt) ||
+      normalizeTrackingText(rawEvent.first_captured_at) ||
+      event.receivedAt,
+    lastCapturedAt: event.receivedAt || normalizeTrackingText(event.attribution?.lastCapturedAt),
+  })
+}
+
+function mergeLeadAttribution(existing?: LeadAttribution, incoming?: LeadAttribution) {
+  const left = normalizeLeadAttribution(existing)
+  const right = normalizeLeadAttribution(incoming)
+  if (!left) return right
+  if (!right) return left
+
+  return normalizeLeadAttribution({
+    ...right,
+    ...left,
+    firstCapturedAt: left.firstCapturedAt || right.firstCapturedAt,
+    lastCapturedAt: right.lastCapturedAt || left.lastCapturedAt,
+  })
+}
+
+function deriveLeadSource(event: InboundAutomationEvent, inbound?: Awaited<ReturnType<typeof getInboundLead>> | null, attribution?: LeadAttribution) {
+  const normalizedSource = normalizeTrackingText(attribution?.normalizedSource)
+  if (normalizedSource) return normalizedSource
+
+  const inboundRaw =
+    typeof inbound?.raw_data === 'object' && inbound.raw_data
+      ? (inbound.raw_data as Record<string, unknown>)
+      : {}
+
+  return (
+    normalizeTrackingText(event.source) ||
+    normalizeTrackingText(inbound?.source) ||
+    normalizeTrackingText(inboundRaw.source) ||
+    'other'
+  )
 }
 
 function previewText(value?: string, max = 160) {
@@ -187,7 +420,11 @@ function detectOptOut(message?: string) {
 }
 
 function detectHumanHandoff(message?: string) {
-  return /\b(call me|give me a call|phone me|talk to someone|real person|person please)\b/i.test(message || '')
+  return /\b(call me|give me a call|phone me|talk to someone|talk to a person|real person|person please|have someone call|can someone call|speak to someone|human please)\b/i.test(message || '')
+}
+
+function detectTemporaryPause(message?: string) {
+  return /\b(leave (me )?a message|leave voicemail|leave a voicemail|i'?m at work|at work right now|busy right now|i'?m busy|in a meeting|can'?t talk|cannot talk|can'?t answer|call (me )?later|after work|text me instead|driving right now|on shift)\b/i.test(message || '')
 }
 
 function hasStreetNumber(value?: string) {
@@ -230,6 +467,104 @@ function latestHumanFieldTouch(lead: CRMLead) {
   ].filter(Boolean) as string[]
 
   return all.sort().slice(-1)[0]
+}
+
+function getZonedParts(date: Date, timeZone = AUTOMATION_LOCAL_TIMEZONE) {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  })
+  const parts = formatter.formatToParts(date)
+  const read = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find(part => part.type === type)?.value || 0)
+  return {
+    year: read('year'),
+    month: read('month'),
+    day: read('day'),
+    hour: read('hour'),
+    minute: read('minute'),
+    second: read('second'),
+  }
+}
+
+function getTimeZoneOffsetMs(date: Date, timeZone = AUTOMATION_LOCAL_TIMEZONE) {
+  const parts = getZonedParts(date, timeZone)
+  const asUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second)
+  return asUtc - date.getTime()
+}
+
+function zonedDateTimeToUtc(
+  input: { year: number; month: number; day: number; hour: number; minute?: number; second?: number },
+  timeZone = AUTOMATION_LOCAL_TIMEZONE
+) {
+  const utcGuess = new Date(Date.UTC(input.year, input.month - 1, input.day, input.hour, input.minute || 0, input.second || 0))
+  const offset = getTimeZoneOffsetMs(utcGuess, timeZone)
+  return new Date(utcGuess.getTime() - offset)
+}
+
+function isWithinAutomationBusinessHours(date: Date, timeZone = AUTOMATION_LOCAL_TIMEZONE) {
+  const { hour } = getZonedParts(date, timeZone)
+  return hour >= 9 && hour < 20
+}
+
+function getNextAutomationBusinessTime(date: Date, timeZone = AUTOMATION_LOCAL_TIMEZONE) {
+  const parts = getZonedParts(date, timeZone)
+  if (parts.hour >= 9 && parts.hour < 20) return date
+  if (parts.hour < 9) {
+    return zonedDateTimeToUtc({ year: parts.year, month: parts.month, day: parts.day, hour: 9 }, timeZone)
+  }
+  const tomorrowUtc = new Date(Date.UTC(parts.year, parts.month - 1, parts.day, 12, 0, 0))
+  tomorrowUtc.setUTCDate(tomorrowUtc.getUTCDate() + 1)
+  const tomorrow = getZonedParts(tomorrowUtc, timeZone)
+  return zonedDateTimeToUtc({ year: tomorrow.year, month: tomorrow.month, day: tomorrow.day, hour: 9 }, timeZone)
+}
+
+function clampAutomationDueAt(date: Date, timeZone = AUTOMATION_LOCAL_TIMEZONE) {
+  return isWithinAutomationBusinessHours(date, timeZone)
+    ? date.toISOString()
+    : getNextAutomationBusinessTime(date, timeZone).toISOString()
+}
+
+function sameZonedDay(left?: string | null, right?: string | null, timeZone = AUTOMATION_LOCAL_TIMEZONE) {
+  if (!left || !right) return false
+  const leftParts = getZonedParts(new Date(left), timeZone)
+  const rightParts = getZonedParts(new Date(right), timeZone)
+  return leftParts.year === rightParts.year && leftParts.month === rightParts.month && leftParts.day === rightParts.day
+}
+
+function isNudgeJob(kind: AutomationJobKind) {
+  return (
+    kind === 'quote_followup' ||
+    kind === 'quote_viewed_followup' ||
+    kind === 'quote_expiry_followup' ||
+    kind === 'survey_followup' ||
+    kind === 'move_reminder' ||
+    kind === 'stale_reactivation'
+  )
+}
+
+function disabledNudgeReason(lead: CRMLead, kind: AutomationJobKind) {
+  const settings = getLeadAutomationSettings(lead)
+  if (kind === 'quote_followup' && !settings.nudgeIfQuoteNotOpened) return 'Quote not-opened nudges are disabled on this lead.'
+  if (kind === 'quote_viewed_followup' && !settings.nudgeIfQuoteViewedNoResponse) return 'Quote-viewed nudges are disabled on this lead.'
+  if (kind === 'quote_expiry_followup' && !settings.nudgeBeforeQuoteExpires) return 'Quote-expiry nudges are disabled on this lead.'
+  if (kind === 'survey_followup' && !settings.nudgeIfSurveyNotCompleted) return 'Survey nudges are disabled on this lead.'
+  return null
+}
+
+function hasRecentRepTouch(lead: CRMLead) {
+  const recentHumanTouch = latestHumanFieldTouch(lead)
+  return !!(recentHumanTouch && hoursUntil(recentHumanTouch) > -2)
+}
+
+function hasCustomerReplyAfter(lead: CRMLead, triggerAt?: string | null) {
+  if (!lead.lastInboundAt || !triggerAt) return false
+  return new Date(lead.lastInboundAt).getTime() > new Date(triggerAt).getTime()
 }
 
 function estimateWorkflowOwnsLead(lead: CRMLead) {
@@ -275,7 +610,7 @@ async function extractLeadSignals(lead: CRMLead, event: InboundAutomationEvent):
             'Use ISO date YYYY-MM-DD only when explicit enough. Never invent missing details. ' +
             'Set shouldHandoff or wantsHuman only when the customer explicitly asks to speak to a person or requests a callback. ' +
             'Do not set shouldHandoff or wantsHuman for quote, estimate, pricing, scheduling, or general service requests. ' +
-            'Fields: name, email, phone, moveDate, moveDateFlexible, moveDateFlexibleReason, moveType, originAddress, originCity, destAddress, destCity, originAccess, destAccess, parkingNotes, estimatedBoxes, packingStatus, originFloors, originHasElevator, destFloors, destHasElevator, hasPiano, hasSafe, moveReason, summary, shouldHandoff, wantsHuman.',
+            'Fields: name, email, phone, moveDate, moveDateFlexible, moveDateFlexibleReason, moveType, originAddress, originCity, destAddress, destCity, originAccess, destAccess, parkingNotes, estimatedBoxes, packingStatus, originFloors, originHasElevator, destFloors, destHasElevator, hasPiano, hasSafe, moveReason, depositConfirmed, depositAmount, depositMethod, summary, shouldHandoff, wantsHuman.',
         },
         {
           role: 'user',
@@ -346,6 +681,13 @@ function mergeExtractedSignals(lead: CRMLead, signals: ExtractedLeadSignals | nu
     destAccess: lead.destAccess || signals.destAccess,
     parkingNotes: lead.parkingNotes || signals.parkingNotes,
     moveReason: lead.moveReason || signals.moveReason,
+    depositAmount: lead.depositAmount ?? parseMaybeNumber(signals.depositAmount),
+    depositMethod: lead.depositMethod || signals.depositMethod,
+    depositDate: lead.depositDate || (signals.depositConfirmed ? dateStamp() : lead.depositDate),
+    paymentStatus:
+      signals.depositConfirmed
+        ? (lead.paymentStatus === 'paid_in_full' ? lead.paymentStatus : 'deposit_received')
+        : lead.paymentStatus,
     branch: lead.branch || detectSalesBranchFromLocation(signals.originAddress, signals.originCity, signals.destAddress, signals.destCity),
     notes: signals.summary
       ? [lead.notes, `Automation capture: ${signals.summary}`].filter(Boolean).join('\n\n')
@@ -368,7 +710,7 @@ async function hydrateLeadFromAddressAndInventory(lead: CRMLead) {
       const analysisAvailable = Array.isArray(listing.carouselphotos) && listing.carouselphotos.length > 0 && !!process.env.OPENAI_API_KEY
 
       if (!scan && analysisAvailable) {
-        scan = await analyzeListingPhotos(listing).catch(() => null)
+        scan = await analyzeListingPhotos(listing, getListingPropertyContext(listing)).catch(() => null)
         if (scan) {
           await saveListingInventoryScan(listing.zpid, scan).catch(() => {})
         }
@@ -824,13 +1166,16 @@ async function ensureLeadForInbound(event: InboundAutomationEvent): Promise<CRML
   const phone = normalizePhone(event.phone || inbound?.phone)
   const email = normalizeEmail(event.email || inbound?.email)
   const message = previewText(event.message || inbound?.message, 500)
+  const attribution = extractEventAttribution(event, inbound)
+  const source = deriveLeadSource(event, inbound, attribution)
 
   if (!lead) {
     const createdLead = normalizeLead({
       id: uid('lead'),
       name: name || phone || email || 'New moving lead',
       stage: 'new',
-      source: event.source || inbound?.source || 'other',
+      source,
+      attribution,
       inboundId: event.inboundLeadId,
       inboundMessage: message || undefined,
       phone: phone || undefined,
@@ -849,7 +1194,11 @@ async function ensureLeadForInbound(event: InboundAutomationEvent): Promise<CRML
       name: lead.name || name,
       phone: lead.phone || phone || undefined,
       email: lead.email || email || undefined,
-      source: lead.source || event.source || inbound?.source || 'other',
+      source:
+        lead.source && lead.source !== 'website_form' && lead.source !== 'other'
+          ? lead.source
+          : source || lead.source || 'other',
+      attribution: mergeLeadAttribution(lead.attribution, attribution),
       inboundId: lead.inboundId || event.inboundLeadId,
       inboundMessage: message || lead.inboundMessage,
       lastInboundAt: now,
@@ -873,7 +1222,11 @@ async function ensureLeadForInbound(event: InboundAutomationEvent): Promise<CRML
   let enrichedLead = mergeExtractedSignals(lead, extractedSignals, message || lead.inboundMessage)
   enrichedLead = await hydrateLeadFromAddressAndInventory(enrichedLead).catch(() => enrichedLead)
 
-  const explicitHumanRequest = detectHumanHandoff(message || lead.inboundMessage)
+  const explicitHumanRequest =
+    detectHumanHandoff(message || lead.inboundMessage) ||
+    !!extractedSignals?.shouldHandoff ||
+    !!extractedSignals?.wantsHuman
+  const temporaryPauseRequest = !explicitHumanRequest && detectTemporaryPause(message || lead.inboundMessage)
   if (explicitHumanRequest && enrichedLead.automationStatus !== 'do_not_contact') {
     enrichedLead = {
       ...enrichedLead,
@@ -882,6 +1235,13 @@ async function ensureLeadForInbound(event: InboundAutomationEvent): Promise<CRML
       automationPauseReason: 'customer_requested_human',
       automationHandoffAt: now,
       automationHandoffReason: 'Customer requested human handling.',
+    }
+  } else if (temporaryPauseRequest && enrichedLead.automationStatus !== 'do_not_contact') {
+    enrichedLead = {
+      ...enrichedLead,
+      automationStatus: 'paused',
+      automationPausedUntil: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
+      automationPauseReason: 'customer_temporarily_unavailable',
     }
   }
 
@@ -893,6 +1253,8 @@ async function ensureLeadForInbound(event: InboundAutomationEvent): Promise<CRML
       lastIntent:
         explicitHumanRequest
           ? 'handoff'
+          : temporaryPauseRequest
+            ? 'pause_request'
           : enrichedLead.qualificationState?.lastIntent,
     }),
   })
@@ -1059,7 +1421,9 @@ async function generateAutomationCopy(input: {
 
 You handle:
 - instant inbound lead response
-- quote follow-up
+- quote not-opened follow-up
+- quote viewed / no-response follow-up
+- quote expiry follow-up
 - survey reminder
 - booked-move reminder
 - stale lead reactivation
@@ -1083,7 +1447,7 @@ Return:
   "moveReadiness": "hot|warm|cold",
   "nextBestAction": "short action label",
   "capturedSummary": "one sentence summary",
-  "intent": "lead_response|quote_followup|survey_followup|move_reminder|stale_reactivation|handoff|opt_out",
+  "intent": "lead_response|quote_followup|quote_viewed_followup|quote_expiry_followup|survey_followup|move_reminder|stale_reactivation|handoff|opt_out",
   "missingFields": ["move_date","origin","destination","inventory"]
 }`
 
@@ -1172,11 +1536,39 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
     return {
       reply:
         channel === 'sms'
-          ? `Hi ${firstName}, John from Saturn Star Moving checking in on the quote I sent over. Any questions about timing, pricing, or the move itself?`
-          : `Hi ${firstName},\n\nWanted to make sure you saw the quote from Saturn Star Moving. If you want me to walk through pricing, timing, or the move plan, reply here and I’ll help.\n\nJohn\nSaturn Star Moving`,
+          ? `Hi ${firstName}, just checking that you received your Saturn Star moving estimate. Here’s the link again if you need it, and I can walk you through anything that’s unclear.`
+          : `Hi ${firstName},\n\nJust checking that you received your Saturn Star moving estimate. If you want me to walk through pricing, timing, or the move plan, reply here and I’ll help.\n\nJohn\nSaturn Star Moving`,
       subject: channel === 'email' ? 'Checking In on Your Moving Quote' : undefined,
-      capturedSummary: 'Sent a quote follow-up.',
+      capturedSummary: 'Sent a quote not-opened follow-up.',
       intent: 'quote_followup',
+      missingFields: missing,
+      moveReadiness: 'warm',
+    }
+  }
+
+  if (kind === 'quote_viewed_followup') {
+    return {
+      reply:
+        channel === 'sms'
+          ? `Hi ${firstName}, I saw you had a chance to review the estimate. If you want us to hold the crew and rate, I can help you lock it in with the deposit.`
+          : `Hi ${firstName},\n\nI saw you had a chance to review the estimate. If you’d like us to hold the crew and rate, reply here and I can help you lock it in with the deposit.\n\nJohn\nSaturn Star Moving`,
+      subject: channel === 'email' ? 'Ready To Hold Your Move Date?' : undefined,
+      capturedSummary: 'Sent a quote-viewed follow-up.',
+      intent: 'quote_viewed_followup',
+      missingFields: missing,
+      moveReadiness: 'hot',
+    }
+  }
+
+  if (kind === 'quote_expiry_followup') {
+    return {
+      reply:
+        channel === 'sms'
+          ? `Hi ${firstName}, your Saturn Star estimate is still available, but the rate and crew availability may change soon. If you want us to reserve the spot, reply here.`
+          : `Hi ${firstName},\n\nYour Saturn Star estimate is still available, but the rate and crew availability may change soon. If you want us to reserve the spot, reply here and I’ll help you lock it in.\n\nJohn\nSaturn Star Moving`,
+      subject: channel === 'email' ? 'Your Estimate Is Still Available' : undefined,
+      capturedSummary: 'Sent a quote-expiry follow-up.',
+      intent: 'quote_expiry_followup',
       missingFields: missing,
       moveReadiness: 'warm',
     }
@@ -1279,12 +1671,16 @@ async function buildCopyForJob(job: CRMAutomationJob, lead: CRMLead, channel: Co
 
 function shouldSkipAutomation(lead: CRMLead, job: CRMAutomationJob) {
   if (lead.automationStatus === 'do_not_contact') return 'Lead is marked do-not-contact.'
+  const settingsReason = disabledNudgeReason(lead, job.kind)
+  if (settingsReason) return settingsReason
   const repWorkflowReason = estimateWorkflowOwnsLead(lead)
   if (repWorkflowReason && job.kind !== 'move_reminder') return repWorkflowReason
   if (lead.automationPausedUntil && new Date(lead.automationPausedUntil).getTime() > Date.now()) return 'Automation is paused by recent human follow-up.'
   if (lead.automationStatus === 'handoff' && job.kind !== 'move_reminder') return 'Lead is in human handoff mode.'
   if (lead.stage === 'lost') return 'Lead is already lost.'
   if (lead.stage === 'booked' && job.kind !== 'move_reminder') return 'Lead is already booked.'
+  if (isNudgeJob(job.kind) && hasRecentRepTouch(lead)) return 'Rep contacted this lead within the last 2 hours.'
+  if (isNudgeJob(job.kind) && sameZonedDay(lead.lastAutomationOutboundAt, new Date().toISOString())) return 'An automated nudge already ran for this lead today.'
   return null
 }
 
@@ -1301,6 +1697,8 @@ async function updateLeadAfterAutomation(lead: CRMLead, copy: AutomationCopy) {
   return saveSalesLead({
     ...lead,
     qualificationState,
+    lastOutboundAt: copy.reply ? now : lead.lastOutboundAt,
+    lastAutomationOutboundAt: copy.reply ? now : lead.lastAutomationOutboundAt,
     automationLastJobAt: now,
     automationStatus:
       copy.doNotContact
@@ -1572,16 +1970,71 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
 async function handleQuoteFollowupJob(job: CRMAutomationJob, lead: CRMLead) {
   const quoteId = String(job.payload?.quoteId || lead.quoteId || '')
   const quote = quoteId ? await getSalesQuote(quoteId).catch(() => null) : await getLatestSalesQuoteByLeadId(lead.id).catch(() => null)
-  if (!quote || !['sent', 'viewed'].includes(quote.status)) {
-    return { status: 'cancelled' as const, reason: 'Quote is no longer awaiting follow-up.' }
+  if (!quote || quote.status !== 'sent') {
+    return { status: 'cancelled' as const, reason: 'Quote is no longer waiting for an unopened follow-up.' }
+  }
+  if (quote.viewedAt) {
+    return { status: 'cancelled' as const, reason: 'Customer already opened the quote.' }
+  }
+  if (lead.paymentStatus === 'deposit_received' || lead.paymentStatus === 'paid_in_full' || quote.depositPaidAt) {
+    return { status: 'cancelled' as const, reason: 'Deposit is already paid.' }
+  }
+  if (hasCustomerReplyAfter(lead, quote.sentAt || quote.createdAt)) {
+    return { status: 'cancelled' as const, reason: 'Customer already replied after the quote trigger.' }
   }
 
   return handleLeadResponseJob({ ...job, payload: { ...job.payload, message: job.payload?.message || `Follow up on quote ${quote.number}` } }, lead)
 }
 
+async function handleQuoteViewedFollowupJob(job: CRMAutomationJob, lead: CRMLead) {
+  const quoteId = String(job.payload?.quoteId || lead.quoteId || '')
+  const quote = quoteId ? await getSalesQuote(quoteId).catch(() => null) : await getLatestSalesQuoteByLeadId(lead.id).catch(() => null)
+  if (!quote || !quote.viewedAt || !['sent', 'viewed'].includes(quote.status)) {
+    return { status: 'cancelled' as const, reason: 'Quote-viewed follow-up is no longer needed.' }
+  }
+  if (lead.paymentStatus === 'deposit_received' || lead.paymentStatus === 'paid_in_full' || quote.depositPaidAt) {
+    return { status: 'cancelled' as const, reason: 'Deposit is already paid.' }
+  }
+  if (hasCustomerReplyAfter(lead, quote.viewedAt)) {
+    return { status: 'cancelled' as const, reason: 'Customer already replied after viewing the quote.' }
+  }
+
+  return handleLeadResponseJob({ ...job, payload: { ...job.payload, message: job.payload?.message || `Follow up on viewed quote ${quote.number}` } }, lead)
+}
+
+async function handleQuoteExpiryFollowupJob(job: CRMAutomationJob, lead: CRMLead) {
+  const quoteId = String(job.payload?.quoteId || lead.quoteId || '')
+  const quote = quoteId ? await getSalesQuote(quoteId).catch(() => null) : await getLatestSalesQuoteByLeadId(lead.id).catch(() => null)
+  if (!quote || !['sent', 'viewed'].includes(quote.status)) {
+    return { status: 'cancelled' as const, reason: 'Quote is no longer active.' }
+  }
+  if (lead.paymentStatus === 'deposit_received' || lead.paymentStatus === 'paid_in_full' || quote.depositPaidAt) {
+    return { status: 'cancelled' as const, reason: 'Deposit is already paid.' }
+  }
+
+  const expiresAt = quoteExpiresAt(quote)
+  if (!expiresAt) {
+    return { status: 'cancelled' as const, reason: 'Quote expiry date is unavailable.' }
+  }
+
+  if (expiresAt.getTime() <= Date.now()) {
+    return { status: 'cancelled' as const, reason: 'Quote is already expired.' }
+  }
+
+  const triggerAt = new Date(expiresAt.getTime() - QUOTE_EXPIRY_REMINDER_MS)
+  if (hasCustomerReplyAfter(lead, triggerAt.toISOString())) {
+    return { status: 'cancelled' as const, reason: 'Customer already replied after the expiry reminder trigger.' }
+  }
+
+  return handleLeadResponseJob({ ...job, payload: { ...job.payload, message: job.payload?.message || `Follow up before quote ${quote.number} expires` } }, lead)
+}
+
 async function handleSurveyFollowupJob(job: CRMAutomationJob, lead: CRMLead) {
   if (!lead.surveyRequestedAt || lead.surveyCompletedAt) {
     return { status: 'cancelled' as const, reason: 'Survey reminder is no longer needed.' }
+  }
+  if (hasCustomerReplyAfter(lead, lead.surveyRequestedAt)) {
+    return { status: 'cancelled' as const, reason: 'Customer replied after the survey request.' }
   }
   return handleLeadResponseJob(job, lead)
 }
@@ -1590,12 +2043,18 @@ async function handleMoveReminderJob(job: CRMAutomationJob, lead: CRMLead) {
   if (lead.stage !== 'booked' || !lead.moveDate) {
     return { status: 'cancelled' as const, reason: 'Lead is not booked for a dated move.' }
   }
+  if (hasCustomerReplyAfter(lead, lead.bookedAt || lead.moveDate)) {
+    return { status: 'cancelled' as const, reason: 'Customer already replied after the move reminder trigger.' }
+  }
   return handleLeadResponseJob(job, lead)
 }
 
 async function handleStaleReactivationJob(job: CRMAutomationJob, lead: CRMLead) {
   if (lead.stage === 'lost' || lead.stage === 'booked') {
     return { status: 'cancelled' as const, reason: 'Lead is no longer eligible for reactivation.' }
+  }
+  if (hasCustomerReplyAfter(lead, String(job.payload?.lastActivityAt || ''))) {
+    return { status: 'cancelled' as const, reason: 'Customer activity resumed after this reactivation was queued.' }
   }
   return handleLeadResponseJob(job, lead)
 }
@@ -1616,6 +2075,20 @@ export async function processAutomationJob(job: CRMAutomationJob) {
       throw new Error(`Lead ${job.leadId} not found`)
     }
 
+    if (isNudgeJob(running.kind) && !isWithinAutomationBusinessHours(new Date())) {
+      const deferredAt = getNextAutomationBusinessTime(new Date()).toISOString()
+      const deferred = await saveAutomationJob({
+        ...running,
+        status: 'pending',
+        dueAt: deferredAt,
+        lockedAt: null,
+        result: { reason: 'Outside allowed auto-nudge hours. Deferred to next business window.' },
+        lastError: null,
+        updatedAt: new Date().toISOString(),
+      })
+      return deferred || running
+    }
+
     const skipReason = shouldSkipAutomation(lead, running)
     if (skipReason) {
       const cancelled = await saveAutomationJob({
@@ -1632,6 +2105,10 @@ export async function processAutomationJob(job: CRMAutomationJob) {
     const outcome =
       running.kind === 'quote_followup'
         ? await handleQuoteFollowupJob(running, lead)
+        : running.kind === 'quote_viewed_followup'
+          ? await handleQuoteViewedFollowupJob(running, lead)
+          : running.kind === 'quote_expiry_followup'
+            ? await handleQuoteExpiryFollowupJob(running, lead)
         : running.kind === 'survey_followup'
           ? await handleSurveyFollowupJob(running, lead)
           : running.kind === 'move_reminder'
@@ -1736,6 +2213,7 @@ export async function processInboundAutomationEvent(event: InboundAutomationEven
   if (channel === 'sms') {
     void logEvent('sms_received', {
       leadId: updatedLead.id,
+      actorName: 'Customer',
       lead: updatedLead,
       properties: {
         channel: 'sms',
@@ -1751,15 +2229,16 @@ export async function processInboundAutomationEvent(event: InboundAutomationEven
 export async function scheduleQuoteFollowup(leadId: string, quoteId?: string) {
   const lead = await getSalesLead(leadId)
   if (!lead) return null
+  if (!getLeadAutomationSettings(lead).nudgeIfQuoteNotOpened) return null
 
   const quote =
     (quoteId ? await getSalesQuote(quoteId).catch(() => null) : null) ||
     (lead.quoteId ? await getSalesQuote(lead.quoteId).catch(() => null) : null) ||
     (await getLatestSalesQuoteByLeadId(lead.id).catch(() => null))
 
-  if (!quote || !quote.sentAt || quote.status !== 'sent') return null
+  if (!quote || !quote.sentAt || quote.status !== 'sent' || quote.viewedAt) return null
 
-  const dueAt = new Date(new Date(quote.sentAt).getTime() + 24 * 60 * 60 * 1000).toISOString()
+  const dueAt = clampAutomationDueAt(new Date(new Date(quote.sentAt).getTime() + QUOTE_NOT_OPENED_DELAY_MS))
   return queueAutomationJob({
     leadId: lead.id,
     kind: 'quote_followup',
@@ -1770,11 +2249,74 @@ export async function scheduleQuoteFollowup(leadId: string, quoteId?: string) {
   })
 }
 
+export async function scheduleQuoteViewedFollowup(leadId: string, quoteId?: string) {
+  const lead = await getSalesLead(leadId)
+  if (!lead) return null
+  if (!getLeadAutomationSettings(lead).nudgeIfQuoteViewedNoResponse) return null
+
+  const quote =
+    (quoteId ? await getSalesQuote(quoteId).catch(() => null) : null) ||
+    (lead.quoteId ? await getSalesQuote(lead.quoteId).catch(() => null) : null) ||
+    (await getLatestSalesQuoteByLeadId(lead.id).catch(() => null))
+
+  if (!quote || !quote.viewedAt || !['sent', 'viewed'].includes(quote.status)) return null
+  if (lead.paymentStatus === 'deposit_received' || lead.paymentStatus === 'paid_in_full' || quote.depositPaidAt) return null
+
+  const dueAt = clampAutomationDueAt(new Date(new Date(quote.viewedAt).getTime() + QUOTE_VIEWED_DELAY_MS))
+  return queueAutomationJob({
+    leadId: lead.id,
+    kind: 'quote_viewed_followup',
+    channel: lead.phone ? 'sms' : lead.email ? 'email' : null,
+    dueAt,
+    dedupeKey: `quote_viewed_followup:${quote.id}:${quote.viewedAt}`,
+    payload: { quoteId: quote.id, quoteNumber: quote.number, viewedAt: quote.viewedAt },
+  })
+}
+
+export async function scheduleQuoteExpiryFollowup(leadId: string, quoteId?: string) {
+  const lead = await getSalesLead(leadId)
+  if (!lead) return null
+  if (!getLeadAutomationSettings(lead).nudgeBeforeQuoteExpires) return null
+
+  const quote =
+    (quoteId ? await getSalesQuote(quoteId).catch(() => null) : null) ||
+    (lead.quoteId ? await getSalesQuote(lead.quoteId).catch(() => null) : null) ||
+    (await getLatestSalesQuoteByLeadId(lead.id).catch(() => null))
+
+  if (!quote || !['sent', 'viewed'].includes(quote.status)) return null
+  if (lead.paymentStatus === 'deposit_received' || lead.paymentStatus === 'paid_in_full' || quote.depositPaidAt) return null
+
+  const expiresAt = quoteExpiresAt(quote)
+  if (!expiresAt) return null
+
+  const triggerAt = new Date(expiresAt.getTime() - QUOTE_EXPIRY_REMINDER_MS)
+  const dueAt = clampAutomationDueAt(
+    triggerAt.getTime() <= Date.now()
+      ? new Date(Date.now() + 5 * 60 * 1000)
+      : triggerAt
+  )
+
+  return queueAutomationJob({
+    leadId: lead.id,
+    kind: 'quote_expiry_followup',
+    channel: lead.phone ? 'sms' : lead.email ? 'email' : null,
+    dueAt,
+    dedupeKey: `quote_expiry_followup:${quote.id}:${expiresAt.toISOString()}`,
+    payload: {
+      quoteId: quote.id,
+      quoteNumber: quote.number,
+      expiresAt: expiresAt.toISOString(),
+      triggerAt: triggerAt.toISOString(),
+    },
+  })
+}
+
 export async function scheduleSurveyFollowup(leadId: string) {
   const lead = await getSalesLead(leadId)
   if (!lead?.surveyRequestedAt || lead.surveyCompletedAt) return null
+  if (!getLeadAutomationSettings(lead).nudgeIfSurveyNotCompleted) return null
 
-  const dueAt = new Date(new Date(lead.surveyRequestedAt).getTime() + 24 * 60 * 60 * 1000).toISOString()
+  const dueAt = clampAutomationDueAt(new Date(new Date(lead.surveyRequestedAt).getTime() + 24 * 60 * 60 * 1000))
   return queueAutomationJob({
     leadId: lead.id,
     kind: 'survey_followup',
@@ -1791,9 +2333,11 @@ export async function scheduleMoveReminder(leadId: string) {
 
   const dueDate = new Date(`${lead.moveDate}T12:00:00`)
   dueDate.setHours(dueDate.getHours() - 48)
-  const dueAt = dueDate.getTime() < Date.now()
-    ? new Date(Date.now() + 5 * 60 * 1000).toISOString()
-    : dueDate.toISOString()
+  const dueAt = clampAutomationDueAt(
+    dueDate.getTime() < Date.now()
+      ? new Date(Date.now() + 5 * 60 * 1000)
+      : dueDate
+  )
 
   return queueAutomationJob({
     leadId: lead.id,
@@ -1850,7 +2394,7 @@ export async function queueStaleLeadReactivation(options?: {
       leadId: lead.id,
       kind: 'stale_reactivation',
       channel: lead.phone ? 'sms' : lead.email ? 'email' : null,
-      dueAt: new Date().toISOString(),
+      dueAt: clampAutomationDueAt(new Date()),
       dedupeKey: `stale_reactivation:${lead.id}:${dateStamp()}`,
       payload: {
         lastActivityAt: getLeadLastActivity(lead, followUps),

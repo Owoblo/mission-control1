@@ -6,7 +6,7 @@ import { buildMoveSpecificNotes } from '@/lib/move-scope'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { PACKING_MATERIAL_PRESETS } from '@/lib/packing-materials'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
-import { QUOTE_STATUSES, computeQuoteTotals, dateStamp, estimateLeadQuote, formatDate, formatMoney, getCrewRate, getDefaultDepositRate, getLeadAssignedRepName, validUntil } from '@/lib/sales'
+import { QUOTE_STATUSES, UHAUL_RATE_PER_KM, computeQuoteTotals, dateStamp, estimateLeadQuote, formatDate, formatMoney, getCrewRate, getDefaultDepositRate, getLeadAssignedRepName, validUntil } from '@/lib/sales'
 import { fetchSalesQuote, saveSalesFollowUp, sendSalesMessage, updateSalesLead, updateSalesQuote } from '@/lib/sales-api'
 import type { CRMClient, CRMLead, CRMQuote, FollowUpLog, QuoteLineItem } from '@/lib/types'
 
@@ -220,22 +220,24 @@ export default function SalesQuoteDetailPage() {
   const discountPct = useMemo(() => rawSubtotal > 0 ? discountAmount / rawSubtotal : 0, [discountAmount, rawSubtotal])
   const isRevision = Boolean(quote?.sentAt || quote?.viewedAt || quote?.acceptedAt || quote?.respondedAt)
   const quoteOwnerName = useMemo(() => getLeadAssignedRepName(lead) || 'Unassigned', [lead])
+  const isAcceptedQuoteLocked = useMemo(
+    () => status === 'accepted' || status === 'invoiced' || !!quote?.acceptedAt || lead?.stage === 'booked',
+    [lead?.stage, quote?.acceptedAt, status]
+  )
   const canEditQuoteWorkspace = useMemo(() => {
     if (!currentUser) return false
-    if (currentUser.role === 'owner' || currentUser.role === 'manager') return true
-    if (!lead) return false
-    const ownerUserId = lead?.assignedRepUserId?.trim()
-    const ownerName = getLeadAssignedRepName(lead)?.trim()
-    if (!ownerUserId && !ownerName) return true
-    return currentUser.userId === ownerUserId || (!!currentUser.name && currentUser.name === ownerName)
-  }, [currentUser, lead])
+    const hasSalesAccess =
+      currentUser.role === 'owner' ||
+      currentUser.role === 'manager' ||
+      currentUser.role === 'sales_rep'
+    return hasSalesAccess && !isAcceptedQuoteLocked
+  }, [currentUser, isAcceptedQuoteLocked])
   const quoteReadOnlyReason = useMemo(() => {
-    if (!lead || !currentUser || canEditQuoteWorkspace) return null
-    const ownerName = getLeadAssignedRepName(lead)
-    return ownerName
-      ? `This quote belongs to ${ownerName}'s lead. You can review it, but only the assigned rep, a manager, or the owner can edit or send it.`
-      : 'This quote is view-only for you right now.'
-  }, [canEditQuoteWorkspace, currentUser, lead])
+    if (isAcceptedQuoteLocked) {
+      return 'This quote has already been accepted/booked. Customer-facing pricing and route details are locked on this page.'
+    }
+    return null
+  }, [isAcceptedQuoteLocked])
 
   const emailDraft = useMemo(() => {
     if (!quote) return { subject: '', body: '', htmlBody: '', href: '#' }
@@ -248,7 +250,7 @@ export default function SalesQuoteDetailPage() {
     const detailLine = isRevision
       ? 'This updated pricing reflects the latest confirmed inventory and access details currently on file.'
       : 'This pricing is based on the confirmed inventory and access details currently on file.'
-    const scopeNotes = buildMoveSpecificNotes(lead?.jobFactors)
+    const scopeNotes = buildMoveSpecificNotes(lead?.jobFactors, lead?.inventory, lead?.moveType)
     const body = `Hi ${firstName},
 
 ${introLine}
@@ -810,11 +812,14 @@ Saturn Star Movers`
         distanceKm: number
         distanceMiles: number
         driveHours: number
+        operationalDistanceKm?: number
         category: string
         originResolved: string
         destResolved: string
       }
       setLongDistanceDistanceKm(result.distanceKm)
+      const operationalKm = Number(result.operationalDistanceKm || result.distanceKm || 0)
+      setLongDistanceTruckCost(Number((operationalKm * Math.max(1, truckCount) * UHAUL_RATE_PER_KM).toFixed(2)))
       setRouteSummary(`${quote.originCity || 'Origin'} → ${quote.destCity || 'Destination'} · ${result.distanceKm} km · ~${result.driveHours} hr drive`)
       setError(null)
     } catch (err) {
@@ -1224,7 +1229,7 @@ Saturn Star Movers`
             <div className="flex-1 overflow-y-auto">
               {previewTab === ('quote') ? (
                 <iframe
-                  src={acceptUrl}
+                  src={acceptUrl ? `${acceptUrl}&preview=1` : ''}
                   className="w-full border-0"
                   style={{ height: '520px' }}
                   title="Customer Quote View"

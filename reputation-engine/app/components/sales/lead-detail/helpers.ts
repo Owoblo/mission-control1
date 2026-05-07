@@ -32,6 +32,8 @@ export function buildLeadSignature(payload: {
   phone: string
   email: string
   moveDate: string
+  moveDateFlexible?: boolean
+  moveDateFlexibleReason?: string
   moveType?: string
   branch?: string
   source: string
@@ -52,6 +54,9 @@ export function buildLeadSignature(payload: {
   assignedRepUserId?: string
   estimateDate?: string
   estimateTime?: string
+  lostReason?: string
+  lostNotes?: string
+  jobFactors?: unknown
   inventory: InventoryItem[]
 }) {
   return JSON.stringify(payload)

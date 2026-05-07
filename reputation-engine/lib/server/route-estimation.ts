@@ -1,4 +1,5 @@
 import type { EstimateRouteContext } from '@/lib/types'
+import { getGoogleMapsApiKey } from '@/lib/server/runtime'
 
 const BRANCH_YARDS: Record<string, string> = {
   windsor: 'Windsor, ON, Canada',
@@ -18,6 +19,8 @@ type GeocodeResult = {
 export type AddressSuggestion = {
   label: string
   city?: string
+  placeType?: 'house' | 'apartment' | 'commercial' | 'unknown'
+  placeId?: string
 }
 
 function extractAddressLocality(address?: Record<string, string | undefined>) {
@@ -56,38 +59,97 @@ export async function geocodeAddress(address: string): Promise<GeocodeResult | n
   }
 }
 
-export async function suggestAddresses(query: string): Promise<AddressSuggestion[]> {
-  const trimmed = query.trim()
-  if (trimmed.length < 5) return []
+function detectApartmentFromText(label: string): AddressSuggestion['placeType'] {
+  const lower = label.toLowerCase()
+  if (/\b(apt|unit|suite|#\s*\d|floor\s+\d|fl\.\s*\d|ph\b|penthouse|condo)\b/.test(lower)) return 'apartment'
+  if (/\b(tower|towers|plaza|centre|center|heights|terrace|court|park|estates|gardens)\b/.test(lower)) return 'apartment'
+  return 'unknown'
+}
 
+async function suggestWithNominatim(query: string): Promise<AddressSuggestion[]> {
   const url =
     `https://nominatim.openstreetmap.org/search` +
-    `?q=${encodeURIComponent(trimmed)}` +
+    `?q=${encodeURIComponent(query)}` +
     `&format=jsonv2&limit=5&addressdetails=1&countrycodes=ca,us`
 
   const response = await fetch(url, {
     headers: { 'User-Agent': 'SaturnStarMissionControl/1.0 (business@starmovers.ca)' },
     cache: 'no-store',
   })
-
   if (!response.ok) return []
 
   const results = (await response.json()) as Array<{
     display_name: string
+    type?: string
     address?: Record<string, string | undefined>
   }>
 
   const seen = new Set<string>()
   return results
-    .map(result => ({
-      label: result.display_name,
-      city: extractAddressLocality(result.address),
-    }))
-    .filter(result => {
-      if (!result.label || seen.has(result.label)) return false
-      seen.add(result.label)
+    .map(result => {
+      const placeType: AddressSuggestion['placeType'] =
+        result.type === 'house' || result.type === 'residential' ? 'house'
+        : result.type === 'apartments' || result.type === 'flat' ? 'apartment'
+        : detectApartmentFromText(result.display_name)
+      return {
+        label: result.display_name,
+        city: extractAddressLocality(result.address),
+        placeType,
+      }
+    })
+    .filter(r => {
+      if (!r.label || seen.has(r.label)) return false
+      seen.add(r.label)
       return true
     })
+}
+
+export async function suggestAddresses(query: string): Promise<AddressSuggestion[]> {
+  const trimmed = query.trim()
+  if (trimmed.length < 5) return []
+
+  // Try Google Places Autocomplete when API key is available
+  const apiKey = getGoogleMapsApiKey()
+  if (apiKey) {
+    try {
+      const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json` +
+        `?input=${encodeURIComponent(trimmed)}` +
+        `&types=address` +
+        `&components=country:ca|country:us` +
+        `&key=${apiKey}`
+      const res = await fetch(url, { cache: 'no-store' })
+      if (res.ok) {
+        const data = (await res.json()) as {
+          status: string
+          predictions?: Array<{
+            description: string
+            place_id: string
+            types?: string[]
+          }>
+        }
+        if (data.status === 'OK' || data.status === 'ZERO_RESULTS') {
+          return (data.predictions || []).map(p => {
+            const types = p.types || []
+            const placeType: AddressSuggestion['placeType'] =
+              types.includes('subpremise') ? 'apartment'
+              : types.includes('establishment') || types.includes('point_of_interest') ? 'commercial'
+              : types.includes('street_address') || types.includes('premise') ? detectApartmentFromText(p.description)
+              : detectApartmentFromText(p.description)
+            const cityMatch = p.description.match(/,\s*([^,]+),\s*ON|,\s*([^,]+),\s*MI/)
+            return {
+              label: p.description,
+              city: cityMatch?.[1] || cityMatch?.[2] || undefined,
+              placeType,
+              placeId: p.place_id,
+            }
+          })
+        }
+      }
+    } catch { /* fall through to Nominatim */ }
+  }
+
+  // Fallback: Nominatim (OpenStreetMap) — always works, no API key needed
+  return suggestWithNominatim(trimmed)
 }
 
 export async function getDrivingRoute(

@@ -11,12 +11,14 @@ import type { NotificationItem } from '@/app/api/sales/notifications/route'
 
 const BASE_NAV = [
   { href: '/sales', label: 'Dashboard', match: (p: string) => p === '/sales', roles: ['owner', 'manager', 'sales_rep'] },
-  { href: '/sales/pipeline', label: 'Pipeline', match: (p: string) => p.startsWith('/sales/pipeline'), roles: ['owner', 'manager', 'sales_rep'] },
   { href: '/sales/inbox', label: 'Inbox', match: (p: string) => p.startsWith('/sales/inbox'), roles: ['owner', 'manager', 'sales_rep'] },
+  { href: '/sales/pipeline', label: 'Pipeline', match: (p: string) => p.startsWith('/sales/pipeline'), roles: ['owner', 'manager', 'sales_rep'] },
   { href: '/sales/quotes', label: 'Quotes', match: (p: string) => p.startsWith('/sales/quotes'), roles: ['owner', 'manager', 'sales_rep'] },
   { href: '/sales/booked', label: 'Booked', match: (p: string) => p.startsWith('/sales/booked'), roles: ['owner', 'manager', 'sales_rep'] },
-  { href: '/sales/operations', label: 'Operations', match: (p: string) => p.startsWith('/sales/operations'), roles: ['owner', 'manager'] },
+  { href: '/sales/academy', label: 'Academy', match: (p: string) => p.startsWith('/sales/academy'), roles: ['owner', 'manager', 'sales_rep'] },
+  { href: '/sales/operations', label: 'Operations', match: (p: string) => p.startsWith('/sales/operations'), roles: ['owner', 'manager', 'operations_lead'] },
   { href: '/sales/finance', label: 'Finance', match: (p: string) => p.startsWith('/sales/finance'), roles: ['owner', 'manager'] },
+  { href: '/sales/activity', label: 'Live Feed', match: (p: string) => p.startsWith('/sales/activity'), roles: ['owner', 'manager'] },
   { href: '/sales/analytics', label: 'Analytics', match: (p: string) => p.startsWith('/sales/analytics'), roles: ['owner', 'manager'] },
   { href: '/sales/reps', label: 'Reps', match: (p: string) => p.startsWith('/sales/reps'), roles: ['owner', 'manager'] },
   { href: '/admin/users', label: 'Team', match: (p: string) => p.startsWith('/admin'), roles: ['owner'] },
@@ -73,6 +75,52 @@ export function SalesHeader() {
   const seenIdsRef = useRef<Set<string>>(new Set())
   const [toast, setToast] = useState<NotificationItem | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const audioCtxRef = useRef<AudioContext | null>(null)
+
+  // ── Audio chime ─────────────────────────────────────────────────────────
+  function playChime() {
+    try {
+      if (typeof window === 'undefined') return
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+      }
+      const ctx = audioCtxRef.current
+      // Two-tone chime: pleasant rising interval
+      const notes = [523.25, 659.25] // C5 → E5
+      notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.type = 'sine'
+        osc.frequency.value = freq
+        const start = ctx.currentTime + i * 0.18
+        gain.gain.setValueAtTime(0, start)
+        gain.gain.linearRampToValueAtTime(0.35, start + 0.04)
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.5)
+        osc.start(start)
+        osc.stop(start + 0.55)
+      })
+    } catch { /* audio not available */ }
+  }
+
+  // ── Browser push notification ────────────────────────────────────────────
+  function showPushNotification(title: string, body: string) {
+    if (typeof window === 'undefined') return
+    if (!('Notification' in window)) return
+    if (Notification.permission !== 'granted') return
+    try {
+      new Notification(title, { body, icon: '/favicon.ico', tag: 'saturn-lead' })
+    } catch { /* non-fatal */ }
+  }
+
+  // Request push permission once (called on user interaction)
+  function requestPushPermission() {
+    if (typeof window === 'undefined' || !('Notification' in window)) return
+    if (Notification.permission === 'default') {
+      void Notification.requestPermission()
+    }
+  }
 
   // Load all leads once for search
   useEffect(() => {
@@ -104,7 +152,7 @@ export function SalesHeader() {
         if (!res.ok) return
         const data = await res.json() as { items: NotificationItem[]; totalCount: number; breakdown: { leads: number; sms: number; emails: number; alerts: number } }
 
-        // Detect new items for toast (only after first load)
+        // Detect new items for toast + chime + push
         if (seenIdsRef.current.size > 0) {
           const newItems = data.items.filter(item => !seenIdsRef.current.has(item.id))
           if (newItems.length > 0) {
@@ -112,6 +160,13 @@ export function SalesHeader() {
             if (toastTimer.current) clearTimeout(toastTimer.current)
             setToast(newest)
             toastTimer.current = setTimeout(() => setToast(null), 7000)
+            // 🔔 Audio chime
+            playChime()
+            // 📱 Browser push notification
+            showPushNotification(
+              '🌟 Saturn Star — New Lead',
+              newest.title || 'New activity'
+            )
           }
         }
         data.items.forEach(item => seenIdsRef.current.add(item.id))
@@ -168,7 +223,9 @@ export function SalesHeader() {
     router.push(item.href)
   }
 
-  const navItems = BASE_NAV.filter(item => item.roles.includes(role))
+  const navItems = BASE_NAV
+    .filter(item => item.roles.includes(role))
+    .filter(item => !(role === 'sales_rep' && ['Finance', 'Live Feed', 'Analytics', 'Reps', 'Team', 'Partnerships'].includes(item.label)))
   const initials = user?.name ? user.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : 'SS'
 
   return (
@@ -216,9 +273,9 @@ export function SalesHeader() {
               {/* ── Notification Bell ──────────────────────────────────── */}
               <div ref={notifRef} className="relative">
                 <button
-                  onClick={() => setNotifOpen(v => !v)}
+                  onClick={() => { setNotifOpen(v => !v); requestPushPermission() }}
                   className={`relative flex h-9 w-9 items-center justify-center rounded-[8px] border text-lg transition ${notifOpen ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white' : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-ink)] hover:border-[var(--app-ink)]'}`}
-                  title="Notifications"
+                  title="Notifications — click to enable alert sounds"
                 >
                   🔔
                   {notifTotal > 0 && (
