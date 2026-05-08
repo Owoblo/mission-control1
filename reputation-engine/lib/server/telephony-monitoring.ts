@@ -35,6 +35,7 @@ export interface HealthyBrowserPresence {
   sessionCount: number
   sessions: string[]
   userIds: string[]
+  identities: string[]
 }
 
 export interface TelephonyDashboardMetrics {
@@ -226,12 +227,10 @@ export async function listRecentDialerPresence(options: {
 }
 
 export async function getHealthyBrowserPresence(options: {
-  identity?: string | null
   maxAgeSeconds?: number
-}) {
+} = {}) {
   const maxAgeSeconds = options.maxAgeSeconds ?? 90
   const rows = await listRecentDialerPresence({
-    identity: options.identity || null,
     sinceMinutes: Math.max(2, Math.ceil(maxAgeSeconds / 60) + 2),
     limit: 200,
   })
@@ -256,6 +255,7 @@ export async function getHealthyBrowserPresence(options: {
     active: healthySessions.length > 0,
     sessionCount: healthySessions.length,
     sessions: healthySessions.map(row => String(row.properties.sessionId || '')),
+    identities: Array.from(new Set(healthySessions.map(row => String(row.properties.identity || '')).filter(Boolean))),
     userIds: healthySessions
       .map(row => String(row.properties.userId || ''))
       .filter(Boolean),
@@ -290,7 +290,9 @@ export async function buildTelephonyDashboardMetrics() {
     }).catch(() => [] as AnalyticsQueryRow[]),
   ])
 
-  const outcomes = callOutcomeRows.map(mapAnalyticsRow)
+  // Filter out spam calls (impossible phone numbers > 15 digits) from all metrics and display
+  const isSpamPhone = (phone: unknown) => typeof phone === 'string' && phone.replace(/\D/g, '').length > 15
+  const outcomes = callOutcomeRows.map(mapAnalyticsRow).filter(row => !isSpamPhone(row.properties.phoneNumber))
   const dialerEvents = dialerEventRows.map(mapAnalyticsRow)
 
   const answerTimes = outcomes
@@ -337,5 +339,17 @@ export async function buildTelephonyDashboardMetrics() {
     mobileCallsToday,
     callsWithNoAudioToday,
     abandonedBeforeAnswerToday,
-  } satisfies TelephonyDashboardMetrics
+    // Raw outcomes for the calls drawer — last 30 calls today
+    recentOutcomes: outcomes.slice(0, 30).map(row => ({
+      ts: row.ts,
+      leadId: row.leadId,
+      direction: row.properties.direction as string | undefined,
+      phone: row.properties.phoneNumber as string | undefined,
+      answered: row.properties.answered as boolean | undefined,
+      missed: row.properties.missed as boolean | undefined,
+      durationSeconds: row.properties.durationSeconds as number | undefined,
+      answerChannel: row.properties.answerChannel as string | undefined,
+      repName: row.properties.repName as string | undefined,
+    })),
+  }
 }

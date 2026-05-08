@@ -1,14 +1,18 @@
 import { NextResponse } from 'next/server'
-import { applyLeadMediaAnalysis, analyzeLeadPhotosWithVision, uploadLeadMediaAssets } from '@/lib/server/lead-media'
+import { applyLeadMediaAnalysis, uploadLeadMediaAssets } from '@/lib/server/lead-media'
 import { getSalesLead, saveSalesLead } from '@/lib/server/sales-repository'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 
 async function getLeadByToken(token: string) {
   const { url, headers } = requireSupabaseEnv()
-  const response = await fetch(`${url}/rest/v1/crm_leads?select=id,data&deleted=not.is.true`, { headers })
+  // Query directly by surveyToken field — never fetch all leads
+  const response = await fetch(
+    `${url}/rest/v1/crm_leads?select=id,data&data->>surveyToken=eq.${encodeURIComponent(token)}&deleted=not.is.true&limit=1`,
+    { headers, cache: 'no-store' }
+  )
   if (!response.ok) return null
   const rows = await response.json() as Array<{ id: string; data: Record<string, unknown> }>
-  return rows.find(row => row.data?.surveyToken === token) || null
+  return rows[0] || null
 }
 
 export async function POST(
@@ -17,14 +21,10 @@ export async function POST(
 ) {
   try {
     const row = await getLeadByToken(params.token)
-    if (!row) {
-      return NextResponse.json({ error: 'Invalid survey link' }, { status: 404 })
-    }
+    if (!row) return NextResponse.json({ error: 'Invalid survey link' }, { status: 404 })
 
     const lead = await getSalesLead(row.id)
-    if (!lead) {
-      return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
-    }
+    if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
 
     const expiresAt = row.data.surveyTokenExpiresAt as string | undefined
     if (expiresAt && new Date(expiresAt) < new Date()) {
@@ -34,10 +34,9 @@ export async function POST(
     const formData = await request.formData()
     const room = (formData.get('room') as string) || 'other'
     const files = (formData.getAll('photos') as File[]).filter(Boolean)
-    if (!files.length) {
-      return NextResponse.json({ error: 'No photos provided' }, { status: 400 })
-    }
+    if (!files.length) return NextResponse.json({ error: 'No photos provided' }, { status: 400 })
 
+    // Store photos immediately — NO AI scanning here (that happens on the rep's side)
     const assets = await uploadLeadMediaAssets({
       leadId: lead.id,
       namespace: params.token,
@@ -45,23 +44,20 @@ export async function POST(
       room,
       source: 'survey',
     })
-    const imageUrls = assets.filter(asset => asset.kind === 'image').map(asset => asset.url)
-    const detectedItems = imageUrls.length > 0 ? await analyzeLeadPhotosWithVision(room, imageUrls) : []
+
+    // Save assets to lead (no inventory changes yet — scan happens later)
     const updatedLead = applyLeadMediaAnalysis(lead, {
       assets,
-      detectedItems,
+      detectedItems: [],   // empty — AI runs on the rep side, not here
       source: 'survey',
     })
-
     await saveSalesLead(updatedLead)
 
     return NextResponse.json({
       ok: true,
-      detectedItems,
       uploadedCount: assets.length,
-      analyzedImageCount: imageUrls.length,
-      skippedVideoCount: assets.filter(asset => asset.kind === 'video').length,
-      totalInventoryCount: updatedLead.inventory?.length || 0,
+      room,
+      totalPhotoCount: updatedLead.surveyPhotoCount || 0,
     })
   } catch (error) {
     console.error('[survey/upload] error', error)

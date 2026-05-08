@@ -8,13 +8,22 @@ interface AppUser {
   email: string
   name: string
   role: UserRole
+  branch?: string
   created_at: string
+}
+
+const BRANCH_LABELS: Record<string, string> = {
+  windsor: 'Windsor',
+  waterloo: 'Waterloo / KW',
+  london: 'London',
+  ottawa: 'Ottawa',
 }
 
 const ROLE_LABELS: Record<UserRole, string> = {
   owner: 'Owner',
   manager: 'Manager',
   sales_rep: 'Sales Rep',
+  operations_lead: 'Operations Lead',
   crew: 'Crew',
 }
 
@@ -22,6 +31,7 @@ const ROLE_COLORS: Record<UserRole, string> = {
   owner: 'bg-[#1a2744] text-white',
   manager: 'bg-sky-100 text-sky-800',
   sales_rep: 'bg-emerald-100 text-emerald-800',
+  operations_lead: 'bg-orange-100 text-orange-800',
   crew: 'bg-amber-100 text-amber-800',
 }
 
@@ -29,6 +39,7 @@ const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   owner: 'Full access — CRM, operations, financials, settings',
   manager: 'CRM + operations, assign crew, no financials',
   sales_rep: 'Pipeline, leads, dialer, quotes only',
+  operations_lead: 'Operations calendar only — sees booked jobs, assigns crew for their branch',
   crew: 'Crew calendar — sees their assigned jobs only',
 }
 
@@ -37,7 +48,7 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true)
   const [addOpen, setAddOpen] = useState(false)
   const [editUser, setEditUser] = useState<AppUser | null>(null)
-  const [form, setForm] = useState({ name: '', email: '', role: 'sales_rep' as UserRole, password: '' })
+  const [form, setForm] = useState({ name: '', email: '', role: 'sales_rep' as UserRole, password: '', branch: '' })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -52,14 +63,14 @@ export default function AdminUsersPage() {
   useEffect(() => { void load() }, [])
 
   function openAdd() {
-    setForm({ name: '', email: '', role: 'sales_rep', password: '' })
+    setForm({ name: '', email: '', role: 'sales_rep', password: '', branch: '' })
     setError(null)
     setAddOpen(true)
     setEditUser(null)
   }
 
   function openEdit(u: AppUser) {
-    setForm({ name: u.name, email: u.email, role: u.role, password: '' })
+    setForm({ name: u.name, email: u.email, role: u.role, password: '', branch: u.branch || '' })
     setError(null)
     setEditUser(u)
     setAddOpen(true)
@@ -70,7 +81,7 @@ export default function AdminUsersPage() {
     setBusy(true)
     try {
       if (editUser) {
-        const updates: Record<string, string> = { id: editUser.id, name: form.name, role: form.role }
+        const updates: Record<string, string> = { id: editUser.id, name: form.name, role: form.role, branch: form.branch }
         if (form.password) updates.password = form.password
         const r = await fetch('/api/admin/users', {
           method: 'PATCH',
@@ -158,11 +169,16 @@ export default function AdminUsersPage() {
                 {u.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-semibold text-[#1a2744]">{u.name}</span>
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${ROLE_COLORS[u.role]}`}>
                     {ROLE_LABELS[u.role]}
                   </span>
+                  {u.branch && (
+                    <span className="rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[10px] font-semibold text-orange-700">
+                      {BRANCH_LABELS[u.branch] || u.branch}
+                    </span>
+                  )}
                 </div>
                 <div className="text-xs text-slate-400">{u.email}</div>
               </div>
@@ -234,11 +250,29 @@ export default function AdminUsersPage() {
                   onChange={e => setForm(f => ({ ...f, role: e.target.value as UserRole }))}
                 >
                   <option value="sales_rep">Sales Rep — CRM + dialer</option>
-                  <option value="crew">Crew — Calendar only</option>
+                  <option value="crew">Crew — Job calendar only</option>
+                  <option value="operations_lead">Operations Lead — Jobs calendar, crew assignment</option>
                   <option value="manager">Manager — CRM + operations</option>
                   <option value="owner">Owner — Full access</option>
                 </select>
               </label>
+
+              {(form.role === 'operations_lead' || form.role === 'crew') && (
+                <label className="block">
+                  <span className="crm-label">Branch <span className="font-normal text-slate-400">(which location this person manages)</span></span>
+                  <select
+                    className="crm-input mt-1"
+                    value={form.branch}
+                    onChange={e => setForm(f => ({ ...f, branch: e.target.value }))}
+                  >
+                    <option value="">All branches</option>
+                    <option value="windsor">Windsor</option>
+                    <option value="waterloo">Waterloo / KW</option>
+                    <option value="london">London</option>
+                    <option value="ottawa">Ottawa</option>
+                  </select>
+                </label>
+              )}
 
               <label className="block">
                 <span className="crm-label">Password {editUser && <span className="font-normal text-slate-400">(leave blank to keep current)</span>}</span>

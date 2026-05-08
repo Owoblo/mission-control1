@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { applyDetectedBranch } from '@/lib/server/sales-opportunities'
-import { calculateLeadScore, getLeadAssignedRepName, normalizeLead, uid } from '@/lib/sales'
+import { calculateLeadScore, getLeadAssignedRepName, isClosedLeadStage, normalizeLead, uid } from '@/lib/sales'
 import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { recordLeadCreatedAudit, recordLeadUpdateAudit } from '@/lib/server/sales-audit'
 import { listSalesLeads, saveSalesLead } from '@/lib/server/sales-repository'
@@ -17,7 +17,7 @@ function findMatchingActiveLead(leads: CRMLead[], phone?: string, email?: string
   const normalizedEmail = normalizeEmail(email)
 
   return leads.find(lead => {
-    if (lead.stage === 'booked' || lead.stage === 'lost') {
+    if (isClosedLeadStage(lead.stage)) {
       return false
     }
 
@@ -53,9 +53,14 @@ export async function POST(request: Request) {
       : findMatchingActiveLead(await listSalesLeads(), validated.phone, validated.email)
 
     if (existingLead) {
+      // Placeholder names created by auto-routing should be overwritten by real names
+      const PLACEHOLDER_NAMES = new Set(['Unknown Caller', 'New Caller', 'New Contact', ''])
+      const isPlaceholderName = PLACEHOLDER_NAMES.has((existingLead.name || '').trim())
       const mergedLead = normalizeLead({
         ...existingLead,
-        name: existingLead.name || validated.name,
+        // Prefer real name over placeholder; otherwise keep existing
+        name: isPlaceholderName && validated.name ? validated.name : (existingLead.name || validated.name),
+        // Always fill in missing contact details
         phone: existingLead.phone || validated.phone,
         email: existingLead.email || validated.email,
         source: existingLead.source || payload.source || 'other',
@@ -63,6 +68,7 @@ export async function POST(request: Request) {
         moveType: existingLead.moveType || validated.moveType || 'residential',
         originAddress: existingLead.originAddress || payload.originAddress?.trim(),
         originCity: existingLead.originCity || payload.originCity?.trim(),
+        destAddress: existingLead.destAddress || payload.destAddress?.trim(),
         destCity: existingLead.destCity || payload.destCity?.trim(),
         moveReason: existingLead.moveReason || payload.moveReason?.trim(),
         notes: existingLead.notes || payload.notes?.trim(),

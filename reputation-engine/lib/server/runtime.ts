@@ -1,5 +1,19 @@
 function normalizeEnvValue(value?: string | null) {
-  return (value || '').trim()
+  const trimmed = (value || '').trim()
+  if (!trimmed) return ''
+
+  const unquoted =
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+      ? trimmed.slice(1, -1)
+      : trimmed
+
+  return unquoted
+    .replace(/\\r/g, '')
+    .replace(/\\n/g, '')
+    .replace(/\r/g, '')
+    .replace(/\n/g, '')
+    .trim()
 }
 
 export function readEnv(name: string) {

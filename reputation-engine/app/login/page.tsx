@@ -35,6 +35,8 @@ function LoginForm() {
         window.location.href = next
       } else if (role === 'crew') {
         window.location.href = '/crew/calendar'
+      } else if (role === 'operations_lead') {
+        window.location.href = '/sales/operations'
       } else {
         window.location.href = '/sales'
       }

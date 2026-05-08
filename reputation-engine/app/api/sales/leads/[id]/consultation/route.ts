@@ -1,7 +1,7 @@
 export const maxDuration = 60 // allow time for Whisper transcription
 
 import { NextResponse } from 'next/server'
-import { canAccessSalesWorkspace, canEditLead } from '@/lib/server/sales-permissions'
+import { canAccessSalesWorkspace, canHandleLeadCommunications } from '@/lib/server/sales-permissions'
 import { getSalesLead, saveSalesLead } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
 import { calculateLeadScore, normalizeLead, uid } from '@/lib/sales'
@@ -26,8 +26,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
     }
 
-    if (!canEditLead(session, lead)) {
-      return NextResponse.json({ error: 'You can only save consultations on leads you own.' }, { status: 403 })
+    if (!canHandleLeadCommunications(session, lead)) {
+      return NextResponse.json({ error: 'You do not have permission to save consultations on this lead.' }, { status: 403 })
     }
 
     const payload = (await request.json()) as {

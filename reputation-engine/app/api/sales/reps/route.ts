@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getLeadAssignedRepKey, getLeadAssignedRepName } from '@/lib/sales'
+import { getLeadAssignedRepKey, getLeadAssignedRepName, isBookedLikeStage } from '@/lib/sales'
 import { getSessionUser } from '@/lib/server/session'
 import { listSalesLeads, listFollowUpLogs } from '@/lib/server/sales-repository'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
@@ -41,7 +41,7 @@ export async function GET() {
     if (!repMap.has(repId)) repMap.set(repId, { name: repName, leads: [], booked: [], lost: [] })
     const bucket = repMap.get(repId)!
     bucket.leads.push(lead)
-    if (lead.stage === 'booked') bucket.booked.push(lead)
+    if (isBookedLikeStage(lead.stage)) bucket.booked.push(lead)
     if (lead.stage === 'lost') bucket.lost.push(lead)
   }
 

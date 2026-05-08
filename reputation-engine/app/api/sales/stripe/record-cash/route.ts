@@ -6,6 +6,7 @@
  */
 import { NextResponse } from 'next/server'
 import { hasInternalSession } from '@/lib/server/session'
+import { readEnv } from '@/lib/server/runtime'
 
 async function stripePost(path: string, key: string, body: URLSearchParams) {
   const res = await fetch(`https://api.stripe.com/v1/${path}`, {
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
   const authed = await hasInternalSession()
   if (!authed) return new Response('Unauthorized', { status: 401 })
 
-  const stripeKey = process.env.STRIPE_SECRET_KEY
+  const stripeKey = readEnv('STRIPE_SECRET_KEY')
   if (!stripeKey) return NextResponse.json({ error: 'Stripe not configured' }, { status: 503 })
 
   try {

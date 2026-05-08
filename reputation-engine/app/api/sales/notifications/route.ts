@@ -28,12 +28,19 @@ export interface NotificationItem {
 }
 
 const SOURCE_LABELS: Record<string, string> = {
-  twilio_call:   'Missed call',
+  twilio_call:   'Inbound call',
   twilio_sms:    'Inbound SMS',
   facebook_dm:   'Facebook DM',
   instagram_dm:  'Instagram DM',
   email:         'Inbound email',
   website_form:  'Web form inquiry',
+}
+
+function getLeadPreviewLabel(source: string, raw: Record<string, unknown> | null) {
+  if (source !== 'twilio_call') return SOURCE_LABELS[source] || source
+  const dialCallStatus = typeof raw?.dialCallStatus === 'string' ? raw.dialCallStatus.toLowerCase() : ''
+  const missedCall = raw?.missedCall === true || ['no-answer', 'busy', 'failed', 'canceled'].includes(dialCallStatus)
+  return missedCall ? 'Missed call' : 'Inbound call'
 }
 
 export async function GET() {
@@ -68,17 +75,27 @@ export async function GET() {
         getSaturnTrackingLabel(branchNumber) ||
         undefined
       const inboundName = l.name?.trim()
+      // Use actual phone number as title when name is unknown — much more useful than "New Caller"
+      const phoneTitle = l.phone
+        ? (() => {
+            const d = l.phone.replace(/\D/g, '')
+            if (d.length === 11 && d.startsWith('1')) return `+1 (${d.slice(1,4)}) ${d.slice(4,7)}-${d.slice(7)}`
+            if (d.length === 10) return `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`
+            return l.phone
+          })()
+        : null
       const name = inboundName && !/^unknown/i.test(inboundName)
         ? inboundName
-        : l.source === 'twilio_call' ? 'New Caller'
-        : l.source === 'twilio_sms'  ? 'New Contact'
-        : 'New Inquiry'
+        : phoneTitle
+          ?? (l.source === 'twilio_call' ? 'Unknown Caller' : l.source === 'twilio_sms' ? 'Unknown Contact' : 'New Inquiry')
+      // Don't include branchLabel here — the component already prepends it to avoid duplication
+      const previewParts = [getLeadPreviewLabel(l.source, raw), trackingLabel].filter(Boolean)
       return {
         id: l.id,
         type: 'lead' as const,
         source: l.source,
         title: name,
-        preview: `${SOURCE_LABELS[l.source] || l.source}${branchLabel ? ` • ${branchLabel}` : ''}${trackingLabel ? ` • ${trackingLabel}` : ''}`,
+        preview: previewParts.join(' • '),
         time: l.created_at,
         leadId: null,
         phone: l.phone || null,
@@ -165,6 +182,7 @@ export async function GET() {
     .map(log => {
       const parsed = parseSalesAlertNote(log.notes)
       if (!parsed) return null
+      if (parsed.title === 'Missed call needs callback') return null
       return {
         id: `alert-${log.id}`,
         type: 'alert' as const,

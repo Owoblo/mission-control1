@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 
+const WORKER_URL = 'https://saturn-lead-intake.johnowolabi80.workers.dev'
+
 export interface EmailMessage {
   id: string
   from_address: string
@@ -19,6 +21,15 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const email = (searchParams.get('email') || '').toLowerCase().trim()
     if (!email) return NextResponse.json([])
+
+    // Sync Zoho INBOX → Supabase via Worker before querying (best-effort, 8s max)
+    try {
+      await fetch(`${WORKER_URL}/email-messages`, {
+        signal: AbortSignal.timeout(8000),
+      })
+    } catch {
+      // non-fatal — proceed with whatever is already in Supabase
+    }
 
     const { url, headers } = requireSupabaseEnv()
     const encoded = encodeURIComponent(email)

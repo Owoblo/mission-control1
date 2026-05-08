@@ -42,6 +42,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       return NextResponse.json({ error: 'Client phone or email is required' }, { status: 400 })
     }
 
+    const referringRealtorName = current.realtorName || current.name
     const saved = await saveSalesLead({
       ...current,
       name: clientName,
@@ -49,7 +50,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
       email: clientEmail || undefined,
       primaryContactRole: 'customer',
       stage: current.stage === 'new' ? 'contacted' : current.stage,
-      realtorName: current.realtorName || current.name,
+      source: 'realtor_referral',
+      realtorName: referringRealtorName,
       realtorPhone: current.realtorPhone || current.phone,
       realtorEmail: current.realtorEmail || current.email,
     })
@@ -60,7 +62,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       type: 'note',
       date: new Date().toISOString(),
       createdAt: new Date().toISOString(),
-      notes: `Realtor handed off the client contact. Active contact switched to ${clientName}.`,
+      notes: `Realtor referral — ${referringRealtorName} handed off client. Active contact switched to ${clientName}. Source tagged as realtor_referral (20% discount eligible).`,
     })
 
     return NextResponse.json({ lead: saved, log })

@@ -7,7 +7,7 @@ import { getSaturnTrackingLabel, getSaturnTrackingSource } from '@/lib/sales-pho
 import type { CRMLead } from '@/lib/types'
 
 const CALLER_ID = '+12267732993'
-const CLIENT_IDENTITY = 'saturn-star-rep'
+const FALLBACK_CLIENT_IDENTITY = 'saturn-star-rep'
 const SIP_DOMAIN = 'saturn.sip.twilio.com'
 const INTERNAL_SIP_USERS = ['john', 'salesrep1']
 const INBOUND_RING_TIMEOUT = 28             // seconds before missed-call action fires
@@ -51,10 +51,12 @@ function internalSipTargets() {
     .join('')
 }
 
-function internalRingTargets(includeBrowser: boolean) {
-  // Rings simultaneously: browser CRM (if healthy) + Groundwire/SIP
-  const browser = includeBrowser ? `<Client>${CLIENT_IDENTITY}</Client>` : ''
-  return `${browser}${internalSipTargets()}`
+function internalRingTargets(browserIdentities: string[], fallbackToLegacy = false) {
+  // Rings simultaneously: all active rep browsers + Groundwire/SIP
+  const clients = browserIdentities.length > 0
+    ? browserIdentities.map(id => `<Client>${id}</Client>`).join('')
+    : fallbackToLegacy ? `<Client>${FALLBACK_CLIENT_IDENTITY}</Client>` : ''
+  return `${clients}${internalSipTargets()}`
 }
 
 function buildDialRecordingAttrs(recordingCallback?: string, dialStatusCallback?: string) {
@@ -109,8 +111,14 @@ function fallbackTwiml(appUrl = '') {
   const dialAttrs = buildDialRecordingAttrs(recordingCallback)
 
   return xmlResponse(
-    `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrs}>${internalRingTargets(true)}</Dial></Response>`
+    `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrs}>${internalRingTargets([], true)}</Dial></Response>`
   )
+}
+
+function isSpamPhoneNumber(phone: string) {
+  // E.164 max is 15 digits. Anything longer is a fake/spoofed robocaller number.
+  const digits = phone.replace(/\D/g, '')
+  return digits.length > 15
 }
 
 export async function GET() {
@@ -141,14 +149,20 @@ export async function POST(request: Request) {
     const branchCity = (normalizedTo && BRANCH_NUMBERS[normalizedTo]) || 'Windsor'
 
     if (isInbound) {
+      // Reject spam calls with impossible phone numbers (E.164 max is 15 digits).
+      // Robocallers use 20+ digit fake numbers to evade caller ID blocking.
+      if (from && isSpamPhoneNumber(from)) {
+        return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?><Response><Reject reason="busy"/></Response>`)
+      }
+
       const browserPresence = await getHealthyBrowserPresence({
-        identity: CLIENT_IDENTITY,
         maxAgeSeconds: 90,
       }).catch(() => ({
         active: true,
         sessionCount: 0,
         sessions: [],
         userIds: [],
+        identities: [],
       }))
 
       if (from) {
@@ -192,35 +206,13 @@ export async function POST(request: Request) {
           }).catch(() => {})
 
           if (callSid) {
-            const allLeads = await listSalesLeads().catch(() => [] as CRMLead[])
-            let crmLead = allLeads.find(lead => matchesPhone(from, lead)) ?? null
-
-            if (!crmLead) {
-              const newLead: CRMLead = {
-                id: uid('lead'),
-                name: 'Unknown Caller',
-                phone: from,
-                email: '',
-                stage: 'new',
-                source: 'twilio_call',
-                moveType: 'residential',
-                moveDate: '',
-                originCity: '',
-                destCity: '',
-                originAddress: '',
-                notes: '',
-                leadScore: 30,
-                totalCubicFeet: 0,
-                totalWeightLbs: 0,
-                totalItems: 0,
-                inventory: [],
-                roomBreakdown: {},
-                callLogs: [],
-                createdAt: now.slice(0, 10),
-                inboundId,
-              }
-              crmLead = await saveSalesLead(newLead).catch(() => null)
-            }
+            // Only link to an EXISTING lead — never create phantom "Unknown Caller" leads.
+            // If no existing lead matches, the recording-callback's ensureInboundLeadCallMapping
+            // handles creating the lead when the recording arrives (it has better phone matching
+            // and the inbound_lead entry above gives it full context).
+            const allLeads = await listSalesLeads().catch(() => null)
+            // Treat null (fetch failure) as "skip" — don't create phantom leads on DB errors
+            const crmLead = allLeads?.find(lead => matchesPhone(from, lead)) ?? null
 
             if (crmLead) {
               const existingCallLog = (crmLead.callLogs || []).find(entry => entry.callSid === callSid)
@@ -257,6 +249,7 @@ export async function POST(request: Request) {
                 await saveCrmCallSidMapping(callSid, saved.id, callLogId).catch(() => {})
               }
             }
+            // No existing lead found → recording-callback will handle it when recording arrives
           }
         } catch {
           // best-effort
@@ -287,7 +280,7 @@ export async function POST(request: Request) {
       ].filter(Boolean).join(' ')
 
       return xmlResponse(
-        `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrsInbound}>${internalRingTargets(browserPresence.active)}</Dial></Response>`
+        `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrsInbound}>${internalRingTargets(browserPresence.active ? browserPresence.identities : [])}</Dial></Response>`
       )
     }
 

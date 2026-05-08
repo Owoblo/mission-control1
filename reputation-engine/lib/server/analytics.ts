@@ -37,6 +37,9 @@ export type EventType =
   | 'job_outcome_recorded'
 
 interface EventProperties {
+  actor_name?: string
+  actor_user_id?: string
+
   // Lead context
   lead_source?: string
   lead_stage?: string
@@ -124,11 +127,27 @@ interface AnalyticsEvent {
   created_at: string
 }
 
+const LEAD_ACTOR_FALLBACK_EVENTS = new Set<EventType>([
+  'lead_created',
+  'lead_stage_changed',
+  'lead_lost',
+  'lead_assigned',
+  'job_booked',
+  'consultation_completed',
+  'quote_created',
+  'quote_sent',
+  'note_added',
+  'follow_up_scheduled',
+  'job_outcome_recorded',
+])
+
 export async function logEvent(
   eventType: EventType,
   options: {
     leadId?: string
     repId?: string
+    actorName?: string
+    actorUserId?: string
     lead?: CRMLead
     quote?: CRMQuote
     properties?: EventProperties
@@ -137,6 +156,7 @@ export async function logEvent(
   try {
     const { url, headers } = requireSupabaseEnv()
     const now = new Date().toISOString()
+    const allowLeadActorFallback = LEAD_ACTOR_FALLBACK_EVENTS.has(eventType)
 
     // Auto-enrich properties from lead if provided
     const enriched: EventProperties = {}
@@ -158,6 +178,8 @@ export async function logEvent(
       enriched.has_elevator = l.jobFactors?.originHasElevator || l.jobFactors?.destHasElevator
       enriched.inventory_item_count = l.totalItems
       enriched.total_cubic_feet = l.totalCubicFeet
+      enriched.actor_name = options.actorName || (allowLeadActorFallback ? (l.lastTouchedByName || getLeadAssignedRepName(l)) : undefined)
+      enriched.actor_user_id = options.actorUserId || (allowLeadActorFallback ? (l.lastTouchedByUserId || l.assignedRepUserId) : undefined)
 
       if (l.createdAt) {
         enriched.days_since_created = Math.floor(
@@ -183,13 +205,32 @@ export async function logEvent(
       }
     }
 
+    const actorUserId =
+      options.properties?.actor_user_id ||
+      options.actorUserId ||
+      enriched.actor_user_id
+    const actorName =
+      options.properties?.actor_name ||
+      options.actorName ||
+      enriched.actor_name
+
     const event: AnalyticsEvent = {
       id: uid('ev'),
       event_type: eventType,
       lead_id: options.leadId || options.lead?.id,
-      rep_id: options.repId || options.lead?.assignedRepUserId || options.lead?.assignedRep,
+      rep_id:
+        options.repId ||
+        actorUserId ||
+        (allowLeadActorFallback
+          ? (options.lead?.lastTouchedByUserId || options.lead?.assignedRepUserId)
+          : undefined),
       ts: now,
-      properties: { ...enriched, ...options.properties },
+      properties: {
+        ...enriched,
+        ...options.properties,
+        actor_name: actorName,
+        actor_user_id: actorUserId,
+      },
       created_at: now,
     }
 

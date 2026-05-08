@@ -6,8 +6,18 @@ import {
 } from '@/lib/sales-phones'
 import { pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
 import { appendSmsToInboundLead, getInboundLeadByPhone, saveInboundLead } from '@/lib/server/sales-repository'
-import { requireSupabaseEnv } from '@/lib/server/runtime'
+import { getAppBaseUrl, getWorkerSharedSecret, requireSupabaseEnv } from '@/lib/server/runtime'
 import { logEvent } from '@/lib/server/analytics'
+
+function triggerIntelligence(leadId: string) {
+  const base = getAppBaseUrl()
+  const secret = getWorkerSharedSecret()
+  if (!base || !secret || !leadId) return
+  void fetch(`${base}/api/sales/leads/${leadId}/intelligence`, {
+    method: 'POST',
+    headers: { 'x-internal-secret': secret },
+  }).catch(() => {})
+}
 
 const MY_NUMBER = DEFAULT_SATURN_BRANCH_NUMBER
 
@@ -50,15 +60,19 @@ async function writeSmsMessage(from: string, toNumber: string, body: string, mes
   }
 }
 
-// Twilio sends form-encoded data for SMS webhooks
+// Twilio sends form-encoded data for SMS and WhatsApp webhooks
 export async function POST(request: Request) {
   try {
     const formData = await request.formData()
-    const from = (formData.get('From') as string | null)?.trim() || ''
-    const toField = (formData.get('To') as string | null)?.trim() || MY_NUMBER
+    const rawFrom = (formData.get('From') as string | null)?.trim() || ''
+    const rawTo = (formData.get('To') as string | null)?.trim() || MY_NUMBER
     const body = (formData.get('Body') as string | null)?.trim() || ''
     const messageSid = (formData.get('MessageSid') as string | null)?.trim() || ''
     const receivedAt = new Date().toISOString()
+
+    // Strip WhatsApp prefix for phone matching — channel is detected from SID (WA=WhatsApp, SM=SMS)
+    const from = rawFrom.replace(/^whatsapp:/i, '')
+    const toField = rawTo.replace(/^whatsapp:/i, '') || MY_NUMBER
 
     if (from) {
       const normalized = toE164(from)
@@ -115,10 +129,13 @@ export async function POST(request: Request) {
           raw: { messageSid, from, body },
         }).catch(() => null)
 
-        void writeSmsMessage(normalized || from, toField, body || '(no body)', messageSid, automation?.lead?.id)
+        const resolvedLeadId = automation?.lead?.id
+        void writeSmsMessage(normalized || from, toField, body || '(no body)', messageSid, resolvedLeadId)
+        if (resolvedLeadId) triggerIntelligence(resolvedLeadId)
       }
     }
     void logEvent('sms_received', {
+      actorName: 'Customer',
       properties: {
         channel: 'sms',
         message_direction: 'inbound',

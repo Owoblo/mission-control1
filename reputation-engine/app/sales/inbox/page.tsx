@@ -10,16 +10,37 @@ import type { CRMEmail, InboundLead } from '@/lib/types'
 const SOURCE_LABELS: Record<string, string> = {
   twilio_call: 'Inbound Call',
   twilio_sms: 'SMS',
+  missed_call: 'Missed Call',
   facebook_dm: 'Facebook DM',
+  facebook_lead_ad: 'FB Lead Ad',
   instagram_dm: 'Instagram DM',
   email: 'Email',
   website_form: 'Web Form',
+  zapier: 'Lead Form',
+}
+
+const SOURCE_COLORS: Record<string, string> = {
+  twilio_call: 'bg-blue-100 text-blue-700',
+  twilio_sms: 'bg-purple-100 text-purple-700',
+  missed_call: 'bg-red-100 text-red-700',
+  facebook_lead_ad: 'bg-[#1877F2]/10 text-[#1877F2]',
+  facebook_dm: 'bg-[#1877F2]/10 text-[#1877F2]',
+  instagram_dm: 'bg-pink-100 text-pink-700',
+  email: 'bg-gray-100 text-gray-600',
+  website_form: 'bg-green-100 text-green-700',
+  zapier: 'bg-orange-100 text-orange-700',
 }
 
 function isMissedCall(item: InboundLead) {
   if (item.source !== 'twilio_call') return false
   const raw = typeof item.raw_data === 'object' && item.raw_data ? item.raw_data as Record<string, unknown> : {}
   return raw.missedCall === true
+}
+
+function isAnsweredByRep(item: InboundLead) {
+  if (item.source !== 'twilio_call') return false
+  const raw = typeof item.raw_data === 'object' && item.raw_data ? item.raw_data as Record<string, unknown> : {}
+  return raw.answeredByRep === true && !raw.missedCall
 }
 
 function timeAgo(value: string) {
@@ -109,7 +130,7 @@ export default function SalesInboxPage() {
   // SMS threads (2-way messages view)
   const [smsThreads, setSmsThreads] = useState<Array<{
     contactPhone: string; messages: Array<{ id: string; from_number: string; to_number: string; body: string; direction: 'inbound' | 'outbound'; created_at: string; lead_id: string | null }>
-    lastMessage: string; lastAt: string; unread: boolean; leadId: string | null; businessNumber: string; branchLabel: string; trackingLabel?: string
+    lastMessage: string; lastAt: string; unread: boolean; leadId: string | null; leadName?: string; businessNumber: string; branchLabel: string; trackingLabel?: string
   }>>([])
   const [threadsLoading, setThreadsLoading] = useState(false)
   const [selectedThread, setSelectedThread] = useState<string | null>(null)
@@ -287,11 +308,20 @@ export default function SalesInboxPage() {
     | undefined
   const transcript = selectedRaw?.transcript as string | undefined
   const recordingUrl = (selectedRaw?.recordingUrl || selectedRaw?.recUrl) as string | undefined
+  const recordingSid = selectedRaw?.recordingSid as string | undefined
+  const recordingUnavailable = selectedRaw?.recordingUnavailable === true
+  const recordingUnavailableReason = selectedRaw?.recordingUnavailableReason as string | undefined
   const unreadCount = useMemo(() => items.filter(item => !item.claimed).length, [items])
   const selectedRoute = useMemo(
     () => ({
-      origin: (selectedRaw?.originCity as string | undefined) || 'Origin TBD',
-      destination: (selectedRaw?.destCity as string | undefined) || 'Destination TBD',
+      origin:
+        (selectedRaw?.originAddress as string | undefined) ||
+        (selectedRaw?.originCity as string | undefined) ||
+        'Origin TBD',
+      destination:
+        (selectedRaw?.destAddress as string | undefined) ||
+        (selectedRaw?.destCity as string | undefined) ||
+        'Destination TBD',
       distance: (selectedRaw?.distanceText as string | undefined) || 'Route pending',
       originAccess: (selectedRaw?.originAccess as string | undefined) || 'Access not confirmed',
       destinationAccess: (selectedRaw?.destAccess as string | undefined) || 'Access not confirmed',
@@ -336,6 +366,8 @@ export default function SalesInboxPage() {
     const needsRefresh =
       isCall &&
       !selectedRaw?.recordingUrl &&
+      !selectedRaw?.recordingSid &&
+      !selectedRaw?.recordingUnavailable &&
       !selectedRaw?.transcript &&
       timeAgo(selected.created_at).includes('m ago')
 
@@ -625,10 +657,13 @@ export default function SalesInboxPage() {
                       <div className="mb-1 flex items-start justify-between">
                         <div className="flex items-center gap-2">
                           {thread.unread && <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--app-accent)]" />}
-                          <span className={`text-sm font-semibold ${thread.unread ? 'text-[var(--app-ink)]' : 'text-[var(--app-muted)]'}`}>{thread.contactPhone}</span>
+                          <span className={`text-sm font-semibold ${thread.unread ? 'text-[var(--app-ink)]' : 'text-[var(--app-muted)]'}`}>{thread.leadName || thread.contactPhone}</span>
                         </div>
                         <span className="text-xs text-[var(--app-muted)]">{timeAgo(thread.lastAt)}</span>
                       </div>
+                      {thread.leadName ? (
+                        <div className="mb-1 text-[11px] text-[var(--app-muted)]">{thread.contactPhone}</div>
+                      ) : null}
                       {thread.branchLabel ? (
                         <div className="mb-1">
                           <span className="rounded-[4px] border border-[rgba(15,106,83,0.18)] bg-[rgba(15,106,83,0.08)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--app-accent)]">
@@ -690,8 +725,12 @@ export default function SalesInboxPage() {
                           <span className="rounded-[4px] border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-rose-700">
                             ☎ Missed Call
                           </span>
+                        ) : isAnsweredByRep(item) ? (
+                          <span className="rounded-[4px] border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-700">
+                            ✓ Answered by Rep
+                          </span>
                         ) : (
-                          <span className="rounded-[4px] border border-[rgba(228,226,220,1)] bg-[var(--app-bg)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--app-muted)]">
+                          <span className={`rounded-[4px] border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${SOURCE_COLORS[item.source] || 'border-[rgba(228,226,220,1)] bg-[var(--app-bg)] text-[var(--app-muted)]'}`}>
                             {SOURCE_LABELS[item.source] || item.source}
                           </span>
                         )}
@@ -843,11 +882,12 @@ export default function SalesInboxPage() {
                       <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-[var(--app-line)] bg-[var(--app-panel)] px-4 py-4">
                         <button onClick={() => setSelectedThread(null)} className="crm-button px-3 md:hidden">Back</button>
                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[rgba(15,106,83,0.1)] text-sm font-bold text-[var(--app-accent)]">
-                          {thread.contactPhone.slice(-4)}
+                          {(thread.leadName || thread.contactPhone).slice(0, 1).toUpperCase()}
                         </div>
                         <div>
-                          <div className="text-base font-semibold text-[var(--app-ink)]">{thread.contactPhone}</div>
+                          <div className="text-base font-semibold text-[var(--app-ink)]">{thread.leadName || thread.contactPhone}</div>
                           <div className="text-xs text-[var(--app-muted)]">
+                            {thread.leadName ? `${thread.contactPhone} • ` : ''}
                             {thread.messages.length} messages
                             {thread.branchLabel ? ` • replying as ${thread.branchLabel}` : ''}
                             {thread.trackingLabel ? ` • ${thread.trackingLabel}` : ''}
@@ -927,6 +967,10 @@ export default function SalesInboxPage() {
                             <span className="rounded-[4px] border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-rose-700">
                               ☎ Missed Call
                             </span>
+                          ) : isAnsweredByRep(selected) ? (
+                            <span className="rounded-[4px] border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-700">
+                              ✓ Answered by Rep
+                            </span>
                           ) : (
                             <span className="rounded-[4px] border border-[rgba(15,106,83,0.2)] bg-[rgba(15,106,83,0.08)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--app-accent)]">
                               {selected.linkedLeadId ? 'Moved to Pipeline' : viewMode === 'closed' ? 'Junk' : 'New'}
@@ -940,22 +984,29 @@ export default function SalesInboxPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-3">
-                      {viewMode === 'closed' ? (
-                        selected.linkedLeadId ? (
-                          <button onClick={() => router.push(`/sales/leads/${selected.linkedLeadId}`)} className="crm-button">
-                            Open Lead
-                          </button>
+                    <div className="flex flex-col items-start gap-2 md:items-end">
+                      <div className="flex flex-wrap gap-3">
+                        {viewMode === 'closed' ? (
+                          selected.linkedLeadId ? (
+                            <button onClick={() => router.push(`/sales/leads/${selected.linkedLeadId}`)} className="crm-button">
+                              Open Lead
+                            </button>
+                          ) : (
+                            <button onClick={() => void restoreSelected()} disabled={restoreBusy} className="crm-button">
+                              {restoreBusy ? 'Restoring...' : 'Restore'}
+                            </button>
+                          )
                         ) : (
-                          <button onClick={() => void restoreSelected()} disabled={restoreBusy} className="crm-button">
-                            {restoreBusy ? 'Restoring...' : 'Restore'}
-                          </button>
-                        )
-                      ) : (
-                        <button onClick={() => void junkSelected()} disabled={junkBusy} className="crm-button">{junkBusy ? 'Rejecting...' : 'Reject'}</button>
+                          <button onClick={() => void junkSelected()} disabled={junkBusy} className="crm-button">{junkBusy ? 'Rejecting...' : 'Reject'}</button>
+                        )}
+                        {selected.phone ? <button onClick={() => openDialer(selected.phone, selected.name || undefined, selected.linkedLeadId)} className="crm-button">Call</button> : null}
+                        <button onClick={() => void claimSelected()} disabled={busy || viewMode === 'closed'} className="crm-button-dark">{selected.linkedLeadId ? 'Open Lead' : busy ? 'Creating...' : 'Move to Pipeline'}</button>
+                      </div>
+                      {viewMode !== 'closed' && !selected.linkedLeadId && (
+                        <p className="text-xs text-[var(--app-muted)]">
+                          <span className="font-medium text-[var(--app-ink)]">Move to Pipeline</span> for real leads &middot; <span className="font-medium text-[var(--app-ink)]">Reject</span> for spam or wrong numbers
+                        </p>
                       )}
-                      {selected.phone ? <button onClick={() => openDialer(selected.phone, selected.name || undefined, selected.linkedLeadId)} className="crm-button">Call</button> : null}
-                      <button onClick={() => void claimSelected()} disabled={busy || viewMode === 'closed'} className="crm-button-dark">{selected.linkedLeadId ? 'Open Lead' : busy ? 'Creating...' : 'Move to Pipeline'}</button>
                     </div>
                   </div>
 
@@ -1071,13 +1122,17 @@ export default function SalesInboxPage() {
                           </div>
                         </div>
 
-                        {recordingUrl || transcript ? (
+                        {recordingUrl || recordingSid || transcript || recordingUnavailable ? (
                           <div className="space-y-6">
                             <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
                               <div className="crm-label">Call Recording</div>
-                              {recordingUrl ? (
+                              {recordingUrl || recordingSid ? (
                                 <div className="mt-4">
-                                  <RecordingPlayer recordingUrl={recordingUrl} />
+                                  <RecordingPlayer recordingUrl={recordingUrl} recordingSid={recordingSid} />
+                                </div>
+                              ) : recordingUnavailable ? (
+                                <div className="mt-4 rounded-[8px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
+                                  {recordingUnavailableReason || 'Twilio did not retain a playable recording for this call.'}
                                 </div>
                               ) : (
                                 <div className="mt-4 text-sm text-[var(--app-muted)]">Recording still processing.</div>

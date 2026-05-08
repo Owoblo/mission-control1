@@ -14,9 +14,14 @@ import {
   updateInboundLeadRawData,
   updateLeadCallLogEntry,
 } from '@/lib/server/sales-repository'
-import { transcribeFromUrl, summarizePhoneCall } from '@/lib/server/call-intelligence'
+import { applyPhoneCallSummaryToLead, transcribeFromUrl, summarizePhoneCall } from '@/lib/server/call-intelligence'
 import { logEvent } from '@/lib/server/analytics'
 import { getTwilioCredentials } from '@/lib/server/runtime'
+import {
+  buildTwilioRecordingMediaUrl,
+  normalizeTwilioRecordingMediaUrl,
+  normalizeTwilioRecordingSid,
+} from '@/lib/server/twilio-recordings'
 import { uid } from '@/lib/sales'
 import type { CRMLead, InboundLead } from '@/lib/types'
 
@@ -26,6 +31,14 @@ export async function GET() {
     route: 'sales-dialer-recording-callback',
     checks: ['recording-capture', 'transcription'],
   })
+}
+
+function buildRecordingUnavailableReason(recordingStatus?: string) {
+  if (recordingStatus === 'absent') {
+    return 'Twilio reported this recording as absent. The call completed, but Twilio did not retain an accessible audio file for playback or transcription.'
+  }
+
+  return 'Twilio has no recording resource for this call. The call completed, but audio was not captured at the time, so there is no recording to recover.'
 }
 
 function digitsOnly(value?: string) {
@@ -127,27 +140,17 @@ export async function POST(request: Request) {
     const formData = await request.formData()
     const callSid = (formData.get('CallSid') as string | null)?.trim()
     const recordingUrl = (formData.get('RecordingUrl') as string | null)?.trim()
-    const recordingSid = (formData.get('RecordingSid') as string | null)?.trim()
+    const recordingSid = normalizeTwilioRecordingSid(formData.get('RecordingSid') as string | null)
+    const recordingStatus = ((formData.get('RecordingStatus') as string | null) || '').trim().toLowerCase()
     const recordingDuration = Number(formData.get('RecordingDuration') || 0)
 
-    if (!callSid || !recordingUrl) {
-      return NextResponse.json({ error: 'Missing CallSid or RecordingUrl' }, { status: 400 })
+    if (!callSid) {
+      return NextResponse.json({ error: 'Missing CallSid' }, { status: 400 })
     }
 
-    const mp3Url = `${recordingUrl}.mp3`
-    const likelyVoicemail = recordingDuration > 0 && recordingDuration <= 30
-
-    let transcript: string | null = null
-    let transcriptionError: string | null = null
-    try {
-      const { accountSid, authToken } = getTwilioCredentials()
-      transcript = await transcribeFromUrl(mp3Url, accountSid, authToken)
-    } catch (error) {
-      transcriptionError = error instanceof Error ? error.message : 'Unknown transcription failure'
+    if (recordingStatus === 'in-progress') {
+      return NextResponse.json({ ok: true, pending: true })
     }
-
-    const voicemailKeywords = ['leave a message', 'not available', 'please record', 'after the tone', 'after the beep', 'voicemail box', 'mailbox is full', 'call back', 'reach me at']
-    const isVoicemail = likelyVoicemail || (!!transcript && voicemailKeywords.some(kw => transcript!.toLowerCase().includes(kw)))
 
     const mapping = await getCrmCallSidMapping(callSid).catch(() => null)
     const inboundLead = await getInboundLeadByCallSid(callSid).catch(() => null)
@@ -166,6 +169,59 @@ export async function POST(request: Request) {
       }
     }
 
+    if (recordingStatus === 'absent') {
+      const unavailableReason = buildRecordingUnavailableReason(recordingStatus)
+      const unavailableUpdate = {
+        recordingSid: recordingSid || undefined,
+        recordingUnavailable: true,
+        recordingUnavailableAt: new Date().toISOString(),
+        recordingUnavailableReason: unavailableReason,
+      } as any
+
+      if (leadId && callLogId) {
+        await updateLeadCallLogEntry(leadId, callLogId, unavailableUpdate).catch(() => {})
+      }
+
+      if (inboundLead) {
+        await updateInboundLeadRawData(inboundLead.id, unavailableUpdate).catch(() => {})
+      }
+
+      if (leadId) {
+        void createSalesSystemAlert({
+          title: 'Call recording unavailable',
+          leadId,
+          branchNumber,
+          details: unavailableReason,
+          occurredAt: new Date().toISOString(),
+        })
+      }
+
+      return NextResponse.json({ ok: true, absent: true })
+    }
+
+    if (!recordingUrl && !recordingSid) {
+      return NextResponse.json({ error: 'Missing recording reference' }, { status: 400 })
+    }
+
+    const { accountSid, authToken } = getTwilioCredentials()
+    const callbackRecordingUrl = normalizeTwilioRecordingMediaUrl(recordingUrl)
+    const mp3Url = callbackRecordingUrl || (recordingSid ? buildTwilioRecordingMediaUrl(accountSid, recordingSid) : '')
+    const likelyVoicemail = recordingDuration > 0 && recordingDuration <= 30
+
+    let transcript: string | null = null
+    let transcriptionError: string | null = null
+    let transcriptionQuotaExhausted = false
+    try {
+      transcript = await transcribeFromUrl(mp3Url, accountSid, authToken, recordingSid)
+    } catch (error) {
+      const isQuota = error instanceof Error && (error as any).isQuotaError === true
+      transcriptionQuotaExhausted = isQuota
+      transcriptionError = isQuota ? null : (error instanceof Error ? error.message : 'Unknown transcription failure')
+    }
+
+    const voicemailKeywords = ['leave a message', 'not available', 'please record', 'after the tone', 'after the beep', 'voicemail box', 'mailbox is full', 'call back', 'reach me at']
+    const isVoicemail = likelyVoicemail || (!!transcript && voicemailKeywords.some(kw => transcript!.toLowerCase().includes(kw)))
+
     const currentCallLog = lead && callLogId
       ? (lead.callLogs || []).find(entry => entry.id === callLogId)
       : null
@@ -181,38 +237,51 @@ export async function POST(request: Request) {
           ).catch(() => null)
         : null
 
+    let updatedLead = lead
     if (leadId && callLogId) {
-      await updateLeadCallLogEntry(leadId, callLogId, {
+      updatedLead = await updateLeadCallLogEntry(leadId, callLogId, {
         recordingUrl: mp3Url,
         recordingSid: recordingSid || undefined,
         recordingDuration: recordingDuration > 0 ? recordingDuration : undefined,
         branchNumber: branchNumber || undefined,
-        transcript: isVoicemail ? `[Voicemail]${transcript ? ' ' + transcript : ''}` : (transcript || undefined),
+        transcript: transcriptionQuotaExhausted
+          ? undefined
+          : isVoicemail ? `[Voicemail]${transcript ? ' ' + transcript : ''}` : (transcript || undefined),
         aiSummary: (aiSummary as any) || undefined,
         isVoicemail: isVoicemail || undefined,
         source: 'manual',
       } as any)
 
-      if (lead && isVoicemail) {
-        await saveSalesLead({
-          ...lead,
-          lastVoicemailAt: new Date().toISOString(),
-        }).catch(() => null)
-      }
+      if (updatedLead) {
+        let nextLead = aiSummary ? applyPhoneCallSummaryToLead(updatedLead, aiSummary as any) : updatedLead
+        if (isVoicemail) {
+          nextLead = {
+            ...nextLead,
+            lastVoicemailAt: new Date().toISOString(),
+          }
+        }
 
-      if (aiSummary && typeof (aiSummary as any).followUpDays === 'number' && lead && !lead.followUpDate) {
-        const followUpDate = new Date(Date.now() + (aiSummary as any).followUpDays * 24 * 60 * 60 * 1000)
-          .toISOString().slice(0, 10)
-        await saveSalesLead({
-          ...lead,
-          followUpDate,
-          followUpNote: (aiSummary as any).nextAction || 'AI recommended follow-up',
-        }).catch(() => null)
+        if (aiSummary && typeof (aiSummary as any).followUpDays === 'number' && !nextLead.followUpDate) {
+          const followUpDate = new Date(Date.now() + (aiSummary as any).followUpDays * 24 * 60 * 60 * 1000)
+            .toISOString().slice(0, 10)
+          nextLead = {
+            ...nextLead,
+            followUpDate,
+            followUpNote: (aiSummary as any).nextAction || nextLead.followUpNote || 'AI recommended follow-up',
+          }
+        }
+
+        if (JSON.stringify(nextLead) !== JSON.stringify(updatedLead)) {
+          updatedLead = await saveSalesLead(nextLead).catch(() => updatedLead)
+        }
       }
 
       void logEvent(isVoicemail ? 'voicemail_left' : 'call_completed', {
         leadId,
-        lead: lead || undefined,
+        actorName: currentCallLog?.repName,
+        actorUserId: currentCallLog?.repId,
+        repId: currentCallLog?.repId,
+        lead: updatedLead || undefined,
         properties: {
           call_direction: callDirection,
           call_duration_seconds: recordingDuration || undefined,
@@ -236,10 +305,10 @@ export async function POST(request: Request) {
     }
 
     if (leadId && transcriptionError) {
+      // Only alert for genuine errors, not quota exhaustion (which creates one alert per call and floods timelines)
       void createSalesSystemAlert({
         title: 'Call transcription failed',
         leadId,
-        severity: 'critical',
         branchNumber,
         details: transcriptionError,
         occurredAt: new Date().toISOString(),
@@ -251,6 +320,9 @@ export async function POST(request: Request) {
         recordingUrl: mp3Url,
         recordingSid: recordingSid || undefined,
         recordingDuration: recordingDuration > 0 ? recordingDuration : undefined,
+        recordingUnavailable: false,
+        recordingUnavailableAt: undefined,
+        recordingUnavailableReason: undefined,
         transcript: transcript || undefined,
         aiSummary: aiSummary || undefined,
       })

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { matchInventoryPreset } from '@/lib/item-presets'
+import { getListingPropertyContext } from '@/lib/listing'
 import { analyzeListingPhotos } from '@/lib/server/inventory-enrichment'
 import {
   getListingInventoryScan,
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
       if (!process.env.OPENAI_API_KEY) {
         return NextResponse.json({ error: 'OPENAI_API_KEY is not configured for MLS photo analysis.' }, { status: 400 })
       }
-      const analyzed = await analyzeListingPhotos(listing)
+      const analyzed = await analyzeListingPhotos(listing, getListingPropertyContext(listing))
       const normalizedScan = analyzed
         ? {
             ...analyzed,

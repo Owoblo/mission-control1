@@ -8,6 +8,7 @@ import {
   normalizePhone,
 } from '@/lib/sales-phones'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
+import { listSalesLeads } from '@/lib/server/sales-repository'
 
 export interface SmsMessage {
   id: string
@@ -27,9 +28,14 @@ export interface SmsThread {
   lastAt: string
   unread: boolean
   leadId: string | null
+  leadName?: string
   businessNumber: string
   branchLabel: string
   trackingLabel?: string
+}
+
+function digitsOnly(value?: string | null) {
+  return (value || '').replace(/\D/g, '')
 }
 
 export async function GET(request: Request) {
@@ -60,6 +66,14 @@ export async function GET(request: Request) {
     if (filterPhone) {
       return NextResponse.json(msgs)
     }
+
+    const leads = await listSalesLeads().catch(() => [])
+    const leadNameById = new Map(leads.map(lead => [lead.id, lead.name]))
+    const leadNameByPhone = new Map(
+      leads
+        .filter(lead => lead.phone)
+        .map(lead => [digitsOnly(lead.phone), lead.name] as const)
+    )
 
     // Group by contact phone (the non-Saturn number)
     const threadMap = new Map<string, SmsThread>()
@@ -97,6 +111,10 @@ export async function GET(request: Request) {
       thread.lastMessage = last?.body || ''
       thread.lastAt = last?.created_at || thread.lastAt
       thread.unread = last?.direction === 'inbound'
+      thread.leadName =
+        (thread.leadId ? leadNameById.get(thread.leadId) : null) ||
+        leadNameByPhone.get(digitsOnly(thread.contactPhone)) ||
+        undefined
       threads.push(thread)
     }
 

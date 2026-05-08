@@ -1,4 +1,6 @@
 import { getTwilioCredentials, requireSupabaseEnv } from '@/lib/server/runtime'
+import { outboundSmsRecentlySent, recordOutboundSmsToSupabase } from '@/lib/server/sales-messaging'
+import { twilioAuth } from '@/lib/server/twilio-recordings'
 import { getSaturnBranchLabel } from '@/lib/sales-phones'
 
 // Twilio calls this action URL when <Dial> completes for ANY reason:
@@ -16,14 +18,21 @@ function xmlResponse(twiml: string) {
 }
 
 async function sendSms(accountSid: string, authToken: string, to: string, from: string, body: string) {
-  await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
     method: 'POST',
     headers: {
-      Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`,
+      Authorization: twilioAuth(accountSid, authToken),
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: new URLSearchParams({ To: to, From: from, Body: body }).toString(),
   })
+
+  const payload = await response.json().catch(() => ({})) as { sid?: string; message?: string }
+  if (!response.ok || !payload.sid) {
+    throw new Error(payload.message || 'Missed-call SMS failed')
+  }
+
+  return payload.sid
 }
 
 async function updateInboundLead(from: string, patch: Record<string, unknown>) {
@@ -94,11 +103,18 @@ export async function POST(request: Request) {
         callSid,
       }).catch(() => {})
 
-      if (!withinCooldown) {
+      const recentlySent = await outboundSmsRecentlySent({
+        to: from,
+        from: businessNumber,
+      }).catch(() => false)
+
+      if (!withinCooldown && !recentlySent) {
         recentMissedSmsSent.set(from, Date.now())
         const { accountSid, authToken } = getTwilioCredentials()
         const callerSms = `Hi! You missed us at ${branchLabel} (${BUSINESS_NAME}). We'll call you right back — or reply here to chat. 🌟`
-        void sendSms(accountSid, authToken, from, businessNumber, callerSms).catch(() => {})
+        void sendSms(accountSid, authToken, from, businessNumber, callerSms)
+          .then(sid => recordOutboundSmsToSupabase(businessNumber, from, callerSms, undefined, sid))
+          .catch(() => {})
       }
     }
   } catch { /* always return valid TwiML */ }

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
+import { uid } from '@/lib/sales'
+import { getSalesLead, saveFollowUpLog, saveSalesLead } from '@/lib/server/sales-repository'
 import { hasInternalSession } from '@/lib/server/session'
-import { requireWorkerBaseUrl } from '@/lib/server/runtime'
+import { getWorkerSharedSecret, requireWorkerBaseUrl } from '@/lib/server/runtime'
 
 const GOOGLE_REVIEW_URL = process.env.NEXT_PUBLIC_GOOGLE_REVIEW_URL || 'https://g.page/r/YOUR_GOOGLE_REVIEW_LINK'
 const YELP_URL = process.env.NEXT_PUBLIC_YELP_REVIEW_URL || 'https://yelp.com/biz/saturn-star-moving'
@@ -15,9 +17,13 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ ok: false, error: 'WORKER_BASE_URL not configured' }, { status: 500 })
   }
-  const workerSecret = process.env.WORKER_SHARED_SECRET || ''
+  const workerSecret = getWorkerSharedSecret()
+  if (!workerSecret) {
+    return NextResponse.json({ ok: false, error: 'WORKER_SHARED_SECRET not configured' }, { status: 500 })
+  }
 
-  const { leadName, leadEmail, leadPhone, quoteNumber, channel } = await request.json() as {
+  const { leadId, leadName, leadEmail, leadPhone, quoteNumber, channel } = await request.json() as {
+    leadId?: string
     leadName: string
     leadEmail?: string
     leadPhone?: string
@@ -28,6 +34,7 @@ export async function POST(request: Request) {
   const firstName = leadName?.split(' ')[0] || 'there'
 
   const results: Array<{ channel: string; ok: boolean }> = []
+  let savedLead = null
 
   // SMS
   if ((channel === 'both' || channel === 'sms') && leadPhone) {
@@ -59,7 +66,29 @@ export async function POST(request: Request) {
     results.push({ channel: 'email', ok: !!emailResult?.ok })
   }
 
-  return NextResponse.json({ ok: true, results })
+  if (leadId) {
+    const lead = await getSalesLead(leadId).catch(() => null)
+    if (lead) {
+      savedLead = await saveSalesLead({
+        ...lead,
+        stage: 'customer_success',
+        reviewSentAt: new Date().toISOString(),
+      }).catch(() => null)
+      if (savedLead) {
+        const now = new Date().toISOString()
+        await saveFollowUpLog({
+          id: uid('fu'),
+          leadId,
+          type: 'status_change',
+          date: now,
+          createdAt: now,
+          notes: `Stage: ${lead.stage.replace(/_/g, ' ')} -> Customer Success. Review request sent.`,
+        }).catch(() => null)
+      }
+    }
+  }
+
+  return NextResponse.json({ ok: true, results, lead: savedLead })
 }
 
 function buildReviewEmailHtml(firstName: string, quoteNumber: string | undefined, googleUrl: string, yelpUrl: string) {

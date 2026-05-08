@@ -11,6 +11,7 @@ import {
 import { summarizeMessage } from '@/lib/server/call-intelligence'
 import { logEvent } from '@/lib/server/analytics'
 import { getTwilioCredentials, readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
+import { twilioAuth } from '@/lib/server/twilio-recordings'
 import {
   getInboundLead,
   getSalesLead,
@@ -22,9 +23,10 @@ import {
 import type { CRMEmail, CRMLead, FollowUpLog } from '@/lib/types'
 
 const DEFAULT_HUMAN_PAUSE_HOURS = 12
+const OUTBOUND_SMS_DEDUPE_WINDOW_MS = 60 * 1000
 
 export interface SendSalesMessageInput {
-  channel: 'email' | 'sms'
+  channel: 'email' | 'sms' | 'whatsapp'
   to: string
   subject?: string
   body: string
@@ -34,25 +36,28 @@ export interface SendSalesMessageInput {
   notes?: string
   fromNumber?: string
   actor?: 'human' | 'automation'
+  actorName?: string
+  actorUserId?: string
   pauseAutomationHours?: number
 }
 
 export interface SendSalesMessageResult {
   ok: true
+  deduped?: boolean
   result: Record<string, unknown>
   log: FollowUpLog
   email: CRMEmail | null
   lead: CRMLead | null
 }
 
-async function logSmsToSupabase(from: string, to: string, body: string, leadId: string | undefined, sid?: string | null) {
+export async function recordOutboundSmsToSupabase(from: string, to: string, body: string, leadId: string | undefined, sid?: string | null) {
   try {
     const { url, headers } = requireSupabaseEnv()
     await fetch(`${url}/rest/v1/sms_messages`, {
       method: 'POST',
       headers: { ...headers, Prefer: 'return=minimal' },
       body: JSON.stringify({
-        id: uid('sms'),
+        id: crypto.randomUUID(),
         from_number: from,
         to_number: to,
         body,
@@ -86,6 +91,35 @@ async function querySmsMessagesByFilter(filter: string) {
   } catch {
     return []
   }
+}
+
+export async function outboundSmsRecentlySent(input: {
+  to: string
+  from?: string
+  leadId?: string
+  windowMs?: number
+}) {
+  const to = normalizePhone(input.to)
+  const from = normalizePhone(input.from)
+  if (!to) return false
+
+  const since = new Date(Date.now() - (input.windowMs || OUTBOUND_SMS_DEDUPE_WINDOW_MS)).toISOString()
+  const filters = [
+    'direction=eq.outbound',
+    `created_at=gte.${encodeURIComponent(since)}`,
+    `to_number=eq.${encodeURIComponent(to)}`,
+  ]
+
+  if (from) {
+    filters.push(`from_number=eq.${encodeURIComponent(from)}`)
+  }
+
+  if (input.leadId) {
+    filters.push(`lead_id=eq.${encodeURIComponent(input.leadId)}`)
+  }
+
+  const matches = await querySmsMessagesByFilter(filters.join('&'))
+  return matches.some(message => message.direction === 'outbound')
 }
 
 function pickRecentThreadBranchNumber(messages: SmsHistoryMessage[]) {
@@ -208,13 +242,45 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
     result = { ok: true, id: resendResult.id }
   } else {
     const { accountSid, authToken } = getTwilioCredentials()
-    const fromNumber = await resolveSmsFromNumber(input)
-    const toNumber = normalizePhone(input.to) || input.to
+    const isWhatsApp = input.channel === 'whatsapp'
+    const rawFrom = await resolveSmsFromNumber(input)
+    const rawTo = normalizePhone(input.to) || input.to
+
+    const duplicateOutbound = await outboundSmsRecentlySent({
+      to: rawTo,
+      from: rawFrom,
+      leadId: input.leadId,
+    })
+    if (duplicateOutbound) {
+      const now = new Date().toISOString()
+      const dedupeLog: FollowUpLog = {
+        id: uid('fu'),
+        leadId: input.leadId,
+        quoteId: input.quoteId,
+        type: 'note',
+        date: now,
+        createdAt: now,
+        notes: `${isWhatsApp ? 'WhatsApp' : 'SMS'} blocked by duplicate guard — another outbound to ${rawTo} was logged in the last 60 seconds.`,
+      }
+
+      return {
+        ok: true,
+        deduped: true,
+        result: { ok: true, deduped: true, fromNumber: rawFrom, branchLabel: getSaturnBranchLabel(rawFrom) },
+        log: await saveFollowUpLog(dedupeLog),
+        email: null,
+        lead: null,
+      }
+    }
+
+    // WhatsApp requires whatsapp: prefix on both numbers
+    const fromNumber = isWhatsApp ? `whatsapp:${rawFrom}` : rawFrom
+    const toNumber = isWhatsApp ? `whatsapp:${rawTo}` : rawTo
 
     const smsRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
       method: 'POST',
       headers: {
-        Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`,
+        Authorization: twilioAuth(accountSid, authToken),
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: new URLSearchParams({
@@ -226,10 +292,11 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
 
     const smsResult = await smsRes.json().catch(() => ({})) as Record<string, unknown>
     if (!smsRes.ok || !smsResult?.sid) {
-      throw new Error(String(smsResult?.message || smsResult?.error || 'SMS send failed'))
+      throw new Error(String(smsResult?.message || smsResult?.error || `${isWhatsApp ? 'WhatsApp' : 'SMS'} send failed`))
     }
-    result = { ok: true, sid: smsResult.sid, fromNumber, branchLabel: getSaturnBranchLabel(fromNumber) }
-    void logSmsToSupabase(fromNumber, toNumber, input.body, input.leadId, String(smsResult.sid || ''))
+    result = { ok: true, sid: smsResult.sid, fromNumber: rawFrom, branchLabel: getSaturnBranchLabel(rawFrom) }
+    // Log to sms_messages — WhatsApp SIDs start with WA, SMS with SM (detectable later)
+    void recordOutboundSmsToSupabase(rawFrom, rawTo, input.body, input.leadId, String(smsResult.sid || ''))
   }
 
   const now = new Date().toISOString()
@@ -237,7 +304,7 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
     id: uid('fu'),
     leadId: input.leadId,
     quoteId: input.quoteId,
-    type: input.channel,
+    type: input.channel === 'whatsapp' ? 'sms' : input.channel,
     date: now,
     createdAt: now,
     notes:
@@ -306,16 +373,19 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
             date: entry.date,
           }))
 
-        const aiSummary = await summarizeMessage(messageLead, input.body, input.channel, 'outbound', thread)
+        const aiSummary = await summarizeMessage(messageLead, input.body, input.channel === 'whatsapp' ? 'sms' : input.channel, 'outbound', thread)
         if (aiSummary) {
           await saveFollowUpLog({ ...savedLog, aiSummary })
         }
 
-        void logEvent(input.channel === 'sms' ? 'sms_sent' : 'email_sent', {
+        void logEvent(input.channel === 'email' ? 'email_sent' : 'sms_sent', {
           leadId: input.leadId,
+          actorName: input.actorName,
+          actorUserId: input.actorUserId,
+          repId: input.actorUserId,
           lead: messageLead,
           properties: {
-            channel: input.channel,
+            channel: input.channel === 'whatsapp' ? 'sms' : input.channel,
             message_direction: 'outbound',
             message_length: input.body.length,
             thread_length: sameLeadMsgLogs.length,

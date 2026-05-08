@@ -5,11 +5,15 @@ import { getRecordingPlaybackUrl } from '@/lib/recording-playback'
 
 interface RecordingPlayerProps {
   recordingUrl?: string | null
+  recordingSid?: string | null
   className?: string
 }
 
-export function RecordingPlayer({ recordingUrl, className = 'w-full' }: RecordingPlayerProps) {
-  const playbackUrl = useMemo(() => getRecordingPlaybackUrl(recordingUrl), [recordingUrl])
+export function RecordingPlayer({ recordingUrl, recordingSid, className = 'w-full' }: RecordingPlayerProps) {
+  const playbackUrl = useMemo(
+    () => getRecordingPlaybackUrl({ recordingUrl, recordingSid }),
+    [recordingSid, recordingUrl]
+  )
   const isLazyProxy = playbackUrl.startsWith('/api/sales/dialer/recording?')
   const [audioSrc, setAudioSrc] = useState(() => (isLazyProxy ? '' : playbackUrl))
   const [loading, setLoading] = useState(false)
@@ -42,7 +46,8 @@ export function RecordingPlayer({ recordingUrl, className = 'w-full' }: Recordin
       setError(null)
       const response = await fetch(playbackUrl, { credentials: 'include' })
       if (!response.ok) {
-        throw new Error(`Recording unavailable (${response.status})`)
+        const payload = await response.json().catch(() => null) as { error?: string } | null
+        throw new Error(payload?.error || `Recording unavailable (${response.status})`)
       }
 
       const blob = await response.blob()

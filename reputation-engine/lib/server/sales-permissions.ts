@@ -15,6 +15,22 @@ export function canAccessSalesWorkspace(session: SessionPayload | null | undefin
   return !!session && isSalesWorkspaceRole(session.role)
 }
 
+export function canAccessOperationsWorkspace(session: SessionPayload | null | undefined) {
+  return !!session && (
+    session.role === 'owner' ||
+    session.role === 'manager' ||
+    session.role === 'operations_lead'
+  )
+}
+
+export function canAssignCrew(session: SessionPayload | null | undefined) {
+  return !!session && (
+    session.role === 'owner' ||
+    session.role === 'manager' ||
+    session.role === 'operations_lead'
+  )
+}
+
 export function isLeadOwnedBySession(lead: CRMLead, session: SessionPayload | null | undefined) {
   if (!session?.userId && !session?.name) return false
   const ownerKey = getLeadAssignedRepKey(lead)
@@ -26,6 +42,10 @@ export function canEditLead(session: SessionPayload | null | undefined, lead: CR
   if (!canAccessSalesWorkspace(session)) return false
   if (session?.role === 'owner' || session?.role === 'manager') return true
   return !getLeadAssignedRepKey(lead) || isLeadOwnedBySession(lead, session)
+}
+
+export function canHandleLeadCommunications(session: SessionPayload | null | undefined, _lead: CRMLead) {
+  return canAccessSalesWorkspace(session)
 }
 
 export function canReassignLead(session: SessionPayload | null | undefined) {
@@ -47,6 +67,10 @@ export function canEditQuote(session: SessionPayload | null | undefined, lead: C
   if (!lead) return session?.role === 'owner' || session?.role === 'manager'
   if (session?.role === 'owner' || session?.role === 'manager') return true
   return !getLeadAssignedRepKey(lead) || isLeadOwnedBySession(lead, session)
+}
+
+export function canReviseExistingQuote(session: SessionPayload | null | undefined) {
+  return canAccessSalesWorkspace(session)
 }
 
 function deriveSubtotal(quote: CRMQuote, updates: Partial<CRMQuote>) {

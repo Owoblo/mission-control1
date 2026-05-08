@@ -1,4 +1,5 @@
 import { normalizeLead, uid } from '@/lib/sales'
+import { applyMovePolicyToInventory } from '@/lib/move-policy'
 import { readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
 import type { CRMLead, InventoryItem, LeadMediaAsset } from '@/lib/types'
 
@@ -104,14 +105,20 @@ ${bedroomRules}${bathroomRules}
 - ELECTRONICS: TVs (estimate size), Monitors
 - DECOR: Floor lamps, Large mirrors, Large artwork
 - OUTDOOR/GARAGE: Patio furniture, BBQ, Bicycles, Tools, Lawn equipment
+- SPECIAL CASES: Safes, pianos, propane tanks, gas cans, oxygen tanks, fireworks, chemical containers, pool tables, hot tubs, server racks, copiers
 
-❌ NEVER DETECT: Built-in cabinets, built-in appliances, toilets, sinks, chandeliers, wall-mounted items
+❌ NEVER DETECT: Built-in cabinets, built-in appliances, toilets, sinks, vanity cabinets, chandeliers, wall-mounted items
 
 REQUIREMENTS:
 1. Count each unique item ONCE only
 2. Be specific: "Queen Platform Bed" not just "bed"
 3. Estimate realistic cubic feet and weight for movers
 4. Typical weights: king bed frame 160 lbs, queen mattress 90 lbs, 3-seat sofa 220 lbs, dresser 130 lbs
+5. Washer, dryer, fridge, freezer, stove, cooker, oven, dishwasher, and vanity cabinet should be listed included:false by default unless the customer clearly says they are taking it
+6. If a blocked item is visible (hot tub, pool table), still list it with included:false and notes "We do not move this item — special arrangement required"
+7. If a hazardous item is visible (propane tank, gas can, fireworks, oxygen tank, chemical container), list it with included:false and notes "Hazardous / non-transport item — customer must move separately"
+8. If a commercial item is visible (server rack, copier, restaurant equipment, pallet racking), list it with included:false and notes "Commercial equipment — management review required"
+9. If a safe is visible, add notes "Specialty fee + photo confirmation required"
 
 Return ONLY a JSON array (no other text):
 [{"name":"3-Seat Sofa","qty":1,"room":"${room}","cubicFeet":70,"weightLbs":180,"included":true,"notes":"Wrap carefully"},{"name":"Coffee Table","qty":1,"room":"${room}","cubicFeet":15,"weightLbs":35,"included":true,"notes":""}]`
@@ -156,7 +163,7 @@ Return ONLY a JSON array (no other text):
     notes?: string
   }>
 
-  return parsed.map(item => ({
+  return applyMovePolicyToInventory(parsed.map(item => ({
     id: uid('inv_media'),
     name: item.name || item.label || 'Unknown Item',
     qty: item.qty || 1,
@@ -165,7 +172,7 @@ Return ONLY a JSON array (no other text):
     weightLbs: item.weightLbs || 0,
     included: item.included !== false,
     notes: item.notes || '',
-  }))
+  })), { enforceExclusion: true })
 }
 
 export function applyLeadMediaAnalysis(

@@ -1,8 +1,19 @@
 import { NextResponse } from 'next/server'
-import { canAccessSalesWorkspace, canEditLead } from '@/lib/server/sales-permissions'
+import { canAccessSalesWorkspace, canHandleLeadCommunications } from '@/lib/server/sales-permissions'
 import { getSalesLead, getSalesQuote } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
 import { sendSalesMessage } from '@/lib/server/sales-messaging'
+import { getAppBaseUrl, getWorkerSharedSecret } from '@/lib/server/runtime'
+
+function triggerIntelligence(leadId: string) {
+  const base = getAppBaseUrl()
+  const secret = getWorkerSharedSecret()
+  if (!base || !secret || !leadId) return
+  void fetch(`${base}/api/sales/leads/${leadId}/intelligence`, {
+    method: 'POST',
+    headers: { 'x-internal-secret': secret },
+  }).catch(() => {})
+}
 
 export async function POST(request: Request) {
   try {
@@ -12,7 +23,7 @@ export async function POST(request: Request) {
     }
 
     const payload = (await request.json()) as {
-      channel?: 'email' | 'sms'
+      channel?: 'email' | 'sms' | 'whatsapp'
       to?: string
       subject?: string
       body?: string
@@ -43,8 +54,8 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
       }
 
-      if (!canEditLead(session, lead)) {
-        return NextResponse.json({ error: 'You can only send messages for leads you own.' }, { status: 403 })
+      if (!canHandleLeadCommunications(session, lead)) {
+        return NextResponse.json({ error: 'You do not have permission to send messages for this lead.' }, { status: 403 })
       }
     }
 
@@ -59,7 +70,13 @@ export async function POST(request: Request) {
       notes: payload.notes,
       fromNumber: payload.fromNumber,
       actor: payload.actor || 'human',
+      actorName: session?.name,
+      actorUserId: session?.userId,
     })
+
+    // Fire intelligence re-analysis in background after every outbound message
+    const sentLeadId = targetLeadId || result.lead?.id
+    if (sentLeadId) triggerIntelligence(sentLeadId)
 
     return NextResponse.json(result)
   } catch (error) {

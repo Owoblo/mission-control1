@@ -1,6 +1,6 @@
 export const BRAND = {
   name: 'Saturn Star Movers',
-  phone: '226-724-1730',
+  phone: '226-773-2993',
   email: 'info@saturnstarmovers.ca',
 }
 

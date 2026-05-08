@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
-import { getSalesLead, saveSalesLead, saveFollowUpLog } from '@/lib/server/sales-repository'
-import { requireWorkerBaseUrl } from '@/lib/server/runtime'
+import { deriveOpsChecklist, getQuotedTruckCount } from '@/lib/operations'
+import { deriveLeadBranch, generateCrewBrief, mergeCrewBrief, pickAutoAssignedCrewIds } from '@/lib/server/crew-dispatch'
+import { scheduleMoveReminder } from '@/lib/server/sales-automation'
+import { sendSalesMessage } from '@/lib/server/sales-messaging'
+import { getSalesLead, getSalesQuote, saveSalesLead, saveFollowUpLog } from '@/lib/server/sales-repository'
+import { getSessionUser } from '@/lib/server/session'
 import { uid } from '@/lib/sales'
 
 const SATURN_STAR_PHONE = '+12267732993'
@@ -57,27 +61,49 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       depositMethod?: string
       sendConfirmation?: boolean
     }
+    const session = await getSessionUser().catch(() => null)
 
     const lead = await getSalesLead(id)
     if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
 
     const now = new Date().toISOString()
+    const explicitDepositAmount = Number(body.depositAmount || 0) > 0 ? Number(body.depositAmount) : undefined
+    const depositAlreadyConfirmed = lead.paymentStatus === 'deposit_received' || lead.paymentStatus === 'paid_in_full'
+    const branch = deriveLeadBranch(lead)
+    const quote = lead.quoteId ? await getSalesQuote(lead.quoteId).catch(() => null) : null
+    const autoAssignedCrew = (lead.assignedCrew?.length ?? 0) > 0 ? lead.assignedCrew! : await pickAutoAssignedCrewIds(branch)
+    const autoCrewBrief = await generateCrewBrief({
+      lead: { ...lead, branch },
+      quote,
+    }).catch(() => '')
+    const quotedTruckCount = getQuotedTruckCount(lead, quote)
 
     const updated = await saveSalesLead({
       ...lead,
+      branch: branch || lead.branch,
       stage: 'booked',
       bookedAt: now,
-      depositAmount: body.depositAmount || lead.depositAmount,
-      depositMethod: body.depositMethod || lead.depositMethod,
-      depositDate: body.depositAmount ? now.slice(0, 10) : lead.depositDate,
-      paymentStatus: body.depositAmount ? 'deposit_received' : lead.paymentStatus || 'pending',
+      depositAmount: explicitDepositAmount ?? (depositAlreadyConfirmed ? lead.depositAmount : undefined),
+      depositMethod: explicitDepositAmount ? (body.depositMethod || lead.depositMethod) : (depositAlreadyConfirmed ? lead.depositMethod : undefined),
+      depositDate: explicitDepositAmount ? now.slice(0, 10) : (depositAlreadyConfirmed ? lead.depositDate : undefined),
+      paymentStatus: explicitDepositAmount ? 'deposit_received' : (depositAlreadyConfirmed ? lead.paymentStatus : 'pending'),
       followUpDate: undefined, // clear follow-up — job is confirmed
       followUpNote: undefined,
+      assignedCrew: autoAssignedCrew.length > 0 ? autoAssignedCrew : lead.assignedCrew,
+      crewNote: mergeCrewBrief(lead.crewNote, autoCrewBrief),
+      truckCountConfirmed: quotedTruckCount,
+      truckSize: quotedTruckCount ? lead.truckSize || '26ft' : undefined,
+      truckReservationStatus: quotedTruckCount ? (lead.truckReservationStatus || 'needs_booking') : 'not_needed',
+      opsChecklist: deriveOpsChecklist({
+        ...lead,
+        assignedCrew: autoAssignedCrew.length > 0 ? autoAssignedCrew : lead.assignedCrew,
+        truckReservationStatus: quotedTruckCount ? (lead.truckReservationStatus || 'needs_booking') : 'not_needed',
+      }),
     })
 
     // Log to timeline
-    const depositNote = body.depositAmount
-      ? ` Deposit of $${body.depositAmount.toLocaleString()} received via ${body.depositMethod || 'unknown'}.`
+    const depositNote = explicitDepositAmount
+      ? ` Deposit of $${explicitDepositAmount.toLocaleString()} received via ${body.depositMethod || 'unknown'}.`
       : ''
 
     await saveFollowUpLog({
@@ -92,40 +118,44 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // Send confirmation messages if requested
     const errors: string[] = []
     if (body.sendConfirmation !== false) {
-      const workerBase = requireWorkerBaseUrl()
-      const workerSecret = process.env.WORKER_SHARED_SECRET
+      const smsBody = buildBookingConfirmationSms(lead.name, lead.moveDate)
+      const emailContent = buildBookingConfirmationEmail(lead.name, lead.moveDate, lead.originCity, lead.destCity)
 
-      if (workerSecret) {
-        const smsBody = buildBookingConfirmationSms(lead.name, lead.moveDate)
-        const emailContent = buildBookingConfirmationEmail(lead.name, lead.moveDate, lead.originCity, lead.destCity)
-
-        const sends = []
-        if (lead.phone) {
-          sends.push(
-            fetch(`${workerBase}/send-sms`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'x-internal-secret': workerSecret },
-              body: JSON.stringify({ to: lead.phone, body: smsBody }),
-            }).catch(err => errors.push(`SMS: ${(err as Error).message}`))
-          )
-        }
-        if (lead.email) {
-          sends.push(
-            fetch(`${workerBase}/send-email`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'x-internal-secret': workerSecret },
-              body: JSON.stringify({
-                to: lead.email,
-                subject: emailContent.subject,
-                body: emailContent.text,
-                htmlBody: emailContent.html,
-              }),
-            }).catch(err => errors.push(`Email: ${(err as Error).message}`))
-          )
-        }
-        await Promise.allSettled(sends)
+      const sends = []
+      if (lead.phone) {
+        sends.push(
+          sendSalesMessage({
+            channel: 'sms',
+            to: lead.phone,
+            body: smsBody,
+            leadId: id,
+            actor: session ? 'human' : 'automation',
+            actorName: session?.name,
+            actorUserId: session?.userId,
+            notes: `Booking confirmation SMS sent to ${lead.phone}`,
+          }).catch(err => errors.push(`SMS: ${(err as Error).message}`))
+        )
       }
+      if (lead.email) {
+        sends.push(
+          sendSalesMessage({
+            channel: 'email',
+            to: lead.email,
+            subject: emailContent.subject,
+            body: emailContent.text,
+            htmlBody: emailContent.html,
+            leadId: id,
+            actor: session ? 'human' : 'automation',
+            actorName: session?.name,
+            actorUserId: session?.userId,
+            notes: `Booking confirmation email sent to ${lead.email}`,
+          }).catch(err => errors.push(`Email: ${(err as Error).message}`))
+        )
+      }
+      await Promise.allSettled(sends)
     }
+
+    void scheduleMoveReminder(id)
 
     return NextResponse.json({ ok: true, lead: updated, errors: errors.length ? errors : undefined })
   } catch (error) {

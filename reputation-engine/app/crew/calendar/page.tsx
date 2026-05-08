@@ -160,7 +160,7 @@ function JobCard({ job }: { job: Job }) {
             </div>
           )}
           {lead.crewNote && (
-            <div className="rounded-lg bg-amber-50 border border-amber-100 px-2 py-1.5 text-amber-800">
+            <div className="rounded-lg bg-amber-50 border border-amber-100 px-2 py-1.5 text-amber-800 whitespace-pre-wrap">
               <span className="font-semibold">Note: </span>{lead.crewNote}
             </div>
           )}

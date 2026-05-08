@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { normalizeFollowUp, uid } from '@/lib/sales'
-import { canAccessSalesWorkspace, canEditLead } from '@/lib/server/sales-permissions'
+import { canAccessSalesWorkspace, canHandleLeadCommunications } from '@/lib/server/sales-permissions'
 import { getSalesLead, getSalesQuote, saveFollowUpLog, saveSalesLead } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
 import type { FollowUpLog } from '@/lib/types'
@@ -29,8 +29,8 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
       }
 
-      if (!canEditLead(session, currentLead)) {
-        return NextResponse.json({ error: 'You can only log follow-ups for leads you own.' }, { status: 403 })
+      if (!canHandleLeadCommunications(session, currentLead)) {
+        return NextResponse.json({ error: 'You do not have permission to log follow-ups on this lead.' }, { status: 403 })
       }
     }
 

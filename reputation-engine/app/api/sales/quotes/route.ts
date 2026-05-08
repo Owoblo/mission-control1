@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { dateStamp, estimateLeadQuote, genQuoteNumber, normalizeClient, normalizeQuote, syncLeadFromQuoteStatus, uid } from '@/lib/sales'
+import { recordQuoteCreatedAudit } from '@/lib/server/sales-audit'
 import { canAccessSalesWorkspace, canEditQuote } from '@/lib/server/sales-permissions'
 import { getSessionUser } from '@/lib/server/session'
 import { getLatestSalesQuoteByLeadId, getSalesLead, listSalesClients, saveSalesClient, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
@@ -111,6 +112,8 @@ export async function POST(request: Request) {
         `Quote ${savedQuote.id} saved but lead update failed: ${leadError instanceof Error ? leadError.message : 'unknown'}`
       )
     }
+
+    await recordQuoteCreatedAudit(savedQuote, session?.name)
 
     return NextResponse.json({ quote: savedQuote, lead: savedLead })
   } catch (error) {

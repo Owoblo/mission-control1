@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getSessionCookieName, getSessionPayload } from '@/lib/auth'
+import { getWorkerSharedSecret } from '@/lib/server/runtime'
 
 const PUBLIC_PATHS = new Set(['/login'])
 
@@ -10,10 +11,18 @@ const PUBLIC_API_PATHS = new Set([
   '/api/sales/dialer/recording-callback',
   '/api/sales/dialer/dial-status',
   '/api/sales/dialer/call-status',
+  '/api/sales/dialer/missed-call',
   '/api/sales/twilio/sms',
   '/api/sales/inbox/email-inbound',
+  '/api/sales/emails/backfill',
   '/api/sales/stripe/checkout',
   '/api/sales/stripe/webhook',
+])
+
+const INTERNAL_SECRET_API_PATHS = new Set([
+  '/api/sales/automation/ingest',
+  '/api/sales/automation/process',
+  '/api/sales/automation/reactivate',
 ])
 
 // QR code tracking is public (scanned by mail recipient, no login)
@@ -21,10 +30,17 @@ function isPublicMarketingPath(pathname: string) {
   return pathname.startsWith('/api/marketing/qr/')
 }
 
+function hasInternalSecretBypass(request: NextRequest, pathname: string) {
+  if (!INTERNAL_SECRET_API_PATHS.has(pathname)) return false
+  const secret = request.headers.get('x-internal-secret')
+  const workerSecret = getWorkerSharedSecret()
+  return !!secret && !!workerSecret && secret === workerSecret
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl
 
-  if (PUBLIC_PATHS.has(pathname) || PUBLIC_API_PATHS.has(pathname) || isPublicMarketingPath(pathname)) {
+  if (PUBLIC_PATHS.has(pathname) || PUBLIC_API_PATHS.has(pathname) || isPublicMarketingPath(pathname) || hasInternalSecretBypass(request, pathname)) {
     return NextResponse.next()
   }
 

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { calculateLeadScore, normalizeLead, uid } from '@/lib/sales'
+import { calculateLeadScore, isClosedLeadStage, normalizeLead, uid } from '@/lib/sales'
 import {
   getSalesBranchFromSaturnLabel,
   getSalesBranchFromSaturnPhone,
@@ -36,7 +36,7 @@ function findMatchingActiveLead(leads: CRMLead[], phone?: string, email?: string
   const normalizedEmail = (email || '').trim().toLowerCase()
 
   return leads.find(lead => {
-    if (lead.stage === 'booked' || lead.stage === 'lost') {
+    if (isClosedLeadStage(lead.stage)) {
       return false
     }
 
@@ -365,10 +365,10 @@ export async function POST(request: Request) {
       stage: payload.stage || inferStageFromInbound(inbound),
       moveType: validated.moveType || 'residential',
       branch: inferLeadBranchFromInbound(inbound),
-      moveDate: '',
-      originAddress: '',
-      originCity: '',
-      destCity: '',
+      moveDate: (parseRawData(inbound.raw_data)?.moveDate as string) || '',
+      originAddress: (parseRawData(inbound.raw_data)?.originAddress as string) || '',
+      originCity: (parseRawData(inbound.raw_data)?.originCity as string) || '',
+      destCity: (parseRawData(inbound.raw_data)?.destCity as string) || '',
       moveReason: '',
       notes: payload.notes?.trim() || inbound.message?.trim() || '',
       ...inferFollowUp(inbound),

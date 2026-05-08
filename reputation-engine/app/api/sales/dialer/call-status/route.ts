@@ -10,6 +10,7 @@ import {
 } from '@/lib/sales-phones'
 import { createSalesSystemAlert } from '@/lib/server/sales-alerts'
 import { getTwilioCredentials } from '@/lib/server/runtime'
+import { twilioAuth } from '@/lib/server/twilio-recordings'
 import { listSalesLeads } from '@/lib/server/sales-repository'
 
 export async function GET() {
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
     await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
       method: 'POST',
       headers: {
-        Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`,
+        Authorization: twilioAuth(accountSid, authToken),
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: new URLSearchParams({
