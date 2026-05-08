@@ -1,4 +1,5 @@
 import type {
+  LeadKind,
   CRMLead,
   CRMQuote,
   JobFactors,
@@ -10,9 +11,18 @@ import type {
   EstimateRouteContext,
   QuoteLineItem,
   QuoteStatus,
+  SalesBranch,
   SalesDashboardSummary,
   SalesLeadStage,
 } from './types'
+import { applyMovePolicyToInventory } from './move-policy'
+import { normalizeCrewPayouts } from './operations'
+import { buildPackingMaterialsEstimate } from './packing-materials'
+
+function normalizeOptionalText(value?: string | null) {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : undefined
+}
 
 export const SALES_LEAD_STAGES: Array<{ id: SalesLeadStage; label: string }> = [
   { id: 'new', label: 'New Lead' },
@@ -21,10 +31,24 @@ export const SALES_LEAD_STAGES: Array<{ id: SalesLeadStage; label: string }> = [
   { id: 'estimate_completed', label: 'Estimate Done' },
   { id: 'pricing', label: 'Building Quote' },
   { id: 'quoted', label: 'Quoted' },
+  { id: 'tentative', label: 'Tentative Reservation' },
   { id: 'nurture', label: 'Shopping Around' },
   { id: 'booked', label: 'Booked' },
+  { id: 'completed', label: 'Move Completed' },
+  { id: 'customer_success', label: 'Customer Success' },
   { id: 'lost', label: 'Lost' },
 ]
+
+export const BOOKED_LIKE_STAGES: SalesLeadStage[] = ['booked', 'completed', 'customer_success']
+export const CLOSED_LEAD_STAGES: SalesLeadStage[] = [...BOOKED_LIKE_STAGES, 'lost']
+
+export function isBookedLikeStage(stage?: SalesLeadStage | string | null) {
+  return !!stage && BOOKED_LIKE_STAGES.includes(stage as SalesLeadStage)
+}
+
+export function isClosedLeadStage(stage?: SalesLeadStage | string | null) {
+  return !!stage && CLOSED_LEAD_STAGES.includes(stage as SalesLeadStage)
+}
 
 export const LOST_REASONS: Array<{ id: string; label: string }> = [
   { id: 'price', label: 'Price — Too Expensive' },
@@ -45,6 +69,56 @@ export const LEAD_CONTEXT_FLAGS: Array<{ id: string; label: string }> = [
 ]
 
 export const DEPOSIT_METHODS = ['E-Transfer', 'Credit Card', 'Cash', 'Cheque', 'Other']
+
+export const SALES_BRANCHES: Array<{ id: SalesBranch; label: string }> = [
+  { id: 'windsor', label: 'Windsor' },
+  { id: 'waterloo', label: 'Waterloo / KW' },
+  { id: 'london', label: 'London' },
+  { id: 'ottawa', label: 'Ottawa' },
+]
+
+const SALES_BRANCH_AREAS: Record<SalesBranch, string[]> = {
+  windsor: ['windsor', 'tecumseh', 'lasalle', 'la salle', 'amherstburg', 'essex', 'lakeshore', 'belle river', 'leamington', 'kingsville', 'chatham', 'chatham kent'],
+  waterloo: ['waterloo', 'kitchener', 'cambridge', 'guelph', 'elmira', 'st jacobs', 'st. jacobs', 'baden', 'kw', 'k w'],
+  london: ['london', 'st thomas', 'st. thomas', 'woodstock', 'strathroy', 'dorchester', 'ingersoll', 'komoka', 'lambeth'],
+  ottawa: ['ottawa', 'kanata', 'orleans', 'orleans', 'orléans', 'nepean', 'barrhaven', 'gloucester', 'stittsville', 'manotick'],
+}
+
+function normalizeLocationText(...values: Array<string | null | undefined>) {
+  return values
+    .filter(Boolean)
+    .join(' ')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+export function getSalesBranchLabel(branch?: SalesBranch) {
+  return SALES_BRANCHES.find(item => item.id === branch)?.label || 'Unassigned'
+}
+
+export function detectSalesBranchFromLocation(...values: Array<string | null | undefined>): SalesBranch | undefined {
+  const normalized = normalizeLocationText(...values)
+  if (!normalized) return undefined
+
+  for (const [branch, aliases] of Object.entries(SALES_BRANCH_AREAS) as Array<[SalesBranch, string[]]>) {
+    if (aliases.some(alias => normalized.includes(normalizeLocationText(alias)))) {
+      return branch
+    }
+  }
+
+  return undefined
+}
+
+export function isLocationWithinBranchServiceArea(branch: SalesBranch | undefined, ...values: Array<string | null | undefined>) {
+  if (!branch) return false
+  const normalized = normalizeLocationText(...values)
+  if (!normalized) return false
+  return SALES_BRANCH_AREAS[branch].some(alias => normalized.includes(normalizeLocationText(alias)))
+}
 
 export const QUOTE_STATUSES: Array<{ id: QuoteStatus; label: string }> = [
   { id: 'draft', label: 'Draft' },
@@ -143,8 +217,11 @@ export function calculateLeadScore(lead: CRMLead) {
   else if (lead.source === 'google') score += 20
   else if (lead.source === 'direct_mail') score += 15
   else if (lead.source === 'repeat') score += 30
+  else if (lead.source === 'destination_opportunity') score += 12
 
   if (lead.stage === 'quoted') score += 20
+  else if (lead.stage === 'customer_success') score += 50
+  else if (lead.stage === 'completed') score += 45
   else if (lead.stage === 'booked') score += 40
   else if (lead.stage === 'pricing') score += 15
   else if (lead.stage === 'nurture') score += 8
@@ -153,6 +230,7 @@ export function calculateLeadScore(lead: CRMLead) {
   if ((lead.inventory || []).length > 0) score += 10
   if (lead.phone) score += 5
   if (lead.quoteId) score += 15
+  if (lead.leadKind === 'realtor_opportunity') score += 5
 
   const daysSince = (Date.now() - new Date(lead.createdAt).getTime()) / (1000 * 60 * 60 * 24)
   if (daysSince < 3) score += 10
@@ -161,17 +239,47 @@ export function calculateLeadScore(lead: CRMLead) {
   return Math.max(0, Math.min(100, score))
 }
 
+export function getLeadAssignedRepName(lead?: Pick<CRMLead, 'assignedRep' | 'assignedRepName'> | null) {
+  return normalizeOptionalText(lead?.assignedRepName) || normalizeOptionalText(lead?.assignedRep)
+}
+
+export function getLeadAssignedRepKey(lead?: Pick<CRMLead, 'assignedRep' | 'assignedRepName' | 'assignedRepUserId'> | null) {
+  return normalizeOptionalText(lead?.assignedRepUserId) || getLeadAssignedRepName(lead)
+}
+
 export function normalizeLead(lead: CRMLead): CRMLead {
+  const leadKind: LeadKind = lead.leadKind || 'customer'
+  const assignedRepName = getLeadAssignedRepName(lead)
+  const assignedRepUserId = normalizeOptionalText(lead.assignedRepUserId)
+  const lastTouchedByName = normalizeOptionalText(lead.lastTouchedByName)
+  const lastTouchedByUserId = normalizeOptionalText(lead.lastTouchedByUserId)
+  const lastTouchedAt = normalizeOptionalText(lead.lastTouchedAt)
+  const inventory = applyMovePolicyToInventory(Array.isArray(lead.inventory) ? lead.inventory : [], {
+    enforceExclusion: true,
+  })
+  const inventoryMetrics = deriveInventoryMetrics(inventory)
   return {
     ...lead,
+    leadKind,
+    primaryContactRole: lead.primaryContactRole || (leadKind === 'realtor_opportunity' ? 'realtor' : 'customer'),
     stage: lead.stage || 'new',
     callLogs: Array.isArray(lead.callLogs) ? lead.callLogs : [],
-    inventory: Array.isArray(lead.inventory) ? lead.inventory : [],
-    totalItems: lead.totalItems ?? lead.inventory?.length ?? 0,
-    totalCubicFeet: lead.totalCubicFeet ?? 0,
-    totalWeightLbs: lead.totalWeightLbs ?? 0,
+    inventory,
+    mediaAssets: Array.isArray(lead.mediaAssets) ? lead.mediaAssets : [],
+    crewPayouts: normalizeCrewPayouts(lead.crewPayouts),
+    totalItems: inventory.length > 0 ? inventoryMetrics.totalItems : (lead.totalItems ?? lead.inventory?.length ?? 0),
+    totalCubicFeet: inventory.length > 0 ? inventoryMetrics.totalCubicFeet : (lead.totalCubicFeet ?? 0),
+    totalWeightLbs: inventory.length > 0 ? inventoryMetrics.totalWeightLbs : (lead.totalWeightLbs ?? 0),
     createdAt: lead.createdAt || new Date().toISOString().slice(0, 10),
     leadScore: lead.leadScore ?? calculateLeadScore(lead),
+    assignedRep: assignedRepName,
+    assignedRepName,
+    assignedRepUserId,
+    leadOwnerStatus: assignedRepName ? lead.leadOwnerStatus || 'assigned' : 'unassigned',
+    ownedAt: assignedRepName ? normalizeOptionalText(lead.ownedAt) : undefined,
+    lastTouchedByName,
+    lastTouchedByUserId,
+    lastTouchedAt,
   }
 }
 
@@ -197,6 +305,10 @@ export function normalizeQuote(quote: CRMQuote): CRMQuote {
     longDistanceInsuranceCost: Number(quote.longDistanceInsuranceCost || 0) || undefined,
     longDistanceMiscCost: Number(quote.longDistanceMiscCost || 0) || undefined,
     longDistanceMarkupRate: Number(quote.longDistanceMarkupRate || 0) || undefined,
+    billingModel: quote.billingModel || undefined,
+    minimumBillableHours: Number(quote.minimumBillableHours || 0) || undefined,
+    maximumEstimatedHours: Number(quote.maximumEstimatedHours || 0) || undefined,
+    hourlyRateOverride: Number(quote.hourlyRateOverride || 0) || undefined,
     discountAmount: Number(quote.discountAmount || 0),
     discountLabel: quote.discountLabel || '',
     subtotal: Number(quote.subtotal || 0),
@@ -339,22 +451,43 @@ const THREE_TRUCK_RATE_MULTIPLIER = 2.05
 const LABOR_COST_PER_MOVER_HOUR = 20
 const TRUCK_DAILY_COST = 50          // rental/depreciation per truck per day
 const TRUCK_OPS_COST_PER_KM = 1.1   // fuel + wear at ~$1.10 CAD/km per truck
+export const UHAUL_RATE_PER_KM = 1   // quick rental estimate used for long-distance quoting
 
-// Per-item disassembly + reassembly times in minutes — context-aware, not a flat rate
-// disMin = time to take apart at origin; reMin = time to reassemble at destination
-const DISASSEMBLY_ITEM_TIMES: Record<string, { disMin: number; reMin: number }> = {
-  'dining table':  { disMin: 5,  reMin: 5  },  // typically 4 bolt-on legs
-  'desk':          { disMin: 8,  reMin: 8  },  // 4-6 screws, straight frame
-  'crib':          { disMin: 10, reMin: 15 },  // bolt-together panels
-  'bed frame':     { disMin: 10, reMin: 15 },  // slats + side rails
-  'china cabinet': { disMin: 15, reMin: 20 },  // top/bottom separation + hardware
-  'hutch':         { disMin: 15, reMin: 20 },  // same as china cabinet
-  'bunk bed':      { disMin: 25, reMin: 30 },  // full frame + ladder + guard rail
-  'trampoline':    { disMin: 35, reMin: 40 },  // legs + frame + springs
+// Items that almost always require disassembly/reassembly — auto-detected from inventory scan
+// NOTE: wardrobes are excluded — they are typically built-in and stay with the property
+const DISASSEMBLY_KEYWORDS = [
+  'bed frame',
+  'bunk bed',
+  'crib',
+  'dining table',
+  'executive desk',
+  'corner desk',
+  'l-shaped desk',
+  'standing desk',
+  'desk frame',
+  'workstation desk',
+  'china cabinet',
+  'hutch',
+  'trampoline',
+  'mirror dresser',
+  'dresser with mirror',
+  'mirrored dresser',
+  'dresser mirror',
+]
+
+// Names that contain a keyword but should NOT be flagged for disassembly
+const DISASSEMBLY_EXCLUSIONS = [
+  'desk chair',   // "office desk chair", "ergonomic desk chair" — chairs, not desks
+  'patio set',
+  'patio table',
+  'office table',
+]
+
+export function needsDisassembly(name: string): boolean {
+  const lower = name.toLowerCase()
+  if (DISASSEMBLY_EXCLUSIONS.some(ex => lower.includes(ex))) return false
+  return DISASSEMBLY_KEYWORDS.some(kw => lower.includes(kw))
 }
-
-// Items that should NEVER be flagged for disassembly even if name partially matches
-const NO_DISASSEMBLY_KEYWORDS = ['patio', 'barbecue', 'grill']
 
 function getTruckRateMultiplier(truckCount: number) {
   if (truckCount >= 3) return THREE_TRUCK_RATE_MULTIPLIER
@@ -394,10 +527,8 @@ export function tvBoxPrice(sizeInches: number | null): number {
 export function suggestDisassemblyCount(inventory: InventoryItem[]): number {
   const keywords = Object.keys(DISASSEMBLY_ITEM_TIMES)
   return inventory.reduce((count, item) => {
-    const name = (item.name || item.item || '').toLowerCase()
     if (item.included === false) return count
-    if (NO_DISASSEMBLY_KEYWORDS.some(kw => name.includes(kw))) return count
-    return keywords.some(kw => name.includes(kw))
+    return needsDisassembly(item.name || item.item || '')
       ? count + Math.max(1, Number(item.qty || 1))
       : count
   }, 0)
@@ -504,15 +635,17 @@ export function computeJobPenalties(factors: JobFactors): {
   // Disassembly / reassembly
   const disassemblyCount = factors.disassemblyItemCount || 0
   if (disassemblyCount > 0) {
-    // Use per-item breakdown if available (computed by getDisassemblyBreakdown);
-    // fall back to flat ~20 min/item when rep manually set a count with no detail
-    const totalHrs = factors.disassemblyHours ?? Math.round(disassemblyCount * 0.33 * 4) / 4
-    const detailLines: string[] = factors.disassemblyDetails?.length
-      ? factors.disassemblyDetails
-      : [`~20 min total per item × ${disassemblyCount} item${disassemblyCount > 1 ? 's' : ''}`]
+    const mode = factors.disassemblyMode || 'both'
+    // Both = 0.33h/item (full service), single side = 0.2h/item
+    const hoursPerItem = mode === 'both' ? 0.33 : 0.2
+    const modeLabel = mode === 'both'
+      ? 'Disassembly + reassembly'
+      : mode === 'disassemble_only'
+        ? 'Disassembly only (crew reassembles at origin, customer handles destination)'
+        : 'Reassembly only (customer disassembles, crew reassembles at destination)'
     penalties.push({
-      label: `Disassembly + reassembly – ${disassemblyCount} item${disassemblyCount > 1 ? 's' : ''} (~${totalHrs} hr${totalHrs !== 1 ? 's' : ''} total)`,
-      hours: totalHrs,
+      label: `${modeLabel} – ${disassemblyCount} item${disassemblyCount > 1 ? 's' : ''}`,
+      hours: Math.round(disassemblyCount * hoursPerItem * 4) / 4,
       category: 'disassembly',
       details: [
         ...detailLines,
@@ -522,11 +655,15 @@ export function computeJobPenalties(factors: JobFactors): {
   }
 
   // Hidden inventory — adds cubic feet (no direct hour penalty, feeds back into labor calc)
+  // Boxes: first 50 are standard and included — only count the overage above 50
+  const BOX_STANDARD_ALLOWANCE = 50
+  const totalBoxes = factors.estimatedBoxes || 0
+  const billableBoxes = Math.max(0, totalBoxes - BOX_STANDARD_ALLOWANCE)
   const extraCubicFeet =
     (factors.garageCubicFeet || 0) +
     (factors.basementCubicFeet || 0) +
     (factors.shedCubicFeet || 0) +
-    (factors.estimatedBoxes || 0) * 1.5
+    billableBoxes * 1.5
 
   if ((factors.garageCubicFeet || 0) > 0) {
     penalties.push({ label: `Garage – ${factors.garageCubicFeet} cu ft (not in MLS photos)`, hours: 0, category: 'hidden_inventory' })
@@ -537,9 +674,11 @@ export function computeJobPenalties(factors: JobFactors): {
   if ((factors.shedCubicFeet || 0) > 0) {
     penalties.push({ label: `Shed – ${factors.shedCubicFeet} cu ft (not in MLS photos)`, hours: 0, category: 'hidden_inventory' })
   }
-  if ((factors.estimatedBoxes || 0) > 0) {
+  if (totalBoxes > 0) {
     penalties.push({
-      label: `${factors.estimatedBoxes} boxes (~${Math.round((factors.estimatedBoxes || 0) * 1.5)} cu ft) – customer estimate`,
+      label: totalBoxes <= BOX_STANDARD_ALLOWANCE
+        ? `${totalBoxes} boxes – included in standard pricing`
+        : `${totalBoxes} boxes – ${billableBoxes} over standard allowance (~${Math.round(billableBoxes * 1.5)} cu ft added)`,
       hours: 0,
       category: 'hidden_inventory',
     })
@@ -572,19 +711,19 @@ export function syncLeadFromQuoteStatus(lead: CRMLead, quote: CRMQuote): CRMLead
     quote.status === 'accepted' || quote.status === 'invoiced'
       ? 'booked'
       : quote.status === 'declined'
-        ? lead.stage === 'booked'
-          ? 'booked'
+        ? isBookedLikeStage(lead.stage)
+          ? lead.stage
           : 'lost'
         : quote.status === 'sent' || quote.status === 'viewed'
           ? 'quoted'
           : quote.status === 'draft'
-            ? lead.stage === 'booked'
-              ? 'booked'
+            ? isBookedLikeStage(lead.stage)
+              ? lead.stage
               : lead.stage === 'lost'
                 ? 'lost'
                 : 'pricing'
-          : lead.stage === 'booked'
-            ? 'booked'
+          : isBookedLikeStage(lead.stage)
+            ? lead.stage
             : lead.stage === 'lost'
               ? 'lost'
               : 'contacted'
@@ -643,8 +782,16 @@ export function estimateLeadQuote(
   const { count: autoDisassemblyCount, totalHours: autoDisassemblyHours, details: autoDisassemblyDetails } =
     getDisassemblyBreakdown(lead.inventory || [])
 
-  // Names list used for scope-of-work display (unchanged — just the item names)
-  const disassemblyItemNames = autoDisassemblyDetails.map(line => line.split(' — ')[0].trim())
+  // Detect which specific items need disassembly — listed by name for scope of work display
+  const disassemblyItemNames = (lead.inventory || [])
+    .filter(item => item.included !== false)
+    .flatMap(item => {
+      const name = (item.name || item.item || '').toLowerCase()
+      if (!needsDisassembly(name)) return []
+      const qty = Math.max(1, Number(item.qty || 1))
+      const displayName = item.name || item.item || ''
+      return qty > 1 ? [`${qty}× ${displayName}`] : [displayName]
+    })
 
   // Specialty items that ARE being moved (not flagged as "do not move")
   const specialtyItemFlags: string[] = []
@@ -663,9 +810,10 @@ export function estimateLeadQuote(
     : autoDisassemblyCount > 0
       ? { disassemblyItemCount: autoDisassemblyCount, disassemblyHours: autoDisassemblyHours, disassemblyDetails: autoDisassemblyDetails }
       : undefined
-  const { penalties, extraHours, extraCubicFeet } = activeFactors
+  const { penalties, extraHours: penaltyHoursFromFactors, extraCubicFeet } = activeFactors
     ? computeJobPenalties(activeFactors)
     : { penalties: [], extraHours: 0, extraCubicFeet: 0 }
+  let extraHours = penaltyHoursFromFactors
 
   const baseCubicFeet = lead.totalCubicFeet || metrics.totalCubicFeet
   const totalCubicFeet = baseCubicFeet + extraCubicFeet
@@ -673,6 +821,20 @@ export function estimateLeadQuote(
   const suggestedCrew = Number(overrides?.crewSize || suggestCrewSize(totalWeightLbs, totalCubicFeet, metrics.includedInventory))
   const suggestedTruckCount = suggestTruckCount(totalCubicFeet, totalWeightLbs, lead.moveType)
   const truckCount = Number(overrides?.truckCount || activeFactors?.truckCountOverride || suggestedTruckCount)
+
+  // Multi-truck coordination overhead: each additional truck adds ~30 min for
+  // parallel loading logistics, crew briefing, and staging at origin.
+  // Only applies to local full-service moves (not long-distance, labor-only, or packing).
+  if (!isLongDistance && !isPacking && !isLaborOnly && truckCount >= 2) {
+    const coordHours = roundQuarterHour(0.5 * (truckCount - 1))
+    penalties.push({
+      label: `${truckCount}-truck coordination — load sequence, parallel staging, crew sync`,
+      hours: coordHours,
+      category: 'access',
+    })
+    extraHours += coordHours
+  }
+
   const threeTruckReview = truckCount >= 3
   const crewMinimum = truckCount >= 3 ? 6 : truckCount === 2 ? 4 : 1
   const crewSizeOverride = activeFactors?.crewSizeOverride
@@ -684,7 +846,6 @@ export function estimateLeadQuote(
   const crewRate = getCrewRate(crewSize, lead.moveType, truckCount)
   const baseCrewRate = crewRate  // kept for cost estimate calculations
   const truckRateMultiplier = getTruckRateMultiplier(truckCount)  // kept for display only
-  const longDistanceTruckCost = Number(overrides?.longDistanceTruckCost || 0)
   const longDistanceGasCost = Number(overrides?.longDistanceGasCost || 0)
   const longDistanceInsuranceCost = Number(overrides?.longDistanceInsuranceCost || 0)
   const longDistanceMiscCost = Number(overrides?.longDistanceMiscCost || 0)
@@ -719,6 +880,10 @@ export function estimateLeadQuote(
   )
   const billableDistanceKm = routeContext?.billableDistanceKm ?? overrides?.distanceKm
   const operationalDistanceKm = routeContext?.operationalDistanceKm ?? billableDistanceKm
+  const autoUhaulChargeEstimate = isLongDistance && operationalDistanceKm
+    ? roundCurrency(Math.max(0, operationalDistanceKm) * truckCount * UHAUL_RATE_PER_KM)
+    : 0
+  const longDistanceTruckCost = Number(overrides?.longDistanceTruckCost || 0) || autoUhaulChargeEstimate
   const forcedSingleTruckTwoTrips =
     !missingDestination &&
     !isLongDistance &&
@@ -814,6 +979,13 @@ export function estimateLeadQuote(
   const packingCrewRate = PACKING_CREW_RATES[packingCrewSize] || PACKING_CREW_RATES[3]
   const packingHours = Math.max(3, roundQuarterHour(rawLaborHours))
   const packingDayAmount = roundCurrency(packingHours * packingCrewRate)
+  const packingMaterialsEstimate =
+    isPacking || activeFactors?.packingStatus === 'not-started' || activeFactors?.packingStatus === 'partial'
+      ? buildPackingMaterialsEstimate({
+          inventory: lead.inventory || [],
+          estimatedBoxes: activeFactors?.estimatedBoxes,
+        })
+      : null
   const packingDayEstimate = {
     crewSize: packingCrewSize,
     hours: packingHours,
@@ -867,6 +1039,7 @@ export function estimateLeadQuote(
     twoTripComparison,
     multiTruckOption,
     packingDayEstimate,
+    packingMaterialsEstimate,
     twoDayMoveEstimate,
   }
 
@@ -888,7 +1061,7 @@ export function estimateLeadQuote(
   }
   if (isPacking) {
     inclusions.push('professional packing service')
-    inclusions.push('all packing materials')
+    inclusions.push('materials quoted separately at actual usage')
   }
   if (missingDestination) {
     inclusions.push('travel pending final destination confirmation')
@@ -968,6 +1141,8 @@ export function estimateLeadQuote(
     routeCategory,
     billableDistanceKm: effectiveBillableDistanceKm,
     operationalDistanceKm: effectiveOperationalDistanceKm,
+    uhaulRatePerKm: isLongDistance ? UHAUL_RATE_PER_KM : undefined,
+    uhaulChargeEstimate: isLongDistance ? longDistanceTruckCost || autoUhaulChargeEstimate || undefined : undefined,
     baseCubicFeet,
     extraCubicFeet,
     totalCubicFeet,
@@ -994,7 +1169,7 @@ export function estimateLeadQuote(
     estimatedHours,
     truckCount,
     estimatedWeightLbs: totalWeightLbs || undefined,
-    longDistanceDistanceKm: Number(overrides?.longDistanceDistanceKm || 0) || undefined,
+    longDistanceDistanceKm: Number(overrides?.longDistanceDistanceKm || (isLongDistance ? effectiveBillableDistanceKm : 0) || 0) || undefined,
     longDistanceTruckCost: longDistanceTruckCost || undefined,
     longDistanceGasCost: longDistanceGasCost || undefined,
     longDistanceInsuranceCost: longDistanceInsuranceCost || undefined,
@@ -1022,7 +1197,7 @@ export function computeQuoteTotals(lineItems: QuoteLineItem[], depositRate = 0.4
 }
 
 export function deriveInventoryMetrics(inventory: InventoryItem[]) {
-  const normalized = inventory
+  const normalized = applyMovePolicyToInventory(inventory, { enforceExclusion: true })
     .map(item => ({
       ...item,
       name: item.name || item.item || '',
@@ -1050,20 +1225,39 @@ export function deriveInventoryMetrics(inventory: InventoryItem[]) {
 
 export function buildSalesSummary(leads: CRMLead[], quotes: CRMQuote[]): SalesDashboardSummary {
   const today = dateStamp()
-  const activeLeads = leads.filter(lead => !['booked', 'lost'].includes(lead.stage))
-  const quotedLeads = leads.filter(lead => lead.stage === 'quoted')
-  const bookedLeads = leads.filter(lead => lead.stage === 'booked')
+  const activeLeads = leads.filter(lead => !isClosedLeadStage(lead.stage))
+  const quotedLeads = leads.filter(lead => lead.stage === 'quoted' || lead.stage === 'tentative')
+  const bookedLeads = leads.filter(lead => isBookedLikeStage(lead.stage))
   const leadsDueToday = activeLeads.filter(lead => lead.followUpDate && lead.followUpDate <= today).length
   const overdueLeads = activeLeads.filter(lead => lead.followUpDate && lead.followUpDate < today).length
+
+  // Build a lookup by leadId so we can find any quote for a lead even if quoteId
+  // on the lead record points to a different revision
+  const quoteByLeadId = new Map<string, CRMQuote>()
+  for (const quote of quotes) {
+    if (!quote.leadId) continue
+    const existing = quoteByLeadId.get(quote.leadId)
+    // Prefer accepted > sent > viewed > draft; otherwise take the highest total
+    const betterStatus = (q: CRMQuote) => ['accepted', 'invoiced', 'sent', 'viewed', 'draft'].indexOf(q.status || 'draft')
+    if (!existing || betterStatus(quote) < betterStatus(existing) || (!existing.total && quote.total)) {
+      quoteByLeadId.set(quote.leadId, quote)
+    }
+  }
+
+  function findQuoteForLead(lead: CRMLead) {
+    return (lead.quoteId ? quotes.find(q => q.id === lead.quoteId) : null) ||
+           quoteByLeadId.get(lead.id) ||
+           null
+  }
+
   const quotedPipelineValue = quotedLeads.reduce((sum, lead) => {
-    const quote = quotes.find(item => item.id === lead.quoteId)
-    if (quote) return sum + quote.total
-    return sum
+    const quote = findQuoteForLead(lead)
+    return sum + (quote?.total || 0)
   }, 0)
+
   const bookedRevenue = bookedLeads.reduce((sum, lead) => {
-    const quote = quotes.find(item => item.id === lead.quoteId)
-    if (quote) return sum + quote.total
-    return sum
+    const quote = findQuoteForLead(lead)
+    return sum + (quote?.total || 0)
   }, 0)
 
   return {

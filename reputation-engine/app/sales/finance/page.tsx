@@ -1,7 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { formatMoney } from '@/lib/sales'
+import { computeCrewPayoutAmounts, CREW_PAYOUT_METHOD_LABELS, CREW_PAYOUT_STATUS_LABELS } from '@/lib/operations'
+import { updateSalesLead } from '@/lib/sales-api'
+import { formatMoney, isBookedLikeStage } from '@/lib/sales'
+import type { CRMLead, CrewPayoutEntry } from '@/lib/types'
 
 interface JobCost {
   id: string
@@ -17,6 +20,16 @@ interface BookedJob {
   name: string
   moveDate?: string
   revenue: number
+  lead: CRMLead
+}
+
+type WorkerPayoutRow = {
+  leadId: string
+  leadName: string
+  moveDate?: string
+  branch?: string
+  entry: CrewPayoutEntry
+  totalPay: number
 }
 
 const CATEGORIES = [
@@ -51,6 +64,7 @@ export default function FinancePage() {
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [tab, setTab] = useState<'jobs' | 'overhead' | 'all'>('jobs')
+  const [payoutBusyId, setPayoutBusyId] = useState<string | null>(null)
 
   async function load() {
     setLoading(true)
@@ -63,8 +77,8 @@ export default function FinancePage() {
       const d = await jobsRes.json()
       // Extract booked leads + their quote totals
       const booked: BookedJob[] = (d.leads || [])
-        .filter((l: { stage: string }) => l.stage === 'booked')
-        .map((l: { id: string; name: string; moveDate?: string; quotes?: { status: string; total?: number }[] }) => {
+        .filter((l: { stage: string }) => isBookedLikeStage(l.stage))
+        .map((l: CRMLead & { quotes?: { status: string; total?: number }[] }) => {
           const acceptedQuote = (l.quotes || []).find(
             (q: { status: string; total?: number }) => ['accepted', 'invoiced'].includes(q.status)
           )
@@ -73,6 +87,7 @@ export default function FinancePage() {
             name: l.name,
             moveDate: l.moveDate,
             revenue: acceptedQuote?.total || 0,
+            lead: l,
           }
         })
       setJobs(booked)
@@ -110,6 +125,67 @@ export default function FinancePage() {
     setDeleting(null)
   }
 
+  async function createLaborCostForPayout(row: WorkerPayoutRow) {
+    if (row.entry.financeCostId) return row.entry.financeCostId
+    const response = await fetch('/api/sales/finance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        lead_id: row.leadId,
+        category: 'labor',
+        description: `Crew payout · ${row.entry.workerName}${row.entry.role ? ` · ${row.entry.role.replace('_', ' ')}` : ''}`,
+        amount_cents: Math.round(row.totalPay * 100),
+        cost_date: row.moveDate || new Date().toISOString().slice(0, 10),
+      }),
+    })
+    const payload = await response.json().catch(() => null) as JobCost | { error?: string } | null
+    if (!response.ok) {
+      throw new Error((payload as { error?: string } | null)?.error || 'Failed to log labor cost')
+    }
+    const created = payload as JobCost
+    setCosts(current => [created, ...current])
+    return created.id
+  }
+
+  async function updatePayoutStatus(row: WorkerPayoutRow, nextStatus: CrewPayoutEntry['payoutStatus']) {
+    setPayoutBusyId(row.entry.id)
+    try {
+      let financeCostId = row.entry.financeCostId
+      if (nextStatus === 'paid' && !financeCostId) {
+        financeCostId = await createLaborCostForPayout(row)
+      }
+
+      const job = jobs.find(item => item.id === row.leadId)
+      if (!job) throw new Error('Job not found')
+
+      const nextPayouts = (job.lead.crewPayouts || []).map(entry =>
+        entry.id === row.entry.id
+          ? {
+              ...entry,
+              payoutStatus: nextStatus,
+              approvedAt: nextStatus === 'approved' || nextStatus === 'paid' ? (entry.approvedAt || new Date().toISOString()) : entry.approvedAt,
+              paidAt: nextStatus === 'paid' ? new Date().toISOString() : entry.paidAt,
+              financeCostId,
+            }
+          : entry
+      )
+
+      const updatedLead = await updateSalesLead(row.leadId, {
+        crewPayouts: nextPayouts,
+      })
+      setJobs(current => current.map(item => (
+        item.id === row.leadId
+          ? { ...item, lead: updatedLead }
+          : item
+      )))
+    } catch (error) {
+      window.alert((error as Error).message)
+    } finally {
+      setPayoutBusyId(null)
+    }
+  }
+
   // Compute P&L per job
   const jobPL = jobs.map(job => {
     const jobCosts = costs.filter(c => c.lead_id === job.id)
@@ -124,6 +200,21 @@ export default function FinancePage() {
   const allRevenue = jobPL.reduce((s, j) => s + j.revenue, 0)
   const allJobCosts = jobPL.reduce((s, j) => s + j.totalCosts, 0)
   const netProfit = allRevenue - allJobCosts - totalOverhead
+
+  const payoutRows: WorkerPayoutRow[] = jobs.flatMap(job =>
+    (job.lead.crewPayouts || []).map(entry => ({
+      leadId: job.id,
+      leadName: job.name,
+      moveDate: job.moveDate,
+      branch: job.lead.branch,
+      entry,
+      totalPay: computeCrewPayoutAmounts(entry).totalPay,
+    }))
+  )
+  const pendingPayoutRows = payoutRows.filter(row => row.entry.payoutStatus !== 'paid')
+  const approvedPayoutRows = pendingPayoutRows.filter(row => row.entry.payoutStatus === 'approved')
+  const pendingPayoutTotal = pendingPayoutRows.reduce((sum, row) => sum + row.totalPay, 0)
+  const approvedPayoutTotal = approvedPayoutRows.reduce((sum, row) => sum + row.totalPay, 0)
 
   const visibleCosts =
     tab === 'jobs' ? costs.filter(c => c.lead_id !== 'overhead') :
@@ -174,6 +265,78 @@ export default function FinancePage() {
               </div>
               <div className="mt-0.5 text-xs text-[var(--app-muted)]">after all logged costs</div>
             </div>
+          </div>
+
+          <div className="crm-panel overflow-hidden">
+            <div className="flex items-center justify-between border-b border-[var(--app-line)] px-6 py-4">
+              <div>
+                <h2 className="font-semibold text-[#1a2744]">Weekly Crew Payout Queue</h2>
+                <p className="mt-1 text-xs text-[var(--app-muted)]">Submitted from Operations. Review here, then approve and mark paid manually.</p>
+              </div>
+              <div className="text-right text-xs text-[var(--app-muted)]">
+                <div>Pending: <span className="font-semibold text-[#1a2744]">{formatMoney(pendingPayoutTotal)}</span></div>
+                <div>Approved: <span className="font-semibold text-emerald-700">{formatMoney(approvedPayoutTotal)}</span></div>
+              </div>
+            </div>
+            {pendingPayoutRows.length === 0 ? (
+              <div className="p-10 text-center text-sm text-[var(--app-muted)]">
+                No pending crew payouts yet. Ops-submitted labor sheets will appear here.
+              </div>
+            ) : (
+              <div className="divide-y divide-[var(--app-line)]">
+                {pendingPayoutRows.map(row => (
+                  <div key={row.entry.id} className="flex flex-col gap-3 px-6 py-4 lg:flex-row lg:items-center">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold text-[#1a2744]">{row.entry.workerName}</span>
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                          {CREW_PAYOUT_STATUS_LABELS[row.entry.payoutStatus || 'submitted']}
+                        </span>
+                        {row.branch ? (
+                          <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[10px] font-semibold text-[var(--app-muted)]">
+                            {row.branch}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="mt-1 text-sm text-[var(--app-muted)]">
+                        {row.leadName}{row.moveDate ? ` · ${row.moveDate}` : ''} · {row.entry.role ? row.entry.role.replace('_', ' ') : 'worker'} · {row.entry.approvedHours}h @ {formatMoney(row.entry.hourlyRate)}/hr
+                      </div>
+                      <div className="mt-1 text-xs text-[var(--app-muted)]">
+                        {row.entry.paymentMethod ? `${CREW_PAYOUT_METHOD_LABELS[row.entry.paymentMethod]}${row.entry.payoutDestination ? ` · ${row.entry.payoutDestination}` : ''}` : 'Payout details pending'}
+                        {row.entry.reimbursementAmount ? ` · reimbursement ${formatMoney(row.entry.reimbursementAmount)}` : ''}
+                        {row.entry.receiptReference ? ` · receipt ${row.entry.receiptReference}` : ''}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <div className="text-sm font-semibold text-[#1a2744]">{formatMoney(row.totalPay)}</div>
+                        <div className="text-[11px] text-[var(--app-muted)]">
+                          labor {formatMoney(row.entry.laborPay || 0)}
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        {row.entry.payoutStatus !== 'approved' && (
+                          <button
+                            onClick={() => void updatePayoutStatus(row, 'approved')}
+                            disabled={payoutBusyId === row.entry.id}
+                            className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
+                          >
+                            {payoutBusyId === row.entry.id ? 'Saving...' : 'Approve'}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => void updatePayoutStatus(row, 'paid')}
+                          disabled={payoutBusyId === row.entry.id}
+                          className="rounded-lg bg-[#1a2744] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                        >
+                          {payoutBusyId === row.entry.id ? 'Saving...' : 'Mark Paid'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Job P&L table */}

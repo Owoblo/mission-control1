@@ -7,6 +7,7 @@
  */
 
 import { NextResponse } from 'next/server'
+import { isBookedLikeStage } from '@/lib/sales'
 import { getSessionUser } from '@/lib/server/session'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { listFollowUpLogs, listSalesLeads, listSalesQuotes } from '@/lib/server/sales-repository'
@@ -103,7 +104,7 @@ export async function GET(req: Request) {
     })
 
     // Summary stats for quick LLM context
-    const bookedLeads = enrichedLeads.filter(l => l.stage === 'booked')
+    const bookedLeads = enrichedLeads.filter(l => isBookedLikeStage(l.stage))
     const lostLeads = enrichedLeads.filter(l => l.stage === 'lost')
     const totalRevenue = bookedLeads.reduce((sum, l) => sum + (l.revenueCents || 0), 0) / 100
 

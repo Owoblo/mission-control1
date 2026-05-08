@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { fetchSalesOverview, sendSalesMessage, updateSalesLead } from '@/lib/sales-api'
-import { dateStamp, formatDate, formatMoney } from '@/lib/sales'
+import { dateStamp, formatDate, formatMoney, isBookedLikeStage } from '@/lib/sales'
 import type { CRMLead, CRMQuote } from '@/lib/types'
 
 const SATURN_PHONE = '226-773-2993'
@@ -94,7 +94,7 @@ export default function BookedJobsPage() {
 
   const booked = useMemo(() => {
     return leads
-      .filter(l => l.stage === 'booked')
+      .filter(l => isBookedLikeStage(l.stage))
       .sort((a, b) => {
         if (!a.moveDate && !b.moveDate) return 0
         if (!a.moveDate) return 1

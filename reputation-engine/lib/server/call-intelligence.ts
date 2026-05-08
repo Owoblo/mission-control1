@@ -1,7 +1,11 @@
-import type { AISummary, CRMLead, CRMQuote, FollowUpLog } from '@/lib/types'
+import { dateStamp, detectSalesBranchFromLocation, normalizeLead } from '@/lib/sales'
+import type { AISummary, CRMLead, LeadIntelligence, LeadIntelligenceFollowUp, LeadPersonaBadge, SalesLeadStage } from '@/lib/types'
+import { SATURN_STAR_SALES_PROCESS } from '@/lib/server/sales-training'
+import { readEnv } from '@/lib/server/runtime'
+import { downloadTwilioRecording } from '@/lib/server/twilio-recordings'
 
 function getOpenAIKey() {
-  return process.env.OPENAI_API_KEY || ''
+  return readEnv('OPENAI_API_KEY')
 }
 
 function parseAudioDataUrl(dataUrl: string) {
@@ -48,23 +52,24 @@ export async function transcribeConsultationRecording(recordingDataUrl: string) 
   return payload.text?.trim() || null
 }
 
-export async function transcribeFromUrl(audioUrl: string, accountSid: string, authToken: string) {
+export async function transcribeFromUrl(audioUrl: string, accountSid: string, authToken: string, recordingSid?: string | null) {
   const apiKey = getOpenAIKey()
   if (!apiKey) return null
 
-  const audioResponse = await fetch(audioUrl, {
-    headers: {
-      Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`,
-    },
+  const recording = await downloadTwilioRecording({
+    accountSid,
+    authToken,
+    recordingUrl: audioUrl,
+    recordingSid,
   })
-
-  if (!audioResponse.ok) {
-    throw new Error(`Failed to download recording: ${audioResponse.status}`)
-  }
-
-  const buffer = Buffer.from(await audioResponse.arrayBuffer())
+  const buffer = recording.buffer
+  const contentType = recording.contentType.toLowerCase()
+  const ext =
+    contentType.includes('wav') ? 'wav' :
+    contentType.includes('mpeg') || contentType.includes('mp3') ? 'mp3' :
+    'mp3'
   const form = new FormData()
-  form.append('file', new File([buffer], 'call.mp3', { type: 'audio/mpeg' }))
+  form.append('file', new File([buffer], `call.${ext}`, { type: recording.contentType }))
   form.append('model', 'whisper-1')
   form.append('language', 'en')
 
@@ -76,6 +81,12 @@ export async function transcribeFromUrl(audioUrl: string, accountSid: string, au
 
   if (!response.ok) {
     const detail = await response.text().catch(() => '')
+    // 429 = quota exhausted — surface a clean error so callers can suppress noisy alerts
+    if (response.status === 429) {
+      const err = new Error(`Transcription quota exceeded — add OpenAI credits to re-enable.`) as Error & { isQuotaError: boolean }
+      err.isQuotaError = true
+      throw err
+    }
     throw new Error(`Phone call transcription failed: ${response.status}${detail ? ` ${detail}` : ''}`)
   }
 
@@ -102,6 +113,96 @@ const NO_CONVERSATION = {
   moveReadiness: undefined,
 } as const
 
+function parseMaybeNumber(value: unknown) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string') {
+    const normalized = value.replace(/[^0-9.]/g, '')
+    const parsed = Number(normalized)
+    return Number.isFinite(parsed) ? parsed : undefined
+  }
+  return undefined
+}
+
+function normalizeMoveType(value: unknown): CRMLead['moveType'] | undefined {
+  return value === 'residential' || value === 'commercial' || value === 'long-distance' || value === 'senior' || value === 'labor-only' || value === 'packing'
+    ? value
+    : undefined
+}
+
+function normalizePhoneCallSummary(raw: Record<string, unknown>): AISummary {
+  const moveReadiness =
+    raw.moveReadiness === 'hot' || raw.moveReadiness === 'warm' || raw.moveReadiness === 'cold'
+      ? raw.moveReadiness
+      : undefined
+
+  return {
+    summary: typeof raw.summary === 'string' ? raw.summary.trim() : undefined,
+    leadConcern: typeof raw.leadConcern === 'string' ? raw.leadConcern.trim() : undefined,
+    nextAction: typeof raw.nextAction === 'string' ? raw.nextAction.trim() : undefined,
+    followUpDays: typeof raw.followUpDays === 'number' ? raw.followUpDays : undefined,
+    followUpReason: typeof raw.followUpReason === 'string' ? raw.followUpReason.trim() : undefined,
+    coachingTip: typeof raw.coachingTip === 'string' ? raw.coachingTip.trim() : undefined,
+    moveReadiness,
+    capturedName: typeof raw.capturedName === 'string' ? raw.capturedName.trim() : undefined,
+    moveDate: typeof raw.moveDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.moveDate.trim()) ? raw.moveDate.trim() : undefined,
+    moveDateFlexible: typeof raw.moveDateFlexible === 'boolean' ? raw.moveDateFlexible : undefined,
+    moveDateFlexibleReason: typeof raw.moveDateFlexibleReason === 'string' ? raw.moveDateFlexibleReason.trim() : undefined,
+    moveType: normalizeMoveType(raw.moveType),
+    originAddress: typeof raw.originAddress === 'string' ? raw.originAddress.trim() : undefined,
+    originCity: typeof raw.originCity === 'string' ? raw.originCity.trim() : undefined,
+    destAddress: typeof raw.destAddress === 'string' ? raw.destAddress.trim() : undefined,
+    destCity: typeof raw.destCity === 'string' ? raw.destCity.trim() : undefined,
+    depositConfirmed: typeof raw.depositConfirmed === 'boolean' ? raw.depositConfirmed : undefined,
+    depositAmount: parseMaybeNumber(raw.depositAmount),
+    depositMethod: typeof raw.depositMethod === 'string' ? raw.depositMethod.trim() : undefined,
+  }
+}
+
+function mergeLeadField<T>(current: T | undefined, incoming: T | undefined, allowOverwrite: boolean) {
+  if (incoming === undefined || incoming === null || incoming === '') {
+    return current
+  }
+  if (!current || allowOverwrite) {
+    return incoming
+  }
+  return current
+}
+
+export function applyPhoneCallSummaryToLead(lead: CRMLead, summary: AISummary | null) {
+  if (!summary) return lead
+
+  const allowOverwriteMoveDetails = lead.stage !== 'booked'
+  const next = normalizeLead({
+    ...lead,
+    name: mergeLeadField(lead.name, summary.capturedName, allowOverwriteMoveDetails) || lead.name,
+    moveDate: mergeLeadField(lead.moveDate, summary.moveDate, allowOverwriteMoveDetails),
+    moveDateFlexible:
+      summary.moveDate
+        ? false
+        : summary.moveDateFlexible !== undefined
+          ? summary.moveDateFlexible
+          : lead.moveDateFlexible,
+    moveDateFlexibleReason: mergeLeadField(lead.moveDateFlexibleReason, summary.moveDateFlexibleReason, allowOverwriteMoveDetails),
+    moveType: mergeLeadField(lead.moveType, summary.moveType, allowOverwriteMoveDetails),
+    originAddress: mergeLeadField(lead.originAddress, summary.originAddress, allowOverwriteMoveDetails),
+    originCity: mergeLeadField(lead.originCity, summary.originCity, allowOverwriteMoveDetails),
+    destAddress: mergeLeadField(lead.destAddress, summary.destAddress, allowOverwriteMoveDetails),
+    destCity: mergeLeadField(lead.destCity, summary.destCity, allowOverwriteMoveDetails),
+    depositAmount: summary.depositAmount ?? lead.depositAmount,
+    depositMethod: lead.depositMethod || summary.depositMethod,
+    depositDate: lead.depositDate || (summary.depositConfirmed ? dateStamp() : lead.depositDate),
+    paymentStatus:
+      summary.depositConfirmed
+        ? (lead.paymentStatus === 'paid_in_full' ? lead.paymentStatus : 'deposit_received')
+        : lead.paymentStatus,
+    branch:
+      lead.branch ||
+      detectSalesBranchFromLocation(summary.originAddress, summary.originCity, summary.destAddress, summary.destCity),
+  })
+
+  return next
+}
+
 export async function summarizePhoneCall(lead: CRMLead, transcript: string, direction: 'inbound' | 'outbound' = 'outbound') {
   const apiKey = getOpenAIKey()
   if (!apiKey || !transcript.trim()) return null
@@ -117,18 +218,34 @@ Return:
   "followUpDays": 2,
   "followUpReason": "why that follow-up timing makes sense",
   "coachingTip": "one coaching note for the rep",
-  "moveReadiness": "hot|warm|cold"
+  "moveReadiness": "hot|warm|cold",
+  "capturedName": "customer name if newly learned or corrected",
+  "moveDate": "YYYY-MM-DD if explicit",
+  "moveDateFlexible": true,
+  "moveDateFlexibleReason": "only if stated",
+  "moveType": "residential|commercial|long-distance|senior|labor-only|packing",
+  "originAddress": "origin street address if explicit",
+  "originCity": "origin city if explicit",
+  "destAddress": "destination street address if explicit",
+  "destCity": "destination city if explicit",
+  "depositConfirmed": true,
+  "depositAmount": 500,
+  "depositMethod": "etransfer|cash|cheque|credit card|other"
 }
 
-Focus on: move scope, objections, budget signals, timeline, and commitment level.`
+Only set depositConfirmed when the caller explicitly says the deposit was paid, sent, received, or confirmed.
+
+Focus on: move scope, objections, budget signals, timeline, route details, and commitment level.`
 
   const userPrompt = [
     `Lead: ${lead.name || 'Unknown'}`,
     `Phone: ${lead.phone || ''}`,
     `Move Type: ${lead.moveType || ''}`,
     `Direction: ${direction}`,
-    lead.originCity ? `Origin: ${lead.originCity}` : '',
-    lead.destCity ? `Destination: ${lead.destCity}` : '',
+    lead.originAddress || lead.originCity ? `Origin: ${lead.originAddress || lead.originCity}` : '',
+    lead.destAddress || lead.destCity ? `Destination: ${lead.destAddress || lead.destCity}` : '',
+    lead.depositAmount ? `Deposit on file: ${lead.depositAmount}` : '',
+    lead.paymentStatus ? `Payment status: ${lead.paymentStatus}` : '',
     `Transcript:\n${transcript}`,
   ]
     .filter(Boolean)
@@ -164,15 +281,7 @@ Focus on: move scope, objections, budget signals, timeline, and commitment level
   if (!content) return null
 
   try {
-    return JSON.parse(content) as {
-      summary?: string
-      leadConcern?: string
-      nextAction?: string
-      followUpDays?: number
-      followUpReason?: string
-      coachingTip?: string
-      moveReadiness?: 'hot' | 'warm' | 'cold'
-    }
+    return normalizePhoneCallSummary(JSON.parse(content) as Record<string, unknown>)
   } catch {
     return { summary: content }
   }
@@ -336,254 +445,253 @@ Use the thread context to understand where this message fits in the relationship
   }
 }
 
-export interface FollowUpAnalysis {
-  suggestedDate: string          // ISO date YYYY-MM-DD
-  suggestedTime?: string         // e.g. "10:00" — best time to call
-  followUpNote: string           // why this date/time was chosen
-  suggestedChannel: 'call' | 'sms' | 'email'
-  suggestedMessage: string       // ready-to-send draft message
-  commitmentDetected?: string    // verbatim commitment phrase if found ("I'll let you know by Friday")
-  urgency: 'low' | 'medium' | 'high'
-  reasoning: string              // brief explanation of the AI's logic
+// ─────────────────────────────────────────────────────────────────────────────
+// Lead Intelligence Synthesis
+// Reads ALL signals for a lead and produces a composite intelligence snapshot
+// calibrated to Saturn Star's exact sales process and training manual.
+// Uses gpt-4o for richer cross-timeline reasoning.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface IntelligenceSignals {
+  smsMessages?: Array<{ direction: 'inbound' | 'outbound'; body: string; created_at: string }>
+  emailMessages?: Array<{ direction: 'inbound' | 'outbound'; subject?: string; body_preview?: string; created_at: string }>
+  quoteSentAt?: string
+  quoteAmount?: number
+  quoteStatus?: string
 }
 
-export async function analyzeLeadForFollowUp(
+export async function synthesizeLeadIntelligence(
   lead: CRMLead,
-  followUpLogs: FollowUpLog[],
-  quote: CRMQuote | null,
-): Promise<FollowUpAnalysis | null> {
+  signals: IntelligenceSignals = {}
+): Promise<LeadIntelligence | null> {
   const apiKey = getOpenAIKey()
   if (!apiKey) return null
 
-  const today = new Date().toISOString().slice(0, 10)
-  const firstName = (lead.name || 'the customer').split(' ')[0]
+  const now = new Date().toISOString()
+  const today = now.slice(0, 10)
+  const callLogs = (lead.callLogs || []).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  const sms = (signals.smsMessages || []).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+  const emails = (signals.emailMessages || []).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
 
-  // Build a timeline summary from all available context
-  const recentLogs = [...followUpLogs]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 20)
+  const signalCount = callLogs.length + sms.length + emails.length + (lead.inboundMessage ? 1 : 0)
 
-  const timelineText = recentLogs
-    .map(log => {
-      const date = new Date(log.date).toLocaleDateString('en-CA')
-      const type = log.type.toUpperCase()
-      const note = log.notes || '(no note)'
-      const aiNote = log.aiSummary?.nextAction ? ` → AI: ${log.aiSummary.nextAction}` : ''
-      return `[${date}] ${type}: ${note}${aiNote}`
-    })
-    .join('\n')
-
-  const callTranscripts = (lead.callLogs || [])
-    .filter(c => c.transcript)
-    .slice(0, 3)
-    .map(c => `CALL (${c.date?.slice(0, 10) || 'unknown date'}): ${c.transcript?.slice(0, 800)}`)
-    .join('\n\n')
-
-  const systemPrompt = `You are an AI sales assistant for Saturn Star Moving. Your job is to analyze all available context for a lead and determine the optimal follow-up action so nothing falls through the cracks.
-
-Today's date: ${today}
-
-Analyze the conversation history and:
-1. Detect any commitment phrases (e.g. "I'll let you know by end of week", "call me next Tuesday", "I'll decide after the weekend")
-2. Determine the BEST date and time to follow up
-3. Select the best channel (call, sms, email) based on what has worked
-4. Draft a short, natural follow-up message in the rep's voice
-5. Rate urgency based on move date proximity and lead heat
-
-Return JSON only:
-{
-  "suggestedDate": "YYYY-MM-DD",
-  "suggestedTime": "HH:MM",
-  "followUpNote": "why this date/time",
-  "suggestedChannel": "call|sms|email",
-  "suggestedMessage": "ready-to-send message draft",
-  "commitmentDetected": "exact commitment phrase if found or null",
-  "urgency": "low|medium|high",
-  "reasoning": "brief explanation"
-}
-
-Business hours are Monday–Saturday 9am–7pm. Never suggest Sunday or late evening.`
-
-  const userPrompt = [
-    `Lead: ${lead.name} | Phone: ${lead.phone || 'unknown'} | Email: ${lead.email || 'none'}`,
-    `Stage: ${lead.stage} | Move Date: ${lead.moveDate || 'TBD'} | Move Type: ${lead.moveType || 'residential'}`,
-    `Route: ${lead.originCity || '?'} → ${lead.destCity || '?'}`,
-    lead.followUpDate ? `Current follow-up date: ${lead.followUpDate}` : '',
-    lead.notes ? `Rep notes: ${lead.notes}` : '',
-    quote ? `Quote sent: ${quote.number} | Total: $${quote.total} | Deposit: $${quote.deposit} | Status: ${quote.status}` : 'No quote sent yet',
-    timelineText ? `\nTimeline (most recent first):\n${timelineText}` : '',
-    callTranscripts ? `\nCall transcripts:\n${callTranscripts}` : '',
-  ].filter(Boolean).join('\n')
-
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: process.env.OPENAI_VISION_MODEL || 'gpt-4o-mini',
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        max_tokens: 800,
-        temperature: 0.3,
-      }),
-    })
-
-    if (!response.ok) return null
-
-    const payload = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> }
-    const content = payload.choices?.[0]?.message?.content || ''
-    if (!content) return null
-
-    const result = JSON.parse(content) as FollowUpAnalysis
-
-    // Ensure message is personalized
-    if (result.suggestedMessage && !result.suggestedMessage.includes(firstName)) {
-      result.suggestedMessage = result.suggestedMessage.replace(/^(Hi|Hello|Hey)\b/, `$1 ${firstName}`)
+  if (signalCount === 0) {
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
+    return {
+      temperature: 'cold',
+      bookingProbability: 5,
+      nextAction: 'Make first contact',
+      nextActionDetail: 'No contact yet. Reach out now — follow the warm opener script. Get name, number, email before anything else.',
+      keyInsights: ['No conversations captured yet — this lead has not been contacted'],
+      detectedConcerns: [],
+      winFactors: [],
+      coachingNote: 'First contact is everything. Lead with the warm opener, get their info before you run the MLS scan.',
+      processGaps: ['No contact made yet'],
+      followUpSchedule: [{
+        dueDate: tomorrow,
+        channel: 'call',
+        script: 'Thank you for calling Saturn Star Movers, this is [Name] speaking. How can I help you today?',
+        isCloseAttempt: false,
+      }],
+      sentimentTrend: 'stable',
+      signalSummary: 'No signals captured yet',
+      personaBadges: [],
+      suggestedSalesLanguage: 'Open warmly, capture the contact info fast, and move straight into scope-building so the customer does not have to drive the process.',
+      lastAnalyzedAt: now,
+      signalCount: 0,
     }
-
-    return result
-  } catch {
-    return null
   }
-}
 
-// ─── Extract lead details from call transcript ─────────────────────────────
+  // Build the full context string
+  const parts: string[] = []
 
-export interface ExtractedLeadDetails {
-  name?: string
-  originAddress?: string
-  originCity?: string
-  destAddress?: string
-  destCity?: string
-  moveDate?: string          // YYYY-MM-DD if mentioned
-  depositMentioned?: boolean
-  depositAmount?: number
-}
+  parts.push(`## Lead Profile (today: ${today})
+Name: ${lead.name || 'Unknown'}
+Stage: ${lead.stage}
+Move type: ${lead.moveType || 'not specified'}
+Origin: ${[lead.originAddress, lead.originCity].filter(Boolean).join(', ') || 'unknown'}
+Destination: ${[lead.destAddress, lead.destCity].filter(Boolean).join(', ') || 'unknown'}
+Move date: ${lead.moveDateFlexible ? 'Flexible / TBD' : lead.moveDate || 'not specified'}
+Phone: ${lead.phone || 'not captured'}
+Email: ${lead.email || 'NOT CAPTURED — critical gap'}
+Assigned rep: ${lead.assignedRep || 'unassigned'}
+Lead created: ${lead.createdAt}
+Follow-up date on file: ${lead.followUpDate || 'none'}`)
 
-export async function extractLeadDetailsFromTranscript(transcript: string): Promise<ExtractedLeadDetails | null> {
-  const apiKey = getOpenAIKey()
-  if (!apiKey || !transcript.trim()) return null
+  if (signals.quoteAmount || signals.quoteSentAt) {
+    parts.push(`## Quote on File
+Amount: $${signals.quoteAmount ?? 'unknown'}
+Status: ${signals.quoteStatus || 'unknown'}
+Sent: ${signals.quoteSentAt || 'not yet sent'}`)
+  }
 
-  const today = new Date().toISOString().slice(0, 10)
+  if (lead.inboundMessage) {
+    parts.push(`## Initial Inquiry (how they first reached us)\n${lead.inboundMessage}`)
+  }
 
-  const systemPrompt = `You are a data extraction assistant for a moving company. Extract lead information from this phone call transcript and return JSON only.
+  if (callLogs.length > 0) {
+    const callTotalSeconds = callLogs.reduce((sum, c) => sum + (c.durationSeconds || 0), 0)
+    const callTotalMin = Math.round(callTotalSeconds / 60)
+    const callSection = callLogs.map((c, i) => {
+      const lines: string[] = [
+        `### Call ${i + 1} — ${new Date(c.date).toLocaleDateString('en-CA')} (${c.direction || 'outbound'}, ${c.duration || 'unknown duration'}, source: ${c.source || 'unknown'})`,
+      ]
+      if (c.isVoicemail) lines.push('⚠ Voicemail — customer did not answer')
+      if (c.transcript) lines.push(`Transcript:\n${c.transcript.slice(0, 1500)}${c.transcript.length > 1500 ? '…' : ''}`)
+      if (c.aiSummary?.summary) lines.push(`Summary: ${c.aiSummary.summary}`)
+      if (c.aiSummary?.leadConcern) lines.push(`Concern raised: ${c.aiSummary.leadConcern}`)
+      if (c.aiSummary?.moveReadiness) lines.push(`Readiness signal: ${c.aiSummary.moveReadiness}`)
+      if (c.aiSummary?.coachingTip) lines.push(`Coaching: ${c.aiSummary.coachingTip}`)
+      return lines.join('\n')
+    }).join('\n\n')
+    parts.push(`## Call History (${callLogs.length} call${callLogs.length !== 1 ? 's' : ''}, ~${callTotalMin} min total)\n${callSection}`)
+  }
 
-Today is ${today}. If the caller says "tomorrow" or "next Friday", resolve it to a YYYY-MM-DD date.
+  if (sms.length > 0) {
+    const smsSection = sms.slice(-40).map(m =>
+      `[${new Date(m.created_at).toLocaleDateString('en-CA')} ${m.direction === 'inbound' ? 'CUSTOMER' : 'REP'}]: ${m.body}`
+    ).join('\n')
+    parts.push(`## SMS Thread (${sms.length} messages — last ${Math.min(sms.length, 40)} shown)\n${smsSection}`)
+  }
 
-Return:
+  if (emails.length > 0) {
+    const emailSection = emails.slice(-10).map(m =>
+      `[${new Date(m.created_at).toLocaleDateString('en-CA')} ${m.direction === 'inbound' ? 'CUSTOMER' : 'REP'}]${m.subject ? ` — "${m.subject}"` : ''}\n${m.body_preview || '(no preview)'}`
+    ).join('\n\n')
+    parts.push(`## Email Thread (${emails.length} emails — last ${Math.min(emails.length, 10)} shown)\n${emailSection}`)
+  }
+
+  const fullContext = parts.join('\n\n')
+
+  const systemPrompt = `You are the AI sales intelligence system for Saturn Star Moving Company in Windsor, Ontario.
+
+Your job: read every signal from a lead's complete timeline and produce a specific, actionable intelligence snapshot — calibrated to Saturn Star's exact sales process below.
+
+${SATURN_STAR_SALES_PROCESS}
+
+---
+
+IMPORTANT RULES:
+- Be specific. If the customer mentioned a piano, quote it. If they said "let me check with my wife," quote it.
+- Never use generic placeholder text. Every field should reference actual details from this lead.
+- processGaps: identify EXACTLY which steps of the 8-step call framework were missed or not evidenced in the transcripts/SMS. Be honest — missing steps are coaching opportunities.
+- suggestedTactic: pick the single most relevant of the 5 closing tactics for right now.
+- authorityTakeoverFlag: true ONLY if deal is $1,500+ AND rep is stuck on price and standard rebuttals haven't moved the customer.
+- followUpSchedule: generate the next 2-3 specific touches following Saturn Star's cadence. Include the exact script or talking points for each. Mark isCloseAttempt true for any tentative reservation follow-up.
+- If email is missing from the lead profile — that is ALWAYS a processGap ("Email not captured — no follow-up path if they go cold").
+- Today's date is ${today}.
+
+Return JSON only — no explanation outside the JSON:
 {
-  "name": "caller's full name if mentioned, else null",
-  "originAddress": "full street address of move origin if mentioned, else null",
-  "originCity": "city of move origin if mentioned, else null",
-  "destAddress": "full street address of move destination if mentioned, else null",
-  "destCity": "city of move destination if mentioned, else null",
-  "moveDate": "YYYY-MM-DD if a specific date was mentioned, else null",
-  "depositMentioned": true/false,
-  "depositAmount": dollar amount of deposit if mentioned, else null
+  "temperature": "hot|warm|cold",
+  "bookingProbability": <0-100>,
+  "stageSuggestion": "<valid stage or null>",
+  "stageSuggestionReason": "<specific reason referencing the conversation>",
+  "followUpAt": "<ISO datetime if specific time mentioned, else null>",
+  "followUpNote": "<exactly what to say/do, drawn from conversation context>",
+  "nextAction": "<3-6 word action label>",
+  "nextActionDetail": "<1-2 sentences of specific rep guidance — quote actual conversation details>",
+  "keyInsights": ["<specific insight with real detail>", ...],
+  "detectedConcerns": ["<verbatim or paraphrased concern from conversation>", ...],
+  "winFactors": ["<specific positive buying signal>", ...],
+  "coachingNote": "<one coaching observation tied to Saturn Star process — what did the rep do well or miss?>",
+  "processGaps": ["<specific step missed from 8-step framework>", ...],
+  "suggestedTactic": "<name of the most relevant closing tactic and why>",
+  "authorityTakeoverFlag": <true|false>,
+  "followUpSchedule": [
+    {
+      "dueDate": "<YYYY-MM-DD>",
+      "channel": "call|sms|email",
+      "script": "<exact message or talking points to use>",
+      "isCloseAttempt": <true|false>
+    },
+    ...
+  ],
+  "sentimentTrend": "improving|stable|declining",
+  "signalSummary": "<narrative: X calls (~Y min), Z SMS, W emails. Last contact: [date].>",
+  "personaBadges": [
+    {
+      "label": "<one of: In-Person Preferred, Digital Skeptic, Price Sensitive, Fast Mover, Needs Reassurance, Senior / Low Tech, Comparing Quotes, Spouse Decision, Wants Callback, Not Ready Yet, Hot Buyer, Realtor Gatekeeper, Access Concern, Date Flexible, High Intent, Cold / Ghosting>",
+      "confidence": <0-100>,
+      "source": "<where this came from, like Call transcript or SMS thread>",
+      "lastUpdated": "<ISO datetime>",
+      "explanation": "<1 short sentence explaining the badge>"
+    }
+  ],
+  "suggestedSalesLanguage": "<1-2 sentences telling the rep how to speak to this customer right now>"
 }
 
-Only extract values explicitly mentioned. Use null for anything not clearly stated.`
+Valid stages: new, contacted, estimate_scheduled, estimate_completed, pricing, quoted, nurture, booked, lost`
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: fullContext },
+      ],
+      max_tokens: 1200,
+    }),
+  })
+
+  if (!response.ok) return null
+
+  const payload = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> }
+  const content = payload.choices?.[0]?.message?.content || ''
+  if (!content) return null
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Transcript:\n${transcript.slice(0, 3000)}` },
-        ],
-        max_tokens: 300,
-        temperature: 0,
-      }),
-    })
-    if (!response.ok) return null
-    const payload = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> }
-    const content = payload.choices?.[0]?.message?.content || ''
-    return content ? (JSON.parse(content) as ExtractedLeadDetails) : null
-  } catch {
-    return null
-  }
-}
+    const parsed = JSON.parse(content) as Record<string, unknown>
 
-// ─── Context-aware SMS bot reply ──────────────────────────────────────────
+    const followUpSchedule: LeadIntelligenceFollowUp[] = Array.isArray(parsed.followUpSchedule)
+      ? (parsed.followUpSchedule as Array<Record<string, unknown>>).map(f => ({
+          dueDate: String(f.dueDate || today),
+          channel: (['call', 'sms', 'email'].includes(String(f.channel)) ? f.channel : 'call') as LeadIntelligenceFollowUp['channel'],
+          script: String(f.script || ''),
+          isCloseAttempt: Boolean(f.isCloseAttempt),
+        }))
+      : []
 
-type SmsMessage = { direction: 'inbound' | 'outbound'; body: string; createdAt: string }
+    const personaBadges: LeadPersonaBadge[] = Array.isArray(parsed.personaBadges)
+      ? (parsed.personaBadges as Array<Record<string, unknown>>)
+        .map(item => ({
+          label: String(item.label || '').trim(),
+          confidence: Math.min(100, Math.max(0, Number(item.confidence || 0) || 0)),
+          source: String(item.source || 'AI synthesis').trim() || 'AI synthesis',
+          lastUpdated: String(item.lastUpdated || now),
+          explanation: String(item.explanation || '').trim(),
+        }))
+        .filter(item => item.label && item.explanation)
+        .slice(0, 3)
+      : []
 
-const STOP_KEYWORDS = [
-  'leave a message', "i'm at work", 'at work', 'busy right now', 'call me later',
-  'stop texting', 'stop messaging', 'unsubscribe', 'stop', 'dont text', "don't text",
-  'not interested', 'remove me', 'wrong number',
-]
-
-export async function generateSmsBotReply(
-  incomingMessage: string,
-  conversationHistory: SmsMessage[],
-  lastOutboundAt: string | null,
-): Promise<string | null> {
-  // Dedup guard — if we sent something within the last 90 seconds, don't reply again
-  if (lastOutboundAt) {
-    const secondsSinceLast = (Date.now() - new Date(lastOutboundAt).getTime()) / 1000
-    if (secondsSinceLast < 90) return null
-  }
-
-  // Stop signal detection — check the incoming message
-  const normalizedMsg = incomingMessage.toLowerCase()
-  if (STOP_KEYWORDS.some(kw => normalizedMsg.includes(kw))) return null
-
-  const apiKey = getOpenAIKey()
-  if (!apiKey) {
-    // Fallback if no API key — just send a simple intro if it's the first message
-    const hasOutbound = conversationHistory.some(m => m.direction === 'outbound')
-    if (hasOutbound) return null
-    return "Hi! Thanks for reaching out to Saturn Star Moving. What date are you looking to move, and where are you moving from and to?"
-  }
-
-  const threadText = conversationHistory
-    .slice(-12)
-    .map(m => `${m.direction === 'inbound' ? 'Customer' : 'Us'}: ${m.body}`)
-    .join('\n')
-
-  const systemPrompt = `You are a friendly SMS assistant for Saturn Star Moving (serving Windsor, Kitchener-Waterloo, and surrounding Ontario cities).
-
-Your job is to qualify inbound moving leads via SMS — collect move date, origin city/address, destination city/address, and approximate move size (bedrooms).
-
-Rules:
-- If the customer says anything like "leave a message", "at work", "stop", "busy", "not interested", "unsubscribe" → reply with exactly: STOP_SIGNAL
-- Never repeat a question the customer already answered — read the full conversation
-- If origin AND destination AND date are all confirmed → say a specialist will follow up and stop asking questions
-- Keep replies to 1-2 short sentences max
-- Sound human, friendly, not robotic
-- Never use the customer's phone number as their name — use "there" if name unknown
-- Respond ONLY with the message text itself (no labels, no JSON)`
-
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Conversation so far:\n${threadText}\n\nLatest message from customer: "${incomingMessage}"\n\nWhat should we reply?` },
-        ],
-        max_tokens: 160,
-        temperature: 0.5,
-      }),
-    })
-    if (!response.ok) return null
-    const payload = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> }
-    const reply = payload.choices?.[0]?.message?.content?.trim() || null
-    if (!reply || reply === 'STOP_SIGNAL') return null
-    return reply
+    return {
+      temperature: (['hot', 'warm', 'cold'].includes(String(parsed.temperature)) ? parsed.temperature : 'cold') as LeadIntelligence['temperature'],
+      bookingProbability: typeof parsed.bookingProbability === 'number' ? Math.min(100, Math.max(0, parsed.bookingProbability)) : 10,
+      stageSuggestion: parsed.stageSuggestion ? parsed.stageSuggestion as SalesLeadStage : undefined,
+      stageSuggestionReason: parsed.stageSuggestionReason ? String(parsed.stageSuggestionReason) : undefined,
+      followUpAt: parsed.followUpAt ? String(parsed.followUpAt) : undefined,
+      followUpNote: parsed.followUpNote ? String(parsed.followUpNote) : undefined,
+      nextAction: parsed.nextAction ? String(parsed.nextAction) : 'Review lead',
+      nextActionDetail: parsed.nextActionDetail ? String(parsed.nextActionDetail) : undefined,
+      keyInsights: Array.isArray(parsed.keyInsights) ? parsed.keyInsights.map(String) : [],
+      detectedConcerns: Array.isArray(parsed.detectedConcerns) ? parsed.detectedConcerns.map(String) : [],
+      winFactors: Array.isArray(parsed.winFactors) ? parsed.winFactors.map(String) : [],
+      coachingNote: parsed.coachingNote ? String(parsed.coachingNote) : undefined,
+      processGaps: Array.isArray(parsed.processGaps) ? parsed.processGaps.map(String) : [],
+      suggestedTactic: parsed.suggestedTactic ? String(parsed.suggestedTactic) : undefined,
+      authorityTakeoverFlag: Boolean(parsed.authorityTakeoverFlag),
+      followUpSchedule,
+      sentimentTrend: (['improving', 'stable', 'declining'].includes(String(parsed.sentimentTrend)) ? parsed.sentimentTrend : 'stable') as LeadIntelligence['sentimentTrend'],
+      signalSummary: parsed.signalSummary ? String(parsed.signalSummary) : `${signalCount} signal${signalCount !== 1 ? 's' : ''} captured`,
+      personaBadges,
+      suggestedSalesLanguage: parsed.suggestedSalesLanguage ? String(parsed.suggestedSalesLanguage) : undefined,
+      lastAnalyzedAt: now,
+      signalCount,
+    }
   } catch {
     return null
   }

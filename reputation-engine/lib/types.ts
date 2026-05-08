@@ -46,11 +46,78 @@ export interface Partner {
   createdAt: string
 }
 
-export type SalesLeadStage = 'new' | 'contacted' | 'estimate_scheduled' | 'estimate_completed' | 'pricing' | 'quoted' | 'nurture' | 'booked' | 'lost'
+export type SalesLeadStage = 'new' | 'contacted' | 'estimate_scheduled' | 'estimate_completed' | 'pricing' | 'quoted' | 'tentative' | 'nurture' | 'booked' | 'completed' | 'customer_success' | 'lost'
 export type MoveType = 'residential' | 'long-distance' | 'commercial' | 'senior' | 'labor-only' | 'packing'
 export type QuoteStatus = 'draft' | 'sent' | 'viewed' | 'accepted' | 'declined' | 'invoiced'
 export type PaymentStatus = 'pending' | 'deposit_received' | 'paid_in_full'
 export type FollowUpType = 'note' | 'call' | 'sms' | 'email' | 'visit' | 'view' | 'accept' | 'decline' | 'consultation' | 'status_change'
+export type SalesBranch = 'windsor' | 'waterloo' | 'london' | 'ottawa'
+export type LeadKind = 'customer' | 'realtor_opportunity'
+export type LeadContactRole = 'customer' | 'realtor'
+export type RealtorLookupStatus = 'not_checked' | 'matched' | 'partial' | 'missing'
+export type DestinationOpportunityStatus = 'outside_area' | 'no_match' | 'generated' | 'linked_existing'
+export type RealtorWarmth = 'warm' | 'cold' | 'unknown'
+export type RealtorOutreachStatus = 'not_started' | 'queued' | 'sent' | 'responded' | 'closed'
+export type AutomationStatus = 'idle' | 'active' | 'paused' | 'handoff' | 'do_not_contact'
+export type LeadOwnerStatus = 'unassigned' | 'assigned' | 'reassigned' | 'handoff'
+export type ConversationChannel = 'sms' | 'email'
+export type ConversationThreadStatus = 'open' | 'human_handoff' | 'closed'
+export type AutomationJobKind =
+  | 'lead_response'
+  | 'quote_followup'
+  | 'quote_viewed_followup'
+  | 'quote_expiry_followup'
+  | 'survey_followup'
+  | 'move_reminder'
+  | 'stale_reactivation'
+export type AutomationJobStatus = 'pending' | 'running' | 'completed' | 'cancelled' | 'failed'
+
+export interface LeadIntelligenceFollowUp {
+  dueDate: string        // ISO date
+  channel: 'call' | 'sms' | 'email'
+  script: string         // exact suggested message or talking point
+  isCloseAttempt: boolean
+}
+
+export interface LeadPersonaBadge {
+  label: string
+  confidence: number
+  source: string
+  lastUpdated: string
+  explanation: string
+}
+
+export interface LeadAutomationSettings {
+  nudgeIfQuoteNotOpened?: boolean
+  nudgeIfSurveyNotCompleted?: boolean
+  nudgeIfQuoteViewedNoResponse?: boolean
+  nudgeBeforeQuoteExpires?: boolean
+}
+
+export interface LeadIntelligence {
+  temperature: 'hot' | 'warm' | 'cold'
+  bookingProbability: number       // 0–100
+  stageSuggestion?: SalesLeadStage
+  stageSuggestionReason?: string
+  followUpAt?: string              // ISO datetime extracted from conversation
+  followUpNote?: string
+  nextAction: string
+  nextActionDetail?: string
+  keyInsights: string[]            // bullet points from timeline synthesis
+  detectedConcerns: string[]       // objections / risks surfaced
+  winFactors: string[]             // positive buying signals
+  coachingNote?: string
+  processGaps: string[]            // steps from the call framework that were missed
+  suggestedTactic?: string         // which of the 5 closing tactics applies right now
+  authorityTakeoverFlag?: boolean  // should John be looped in?
+  followUpSchedule: LeadIntelligenceFollowUp[]   // next 2–3 touches with scripts
+  sentimentTrend: 'improving' | 'stable' | 'declining'
+  signalSummary: string            // narrative: "2 calls, 4 SMS, 1 email"
+  personaBadges?: LeadPersonaBadge[]
+  suggestedSalesLanguage?: string
+  lastAnalyzedAt: string
+  signalCount: number
+}
 
 export interface AISummary {
   summary?: string
@@ -63,6 +130,33 @@ export interface AISummary {
   followUpReason?: string
   coachingTip?: string
   moveReadiness?: 'hot' | 'warm' | 'cold'
+  capturedName?: string
+  moveDate?: string
+  moveDateFlexible?: boolean
+  moveDateFlexibleReason?: string
+  moveType?: CRMLead['moveType']
+  originAddress?: string
+  originCity?: string
+  destAddress?: string
+  destCity?: string
+  depositConfirmed?: boolean
+  depositAmount?: number
+  depositMethod?: string
+}
+
+export interface LeadQualificationState {
+  moveDateKnown?: boolean
+  routeKnown?: boolean
+  inventoryKnown?: boolean
+  accessKnown?: boolean
+  surveyRequested?: boolean
+  surveyCompleted?: boolean
+  quoteReady?: boolean
+  activeCustomer?: boolean
+  missingFields?: string[]
+  lastIntent?: string
+  nextBestAction?: string
+  capturedSummary?: string
 }
 
 export interface CallLogEntry {
@@ -71,17 +165,32 @@ export interface CallLogEntry {
   notes?: string
   date: string
   phone?: string
+  branchNumber?: string
   duration?: string
   durationSeconds?: number
+  direction?: 'inbound' | 'outbound'
   callSid?: string
   recordingUrl?: string
   recordingSid?: string
   recordingDuration?: number
+  recordingUnavailable?: boolean
+  recordingUnavailableAt?: string
+  recordingUnavailableReason?: string
   transcript?: string
   isVoicemail?: boolean
   source?: 'dialer' | 'inbound' | 'consultation' | 'manual'
+  callOutcome?: string
+  answeredBy?: 'browser' | 'mobile' | 'sip' | 'unknown'
+  repId?: string
+  repName?: string
+  audioConnected?: boolean
+  errorCode?: number
+  errorMessage?: string
+  failureReason?: string
   aiSummary?: AISummary
 }
+
+export type MovePolicyCategory = 'blocked' | 'hazardous' | 'manual_review' | 'specialty_fee' | 'default_exclude'
 
 export interface InventoryItem {
   id?: string
@@ -95,12 +204,34 @@ export interface InventoryItem {
   exclusionReason?: string
   notes?: string
   size?: string
+  policyCategory?: MovePolicyCategory
+  policyReason?: string
+  policyOverride?: 'include'
+}
+
+export interface LeadMediaAsset {
+  id: string
+  url: string
+  kind: 'image' | 'video'
+  source: 'survey' | 'rep_upload' | 'mms'
+  room?: string
+  filename?: string
+  mimeType?: string
+  uploadedAt: string
+  uploadedByUserId?: string
+  uploadedByName?: string
+  notes?: string
 }
 
 export interface ListingMatch {
   zpid: string
   address: string
   city?: string
+  bedrooms?: number | string | null
+  bathrooms?: number | string | null
+  beds?: number | string | null
+  baths?: number | string | null
+  brokername?: string | null
   is_furnished?: boolean | null
   furniture_scan_date?: string | null
   carouselphotos?: Array<{ url: string } | string>
@@ -163,6 +294,8 @@ export interface PricingBreakdown {
   routeCategory: 'local' | 'medium' | 'long-distance'
   billableDistanceKm?: number
   operationalDistanceKm?: number
+  uhaulRatePerKm?: number
+  uhaulChargeEstimate?: number
   baseCubicFeet: number
   extraCubicFeet: number
   totalCubicFeet: number
@@ -212,6 +345,24 @@ export interface PricingBreakdown {
       total: number
       note: string
     }
+    packingMaterialsEstimate?: {
+      plannedBoxes: number
+      recommendedDeliveryBoxes: number
+      recommendedBufferBoxes: number
+      source: 'customer_estimate' | 'inventory_boxes' | 'volume_inference'
+      lines: Array<{
+        presetId: string
+        label: string
+        quantity: number
+        unitPrice: number
+        amount: number
+        note?: string
+      }>
+      subtotal: number
+      total: number
+      note: string
+      billingNote: string
+    } | null
     twoDayMoveEstimate?: {
       day1Hours: number
       day2Hours: number
@@ -246,8 +397,9 @@ export interface JobFactors {
   hasPiano?: boolean
   hasSafe?: boolean
   disassemblyItemCount?: number
-  disassemblyHours?: number      // pre-computed from per-item times; overrides count-based flat calc
-  disassemblyDetails?: string[]  // per-item breakdown for display (e.g. "Queen Bed: 10 dis + 15 re")
+  // Controls what dis/reassembly service is included for flagged items
+  // 'both' = full service (default), 'disassemble_only' = dis at origin only, 'reassemble_only' = re at dest only
+  disassemblyMode?: 'both' | 'disassemble_only' | 'reassemble_only'
 
   // Items we do NOT move (flag only — do not price, alert the rep)
   hasHotTub?: boolean
@@ -261,13 +413,95 @@ export interface JobFactors {
   specialtyNotes?: string
 }
 
+export interface LeadAttribution {
+  originalSource?: string
+  normalizedSource?: string
+  landingPage?: string
+  landingPath?: string
+  referrer?: string
+  gclid?: string
+  gbraid?: string
+  wbraid?: string
+  fbclid?: string
+  msclkid?: string
+  utmSource?: string
+  utmMedium?: string
+  utmCampaign?: string
+  utmTerm?: string
+  utmContent?: string
+  utmId?: string
+  firstCapturedAt?: string
+  lastCapturedAt?: string
+}
+
+export type TruckReservationStatus =
+  | 'not_needed'
+  | 'needs_booking'
+  | 'booking_in_progress'
+  | 'reserved'
+  | 'issue'
+
+export type TruckVendor = 'uhaul' | 'penske' | 'budget' | 'enterprise' | 'other'
+
+export interface OpsChecklist {
+  crewAssigned?: boolean
+  truckReserved?: boolean
+  accessConfirmed?: boolean
+  parkingConfirmed?: boolean
+  toolsReady?: boolean
+  jobPacketReady?: boolean
+  finalWalkthroughComplete?: boolean
+}
+
+export interface CrewHoursEntry {
+  userId: string
+  name?: string
+  role?: string
+  hours?: number
+}
+
+export type CrewPayoutRole = 'crew_lead' | 'driver' | 'mover' | 'other'
+export type CrewPayoutMethod = 'interac' | 'stripe_connect' | 'cash' | 'manual'
+export type CrewPayoutStatus = 'draft' | 'submitted' | 'approved' | 'paid'
+
+export interface CrewPayoutEntry {
+  id: string
+  userId?: string
+  workerName: string
+  workerEmail?: string
+  workerPhone?: string
+  role: CrewPayoutRole
+  hourlyRate: number
+  approvedHours: number
+  laborPay: number
+  reimbursementAmount?: number
+  reimbursementNote?: string
+  receiptReference?: string
+  paymentMethod?: CrewPayoutMethod
+  payoutDestination?: string
+  payoutStatus?: CrewPayoutStatus
+  submittedAt?: string
+  approvedAt?: string
+  approvedBy?: string
+  paidAt?: string
+  paidBy?: string
+  financeNote?: string
+  financeCostId?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
 export interface CRMLead {
   id: string
   name: string
   stage: SalesLeadStage
+  branch?: SalesBranch   // which Saturn Star location handles this lead
+  leadKind?: LeadKind
+  primaryContactRole?: LeadContactRole
   inboundId?: string
   inboundMessage?: string
   source?: string
+  attribution?: LeadAttribution
   phone?: string
   email?: string
   moveDate?: string
@@ -284,29 +518,100 @@ export interface CRMLead {
   destAccess?: string
   parkingNotes?: string
   supabaseListing?: ListingMatch | null
+  realtorName?: string
+  realtorEmail?: string
+  realtorPhone?: string
+  realtorBrokerage?: string
+  realtorWebsite?: string
+  realtorContactId?: string
+  realtorLookupStatus?: RealtorLookupStatus
+  realtorWarmth?: RealtorWarmth
+  realtorOutreachStatus?: RealtorOutreachStatus
+  realtorEnrichedAt?: string
+  realtorOutreachStartedAt?: string
+  realtorLastTouchAt?: string
   moveReason?: string
   notes?: string
   followUpDate?: string
   followUpNote?: string
+  surveyToken?: string
+  surveyTokenExpiresAt?: string
+  surveyRequestedAt?: string
+  surveyCompletedAt?: string
+  surveyPhotoCount?: number
   quoteId?: string
+  quoteIds?: string[]   // all quote IDs on this lead (supports multi-job contacts)
+  sourceLeadId?: string
+  sourceLeadName?: string
+  sourceLeadMoveDate?: string
+  sourceLeadQuoteId?: string
+  opportunityAddress?: string
+  opportunityCity?: string
+  opportunityDetectedAt?: string
+  destinationOpportunityLeadId?: string
+  destinationOpportunityStatus?: DestinationOpportunityStatus
+  destinationOpportunityLastCheckedAt?: string
   leadScore?: number
+  firstResponseAt?: string
+  lastInboundAt?: string
+  lastOutboundAt?: string
+  lastHumanOutboundAt?: string
+  lastAutomationOutboundAt?: string
+  automationSettings?: LeadAutomationSettings
+  automationStatus?: AutomationStatus
+  automationPausedUntil?: string
+  automationPauseReason?: string
+  automationHandoffAt?: string
+  automationHandoffReason?: string
+  automationLastJobAt?: string
+  lastMissedCallAt?: string
+  lastMissedCallAutoReplyAt?: string
+  lastVoicemailAt?: string
+  automatedQuoteSentAt?: string
+  automatedQuoteId?: string
+  automatedQuoteChannel?: ConversationChannel
+  lastAutoEnrichmentAt?: string
+  qualificationState?: LeadQualificationState
   directMailAttributed?: boolean
   inventory?: InventoryItem[]
+  mediaAssets?: LeadMediaAsset[]
   totalItems?: number
   totalCubicFeet?: number
   totalWeightLbs?: number
   roomBreakdown?: Record<string, number>
   callLogs?: CallLogEntry[]
   jobFactors?: JobFactors
+  intelligence?: LeadIntelligence
   lostReason?: string
   lostNotes?: string
   lostAt?: string
   // Context + assignment
   contextFlag?: string
   assignedRep?: string
+  assignedRepName?: string
+  assignedRepUserId?: string
+  leadOwnerStatus?: LeadOwnerStatus
+  ownedAt?: string
+  lastTouchedByUserId?: string
+  lastTouchedByName?: string
+  lastTouchedAt?: string
   // Crew assignment (array of app_user IDs)
   assignedCrew?: string[]
   crewNote?: string
+  crewHours?: CrewHoursEntry[]
+  crewPayouts?: CrewPayoutEntry[]
+  truckReservationStatus?: TruckReservationStatus
+  truckVendor?: TruckVendor
+  truckSize?: string
+  truckCountConfirmed?: number
+  truckPickupLocation?: string
+  truckPickupTime?: string
+  truckReturnLocation?: string
+  truckReservationNumber?: string
+  truckReservationNotes?: string
+  truckReservationBookedAt?: string
+  truckReservationBookedBy?: string
+  opsChecklist?: OpsChecklist
   // Estimate appointment
   estimateDate?: string
   estimateTime?: string
@@ -376,6 +681,10 @@ export interface CRMQuote {
   longDistanceInsuranceCost?: number
   longDistanceMiscCost?: number
   longDistanceMarkupRate?: number
+  billingModel?: 'binding' | 'hourly_actuals' | 'hourly_minimum'
+  minimumBillableHours?: number
+  maximumEstimatedHours?: number
+  hourlyRateOverride?: number
   status: QuoteStatus
   validDays?: number
   acceptToken?: string
@@ -405,8 +714,11 @@ export interface CRMQuote {
   balancePaidAt?: string
   balancePaidAmount?: number
   balancePaidMethod?: 'stripe' | 'etransfer' | 'cash' | 'cheque' | 'other'
-  // Customer-facing notes (shown on quote — extras, inclusions, special offers)
-  customerNotes?: string
+  // Overridable fields
+  moveDescription?: string  // shown on the quote document
+  internalNotes?: string    // crew / internal only, not on quote
+  priceOverrideTotal?: number  // if set, this overrides the computed total (incl. HST)
+  priceOverrideReason?: string
 }
 
 export interface FollowUpLog {
@@ -457,6 +769,46 @@ export interface CRMEmail {
   direction: 'outbound' | 'inbound'
   status: 'sent' | 'failed' | 'opened'
   sentAt: string
+}
+
+export interface CRMConversationThread {
+  id: string
+  leadId: string
+  channel: ConversationChannel
+  contactValue: string
+  contactName?: string
+  status: ConversationThreadStatus
+  automationStatus: AutomationStatus
+  automationOwner?: 'automation' | 'human' | 'mixed'
+  lastInboundAt?: string
+  lastOutboundAt?: string
+  lastHumanOutboundAt?: string
+  lastAutomationOutboundAt?: string
+  lastInboundPreview?: string
+  lastOutboundPreview?: string
+  qualificationState?: LeadQualificationState
+  metadata?: Record<string, unknown>
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CRMAutomationJob {
+  id: string
+  leadId: string
+  conversationId?: string | null
+  kind: AutomationJobKind
+  channel?: ConversationChannel | null
+  status: AutomationJobStatus
+  dueAt: string
+  lockedAt?: string | null
+  attempts: number
+  dedupeKey?: string | null
+  payload?: Record<string, unknown> | null
+  result?: Record<string, unknown> | null
+  lastError?: string | null
+  createdAt: string
+  updatedAt: string
+  completedAt?: string | null
 }
 
 export interface QuoteDocumentPayload {

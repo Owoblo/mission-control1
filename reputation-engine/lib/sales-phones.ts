@@ -1,0 +1,150 @@
+import type { SalesBranch } from './types'
+
+export const DEFAULT_SATURN_BRANCH_NUMBER = '+12267732993'
+
+type SaturnPhoneMetadata = {
+  branchLabel: string
+  salesBranch: SalesBranch
+  trackingLabel?: string
+  trackingSource?: string
+}
+
+export const SATURN_BRANCH_PHONE_DIRECTORY = {
+  '+12267732993': {
+    branchLabel: 'Windsor',
+    salesBranch: 'windsor',
+    trackingLabel: 'Direct Mail',
+    trackingSource: 'direct_mail',
+  },
+  '+12262423319': {
+    branchLabel: 'Kitchener',
+    salesBranch: 'waterloo',
+  },
+  '+12266055767': {
+    branchLabel: 'Kitchener',
+    salesBranch: 'waterloo',
+  },
+  '+16135193236': {
+    branchLabel: 'Ottawa',
+    salesBranch: 'ottawa',
+  },
+  '+15484883245': {
+    branchLabel: 'London',
+    salesBranch: 'london',
+  },
+} as const satisfies Record<string, SaturnPhoneMetadata>
+
+export type SaturnBranchPhoneNumber = keyof typeof SATURN_BRANCH_PHONE_DIRECTORY
+
+export interface SmsMessageLike {
+  direction: 'inbound' | 'outbound'
+  from_number: string
+  to_number: string
+}
+
+export function digitsOnly(value?: string | null) {
+  return (value || '').replace(/\D/g, '')
+}
+
+export function normalizePhone(value?: string | null) {
+  const raw = (value || '').trim()
+  const digits = digitsOnly(raw)
+
+  if (!digits) {
+    return raw.startsWith('+') ? raw : ''
+  }
+
+  if (digits.length === 10) return `+1${digits}`
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`
+  return raw.startsWith('+') ? raw : `+${digits}`
+}
+
+export function getSaturnBranchPhoneNumbers() {
+  return Object.keys(SATURN_BRANCH_PHONE_DIRECTORY) as SaturnBranchPhoneNumber[]
+}
+
+export function getDefaultSaturnBranchNumber() {
+  return DEFAULT_SATURN_BRANCH_NUMBER
+}
+
+export function coerceSaturnBranchPhoneNumber(value?: string | null): SaturnBranchPhoneNumber | null {
+  const normalized = normalizePhone(value)
+  return isSaturnBranchPhoneNumber(normalized) ? normalized : null
+}
+
+export function isSaturnBranchPhoneNumber(value?: string | null): value is SaturnBranchPhoneNumber {
+  const normalized = normalizePhone(value)
+  return !!normalized && Object.prototype.hasOwnProperty.call(SATURN_BRANCH_PHONE_DIRECTORY, normalized)
+}
+
+export function pickSaturnBranchPhoneNumber(...candidates: Array<string | null | undefined>) {
+  for (const candidate of candidates) {
+    const normalized = normalizePhone(candidate)
+    if (isSaturnBranchPhoneNumber(normalized)) {
+      return normalized
+    }
+  }
+
+  return DEFAULT_SATURN_BRANCH_NUMBER
+}
+
+export function getSaturnBranchLabel(value?: string | null) {
+  return getSaturnPhoneMetadata(value)?.branchLabel || ''
+}
+
+export function getSalesBranchFromSaturnPhone(value?: string | null): SalesBranch | undefined {
+  const normalized = coerceSaturnBranchPhoneNumber(value)
+  return normalized ? SATURN_BRANCH_PHONE_DIRECTORY[normalized].salesBranch : undefined
+}
+
+export function getSaturnTrackingLabel(value?: string | null) {
+  return getSaturnPhoneMetadata(value)?.trackingLabel || ''
+}
+
+export function getSaturnTrackingSource(value?: string | null) {
+  return getSaturnPhoneMetadata(value)?.trackingSource || ''
+}
+
+export function getSaturnDisplayLabel(value?: string | null) {
+  const meta = getSaturnPhoneMetadata(value)
+  if (!meta) return ''
+  return [meta.branchLabel, meta.trackingLabel].filter(Boolean).join(' · ')
+}
+
+export function getSaturnPhoneMetadata(value?: string | null) {
+  const normalized = coerceSaturnBranchPhoneNumber(value)
+  return normalized ? (SATURN_BRANCH_PHONE_DIRECTORY[normalized] as SaturnPhoneMetadata) : undefined
+}
+
+export function getSalesBranchFromSaturnLabel(value?: string | null): SalesBranch | undefined {
+  const normalized = (value || '').trim().toLowerCase()
+  if (!normalized) return undefined
+  if (normalized.includes('windsor')) return 'windsor'
+  if (normalized.includes('kitchener') || normalized.includes('waterloo') || normalized.includes('kw')) return 'waterloo'
+  if (normalized.includes('london')) return 'london'
+  if (normalized.includes('ottawa')) return 'ottawa'
+  return undefined
+}
+
+export function getSmsContactPhone(message: SmsMessageLike) {
+  return normalizePhone(message.direction === 'inbound' ? message.from_number : message.to_number)
+}
+
+export function getSaturnBusinessNumberFromSmsMessage(message: SmsMessageLike) {
+  return pickSaturnBranchPhoneNumber(
+    message.direction === 'inbound' ? message.to_number : message.from_number
+  )
+}
+
+export function getSaturnBranchNumberFromRawData(raw?: Record<string, unknown> | string | null) {
+  if (!raw || typeof raw === 'string') return null
+
+  const candidates = [
+    typeof raw.branchNumber === 'string' ? raw.branchNumber : null,
+    typeof raw.to === 'string' ? raw.to : null,
+  ]
+
+  if (!candidates.some(Boolean)) return null
+
+  return pickSaturnBranchPhoneNumber(...candidates)
+}

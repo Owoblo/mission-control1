@@ -29,11 +29,24 @@ export async function GET(
     const ADVANCE_STAGES = new Set(['cold', 'contacted'])
     const newStage = ADVANCE_STAGES.has(contact.stage) ? 'engaged' : contact.stage
 
-    // Update contact stage + last_touch
+    // Update contact: advance stage + pause the automated sequence
     await fetch(`${url}/rest/v1/market_contacts?id=eq.${contactId}`, {
       method: 'PATCH',
       headers,
-      body: JSON.stringify({ stage: newStage, last_touch_at: now }),
+      body: JSON.stringify({
+        stage: newStage,
+        last_touch_at: now,
+        sequence_paused: true,
+        sequence_paused_reason: 'qr_scan',
+        last_inbound_at: now,
+      }),
+    })
+
+    // Cancel any pending sequence jobs so no more auto-emails/SMS fire
+    await fetch(`${url}/rest/v1/sequence_jobs?contact_id=eq.${contactId}&status=eq.pending`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ status: 'cancelled' }),
     })
 
     // Log the touch

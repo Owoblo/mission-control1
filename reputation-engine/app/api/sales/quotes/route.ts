@@ -1,11 +1,19 @@
 import { NextResponse } from 'next/server'
 import { dateStamp, estimateLeadQuote, genQuoteNumber, normalizeClient, normalizeQuote, syncLeadFromQuoteStatus, uid } from '@/lib/sales'
+import { recordQuoteCreatedAudit } from '@/lib/server/sales-audit'
+import { canAccessSalesWorkspace, canEditQuote } from '@/lib/server/sales-permissions'
+import { getSessionUser } from '@/lib/server/session'
 import { getLatestSalesQuoteByLeadId, getSalesLead, listSalesClients, saveSalesClient, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
 import type { CRMClient, CRMQuote } from '@/lib/types'
 
 export async function POST(request: Request) {
   try {
-    const payload = (await request.json()) as { leadId?: string; force?: boolean }
+    const session = await getSessionUser()
+    if (!canAccessSalesWorkspace(session)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const payload = (await request.json()) as { leadId?: string; moveType?: string }
     if (!payload.leadId) {
       return NextResponse.json({ error: 'leadId is required' }, { status: 400 })
     }
@@ -15,25 +23,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
     }
 
-    // Without force=true, return existing quote if one exists (prevents accidental duplicates)
-    if (!payload.force) {
-      if (lead.quoteId) {
-        return NextResponse.json({ error: 'Lead already has a linked quote', quoteId: lead.quoteId }, { status: 409 })
-      }
-      const existingQuote = await getLatestSalesQuoteByLeadId(lead.id)
-      if (existingQuote) {
-        const savedLead = await saveSalesLead(syncLeadFromQuoteStatus({ ...lead, quoteId: existingQuote.id }, existingQuote))
-        return NextResponse.json({ quote: existingQuote, lead: savedLead })
-      }
+    if (!canEditQuote(session, lead)) {
+      return NextResponse.json({ error: 'You can only create quotes for leads you own or unassigned leads.' }, { status: 403 })
     }
 
-    // force=true: supersede any existing quote with a brand-new one (fresh pricing, new token)
-    if (payload.force) {
-      const existingQuote = await getLatestSalesQuoteByLeadId(lead.id)
-      if (existingQuote && existingQuote.status !== 'accepted') {
-        // Invalidate old quote by clearing its token
-        await saveSalesQuote({ ...existingQuote, acceptToken: '', status: 'declined' })
-      }
+    // If lead has a primary quote, allow adding more (multi-job support — e.g. residential + commercial)
+    // Don't block — just create a new quote and track it in quoteIds
+
+    const existingQuote = await getLatestSalesQuoteByLeadId(lead.id)
+    if (existingQuote && !lead.quoteId) {
+      // Re-link orphaned quote
+      const existingIds = lead.quoteIds || []
+      const allIds = Array.from(new Set([...existingIds, existingQuote.id]))
+      const savedLead = await saveSalesLead(syncLeadFromQuoteStatus({ ...lead, quoteId: existingQuote.id, quoteIds: allIds }, existingQuote))
+      return NextResponse.json({ quote: existingQuote, lead: savedLead })
     }
 
     const clients = await listSalesClients()
@@ -92,7 +95,16 @@ export async function POST(request: Request) {
 
     let savedLead
     try {
-      savedLead = await saveSalesLead(syncLeadFromQuoteStatus({ ...lead, quoteId: savedQuote.id }, savedQuote))
+      // Track all quote IDs for this lead (multi-job support)
+      const existingIds = lead.quoteIds || (lead.quoteId ? [lead.quoteId] : [])
+      const allIds = Array.from(new Set([...existingIds, savedQuote.id]))
+      const primaryQuoteId = lead.quoteId || savedQuote.id
+      const isFirstQuote = !lead.quoteId
+      const leadWithQuoteIds = { ...lead, quoteId: primaryQuoteId, quoteIds: allIds }
+      // Only sync stage from quote status for the first/primary quote — avoid regressing stage on additional jobs
+      savedLead = isFirstQuote
+        ? await saveSalesLead(syncLeadFromQuoteStatus(leadWithQuoteIds, savedQuote))
+        : await saveSalesLead(leadWithQuoteIds)
     } catch (leadError) {
       // Quote was created but lead link failed. On retry, getLatestSalesQuoteByLeadId will
       // find and re-link the orphaned quote automatically — no data loss.
@@ -100,6 +112,8 @@ export async function POST(request: Request) {
         `Quote ${savedQuote.id} saved but lead update failed: ${leadError instanceof Error ? leadError.message : 'unknown'}`
       )
     }
+
+    await recordQuoteCreatedAudit(savedQuote, session?.name)
 
     return NextResponse.json({ quote: savedQuote, lead: savedLead })
   } catch (error) {

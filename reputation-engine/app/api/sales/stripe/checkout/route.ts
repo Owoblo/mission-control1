@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getSalesQuote, listSalesLeads } from '@/lib/server/sales-repository'
+import { getAppBaseUrl, readEnv } from '@/lib/server/runtime'
 
 export async function POST(request: Request) {
-  const stripeKey = process.env.STRIPE_SECRET_KEY
+  const stripeKey = readEnv('STRIPE_SECRET_KEY')
   if (!stripeKey) {
     return NextResponse.json({ error: 'Stripe is not configured.' }, { status: 503 })
   }
@@ -16,8 +17,22 @@ export async function POST(request: Request) {
 
     if (!quoteId) return NextResponse.json({ error: 'quoteId is required' }, { status: 400 })
 
-    const quote = await getSalesQuote(quoteId)
+    let quote = await getSalesQuote(quoteId)
     if (!quote) return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
+
+    // Fast Lane quotes (status='sent', internalNotes starts with 'Fast Lane') auto-accept
+    // on checkout — no intermediate accept step needed for hourly rate quotes
+    const isFastLane = quote.internalNotes?.startsWith('Fast Lane')
+    if (quote.status === 'sent' && isFastLane) {
+      const { saveSalesQuote: saveQ } = await import('@/lib/server/sales-repository')
+      quote = await saveQ({
+        ...quote,
+        status: 'accepted',
+        acceptedAt: new Date().toISOString().slice(0, 10),
+        respondedAt: new Date().toISOString(),
+      })
+    }
+
     if (quote.status !== 'accepted') {
       return NextResponse.json({ error: 'Quote must be accepted before paying deposit' }, { status: 400 })
     }
@@ -26,7 +41,7 @@ export async function POST(request: Request) {
     const leads = await listSalesLeads()
     const lead = leads.find(l => l.id === quote.leadId)
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://mission-control1-reputation-engine.vercel.app'
+    const appUrl = getAppBaseUrl('https://mission-control1-reputation-engine.vercel.app')
     const returnBase = `${appUrl}/quote-accept?id=${encodeURIComponent(quote.id)}&token=${encodeURIComponent(quote.acceptToken || '')}`
 
     // Build Stripe checkout session via REST API (no SDK needed)

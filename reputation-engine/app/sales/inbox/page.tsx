@@ -2,22 +2,45 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { RecordingPlayer } from '@/app/components/sales/recording-player'
+import { getSaturnBranchLabel, getSaturnBranchNumberFromRawData, getSaturnTrackingLabel } from '@/lib/sales-phones'
 import { claimInboundLead, fetchInboundLeads, markInboundLeadJunk, restoreInboundLead, sendSalesMessage } from '@/lib/sales-api'
-import type { InboundLead } from '@/lib/types'
+import type { CRMEmail, InboundLead } from '@/lib/types'
 
 const SOURCE_LABELS: Record<string, string> = {
   twilio_call: 'Inbound Call',
   twilio_sms: 'SMS',
+  missed_call: 'Missed Call',
   facebook_dm: 'Facebook DM',
+  facebook_lead_ad: 'FB Lead Ad',
   instagram_dm: 'Instagram DM',
   email: 'Email',
   website_form: 'Web Form',
+  zapier: 'Lead Form',
+}
+
+const SOURCE_COLORS: Record<string, string> = {
+  twilio_call: 'bg-blue-100 text-blue-700',
+  twilio_sms: 'bg-purple-100 text-purple-700',
+  missed_call: 'bg-red-100 text-red-700',
+  facebook_lead_ad: 'bg-[#1877F2]/10 text-[#1877F2]',
+  facebook_dm: 'bg-[#1877F2]/10 text-[#1877F2]',
+  instagram_dm: 'bg-pink-100 text-pink-700',
+  email: 'bg-gray-100 text-gray-600',
+  website_form: 'bg-green-100 text-green-700',
+  zapier: 'bg-orange-100 text-orange-700',
 }
 
 function isMissedCall(item: InboundLead) {
   if (item.source !== 'twilio_call') return false
   const raw = typeof item.raw_data === 'object' && item.raw_data ? item.raw_data as Record<string, unknown> : {}
   return raw.missedCall === true
+}
+
+function isAnsweredByRep(item: InboundLead) {
+  if (item.source !== 'twilio_call') return false
+  const raw = typeof item.raw_data === 'object' && item.raw_data ? item.raw_data as Record<string, unknown> : {}
+  return raw.answeredByRep === true && !raw.missedCall
 }
 
 function timeAgo(value: string) {
@@ -52,6 +75,25 @@ function parseRawData(value: InboundLead['raw_data']) {
   return value as Record<string, any>
 }
 
+function getInboundBranchMeta(item: InboundLead | null) {
+  const raw = parseRawData(item?.raw_data)
+  const branchNumber = getSaturnBranchNumberFromRawData(raw)
+  const branchLabel =
+    getSaturnBranchLabel(branchNumber) ||
+    (typeof raw?.branchCity === 'string' ? raw.branchCity : '') ||
+    ''
+  const trackingLabel =
+    (typeof raw?.trackingLabel === 'string' ? raw.trackingLabel : '') ||
+    getSaturnTrackingLabel(branchNumber) ||
+    ''
+
+  return {
+    branchNumber: branchNumber || undefined,
+    branchLabel: branchLabel || undefined,
+    trackingLabel: trackingLabel || undefined,
+  }
+}
+
 function openDialer(phone?: string, name?: string, leadId?: string) {
   if (!phone || typeof window === 'undefined') return
   window.dispatchEvent(new CustomEvent('crm:open-dialer', { detail: { phone, name, leadId } }))
@@ -63,7 +105,7 @@ function displayLeadName(item: InboundLead | null) {
   if (!value) {
     return item.source === 'twilio_call' ? 'New Caller' : item.source === 'twilio_sms' ? 'New Contact' : 'New Lead'
   }
-  if (/^unknown$/i.test(value) || /^unknown lead$/i.test(value)) {
+  if (/^unknown\b/i.test(value)) {
     return item.source === 'twilio_call' ? 'New Caller' : item.source === 'twilio_sms' ? 'New Contact' : 'New Lead'
   }
   return value
@@ -72,7 +114,7 @@ function displayLeadName(item: InboundLead | null) {
 export default function SalesInboxPage() {
   const router = useRouter()
   const [items, setItems] = useState<InboundLead[]>([])
-  const [viewMode, setViewMode] = useState<'active' | 'unread' | 'closed' | 'messages'>('active')
+  const [viewMode, setViewMode] = useState<'active' | 'unread' | 'closed' | 'messages' | 'email'>('active')
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -88,12 +130,18 @@ export default function SalesInboxPage() {
   // SMS threads (2-way messages view)
   const [smsThreads, setSmsThreads] = useState<Array<{
     contactPhone: string; messages: Array<{ id: string; from_number: string; to_number: string; body: string; direction: 'inbound' | 'outbound'; created_at: string; lead_id: string | null }>
-    lastMessage: string; lastAt: string; unread: boolean; leadId: string | null
+    lastMessage: string; lastAt: string; unread: boolean; leadId: string | null; leadName?: string; businessNumber: string; branchLabel: string; trackingLabel?: string
   }>>([])
   const [threadsLoading, setThreadsLoading] = useState(false)
   const [selectedThread, setSelectedThread] = useState<string | null>(null)
   const [smsReply, setSmsReply] = useState('')
   const [smsReplyBusy, setSmsReplyBusy] = useState(false)
+  // Email inbox state
+  const [emailList, setEmailList] = useState<CRMEmail[]>([])
+  const [emailLoading, setEmailLoading] = useState(false)
+  const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null)
+  const [emailReply, setEmailReply] = useState({ subject: '', body: '' })
+  const [emailReplyBusy, setEmailReplyBusy] = useState(false)
 
   const SC_GOALS = [
     { id: 'follow_up', label: '👋 Follow-up', desc: 'Check in after first contact' },
@@ -202,6 +250,8 @@ export default function SalesInboxPage() {
   useEffect(() => {
     if (viewMode === 'messages') {
       void fetchSmsThreads()
+    } else if (viewMode === 'email') {
+      void fetchEmails()
     } else {
       void refresh()
     }
@@ -242,6 +292,11 @@ export default function SalesInboxPage() {
   }, [items, search])
   const selected = useMemo(() => filteredItems.find(item => item.id === selectedId) || null, [filteredItems, selectedId])
   const selectedRaw = useMemo(() => parseRawData(selected?.raw_data), [selected?.raw_data])
+  const selectedBranch = useMemo(() => getInboundBranchMeta(selected), [selected])
+  const selectedSmsThreadData = useMemo(
+    () => smsThreads.find(thread => thread.contactPhone === selectedThread) || null,
+    [selectedThread, smsThreads]
+  )
   const aiSummary = selectedRaw?.aiSummary as
     | {
         summary?: string
@@ -253,11 +308,20 @@ export default function SalesInboxPage() {
     | undefined
   const transcript = selectedRaw?.transcript as string | undefined
   const recordingUrl = (selectedRaw?.recordingUrl || selectedRaw?.recUrl) as string | undefined
+  const recordingSid = selectedRaw?.recordingSid as string | undefined
+  const recordingUnavailable = selectedRaw?.recordingUnavailable === true
+  const recordingUnavailableReason = selectedRaw?.recordingUnavailableReason as string | undefined
   const unreadCount = useMemo(() => items.filter(item => !item.claimed).length, [items])
   const selectedRoute = useMemo(
     () => ({
-      origin: (selectedRaw?.originCity as string | undefined) || 'Origin TBD',
-      destination: (selectedRaw?.destCity as string | undefined) || 'Destination TBD',
+      origin:
+        (selectedRaw?.originAddress as string | undefined) ||
+        (selectedRaw?.originCity as string | undefined) ||
+        'Origin TBD',
+      destination:
+        (selectedRaw?.destAddress as string | undefined) ||
+        (selectedRaw?.destCity as string | undefined) ||
+        'Destination TBD',
       distance: (selectedRaw?.distanceText as string | undefined) || 'Route pending',
       originAccess: (selectedRaw?.originAccess as string | undefined) || 'Access not confirmed',
       destinationAccess: (selectedRaw?.destAccess as string | undefined) || 'Access not confirmed',
@@ -302,6 +366,8 @@ export default function SalesInboxPage() {
     const needsRefresh =
       isCall &&
       !selectedRaw?.recordingUrl &&
+      !selectedRaw?.recordingSid &&
+      !selectedRaw?.recordingUnavailable &&
       !selectedRaw?.transcript &&
       timeAgo(selected.created_at).includes('m ago')
 
@@ -364,6 +430,7 @@ export default function SalesInboxPage() {
         to,
         subject: channel === 'email' ? compose.emailSubject : undefined,
         body,
+        fromNumber: channel === 'sms' ? selectedBranch.branchNumber : undefined,
         notes: `${channel === 'email' ? 'Inbox email reply sent' : 'Inbox SMS reply sent'} for inbound lead ${selected.id}.`,
       })
       setError(null)
@@ -418,13 +485,56 @@ export default function SalesInboxPage() {
     if (!selectedThread || !smsReply.trim()) return
     try {
       setSmsReplyBusy(true)
-      await sendSalesMessage({ channel: 'sms', to: selectedThread, body: smsReply.trim(), notes: 'Reply from inbox messages view' })
+      await sendSalesMessage({
+        channel: 'sms',
+        to: selectedThread,
+        body: smsReply.trim(),
+        fromNumber: selectedSmsThreadData?.businessNumber,
+        notes: 'Reply from inbox messages view',
+      })
       setSmsReply('')
       await fetchSmsThreads()
     } catch (err) {
       setError((err as Error).message)
     } finally {
       setSmsReplyBusy(false)
+    }
+  }
+
+  async function fetchEmails() {
+    try {
+      setEmailLoading(true)
+      const res = await fetch('/api/sales/emails')
+      if (res.ok) {
+        const data = await res.json() as CRMEmail[]
+        setEmailList(data)
+        if (!selectedEmailId && data.length > 0) setSelectedEmailId(data[0].id)
+      }
+    } catch { /* non-fatal */ } finally {
+      setEmailLoading(false)
+    }
+  }
+
+  async function sendEmailReply() {
+    const selectedEmail = emailList.find(e => e.id === selectedEmailId)
+    if (!selectedEmail || !emailReply.body.trim()) return
+    const replyTo = selectedEmail.direction === 'inbound' ? selectedEmail.from : selectedEmail.to
+    try {
+      setEmailReplyBusy(true)
+      await sendSalesMessage({
+        channel: 'email',
+        to: replyTo,
+        subject: emailReply.subject || `Re: ${selectedEmail.subject}`,
+        body: emailReply.body,
+        leadId: selectedEmail.leadId || undefined,
+        quoteId: selectedEmail.quoteId || undefined,
+      })
+      setEmailReply({ subject: '', body: '' })
+      await fetchEmails()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setEmailReplyBusy(false)
     }
   }
 
@@ -453,7 +563,7 @@ export default function SalesInboxPage() {
           <div className="p-16 text-center text-sm text-[var(--app-muted)]">Loading lead inbox...</div>
         ) : (
           <div className="min-h-[calc(100vh-42px)] md:flex">
-            <section className={`${selected ? 'hidden md:flex' : 'flex'} w-full flex-shrink-0 flex-col border-r border-[var(--app-line)] bg-[var(--app-panel)] md:w-[360px]`}>
+            <section className={`${(selected || (viewMode === 'email' && selectedEmailId)) ? 'hidden md:flex' : 'flex'} w-full flex-shrink-0 flex-col border-r border-[var(--app-line)] bg-[var(--app-panel)] md:w-[360px]`}>
               <div className="border-b border-[var(--app-line)] p-4">
                 <div className="mb-4 flex items-center justify-between">
                   <div>
@@ -468,7 +578,8 @@ export default function SalesInboxPage() {
                   {([
                     { id: 'active', label: 'Leads', count: items.length },
                     { id: 'unread', label: 'Unread', count: unreadCount },
-                    { id: 'messages', label: '💬 Messages', count: smsThreads.filter(t => t.unread).length || null },
+                    { id: 'messages', label: '💬 SMS', count: smsThreads.filter(t => t.unread).length || null },
+                    { id: 'email', label: '📧 Email', count: emailList.filter(e => e.direction === 'inbound').length || null },
                     { id: 'closed', label: 'Closed', count: null },
                   ] as const).map(tab => (
                     <button
@@ -493,7 +604,45 @@ export default function SalesInboxPage() {
                 />
               </div>
               <div className="flex-1 overflow-y-auto bg-[var(--app-panel)]">
-                {viewMode === 'messages' ? (
+                {viewMode === 'email' ? (
+                  emailLoading ? (
+                    <div className="p-6 text-sm text-[var(--app-muted)]">Loading emails...</div>
+                  ) : emailList.length === 0 ? (
+                    <div className="p-6 text-sm text-[var(--app-muted)]">No emails yet. Sent and received emails will appear here.</div>
+                  ) : emailList.map(em => (
+                    <button
+                      key={em.id}
+                      onClick={() => {
+                        setSelectedEmailId(em.id)
+                        setEmailReply({ subject: `Re: ${em.subject}`, body: '' })
+                      }}
+                      className={`relative block w-full border-b border-[var(--app-line)] p-4 text-left transition ${selectedEmailId === em.id ? 'bg-[rgba(15,106,83,0.05)]' : 'bg-[var(--app-panel)] hover:bg-[var(--app-bg)]'}`}
+                    >
+                      {selectedEmailId === em.id ? <div className="absolute bottom-0 left-0 top-0 w-1 bg-[var(--app-accent)]" /> : null}
+                      <div className="mb-1 flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {em.direction === 'inbound' && <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--app-warm)]" />}
+                          <span className="truncate text-sm font-semibold text-[var(--app-ink)]">
+                            {em.direction === 'inbound' ? em.from : em.to}
+                          </span>
+                        </div>
+                        <span className="shrink-0 text-xs text-[var(--app-muted)]">{timeAgo(em.sentAt)}</span>
+                      </div>
+                      <p className="text-sm font-medium text-[var(--app-ink)] line-clamp-1">{em.subject || '(no subject)'}</p>
+                      <p className="mt-0.5 text-xs text-[var(--app-muted)] line-clamp-1">{em.body?.slice(0, 120)}</p>
+                      <div className="mt-2 flex gap-2">
+                        <span className={`rounded-[4px] border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${em.direction === 'inbound' ? 'border-[var(--app-warm)] bg-[rgba(245,166,35,0.1)] text-[var(--app-warm)]' : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-muted)]'}`}>
+                          {em.direction === 'inbound' ? '← Received' : '→ Sent'}
+                        </span>
+                        {em.templateType && (
+                          <span className="rounded-[4px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2 py-0.5 text-[10px] font-medium text-[var(--app-muted)]">
+                            {em.templateType.replace(/_/g, ' ')}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  ))
+                ) : viewMode === 'messages' ? (
                   threadsLoading ? (
                     <div className="p-6 text-sm text-[var(--app-muted)]">Loading conversations...</div>
                   ) : smsThreads.length === 0 ? (
@@ -508,10 +657,25 @@ export default function SalesInboxPage() {
                       <div className="mb-1 flex items-start justify-between">
                         <div className="flex items-center gap-2">
                           {thread.unread && <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--app-accent)]" />}
-                          <span className={`text-sm font-semibold ${thread.unread ? 'text-[var(--app-ink)]' : 'text-[var(--app-muted)]'}`}>{thread.contactPhone}</span>
+                          <span className={`text-sm font-semibold ${thread.unread ? 'text-[var(--app-ink)]' : 'text-[var(--app-muted)]'}`}>{thread.leadName || thread.contactPhone}</span>
                         </div>
                         <span className="text-xs text-[var(--app-muted)]">{timeAgo(thread.lastAt)}</span>
                       </div>
+                      {thread.leadName ? (
+                        <div className="mb-1 text-[11px] text-[var(--app-muted)]">{thread.contactPhone}</div>
+                      ) : null}
+                      {thread.branchLabel ? (
+                        <div className="mb-1">
+                          <span className="rounded-[4px] border border-[rgba(15,106,83,0.18)] bg-[rgba(15,106,83,0.08)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--app-accent)]">
+                            Replies as {thread.branchLabel}
+                          </span>
+                          {thread.trackingLabel ? (
+                            <span className="ml-2 rounded-[4px] border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700">
+                              {thread.trackingLabel}
+                            </span>
+                          ) : null}
+                        </div>
+                      ) : null}
                       <p className="text-xs text-[var(--app-muted)] line-clamp-1">{thread.lastMessage || '(no message)'}</p>
                     </button>
                   ))
@@ -525,6 +689,7 @@ export default function SalesInboxPage() {
                   const itemSummary = raw?.aiSummary?.summary as string | undefined
                   const itemMoveReadiness = raw?.aiSummary?.moveReadiness as 'hot' | 'warm' | 'cold' | undefined
                   const itemTranscript = raw?.transcript as string | undefined
+                  const { branchLabel, trackingLabel } = getInboundBranchMeta(item)
                   return (
                     <button
                       key={item.id}
@@ -546,12 +711,26 @@ export default function SalesInboxPage() {
                         {itemSummary || itemTranscript || item.message || 'No summary yet.'}
                       </p>
                       <div className="mt-2 flex gap-2">
+                        {branchLabel ? (
+                          <span className="rounded-[4px] border border-[rgba(15,106,83,0.18)] bg-[rgba(15,106,83,0.08)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--app-accent)]">
+                            {branchLabel}
+                          </span>
+                        ) : null}
+                        {trackingLabel ? (
+                          <span className="rounded-[4px] border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700">
+                            {trackingLabel}
+                          </span>
+                        ) : null}
                         {isMissedCall(item) ? (
                           <span className="rounded-[4px] border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-rose-700">
                             ☎ Missed Call
                           </span>
+                        ) : isAnsweredByRep(item) ? (
+                          <span className="rounded-[4px] border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-700">
+                            ✓ Answered by Rep
+                          </span>
                         ) : (
-                          <span className="rounded-[4px] border border-[rgba(228,226,220,1)] bg-[var(--app-bg)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--app-muted)]">
+                          <span className={`rounded-[4px] border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${SOURCE_COLORS[item.source] || 'border-[rgba(228,226,220,1)] bg-[var(--app-bg)] text-[var(--app-muted)]'}`}>
                             {SOURCE_LABELS[item.source] || item.source}
                           </span>
                         )}
@@ -575,8 +754,125 @@ export default function SalesInboxPage() {
               </div>
             </section>
 
-            <section className={`${selected || (viewMode === 'messages' && selectedThread) ? 'block' : 'hidden md:block'} flex-1 overflow-y-auto bg-[var(--app-bg)]`}>
-              {viewMode === 'messages' ? (
+            <section className={`${selected || (viewMode === 'messages' && selectedThread) || (viewMode === 'email' && selectedEmailId) ? 'block' : 'hidden md:block'} flex-1 overflow-y-auto bg-[var(--app-bg)]`}>
+              {viewMode === 'email' ? (
+                (() => {
+                  const em = emailList.find(e => e.id === selectedEmailId)
+                  if (!em) return <div className="p-16 text-center text-sm text-[var(--app-muted)]">Select an email.</div>
+
+                  // Thread: same leadId if available, else match by contact email
+                  const contactEmail = em.direction === 'inbound' ? em.from : em.to
+                  const threadEmails = emailList.filter(e => {
+                    if (em.leadId && e.leadId) return e.leadId === em.leadId
+                    const c = e.direction === 'inbound' ? e.from : e.to
+                    return c.toLowerCase() === contactEmail.toLowerCase()
+                  }).sort((a, b) => a.sentAt < b.sentAt ? 1 : -1) // newest first
+
+                  const latestInbound = threadEmails.find(e => e.direction === 'inbound')
+                  const replyTo = em.direction === 'inbound' ? em.from : em.to
+
+                  return (
+                    <div className="flex h-full flex-col">
+                      {/* Header */}
+                      <div className="sticky top-0 z-10 border-b border-[var(--app-line)] bg-[var(--app-panel)] px-5 py-3">
+                        <button onClick={() => setSelectedEmailId(null)} className="crm-button mb-2 px-3 md:hidden">← Back</button>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <h2 className="text-base font-semibold text-[var(--app-ink)] line-clamp-1">
+                              {em.subject?.replace(/^Re:\s*/i, '')}
+                            </h2>
+                            <div className="mt-0.5 flex items-center gap-3 text-xs text-[var(--app-muted)]">
+                              <span>{replyTo}</span>
+                              <span>·</span>
+                              <span>{threadEmails.length} message{threadEmails.length !== 1 ? 's' : ''}</span>
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            {em.leadId && (
+                              <a href={`/sales/leads/${em.leadId}`} className="crm-button text-xs">View Lead →</a>
+                            )}
+                          </div>
+                        </div>
+                        {/* New reply banner */}
+                        {latestInbound && (
+                          <div className="mt-2 flex items-center gap-2 rounded-[6px] border border-[var(--app-warm)] bg-[rgba(245,166,35,0.08)] px-3 py-1.5">
+                            <span className="text-sm">✉️</span>
+                            <span className="text-xs font-medium text-[var(--app-warm)]">
+                              New reply from {latestInbound.from} · {timeAgo(latestInbound.sentAt)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Thread — newest first */}
+                      <div className="flex-1 overflow-y-auto divide-y divide-[var(--app-line)]">
+                        {threadEmails.map((msg, idx) => (
+                          <div key={msg.id} className={`${msg.direction === 'inbound' ? 'bg-[rgba(245,166,35,0.04)]' : 'bg-[var(--app-panel)]'}`}>
+                            <div className="flex items-start gap-3 px-5 py-4">
+                              {/* Avatar */}
+                              <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${msg.direction === 'inbound' ? 'bg-[var(--app-ink)]' : 'bg-[var(--app-accent)]'}`}>
+                                {msg.direction === 'inbound' ? msg.from.slice(0, 1).toUpperCase() : 'S'}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between gap-3">
+                                  <div>
+                                    <span className="text-sm font-semibold text-[var(--app-ink)]">
+                                      {msg.direction === 'inbound' ? msg.from : 'Saturn Star Movers'}
+                                    </span>
+                                    <span className="ml-2 text-xs text-[var(--app-muted)]">
+                                      {msg.direction === 'inbound' ? '→ business@starmovers.ca' : `→ ${msg.to}`}
+                                    </span>
+                                  </div>
+                                  <div className="flex shrink-0 items-center gap-2">
+                                    <span className="text-xs text-[var(--app-muted)]">{formatAbsoluteTime(msg.sentAt)}</span>
+                                    {idx === 0 && msg.direction === 'inbound' && (
+                                      <span className="rounded-[4px] border border-[var(--app-warm)] bg-[rgba(245,166,35,0.1)] px-1.5 py-0.5 text-[10px] font-semibold uppercase text-[var(--app-warm)]">New</span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[var(--app-ink)]">{msg.body}</div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Reply composer */}
+                      <div className="border-t-2 border-[var(--app-line)] bg-[var(--app-panel)] p-4">
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="text-xs font-semibold text-[var(--app-ink)]">
+                            Reply to <span className="text-[var(--app-accent)]">{replyTo}</span>
+                          </div>
+                          <span className="text-xs text-[var(--app-muted)]">Cmd+Enter to send</span>
+                        </div>
+                        <textarea
+                          className="crm-input w-full resize-none"
+                          rows={3}
+                          placeholder={`Reply to ${replyTo}…`}
+                          value={emailReply.body}
+                          onChange={e => setEmailReply(r => ({ ...r, body: e.target.value }))}
+                          onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void sendEmailReply() }}
+                        />
+                        <div className="mt-2 flex items-center justify-between">
+                          <input
+                            className="crm-input max-w-xs text-xs"
+                            placeholder="Subject"
+                            value={emailReply.subject}
+                            onChange={e => setEmailReply(r => ({ ...r, subject: e.target.value }))}
+                          />
+                          <button
+                            onClick={() => void sendEmailReply()}
+                            disabled={emailReplyBusy || !emailReply.body.trim()}
+                            className="crm-button-dark disabled:opacity-50"
+                          >
+                            {emailReplyBusy ? 'Sending…' : '↑ Send'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()
+              ) : viewMode === 'messages' ? (
                 // ── 2-WAY SMS THREAD VIEW ───────────────────────────────────
                 (() => {
                   const thread = smsThreads.find(t => t.contactPhone === selectedThread)
@@ -586,11 +882,16 @@ export default function SalesInboxPage() {
                       <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-[var(--app-line)] bg-[var(--app-panel)] px-4 py-4">
                         <button onClick={() => setSelectedThread(null)} className="crm-button px-3 md:hidden">Back</button>
                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[rgba(15,106,83,0.1)] text-sm font-bold text-[var(--app-accent)]">
-                          {thread.contactPhone.slice(-4)}
+                          {(thread.leadName || thread.contactPhone).slice(0, 1).toUpperCase()}
                         </div>
                         <div>
-                          <div className="text-base font-semibold text-[var(--app-ink)]">{thread.contactPhone}</div>
-                          <div className="text-xs text-[var(--app-muted)]">{thread.messages.length} messages</div>
+                          <div className="text-base font-semibold text-[var(--app-ink)]">{thread.leadName || thread.contactPhone}</div>
+                          <div className="text-xs text-[var(--app-muted)]">
+                            {thread.leadName ? `${thread.contactPhone} • ` : ''}
+                            {thread.messages.length} messages
+                            {thread.branchLabel ? ` • replying as ${thread.branchLabel}` : ''}
+                            {thread.trackingLabel ? ` • ${thread.trackingLabel}` : ''}
+                          </div>
                         </div>
                         {thread.leadId && (
                           <a href={`/sales/leads/${thread.leadId}`} className="ml-auto crm-button text-xs">View Lead →</a>
@@ -599,9 +900,9 @@ export default function SalesInboxPage() {
                       <div className="flex-1 overflow-y-auto space-y-2 px-4 py-4">
                         {thread.messages.map(msg => (
                           <div key={msg.id} className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[75%] rounded-[14px] px-3 py-2 text-sm ${msg.direction === 'outbound' ? 'rounded-br-[4px] bg-[var(--app-accent)] text-white' : 'rounded-bl-[4px] bg-white text-[var(--app-ink)] border border-[var(--app-line)]'}`}>
+                            <div className={`max-w-[75%] rounded-[18px] px-3.5 py-2.5 text-sm shadow-sm ${msg.direction === 'outbound' ? 'rounded-br-[4px] bg-[#0b84ff] text-white' : 'rounded-bl-[4px] bg-[#e9e9eb] text-[#1c1c1e]'}`}>
                               <p>{msg.body}</p>
-                              <p className={`mt-1 text-[10px] ${msg.direction === 'outbound' ? 'text-white/70' : 'text-[var(--app-muted)]'}`}>
+                              <p className={`mt-1 text-[10px] ${msg.direction === 'outbound' ? 'text-white/60' : 'text-[#8e8e93]'}`}>
                                 {new Date(msg.created_at).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                               </p>
                             </div>
@@ -609,6 +910,12 @@ export default function SalesInboxPage() {
                         ))}
                       </div>
                       <div className="border-t border-[var(--app-line)] bg-[var(--app-panel)] p-4">
+                        {thread.branchLabel ? (
+                          <div className="mb-2 text-xs text-[var(--app-muted)]">
+                            Outbound replies go out from <span className="font-semibold text-[var(--app-ink)]">{thread.branchLabel}</span> ({thread.businessNumber}).
+                            {thread.trackingLabel ? <span className="ml-1">Tracking: <span className="font-semibold text-[var(--app-ink)]">{thread.trackingLabel}</span>.</span> : null}
+                          </div>
+                        ) : null}
                         <div className="flex gap-3">
                           <textarea
                             className="crm-input flex-1 resize-none"
@@ -646,9 +953,23 @@ export default function SalesInboxPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <h2 className="text-[2rem] font-semibold tracking-tight text-[var(--app-ink)]">{displayLeadName(selected)}</h2>
+                          {selectedBranch.branchLabel ? (
+                            <span className="rounded-[4px] border border-[rgba(15,106,83,0.2)] bg-[rgba(15,106,83,0.08)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--app-accent)]">
+                              {selectedBranch.branchLabel}
+                            </span>
+                          ) : null}
+                          {selectedBranch.trackingLabel ? (
+                            <span className="rounded-[4px] border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700">
+                              {selectedBranch.trackingLabel}
+                            </span>
+                          ) : null}
                           {isMissedCall(selected) ? (
                             <span className="rounded-[4px] border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-rose-700">
                               ☎ Missed Call
+                            </span>
+                          ) : isAnsweredByRep(selected) ? (
+                            <span className="rounded-[4px] border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-700">
+                              ✓ Answered by Rep
                             </span>
                           ) : (
                             <span className="rounded-[4px] border border-[rgba(15,106,83,0.2)] bg-[rgba(15,106,83,0.08)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--app-accent)]">
@@ -663,22 +984,29 @@ export default function SalesInboxPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-3">
-                      {viewMode === 'closed' ? (
-                        selected.linkedLeadId ? (
-                          <button onClick={() => router.push(`/sales/leads/${selected.linkedLeadId}`)} className="crm-button">
-                            Open Lead
-                          </button>
+                    <div className="flex flex-col items-start gap-2 md:items-end">
+                      <div className="flex flex-wrap gap-3">
+                        {viewMode === 'closed' ? (
+                          selected.linkedLeadId ? (
+                            <button onClick={() => router.push(`/sales/leads/${selected.linkedLeadId}`)} className="crm-button">
+                              Open Lead
+                            </button>
+                          ) : (
+                            <button onClick={() => void restoreSelected()} disabled={restoreBusy} className="crm-button">
+                              {restoreBusy ? 'Restoring...' : 'Restore'}
+                            </button>
+                          )
                         ) : (
-                          <button onClick={() => void restoreSelected()} disabled={restoreBusy} className="crm-button">
-                            {restoreBusy ? 'Restoring...' : 'Restore'}
-                          </button>
-                        )
-                      ) : (
-                        <button onClick={() => void junkSelected()} disabled={junkBusy} className="crm-button">{junkBusy ? 'Rejecting...' : 'Reject'}</button>
+                          <button onClick={() => void junkSelected()} disabled={junkBusy} className="crm-button">{junkBusy ? 'Rejecting...' : 'Reject'}</button>
+                        )}
+                        {selected.phone ? <button onClick={() => openDialer(selected.phone, selected.name || undefined, selected.linkedLeadId)} className="crm-button">Call</button> : null}
+                        <button onClick={() => void claimSelected()} disabled={busy || viewMode === 'closed'} className="crm-button-dark">{selected.linkedLeadId ? 'Open Lead' : busy ? 'Creating...' : 'Move to Pipeline'}</button>
+                      </div>
+                      {viewMode !== 'closed' && !selected.linkedLeadId && (
+                        <p className="text-xs text-[var(--app-muted)]">
+                          <span className="font-medium text-[var(--app-ink)]">Move to Pipeline</span> for real leads &middot; <span className="font-medium text-[var(--app-ink)]">Reject</span> for spam or wrong numbers
+                        </p>
                       )}
-                      {selected.phone ? <button onClick={() => openDialer(selected.phone, selected.name || undefined, selected.linkedLeadId)} className="crm-button">Call</button> : null}
-                      <button onClick={() => void claimSelected()} disabled={busy || viewMode === 'closed'} className="crm-button-dark">{selected.linkedLeadId ? 'Open Lead' : busy ? 'Creating...' : 'Move to Pipeline'}</button>
                     </div>
                   </div>
 
@@ -794,14 +1122,18 @@ export default function SalesInboxPage() {
                           </div>
                         </div>
 
-                        {recordingUrl || transcript ? (
+                        {recordingUrl || recordingSid || transcript || recordingUnavailable ? (
                           <div className="space-y-6">
                             <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
                               <div className="crm-label">Call Recording</div>
-                              {recordingUrl ? (
-                                <audio controls className="mt-4 w-full" src={recordingUrl}>
-                                  Your browser does not support audio playback.
-                                </audio>
+                              {recordingUrl || recordingSid ? (
+                                <div className="mt-4">
+                                  <RecordingPlayer recordingUrl={recordingUrl} recordingSid={recordingSid} />
+                                </div>
+                              ) : recordingUnavailable ? (
+                                <div className="mt-4 rounded-[8px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
+                                  {recordingUnavailableReason || 'Twilio did not retain a playable recording for this call.'}
+                                </div>
                               ) : (
                                 <div className="mt-4 text-sm text-[var(--app-muted)]">Recording still processing.</div>
                               )}

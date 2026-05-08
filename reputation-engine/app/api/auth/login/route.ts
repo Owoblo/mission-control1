@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { createSessionToken, getSessionCookieName, type UserRole } from '@/lib/auth'
-import { requireSupabaseEnv } from '@/lib/server/runtime'
+import { readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
 
 interface AppUser {
   id: string
@@ -9,6 +9,7 @@ interface AppUser {
   password_hash: string
   name: string
   role: UserRole
+  branch?: string
 }
 
 async function findUserByEmail(email: string): Promise<AppUser | null> {
@@ -52,20 +53,20 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
       }
 
-      const token = await createSessionToken({ userId: user.id, role: user.role, name: user.name })
-      const response = NextResponse.json({ ok: true, role: user.role, name: user.name })
+      const token = await createSessionToken({ userId: user.id, role: user.role, name: user.name, branch: user.branch || undefined })
+      const response = NextResponse.json({ ok: true, role: user.role, name: user.name, branch: user.branch || undefined })
       response.cookies.set(getSessionCookieName(), token, cookieOptions())
       return response
     }
 
     // --- Legacy owner path: password only (AUTH_PASSWORD env var) ---
-    const expectedPassword = process.env.AUTH_PASSWORD
+    const expectedPassword = readEnv('AUTH_PASSWORD')
     if (!expectedPassword || payload.password !== expectedPassword) {
       return NextResponse.json({ error: 'Invalid password' }, { status: 401 })
     }
 
-    const token = await createSessionToken({ role: 'owner', name: 'Owner' })
-    const response = NextResponse.json({ ok: true, role: 'owner', name: 'Owner' })
+    const token = await createSessionToken({ role: 'owner', name: 'John.O (Admin)' })
+    const response = NextResponse.json({ ok: true, role: 'owner', name: 'John.O (Admin)' })
     response.cookies.set(getSessionCookieName(), token, cookieOptions())
     return response
   } catch (error) {

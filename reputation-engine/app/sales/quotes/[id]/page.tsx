@@ -2,9 +2,11 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
+import { buildMoveSpecificNotes } from '@/lib/move-scope'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { PACKING_MATERIAL_PRESETS } from '@/lib/packing-materials'
-import { QUOTE_STATUSES, computeQuoteTotals, dateStamp, estimateLeadQuote, formatDate, formatMoney, getCrewRate, getDefaultDepositRate, validUntil } from '@/lib/sales'
+import { useCurrentUser } from '@/lib/hooks/use-current-user'
+import { QUOTE_STATUSES, UHAUL_RATE_PER_KM, computeQuoteTotals, dateStamp, estimateLeadQuote, formatDate, formatMoney, getCrewRate, getDefaultDepositRate, getLeadAssignedRepName, validUntil } from '@/lib/sales'
 import { fetchSalesQuote, saveSalesFollowUp, sendSalesMessage, updateSalesLead, updateSalesQuote } from '@/lib/sales-api'
 import type { CRMClient, CRMLead, CRMQuote, FollowUpLog, QuoteLineItem } from '@/lib/types'
 
@@ -24,6 +26,9 @@ function buildQuoteEmailHtml({
   deposit,
   acceptUrl,
   validUntilText,
+  moveDescription,
+  scopeNotes,
+  isRevision,
 }: {
   customerName: string
   quoteNumber: string
@@ -34,14 +39,27 @@ function buildQuoteEmailHtml({
   deposit: number
   acceptUrl: string
   validUntilText: string
+  moveDescription?: string
+  scopeNotes?: string[]
+  isRevision?: boolean
 }) {
+  const heading = isRevision ? 'Your quote has been updated.' : 'Your quote is ready.'
+  const intro = isRevision
+    ? `Hi ${customerName}, we updated your moving estimate and kept everything on the same quote link for easy review.`
+    : `Hi ${customerName}, we prepared your moving estimate and linked everything below for quick review.`
+  const summary = isRevision
+    ? 'Open the same quote link to review the latest date, pricing, and job details, then accept or decline it when ready.'
+    : 'Review the full quote online, accept or decline it, and print or save a PDF from the quote page if you need a document copy.'
+  const footer = isRevision
+    ? 'This pricing reflects the latest inventory and access details currently on file. Reply to this email if you want any further adjustments before booking.'
+    : 'This pricing is based on the inventory and access details currently on file. Reply to this email if you want any adjustments before booking.'
   return `
   <div style="background:#f7f4ee;padding:32px 16px;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#171717;">
     <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e9e4d9;border-radius:18px;overflow:hidden;">
       <div style="padding:28px 32px;border-bottom:1px solid #eee7da;">
         <div style="font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#7c766a;font-weight:700;">Saturn Star Moving</div>
-        <h1 style="margin:14px 0 8px;font-size:30px;line-height:1.1;color:#171717;">Your quote is ready.</h1>
-        <p style="margin:0;font-size:15px;line-height:1.7;color:#4b5563;">Hi ${customerName}, we prepared your moving estimate and linked everything below for quick review.</p>
+        <h1 style="margin:14px 0 8px;font-size:30px;line-height:1.1;color:#171717;">${heading}</h1>
+        <p style="margin:0;font-size:15px;line-height:1.7;color:#4b5563;">${intro}</p>
       </div>
       <div style="padding:28px 32px;">
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:24px;">
@@ -66,12 +84,14 @@ function buildQuoteEmailHtml({
             <div style="margin-top:8px;font-size:30px;font-weight:700;color:#171717;">${formatMoney(deposit)}</div>
           </div>
         </div>
-        <div style="margin-bottom:18px;font-size:15px;line-height:1.7;color:#374151;">Review the full quote online, accept or decline it, and print or save a PDF from the quote page if you need a document copy.</div>
+        ${moveDescription ? `<div style="margin-bottom:18px;padding:14px 18px;border-radius:12px;background:#f4efe4;border:1px solid #eee7da;font-size:14px;line-height:1.7;color:#374151;">${moveDescription}</div>` : ''}
+        ${scopeNotes && scopeNotes.length > 0 ? `<div style="margin-bottom:18px;padding:14px 18px;border-radius:12px;background:#fcfbf8;border:1px solid #eee7da;"><div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8a8478;font-weight:700;margin-bottom:8px;">Move-specific notes</div>${scopeNotes.map(note => `<div style="font-size:13px;line-height:1.7;color:#4b5563;">• ${note}</div>`).join('')}</div>` : ''}
+        <div style="margin-bottom:18px;font-size:15px;line-height:1.7;color:#374151;">${summary}</div>
         <div style="margin-bottom:28px;">
           <a href="${acceptUrl}" style="display:inline-block;padding:14px 22px;border-radius:999px;background:#0f6a53;color:#ffffff;text-decoration:none;font-weight:700;">Open Quote</a>
         </div>
         <div style="padding-top:18px;border-top:1px solid #eee7da;font-size:13px;line-height:1.8;color:#6b7280;">
-          This pricing is based on the inventory and access details currently on file. Reply to this email if you want any adjustments before booking.
+          ${footer}
         </div>
       </div>
     </div>
@@ -81,6 +101,7 @@ function buildQuoteEmailHtml({
 export default function SalesQuoteDetailPage() {
   const params = useParams() as { id?: string }
   const router = useRouter()
+  const currentUser = useCurrentUser()
   const [quote, setQuote] = useState<CRMQuote | null>(null)
   const [lead, setLead] = useState<CRMLead | null>(null)
   const [client, setClient] = useState<CRMClient | null>(null)
@@ -191,24 +212,59 @@ export default function SalesQuoteDetailPage() {
     return `${window.location.origin}/quote-accept?id=${encodeURIComponent(quote.id)}&token=${encodeURIComponent(quote.acceptToken)}`
   }, [quote])
 
+  const quoteTotals = useMemo(
+    () => computeQuoteTotals(lineItems, Math.max(0, Math.min(100, depositRate)) / 100, Math.max(0, discountAmount)),
+    [depositRate, discountAmount, lineItems]
+  )
+  const rawSubtotal = useMemo(() => lineItems.reduce((sum, item) => sum + Number(item.amount || 0), 0), [lineItems])
+  const discountPct = useMemo(() => rawSubtotal > 0 ? discountAmount / rawSubtotal : 0, [discountAmount, rawSubtotal])
+  const isRevision = Boolean(quote?.sentAt || quote?.viewedAt || quote?.acceptedAt || quote?.respondedAt)
+  const quoteOwnerName = useMemo(() => getLeadAssignedRepName(lead) || 'Unassigned', [lead])
+  const isAcceptedQuoteLocked = useMemo(
+    () => status === 'accepted' || status === 'invoiced' || !!quote?.acceptedAt || lead?.stage === 'booked',
+    [lead?.stage, quote?.acceptedAt, status]
+  )
+  const canEditQuoteWorkspace = useMemo(() => {
+    if (!currentUser) return false
+    const hasSalesAccess =
+      currentUser.role === 'owner' ||
+      currentUser.role === 'manager' ||
+      currentUser.role === 'sales_rep'
+    return hasSalesAccess && !isAcceptedQuoteLocked
+  }, [currentUser, isAcceptedQuoteLocked])
+  const quoteReadOnlyReason = useMemo(() => {
+    if (isAcceptedQuoteLocked) {
+      return 'This quote has already been accepted/booked. Customer-facing pricing and route details are locked on this page.'
+    }
+    return null
+  }, [isAcceptedQuoteLocked])
+
   const emailDraft = useMemo(() => {
     if (!quote) return { subject: '', body: '', htmlBody: '', href: '#' }
     const firstName = (client?.name || lead?.name || 'there').split(' ')[0]
-    const subject = `Your moving quote from Saturn Star (${quote.number})`
+    const subject = isRevision ? `Updated moving quote from Saturn Star (${quote.number})` : `Your moving quote from Saturn Star (${quote.number})`
+    const total = quoteTotals.total || quote.total
+    const deposit = quoteTotals.deposit || quote.deposit
+    const introLine = isRevision ? 'We updated your binding hourly estimate.' : 'Your binding hourly estimate is ready.'
+    const actionLine = isRevision ? 'Open your same quote link below to review the latest details:' : 'Review and confirm here:'
+    const detailLine = isRevision
+      ? 'This updated pricing reflects the latest confirmed inventory and access details currently on file.'
+      : 'This pricing is based on the confirmed inventory and access details currently on file.'
+    const scopeNotes = buildMoveSpecificNotes(lead?.jobFactors, lead?.inventory, lead?.moveType)
     const body = `Hi ${firstName},
 
-Your binding hourly estimate is ready.
+${introLine}
 
 Quote #: ${quote.number}
 Move Date: ${formatDate(quote.moveDate)}
-Total: ${formatMoney(quote.total)}
-Deposit to book: ${formatMoney(quote.deposit)}
+Total: ${formatMoney(total)}
+Deposit to book: ${formatMoney(deposit)}
 
-Review and confirm here:
+${actionLine}
 ${acceptUrl}
 
 This quote is valid until ${validUntil(quote)}.
-This pricing is based on the confirmed inventory and access details currently on file.
+${detailLine}
 
 Reply to this message if you want anything adjusted.
 
@@ -223,20 +279,27 @@ Saturn Star Movers`
         moveDate: formatDate(quote.moveDate),
         originCity: quote.originCity,
         destCity: quote.destCity,
-        total: quote.total,
-        deposit: quote.deposit,
+        total,
+        deposit,
         acceptUrl,
         validUntilText: validUntil(quote),
+        moveDescription: quote.moveDescription,
+        scopeNotes,
+        isRevision,
       }),
-      href: `mailto:${client?.email || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
+      href: `mailto:${client?.email || lead?.email || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
     }
-  }, [acceptUrl, client?.email, client?.name, lead?.name, quote])
+  }, [acceptUrl, client?.email, client?.name, isRevision, lead?.email, lead?.jobFactors, lead?.name, quote, quoteTotals])
 
   const smsDraft = useMemo(() => {
     if (!quote) return ''
     const firstName = (client?.name || lead?.name || 'there').split(' ')[0]
-    return `Hi ${firstName}, your Saturn Star binding hourly estimate ${quote.number} is ready. Total ${formatMoney(quote.total)}. Deposit to book ${formatMoney(quote.deposit)}. Review here: ${acceptUrl}`
-  }, [acceptUrl, client?.name, lead?.name, quote])
+    const total = quoteTotals.total || quote.total
+    const deposit = quoteTotals.deposit || quote.deposit
+    return isRevision
+      ? `Hi ${firstName}, we updated your Saturn Star estimate ${quote.number}. Total ${formatMoney(total)}. Deposit to book ${formatMoney(deposit)}. Review the latest version here: ${acceptUrl}`
+      : `Hi ${firstName}, your Saturn Star binding hourly estimate ${quote.number} is ready. Total ${formatMoney(total)}. Deposit to book ${formatMoney(deposit)}. Review here: ${acceptUrl}`
+  }, [acceptUrl, client?.name, isRevision, lead?.name, quote, quoteTotals])
 
   useEffect(() => {
     setEmailSubject(emailDraft.subject)
@@ -247,11 +310,6 @@ Saturn Star Movers`
     setSmsBody(smsDraft)
   }, [smsDraft])
 
-  const quoteTotals = useMemo(
-    () => computeQuoteTotals(lineItems, Math.max(0, Math.min(100, depositRate)) / 100, Math.max(0, discountAmount)),
-    [depositRate, discountAmount, lineItems]
-  )
-  const rawSubtotal = useMemo(() => lineItems.reduce((sum, item) => sum + Number(item.amount || 0), 0), [lineItems])
   const crewRate = useMemo(() => getCrewRate(crewSize, lead?.moveType || quote?.moveType), [crewSize, lead?.moveType, quote?.moveType])
 
   useEffect(() => {
@@ -302,8 +360,15 @@ Saturn Star Movers`
     window.setTimeout(() => setCopied(null), 1400)
   }
 
+  function ensureQuoteEditable() {
+    if (canEditQuoteWorkspace) return true
+    setError(quoteReadOnlyReason || 'This quote is view-only for you.')
+    return false
+  }
+
   async function saveStatus() {
     if (!quote) return
+    if (!ensureQuoteEditable()) return
     try {
       setSaveBusy(true)
       const result = await updateSalesQuote(quote.id, {
@@ -343,6 +408,8 @@ Saturn Star Movers`
 
   async function logDraftAsSent() {
     if (!quote) return
+    if (!ensureQuoteEditable()) return
+    const sendLabel = isRevision ? 'Updated quote' : 'Quote'
     try {
       setLogBusy(true)
       const sentResult = await updateSalesQuote(quote.id, {
@@ -376,7 +443,7 @@ Saturn Star Movers`
           quoteId: quote.id,
           type: sendChannel,
           followUpDate,
-          notes: `${sendChannel === 'email' ? 'Quote emailed' : 'Quote texted'} with acceptance link.`,
+          notes: `${sendChannel === 'email' ? `${sendLabel} emailed` : `${sendLabel} texted`} with acceptance link.`,
         })
         mergeFollowUpLog(followUpResult.log)
         const updatedLead = await updateSalesLead(lead.id, { followUpDate })
@@ -395,6 +462,7 @@ Saturn Star Movers`
 
   async function markAsSentSkipEmail() {
     if (!quote) return
+    if (!ensureQuoteEditable()) return
     try {
       setLogBusy(true)
       const result = await updateSalesQuote(quote.id, {
@@ -435,6 +503,7 @@ Saturn Star Movers`
 
   async function acceptOnBehalf() {
     if (!quote) return
+    if (!ensureQuoteEditable()) return
     try {
       setSaveBusy(true)
       const result = await updateSalesQuote(quote.id, {
@@ -477,10 +546,12 @@ Saturn Star Movers`
 
   async function sendBothNow() {
     if (!quote) return
-    const emailTo = client?.email
+    if (!ensureQuoteEditable()) return
+    const emailTo = client?.email || lead?.email
     const phoneTo = client?.phone || lead?.phone
     const hasEmail = Boolean(emailTo)
     const hasPhone = Boolean(phoneTo)
+    const sendLabel = isRevision ? 'Updated quote' : 'Quote'
     if (!hasEmail && !hasPhone) {
       setError('No email or phone on file for this client.')
       return
@@ -502,7 +573,7 @@ Saturn Star Movers`
             htmlBody: emailDraft.htmlBody,
             leadId: lead?.id,
             quoteId: quote.id,
-            notes: 'Quote email sent (send-both).',
+            notes: `${sendLabel} email sent (send-both).`,
           }).then(result => {
             mergeFollowUpLog(result.log)
             return { ok: true, channel: 'email' as const }
@@ -518,7 +589,7 @@ Saturn Star Movers`
             body: smsBody,
             leadId: lead?.id,
             quoteId: quote.id,
-            notes: 'Quote SMS sent (send-both).',
+            notes: `${sendLabel} SMS sent (send-both).`,
           }).then(result => {
             mergeFollowUpLog(result.log)
             return { ok: true, channel: 'sms' as const }
@@ -565,7 +636,7 @@ Saturn Star Movers`
           quoteId: quote.id,
           type: 'email',
           followUpDate,
-          notes: 'Quote sent via email + SMS simultaneously.',
+          notes: `${sendLabel} sent via email + SMS simultaneously.`,
         })
         mergeFollowUpLog(followUpResult.log)
         const updatedLead = await updateSalesLead(lead.id, { followUpDate })
@@ -587,9 +658,11 @@ Saturn Star Movers`
 
   async function sendNow() {
     if (!quote) return
-    const to = sendChannel === 'email' ? client?.email : client?.phone
+    if (!ensureQuoteEditable()) return
+    const to = sendChannel === 'email' ? (client?.email || lead?.email) : (client?.phone || lead?.phone)
     const body = sendChannel === 'email' ? emailBody : smsBody
     const subject = sendChannel === 'email' ? emailSubject : undefined
+    const sendLabel = isRevision ? 'Updated quote' : 'Quote'
     if (!to || !body) return
 
     try {
@@ -602,7 +675,7 @@ Saturn Star Movers`
         htmlBody: sendChannel === 'email' ? emailDraft.htmlBody : undefined,
         leadId: lead?.id,
         quoteId: quote.id,
-        notes: `${sendChannel === 'email' ? 'Quote email sent' : 'Quote SMS sent'} from sales quote page.`,
+        notes: `${sendChannel === 'email' ? `${sendLabel} email sent` : `${sendLabel} SMS sent`} from sales quote page.`,
       })
       mergeFollowUpLog(messageResult.log)
 
@@ -637,7 +710,7 @@ Saturn Star Movers`
           quoteId: quote.id,
           type: sendChannel,
           followUpDate,
-          notes: `${sendChannel === 'email' ? 'Quote emailed' : 'Quote texted'} with acceptance link.`,
+          notes: `${sendChannel === 'email' ? `${sendLabel} emailed` : `${sendLabel} texted`} with acceptance link.`,
         })
         mergeFollowUpLog(followUpResult.log)
         const updatedLead = await updateSalesLead(lead.id, { followUpDate })
@@ -657,6 +730,7 @@ Saturn Star Movers`
   }
 
   function updateLineItem(index: number, field: keyof QuoteLineItem, value: string) {
+    if (!canEditQuoteWorkspace) return
     setLineItems(current =>
       current.map((item, itemIndex) =>
         itemIndex === index
@@ -670,14 +744,17 @@ Saturn Star Movers`
   }
 
   function addLineItem() {
+    if (!canEditQuoteWorkspace) return
     setLineItems(current => [...current, { description: '', details: '', amount: 0 }])
   }
 
   function removeLineItem(index: number) {
+    if (!canEditQuoteWorkspace) return
     setLineItems(current => current.filter((_, itemIndex) => itemIndex !== index))
   }
 
   function addPackingMaterial(presetId: string) {
+    if (!canEditQuoteWorkspace) return
     const preset = PACKING_MATERIAL_PRESETS.find(item => item.id === presetId)
     if (!preset) return
     const qty = Number(packingQuantities[preset.id] || 1)
@@ -695,6 +772,7 @@ Saturn Star Movers`
 
   function rebuildFromLead() {
     if (!lead) return
+    if (!canEditQuoteWorkspace) return
     const rebuilt = estimateLeadQuote(lead, undefined, lead.jobFactors)
     setLineItems(rebuilt.lineItems)
     setCrewSize(rebuilt.crewSize || 3)
@@ -711,6 +789,7 @@ Saturn Star Movers`
 
   async function estimateRouteCosts() {
     if (!quote) return
+    if (!ensureQuoteEditable()) return
     const origin = [quote.originAddress, quote.originCity].filter(Boolean).join(', ')
     const destination = [lead?.destAddress, quote.destCity].filter(Boolean).join(', ') || quote.destCity || ''
     if (!origin || !destination) {
@@ -723,7 +802,7 @@ Saturn Star Movers`
       const response = await fetch('/api/sales/route-estimate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ origin, destination }),
+        body: JSON.stringify({ origin, destination, branch: lead?.branch }),
       })
       if (!response.ok) {
         const data = (await response.json()) as { error?: string }
@@ -733,11 +812,14 @@ Saturn Star Movers`
         distanceKm: number
         distanceMiles: number
         driveHours: number
+        operationalDistanceKm?: number
         category: string
         originResolved: string
         destResolved: string
       }
       setLongDistanceDistanceKm(result.distanceKm)
+      const operationalKm = Number(result.operationalDistanceKm || result.distanceKm || 0)
+      setLongDistanceTruckCost(Number((operationalKm * Math.max(1, truckCount) * UHAUL_RATE_PER_KM).toFixed(2)))
       setRouteSummary(`${quote.originCity || 'Origin'} → ${quote.destCity || 'Destination'} · ${result.distanceKm} km · ~${result.driveHours} hr drive`)
       setError(null)
     } catch (err) {
@@ -771,6 +853,9 @@ Saturn Star Movers`
       {error && (
         <div className="mb-4 rounded-[8px] border border-rose-200 bg-rose-50 px-5 py-3 text-sm text-rose-700">{error}</div>
       )}
+      {quoteReadOnlyReason ? (
+        <div className="mb-4 rounded-[8px] border border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-800">{quoteReadOnlyReason}</div>
+      ) : null}
 
       {/* ── PAGE HEADER ── */}
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
@@ -791,6 +876,14 @@ Saturn Star Movers`
               · {quote.originCity || '—'} → {quote.destCity || '—'}
             </span>
           )}
+          <span className="rounded-full border border-[var(--app-line)] bg-white px-2.5 py-0.5 text-[10px] font-semibold text-[var(--app-muted)]">
+            Owner: {quoteOwnerName}
+          </span>
+          {!canEditQuoteWorkspace ? (
+            <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-semibold text-amber-700">
+              View only
+            </span>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button onClick={() => void copyText(acceptUrl, 'accept')} className="crm-button text-sm">
@@ -809,9 +902,11 @@ Saturn Star Movers`
             {moreMenuOpen && (
               <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-[8px] border border-[var(--app-line)] bg-white py-1 shadow-lg">
                 <button onClick={() => { setMoreMenuOpen(false); window.print() }} className="w-full px-4 py-2 text-left text-sm hover:bg-stone-50">🖨 Print</button>
-                <button onClick={() => { setMoreMenuOpen(false); setShowPreview('email'); setPreviewTab('email') }} className="w-full px-4 py-2 text-left text-sm hover:bg-stone-50">✉ Email Only</button>
+                <button onClick={() => { setMoreMenuOpen(false); setShowPreview('email'); setPreviewTab('email') }} disabled={!canEditQuoteWorkspace} className="w-full px-4 py-2 text-left text-sm hover:bg-stone-50 disabled:opacity-50">
+                  {isRevision ? '✉ Resend Email Update' : '✉ Email Only'}
+                </button>
                 <button onClick={() => { setMoreMenuOpen(false); void markAsSentSkipEmail() }} disabled={logBusy} className="w-full px-4 py-2 text-left text-sm hover:bg-stone-50 disabled:opacity-50">
-                  {logBusy ? '...' : '📋 Mark as Sent'}
+                  {logBusy ? '...' : isRevision ? '📋 Mark Update as Sent' : '📋 Mark as Sent'}
                 </button>
                 <button onClick={() => { setMoreMenuOpen(false); void acceptOnBehalf() }} disabled={saveBusy} className="w-full px-4 py-2 text-left text-sm hover:bg-stone-50 disabled:opacity-50">
                   {saveBusy ? '...' : '✅ Accept on Behalf'}
@@ -823,10 +918,10 @@ Saturn Star Movers`
           {/* Primary CTA */}
           <button
             onClick={() => { setShowPreview('both'); setPreviewTab('email') }}
-            disabled={sendBothBusy}
+            disabled={!canEditQuoteWorkspace || sendBothBusy}
             className="rounded-[8px] bg-[var(--app-accent)] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
           >
-            {sendBothBusy ? 'Sending…' : 'Preview & Send →'}
+            {sendBothBusy ? 'Sending…' : isRevision ? 'Preview & Send Update →' : 'Preview & Send →'}
           </button>
         </div>
       </div>
@@ -837,7 +932,39 @@ Saturn Star Movers`
 
           {/* ── LEFT SIDEBAR: Controls ── */}
           <aside className="w-full shrink-0 overflow-y-auto border-b border-[var(--app-line)] bg-[var(--app-bg)] lg:w-72 lg:border-b-0 lg:border-r xl:w-80">
-            <div className="space-y-6 p-5">
+            <fieldset disabled={!canEditQuoteWorkspace} className="space-y-6 p-5">
+
+              {/* Move Description + Internal Notes */}
+              <div className="space-y-3">
+                <div>
+                  <div className="crm-label mb-1.5">Move Description <span className="font-normal normal-case text-[var(--app-muted)]">on quote</span></div>
+                  <textarea
+                    rows={2}
+                    value={quote.moveDescription || ''}
+                    onChange={e => setQuote(q => q ? { ...q, moveDescription: e.target.value } : q)}
+                    onBlur={() => {
+                      if (!quote) return
+                      void updateSalesQuote(quote.id, { moveDescription: quote.moveDescription || undefined }).catch(() => {})
+                    }}
+                    className="crm-input w-full resize-none text-sm"
+                    placeholder={`e.g. 3-bedroom house from ${quote.originCity || 'Windsor'} to ${quote.destCity || 'destination'}`}
+                  />
+                </div>
+                <div>
+                  <div className="crm-label mb-1.5">Internal Notes <span className="font-normal normal-case text-[var(--app-muted)]">crew only</span></div>
+                  <textarea
+                    rows={2}
+                    value={quote.internalNotes || ''}
+                    onChange={e => setQuote(q => q ? { ...q, internalNotes: e.target.value } : q)}
+                    onBlur={() => {
+                      if (!quote) return
+                      void updateSalesQuote(quote.id, { internalNotes: quote.internalNotes || undefined }).catch(() => {})
+                    }}
+                    className="crm-input w-full resize-none text-sm"
+                    placeholder="Crew notes: tight staircase, piano needs 4 people..."
+                  />
+                </div>
+              </div>
 
               {/* Pricing assumptions */}
               <div>
@@ -884,11 +1011,26 @@ Saturn Star Movers`
               {/* Discounts */}
               <div>
                 <div className="crm-label mb-3">Discount</div>
+                {currentUser?.role === 'sales_rep' ? (
+                  <div className="mb-2 rounded-[6px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-700">
+                    Sales reps can apply up to a 10% discount. Larger pricing adjustments require a manager.
+                  </div>
+                ) : null}
+                {currentUser?.role === 'manager' ? (
+                  <div className="mb-2 rounded-[6px] border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] font-medium text-sky-700">
+                    Managers can approve larger discounts, up to 20%, without involving the owner.
+                  </div>
+                ) : null}
                 <div className="mb-2 flex gap-2">
                   <button onClick={() => { setDiscountAmount(Math.round(rawSubtotal * 0.1)); setDiscountLabel('10% discount') }} className="crm-button flex-1 text-xs">10% Off</button>
                   <button onClick={() => { setDiscountAmount(100); setDiscountLabel('$100 off') }} className="crm-button flex-1 text-xs">$100</button>
                   <button onClick={() => { setDiscountAmount(200); setDiscountLabel('$200 off') }} className="crm-button flex-1 text-xs">$200</button>
                 </div>
+                {currentUser?.role === 'sales_rep' && discountPct > 0.1 ? (
+                  <div className="mb-2 rounded-[6px] border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-medium text-rose-700">
+                    This discount is above the rep threshold and won&apos;t save until a manager or owner reviews it.
+                  </div>
+                ) : null}
                 {discountAmount > 0 && (
                   <div className="flex items-center justify-between rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-sm">
                     <span className="text-[var(--app-muted)]">{discountLabel}</span>
@@ -904,7 +1046,7 @@ Saturn Star Movers`
               <div>
                 <div className="crm-label mb-3">Add Packing</div>
                 <div className="space-y-1.5">
-                  {PACKING_MATERIAL_PRESETS.slice(0, 6).map(preset => (
+                  {PACKING_MATERIAL_PRESETS.map(preset => (
                     <button
                       key={preset.id}
                       onClick={() => addPackingMaterial(preset.id)}
@@ -953,7 +1095,7 @@ Saturn Star Movers`
                 </button>
               </div>
 
-            </div>
+            </fieldset>
           </aside>
 
           {/* ── RIGHT: Line Items ── */}
@@ -968,7 +1110,7 @@ Saturn Star Movers`
             </div>
 
             {/* Scrollable rows */}
-            <div className="flex-1 overflow-y-auto">
+            <fieldset disabled={!canEditQuoteWorkspace} className="flex-1 overflow-y-auto">
               {lineItems.length === 0 ? (
                 <div className="flex h-full items-center justify-center py-20 text-sm text-[var(--app-muted)]">
                   No line items yet — use controls on the left or click &ldquo;Add Line Item&rdquo;.
@@ -1006,7 +1148,7 @@ Saturn Star Movers`
                   ))}
                 </div>
               )}
-            </div>
+            </fieldset>
 
             {/* ── TOTALS + ACTIONS BAR ── */}
             <div className="border-t border-[var(--app-line)] bg-white">
@@ -1040,8 +1182,10 @@ Saturn Star Movers`
             {/* Modal header */}
             <div className="flex items-center justify-between border-b border-[var(--app-line)] px-6 py-4">
               <div>
-                <h2 className="text-lg font-semibold text-[var(--app-ink)]">Preview before sending</h2>
-                <p className="mt-0.5 text-sm text-[var(--app-muted)]">Review what the customer will see, then send.</p>
+                <h2 className="text-lg font-semibold text-[var(--app-ink)]">{isRevision ? 'Preview quote update' : 'Preview before sending'}</h2>
+                <p className="mt-0.5 text-sm text-[var(--app-muted)]">
+                  {isRevision ? 'Review the revised customer message and same-link quote view before resending.' : 'Review what the customer will see, then send.'}
+                </p>
               </div>
               <button onClick={() => setShowPreview(null)} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-muted)] hover:bg-stone-100 hover:text-[var(--app-ink)]">✕</button>
             </div>
@@ -1085,7 +1229,7 @@ Saturn Star Movers`
             <div className="flex-1 overflow-y-auto">
               {previewTab === ('quote') ? (
                 <iframe
-                  src={acceptUrl}
+                  src={acceptUrl ? `${acceptUrl}&preview=1` : ''}
                   className="w-full border-0"
                   style={{ height: '520px' }}
                   title="Customer Quote View"
@@ -1124,21 +1268,49 @@ Saturn Star Movers`
             </div>
 
             {/* Modal footer */}
-            <div className="flex items-center justify-between border-t border-[var(--app-line)] px-6 py-4">
-              <button onClick={() => setShowPreview(null)} className="crm-button">
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  setShowPreview(null)
-                  if (showPreview === 'both') await sendBothNow()
-                  else await sendNow()
-                }}
-                disabled={sendBusy || sendBothBusy || (!(client?.email || lead?.email) && !(client?.phone || lead?.phone))}
-                className="rounded-[8px] bg-[var(--app-accent)] px-5 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
-              >
-                {(sendBusy || sendBothBusy) ? 'Sending…' : showPreview === 'both' ? 'Confirm — Send Email + SMS' : 'Confirm — Send Email'}
-              </button>
+            <div className="border-t border-[var(--app-line)] px-6 py-4 space-y-3">
+              {/* Price confirmation */}
+              <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-3">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-2">Confirm Price Being Sent</div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <div className="text-[10px] text-[var(--app-muted)]">Subtotal</div>
+                    <div className="text-base font-semibold text-[var(--app-ink)]">{formatMoney(quoteTotals.subtotal)}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-[var(--app-muted)]">HST (13%)</div>
+                    <div className="text-base font-semibold text-[var(--app-ink)]">{formatMoney(quoteTotals.hst)}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-[var(--app-muted)]">Total incl. HST</div>
+                    <div className="text-base font-bold text-[#1a2744]">{formatMoney(quoteTotals.total)}</div>
+                  </div>
+                </div>
+                <div className="mt-2 pt-2 border-t border-[var(--app-line)] flex justify-between text-xs">
+                  <span className="text-[var(--app-muted)]">Deposit to book</span>
+                  <span className="font-semibold text-[var(--app-ink)]">{formatMoney(quoteTotals.deposit)}</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <button onClick={() => setShowPreview(null)} className="crm-button">
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    setShowPreview(null)
+                    if (showPreview === 'both') await sendBothNow()
+                    else await sendNow()
+                  }}
+                  disabled={!canEditQuoteWorkspace || sendBusy || sendBothBusy || (!(client?.email || lead?.email) && !(client?.phone || lead?.phone))}
+                  className="rounded-[8px] bg-[var(--app-accent)] px-5 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                >
+                  {(sendBusy || sendBothBusy)
+                    ? 'Sending…'
+                    : showPreview === 'both'
+                      ? (isRevision ? 'Confirm — Resend Email + SMS' : 'Confirm — Send Email + SMS')
+                      : (isRevision ? 'Confirm — Resend Email' : 'Confirm — Send Email')}
+                </button>
+              </div>
             </div>
           </div>
         </div>

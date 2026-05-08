@@ -358,3 +358,85 @@ export default function CrewCalendarPage() {
     </div>
   )
 }
+
+function JobCard({ job }: { job: Job }) {
+  const { lead, quote } = job
+  const moveDate = quote?.moveDate || lead.moveDate
+  const origin = quote?.originAddress
+    ? `${quote.originAddress}${quote.originCity ? ', ' + quote.originCity : ''}`
+    : lead.originAddress || lead.originCity || '—'
+  const dest = quote?.destCity || lead.destCity || '—'
+
+  return (
+    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-3">
+      <MoveBadge dateStr={moveDate} />
+
+      {/* Route */}
+      <div className="flex items-start gap-3 text-sm">
+        <div className="mt-0.5 flex flex-col items-center gap-1">
+          <div className="h-2 w-2 rounded-full bg-[#f5a623]" />
+          <div className="w-px flex-1 bg-slate-200" style={{ minHeight: 20 }} />
+          <div className="h-2 w-2 rounded-full bg-[#1a2744]" />
+        </div>
+        <div className="space-y-3 flex-1">
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">From</div>
+            <div className="font-medium text-[#1a2744]">{origin}</div>
+          </div>
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">To</div>
+            <div className="font-medium text-[#1a2744]">{dest}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Job details */}
+      {quote && (quote.crewSize || quote.truckCount || quote.estimatedHours) ? (
+        <div className="flex flex-wrap gap-x-4 gap-y-1 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
+          {quote.crewSize ? <span>👥 {quote.crewSize} movers</span> : null}
+          {quote.truckCount ? <span>🚛 {quote.truckCount === 1 ? '26ft truck' : `${quote.truckCount} trucks`}</span> : null}
+          {quote.estimatedHours ? <span>⏱ ~{quote.estimatedHours}h</span> : null}
+        </div>
+      ) : null}
+
+      {/* Job nature */}
+      {(lead.moveType || lead.moveReason || (lead.inventory && lead.inventory.length > 0)) && (
+        <div className="rounded-xl border border-[var(--app-line)] bg-slate-50 px-3 py-2.5 space-y-1.5 text-xs text-slate-600">
+          {lead.moveType && (
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-[#1a2744]">Move type:</span>
+              <span className="capitalize">{lead.moveType.replace(/_/g, ' ')}</span>
+            </div>
+          )}
+          {lead.inventory && lead.inventory.length > 0 && (
+            <div>
+              <span className="font-semibold text-[#1a2744]">Key items: </span>
+              {lead.inventory.slice(0, 6).map(i => i.name).join(', ')}
+              {lead.inventory.length > 6 ? ` +${lead.inventory.length - 6} more` : ''}
+            </div>
+          )}
+          {lead.jobFactors?.specialtyNotes && (
+            <div className="font-medium text-amber-700">
+              ⚠️ Specialty items: {lead.jobFactors.specialtyNotes}
+            </div>
+          )}
+          {lead.crewNote && (
+            <div className="rounded-lg bg-amber-50 border border-amber-100 px-2 py-1.5 text-amber-800 whitespace-pre-wrap">
+              <span className="font-semibold">Note: </span>{lead.crewNote}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Contact */}
+      {lead.phone && (
+        <a
+          href={`tel:${lead.phone}`}
+          className="flex items-center gap-2 text-sm font-medium text-[#1a2744] underline-offset-2 hover:underline"
+        >
+          📞 {lead.phone}
+        </a>
+      )}
+    </div>
+  )
+}

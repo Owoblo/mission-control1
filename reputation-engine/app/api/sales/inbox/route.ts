@@ -1,6 +1,15 @@
 import { NextResponse } from 'next/server'
-import { calculateLeadScore, normalizeLead, uid } from '@/lib/sales'
-import { recordLeadUpdateAudit } from '@/lib/server/sales-audit'
+import { calculateLeadScore, isClosedLeadStage, normalizeLead, uid } from '@/lib/sales'
+import {
+  getSalesBranchFromSaturnLabel,
+  getSalesBranchFromSaturnPhone,
+  getSaturnBranchLabel,
+  getSaturnBranchNumberFromRawData,
+  getSaturnTrackingLabel,
+  getSaturnTrackingSource,
+} from '@/lib/sales-phones'
+import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
+import { recordLeadCreatedAudit, recordLeadUpdateAudit } from '@/lib/server/sales-audit'
 import {
   getInboundLead,
   getSalesLeadByInboundId,
@@ -14,6 +23,7 @@ import {
   saveCrmCallSidMapping,
   saveSalesLead,
 } from '@/lib/server/sales-repository'
+import { getSessionUser } from '@/lib/server/session'
 import { validateLeadPayload } from '@/lib/server/sales-validation'
 import type { CallLogEntry, CRMLead, InboundLead } from '@/lib/types'
 
@@ -26,7 +36,7 @@ function findMatchingActiveLead(leads: CRMLead[], phone?: string, email?: string
   const normalizedEmail = (email || '').trim().toLowerCase()
 
   return leads.find(lead => {
-    if (lead.stage === 'booked' || lead.stage === 'lost') {
+    if (isClosedLeadStage(lead.stage)) {
       return false
     }
 
@@ -55,10 +65,18 @@ function parseRawData(value: InboundLead['raw_data']) {
 
 function buildInboundCallLog(item: InboundLead) {
   const raw = parseRawData(item.raw_data)
+  const branchNumber = getSaturnBranchNumberFromRawData(raw)
   const recordingDuration = Number(raw?.recordingDuration || raw?.duration || 0)
   const aiSummary =
     raw?.aiSummary && typeof raw.aiSummary === 'object'
       ? (raw.aiSummary as CallLogEntry['aiSummary'])
+      : undefined
+  const direction: CallLogEntry['direction'] = item.source === 'twilio_call' ? 'inbound' : undefined
+  const source: CallLogEntry['source'] =
+    item.source === 'twilio_call'
+      ? (typeof raw?.recordingUrl === 'string' || typeof raw?.transcript === 'string' || typeof raw?.recordingSid === 'string'
+          ? 'manual'
+          : 'inbound')
       : undefined
 
   return {
@@ -74,13 +92,24 @@ function buildInboundCallLog(item: InboundLead) {
     notes: item.message?.trim() || 'Inbound lead created from queue',
     date: item.created_at || new Date().toISOString(),
     phone: item.phone,
+    branchNumber: branchNumber || undefined,
+    direction,
     callSid: typeof raw?.callSid === 'string' ? raw.callSid : undefined,
     recordingUrl: typeof raw?.recordingUrl === 'string' ? raw.recordingUrl : undefined,
     recordingSid: typeof raw?.recordingSid === 'string' ? raw.recordingSid : undefined,
     recordingDuration: Number.isFinite(recordingDuration) && recordingDuration > 0 ? recordingDuration : undefined,
     transcript: typeof raw?.transcript === 'string' ? raw.transcript : undefined,
+    source,
     aiSummary,
   }
+}
+
+function inferLeadBranchFromInbound(item: InboundLead) {
+  const raw = parseRawData(item.raw_data)
+  return (
+    getSalesBranchFromSaturnPhone(getSaturnBranchNumberFromRawData(raw)) ||
+    getSalesBranchFromSaturnLabel(typeof raw?.branchCity === 'string' ? raw.branchCity : '')
+  )
 }
 
 async function ensureInboundCallMapping(item: InboundLead, lead?: CRMLead) {
@@ -112,6 +141,10 @@ function getLatestCallIntelligence(lead?: CRMLead) {
 function mergeInboxRawData(item: InboundLead, lead?: CRMLead): InboundLead['raw_data'] {
   const raw = parseRawData(item.raw_data) || {}
   const latestCall = getLatestCallIntelligence(lead)
+  const branchNumber =
+    getSaturnBranchNumberFromRawData(raw) ||
+    (typeof latestCall?.branchNumber === 'string' ? latestCall.branchNumber : null) ||
+    null
 
   return {
     ...raw,
@@ -125,6 +158,20 @@ function mergeInboxRawData(item: InboundLead, lead?: CRMLead): InboundLead['raw_
     transcript: (raw.transcript as string | undefined) || latestCall?.transcript || '',
     aiSummary: raw.aiSummary || latestCall?.aiSummary || undefined,
     lastCallAt: latestCall?.date || undefined,
+    branchNumber: branchNumber || undefined,
+    branchLabel:
+      (typeof raw.branchLabel === 'string' && raw.branchLabel) ||
+      getSaturnBranchLabel(branchNumber) ||
+      (typeof raw.branchCity === 'string' ? raw.branchCity : '') ||
+      undefined,
+    trackingLabel:
+      (typeof raw.trackingLabel === 'string' && raw.trackingLabel) ||
+      getSaturnTrackingLabel(branchNumber) ||
+      undefined,
+    trackingSource:
+      (typeof raw.trackingSource === 'string' && raw.trackingSource) ||
+      getSaturnTrackingSource(branchNumber) ||
+      undefined,
   }
 }
 
@@ -166,6 +213,11 @@ function ensureLeadForInbound(item: InboundLead, existingLeadIdsByInboundId: Map
 
 export async function GET(request: Request) {
   try {
+    const session = await getSessionUser()
+    if (!canAccessSalesWorkspace(session)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const mode = new URL(request.url).searchParams.get('mode')
     const [items, leads] = await Promise.all([
       mode === 'junk' ? listInboundJunkLeads() : mode === 'closed' ? listClosedInboundLeads() : listInboundLeads(),
@@ -209,6 +261,14 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const session = await getSessionUser()
+    if (!canAccessSalesWorkspace(session)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const now = new Date().toISOString()
+    const claimerName = session?.name?.trim()
+    const claimerUserId = session?.userId || undefined
     const payload = (await request.json()) as {
       inboundId?: string
       name?: string
@@ -245,6 +305,12 @@ export async function POST(request: Request) {
 
     if (duplicateLead) {
       const inboundCallLog = buildInboundCallLog(inbound)
+      const claimChangesOwner =
+        !!claimerName &&
+        (
+          (duplicateLead.assignedRepUserId || '') !== (claimerUserId || '') ||
+          (duplicateLead.assignedRepName || duplicateLead.assignedRep || '') !== claimerName
+        )
       const hasMatchingCallLog = duplicateLead.callLogs?.some(entry => {
         if (inboundCallLog.callSid && entry.callSid === inboundCallLog.callSid) {
           return true
@@ -261,8 +327,19 @@ export async function POST(request: Request) {
         email: duplicateLead.email || validated.email || inbound.email || undefined,
         source: duplicateLead.source || payload.source || inbound.source || 'other',
         moveType: duplicateLead.moveType || validated.moveType || 'residential',
+        branch: duplicateLead.branch || inferLeadBranchFromInbound(inbound),
         notes: duplicateLead.notes || payload.notes?.trim() || inbound.message?.trim() || '',
         followUpDate: duplicateLead.followUpDate || inferFollowUp(inbound).followUpDate,
+        assignedRep: claimerName || duplicateLead.assignedRep,
+        assignedRepName: claimerName || duplicateLead.assignedRepName || duplicateLead.assignedRep,
+        assignedRepUserId: claimerUserId || duplicateLead.assignedRepUserId,
+        leadOwnerStatus: claimerName
+          ? (claimChangesOwner ? (duplicateLead.assignedRep ? 'reassigned' : 'assigned') : duplicateLead.leadOwnerStatus)
+          : duplicateLead.leadOwnerStatus,
+        ownedAt: claimerName ? (claimChangesOwner ? now : duplicateLead.ownedAt) : duplicateLead.ownedAt,
+        lastTouchedAt: now,
+        lastTouchedByUserId: claimerUserId || duplicateLead.lastTouchedByUserId,
+        lastTouchedByName: claimerName || duplicateLead.lastTouchedByName,
         callLogs: hasMatchingCallLog ? duplicateLead.callLogs || [] : [...(duplicateLead.callLogs || []), inboundCallLog],
       })
 
@@ -296,14 +373,22 @@ export async function POST(request: Request) {
       source: payload.source || inbound.source || 'other',
       stage: payload.stage || inferStageFromInbound(inbound),
       moveType: validated.moveType || 'residential',
-      moveDate: extractedMoveDate,
-      originAddress: extractedOriginAddress,
-      originCity: extractedOriginCity,
-      destAddress: extractedDestAddress,
-      destCity: extractedDestCity,
+      branch: inferLeadBranchFromInbound(inbound),
+      moveDate: (parseRawData(inbound.raw_data)?.moveDate as string) || '',
+      originAddress: (parseRawData(inbound.raw_data)?.originAddress as string) || '',
+      originCity: (parseRawData(inbound.raw_data)?.originCity as string) || '',
+      destCity: (parseRawData(inbound.raw_data)?.destCity as string) || '',
       moveReason: '',
       notes: payload.notes?.trim() || inbound.message?.trim() || '',
       ...inferFollowUp(inbound),
+      assignedRep: claimerName,
+      assignedRepName: claimerName,
+      assignedRepUserId: claimerUserId,
+      leadOwnerStatus: claimerName ? 'assigned' : 'unassigned',
+      ownedAt: claimerName ? now : undefined,
+      lastTouchedAt: now,
+      lastTouchedByUserId: claimerUserId,
+      lastTouchedByName: claimerName,
       directMailAttributed: false,
       inventory: [],
       totalItems: 0,
@@ -318,6 +403,7 @@ export async function POST(request: Request) {
       ...lead,
       leadScore: calculateLeadScore(lead),
     })
+    await recordLeadCreatedAudit(savedLead)
     await ensureInboundCallMapping(inbound, savedLead)
     await markInboundLeadClaimed(payload.inboundId)
 
@@ -332,6 +418,11 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    const session = await getSessionUser()
+    if (!canAccessSalesWorkspace(session)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const payload = (await request.json()) as { inboundId?: string; action?: 'junk' | 'restore' }
     if (!payload.inboundId || !payload.action) {
       return NextResponse.json({ error: 'inboundId and action are required' }, { status: 400 })

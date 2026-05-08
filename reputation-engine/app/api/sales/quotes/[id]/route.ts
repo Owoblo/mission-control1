@@ -1,9 +1,18 @@
 import { NextResponse } from 'next/server'
 import { dateStamp, normalizeQuote, syncLeadFromQuoteStatus } from '@/lib/sales'
+import { getAcceptedQuoteLockedFieldChanges, recordQuoteUpdatedAudit } from '@/lib/server/sales-audit'
+import { canAccessSalesWorkspace, canReviseExistingQuote, validateQuotePricingPermissions } from '@/lib/server/sales-permissions'
+import { scheduleQuoteExpiryFollowup, scheduleQuoteFollowup, scheduleQuoteViewedFollowup } from '@/lib/server/sales-automation'
+import { getSessionUser } from '@/lib/server/session'
 import { getSalesClient, getSalesLead, getSalesQuote, listFollowUpLogs, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
   try {
+    const session = await getSessionUser()
+    if (!canAccessSalesWorkspace(session)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const quote = await getSalesQuote(params.id)
     if (!quote) {
       return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
@@ -18,7 +27,22 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
     return NextResponse.json({
       quote,
       lead,
-      client,
+      client: client
+        ? {
+            ...client,
+            name: lead?.name || client.name,
+            email: lead?.email || client.email,
+            phone: lead?.phone || client.phone,
+          }
+        : lead
+          ? {
+              id: `lead-${lead.id}`,
+              name: lead.name,
+              email: lead.email,
+              phone: lead.phone,
+              createdAt: lead.createdAt,
+            }
+          : null,
       followUps: followUps.filter(log => log.quoteId === quote.id),
     })
   } catch (error) {
@@ -31,12 +55,37 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   try {
+    const session = await getSessionUser()
+    if (!canAccessSalesWorkspace(session)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const current = await getSalesQuote(params.id)
     if (!current) {
       return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
     }
 
     const updates = (await request.json()) as Partial<typeof current>
+    const currentLead = current.leadId ? await getSalesLead(current.leadId) : null
+    if (!canReviseExistingQuote(session)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    }
+
+    const pricingError = validateQuotePricingPermissions(session, current, updates)
+    if (pricingError) {
+      return NextResponse.json({ error: pricingError }, { status: 403 })
+    }
+
+    const lockedFields = getAcceptedQuoteLockedFieldChanges(current, updates, currentLead)
+    if (lockedFields.length > 0) {
+      return NextResponse.json(
+        {
+          error: `This quote is already accepted/booked. Locked fields cannot be revised here: ${lockedFields.join(', ')}.`,
+        },
+        { status: 409 }
+      )
+    }
+
     const nextStatus = updates.status || current.status
     const today = dateStamp()
     const respondedAt =
@@ -52,13 +101,33 @@ export async function PATCH(request: Request, { params }: { params: { id: string
         respondedAt,
       })
     )
+    await recordQuoteUpdatedAudit(current, savedQuote, session?.name)
 
     let lead = null
     if (savedQuote.leadId) {
-      const currentLead = await getSalesLead(savedQuote.leadId)
       if (currentLead) {
-        lead = await saveSalesLead(syncLeadFromQuoteStatus(currentLead, savedQuote))
+        const nextLead = syncLeadFromQuoteStatus(
+          {
+            ...currentLead,
+            moveDate: Object.prototype.hasOwnProperty.call(updates, 'moveDate') ? updates.moveDate || undefined : currentLead.moveDate,
+            originAddress: Object.prototype.hasOwnProperty.call(updates, 'originAddress') ? updates.originAddress || undefined : currentLead.originAddress,
+            originCity: Object.prototype.hasOwnProperty.call(updates, 'originCity') ? updates.originCity || undefined : currentLead.originCity,
+            destCity: Object.prototype.hasOwnProperty.call(updates, 'destCity') ? updates.destCity || undefined : currentLead.destCity,
+          },
+          savedQuote
+        )
+        lead = await saveSalesLead(nextLead)
       }
+    }
+
+    if (savedQuote.leadId && savedQuote.status === 'sent' && current.status !== 'sent') {
+      void scheduleQuoteFollowup(savedQuote.leadId, savedQuote.id)
+      void scheduleQuoteExpiryFollowup(savedQuote.leadId, savedQuote.id)
+    }
+
+    if (savedQuote.leadId && savedQuote.viewedAt && !current.viewedAt) {
+      void scheduleQuoteViewedFollowup(savedQuote.leadId, savedQuote.id)
+      void scheduleQuoteExpiryFollowup(savedQuote.leadId, savedQuote.id)
     }
 
     return NextResponse.json({ quote: savedQuote, lead })

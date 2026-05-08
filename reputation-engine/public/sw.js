@@ -1,13 +1,13 @@
 // Saturn Star OS — Service Worker
 // Keeps the app alive in the background so the dialer never misses a call.
 
-const CACHE = 'saturn-star-v1'
+const CACHE = 'saturn-star-v2'
 
-// Pages to pre-cache for instant load
+// Do not pre-cache authenticated CRM pages. They are dynamic and can easily
+// become stale across deploys, which is worse than a slower first paint.
 const PRECACHE = [
-  '/sales/pipeline',
-  '/sales/inbox',
-  '/sales/operations',
+  '/icon-192.png',
+  '/icon-512.png',
 ]
 
 self.addEventListener('install', event => {
@@ -39,7 +39,8 @@ self.addEventListener('fetch', event => {
     return
   }
 
-  // Network-first for pages (always fresh data)
+  // Network-first for everything else so authenticated pages always pick up
+  // the latest deployed bundle.
   event.respondWith(
     fetch(event.request).catch(() => caches.match(event.request))
   )

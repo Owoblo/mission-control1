@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { SalesAddressAutocompleteInput } from '@/app/components/sales/address-autocomplete-input'
 import { createSalesLead, enrichSalesAddress } from '@/lib/sales-api'
 import type { CRMLead } from '@/lib/types'
 
@@ -42,6 +43,7 @@ export default function NewSalesLeadPage() {
     moveType: 'residential',
     originAddress: '',
     originCity: '',
+    destAddress: '',
     destCity: '',
     moveReason: '',
     moveReasonCustom: '',
@@ -81,6 +83,7 @@ export default function NewSalesLeadPage() {
       moveType: form.moveType as CRMLead['moveType'],
       originAddress: form.originAddress,
       originCity: resolvedCity,
+      destAddress: form.destAddress,
       destCity: form.destCity,
       supabaseListing: listingMatch || undefined,
       moveReason: resolvedReason,
@@ -265,6 +268,18 @@ export default function NewSalesLeadPage() {
           <label>
             <span className="crm-label">Origin City</span>
             <input className="crm-input mt-2" placeholder="Auto-filled from listing" value={form.originCity} onChange={e => setField('originCity', e.target.value)} />
+          </label>
+          <label className="md:col-span-2">
+            <span className="crm-label">Destination Address</span>
+            <SalesAddressAutocompleteInput
+              value={form.destAddress}
+              placeholder="225 King St W, Kitchener"
+              className="crm-input mt-2"
+              onSelect={(address, city) => {
+                setField('destAddress', address)
+                if (city) setField('destCity', city)
+              }}
+            />
           </label>
           <label>
             <span className="crm-label">Destination City</span>

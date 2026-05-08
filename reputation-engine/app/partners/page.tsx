@@ -94,7 +94,7 @@ export default function PartnersPage() {
     setProofText(
       `Hi ${partner.name},\n\nOne of your referred clients completed their review follow-up with Saturn Star Movers.\n\n` +
         `We appreciate you sending clients our way. If you have anyone else planning a move, we'd love to help.\n\n` +
-        `Thanks again,\nSaturn Star Movers\n226-724-1730`
+        `Thanks again,\nSaturn Star Movers\n226-773-2993`
     )
   }
 

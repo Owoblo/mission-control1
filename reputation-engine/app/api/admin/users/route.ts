@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
+import { canAccessOperationsWorkspace } from '@/lib/server/sales-permissions'
 import { getSessionUser } from '@/lib/server/session'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import type { UserRole } from '@/lib/auth'
@@ -9,6 +10,7 @@ interface AppUser {
   email: string
   name: string
   role: UserRole
+  branch?: string
   created_at: string
 }
 
@@ -18,15 +20,16 @@ function ownerOnly(role?: string) {
 
 export async function GET() {
   const session = await getSessionUser()
-  if (!ownerOnly(session?.role)) {
+  if (!canAccessOperationsWorkspace(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const { url, headers } = requireSupabaseEnv()
-  const res = await fetch(
-    `${url}/rest/v1/app_users?select=id,email,name,role,created_at&order=created_at.asc`,
-    { headers, cache: 'no-store' }
-  )
+  const baseSelect = 'select=id,email,name,role,branch,created_at&order=created_at.asc'
+  const query = session?.role === 'operations_lead' && session.branch
+    ? `${url}/rest/v1/app_users?${baseSelect}&branch=eq.${encodeURIComponent(session.branch)}&role=in.(operations_lead,manager,crew)`
+    : `${url}/rest/v1/app_users?${baseSelect}`
+  const res = await fetch(query, { headers, cache: 'no-store' })
 
   if (!res.ok) return NextResponse.json({ error: 'Failed to load users' }, { status: 500 })
   const users = (await res.json()) as AppUser[]
@@ -44,12 +47,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'email, name, role, password required' }, { status: 400 })
   }
 
-  const validRoles: UserRole[] = ['owner', 'manager', 'sales_rep', 'crew']
+  const validRoles: UserRole[] = ['owner', 'manager', 'sales_rep', 'operations_lead', 'crew']
   if (!validRoles.includes(body.role)) {
     return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
   }
 
   const password_hash = await bcrypt.hash(body.password, 12)
+  const branch = (body as Record<string, unknown>).branch as string | undefined
 
   const { url, headers } = requireSupabaseEnv()
   const res = await fetch(`${url}/rest/v1/app_users`, {
@@ -60,6 +64,7 @@ export async function POST(request: Request) {
       name: body.name.trim(),
       role: body.role,
       password_hash,
+      ...(branch ? { branch } : {}),
     }),
   })
 
@@ -88,6 +93,8 @@ export async function PATCH(request: Request) {
   if (body.name) updates.name = body.name.trim()
   if (body.role) updates.role = body.role
   if (body.password) updates.password_hash = await bcrypt.hash(body.password, 12)
+  const patchBranch = (body as Record<string, unknown>).branch as string | undefined
+  if (patchBranch !== undefined) updates.branch = patchBranch
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
