@@ -132,6 +132,7 @@ export default function SalesLeadDetailPage() {
   const [consultationSummary, setConsultationSummary] = useState('')
   const [consultationSeconds, setConsultationSeconds] = useState(0)
   const [deleteBusy, setDeleteBusy] = useState(false)
+  const [leadCommandBarCompact, setLeadCommandBarCompact] = useState(false)
   const [contextFlag, setContextFlag] = useState<string>('')
   const [assignedRep, setAssignedRep] = useState<string>('')
   const [assignedRepUserId, setAssignedRepUserId] = useState<string>('')
@@ -282,6 +283,16 @@ export default function SalesLeadDetailPage() {
       ? `This lead is assigned to ${ownerName}. You can still handle calls, messages, consultations, and follow-ups here, but only the assigned rep, a manager, or the owner can change core lead details.`
       : 'This lead is view-only for you right now.'
   }, [canEditCurrentLead, currentUser, lead])
+
+  useEffect(() => {
+    function syncLeadCommandBarMode() {
+      setLeadCommandBarCompact(window.scrollY > 220)
+    }
+
+    syncLeadCommandBarMode()
+    window.addEventListener('scroll', syncLeadCommandBarMode, { passive: true })
+    return () => window.removeEventListener('scroll', syncLeadCommandBarMode)
+  }, [])
 
   function ensureLeadEditable() {
     if (canEditCurrentLead) return true
@@ -2418,6 +2429,9 @@ export default function SalesLeadDetailPage() {
       setError('Only a manager or the owner can delete a lead.')
       return
     }
+    if (!window.confirm(`Delete ${lead.name || 'this lead'} from the active queue? You can restore it later from the Deleted leads view.`)) {
+      return
+    }
 
     try {
       setDeleteBusy(true)
@@ -2517,12 +2531,12 @@ export default function SalesLeadDetailPage() {
       ) : null}
 
       {leadGuidance ? (
-        <section className="sticky top-[92px] z-30 rounded-[12px] border border-[var(--app-line)] bg-white/95 shadow-sm backdrop-blur">
-          <div className="border-b border-[var(--app-line)] px-5 py-4">
-            <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+        <section className={`sticky top-[92px] z-30 rounded-[12px] border border-[var(--app-line)] bg-white/95 backdrop-blur transition-all ${leadCommandBarCompact ? 'shadow-md' : 'shadow-sm'}`}>
+          <div className={`border-b border-[var(--app-line)] ${leadCommandBarCompact ? 'px-4 py-3' : 'px-5 py-4'}`}>
+            <div className={`flex flex-col ${leadCommandBarCompact ? 'gap-2 xl:flex-row xl:items-center xl:justify-between' : 'gap-3 xl:flex-row xl:items-start xl:justify-between'}`}>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-[var(--app-ink)]">
-                  <span className="truncate text-base">{lead.name}</span>
+                  <span className={`truncate ${leadCommandBarCompact ? 'text-sm' : 'text-base'}`}>{lead.name}</span>
                   <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-[var(--app-muted)]">{leadGuidance.stageLabel}</span>
                   <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[10px] font-medium text-[var(--app-muted)]">{leadGuidance.branchLabel}</span>
                   <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[10px] font-medium text-[var(--app-muted)]">Owner: {leadGuidance.ownerLabel}</span>
@@ -2538,15 +2552,21 @@ export default function SalesLeadDetailPage() {
                   {leadGuidance.action.goldenMoment ? (
                     <span className="rounded-full border border-orange-200 bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-800">QUOTE VIEWED NOW</span>
                   ) : null}
+                  {leadCommandBarCompact && leadGuidance.ownerLabel === 'Unassigned' ? (
+                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800">No owner</span>
+                  ) : null}
                 </div>
 
-                <div className="mt-2 flex flex-wrap gap-2 text-sm text-[var(--app-muted)]">
+                <div className={`flex flex-wrap gap-2 text-[var(--app-muted)] ${leadCommandBarCompact ? 'mt-1 text-xs' : 'mt-2 text-sm'}`}>
                   <span>{leadGuidance.quoteStatusLine}</span>
                   {lead.moveDate ? <span>Move date {formatDate(lead.moveDate)}</span> : null}
                   <span>Last activity {leadGuidance.latestActivity.at ? formatRelativeTime(leadGuidance.latestActivity.at) : '—'}</span>
+                  {leadCommandBarCompact && leadGuidance.missingInfo.length > 0 ? (
+                    <span className="text-amber-700">Missing: {leadGuidance.missingInfo.slice(0, 2).join(', ')}</span>
+                  ) : null}
                 </div>
 
-                {leadGuidance.personaBadges.length > 0 ? (
+                {!leadCommandBarCompact && leadGuidance.personaBadges.length > 0 ? (
                   <div className="mt-3 flex flex-wrap gap-2">
                     {leadGuidance.personaBadges.map(badge => (
                       <span key={badge.label} className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-medium text-sky-800">
@@ -2556,42 +2576,66 @@ export default function SalesLeadDetailPage() {
                   </div>
                 ) : null}
 
-                {leadGuidance.missingInfo.length > 0 ? (
+                {!leadCommandBarCompact && leadGuidance.missingInfo.length > 0 ? (
                   <div className="mt-3 text-sm text-amber-700">
                     Missing: {leadGuidance.missingInfo.join(', ')}
                   </div>
                 ) : null}
 
-                <div className="mt-3 rounded-[10px] bg-[#1a2744]/5 px-4 py-3">
+                <div className={`rounded-[10px] bg-[#1a2744]/5 ${leadCommandBarCompact ? 'mt-2 px-3 py-2' : 'mt-3 px-4 py-3'}`}>
                   <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#1a2744]/60">Next Action</div>
-                  <div className="mt-1 text-sm font-semibold text-[#1a2744]">{leadGuidance.action.nextAction}</div>
-                  <div className="mt-1 text-sm text-[#1a2744]/70">{leadGuidance.salesLanguage}</div>
+                  <div className={`mt-1 font-semibold text-[#1a2744] ${leadCommandBarCompact ? 'text-xs' : 'text-sm'}`}>{leadGuidance.action.nextAction}</div>
+                  {!leadCommandBarCompact ? (
+                    <div className="mt-1 text-sm text-[#1a2744]/70">{leadGuidance.salesLanguage}</div>
+                  ) : null}
                 </div>
 
-                {leadGuidance.ownerLabel === 'Unassigned' ? (
+                {!leadCommandBarCompact && leadGuidance.ownerLabel === 'Unassigned' ? (
                   <div className="mt-3 rounded-[8px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                     No owner assigned. This lead may be missed.
                   </div>
                 ) : null}
               </div>
 
-              <div className="flex shrink-0 flex-wrap gap-2 xl:max-w-[320px] xl:justify-end">
-                <button onClick={() => void handleLeadCommandAction(leadGuidance.action.primaryCta.key)} className="rounded-[8px] bg-[var(--app-ink)] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f1b2d]">
+              <div className={`flex shrink-0 flex-wrap gap-2 xl:justify-end ${leadCommandBarCompact ? 'xl:max-w-[460px]' : 'xl:max-w-[360px]'}`}>
+                <button
+                  onClick={() => void handleLeadCommandAction(leadGuidance.action.primaryCta.key)}
+                  className={`rounded-[8px] bg-[var(--app-ink)] font-semibold text-white hover:bg-[#0f1b2d] ${leadCommandBarCompact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'}`}
+                >
                   {leadGuidance.action.primaryCta.label}
                 </button>
-                {leadGuidance.action.secondaryCtas.slice(0, 3).map(cta => (
-                  <button key={cta.key} onClick={() => void handleLeadCommandAction(cta.key)} className="rounded-[8px] border border-[var(--app-line)] bg-white px-4 py-2 text-sm font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
+                {leadGuidance.action.secondaryCtas.slice(0, leadCommandBarCompact ? 2 : 3).map(cta => (
+                  <button
+                    key={cta.key}
+                    onClick={() => void handleLeadCommandAction(cta.key)}
+                    className={`rounded-[8px] border border-[var(--app-line)] bg-white font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)] ${leadCommandBarCompact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'}`}
+                  >
                     {cta.label}
                   </button>
                 ))}
                 {leadGuidance.ownerLabel === 'Unassigned' ? (
-                  <button onClick={() => void handleLeadCommandAction('assign_to_me')} className="rounded-[8px] border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100">
+                  <button
+                    onClick={() => void handleLeadCommandAction('assign_to_me')}
+                    className={`rounded-[8px] border border-amber-300 bg-amber-50 font-semibold text-amber-800 hover:bg-amber-100 ${leadCommandBarCompact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'}`}
+                  >
                     Assign to me
                   </button>
                 ) : null}
-                <button onClick={() => void handleLeadCommandAction('mark_lost')} className="rounded-[8px] border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100">
+                <button
+                  onClick={() => void handleLeadCommandAction('mark_lost')}
+                  className={`rounded-[8px] border border-rose-200 bg-rose-50 font-semibold text-rose-700 hover:bg-rose-100 ${leadCommandBarCompact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'}`}
+                >
                   Mark Lost
                 </button>
+                {canDeleteCurrentLead ? (
+                  <button
+                    onClick={() => void removeLead()}
+                    disabled={deleteBusy}
+                    className={`rounded-[8px] border border-rose-200 bg-white font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60 ${leadCommandBarCompact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'}`}
+                  >
+                    {deleteBusy ? 'Deleting...' : 'Delete Lead'}
+                  </button>
+                ) : null}
               </div>
             </div>
           </div>

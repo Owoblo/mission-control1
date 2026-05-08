@@ -70,6 +70,25 @@ export async function deleteSalesLead(id: string): Promise<{ ok: boolean }> {
   return readJson(response)
 }
 
+export async function fetchDeletedSalesLeads(): Promise<CRMLead[]> {
+  const response = await fetch('/api/sales/leads/deleted', {
+    cache: 'no-store',
+    credentials: 'include',
+  })
+  const payload = await readJson<{ leads?: CRMLead[] }>(response)
+  return payload.leads || []
+}
+
+export async function restoreDeletedSalesLead(leadId: string): Promise<{ ok: boolean }> {
+  const response = await fetch('/api/sales/leads/deleted', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ leadId }),
+  })
+  return readJson(response)
+}
+
 export async function retranscribeConsultation(leadId: string, callLogId: string): Promise<CRMLead> {
   const response = await fetch(`/api/sales/leads/${leadId}/retranscribe`, {
     method: 'POST',
