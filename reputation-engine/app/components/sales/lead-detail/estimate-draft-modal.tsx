@@ -595,8 +595,6 @@ export function EstimateDraftModal({
       }))
   }, [effectiveInventoryMetrics.inventory])
 
-  if (!open) return null
-
   function handleBranchChange(nextBranch: 'windsor' | 'waterloo' | 'london' | 'ottawa') {
     setLocalBranch(nextBranch)
     onBranchChange?.(nextBranch)
@@ -937,6 +935,8 @@ export function EstimateDraftModal({
       internalNotes: prependUniqueLine(internalNotes, internalNote),
     })
   }
+
+  if (!open) return null
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/35 px-0 py-0 md:px-4 md:py-6" onClick={onClose}>
