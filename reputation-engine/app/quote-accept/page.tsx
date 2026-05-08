@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { buildMoveSpecificNotes } from '@/lib/move-scope'
 import { formatDate, formatMoney } from '@/lib/sales'
@@ -58,6 +58,7 @@ type PublicQuote = {
   balance: number
   discountAmount?: number
   discountLabel?: string
+  moveDescription?: string
   createdAt: string
   viewedAt?: string
   acceptedAt?: string
@@ -446,6 +447,47 @@ function QuoteAcceptPageInner() {
   const trucks = quote.truckCount || 1
   const hours = quote.estimatedHours ? `${quote.estimatedHours}–${Math.ceil(quote.estimatedHours * 1.25)}` : null
   const isBindingEstimate = hasInventory && inventory.length >= 5
+  const scopeNotes = useMemo(
+    () => buildMoveSpecificNotes(jobFactors, inventory, quote.moveType),
+    [inventory, jobFactors, quote.moveType]
+  )
+  const movePlanSummary = quote.moveDescription?.trim() || `Move plan for ${quote.originCity || 'origin'} to ${quote.destCity || 'destination'} with ${crewSize} mover${crewSize === 1 ? '' : 's'} and ${trucks} truck${trucks === 1 ? '' : 's'}.`
+  const estimatePresentation = isBindingEstimate ? 'Confirmed inventory-based estimate' : 'Working hourly estimate'
+  const priceExplanation = useMemo(() => {
+    const scopeBits = [
+      `${crewSize} mover${crewSize === 1 ? '' : 's'}`,
+      `${trucks} truck${trucks === 1 ? '' : 's'}`,
+      quote.estimatedHours ? `about ${quote.estimatedHours} hour${quote.estimatedHours === 1 ? '' : 's'}` : null,
+      hasInventory ? `${inventory.length} inventoried item${inventory.length === 1 ? '' : 's'}` : null,
+      quote.originCity && quote.destCity ? `${quote.originCity} to ${quote.destCity}` : null,
+      scopeNotes[0] || null,
+    ].filter(Boolean)
+    return `Your estimate is ${formatMoney(quote.total)} including HST. It reflects ${scopeBits.join(', ')}. The deposit to reserve the crew is ${formatMoney(quote.deposit)}.`
+  }, [crewSize, hasInventory, inventory.length, quote.deposit, quote.destCity, quote.estimatedHours, quote.originCity, quote.total, scopeNotes, trucks])
+  const whatMayChange = useMemo(() => {
+    const items = [
+      isBindingEstimate
+        ? 'If additional items are added on move day, the crew will review the scope before starting.'
+        : 'Hourly moves can change if the job takes more or less time than expected.',
+      quote.moveDate ? `This estimate is tied to ${formatDate(quote.moveDate)}. Date changes can affect crew and rate availability.` : 'The final move date still needs to be confirmed.',
+      scopeNotes.some(note => /stairs|elevator|parking|access/i.test(note))
+        ? 'Access details such as stairs, elevator timing, or parking restrictions can affect the working time.'
+        : 'Any new access constraints, such as long carries or elevator restrictions, should be shared before move day.',
+    ]
+    return items
+  }, [isBindingEstimate, quote.moveDate, scopeNotes])
+  const nextSteps = useMemo(() => ([
+    `Review the estimate and reply with any adjustments or questions.`,
+    `Pay the ${formatMoney(quote.deposit)} deposit to reserve the crew and protect the move date.`,
+    quote.moveDate
+      ? `Once booked, Saturn Star will confirm your ${formatDate(quote.moveDate)} move details and final prep steps.`
+      : 'Once booked, Saturn Star will confirm the move date and final prep steps.',
+  ]), [quote.deposit, quote.moveDate])
+  const trustSignals = [
+    'Professional Saturn Star moving crew',
+    'Customer-reviewed service and direct support',
+    'Online booking or deposit payment in minutes',
+  ]
 
   // ── Fast Lane view — hourly rate quote, no inventory/photos, direct to Stripe ──
   const DEPOSIT = 100
@@ -454,7 +496,7 @@ function QuoteAcceptPageInner() {
     const lineItem = quote.lineItems?.[0]
     const rateDesc = lineItem?.description || ''
     const rangeDesc = lineItem?.details || ''
-    const specialtyNote = (quote as unknown as Record<string, unknown>).moveDescription as string | undefined
+    const specialtyNote = quote.moveDescription
     const alreadyPaid = justPaid || !!quote.acceptedAt
 
     // Extract min/max from range for display
@@ -537,6 +579,19 @@ function QuoteAcceptPageInner() {
                 )}
               </div>
 
+              <div className="mb-4 grid grid-cols-1 gap-2">
+                {trustSignals.map(signal => (
+                  <div key={signal} className="rounded-xl border border-[#1a2744]/10 bg-white px-4 py-3 text-xs text-[#1a2744]/65">
+                    {signal}
+                  </div>
+                ))}
+              </div>
+
+              <div className="rounded-2xl border border-[#1a2744]/10 bg-white p-5 mb-4">
+                <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a2744]/40 mb-2">Why this price</div>
+                <div className="text-sm leading-6 text-[#1a2744]/70">{priceExplanation}</div>
+              </div>
+
               {/* Deposit + book */}
               <div className="rounded-2xl border-2 border-[#1a2744] bg-[#1a2744] p-6 text-center mb-4">
                 <div className="text-lg font-black text-white mb-1">Reserve your move date</div>
@@ -552,6 +607,18 @@ function QuoteAcceptPageInner() {
                 </button>
                 <div className="mt-3 text-[10px] text-white/30">
                   Prefer e-Transfer? Send to business@starmovers.ca and reply to confirm.
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-[#1a2744]/10 bg-white p-5 mb-4">
+                <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a2744]/40 mb-2">What happens next</div>
+                <div className="space-y-2">
+                  {nextSteps.map(step => (
+                    <div key={step} className="flex items-start gap-2.5 text-xs leading-5 text-[#1a2744]/70">
+                      <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#f5a623] flex-shrink-0" />
+                      <span>{step}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -663,6 +730,14 @@ function QuoteAcceptPageInner() {
           </div>
         </div>
 
+        <div className="mb-6 grid gap-2 sm:grid-cols-3">
+          {trustSignals.map(signal => (
+            <div key={signal} className="rounded-xl border border-[#1a2744]/10 bg-white px-4 py-3 text-center text-[11px] font-medium text-[#1a2744]/65">
+              {signal}
+            </div>
+          ))}
+        </div>
+
         {/* ── Property photos ── */}
         {listingPhotos.length > 0 && <PhotoGallery photos={listingPhotos} />}
 
@@ -699,6 +774,12 @@ function QuoteAcceptPageInner() {
               }
             </div>
           </div>
+        </div>
+
+        <div className="mb-6 rounded-xl border border-[#1a2744]/10 bg-white px-5 py-4">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a2744]/40 mb-2">Move plan</div>
+          <div className="text-base font-semibold text-[#1a2744] mb-1">{estimatePresentation}</div>
+          <div className="text-sm leading-6 text-[#1a2744]/65">{movePlanSummary}</div>
         </div>
 
         {/* ── Pricing ── */}
@@ -759,6 +840,23 @@ function QuoteAcceptPageInner() {
           </div>
         </div>
 
+        <div className="mb-6 rounded-xl border border-[#1a2744]/10 bg-white p-5">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a2744]/40 mb-2">Why this price</div>
+          <div className="text-sm leading-6 text-[#1a2744]/70">{priceExplanation}</div>
+        </div>
+
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-amber-800/80 mb-2">What may change</div>
+          <div className="space-y-2">
+            {whatMayChange.map(item => (
+              <div key={item} className="flex items-start gap-2.5 text-xs leading-5 text-amber-900">
+                <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-amber-700 flex-shrink-0" />
+                <span>{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* ── Payment schedule ── */}
         <div className="mb-6 overflow-hidden rounded-xl border border-[#1a2744]/10 bg-white">
           <div className="border-b border-[#1a2744]/8 px-5 py-4">
@@ -803,6 +901,18 @@ function QuoteAcceptPageInner() {
           {error && <div className="mt-3 rounded-lg border border-[#1a2744]/15 bg-[#1a2744]/5 px-4 py-2 text-xs text-[#1a2744]/60">{error}</div>}
         </div>
 
+        <div className="mb-8 rounded-xl border border-[#1a2744]/10 bg-white p-5">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a2744]/40 mb-3">What happens next</div>
+          <div className="space-y-2">
+            {nextSteps.map(step => (
+              <div key={step} className="flex items-start gap-2.5 text-xs leading-5 text-[#1a2744]/70">
+                <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#f5a623] flex-shrink-0" />
+                <span>{step}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* ── What's moving ── */}
         {hasInventory && (
           <div className="mb-8">
@@ -839,13 +949,12 @@ function QuoteAcceptPageInner() {
 
         {/* ── Move-specific notes ── */}
         {jobFactors && (() => {
-          const notes = buildMoveSpecificNotes(jobFactors, inventory, quote.moveType)
-          if (notes.length === 0) return null
+          if (scopeNotes.length === 0) return null
           return (
             <div className="mb-8">
               <SectionLabel>Move-Specific Notes</SectionLabel>
               <div className="rounded-xl border border-[#1a2744]/10 bg-white divide-y divide-[#1a2744]/5">
-                {notes.map((note, i) => (
+                {scopeNotes.map((note, i) => (
                   <div key={i} className="flex items-start gap-3 px-4 py-3">
                     <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#f5a623] flex-shrink-0" />
                     <span className="text-xs text-[#1a2744]/70 leading-5">{note}</span>

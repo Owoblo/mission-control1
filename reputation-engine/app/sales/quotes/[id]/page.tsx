@@ -7,6 +7,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { PACKING_MATERIAL_PRESETS } from '@/lib/packing-materials'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import { QUOTE_STATUSES, UHAUL_RATE_PER_KM, computeQuoteTotals, dateStamp, estimateLeadQuote, formatDate, formatMoney, getCrewRate, getDefaultDepositRate, getLeadAssignedRepName, validUntil } from '@/lib/sales'
+import { buildQuoteClosePlaybook, type QuoteClosePlaybook } from '@/lib/quote-close-playbook'
 import { fetchSalesQuote, saveSalesFollowUp, sendSalesMessage, updateSalesLead, updateSalesQuote } from '@/lib/sales-api'
 import type { CRMClient, CRMLead, CRMQuote, FollowUpLog, QuoteLineItem } from '@/lib/types'
 
@@ -238,6 +239,71 @@ export default function SalesQuoteDetailPage() {
     }
     return null
   }, [isAcceptedQuoteLocked])
+  const quoteReadinessSignals = useMemo(() => {
+    const contactReady = Boolean(client?.email || lead?.email || client?.phone || lead?.phone)
+    return [
+      { label: 'Customer contact', ready: contactReady, critical: true, detail: 'Add an email address or phone number before sending.' },
+      { label: 'Move date', ready: Boolean(quote?.moveDate), critical: true, detail: 'Move date is still missing.' },
+      { label: 'Origin address', ready: Boolean(quote?.originAddress || quote?.originCity), critical: true, detail: 'Origin location is still incomplete.' },
+      { label: 'Destination address', ready: Boolean(lead?.destAddress || quote?.destCity), critical: true, detail: 'Destination location is still incomplete.' },
+      { label: 'Line items', ready: lineItems.length > 0, critical: true, detail: 'Build the quote line items before sending.' },
+      { label: 'Total price', ready: quoteTotals.total > 0, critical: true, detail: 'The quote total is still zero.' },
+      { label: 'Deposit amount', ready: quoteTotals.deposit > 0, critical: true, detail: 'Deposit amount is still zero.' },
+      { label: 'Move description', ready: Boolean((quote?.moveDescription || '').trim()), detail: 'Add a customer-facing move description so the quote reads like a plan, not just a price.' },
+    ]
+  }, [client?.email, client?.phone, lead?.destAddress, lead?.email, lead?.phone, lineItems.length, quote?.destCity, quote?.moveDate, quote?.moveDescription, quote?.originAddress, quote?.originCity, quoteTotals.deposit, quoteTotals.total])
+  const quoteBlockingSignals = useMemo(
+    () => quoteReadinessSignals.filter(item => !item.ready && item.critical),
+    [quoteReadinessSignals]
+  )
+  const quoteWarningSignals = useMemo(
+    () => quoteReadinessSignals.filter(item => !item.ready && !item.critical),
+    [quoteReadinessSignals]
+  )
+  const quoteExplanation = useMemo(() => {
+    const moveLabel = lead?.moveType || quote?.moveType || 'move'
+    const locationLabel = [quote?.originCity, quote?.destCity].filter(Boolean).join(' to ')
+    const scopeBits = [
+      crewSize ? `${crewSize} mover${crewSize === 1 ? '' : 's'}` : null,
+      truckCount ? `${truckCount} truck${truckCount === 1 ? '' : 's'}` : null,
+      estimatedHours ? `about ${estimatedHours} hour${estimatedHours === 1 ? '' : 's'}` : null,
+      locationLabel || null,
+    ].filter(Boolean)
+    return `This ${moveLabel.replace(/-/g, ' ')} estimate is ${formatMoney(quoteTotals.total)} including HST, based on ${scopeBits.join(', ')}. The deposit to reserve the crew is ${formatMoney(quoteTotals.deposit)}.`
+  }, [crewSize, estimatedHours, lead?.moveType, quote?.destCity, quote?.moveType, quote?.originCity, quoteTotals.deposit, quoteTotals.total, truckCount])
+  const closePlaybook = useMemo(
+    () => lead ? buildQuoteClosePlaybook({
+      lead,
+      quote,
+      followUps,
+      readinessItems: quoteReadinessSignals,
+      quoteExplanation,
+      total: quoteTotals.total || quote?.total || 0,
+      deposit: quoteTotals.deposit || quote?.deposit || 0,
+      moveDateDaysAway: quote?.moveDate ? Math.ceil((new Date(`${quote.moveDate}T12:00:00`).getTime() - new Date().setHours(12, 0, 0, 0)) / 86_400_000) : null,
+    }) : null,
+    [followUps, lead, quote, quoteExplanation, quoteReadinessSignals, quoteTotals.deposit, quoteTotals.total]
+  )
+  const closePlan: QuoteClosePlaybook = closePlaybook ?? {
+    confidence: 'needs_details',
+    confidenceLabel: 'Needs final details',
+    confidenceSummary: 'Lead context is still loading, so verify the move facts before positioning this quote as final.',
+    sendMode: 'collect_missing_info',
+    sendModeLabel: 'Collect missing info first',
+    sendModeReason: 'The rep should confirm the customer context before sending or reframing the estimate.',
+    likelyObjection: 'The customer may feel like key details are still missing.',
+    likelyObjectionResponse: 'Slow down, confirm the fact pattern, and then send the quote with a clear next step.',
+    personaBadges: [],
+    salesAssist: 'Lead context is unavailable. Confirm contact details, scope, and timing before sending.',
+    primaryCta: 'Verify the lead and quote details before sending.',
+    followUpPlan: 'Reload the lead context, confirm the missing details, and then send the estimate with a specific callback time.',
+    scripts: {
+      pricePositioning: quoteExplanation,
+      urgency: 'Once the details are confirmed, the deposit is what holds the move date and crew.',
+      ask: `If everything looks good, I can lock in your move date with the ${formatMoney(quoteTotals.deposit)} deposit.`,
+      noResponse: 'Hi, I want to confirm a couple of move details before I finalize the estimate. Reply here and I will tighten it up right away.',
+    },
+  }
 
   const emailDraft = useMemo(() => {
     if (!quote) return { subject: '', body: '', htmlBody: '', href: '#' }
@@ -255,6 +321,10 @@ export default function SalesQuoteDetailPage() {
 
 ${introLine}
 
+${closePlaybook?.scripts.pricePositioning || `Your estimate is ${formatMoney(total)} including HST, and the deposit to book is ${formatMoney(deposit)}.`}
+
+${closePlaybook?.scripts.urgency || 'If everything looks right, the deposit is what locks the date and crew.'}
+
 Quote #: ${quote.number}
 Move Date: ${formatDate(quote.moveDate)}
 Total: ${formatMoney(total)}
@@ -265,6 +335,8 @@ ${acceptUrl}
 
 This quote is valid until ${validUntil(quote)}.
 ${detailLine}
+
+${closePlaybook?.scripts.ask || `If everything looks good, I can lock in the move date with the ${formatMoney(deposit)} deposit.`}
 
 Reply to this message if you want anything adjusted.
 
@@ -289,7 +361,7 @@ Saturn Star Movers`
       }),
       href: `mailto:${client?.email || lead?.email || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
     }
-  }, [acceptUrl, client?.email, client?.name, isRevision, lead?.email, lead?.jobFactors, lead?.name, quote, quoteTotals])
+  }, [acceptUrl, client?.email, client?.name, closePlaybook?.scripts.ask, closePlaybook?.scripts.pricePositioning, closePlaybook?.scripts.urgency, isRevision, lead?.email, lead?.jobFactors, lead?.name, quote, quoteTotals])
 
   const smsDraft = useMemo(() => {
     if (!quote) return ''
@@ -297,9 +369,9 @@ Saturn Star Movers`
     const total = quoteTotals.total || quote.total
     const deposit = quoteTotals.deposit || quote.deposit
     return isRevision
-      ? `Hi ${firstName}, we updated your Saturn Star estimate ${quote.number}. Total ${formatMoney(total)}. Deposit to book ${formatMoney(deposit)}. Review the latest version here: ${acceptUrl}`
-      : `Hi ${firstName}, your Saturn Star binding hourly estimate ${quote.number} is ready. Total ${formatMoney(total)}. Deposit to book ${formatMoney(deposit)}. Review here: ${acceptUrl}`
-  }, [acceptUrl, client?.name, isRevision, lead?.name, quote, quoteTotals])
+      ? `Hi ${firstName}, we updated your Saturn Star estimate ${quote.number}. Total ${formatMoney(total)}. Deposit to book ${formatMoney(deposit)}. ${closePlaybook?.scripts.urgency || 'If you want to hold the date, the deposit locks it in.'} Review the latest version here: ${acceptUrl}`
+      : `Hi ${firstName}, your Saturn Star estimate ${quote.number} is ready. Total ${formatMoney(total)}. Deposit to book ${formatMoney(deposit)}. ${closePlaybook?.scripts.urgency || 'If everything looks good, the deposit locks in the crew.'} Review here: ${acceptUrl}`
+  }, [acceptUrl, client?.name, closePlaybook?.scripts.urgency, isRevision, lead?.name, quote, quoteTotals])
 
   useEffect(() => {
     setEmailSubject(emailDraft.subject)
@@ -964,6 +1036,71 @@ Saturn Star Movers`
                     placeholder="Crew notes: tight staircase, piano needs 4 people..."
                   />
                 </div>
+                <div className="rounded-[10px] border border-[var(--app-line)] bg-white p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-semibold text-[var(--app-ink)]">Close Plan</div>
+                      <div className="mt-1 text-[11px] leading-5 text-[var(--app-muted)]">
+                        Tell the rep what to do with this quote once it leaves the workspace.
+                      </div>
+                    </div>
+                    <div className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
+                      closePlan.confidence === 'confirmed'
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : closePlan.confidence === 'provisional'
+                          ? 'bg-amber-50 text-amber-700'
+                          : 'bg-rose-50 text-rose-700'
+                    }`}>
+                      {closePlan.confidenceLabel}
+                    </div>
+                  </div>
+                  <div className="rounded-[8px] bg-[var(--app-bg)] px-3 py-2 text-[11px] leading-5 text-[var(--app-muted)]">
+                    {closePlan.confidenceSummary}
+                  </div>
+                  <div className="grid gap-2">
+                    <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Next Best Action</div>
+                      <div className="mt-1 text-sm font-semibold text-[var(--app-ink)]">{closePlan.sendModeLabel}</div>
+                      <div className="mt-1 text-[11px] leading-5 text-[var(--app-muted)]">{closePlan.sendModeReason}</div>
+                    </div>
+                    <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Primary CTA</div>
+                      <div className="mt-1 text-sm font-semibold text-[var(--app-ink)]">{closePlan.primaryCta}</div>
+                      <div className="mt-1 text-[11px] leading-5 text-[var(--app-muted)]">{closePlan.followUpPlan}</div>
+                    </div>
+                  </div>
+                  {closePlan.personaBadges.length > 0 ? (
+                    <div>
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Sales Assist</div>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {closePlan.personaBadges.map(badge => (
+                          <span key={badge.label} className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-semibold text-sky-700">
+                            {badge.label} · {Math.round(badge.confidence)}%
+                          </span>
+                        ))}
+                      </div>
+                      <div className="mt-2 text-[11px] leading-5 text-[var(--app-muted)]">{closePlan.salesAssist}</div>
+                    </div>
+                  ) : null}
+                  <div className="rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-900">
+                    <div className="font-semibold text-[var(--app-ink)]">Likely objection</div>
+                    <div className="mt-1">{closePlan.likelyObjection}</div>
+                    <div className="mt-2 text-amber-800">{closePlan.likelyObjectionResponse}</div>
+                  </div>
+                  {(quoteBlockingSignals.length > 0 || quoteWarningSignals.length > 0) ? (
+                    <div className="rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-900">
+                      <div className="font-semibold text-[var(--app-ink)]">Missing before send</div>
+                      <div className="mt-2 space-y-1">
+                        {quoteBlockingSignals.map(item => (
+                          <div key={item.label}>• {item.label}: {item.detail}</div>
+                        ))}
+                        {quoteWarningSignals.slice(0, 3).map(item => (
+                          <div key={item.label}>• {item.label}: {item.detail}</div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
               </div>
 
               {/* Pricing assumptions */}
@@ -1269,6 +1406,54 @@ Saturn Star Movers`
 
             {/* Modal footer */}
             <div className="border-t border-[var(--app-line)] px-6 py-4 space-y-3">
+              <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr]">
+                <div className="rounded-[10px] border border-[var(--app-line)] bg-white px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Send Plan</div>
+                      <div className="mt-1 text-sm font-semibold text-[var(--app-ink)]">{closePlan.sendModeLabel}</div>
+                    </div>
+                    <div className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
+                      closePlan.confidence === 'confirmed'
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : closePlan.confidence === 'provisional'
+                          ? 'bg-amber-50 text-amber-700'
+                          : 'bg-rose-50 text-rose-700'
+                    }`}>
+                      {closePlan.confidenceLabel}
+                    </div>
+                  </div>
+                  <div className="mt-2 text-[11px] leading-5 text-[var(--app-muted)]">{closePlan.confidenceSummary}</div>
+                  <div className="mt-3 rounded-[8px] bg-[var(--app-bg)] px-3 py-2 text-[11px] leading-5 text-[var(--app-muted)]">
+                    <div><span className="font-semibold text-[var(--app-ink)]">Position the price:</span> {closePlan.scripts.pricePositioning}</div>
+                    <div className="mt-2"><span className="font-semibold text-[var(--app-ink)]">Create urgency:</span> {closePlan.scripts.urgency}</div>
+                    <div className="mt-2"><span className="font-semibold text-[var(--app-ink)]">Ask:</span> {closePlan.scripts.ask}</div>
+                  </div>
+                </div>
+                <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-3">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Readiness</div>
+                  <div className="mt-2 space-y-2 text-[11px] leading-5 text-[var(--app-muted)]">
+                    {quoteBlockingSignals.length === 0 && quoteWarningSignals.length === 0 ? (
+                      <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800">
+                        Quote is ready to send as positioned.
+                      </div>
+                    ) : (
+                      <>
+                        {quoteBlockingSignals.map(item => (
+                          <div key={item.label} className="rounded-[8px] border border-rose-200 bg-rose-50 px-3 py-2 text-rose-800">
+                            <span className="font-semibold">{item.label}:</span> {item.detail}
+                          </div>
+                        ))}
+                        {quoteWarningSignals.slice(0, 3).map(item => (
+                          <div key={item.label} className="rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
+                            <span className="font-semibold">{item.label}:</span> {item.detail}
+                          </div>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
               {/* Price confirmation */}
               <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-3">
                 <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-2">Confirm Price Being Sent</div>

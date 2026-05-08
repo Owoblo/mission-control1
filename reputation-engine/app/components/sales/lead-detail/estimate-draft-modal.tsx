@@ -11,6 +11,7 @@ import { INVENTORY_PRESETS } from '@/lib/item-presets'
 import { getDisassemblyServiceLabel, getIncludedDisassemblyItems } from '@/lib/move-scope'
 import { formatMovePolicyCategoryLabel, getMovePolicyFinding, summarizeMovePolicy } from '@/lib/move-policy'
 import { getTvBoxMaterialPresetForSize } from '@/lib/packing-materials'
+import { buildQuoteClosePlaybook } from '@/lib/quote-close-playbook'
 import { DEFAULT_ROOM_OPTIONS } from './helpers'
 import type { EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, PricingBreakdown, QuoteLineItem } from '@/lib/types'
 
@@ -807,6 +808,20 @@ export function EstimateDraftModal({
       approvalRequired: tenPctProjectedMargin !== null && tenPctProjectedMargin < 55,
     }
   }, [lead.paymentStatus, quote?.depositPaidAt, quote?.sentAt, quote?.viewedAt, tenPctProjectedMargin])
+  const closePlaybook = useMemo(
+    () => buildQuoteClosePlaybook({
+      lead,
+      quote,
+      readinessItems,
+      quoteExplanation: quoteExplanation.detailed,
+      total: quoteModalTotals.total,
+      deposit: quoteModalTotals.deposit,
+      capacityRisk: capacitySnapshot?.risk || 'unknown',
+      moveDateDaysAway,
+      routeProvisional: route?.pricingStatus === 'provisional',
+    }),
+    [capacitySnapshot?.risk, lead, moveDateDaysAway, quote, quoteExplanation.detailed, quoteModalTotals.deposit, quoteModalTotals.total, readinessItems, route?.pricingStatus]
+  )
 
   useEffect(() => {
     if (!open) return
@@ -2504,6 +2519,66 @@ export function EstimateDraftModal({
                     <button type="button" onClick={() => void copyPriceExplanation('detailed')} className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1 text-[10px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
                       Copy Detailed Version
                     </button>
+                  </div>
+                </div>
+
+                <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-semibold text-[var(--app-ink)]">Close Plan</div>
+                      <div className="mt-1 text-[10px] text-[var(--app-muted)]">Tell the rep how to position this estimate, not just what it costs.</div>
+                    </div>
+                    <div className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
+                      closePlaybook.confidence === 'confirmed'
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : closePlaybook.confidence === 'provisional'
+                          ? 'bg-amber-50 text-amber-700'
+                          : 'bg-rose-50 text-rose-700'
+                    }`}>
+                      {closePlaybook.confidenceLabel}
+                    </div>
+                  </div>
+                  <div className="rounded-[6px] bg-[var(--app-bg)] px-3 py-2 text-[11px] leading-5 text-[var(--app-muted)]">
+                    {closePlaybook.confidenceSummary}
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Send Mode</div>
+                      <div className="mt-1 text-sm font-semibold text-[var(--app-ink)]">{closePlaybook.sendModeLabel}</div>
+                      <div className="mt-1 text-[11px] leading-5 text-[var(--app-muted)]">{closePlaybook.sendModeReason}</div>
+                    </div>
+                    <div className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Primary CTA</div>
+                      <div className="mt-1 text-sm font-semibold text-[var(--app-ink)]">{closePlaybook.primaryCta}</div>
+                      <div className="mt-1 text-[11px] leading-5 text-[var(--app-muted)]">{closePlaybook.followUpPlan}</div>
+                    </div>
+                  </div>
+                  {closePlaybook.personaBadges.length > 0 ? (
+                    <div>
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Sales Assist</div>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {closePlaybook.personaBadges.map(badge => (
+                          <span key={badge.label} className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-semibold text-sky-700">
+                            {badge.label} · {Math.round(badge.confidence)}%
+                          </span>
+                        ))}
+                      </div>
+                      <div className="mt-2 text-[11px] leading-5 text-[var(--app-muted)]">{closePlaybook.salesAssist}</div>
+                    </div>
+                  ) : null}
+                  <div className="space-y-2">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Suggested Sales Language</div>
+                    <div className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2 text-[11px] leading-5 text-[var(--app-muted)]">
+                      <div><span className="font-semibold text-[var(--app-ink)]">Position the price:</span> {closePlaybook.scripts.pricePositioning}</div>
+                      <div className="mt-2"><span className="font-semibold text-[var(--app-ink)]">Create urgency:</span> {closePlaybook.scripts.urgency}</div>
+                      <div className="mt-2"><span className="font-semibold text-[var(--app-ink)]">Ask for the booking:</span> {closePlaybook.scripts.ask}</div>
+                      <div className="mt-2"><span className="font-semibold text-[var(--app-ink)]">If they go quiet:</span> {closePlaybook.scripts.noResponse}</div>
+                    </div>
+                  </div>
+                  <div className="rounded-[6px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-900">
+                    <div className="font-semibold text-[var(--app-ink)]">Likely objection</div>
+                    <div className="mt-1">{closePlaybook.likelyObjection}</div>
+                    <div className="mt-2 text-amber-800">{closePlaybook.likelyObjectionResponse}</div>
                   </div>
                 </div>
               </div>
