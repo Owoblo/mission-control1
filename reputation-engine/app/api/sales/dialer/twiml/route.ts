@@ -2,6 +2,8 @@ import { saveInboundLead, listSalesLeads, saveSalesLead, saveCrmCallSidMapping }
 import { pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
 import { getAppBaseUrl } from '@/lib/server/runtime'
 import { getHealthyBrowserPresence } from '@/lib/server/telephony-monitoring'
+import { getDialerSettings, isWithinBusinessHoursSettings } from '@/lib/server/dialer-settings'
+import { sendCallerIdSms } from '@/lib/server/internal-notifications'
 import { uid } from '@/lib/sales'
 import { getSaturnTrackingLabel, getSaturnTrackingSource } from '@/lib/sales-phones'
 import type { CRMLead } from '@/lib/types'
@@ -45,18 +47,19 @@ function xmlUrl(url: string) {
   return url.replace(/&/g, '&amp;')
 }
 
-function internalSipTargets() {
-  return INTERNAL_SIP_USERS
+function internalSipTargets(users?: string[]) {
+  return (users || INTERNAL_SIP_USERS)
     .map(username => `<Sip>sip:${username}@${SIP_DOMAIN}</Sip>`)
     .join('')
 }
 
-function internalRingTargets(browserIdentities: string[], fallbackToLegacy = false) {
-  // Rings simultaneously: all active rep browsers + Groundwire/SIP
+function internalRingTargets(browserIdentities: string[], fallbackToLegacy = false, sipUsers?: string[]) {
+  // Rings simultaneously: all active rep browsers + Groundwire/SIP.
+  // Prefers available (not-busy) reps to avoid interrupting active calls.
   const clients = browserIdentities.length > 0
     ? browserIdentities.map(id => `<Client>${id}</Client>`).join('')
     : fallbackToLegacy ? `<Client>${FALLBACK_CLIENT_IDENTITY}</Client>` : ''
-  return `${clients}${internalSipTargets()}`
+  return `${clients}${internalSipTargets(sipUsers)}`
 }
 
 function buildDialRecordingAttrs(recordingCallback?: string, dialStatusCallback?: string) {
@@ -115,6 +118,24 @@ function fallbackTwiml(appUrl = '') {
   )
 }
 
+function isWithinBusinessHours() {
+  // Business hours: Mon–Sun 8 am–9 pm America/Toronto
+  try {
+    const now = new Date()
+    const torontoFormatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Toronto',
+      hour: 'numeric',
+      hour12: false,
+    })
+    const hourStr = torontoFormatter.format(now)
+    const hour = parseInt(hourStr, 10) // 0-23
+    // 8 <= hour < 21  →  8:00 am to 8:59 pm is open; 9:00 pm (hour 21) is closed
+    return hour >= 8 && hour < 21
+  } catch {
+    return true // fail open — don't block calls if timezone lookup fails
+  }
+}
+
 function isSpamPhoneNumber(phone: string) {
   // E.164 max is 15 digits. Anything longer is a fake/spoofed robocaller number.
   const digits = phone.replace(/\D/g, '')
@@ -155,14 +176,56 @@ export async function POST(request: Request) {
         return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?><Response><Reject reason="busy"/></Response>`)
       }
 
+      // Load settings (30s cached — no material latency impact on call routing)
+      const dialerSettings = await getDialerSettings().catch(() => null)
+      const appUrl = getRequestOrigin(request) || getAppUrl()
+
+      // IVR menu — active when enabled in Settings UI (or env var override)
+      const ivrEnabled = dialerSettings?.ivr?.enabled || process.env.ENABLE_IVR_MENU === 'true'
+      if (ivrEnabled && appUrl) {
+        const greeting = dialerSettings?.ivr?.greeting || 'Press 1 to get a moving quote. Press 2 for an existing booking. Or stay on the line to speak with a team member.'
+        return xmlResponse(
+          `<?xml version="1.0" encoding="UTF-8"?><Response>` +
+          `<Gather numDigits="1" action="${xmlUrl(`${appUrl}/api/sales/dialer/ivr`)}" method="POST" timeout="6">` +
+          `<Say voice="alice">Thank you for calling Saturn Star Moving. ${greeting}</Say>` +
+          `</Gather>` +
+          `<Redirect method="POST">${xmlUrl(`${appUrl}/api/sales/dialer/twiml`)}</Redirect>` +
+          `</Response>`
+        )
+      }
+
+      // After-hours routing — uses dynamic schedule from Settings
+      const withinHours = dialerSettings
+        ? isWithinBusinessHoursSettings(dialerSettings)
+        : isWithinBusinessHours()
+      if (!withinHours) {
+        const vmGreeting = dialerSettings?.voicemail?.greeting ||
+          "Thanks for calling Saturn Star Moving. Our office is currently closed. Please leave a message and we'll call you back first thing."
+        const voicemailUrl = appUrl ? `${appUrl}/api/sales/dialer/voicemail` : ''
+        return xmlResponse(
+          `<?xml version="1.0" encoding="UTF-8"?><Response>` +
+          `<Say voice="alice">${vmGreeting}</Say>` +
+          (voicemailUrl ? `<Record maxLength="120" playBeep="true" action="${xmlUrl(voicemailUrl)}" method="POST" />` : '') +
+          `<Say voice="alice">We didn't receive your message. Please call again during business hours. Goodbye!</Say>` +
+          `<Hangup />` +
+          `</Response>`
+        )
+      }
+
+      // Dynamic ring timeout from settings
+      const ringTimeout = dialerSettings?.ringTimeout || INBOUND_RING_TIMEOUT
+      // Dynamic SIP users from settings
+      const activeSipUsers = dialerSettings?.sipUsers?.length ? dialerSettings.sipUsers : INTERNAL_SIP_USERS
+
       const browserPresence = await getHealthyBrowserPresence({
         maxAgeSeconds: 90,
       }).catch(() => ({
         active: true,
         sessionCount: 0,
-        sessions: [],
-        userIds: [],
-        identities: [],
+        sessions: [] as string[],
+        userIds: [] as string[],
+        identities: [] as string[],
+        availableIdentities: [] as string[],
       }))
 
       if (from) {
@@ -215,6 +278,13 @@ export async function POST(request: Request) {
             const crmLead = allLeads?.find(lead => matchesPhone(from, lead)) ?? null
 
             if (crmLead) {
+              // Caller ID SMS to rep phones — fires while Groundwire is still ringing
+              if (crmLead.name && dialerSettings?.notifications?.notifyCallerIdSms !== false) {
+                const repPhones = dialerSettings?.notifications?.repPhones || []
+                const biz = normalizedTo || to || CALLER_ID
+                void sendCallerIdSms(from, crmLead.name, branchCity, repPhones, biz)
+              }
+
               const existingCallLog = (crmLead.callLogs || []).find(entry => entry.callSid === callSid)
               const callLogId = existingCallLog?.id || uid('cl')
               const nextLead: CRMLead = existingCallLog
@@ -257,12 +327,13 @@ export async function POST(request: Request) {
         })()
       }
 
-      const appUrl = getRequestOrigin(request) || getAppUrl()
       const dialStatusParams = new URLSearchParams()
       if (normalizedTo) dialStatusParams.set('branchNumber', normalizedTo)
       dialStatusParams.set('browserHealthy', browserPresence.active ? '1' : '0')
       dialStatusParams.set('browserSessionCount', String(browserPresence.sessionCount))
       if (from) dialStatusParams.set('from', from)
+      const allBusy = browserPresence.active && (browserPresence.availableIdentities?.length === 0)
+      dialStatusParams.set('allBusy', allBusy ? '1' : '0')
       const branchQuery = dialStatusParams.toString() ? `?${dialStatusParams.toString()}` : ''
 
       // action fires when <Dial> ends (no-answer, busy, completed) — used for missed-call handling
@@ -276,11 +347,30 @@ export async function POST(request: Request) {
         recordingCallback ? `recordingStatusCallback="${xmlUrl(recordingCallback)}"` : '',
         recordingCallback ? `recordingStatusCallbackMethod="POST"` : '',
         recordingCallback ? `recordingStatusCallbackEvent="${DIAL_RECORDING_EVENTS}"` : '',
-        `timeout="${INBOUND_RING_TIMEOUT}"`,
+        `timeout="${ringTimeout}"`,
       ].filter(Boolean).join(' ')
 
+      // If all reps are busy AND there are active browser sessions, route to queue instead of
+      // ringing all (which would likely time-out to missed-call immediately).
+      if (allBusy && browserPresence.sessionCount > 0) {
+        const queueWaitUrl = appUrl ? `${appUrl}/api/sales/dialer/queue/wait` : ''
+        return xmlResponse(
+          `<?xml version="1.0" encoding="UTF-8"?><Response>` +
+          `<Say voice="alice">Our movers are all on calls right now. Please hold and the next available rep will be with you shortly.</Say>` +
+          (queueWaitUrl ? `<Enqueue waitUrl="${xmlUrl(queueWaitUrl)}" waitUrlMethod="GET">saturn-main-queue</Enqueue>` : `<Enqueue>saturn-main-queue</Enqueue>`) +
+          `</Response>`
+        )
+      }
+
+      // Prefer ringing only available (not-busy) reps. If all reps are busy, ring everyone
+      // so the call still gets through rather than being silently dropped.
+      const ringIdentities = browserPresence.active
+        ? (browserPresence.availableIdentities?.length > 0
+            ? browserPresence.availableIdentities
+            : browserPresence.identities)
+        : []
       return xmlResponse(
-        `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrsInbound}>${internalRingTargets(browserPresence.active ? browserPresence.identities : [])}</Dial></Response>`
+        `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrsInbound}>${internalRingTargets(ringIdentities, false, activeSipUsers)}</Dial></Response>`
       )
     }
 

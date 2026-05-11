@@ -2,12 +2,21 @@ import type { InventoryItem, InventoryScanDraft, ListingMatch } from '@/lib/type
 import { applyMovePolicyToInventory, summarizeMovePolicy } from '@/lib/move-policy'
 import { readEnv } from '@/lib/server/runtime'
 
-type PropertyContext = { bedrooms?: number; bathrooms?: number }
+export type PropertyContext = { bedrooms?: number; bathrooms?: number }
 
-function getOpenAIConfig() {
+export function getOpenAIConfig() {
   const apiKey = readEnv('OPENAI_API_KEY')
   const model = readEnv('OPENAI_VISION_MODEL') || 'gpt-4o-mini'
   return apiKey ? { apiKey, model } : null
+}
+
+export function suggestTruckConfig(totalCubicFeet: number) {
+  const buffered = Math.round(totalCubicFeet * 1.10)
+  if (buffered <= 600) return { count: 1, size: '15ft', label: '15ft truck', bufferedCubicFeet: buffered }
+  if (buffered <= 1000) return { count: 1, size: '20ft', label: '20ft truck', bufferedCubicFeet: buffered }
+  if (buffered <= 1600) return { count: 1, size: '26ft', label: '26ft truck', bufferedCubicFeet: buffered }
+  if (buffered <= 3200) return { count: 2, size: '26ft', label: 'Two 26ft trucks', bufferedCubicFeet: buffered }
+  return { count: 3, size: '26ft', label: 'Three 26ft trucks', bufferedCubicFeet: buffered }
 }
 
 function coerceJsonBlock(text: string) {
@@ -42,7 +51,7 @@ function buildPolicyFlags(inventory: InventoryItem[], existingFlags: string[] = 
 
 // ── Phase 1: Classify all listing photos by room ─────────────────────────────
 // Sends all photos at low resolution to GPT — returns a map of room → [urls]
-async function classifyPhotosByRoom(
+export async function classifyPhotosByRoom(
   photos: string[],
   config: { apiKey: string; model: string },
   propertyContext?: PropertyContext
@@ -115,7 +124,7 @@ Return ONLY valid JSON, no other text.`
 
 // ── Phase 2: Detect furniture for a specific room ─────────────────────────────
 // Sends all photos of ONE room together — prevents counting same item multiple times
-async function detectFurnitureInRoom(
+export async function detectFurnitureInRoom(
   roomName: string,
   roomPhotos: string[],
   config: { apiKey: string; model: string }
@@ -236,7 +245,7 @@ Return ONLY valid JSON array, no other text.`
 }
 
 // ── Phase 3: Validate and flag anomalies ─────────────────────────────────────
-function validateInventory(
+export function validateInventory(
   inventory: InventoryItem[],
   propertyContext?: PropertyContext
 ): string[] {

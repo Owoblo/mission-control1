@@ -1,7 +1,8 @@
-import { getTwilioCredentials, requireSupabaseEnv } from '@/lib/server/runtime'
+import { getTwilioCredentials, requireSupabaseEnv, getAppBaseUrl } from '@/lib/server/runtime'
 import { outboundSmsRecentlySent, recordOutboundSmsToSupabase } from '@/lib/server/sales-messaging'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
 import { getSaturnBranchLabel } from '@/lib/sales-phones'
+import { sendRepAlertEmail, missedCallNotificationEmail } from '@/lib/server/internal-notifications'
 
 // Twilio calls this action URL when <Dial> completes for ANY reason:
 // completed = someone answered, no-answer = nobody answered, busy/failed = other failure
@@ -62,6 +63,8 @@ function answeredBy(dialCallStatus: string, dialCallDuration: number): 'browser'
 }
 
 export async function POST(request: Request) {
+  let whoResult: 'browser' | 'rep' | 'nobody' = 'nobody'
+
   try {
     const formData = await request.formData()
     const from    = (formData.get('From') as string | null)?.trim() || ''
@@ -76,6 +79,7 @@ export async function POST(request: Request) {
     }
 
     const who = answeredBy(dialCallStatus, dialCallDuration)
+    whoResult = who
     const now = new Date().toISOString()
     const branchLabel   = getSaturnBranchLabel(to) || BUSINESS_NAME
     const businessNumber = to || '+12267732993'
@@ -116,8 +120,27 @@ export async function POST(request: Request) {
           .then(sid => recordOutboundSmsToSupabase(businessNumber, from, callerSms, undefined, sid))
           .catch(() => {})
       }
+
+      void sendRepAlertEmail(
+        `Missed Call — ${from}`,
+        missedCallNotificationEmail(from, branchLabel)
+      )
     }
   } catch { /* always return valid TwiML */ }
+
+  // If nobody answered, offer voicemail prompt
+  if (whoResult === 'nobody') {
+    const appUrl = getAppBaseUrl()
+    const voicemailUrl = appUrl ? `${appUrl}/api/sales/dialer/voicemail` : ''
+    return xmlResponse(
+      `<?xml version="1.0" encoding="UTF-8"?><Response>` +
+      `<Say voice="alice">We missed your call! Please leave a short message and Saturn Star Moving will call you right back.</Say>` +
+      (voicemailUrl ? `<Record maxLength="90" playBeep="true" action="${voicemailUrl}" method="POST" />` : '') +
+      `<Say voice="alice">No message received. Please try again or send us a text. Goodbye!</Say>` +
+      `<Hangup />` +
+      `</Response>`
+    )
+  }
 
   return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?><Response></Response>`)
 }

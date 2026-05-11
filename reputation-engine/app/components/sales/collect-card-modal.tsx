@@ -6,7 +6,12 @@ import { Elements, CardElement, useStripe, useElements } from '@stripe/react-str
 import { formatMoney } from '@/lib/sales'
 import type { CRMLead, CRMQuote } from '@/lib/types'
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '')
+// Only initialise Stripe when a real publishable key exists — calling loadStripe('') with
+// an empty string still fetches js.stripe.com and causes unhandled rejections on browsers
+// that block third-party scripts (e.g. iOS Safari with content blockers).
+const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+  : null
 
 type Props = {
   open: boolean

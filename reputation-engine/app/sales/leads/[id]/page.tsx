@@ -3,9 +3,14 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { ConsultationBookingModal } from '@/app/components/sales/consultation-booking-modal'
 import { EstimateDraftModal } from '@/app/components/sales/lead-detail/estimate-draft-modal'
 import { FastLaneModal } from '@/app/components/sales/fast-lane-modal'
-import { CollectCardModal } from '@/app/components/sales/collect-card-modal'
+import dynamic from 'next/dynamic'
+const CollectCardModal = dynamic(
+  () => import('@/app/components/sales/collect-card-modal').then(m => ({ default: m.CollectCardModal })),
+  { ssr: false }
+)
 import { LeadBasicsPanel } from '@/app/components/sales/lead-detail/lead-basics-panel'
 import { LeadIntelligencePanel } from '@/app/components/sales/lead-detail/lead-intelligence-panel'
 import { LeadTimeline } from '@/app/components/sales/lead-detail/lead-timeline'
@@ -17,6 +22,7 @@ import {
   normalizeRoomName,
 } from '@/app/components/sales/lead-detail/helpers'
 import { INVENTORY_PRESETS, createInventoryItemFromPreset } from '@/lib/item-presets'
+import { getMovePolicyFinding } from '@/lib/move-policy'
 import { formatRelativeTime, getLeadGuidance } from '@/lib/lead-guidance'
 import {
   getDefaultSaturnBranchNumber,
@@ -133,6 +139,16 @@ export default function SalesLeadDetailPage() {
   const [consultationSeconds, setConsultationSeconds] = useState(0)
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [leadCommandBarCompact, setLeadCommandBarCompact] = useState(false)
+  const [guidancePanelCollapsed, setGuidancePanelCollapsed] = useState(() => {
+    try { return localStorage.getItem('ss_guidance_collapsed') === '1' } catch { return false }
+  })
+  function toggleGuidancePanel() {
+    setGuidancePanelCollapsed(v => {
+      const next = !v
+      try { localStorage.setItem('ss_guidance_collapsed', next ? '1' : '0') } catch {}
+      return next
+    })
+  }
   const [contextFlag, setContextFlag] = useState<string>('')
   const [assignedRep, setAssignedRep] = useState<string>('')
   const [assignedRepUserId, setAssignedRepUserId] = useState<string>('')
@@ -147,6 +163,7 @@ export default function SalesLeadDetailPage() {
   const [fastLaneOpen, setFastLaneOpen] = useState(false)
   const [showApptSmsModal, setShowApptSmsModal] = useState(false)
   const [apptSmsPendingPayload, setApptSmsPendingPayload] = useState<Record<string, unknown> | null>(null)
+  const [showConsultationModal, setShowConsultationModal] = useState(false)
   const [showPhotoRequestDialog, setShowPhotoRequestDialog] = useState(false)
   const [photoRequestData, setPhotoRequestData] = useState<{ surveyUrl: string; draftSms: string; token: string } | null>(null)
   const [photoRequestSmsBody, setPhotoRequestSmsBody] = useState('')
@@ -223,6 +240,7 @@ export default function SalesLeadDetailPage() {
   const smsAreaRef = useRef<HTMLDivElement>(null)
   const [listingLookupBusy, setListingLookupBusy] = useState(false)
   const [scanProgress, setScanProgress] = useState<{ batch: number; totalBatches: number; status: string } | null>(null)
+  const [scanResult, setScanResult] = useState<{ totalItems: number; truckLabel: string; cubicFeet: number; flags: string[] } | null>(null)
   const [activeTab, setActiveTab] = useState<'timeline' | 'emails' | 'sms'>('timeline')
   const [error, setError] = useState<string | null>(null)
   const [handoffName, setHandoffName] = useState('')
@@ -235,7 +253,7 @@ export default function SalesLeadDetailPage() {
   const consultationStreamRef = useRef<MediaStream | null>(null)
   const consultationChunksRef = useRef<Blob[]>([])
   const mediaUploadInputRef = useRef<HTMLInputElement | null>(null)
-  const pendingLeaveActionRef = useRef<'history-back' | null>(null)
+  const pendingLeaveActionRef = useRef<'history-back' | string | null>(null)
   const historyGuardArmedRef = useRef(false)
   const bypassLeaveGuardRef = useRef(false)
   const assignmentOptions = useMemo(() => {
@@ -484,6 +502,22 @@ export default function SalesLeadDetailPage() {
       setQuote(quotePayload?.quote || null)
       setQuoteDiscountAmount(Number(quotePayload?.quote?.discountAmount || 0))
       setQuoteDiscountLabel(quotePayload?.quote?.discountLabel || '')
+      // Restore pricing meta from saved quote so Save Draft doesn't overwrite with defaults
+      if (quotePayload?.quote) {
+        const q = quotePayload.quote
+        pricingMetaRef.current = {
+          crewSize: q.crewSize || 3,
+          estimatedHours: q.estimatedHours || 3,
+          truckCount: q.truckCount || 1,
+          estimatedWeightLbs: q.estimatedWeightLbs,
+          longDistanceDistanceKm: q.longDistanceDistanceKm,
+          longDistanceTruckCost: q.longDistanceTruckCost,
+          longDistanceGasCost: q.longDistanceGasCost,
+          longDistanceInsuranceCost: q.longDistanceInsuranceCost,
+          longDistanceMiscCost: q.longDistanceMiscCost,
+          longDistanceMarkupRate: q.longDistanceMarkupRate,
+        }
+      }
       // Load additional quotes (multi-job leads)
       const extraIds = (nextLead?.quoteIds || []).filter(qid => qid !== nextLead?.quoteId)
       if (extraIds.length > 0) {
@@ -1005,7 +1039,17 @@ export default function SalesLeadDetailPage() {
   }, [presetSearch])
 
   useEffect(() => {
-    if (!hasUnsavedChanges) return
+    if (!hasUnsavedChanges) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).__onNavAttempt
+      return
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(window as any).__onNavAttempt = (href: string) => {
+      pendingLeaveActionRef.current = href
+      setShowUnsavedLeaveModal(true)
+    }
 
     function handleBeforeUnload(event: BeforeUnloadEvent) {
       event.preventDefault()
@@ -1013,7 +1057,11 @@ export default function SalesLeadDetailPage() {
     }
 
     window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).__onNavAttempt
+    }
   }, [hasUnsavedChanges])
 
   useEffect(() => {
@@ -1052,6 +1100,12 @@ export default function SalesLeadDetailPage() {
     setShowUnsavedLeaveModal(false)
     setUnsavedLeaveBusy(false)
     bypassLeaveGuardRef.current = true
+
+    // Nav-link intercept: any string that's a URL path
+    if (pendingLeaveAction && pendingLeaveAction !== 'history-back') {
+      router.push(pendingLeaveAction)
+      return
+    }
 
     if (pendingLeaveAction === 'history-back') {
       if (historyGuardArmedRef.current) {
@@ -1377,6 +1431,49 @@ export default function SalesLeadDetailPage() {
     }
   }
 
+  async function handleBookConsultation(data: {
+    estimateDate: string
+    estimateTime: string
+    consultationTriggerReason: string
+    consultationAssignedManagerName: string
+    consultationAssignedManagerId: string
+    consultationCustomerConcern: string
+    consultationPreVisitBrief: string
+    sendSms: boolean
+  }) {
+    if (!lead) return
+    setShowConsultationModal(false)
+    try {
+      setSaving(true)
+      const saved = await updateSalesLead(lead.id, {
+        stage: 'estimate_scheduled',
+        estimateDate: data.estimateDate,
+        estimateTime: data.estimateTime,
+        consultationTriggerReason: data.consultationTriggerReason,
+        consultationAssignedManagerName: data.consultationAssignedManagerName,
+        consultationAssignedManagerId: data.consultationAssignedManagerId,
+        consultationCustomerConcern: data.consultationCustomerConcern,
+        consultationPreVisitBrief: data.consultationPreVisitBrief,
+        consultationStatus: 'booked',
+        consultationBookedAt: new Date().toISOString(),
+        ...(data.sendSms ? { sendAppointmentSms: true } : {}),
+      } as Parameters<typeof updateSalesLead>[1])
+      applyLeadSnapshot(saved, { hydrateForm: true })
+      await saveSalesFollowUp({
+        leadId: lead.id,
+        type: 'visit',
+        notes: `In-Home Move Consultation booked for ${data.estimateDate}${data.estimateTime ? ` at ${data.estimateTime}` : ''}${data.consultationAssignedManagerName ? ` — ${data.consultationAssignedManagerName}` : ''}.`,
+        date: new Date().toISOString(),
+      }).catch(() => {})
+      void refresh(lead.id)
+      setError(null)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function handleConfirmJob() {
     if (!lead) return
     if (!ensureLeadEditable()) return
@@ -1617,9 +1714,17 @@ export default function SalesLeadDetailPage() {
       setQuoteMoveDescription(result.quote.moveDescription || '')
       setQuoteInternalNotes(result.quote.internalNotes || '')
       setQuoteModalDirty(false)
-      // Persist job factors to lead alongside the quote save
-      if (lead && Object.keys(jobFactors).length > 0) {
-        void updateSalesLead(lead.id, { jobFactors }).catch(() => {})
+      // Persist inventory + job factors to lead alongside the quote save
+      // This ensures Include Back / Exclude toggles survive page reloads
+      if (lead) {
+        void updateSalesLead(lead.id, {
+          inventory: inventoryMetrics.inventory,
+          totalItems: inventoryMetrics.totalItems,
+          totalCubicFeet: inventoryMetrics.totalCubicFeet,
+          totalWeightLbs: inventoryMetrics.totalWeightLbs,
+          roomBreakdown: buildRoomBreakdown(inventoryMetrics.inventory),
+          ...(Object.keys(jobFactors).length > 0 ? { jobFactors } : {}),
+        }).catch(() => {})
       }
     } catch (err) {
       setError((err as Error).message)
@@ -2000,19 +2105,23 @@ export default function SalesLeadDetailPage() {
               runningCount?: number
               allItems?: InventoryItem[]
               error?: string
+              truckRecommendation?: { count: number; size: string; label: string; bufferedCubicFeet: number }
+              validationFlags?: string[]
             }
 
             if (event.type === 'start') {
-              setScanProgress({ batch: 0, totalBatches: event.totalBatches ?? 0, status: `Starting scan of ${event.totalPhotos ?? 0} photos…` })
+              if ((event.totalBatches ?? 0) > 0) {
+                setScanProgress({ batch: 0, totalBatches: event.totalBatches ?? 0, status: `Scanning ${event.totalPhotos ?? 0} photos…` })
+              }
             } else if (event.type === 'progress') {
-              setScanProgress({ batch: (event.batch ?? 1) - 1, totalBatches: event.totalBatches ?? 0, status: event.status ?? '' })
+              setScanProgress({ batch: event.batch ?? 0, totalBatches: event.totalBatches ?? 0, status: event.status ?? '' })
             } else if (event.type === 'batch') {
               allItems = [...allItems, ...(event.items ?? [])]
               setInventory([...allItems])
               setScanProgress({
                 batch: event.batch ?? 0,
                 totalBatches: event.totalBatches ?? 0,
-                status: `Batch ${event.batch}/${event.totalBatches} done — ${allItems.length} items found…`,
+                status: `Room ${event.batch}/${event.totalBatches} done — ${allItems.length} items found…`,
               })
             } else if (event.type === 'done') {
               const metrics = deriveInventoryMetrics(allItems)
@@ -2025,6 +2134,15 @@ export default function SalesLeadDetailPage() {
               })
               setLead(finalSaved)
               setScanProgress(null)
+              if (event.truckRecommendation) {
+                setScanResult({
+                  totalItems: metrics.totalItems,
+                  truckLabel: event.truckRecommendation.label,
+                  cubicFeet: event.truckRecommendation.bufferedCubicFeet,
+                  flags: event.validationFlags ?? [],
+                })
+                setTimeout(() => setScanResult(null), 12000)
+              }
             } else if (event.type === 'error' || event.type === 'batch_error') {
               setError(event.error ?? 'Scan error')
             }
@@ -2044,7 +2162,7 @@ export default function SalesLeadDetailPage() {
 
   function openDialer() {
     if (!lead?.phone || typeof window === 'undefined') return
-    window.dispatchEvent(new CustomEvent('crm:open-dialer', { detail: { phone: lead.phone, leadId: lead.id } }))
+    window.dispatchEvent(new CustomEvent('crm:open-dialer', { detail: { phone: lead.phone, leadId: lead.id, name: lead.name } }))
   }
 
   async function fetchLeadEmails(leadId: string) {
@@ -2267,23 +2385,30 @@ export default function SalesLeadDetailPage() {
   }
 
   function toggleInventoryItem(index: number) {
-    setInventory(current =>
-      current.map((item, itemIndex) =>
-        itemIndex === index
-          ? {
-              ...item,
-              included: item.included === false ? true : false,
-              exclusionReason: item.included === false ? '' : item.exclusionReason || 'Excluded from move scope',
-              policyOverride:
-                item.included === false
-                  ? item.policyCategory === 'default_exclude'
-                    ? 'include'
-                    : undefined
-                  : undefined,
-            }
-          : item
-      )
-    )
+    setInventory(current => {
+      const next = current.map((item, itemIndex) => {
+        if (itemIndex !== index) return item
+        const nowIncluded = item.included === false
+        return {
+          ...item,
+          included: nowIncluded,
+          exclusionReason: nowIncluded ? '' : item.exclusionReason || 'Excluded from move scope',
+          policyOverride: nowIncluded && (item.policyCategory === 'default_exclude' || getMovePolicyFinding(item)?.category === 'default_exclude') ? 'include' as const : undefined,
+        }
+      })
+      // Immediately persist inventory to server so Include Back survives page reloads
+      if (lead?.id) {
+        const metrics = deriveInventoryMetrics(next)
+        void updateSalesLead(lead.id, {
+          inventory: metrics.inventory,
+          totalItems: metrics.totalItems,
+          totalCubicFeet: metrics.totalCubicFeet,
+          totalWeightLbs: metrics.totalWeightLbs,
+          roomBreakdown: buildRoomBreakdown(metrics.inventory),
+        }).catch(() => {})
+      }
+      return next
+    })
   }
 
   function removeInventoryItem(index: number) {
@@ -2507,7 +2632,7 @@ export default function SalesLeadDetailPage() {
           <div className="mb-2 flex items-center justify-between">
             <span className="text-sm font-medium text-emerald-800">📷 Scanning photos…</span>
             <span className="text-xs text-emerald-700">
-              {scanProgress.totalBatches > 0 ? `Batch ${scanProgress.batch} of ${scanProgress.totalBatches}` : 'Starting…'}
+              {scanProgress.totalBatches > 0 ? `Room ${scanProgress.batch} of ${scanProgress.totalBatches}` : 'Starting…'}
             </span>
           </div>
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-emerald-200">
@@ -2517,6 +2642,19 @@ export default function SalesLeadDetailPage() {
             />
           </div>
           <div className="mt-1.5 text-xs text-emerald-700">{scanProgress.status}</div>
+        </div>
+      )}
+      {scanResult && !scanProgress && (
+        <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 px-5 py-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-emerald-800">✅ Scan complete — {scanResult.totalItems} items</span>
+            <span className="text-xs font-semibold text-emerald-700">🚛 {scanResult.truckLabel} ({scanResult.cubicFeet} cu ft +10% buffer)</span>
+          </div>
+          {scanResult.flags.length > 0 && (
+            <div className="mt-2 space-y-0.5">
+              {scanResult.flags.map((f, i) => <div key={i} className="text-xs text-amber-700">{f}</div>)}
+            </div>
+          )}
         </div>
       )}
       {opportunityNotice ? (
@@ -2531,8 +2669,18 @@ export default function SalesLeadDetailPage() {
       ) : null}
 
       {leadGuidance ? (
-        <section className={`sticky top-[92px] z-30 rounded-[12px] border border-[var(--app-line)] bg-white/95 backdrop-blur transition-all ${leadCommandBarCompact ? 'shadow-md' : 'shadow-sm'}`}>
-          <div className={`border-b border-[var(--app-line)] ${leadCommandBarCompact ? 'px-4 py-3' : 'px-5 py-4'}`}>
+        <section className={`sticky top-[92px] z-30 rounded-[12px] border border-[var(--app-line)] bg-white transition-all ${leadCommandBarCompact ? 'shadow-md' : 'shadow-sm'}`}>
+          <div className={`${guidancePanelCollapsed ? '' : 'border-b border-[var(--app-line)]'} ${guidancePanelCollapsed ? 'px-4 py-2.5' : leadCommandBarCompact ? 'px-4 py-3' : 'px-5 py-4'}`}>
+            {guidancePanelCollapsed ? (
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-[var(--app-ink)] truncate">
+                  <span className="truncate">{lead.name}</span>
+                  <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-[var(--app-muted)] shrink-0">{leadGuidance.stageLabel}</span>
+                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold shrink-0 ${leadGuidance.heat.tone === 'risk' ? 'border-rose-200 bg-rose-50 text-rose-700' : leadGuidance.heat.tone === 'hot' ? 'border-orange-200 bg-orange-50 text-orange-700' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>{leadGuidance.heat.label} · {leadGuidance.heat.score}</span>
+                </div>
+                <button onClick={toggleGuidancePanel} className="shrink-0 rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)]">▼ Expand</button>
+              </div>
+            ) : (
             <div className={`flex flex-col ${leadCommandBarCompact ? 'gap-2 xl:flex-row xl:items-center xl:justify-between' : 'gap-3 xl:flex-row xl:items-start xl:justify-between'}`}>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-[var(--app-ink)]">
@@ -2599,6 +2747,13 @@ export default function SalesLeadDetailPage() {
 
               <div className={`flex shrink-0 flex-wrap gap-2 xl:justify-end ${leadCommandBarCompact ? 'xl:max-w-[460px]' : 'xl:max-w-[360px]'}`}>
                 <button
+                  onClick={toggleGuidancePanel}
+                  title={guidancePanelCollapsed ? 'Expand guidance panel' : 'Collapse guidance panel'}
+                  className={`rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] ${leadCommandBarCompact ? 'px-2 py-1.5 text-xs' : 'px-3 py-2 text-sm'}`}
+                >
+                  {guidancePanelCollapsed ? '▼ Expand' : '▲ Collapse'}
+                </button>
+                <button
                   onClick={() => void handleLeadCommandAction(leadGuidance.action.primaryCta.key)}
                   className={`rounded-[8px] bg-[var(--app-ink)] font-semibold text-white hover:bg-[#0f1b2d] ${leadCommandBarCompact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'}`}
                 >
@@ -2638,6 +2793,7 @@ export default function SalesLeadDetailPage() {
                 ) : null}
               </div>
             </div>
+            )}
           </div>
         </section>
       ) : null}
@@ -2695,10 +2851,52 @@ export default function SalesLeadDetailPage() {
           ) : null}
           {lead.stage === 'estimate_scheduled' && lead.estimateDate ? (
             <span className="rounded-full bg-violet-50 px-2.5 py-0.5 text-[10px] font-semibold text-violet-700">
-              Estimate: {formatDate(lead.estimateDate)}{lead.estimateTime ? ` @ ${lead.estimateTime}` : ''}
+              {lead.consultationTriggerReason ? '🏠 Consultation' : 'Estimate'}: {formatDate(lead.estimateDate)}{lead.estimateTime ? ` @ ${lead.estimateTime}` : ''}
+              {lead.consultationAssignedManagerName ? ` — ${lead.consultationAssignedManagerName}` : ''}
             </span>
           ) : null}
         </div>
+
+        {/* Pre-visit brief — shows when consultation is booked */}
+        {lead.consultationPreVisitBrief && lead.stage === 'estimate_scheduled' && (
+          <div className="mx-3 mb-3 rounded-[12px] border border-violet-200 bg-violet-50 md:mx-8">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-violet-200">
+              <div>
+                <div className="text-xs font-bold uppercase tracking-wider text-violet-700">🏠 In-Home Move Consultation</div>
+                <div className="mt-0.5 text-xs text-violet-600">
+                  {lead.estimateDate ? formatDate(lead.estimateDate) : 'Date TBD'}
+                  {lead.estimateTime ? ` at ${lead.estimateTime}` : ''}
+                  {lead.consultationAssignedManagerName ? ` · ${lead.consultationAssignedManagerName}` : ''}
+                </div>
+              </div>
+              <button
+                onClick={async () => {
+                  if (!lead?.id) return
+                  const msg = `🏠 LIVE ESTIMATE REQUEST\n${lead.name} | ${lead.phone || 'no phone'}\n${lead.consultationAssignedManagerName || 'Manager'} is onsite and ready for live quote handoff. Open CRM: ${window.location.href}`
+                  await sendSalesMessage({ leadId: lead.id, channel: 'sms', body: msg, to: '+12267241730' }).catch(() => {})
+                  alert('Alert sent to office ✅')
+                }}
+                className="rounded-[8px] bg-[#f5a623] px-3 py-1.5 text-xs font-bold text-[#1a2744] hover:bg-[#e09420] transition-colors"
+                title="Alert central sales — manager is onsite and ready for live handoff"
+              >
+                📞 Request Live Estimate
+              </button>
+            </div>
+            <div className="px-4 py-3">
+              {lead.consultationTriggerReason && (
+                <div className="mb-2 text-xs text-violet-700"><strong>Visit reason:</strong> {lead.consultationTriggerReason}</div>
+              )}
+              {lead.consultationCustomerConcern && (
+                <div className="mb-2 text-xs text-violet-700"><strong>Customer concern:</strong> {lead.consultationCustomerConcern}</div>
+              )}
+              <details>
+                <summary className="cursor-pointer text-xs font-semibold text-violet-700 hover:text-violet-900">View Pre-Visit Brief ▾</summary>
+                <pre className="mt-2 whitespace-pre-wrap rounded-[8px] bg-white border border-violet-200 px-3 py-2 text-[11px] text-slate-700 font-mono">{lead.consultationPreVisitBrief}</pre>
+              </details>
+            </div>
+          </div>
+        )}
+
         <div className="grid min-h-[760px] lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[250px_minmax(0,1fr)_280px]">
           <LeadBasicsPanel
             lead={lead}
@@ -3139,6 +3337,17 @@ export default function SalesLeadDetailPage() {
               >
                 ⚡ Fast Lane Quote
               </button>
+
+              {/* In-Home Move Consultation */}
+              {!isClosedLeadStage(lead.stage) && canEditCurrentLead && (
+                <button
+                  onClick={() => setShowConsultationModal(true)}
+                  className="crm-button w-full justify-center border-violet-200 bg-violet-50 text-violet-700 hover:border-violet-400 disabled:opacity-60"
+                >
+                  🏠 Book In-Home Consultation
+                </button>
+              )}
+
               {quote ? (
                 <button onClick={() => void openQuoteBuilder()} disabled={!canEditCurrentLead} className="crm-button w-full justify-center border-[rgba(34,72,56,0.2)] bg-[rgba(34,72,56,0.08)] text-[var(--app-accent)] disabled:opacity-60">
                   Build Estimate
@@ -4115,6 +4324,15 @@ export default function SalesLeadDetailPage() {
       )}
 
       {/* ── Appointment SMS Confirm Modal ─────────────────────────── */}
+      {showConsultationModal && lead && (
+        <ConsultationBookingModal
+          lead={lead}
+          salesUsers={salesUsers}
+          onClose={() => setShowConsultationModal(false)}
+          onConfirm={data => void handleBookConsultation(data)}
+        />
+      )}
+
       {showApptSmsModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-[16px] border border-[var(--app-line)] bg-white p-6 shadow-2xl">

@@ -7,6 +7,11 @@ export const metadata: Metadata = {
   title: 'Saturn Star OS',
   description: 'Sales CRM, quotes, operations, and reviews for Saturn Star Moving',
   manifest: '/manifest.webmanifest',
+  icons: {
+    icon: '/saturn-star-logo.png',
+    apple: '/saturn-star-logo.png',
+    shortcut: '/saturn-star-logo.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -25,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
-        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <link rel="apple-touch-icon" href="/saturn-star-logo.png" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body className="min-h-screen">

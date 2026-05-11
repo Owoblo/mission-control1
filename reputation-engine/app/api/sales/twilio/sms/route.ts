@@ -6,8 +6,32 @@ import {
 } from '@/lib/sales-phones'
 import { pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
 import { appendSmsToInboundLead, getInboundLeadByPhone, saveInboundLead } from '@/lib/server/sales-repository'
-import { getAppBaseUrl, getWorkerSharedSecret, requireSupabaseEnv } from '@/lib/server/runtime'
+import { getAppBaseUrl, getWorkerSharedSecret, readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
 import { logEvent } from '@/lib/server/analytics'
+import { sendRepAlertEmail, smsNotificationEmail } from '@/lib/server/internal-notifications'
+
+async function verifyTwilioSignature(request: Request, rawBody: string): Promise<boolean> {
+  const authToken = readEnv('TWILIO_AUTH_TOKEN')
+  if (!authToken) return true // can't verify without the token — allow
+
+  const signature = request.headers.get('x-twilio-signature') || ''
+  if (!signature) return false
+
+  const url = request.url
+  const params: Record<string, string> = {}
+  new URLSearchParams(rawBody).forEach((v, k) => { params[k] = v })
+
+  const sortedKeys = Object.keys(params).sort()
+  const valueString = sortedKeys.reduce((acc, key) => acc + key + params[key], url)
+
+  const encoder = new TextEncoder()
+  const key = await crypto.subtle.importKey(
+    'raw', encoder.encode(authToken), { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']
+  )
+  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(valueString))
+  const expected = btoa(Array.from(new Uint8Array(sig)).map(b => String.fromCharCode(b)).join(''))
+  return signature === expected
+}
 
 function triggerIntelligence(leadId: string) {
   const base = getAppBaseUrl()
@@ -63,11 +87,17 @@ async function writeSmsMessage(from: string, toNumber: string, body: string, mes
 // Twilio sends form-encoded data for SMS and WhatsApp webhooks
 export async function POST(request: Request) {
   try {
-    const formData = await request.formData()
-    const rawFrom = (formData.get('From') as string | null)?.trim() || ''
-    const rawTo = (formData.get('To') as string | null)?.trim() || MY_NUMBER
-    const body = (formData.get('Body') as string | null)?.trim() || ''
-    const messageSid = (formData.get('MessageSid') as string | null)?.trim() || ''
+    const rawBody = await request.text()
+    const valid = await verifyTwilioSignature(request, rawBody)
+    if (!valid) {
+      return new Response('Forbidden', { status: 403 })
+    }
+
+    const formData = new URLSearchParams(rawBody)
+    const rawFrom = (formData.get('From') ?? '').trim()
+    const rawTo = (formData.get('To') ?? '').trim() || MY_NUMBER
+    const body = (formData.get('Body') ?? '').trim()
+    const messageSid = (formData.get('MessageSid') ?? '').trim()
     const receivedAt = new Date().toISOString()
 
     // Strip WhatsApp prefix for phone matching — channel is detected from SID (WA=WhatsApp, SM=SMS)
@@ -132,6 +162,10 @@ export async function POST(request: Request) {
         const resolvedLeadId = automation?.lead?.id
         void writeSmsMessage(normalized || from, toField, body || '(no body)', messageSid, resolvedLeadId)
         if (resolvedLeadId) triggerIntelligence(resolvedLeadId)
+        void sendRepAlertEmail(
+          `New SMS from ${from}`,
+          smsNotificationEmail(from, body || '(no body)', resolvedLeadId)
+        )
       }
     }
     void logEvent('sms_received', {
@@ -152,3 +186,4 @@ export async function POST(request: Request) {
     { headers: { 'Content-Type': 'text/xml' } }
   )
 }
+

@@ -36,6 +36,7 @@ export interface HealthyBrowserPresence {
   sessions: string[]
   userIds: string[]
   identities: string[]
+  availableIdentities: string[]   // only 'ready' state reps (not busy on another call)
 }
 
 export interface TelephonyDashboardMetrics {
@@ -244,6 +245,7 @@ export async function getHealthyBrowserPresence(options: {
   }
 
   const healthyStates = new Set(['ready', 'busy', 'incoming'])
+  const availableStates = new Set(['ready', 'incoming'])
   const healthySessions = Array.from(latestBySession.values()).filter(row => {
     const ts = new Date(row.ts).getTime()
     const state = String(row.properties.state || '')
@@ -251,11 +253,16 @@ export async function getHealthyBrowserPresence(options: {
     return ts >= cutoff && healthyStates.has(state) && online
   })
 
+  const availableSessions = healthySessions.filter(row =>
+    availableStates.has(String(row.properties.state || ''))
+  )
+
   return {
     active: healthySessions.length > 0,
     sessionCount: healthySessions.length,
     sessions: healthySessions.map(row => String(row.properties.sessionId || '')),
     identities: Array.from(new Set(healthySessions.map(row => String(row.properties.identity || '')).filter(Boolean))),
+    availableIdentities: Array.from(new Set(availableSessions.map(row => String(row.properties.identity || '')).filter(Boolean))),
     userIds: healthySessions
       .map(row => String(row.properties.userId || ''))
       .filter(Boolean),

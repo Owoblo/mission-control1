@@ -61,6 +61,7 @@ function AddressInput({
   value,
   placeholder,
   disabled,
+  currentCity,
   onChange,
   onCityChange,
   onApartmentDetected,
@@ -68,6 +69,7 @@ function AddressInput({
   value: string
   placeholder: string
   disabled?: boolean
+  currentCity?: string
   onChange: (v: string) => void
   onCityChange?: (city: string) => void
   onApartmentDetected?: (isApt: boolean) => void
@@ -118,7 +120,8 @@ function AddressInput({
   function select(s: AddressSuggestion) {
     setRaw(s.label)
     onChange(s.label)
-    if (s.city && onCityChange) onCityChange(s.city)
+    // Only auto-fill city when the field is empty — never silently overwrite a rep's entered city
+    if (s.city && onCityChange && !currentCity) onCityChange(s.city)
     setSuggestions([])
     setOpen(false)
     if (onApartmentDetected) onApartmentDetected(s.placeType === 'apartment')
@@ -371,6 +374,7 @@ export function LeadBasicsPanel({
             value={originAddress}
             placeholder="Origin address"
             disabled={disabled}
+            currentCity={originCity}
             onChange={onOriginAddressChange}
             onCityChange={onOriginCityChange}
             onApartmentDetected={isApt => { if (isApt && !disabled) setOriginAptPending(true) }}
@@ -419,6 +423,7 @@ export function LeadBasicsPanel({
             value={destAddress}
             placeholder="Destination address"
             disabled={disabled}
+            currentCity={destCity}
             onChange={onDestAddressChange}
             onCityChange={onDestCityChange}
             onApartmentDetected={isApt => { if (isApt && !disabled) setDestAptPending(true) }}

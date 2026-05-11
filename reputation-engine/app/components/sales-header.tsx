@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
@@ -21,6 +22,7 @@ const BASE_NAV = [
   { href: '/sales/activity', label: 'Live Feed', match: (p: string) => p.startsWith('/sales/activity'), roles: ['owner', 'manager'] },
   { href: '/sales/analytics', label: 'Analytics', match: (p: string) => p.startsWith('/sales/analytics'), roles: ['owner', 'manager'] },
   { href: '/sales/reps', label: 'Reps', match: (p: string) => p.startsWith('/sales/reps'), roles: ['owner', 'manager'] },
+  { href: '/sales/settings', label: '⚙ Settings', match: (p: string) => p.startsWith('/sales/settings'), roles: ['owner'] },
   { href: '/admin/users', label: 'Team', match: (p: string) => p.startsWith('/admin'), roles: ['owner'] },
   { href: '/marketing', label: 'Partnerships', match: (p: string) => p.startsWith('/marketing'), roles: ['owner', 'manager'] },
 ]
@@ -52,6 +54,12 @@ function timeAgo(value: string) {
   const d = Math.floor(h / 24)
   if (d < 7) return `${d}d ago`
   return new Date(value).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })
+}
+
+function guardedNavigate(href: string, router: ReturnType<typeof useRouter>) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const guard = (window as any).__onNavAttempt
+  if (guard) { guard(href) } else { router.push(href) }
 }
 
 export function SalesHeader() {
@@ -258,8 +266,8 @@ export function SalesHeader() {
       <header className="sticky top-0 z-40 border-b border-[var(--app-line)] bg-[var(--app-panel-strong)]">
         <div className="mx-auto flex max-w-[1400px] flex-col gap-4 px-4 py-4 md:px-8">
           <div className="flex items-center justify-between gap-4">
-            <Link href="/sales" className="flex min-w-0 items-center gap-3">
-              <div className="flex h-6 w-6 items-center justify-center rounded-[4px] bg-[var(--app-ink)] text-[11px] font-semibold text-white">S</div>
+            <Link href="/sales" className="flex min-w-0 items-center gap-2.5">
+              <Image src="/saturn-star-logo.png" alt="Saturn Star" width={28} height={28} className="shrink-0" />
               <div className="truncate font-semibold tracking-tight text-[var(--app-ink)]">Saturn Star OS</div>
             </Link>
 
@@ -287,7 +295,7 @@ export function SalesHeader() {
 
                 {/* ── Notification Panel ──────────────────────────────── */}
                 {notifOpen && (
-                  <div className="absolute right-0 top-full z-50 mt-2 w-[400px] max-h-[80vh] overflow-hidden rounded-[12px] border border-[var(--app-line)] bg-white shadow-2xl flex flex-col">
+                  <div className="absolute right-0 top-full z-50 mt-2 w-[min(400px,calc(100vw-1rem))] max-h-[80vh] overflow-hidden rounded-[12px] border border-[var(--app-line)] bg-white shadow-2xl flex flex-col">
                     {/* Panel header */}
                     <div className="flex items-center justify-between border-b border-[var(--app-line)] px-4 py-3">
                       <div>
@@ -391,9 +399,9 @@ export function SalesHeader() {
                 // Inbox link: show a small dot badge if there are unclaimed leads (fast signal)
                 const showInboxDot = item.href === '/sales/inbox' && notifBreakdown.leads > 0 && !active
                 return (
-                  <Link
+                  <button
                     key={item.href}
-                    href={item.href}
+                    onClick={() => guardedNavigate(item.href, router)}
                     className={`relative shrink-0 rounded-full border px-3 py-2 text-sm font-medium transition md:rounded-none md:border-x-0 md:border-t-0 md:border-b-2 md:px-0 md:py-1 ${
                       active
                         ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white md:bg-transparent md:text-[var(--app-ink)]'
@@ -404,7 +412,7 @@ export function SalesHeader() {
                     {showInboxDot && (
                       <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-rose-500 md:-right-2 md:-top-0.5" />
                     )}
-                  </Link>
+                  </button>
                 )
               })}
               {/* Mobile-only Leads link */}

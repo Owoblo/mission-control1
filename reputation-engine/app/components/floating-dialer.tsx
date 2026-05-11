@@ -180,8 +180,19 @@ export function FloatingDialer() {
   const [error, setError] = useState<string | null>(null)
   const [errorCode, setErrorCode] = useState<number | null>(null)
   const [activeLeadId, setActiveLeadId] = useState<string | null>(null)
+  const [activeLeadName, setActiveLeadName] = useState<string | null>(null)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [muted, setMuted] = useState(false)
+  const [callNotes, setCallNotes] = useState('')
+  const [showTransfer, setShowTransfer] = useState(false)
+  const [transferTarget, setTransferTarget] = useState('')
+  const [transferring, setTransferring] = useState(false)
+  const [queueSize, setQueueSize] = useState(0)
+  const [acceptingQueue, setAcceptingQueue] = useState(false)
+  const [showConference, setShowConference] = useState(false)
+  const [conferenceTarget, setConferenceTarget] = useState('')
+  const [conferencing, setConferencing] = useState(false)
+  const [conferenceActive, setConferenceActive] = useState(false)
 
   // diagnostics state
   const [micPermission, setMicPermission] = useState<MicPermission>('unknown')
@@ -649,6 +660,7 @@ export function FloatingDialer() {
           setActiveLeadId(lead.id)
           activeLeadIdRef.current = lead.id
           setPhone(lead.phone || from)
+          if (lead.name) setActiveLeadName(lead.name)
         }
       }).catch(() => {})
 
@@ -736,6 +748,11 @@ export function FloatingDialer() {
     audioConnectedRef.current = false
     finalizedCallRef.current = false
     setMuted(false)
+    setCallNotes('')
+    setShowTransfer(false)
+    setShowConference(false)
+    setConferenceActive(false)
+    setActiveLeadName(null)
     clearStuckTimer()
     setDialerStatus('ready')
     setError('Call was stuck connecting and was force-ended.')
@@ -875,6 +892,16 @@ export function FloatingDialer() {
         callStartRef.current = Date.now()
         callSidRef.current = call.parameters?.CallSid || call.parameters?.callsid || undefined
         audioConnectedRef.current = true
+        // Look up lead name for keypad-dialed outbound calls (no lead context from crm:open-dialer)
+        if (!activeLeadIdRef.current) {
+          void matchLeadByPhone(e164).then(lead => {
+            if (lead) {
+              setActiveLeadId(lead.id)
+              activeLeadIdRef.current = lead.id
+              if (lead.name) setActiveLeadName(lead.name)
+            }
+          }).catch(() => {})
+        }
         logCallEvent('call_accepted', {
           callDirection: 'outbound',
           phoneNumber: e164,
@@ -909,6 +936,8 @@ export function FloatingDialer() {
         audioConnectedRef.current = false
         finalizedCallRef.current = false
         setMuted(false)
+        setCallNotes('')
+        setShowTransfer(false)
         setDialerStatus('ready')
         pushPresence()
       })
@@ -931,6 +960,8 @@ export function FloatingDialer() {
         audioConnectedRef.current = false
         finalizedCallRef.current = false
         setMuted(false)
+        setCallNotes('')
+        setShowTransfer(false)
         setDialerStatus('ready')
         pushPresence()
       })
@@ -970,6 +1001,8 @@ export function FloatingDialer() {
         callSidRef.current = undefined
         finalizedCallRef.current = false
         setMuted(false)
+        setCallNotes('')
+        setShowTransfer(false)
         audioConnectedRef.current = false
         activeLocalCallIdRef.current = undefined
         activeCallDirectionRef.current = null
@@ -1084,6 +1117,8 @@ export function FloatingDialer() {
       audioConnectedRef.current = false
       finalizedCallRef.current = false
       setMuted(false)
+      setCallNotes('')
+      setShowTransfer(false)
       setDialerStatus('ready')
       pushPresence()
     })
@@ -1144,6 +1179,17 @@ export function FloatingDialer() {
       finalizedCallRef.current = false
       setError((err as Error).message)
     }
+
+    // Save call notes if any were written during the call
+    if (callNotes.trim() && leadId) {
+      void fetch('/api/sales/leads/note', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadId, text: callNotes.trim(), type: 'call_note' }),
+      }).catch(() => {})
+      setCallNotes('')
+    }
   }
 
   function cleanupDialer(reason: string, keepalive = false) {
@@ -1197,11 +1243,12 @@ export function FloatingDialer() {
     syncDebugState()
 
     function handleOpenDialer(event: Event) {
-      const customEvent = event as CustomEvent<{ phone?: string; leadId?: string }>
+      const customEvent = event as CustomEvent<{ phone?: string; leadId?: string; name?: string }>
       if (customEvent.detail?.phone) setPhone(customEvent.detail.phone)
       const nextLeadId = customEvent.detail?.leadId || null
       setActiveLeadId(nextLeadId)
       activeLeadIdRef.current = nextLeadId
+      setActiveLeadName(customEvent.detail?.name || null)
       setOpen(true)
     }
 
@@ -1363,6 +1410,23 @@ export function FloatingDialer() {
     return () => clearInterval(interval)
   }, [status])
 
+  // queue size polling — every 30s when ready or active
+  useEffect(() => {
+    if (status !== 'ready' && status !== 'active') return
+    const poll = async () => {
+      try {
+        const res = await fetch('/api/sales/dialer/queue', { credentials: 'include' })
+        if (res.ok) {
+          const data = await res.json() as { size: number }
+          setQueueSize(data.size || 0)
+        }
+      } catch {}
+    }
+    void poll()
+    const interval = setInterval(() => void poll(), 30000)
+    return () => clearInterval(interval)
+  }, [status])
+
   // keyboard handler
   const isCallActive = status === 'connecting' || status === 'active'
 
@@ -1396,6 +1460,69 @@ export function FloatingDialer() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, status, isCallActive, phone])
 
+  async function initiateTransfer() {
+    if (!callSidRef.current || !transferTarget.trim()) return
+    setTransferring(true)
+    try {
+      await fetch('/api/sales/dialer/transfer', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ callSid: callSidRef.current, to: transferTarget.trim() }),
+      })
+      setShowTransfer(false)
+      setTransferTarget('')
+      // Call will disconnect on our end as Twilio redirects
+    } catch {
+      // ignore
+    } finally {
+      setTransferring(false)
+    }
+  }
+
+  async function initiateConference() {
+    if (!callSidRef.current || !conferenceTarget.trim()) return
+    setConferencing(true)
+    try {
+      const res = await fetch('/api/sales/dialer/conference', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerCallSid: callSidRef.current,
+          addTarget: conferenceTarget.trim(),
+          repIdentity: identityRef.current,
+        }),
+      })
+      if (res.ok) {
+        setConferenceActive(true)
+        setShowConference(false)
+        setConferenceTarget('')
+      }
+    } catch {
+      // ignore
+    } finally {
+      setConferencing(false)
+    }
+  }
+
+  async function acceptQueueCall() {
+    setAcceptingQueue(true)
+    try {
+      await fetch('/api/sales/dialer/queue', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identity: identityRef.current }),
+      })
+      setQueueSize(q => Math.max(0, q - 1))
+    } catch {
+      // ignore
+    } finally {
+      setAcceptingQueue(false)
+    }
+  }
+
   function formatElapsed(value: number) {
     const m = Math.floor(value / 60)
     const s = value % 60
@@ -1405,9 +1532,9 @@ export function FloatingDialer() {
   // ── render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="fixed inset-x-3 bottom-3 z-50 flex justify-end sm:inset-x-auto sm:bottom-5 sm:right-5">
+    <div className="fixed inset-x-3 z-50 flex justify-end sm:inset-x-auto sm:right-5" style={{ bottom: 'max(12px, env(safe-area-inset-bottom))' }}>
       {open && (
-        <div className="mb-3 w-full max-w-[420px] overflow-hidden rounded-[28px] border border-white/10 bg-[#111111] text-white shadow-[0_30px_80px_rgba(0,0,0,0.5)] sm:w-[340px]">
+        <div className="mb-3 w-full max-w-[min(420px,calc(100vw-24px))] overflow-hidden rounded-[28px] border border-white/10 bg-[#111111] text-white shadow-[0_30px_80px_rgba(0,0,0,0.5)] sm:w-[340px]">
 
           {/* ── INCOMING CALL ── */}
           {status === 'incoming' && (
@@ -1420,11 +1547,18 @@ export function FloatingDialer() {
                   <PhoneIcon className="h-10 w-10 text-emerald-400" />
                 </span>
               </div>
-              <div className="mt-5 text-2xl font-semibold tracking-wide">{incomingFrom}</div>
+              {activeLeadName ? (
+                <div className="mt-5 text-center">
+                  <div className="text-2xl font-semibold tracking-wide">{activeLeadName}</div>
+                  <div className="mt-1 text-sm text-white/45">{incomingFrom}</div>
+                </div>
+              ) : (
+                <div className="mt-5 text-2xl font-semibold tracking-wide">{incomingFrom}</div>
+              )}
               {activeLeadId && (
-                <div className="mt-1 flex items-center gap-1.5 text-xs text-emerald-400">
+                <div className="mt-1.5 flex items-center gap-1.5 text-xs text-emerald-400">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                  Matched CRM lead
+                  {activeLeadName ? 'CRM lead matched' : 'Matched CRM lead'}
                 </div>
               )}
               <div className="mt-9 flex items-end justify-center gap-14">
@@ -1473,11 +1607,18 @@ export function FloatingDialer() {
                 </span>
               </div>
 
-              <div className="mt-5 text-xl font-semibold tracking-wide">{callingNumberRef.current || phone.trim()}</div>
+              {activeLeadName ? (
+                <div className="mt-5 text-center">
+                  <div className="text-xl font-semibold tracking-wide">{activeLeadName}</div>
+                  <div className="mt-0.5 text-sm text-white/45">{callingNumberRef.current || phone.trim()}</div>
+                </div>
+              ) : (
+                <div className="mt-5 text-xl font-semibold tracking-wide">{callingNumberRef.current || phone.trim()}</div>
+              )}
               {activeLeadId && (
                 <div className="mt-1 flex items-center gap-1.5 text-xs text-emerald-400">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                  Linked to CRM lead
+                  {activeLeadName ? 'CRM lead' : 'Linked to CRM lead'}
                 </div>
               )}
 
@@ -1531,6 +1672,101 @@ export function FloatingDialer() {
                   </span>
                 </div>
               </div>
+
+              {/* Call Notes */}
+              {status === 'active' && (
+                <div className="mt-4 px-1">
+                  <textarea
+                    value={callNotes}
+                    onChange={e => setCallNotes(e.target.value)}
+                    placeholder="Call notes… (auto-saved on hangup)"
+                    className="w-full resize-none rounded-[10px] border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/80 placeholder:text-white/25 outline-none focus:border-white/20"
+                    rows={2}
+                  />
+                </div>
+              )}
+
+              {/* Transfer UI */}
+              {status === 'active' && (
+                <div className="mt-3 px-1">
+                  {!showTransfer ? (
+                    <button
+                      onClick={() => setShowTransfer(true)}
+                      className="w-full rounded-[10px] border border-white/10 bg-white/5 py-2 text-xs font-medium text-white/50 transition hover:bg-white/10 hover:text-white/80"
+                    >
+                      Transfer call
+                    </button>
+                  ) : (
+                    <div className="space-y-2">
+                      <input
+                        value={transferTarget}
+                        onChange={e => setTransferTarget(e.target.value)}
+                        placeholder="+1... or sip:john@saturn.sip.twilio.com"
+                        className="w-full rounded-[10px] border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/80 placeholder:text-white/25 outline-none focus:border-white/20"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => void initiateTransfer()}
+                          disabled={!transferTarget.trim() || transferring}
+                          className="flex-1 rounded-[10px] bg-amber-500/80 py-1.5 text-xs font-semibold text-white disabled:opacity-50 transition hover:bg-amber-500"
+                        >
+                          {transferring ? 'Transferring…' : 'Transfer'}
+                        </button>
+                        <button
+                          onClick={() => { setShowTransfer(false); setTransferTarget('') }}
+                          className="rounded-[10px] border border-white/10 px-3 py-1.5 text-xs text-white/50 transition hover:text-white/80"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      <div className="text-[10px] text-white/25">Quick: sip:john@saturn.sip.twilio.com · sip:salesrep1@saturn.sip.twilio.com</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Conference bridge */}
+              {status === 'active' && (
+                <div className="mt-2 px-1">
+                  {conferenceActive ? (
+                    <div className="rounded-[10px] border border-emerald-400/20 bg-emerald-400/8 px-3 py-2 text-xs font-medium text-emerald-300">
+                      🎙 Conference active — all parties connected
+                    </div>
+                  ) : !showConference ? (
+                    <button
+                      onClick={() => setShowConference(true)}
+                      className="w-full rounded-[10px] border border-white/10 bg-white/5 py-2 text-xs font-medium text-white/50 transition hover:bg-white/10 hover:text-white/80"
+                    >
+                      Add to conference
+                    </button>
+                  ) : (
+                    <div className="space-y-2">
+                      <input
+                        value={conferenceTarget}
+                        onChange={e => setConferenceTarget(e.target.value)}
+                        placeholder="+1... or sip:john@saturn.sip.twilio.com"
+                        className="w-full rounded-[10px] border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/80 placeholder:text-white/25 outline-none focus:border-white/20"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => void initiateConference()}
+                          disabled={!conferenceTarget.trim() || conferencing}
+                          className="flex-1 rounded-[10px] bg-sky-500/80 py-1.5 text-xs font-semibold text-white disabled:opacity-50 transition hover:bg-sky-500"
+                        >
+                          {conferencing ? 'Connecting…' : 'Start Conference'}
+                        </button>
+                        <button
+                          onClick={() => { setShowConference(false); setConferenceTarget('') }}
+                          className="rounded-[10px] border border-white/10 px-3 py-1.5 text-xs text-white/50 transition hover:text-white/80"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      <div className="text-[10px] text-white/25">You'll receive a new call to re-join · sip:john@saturn.sip.twilio.com</div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* stuck call force-end prompt */}
               {status === 'connecting' && stuckSeconds >= 30 && (
@@ -1603,6 +1839,22 @@ export function FloatingDialer() {
                   </button>
                 )}
               </div>
+
+              {/* Queue indicator */}
+              {queueSize > 0 && status === 'ready' && (
+                <div className="mt-3 flex items-center justify-between rounded-[10px] border border-amber-400/20 bg-amber-400/8 px-3 py-2.5">
+                  <div className="text-xs font-medium text-amber-300">
+                    {queueSize} caller{queueSize > 1 ? 's' : ''} holding
+                  </div>
+                  <button
+                    onClick={() => void acceptQueueCall()}
+                    disabled={acceptingQueue}
+                    className="rounded-[8px] bg-amber-500 px-3 py-1 text-xs font-semibold text-white transition hover:bg-amber-400 disabled:opacity-50 active:scale-95"
+                  >
+                    {acceptingQueue ? 'Connecting…' : 'Accept'}
+                  </button>
+                </div>
+              )}
 
               {/* Error panel */}
               {(error || status === 'error') && (

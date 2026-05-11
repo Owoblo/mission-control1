@@ -5,7 +5,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import { compareLeadsByGuidance, formatRelativeTime, getLeadGuidance } from '@/lib/lead-guidance'
-import { deleteSalesLead, fetchDeletedSalesLeads, fetchSalesOverview, restoreDeletedSalesLead } from '@/lib/sales-api'
+import { deleteSalesLead, fetchDeletedSalesLeads, fetchSalesOverview, restoreDeletedSalesLead, updateSalesLead } from '@/lib/sales-api'
 import { formatDate, getLeadAssignedRepName, isBookedLikeStage, isClosedLeadStage } from '@/lib/sales'
 import type { CRMLead, CRMQuote, FollowUpLog } from '@/lib/types'
 
@@ -185,6 +185,22 @@ function SalesLeadsIndexContent() {
     }
   }
 
+  async function handleMarkNotInterested(lead: CRMLead) {
+    try {
+      setRowActionId(lead.id)
+      await updateSalesLead(lead.id, {
+        stage: 'lost',
+        lostReason: 'not_interested',
+        lostAt: new Date().toISOString(),
+      })
+      setLeads(current => current.filter(item => item.id !== lead.id))
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setRowActionId(null)
+    }
+  }
+
   useEffect(() => {
     void refresh()
   }, [])
@@ -194,6 +210,8 @@ function SalesLeadsIndexContent() {
       void loadDeletedLeads()
     }
   }, [deletedLeads.length, deletedLoading, viewMode])
+
+  const today = new Date().toISOString().slice(0, 10)
 
   const decoratedLeads = useMemo<DecoratedLeadRow[]>(() => {
     const quoteMap = new Map(quotes.map(item => [item.id, item]))
@@ -228,6 +246,14 @@ function SalesLeadsIndexContent() {
     [deletedLeads, query]
   )
 
+  const todaysCallList = useMemo(
+    () => decoratedLeads.filter(({ lead }) =>
+      lead.followUpDate && lead.followUpDate <= today &&
+      !isBookedLikeStage(lead.stage) && !isClosedLeadStage(lead.stage)
+    ).sort((a, b) => (a.lead.followUpDate || '').localeCompare(b.lead.followUpDate || '')),
+    [decoratedLeads, today]
+  )
+
   const visibleLeads = viewMode === 'focus' ? focusLeads : viewMode === 'booked' ? bookedLeads : activeLeads
   const emptyText =
     viewMode === 'focus'
@@ -256,6 +282,12 @@ function SalesLeadsIndexContent() {
           >
             {backfilling ? 'Syncing…' : 'Sync Call History'}
           </button>
+          <Link
+            href="/sales/cleanup"
+            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-500 transition hover:border-red-300 hover:text-red-600"
+          >
+            🗑 Clean Up Junk Leads
+          </Link>
         </div>
       </section>
 
@@ -293,6 +325,49 @@ function SalesLeadsIndexContent() {
           </div>
         </div>
       </section>
+
+      {/* Today's Calls / Overdue Follow-ups */}
+      {viewMode !== 'deleted' && viewMode !== 'booked' && todaysCallList.length > 0 && (
+        <section className="rounded-[10px] border border-amber-200 bg-amber-50">
+          <div className="flex items-center justify-between border-b border-amber-200 px-5 py-3">
+            <span className="text-sm font-semibold text-amber-800">
+              📞 {todaysCallList.filter(({ lead }) => (lead.followUpDate || '') < today).length > 0
+                ? `${todaysCallList.filter(({ lead }) => (lead.followUpDate || '') < today).length} overdue · `
+                : ''}{todaysCallList.filter(({ lead }) => lead.followUpDate === today).length} due today
+            </span>
+            <span className="text-xs text-amber-600">Follow-ups that need a call today</span>
+          </div>
+          <div className="divide-y divide-amber-100">
+            {todaysCallList.map(({ lead, guidance }) => (
+              <div key={lead.id} className="flex items-center justify-between gap-4 px-5 py-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    {(lead.followUpDate || '') < today && (
+                      <span className="h-2 w-2 rounded-full bg-rose-500" />
+                    )}
+                    <span className="font-medium text-[var(--app-ink)]">{lead.name || 'Unnamed'}</span>
+                    <span className="text-xs text-amber-600">{(lead.followUpDate || '') < today ? `Overdue since ${lead.followUpDate}` : 'Due today'}</span>
+                  </div>
+                  <div className="mt-0.5 text-xs text-[var(--app-muted)]">{guidance.action.nextAction}</div>
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <Link href={`/sales/leads/${lead.id}`} className="rounded-[7px] border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-50">
+                    Open
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => void handleMarkNotInterested(lead)}
+                    disabled={rowActionId === lead.id}
+                    className="rounded-[7px] border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-60"
+                  >
+                    Not Interested
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {backfillResult ? (
         <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] px-4 py-3 text-sm text-[var(--app-ink)]">
@@ -392,6 +467,14 @@ function SalesLeadsIndexContent() {
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
                     <Link href={`/sales/leads/${lead.id}`} className="crm-button">Open Lead</Link>
+                    <button
+                      type="button"
+                      onClick={() => void handleMarkNotInterested(lead)}
+                      disabled={rowActionId === lead.id}
+                      className="rounded-[8px] border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-60"
+                    >
+                      ✕ Not Interested
+                    </button>
                     {canManageLeadLifecycle ? (
                       <button
                         type="button"
@@ -399,7 +482,7 @@ function SalesLeadsIndexContent() {
                         disabled={rowActionId === lead.id}
                         className="rounded-[8px] border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
                       >
-                        {rowActionId === lead.id ? 'Deleting...' : 'Delete'}
+                        {rowActionId === lead.id ? '...' : 'Delete'}
                       </button>
                     ) : null}
                   </div>
@@ -431,6 +514,9 @@ function SalesLeadsIndexContent() {
                         <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${stageClasses(lead.stage)}`}>
                           {guidance.stageLabel}
                         </span>
+                        {guidance.action.priority >= 80 && (
+                          <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">⚡ Urgent</span>
+                        )}
                       </div>
                       <div className="mt-0.5 text-xs text-[var(--app-muted)]">
                         {guidance.branchLabel} · Owner {guidance.ownerLabel}
@@ -455,6 +541,15 @@ function SalesLeadsIndexContent() {
                       <Link href={`/sales/leads/${lead.id}`} className="rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2 text-xs font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
                         Open
                       </Link>
+                      <button
+                        type="button"
+                        onClick={() => void handleMarkNotInterested(lead)}
+                        disabled={rowActionId === lead.id}
+                        title="Mark as not interested — removes from active pipeline"
+                        className="rounded-[8px] border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-60"
+                      >
+                        ✕ Not Interested
+                      </button>
                       {canManageLeadLifecycle ? (
                         <button
                           type="button"
@@ -462,7 +557,7 @@ function SalesLeadsIndexContent() {
                           disabled={rowActionId === lead.id}
                           className="rounded-[8px] border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
                         >
-                          {rowActionId === lead.id ? 'Deleting...' : 'Delete'}
+                          {rowActionId === lead.id ? '...' : 'Delete'}
                         </button>
                       ) : null}
                     </div>
