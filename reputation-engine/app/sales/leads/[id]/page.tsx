@@ -1358,8 +1358,12 @@ export default function SalesLeadDetailPage() {
       return false
     }
 
+    // Skip the confirm dialog when coming from a dedicated modal (e.g. lost modal already
+    // got explicit confirmation from the rep — a second window.confirm is confusing and
+    // causes reps to cancel the save accidentally).
     if (
       stageChanged &&
+      !options?.skipLostCheck &&
       !window.confirm(`Save this lead and move it from ${prevStage.replace(/_/g, ' ')} to ${targetStage.replace(/_/g, ' ')}?`)
     ) {
       setStage(prevStage)
@@ -4222,6 +4226,7 @@ export default function SalesLeadDetailPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-[16px] border border-[var(--app-line)] bg-white p-6 shadow-2xl">
             <h2 className="font-display text-lg font-semibold text-[var(--app-ink)]">Why was this lead lost?</h2>
+            <p className="mt-1 text-xs text-[var(--app-muted)]">Select a reason below — the lead won&apos;t be moved until you click &quot;Mark as Lost&quot;.</p>
             <p className="mt-1 text-sm text-[var(--app-muted)]">Required before marking as lost. Helps improve your close rate over time.</p>
             <div className="mt-4 grid grid-cols-2 gap-2">
               {LOST_REASONS.map(reason => (

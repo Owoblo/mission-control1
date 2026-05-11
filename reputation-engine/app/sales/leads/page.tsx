@@ -195,7 +195,12 @@ function SalesLeadsIndexContent() {
       })
       setLeads(current => current.filter(item => item.id !== lead.id))
     } catch (err) {
-      setError((err as Error).message)
+      const msg = (err as Error).message || ''
+      if (msg.includes('only edit') || msg.includes('403')) {
+        setError(`Can't mark "${lead.name}" as lost — this lead is assigned to another rep. Ask your manager to update it.`)
+      } else {
+        setError(msg || 'Failed to update lead.')
+      }
     } finally {
       setRowActionId(null)
     }
@@ -203,6 +208,17 @@ function SalesLeadsIndexContent() {
 
   useEffect(() => {
     void refresh()
+  }, [])
+
+  // Re-fetch when the user returns to this page after editing a lead elsewhere.
+  // Next.js keeps this component mounted during client-side nav, so the initial
+  // useEffect only fires once per session — visibilitychange catches the "back" case.
+  useEffect(() => {
+    function handleVisible() {
+      if (!document.hidden) void refresh()
+    }
+    document.addEventListener('visibilitychange', handleVisible)
+    return () => document.removeEventListener('visibilitychange', handleVisible)
   }, [])
 
   useEffect(() => {
