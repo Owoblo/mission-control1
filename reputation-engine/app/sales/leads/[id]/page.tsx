@@ -1259,9 +1259,11 @@ export default function SalesLeadDetailPage() {
       roomBreakdown: buildRoomBreakdown(inventoryMetrics.inventory),
       jobFactors: Object.keys(jobFactors).length > 0 ? jobFactors : undefined,
       contextFlag: contextFlag || undefined,
-      assignedRep,
-      assignedRepName: assignedRep,
-      assignedRepUserId,
+      // Only include assignment fields when they carry a real value.
+      // Sending empty strings for unassigned leads triggers the reassign
+      // permission check and blocks saves for sales reps.
+      ...(assignedRep ? { assignedRep, assignedRepName: assignedRep } : {}),
+      ...(assignedRepUserId ? { assignedRepUserId } : {}),
       estimateDate: estimateDate || undefined,
       estimateTime: estimateTime || undefined,
       lostReason: lostReason || undefined,
