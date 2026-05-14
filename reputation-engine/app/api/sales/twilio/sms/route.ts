@@ -7,8 +7,10 @@ import {
 import { pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
 import { appendSmsToInboundLead, getInboundLeadByPhone, saveInboundLead } from '@/lib/server/sales-repository'
 import { getAppBaseUrl, getWorkerSharedSecret, readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
+import { twilioAuth } from '@/lib/server/twilio-recordings'
 import { logEvent } from '@/lib/server/analytics'
 import { sendRepAlertEmail, smsNotificationEmail } from '@/lib/server/internal-notifications'
+import { persistInboundMmsToLead } from '@/lib/server/lead-media'
 
 async function verifyTwilioSignature(request: Request, rawBody: string): Promise<boolean> {
   const authToken = readEnv('TWILIO_AUTH_TOKEN')
@@ -31,6 +33,83 @@ async function verifyTwilioSignature(request: Request, rawBody: string): Promise
   const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(valueString))
   const expected = btoa(Array.from(new Uint8Array(sig)).map(b => String.fromCharCode(b)).join(''))
   return signature === expected
+}
+
+type TwilioMessageLookup = {
+  sid?: string
+  from?: string
+  to?: string
+  body?: string
+  direction?: string
+  account_sid?: string
+}
+
+function stripTwilioChannelPrefix(value: string) {
+  return value.replace(/^whatsapp:/i, '').trim()
+}
+
+function normalizeTwilioBody(value: string | null) {
+  return (value || '').replace(/\r\n/g, '\n').trim()
+}
+
+function extractTwilioMedia(formData: URLSearchParams) {
+  const count = Number(formData.get('NumMedia') || 0) || 0
+  const media: Array<{ url: string; contentType?: string }> = []
+
+  for (let index = 0; index < count; index += 1) {
+    const url = (formData.get(`MediaUrl${index}`) || '').trim()
+    const contentType = (formData.get(`MediaContentType${index}`) || '').trim()
+    if (!url) continue
+    media.push({ url, ...(contentType ? { contentType } : {}) })
+  }
+
+  return media
+}
+
+async function fetchTwilioMessageBySid(messageSid: string) {
+  const accountSid = readEnv('TWILIO_ACCOUNT_SID')
+  const authToken = readEnv('TWILIO_AUTH_TOKEN')
+  if (!accountSid) return null
+
+  try {
+    const response = await fetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages/${encodeURIComponent(messageSid)}.json`,
+      {
+        headers: {
+          Authorization: twilioAuth(accountSid, authToken),
+        },
+        cache: 'no-store',
+        signal: AbortSignal.timeout(15_000),
+      }
+    )
+    if (!response.ok) return null
+    return response.json() as Promise<TwilioMessageLookup>
+  } catch {
+    return null
+  }
+}
+
+async function verifyTwilioMessageSidFallback(formData: URLSearchParams): Promise<boolean> {
+  const accountSid = readEnv('TWILIO_ACCOUNT_SID')
+  const inboundAccountSid = (formData.get('AccountSid') ?? '').trim()
+  const messageSid = (formData.get('MessageSid') ?? formData.get('SmsSid') ?? '').trim()
+  const from = stripTwilioChannelPrefix((formData.get('From') ?? '').trim())
+  const to = stripTwilioChannelPrefix((formData.get('To') ?? '').trim())
+  const body = normalizeTwilioBody(formData.get('Body'))
+
+  if (!accountSid || !messageSid || !from || !to) return false
+  if (inboundAccountSid && inboundAccountSid !== accountSid) return false
+
+  const twilioMessage = await fetchTwilioMessageBySid(messageSid)
+  if (!twilioMessage?.sid || twilioMessage.sid !== messageSid) return false
+  if (twilioMessage.account_sid && twilioMessage.account_sid !== accountSid) return false
+  if (!twilioMessage.direction?.startsWith('inbound')) return false
+
+  return (
+    stripTwilioChannelPrefix(twilioMessage.from || '') === from &&
+    stripTwilioChannelPrefix(twilioMessage.to || '') === to &&
+    normalizeTwilioBody(twilioMessage.body ?? '') === body
+  )
 }
 
 function triggerIntelligence(leadId: string) {
@@ -65,6 +144,17 @@ function toE164(phone: string) {
 async function writeSmsMessage(from: string, toNumber: string, body: string, messageSid: string, leadId?: string) {
   try {
     const { url, headers } = requireSupabaseEnv()
+    if (messageSid) {
+      const existingResponse = await fetch(
+        `${url}/rest/v1/sms_messages?select=id&twilio_sid=eq.${encodeURIComponent(messageSid)}&limit=1`,
+        { headers, cache: 'no-store' }
+      )
+      if (existingResponse.ok) {
+        const existing = (await existingResponse.json()) as Array<{ id: string }>
+        if (existing.length > 0) return
+      }
+    }
+
     await fetch(`${url}/rest/v1/sms_messages`, {
       method: 'POST',
       headers: { ...headers, Prefer: 'return=minimal' },
@@ -88,24 +178,34 @@ async function writeSmsMessage(from: string, toNumber: string, body: string, mes
 export async function POST(request: Request) {
   try {
     const rawBody = await request.text()
-    const valid = await verifyTwilioSignature(request, rawBody)
-    if (!valid) {
+    const formData = new URLSearchParams(rawBody)
+    const internalSecret = request.headers.get('x-internal-secret')
+    const isHealthCheck = request.headers.get('x-health-check') === '1' && internalSecret === getWorkerSharedSecret()
+    const signatureValid = isHealthCheck ? false : await verifyTwilioSignature(request, rawBody)
+    const sidFallbackValid = isHealthCheck || signatureValid ? false : await verifyTwilioMessageSidFallback(formData)
+    if (!isHealthCheck && !signatureValid && !sidFallbackValid) {
       return new Response('Forbidden', { status: 403 })
     }
 
-    const formData = new URLSearchParams(rawBody)
     const rawFrom = (formData.get('From') ?? '').trim()
     const rawTo = (formData.get('To') ?? '').trim() || MY_NUMBER
     const body = (formData.get('Body') ?? '').trim()
-    const messageSid = (formData.get('MessageSid') ?? '').trim()
+    const messageSid = (formData.get('MessageSid') ?? formData.get('SmsSid') ?? '').trim()
     const receivedAt = new Date().toISOString()
+    const media = extractTwilioMedia(formData)
+    const messageText = body || (media.length > 0 ? `Inbound MMS (${media.length} attachment${media.length === 1 ? '' : 's'})` : '(no body)')
 
     // Strip WhatsApp prefix for phone matching — channel is detected from SID (WA=WhatsApp, SM=SMS)
-    const from = rawFrom.replace(/^whatsapp:/i, '')
-    const toField = rawTo.replace(/^whatsapp:/i, '') || MY_NUMBER
+    const from = stripTwilioChannelPrefix(rawFrom)
+    const toField = stripTwilioChannelPrefix(rawTo) || MY_NUMBER
+    const normalized = from ? toE164(from) : ''
+
+    if (isHealthCheck) {
+      await writeSmsMessage(normalized || from || '+15550001111', toField, messageText, messageSid || `HC_SMS_${Date.now()}`)
+      return Response.json({ ok: true, healthCheck: true, twilioSid: messageSid || null })
+    }
 
     if (from) {
-      const normalized = toE164(from)
       const partnership = await pausePartnershipSequenceForInbound({
         channel: 'sms',
         phone: normalized || from,
@@ -128,7 +228,7 @@ export async function POST(request: Request) {
         const inboundLeadId = existing?.id || crypto.randomUUID()
 
         if (existing) {
-          await appendSmsToInboundLead(inboundLeadId, body || '(no body)', messageSid)
+          await appendSmsToInboundLead(inboundLeadId, messageText, messageSid, media)
         } else {
           const trackingLabel = getSaturnTrackingLabel(toField)
           const trackingSource = getSaturnTrackingSource(toField)
@@ -136,15 +236,23 @@ export async function POST(request: Request) {
             id: inboundLeadId,
             source: 'twilio_sms',
             phone: normalized || from,
-            message: body || 'Inbound SMS (no body)',
+            message: messageText,
             raw_data: {
               messageSid,
               from,
               to: toField,
               body,
+              numMedia: media.length,
+              media: media.length > 0 ? media : undefined,
               trackingLabel: trackingLabel || undefined,
               trackingSource: trackingSource || undefined,
-              smsThread: [{ direction: 'inbound', body: body || '(no body)', messageSid, at: receivedAt }],
+              smsThread: [{
+                direction: 'inbound',
+                body: messageText,
+                messageSid,
+                at: receivedAt,
+                ...(media.length > 0 ? { media } : {}),
+              }],
             },
           })
         }
@@ -154,26 +262,34 @@ export async function POST(request: Request) {
           source: 'twilio_sms',
           channel: 'sms',
           phone: normalized || from,
-          message: body || '(no body)',
+          message: messageText,
           receivedAt,
-          raw: { messageSid, from, body },
+          raw: { messageSid, from, to: toField, body, numMedia: media.length, media },
         }).catch(() => null)
 
         const resolvedLeadId = automation?.lead?.id
-        void writeSmsMessage(normalized || from, toField, body || '(no body)', messageSid, resolvedLeadId)
+        if (resolvedLeadId && media.length > 0 && automation?.lead) {
+          void persistInboundMmsToLead({
+            lead: automation.lead,
+            media,
+            messageSid,
+          }).catch(() => {})
+        }
+        void writeSmsMessage(normalized || from, toField, messageText, messageSid, resolvedLeadId)
         if (resolvedLeadId) triggerIntelligence(resolvedLeadId)
         void sendRepAlertEmail(
           `New SMS from ${from}`,
-          smsNotificationEmail(from, body || '(no body)', resolvedLeadId)
+          smsNotificationEmail(from, messageText, resolvedLeadId)
         )
       }
     }
     void logEvent('sms_received', {
-      actorName: 'Customer',
+        actorName: 'Customer',
       properties: {
         channel: 'sms',
         message_direction: 'inbound',
-        message_length: body?.length || 0,
+        message_length: messageText.length,
+        media_count: media.length,
       },
     })
   } catch {
@@ -186,4 +302,3 @@ export async function POST(request: Request) {
     { headers: { 'Content-Type': 'text/xml' } }
   )
 }
-

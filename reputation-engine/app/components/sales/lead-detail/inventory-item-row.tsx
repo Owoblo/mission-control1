@@ -116,6 +116,20 @@ export function InventoryItemRow({ item, index, onUpdate, onToggle, onRemove }: 
 
         {/* Action icons */}
         <div className="flex items-center gap-1 shrink-0">
+          {/* Include/Exclude toggle — always visible in compact row */}
+          {!editing && (
+            <button
+              onClick={() => onToggle(index)}
+              title={excluded ? 'Include in move' : 'Exclude from move'}
+              className={`rounded px-2 py-0.5 text-[10px] font-semibold border transition-colors ${
+                excluded
+                  ? 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
+                  : 'text-stone-400 bg-stone-50 border-stone-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200'
+              }`}
+            >
+              {excluded ? 'Include' : 'Exclude'}
+            </button>
+          )}
           <button
             onClick={() => setEditing(e => !e)}
             title={editing ? 'Done' : 'Edit'}

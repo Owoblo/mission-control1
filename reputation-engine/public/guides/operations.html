@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Operations Guide — Saturn Star Moving</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; color: #1a2744; background: #fff; font-size: 14px; line-height: 1.6; }
+  .page { max-width: 800px; margin: 0 auto; padding: 48px 40px; }
+  .header { display: flex; align-items: center; gap: 16px; padding-bottom: 24px; border-bottom: 3px solid #1a2744; margin-bottom: 32px; }
+  .logo { width: 64px; height: 64px; border-radius: 10px; object-fit: cover; }
+  .header-text h1 { font-size: 22px; font-weight: 800; }
+  .header-text p { font-size: 13px; color: #6b7280; margin-top: 2px; }
+  .role-badge { background: #0891b2; color: #fff; font-weight: 700; font-size: 11px; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.08em; }
+  h2 { font-size: 16px; font-weight: 700; color: #1a2744; margin: 28px 0 12px; padding-bottom: 6px; border-bottom: 2px solid #f0f2f5; }
+  p { margin-bottom: 8px; color: #374151; }
+  ul, ol { padding-left: 20px; margin-bottom: 12px; }
+  li { margin-bottom: 5px; color: #374151; }
+  .step { display: flex; gap: 12px; margin-bottom: 12px; align-items: flex-start; }
+  .step-num { background: #0891b2; color: #fff; font-weight: 700; font-size: 12px; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+  .step-body strong { display: block; font-size: 13px; color: #1a2744; }
+  .step-body span { font-size: 12px; color: #6b7280; }
+  .tip { background: #ecfeff; border-left: 3px solid #0891b2; padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 12px 0; font-size: 13px; }
+  .filter-tag { display: inline-block; background: #f0f2f5; border: 1px solid #e5e7eb; border-radius: 6px; padding: 3px 10px; font-size: 12px; font-weight: 600; margin: 3px; color: #374151; }
+  .status-ok { color: #16a34a; font-weight: 600; }
+  .status-warn { color: #d97706; font-weight: 600; }
+  .status-bad { color: #dc2626; font-weight: 600; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 12px 0; }
+  .card { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px; }
+  .card h4 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #1a2744; margin-bottom: 8px; }
+  .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 11px; color: #9ca3af; }
+  @media print { body { font-size: 13px; } .page { padding: 32px 28px; } h2 { page-break-after: avoid; } .step { page-break-inside: avoid; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <img src="/saturn-star-logo.png" alt="Saturn Star" class="logo">
+    <div class="header-text">
+      <h1>Operations Guide</h1>
+      <p>Job Management · Saturn Star OS</p>
+    </div>
+    <div class="role-badge">Operations</div>
+  </div>
+
+  <h2>🌅 Daily Routine — Start Here</h2>
+  <div class="step"><div class="step-num">1</div><div class="step-body"><strong>Open Operations Dashboard</strong><span>Go to <b>/sales/operations</b>. This shows every booked job sorted by move date. Focus on jobs in the next 7 days.</span></div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-body"><strong>Check the smart filters</strong><span>Use the filter bar to quickly find jobs that need attention: <span class="filter-tag">No Crew</span> <span class="filter-tag">No Truck</span> <span class="filter-tag">Deposit Unpaid</span> <span class="filter-tag">Tomorrow's Jobs</span> <span class="filter-tag">High-Risk</span></span></div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-body"><strong>Review the dispatch brief</strong><span>Click any job to open the lead. The Dispatch Brief shows crew plan, inventory, access notes, customer concerns, and items NOT moving. Read this before assigning anyone.</span></div></div>
+
+  <h2>🚛 Before Each Move — Pre-Move Checklist</h2>
+  <div class="two-col">
+    <div class="card">
+      <h4>48 Hours Before</h4>
+      <ul>
+        <li>Crew assigned and confirmed?</li>
+        <li>U-Haul / truck reserved? (Log reservation # in CRM)</li>
+        <li>Deposit received?</li>
+        <li>Customer confirmed via SMS?</li>
+        <li>Packing materials ordered?</li>
+        <li>Any access issues flagged? (elevator booking, condo rules)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>Day Before</h4>
+      <ul>
+        <li>Text crew lead: job details + start time</li>
+        <li>Confirm truck pickup time</li>
+        <li>Share dispatch brief with crew lead</li>
+        <li>Review any "Do Not Move" items</li>
+        <li>Check for high-value / fragile items needing special handling</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>📋 Reading a Dispatch Brief</h2>
+  <p>Every booked job has an auto-generated dispatch brief. It includes:</p>
+  <ul>
+    <li><strong>Customer:</strong> Name, phone, move date, route</li>
+    <li><strong>Crew Plan:</strong> Number of movers, trucks, estimated hours</li>
+    <li><strong>Inventory:</strong> What is going (by room)</li>
+    <li><strong>Do Not Move:</strong> Items the customer confirmed are staying — do not load these</li>
+    <li><strong>Access Notes:</strong> Parking, elevator, stairs, long carry</li>
+    <li><strong>Special Handling:</strong> Fragile items, piano, appliances</li>
+    <li><strong>Customer Notes:</strong> Concerns, things mentioned on the call</li>
+  </ul>
+  <div class="tip">The dispatch brief is built from the actual sales conversation. If something seems off or missing, check with the sales rep who handled the lead before the day of the move.</div>
+
+  <h2>🔑 Truck Reservation (U-Haul)</h2>
+  <div class="step"><div class="step-num">1</div><div class="step-body"><strong>Book the truck</strong><span>Log into the company U-Haul account. Book based on the job's estimated truck count in the dispatch brief.</span></div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-body"><strong>Log the reservation in CRM</strong><span>Open the job lead → Operations tab → enter the reservation number, truck size, and pickup time. This goes into the dispatch brief automatically.</span></div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-body"><strong>The crew lead will see it</strong><span>The reservation number appears in the dispatch brief the crew lead receives. They show their license — it charges to the company card.</span></div></div>
+
+  <h2>👥 Crew Assignment</h2>
+  <ul>
+    <li>Assign crew from the Operations job page → click the job → Crew section</li>
+    <li>Crew lead gets an SMS notification with job details when assigned</li>
+    <li>Movers see their job on the Crew Calendar at <b>/crew/calendar</b></li>
+    <li>If a crew member cancels, update the job and re-assign immediately</li>
+  </ul>
+
+  <h2>⚠️ Risk Flags — Handle These Immediately</h2>
+  <p>The <span class="filter-tag">High-Risk</span> filter surfaces jobs with:</p>
+  <ul>
+    <li class="status-bad">Deposit not received — do not dispatch crew until paid</li>
+    <li class="status-warn">No crew assigned — must be filled 24+ hours before</li>
+    <li class="status-warn">No truck booked — must be reserved 48+ hours before</li>
+    <li class="status-warn">Tomorrow's job — double-check everything tonight</li>
+  </ul>
+
+  <h2>📱 Pre-Move Reminder System</h2>
+  <p>The system automatically sends the customer an SMS 7 days before their move date. It also creates a task in the CRM: <em>"Call to confirm — go over inventory, binding terms, and access details."</em> This call is your job to make, not the sales rep's.</p>
+
+  <h2>After the Move</h2>
+  <ul>
+    <li>Mark job as <b>Completed</b> in the Operations dashboard</li>
+    <li>Log actual hours and crew (for payout calculations)</li>
+    <li>Flag any damage claims or incidents immediately</li>
+    <li>The review request triggers automatically after completion</li>
+  </ul>
+
+  <div class="footer">Saturn Star Moving Company · Saturn Star OS — Internal Platform · Confidential</div>
+</div>
+</body>
+</html>

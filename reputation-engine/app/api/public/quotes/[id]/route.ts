@@ -11,8 +11,65 @@ import {
   saveSalesLead,
   saveSalesQuote,
 } from '@/lib/server/sales-repository'
-import { uid } from '@/lib/sales'
+import { uid, formatMoney } from '@/lib/sales'
 import { saveJobRecord } from '@/lib/server/repository'
+import { readEnv, getAppBaseUrl } from '@/lib/server/runtime'
+import type { CRMLead, CRMQuote } from '@/lib/types'
+
+async function sendQuoteNotification(event: 'viewed' | 'viewed_again' | 'accepted' | 'declined', quote: CRMQuote, lead: CRMLead | null) {
+  const resendKey = readEnv('RESEND_API_KEY')
+  if (!resendKey) return
+
+  const customerName = lead?.name || 'Customer'
+  const quoteNumber = quote.number || quote.id
+  const total = quote.total ? formatMoney(quote.total) : 'N/A'
+  const moveDate = quote.moveDate || 'TBD'
+  const crmUrl = lead?.id ? `${getAppBaseUrl()}/sales/leads/${lead.id}` : null
+
+  const subjects: Record<typeof event, string> = {
+    viewed:       `👁 ${customerName} just viewed quote ${quoteNumber}`,
+    viewed_again: `👁 ${customerName} viewed quote ${quoteNumber} again`,
+    accepted:     `✅ ${customerName} ACCEPTED quote ${quoteNumber} — ${total}`,
+    declined:     `❌ ${customerName} declined quote ${quoteNumber}`,
+  }
+
+  const intros: Record<typeof event, string> = {
+    viewed:       `<b>${customerName}</b> opened their quote for the first time.`,
+    viewed_again: `<b>${customerName}</b> viewed their quote again — they may be deciding.`,
+    accepted:     `<b>${customerName}</b> accepted the quote and the move is now booked.`,
+    declined:     `<b>${customerName}</b> declined the quote.`,
+  }
+
+  const html = `
+    <div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#1a2744">
+      <div style="background:#1a2744;padding:20px 24px;border-radius:10px 10px 0 0">
+        <span style="color:#f5a623;font-weight:700;font-size:16px">Saturn Star Moving</span>
+      </div>
+      <div style="background:#f8f9fb;padding:24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px">
+        <p style="margin:0 0 16px;font-size:15px">${intros[event]}</p>
+        <table style="width:100%;border-collapse:collapse;font-size:14px">
+          <tr><td style="padding:6px 0;color:#6b7280">Quote</td><td style="padding:6px 0;font-weight:600">${quoteNumber}</td></tr>
+          <tr><td style="padding:6px 0;color:#6b7280">Total</td><td style="padding:6px 0;font-weight:600">${total}</td></tr>
+          <tr><td style="padding:6px 0;color:#6b7280">Move date</td><td style="padding:6px 0;font-weight:600">${moveDate}</td></tr>
+          ${lead?.phone ? `<tr><td style="padding:6px 0;color:#6b7280">Phone</td><td style="padding:6px 0">${lead.phone}</td></tr>` : ''}
+          ${lead?.email ? `<tr><td style="padding:6px 0;color:#6b7280">Email</td><td style="padding:6px 0">${lead.email}</td></tr>` : ''}
+        </table>
+        ${crmUrl ? `<div style="margin-top:20px"><a href="${crmUrl}" style="background:#1a2744;color:white;padding:10px 20px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600">Open in CRM →</a></div>` : ''}
+      </div>
+    </div>`
+
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: 'Saturn Star OS <business@starmovers.ca>',
+      to: ['business@starmovers.ca'],
+      subject: subjects[event],
+      html,
+    }),
+    signal: AbortSignal.timeout(8000),
+  }).catch(() => {})
+}
 
 function isTokenValid(token: string | null, expected?: string) {
   return !!token && !!expected && token === expected
@@ -64,6 +121,10 @@ export async function GET(request: Request, { params }: { params: { id: string }
         void scheduleQuoteExpiryFollowup(quote.leadId, quote.id)
         queueLeadIntelligenceRefresh(quote.leadId, new URL(request.url).origin)
       }
+
+      // Notify team — first view vs repeat view
+      const isRepeatView = !!currentQuote.viewedAt
+      void sendQuoteNotification(isRepeatView ? 'viewed_again' : 'viewed', quote, lead)
     }
 
     void logEvent('quote_viewed', {
@@ -209,6 +270,9 @@ export async function POST(request: Request, { params }: { params: { id: string 
         // Non-fatal: job record creation failure should not block the accept response
       }
     }
+
+    // Notify team on accept or decline
+    void sendQuoteNotification(action === 'accept' ? 'accepted' : 'declined', nextQuote, savedLead)
 
     void logEvent(action === 'accept' ? 'quote_accepted' : 'quote_declined', {
       leadId: nextQuote.leadId,

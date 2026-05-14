@@ -1,0 +1,1846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pricing Engine — Saturn Star Moving</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:        #1a2744;
+      --navy-light:  #243358;
+      --navy-dark:   #111b33;
+      --navy-mid:    #1e2f52;
+      --gold:        #f5a623;
+      --gold-light:  #f7b84b;
+      --gold-dim:    rgba(245,166,35,.15);
+      --bg:          #f0f2f5;
+      --text:        #1a2744;
+      --text-muted:  #6b7280;
+      --success:     #10b981;
+      --danger:      #ef4444;
+      --warning:     #f59e0b;
+      --info:        #3b82f6;
+      --purple:      #8b5cf6;
+      --card-bg:     #ffffff;
+      --border:      #e5e7eb;
+      --radius:      12px;
+      --shadow:      0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.06);
+      --shadow-lg:   0 4px 6px rgba(0,0,0,.07), 0 10px 30px rgba(0,0,0,.10);
+      --sidebar-w:   240px;
+    }
+
+    html, body { height: 100%; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+      overflow: hidden;
+    }
+
+    /* ── APP SHELL ─────────────────────────────────────────────── */
+    #app { display: flex; flex-direction: column; height: 100vh; }
+
+    /* ── TOPBAR ─────────────────────────────────────────────────── */
+    #topbar {
+      background: linear-gradient(90deg, var(--navy-dark) 0%, var(--navy-mid) 100%);
+      color: #fff;
+      padding: 0 24px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      z-index: 200;
+      box-shadow: 0 2px 16px rgba(0,0,0,.35);
+      border-bottom: 1px solid rgba(255,255,255,.05);
+    }
+    .topbar-left { display: flex; align-items: center; gap: 14px; }
+    .back-btn {
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.14);
+      color: #94a3b8;
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 16px;
+      text-decoration: none;
+      transition: background .15s, color .15s;
+      flex-shrink: 0;
+    }
+    .back-btn:hover { background: rgba(255,255,255,.16); color: #fff; }
+    .topbar-logo-wrap { display: flex; flex-direction: column; }
+    .topbar-logo { font-size: 19px; font-weight: 800; color: var(--gold); letter-spacing: -.4px; line-height: 1.1; }
+    .topbar-sub  { font-size: 10px; color: #9ca3af; font-weight: 500; letter-spacing: 1.2px; text-transform: uppercase; }
+    .topbar-badge {
+      background: var(--gold-dim);
+      border: 1px solid rgba(245,166,35,.35);
+      color: var(--gold);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 20px;
+    }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+    #save-indicator {
+      font-size: 12px;
+      color: #6b7280;
+      display: flex; align-items: center; gap: 5px;
+      transition: color .3s;
+      min-width: 120px;
+      text-align: right;
+      justify-content: flex-end;
+    }
+    #save-indicator.saved { color: var(--success); }
+    #save-indicator.saving { color: var(--gold); }
+    .save-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: currentColor;
+      flex-shrink: 0;
+    }
+    .btn-top {
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.14);
+      color: #e2e8f0;
+      padding: 7px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      display: flex; align-items: center; gap: 6px;
+      white-space: nowrap;
+      transition: background .15s, border-color .15s;
+    }
+    .btn-top:hover { background: rgba(255,255,255,.16); border-color: rgba(255,255,255,.25); }
+    .btn-top.danger:hover { background: rgba(239,68,68,.25); border-color: rgba(239,68,68,.4); color: #fca5a5; }
+    .btn-top.gold { background: var(--gold); border-color: var(--gold); color: var(--navy-dark); font-weight: 700; }
+    .btn-top.gold:hover { background: var(--gold-light); }
+
+    /* ── BODY LAYOUT ────────────────────────────────────────────── */
+    #body-wrap { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── SIDEBAR ────────────────────────────────────────────────── */
+    #sidebar {
+      width: var(--sidebar-w);
+      background: var(--navy);
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      border-right: 1px solid rgba(255,255,255,.06);
+    }
+    #sidebar::-webkit-scrollbar { width: 0; }
+    .sidebar-section { padding: 20px 14px 8px; }
+    .sidebar-label {
+      font-size: 9px;
+      font-weight: 700;
+      color: #4b5563;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      padding: 0 6px;
+      margin-bottom: 6px;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 10px;
+      border-radius: 8px;
+      color: #94a3b8;
+      cursor: pointer;
+      transition: background .15s, color .15s;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 2px;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      font-family: inherit;
+    }
+    .nav-item:hover { background: rgba(255,255,255,.07); color: #cbd5e1; }
+    .nav-item.active { background: rgba(245,166,35,.12); color: var(--gold); font-weight: 600; }
+    .nav-item.active .nav-icon { opacity: 1; }
+    .nav-icon { font-size: 15px; flex-shrink: 0; opacity: .7; }
+    .nav-badge {
+      margin-left: auto;
+      background: var(--gold-dim);
+      color: var(--gold);
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 10px;
+      border: 1px solid rgba(245,166,35,.25);
+    }
+    .sidebar-info {
+      margin-top: auto;
+      padding: 16px 14px;
+      border-top: 1px solid rgba(255,255,255,.06);
+    }
+    .sidebar-info-text { font-size: 11px; color: #4b5563; line-height: 1.5; }
+    .sidebar-info-text strong { color: #6b7280; }
+
+    /* ── CONTENT AREA ───────────────────────────────────────────── */
+    #content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    #content::-webkit-scrollbar { width: 6px; }
+    #content::-webkit-scrollbar-track { background: transparent; }
+    #content::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+
+    /* ── VIEW PANELS ────────────────────────────────────────────── */
+    .view { display: none; flex-direction: column; gap: 20px; }
+    .view.active { display: flex; }
+
+    /* ── PAGE HEADER ────────────────────────────────────────────── */
+    .page-header {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .page-title { font-size: 22px; font-weight: 800; color: var(--navy); letter-spacing: -.4px; }
+    .page-sub { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+    .page-actions { display: flex; gap: 8px; align-items: center; }
+
+    /* ── CARD ───────────────────────────────────────────────────── */
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 14px 20px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    }
+    .card-title { font-size: 13px; font-weight: 700; color: var(--navy); }
+    .card-subtitle { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .card-body { padding: 20px; }
+    .card-body.no-pad { padding: 0; }
+    .card-footer {
+      padding: 12px 20px;
+      border-top: 1px solid var(--border);
+      background: #fafafa;
+      display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    }
+
+    /* ── TABLE ──────────────────────────────────────────────────── */
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th {
+      font-size: 10px; font-weight: 700; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: .6px;
+      padding: 10px 16px; text-align: left;
+      background: #f9fafb; border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .data-table th:first-child { border-radius: 0; }
+    .data-table td {
+      padding: 11px 16px;
+      border-bottom: 1px solid #f3f4f6;
+      vertical-align: middle;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: #fafafa; }
+    .size-label { font-weight: 600; color: var(--navy); font-size: 13px; }
+    .size-meta { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+
+    /* ── INLINE INPUTS ──────────────────────────────────────────── */
+    .rate-input {
+      width: 90px;
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      font-size: 13px;
+      font-family: inherit;
+      font-weight: 600;
+      color: var(--navy);
+      background: #f9fafb;
+      transition: border-color .15s, background .15s, box-shadow .15s;
+      text-align: right;
+    }
+    .rate-input:focus {
+      outline: none;
+      border-color: var(--gold);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(245,166,35,.12);
+    }
+    .rate-input.changed {
+      border-color: var(--success);
+      background: rgba(16,185,129,.04);
+    }
+    .input-prefix { color: var(--text-muted); font-size: 12px; margin-right: 2px; }
+
+    /* ── SETTINGS ROW ───────────────────────────────────────────── */
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    .setting-item { display: flex; flex-direction: column; gap: 5px; }
+    .setting-label {
+      font-size: 11px; font-weight: 600; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: .5px;
+    }
+    .setting-input-wrap { display: flex; align-items: center; gap: 6px; }
+    .setting-input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      font-weight: 600;
+      color: var(--navy);
+      background: #f9fafb;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .setting-input:focus {
+      outline: none;
+      border-color: var(--gold);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(245,166,35,.12);
+    }
+    .setting-unit { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+
+    /* ── QUICK STATS ────────────────────────────────────────────── */
+    .stat-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+    .stat-item {
+      background: #f9fafb;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+    .stat-val { font-size: 20px; font-weight: 800; color: var(--navy); }
+    .stat-lbl { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; margin-top: 3px; font-weight: 600; }
+    .stat-note { font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+
+    /* ── BUTTONS ────────────────────────────────────────────────── */
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+      display: inline-flex; align-items: center; gap: 6px;
+      transition: opacity .15s, transform .1s;
+      white-space: nowrap;
+    }
+    .btn:hover { opacity: .88; }
+    .btn:active { transform: scale(.97); }
+    .btn-primary { background: var(--navy); color: #fff; }
+    .btn-gold { background: var(--gold); color: var(--navy-dark); }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--navy);
+    }
+    .btn-outline:hover { background: #f3f4f6; opacity: 1; }
+    .btn-sm { padding: 5px 10px; font-size: 11px; border-radius: 6px; }
+    .btn-icon-only {
+      width: 30px; height: 30px; padding: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 7px;
+      font-size: 14px;
+    }
+
+    /* ── TOGGLE ─────────────────────────────────────────────────── */
+    .toggle {
+      position: relative;
+      width: 38px; height: 22px;
+      display: inline-block; flex-shrink: 0;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute; inset: 0;
+      background: #d1d5db;
+      border-radius: 11px;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      width: 16px; height: 16px;
+      left: 3px; top: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform .2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    }
+    .toggle input:checked + .toggle-slider { background: var(--success); }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(16px); }
+
+    /* ── ADD-ON TABLE ───────────────────────────────────────────── */
+    .addon-name-input {
+      border: none;
+      background: transparent;
+      font-size: 13px;
+      font-family: inherit;
+      font-weight: 500;
+      color: var(--navy);
+      padding: 4px 6px;
+      border-radius: 5px;
+      width: 100%;
+      transition: background .15s, border .15s;
+      border: 1px solid transparent;
+    }
+    .addon-name-input:focus {
+      outline: none;
+      background: #f9fafb;
+      border-color: var(--border);
+    }
+    .inactive-row td { opacity: .45; }
+    .inactive-row .addon-name-input { color: var(--text-muted); }
+
+    /* ── CALCULATOR ─────────────────────────────────────────────── */
+    .calc-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+    @media (max-width: 900px) { .calc-layout { grid-template-columns: 1fr; } }
+    .calc-label {
+      font-size: 11px; font-weight: 700; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: .5px;
+      margin-bottom: 6px; display: block;
+    }
+    .calc-select, .calc-date-input {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--navy);
+      background: #f9fafb;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7280'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .calc-date-input { background-image: none; }
+    .calc-select:focus, .calc-date-input:focus {
+      outline: none;
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(245,166,35,.12);
+      background-color: #fff;
+    }
+    .calc-group { margin-bottom: 16px; }
+    .calc-addons { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; padding-right: 4px; }
+    .calc-addons::-webkit-scrollbar { width: 4px; }
+    .calc-addons::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
+    .addon-check-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 10px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      cursor: pointer;
+      transition: background .12s, border-color .12s;
+      background: #f9fafb;
+    }
+    .addon-check-item:hover { background: #f3f4f6; }
+    .addon-check-item input[type=checkbox] { accent-color: var(--gold); width: 15px; height: 15px; cursor: pointer; flex-shrink: 0; }
+    .addon-check-label { flex: 1; font-size: 12px; color: var(--navy); font-weight: 500; }
+    .addon-check-price { font-size: 12px; font-weight: 700; color: var(--text-muted); }
+    .addon-check-item.checked { background: var(--gold-dim); border-color: rgba(245,166,35,.4); }
+    .addon-check-item.checked .addon-check-price { color: var(--gold); }
+    .discount-input {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--navy);
+      background: #f9fafb;
+      transition: border-color .15s;
+    }
+    .discount-input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(245,166,35,.12); background: #fff; }
+
+    /* ── QUOTE OUTPUT ───────────────────────────────────────────── */
+    .quote-output {
+      background: var(--navy-dark);
+      color: #e2e8f0;
+      border-radius: 10px;
+      padding: 22px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+    .quote-output .q-title {
+      color: var(--gold);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .quote-output .q-divider { border: none; border-top: 1px solid rgba(255,255,255,.1); margin: 8px 0; }
+    .quote-output .q-row { display: flex; justify-content: space-between; gap: 8px; }
+    .quote-output .q-row .q-label { color: #9ca3af; flex: 1; }
+    .quote-output .q-row .q-val { color: #f1f5f9; font-weight: 600; white-space: nowrap; }
+    .quote-output .q-row.surcharge .q-label { color: #fbbf24; }
+    .quote-output .q-row.surcharge .q-val { color: #fbbf24; }
+    .quote-output .q-row.discount-row .q-label { color: #86efac; }
+    .quote-output .q-row.discount-row .q-val { color: #86efac; }
+    .quote-output .q-row.total-row { margin-top: 4px; }
+    .quote-output .q-row.total-row .q-label { color: #fff; font-weight: 700; font-size: 15px; }
+    .quote-output .q-row.total-row .q-val { color: var(--gold); font-weight: 800; font-size: 15px; }
+    .quote-output .q-row.deposit-row .q-label { color: #a5b4fc; }
+    .quote-output .q-row.deposit-row .q-val { color: #a5b4fc; }
+    .quote-output .q-row.balance-row .q-label { color: #d1d5db; }
+    .quote-output .q-meta {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255,255,255,.08);
+      font-size: 11px;
+      color: #6b7280;
+    }
+    .quote-output .q-meta span { color: #9ca3af; margin-right: 16px; }
+    .quote-actions { display: flex; gap: 10px; margin-top: 14px; }
+
+    /* ── SEASONAL ───────────────────────────────────────────────── */
+    .month-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 8px;
+    }
+    .month-tile {
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 8px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+      user-select: none;
+    }
+    .month-tile .m-name { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; }
+    .month-tile .m-status { font-size: 10px; margin-top: 4px; font-weight: 600; }
+    .month-tile.normal { background: rgba(16,185,129,.06); border-color: rgba(16,185,129,.25); }
+    .month-tile.normal .m-name { color: var(--success); }
+    .month-tile.normal .m-status { color: var(--success); }
+    .month-tile.peak { background: rgba(245,166,35,.1); border-color: rgba(245,166,35,.4); }
+    .month-tile.peak .m-name { color: #d97706; }
+    .month-tile.peak .m-status { color: #d97706; }
+    .month-tile.offpeak { background: rgba(59,130,246,.07); border-color: rgba(59,130,246,.3); }
+    .month-tile.offpeak .m-name { color: var(--info); }
+    .month-tile.offpeak .m-status { color: var(--info); }
+    .month-tile:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+    .seasonal-example {
+      background: var(--navy-dark);
+      color: #e2e8f0;
+      border-radius: 8px;
+      padding: 14px 18px;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+    .seasonal-example strong { color: var(--gold); }
+
+    /* ── HISTORY ────────────────────────────────────────────────── */
+    .history-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+    .history-badge.old { background: rgba(239,68,68,.1); color: var(--danger); }
+    .history-badge.new { background: rgba(16,185,129,.1); color: var(--success); }
+    .history-time { font-size: 11px; color: var(--text-muted); }
+    .history-field { font-size: 12px; font-weight: 600; color: var(--navy); font-family: monospace; }
+    .empty-history {
+      text-align: center; padding: 48px 20px;
+      color: var(--text-muted);
+    }
+    .empty-history .ei { font-size: 36px; margin-bottom: 10px; }
+    .empty-history p { font-size: 13px; }
+
+    /* ── MODAL ──────────────────────────────────────────────────── */
+    #modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.55);
+      z-index: 500;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(3px);
+    }
+    #modal-overlay.open { display: flex; }
+    .modal {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.3);
+      width: 440px;
+      max-width: 95vw;
+      overflow: hidden;
+      animation: modal-in .18s ease-out both;
+    }
+    @keyframes modal-in {
+      from { opacity: 0; transform: translateY(12px) scale(.97); }
+      to   { opacity: 1; transform: none; }
+    }
+    .modal-header {
+      background: linear-gradient(90deg, var(--navy-dark), var(--navy-mid));
+      color: #fff;
+      padding: 16px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .modal-title { font-size: 15px; font-weight: 700; }
+    .modal-close {
+      background: rgba(255,255,255,.1); border: none; color: #fff;
+      width: 28px; height: 28px; border-radius: 6px;
+      cursor: pointer; font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s;
+    }
+    .modal-close:hover { background: rgba(255,255,255,.2); }
+    .modal-body { padding: 22px 20px; display: flex; flex-direction: column; gap: 14px; }
+    .modal-field { display: flex; flex-direction: column; gap: 5px; }
+    .modal-field label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; }
+    .modal-field input, .modal-field textarea {
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--navy);
+      background: #f9fafb;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .modal-field input:focus, .modal-field textarea:focus {
+      outline: none; border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(245,166,35,.12);
+      background: #fff;
+    }
+    .modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+
+    /* ── TOAST ──────────────────────────────────────────────────── */
+    #toast-wrap {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      z-index: 1000;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .toast {
+      background: var(--navy-dark);
+      color: #f1f5f9;
+      padding: 10px 16px;
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: 0 4px 20px rgba(0,0,0,.3);
+      display: flex; align-items: center; gap: 8px;
+      animation: toast-in .2s ease-out both;
+      border-left: 3px solid var(--success);
+      max-width: 320px;
+    }
+    .toast.danger { border-left-color: var(--danger); }
+    .toast.warning { border-left-color: var(--warning); }
+    .toast.info { border-left-color: var(--info); }
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateX(16px); }
+      to   { opacity: 1; transform: none; }
+    }
+    @keyframes toast-out {
+      to { opacity: 0; transform: translateX(20px); max-height: 0; padding: 0; margin: 0; overflow: hidden; }
+    }
+    .toast.out { animation: toast-out .25s ease-in forwards; }
+
+    /* ── MISC ───────────────────────────────────────────────────── */
+    .info-note {
+      background: rgba(59,130,246,.07);
+      border: 1px solid rgba(59,130,246,.2);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 12px;
+      color: #1e40af;
+      display: flex; gap: 8px; align-items: flex-start;
+    }
+    .info-note .ni { flex-shrink: 0; font-size: 14px; }
+    .pill {
+      display: inline-flex; align-items: center;
+      background: #f3f4f6;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 11px; font-weight: 600; color: var(--text-muted);
+    }
+    .pill.green { background: rgba(16,185,129,.1); border-color: rgba(16,185,129,.3); color: var(--success); }
+    .pill.gold { background: var(--gold-dim); border-color: rgba(245,166,35,.3); color: #d97706; }
+    .pill.blue { background: rgba(59,130,246,.08); border-color: rgba(59,130,246,.25); color: var(--info); }
+
+    @media print {
+      #topbar, #sidebar, #modal-overlay, #toast-wrap { display: none !important; }
+      body { background: #fff; overflow: auto; }
+      #body-wrap { display: block; }
+      #content { overflow: visible; padding: 0; }
+      .view { display: flex !important; }
+      .view:not(#view-rates) { display: none !important; }
+      .card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- TOPBAR -->
+  <div id="topbar">
+    <div class="topbar-left">
+      <a href="../index.html" class="back-btn" title="Back to Mission Control">&#8592;</a>
+      <div class="topbar-logo-wrap">
+        <div class="topbar-logo">Saturn Star ★</div>
+        <div class="topbar-sub">Pricing Engine</div>
+      </div>
+      <div class="topbar-badge">CEO VIEW</div>
+    </div>
+    <div class="topbar-right">
+      <div id="save-indicator">
+        <div class="save-dot"></div>
+        <span id="save-text">All changes saved</span>
+      </div>
+      <button class="btn-top" onclick="exportPDF()">🖨 Export PDF</button>
+      <button class="btn-top danger" onclick="confirmReset()">↺ Reset to Defaults</button>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div id="body-wrap">
+
+    <!-- SIDEBAR -->
+    <nav id="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-label">Rate Management</div>
+        <button class="nav-item active" onclick="switchView('rates', this)">
+          <span class="nav-icon">📊</span> Base Rate Matrix
+        </button>
+        <button class="nav-item" onclick="switchView('addons', this)">
+          <span class="nav-icon">➕</span> Add-On Pricing
+        </button>
+        <button class="nav-item" onclick="switchView('seasonal', this)">
+          <span class="nav-icon">📅</span> Seasonal Rules
+        </button>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">Tools</div>
+        <button class="nav-item" onclick="switchView('calculator', this)">
+          <span class="nav-icon">🧮</span> Quote Calculator
+        </button>
+        <button class="nav-item" onclick="switchView('history', this)">
+          <span class="nav-icon">🕐</span> Price History
+          <span class="nav-badge" id="history-count">0</span>
+        </button>
+      </div>
+      <div class="sidebar-info">
+        <div class="sidebar-info-text">
+          <strong>Last saved:</strong><br>
+          <span id="sidebar-last-saved">—</span>
+        </div>
+      </div>
+    </nav>
+
+    <!-- CONTENT -->
+    <main id="content">
+
+      <!-- ════════════════════════════════════════ RATES VIEW -->
+      <div id="view-rates" class="view active">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Base Rate Matrix</div>
+            <div class="page-sub">Click any cell to edit. Changes save automatically.</div>
+          </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="stat-strip" id="quick-stats"></div>
+
+        <!-- Rate Table -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Move Size Pricing</div>
+              <div class="card-subtitle">All prices in CAD. Editable inline — auto-saves on change.</div>
+            </div>
+            <span class="pill gold">⚡ Auto-Save ON</span>
+          </div>
+          <div class="card-body no-pad">
+            <table class="data-table" id="rates-table">
+              <thead>
+                <tr>
+                  <th>Size</th>
+                  <th>Local Rate</th>
+                  <th>Long Distance</th>
+                  <th>Min Crew</th>
+                  <th>Est. Hours</th>
+                </tr>
+              </thead>
+              <tbody id="rates-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Settings -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Rate Settings</div>
+          </div>
+          <div class="card-body">
+            <div class="settings-grid">
+              <div class="setting-item">
+                <div class="setting-label">Local Distance Threshold</div>
+                <div class="setting-input-wrap">
+                  <input type="number" class="setting-input" id="s-local-km" min="1" />
+                  <span class="setting-unit">km</span>
+                </div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Moves under this = local rate</div>
+              </div>
+              <div class="setting-item">
+                <div class="setting-label">Minimum Charge</div>
+                <div class="setting-input-wrap">
+                  <span class="setting-unit">$</span>
+                  <input type="number" class="setting-input" id="s-min-charge" min="0" />
+                </div>
+              </div>
+              <div class="setting-item">
+                <div class="setting-label">Hourly Rate</div>
+                <div class="setting-input-wrap">
+                  <span class="setting-unit">$</span>
+                  <input type="number" class="setting-input" id="s-hourly-rate" min="0" />
+                  <span class="setting-unit">/hr</span>
+                </div>
+              </div>
+              <div class="setting-item">
+                <div class="setting-label">Minimum Hours</div>
+                <div class="setting-input-wrap">
+                  <input type="number" class="setting-input" id="s-min-hours" min="1" />
+                  <span class="setting-unit">hrs</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-note">
+          <span class="ni">💡</span>
+          <span>Windsor moving companies typically charge <strong>$400–$900</strong> for a 2-bedroom local move. Your current 2-bed local rate is <strong id="ref-2bed">$599</strong>. Long-distance rates should reflect fuel, time, and overnight costs.</span>
+        </div>
+      </div>
+
+      <!-- ════════════════════════════════════════ ADD-ONS VIEW -->
+      <div id="view-addons" class="view">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Add-On Pricing</div>
+            <div class="page-sub">Manage special services, fees, and extras.</div>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-gold" onclick="openAddAddonModal()">+ Add Custom Add-On</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Add-On Services</div>
+            <div style="font-size:11px;color:var(--text-muted)">Toggle active/inactive to show or hide from the CSR call flow</div>
+          </div>
+          <div class="card-body no-pad">
+            <table class="data-table" id="addons-table">
+              <thead>
+                <tr>
+                  <th style="width:40%">Add-On Name</th>
+                  <th>Price</th>
+                  <th>Active</th>
+                  <th style="text-align:right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="addons-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Financial Settings -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Financial Settings</div>
+          </div>
+          <div class="card-body">
+            <div class="settings-grid">
+              <div class="setting-item">
+                <div class="setting-label">Deposit Required</div>
+                <div class="setting-input-wrap">
+                  <input type="number" class="setting-input" id="s-deposit-pct" min="0" max="100" />
+                  <span class="setting-unit">% at booking</span>
+                </div>
+              </div>
+              <div class="setting-item">
+                <div class="setting-label">HST Rate</div>
+                <div class="setting-input-wrap">
+                  <input type="number" class="setting-input" id="s-hst-rate" min="0" max="100" step="0.1" />
+                  <span class="setting-unit">% (Ontario)</span>
+                </div>
+              </div>
+              <div class="setting-item">
+                <div class="setting-label">Fuel Surcharge</div>
+                <div class="setting-input-wrap">
+                  <input type="number" class="setting-input" id="s-fuel-pct" min="0" max="100" step="0.5" />
+                  <span class="setting-unit">% (0 = off)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card-footer">
+            <div class="info-note" style="flex:1">
+              <span class="ni">ℹ️</span>
+              <span>HST is applied to the subtotal (base + add-ons). Fuel surcharge applies to the total before HST. Set fuel surcharge to 0 to disable it completely.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════════════════════════════════════ CALCULATOR VIEW -->
+      <div id="view-calculator" class="view">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Quote Calculator</div>
+            <div class="page-sub">Live pricing preview — test rates before publishing them.</div>
+          </div>
+        </div>
+
+        <div class="calc-layout">
+          <!-- Left: inputs -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Move Details</div>
+            </div>
+            <div class="card-body">
+              <div class="calc-group">
+                <label class="calc-label">Home / Office Size</label>
+                <select class="calc-select" id="calc-size" onchange="calcQuote()">
+                  <option value="studio">Studio</option>
+                  <option value="1bed">1 Bedroom</option>
+                  <option value="2bed" selected>2 Bedroom</option>
+                  <option value="3bed">3 Bedroom</option>
+                  <option value="4bed">4 Bedroom</option>
+                  <option value="5bed">5 Bedroom</option>
+                  <option value="office_sm">Small Office</option>
+                  <option value="office_lg">Large Office</option>
+                </select>
+              </div>
+              <div class="calc-group">
+                <label class="calc-label">Move Type</label>
+                <select class="calc-select" id="calc-type" onchange="calcQuote()">
+                  <option value="local">Local (under threshold)</option>
+                  <option value="longDistance">Long Distance</option>
+                </select>
+              </div>
+              <div class="calc-group">
+                <label class="calc-label">Move Date</label>
+                <input type="date" class="calc-date-input" id="calc-date" onchange="calcQuote()" />
+              </div>
+              <div class="calc-group">
+                <label class="calc-label">Manual Discount ($)</label>
+                <input type="number" class="discount-input" id="calc-discount" placeholder="0.00" min="0" step="5" oninput="calcQuote()" />
+              </div>
+              <div class="calc-group">
+                <label class="calc-label">Add-On Services</label>
+                <div class="calc-addons" id="calc-addons-list"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: output -->
+          <div style="display:flex;flex-direction:column;gap:14px;">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Quote Breakdown</div>
+                <span class="pill green">Live Preview</span>
+              </div>
+              <div class="card-body">
+                <div class="quote-output" id="quote-output">
+                  <div class="q-title">QUOTE BREAKDOWN</div>
+                  <div id="q-body">Select options to generate quote...</div>
+                </div>
+                <div class="quote-actions">
+                  <button class="btn btn-outline btn-sm" onclick="copyQuote()">📋 Copy Quote</button>
+                  <button class="btn btn-primary btn-sm" onclick="useInCRM()">Open in CRM →</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════════════════════════════════════ SEASONAL VIEW -->
+      <div id="view-seasonal" class="view">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Seasonal Pricing Rules</div>
+            <div class="page-sub">Configure peak and off-peak pricing multipliers by month.</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Season Settings</div>
+          </div>
+          <div class="card-body">
+            <div class="settings-grid" style="grid-template-columns:repeat(3,1fr)">
+              <div class="setting-item">
+                <div class="setting-label">Peak Season Multiplier</div>
+                <div class="setting-input-wrap">
+                  <input type="number" class="setting-input" id="s-peak-mult" step="0.01" min="1" max="3" oninput="saveSeasonal()" />
+                  <span class="setting-unit">× base rate</span>
+                </div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:4px">e.g. 1.15 = +15% markup</div>
+              </div>
+              <div class="setting-item">
+                <div class="setting-label">Off-Peak Multiplier</div>
+                <div class="setting-input-wrap">
+                  <input type="number" class="setting-input" id="s-offpeak-mult" step="0.01" min="0.5" max="1" oninput="saveSeasonal()" />
+                  <span class="setting-unit">× base rate</span>
+                </div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:4px">e.g. 0.95 = −5% discount</div>
+              </div>
+              <div class="setting-item" style="grid-column:span 1">
+                <div class="setting-label">Legend</div>
+                <div style="display:flex;flex-direction:column;gap:5px;margin-top:2px">
+                  <div style="display:flex;align-items:center;gap:7px"><div style="width:12px;height:12px;border-radius:3px;background:rgba(245,166,35,.3);border:1px solid rgba(245,166,35,.5)"></div><span style="font-size:11px">Peak — higher rates</span></div>
+                  <div style="display:flex;align-items:center;gap:7px"><div style="width:12px;height:12px;border-radius:3px;background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.35)"></div><span style="font-size:11px">Off-Peak — lower rates</span></div>
+                  <div style="display:flex;align-items:center;gap:7px"><div style="width:12px;height:12px;border-radius:3px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3)"></div><span style="font-size:11px">Normal — base rates</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Monthly Calendar</div>
+            <div style="font-size:11px;color:var(--text-muted)">Click a month tile to cycle: Normal → Peak → Off-Peak</div>
+          </div>
+          <div class="card-body">
+            <div class="month-grid" id="month-grid"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Applied Example</div>
+          </div>
+          <div class="card-body">
+            <div class="seasonal-example" id="seasonal-example"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════════════════════════════════════ HISTORY VIEW -->
+      <div id="view-history" class="view">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Price Change History</div>
+            <div class="page-sub">Audit log of all rate modifications. Last 100 changes.</div>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-outline" onclick="confirmClearHistory()">🗑 Clear History</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Change Log</div>
+            <span id="history-total-badge" class="pill"></span>
+          </div>
+          <div class="card-body no-pad">
+            <div id="history-content"></div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div id="modal-overlay" onclick="closeModalOnOverlay(event)">
+  <div class="modal" id="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">Add Custom Add-On</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer"></div>
+  </div>
+</div>
+
+<!-- TOASTS -->
+<div id="toast-wrap"></div>
+
+<script>
+'use strict';
+
+/* ═══════════════════════════════════════════ DB ══════════════════ */
+const DB = {
+  getRates() {
+    const defaults = {
+      baseRates: {
+        studio:    { local: 299,  longDistance: 599  },
+        '1bed':    { local: 449,  longDistance: 799  },
+        '2bed':    { local: 599,  longDistance: 1099 },
+        '3bed':    { local: 799,  longDistance: 1399 },
+        '4bed':    { local: 999,  longDistance: 1799 },
+        '5bed':    { local: 1299, longDistance: 2299 },
+        office_sm: { local: 699,  longDistance: 1299 },
+        office_lg: { local: 1199, longDistance: 2199 },
+      },
+      addOns: {
+        piano:         { label: 'Piano (upright)',                   price: 150, active: true },
+        piano_grand:   { label: 'Grand Piano',                       price: 300, active: true },
+        safe:          { label: 'Heavy Safe (200lb+)',               price: 100, active: true },
+        pool_table:    { label: 'Pool Table',                        price: 200, active: true },
+        stairs_origin: { label: 'Stairs at Origin',                  price: 75,  active: true },
+        stairs_dest:   { label: 'Stairs at Destination',             price: 75,  active: true },
+        elevator_wait: { label: 'Elevator / Long Walk',              price: 50,  active: true },
+        packing:       { label: 'Full Packing Service',              price: 199, active: true },
+        storage_wk:    { label: 'Storage (per week)',                price: 150, active: true },
+        long_haul:     { label: 'Long Haul Distance Fee',            price: 200, active: true },
+        disassembly:   { label: 'Furniture Disassembly/Reassembly',  price: 99,  active: true },
+        mattress_bag:  { label: 'Mattress Bags (set)',               price: 35,  active: true },
+        shuttle:       { label: 'Shuttle Service',                   price: 175, active: true },
+      },
+      seasonal: {
+        peak_months: [5, 6, 7, 8],
+        peak_multiplier: 1.15,
+        offpeak_multiplier: 0.95,
+      },
+      deposit_pct: 20,
+      hst_rate: 13,
+      min_charge: 299,
+      fuel_surcharge_pct: 0,
+      long_distance_km: 100,
+      hourly_rate: 149,
+      min_hours: 2,
+    };
+    try {
+      const saved = JSON.parse(localStorage.getItem('sspr_rates') || 'null');
+      if (!saved) return defaults;
+      // Merge to handle missing keys gracefully
+      return Object.assign({}, defaults, saved,
+        { addOns: Object.assign({}, defaults.addOns, saved.addOns || {}) },
+        { seasonal: Object.assign({}, defaults.seasonal, saved.seasonal || {}) }
+      );
+    } catch { return defaults; }
+  },
+  saveRates(r) {
+    localStorage.setItem('sspr_rates', JSON.stringify(r));
+  },
+  getPriceHistory() {
+    try { return JSON.parse(localStorage.getItem('sspr_history') || '[]'); }
+    catch { return []; }
+  },
+  savePriceHistory(h) { localStorage.setItem('sspr_history', JSON.stringify(h)); },
+  logChange(field, oldVal, newVal) {
+    const h = this.getPriceHistory();
+    h.unshift({ field, oldVal, newVal, changedAt: new Date().toISOString() });
+    this.savePriceHistory(h.slice(0, 100));
+    updateHistoryBadge();
+  },
+  generateId() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+};
+
+/* ═══════════════════════════════════════════ STATE ═══════════════ */
+let rates = DB.getRates();
+let saveTimer = null;
+let currentView = 'rates';
+
+/* ═══════════════════════════════════════════ SIZE META ═══════════ */
+const SIZE_META = {
+  studio:    { label: 'Studio',       crew: '2',   hours: '2–3h' },
+  '1bed':    { label: '1 Bedroom',    crew: '2',   hours: '3–4h' },
+  '2bed':    { label: '2 Bedroom',    crew: '2–3', hours: '4–6h' },
+  '3bed':    { label: '3 Bedroom',    crew: '3',   hours: '6–8h' },
+  '4bed':    { label: '4 Bedroom',    crew: '3–4', hours: '8–10h' },
+  '5bed':    { label: '5 Bedroom',    crew: '4',   hours: '10–12h' },
+  office_sm: { label: 'Small Office', crew: '2–3', hours: '4–6h' },
+  office_lg: { label: 'Large Office', crew: '4',   hours: '8–12h' },
+};
+
+/* ═══════════════════════════════════════════ VIEW SWITCH ═════════ */
+function switchView(viewName, btn) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('view-' + viewName).classList.add('active');
+  if (btn) btn.classList.add('active');
+  currentView = viewName;
+  if (viewName === 'calculator') { buildCalcAddons(); calcQuote(); }
+  if (viewName === 'history') renderHistory();
+  if (viewName === 'seasonal') renderSeasonalCalendar();
+}
+
+/* ═══════════════════════════════════════════ SAVE ════════════════ */
+function triggerSave(field, oldVal, newVal) {
+  if (oldVal !== newVal) DB.logChange(field, oldVal, newVal);
+  showSaveIndicator('saving');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    DB.saveRates(rates);
+    showSaveIndicator('saved');
+    updateSidebarTime();
+    updateHistoryBadge();
+  }, 500);
+}
+
+function showSaveIndicator(state) {
+  const el = document.getElementById('save-indicator');
+  const txt = document.getElementById('save-text');
+  el.className = 'saved' === state ? 'saved' : (state === 'saving' ? 'saving' : '');
+  if (state === 'saving') { el.classList.add('saving'); txt.textContent = 'Saving...'; }
+  else if (state === 'saved') { el.classList.add('saved'); txt.textContent = 'Saved ✓ ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }
+}
+
+function updateSidebarTime() {
+  document.getElementById('sidebar-last-saved').textContent =
+    new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function updateHistoryBadge() {
+  const h = DB.getPriceHistory();
+  document.getElementById('history-count').textContent = h.length;
+}
+
+/* ═══════════════════════════════════════════ RATES TABLE ═════════ */
+function buildRatesTable() {
+  const tbody = document.getElementById('rates-tbody');
+  tbody.innerHTML = '';
+  Object.entries(SIZE_META).forEach(([key, meta]) => {
+    const r = rates.baseRates[key] || { local: 0, longDistance: 0 };
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>
+        <div class="size-label">${meta.label}</div>
+      </td>
+      <td>
+        <div style="display:flex;align-items:center;gap:3px">
+          <span class="input-prefix">$</span>
+          <input type="number" class="rate-input" value="${r.local}"
+            data-key="${key}" data-field="local"
+            onchange="onRateChange(this)" oninput="onRateInput(this)" />
+        </div>
+      </td>
+      <td>
+        <div style="display:flex;align-items:center;gap:3px">
+          <span class="input-prefix">$</span>
+          <input type="number" class="rate-input" value="${r.longDistance}"
+            data-key="${key}" data-field="longDistance"
+            onchange="onRateChange(this)" oninput="onRateInput(this)" />
+        </div>
+      </td>
+      <td><span class="pill">${meta.crew}</span></td>
+      <td><span style="font-size:12px;color:var(--text-muted)">${meta.hours}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function onRateInput(input) {
+  input.classList.add('changed');
+}
+
+function onRateChange(input) {
+  const key = input.dataset.key;
+  const field = input.dataset.field;
+  const oldVal = rates.baseRates[key][field];
+  const newVal = parseFloat(input.value) || 0;
+  rates.baseRates[key][field] = newVal;
+  triggerSave(`baseRates.${key}.${field}`, oldVal, newVal);
+  updateQuickStats();
+  update2BedRef();
+  input.classList.remove('changed');
+}
+
+function updateQuickStats() {
+  const localRates = Object.values(rates.baseRates).map(r => r.local);
+  const lo = Math.min(...localRates);
+  const hi = Math.max(...localRates);
+  const avg = Math.round(localRates.reduce((a,b)=>a+b,0)/localRates.length);
+  const loKey = Object.keys(rates.baseRates).find(k => rates.baseRates[k].local === lo);
+  const hiKey = Object.keys(rates.baseRates).find(k => rates.baseRates[k].local === hi);
+
+  document.getElementById('quick-stats').innerHTML = `
+    <div class="stat-item">
+      <div class="stat-val">$${lo.toLocaleString()}</div>
+      <div class="stat-lbl">Lowest Local Rate</div>
+      <div class="stat-note">${SIZE_META[loKey]?.label || ''}</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-val">$${avg.toLocaleString()}</div>
+      <div class="stat-lbl">Average Local Rate</div>
+      <div class="stat-note">Across all sizes</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-val">$${hi.toLocaleString()}</div>
+      <div class="stat-lbl">Highest Local Rate</div>
+      <div class="stat-note">${SIZE_META[hiKey]?.label || ''}</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-val" style="font-size:14px;padding-top:3px">$400–$900</div>
+      <div class="stat-lbl">Market Range</div>
+      <div class="stat-note">Windsor 2-bed local comps</div>
+    </div>
+  `;
+}
+
+function update2BedRef() {
+  const el = document.getElementById('ref-2bed');
+  if (el) el.textContent = '$' + (rates.baseRates['2bed']?.local || 599).toLocaleString();
+}
+
+function buildSettingInputs() {
+  const fields = [
+    { id: 's-local-km',    key: 'long_distance_km', label: 'local threshold' },
+    { id: 's-min-charge',  key: 'min_charge',        label: 'min charge' },
+    { id: 's-hourly-rate', key: 'hourly_rate',        label: 'hourly rate' },
+    { id: 's-min-hours',   key: 'min_hours',          label: 'min hours' },
+    { id: 's-deposit-pct', key: 'deposit_pct',        label: 'deposit %' },
+    { id: 's-hst-rate',    key: 'hst_rate',           label: 'HST %' },
+    { id: 's-fuel-pct',    key: 'fuel_surcharge_pct', label: 'fuel surcharge %' },
+  ];
+  fields.forEach(({ id, key }) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = rates[key];
+    el.addEventListener('change', function() {
+      const oldVal = rates[key];
+      const newVal = parseFloat(this.value) || 0;
+      rates[key] = newVal;
+      triggerSave(key, oldVal, newVal);
+      if (currentView === 'calculator') calcQuote();
+    });
+  });
+}
+
+function buildSeasonalInputs() {
+  const pm = document.getElementById('s-peak-mult');
+  const om = document.getElementById('s-offpeak-mult');
+  if (pm) pm.value = rates.seasonal.peak_multiplier;
+  if (om) om.value = rates.seasonal.offpeak_multiplier;
+}
+
+/* ═══════════════════════════════════════════ ADD-ONS TABLE ═══════ */
+function buildAddonsTable() {
+  const tbody = document.getElementById('addons-tbody');
+  tbody.innerHTML = '';
+  Object.entries(rates.addOns).forEach(([key, addon]) => {
+    renderAddonRow(key, addon, tbody);
+  });
+}
+
+function renderAddonRow(key, addon, tbody) {
+  const tr = document.createElement('tr');
+  tr.id = 'addon-row-' + key;
+  if (!addon.active) tr.classList.add('inactive-row');
+  tr.innerHTML = `
+    <td>
+      <input type="text" class="addon-name-input" value="${escHtml(addon.label)}"
+        data-key="${key}"
+        onchange="onAddonNameChange(this)"
+        placeholder="Add-on name" />
+    </td>
+    <td>
+      <div style="display:flex;align-items:center;gap:3px">
+        <span class="input-prefix">$</span>
+        <input type="number" class="rate-input" value="${addon.price}"
+          data-key="${key}"
+          onchange="onAddonPriceChange(this)" />
+      </div>
+    </td>
+    <td>
+      <label class="toggle">
+        <input type="checkbox" ${addon.active ? 'checked' : ''}
+          data-key="${key}" onchange="onAddonToggle(this)" />
+        <span class="toggle-slider"></span>
+      </label>
+    </td>
+    <td style="text-align:right">
+      <button class="btn btn-outline btn-sm btn-icon-only" title="Delete" onclick="deleteAddon('${key}')">🗑</button>
+    </td>
+  `;
+  tbody.appendChild(tr);
+}
+
+function onAddonNameChange(input) {
+  const key = input.dataset.key;
+  const oldVal = rates.addOns[key].label;
+  rates.addOns[key].label = input.value.trim() || oldVal;
+  triggerSave(`addOns.${key}.label`, oldVal, rates.addOns[key].label);
+}
+
+function onAddonPriceChange(input) {
+  const key = input.dataset.key;
+  const oldVal = rates.addOns[key].price;
+  const newVal = parseFloat(input.value) || 0;
+  rates.addOns[key].price = newVal;
+  triggerSave(`addOns.${key}.price`, oldVal, newVal);
+}
+
+function onAddonToggle(input) {
+  const key = input.dataset.key;
+  const oldVal = rates.addOns[key].active;
+  rates.addOns[key].active = input.checked;
+  const row = document.getElementById('addon-row-' + key);
+  if (row) {
+    if (input.checked) row.classList.remove('inactive-row');
+    else row.classList.add('inactive-row');
+  }
+  triggerSave(`addOns.${key}.active`, oldVal, input.checked);
+  toast(input.checked ? `"${rates.addOns[key].label}" is now active` : `"${rates.addOns[key].label}" hidden from CSR flow`, 'info');
+}
+
+function deleteAddon(key) {
+  const name = rates.addOns[key]?.label || key;
+  if (!confirm(`Delete add-on "${name}"? This cannot be undone.`)) return;
+  DB.logChange(`addOns.${key}`, JSON.stringify(rates.addOns[key]), 'DELETED');
+  delete rates.addOns[key];
+  DB.saveRates(rates);
+  buildAddonsTable();
+  toast(`"${name}" deleted`, 'danger');
+}
+
+function openAddAddonModal() {
+  document.getElementById('modal-title').textContent = 'Add Custom Add-On';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="modal-field">
+      <label>Add-On Name</label>
+      <input type="text" id="new-addon-name" placeholder="e.g. Hot Tub Moving" maxlength="60" />
+    </div>
+    <div class="modal-field">
+      <label>Price ($)</label>
+      <input type="number" id="new-addon-price" placeholder="0.00" min="0" step="5" />
+    </div>
+    <div class="modal-field">
+      <label>Description (optional)</label>
+      <textarea id="new-addon-desc" rows="2" placeholder="Brief description..." style="resize:vertical"></textarea>
+    </div>
+  `;
+  document.getElementById('modal-footer').innerHTML = `
+    <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-gold" onclick="saveNewAddon()">Add Add-On</button>
+  `;
+  openModal();
+  setTimeout(() => document.getElementById('new-addon-name').focus(), 100);
+}
+
+function saveNewAddon() {
+  const name = document.getElementById('new-addon-name').value.trim();
+  const price = parseFloat(document.getElementById('new-addon-price').value) || 0;
+  if (!name) { toast('Please enter an add-on name', 'warning'); return; }
+  const key = 'custom_' + DB.generateId();
+  rates.addOns[key] = { label: name, price, active: true };
+  DB.logChange(`addOns.${key}`, 'NEW', JSON.stringify(rates.addOns[key]));
+  DB.saveRates(rates);
+  buildAddonsTable();
+  closeModal();
+  toast(`"${name}" added at $${price}`, 'success');
+}
+
+/* ═══════════════════════════════════════════ CALCULATOR ══════════ */
+function buildCalcAddons() {
+  const container = document.getElementById('calc-addons-list');
+  container.innerHTML = '';
+  Object.entries(rates.addOns)
+    .filter(([, a]) => a.active)
+    .forEach(([key, addon]) => {
+      const div = document.createElement('label');
+      div.className = 'addon-check-item';
+      div.id = 'calc-addon-' + key;
+      div.innerHTML = `
+        <input type="checkbox" data-key="${key}" data-price="${addon.price}" onchange="calcQuote()" />
+        <span class="addon-check-label">${escHtml(addon.label)}</span>
+        <span class="addon-check-price">+$${addon.price}</span>
+      `;
+      container.appendChild(div);
+    });
+}
+
+function calcQuote() {
+  const size = document.getElementById('calc-size').value;
+  const type = document.getElementById('calc-type').value;
+  const dateStr = document.getElementById('calc-date').value;
+  const discount = parseFloat(document.getElementById('calc-discount').value) || 0;
+
+  const r = rates.baseRates[size];
+  if (!r) return;
+  const baseRate = type === 'local' ? r.local : r.longDistance;
+  const meta = SIZE_META[size];
+
+  // Seasonal
+  let seasonalLabel = '';
+  let seasonalAmt = 0;
+  if (dateStr) {
+    const month = new Date(dateStr + 'T12:00:00').getMonth() + 1;
+    const isPeak = rates.seasonal.peak_months.includes(month);
+    const isOffPeak = !isPeak && rates.seasonal.offpeak_multiplier !== 1.0;
+    if (isPeak) {
+      const mult = rates.seasonal.peak_multiplier;
+      seasonalAmt = +(baseRate * (mult - 1)).toFixed(2);
+      seasonalLabel = `Peak Season (+${((mult-1)*100).toFixed(0)}%)`;
+    } else if (isOffPeak) {
+      const mult = rates.seasonal.offpeak_multiplier;
+      seasonalAmt = +(baseRate * (mult - 1)).toFixed(2);
+      seasonalLabel = `Off-Peak Discount (${((mult-1)*100).toFixed(0)}%)`;
+    }
+  }
+
+  // Add-ons
+  const checkedAddons = [];
+  document.querySelectorAll('#calc-addons-list input[type=checkbox]').forEach(cb => {
+    const item = cb.closest('label');
+    if (cb.checked) {
+      item.classList.add('checked');
+      const key = cb.dataset.key;
+      const ao = rates.addOns[key];
+      if (ao) checkedAddons.push({ label: ao.label, price: ao.price });
+    } else {
+      item.classList.remove('checked');
+    }
+  });
+
+  const addonsTotal = checkedAddons.reduce((s, a) => s + a.price, 0);
+  const subtotalPreFuel = baseRate + seasonalAmt + addonsTotal;
+
+  // Fuel
+  let fuelAmt = 0;
+  let fuelLabel = '';
+  if (rates.fuel_surcharge_pct > 0) {
+    fuelAmt = +(subtotalPreFuel * rates.fuel_surcharge_pct / 100).toFixed(2);
+    fuelLabel = `Fuel Surcharge (${rates.fuel_surcharge_pct}%)`;
+  }
+
+  const subtotalPreHST = subtotalPreFuel + fuelAmt - discount;
+  const hstAmt = +(subtotalPreHST * rates.hst_rate / 100).toFixed(2);
+  const total = +(subtotalPreHST + hstAmt).toFixed(2);
+  const finalTotal = Math.max(total, rates.min_charge);
+  const deposit = +(finalTotal * rates.deposit_pct / 100).toFixed(2);
+  const balance = +(finalTotal - deposit).toFixed(2);
+
+  // Render
+  const sizeName = SIZE_META[size].label;
+  const typeLabel = type === 'local' ? 'Local' : 'Long Distance';
+
+  let rows = '';
+  rows += qRow(`Base Rate (${sizeName}, ${typeLabel}):`, fmt(baseRate));
+  checkedAddons.forEach(a => { rows += qRow(a.label + ':', fmt(a.price)); });
+  if (seasonalAmt !== 0) rows += qRowClass(seasonalLabel + ':', (seasonalAmt >= 0 ? '+' : '') + fmt(seasonalAmt), 'surcharge');
+  if (fuelAmt > 0) rows += qRowClass(fuelLabel + ':', '+' + fmt(fuelAmt), 'surcharge');
+  if (discount > 0) rows += qRowClass('Manual Discount:', '−' + fmt(discount), 'discount-row');
+
+  let html = rows;
+  html += `<hr class="q-divider">`;
+  html += qRow('Subtotal:', fmt(subtotalPreHST));
+  html += qRow(`HST (${rates.hst_rate}%):`, fmt(hstAmt));
+  html += `<hr class="q-divider">`;
+  html += qRowClass('TOTAL:', fmt(finalTotal), 'total-row');
+  if (finalTotal > total && discount === 0) {
+    html += qRowClass('(Minimum charge applied)', '', 'surcharge');
+  }
+  html += `<hr class="q-divider">`;
+  html += qRowClass(`Deposit Required (${rates.deposit_pct}%):`, fmt(deposit), 'deposit-row');
+  html += qRowClass('Balance Due on Move Day:', fmt(balance), 'balance-row');
+  html += `
+    <div class="q-meta">
+      <span>Crew: ${meta.crew}</span>
+      <span>Est. Time: ${meta.hours}</span>
+      ${dateStr ? `<span>Date: ${new Date(dateStr + 'T12:00:00').toLocaleDateString('en-CA', {month:'short',day:'numeric',year:'numeric'})}</span>` : ''}
+    </div>
+  `;
+  document.getElementById('q-body').innerHTML = html;
+
+  // Store for copy
+  window._lastQuote = {
+    lines: [
+      `SATURN STAR MOVING — QUOTE BREAKDOWN`,
+      ``,
+      `Base Rate (${sizeName}, ${typeLabel}):     ${fmt(baseRate)}`,
+      ...checkedAddons.map(a => `${a.label}:     ${fmt(a.price)}`),
+      ...(seasonalAmt !== 0 ? [`${seasonalLabel}:  ${(seasonalAmt>=0?'+':'')+fmt(seasonalAmt)}`] : []),
+      ...(fuelAmt > 0 ? [`${fuelLabel}:   +${fmt(fuelAmt)}`] : []),
+      ...(discount > 0 ? [`Manual Discount:   −${fmt(discount)}`] : []),
+      `─────────────────────────────────────`,
+      `Subtotal:      ${fmt(subtotalPreHST)}`,
+      `HST (${rates.hst_rate}%):  ${fmt(hstAmt)}`,
+      `─────────────────────────────────────`,
+      `TOTAL:         ${fmt(finalTotal)}`,
+      ``,
+      `Deposit Required (${rates.deposit_pct}%):  ${fmt(deposit)}`,
+      `Balance Due on Move Day:   ${fmt(balance)}`,
+      `─────────────────────────────────────`,
+      `Estimated Crew: ${meta.crew}`,
+      `Estimated Time: ${meta.hours}`,
+    ].join('\n'),
+    total: finalTotal,
+    deposit,
+    balance,
+    size,
+    type,
+    sizeName,
+    baseRate,
+  };
+}
+
+function qRow(label, val) {
+  return `<div class="q-row"><span class="q-label">${label}</span><span class="q-val">${val}</span></div>`;
+}
+function qRowClass(label, val, cls) {
+  return `<div class="q-row ${cls}"><span class="q-label">${label}</span><span class="q-val">${val}</span></div>`;
+}
+function fmt(n) {
+  return '$' + (parseFloat(n)||0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function copyQuote() {
+  if (!window._lastQuote) return;
+  navigator.clipboard.writeText(window._lastQuote.lines).then(() => {
+    toast('Quote copied to clipboard', 'success');
+  }).catch(() => {
+    // fallback
+    const ta = document.createElement('textarea');
+    ta.value = window._lastQuote.lines;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    toast('Quote copied', 'success');
+  });
+}
+
+function useInCRM() {
+  if (!window._lastQuote) { toast('Generate a quote first', 'warning'); return; }
+  const q = window._lastQuote;
+  localStorage.setItem('sspr_calc_quote', JSON.stringify(q));
+  const params = new URLSearchParams({
+    size: q.size,
+    type: q.type,
+    total: q.total,
+    deposit: q.deposit,
+  });
+  window.open('../crm/saturn-crm.html?' + params.toString(), '_blank');
+}
+
+/* ═══════════════════════════════════════════ SEASONAL ════════════ */
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function renderSeasonalCalendar() {
+  const grid = document.getElementById('month-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  const offpeakMonths = [];
+  for (let m = 1; m <= 12; m++) {
+    if (!rates.seasonal.peak_months.includes(m)) offpeakMonths.push(m);
+  }
+  for (let m = 1; m <= 12; m++) {
+    const isPeak = rates.seasonal.peak_months.includes(m);
+    // Note: "off-peak" means we explicitly classify it — here all non-peak use the offpeak multiplier
+    const mult = isPeak ? rates.seasonal.peak_multiplier : rates.seasonal.offpeak_multiplier;
+    const cls = isPeak ? 'peak' : (rates.seasonal.offpeak_multiplier < 1 ? 'offpeak' : 'normal');
+    const statusText = isPeak
+      ? `+${((rates.seasonal.peak_multiplier - 1)*100).toFixed(0)}% Peak`
+      : (rates.seasonal.offpeak_multiplier < 1
+          ? `${((rates.seasonal.offpeak_multiplier - 1)*100).toFixed(0)}% Off-Peak`
+          : 'Normal');
+    const tile = document.createElement('div');
+    tile.className = 'month-tile ' + cls;
+    tile.dataset.month = m;
+    tile.innerHTML = `<div class="m-name">${MONTH_NAMES[m-1]}</div><div class="m-status">${statusText}</div>`;
+    tile.addEventListener('click', () => toggleMonthSeason(m));
+    grid.appendChild(tile);
+  }
+  updateSeasonalExample();
+}
+
+function toggleMonthSeason(month) {
+  const idx = rates.seasonal.peak_months.indexOf(month);
+  const oldPeaks = [...rates.seasonal.peak_months];
+  if (idx > -1) {
+    rates.seasonal.peak_months.splice(idx, 1);
+  } else {
+    rates.seasonal.peak_months.push(month);
+    rates.seasonal.peak_months.sort((a,b)=>a-b);
+  }
+  triggerSave('seasonal.peak_months', JSON.stringify(oldPeaks), JSON.stringify(rates.seasonal.peak_months));
+  renderSeasonalCalendar();
+}
+
+function saveSeasonal() {
+  const pm = parseFloat(document.getElementById('s-peak-mult').value) || 1.15;
+  const om = parseFloat(document.getElementById('s-offpeak-mult').value) || 0.95;
+  const oldPm = rates.seasonal.peak_multiplier;
+  const oldOm = rates.seasonal.offpeak_multiplier;
+  rates.seasonal.peak_multiplier = pm;
+  rates.seasonal.offpeak_multiplier = om;
+  if (oldPm !== pm) triggerSave('seasonal.peak_multiplier', oldPm, pm);
+  if (oldOm !== om) triggerSave('seasonal.offpeak_multiplier', oldOm, om);
+  renderSeasonalCalendar();
+}
+
+function updateSeasonalExample() {
+  const el = document.getElementById('seasonal-example');
+  if (!el) return;
+  const base2bed = rates.baseRates['2bed']?.local || 599;
+  const peakMult = rates.seasonal.peak_multiplier;
+  const offMult = rates.seasonal.offpeak_multiplier;
+  const peakResult = +(base2bed * peakMult).toFixed(2);
+  const offResult = +(base2bed * offMult).toFixed(2);
+  const peakMonthNames = rates.seasonal.peak_months.map(m => MONTH_NAMES[m-1]).join(', ') || 'None';
+  el.innerHTML = `
+    <strong>Peak example:</strong> A 2-bed local move in a peak month —
+    $${base2bed} × ${peakMult} = <strong>$${peakResult.toLocaleString('en-CA', {minimumFractionDigits:2})}</strong><br>
+    <strong>Off-peak example:</strong> Same move in a non-peak month —
+    $${base2bed} × ${offMult} = <strong>$${offResult.toLocaleString('en-CA', {minimumFractionDigits:2})}</strong><br>
+    <span style="color:#6b7280;font-size:11px">Current peak months: ${peakMonthNames}</span>
+  `;
+}
+
+/* ═══════════════════════════════════════════ HISTORY ═════════════ */
+function renderHistory() {
+  const h = DB.getPriceHistory();
+  const container = document.getElementById('history-content');
+  const badge = document.getElementById('history-total-badge');
+  badge.textContent = h.length + ' changes';
+
+  if (h.length === 0) {
+    container.innerHTML = `<div class="empty-history"><div class="ei">🕐</div><p>No price changes recorded yet.<br>Changes will appear here as you edit rates.</p></div>`;
+    return;
+  }
+
+  let html = `<table class="data-table"><thead><tr>
+    <th>Field Changed</th><th>Old Value</th><th>New Value</th><th>Changed At</th>
+  </tr></thead><tbody>`;
+  h.forEach(entry => {
+    const d = new Date(entry.changedAt);
+    const timeStr = d.toLocaleDateString('en-CA') + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    const oldDisp = formatHistoryVal(entry.oldVal);
+    const newDisp = formatHistoryVal(entry.newVal);
+    html += `<tr>
+      <td><span class="history-field">${escHtml(String(entry.field))}</span></td>
+      <td><span class="history-badge old">${oldDisp}</span></td>
+      <td><span class="history-badge new">${newDisp}</span></td>
+      <td><span class="history-time">${timeStr}</span></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function formatHistoryVal(v) {
+  if (v === null || v === undefined) return '—';
+  const s = String(v);
+  if (s.length > 30) return s.slice(0,28) + '…';
+  return escHtml(s);
+}
+
+function confirmClearHistory() {
+  if (!confirm('Clear all price change history? This cannot be undone.')) return;
+  DB.savePriceHistory([]);
+  renderHistory();
+  updateHistoryBadge();
+  toast('History cleared', 'info');
+}
+
+/* ═══════════════════════════════════════════ MODAL ══════════════ */
+function openModal() { document.getElementById('modal-overlay').classList.add('open'); }
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+function closeModalOnOverlay(e) { if (e.target === document.getElementById('modal-overlay')) closeModal(); }
+
+/* ═══════════════════════════════════════════ TOAST ══════════════ */
+function toast(msg, type = 'success') {
+  const wrap = document.getElementById('toast-wrap');
+  const div = document.createElement('div');
+  div.className = 'toast ' + (type || '');
+  const icon = { success:'✓', danger:'✕', warning:'⚠', info:'ℹ' }[type] || '✓';
+  div.innerHTML = `<span>${icon}</span> ${escHtml(msg)}`;
+  wrap.appendChild(div);
+  setTimeout(() => {
+    div.classList.add('out');
+    setTimeout(() => div.remove(), 280);
+  }, 2600);
+}
+
+/* ═══════════════════════════════════════════ RESET ══════════════ */
+function confirmReset() {
+  if (!confirm('Reset ALL rates to factory defaults?\n\nThis will overwrite all your current rates and cannot be undone.')) return;
+  const old = JSON.stringify(rates);
+  localStorage.removeItem('sspr_rates');
+  rates = DB.getRates();
+  DB.logChange('FULL_RESET', old.slice(0,80)+'…', 'FACTORY DEFAULTS');
+  DB.saveRates(rates);
+  init();
+  toast('Rates reset to defaults', 'warning');
+}
+
+/* ═══════════════════════════════════════════ EXPORT PDF ══════════ */
+function exportPDF() {
+  // Switch to rates view for print
+  const prev = currentView;
+  switchView('rates', document.querySelector('.nav-item'));
+  setTimeout(() => {
+    window.print();
+  }, 120);
+}
+
+/* ═══════════════════════════════════════════ UTIL ════════════════ */
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+/* ═══════════════════════════════════════════ INIT ════════════════ */
+function init() {
+  buildRatesTable();
+  updateQuickStats();
+  update2BedRef();
+  buildAddonsTable();
+  buildSettingInputs();
+  buildSeasonalInputs();
+  renderSeasonalCalendar();
+  updateHistoryBadge();
+  updateSidebarTime();
+
+  // Set default calc date to today
+  const calcDate = document.getElementById('calc-date');
+  if (calcDate && !calcDate.value) {
+    calcDate.value = new Date().toISOString().split('T')[0];
+  }
+
+  showSaveIndicator('saved');
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

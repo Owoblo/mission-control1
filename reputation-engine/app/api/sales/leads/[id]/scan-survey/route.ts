@@ -13,7 +13,8 @@ import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { getSalesLead, saveSalesLead } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
 import { analyzeLeadPhotosWithVision } from '@/lib/server/lead-media'
-import { normalizeLead, uid } from '@/lib/sales'
+import { applyInventoryVerificationToInventory } from '@/lib/inventory-verification'
+import { normalizeLead } from '@/lib/sales'
 import type { LeadMediaAsset } from '@/lib/types'
 
 export const maxDuration = 300
@@ -37,12 +38,13 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
     const lead = await getSalesLead(params.id)
     if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
 
-    // Find survey image assets
+    // Scan any customer-facing image assets already stored on the lead.
+    // This includes uploaded survey photos, rep uploads, and persisted MMS images.
     const surveyImageAssets: LeadMediaAsset[] = (lead.mediaAssets || [])
-      .filter((a: LeadMediaAsset) => a.source === 'survey' && a.kind === 'image' && a.url)
+      .filter((a: LeadMediaAsset) => ['survey', 'rep_upload', 'mms'].includes(a.source) && a.kind === 'image' && a.url)
 
     if (surveyImageAssets.length === 0) {
-      return NextResponse.json({ error: 'No survey photos found. Ask customer to upload first.' }, { status: 400 })
+      return NextResponse.json({ error: 'No customer photos found yet. Ask the customer to upload or text them first.' }, { status: 400 })
     }
 
     // Group photos by room
@@ -59,7 +61,10 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
 
     for (const [room, photoUrls] of Array.from(byRoom.entries())) {
       try {
-        const items = await analyzeLeadPhotosWithVision(room, photoUrls)
+        const items = (await analyzeLeadPhotosWithVision(room, photoUrls)).map(item => ({
+          ...item,
+          source: 'survey_ai' as const,
+        }))
         allDetectedItems.push(...items)
         scannedRooms.add(room)
       } catch (err) {
@@ -73,11 +78,15 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
     // Replace rooms that have survey photos with fresh scan results
     const existingInventory = lead.inventory || []
     const keptInventory = existingInventory.filter(item => {
+      if (item.source === 'customer_verification') return true
       const room = item.room?.trim() || 'Unassigned'
       return !scannedRooms.has(room)
     })
 
-    const nextInventory = [...keptInventory, ...allDetectedItems]
+    const nextInventory = applyInventoryVerificationToInventory(
+      [...keptInventory, ...allDetectedItems],
+      lead.inventoryVerification
+    )
     const includedItems = nextInventory.filter(item => item.included !== false)
 
     const updatedLead = normalizeLead({

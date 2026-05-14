@@ -9,7 +9,7 @@ import { deleteSalesLead, fetchDeletedSalesLeads, fetchSalesOverview, restoreDel
 import { formatDate, getLeadAssignedRepName, isBookedLikeStage, isClosedLeadStage } from '@/lib/sales'
 import type { CRMLead, CRMQuote, FollowUpLog } from '@/lib/types'
 
-type LeadViewMode = 'focus' | 'booked' | 'all' | 'deleted'
+type LeadViewMode = 'focus' | 'booked' | 'all' | 'realtor' | 'deleted'
 type DeletedLeadRow = CRMLead & { _deletedAt?: string }
 type DecoratedLeadRow = {
   lead: CRMLead
@@ -24,6 +24,7 @@ const LEAD_VIEW_MODES: Array<{ id: LeadViewMode; label: string; description: str
   { id: 'focus', label: 'Needs Follow-Up', description: 'Only leads with a live next action.' },
   { id: 'booked', label: 'Booked', description: 'Booked and completed jobs that still matter operationally.' },
   { id: 'all', label: 'All Active', description: 'Everything active except deleted and lost.' },
+  { id: 'realtor', label: '🏠 Realtor Opps', description: 'Destination-side leads — pitch the listing agent for the current occupant\'s move.' },
   { id: 'deleted', label: 'Deleted', description: 'Recently removed leads that can still be restored.' },
 ]
 
@@ -254,6 +255,18 @@ function SalesLeadsIndexContent() {
     () => decoratedLeads.filter(item => !item.isClosed || item.isBooked).sort((left, right) => compareLeadsByGuidance(left, right)),
     [decoratedLeads]
   )
+  const realtorLeads = useMemo(
+    () => decoratedLeads
+      .filter(item => item.lead.leadKind === 'realtor_opportunity' && !item.isClosed)
+      .sort((a, b) => {
+        // Un-pitched first, then by follow-up date
+        const aPitched = !!a.lead.realtorOutreachStartedAt
+        const bPitched = !!b.lead.realtorOutreachStartedAt
+        if (aPitched !== bPitched) return aPitched ? 1 : -1
+        return (a.lead.followUpDate || '').localeCompare(b.lead.followUpDate || '')
+      }),
+    [decoratedLeads]
+  )
   const visibleDeletedLeads = useMemo(
     () =>
       [...deletedLeads]
@@ -270,15 +283,17 @@ function SalesLeadsIndexContent() {
     [decoratedLeads, today]
   )
 
-  const visibleLeads = viewMode === 'focus' ? focusLeads : viewMode === 'booked' ? bookedLeads : activeLeads
+  const visibleLeads = viewMode === 'focus' ? focusLeads : viewMode === 'booked' ? bookedLeads : viewMode === 'realtor' ? realtorLeads : activeLeads
   const emptyText =
     viewMode === 'focus'
       ? 'No leads currently need live follow-up.'
       : viewMode === 'booked'
         ? 'No booked jobs match this filter.'
-        : viewMode === 'deleted'
-          ? 'No deleted leads found.'
-          : 'No active leads match this filter.'
+        : viewMode === 'realtor'
+          ? 'No realtor opportunity leads yet. They auto-generate when a customer\'s destination is set.'
+          : viewMode === 'deleted'
+            ? 'No deleted leads found.'
+            : 'No active leads match this filter.'
 
   return (
     <div className="crm-shell space-y-8">
@@ -316,9 +331,11 @@ function SalesLeadsIndexContent() {
                   ? focusLeads.length
                   : mode.id === 'booked'
                     ? bookedLeads.length
-                    : mode.id === 'deleted'
-                      ? deletedLeads.length
-                      : activeLeads.length
+                    : mode.id === 'realtor'
+                      ? realtorLeads.length
+                      : mode.id === 'deleted'
+                        ? deletedLeads.length
+                        : activeLeads.length
               const active = viewMode === mode.id
               return (
                 <button

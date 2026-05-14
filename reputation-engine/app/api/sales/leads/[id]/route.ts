@@ -7,7 +7,9 @@ import { scheduleMoveReminder } from '@/lib/server/sales-automation'
 import { getBookedJobFieldDiffs, recordLeadArchivedAudit, recordLeadUpdateAudit, sendBookedJobChangeNotice } from '@/lib/server/sales-audit'
 import { applyDetectedBranch, maybeCreateDestinationOpportunityLead } from '@/lib/server/sales-opportunities'
 import { canAccessOperationsWorkspace, canAccessSalesWorkspace, canDeleteLead, canEditLead, canReassignLead, isLeadOwnedBySession } from '@/lib/server/sales-permissions'
+import { sendSalesMessage } from '@/lib/server/sales-messaging'
 import { getSessionUser } from '@/lib/server/session'
+import { validateLeadPatchPayload } from '@/lib/server/sales-validation'
 import {
   deleteSalesLead,
   getSalesClient,
@@ -17,7 +19,6 @@ import {
   saveSalesLead,
   saveSalesQuote,
 } from '@/lib/server/sales-repository'
-import { getWorkerSharedSecret, requireWorkerBaseUrl } from '@/lib/server/runtime'
 
 function normalizeOptional(value?: string) {
   const trimmed = value?.trim()
@@ -208,12 +209,14 @@ async function syncLinkedQuoteAndClientFromLead(current: import('@/lib/types').C
   const nextMoveDate = normalizeOptional(saved.moveDate)
   const nextOriginAddress = normalizeOptional(saved.originAddress)
   const nextOriginCity = normalizeOptional(saved.originCity)
+  const nextDestAddress = normalizeOptional(saved.destAddress)
   const nextDestCity = normalizeOptional(saved.destCity)
 
   const quoteNeedsSync =
     normalizeOptional(current.moveDate) !== nextMoveDate ||
     normalizeOptional(current.originAddress) !== nextOriginAddress ||
     normalizeOptional(current.originCity) !== nextOriginCity ||
+    normalizeOptional(current.destAddress) !== nextDestAddress ||
     normalizeOptional(current.destCity) !== nextDestCity
 
   const quoteLocked = quote.status === 'accepted' || quote.status === 'invoiced' || !!quote.acceptedAt
@@ -225,6 +228,7 @@ async function syncLinkedQuoteAndClientFromLead(current: import('@/lib/types').C
         moveDate: nextMoveDate,
         originAddress: nextOriginAddress,
         originCity: nextOriginCity,
+        destAddress: nextDestAddress,
         destCity: nextDestCity,
       })
     : quote
@@ -255,14 +259,24 @@ async function syncLinkedQuoteAndClientFromLead(current: import('@/lib/types').C
 
 async function sendAppointmentSms(lead: import('@/lib/types').CRMLead) {
   try {
-    const workerSecret = getWorkerSharedSecret()
-    if (!workerSecret || !lead.phone) return
-    const dateStr = lead.moveDate ? new Date(lead.moveDate + 'T12:00:00').toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' }) : ''
-    const body = `Hi ${lead.name?.split(' ')[0] || 'there'}! This is Saturn Star Moving — just confirming your in-home estimate${dateStr ? ` for ${dateStr}` : ''}. We'll take a look at your items and put together your personalized quote on the spot. Any questions, call or text us at 226-773-2993. See you soon! 🌟`
-    await fetch(`${requireWorkerBaseUrl()}/send-sms`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-internal-secret': workerSecret },
-      body: JSON.stringify({ to: lead.phone, body }),
+    if (!lead.phone) return
+    const firstName = lead.name?.split(' ')[0] || 'there'
+    const isConsultation = !!lead.consultationTriggerReason
+    let dateTimeStr = ''
+    if (lead.estimateDate) {
+      const d = new Date(lead.estimateDate + 'T12:00:00').toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' })
+      dateTimeStr = lead.estimateTime ? `${d} at ${lead.estimateTime}` : d
+    }
+    const managerLine = lead.consultationAssignedManagerName ? ` ${lead.consultationAssignedManagerName} will be your local representative.` : ''
+    const body = isConsultation
+      ? `Hi ${firstName}! Your In-Home Move Consultation with Saturn Star Movers is confirmed${dateTimeStr ? ` for ${dateTimeStr}` : ''}.${managerLine} Our team has already reviewed your listing photos and will arrive prepared with a preliminary move plan. If anything changes, call or text us at 226-773-2993. See you soon! 🌟`
+      : `Hi ${firstName}! This is Saturn Star Moving — confirming your in-home estimate${dateTimeStr ? ` for ${dateTimeStr}` : ''}. We'll review your items and prepare your personalized quote. Questions? Call or text 226-773-2993. See you soon! 🌟`
+    await sendSalesMessage({
+      channel: 'sms',
+      to: lead.phone,
+      body,
+      leadId: lead.id,
+      actor: 'automation',
     })
   } catch {
     // best-effort — never fail the lead update because of this
@@ -300,7 +314,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     }
 
     const rawBody = (await request.json()) as Partial<typeof current> & { sendAppointmentSms?: boolean }
-    const { sendAppointmentSms: sendApptSmsFlag, ...updates } = rawBody
+    const { sendAppointmentSms: sendApptSmsFlag, ...rawUpdates } = rawBody
+    const updates = validateLeadPatchPayload(rawUpdates)
     const salesWorkspaceUser = canAccessSalesWorkspace(session)
     const operationsOnlyUpdate = isOperationsOnlyUpdate(updates)
 

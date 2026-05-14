@@ -1,18 +1,18 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import { formatListingPropertySummary } from '@/lib/listing'
 import { getQuotedTruckCount } from '@/lib/operations'
 import { fetchSalesOverview } from '@/lib/sales-api'
-import { estimateLeadQuote, deriveInventoryMetrics, formatMoney, getSalesBranchLabel, isBookedLikeStage, suggestTruckCount } from '@/lib/sales'
+import { estimateLeadQuote, deriveInventoryMetrics, formatMoney, getSalesBranchLabel, isBookedLikeStage, suggestTruckCount, detectSalesBranchFromLocation } from '@/lib/sales'
 import { INVENTORY_PRESETS } from '@/lib/item-presets'
 import { getDisassemblyServiceLabel, getIncludedDisassemblyItems } from '@/lib/move-scope'
 import { formatMovePolicyCategoryLabel, getMovePolicyFinding, summarizeMovePolicy } from '@/lib/move-policy'
 import { getTvBoxMaterialPresetForSize } from '@/lib/packing-materials'
 import { DEFAULT_ROOM_OPTIONS } from './helpers'
-import type { EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, PricingBreakdown, QuoteLineItem } from '@/lib/types'
+import type { EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, PricingBreakdown, QuoteLineItem, QuoteLeg, QuoteLegType } from '@/lib/types'
 
 // Inline address autocomplete — shares the same API as lead-basics-panel
 function AddressAutocompleteInput({ value, placeholder, onSelect }: {
@@ -208,6 +208,7 @@ type Props = {
   destCity: string
   recalculateBusy: boolean
   listingPhotos: string[]
+  customerPhotos?: string[]
   activePhotoIndex: number
   inventoryMetrics: {
     totalItems: number
@@ -247,10 +248,14 @@ type Props = {
   onSetLineItems: (items: QuoteLineItem[]) => void
   moveDescription: string
   internalNotes: string
+  moveTime?: string
+  onMoveTimeChange?: (v: string) => void
   onMoveDescriptionChange: (v: string) => void
   onInternalNotesChange: (v: string) => void
   onSaveDraft: (options?: QuoteWorkspaceSaveOptions) => Promise<void> | void
   onSaveAndPreview: (options?: QuoteWorkspaceSendOptions) => Promise<void> | void
+  legs?: QuoteLeg[]
+  onLegsChange?: (legs: QuoteLeg[]) => void
   onBranchChange?: (value: NonNullable<CRMLead['branch']>) => void
   onJobFactorsChange: (factors: JobFactors) => void
   onAddInventoryItems: (items: InventoryItem[]) => void
@@ -312,6 +317,7 @@ export function EstimateDraftModal({
   destAddress,
   recalculateBusy,
   listingPhotos,
+  customerPhotos,
   activePhotoIndex,
   inventoryMetrics,
   groupedInventory,
@@ -324,6 +330,8 @@ export function EstimateDraftModal({
   jobFactors,
   moveDescription,
   internalNotes,
+  moveTime,
+  onMoveTimeChange,
   onMoveDescriptionChange,
   onInternalNotesChange,
   onClose,
@@ -338,6 +346,8 @@ export function EstimateDraftModal({
   onSetLineItems,
   onSaveDraft,
   onSaveAndPreview,
+  legs: legsProp,
+  onLegsChange,
   onBranchChange,
   onJobFactorsChange,
   onAddInventoryItems,
@@ -365,7 +375,248 @@ export function EstimateDraftModal({
   const [excludedDisassemblyItems, setExcludedDisassemblyItems] = useState<Set<string>>(new Set())
   const [overrideInput, setOverrideInput] = useState('')
   const [overrideReason, setOverrideReason] = useState('relationship')
+  const [, startTransition] = useTransition()
+  const [marginGateAck, setMarginGateAck] = useState(false)
   const [overrideApplied, setOverrideApplied] = useState(false)
+  const [junkAmount, setJunkAmount] = useState('299')
+  const [junkAddress, setJunkAddress] = useState('')
+  const [junkVolumeTier, setJunkVolumeTier] = useState<'unknown' | 'mini' | 'small' | 'medium' | 'large' | 'xl'>('unknown')
+  const [junkPhotoLinkBusy, setJunkPhotoLinkBusy] = useState(false)
+  const [junkPhotoLink, setJunkPhotoLink] = useState<string | null>(null)
+  const [junkSmsDialogOpen, setJunkSmsDialogOpen] = useState(false)
+  const [junkSmsDraft, setJunkSmsDraft] = useState('')
+  const [junkSmsSending, setJunkSmsSending] = useState(false)
+  const [valuationAmount, setValuationAmount] = useState('149')
+  const [intakeOpen, setIntakeOpen] = useState(false)
+  const [intakeText, setIntakeText] = useState('')
+  const [intakeBusy, setIntakeBusy] = useState(false)
+  const [intakeResult, setIntakeResult] = useState<import('@/app/api/sales/smart-intake/route').SmartIntakeResult | null>(null)
+  const [intakeApplied, setIntakeApplied] = useState(false)
+  const [legsEnabled, setLegsEnabled] = useState(() => (legsProp?.length ?? 0) > 0)
+  const [legs, setLegs] = useState<QuoteLeg[]>(() => legsProp?.length ? legsProp : [])
+  const [legRoutes, setLegRoutes] = useState<Record<string, { distanceKm: number; driveHours: number } | null>>({})
+  const legRouteFetchRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+
+  const LEG_TYPE_LABELS: Record<QuoteLegType, string> = {
+    move: '🚚 House → House',
+    storage: '🏢 House → Storage',
+    storage_delivery: '📦 Storage → House',
+    junk: '🗑 Junk Removal',
+    delivery: '🏠 Delivery Drop',
+  }
+
+  function getLegDefaultLabel(type: QuoteLegType, idx: number): string {
+    const num = `Leg ${idx + 1}`
+    if (type === 'move') return `${num} — Moving`
+    if (type === 'storage') return `${num} — House to Storage`
+    if (type === 'storage_delivery') return `${num} — Storage to New Home`
+    if (type === 'junk') return `${num} — Junk Removal`
+    if (type === 'delivery') return `${num} — Delivery`
+    return num
+  }
+
+  async function runSmartIntake() {
+    if (!intakeText.trim()) return
+    setIntakeBusy(true)
+    setIntakeResult(null)
+    try {
+      const res = await fetch('/api/sales/smart-intake', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          text: intakeText,
+          leadContext: {
+            name: lead.name,
+            originAddress: lead.originAddress,
+            originCity: lead.originCity,
+            destAddress: lead.destAddress,
+            destCity: lead.destCity,
+            moveDate: lead.moveDate,
+          },
+        }),
+      })
+      const data = await res.json() as { ok?: boolean; result?: import('@/app/api/sales/smart-intake/route').SmartIntakeResult; error?: string }
+      if (data.ok && data.result) {
+        setIntakeResult(data.result)
+      }
+    } catch { /* non-fatal */ }
+    finally { setIntakeBusy(false) }
+  }
+
+  function applyIntakeResult(r: import('@/app/api/sales/smart-intake/route').SmartIntakeResult) {
+    if (r.quoteType) setQuoteType(r.quoteType)
+    if (r.branch) { setLocalBranch(r.branch); onBranchChange?.(r.branch) }
+    if (r.moveTime) onMoveTimeChange?.(r.moveTime)
+    if (r.originAddress) onOriginAddressChange?.(r.originAddress)
+    if (r.originCity) onOriginCityChange?.(r.originCity)
+    if (r.destAddress) onDestAddressChange?.(r.destAddress)
+    if (r.destCity) onDestCityChange?.(r.destCity)
+    if (r.moveDescription) onMoveDescriptionChange(r.moveDescription)
+    if (r.internalNotes) onInternalNotesChange(r.internalNotes)
+
+    // Apply job factors (map AI field names to actual JobFactors type)
+    if (r.jobFactors) {
+      const jf = r.jobFactors
+      const next: typeof jobFactors = { ...jobFactors }
+      if (jf.packingStatus) next.packingStatus = jf.packingStatus === 'fully-packed' ? 'packed' : jf.packingStatus
+      if (jf.floorsAtOrigin) next.originFloors = jf.floorsAtOrigin
+      if (jf.hasElevatorOrigin !== undefined) next.originHasElevator = jf.hasElevatorOrigin
+      if (jf.directTruckAccessOrigin !== undefined) next.originParkingOk = jf.directTruckAccessOrigin
+      if (jf.floorsAtDest) next.destFloors = jf.floorsAtDest
+      if (jf.hasElevatorDest !== undefined) next.destHasElevator = jf.hasElevatorDest
+      if (jf.directTruckAccessDest !== undefined) next.destParkingOk = jf.directTruckAccessDest
+      if (jf.disassemblyItemCount !== undefined) next.disassemblyItemCount = jf.disassemblyItemCount
+      if (jf.boxCount !== undefined) next.estimatedBoxes = jf.boxCount
+      if (jf.specialtyItems?.piano) next.hasPiano = true
+      if (jf.specialtyItems?.heavySafe) next.hasSafe = true
+      if (jf.crewSizeOverride) next.crewSizeOverride = jf.crewSizeOverride
+      if (jf.specialtyNotes) next.specialtyNotes = jf.specialtyNotes
+      onJobFactorsChange(next)
+    }
+
+    // Apply legs
+    if (r.legsEnabled && r.legs?.length) {
+      const newLegs = r.legs.map((l, i) => ({
+        id: `leg-${Date.now()}-${i}`,
+        label: l.label || getLegDefaultLabel(l.type, i),
+        type: l.type,
+        originAddress: l.originAddress || '',
+        originCity: l.originCity || '',
+        destAddress: l.destAddress || '',
+        destCity: l.destCity || '',
+        scheduledDate: l.scheduledDate || '',
+        notes: l.notes || '',
+      }))
+      setLegsEnabled(true)
+      setLegs(newLegs)
+      onLegsChange?.(newLegs)
+    }
+
+    // Apply add-ons
+    if (r.addOns?.packing && !packingLaborAdded) {
+      const additions: QuoteLineItem[] = []
+      if (flags?.packingDayEstimate) {
+        additions.push({ description: packingLaborLineDescription, details: `${flags.packingDayEstimate.crewSize} packers · ~${flags.packingDayEstimate.hours}h`, amount: flags.packingDayEstimate.amountBeforeHst })
+      } else {
+        additions.push({ description: packingLaborLineDescription, details: 'Professional packing service', amount: 0 })
+      }
+      if (packingMaterialsEstimate) {
+        additions.push({ description: packingMaterialsLineDescription, details: buildPackingMaterialsLineItemDetails(packingMaterialsEstimate), amount: packingMaterialsEstimate.subtotal })
+      }
+      onSetLineItems([...quoteLineItems, ...additions])
+    }
+    if (r.addOns?.junk && !junkAdded) toggleJunk()
+    if (r.addOns?.valuation && !valuationAdded) toggleValuation()
+
+    setIntakeApplied(true)
+    setTimeout(() => onRecalculate({ quoteType: r.quoteType || quoteType, distanceKm: distanceKm || route?.distanceKm || undefined, routeContext }), 100)
+  }
+
+  function addLeg() {
+    const n = legs.length + 1
+    const prevLeg = legs[legs.length - 1]
+    const defaultType: QuoteLegType =
+      legs.length === 0 ? 'move' :
+      prevLeg?.type === 'storage' ? 'storage_delivery' :
+      prevLeg?.type === 'storage_delivery' ? 'move' :
+      'move'
+    const newLeg: QuoteLeg = {
+      id: `leg-${Date.now()}`,
+      label: getLegDefaultLabel(defaultType, n - 1),
+      type: defaultType,
+      originAddress: n === 1 ? (originAddress || lead.originAddress || '') : (legs[n - 2]?.destAddress || ''),
+      originCity: n === 1 ? (originCity || lead.originCity || '') : (legs[n - 2]?.destCity || ''),
+      destAddress: n === 1 ? (destAddress || lead.destAddress || '') : '',
+      destCity: n === 1 ? (destCity || lead.destCity || '') : '',
+    }
+    const next = [...legs, newLeg]
+    setLegs(next)
+    onLegsChange?.(next)
+  }
+
+  function removeLeg(id: string) {
+    const next = legs.filter(l => l.id !== id).map((l, i) => ({ ...l, label: `Leg ${i + 1}` }))
+    setLegs(next)
+    onLegsChange?.(next)
+    // Remove auto-generated line items for this leg
+    const removed = legs.find(l => l.id === id)
+    if (removed) {
+      const prefix = `[${removed.label}]`
+      onSetLineItems(quoteLineItems.filter(li => !li.description.startsWith(prefix)))
+    }
+  }
+
+  function updateLeg(id: string, updates: Partial<QuoteLeg>) {
+    const next = legs.map(l => l.id === id ? { ...l, ...updates } : l)
+    setLegs(next)
+    onLegsChange?.(next)
+    // Debounce route calculation
+    if (updates.originAddress !== undefined || updates.destAddress !== undefined || updates.originCity !== undefined || updates.destCity !== undefined) {
+      if (legRouteFetchRef.current[id]) clearTimeout(legRouteFetchRef.current[id])
+      legRouteFetchRef.current[id] = setTimeout(() => void fetchLegRoute(id, next), 800)
+    }
+  }
+
+  async function fetchLegRoute(id: string, currentLegs: QuoteLeg[]) {
+    const leg = currentLegs.find(l => l.id === id)
+    if (!leg) return
+    // Build the most complete address string available
+    const originParts = [leg.originAddress, leg.originCity].filter(Boolean)
+    const destParts   = [leg.destAddress,   leg.destCity  ].filter(Boolean)
+    if (originParts.length === 0 || destParts.length === 0) return
+    const origin = originParts.join(', ')
+    const dest   = destParts.join(', ')
+    try {
+      const res = await fetch('/api/sales/route-estimate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ origin, destination: dest, branch: selectedBranch }),
+        credentials: 'include',
+      })
+      if (!res.ok) return
+      const data = (await res.json()) as RouteResult & { error?: string }
+      if (data.error) return
+      const km  = data.originToDestination?.distanceKm  ?? data.distanceKm  ?? 0
+      const hrs = data.originToDestination?.driveHours  ?? data.driveHours  ?? 0
+      if (!km && !hrs) return  // API returned zeros — don't overwrite with bad data
+      setLegRoutes(prev => ({ ...prev, [id]: { distanceKm: km, driveHours: hrs } }))
+      const withRoute = currentLegs.map(l => l.id === id ? {
+        ...l,
+        distanceKm: km,
+        driveHours: hrs,
+        routeCategory: data.category,
+        pricingStatus: data.pricingStatus,
+        billableDistanceKm: data.billableDistanceKm,
+        operationalDistanceKm: data.operationalDistanceKm,
+        billableDriveHours: data.billableDriveHours,
+        operationalDriveHours: data.operationalDriveHours,
+        yardToOriginHours: data.yardToOrigin?.driveHours,
+        returnTripHours: data.returnToOrigin?.driveHours,
+      } : l)
+      setLegs(withRoute)
+      onLegsChange?.(withRoute)
+    } catch { /* non-fatal */ }
+  }
+
+  // Auto-fetch routes for legs that already have addresses (on open or when legs change)
+  useEffect(() => {
+    if (!open || !legsEnabled || legs.length === 0) return
+    legs.forEach(leg => {
+      const hasAddresses = (leg.originAddress || leg.originCity) && (leg.destAddress || leg.destCity)
+      const alreadyCached = !!legRoutes[leg.id]
+      const alreadySaved = !!(leg.distanceKm && leg.driveHours)
+      if (hasAddresses && !alreadyCached) {
+        // Restore from saved leg data immediately, then re-fetch in background for freshness
+        if (alreadySaved) {
+          setLegRoutes(prev => ({ ...prev, [leg.id]: { distanceKm: leg.distanceKm!, driveHours: leg.driveHours! } }))
+        }
+        // Always re-fetch to confirm accuracy
+        void fetchLegRoute(leg.id, legs)
+      }
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, legsEnabled, legs.length])
 
   // Manual inventory quick-add state
   const [quickRoom, setQuickRoom] = useState('Living Room')
@@ -430,8 +681,17 @@ export function EstimateDraftModal({
 
   useEffect(() => {
     if (!open) return
-    setLocalBranch((branch || lead.branch || 'windsor') as 'windsor' | 'waterloo' | 'london' | 'ottawa')
-  }, [branch, lead.branch, open])
+    // Auto-detect branch from origin address — don't override if already explicitly set
+    const detected = detectSalesBranchFromLocation(
+      originAddress || lead.originAddress,
+      originCity || lead.originCity
+    )
+    const resolved = (branch || lead.branch || detected || 'windsor') as 'windsor' | 'waterloo' | 'london' | 'ottawa'
+    setLocalBranch(resolved)
+    if (detected && detected !== (branch || lead.branch) && !branch) {
+      onBranchChange?.(detected as 'windsor' | 'waterloo' | 'london' | 'ottawa')
+    }
+  }, [branch, lead.branch, open, originAddress, originCity, lead.originAddress, lead.originCity, onBranchChange])
 
   useEffect(() => {
     const hasBookTodayDiscount = quoteLineItems.some(item => item.description === 'Early Booking Discount')
@@ -524,6 +784,8 @@ export function EstimateDraftModal({
     route?.yardToOrigin?.driveHours,
     route?.returnToOrigin?.driveHours,
     route?.missingRequirements,
+    legsEnabled,
+    legs,
     onRecalculate,
     routeContext,
   ])
@@ -542,11 +804,17 @@ export function EstimateDraftModal({
       quoteType,
       distanceKm: distanceKm || route?.distanceKm || undefined,
       routeContext,
+      legs: legsEnabled ? legs : undefined,
     }, jobFactors).pricingBreakdown
-  }, [open, lead, inventory, jobFactors, quoteType, distanceKm, route, routeContext])
+  }, [open, lead, inventory, jobFactors, quoteType, distanceKm, route, routeContext, legs, legsEnabled])
 
   function setFactor<K extends keyof JobFactors>(key: K, value: JobFactors[K]) {
-    onJobFactorsChange({ ...jobFactors, [key]: value })
+    const next = { ...jobFactors, [key]: value }
+    onJobFactorsChange(next)
+    // Crew/truck overrides must immediately recalculate so quote reflects the new count
+    if (key === 'crewSizeOverride' || key === 'truckCountOverride') {
+      onRecalculate({ quoteType, distanceKm: distanceKm || route?.distanceKm || undefined, routeContext })
+    }
   }
 
   function toggleDisassemblyItem(itemName: string) {
@@ -622,6 +890,114 @@ export function EstimateDraftModal({
     })
   }
 
+  const junkLineDescription = 'Junk Removal Service'
+  const valuationLineDescription = 'Declared Value Protection'
+  const junkAdded = quoteLineItems.some(li => li.description === junkLineDescription)
+  const valuationAdded = quoteLineItems.some(li => li.description === valuationLineDescription)
+
+  // Junk removal pricing tiers (2 movers + cube truck, Windsor/KW area)
+  const JUNK_TIERS: Record<string, { label: string; cubicFeet: string; price: number; detail: string }> = {
+    unknown: { label: 'Not sure (request photos)', cubicFeet: '?', price: 299, detail: 'Estimated after photo review' },
+    mini:    { label: 'Mini load (~50 cu ft)',      cubicFeet: '~50',  price: 249, detail: 'Fits in a pickup truck — about 5-8 bags' },
+    small:   { label: 'Small load (~100 cu ft)',    cubicFeet: '~100', price: 349, detail: '¼ cube truck — a few furniture pieces + bags' },
+    medium:  { label: 'Medium load (~200 cu ft)',   cubicFeet: '~200', price: 499, detail: '½ cube truck — most of a room worth of junk' },
+    large:   { label: 'Large load (~350 cu ft)',    cubicFeet: '~350', price: 699, detail: '¾ cube truck — big cleanout' },
+    xl:      { label: 'Full truck+ (400+ cu ft)',   cubicFeet: '400+', price: 899, detail: 'Full cube truck or more — whole-home cleanout' },
+  }
+
+  function applyJunkTier(tier: typeof junkVolumeTier) {
+    setJunkVolumeTier(tier)
+    const price = JUNK_TIERS[tier]?.price ?? 299
+    setJunkAmount(String(price))
+    const idx = quoteLineItems.findIndex(li => li.description === junkLineDescription)
+    const tierLabel = JUNK_TIERS[tier]?.label || ''
+    const detail = `${JUNK_TIERS[tier]?.detail || 'Labour + disposal'}${junkAddress ? ` · ${junkAddress}` : ''}`
+    if (idx >= 0) {
+      onUpdateLineItem(idx, 'amount', String(price))
+      onUpdateLineItem(idx, 'details', detail)
+    } else {
+      onSetLineItems([...quoteLineItems, { description: junkLineDescription, details: detail, amount: price }])
+    }
+  }
+
+  async function requestJunkPhotos() {
+    if (!lead.id || !lead.phone) return
+    try {
+      setJunkPhotoLinkBusy(true)
+      const res = await fetch(`/api/sales/leads/${lead.id}/survey`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ purpose: 'junk_removal', junkAddress }),
+      })
+      const data = await res.json() as { surveyUrl?: string; defaultSmsTemplate?: string }
+      if (data.surveyUrl) {
+        setJunkPhotoLink(data.surveyUrl)
+        const firstName = lead.name?.split(' ')[0] || 'there'
+        const locationLine = junkAddress ? ` at ${junkAddress}` : ''
+        const draft = `Hi ${firstName}! Saturn Star Moving here. Before we lock in your junk removal price${locationLine}, could you send us a few quick photos of the items?\n\nIt takes 2 minutes — just tap the link and upload:\n${data.surveyUrl}\n\nOnce we see them we'll confirm the price right away.\n\n— Saturn Star Movers`
+        setJunkSmsDraft(draft)
+        setJunkSmsDialogOpen(true)
+      }
+    } catch { /* non-fatal */ } finally {
+      setJunkPhotoLinkBusy(false)
+    }
+  }
+
+  async function sendJunkPhotoSms() {
+    if (!lead.phone || !junkSmsDraft.trim()) return
+    try {
+      setJunkSmsSending(true)
+      await fetch('/api/sales/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ channel: 'sms', to: lead.phone, body: junkSmsDraft, leadId: lead.id, notes: 'Junk removal photo request' }),
+      })
+      setJunkSmsDialogOpen(false)
+    } catch { /* non-fatal */ } finally {
+      setJunkSmsSending(false)
+    }
+  }
+
+  function toggleJunk() {
+    if (junkAdded) {
+      const idx = quoteLineItems.findIndex(li => li.description === junkLineDescription)
+      if (idx >= 0) onRemoveLineItem(idx)
+    } else {
+      onSetLineItems([...quoteLineItems, {
+        description: junkLineDescription,
+        details: 'Labour + disposal fees · items removed from property before or after move',
+        amount: Number(junkAmount) || 299,
+      }])
+    }
+  }
+
+  function toggleValuation() {
+    if (valuationAdded) {
+      const idx = quoteLineItems.findIndex(li => li.description === valuationLineDescription)
+      if (idx >= 0) onRemoveLineItem(idx)
+    } else {
+      onSetLineItems([...quoteLineItems, {
+        description: valuationLineDescription,
+        details: 'Up to $50,000 declared value coverage · full replacement liability · optional add-on',
+        amount: Number(valuationAmount) || 149,
+      }])
+    }
+  }
+
+  function syncJunkAmount(val: string) {
+    setJunkAmount(val)
+    const idx = quoteLineItems.findIndex(li => li.description === junkLineDescription)
+    if (idx >= 0) onUpdateLineItem(idx, 'amount', val)
+  }
+
+  function syncValuationAmount(val: string) {
+    setValuationAmount(val)
+    const idx = quoteLineItems.findIndex(li => li.description === valuationLineDescription)
+    if (idx >= 0) onUpdateLineItem(idx, 'amount', val)
+  }
+
   function addQuickItem() {
     if (!quickItem.trim()) return
     const cf = Number(quickCuFt) || 0
@@ -673,7 +1049,13 @@ export function EstimateDraftModal({
       .filter(item => item.amount === 0 || Number(item.amount) === 0)
       .reduce((sum, item) => sum + (dealCosts[item.description] || 0), 0)
     const actualRevenue = quoteModalTotals.subtotal
-    const totalCost = Math.round((pricingBreakdown.internalCostEstimate.laborCost + pricingBreakdown.internalCostEstimate.truckOpsCost + dealCost) * 100) / 100
+    const totalCost = Math.round((
+      pricingBreakdown.internalCostEstimate.laborCost +
+      pricingBreakdown.internalCostEstimate.truckOpsCost +
+      (pricingBreakdown.internalCostEstimate.commissionCost || 0) +
+      (pricingBreakdown.internalCostEstimate.suppliesCost || 0) +
+      dealCost
+    ) * 100) / 100
     const liveProfit = Math.round((actualRevenue - totalCost) * 100) / 100
     const liveMargin = actualRevenue > 0 ? Math.round((liveProfit / actualRevenue) * 1000) / 10 : 0
     return {
@@ -705,6 +1087,12 @@ export function EstimateDraftModal({
     if (projectedRevenue <= 0) return 0
     return Math.round(((projectedRevenue - liveMarginSummary.totalCost) / projectedRevenue) * 1000) / 10
   }, [liveMarginSummary, overrideInput])
+
+  // Reset margin gate acknowledgement whenever the quote pricing changes
+  useEffect(() => {
+    setMarginGateAck(false)
+  }, [quoteLineItems, pricingBreakdown])
+
   const accessConfirmed = Boolean(
     lead.originAccess ||
     lead.destAccess ||
@@ -783,30 +1171,22 @@ export function EstimateDraftModal({
     () => [...blockingReadiness, ...warningReadiness].map(item => item.detail),
     [blockingReadiness, warningReadiness]
   )
+  // Discounts available any time — rep decides when to apply them
   const bookTodayGate = useMemo(() => {
     const reasons: string[] = []
-    if (!quote?.sentAt) reasons.push('available after the quote is sent')
-    if (!quote?.viewedAt) reasons.push('customer must have viewed the quote or be on a live close call')
     if (lead.paymentStatus === 'deposit_received' || lead.paymentStatus === 'paid_in_full' || quote?.depositPaidAt) reasons.push('deposit is already paid')
-    if (moveDateDaysAway !== null && moveDateDaysAway > 30) reasons.push('move date is outside the close-now discount window')
     const approvalRequired = bookTodayProjectedMargin !== null && bookTodayProjectedMargin < 55
-    return {
-      eligible: reasons.length === 0,
-      reasons,
-      approvalRequired,
-    }
-  }, [bookTodayProjectedMargin, lead.paymentStatus, moveDateDaysAway, quote?.depositPaidAt, quote?.sentAt, quote?.viewedAt])
+    return { eligible: reasons.length === 0, reasons, approvalRequired }
+  }, [bookTodayProjectedMargin, lead.paymentStatus, quote?.depositPaidAt])
   const tenPctGate = useMemo(() => {
     const reasons: string[] = []
-    if (!quote?.sentAt) reasons.push('available after the quote is sent')
-    if (!quote?.viewedAt) reasons.push('customer must be actively reviewing the quote')
     if (lead.paymentStatus === 'deposit_received' || lead.paymentStatus === 'paid_in_full' || quote?.depositPaidAt) reasons.push('deposit is already paid')
     return {
       eligible: reasons.length === 0,
       reasons,
       approvalRequired: tenPctProjectedMargin !== null && tenPctProjectedMargin < 55,
     }
-  }, [lead.paymentStatus, quote?.depositPaidAt, quote?.sentAt, quote?.viewedAt, tenPctProjectedMargin])
+  }, [lead.paymentStatus, quote?.depositPaidAt, tenPctProjectedMargin])
 
   useEffect(() => {
     if (!open) return
@@ -979,8 +1359,110 @@ export function EstimateDraftModal({
           {/* Main content */}
           <div className="overflow-y-auto p-4 md:p-6 space-y-6">
 
-            {/* Origin → Destination quick edit */}
-            {(onOriginAddressChange || onDestAddressChange) && (
+            {/* ── SMART INTAKE ── */}
+            <div className={`rounded-[10px] border ${intakeApplied ? 'border-emerald-300 bg-emerald-50' : 'border-[#1a2744]/20 bg-[#1a2744]/5'} overflow-hidden`}>
+              <button
+                type="button"
+                onClick={() => setIntakeOpen(v => !v)}
+                className="flex w-full items-center justify-between px-4 py-3"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-lg">🧠</span>
+                  <div className="text-left">
+                    <div className="text-sm font-semibold text-[#1a2744]">
+                      Smart Intake {intakeApplied ? '· Applied ✓' : ''}
+                    </div>
+                    <div className="text-[11px] text-[#1a2744]/50">
+                      Describe the move in plain English — AI fills in the fields
+                    </div>
+                  </div>
+                </div>
+                <span className="text-[var(--app-muted)] text-sm">{intakeOpen ? '▲' : '▼'}</span>
+              </button>
+
+              {intakeOpen && (
+                <div className="border-t border-[#1a2744]/10 px-4 pb-4 pt-3 space-y-3">
+                  <textarea
+                    rows={5}
+                    value={intakeText}
+                    onChange={e => setIntakeText(e.target.value)}
+                    className="w-full rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2.5 text-sm text-[var(--app-ink)] placeholder:text-[var(--app-muted)] focus:border-[#1a2744] focus:outline-none resize-none"
+                    placeholder={`Describe the move — e.g.:\n\n"Lady moving 4-bed house in Greeley to storage first. Keys not available until 1pm. Needs full packing, has a piano and a large safe. Then 10 days later moving from storage to new house in Brockville. 2 kids helping on move day. Wants junk removal too."`}
+                  />
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void runSmartIntake()}
+                      disabled={intakeBusy || !intakeText.trim()}
+                      className="flex-1 rounded-[8px] bg-[#1a2744] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+                    >
+                      {intakeBusy ? '🧠 Parsing…' : '🧠 Parse Move'}
+                    </button>
+                    {intakeResult && !intakeApplied && (
+                      <button
+                        type="button"
+                        onClick={() => applyIntakeResult(intakeResult)}
+                        className="rounded-[8px] bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
+                      >
+                        Apply →
+                      </button>
+                    )}
+                  </div>
+
+                  {intakeResult && (
+                    <div className="space-y-3">
+                      {/* Summary */}
+                      {intakeResult.summary && (
+                        <div className="rounded-[6px] border border-[#1a2744]/20 bg-white px-3 py-2.5 text-sm text-[#1a2744]">
+                          <span className="font-semibold">Understood: </span>{intakeResult.summary}
+                        </div>
+                      )}
+
+                      {/* What will be filled */}
+                      <div className="rounded-[6px] border border-sky-200 bg-sky-50 px-3 py-2.5 space-y-1.5">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-sky-700">Will fill in:</div>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[11px] text-sky-800">
+                          {intakeResult.quoteType && <span>✓ Quote type: {intakeResult.quoteType.replace('_', ' ')}</span>}
+                          {intakeResult.branch && <span>✓ Branch: {intakeResult.branch}</span>}
+                          {intakeResult.moveTime && <span>✓ Start time: {intakeResult.moveTime}</span>}
+                          {intakeResult.legsEnabled && <span>✓ Multi-stop: {intakeResult.legs?.length} legs</span>}
+                          {intakeResult.addOns?.packing && <span>✓ Packing service</span>}
+                          {intakeResult.addOns?.junk && <span>✓ Junk removal</span>}
+                          {intakeResult.jobFactors?.packingStatus && <span>✓ Packing: {intakeResult.jobFactors.packingStatus.replace('-', ' ')}</span>}
+                          {intakeResult.jobFactors?.floorsAtOrigin && intakeResult.jobFactors.floorsAtOrigin > 1 && <span>✓ Origin: {intakeResult.jobFactors.floorsAtOrigin} floors</span>}
+                          {intakeResult.jobFactors?.disassemblyItemCount !== undefined && intakeResult.jobFactors.disassemblyItemCount > 0 && <span>✓ Disassembly: {intakeResult.jobFactors.disassemblyItemCount} items</span>}
+                          {intakeResult.jobFactors?.boxCount !== undefined && intakeResult.jobFactors.boxCount > 0 && <span>✓ Boxes: ~{intakeResult.jobFactors.boxCount}</span>}
+                          {intakeResult.jobFactors?.specialtyItems?.piano && <span>✓ Piano flagged</span>}
+                          {intakeResult.jobFactors?.specialtyItems?.heavySafe && <span>✓ Heavy safe flagged</span>}
+                          {intakeResult.moveDescription && <span>✓ Move description</span>}
+                          {intakeResult.internalNotes && <span>✓ Internal notes</span>}
+                        </div>
+                      </div>
+
+                      {/* Missing questions */}
+                      {(intakeResult.missingInfo?.length ?? 0) > 0 && (
+                        <div className="rounded-[6px] border border-amber-200 bg-amber-50 px-3 py-2.5 space-y-1">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-amber-700">Still need to ask:</div>
+                          {intakeResult.missingInfo!.map((q, i) => (
+                            <div key={i} className="text-[11px] text-amber-800">• {q}</div>
+                          ))}
+                        </div>
+                      )}
+
+                      {intakeApplied && (
+                        <div className="rounded-[6px] border border-emerald-200 bg-emerald-100 px-3 py-2 text-[11px] font-semibold text-emerald-800">
+                          ✓ Applied — scroll down to review and edit anything. Ask the missing questions above before sending.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Origin → Destination quick edit — hidden when multi-stop is on (legs ARE the route) */}
+            {(onOriginAddressChange || onDestAddressChange) && !legsEnabled && (
               <div ref={routeSectionRef} className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
                 <div className="crm-label mb-3">Move Route</div>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -1083,11 +1565,12 @@ export function EstimateDraftModal({
                     type="button"
                     onClick={() => {
                       setQuoteType(opt.id)
-                      onRecalculate({
+                      // Defer recalculate to next tick so button state updates first (fixes INP)
+                      setTimeout(() => onRecalculate({
                         quoteType: opt.id,
                         distanceKm: distanceKm || route?.distanceKm || undefined,
                         routeContext,
-                      })
+                      }), 0)
                     }}
                     className={quoteType === opt.id
                       ? 'rounded-full px-4 py-1.5 text-sm font-semibold bg-[#1a2744] text-white'
@@ -1097,6 +1580,403 @@ export function EstimateDraftModal({
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* ── ADD-ON SERVICES ── */}
+            <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 space-y-3">
+              <div>
+                <div className="crm-label">Add-on Services</div>
+                <div className="mt-0.5 text-[11px] text-[var(--app-muted)]">Toggle services to include on this quote. Each appears as its own line item.</div>
+              </div>
+
+              {/* Service chips */}
+              <div className="flex flex-wrap gap-2">
+                {/* Moving — always active */}
+                <div className="flex items-center gap-1.5 rounded-full bg-[#1a2744] px-3 py-1.5 text-xs font-semibold text-white">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  Moving
+                </div>
+
+                {/* Packing */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (packingLaborAdded || packingMaterialsAdded) {
+                      const nextItems = quoteLineItems.filter(li =>
+                        li.description !== packingLaborLineDescription &&
+                        li.description !== packingMaterialsLineDescription
+                      )
+                      onSetLineItems(nextItems)
+                    } else {
+                      const additions: QuoteLineItem[] = []
+                      if (flags?.packingDayEstimate) {
+                        additions.push({
+                          description: packingLaborLineDescription,
+                          details: `${flags.packingDayEstimate.crewSize} packers · ~${flags.packingDayEstimate.hours}h · day before move`,
+                          amount: flags.packingDayEstimate.amountBeforeHst,
+                        })
+                      } else {
+                        additions.push({
+                          description: packingLaborLineDescription,
+                          details: 'Professional packing service — crew day before move',
+                          amount: 0,
+                        })
+                      }
+                      if (packingMaterialsEstimate) {
+                        additions.push({
+                          description: packingMaterialsLineDescription,
+                          details: buildPackingMaterialsLineItemDetails(packingMaterialsEstimate),
+                          amount: packingMaterialsEstimate.subtotal,
+                        })
+                      } else {
+                        additions.push({
+                          description: packingMaterialsLineDescription,
+                          details: 'Boxes, tape, paper, bubble wrap — charged for actual materials used',
+                          amount: 0,
+                        })
+                      }
+                      onSetLineItems([...quoteLineItems, ...additions])
+                    }
+                  }}
+                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    packingLaborAdded || packingMaterialsAdded
+                      ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                      : 'border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:border-[#1a2744] hover:text-[#1a2744]'
+                  }`}
+                >
+                  {packingLaborAdded || packingMaterialsAdded ? '✓' : '+'} Packing
+                </button>
+
+                {/* Junk Removal */}
+                <button
+                  type="button"
+                  onClick={toggleJunk}
+                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    junkAdded
+                      ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                      : 'border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:border-[#1a2744] hover:text-[#1a2744]'
+                  }`}
+                >
+                  {junkAdded ? '✓' : '+'} Junk Removal
+                </button>
+
+                {/* Valuation */}
+                <button
+                  type="button"
+                  onClick={toggleValuation}
+                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    valuationAdded
+                      ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                      : 'border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:border-[#1a2744] hover:text-[#1a2744]'
+                  }`}
+                >
+                  {valuationAdded ? '✓' : '+'} Valuation
+                </button>
+              </div>
+
+              {/* ── Junk Removal Workflow ── */}
+              {junkAdded && (
+                <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 p-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-semibold text-emerald-900">🗑 Junk Removal Details</div>
+                    <button type="button" onClick={toggleJunk} className="text-[10px] text-emerald-600 hover:text-emerald-900">Remove</button>
+                  </div>
+
+                  {/* Junk pickup address — Google Places autocomplete */}
+                  <div>
+                    <label className="text-[10px] font-semibold text-emerald-800">Junk pickup address</label>
+                    <div className="mt-1">
+                      <AddressAutocompleteInput
+                        value={junkAddress}
+                        placeholder="Enter junk address (may differ from move origin)"
+                        onSelect={(addr) => setJunkAddress(addr)}
+                      />
+                    </div>
+                    {junkAddress && originAddress && junkAddress.trim().toLowerCase() !== originAddress.trim().toLowerCase() && (
+                      <div className="mt-1 text-[10px] text-emerald-700">Different from move origin ✓ — will be treated as a separate stop</div>
+                    )}
+                    {junkAddress && originAddress && junkAddress.trim().toLowerCase() === originAddress.trim().toLowerCase() && (
+                      <div className="mt-1 text-[10px] text-emerald-600">Same as move origin — junk cleared before/after main move</div>
+                    )}
+                  </div>
+
+                  {/* Volume tier picker */}
+                  <div>
+                    <label className="text-[10px] font-semibold text-emerald-800">How much junk?</label>
+                    <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+                      {(Object.entries(JUNK_TIERS) as Array<[typeof junkVolumeTier, typeof JUNK_TIERS[string]]>).map(([tier, info]) => (
+                        <button
+                          key={tier}
+                          type="button"
+                          onClick={() => startTransition(() => applyJunkTier(tier))}
+                          className={`rounded-[6px] border px-2.5 py-2 text-left text-[11px] transition ${junkVolumeTier === tier ? 'border-emerald-500 bg-white font-semibold text-emerald-800' : 'border-emerald-200 bg-white/60 text-emerald-700 hover:border-emerald-400'}`}
+                        >
+                          <div className="font-medium">{info.label}</div>
+                          {tier !== 'unknown' && <div className="mt-0.5 text-[10px] text-emerald-600">${info.price}</div>}
+                        </button>
+                      ))}
+                    </div>
+                    {junkVolumeTier !== 'unknown' && (
+                      <div className="mt-1.5 text-[10px] text-emerald-700">{JUNK_TIERS[junkVolumeTier].detail}</div>
+                    )}
+                  </div>
+
+                  {/* Price override */}
+                  <div className="flex items-center gap-2">
+                    <label className="text-[10px] font-semibold text-emerald-800 shrink-0">Price</label>
+                    <div className="flex items-center gap-1 rounded-[6px] border border-emerald-300 bg-white px-2 py-1">
+                      <span className="text-xs text-emerald-700">$</span>
+                      <input
+                        type="number"
+                        value={junkAmount}
+                        onChange={e => syncJunkAmount(e.target.value)}
+                        className="w-20 text-sm font-semibold text-[var(--app-ink)] focus:outline-none"
+                      />
+                    </div>
+                    <span className="text-[10px] text-emerald-600">Override if needed</span>
+                  </div>
+
+                  {/* Photo request */}
+                  <div className="rounded-[6px] border border-dashed border-emerald-300 bg-white/60 p-2.5">
+                    <div className="text-[10px] font-semibold text-emerald-800 mb-1">📷 Request junk photos from customer</div>
+                    <div className="text-[10px] text-emerald-700 mb-2">Send them a link → they upload photos → AI estimates volume → you confirm the price.</div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => junkPhotoLink ? setJunkSmsDialogOpen(true) : void requestJunkPhotos()}
+                        disabled={junkPhotoLinkBusy || !lead.phone}
+                        className="rounded-[5px] bg-emerald-600 px-3 py-1.5 text-[10px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                      >
+                        {junkPhotoLinkBusy ? 'Generating…' : junkPhotoLink ? '✉ Send SMS again' : lead.phone ? '📷 Generate & send photo request' : 'No phone on file'}
+                      </button>
+                      {junkPhotoLink && (
+                        <button type="button" onClick={() => void navigator.clipboard.writeText(junkPhotoLink)} className="rounded-[5px] border border-emerald-400 px-2.5 py-1.5 text-[10px] font-semibold text-emerald-800 hover:bg-emerald-100">
+                          Copy link
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Junk photo SMS dialog ── */}
+              {junkSmsDialogOpen && junkPhotoLink && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+                  <div className="w-full max-w-md rounded-[16px] border border-[var(--app-line)] bg-white p-6 shadow-2xl">
+                    <h3 className="text-base font-semibold text-[var(--app-ink)]">📷 Send junk photo request</h3>
+                    <p className="mt-1 text-xs text-[var(--app-muted)]">Review and edit the message before sending to <span className="font-semibold text-[var(--app-ink)]">{lead.phone}</span></p>
+                    <div className="mt-3 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2 text-[11px] font-medium text-[var(--app-muted)] break-all">
+                      🔗 {junkPhotoLink}
+                    </div>
+                    <textarea
+                      value={junkSmsDraft}
+                      onChange={e => setJunkSmsDraft(e.target.value)}
+                      rows={7}
+                      className="mt-3 w-full rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2.5 text-sm leading-6 outline-none focus:border-[var(--app-accent)] resize-none"
+                    />
+                    <div className="mt-4 flex items-center justify-end gap-3">
+                      <button type="button" onClick={() => setJunkSmsDialogOpen(false)} className="crm-button text-sm">Cancel</button>
+                      <button
+                        type="button"
+                        onClick={() => void sendJunkPhotoSms()}
+                        disabled={junkSmsSending || !junkSmsDraft.trim()}
+                        className="crm-button-dark text-sm disabled:opacity-60"
+                      >
+                        {junkSmsSending ? 'Sending…' : `Send to ${lead.phone}`}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Valuation detail row */}
+              {valuationAdded && (
+                <div className="flex items-center gap-3 rounded-[6px] border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                  <div className="flex-1 text-[11px] text-emerald-800">
+                    <div className="font-semibold">Declared Value Protection</div>
+                    <div className="text-emerald-700">Up to $50k coverage · full replacement liability on all items</div>
+                  </div>
+                  <div className="flex items-center gap-1 text-[11px] text-emerald-800 font-semibold">
+                    <span>$</span>
+                    <input
+                      type="number"
+                      value={valuationAmount}
+                      onChange={e => syncValuationAmount(e.target.value)}
+                      className="w-20 rounded-[4px] border border-emerald-300 bg-white px-2 py-1 text-right text-xs font-semibold text-[var(--app-ink)] focus:outline-none"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Packing detail when active but no AI estimate */}
+              {(packingLaborAdded || packingMaterialsAdded) && !flags?.packingDayEstimate && (
+                <div className="rounded-[6px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+                  Packing added with $0 placeholders — set amounts manually in line items below.
+                </div>
+              )}
+            </div>
+
+            {/* ── MULTI-STOP / STAGED MOVE ── */}
+            <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="crm-label">Multi-Stop Move</div>
+                  <div className="mt-0.5 text-[11px] text-[var(--app-muted)]">Leg 1 → storage, Leg 2 → new house. Or delivery stops, junk runs, daughter's place — any route.</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !legsEnabled
+                    setLegsEnabled(next)
+                    if (next && legs.length === 0) addLeg()
+                    if (!next) { setLegs([]); onLegsChange?.([]) }
+                  }}
+                  className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${legsEnabled ? 'bg-[#1a2744] text-white' : 'bg-[var(--app-line)] text-[var(--app-muted)]'}`}
+                >
+                  {legsEnabled ? 'On' : 'Off'}
+                </button>
+              </div>
+
+              {legsEnabled && (
+                <div className="space-y-3">
+                  {legs.map((leg, idx) => (
+                    <div key={leg.id} className="rounded-[8px] border border-[var(--app-line)] bg-white p-3 space-y-2">
+                      {/* Leg header */}
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#1a2744] text-[9px] font-bold text-white shrink-0">{idx + 1}</span>
+                        <input
+                          value={leg.label}
+                          onChange={e => updateLeg(leg.id, { label: e.target.value })}
+                          className="flex-1 border-0 bg-transparent text-xs font-semibold text-[var(--app-ink)] outline-none placeholder:text-[var(--app-muted)]"
+                          placeholder={`Leg ${idx + 1} label`}
+                        />
+                        <select
+                          value={leg.type}
+                          onChange={e => {
+                            const newType = e.target.value as QuoteLegType
+                            // Auto-update label if it still matches the old default
+                            const oldDefault = getLegDefaultLabel(leg.type, idx)
+                            const labelIsDefault = leg.label === oldDefault || leg.label === `Leg ${idx + 1}`
+                            updateLeg(leg.id, {
+                              type: newType,
+                              label: labelIsDefault ? getLegDefaultLabel(newType, idx) : leg.label,
+                            })
+                          }}
+                          className="rounded-[4px] border border-[var(--app-line)] bg-white px-1.5 py-0.5 text-[10px] text-[var(--app-muted)]"
+                        >
+                          {(Object.entries(LEG_TYPE_LABELS) as [QuoteLegType, string][]).map(([k, v]) => (
+                            <option key={k} value={k}>{v}</option>
+                          ))}
+                        </select>
+                        {legs.length > 1 && (
+                          <button type="button" onClick={() => removeLeg(leg.id)} className="text-[var(--app-muted)] hover:text-rose-500 text-xs">×</button>
+                        )}
+                      </div>
+
+                      {/* Origin / Dest */}
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <div>
+                          <div className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">From</div>
+                          <AddressAutocompleteInput
+                            value={leg.originAddress || ''}
+                            placeholder="Origin address"
+                            onSelect={(addr, city) => updateLeg(leg.id, { originAddress: addr, originCity: city || leg.originCity })}
+                          />
+                        </div>
+                        <div>
+                          <div className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">To</div>
+                          <AddressAutocompleteInput
+                            value={leg.destAddress || ''}
+                            placeholder="Destination"
+                            onSelect={(addr, city) => updateLeg(leg.id, { destAddress: addr, destCity: city || leg.destCity })}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Storage leg smart hints */}
+                      {leg.type === 'storage' && (
+                        <div className="rounded-[4px] bg-blue-50 border border-blue-200 px-2 py-1.5 text-[10px] text-blue-800 space-y-0.5">
+                          <div className="font-semibold">🏢 House → Storage rules:</div>
+                          <div>✓ Disassemble only at pickup — no reassembly at storage</div>
+                          <div>✓ Wrap all items for storage protection</div>
+                          <div>✓ No destination access penalty (storage = ground floor)</div>
+                        </div>
+                      )}
+                      {leg.type === 'storage_delivery' && (
+                        <div className="rounded-[4px] bg-emerald-50 border border-emerald-200 px-2 py-1.5 text-[10px] text-emerald-800 space-y-0.5">
+                          <div className="font-semibold">📦 Storage → House rules:</div>
+                          <div>✓ Reassemble only at destination — no disassembly needed</div>
+                          <div>✓ No rewrapping charge — items already wrapped in storage</div>
+                          <div>✓ Faster unload — crew knows the inventory from Leg 1</div>
+                        </div>
+                      )}
+                      {leg.type === 'move' && idx > 0 && (legs[idx - 1]?.type === 'storage' || legs[idx - 1]?.type === 'storage_delivery') && (
+                        <div className="rounded-[4px] bg-amber-50 border border-amber-200 px-2 py-1.5 text-[10px] text-amber-800">
+                          Follows a storage leg — confirm if items need wrapping or disassembly.
+                        </div>
+                      )}
+
+                      {/* Route badge + date */}
+                      <div className="flex items-center gap-2">
+                        {legRoutes[leg.id] ? (
+                          <div className="flex items-center gap-1 rounded-full bg-sky-50 border border-sky-200 px-2 py-0.5 text-[10px] text-sky-700 font-medium">
+                            <span>{legRoutes[leg.id]!.distanceKm} km · {legRoutes[leg.id]!.driveHours}h drive</span>
+                          </div>
+                        ) : (leg.originAddress && leg.destAddress) ? (
+                          <div className="text-[10px] text-[var(--app-muted)]">Calculating route…</div>
+                        ) : null}
+                        <input
+                          type="date"
+                          value={leg.scheduledDate || ''}
+                          onChange={e => updateLeg(leg.id, { scheduledDate: e.target.value })}
+                          className="ml-auto rounded-[4px] border border-[var(--app-line)] px-1.5 py-0.5 text-[10px] text-[var(--app-muted)]"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2 rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2 py-1.5">
+                        <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Shipment Share</div>
+                        <input
+                          type="number"
+                          min={5}
+                          max={100}
+                          value={leg.inventorySharePct ?? ''}
+                          onChange={e => updateLeg(leg.id, { inventorySharePct: e.target.value ? Number(e.target.value) : undefined })}
+                          className="ml-auto w-16 rounded-[4px] border border-[var(--app-line)] bg-white px-2 py-1 text-right text-[11px] text-[var(--app-ink)] outline-none focus:border-[var(--app-accent)]"
+                          placeholder={leg.type === 'delivery' ? '20' : '100'}
+                        />
+                        <span className="text-[10px] text-[var(--app-muted)]">%</span>
+                      </div>
+                      <div className="text-[10px] text-[var(--app-muted)]">
+                        {leg.type === 'delivery'
+                          ? 'For extra stops, set roughly how much of the shipment gets dropped here. The main stop uses the remaining share.'
+                          : leg.type === 'junk'
+                            ? 'Optional. Use this only if the junk run is a small portion of the overall job.'
+                            : 'Optional. Leave blank for full-shipment handling on this leg, or enter a share for partial pickups / split jobs.'}
+                      </div>
+
+                      {/* Notes */}
+                      <input
+                        value={leg.notes || ''}
+                        onChange={e => updateLeg(leg.id, { notes: e.target.value })}
+                        className="w-full rounded-[4px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2 py-1 text-[11px] text-[var(--app-muted)] placeholder:text-[var(--app-muted)] outline-none focus:border-[var(--app-accent)]"
+                        placeholder="Notes — special instructions, timing, access…"
+                      />
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={addLeg}
+                    className="w-full rounded-[6px] border border-dashed border-[var(--app-line)] py-2 text-[11px] font-semibold text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition-colors"
+                  >
+                    + Add Another Stop
+                  </button>
+
+                  <div className="rounded-[6px] bg-sky-50 border border-sky-200 px-3 py-2 text-[10px] text-sky-800">
+                    Each leg now prices automatically from its own route plus the shipment share you assign. Packing, valuation, junk, and other extras still layer in below.
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Branch Selector */}
@@ -1136,6 +2016,38 @@ export function EstimateDraftModal({
                 />
                 <div className="mt-1.5 text-xs text-[var(--app-muted)]">
                   Override only when routing needs a manual correction. Leave blank to keep the live branch-to-yard calculation.
+                </div>
+              </div>
+            </div>
+
+            {/* Move Start Time */}
+            <div className="flex items-center gap-4 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-3">
+              <div className="flex-1">
+                <div className="crm-label">Crew Start Time</div>
+                <div className="mt-0.5 text-[11px] text-[var(--app-muted)]">Shown on the customer quote. Default is 9:00 AM.</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="time"
+                  value={moveTime || '09:00'}
+                  onChange={e => onMoveTimeChange?.(e.target.value)}
+                  className="rounded-[6px] border border-[var(--app-line)] bg-white px-2.5 py-1.5 text-sm font-semibold text-[var(--app-ink)] focus:border-[var(--app-accent)] focus:outline-none"
+                />
+                <div className="flex flex-wrap gap-1">
+                  {['08:00', '09:00', '10:00', '13:00'].map(t => {
+                    const labels: Record<string, string> = { '08:00': '8am', '09:00': '9am', '10:00': '10am', '13:00': '1pm' }
+                    const active = (moveTime || '09:00') === t
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => onMoveTimeChange?.(t)}
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold transition-colors ${active ? 'bg-[#1a2744] text-white' : 'bg-white border border-[var(--app-line)] text-[var(--app-muted)] hover:border-[#1a2744]'}`}
+                      >
+                        {labels[t]}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
             </div>
@@ -1472,6 +2384,28 @@ export function EstimateDraftModal({
                   </div>
                 )}
               </div>
+
+              {/* Customer-uploaded / survey photos */}
+              {(customerPhotos?.length ?? 0) > 0 && (
+                <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 p-4">
+                  <div className="crm-label text-emerald-800">Customer Photos <span className="ml-1 font-normal normal-case text-emerald-600">({customerPhotos!.length})</span></div>
+                  <div className="mt-2 text-[10px] text-emerald-700">Photos uploaded by the customer — use these to verify the AI inventory is correct.</div>
+                  <div className="mt-3 grid grid-cols-4 gap-1.5 max-h-64 overflow-y-auto pr-0.5">
+                    {customerPhotos!.map((photo, index) => (
+                      <a
+                        key={`customer-${index}`}
+                        href={photo}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="overflow-hidden rounded-[6px] border border-emerald-200 hover:border-emerald-400 transition-colors"
+                      >
+                        <img src={photo} alt={`Customer photo ${index + 1}`} className="h-14 w-full object-cover" />
+                      </a>
+                    ))}
+                  </div>
+                  <div className="mt-1.5 text-[10px] text-emerald-600">Click any photo to open full size.</div>
+                </div>
+              )}
             </div>
 
             {/* ── JOB FACTORS ── */}
@@ -1869,10 +2803,22 @@ export function EstimateDraftModal({
                   })()}
                 </div>
 
-                {/* Disassembly */}
+                {/* Disassembly — with live price impact */}
+                {(() => {
+                  const disassemblyHours = pricingBreakdown?.adjustmentBreakdown.find(a => a.category === 'disassembly')?.hours ?? 0
+                  const rate = pricingBreakdown?.crewRatePerHour ?? 0
+                  const disassemblyCost = Math.round(disassemblyHours * rate)
+                  return (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-ink)]">Disassembly / Reassembly</div>
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-ink)]">Disassembly / Reassembly</div>
+                      {disassemblyHours > 0 && jobFactors.disassemblyItemCount !== 0 && (
+                        <div className="mt-0.5 text-[10px] font-medium text-amber-700">
+                          +{disassemblyHours}h · ~{formatMoney(disassemblyCost)} added to estimate
+                        </div>
+                      )}
+                    </div>
                     <button
                       type="button"
                       onClick={() => setFactor('disassemblyItemCount', jobFactors.disassemblyItemCount === 0 ? undefined : 0)}
@@ -1882,7 +2828,10 @@ export function EstimateDraftModal({
                     </button>
                   </div>
                   {jobFactors.disassemblyItemCount === 0 ? (
-                    <div className="rounded-[6px] bg-rose-50 px-3 py-2 text-xs text-rose-700">Customer will self-disassemble — no crew time added.</div>
+                    <div className="rounded-[6px] bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                      Customer self-assembles — no crew time added.
+                      {disassemblyHours > 0 && <span className="ml-1 font-semibold text-emerald-700">Saves ~{disassemblyHours}h · ~{formatMoney(disassemblyCost)}.</span>}
+                    </div>
                   ) : (
                     <>
                       <div className="text-xs text-[var(--app-muted)] leading-5">Count only freestanding assemblies that truly come apart: beds, dining tables, hutches, trampolines. Built-ins and wall-mounted pieces stay with the house.</div>
@@ -1922,6 +2871,14 @@ export function EstimateDraftModal({
                       </div>
                     </>
                   )}
+                  {/* Mode price impact hints */}
+                  {jobFactors.disassemblyItemCount !== 0 && pricingBreakdown && (
+                    <div className="text-[10px] text-[var(--app-muted)] leading-4 space-y-0.5">
+                      <div>• <strong>Dis + Reassembly</strong> = full service, both ends — included above</div>
+                      <div>• <strong>Disassemble only</strong> = ~saves {Math.round((pricingBreakdown.adjustmentBreakdown.find(a => a.category === 'disassembly')?.hours ?? 0) * 0.45 * pricingBreakdown.crewRatePerHour)} (customer reassembles at dest)</div>
+                      <div>• <strong>Reassemble only</strong> = ~saves {Math.round((pricingBreakdown.adjustmentBreakdown.find(a => a.category === 'disassembly')?.hours ?? 0) * 0.45 * pricingBreakdown.crewRatePerHour)} (customer disassembles at origin)</div>
+                    </div>
+                  )}
                   <textarea
                     rows={2}
                     placeholder="Any other specialty notes..."
@@ -1930,27 +2887,128 @@ export function EstimateDraftModal({
                     className="crm-input w-full resize-none text-xs"
                   />
                 </div>
+                  )
+                })()}
               </div>
             </div>
 
-            {/* Line Items */}
+            {/* Line Items — grouped by service */}
             <div>
               <div className="mb-4 crm-label">Estimate Line Items</div>
-              <div className="space-y-3">
-                {quoteLineItems.map((item, index) => (
-                  <div key={`${item.description}-${index}`} className="grid gap-3 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_140px_44px]">
-                    <input value={item.description} onChange={e => onUpdateLineItem(index, 'description', e.target.value)} className="crm-input" placeholder="Line item" />
-                    <input value={item.details || ''} onChange={e => onUpdateLineItem(index, 'details', e.target.value)} className="crm-input" placeholder="Details" />
-                    <input type="number" value={item.amount} onChange={e => onUpdateLineItem(index, 'amount', e.target.value)} className="crm-input text-right" placeholder="Amount" />
-                    <button onClick={() => onRemoveLineItem(index)} className="crm-button justify-center text-rose-700 hover:bg-rose-50">×</button>
-                  </div>
-                ))}
-                {quoteLineItems.length === 0 ? (
-                  <div className="rounded-[8px] border border-dashed border-[var(--app-line)] px-4 py-12 text-center text-sm text-[var(--app-muted)]">
-                    No draft line items yet. Set job factors and click Recalculate, or create the draft first.
-                  </div>
-                ) : null}
-              </div>
+              {quoteLineItems.length === 0 ? (
+                <div className="rounded-[8px] border border-dashed border-[var(--app-line)] px-4 py-12 text-center text-sm text-[var(--app-muted)]">
+                  No draft line items yet. Set job factors and click Recalculate, or create the draft first.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* ── Moving items (not packing / junk / valuation) ── */}
+                  {(() => {
+                    const serviceDescriptions = new Set([
+                      packingLaborLineDescription,
+                      packingMaterialsLineDescription,
+                      junkLineDescription,
+                      valuationLineDescription,
+                    ])
+                    const movingItems = quoteLineItems
+                      .map((item, index) => ({ item, index }))
+                      .filter(({ item }) => !serviceDescriptions.has(item.description))
+                    if (movingItems.length === 0) return null
+                    return (
+                      <div>
+                        <div className="mb-2 flex items-center gap-2">
+                          <span className="h-1.5 w-1.5 rounded-full bg-[#1a2744]" />
+                          <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--app-muted)]">Moving</span>
+                        </div>
+                        <div className="space-y-2">
+                          {movingItems.map(({ item, index }) => (
+                            <div key={`${item.description}-${index}`} className="grid gap-2 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_130px_36px]">
+                              <input value={item.description} onChange={e => onUpdateLineItem(index, 'description', e.target.value)} className="crm-input text-xs" placeholder="Line item" />
+                              <input value={item.details || ''} onChange={e => onUpdateLineItem(index, 'details', e.target.value)} className="crm-input text-xs" placeholder="Details" />
+                              <input type="number" value={item.amount} onChange={e => onUpdateLineItem(index, 'amount', e.target.value)} className="crm-input text-right text-xs" placeholder="Amount" />
+                              <button onClick={() => onRemoveLineItem(index)} className="crm-button justify-center text-rose-700 hover:bg-rose-50 text-sm">×</button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+                  {/* ── Packing items ── */}
+                  {(packingLaborAdded || packingMaterialsAdded) && (() => {
+                    const packingItems = quoteLineItems
+                      .map((item, index) => ({ item, index }))
+                      .filter(({ item }) => item.description === packingLaborLineDescription || item.description === packingMaterialsLineDescription)
+                    return (
+                      <div>
+                        <div className="mb-2 flex items-center gap-2">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                          <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--app-muted)]">Packing</span>
+                        </div>
+                        <div className="space-y-2">
+                          {packingItems.map(({ item, index }) => (
+                            <div key={`${item.description}-${index}`} className="grid gap-2 rounded-[8px] border border-emerald-200 bg-emerald-50 p-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_130px_36px]">
+                              <input value={item.description} onChange={e => onUpdateLineItem(index, 'description', e.target.value)} className="crm-input text-xs" placeholder="Line item" />
+                              <input value={item.details || ''} onChange={e => onUpdateLineItem(index, 'details', e.target.value)} className="crm-input text-xs" placeholder="Details" />
+                              <input type="number" value={item.amount} onChange={e => onUpdateLineItem(index, 'amount', e.target.value)} className="crm-input text-right text-xs" placeholder="Amount" />
+                              <button onClick={() => onRemoveLineItem(index)} className="crm-button justify-center text-rose-700 hover:bg-rose-50 text-sm">×</button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+                  {/* ── Junk Removal items ── */}
+                  {junkAdded && (() => {
+                    const junkItems = quoteLineItems
+                      .map((item, index) => ({ item, index }))
+                      .filter(({ item }) => item.description === junkLineDescription)
+                    return (
+                      <div>
+                        <div className="mb-2 flex items-center gap-2">
+                          <span className="h-1.5 w-1.5 rounded-full bg-orange-500" />
+                          <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--app-muted)]">Junk Removal</span>
+                        </div>
+                        <div className="space-y-2">
+                          {junkItems.map(({ item, index }) => (
+                            <div key={`${item.description}-${index}`} className="grid gap-2 rounded-[8px] border border-orange-200 bg-orange-50 p-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_130px_36px]">
+                              <input value={item.description} onChange={e => onUpdateLineItem(index, 'description', e.target.value)} className="crm-input text-xs" placeholder="Line item" />
+                              <input value={item.details || ''} onChange={e => onUpdateLineItem(index, 'details', e.target.value)} className="crm-input text-xs" placeholder="Details" />
+                              <input type="number" value={item.amount} onChange={e => onUpdateLineItem(index, 'amount', e.target.value)} className="crm-input text-right text-xs" placeholder="Amount" />
+                              <button onClick={() => onRemoveLineItem(index)} className="crm-button justify-center text-rose-700 hover:bg-rose-50 text-sm">×</button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+                  {/* ── Valuation items ── */}
+                  {valuationAdded && (() => {
+                    const valuationItems = quoteLineItems
+                      .map((item, index) => ({ item, index }))
+                      .filter(({ item }) => item.description === valuationLineDescription)
+                    return (
+                      <div>
+                        <div className="mb-2 flex items-center gap-2">
+                          <span className="h-1.5 w-1.5 rounded-full bg-purple-500" />
+                          <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--app-muted)]">Valuation / Protection</span>
+                        </div>
+                        <div className="space-y-2">
+                          {valuationItems.map(({ item, index }) => (
+                            <div key={`${item.description}-${index}`} className="grid gap-2 rounded-[8px] border border-purple-200 bg-purple-50 p-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_130px_36px]">
+                              <input value={item.description} onChange={e => onUpdateLineItem(index, 'description', e.target.value)} className="crm-input text-xs" placeholder="Line item" />
+                              <input value={item.details || ''} onChange={e => onUpdateLineItem(index, 'details', e.target.value)} className="crm-input text-xs" placeholder="Details" />
+                              <input type="number" value={item.amount} onChange={e => onUpdateLineItem(index, 'amount', e.target.value)} className="crm-input text-right text-xs" placeholder="Amount" />
+                              <button onClick={() => onRemoveLineItem(index)} className="crm-button justify-center text-rose-700 hover:bg-rose-50 text-sm">×</button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })()}
+                </div>
+              )}
             </div>
           </div>
 
@@ -1968,6 +3026,36 @@ export function EstimateDraftModal({
                     <div className="font-semibold text-[var(--app-ink)]">{effectiveInventoryMetrics.totalCubicFeet} cu ft · {effectiveInventoryMetrics.totalWeightLbs.toLocaleString()} lbs</div>
                     <div className="text-[var(--app-muted)] mt-0.5">{effectiveInventoryMetrics.totalItems} items across all rooms</div>
                   </div>
+
+                  {/* Per-leg route summary when multi-stop is on */}
+                  {legsEnabled && legs.length > 0 && (
+                    <div className="px-3 py-2.5 space-y-1.5">
+                      <div className="font-semibold text-[10px] uppercase tracking-wide text-purple-700">Stop-by-Stop Route</div>
+                      {legs.map((leg, idx) => {
+                        const r = legRoutes[leg.id]
+                        const fromShort = (leg.originAddress || leg.originCity || '—').split(',')[0]
+                        const toShort = (leg.destAddress || leg.destCity || '—').split(',')[0]
+                        return (
+                          <div key={leg.id} className="flex items-start justify-between gap-1 text-[var(--app-muted)]">
+                            <div className="flex items-start gap-1">
+                              <span className="mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-purple-100 text-[8px] font-bold text-purple-700">{idx + 1}</span>
+                              <span className="truncate">{fromShort} → {toShort}</span>
+                            </div>
+                            <span className="shrink-0 tabular-nums">
+                              {r ? `${r.distanceKm} km · ${r.driveHours}h` : leg.distanceKm ? `${leg.distanceKm} km · ${leg.driveHours}h` : '—'}
+                            </span>
+                          </div>
+                        )
+                      })}
+                      <div className="flex justify-between text-[10px] font-semibold text-purple-700 border-t border-purple-100 pt-1 mt-1">
+                        <span>Total route</span>
+                        <span>
+                          {legs.reduce((s, l) => s + (legRoutes[l.id]?.distanceKm || l.distanceKm || 0), 0)} km ·{' '}
+                          {legs.reduce((s, l) => s + (legRoutes[l.id]?.driveHours || l.driveHours || 0), 0)}h drive
+                        </span>
+                      </div>
+                    </div>
+                  )}
 
                   {/* BASE LABOR */}
                   <div className="px-3 py-2.5 space-y-1">
@@ -2121,6 +3209,84 @@ export function EstimateDraftModal({
                 })()}
               </div>
             ) : null}
+
+            {/* ── MULTI-DAY LOGISTICS SUGGESTION ── */}
+            {pricingBreakdown && (() => {
+              const totalH = pricingBreakdown.totalHours
+              const trucks = pricingBreakdown.truckCount
+              const needsPacking = jobFactors.packingStatus === 'not-started' || jobFactors.packingStatus === 'partial'
+              const isBigMove = trucks >= 2 || totalH >= 10
+              const hasStorage = legsEnabled && legs.some(l => l.type === 'storage' || l.type === 'storage_delivery')
+              if (!isBigMove && !hasStorage) return null
+
+              const days: Array<{ label: string; who: string; hours: string; color: string; note?: string }> = []
+
+              if (needsPacking) {
+                const packH = flags?.packingDayEstimate?.hours
+                days.push({
+                  label: 'Packing Day',
+                  who: `${flags?.packingDayEstimate?.crewSize ?? 2} packers`,
+                  hours: packH ? `~${packH}h` : '~4-6h',
+                  color: 'emerald',
+                  note: 'Day before move — crew packs and labels everything',
+                })
+              }
+
+              days.push({
+                label: hasStorage ? 'Loading + Move to Storage' : 'Loading Day',
+                who: `${pricingBreakdown.crewSize} movers · ${trucks} truck${trucks > 1 ? 's' : ''}`,
+                hours: `~${pricingBreakdown.loadHours + pricingBreakdown.driveHours}h`,
+                color: 'blue',
+                note: hasStorage ? 'Load, transit to storage, unload — no reassembly' : trucks >= 2 ? 'Both trucks load simultaneously — faster' : 'Load, transit, offload',
+              })
+
+              if (hasStorage) {
+                days.push({
+                  label: 'Storage → New Home',
+                  who: `${pricingBreakdown.crewSize} movers`,
+                  hours: `~${pricingBreakdown.unloadHours + 1}h`,
+                  color: 'purple',
+                  note: 'Pickup from storage, deliver + reassemble — no rewrap charge',
+                })
+              } else if (totalH >= 10 && flags?.twoDayMoveEstimate) {
+                days.push({
+                  label: 'Unloading Day',
+                  who: `${pricingBreakdown.crewSize} movers`,
+                  hours: `~${flags.twoDayMoveEstimate.day2Hours}h`,
+                  color: 'purple',
+                  note: 'Fresh crew — unwrap, place, reassemble',
+                })
+              }
+
+              const colorMap: Record<string, string> = {
+                emerald: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+                blue: 'border-blue-200 bg-blue-50 text-blue-800',
+                purple: 'border-purple-200 bg-purple-50 text-purple-800',
+              }
+
+              return (
+                <div>
+                  <div className="crm-label mb-3">Logistics Plan</div>
+                  <div className="space-y-2">
+                    {days.map((day, i) => (
+                      <div key={i} className={`rounded-[8px] border px-3 py-2.5 ${colorMap[day.color]}`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/60 text-[9px] font-bold">D{i + 1}</span>
+                            <span className="text-xs font-semibold">{day.label}</span>
+                          </div>
+                          <div className="text-[10px] font-semibold">{day.hours}</div>
+                        </div>
+                        <div className="mt-1 text-[10px] opacity-80">{day.who}{day.note ? ` · ${day.note}` : ''}</div>
+                      </div>
+                    ))}
+                    <div className="text-[10px] text-[var(--app-muted)]">
+                      Auto-generated from job factors. Adjust start time and dates per leg above.
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* ── SCOPE OF WORK ── */}
             {pricingBreakdown ? (
@@ -2358,6 +3524,14 @@ export function EstimateDraftModal({
                       <div className="flex justify-between text-xs border-t border-[var(--app-line)] pt-1">
                         <span className="text-[var(--app-muted)]">Total direct cost</span>
                         <span className="text-[var(--app-ink)]">{formatMoney(liveMarginSummary.totalCost)}</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-[var(--app-muted)]">Commission (5%)</span>
+                        <span className="text-[var(--app-ink)]">{formatMoney(pricingBreakdown.internalCostEstimate.commissionCost || 0)}</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-[var(--app-muted)]">Supplies est.</span>
+                        <span className="text-[var(--app-ink)]">{formatMoney(pricingBreakdown.internalCostEstimate.suppliesCost || 0)}</span>
                       </div>
                       <div className="flex justify-between text-xs font-semibold">
                         <span className="text-[var(--app-ink)]">Gross profit</span>
@@ -2603,6 +3777,41 @@ export function EstimateDraftModal({
                   </button>
                 </div>
 
+                {/* Realtor Referral — 20% off */}
+                {lead.source === 'realtor_referral' && (() => {
+                  const refDiscountDesc = 'Realtor Referral Discount (20%)'
+                  const refDiscountAdded = quoteLineItems.some(li => li.description === refDiscountDesc)
+                  const refAmount = Math.round(baseQuoteSubtotal * 0.20 * 100) / 100
+                  return (
+                    <div className="rounded-[8px] border border-amber-200 bg-amber-50 p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-xs font-semibold text-amber-900">Realtor Referral — 20% off</div>
+                          <div className="text-[10px] text-amber-700">Referred by {lead.realtorName || 'realtor partner'}</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (refDiscountAdded) {
+                              const idx = quoteLineItems.findIndex(li => li.description === refDiscountDesc)
+                              if (idx >= 0) onRemoveLineItem(idx)
+                            } else {
+                              onSetLineItems([...quoteLineItems, {
+                                description: refDiscountDesc,
+                                details: `Referred by ${lead.realtorName || 'realtor partner'} — 20% partner rate`,
+                                amount: -refAmount,
+                              }])
+                            }
+                          }}
+                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-colors ${refDiscountAdded ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'}`}
+                        >
+                          {refDiscountAdded ? '✓ Applied' : `Apply −${formatMoney(refAmount)}`}
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })()}
+
                 {/* Book Today Discount */}
                 <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3 space-y-2">
                   <div className="flex items-center justify-between">
@@ -2768,7 +3977,25 @@ export function EstimateDraftModal({
                     </div>
                   </div>
                 )}
-                <button onClick={() => void handlePreviewSend()} disabled={quoteModalBusy || !quote} className="w-full justify-center rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
+                {liveMarginSummary && liveMarginSummary.liveMargin < 50 && liveMarginSummary.actualRevenue > 0 && !marginGateAck && (
+                  <div className={`rounded-[8px] border px-3 py-3 ${liveMarginSummary.liveMargin < 40 ? 'border-rose-300 bg-rose-50' : 'border-amber-200 bg-amber-50'}`}>
+                    <div className={`text-xs font-bold ${liveMarginSummary.liveMargin < 40 ? 'text-rose-800' : 'text-amber-800'}`}>
+                      {liveMarginSummary.liveMargin < 40 ? '⛔ Low margin — manager review required' : '⚠ Below target margin'}
+                    </div>
+                    <div className={`mt-1 text-[11px] ${liveMarginSummary.liveMargin < 40 ? 'text-rose-700' : 'text-amber-700'}`}>
+                      This quote is at {liveMarginSummary.liveMargin.toFixed(1)}% margin. Target is 65%+.
+                      Revenue {formatMoney(liveMarginSummary.actualRevenue)} — Costs {formatMoney(liveMarginSummary.totalCost)} — Profit {formatMoney(liveMarginSummary.liveProfit)}.
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setMarginGateAck(true)}
+                      className={`mt-2 w-full rounded-[6px] px-3 py-1.5 text-[11px] font-semibold ${liveMarginSummary.liveMargin < 40 ? 'bg-rose-700 text-white hover:bg-rose-800' : 'bg-amber-700 text-white hover:bg-amber-800'}`}
+                    >
+                      I understand — send anyway
+                    </button>
+                  </div>
+                )}
+                <button onClick={() => void handlePreviewSend()} disabled={quoteModalBusy || !quote || (liveMarginSummary !== null && liveMarginSummary.liveMargin < 50 && liveMarginSummary.actualRevenue > 0 && !marginGateAck)} className="w-full justify-center rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
                   {quoteModalBusy ? 'Saving...' : 'Preview & Send →'}
                 </button>
                 <button onClick={() => void onSaveDraft()} disabled={quoteModalBusy || !quote} className="crm-button-dark w-full justify-center disabled:opacity-60">

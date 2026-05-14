@@ -4,6 +4,8 @@ import type {
   CRMClient,
   FollowUpLog,
   InboundLead,
+  InboundInboxPayload,
+  InboundLeadDisposition,
   InventoryItem,
   InventoryScanDraft,
   ListingMatch,
@@ -210,8 +212,8 @@ export async function sendSalesMessage(payload: {
   return readJson(response)
 }
 
-export async function fetchInboundLeads(mode?: 'junk' | 'closed'): Promise<InboundLead[]> {
-  const response = await fetch(`/api/sales/inbox${mode ? `?mode=${mode}` : ''}`, { cache: 'no-store', credentials: 'include' })
+export async function fetchInboundLeads(): Promise<InboundInboxPayload> {
+  const response = await fetch('/api/sales/inbox', { cache: 'no-store', credentials: 'include' })
   return readJson(response)
 }
 
@@ -234,12 +236,15 @@ export async function claimInboundLead(payload: {
   return readJson(response)
 }
 
-export async function markInboundLeadJunk(inboundId: string): Promise<{ ok: boolean }> {
+export async function markInboundLeadDisposition(
+  inboundId: string,
+  action: Exclude<InboundLeadDisposition, 'open'>
+): Promise<{ ok: boolean }> {
   const response = await fetch('/api/sales/inbox', {
     method: 'PATCH',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ inboundId, action: 'junk' }),
+    body: JSON.stringify({ inboundId, action }),
   })
   return readJson(response)
 }

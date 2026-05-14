@@ -1,0 +1,1719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSR Call Flow — Saturn Star Movers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #1a2744;
+    --navy-light: #243358;
+    --navy-dark: #111b33;
+    --gold: #f5a623;
+    --gold-light: #fef3d8;
+    --bg: #f0f2f5;
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --white: #ffffff;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --input-bg: #ffffff;
+    --card: #ffffff;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.06);
+    --shadow-lg: 0 8px 32px rgba(26,39,68,0.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  /* TOP BAR */
+  .topbar {
+    background: var(--navy-dark);
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  .back-link {
+    color: rgba(255,255,255,0.6);
+    text-decoration: none;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: color 0.15s;
+  }
+  .back-link:hover { color: white; }
+  .topbar-title {
+    color: white;
+    font-weight: 700;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .topbar-title .icon {
+    background: var(--gold);
+    color: var(--navy-dark);
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+  }
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .call-timer {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: white;
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .timer-dot {
+    width: 7px;
+    height: 7px;
+    background: #ef4444;
+    border-radius: 50%;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .btn-new-call {
+    background: var(--gold);
+    color: var(--navy-dark);
+    border: none;
+    padding: 7px 16px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-new-call:hover { background: #e09410; transform: translateY(-1px); }
+
+  /* PROGRESS */
+  .progress-wrap {
+    background: var(--navy);
+    padding: 16px 24px;
+    position: sticky;
+    top: 56px;
+    z-index: 99;
+  }
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .step-label {
+    color: rgba(255,255,255,0.7);
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .step-name {
+    color: white;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .progress-dots {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    transition: all 0.3s;
+  }
+  .dot.active { background: var(--gold); width: 24px; border-radius: 4px; }
+  .dot.done { background: var(--success); }
+  .progress-bar {
+    height: 3px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 10px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold), #fbbf24);
+    border-radius: 2px;
+    transition: width 0.4s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  /* MAIN CONTENT */
+  .main {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 28px 20px 120px;
+  }
+
+  /* STEP CARD */
+  .step-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    display: none;
+    animation: slideIn 0.25s ease-out;
+  }
+  .step-card.active { display: block; }
+  @keyframes slideIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+
+  /* SCRIPT BOX */
+  .script-box {
+    background: var(--gold-light);
+    border-left: 4px solid var(--gold);
+    padding: 14px 18px;
+    margin: 0;
+  }
+  .script-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #92400e;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 4px;
+  }
+  .script-text {
+    color: #78350f;
+    font-size: 14px;
+    line-height: 1.6;
+    font-style: italic;
+  }
+
+  /* COACHING TIP */
+  .coaching-tip {
+    background: #eff6ff;
+    border-left: 4px solid #3b82f6;
+    padding: 10px 16px;
+    margin: 0;
+  }
+  .coaching-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #1d4ed8;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 3px;
+  }
+  .coaching-text {
+    color: #1e40af;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  /* FORM */
+  .step-body {
+    padding: 28px;
+  }
+  .form-row {
+    margin-bottom: 20px;
+  }
+  .form-row-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 560px) { .form-row-2 { grid-template-columns: 1fr; } }
+
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 6px;
+  }
+  label .optional {
+    font-weight: 400;
+    color: #94a3b8;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 11px;
+    margin-left: 4px;
+  }
+
+  input[type=text], input[type=tel], input[type=email], input[type=date],
+  input[type=datetime-local], input[type=number], select, textarea {
+    width: 100%;
+    background: var(--input-bg);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 11px 14px;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    color: var(--text);
+    transition: border-color 0.15s, box-shadow 0.15s;
+    outline: none;
+    -webkit-appearance: none;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--navy);
+    box-shadow: 0 0 0 3px rgba(26,39,68,0.08);
+  }
+  input::placeholder, textarea::placeholder { color: #94a3b8; }
+  textarea { resize: vertical; min-height: 80px; }
+
+  select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+    cursor: pointer;
+  }
+
+  /* TOGGLE BUTTONS (move type) */
+  .toggle-group {
+    display: flex;
+    gap: 10px;
+  }
+  .toggle-btn {
+    flex: 1;
+    padding: 12px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: white;
+    cursor: pointer;
+    text-align: center;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-muted);
+    transition: all 0.15s;
+  }
+  .toggle-btn:hover { border-color: var(--navy); color: var(--navy); }
+  .toggle-btn.selected {
+    background: var(--navy);
+    border-color: var(--navy);
+    color: white;
+  }
+
+  /* CHECKBOX GROUP */
+  .checkbox-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  @media (max-width: 560px) { .checkbox-grid { grid-template-columns: 1fr; } }
+
+  .addon-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s;
+    background: white;
+    user-select: none;
+  }
+  .addon-item:hover { border-color: var(--navy-light); }
+  .addon-item.checked {
+    background: #f0f7ff;
+    border-color: var(--navy);
+  }
+  .addon-item input[type=checkbox] { display: none; }
+  .addon-check {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.15s;
+    font-size: 11px;
+    color: white;
+  }
+  .addon-item.checked .addon-check {
+    background: var(--navy);
+    border-color: var(--navy);
+  }
+  .addon-item.checked .addon-check::after { content: '✓'; }
+  .addon-label { font-size: 13.5px; font-weight: 500; flex: 1; }
+  .addon-price { font-size: 13px; font-weight: 700; color: var(--navy); }
+
+  /* FLEXIBLE CHECKBOX */
+  .flex-check-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .flex-check-wrap input[type=checkbox] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--navy);
+  }
+  .flex-check-wrap label {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: none;
+    letter-spacing: 0;
+    cursor: pointer;
+  }
+
+  /* LIVE PRICE BAR */
+  .price-bar {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--navy-dark);
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 50;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
+  }
+  .price-left {
+    display: flex;
+    flex-direction: column;
+  }
+  .price-label-sm {
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+  }
+  .price-estimate {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--gold);
+    line-height: 1.2;
+  }
+  .price-range {
+    font-size: 12px;
+    color: rgba(255,255,255,0.5);
+    margin-top: 1px;
+  }
+  .price-bar-btn {
+    background: var(--gold);
+    color: var(--navy-dark);
+    border: none;
+    padding: 12px 28px;
+    border-radius: 10px;
+    font-weight: 800;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .price-bar-btn:hover { background: #e09410; transform: translateY(-1px); }
+  .price-bar-btn:disabled {
+    background: rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.4);
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* QUOTE BREAKDOWN */
+  .quote-breakdown {
+    background: #f8fafc;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  .quote-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 11px 18px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .quote-line:last-child { border-bottom: none; }
+  .quote-line.total {
+    background: var(--navy);
+    color: white;
+    font-weight: 800;
+    font-size: 16px;
+  }
+  .quote-line.subtotal { font-weight: 600; background: #f1f5f9; }
+  .quote-line.deposit {
+    background: #fef9ee;
+    color: #92400e;
+    font-weight: 600;
+  }
+  .quote-line-label { color: inherit; }
+  .quote-line-value { font-weight: 600; }
+  .quote-line.total .quote-line-value { color: var(--gold); font-size: 20px; }
+
+  .override-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  /* BOOKING OPTIONS */
+  .booking-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 560px) { .booking-options { grid-template-columns: 1fr; } }
+
+  .booking-option {
+    border: 2.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: white;
+  }
+  .booking-option:hover { border-color: var(--navy); transform: translateY(-2px); box-shadow: var(--shadow); }
+  .booking-option.selected {
+    border-color: var(--navy);
+    background: #f0f4ff;
+  }
+  .booking-option.selected.book { border-color: var(--success); background: #f0fdf4; }
+  .booking-option-icon { font-size: 28px; margin-bottom: 8px; }
+  .booking-option-title { font-weight: 800; font-size: 15px; margin-bottom: 4px; }
+  .booking-option-sub { font-size: 13px; color: var(--text-muted); }
+  .booking-panel { display: none; margin-top: 16px; }
+  .booking-panel.visible { display: block; animation: slideIn 0.2s ease-out; }
+
+  /* AI FLAGS */
+  .flags-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .flag-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .flag-pill.critical { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
+  .flag-pill.high { background: #fff3cd; color: #d97706; border: 1px solid #fcd34d; }
+  .flag-pill.medium { background: #e0f2fe; color: #0369a1; border: 1px solid #7dd3fc; }
+
+  /* SUMMARY */
+  .summary-card {
+    background: white;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  .summary-header {
+    background: var(--navy);
+    color: white;
+    padding: 14px 20px;
+    font-weight: 700;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .summary-body { padding: 20px; }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .summary-field label {
+    text-transform: uppercase;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 3px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+  }
+  .summary-field .val {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .handoff-card {
+    background: var(--navy-dark);
+    color: white;
+    border-radius: var(--radius);
+    padding: 20px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    margin-bottom: 20px;
+    white-space: pre-wrap;
+  }
+  .handoff-card .hl { color: var(--gold); font-weight: bold; }
+
+  .confirm-banner {
+    background: #f0fdf4;
+    border: 1.5px solid #86efac;
+    border-radius: var(--radius-sm);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .confirm-icon { font-size: 22px; }
+  .confirm-items { display: flex; flex-direction: column; gap: 3px; }
+  .confirm-item { font-size: 13px; color: #166534; font-weight: 600; }
+
+  .action-btns {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    padding: 11px 20px;
+    border-radius: 8px;
+    border: none;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    text-decoration: none;
+  }
+  .btn-primary {
+    background: var(--navy);
+    color: white;
+  }
+  .btn-primary:hover { background: var(--navy-light); transform: translateY(-1px); }
+  .btn-secondary {
+    background: white;
+    color: var(--text);
+    border: 1.5px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--navy); }
+  .btn-success {
+    background: var(--success);
+    color: white;
+  }
+  .btn-success:hover { background: #0da070; }
+  .btn-gold {
+    background: var(--gold);
+    color: var(--navy-dark);
+    font-weight: 800;
+  }
+  .btn-gold:hover { background: #e09410; }
+  .btn-lg {
+    padding: 14px 32px;
+    font-size: 16px;
+    border-radius: 10px;
+  }
+
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .back-step-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 13px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0;
+    margin-bottom: 20px;
+    transition: color 0.15s;
+  }
+  .back-step-btn:hover { color: var(--navy); }
+
+  .send-quote-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .step-num-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: var(--navy);
+    color: white;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+  .step-heading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .step-heading h2 {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--navy);
+    line-height: 1.2;
+  }
+  .step-heading p {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .no-items-note {
+    color: var(--text-muted);
+    font-size: 13px;
+    font-style: italic;
+    padding: 8px 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <a href="saturn-crm.html" class="back-link">← CRM</a>
+    <div class="topbar-title">
+      <div class="icon">📞</div>
+      CSR Call Flow
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="call-timer">
+      <div class="timer-dot"></div>
+      <span id="timer">00:00</span>
+    </div>
+    <button class="btn-new-call" onclick="confirmNewCall()">↺ New Call</button>
+  </div>
+</div>
+
+<!-- PROGRESS BAR -->
+<div class="progress-wrap">
+  <div class="progress-header">
+    <div>
+      <div class="step-label">Step <span id="stepNum">1</span> of 6</div>
+      <div class="step-name" id="stepName">Who's calling?</div>
+    </div>
+    <div class="progress-dots" id="progressDots"></div>
+  </div>
+  <div class="progress-bar">
+    <div class="progress-fill" id="progressFill" style="width:16.6%"></div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- ======================== STEP 1 ======================== -->
+  <div class="step-card active" id="step1">
+    <div class="coaching-tip">
+      <div class="coaching-label">💡 Coaching Tip</div>
+      <div class="coaching-text">Start warm. Get their name first, then phone number. Don't rush — the first 15 seconds sets the tone for the whole call.</div>
+    </div>
+    <div class="script-box">
+      <div class="script-label">📣 What to Say</div>
+      <div class="script-text">"Thank you for calling Saturn Star Movers, this is [your name] — who am I speaking with today?"</div>
+    </div>
+    <div class="step-body">
+      <div class="step-heading">
+        <div class="step-num-badge">1</div>
+        <div>
+          <h2>Who's calling?</h2>
+          <p>Capture caller info before diving into move details</p>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label>Full Name</label>
+        <input type="text" id="callerName" placeholder="e.g. Sarah Johnson" autocomplete="off">
+      </div>
+      <div class="form-row-2">
+        <div>
+          <label>Phone Number</label>
+          <input type="tel" id="callerPhone" placeholder="e.g. 226-555-0101">
+        </div>
+        <div>
+          <label>Email <span class="optional">(get it if they offer)</span></label>
+          <input type="email" id="callerEmail" placeholder="e.g. sarah@email.com">
+        </div>
+      </div>
+      <div class="form-row">
+        <label>How did you hear about us?</label>
+        <select id="callerSource">
+          <option value="">— Select source —</option>
+          <option value="google_search">Google Search</option>
+          <option value="google_maps">Google Maps</option>
+          <option value="referral">Referral</option>
+          <option value="direct_mail">Direct Mail</option>
+          <option value="facebook">Facebook</option>
+          <option value="instagram">Instagram</option>
+          <option value="repeat">Repeat Customer</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== STEP 2 ======================== -->
+  <div class="step-card" id="step2">
+    <div class="coaching-tip">
+      <div class="coaching-label">💡 Coaching Tip</div>
+      <div class="coaching-text">Ask open-ended first: "Tell me about your move." Then fill in the details below. Let them talk — listen for clues about complexity.</div>
+    </div>
+    <div class="script-box">
+      <div class="script-label">📣 What to Say</div>
+      <div class="script-text">"Perfect. And where are you moving from? … And where are you headed? … What's your ideal move date?"</div>
+    </div>
+    <div class="step-body">
+      <button class="back-step-btn" onclick="goToStep(1)">← Back</button>
+      <div class="step-heading">
+        <div class="step-num-badge">2</div>
+        <div>
+          <h2>Tell me about the move</h2>
+          <p>Address, date, home size, and move type</p>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label>Moving From</label>
+        <input type="text" id="moveFrom" placeholder="e.g. 234 Oak Ave, Windsor, ON">
+      </div>
+      <div class="form-row">
+        <label>Moving To</label>
+        <input type="text" id="moveTo" placeholder="e.g. 456 Elm St, LaSalle, ON" oninput="checkDistance()">
+      </div>
+
+      <div class="form-row">
+        <label>Move Date</label>
+        <input type="date" id="moveDate">
+        <div class="flex-check-wrap">
+          <input type="checkbox" id="flexDate" onchange="toggleFlexDate()">
+          <label for="flexDate">Flexible — no specific date yet</label>
+        </div>
+      </div>
+
+      <div class="form-row-2">
+        <div>
+          <label>Home / Office Size</label>
+          <select id="homeSize" onchange="updatePrice()">
+            <option value="">— Select size —</option>
+            <option value="studio">Studio / Bachelor</option>
+            <option value="1bed">1 Bedroom</option>
+            <option value="2bed">2 Bedroom</option>
+            <option value="3bed">3 Bedroom</option>
+            <option value="4bed">4 Bedroom</option>
+            <option value="5bed">5+ Bedroom</option>
+            <option value="office_sm">Small Office</option>
+            <option value="office_lg">Large Office</option>
+          </select>
+        </div>
+        <div>
+          <label>Move Type</label>
+          <div class="toggle-group">
+            <button class="toggle-btn selected" id="typeLocal" onclick="setMoveType('local')">🏠 Local<br><small style="font-weight:400;font-size:11px">Same city / &lt;100km</small></button>
+            <button class="toggle-btn" id="typeLong" onclick="setMoveType('longDistance')">🚛 Long Distance<br><small style="font-weight:400;font-size:11px">100km+</small></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== STEP 3 ======================== -->
+  <div class="step-card" id="step3">
+    <div class="coaching-tip">
+      <div class="coaching-label">💡 Coaching Tip</div>
+      <div class="coaching-text">Go through this list every time — these are the items that affect price most, and customers often forget to mention them until moving day.</div>
+    </div>
+    <div class="script-box">
+      <div class="script-label">📣 What to Say</div>
+      <div class="script-text">"Do you have any large or specialty items — like a piano, pool table, or heavy safe? … Any stairs at either address? … Will you need help packing?"</div>
+    </div>
+    <div class="step-body">
+      <button class="back-step-btn" onclick="goToStep(2)">← Back</button>
+      <div class="step-heading">
+        <div class="step-num-badge">3</div>
+        <div>
+          <h2>Any special items?</h2>
+          <p>Check every item — price updates live as you select</p>
+        </div>
+      </div>
+
+      <div class="section-title">Specialty Items & Conditions</div>
+      <div class="checkbox-grid" id="addonGrid">
+        <!-- Rendered by JS -->
+      </div>
+
+      <div class="form-row" style="margin-top:20px">
+        <label>Additional Notes <span class="optional">(tight spaces, fragile art, parking, pets, etc.)</span></label>
+        <textarea id="moveNotes" placeholder="e.g. Tight stairwell, fragile antique dresser, no parking on street..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== STEP 4 ======================== -->
+  <div class="step-card" id="step4">
+    <div class="coaching-tip">
+      <div class="coaching-label">💡 Coaching Tip</div>
+      <div class="coaching-text">Present the number confidently. Don't apologize for the price. You're quoting a professional, insured service — not a budget truck rental.</div>
+    </div>
+    <div class="script-box">
+      <div class="script-label">📣 What to Say</div>
+      <div class="script-text" id="quoteScript">"Based on what you've told me, your estimate comes to $[X]. That includes our fully insured crew, professional moving blankets and equipment, and our on-time guarantee. We require a $[deposit] deposit to lock in your date. How does that sound?"</div>
+    </div>
+    <div class="step-body">
+      <button class="back-step-btn" onclick="goToStep(3)">← Back</button>
+      <div class="step-heading">
+        <div class="step-num-badge">4</div>
+        <div>
+          <h2>Here's your estimate</h2>
+          <p>Review with the customer — adjust if needed</p>
+        </div>
+      </div>
+
+      <div class="quote-breakdown" id="quoteBreakdown">
+        <!-- Rendered by JS -->
+      </div>
+
+      <div class="override-row">
+        <div>
+          <label>Manual Adjustment (+/-)</label>
+          <input type="number" id="manualAdj" placeholder="e.g. -50 or +100" value="0" oninput="updatePrice()">
+        </div>
+        <div>
+          <label>Deposit %</label>
+          <input type="number" id="depositPct" placeholder="20" value="20" min="0" max="100" oninput="updatePrice()">
+        </div>
+      </div>
+
+      <div class="send-quote-row">
+        <a id="emailQuoteBtn" href="#" class="btn btn-secondary" onclick="sendEmail(event)">📧 Send via Email</a>
+        <a id="smsQuoteBtn" href="#" class="btn btn-secondary" onclick="sendSMS(event)">💬 Send via SMS</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== STEP 5 ======================== -->
+  <div class="step-card" id="step5">
+    <div class="coaching-tip">
+      <div class="coaching-label">💡 Coaching Tip</div>
+      <div class="coaching-text">If they're ready, book NOW. Don't let them "think about it" without locking in a follow-up. Every unbooked call needs a next action.</div>
+    </div>
+    <div class="step-body">
+      <button class="back-step-btn" onclick="goToStep(4)">← Back</button>
+      <div class="step-heading">
+        <div class="step-num-badge">5</div>
+        <div>
+          <h2>Let's lock it in</h2>
+          <p>Book now, or schedule a follow-up — always one of the two</p>
+        </div>
+      </div>
+
+      <div class="booking-options">
+        <div class="booking-option book" id="optBook" onclick="selectBooking('book')">
+          <div class="booking-option-icon">✅</div>
+          <div class="booking-option-title">Book Now</div>
+          <div class="booking-option-sub">Customer is ready — lock in the date</div>
+        </div>
+        <div class="booking-option" id="optFollowUp" onclick="selectBooking('followup')">
+          <div class="booking-option-icon">📅</div>
+          <div class="booking-option-title">Follow-Up Later</div>
+          <div class="booking-option-sub">Schedule a callback — always get a time</div>
+        </div>
+      </div>
+
+      <!-- BOOK NOW PANEL -->
+      <div class="booking-panel" id="panelBook">
+        <div class="section-title">Booking Confirmation</div>
+        <div class="form-row-2">
+          <div>
+            <label>Confirmed Move Date</label>
+            <input type="date" id="confirmedDate">
+          </div>
+          <div>
+            <label>Access Instructions</label>
+            <input type="text" id="accessInstructions" placeholder="e.g. Buzz #204, gate code 1234">
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Confirm Origin Address</label>
+          <input type="text" id="confirmFrom" placeholder="Full pickup address">
+        </div>
+        <div class="form-row">
+          <label>Confirm Destination Address</label>
+          <input type="text" id="confirmTo" placeholder="Full delivery address">
+        </div>
+        <div class="script-box" style="border-radius:var(--radius-sm);margin-bottom:0">
+          <div class="script-label">💳 Deposit Instructions</div>
+          <div class="script-text" id="depositScript">"I'll send you a payment link for the $[X] deposit — once that's in, you're officially confirmed and your date is held."</div>
+        </div>
+      </div>
+
+      <!-- FOLLOW-UP PANEL -->
+      <div class="booking-panel" id="panelFollowUp">
+        <div class="section-title">Schedule Callback</div>
+        <div class="form-row">
+          <label>Reason for Follow-Up</label>
+          <select id="followReason">
+            <option value="">— Select reason —</option>
+            <option value="confirm_date">Need to confirm date</option>
+            <option value="check_partner">Need to check with partner</option>
+            <option value="price_comparing">Price comparing</option>
+            <option value="just_browsing">Just browsing / not ready</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-row-2">
+          <div>
+            <label>Follow-Up Date & Time</label>
+            <input type="datetime-local" id="followUpDateTime">
+          </div>
+          <div>
+            <label>Note for Callback</label>
+            <input type="text" id="followUpNote" placeholder="e.g. Call after 6pm, has questions about timing">
+          </div>
+        </div>
+        <div class="script-box" style="border-radius:var(--radius-sm);margin-bottom:0">
+          <div class="script-label">📣 If They Hesitate</div>
+          <div class="script-text" id="hesitateScript">"Totally understand. When would be a good time to follow up? I want to make sure we hold that date for you — our schedule fills up fast in [month]."</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== STEP 6 ======================== -->
+  <div class="step-card" id="step6">
+    <div class="step-body">
+      <div class="step-heading">
+        <div class="step-num-badge">6</div>
+        <div>
+          <h2>You're all set — Review &amp; Complete</h2>
+          <p>Confirm everything looks right, then hit Complete to save to CRM</p>
+        </div>
+      </div>
+
+      <!-- AI FLAGS -->
+      <div class="section-title">AI Operations Flags</div>
+      <div id="aiFlagsWrap" class="flags-wrap">
+        <span style="color:var(--text-muted);font-size:13px;font-style:italic">No special flags</span>
+      </div>
+
+      <!-- HANDOFF CARD -->
+      <div class="section-title">Move Brief for Ops</div>
+      <div class="handoff-card" id="handoffCard">Loading...</div>
+
+      <!-- SUMMARY -->
+      <div class="summary-card">
+        <div class="summary-header">Lead Summary</div>
+        <div class="summary-body">
+          <div class="summary-grid" id="summaryGrid">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- CONFIRMATION (shown after complete) -->
+      <div class="confirm-banner" id="confirmBanner" style="display:none">
+        <div class="confirm-icon">🎉</div>
+        <div class="confirm-items">
+          <div class="confirm-item">✓ Lead created in CRM</div>
+          <div class="confirm-item">✓ Quote saved</div>
+          <div id="confirmItem3" class="confirm-item">✓ Follow-up scheduled</div>
+        </div>
+      </div>
+
+      <div class="action-btns">
+        <button class="btn btn-success btn-lg" id="completeBtn" onclick="completeLead()">
+          ✓ Complete &amp; Save to CRM
+        </button>
+        <a href="operations-hub.html" class="btn btn-secondary">
+          🔧 Operations Hub
+        </a>
+        <button class="btn btn-secondary" onclick="goToStep(5)">← Back</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- PRICE BAR (sticky bottom, shown on steps 2-5) -->
+<div class="price-bar" id="priceBar" style="display:none">
+  <div class="price-left">
+    <div class="price-label-sm">Estimated Total</div>
+    <div class="price-estimate" id="priceDisplay">—</div>
+    <div class="price-range" id="priceRange"></div>
+  </div>
+  <button class="price-bar-btn" id="nextBtn" onclick="nextStep()">
+    Continue <span id="nextLabel">→</span>
+  </button>
+</div>
+
+<!-- Step 1 has its own next button inside price bar equivalent -->
+<div class="price-bar" id="step1Bar">
+  <div class="price-left">
+    <div class="price-label-sm" style="color:rgba(255,255,255,0.5)">Caller info</div>
+    <div class="price-estimate" id="callerDisplay" style="font-size:16px;color:white">—</div>
+  </div>
+  <button class="price-bar-btn" onclick="goToStep(2)">
+    Next: Move Details →
+  </button>
+</div>
+
+<script>
+// ==================== DATA ====================
+const RATES = {
+  baseRates: {
+    studio:    { local: 299,  longDistance: 599  },
+    '1bed':    { local: 449,  longDistance: 799  },
+    '2bed':    { local: 599,  longDistance: 1099 },
+    '3bed':    { local: 799,  longDistance: 1399 },
+    '4bed':    { local: 999,  longDistance: 1799 },
+    '5bed':    { local: 1299, longDistance: 2299 },
+    office_sm: { local: 699,  longDistance: 1299 },
+    office_lg: { local: 1199, longDistance: 2199 },
+  },
+  addOns: {
+    piano:         { label: 'Piano (upright)',                    price: 150 },
+    piano_grand:   { label: 'Grand Piano',                       price: 300 },
+    safe:          { label: 'Heavy Safe (200lb+)',               price: 100 },
+    pool_table:    { label: 'Pool Table',                        price: 200 },
+    stairs_origin: { label: 'Stairs at Origin',                  price: 75  },
+    stairs_dest:   { label: 'Stairs at Destination',             price: 75  },
+    elevator_wait: { label: 'Elevator / Long Walk (>50ft)',      price: 50  },
+    packing:       { label: 'Packing Service',                   price: 199 },
+    disassembly:   { label: 'Furniture Disassembly/Reassembly',  price: 99  },
+    storage:       { label: 'Temporary Storage (per week)',      price: 150 },
+  },
+  deposit: 0.20,
+  gst: 0.13,
+};
+
+const STEP_NAMES = [
+  'Who\'s calling?',
+  'Tell me about the move',
+  'Any special items?',
+  'Here\'s your estimate',
+  'Let\'s lock it in',
+  'Review & Complete'
+];
+
+let currentStep = 1;
+let moveType = 'local';
+let bookingChoice = null;
+let timerInterval = null;
+let timerSeconds = 0;
+let leadCompleted = false;
+
+// ==================== TIMER ====================
+function startTimer() {
+  timerSeconds = 0;
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    timerSeconds++;
+    const m = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+    const s = String(timerSeconds % 60).padStart(2, '0');
+    document.getElementById('timer').textContent = m + ':' + s;
+  }, 1000);
+}
+
+// ==================== STEP NAVIGATION ====================
+function goToStep(n) {
+  document.getElementById('step' + currentStep).classList.remove('active');
+  currentStep = n;
+  document.getElementById('step' + currentStep).classList.add('active');
+  updateProgress();
+
+  // Show/hide price bars
+  document.getElementById('step1Bar').style.display = (n === 1) ? 'flex' : 'none';
+  document.getElementById('priceBar').style.display = (n >= 2 && n <= 5) ? 'flex' : 'none';
+
+  if (n === 2) updateCallerDisplay();
+  if (n === 4) renderQuote();
+  if (n === 5) updateStep5Scripts();
+  if (n === 6) renderSummary();
+  updateNextBtn();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function nextStep() {
+  if (currentStep < 6) goToStep(currentStep + 1);
+}
+
+function updateProgress() {
+  document.getElementById('stepNum').textContent = currentStep;
+  document.getElementById('stepName').textContent = STEP_NAMES[currentStep - 1];
+  document.getElementById('progressFill').style.width = ((currentStep / 6) * 100) + '%';
+
+  // Dots
+  const dots = document.getElementById('progressDots');
+  dots.innerHTML = '';
+  for (let i = 1; i <= 6; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === currentStep ? ' active' : '') + (i < currentStep ? ' done' : '');
+    dots.appendChild(d);
+  }
+}
+
+function updateNextBtn() {
+  const btn = document.getElementById('nextBtn');
+  if (!btn) return;
+  const labels = ['', '', 'Special Items →', 'View Estimate →', 'Book / Follow-Up →', 'Review & Complete →'];
+  document.getElementById('nextLabel').textContent = '';
+  if (btn) btn.innerHTML = (labels[currentStep] || 'Continue →');
+}
+
+// ==================== STEP 1 ====================
+function updateCallerDisplay() {
+  const name = document.getElementById('callerName').value;
+  document.getElementById('callerDisplay').textContent = name || 'Enter caller name above';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('callerName').addEventListener('input', updateCallerDisplay);
+  buildAddonGrid();
+  updateProgress();
+  startTimer();
+
+  // Set default date to tomorrow
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const dateStr = tomorrow.toISOString().split('T')[0];
+  document.getElementById('moveDate').value = dateStr;
+  document.getElementById('confirmedDate').value = dateStr;
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') confirmNewCall();
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'SELECT') {
+      e.preventDefault();
+      if (currentStep === 1) goToStep(2);
+      else if (currentStep <= 5) nextStep();
+    }
+  });
+});
+
+// ==================== STEP 2 ====================
+function toggleFlexDate() {
+  const flex = document.getElementById('flexDate').checked;
+  const dateInput = document.getElementById('moveDate');
+  dateInput.disabled = flex;
+  if (flex) dateInput.value = '';
+}
+
+function setMoveType(type) {
+  moveType = type;
+  document.getElementById('typeLocal').classList.toggle('selected', type === 'local');
+  document.getElementById('typeLong').classList.toggle('selected', type === 'longDistance');
+  updatePrice();
+}
+
+function checkDistance() {
+  const dest = (document.getElementById('moveTo').value || '').toLowerCase();
+  const longDistanceCities = ['toronto', 'mississauga', 'brampton', 'hamilton', 'london', 'kitchener', 'waterloo', 'guelph',
+    'barrie', 'kingston', 'ottawa', 'montreal', 'calgary', 'edmonton', 'vancouver', 'winnipeg', 'quebec', 'ontario', 'alberta',
+    'bc', 'british columbia', 'manitoba', 'saskatchewan'];
+  const localCities = ['windsor', 'lasalle', 'lakeshore', 'amherstburg', 'leamington', 'kingsville', 'tecumseh', 'belle river'];
+
+  const isLong = longDistanceCities.some(c => dest.includes(c));
+  const isLocal = localCities.some(c => dest.includes(c));
+
+  if (isLong && !isLocal) setMoveType('longDistance');
+}
+
+// ==================== STEP 3 — ADD-ONS ====================
+function buildAddonGrid() {
+  const grid = document.getElementById('addonGrid');
+  grid.innerHTML = '';
+  Object.entries(RATES.addOns).forEach(([key, addon]) => {
+    const item = document.createElement('label');
+    item.className = 'addon-item';
+    item.setAttribute('data-key', key);
+    item.innerHTML = `
+      <input type="checkbox" id="addon_${key}" onchange="updatePrice()">
+      <div class="addon-check"></div>
+      <span class="addon-label">${addon.label}</span>
+      <span class="addon-price">+$${addon.price}</span>
+    `;
+    item.addEventListener('click', (e) => {
+      if (e.target.tagName === 'INPUT') return;
+      const cb = document.getElementById('addon_' + key);
+      cb.checked = !cb.checked;
+      item.classList.toggle('checked', cb.checked);
+      updatePrice();
+    });
+    const cb = item.querySelector('input');
+    cb.addEventListener('change', () => {
+      item.classList.toggle('checked', cb.checked);
+    });
+    grid.appendChild(item);
+  });
+}
+
+function getSelectedAddons() {
+  const selected = {};
+  Object.keys(RATES.addOns).forEach(key => {
+    const el = document.getElementById('addon_' + key);
+    if (el) selected[key] = el.checked;
+  });
+  return selected;
+}
+
+// ==================== PRICING ====================
+function calculatePrice() {
+  const size = document.getElementById('homeSize').value;
+  if (!size) return null;
+
+  const base = RATES.baseRates[size][moveType];
+  const addons = getSelectedAddons();
+  let addOnTotal = 0;
+  const lineItems = [{ label: getSizeLabel(size) + ', ' + (moveType === 'local' ? 'Local' : 'Long Distance'), amount: base }];
+
+  Object.entries(addons).forEach(([key, checked]) => {
+    if (checked) {
+      const addon = RATES.addOns[key];
+      addOnTotal += addon.price;
+      lineItems.push({ label: addon.label, amount: addon.price });
+    }
+  });
+
+  const adj = parseFloat(document.getElementById('manualAdj')?.value) || 0;
+  const subtotal = base + addOnTotal + adj;
+  const tax = Math.round(subtotal * RATES.gst);
+  const total = subtotal + tax;
+  const depositPct = (parseFloat(document.getElementById('depositPct')?.value) || 20) / 100;
+  const deposit = Math.round(total * depositPct);
+
+  if (adj !== 0) lineItems.push({ label: adj > 0 ? 'Additional Charge' : 'Discount', amount: adj });
+
+  return { base, addOnTotal, adj, subtotal, tax, total, deposit, lineItems, size, moveType };
+}
+
+function getSizeLabel(size) {
+  const map = {
+    studio: 'Studio', '1bed': '1 Bedroom', '2bed': '2 Bedroom',
+    '3bed': '3 Bedroom', '4bed': '4 Bedroom', '5bed': '5+ Bedroom',
+    office_sm: 'Small Office', office_lg: 'Large Office'
+  };
+  return map[size] || size;
+}
+
+function fmt(n) {
+  return '$' + Math.round(n).toLocaleString();
+}
+
+function updatePrice() {
+  const calc = calculatePrice();
+  const bar = document.getElementById('priceDisplay');
+  const range = document.getElementById('priceRange');
+
+  if (!calc) {
+    if (bar) bar.textContent = '— Select size above';
+    if (range) range.textContent = '';
+    return;
+  }
+
+  if (bar) bar.textContent = fmt(calc.total);
+  if (range) {
+    const lo = Math.round(calc.total * 0.90);
+    const hi = Math.round(calc.total * 1.10);
+    range.textContent = `Estimated Range: ${fmt(lo)} – ${fmt(hi)}`;
+  }
+
+  if (currentStep === 4) renderQuote();
+}
+
+function renderQuote() {
+  const calc = calculatePrice();
+  const el = document.getElementById('quoteBreakdown');
+  if (!el) return;
+  if (!calc) { el.innerHTML = '<div class="quote-line"><span>Select home size in Step 2</span></div>'; return; }
+
+  let html = '';
+  calc.lineItems.forEach(item => {
+    html += `<div class="quote-line">
+      <span class="quote-line-label">${item.label}</span>
+      <span class="quote-line-value">${item.amount < 0 ? '-' : '+'}${fmt(Math.abs(item.amount))}</span>
+    </div>`;
+  });
+  html += `<div class="quote-line subtotal">
+    <span class="quote-line-label">Subtotal</span>
+    <span class="quote-line-value">${fmt(calc.subtotal)}</span>
+  </div>`;
+  html += `<div class="quote-line">
+    <span class="quote-line-label">HST (13%)</span>
+    <span class="quote-line-value">+${fmt(calc.tax)}</span>
+  </div>`;
+  html += `<div class="quote-line total">
+    <span class="quote-line-label">TOTAL ESTIMATE</span>
+    <span class="quote-line-value">${fmt(calc.total)}</span>
+  </div>`;
+  html += `<div class="quote-line deposit">
+    <span class="quote-line-label">Required Deposit (${document.getElementById('depositPct').value || 20}%)</span>
+    <span class="quote-line-value">${fmt(calc.deposit)}</span>
+  </div>`;
+  el.innerHTML = html;
+
+  // Update script
+  const qs = document.getElementById('quoteScript');
+  if (qs) qs.textContent = `"Based on what you've told me, your estimate comes to ${fmt(calc.total)}. That includes our fully insured crew, professional moving blankets and equipment, and our on-time guarantee. We require a ${fmt(calc.deposit)} deposit to lock in your date. How does that sound?"`;
+}
+
+function sendEmail(e) {
+  e.preventDefault();
+  const calc = calculatePrice();
+  const name = document.getElementById('callerName').value || 'Valued Customer';
+  const email = document.getElementById('callerEmail').value;
+  if (!email) { alert('No email address on file for this caller.'); return; }
+  if (!calc) { alert('Complete move details first.'); return; }
+
+  const from = document.getElementById('moveFrom').value;
+  const to = document.getElementById('moveTo').value;
+  const date = document.getElementById('moveDate').value || 'Flexible';
+
+  const body = `Hi ${name},\n\nThank you for calling Saturn Star Movers! Here is your move estimate:\n\n` +
+    `Move Date: ${date}\nFrom: ${from}\nTo: ${to}\nHome Size: ${getSizeLabel(calc.size)}\nMove Type: ${calc.moveType === 'local' ? 'Local' : 'Long Distance'}\n\n` +
+    calc.lineItems.map(l => `${l.label}: ${fmt(l.amount)}`).join('\n') +
+    `\n\nSubtotal: ${fmt(calc.subtotal)}\nHST (13%): +${fmt(calc.tax)}\nTOTAL: ${fmt(calc.total)}\nRequired Deposit: ${fmt(calc.deposit)}\n\n` +
+    `To confirm your booking, simply reply to this email or call us at [PHONE]. We'll send a payment link for your deposit.\n\nSaturn Star Movers\nwww.saturnstarmovers.ca`;
+
+  window.location.href = `mailto:${email}?subject=Your Move Estimate from Saturn Star Movers&body=${encodeURIComponent(body)}`;
+}
+
+function sendSMS(e) {
+  e.preventDefault();
+  const calc = calculatePrice();
+  const phone = document.getElementById('callerPhone').value;
+  if (!phone) { alert('No phone number on file.'); return; }
+  if (!calc) { alert('Complete move details first.'); return; }
+  const msg = `Hi! Your Saturn Star Movers estimate: ${getSizeLabel(calc.size)} ${calc.moveType === 'local' ? 'Local' : 'Long Distance'} move = ${fmt(calc.total)} (incl HST). Deposit: ${fmt(calc.deposit)}. Reply to confirm or call us!`;
+  window.location.href = `sms:${phone}?body=${encodeURIComponent(msg)}`;
+}
+
+// ==================== STEP 5 ====================
+function selectBooking(choice) {
+  bookingChoice = choice;
+  document.getElementById('optBook').classList.toggle('selected', choice === 'book');
+  document.getElementById('optFollowUp').classList.toggle('selected', choice === 'followup');
+  document.getElementById('panelBook').classList.toggle('visible', choice === 'book');
+  document.getElementById('panelFollowUp').classList.toggle('visible', choice === 'followup');
+
+  // Pre-fill confirmed date/address
+  if (choice === 'book') {
+    const d = document.getElementById('moveDate').value;
+    if (d) document.getElementById('confirmedDate').value = d;
+    document.getElementById('confirmFrom').value = document.getElementById('moveFrom').value;
+    document.getElementById('confirmTo').value = document.getElementById('moveTo').value;
+  }
+}
+
+function updateStep5Scripts() {
+  const calc = calculatePrice();
+  const month = new Date().toLocaleString('default', { month: 'long' });
+  const ds = document.getElementById('depositScript');
+  if (ds && calc) ds.textContent = `"I'll send you a payment link for the ${fmt(calc.deposit)} deposit — once that's in, you're officially confirmed and your date is held."`;
+  const hs = document.getElementById('hesitateScript');
+  if (hs) hs.textContent = `"Totally understand. When would be a good time to follow up? I want to make sure we hold that date for you — our schedule fills up fast in ${month}."`;
+}
+
+// ==================== AI FLAGS ====================
+function generateAIFlags(formData) {
+  const flags = [];
+  if (formData.addOns.piano) flags.push({ level: 'high', text: 'PIANO — requires piano board and extra crew' });
+  if (formData.addOns.piano_grand) flags.push({ level: 'critical', text: 'GRAND PIANO — specialist equipment required, confirm with manager' });
+  if (formData.addOns.stairs_origin || formData.addOns.stairs_dest) flags.push({ level: 'medium', text: 'STAIRS — allow extra time, check if elevator available' });
+  if (formData.addOns.safe) flags.push({ level: 'high', text: 'HEAVY SAFE — bring appliance dolly, 3+ crew recommended' });
+  if (formData.addOns.pool_table) flags.push({ level: 'high', text: 'POOL TABLE — requires disassembly, specialist knowledge needed' });
+  if (formData.notes && formData.notes.toLowerCase().includes('fragile')) flags.push({ level: 'medium', text: 'FRAGILE ITEMS — extra wrap time budgeted' });
+  if (formData.notes && formData.notes.toLowerCase().includes('parking')) flags.push({ level: 'medium', text: 'PARKING RESTRICTION — check permit requirements' });
+  if (formData.moveType === 'longDistance') flags.push({ level: 'high', text: 'LONG DISTANCE — confirm route, overnight arrangements if needed' });
+  if (formData.size === '4bed' || formData.size === '5bed') flags.push({ level: 'medium', text: 'LARGE HOME — budget 8-10 hours, 3+ crew' });
+  return flags;
+}
+
+// ==================== STEP 6 — SUMMARY ====================
+function renderSummary() {
+  const calc = calculatePrice();
+  const addons = getSelectedAddons();
+  const name = document.getElementById('callerName').value || '—';
+  const phone = document.getElementById('callerPhone').value || '—';
+  const email = document.getElementById('callerEmail').value || '—';
+  const from = document.getElementById('moveFrom').value || '—';
+  const to = document.getElementById('moveTo').value || '—';
+  const date = document.getElementById('flexDate').checked ? 'Flexible' : (document.getElementById('moveDate').value || '—');
+  const size = calc ? getSizeLabel(calc.size) : '—';
+  const notes = document.getElementById('moveNotes').value || '—';
+
+  const formData = {
+    addOns: addons,
+    notes,
+    moveType,
+    size: document.getElementById('homeSize').value,
+  };
+  const flags = generateAIFlags(formData);
+
+  // Flags display
+  const flagsWrap = document.getElementById('aiFlagsWrap');
+  if (flags.length === 0) {
+    flagsWrap.innerHTML = '<span style="color:var(--text-muted);font-size:13px;font-style:italic">No special flags for this move</span>';
+  } else {
+    flagsWrap.innerHTML = flags.map(f =>
+      `<div class="flag-pill ${f.level}">⚠ ${f.text}</div>`
+    ).join('');
+  }
+
+  // Handoff card
+  const handoff = document.getElementById('handoffCard');
+  const selectedAddOnLabels = Object.entries(addons).filter(([,v]) => v).map(([k]) => RATES.addOns[k].label).join(', ') || 'None';
+  const flagShort = flags.map(f => f.text.split(' — ')[0]).join(', ') || 'None';
+  handoff.innerHTML = `<span class="hl">MOVE BRIEF FOR OPS</span>
+Client: ${name} | ${phone}
+Date: ${date} | ${moveType === 'local' ? 'LOCAL' : 'LONG DISTANCE'}
+From: ${from}
+  To: ${to}
+Size: ${size}
+Special Items: ${selectedAddOnLabels}
+Est. Value: ${calc ? fmt(calc.total) : '—'}  |  Deposit: ${calc ? fmt(calc.deposit) : '—'}
+<span class="hl">AI Flags: ${flagShort}</span>
+Booking: ${bookingChoice === 'book' ? '✅ BOOKED' : bookingChoice === 'followup' ? '📅 FOLLOW-UP NEEDED' : '⚠ NOT SET'}`;
+
+  // Summary grid
+  const grid = document.getElementById('summaryGrid');
+  const fields = [
+    ['Name', name], ['Phone', phone], ['Email', email], ['Source', formatSource(document.getElementById('callerSource').value)],
+    ['From', from], ['To', to], ['Move Date', date], ['Home Size', size],
+    ['Move Type', moveType === 'local' ? 'Local' : 'Long Distance'],
+    ['Total Estimate', calc ? fmt(calc.total) : '—'],
+    ['Deposit', calc ? fmt(calc.deposit) : '—'],
+    ['Notes', notes.length > 60 ? notes.slice(0, 60) + '…' : notes],
+  ];
+  grid.innerHTML = fields.map(([l, v]) => `
+    <div class="summary-field">
+      <label>${l}</label>
+      <div class="val">${v}</div>
+    </div>`).join('');
+}
+
+function formatSource(src) {
+  const map = { google_search: 'Google Search', google_maps: 'Google Maps', referral: 'Referral', direct_mail: 'Direct Mail', facebook: 'Facebook', instagram: 'Instagram', repeat: 'Repeat Customer', other: 'Other' };
+  return map[src] || '—';
+}
+
+// ==================== COMPLETE & SAVE ====================
+function completeLead() {
+  if (leadCompleted) return;
+
+  const calc = calculatePrice();
+  const addons = getSelectedAddons();
+  const name = document.getElementById('callerName').value;
+  if (!name) { alert('Please enter caller name before completing.'); goToStep(1); return; }
+
+  const id = 'lead_' + Date.now();
+  const qid = 'quote_' + Date.now();
+  const now = new Date().toISOString();
+  const date = document.getElementById('flexDate').checked ? null : document.getElementById('moveDate').value;
+  const notes = document.getElementById('moveNotes').value;
+  const formData = { addOns: addons, notes, moveType, size: document.getElementById('homeSize').value };
+  const flags = generateAIFlags(formData);
+
+  const followUpDT = document.getElementById('followUpDateTime').value;
+  const isBooked = bookingChoice === 'book';
+
+  // LEAD
+  const lead = {
+    id, name,
+    phone: document.getElementById('callerPhone').value,
+    email: document.getElementById('callerEmail').value,
+    stage: isBooked ? 'booked' : 'contacted',
+    source: document.getElementById('callerSource').value,
+    origin: document.getElementById('moveFrom').value,
+    destination: document.getElementById('moveTo').value,
+    moveDate: isBooked ? (document.getElementById('confirmedDate').value || date) : date,
+    homeSize: document.getElementById('homeSize').value,
+    moveType,
+    addOns: addons,
+    notes,
+    estimatedValue: calc ? calc.total : 0,
+    depositAmount: calc ? calc.deposit : 0,
+    followUpDate: followUpDT || null,
+    followUpNote: document.getElementById('followUpNote').value || null,
+    followUpReason: document.getElementById('followReason').value || null,
+    aiFlags: flags,
+    accessInstructions: document.getElementById('accessInstructions').value || null,
+    createdAt: now,
+    leadScore: calcLeadScore(addons, calc),
+    callDuration: timerSeconds,
+  };
+
+  // QUOTE
+  const quote = {
+    id: qid,
+    leadId: id,
+    clientName: name,
+    clientPhone: lead.phone,
+    clientEmail: lead.email,
+    fromAddress: lead.origin,
+    toAddress: lead.destination,
+    moveDate: lead.moveDate,
+    homeSize: lead.homeSize,
+    moveType,
+    lineItems: calc ? calc.lineItems : [],
+    subtotal: calc ? calc.subtotal : 0,
+    tax: calc ? calc.tax : 0,
+    total: calc ? calc.total : 0,
+    depositAmount: calc ? calc.deposit : 0,
+    status: 'sent',
+    createdAt: now,
+  };
+
+  // Save to localStorage
+  const leads = JSON.parse(localStorage.getItem('sscrm_leads') || '[]');
+  leads.unshift(lead);
+  localStorage.setItem('sscrm_leads', JSON.stringify(leads));
+
+  const quotes = JSON.parse(localStorage.getItem('sscrm_quotes') || '[]');
+  quotes.unshift(quote);
+  localStorage.setItem('sscrm_quotes', JSON.stringify(quotes));
+
+  // Show confirmation
+  leadCompleted = true;
+  document.getElementById('confirmBanner').style.display = 'flex';
+  document.getElementById('confirmItem3').textContent = isBooked ? '✓ Booked & ops notified' : '✓ Follow-up scheduled';
+  const btn = document.getElementById('completeBtn');
+  btn.textContent = '✓ Saved!';
+  btn.style.background = 'var(--success)';
+  btn.disabled = true;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function calcLeadScore(addons, calc) {
+  let score = 50;
+  if (calc && calc.total > 1000) score += 20;
+  if (calc && calc.total > 1500) score += 10;
+  if (Object.values(addons).filter(Boolean).length > 2) score += 10;
+  if (moveType === 'longDistance') score += 10;
+  return Math.min(score, 100);
+}
+
+// ==================== RESET ====================
+function confirmNewCall() {
+  if (confirm('Start a new call? All current info will be cleared.')) {
+    resetAll();
+  }
+}
+
+function resetAll() {
+  leadCompleted = false;
+  bookingChoice = null;
+  moveType = 'local';
+
+  // Reset inputs
+  const inputs = document.querySelectorAll('input, textarea, select');
+  inputs.forEach(el => {
+    if (el.type === 'checkbox') el.checked = false;
+    else if (el.type === 'number' && el.id === 'depositPct') el.value = '20';
+    else if (el.type === 'number' && el.id === 'manualAdj') el.value = '0';
+    else el.value = '';
+  });
+
+  // Reset addon visuals
+  document.querySelectorAll('.addon-item').forEach(el => el.classList.remove('checked'));
+
+  // Reset booking
+  document.getElementById('optBook').classList.remove('selected');
+  document.getElementById('optFollowUp').classList.remove('selected');
+  document.getElementById('panelBook').classList.remove('visible');
+  document.getElementById('panelFollowUp').classList.remove('visible');
+
+  // Reset complete btn
+  const btn = document.getElementById('completeBtn');
+  btn.textContent = '✓ Complete & Save to CRM';
+  btn.style.background = '';
+  btn.disabled = false;
+  document.getElementById('confirmBanner').style.display = 'none';
+
+  // Reset move type toggle
+  document.getElementById('typeLocal').classList.add('selected');
+  document.getElementById('typeLong').classList.remove('selected');
+
+  // Reset date
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const dateStr = tomorrow.toISOString().split('T')[0];
+  document.getElementById('moveDate').value = dateStr;
+  document.getElementById('confirmedDate').value = dateStr;
+
+  // Reset price
+  const bar = document.getElementById('priceDisplay');
+  if (bar) bar.textContent = '—';
+
+  startTimer();
+  goToStep(1);
+}
+</script>
+</body>
+</html>

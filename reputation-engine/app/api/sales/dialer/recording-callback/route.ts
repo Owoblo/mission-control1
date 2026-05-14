@@ -55,6 +55,55 @@ function phonesMatch(phone?: string, lead?: CRMLead | null) {
   )
 }
 
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+function isRetryableCallbackError(error: unknown) {
+  if (!(error instanceof Error)) return false
+  const name = error.name.toLowerCase()
+  const message = error.message.toLowerCase()
+  return (
+    name.includes('abort') ||
+    name.includes('timeout') ||
+    message.includes('fetch failed') ||
+    message.includes('other side closed') ||
+    message.includes('socket') ||
+    message.includes('timeout') ||
+    message.includes('timed out') ||
+    message.includes('econnreset') ||
+    message.includes('connection reset')
+  )
+}
+
+async function retryCallbackStep<T>(
+  label: string,
+  task: () => Promise<T>,
+  options?: { attempts?: number; baseDelayMs?: number }
+) {
+  const attempts = options?.attempts ?? 3
+  const baseDelayMs = options?.baseDelayMs ?? 250
+  let lastError: unknown
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await task()
+    } catch (error) {
+      lastError = error
+      if (attempt >= attempts || !isRetryableCallbackError(error)) {
+        throw error
+      }
+      console.warn(`[recording-callback] retrying ${label} after transient failure`, {
+        attempt,
+        message: error instanceof Error ? error.message : String(error),
+      })
+      await sleep(baseDelayMs * attempt)
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(`Failed ${label}`)
+}
+
 async function findLeadByPhone(phone?: string) {
   if (!digitsOnly(phone)) return null
   const leads = await listSalesLeads().catch(() => [] as CRMLead[])
@@ -239,7 +288,7 @@ export async function POST(request: Request) {
 
     let updatedLead = lead
     if (leadId && callLogId) {
-      updatedLead = await updateLeadCallLogEntry(leadId, callLogId, {
+      updatedLead = await retryCallbackStep('updateLeadCallLogEntry', () => updateLeadCallLogEntry(leadId!, callLogId!, {
         recordingUrl: mp3Url,
         recordingSid: recordingSid || undefined,
         recordingDuration: recordingDuration > 0 ? recordingDuration : undefined,
@@ -250,7 +299,7 @@ export async function POST(request: Request) {
         aiSummary: (aiSummary as any) || undefined,
         isVoicemail: isVoicemail || undefined,
         source: 'manual',
-      } as any)
+      } as any))
 
       if (updatedLead) {
         let nextLead = aiSummary ? applyPhoneCallSummaryToLead(updatedLead, aiSummary as any) : updatedLead
@@ -316,7 +365,7 @@ export async function POST(request: Request) {
     }
 
     if (inboundLead) {
-      await updateInboundLeadRawData(inboundLead.id, {
+      await retryCallbackStep('updateInboundLeadRawData', () => updateInboundLeadRawData(inboundLead.id, {
         recordingUrl: mp3Url,
         recordingSid: recordingSid || undefined,
         recordingDuration: recordingDuration > 0 ? recordingDuration : undefined,
@@ -325,7 +374,7 @@ export async function POST(request: Request) {
         recordingUnavailableReason: undefined,
         transcript: transcript || undefined,
         aiSummary: aiSummary || undefined,
-      })
+      }))
     }
 
     if (leadId && callLogId) {

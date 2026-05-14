@@ -2331,15 +2331,17 @@ export async function scheduleMoveReminder(leadId: string) {
   const lead = await getSalesLead(leadId)
   if (!lead?.moveDate || lead.stage !== 'booked') return null
 
-  const dueDate = new Date(`${lead.moveDate}T12:00:00`)
-  dueDate.setHours(dueDate.getHours() - 48)
+  // Fire 7 days before the move (was 48h — changed to give rep time to call and confirm)
+  const dueDate = new Date(`${lead.moveDate}T10:00:00`)
+  dueDate.setDate(dueDate.getDate() - 7)
   const dueAt = clampAutomationDueAt(
     dueDate.getTime() < Date.now()
       ? new Date(Date.now() + 5 * 60 * 1000)
       : dueDate
   )
 
-  return queueAutomationJob({
+  // SMS/email to customer
+  const customerJob = await queueAutomationJob({
     leadId: lead.id,
     kind: 'move_reminder',
     channel: lead.phone ? 'sms' : lead.email ? 'email' : null,
@@ -2347,6 +2349,21 @@ export async function scheduleMoveReminder(leadId: string) {
     dedupeKey: `move_reminder:${lead.id}:${lead.moveDate}`,
     payload: { moveDate: lead.moveDate },
   })
+
+  // Call nudge for rep — fires same day as the SMS so it shows in their briefing
+  const moveDateFormatted = new Date(`${lead.moveDate}T12:00:00`).toLocaleDateString('en-CA', {
+    weekday: 'long', month: 'long', day: 'numeric',
+  })
+  await saveFollowUpLog({
+    id: uid('fu'),
+    leadId: lead.id,
+    type: 'call',
+    date: dueAt,
+    createdAt: new Date().toISOString(),
+    notes: `📞 Call to confirm move — remind ${lead.name || 'customer'} of their ${moveDateFormatted} move, go over inventory, binding terms, and access details.`,
+  }).catch(() => {})
+
+  return customerJob
 }
 
 function getLeadLastActivity(lead: CRMLead, followUps: Awaited<ReturnType<typeof listFollowUpLogs>>) {

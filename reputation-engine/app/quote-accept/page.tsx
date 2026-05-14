@@ -36,6 +36,7 @@ type PublicQuote = {
   id: string
   number: string
   moveDate?: string
+  moveTime?: string
   moveType?: MoveType
   originCity?: string
   originAddress?: string
@@ -50,6 +51,7 @@ type PublicQuote = {
   minimumBillableHours?: number
   maximumEstimatedHours?: number
   hourlyRateOverride?: number
+  legs?: Array<{ id: string; label: string; type: string; originAddress?: string; originCity?: string; destAddress?: string; destCity?: string; distanceKm?: number; driveHours?: number; scheduledDate?: string; notes?: string }>
   lineItems: Array<{ description: string; details?: string; amount: number }>
   subtotal: number
   hst: number
@@ -89,6 +91,14 @@ function expiryDate(quote: PublicQuote): string {
   const base = new Date(quote.createdAt)
   base.setDate(base.getDate() + days)
   return base.toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })
+}
+
+function formatMoveTime(time: string): string {
+  const [h, m] = time.split(':').map(Number)
+  if (isNaN(h)) return time
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  const hour = h % 12 || 12
+  return `${hour}:${String(m ?? 0).padStart(2, '0')} ${ampm}`
 }
 
 function daysUntilMove(moveDate?: string): number | null {
@@ -274,8 +284,8 @@ function AcceptBlock({
         <button onClick={onDecline} disabled={declining} className="rounded-lg border border-[#1a2744]/20 px-3 py-2 text-xs font-medium text-[#1a2744]/40 hover:border-[#1a2744]/40 disabled:opacity-40">
           {declining ? '...' : 'Decline'}
         </button>
-        <button onClick={onAccept} disabled={accepting} className="rounded-lg bg-[#1a2744] px-5 py-2 text-xs font-bold text-white hover:bg-[#243460] disabled:opacity-50">
-          {accepting ? 'Confirming...' : 'Accept & Book'}
+        <button onClick={onPayStripe} disabled={stripeLoading} className="rounded-lg bg-[#1a2744] px-5 py-2 text-xs font-bold text-white hover:bg-[#243460] disabled:opacity-50">
+          {stripeLoading ? 'Redirecting...' : 'Accept & Pay Deposit'}
         </button>
       </div>
     )
@@ -285,19 +295,26 @@ function AcceptBlock({
     <div className="rounded-xl border-2 border-[#1a2744] bg-[#1a2744] p-8 text-center">
       <div className="text-lg font-black text-white mb-2">Ready to lock in your move?</div>
       <p className="text-sm text-white/60 mb-6 max-w-sm mx-auto leading-6">
-        Clicking Accept confirms your booking. We&apos;ll coordinate your move date and send final details.
+        Pay your deposit now to confirm your booking. Your card is saved on file — balance is due after the move.
       </p>
+      <button
+        onClick={onPayStripe}
+        disabled={stripeLoading}
+        className="w-full rounded-xl bg-[#f5a623] py-4 text-base font-bold text-[#1a2744] hover:opacity-90 disabled:opacity-50 shadow-lg transition"
+      >
+        {stripeLoading ? 'Redirecting to payment...' : 'Accept Quote & Pay Deposit'}
+      </button>
       <button
         onClick={onAccept}
         disabled={accepting}
-        className="w-full rounded-xl bg-[#f5a623] py-4 text-base font-bold text-[#1a2744] hover:opacity-90 disabled:opacity-50 shadow-lg transition"
+        className="mt-4 text-xs text-white/30 hover:text-white/60 disabled:opacity-40"
       >
-        {accepting ? 'Confirming...' : 'Accept Quote — Book My Move'}
+        {accepting ? 'Confirming...' : 'Accept without card (E-Transfer/Cash)'}
       </button>
       <button
         onClick={onDecline}
         disabled={declining}
-        className="mt-4 text-xs text-white/30 hover:text-white/60 disabled:opacity-40"
+        className="mt-2 text-xs text-white/20 hover:text-white/40 disabled:opacity-40"
       >
         {declining ? 'Updating...' : 'Decline this quote'}
       </button>
@@ -656,8 +673,14 @@ function QuoteAcceptPageInner() {
               </div>
               <div className="text-right">
                 <div className="text-[9px] font-bold uppercase tracking-widest text-[#f5a623]/60 mb-0.5">To</div>
-                <div className="text-sm font-bold text-white leading-tight">{quote.destCity || 'Destination'}</div>
-                {quote.destAddress && <div className="text-[10px] text-white/40 mt-0.5 leading-4">{quote.destAddress}</div>}
+                {(quote.legs?.length ?? 0) > 1 ? (
+                  <div className="text-sm font-bold text-white leading-tight">{quote.legs!.length} Stops</div>
+                ) : (
+                  <>
+                    <div className="text-sm font-bold text-white leading-tight">{quote.destCity || 'Destination'}</div>
+                    {quote.destAddress && <div className="text-[10px] text-white/40 mt-0.5 leading-4">{quote.destAddress}</div>}
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -667,9 +690,10 @@ function QuoteAcceptPageInner() {
         {listingPhotos.length > 0 && <PhotoGallery photos={listingPhotos} />}
 
         {/* ── Move stats ── */}
-        <div className="mb-6 grid grid-cols-4 gap-2">
+        <div className="mb-6 grid grid-cols-5 gap-2">
           {[
             { label: 'Move Date', value: quote.moveDate ? formatDate(quote.moveDate) : 'TBD' },
+            { label: 'Start Time', value: quote.moveTime ? formatMoveTime(quote.moveTime) : '9:00 AM' },
             { label: 'Crew', value: `${crewSize} Movers` },
             { label: trucks === 1 ? 'Truck' : 'Trucks', value: `${trucks} Truck${trucks > 1 ? 's' : ''}` },
             { label: 'Est. Hours', value: hours ? `${hours}h` : 'TBD' },
@@ -700,6 +724,48 @@ function QuoteAcceptPageInner() {
             </div>
           </div>
         </div>
+
+        {/* ── Multi-leg Move Plan ── */}
+        {(quote.legs?.length ?? 0) > 1 && (
+          <div className="mb-6 overflow-hidden rounded-xl border border-[#1a2744]/10 bg-white">
+            <div className="border-b border-[#1a2744]/8 px-5 py-4">
+              <div className="text-xs font-bold uppercase tracking-wider text-[#1a2744]">Move Plan — {quote.legs!.length} Stops</div>
+            </div>
+            <div className="divide-y divide-[#1a2744]/6">
+              {quote.legs!.map((leg, idx) => {
+                const typeLabel = leg.type === 'junk' ? 'Junk Removal' : leg.type === 'delivery' ? 'Delivery' : leg.type === 'storage' ? 'House → Storage' : leg.type === 'storage_delivery' ? 'Storage → New Home' : 'Moving'
+                const origin = [leg.originAddress, leg.originCity].filter(Boolean).join(', ') || '—'
+                const dest = [leg.destAddress, leg.destCity].filter(Boolean).join(', ') || '—'
+                return (
+                  <div key={leg.id} className="flex items-start gap-4 px-5 py-4">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#1a2744] text-[10px] font-bold text-white mt-0.5">{idx + 1}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-semibold text-[#1a2744]">{leg.label}</span>
+                        <span className="rounded-full bg-[#f5a623]/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#1a2744]">{typeLabel}</span>
+                        {leg.scheduledDate && (
+                          <span className="text-[10px] text-[#1a2744]/40">{new Date(leg.scheduledDate + 'T12:00:00').toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })}</span>
+                        )}
+                      </div>
+                      <div className="mt-1.5 flex items-center gap-2 text-xs text-[#1a2744]/50">
+                        <span className="truncate">{origin}</span>
+                        <svg className="h-3 w-3 shrink-0 text-[#f5a623]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                        <span className="truncate">{dest}</span>
+                      </div>
+                      {(leg.distanceKm || leg.notes) && (
+                        <div className="mt-1 text-[10px] text-[#1a2744]/35">
+                          {leg.distanceKm ? `${leg.distanceKm} km · ${leg.driveHours}h drive` : ''}
+                          {leg.distanceKm && leg.notes ? ' · ' : ''}
+                          {leg.notes || ''}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ── Pricing ── */}
         <div className="mb-6 overflow-hidden rounded-xl border border-[#1a2744]/10 bg-white">

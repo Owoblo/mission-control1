@@ -3,16 +3,41 @@ import { applyDetectedBranch } from '@/lib/server/sales-opportunities'
 import { calculateLeadScore, getLeadAssignedRepName, isClosedLeadStage, normalizeLead, uid } from '@/lib/sales'
 import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { recordLeadCreatedAudit, recordLeadUpdateAudit } from '@/lib/server/sales-audit'
-import { listSalesLeads, saveSalesLead } from '@/lib/server/sales-repository'
+import { getSalesLead, listSalesLeadIdentitySnapshots, listSalesLeadsPaginated, saveSalesLead } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
 import { normalizeEmail, validateLeadPayload } from '@/lib/server/sales-validation'
 import type { CRMLead } from '@/lib/types'
+
+export async function GET(request: Request) {
+  try {
+    const session = await getSessionUser()
+    if (!canAccessSalesWorkspace(session)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const url = new URL(request.url)
+    const page = Math.max(0, parseInt(url.searchParams.get('page') || '0'))
+    const limit = Math.min(100, Math.max(10, parseInt(url.searchParams.get('limit') || '50')))
+
+    const result = await listSalesLeadsPaginated(page, limit)
+    return NextResponse.json(result)
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to list leads' },
+      { status: 500 }
+    )
+  }
+}
 
 function digitsOnly(value?: string) {
   return (value || '').replace(/\D/g, '')
 }
 
-function findMatchingActiveLead(leads: CRMLead[], phone?: string, email?: string) {
+function findMatchingActiveLead(
+  leads: Array<Pick<CRMLead, 'id' | 'stage' | 'phone' | 'email'>>,
+  phone?: string,
+  email?: string
+) {
   const phoneDigits = digitsOnly(phone)
   const normalizedEmail = normalizeEmail(email)
 
@@ -47,10 +72,11 @@ export async function POST(request: Request) {
     const requestedAssignedRepUserId = payload.assignedRepUserId?.trim()
     const assignedRepName = requestedAssignedRepName || (creatorOwnsLead ? session?.name?.trim() : undefined)
     const assignedRepUserId = requestedAssignedRepUserId || (creatorOwnsLead ? session?.userId : undefined)
-    const existingLead = payload.forceNew
+    const existingLeadMatch = payload.forceNew
       || payload.leadKind === 'realtor_opportunity'
       ? null
-      : findMatchingActiveLead(await listSalesLeads(), validated.phone, validated.email)
+      : findMatchingActiveLead(await listSalesLeadIdentitySnapshots(), validated.phone, validated.email)
+    const existingLead = existingLeadMatch ? await getSalesLead(existingLeadMatch.id) : null
 
     if (existingLead) {
       // Placeholder names created by auto-routing should be overwritten by real names

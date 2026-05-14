@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
-import { dateStamp, normalizeQuote, syncLeadFromQuoteStatus } from '@/lib/sales'
+import { dateStamp, normalizeQuote, syncLeadFromQuoteStatus, uid } from '@/lib/sales'
 import { getAcceptedQuoteLockedFieldChanges, recordQuoteUpdatedAudit } from '@/lib/server/sales-audit'
 import { canAccessSalesWorkspace, canReviseExistingQuote, validateQuotePricingPermissions } from '@/lib/server/sales-permissions'
 import { scheduleQuoteExpiryFollowup, scheduleQuoteFollowup, scheduleQuoteViewedFollowup } from '@/lib/server/sales-automation'
 import { getSessionUser } from '@/lib/server/session'
 import { getSalesClient, getSalesLead, getSalesQuote, listFollowUpLogs, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
+import type { QuoteChangeEntry } from '@/lib/types'
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
   try {
@@ -90,6 +91,24 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     const today = dateStamp()
     const respondedAt =
       ['accepted', 'declined'].includes(nextStatus) ? updates.respondedAt || current.respondedAt || new Date().toISOString() : current.respondedAt
+    // Auto-append change log entry when accepted quote total changes
+    const previousTotal = current.total
+    const newTotal = updates.total ?? current.total
+    const isAccepted = !!(current.acceptedAt || updates.acceptedAt)
+    const totalChanged = isAccepted && typeof updates.total === 'number' && Math.abs(newTotal - previousTotal) > 0.5
+
+    const autoChangeEntry: QuoteChangeEntry | null = totalChanged ? {
+      id: uid('chg'),
+      changedAt: new Date().toISOString(),
+      changedBy: session?.name || 'System',
+      reason: 'Quote revised after acceptance',
+      changeType: 'price_revision',
+      previousTotal,
+      newTotal,
+      customerNotified: false,
+    } : null
+
+    const existingChangeLog = current.changeLog || []
     const savedQuote = await saveSalesQuote(
       normalizeQuote({
         ...current,
@@ -99,6 +118,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
         viewedAt: nextStatus === 'viewed' ? updates.viewedAt || current.viewedAt || today : current.viewedAt,
         acceptedAt: nextStatus === 'accepted' ? updates.acceptedAt || current.acceptedAt || today : current.acceptedAt,
         respondedAt,
+        changeLog: autoChangeEntry ? [...existingChangeLog, autoChangeEntry] : existingChangeLog.length > 0 ? existingChangeLog : current.changeLog,
       })
     )
     await recordQuoteUpdatedAudit(current, savedQuote, session?.name)

@@ -37,6 +37,23 @@ export async function sendCallerIdSms(
 const NOTIFY_FROM = 'Saturn Star OS <notifications@starmovers.ca>'
 const NOTIFY_TO = 'business@starmovers.ca'
 
+export async function sendInternalAlertSms(to: string, body: string, from: string) {
+  const { accountSid, authToken } = getTwilioCredentials()
+
+  await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+    method: 'POST',
+    headers: {
+      Authorization: twilioAuth(accountSid, authToken),
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      To: to,
+      From: from,
+      Body: body,
+    }).toString(),
+  }).catch(() => {})
+}
+
 export async function sendRepAlertEmail(subject: string, htmlBody: string) {
   const resendKey = readEnv('RESEND_API_KEY')
   if (!resendKey) return

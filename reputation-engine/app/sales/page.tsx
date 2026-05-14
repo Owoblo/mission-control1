@@ -90,6 +90,40 @@ export default function SalesDashboardPage() {
   const [error, setError] = useState<string | null>(null)
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
   const [showCallsDrawer, setShowCallsDrawer] = useState(false)
+  const [actionsCollapsed, setActionsCollapsed] = useState(() => {
+    try { return localStorage.getItem('ss_actions_collapsed') === '1' } catch { return false }
+  })
+  const [workflowHidden, setWorkflowHidden] = useState(() => {
+    try { return localStorage.getItem('ss_workflow_hidden') === '1' } catch { return false }
+  })
+  const [statsCollapsed, setStatsCollapsed] = useState(() => {
+    try { return localStorage.getItem('ss_stats_collapsed') === '1' } catch { return false }
+  })
+  const [advancedDashboardOpen, setAdvancedDashboardOpen] = useState(() => {
+    try { return localStorage.getItem('ss_sales_dashboard_advanced_open') === '1' } catch { return false }
+  })
+
+  function toggleActions() {
+    setActionsCollapsed(v => {
+      const next = !v
+      try { localStorage.setItem('ss_actions_collapsed', next ? '1' : '0') } catch {}
+      return next
+    })
+  }
+  function toggleStats() {
+    setStatsCollapsed(v => {
+      const next = !v
+      try { localStorage.setItem('ss_stats_collapsed', next ? '1' : '0') } catch {}
+      return next
+    })
+  }
+  function toggleAdvancedDashboard() {
+    setAdvancedDashboardOpen(v => {
+      const next = !v
+      try { localStorage.setItem('ss_sales_dashboard_advanced_open', next ? '1' : '0') } catch {}
+      return next
+    })
+  }
 
   // Operations leads belong on the operations page, not here
   useEffect(() => {
@@ -235,6 +269,33 @@ export default function SalesDashboardPage() {
       .filter(lead => lead.stage === 'booked' || lead.stage === 'completed' || lead.stage === 'customer_success')
       .slice(0, 5)
   }, [currentUser, leads])
+  const workingQueue = useMemo(() => {
+    return guidedLeads
+      .filter(item => ['no_quote_sent', 'follow_up_overdue', 'missing_required_info', 'unassigned_lead', 'realtor_opportunity'].includes(item.guidance.action.category))
+      .slice(0, 6)
+  }, [guidedLeads])
+  const waitingQueue = useMemo(() => {
+    return guidedLeads
+      .filter(item => ['quote_viewed', 'quote_viewed_multi', 'quote_expiring', 'deposit_unpaid', 'move_date_soon', 'dormant'].includes(item.guidance.action.category))
+      .slice(0, 6)
+  }, [guidedLeads])
+  const bookedQueue = useMemo(() => {
+    return leads
+      .filter(lead => {
+        if (dashboardMode === 'rep' && !leadOwnedByUser(lead, currentUser)) return false
+        return lead.stage === 'booked' || lead.stage === 'completed' || lead.stage === 'customer_success'
+      })
+      .sort((left, right) => {
+        const leftDate = new Date(left.moveDate || left.createdAt).getTime()
+        const rightDate = new Date(right.moveDate || right.createdAt).getTime()
+        return leftDate - rightDate
+      })
+      .slice(0, 6)
+      .map(lead => ({
+        lead,
+        quote: lead.quoteId ? quoteMap.get(lead.quoteId) || null : null,
+      }))
+  }, [currentUser, dashboardMode, leads, quoteMap])
 
   const liveFeed = useMemo(() => {
     return leads
@@ -351,113 +412,268 @@ export default function SalesDashboardPage() {
           </div>
         </div>
 
-        {dashboardMode !== 'rep' ? (
-          <div className="grid gap-0 border border-[var(--app-line)] bg-[var(--app-panel)] md:grid-cols-5">
-            <button
-              className="border-b border-[var(--app-line)] p-5 md:border-b-0 md:border-r text-left w-full hover:bg-[var(--app-bg)] transition"
-              onClick={() => setShowCallsDrawer(true)}
-              title="Click to see today's calls"
-            >
-              <div className="crm-label">Calls Today</div>
-              <div className="mt-2 text-4xl font-semibold leading-none text-[var(--app-ink)]">{telephonyHealth?.metrics?.totalCallsToday ?? 0}</div>
-              <div className="mt-2 text-sm text-[var(--app-muted)]">{telephonyHealth?.browserPresence?.sessionCount ?? 0} browser sessions · <span className="text-[#1a2744] underline text-xs">view calls →</span></div>
-            </button>
-            <div className="border-b border-[var(--app-line)] p-5 md:border-b-0 md:border-r">
-              <div className="crm-label">Missed Calls</div>
-              <div className="mt-2 text-4xl font-semibold leading-none text-[var(--app-ink)]">{telephonyHealth?.metrics?.missedCallsToday ?? 0}</div>
-              <div className="mt-2 text-sm text-[var(--app-muted)]">{telephonyHealth?.metrics?.abandonedBeforeAnswerToday ?? 0} abandoned before answer</div>
-            </div>
-            <div className="border-b border-[var(--app-line)] p-5 md:border-b-0 md:border-r">
-              <div className="crm-label">Failed Calls</div>
-              <div className="mt-2 text-4xl font-semibold leading-none text-[var(--app-ink)]">{telephonyHealth?.metrics?.failedCallsToday ?? 0}</div>
-              <div className="mt-2 text-sm text-[var(--app-muted)]">{telephonyHealth?.metrics?.mediaConnectionFailuresToday ?? 0} media failures (53405)</div>
-            </div>
-            <div className="border-b border-[var(--app-line)] p-5 md:border-b-0 md:border-r">
-              <div className="crm-label">Browser vs Mobile</div>
-              <div className="mt-2 text-2xl font-semibold leading-none text-[var(--app-ink)]">
-                {telephonyHealth?.metrics?.browserCallsToday ?? 0} / {telephonyHealth?.metrics?.mobileCallsToday ?? 0}
+        {!workflowHidden && (
+        <section className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
+          <div className="flex flex-col gap-3 border-b border-[var(--app-line)] pb-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h2 className="font-display text-[1.35rem] font-semibold tracking-tight text-[var(--app-ink)]">Simple Workflow</h2>
+              <div className="mt-1 text-sm text-[var(--app-muted)]">
+                Same pattern as a lighter quote CRM: start from the queue, keep the lists short, and push everything else behind advanced views.
               </div>
-              <div className="mt-2 text-sm text-[var(--app-muted)]">Browser answered / Groundwire-mobile answered</div>
             </div>
-            <div className="p-5">
-              <div className="crm-label">Average Answer Time</div>
-              <div className="mt-2 text-4xl font-semibold leading-none text-[var(--app-ink)]">
-                {telephonyHealth?.metrics?.avgAnswerTimeSeconds ?? '—'}
-              </div>
-              <div className="mt-2 text-sm text-[var(--app-muted)]">Seconds to first answer</div>
+            <div className="flex items-center gap-3">
+              <div className="text-xs text-[var(--app-muted)]">Open a lead only when it needs action. Everything else can wait.</div>
+              <button
+                onClick={() => { setWorkflowHidden(true); try { localStorage.setItem('ss_workflow_hidden', '1') } catch { /* noop */ } }}
+                className="shrink-0 rounded-full border border-[var(--app-line)] px-2.5 py-1 text-[10px] font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition"
+                title="Hide this section"
+              >
+                Hide
+              </button>
             </div>
           </div>
-        ) : null}
 
-        {loading ? (
-          <div className="rounded-[4px] border border-[rgba(228,226,220,1)] bg-white px-4 py-16 text-center text-sm text-[var(--app-muted)]">Loading dashboard...</div>
-        ) : (
+          {loading ? (
+            <div className="grid gap-4 pt-5 lg:grid-cols-2">
+              {['New', 'Working', 'Waiting', 'Booked'].map(label => (
+                <div key={label} className="rounded-[10px] border border-dashed border-[var(--app-line)] px-4 py-10 text-center text-sm text-[var(--app-muted)]">
+                  Loading {label.toLowerCase()} queue...
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid gap-4 pt-5 lg:grid-cols-2">
+              <div className="rounded-[10px] border border-[var(--app-line)] bg-white">
+                <div className="flex items-center justify-between border-b border-[var(--app-line)] px-4 py-3">
+                  <div>
+                    <div className="text-sm font-semibold text-[var(--app-ink)]">New</div>
+                    <div className="text-xs text-[var(--app-muted)]">Fresh inbound leads and replies</div>
+                  </div>
+                  <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-xs font-semibold text-[var(--app-muted)]">{newInboundLeads.length}</span>
+                </div>
+                <div className="divide-y divide-[var(--app-line)]">
+                  {newInboundLeads.length === 0 ? (
+                    <div className="px-4 py-8 text-sm text-[var(--app-muted)]">Nothing new right now.</div>
+                  ) : newInboundLeads.map(({ lead, guidance }) => (
+                    <Link key={lead.id} href={`/sales/leads/${lead.id}`} className="block px-4 py-3 transition hover:bg-[var(--app-bg)]">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-[var(--app-ink)]">{lead.name}</div>
+                          <div className="mt-1 truncate text-xs text-[var(--app-muted)]">{guidance.sourceLabel} · {guidance.action.reason}</div>
+                        </div>
+                        <div className="shrink-0 text-xs text-[var(--app-muted)]">{timeLabel(lead.createdAt)}</div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-[10px] border border-[var(--app-line)] bg-white">
+                <div className="flex items-center justify-between border-b border-[var(--app-line)] px-4 py-3">
+                  <div>
+                    <div className="text-sm font-semibold text-[var(--app-ink)]">Working</div>
+                    <div className="text-xs text-[var(--app-muted)]">Needs rep action before a quote is out</div>
+                  </div>
+                  <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-xs font-semibold text-[var(--app-muted)]">{workingQueue.length}</span>
+                </div>
+                <div className="divide-y divide-[var(--app-line)]">
+                  {workingQueue.length === 0 ? (
+                    <div className="px-4 py-8 text-sm text-[var(--app-muted)]">No open prep work right now.</div>
+                  ) : workingQueue.map(({ lead, quote, guidance }) => (
+                    <Link key={lead.id} href={`/sales/leads/${lead.id}`} className="block px-4 py-3 transition hover:bg-[var(--app-bg)]">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-[var(--app-ink)]">{lead.name}</div>
+                          <div className="mt-1 truncate text-xs text-[var(--app-muted)]">{guidance.action.nextAction}</div>
+                        </div>
+                        <div className="shrink-0 text-right text-xs text-[var(--app-muted)]">
+                          <div>{quote?.total ? formatMoney(quote.total) : guidance.stageLabel}</div>
+                          <div className="mt-1">{lead.moveDate ? formatDate(lead.moveDate) : 'Date TBD'}</div>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-[10px] border border-[var(--app-line)] bg-white">
+                <div className="flex items-center justify-between border-b border-[var(--app-line)] px-4 py-3">
+                  <div>
+                    <div className="text-sm font-semibold text-[var(--app-ink)]">Waiting</div>
+                    <div className="text-xs text-[var(--app-muted)]">Quote is out or customer owes a response</div>
+                  </div>
+                  <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-xs font-semibold text-[var(--app-muted)]">{waitingQueue.length}</span>
+                </div>
+                <div className="divide-y divide-[var(--app-line)]">
+                  {waitingQueue.length === 0 ? (
+                    <div className="px-4 py-8 text-sm text-[var(--app-muted)]">No waiting leads right now.</div>
+                  ) : waitingQueue.map(({ lead, quote, guidance }) => (
+                    <Link key={lead.id} href={`/sales/leads/${lead.id}`} className="block px-4 py-3 transition hover:bg-[var(--app-bg)]">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-[var(--app-ink)]">{lead.name}</div>
+                          <div className="mt-1 truncate text-xs text-[var(--app-muted)]">{guidance.quoteStatusLine}</div>
+                        </div>
+                        <div className="shrink-0 text-right text-xs text-[var(--app-muted)]">
+                          <div>{quote?.total ? formatMoney(quote.total) : guidance.stageLabel}</div>
+                          <div className="mt-1">{guidance.heat.label}</div>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-[10px] border border-[var(--app-line)] bg-white">
+                <div className="flex items-center justify-between border-b border-[var(--app-line)] px-4 py-3">
+                  <div>
+                    <div className="text-sm font-semibold text-[var(--app-ink)]">Booked</div>
+                    <div className="text-xs text-[var(--app-muted)]">Confirmed and completed jobs</div>
+                  </div>
+                  <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-xs font-semibold text-[var(--app-muted)]">{bookedQueue.length}</span>
+                </div>
+                <div className="divide-y divide-[var(--app-line)]">
+                  {bookedQueue.length === 0 ? (
+                    <div className="px-4 py-8 text-sm text-[var(--app-muted)]">No booked jobs in this view yet.</div>
+                  ) : bookedQueue.map(({ lead, quote }) => (
+                    <Link key={lead.id} href={`/sales/leads/${lead.id}`} className="block px-4 py-3 transition hover:bg-[var(--app-bg)]">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-[var(--app-ink)]">{lead.name}</div>
+                          <div className="mt-1 truncate text-xs text-[var(--app-muted)]">{lead.stage.replace(/_/g, ' ')} · {lead.moveDate ? formatDate(lead.moveDate) : 'Date TBD'}</div>
+                        </div>
+                        <div className="shrink-0 text-xs text-[var(--app-muted)]">{quote?.total ? formatMoney(quote.total) : 'Booked'}</div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+        )}
+
+        <button
+          type="button"
+          onClick={toggleAdvancedDashboard}
+          className="flex w-full items-center justify-between rounded-[10px] border border-[var(--app-line)] bg-white px-4 py-3 text-left transition hover:border-[var(--app-ink)]"
+        >
+          <div>
+            <div className="text-sm font-semibold text-[var(--app-ink)]">Advanced queues and call stats</div>
+            <div className="mt-1 text-xs text-[var(--app-muted)]">Keep this collapsed unless you need deeper triage.</div>
+          </div>
+          <span className="text-xs font-semibold text-[var(--app-muted)]">{advancedDashboardOpen ? 'Hide' : 'Show'}</span>
+        </button>
+
+        {advancedDashboardOpen ? (
           <>
+            {dashboardMode !== 'rep' ? (
+              <>
+                <button onClick={toggleStats} className="flex items-center gap-2 text-xs font-medium text-[var(--app-muted)] hover:text-[var(--app-ink)] transition-colors mb-1 ml-1">
+                  <span>{statsCollapsed ? '▶' : '▼'}</span>
+                  <span>{statsCollapsed ? 'Show call stats' : 'Hide call stats'}</span>
+                </button>
+                {!statsCollapsed && <div className="grid gap-0 border border-[var(--app-line)] bg-[var(--app-panel)] md:grid-cols-5">
+                <button
+                  className="border-b border-[var(--app-line)] p-5 md:border-b-0 md:border-r text-left w-full hover:bg-[var(--app-bg)] transition"
+                  onClick={() => setShowCallsDrawer(true)}
+                  title="Click to see today's calls"
+                >
+                  <div className="crm-label">Calls Today</div>
+                  <div className="mt-2 text-4xl font-semibold leading-none text-[var(--app-ink)]">{telephonyHealth?.metrics?.totalCallsToday ?? 0}</div>
+                  <div className="mt-2 text-sm text-[var(--app-muted)]">{telephonyHealth?.browserPresence?.sessionCount ?? 0} browser sessions · <span className="text-[#1a2744] underline text-xs">view calls →</span></div>
+                </button>
+                <div className="border-b border-[var(--app-line)] p-5 md:border-b-0 md:border-r">
+                  <div className="crm-label">Missed Calls</div>
+                  <div className="mt-2 text-4xl font-semibold leading-none text-[var(--app-ink)]">{telephonyHealth?.metrics?.missedCallsToday ?? 0}</div>
+                  <div className="mt-2 text-sm text-[var(--app-muted)]">{telephonyHealth?.metrics?.abandonedBeforeAnswerToday ?? 0} abandoned before answer</div>
+                </div>
+                <div className="border-b border-[var(--app-line)] p-5 md:border-b-0 md:border-r">
+                  <div className="crm-label">Failed Calls</div>
+                  <div className="mt-2 text-4xl font-semibold leading-none text-[var(--app-ink)]">{telephonyHealth?.metrics?.failedCallsToday ?? 0}</div>
+                  <div className="mt-2 text-sm text-[var(--app-muted)]">{telephonyHealth?.metrics?.mediaConnectionFailuresToday ?? 0} media failures (53405)</div>
+                </div>
+                <div className="border-b border-[var(--app-line)] p-5 md:border-b-0 md:border-r">
+                  <div className="crm-label">Browser vs Mobile</div>
+                  <div className="mt-2 text-2xl font-semibold leading-none text-[var(--app-ink)]">
+                    {telephonyHealth?.metrics?.browserCallsToday ?? 0} / {telephonyHealth?.metrics?.mobileCallsToday ?? 0}
+                  </div>
+                  <div className="mt-2 text-sm text-[var(--app-muted)]">Browser answered / Groundwire-mobile answered</div>
+                </div>
+                <div className="p-5">
+                  <div className="crm-label">Average Answer Time</div>
+                  <div className="mt-2 text-4xl font-semibold leading-none text-[var(--app-ink)]">
+                    {telephonyHealth?.metrics?.avgAnswerTimeSeconds ?? '—'}
+                  </div>
+                  <div className="mt-2 text-sm text-[var(--app-muted)]">Seconds to first answer</div>
+                </div>
+              </div>}
+              </>
+            ) : null}
+
+            {loading ? (
+              <div className="rounded-[4px] border border-[rgba(228,226,220,1)] bg-white px-4 py-16 text-center text-sm text-[var(--app-muted)]">Loading dashboard...</div>
+            ) : (
+              <>
             <section>
-              <div className="mb-4 flex items-center justify-between border-b border-[var(--app-line)] pb-2">
-                <h2 className="font-display text-[1.4rem] font-semibold tracking-tight text-[var(--app-ink)]">Today&apos;s Required Actions</h2>
+              <button onClick={toggleActions} className="mb-3 w-full flex items-center justify-between border-b border-[var(--app-line)] pb-2 group">
+                <h2 className="font-display text-[1.1rem] font-semibold tracking-tight text-[var(--app-ink)] flex items-center gap-2">
+                  <span className="text-[var(--app-muted)] text-sm">{actionsCollapsed ? '▶' : '▼'}</span>
+                  Today&apos;s Required Actions
+                </h2>
                 <span className="rounded-[4px] border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-600">
                   {requiredActions.length} prioritized
                 </span>
-              </div>
-              {requiredActions.length === 0 ? (
+              </button>
+              {!actionsCollapsed && requiredActions.length === 0 ? (
                 <div className="rounded-[8px] border border-dashed border-[var(--app-line)] px-5 py-12 text-center text-sm text-[var(--app-muted)]">
                   No required actions right now.
                 </div>
-              ) : (
-                <div className="grid gap-3 xl:grid-cols-2">
+              ) : !actionsCollapsed ? (
+                <div className="grid gap-2 xl:grid-cols-2">
                   {requiredActions.map(({ lead, quote, guidance }) => (
-                    <div key={lead.id} className={`rounded-[10px] border bg-[var(--app-panel)] p-4 ${guidance.action.goldenMoment ? 'border-orange-300 shadow-[0_12px_30px_rgba(249,115,22,0.08)]' : guidance.heat.tone === 'risk' ? 'border-rose-200' : 'border-[var(--app-line)]'}`}>
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="text-base font-semibold text-[var(--app-ink)]">{lead.name}</div>
-                          <div className="mt-1 text-sm text-[var(--app-muted)]">
-                            {guidance.stageLabel} · {guidance.sourceLabel} · {guidance.branchLabel}
+                    <div key={lead.id} className={`rounded-[8px] border bg-[var(--app-panel)] px-3 py-2.5 ${guidance.action.goldenMoment ? 'border-orange-300 shadow-[0_4px_12px_rgba(249,115,22,0.08)]' : guidance.heat.tone === 'risk' ? 'border-rose-200' : 'border-[var(--app-line)]'}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-[var(--app-ink)] truncate">{lead.name}</div>
+                          <div className="mt-0.5 text-xs text-[var(--app-muted)] truncate">
+                            {guidance.stageLabel} · {guidance.sourceLabel}
                             {quote?.total ? ` · ${formatMoney(quote.total)}` : ''}
                             {lead.moveDate ? ` · Move ${formatDate(lead.moveDate)}` : ''}
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold ${
+                          <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
                             guidance.heat.tone === 'risk' ? 'border-rose-200 bg-rose-50 text-rose-700' :
                             guidance.heat.tone === 'hot' ? 'border-orange-200 bg-orange-50 text-orange-700' :
                             guidance.heat.tone === 'warm' ? 'border-amber-200 bg-amber-50 text-amber-700' :
-                            guidance.heat.tone === 'dormant' ? 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700' :
                             'border-slate-200 bg-slate-50 text-slate-600'
                           }`}>
                             {guidance.heat.label} · {guidance.heat.score}
-                          </div>
-                          <div className="mt-1 text-[11px] text-[var(--app-muted)]">{guidance.ownerLabel}</div>
+                          </span>
                         </div>
                       </div>
 
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {guidance.action.goldenMoment ? <span className="rounded-full border border-orange-200 bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-800">QUOTE VIEWED NOW</span> : null}
-                        {guidance.missingInfo.slice(0, 2).map(item => (
-                          <span key={item} className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Missing: {item}</span>
-                        ))}
+                      {guidance.missingInfo.length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          {guidance.missingInfo.slice(0, 2).map(item => (
+                            <span key={item} className="rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">Missing: {item}</span>
+                          ))}
+                          {guidance.action.goldenMoment ? <span className="rounded-full border border-orange-200 bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-orange-800">QUOTE VIEWED NOW</span> : null}
+                        </div>
+                      )}
+
+                      <div className="mt-2 rounded-[6px] bg-[#1a2744]/5 px-2.5 py-2">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#1a2744]/50">Next Action</div>
+                        <div className="mt-0.5 text-xs font-semibold text-[#1a2744]">{guidance.action.nextAction}</div>
                       </div>
 
-                      <div className="mt-3 text-sm text-[var(--app-muted)]">
-                        {guidance.latestActivity.text} · {guidance.latestActivity.at ? formatRelativeTime(guidance.latestActivity.at) : '—'}
-                      </div>
-                      <div className="mt-1 text-sm text-[var(--app-muted)]">{guidance.action.reason}</div>
-                      {guidance.action.supportingSignals.length > 0 ? (
-                        <div className="mt-2 text-[11px] text-[var(--app-muted)]">{guidance.action.supportingSignals.join(' · ')}</div>
-                      ) : null}
-
-                      <div className="mt-4 rounded-[8px] bg-[#1a2744]/5 px-3 py-3">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#1a2744]/60">Next</div>
-                        <div className="mt-1 text-sm font-semibold text-[#1a2744]">{guidance.action.nextAction}</div>
-                        {guidance.action.goldenMoment ? <div className="mt-1 text-xs text-orange-700">{guidance.action.goldenMoment}</div> : null}
-                      </div>
-
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        <button onClick={() => void handleActionCta(lead, quote, guidance.action.primaryCta.key)} className="rounded-[8px] bg-[var(--app-ink)] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f1b2d]">
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        <button onClick={() => void handleActionCta(lead, quote, guidance.action.primaryCta.key)} className="rounded-[6px] bg-[var(--app-ink)] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0f1b2d]">
                           {guidance.action.primaryCta.label}
                         </button>
                         {guidance.action.secondaryCtas.slice(0, 2).map(cta => (
-                          <button key={cta.key} onClick={() => void handleActionCta(lead, quote, cta.key)} className="rounded-[8px] border border-[var(--app-line)] bg-white px-4 py-2 text-sm font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
+                          <button key={cta.key} onClick={() => void handleActionCta(lead, quote, cta.key)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
                             {cta.label}
                           </button>
                         ))}
@@ -465,7 +681,7 @@ export default function SalesDashboardPage() {
                     </div>
                   ))}
                 </div>
-              )}
+              ) : null}
             </section>
 
             {dashboardMode === 'rep' ? (
@@ -612,7 +828,9 @@ export default function SalesDashboardPage() {
               </div>
             )}
           </>
-        )}
+            )}
+          </>
+        ) : null}
       </div>
 
       {/* ── Calls Today Drawer ────────────────────────────────── */}

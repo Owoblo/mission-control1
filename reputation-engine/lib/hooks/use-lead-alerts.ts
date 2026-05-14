@@ -101,12 +101,14 @@ export function useLeadAlerts() {
           item.source === 'missed_call' ? '📵' :
           item.type === 'sms' ? '💬' :
           item.source === 'facebook_lead_ad' ? '📘' :
+          item.source === 'direct_mail' ? '📬' :
           item.source === 'website_form' ? '🌐' : '🔔'
         const label =
           item.source === 'twilio_call' ? 'Incoming Call' :
           item.source === 'missed_call' ? 'Missed Call' :
           item.type === 'sms' ? 'New SMS' :
           item.source === 'facebook_lead_ad' ? 'FB Lead Ad' :
+          item.source === 'direct_mail' ? 'QR / Direct Mail Lead' :
           item.source === 'website_form' ? 'Web Form Lead' : 'New Lead'
 
         fireNotification(

@@ -1,0 +1,1758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Moving Radar — Saturn Star</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --ink:         #111111;
+      --muted:       #8a8a8a;
+      --line:        #ebebeb;
+      --bg:          #fcfcfc;
+      --panel:       #ffffff;
+      --wash:        #f7f7f7;
+      --accent:      #0f6a53;
+      --accent-soft: #eef8f4;
+      --warm:        #d97706;
+      --danger:      #dc2626;
+      --radius:      8px;
+    }
+    html, body { height: 100%; }
+    body {
+      font-family: "SF Pro Display","Helvetica Neue","Segoe UI",system-ui,sans-serif;
+      background: var(--bg); color: var(--ink); font-size: 14px;
+      line-height: 1.5; -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── TOPBAR ── */
+    #topbar {
+      height: 56px; background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 28px; position: sticky; top: 0; z-index: 100;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 16px; }
+    .back-link { font-size: 13px; color: var(--muted); text-decoration: none; transition: color .15s; }
+    .back-link:hover { color: var(--ink); }
+    .divider { width: 1px; height: 18px; background: var(--line); }
+    .topbar-title { font-size: 15px; font-weight: 600; letter-spacing: -.2px; }
+    .topbar-right { display: flex; align-items: center; gap: 8px; }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 7px 14px; border-radius: var(--radius);
+      font-family: inherit; font-size: 13px; font-weight: 500;
+      cursor: pointer; border: none; transition: all .15s; white-space: nowrap;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #0a5a46; }
+    .btn-outline { background: var(--panel); color: var(--ink); border: 1px solid var(--line); }
+    .btn-outline:hover { border-color: #aaa; background: var(--wash); }
+    .btn-sm { padding: 5px 12px; font-size: 12px; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinning { display: inline-block; animation: spin .7s linear infinite; }
+
+    /* ── LAYOUT ── */
+    #main { max-width: 880px; margin: 0 auto; padding: 24px 28px 80px; display: flex; flex-direction: column; gap: 18px; }
+
+    /* ── SCAN STRIP ── */
+    #scan-strip {
+      background: var(--panel); border: 1px solid var(--line);
+      border-radius: var(--radius); padding: 18px 20px;
+      display: flex; align-items: center; gap: 18px;
+    }
+    .scan-orb {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--accent-soft); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 19px; position: relative;
+    }
+    .scan-orb.active::before {
+      content: ''; position: absolute; inset: -4px; border-radius: 50%;
+      border: 2px solid var(--accent); animation: ripple 1.2s ease-out infinite;
+    }
+    @keyframes ripple { 0%{transform:scale(1);opacity:1} 100%{transform:scale(1.7);opacity:0} }
+    .scan-info { flex: 1; }
+    .scan-headline { font-size: 14px; font-weight: 600; }
+    .scan-sub      { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .scan-kpis { display: flex; gap: 20px; flex-shrink: 0; }
+    .kpi { text-align: right; }
+    .kpi-val { font-size: 22px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+    .kpi-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-top: 2px; }
+
+    /* ── PROGRESS ── */
+    #progress-row {
+      display: none; background: var(--panel); border: 1px solid var(--line);
+      border-radius: var(--radius); padding: 12px 18px;
+      align-items: center; gap: 14px;
+    }
+    #progress-row.show { display: flex; }
+    .prog-track { flex: 1; height: 4px; background: var(--wash); border-radius: 99px; overflow: hidden; }
+    .prog-fill  { height: 100%; background: var(--accent); border-radius: 99px; transition: width .35s; }
+    .prog-label { font-size: 12px; color: var(--muted); white-space: nowrap; min-width: 160px; text-align: right; }
+
+    /* ── SOURCES ── */
+    #sources-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .src-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--panel); border: 1px solid var(--line);
+      border-radius: 99px; padding: 4px 12px; font-size: 12px; font-weight: 500;
+    }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: #d1d5db; flex-shrink: 0; }
+    .dot.loading { background: var(--warm); animation: blink .8s infinite; }
+    .dot.ok      { background: var(--accent); }
+    .dot.error   { background: var(--danger); }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+    /* ── FILTERS ── */
+    #filter-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .tab-group { display: flex; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--panel); }
+    .tab {
+      padding: 6px 13px; border: none; background: transparent;
+      font-family: inherit; font-size: 12px; font-weight: 500; color: var(--muted);
+      cursor: pointer; transition: all .12s; border-right: 1px solid var(--line);
+    }
+    .tab:last-child { border-right: none; }
+    .tab.on { background: var(--ink); color: #fff; }
+    .tab:hover:not(.on) { background: var(--wash); color: var(--ink); }
+    .f-spacer { flex: 1; }
+    .hide-label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); cursor: pointer; }
+    .hide-label input { accent-color: var(--accent); width: 13px; height: 13px; }
+
+    /* ── SIGNAL LIST ── */
+    #signal-list { display: flex; flex-direction: column; }
+
+    .empty {
+      background: var(--panel); border: 1px solid var(--line);
+      border-radius: var(--radius); text-align: center; padding: 60px 24px;
+    }
+    .empty-icon  { font-size: 36px; margin-bottom: 12px; }
+    .empty-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+    .empty-sub   { font-size: 13px; color: var(--muted); max-width: 360px; margin: 0 auto; line-height: 1.6; }
+
+    /* signal card */
+    .sig {
+      background: var(--panel); border: 1px solid var(--line);
+      display: grid; grid-template-columns: 4px 1fr auto;
+      transition: border-color .15s; overflow: hidden;
+    }
+    .sig + .sig { margin-top: -1px; }
+    .sig:first-child { border-radius: var(--radius) var(--radius) 0 0; }
+    .sig:last-child  { border-radius: 0 0 var(--radius) var(--radius); }
+    .sig:only-child  { border-radius: var(--radius); }
+    .sig:hover       { border-color: #c0c0c0; z-index: 1; position: relative; }
+    .sig.dismissed   { opacity: .38; }
+
+    /* left accent bar */
+    .sig-bar.hi  { background: #15803d; }
+    .sig-bar.med { background: var(--accent); }
+    .sig-bar.low { background: var(--warm); }
+    .sig-bar.min { background: #d1d5db; }
+
+    .sig-body { padding: 13px 16px; min-width: 0; }
+    .sig-meta { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; flex-wrap: wrap; }
+
+    .chip {
+      display: inline-flex; align-items: center;
+      font-size: 10px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .09em; padding: 2px 8px; border-radius: 99px;
+      border: 1px solid var(--line); background: var(--wash); color: var(--muted);
+      white-space: nowrap;
+    }
+    .chip.residential { background: var(--wash); color: var(--ink); border-color: #d1d5db; }
+    .chip.commercial  { background: var(--wash); color: var(--ink); border-color: #d1d5db; }
+    .chip.corporate   { background: #1a2744;     color: #fff;       border-color: #1a2744; }
+    .chip.now  { background: #fef2f2; color: var(--danger); border-color: #fecaca; }
+    .chip.soon { background: #fffbeb; color: var(--warm);   border-color: #fde68a; }
+
+    .sig-src { font-size: 11px; color: var(--muted); }
+    .sig-age { font-size: 11px; color: var(--muted); margin-left: auto; white-space: nowrap; }
+    .sig-title { font-size: 14px; font-weight: 600; line-height: 1.35; margin-bottom: 5px; }
+    .sig-title a { color: inherit; text-decoration: none; }
+    .sig-title a:hover { color: var(--accent); }
+    .sig-ai {
+      font-size: 12px; color: var(--muted); line-height: 1.55;
+      background: var(--wash); border-radius: 4px; padding: 6px 10px;
+      border-left: 2px solid var(--line); margin-top: 4px;
+    }
+    .sig-ai strong { color: var(--ink); font-weight: 600; }
+
+    /* right panel */
+    .sig-panel {
+      border-left: 1px solid var(--line);
+      padding: 13px 14px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 9px; min-width: 100px; flex-shrink: 0;
+    }
+    .conf-wrap { text-align: center; }
+    .conf-ring { position: relative; width: 42px; height: 42px; margin: 0 auto; }
+    .conf-ring svg { position: absolute; top: 0; left: 0; transform: rotate(-90deg); }
+    .conf-num { position: relative; z-index: 1; font-size: 15px; font-weight: 800; line-height: 42px; }
+    .conf-lbl { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-top: 2px; }
+
+    .sig-btns { display: flex; flex-direction: column; gap: 5px; width: 100%; }
+    .btn-crm {
+      width: 100%; padding: 5px 0; border-radius: 6px; border: none;
+      font-family: inherit; font-size: 11px; font-weight: 600; cursor: pointer;
+      background: var(--accent); color: #fff; transition: background .15s; text-align: center;
+    }
+    .btn-crm:hover { background: #0a5a46; }
+    .btn-crm.done  { background: #d1fae5; color: #065f46; cursor: default; }
+    .btn-dim {
+      width: 100%; padding: 4px 0; border-radius: 6px; background: transparent;
+      border: 1px solid var(--line); font-family: inherit; font-size: 11px; font-weight: 500;
+      color: var(--muted); cursor: pointer; transition: all .15s; text-align: center;
+    }
+    .btn-dim:hover { background: #fee2e2; color: var(--danger); border-color: #fca5a5; }
+
+    /* ── MANUAL ADD ── */
+    .manual-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+    .manual-head { padding: 12px 18px; border-bottom: 1px solid var(--line); font-size: 13px; font-weight: 600; }
+    .manual-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+    .row { display: flex; gap: 10px; }
+    .fg { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+    .fg label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+    .fg input, .fg select, .fg textarea {
+      padding: 8px 11px; border: 1px solid var(--line); border-radius: 6px;
+      font-family: inherit; font-size: 13px; color: var(--ink);
+      background: var(--bg); outline: none; transition: border-color .15s;
+    }
+    .fg input:focus, .fg select:focus, .fg textarea:focus {
+      border-color: var(--accent); box-shadow: 0 0 0 2px rgba(15,106,83,.12);
+    }
+    .fg textarea { resize: vertical; min-height: 68px; }
+
+    /* ── TOAST ── */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px;
+      padding: 10px 16px; border-radius: var(--radius);
+      font-size: 13px; font-weight: 500; color: #fff;
+      background: var(--ink); box-shadow: 0 4px 16px rgba(0,0,0,.16);
+      z-index: 9999; transform: translateY(60px); opacity: 0;
+      transition: transform .2s, opacity .2s; max-width: 280px;
+    }
+    #toast.show    { transform: translateY(0); opacity: 1; }
+    #toast.success { background: var(--accent); }
+    #toast.warning { background: var(--warm); }
+    #toast.danger  { background: var(--danger); }
+
+    @media (max-width: 640px) {
+      .sig { grid-template-columns: 4px 1fr; }
+      .sig-panel { display: none; }
+      .row { flex-direction: column; }
+    }
+
+    /* ── OUTREACH BUTTON ── */
+    .btn-draft {
+      width: 100%; padding: 5px 0; border-radius: 6px; background: transparent;
+      border: 1px solid var(--line); font-family: inherit; font-size: 11px; font-weight: 600;
+      color: #1a2744; cursor: pointer; transition: all .15s; text-align: center;
+    }
+    .btn-draft:hover { background: #f0f4ff; border-color: #1a2744; }
+    .btn-draft.drafted { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+    .btn-draft.sent    { color: var(--muted); border-color: var(--line); background: var(--wash); cursor: default; }
+
+    /* ── OUTREACH MODAL ── */
+    #outreach-overlay {
+      display: none; position: fixed; inset: 0; z-index: 2000;
+      background: rgba(17,17,17,.45); backdrop-filter: blur(3px);
+      align-items: flex-start; justify-content: center;
+      padding: 32px 16px 60px; overflow-y: auto;
+    }
+    #outreach-overlay.open { display: flex; }
+    .omodal {
+      background: var(--panel); border-radius: 12px; width: 100%; max-width: 680px;
+      box-shadow: 0 24px 72px rgba(0,0,0,.18); display: flex; flex-direction: column;
+      margin: auto;
+    }
+    .omodal-head {
+      padding: 16px 20px; border-bottom: 1px solid var(--line);
+      display: flex; align-items: flex-start; gap: 12px;
+    }
+    .omodal-head-info { flex: 1; min-width: 0; }
+    .omodal-head h3 { font-size: 14px; font-weight: 700; line-height: 1.3; }
+    .omodal-head .osrc { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .omodal-close {
+      width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line);
+      background: transparent; cursor: pointer; font-size: 16px; line-height: 1;
+      display: flex; align-items: center; justify-content: center; color: var(--muted); flex-shrink: 0;
+    }
+    .omodal-close:hover { background: var(--wash); color: var(--ink); }
+    .omodal-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+    .omodal-generating {
+      padding: 40px 20px; text-align: center; display: flex; flex-direction: column;
+      align-items: center; gap: 12px;
+    }
+    .omodal-generating .gen-icon { font-size: 30px; }
+    .omodal-generating p { font-size: 13px; color: var(--muted); }
+    .o2col { display: flex; gap: 12px; }
+    .ofg { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+    .ofg label {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .1em; color: var(--muted); display: block;
+    }
+    .ofg input {
+      padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px;
+      font-family: inherit; font-size: 13px; color: var(--ink); background: var(--bg);
+      outline: none; transition: border-color .15s; width: 100%;
+    }
+    .ofg input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(15,106,83,.1); }
+    .letter-box {
+      width: 100%; min-height: 320px; padding: 16px 18px;
+      border: 1px solid var(--line); border-radius: 6px;
+      font-family: Georgia, 'Times New Roman', serif; font-size: 13px; line-height: 1.8;
+      color: var(--ink); background: #fff; resize: vertical; outline: none; transition: border-color .15s;
+    }
+    .letter-box:focus { border-color: var(--accent); }
+    .followup-row {
+      background: var(--wash); border: 1px solid var(--line); border-radius: 6px;
+      padding: 11px 14px; font-size: 11px; color: var(--muted); line-height: 1.8;
+    }
+    .followup-row strong { color: var(--ink); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+    .omodal-foot {
+      padding: 12px 20px; border-top: 1px solid var(--line);
+      display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+    }
+    .otrack {
+      font-size: 11px; color: var(--muted); font-family: monospace;
+      background: var(--wash); padding: 4px 9px; border-radius: 4px; border: 1px solid var(--line);
+    }
+    .omodal-actions { display: flex; gap: 8px; }
+
+    /* ── RESEARCH ── */
+    .btn-research {
+      font-family: inherit; font-size: 10px; font-weight: 600; padding: 2px 8px;
+      border-radius: 99px; border: 1px solid var(--line); background: var(--wash);
+      color: var(--muted); cursor: pointer; transition: all .15s; margin-left: 6px;
+    }
+    .btn-research:hover { background: #f0f4ff; color: #1a2744; border-color: #1a2744; }
+    .btn-research:disabled { opacity: .4; cursor: not-allowed; }
+    .dm-results {
+      font-size: 11px; color: var(--muted); margin-top: 4px; min-height: 16px;
+      line-height: 1.5;
+    }
+    .dm-results.found { color: var(--accent); font-weight: 500; }
+    .dm-results.miss  { color: var(--warm); }
+
+    /* ── EVENT TYPE CHIPS — all neutral gray ── */
+    .chip.evt { background: var(--wash); color: var(--muted); border-color: #d1d5db; }
+    .chip.contraction.evt { color: #b91c1c; }
+    .chip.disruption.evt  { background:#fff7ed; color:#c2410c; border-color:#fed7aa; }
+    .chip.sensitive-tag   { background:#fff7ed; color:#c2410c; border-color:#fed7aa; font-weight:700; }
+
+    /* ── TIER HEADERS ── */
+    .tier-hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 2px 8px; font-size: 11px; color: var(--muted);
+    }
+    .tier-badge {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .1em; color: var(--muted);
+    }
+    .tier-badge.t1 { color: #1a2744; }
+    .tier-badge.t2 { color: var(--muted); }
+    .tier-badge.t3 { color: #c0c0c0; }
+    .tier-group { display: flex; flex-direction: column; margin-bottom: 4px; }
+
+    /* ── SCORE DISPLAY ── */
+    .score-wrap { text-align: center; }
+    .score-big  { font-size: 24px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; color: #1a2744; }
+    .score-lbl  { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-top: 3px; }
+    .score-tier { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; margin-top: 2px; color: var(--muted); }
+
+    /* ── SENSITIVE SIGNAL ── */
+    .sig.is-sensitive { background: #fffcfa; }
+    .sig-action {
+      font-size: 11px; color: var(--muted);
+      padding: 4px 0; margin-top: 4px; display: block;
+    }
+    .sig-action::before { content: '→ '; color: var(--accent); font-weight: 700; }
+    .sig-action.sensitive::before { content: '⚠ '; color: #c2410c; }
+    .sig-entity { font-size: 11px; color: var(--muted); font-weight: 500; margin-top: 2px; }
+  </style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="topbar-left">
+    <a class="back-link" href="index.html">← Market Engine</a>
+    <div class="divider"></div>
+    <div class="topbar-title">Moving Radar</div>
+    <span style="font-size:11px;color:var(--muted);margin-left:4px">Windsor–Essex · Chatham-Kent</span>
+  </div>
+  <div class="topbar-right">
+    <button class="btn btn-outline btn-sm" onclick="exportCSV()">↓ Export CSV</button>
+    <button class="btn btn-outline btn-sm" onclick="scrollToManual()">+ Add Signal</button>
+    <button class="btn btn-primary btn-sm" id="scan-btn" onclick="runScan()">
+      <span id="scan-icon">↺</span> Scan Now
+    </button>
+  </div>
+</div>
+
+<div id="main">
+
+  <!-- SCAN STRIP -->
+  <div id="scan-strip">
+    <div class="scan-orb" id="scan-orb">📡</div>
+    <div class="scan-info">
+      <div class="scan-headline" id="scan-headline">Ready to scan</div>
+      <div class="scan-sub" id="scan-sub">Monitors Reddit, news feeds and local sources — Windsor–Essex and Chatham-Kent. AI reads every post for anyone who might be moving soon, even indirectly.</div>
+    </div>
+    <div class="scan-kpis">
+      <div class="kpi"><div class="kpi-val" id="kpi-total">—</div><div class="kpi-lbl">Signals</div></div>
+      <div class="kpi"><div class="kpi-val" id="kpi-high">—</div><div class="kpi-lbl">Tier 1</div></div>
+      <div class="kpi"><div class="kpi-val" id="kpi-crm">—</div><div class="kpi-lbl">In CRM</div></div>
+    </div>
+  </div>
+
+  <!-- PROGRESS -->
+  <div id="progress-row">
+    <div class="prog-track"><div class="prog-fill" id="prog-fill" style="width:0"></div></div>
+    <div class="prog-label" id="prog-label">Starting…</div>
+  </div>
+
+  <!-- SOURCES -->
+  <div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)">Sources</span>
+      <span style="font-size:12px;color:var(--muted)" id="last-scan">Never scanned · auto-scans every 20 min · 21 sources</span>
+    </div>
+    <div id="sources-row">
+      <div class="src-pill"><div class="dot" id="dot-r-windsor"></div>r/windsorontario</div>
+      <div class="src-pill"><div class="dot" id="dot-r-chatham"></div>r/ChathamKent</div>
+      <div class="src-pill"><div class="dot" id="dot-r-ontario"></div>r/ontario · filtered</div>
+      <div class="src-pill"><div class="dot" id="dot-r-pfcanada"></div>r/PersonalFinanceCA</div>
+      <div class="src-pill"><div class="dot" id="dot-r-housing"></div>r/canadahousing</div>
+      <div class="src-pill"><div class="dot" id="dot-gnews-biz"></div>Google News · Business</div>
+      <div class="src-pill"><div class="dot" id="dot-gnews-re"></div>Google News · Real Estate</div>
+      <div class="src-pill"><div class="dot" id="dot-gnews-hire"></div>Google News · Hiring</div>
+      <div class="src-pill"><div class="dot" id="dot-gnews-permit"></div>Google News · Permits</div>
+      <div class="src-pill"><div class="dot" id="dot-gnews-open"></div>Google News · Openings</div>
+      <div class="src-pill"><div class="dot" id="dot-gnews-ck"></div>Google News · Chatham-Kent</div>
+      <div class="src-pill"><div class="dot" id="dot-wstar"></div>Windsor Star</div>
+      <div class="src-pill"><div class="dot" id="dot-cknews"></div>CK News</div>
+      <div class="src-pill"><div class="dot" id="dot-cbc"></div>CBC Windsor</div>
+      <div class="src-pill"><div class="dot" id="dot-cbclon"></div>CBC London</div>
+      <div class="src-pill"><div class="dot" id="dot-indeed"></div>Indeed · Windsor jobs</div>
+      <div class="src-pill"><div class="dot" id="dot-uwindsor"></div>UWindsor News</div>
+      <div class="src-pill"><div class="dot" id="dot-stclair"></div>St. Clair College</div>
+      <div class="src-pill"><div class="dot" id="dot-citywin"></div>City of Windsor</div>
+      <div class="src-pill"><div class="dot" id="dot-chamber"></div>Windsor-Essex Chamber</div>
+      <div class="src-pill"><div class="dot" id="dot-alerts"></div>Emergency Alerts</div>
+    </div>
+  </div>
+
+  <!-- FILTERS -->
+  <div id="filter-row">
+    <div class="tab-group">
+      <button class="tab on"  onclick="setFilter('all',this)">All</button>
+      <button class="tab"     onclick="setFilter('urgent',this)">Urgent</button>
+      <button class="tab"     onclick="setFilter('residential',this)">Residential</button>
+      <button class="tab"     onclick="setFilter('commercial',this)">Commercial</button>
+      <button class="tab"     onclick="setFilter('corporate',this)">Corporate</button>
+      <button class="tab"     onclick="setFilter('sensitive',this)">⚠ Sensitive</button>
+      <button class="tab"     onclick="setFilter('converted',this)">In CRM</button>
+    </div>
+    <div class="f-spacer"></div>
+    <label class="hide-label">
+      <input type="checkbox" id="hide-dismissed" onchange="render()"> Hide dismissed
+    </label>
+  </div>
+
+  <!-- SIGNALS -->
+  <div id="signal-list">
+    <div class="empty">
+      <div class="empty-icon">📡</div>
+      <div class="empty-title">Radar is ready</div>
+      <div class="empty-sub">Hit <strong>Scan Now</strong> — the AI reads every post from Reddit, local news, and business feeds looking for anyone about to move, even if they haven't said it directly.</div>
+    </div>
+  </div>
+
+  <!-- MANUAL -->
+  <div id="manual-section">
+    <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:10px">Add Signal Manually</div>
+    <div class="manual-card">
+      <div class="manual-body">
+        <div class="row">
+          <div class="fg" style="flex:3">
+            <label>Signal / headline / tip</label>
+            <input id="m-title" type="text" placeholder="e.g. ABC company opening new Windsor office, heard someone is moving next month…" />
+          </div>
+          <div class="fg">
+            <label>Move type</label>
+            <select id="m-type">
+              <option value="unknown">Unknown</option>
+              <option value="residential">Residential</option>
+              <option value="commercial">Commercial</option>
+              <option value="corporate">Corporate</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="fg" style="flex:3">
+            <label>Extra context (optional)</label>
+            <textarea id="m-desc" placeholder="Address, company name, who told you, source URL…"></textarea>
+          </div>
+          <div class="fg" style="justify-content:flex-end">
+            <button class="btn btn-primary" onclick="addManual()" style="margin-top:auto">Add to Radar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<!-- ── OUTREACH MODAL ── -->
+<div id="outreach-overlay" onclick="overlayClick(event)">
+  <div class="omodal" id="omodal">
+    <div class="omodal-head">
+      <img src="" id="omodal-logo" alt="" style="width:40px;height:40px;object-fit:contain;border-radius:6px;flex-shrink:0" onerror="this.style.display='none'" />
+      <div class="omodal-head-info">
+        <h3 id="omodal-title">Generating Outreach Brief…</h3>
+        <div class="osrc" id="omodal-src"></div>
+      </div>
+      <button class="omodal-close" onclick="closeOutreach()">×</button>
+    </div>
+    <div class="omodal-body" id="omodal-body">
+      <div class="omodal-generating" id="omodal-generating">
+        <div class="gen-icon spinning" id="omodal-gen-icon">⚙</div>
+        <p id="omodal-gen-status">Reading article…</p>
+      </div>
+    </div>
+    <div class="omodal-foot" id="omodal-foot" style="display:none">
+      <span class="otrack" id="otrack-code">—</span>
+      <div class="omodal-actions">
+        <button class="btn btn-outline btn-sm" onclick="copyLetter()">Copy Letter</button>
+        <button class="btn btn-outline btn-sm" onclick="printLetter()">Print</button>
+        <button class="btn btn-primary btn-sm" id="btn-mark-sent" onclick="markOutreachSent()">✓ Mark as Sent</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ─── CONFIG ─────────────────────────────────────── */
+const OPENAI_KEY    = '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';
+const MODEL         = 'gpt-4o';
+const STORAGE_KEY   = 'ssradar_v3';
+const SCAN_INTERVAL = 20 * 60 * 1000;
+const SIX_MONTHS    = 180 * 24 * 3600 * 1000;
+const PROXY         = 'https://api.allorigins.win/raw?url=';
+const LOGO_URL      = new URL('../../funeral/assets/logo.jpg', window.location.href).href;
+
+/* ─── LOCAL TERMS ────────────────────────────────── */
+const LOCAL = ['windsor','essex','chatham','kent','lakeshore','leamington',
+               'tecumseh','lasalle','amherstburg','kingsville','harrow',
+               'belle river','tilbury','wallaceburg'];
+
+function isLocal(text) {
+  const t = (text || '').toLowerCase();
+  return LOCAL.some(w => t.includes(w));
+}
+
+/* ─── STATE ──────────────────────────────────────── */
+let signals = [];
+let filter  = 'all';
+let running = false;
+let scanTimer = null;
+
+function load()  { try { signals = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { signals = []; } }
+function save()  { localStorage.setItem(STORAGE_KEY, JSON.stringify(signals)); }
+function uid()   { return 'r_' + Date.now() + '_' + Math.random().toString(36).slice(2,5); }
+function dkey(t) { return (t||'').toLowerCase().replace(/\W+/g,' ').trim().slice(0,70); }
+function timeAgo(iso) {
+  if (!iso) return '';
+  const d = (Date.now() - new Date(iso)) / 60000;
+  if (d < 1)   return 'just now';
+  if (d < 60)  return `${Math.floor(d)}m ago`;
+  if (d < 1440) return `${Math.floor(d/60)}h ago`;
+  return `${Math.floor(d/1440)}d ago`;
+}
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+let _tt; function toast(m,t='info') {
+  const el=document.getElementById('toast');
+  el.textContent=m; el.className='show '+(t||'');
+  clearTimeout(_tt); _tt=setTimeout(()=>el.className='',3000);
+}
+
+/* ─── FETCH HELPERS ──────────────────────────────── */
+async function fetchRedditFeed(sub, sort = 'new', time = '') {
+  const t    = time ? `&t=${time}` : '';
+  const url  = `https://www.reddit.com/r/${sub}/${sort}.json?limit=100&raw_json=1${t}`;
+  const res  = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const j = await res.json();
+  return (j?.data?.children || []).map(c => c.data).map(p => ({
+    title: p.title || '',
+    desc:  (p.selftext || '').slice(0, 500),
+    link:  `https://reddit.com${p.permalink}`,
+    date:  new Date(p.created_utc * 1000).toISOString(),
+  }));
+}
+
+// Fetch new + hot + top/week for a sub and dedupe
+async function fetchRedditDeep(sub) {
+  const [n, h, t] = await Promise.allSettled([
+    fetchRedditFeed(sub, 'new'),
+    fetchRedditFeed(sub, 'hot'),
+    fetchRedditFeed(sub, 'top', 'week'),
+  ]);
+  const all = [];
+  const seen = new Set();
+  for (const r of [n, h, t]) {
+    if (r.status !== 'fulfilled') continue;
+    for (const item of r.value) {
+      const k = dkey(item.title);
+      if (!seen.has(k)) { seen.add(k); all.push(item); }
+    }
+  }
+  return all;
+}
+
+async function fetchRSS(url) {
+  const proxied = PROXY + encodeURIComponent(url);
+  const res = await fetch(proxied, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const txt = await res.text();
+  const xml = new DOMParser().parseFromString(txt, 'application/xml');
+  return Array.from(xml.querySelectorAll('item')).map(el => ({
+    title: el.querySelector('title')?.textContent?.trim() || '',
+    desc:  (el.querySelector('description')?.textContent||'').replace(/<[^>]+>/g,'').replace(/&[^;]+;/g,' ').trim().slice(0,500),
+    link:  el.querySelector('link')?.textContent?.trim() || el.querySelector('guid')?.textContent?.trim() || '',
+    date:  el.querySelector('pubDate')?.textContent?.trim() || '',
+  }));
+}
+
+function gnews(q) {
+  return fetchRSS(`https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=en-CA&gl=CA&ceid=CA:en`);
+}
+
+/* ─── SOURCES ────────────────────────────────────── */
+const SOURCES = [
+  // ── Reddit (deep: new + hot + top/week) ──────────
+  { id:'r-windsor',   label:'r/windsorontario',       local:true,
+    fetch: () => fetchRedditDeep('windsorontario') },
+  { id:'r-chatham',   label:'r/ChathamKent',           local:true,
+    fetch: () => fetchRedditDeep('ChathamKent') },
+  { id:'r-ontario',   label:'r/ontario · filtered',    local:false,
+    fetch: async () => {
+      const items = await fetchRedditDeep('ontario');
+      return items.filter(i => isLocal(`${i.title} ${i.desc}`));
+    }},
+  { id:'r-pfcanada',  label:'r/PersonalFinanceCA',     local:false,
+    fetch: async () => {
+      const items = await fetchRedditFeed('PersonalFinanceCanada', 'new');
+      return items.filter(i => isLocal(`${i.title} ${i.desc}`));
+    }},
+  { id:'r-housing',   label:'r/canadahousing',         local:false,
+    fetch: async () => {
+      const items = await fetchRedditFeed('canadahousing', 'new');
+      return items.filter(i => isLocal(`${i.title} ${i.desc}`));
+    }},
+
+  // ── Google News (6 targeted queries) ─────────────
+  { id:'gnews-biz',    label:'Google News · Business',  local:false,
+    fetch: () => gnews(`("windsor ontario" OR "chatham kent" OR "windsor essex") (business OR company OR office OR corporate OR commercial OR "new location" OR relocating)`) },
+  { id:'gnews-re',     label:'Google News · Real Estate', local:false,
+    fetch: () => gnews(`("windsor ontario" OR "chatham kent") ("real estate" OR housing OR property OR condo OR apartment OR "new home" OR sold OR listing)`) },
+  { id:'gnews-hire',   label:'Google News · Hiring',    local:false,
+    fetch: () => gnews(`("windsor ontario" OR "chatham kent" OR "windsor essex") (hiring OR "new jobs" OR "job fair" OR expansion OR "new positions" OR "growing team")`) },
+  { id:'gnews-permit', label:'Google News · Permits',   local:false,
+    fetch: () => gnews(`("windsor" OR "chatham kent") ("building permit" OR construction OR development OR renovation OR "new facility" OR "breaking ground")`) },
+  { id:'gnews-open',   label:'Google News · Openings',  local:false,
+    fetch: () => gnews(`("windsor" OR "chatham") ("grand opening" OR "now open" OR "opening soon" OR "new store" OR "new restaurant" OR "new office" OR "closing down" OR "permanently closed")`) },
+  { id:'gnews-ck',     label:'Google News · Chatham-Kent', local:false,
+    fetch: () => gnews(`"chatham kent" OR "chatham ontario" (moving OR relocating OR office OR business OR housing OR development)`) },
+
+  // ── Local news feeds ──────────────────────────────
+  { id:'wstar',   label:'Windsor Star',   local:true,
+    fetch: () => fetchRSS(`https://windsorstar.com/feed/`) },
+  { id:'cknews',  label:'CK News',        local:true,
+    fetch: () => fetchRSS(`https://www.chathamvoice.com/feed/`) },
+  { id:'cbc',     label:'CBC Windsor',    local:true,
+    fetch: () => fetchRSS(`https://www.cbc.ca/cmlink/rss-canada-windsor`) },
+  { id:'cbclon',  label:'CBC London',     local:false,
+    fetch: async () => {
+      const items = await fetchRSS(`https://www.cbc.ca/cmlink/rss-canada-london`);
+      return items.filter(i => isLocal(`${i.title} ${i.desc}`));
+    }},
+
+  // ── Indeed Windsor jobs (company growth signal) ───
+  { id:'indeed',  label:'Indeed · Windsor jobs', local:false,
+    fetch: async () => {
+      const items = await fetchRSS(`https://ca.indeed.com/rss?q=&l=Windsor%2C+Ontario&sort=date&limit=50`);
+      // Job postings = company is growing = may need office space
+      return items.map(i => ({
+        ...i,
+        desc: `[Job posting — company hiring in Windsor] ${i.desc}`.slice(0, 500),
+      }));
+    }},
+
+  // ── Institutional sources ─────────────────────────
+  { id:'uwindsor', label:'UWindsor News', local:true,
+    fetch: () => gnews(`("university of windsor" OR "uwindsor") (expansion OR facility OR new building OR relocation OR research park OR campus OR department OR program)`) },
+  { id:'stclair',  label:'St. Clair College', local:true,
+    fetch: () => gnews(`("st. clair college" OR "stclair") (new OR campus OR expansion OR facility OR relocation OR program OR construction)`) },
+
+  // ── Corporate / Chamber ───────────────────────────
+  { id:'citywin',  label:'City of Windsor', local:true,
+    fetch: () => gnews(`"city of windsor" (development OR permit OR construction OR project OR new facility OR announcement OR rezoning OR lease OR RFP OR tender)`) },
+  { id:'chamber',  label:'Windsor-Essex Chamber', local:true,
+    fetch: () => gnews(`("windsor essex" OR "windsor chamber of commerce") (business OR opening OR relocation OR expansion OR announcement OR new member OR moving)`) },
+
+  // ── Emergency / Public Alerts ─────────────────────
+  { id:'alerts',   label:'Emergency Alerts', local:true,
+    fetch: () => gnews(`(windsor OR "chatham kent" OR essex) (fire OR flood OR evacuation OR emergency OR disaster OR displaced OR "structural damage" OR "forced to leave" OR "temporarily closed")`) },
+];
+
+/* ─── OPENAI ANALYSIS ────────────────────────────── */
+async function analyze(items) {
+  const list = items.map((it, i) =>
+    `[${i+1}] TITLE: "${it.title}"${it.desc ? `\n     BODY: ${it.desc.slice(0,280)}` : ''}`
+  ).join('\n\n');
+
+  const SYSTEM = `You are a senior intelligence analyst embedded at Saturn Star Moving Company, Windsor Ontario. Your only job is to read raw posts and articles and surface every person, household, or business in the Windsor-Essex or Chatham-Kent region that has ANY likelihood — direct or indirect — of needing professional moving services in the next 0-12 months.
+
+Saturn Star handles: residential moves, commercial/office moves, corporate relocation packages, long-distance moves, storage, and junk/estate clearouts.
+
+GEOGRAPHY you care about: Windsor, LaSalle, Tecumseh, Lakeshore, Essex, Amherstburg, Leamington, Kingsville, Harrow, Belle River, Tilbury, Wallaceburg, Chatham, Chatham-Kent, Blenheim, Dresden, Ridgetown. Posts mentioning "moving to Windsor", "leaving Windsor", "Windsor area", or "Essex County" are all in scope.
+
+SIGNAL TAXONOMY — flag anything that fits:
+
+DIRECT SIGNALS (someone explicitly discussing a move):
+  • Asking for moving company recommendations
+  • Posting their home for sale / selling their house
+  • Asking about neighbourhoods to move to
+  • Announcing they are leaving/moving cities
+  • Seeking storage or short-term housing between moves
+  • Asking about apartment hunting, lease ending
+
+INDIRECT — RESIDENTIAL (life event that predictably precedes a move):
+  • New job offer or job change, especially if location differs or commute changes
+  • Promotion or major salary increase → can now afford a bigger home
+  • Accepted to college/university / starting school
+  • Finishing school / graduating → moving out of student housing
+  • Engaged or getting married → two households merging
+  • Having a baby / pregnant / expecting → need extra bedroom
+  • Baby just born / growing family → current space is too small
+  • Divorce, separation, or break-up → splitting one household into two
+  • Aging parent moving in → need bigger space or accessible unit
+  • Parent/relative passing away → estate clearout or family member moving in
+  • Being evicted or landlord selling the property
+  • Unhappy with current neighbourhood, neighbours, noise, school, commute
+  • Lease expiring or rent increased sharply
+  • Pet ownership change that requires outdoor space
+  • Retirement → downsizing or relocating closer to family
+  • Health change requiring accessible or ground-floor living
+  • Purchasing first home
+
+INDIRECT — COMMERCIAL / CORPORATE (business event that involves furniture, equipment, or office moves):
+  • New business opening (retail, restaurant, office, medical, gym, etc.)
+  • Business closing or permanently shutting down → full clearout
+  • Business expanding → taking on new or larger space
+  • Business relocating or moving to a different part of town
+  • Funding round announced → growth ahead, new office likely
+  • Aggressive hiring / rapid headcount growth → running out of office space
+  • Renovation requiring the business to vacate temporarily
+  • Company merger or acquisition → office consolidation
+  • New building permit or construction project being completed → tenants moving in
+  • Corporate staff transfer or relocation package
+  • New facility, warehouse, or distribution centre announced
+  • Business losing its lease or commercial landlord selling
+
+CONFIDENCE SCALE:
+  10 — Person literally saying "I need a mover for [date]"
+  9  — Direct move confirmed, timing clear
+  8  — Strong indirect signal, outcome very likely (e.g., sold house, accepted job in another city)
+  7  — Likely indirect (e.g., pregnant and complaining current place is too small)
+  6  — Moderate signal with some ambiguity (e.g., unhappy with neighbourhood, no firm plan yet)
+  5  — Weak but real signal worth tracking (e.g., company hiring fast but no office news yet)
+  Below 5 → do NOT include.
+
+CRITICAL RULES:
+  • Geography first: if the post contains NO reference to Windsor-Essex or Chatham-Kent (directly or by mentioning a local suburb, employer, institution, etc.), skip it entirely.
+  • Do NOT over-flag generic news with no local human. "Company X raises $10M" is only a signal if there's a Windsor/Chatham-Kent connection.
+  • Reason must be a tight 1–2 sentence explanation of WHAT the signal is and WHY it likely leads to a move — mention the specific detail that triggered your flag.
+  • Be aggressive with indirect signals. A post about someone getting a new job in Windsor is just as valuable as someone asking for a mover.`;
+
+  const USER = `Analyze each post below. Return ONLY a raw JSON array — no markdown fences, no explanation text, nothing else.
+
+Schema per flagged item:
+{"index":<number>,"confidence":<5-10>,"move_type":"residential"|"commercial"|"corporate"|"unknown","signal_type":"direct"|"indirect","event_type":"expansion"|"contraction"|"disruption"|"institutional"|"commercial"|"government"|"residential_life","entity":"<company or person name, or unknown>","location":"<specific local area or address, or area>","reason":"<1-2 sentences: what happened and why it signals a move>","urgency":"now"|"soon"|"watching","action":"<1 sentence: specific first action for Saturn Star>","sensitive":<true if fire/flood/evacuation/disaster, else false>}
+
+event_type: expansion=new business/location/hiring · contraction=closure/layoffs/bankruptcy · disruption=fire/flood/evacuation · institutional=university/college/hospital/gov · commercial=lease/office relocation · government=RFP/tender/infrastructure · residential_life=job change/baby/divorce/graduation
+urgency: "now"=within weeks · "soon"=1-3 months · "watching"=3-12 months
+action examples: "Call building manager to offer commercial clearout quote" | "Reach out on LinkedIn — may need corporate relocation package" | "Contact through disaster relief channel, do not cold pitch"
+
+Skip any item with confidence < 5. If nothing qualifies return exactly: []
+
+POSTS:
+${list}`;
+
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${OPENAI_KEY}` },
+    body: JSON.stringify({
+      model: MODEL, temperature: 0.1, max_tokens: 2000,
+      messages: [
+        { role: 'system', content: SYSTEM },
+        { role: 'user',   content: USER   },
+      ],
+    }),
+  });
+  if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e?.error?.message || `OpenAI ${res.status}`); }
+  const data = await res.json();
+  const txt  = data?.choices?.[0]?.message?.content || '[]';
+  const m    = txt.match(/\[[\s\S]*\]/);
+  if (!m) return [];
+  return JSON.parse(m[0]);
+}
+
+/* ─── SIGNAL SCORE (0–100) ──────────────────────── */
+function computeScore(sig) {
+  const movL = Math.round((Math.min(10, sig.confidence || 5) / 10) * 25);
+  const revP = ({corporate:25, commercial:20, residential:15}[sig.moveType] || 10);
+  const urgS = ({now:20, soon:13, watching:6}[sig.urgency] || 6);
+  const reach = (sig.entity && sig.entity !== 'unknown') ? 15 : 7;
+  const fit   = (sig.eventType === 'disruption') ? 8 : 13;
+  return movL + revP + urgS + reach + fit;
+}
+function tierLabel(score) {
+  if (score >= 73) return 't1';
+  if (score >= 50) return 't2';
+  return 't3';
+}
+
+/* ─── MAIN SCAN ──────────────────────────────────── */
+async function runScan() {
+  if (running) return;
+  running = true;
+
+  const btn   = document.getElementById('scan-btn');
+  const icon  = document.getElementById('scan-icon');
+  const orb   = document.getElementById('scan-orb');
+  const prog  = document.getElementById('progress-row');
+  const fill  = document.getElementById('prog-fill');
+  const plbl  = document.getElementById('prog-label');
+
+  btn.disabled = true;
+  icon.classList.add('spinning');
+  orb.classList.add('active');
+  document.getElementById('scan-headline').textContent = 'Scanning…';
+  prog.classList.add('show');
+  fill.style.width = '0%';
+
+  // Reset dots
+  SOURCES.forEach(s => setDot(s.id, 'loading'));
+
+  // 1 — Fetch all sources
+  let pool = []; // { item, sourceId, sourceLabel }
+  const cutoff = Date.now() - SIX_MONTHS;
+
+  for (let i = 0; i < SOURCES.length; i++) {
+    const src = SOURCES[i];
+    plbl.textContent = `Fetching ${src.label}…`;
+    fill.style.width = `${Math.round((i / SOURCES.length) * 40)}%`;
+
+    try {
+      const items = await src.fetch();
+      let added = 0;
+      for (const it of items) {
+        // Skip if too old
+        const ts = it.date ? new Date(it.date).getTime() : Date.now();
+        if (ts < cutoff) continue;
+        // Skip if not local (for non-local sources)
+        if (!src.local && !isLocal(`${it.title} ${it.desc}`)) continue;
+        // Skip duplicates already in signals or pool
+        const k = dkey(it.title);
+        if (signals.find(s => dkey(s.title) === k)) continue;
+        if (pool.find(p => dkey(p.item.title) === k)) continue;
+        pool.push({ item: it, sourceId: src.id, sourceLabel: src.label });
+        added++;
+      }
+      setDot(src.id, 'ok');
+    } catch(e) {
+      console.warn(src.label, e.message);
+      setDot(src.id, 'error');
+    }
+  }
+
+  plbl.textContent = `${pool.length} posts — running AI analysis…`;
+  fill.style.width = '45%';
+
+  // 2 — Analyse in batches of 25 (smaller = more focused, better accuracy)
+  const BATCH = 25;
+  const batches = [];
+  for (let i = 0; i < pool.length; i += BATCH) batches.push(pool.slice(i, i + BATCH));
+
+  let newCount = 0;
+  for (let b = 0; b < batches.length; b++) {
+    const batch = batches[b];
+    plbl.textContent = `AI analysis ${b+1}/${batches.length}…`;
+    fill.style.width  = `${45 + Math.round(((b+1)/batches.length)*50)}%`;
+
+    try {
+      const results = await analyze(batch.map(p => p.item));
+      for (const r of results) {
+        const idx = (r.index || 1) - 1;
+        const p   = batch[idx];
+        if (!p) continue;
+        const sig = {
+          id:         uid(),
+          title:      p.item.title,
+          desc:       p.item.desc || '',
+          link:       p.item.link || '',
+          pubDate:    p.item.date || new Date().toISOString(),
+          fetchedAt:  new Date().toISOString(),
+          source:     p.sourceLabel,
+          confidence: Math.min(10, Math.max(1, r.confidence || 5)),
+          moveType:   r.move_type   || 'unknown',
+          signalType: r.signal_type || 'indirect',
+          eventType:  r.event_type  || 'residential_life',
+          entity:     r.entity      || 'unknown',
+          location:   r.location    || 'area',
+          reason:     r.reason      || '',
+          urgency:    r.urgency     || 'watching',
+          action:     r.action      || '',
+          sensitive:  r.sensitive   || false,
+          status:     'new',
+          notes:      '',
+        };
+        sig.score = computeScore(sig);
+        signals.unshift(sig);
+        newCount++;
+      }
+    } catch(e) {
+      console.warn('AI batch error:', e.message);
+    }
+  }
+
+  fill.style.width = '100%';
+  plbl.textContent = `Done — ${newCount} new signal${newCount !== 1 ? 's' : ''} found`;
+  setTimeout(() => prog.classList.remove('show'), 2800);
+
+  save();
+  render();
+  updateKPIs();
+
+  // Reset UI
+  running      = false;
+  btn.disabled = false;
+  icon.classList.remove('spinning');
+  orb.classList.remove('active');
+
+  const now = new Date();
+  document.getElementById('last-scan').textContent =
+    `Last scan: ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')} · next in 20 min`;
+  document.getElementById('scan-headline').textContent = 'Radar active';
+  document.getElementById('scan-sub').textContent =
+    `${signals.filter(s=>s.status!=='dismissed').length} signals tracked · Windsor–Essex & Chatham-Kent`;
+
+  if (newCount > 0) toast(`${newCount} new signal${newCount>1?'s':''} found`, 'success');
+  else toast('Scan complete — no new signals', 'info');
+
+  clearTimeout(scanTimer);
+  scanTimer = setTimeout(runScan, SCAN_INTERVAL);
+}
+
+function setDot(id, state) {
+  const el = document.getElementById(`dot-${id}`);
+  if (el) el.className = `dot ${state}`;
+}
+
+/* ─── MANUAL ADD ─────────────────────────────────── */
+async function addManual() {
+  const title = document.getElementById('m-title').value.trim();
+  if (!title) { toast('Enter a signal title', 'warning'); return; }
+  const desc  = document.getElementById('m-desc').value.trim();
+  const type  = document.getElementById('m-type').value;
+
+  // Quick AI analysis of the manual entry
+  let reason = 'Manually added signal.', conf = 6;
+  try {
+    const results = await analyze([{ title, desc }]);
+    if (results.length) { reason = results[0].reason || reason; conf = results[0].confidence || conf; }
+  } catch(e) { /* fallback */ }
+
+  signals.unshift({
+    id: uid(), title, desc, link: '', pubDate: new Date().toISOString(),
+    fetchedAt: new Date().toISOString(), source: 'Manual',
+    confidence: conf, moveType: type, signalType: 'manual',
+    reason, urgency: 'soon', status: 'new',
+  });
+  save(); render(); updateKPIs();
+  document.getElementById('m-title').value = '';
+  document.getElementById('m-desc').value  = '';
+  toast('Signal added', 'success');
+}
+
+/* ─── ACTIONS ────────────────────────────────────── */
+function toCRM(id) {
+  const s = signals.find(x => x.id === id); if (!s) return;
+  s.status = 'converted';
+  const sc = s.score || computeScore(s);
+  const leads = JSON.parse(localStorage.getItem('sscrm_leads') || '[]');
+  leads.unshift({
+    id: 'lead_' + Date.now(),
+    name: (s.entity && s.entity !== 'unknown') ? s.entity : s.title.slice(0,60),
+    status: 'new',
+    source: `Radar: ${s.source}`,
+    createdAt: new Date().toISOString(),
+    notes: `Signal: ${s.title}\n\nEntity: ${s.entity||'unknown'} · ${s.location||'area'}\nEvent: ${s.eventType||''} · ${s.moveType||''}\n\nAI: ${s.reason}\nAction: ${s.action||''}\n\nSource: ${s.source}\nLink: ${s.link||'n/a'}\nScore: ${sc}/100`,
+    followUpDate: new Date(Date.now()+86400000).toISOString().slice(0,10),
+    estimatedValue: sc >= 73 ? 4500 : sc >= 50 ? 2800 : 1500,
+  });
+  localStorage.setItem('sscrm_leads', JSON.stringify(leads));
+  save(); render(); updateKPIs();
+  toast('Sent to CRM', 'success');
+}
+function dismiss(id) {
+  const s = signals.find(x => x.id === id);
+  if (s) { s.status='dismissed'; save(); render(); updateKPIs(); }
+}
+function restore(id) {
+  const s = signals.find(x => x.id === id);
+  if (s) { s.status='new'; save(); render(); updateKPIs(); }
+}
+
+/* ─── KPIs ───────────────────────────────────────── */
+function updateKPIs() {
+  const vis  = signals.filter(s => s.status !== 'dismissed' && s.status !== 'ignored');
+  const tier1 = vis.filter(s => (s.score || computeScore(s)) >= 73);
+  const crm  = signals.filter(s => s.status === 'converted');
+  document.getElementById('kpi-total').textContent = vis.length || '—';
+  document.getElementById('kpi-high').textContent  = tier1.length || '—';
+  document.getElementById('kpi-crm').textContent   = crm.length || '—';
+}
+
+/* ─── FILTER ─────────────────────────────────────── */
+function setFilter(f, btn) {
+  filter = f;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+  btn.classList.add('on');
+  render();
+}
+
+/* ─── RENDER ─────────────────────────────────────── */
+function render() {
+  const list   = document.getElementById('signal-list');
+  const hideDis = document.getElementById('hide-dismissed').checked;
+
+  let data = [...signals];
+  if (hideDis) data = data.filter(s => s.status !== 'dismissed' && s.status !== 'ignored');
+
+  if (filter === 'converted')  data = data.filter(s => s.status === 'converted');
+  else if (filter === 'urgent') data = data.filter(s => (s.score || computeScore(s)) >= 73 && s.status !== 'dismissed' && s.status !== 'ignored');
+  else if (filter === 'sensitive') data = data.filter(s => s.sensitive || s.eventType === 'disruption');
+  else if (filter !== 'all')   data = data.filter(s => s.moveType === filter);
+
+  data.sort((a,b) => {
+    const rank = s => (s.status==='dismissed'||s.status==='ignored') ? 2 : s.status==='converted' ? 1 : 0;
+    if (rank(a) !== rank(b)) return rank(a) - rank(b);
+    return (b.score || computeScore(b)) - (a.score || computeScore(a));
+  });
+
+  if (!data.length) {
+    list.innerHTML = `<div class="empty">
+      <div class="empty-icon">🔇</div>
+      <div class="empty-title">No signals${filter !== 'all' ? ' in this category' : ''}</div>
+      <div class="empty-sub">Hit <strong>Scan Now</strong> to pull fresh data across Reddit, local news and business feeds for Windsor–Essex and Chatham-Kent.</div>
+    </div>`;
+    return;
+  }
+
+  const useTiers = (filter === 'all' || filter === 'urgent');
+  if (useTiers) {
+    const active = data.filter(s => s.status !== 'dismissed' && s.status !== 'ignored');
+    const buried = data.filter(s => s.status === 'dismissed' || s.status === 'ignored');
+    const t1 = active.filter(s => (s.score || computeScore(s)) >= 73);
+    const t2 = active.filter(s => { const sc = s.score || computeScore(s); return sc >= 50 && sc < 73; });
+    const t3 = active.filter(s => (s.score || computeScore(s)) < 50);
+    let html = '';
+    if (t1.length) html += `<div class="tier-hdr"><span class="tier-badge t1">Tier 1 · Act Now</span><span>${t1.length} signal${t1.length>1?'s':''}</span></div><div class="tier-group">${t1.map(cardHTML).join('')}</div>`;
+    if (t2.length) html += `<div class="tier-hdr"><span class="tier-badge t2">Tier 2 · Follow Up</span><span>${t2.length} signal${t2.length>1?'s':''}</span></div><div class="tier-group">${t2.map(cardHTML).join('')}</div>`;
+    if (t3.length && filter !== 'urgent') html += `<div class="tier-hdr"><span class="tier-badge t3">Tier 3 · Monitor</span><span>${t3.length} signal${t3.length>1?'s':''}</span></div><div class="tier-group">${t3.map(cardHTML).join('')}</div>`;
+    if (buried.length && !hideDis && filter !== 'urgent') html += `<div class="tier-hdr"><span class="tier-badge t3">Dismissed</span><span>${buried.length}</span></div><div class="tier-group">${buried.map(cardHTML).join('')}</div>`;
+    list.innerHTML = html || `<div class="empty"><div class="empty-icon">🔇</div><div class="empty-title">No signals in this tier</div></div>`;
+  } else {
+    list.innerHTML = data.map(cardHTML).join('');
+  }
+}
+
+function cardHTML(s) {
+  const score    = s.score || computeScore(s);
+  const tier     = tierLabel(score);
+  const isSens   = s.sensitive || s.eventType === 'disruption';
+  const isConv   = s.status === 'converted';
+  const isDis    = s.status === 'dismissed' || s.status === 'ignored';
+
+  // bar color: sensitive = amber, else tier-based (navy / green / gray)
+  const barStyle = isSens ? 'background:#f97316' : tier === 't1' ? 'background:#1a2744' : tier === 't2' ? 'background:var(--accent)' : 'background:#e5e7eb';
+
+  const moveLabel = {residential:'Residential',commercial:'Commercial',corporate:'Corporate',unknown:'Unknown'}[s.moveType]||'Unknown';
+  const evLabel   = {expansion:'Expansion',contraction:'Contraction',disruption:'Disruption',institutional:'Institutional',commercial:'Commercial',government:'Government',residential_life:'Life Event'}[s.eventType] || 'Signal';
+  const urgBadge  = s.urgency === 'now'  ? `<span class="chip now">Now</span>` :
+                    s.urgency === 'soon' ? `<span class="chip soon">Soon</span>` : '';
+  const sensBadge = isSens ? `<span class="chip sensitive-tag">⚠ Sensitive</span>` : '';
+
+  const tierStr   = score >= 73 ? 'T1 · Act Now' : score >= 50 ? 'T2 · Follow Up' : 'T3 · Monitor';
+
+  const titleHTML = s.link
+    ? `<a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a>`
+    : esc(s.title);
+
+  const entityRow = (s.entity && s.entity !== 'unknown')
+    ? `<div class="sig-entity">🏢 ${esc(s.entity)}${s.location && s.location !== 'area' ? ' · ' + esc(s.location) : ''}</div>` : '';
+
+  const actionRow = s.action
+    ? `<div class="sig-action${isSens?' sensitive':''}">→ ${esc(s.action)}</div>` : '';
+
+  const crmBtn = isConv
+    ? `<button class="btn-crm done" disabled>✓ In CRM</button>`
+    : `<button class="btn-crm" onclick="toCRM('${s.id}')">→ Send to CRM</button>`;
+  const disBtn = isDis
+    ? `<button class="btn-dim" onclick="restore('${s.id}')" style="color:var(--accent)">↩ Restore</button>`
+    : `<button class="btn-dim" onclick="dismiss('${s.id}')">Dismiss</button>`;
+  const draftBtn = s.outreach?.sent
+    ? `<button class="btn-draft sent" disabled>✉ Letter Sent</button>`
+    : s.outreach?.drafted
+    ? `<button class="btn-draft drafted" onclick="openOutreach('${s.id}')">✉ View Draft</button>`
+    : `<button class="btn-draft" onclick="openOutreach('${s.id}')">✉ Draft Letter</button>`;
+
+  return `<div class="sig${isDis?' dismissed':''}${isConv?' converted':''}${isSens?' is-sensitive':''}">
+    <div class="sig-bar" style="${barStyle}"></div>
+    <div class="sig-body">
+      <div class="sig-meta">
+        <span class="chip ${s.moveType||'unknown'}">${moveLabel}</span>
+        <span class="chip ${s.eventType||'residential_life'} evt">${evLabel}</span>
+        ${urgBadge}${sensBadge}
+        <span class="sig-src">${esc(s.source)}</span>
+        <span class="sig-age">${timeAgo(s.fetchedAt)}</span>
+      </div>
+      <div class="sig-title">${titleHTML}</div>
+      ${entityRow}
+      ${s.reason ? `<div class="sig-ai"><strong>AI:</strong> ${esc(s.reason)}</div>` : ''}
+      ${actionRow}
+    </div>
+    <div class="sig-panel">
+      <div class="score-wrap">
+        <div class="score-big">${score}</div>
+        <div class="score-lbl">Score / 100</div>
+        <div class="score-tier">${tierStr}</div>
+      </div>
+      <div class="sig-btns">${draftBtn}${crmBtn}${disBtn}</div>
+    </div>
+  </div>`;
+}
+
+/* ─── CSV EXPORT ─────────────────────────────────── */
+function exportCSV() {
+  if (!signals.length) { toast('No signals to export', 'warning'); return; }
+
+  const cols = [
+    'Date','Title','Entity','Location','Source','Event Type','Move Type',
+    'Signal Type','Confidence','Score','Urgency','Status',
+    'AI Reason','Recommended Action','Tracking Code','Outreach Sent','Letter Drafted','Link'
+  ];
+
+  const esc_csv = v => {
+    const s = String(v ?? '').replace(/"/g, '""');
+    return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s}"` : s;
+  };
+
+  const rows = signals.map(s => [
+    s.fetchedAt ? new Date(s.fetchedAt).toLocaleDateString('en-CA') : '',
+    s.title,
+    s.entity && s.entity !== 'unknown' ? s.entity : '',
+    s.location && s.location !== 'area' ? s.location : '',
+    s.source,
+    s.eventType || '',
+    s.moveType  || '',
+    s.signalType || '',
+    s.confidence ?? '',
+    s.score ?? '',
+    s.urgency || '',
+    s.status || '',
+    s.reason || '',
+    s.action || '',
+    s.outreach?.tracking_code || '',
+    s.outreach?.sent ? new Date(s.outreach.sent).toLocaleDateString('en-CA') : '',
+    s.outreach?.drafted ? new Date(s.outreach.drafted).toLocaleDateString('en-CA') : '',
+    s.link || '',
+  ].map(esc_csv).join(','));
+
+  const csv  = [cols.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const date = new Date().toISOString().slice(0,10);
+  a.href = url; a.download = `saturn-radar-${date}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  toast(`Exported ${signals.length} signals`, 'success');
+}
+
+function scrollToManual() {
+  document.getElementById('manual-section').scrollIntoView({behavior:'smooth'});
+  setTimeout(() => document.getElementById('m-title').focus(), 400);
+}
+
+/* ─── OUTREACH ENGINE ───────────────────────────── */
+let _outreachSignalId = null;
+
+function overlayClick(e) {
+  if (e.target === document.getElementById('outreach-overlay')) closeOutreach();
+}
+function closeOutreach() {
+  document.getElementById('outreach-overlay').classList.remove('open');
+  _outreachSignalId = null;
+}
+
+async function openOutreach(id) {
+  const sig = signals.find(x => x.id === id);
+  if (!sig) return;
+  _outreachSignalId = id;
+
+  // If already drafted, load existing
+  if (sig.outreach?.letter) {
+    showOutreachForm(sig, sig.outreach);
+    return;
+  }
+
+  // Show modal in loading state
+  document.getElementById('omodal-logo').src = LOGO_URL;
+  document.getElementById('omodal-title').textContent = sig.entity && sig.entity !== 'unknown' ? sig.entity : sig.title.slice(0,60);
+  document.getElementById('omodal-src').textContent = sig.source + ' · ' + (sig.eventType || '');
+  document.getElementById('omodal-body').innerHTML = `<div class="omodal-generating">
+    <div class="gen-icon spinning" id="omodal-gen-icon">⚙</div>
+    <p id="omodal-gen-status">Fetching article…</p>
+  </div>`;
+  document.getElementById('omodal-foot').style.display = 'none';
+  document.getElementById('outreach-overlay').classList.add('open');
+
+  // 1 — Fetch article content
+  let articleContent = '';
+  if (sig.link) {
+    try {
+      document.getElementById('omodal-gen-status').textContent = 'Reading article content…';
+      const res = await fetch(PROXY + encodeURIComponent(sig.link), { cache: 'no-store' });
+      if (res.ok) {
+        const html = await res.text();
+        // Strip tags, get plain text
+        const tmp = document.createElement('div');
+        tmp.innerHTML = html;
+        // Remove scripts/styles
+        tmp.querySelectorAll('script,style,nav,footer,header,aside').forEach(el => el.remove());
+        articleContent = (tmp.innerText || tmp.textContent || '').replace(/\s+/g,' ').trim().slice(0, 1200);
+      }
+    } catch(e) { /* no article, use title+reason */ }
+  }
+
+  // 2 — Generate outreach
+  document.getElementById('omodal-gen-status').textContent = 'Writing personalized letter…';
+  try {
+    const result = await generateOutreachLetter(sig, articleContent);
+    // Store on signal
+    sig.outreach = { ...result, drafted: new Date().toISOString(), sent: null };
+    save();
+    render();
+    showOutreachForm(sig, sig.outreach);
+  } catch(e) {
+    document.getElementById('omodal-body').innerHTML = `<div class="omodal-generating">
+      <div class="gen-icon">⚠</div>
+      <p style="color:var(--danger)">Generation failed: ${esc(e.message)}</p>
+    </div>`;
+  }
+}
+
+async function generateOutreachLetter(sig, articleContent) {
+
+  // ── Psychology map: tone % breakdown + do-not rules per event type ──
+  const psychMap = {
+    expansion: {
+      tone: '55% practical outcomes, 30% local reliability, 15% speed.',
+      world: 'They are opening or expanding a new location. They care about one thing: being operational on day one with zero chaos. Equipment arriving intact, rooms set up correctly, no delays to their opening.',
+      doNot: 'Do NOT mention emotions, families, grief, or life transitions. Do NOT be warm and fuzzy. This is a business operator who needs logistics handled.',
+      opening: 'Open with their project — the new location, the expansion. Show you understand what a setup move actually involves.',
+      proof: 'Use: "500+ commercial moves completed, 98% on-time rate."',
+      cta: '"Call 226-773-2993 to book a free site assessment before your move date."',
+      ps: '"Organizations that book 30+ days in advance receive priority scheduling. Mention code [TRACKING_CODE] when you call."',
+    },
+    contraction: {
+      tone: '60% discretion and professionalism, 30% speed, 10% respect for the situation.',
+      world: 'A business chapter is closing or downsizing. This is sensitive — they are not advertising it. They need it handled cleanly, quickly, and without drawing attention.',
+      doNot: 'Do NOT say "sorry to hear you are closing." Do NOT dwell on the closure. Do NOT use emotional language.',
+      opening: 'Frame as professional clearout logistics. Every business deserves a clean, dignified exit.',
+      proof: 'Use: "Full commercial clearouts completed within 48-72 hours. Fully insured, fully documented."',
+      cta: '"Reply to arrange a free clearout assessment — discreet and no-obligation."',
+      ps: '"We offer confidential scheduling for sensitive clearouts. Code [TRACKING_CODE] for priority booking."',
+    },
+    institutional: {
+      tone: '60% competence and credentials, 25% staff/department experience, 15% procurement ease.',
+      world: 'A university, hospital, college, or large institution. They have procurement processes, multiple departments, and strict requirements. They care about: vendor credentials, WSIB, insurance documentation, reliability.',
+      doNot: 'Do NOT be casual or warm. Do NOT skip credentials. Do NOT assume one decision maker.',
+      opening: 'Open with their institution\'s scale and the complexity of what they manage. Show institutional fluency.',
+      proof: 'Use: "WSIB-compliant, $2M liability insurance, background-checked crews. Currently serving [institutional clients] in Windsor-Essex."',
+      cta: '"I would welcome the opportunity to be added to your approved vendor list. Reply or call 226-773-2993."',
+      ps: '"I can provide Certificate of Insurance, WSIB clearance, and references on request. Code [TRACKING_CODE]."',
+    },
+    corporate: {
+      tone: '55% employee experience, 30% HR value-add and admin relief, 15% cost control.',
+      world: 'A growing company that hires or transfers employees. HR is fielding calls about moving logistics. New employees are stressed. A smooth relocation directly impacts their first impression of the company.',
+      doNot: 'Do NOT be casual. Do NOT talk about residential moves — this is a business program.',
+      opening: 'Open with the employee relocation problem — what HR goes through when staff relocate without support.',
+      proof: 'Use: "Dedicated corporate program: 20% staff discount, dedicated account manager, direct billing options."',
+      cta: '"15 minutes is all I need to walk you through our corporate program. Call 226-773-2993 or reply to this letter."',
+      ps: '"Organizations that sign up this quarter receive 3 free employee moves (up to $750 each) as a no-obligation pilot. Code [TRACKING_CODE]."',
+    },
+    government: {
+      tone: '70% credentials and process compliance, 20% local presence and community, 10% pricing.',
+      world: 'A government office, municipality, or public sector body. They purchase through procurement, RFPs, or approved vendor lists. They need fully documented, WSIB-compliant vendors.',
+      doNot: 'Do NOT be casual. Do NOT pitch like a startup. Do NOT skip compliance language.',
+      opening: 'Open with your credentials and compliance posture. Government buyers need to know you check all the boxes before anything else.',
+      proof: 'Use: "WSIB-compliant, $2M liability insurance, fully bonded, experienced with public sector documentation requirements."',
+      cta: '"I would welcome the opportunity to be included in your approved vendor or RFP process. Reply or call 226-773-2993."',
+      ps: '"I can provide all required documentation — insurance certificates, WSIB clearance, references — immediately upon request. Code [TRACKING_CODE]."',
+    },
+    commercial: {
+      tone: '55% practical business outcomes, 30% speed and scheduling flexibility, 15% reliability.',
+      world: 'A business dealing with a commercial lease transition — moving into a new space, out of an old one, or setting up a new location. They care about: timeline, no damage, flexible scheduling, getting open fast.',
+      doNot: 'Do NOT mention families or personal emotions. This is a business-to-business letter.',
+      opening: 'Open with the commercial lease transition — what it actually takes to move a business properly.',
+      proof: 'Use: "Commercial moves completed on schedule, zero damage claims, evening and weekend availability."',
+      cta: '"Call 226-773-2993 for a free commercial move assessment — we work around your business hours."',
+      ps: '"Book before [month] and receive a free furniture protection package. Code [TRACKING_CODE]."',
+    },
+    residential_life: {
+      tone: '50% warmth and empathy, 30% practical ease, 20% reliability and trust.',
+      world: 'A personal life event — new job, growing family, new home, retirement, relationship change. This is someone navigating a major life chapter. They want to feel taken care of, not sold to.',
+      doNot: 'Do NOT be corporate. Do NOT use HR or vendor language. Do NOT overload with bullet points.',
+      opening: 'Open with the human reality of their situation — the excitement, the overwhelm, the significance of this moment.',
+      proof: 'Use: "500+ families moved in Windsor-Essex. 4.9/5 rating. We treat your belongings like they belong to family."',
+      cta: '"Call 226-773-2993 for a free, no-pressure estimate — we\'ll make this the easy part."',
+      ps: '"Book this month and receive free box delivery to your door. Code [TRACKING_CODE]."',
+    },
+    disruption: {
+      tone: '80% compassion and genuine readiness to help, 20% capability.',
+      world: 'Something unexpected happened — fire, flood, evacuation, damage. People are displaced and overwhelmed. This is NOT a sales opportunity — it is a moment to offer genuine help.',
+      doNot: 'Do NOT pitch hard. Do NOT list services aggressively. Do NOT make it about revenue. If this is a community organization, suggest reaching out through official channels.',
+      opening: 'Open with acknowledgment of what happened. Brief, human, genuine.',
+      proof: 'Keep social proof minimal — this is not the moment.',
+      cta: '"If it would help, we are available immediately. Call or text 226-773-2993 — no obligation."',
+      ps: '"We are waiving our assessment fee for displaced families this month. Code [TRACKING_CODE]."',
+    },
+  };
+
+  const psych = psychMap[sig.eventType] || psychMap['commercial'];
+  const today = new Date().toLocaleDateString('en-CA', { year:'numeric', month:'long', day:'numeric' });
+
+  const SYSTEM_OUT = `You are an elite direct mail copywriter for Saturn Star Moving Company (Windsor, Ontario, Canada).
+
+You write letters that convert — not because they are clever, but because they speak directly to the reader's world before asking for anything.
+
+THE PSYCHOLOGY OF A GREAT OUTREACH LETTER:
+1. The reader should feel understood before they feel sold to
+2. Open with THEIR world — their clients, their team, their situation. Not your company.
+3. Name the specific problem or moment they face. Make them nod before you say your name.
+4. Bridge naturally to how Saturn Star is the obvious solution for exactly this.
+5. Prove it with one or two specific facts that match THEIR concern — not generic claims.
+6. ONE next step. Not "schedule a call." Something frictionless: "Call this number" or "Reply yes."
+7. P.S. always closes with a tracking code and a compelling hook (pilot program, first move free, donation, priority scheduling).
+
+HARD RULES — NEVER VIOLATE:
+• Never open with "I hope this finds you well," "My name is John," or "I am reaching out"
+• Never say "we saw your news," "we noticed you are expanding," or anything surveillance-like
+• Never use: leverage, synergy, circle back, touch base, value proposition, at the end of the day
+• Never multi-step CTA — ONE action, ONE phone number, ONE reply
+• Never be vague — every bullet point names a specific tangible benefit
+• For commercial/government/construction: ZERO emotional family language
+• For disruption/sensitive signals: NO hard pitch — offer help, suggest proper channels
+
+SATURN STAR FACTS:
+Phone: 226-773-2993 | Email: business@starmovers.ca | Website: starmovers.ca
+Founder: John Owolabi (Windsor local — letters always signed personally by John)
+Service area: Windsor, LaSalle, Tecumseh, Essex, Leamington, Kingsville, Chatham-Kent
+Services: residential, commercial/office, corporate relocation, storage, estate clearouts, junk removal
+Track record: 500+ moves completed, 4.9/5 rating
+Insurance: $2M liability | WSIB-compliant | Background-checked crews
+Current offers available: free estimate, corporate pilot program, priority scheduling, referral card drops
+
+LETTER FORMAT — FOLLOW EXACTLY:
+${today}
+
+[Decision Maker Name/Title]
+[Company Name]
+[Address — write "Windsor, ON" if no specific address]
+
+RE: [Bold subject line — specific and compelling, max 10 words]
+
+Dear [Name or Title],
+
+[OPENING — 2-3 sentences. Their world. Their situation. No introduction of yourself yet. Make them feel seen.]
+
+[PROBLEM BRIDGE — 1-2 sentences that lead naturally to your solution without naming it yet.]
+
+[INTRODUCE SATURN STAR — 1 sentence. Natural, confident, not salesy.]
+
+[OFFER BLOCK — 3-4 tight bullet points. Each one is a specific, tangible benefit for THEIR situation. No filler.]
+
+[SOCIAL PROOF — 1-2 sentences. The specific fact that matters to THIS reader. Not "we're great" — a number, a rating, a specific capability.]
+
+[CTA — 1 sentence. Frictionless. One action.]
+
+Sincerely,
+
+John Owolabi
+Founder, Saturn Star Moving
+226-773-2993 | business@starmovers.ca | starmovers.ca
+
+---
+
+P.S. — [One sentence. Tracking code + compelling hook. Makes them act now.]`;
+
+  const USER_OUT = `Write a complete, print-ready outreach letter for the following signal.
+
+SIGNAL CONTEXT:
+Entity/Organization: ${sig.entity && sig.entity !== 'unknown' ? sig.entity : 'the organization in this signal'}
+Event type: ${sig.eventType || 'commercial'}
+Move type: ${sig.moveType || 'commercial'}
+What the AI detected: ${sig.reason || ''}
+Signal headline: ${sig.title}
+Article content: ${articleContent || '(not available — use the headline and context above)'}
+
+PSYCHOLOGY FRAMEWORK FOR THIS EVENT TYPE (${sig.eventType || 'commercial'}):
+Tone breakdown: ${psych.tone}
+Their world: ${psych.world}
+Do NOT: ${psych.doNot}
+Opening approach: ${psych.opening}
+Social proof to use: ${psych.proof}
+CTA to use: ${psych.cta}
+P.S. to use (replace [TRACKING_CODE] with a real code): ${psych.ps}
+${sig.sensitive ? '\n⚠ SENSITIVE SIGNAL — disaster/displacement involved. Short letter, compassionate tone, offer help through proper channels. Do not hard pitch.' : ''}
+
+TRACKING CODE FORMAT: Use the organization abbreviation + event code + 25, e.g. YMCA-EXP-25, STELL-CORP-25, MCDON-COM-25
+
+Return ONLY valid JSON — no markdown, no explanation:
+{
+  "decision_maker_title": "<specific title — e.g. Facilities Manager, Executive Director, HR Director, Operations Manager, Branch Manager>",
+  "address_hint": "<physical street address if mentioned in article, else empty string>",
+  "subject": "<RE: line text only — compelling and specific, max 10 words>",
+  "letter": "<complete formatted letter exactly following the format above — use real line breaks \\n not \\\\n>",
+  "tracking_code": "<e.g. YMCA-EXP-25>",
+  "follow_up": [
+    "Day 3: <specific action>",
+    "Day 7: <specific action>",
+    "Day 14: <specific action>",
+    "Day 21: <specific action>"
+  ]
+}`;
+
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${OPENAI_KEY}` },
+    body: JSON.stringify({
+      model: MODEL, temperature: 0.35, max_tokens: 1800,
+      messages: [
+        { role: 'system', content: SYSTEM_OUT },
+        { role: 'user',   content: USER_OUT },
+      ],
+    }),
+  });
+  if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e?.error?.message || `OpenAI ${res.status}`); }
+  const data = await res.json();
+  const txt  = data?.choices?.[0]?.message?.content || '{}';
+  const m    = txt.match(/\{[\s\S]*\}/);
+  if (!m) throw new Error('No JSON returned');
+  return JSON.parse(m[0]);
+}
+
+function showOutreachForm(sig, outreach) {
+  document.getElementById('omodal-title').textContent =
+    (sig.entity && sig.entity !== 'unknown') ? sig.entity : sig.title.slice(0,60);
+  document.getElementById('omodal-src').textContent =
+    (outreach.subject || '') + ' · ' + sig.source;
+
+  const isSent = !!outreach.sent;
+  const followupHTML = outreach.follow_up?.length
+    ? `<div class="followup-row"><strong>Follow-up sequence</strong><br>${outreach.follow_up.map(f => `· ${esc(f)}`).join('<br>')}</div>`
+    : '';
+
+  document.getElementById('omodal-body').innerHTML = `
+    <div class="o2col">
+      <div class="ofg">
+        <label>Decision Maker
+          <button class="btn-research" id="btn-research" onclick="researchDM()">🔍 Research</button>
+        </label>
+        <input id="o-dm" type="text" value="${esc(outreach.decision_maker_title||'')}" placeholder="e.g. Facilities Manager — name unknown" />
+        <div class="dm-results" id="dm-results"></div>
+      </div>
+      <div class="ofg">
+        <label>Address</label>
+        <input id="o-addr" type="text" value="${esc(outreach.address_hint||'')}" placeholder="Street address (fill if known)" />
+      </div>
+    </div>
+    <div class="ofg">
+      <label>Subject / Envelope Teaser</label>
+      <input id="o-subj" type="text" value="${esc(outreach.subject||'')}" />
+    </div>
+    <div class="ofg">
+      <label>Personalized Letter</label>
+      <textarea class="letter-box" id="o-letter">${esc(outreach.letter||'')}</textarea>
+    </div>
+    ${followupHTML}
+  `;
+
+  document.getElementById('otrack-code').textContent = 'Track: ' + (outreach.tracking_code || '—');
+  document.getElementById('omodal-foot').style.display = 'flex';
+
+  const sentBtn = document.getElementById('btn-mark-sent');
+  if (isSent) {
+    sentBtn.textContent = '✓ Sent ' + new Date(outreach.sent).toLocaleDateString('en-CA',{month:'short',day:'numeric'});
+    sentBtn.disabled = true;
+    sentBtn.style.background = '#d1fae5';
+    sentBtn.style.color = '#065f46';
+  } else {
+    sentBtn.textContent = '✓ Mark as Sent';
+    sentBtn.disabled = false;
+    sentBtn.style.background = '';
+    sentBtn.style.color = '';
+  }
+}
+
+/* ─── DECISION MAKER RESEARCH ───────────────────── */
+async function researchDM() {
+  const sig = signals.find(x => x.id === _outreachSignalId);
+  if (!sig) return;
+
+  const entity   = (sig.entity && sig.entity !== 'unknown') ? sig.entity : '';
+  const dmField  = document.getElementById('o-dm');
+  const dmTitle  = (dmField?.value || sig.outreach?.decision_maker_title || '').replace(/—.*$/, '').trim();
+  const resultsEl = document.getElementById('dm-results');
+  const btn      = document.getElementById('btn-research');
+
+  if (!entity) {
+    resultsEl.className = 'dm-results miss';
+    resultsEl.textContent = 'No entity name found — enter company name in the decision maker field first.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '⚙ Researching…';
+  resultsEl.className = 'dm-results';
+  resultsEl.innerHTML = '<span class="spinning" style="display:inline-block;margin-right:4px">⚙</span> Checking AI knowledge…';
+
+  /* ── PHASE 1: GPT-4o knowledge ──────────────────── */
+  try {
+    const p1res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${OPENAI_KEY}` },
+      body: JSON.stringify({
+        model: MODEL, temperature: 0, max_tokens: 250,
+        messages: [{ role: 'user', content:
+          `Do you know the specific name of the person who holds the role of "${dmTitle}" (or equivalent — e.g. Executive Director, Facilities Manager, HR Director, Operations Manager, CEO) at "${entity}" in Windsor, Ontario, Canada?\n\nIf you know their name with reasonable confidence from your training data, return:\n{"found":true,"name":"Full Name","title":"Exact Title","confidence":"high|medium","note":"brief source context"}\n\nIf you don't know or are uncertain, return:\n{"found":false,"website_guess":"most likely official website URL for this organization, or empty string"}\n\nReturn only raw JSON.`
+        }],
+      }),
+    });
+    const d1  = await p1res.json();
+    const txt1 = d1?.choices?.[0]?.message?.content || '{}';
+    const m1  = txt1.match(/\{[\s\S]*\}/);
+    const p1  = m1 ? JSON.parse(m1[0]) : {};
+
+    if (p1.found && p1.name && p1.confidence !== 'low') {
+      dmField.value = `${p1.name} — ${p1.title || dmTitle}`;
+      resultsEl.className = 'dm-results found';
+      resultsEl.textContent = `✓ Found (AI knowledge${p1.confidence === 'medium' ? ' — verify' : ''}): ${p1.note || ''}`;
+      btn.disabled = false; btn.textContent = '🔍 Research';
+      return;
+    }
+
+    /* ── PHASE 2: Website scrape ────────────────────── */
+    resultsEl.innerHTML = '<span class="spinning" style="display:inline-block;margin-right:4px">⚙</span> Searching website…';
+
+    const websiteBase = (p1.website_guess || '').replace(/\/$/, '');
+    const pagesToTry  = websiteBase
+      ? [websiteBase, websiteBase+'/about', websiteBase+'/about-us', websiteBase+'/team',
+         websiteBase+'/leadership', websiteBase+'/staff', websiteBase+'/contact',
+         websiteBase+'/contact-us', websiteBase+'/who-we-are']
+      : [];
+
+    // Also try a Google search via allorigins
+    const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(`"${entity}" "${dmTitle}" Windsor Ontario -job -hiring`)}`;
+    pagesToTry.push(googleUrl);
+
+    let foundContent = '';
+    let foundSource  = '';
+
+    for (const url of pagesToTry) {
+      try {
+        const res = await fetch(PROXY + encodeURIComponent(url), { cache: 'no-store' });
+        if (!res.ok) continue;
+        const html = await res.text();
+        const tmp  = document.createElement('div');
+        tmp.innerHTML = html;
+        tmp.querySelectorAll('script,style,nav,footer,header,aside,iframe').forEach(el => el.remove());
+        const text = (tmp.innerText || tmp.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 1000);
+        if (text.length > 120) {
+          foundContent = text;
+          foundSource  = url;
+          break;
+        }
+      } catch(e) { continue; }
+    }
+
+    if (!foundContent) {
+      resultsEl.className = 'dm-results miss';
+      resultsEl.innerHTML = `⚠ Not found automatically. Try searching <a href="https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(entity+' '+dmTitle+' Windsor')}" target="_blank" style="color:inherit;font-weight:600">LinkedIn ↗</a> for <em>${esc(entity)} ${esc(dmTitle)}</em>.`;
+      btn.disabled = false; btn.textContent = '🔍 Research';
+      return;
+    }
+
+    /* ── PHASE 3: Extract name from scraped content ── */
+    resultsEl.innerHTML = '<span class="spinning" style="display:inline-block;margin-right:4px">⚙</span> Extracting name…';
+
+    const p3res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${OPENAI_KEY}` },
+      body: JSON.stringify({
+        model: MODEL, temperature: 0, max_tokens: 200,
+        messages: [{ role: 'user', content:
+          `From the content below, find the full name and title of the person most likely responsible for "${dmTitle}" at "${entity}". Look for names next to titles like Executive Director, CEO, Facilities Manager, HR Director, Operations Director, President, etc.\n\nContent:\n${foundContent}\n\nReturn JSON only:\n{"found":true,"name":"Full Name","title":"Exact Title"} or {"found":false}`
+        }],
+      }),
+    });
+    const d3  = await p3res.json();
+    const txt3 = d3?.choices?.[0]?.message?.content || '{}';
+    const m3  = txt3.match(/\{[\s\S]*\}/);
+    const p3  = m3 ? JSON.parse(m3[0]) : {};
+
+    if (p3.found && p3.name) {
+      dmField.value = `${p3.name} — ${p3.title || dmTitle}`;
+      resultsEl.className = 'dm-results found';
+      resultsEl.textContent = `✓ Found on ${foundSource.replace(/^https?:\/\//,'').split('/')[0]}`;
+    } else {
+      resultsEl.className = 'dm-results miss';
+      resultsEl.innerHTML = `⚠ Not found in website content. Search <a href="https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(entity+' '+dmTitle+' Windsor')}" target="_blank" style="color:inherit;font-weight:600">LinkedIn ↗</a> manually.`;
+    }
+
+  } catch(e) {
+    resultsEl.className = 'dm-results miss';
+    resultsEl.textContent = 'Research error: ' + e.message;
+  }
+
+  btn.disabled = false; btn.textContent = '🔍 Research';
+}
+
+function copyLetter() {
+  const el = document.getElementById('o-letter');
+  if (!el) return;
+  navigator.clipboard.writeText(el.value).then(() => toast('Letter copied to clipboard', 'success'));
+}
+
+function printLetter() {
+  const letter = document.getElementById('o-letter')?.value || '';
+  const subj   = document.getElementById('o-subj')?.value   || '';
+  const dm     = document.getElementById('o-dm')?.value     || '';
+  const addr   = document.getElementById('o-addr')?.value   || '';
+  const code   = document.getElementById('otrack-code')?.textContent || '';
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html><head><title>Saturn Star — Outreach Letter</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: Georgia, 'Times New Roman', serif; background: #fff; color: #111; }
+    .page { max-width: 720px; margin: 0 auto; padding: 52px 60px; }
+    .letterhead {
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 3px solid #1a2744; padding-bottom: 20px; margin-bottom: 32px;
+    }
+    .letterhead-left { display: flex; align-items: center; gap: 16px; }
+    .logo { width: 70px; height: 70px; object-fit: contain; }
+    .logo-text h1 { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 18px; font-weight: 800; color: #1a2744; letter-spacing: 1px; }
+    .logo-text p  { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 2px; margin-top: 2px; }
+    .letterhead-right { text-align: right; font-family: 'Segoe UI', system-ui, sans-serif; font-size: 11px; color: #555; line-height: 1.8; }
+    .envelope-strip {
+      background: #f7f8fa; border-left: 4px solid #f5a623; border-radius: 4px;
+      padding: 10px 16px; margin-bottom: 28px;
+      font-family: 'Segoe UI', system-ui, sans-serif; font-size: 12px; color: #555;
+    }
+    .envelope-strip .subj { font-weight: 700; color: #1a2744; font-size: 13px; margin-bottom: 2px; }
+    .letter-body { white-space: pre-wrap; font-size: 14px; line-height: 1.9; color: #111; }
+    .tracking { margin-top: 32px; padding-top: 16px; border-top: 1px solid #eee;
+      font-family: 'Segoe UI', system-ui, sans-serif; font-size: 10px; color: #aaa;
+      text-align: right; text-transform: uppercase; letter-spacing: 1px; }
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .page { padding: 36px 48px; }
+    }
+  </style></head><body>
+  <div class="page">
+    <div class="letterhead">
+      <div class="letterhead-left">
+        <img class="logo" src="${LOGO_URL}" alt="Saturn Star" onerror="this.style.display='none'" />
+        <div class="logo-text">
+          <h1>SATURN STAR</h1>
+          <p>Moving Company</p>
+        </div>
+      </div>
+      <div class="letterhead-right">
+        226-773-2993<br>
+        business@starmovers.ca<br>
+        starmovers.ca<br>
+        Windsor, Ontario
+      </div>
+    </div>
+    <div class="envelope-strip">
+      <div class="subj">RE: ${esc(subj)}</div>
+      <div>To: ${esc(dm)}${addr ? ' &nbsp;·&nbsp; ' + esc(addr) : ''}</div>
+    </div>
+    <div class="letter-body">${esc(letter)}</div>
+    <div class="tracking">${esc(code)}</div>
+  </div>
+  <script>window.print();<\/script></body></html>`);
+  win.document.close();
+}
+
+function markOutreachSent() {
+  const sig = signals.find(x => x.id === _outreachSignalId);
+  if (!sig || !sig.outreach) return;
+  // Save any edits back to signal
+  const dm   = document.getElementById('o-dm')?.value   || sig.outreach.decision_maker_title;
+  const addr = document.getElementById('o-addr')?.value || sig.outreach.address_hint;
+  const subj = document.getElementById('o-subj')?.value || sig.outreach.subject;
+  const txt  = document.getElementById('o-letter')?.value || sig.outreach.letter;
+  sig.outreach = { ...sig.outreach, decision_maker_title:dm, address_hint:addr, subject:subj, letter:txt, sent: new Date().toISOString() };
+  save();
+  render();
+  const btn = document.getElementById('btn-mark-sent');
+  btn.textContent = '✓ Sent ' + new Date().toLocaleDateString('en-CA',{month:'short',day:'numeric'});
+  btn.disabled = true;
+  btn.style.background = '#d1fae5';
+  btn.style.color = '#065f46';
+  toast('Marked as sent', 'success');
+}
+
+/* ─── INIT ───────────────────────────────────────── */
+load();
+render();
+updateKPIs();
+
+if (signals.length > 0) {
+  document.getElementById('scan-headline').textContent = 'Radar active';
+  document.getElementById('scan-sub').textContent =
+    `${signals.filter(s=>s.status!=='dismissed').length} signals tracked · Windsor–Essex & Chatham-Kent`;
+  scanTimer = setTimeout(runScan, SCAN_INTERVAL);
+} else {
+  setTimeout(runScan, 800);
+}
+</script>
+</body>
+</html>

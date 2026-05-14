@@ -1,0 +1,3155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Saturn Star — On-Site Quote Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #1a2744;
+    --navy-light: #243460;
+    --gold: #f5a623;
+    --gold-dark: #e09410;
+    --bg: #f4f5f7;
+    --white: #ffffff;
+    --text: #1a2744;
+    --text-muted: #6b7280;
+    --border: #e5e7eb;
+    --red: #ef4444;
+    --orange: #f97316;
+    --green: #22c55e;
+    --card: #ffffff;
+    --shadow: 0 2px 8px rgba(0,0,0,0.08);
+    --radius: 12px;
+    --tab-h: 64px;
+    --bar-h: 64px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* ─── TOP NAV ─── */
+  .tab-nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--navy);
+    display: flex;
+    height: var(--tab-h);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+  }
+
+  .tab-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.5);
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 8px 4px;
+    position: relative;
+    transition: color 0.2s;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .tab-btn.active {
+    color: var(--gold);
+  }
+
+  .tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 10%;
+    right: 10%;
+    height: 3px;
+    background: var(--gold);
+    border-radius: 3px 3px 0 0;
+  }
+
+  .tab-btn .tab-icon {
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  .tab-check {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 14px;
+    height: 14px;
+    background: var(--green);
+    border-radius: 50%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    color: white;
+  }
+
+  .tab-check.visible { display: flex; }
+
+  /* ─── SCREENS ─── */
+  .screen {
+    display: none;
+    padding: 16px 16px 140px;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .screen.active { display: block; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  /* ─── CARDS & SECTIONS ─── */
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow);
+  }
+
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+
+  /* ─── FORM ELEMENTS ─── */
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+    margin-top: 14px;
+  }
+
+  label:first-child { margin-top: 0; }
+
+  input[type="text"],
+  input[type="number"],
+  textarea {
+    width: 100%;
+    padding: 14px 16px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    font-family: 'Inter', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text);
+    background: var(--bg);
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  input[type="text"]:focus,
+  input[type="number"]:focus,
+  textarea:focus {
+    outline: none;
+    border-color: var(--gold);
+    background: white;
+  }
+
+  textarea {
+    resize: vertical;
+    min-height: 80px;
+  }
+
+  /* ─── KM HELPER BUTTONS ─── */
+  .km-helpers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .km-btn {
+    padding: 6px 10px;
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .km-btn:active, .km-btn:hover { background: var(--navy); color: white; border-color: var(--navy); }
+
+  /* ─── STEPPER ─── */
+  .stepper-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: var(--bg);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 2px solid var(--border);
+  }
+
+  .stepper-btn {
+    width: 56px;
+    height: 52px;
+    border: none;
+    background: none;
+    font-size: 22px;
+    font-weight: 700;
+    cursor: pointer;
+    color: var(--navy);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+    flex-shrink: 0;
+  }
+
+  .stepper-btn:active { background: rgba(245,166,35,0.2); }
+
+  .stepper-options {
+    display: flex;
+    flex: 1;
+    gap: 0;
+  }
+
+  .stepper-option {
+    flex: 1;
+    height: 52px;
+    border: none;
+    background: none;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    border-left: 1.5px solid var(--border);
+  }
+
+  .stepper-option.active {
+    background: var(--navy);
+    color: var(--gold);
+  }
+
+  /* ─── TOGGLE BUTTONS ─── */
+  .toggle-group {
+    display: flex;
+    gap: 0;
+    background: var(--bg);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 2px solid var(--border);
+  }
+
+  .toggle-option {
+    flex: 1;
+    padding: 14px 8px;
+    border: none;
+    background: none;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 0.15s;
+    text-align: center;
+  }
+
+  .toggle-option + .toggle-option { border-left: 2px solid var(--border); }
+
+  .toggle-option.active {
+    background: var(--navy);
+    color: var(--gold);
+  }
+
+  /* ─── SWITCH TOGGLES ─── */
+  .switch-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+    min-height: 56px;
+  }
+
+  .switch-row:last-child { border-bottom: none; }
+
+  .switch-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    flex: 1;
+    padding-right: 12px;
+  }
+
+  .switch-sublabel {
+    font-size: 11px;
+    color: var(--text-muted);
+    display: block;
+    margin-top: 2px;
+  }
+
+  .switch {
+    position: relative;
+    width: 52px;
+    height: 30px;
+    flex-shrink: 0;
+  }
+
+  .switch input { opacity: 0; width: 0; height: 0; }
+
+  .slider {
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    border-radius: 15px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .slider::before {
+    content: '';
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    left: 3px;
+    top: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+
+  input:checked + .slider { background: var(--gold); }
+  input:checked + .slider::before { transform: translateX(22px); }
+
+  /* ─── INVENTORY ─── */
+  .inv-search {
+    position: sticky;
+    top: var(--tab-h);
+    z-index: 50;
+    background: var(--bg);
+    padding: 12px 0 8px;
+  }
+
+  .inv-search input {
+    background: white;
+    font-size: 16px;
+    padding: 12px 16px 12px 44px;
+  }
+
+  .inv-search-wrap {
+    position: relative;
+  }
+
+  .inv-search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 18px;
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+
+  .inv-stats {
+    display: flex;
+    gap: 8px;
+    padding: 0 0 8px;
+  }
+
+  .inv-stat {
+    flex: 1;
+    background: white;
+    border-radius: 10px;
+    padding: 8px 10px;
+    text-align: center;
+    box-shadow: var(--shadow);
+  }
+
+  .inv-stat-val {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--navy);
+    line-height: 1.1;
+  }
+
+  .inv-stat-lbl {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+  }
+
+  .cat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0 6px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .cat-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+  }
+
+  .cat-chevron {
+    font-size: 14px;
+    color: var(--text-muted);
+    transition: transform 0.2s;
+  }
+
+  .cat-chevron.open { transform: rotate(180deg); }
+
+  .item-row {
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    min-height: 56px;
+  }
+
+  .item-row:last-child { border-bottom: none; }
+
+  .item-row.highlighted {
+    background: linear-gradient(to right, rgba(245,166,35,0.08), transparent);
+    margin: 0 -16px;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border-bottom: 1px solid rgba(245,166,35,0.2);
+  }
+
+  .item-info {
+    flex: 1;
+    min-width: 0;
+    padding-right: 8px;
+  }
+
+  .item-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .item-note {
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .item-time {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-top: 2px;
+  }
+
+  .item-controls {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-shrink: 0;
+  }
+
+  .qty-btn {
+    width: 40px;
+    height: 40px;
+    border: 2px solid var(--border);
+    background: white;
+    border-radius: 10px;
+    font-size: 20px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--navy);
+    transition: all 0.15s;
+    line-height: 1;
+  }
+
+  .qty-btn:active { background: var(--gold); color: white; border-color: var(--gold); transform: scale(0.94); }
+
+  .qty-btn.gold-btn { background: var(--gold); color: white; border-color: var(--gold); }
+  .qty-btn.gold-btn:active { background: var(--gold-dark); }
+
+  .qty-display {
+    width: 36px;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--navy);
+  }
+
+  .qty-display.active { color: var(--gold-dark); }
+
+  /* ─── ADDED SECTION ─── */
+  .added-section {
+    background: rgba(245,166,35,0.07);
+    border: 1.5px solid rgba(245,166,35,0.3);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    margin-bottom: 12px;
+  }
+
+  .added-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .added-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--gold-dark);
+  }
+
+  .clear-all-btn {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--red);
+    background: none;
+    border: 1.5px solid var(--red);
+    border-radius: 6px;
+    padding: 4px 10px;
+    cursor: pointer;
+  }
+
+  /* ─── QUOTE SCREEN ─── */
+  .flag-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    margin: 0 4px 6px 0;
+  }
+
+  .flag-critical { background: rgba(239,68,68,0.12); color: #b91c1c; border: 1.5px solid rgba(239,68,68,0.3); }
+  .flag-high     { background: rgba(249,115,22,0.12); color: #c2410c; border: 1.5px solid rgba(249,115,22,0.3); }
+  .flag-med      { background: rgba(245,166,35,0.12); color: #92400e; border: 1.5px solid rgba(245,166,35,0.3); }
+
+  .twoday-banner {
+    background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    color: var(--navy);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .twoday-text {
+    font-size: 13px;
+    font-weight: 600;
+    flex: 1;
+  }
+
+  .twoday-btn {
+    background: var(--navy);
+    color: var(--gold);
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .phase-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .phase-table th {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    padding: 0 0 8px;
+    text-align: left;
+  }
+
+  .phase-table th:last-child { text-align: right; }
+
+  .phase-table td {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    vertical-align: top;
+  }
+
+  .phase-table td:last-child {
+    text-align: right;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .phase-detail {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 1px;
+  }
+
+  .cost-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    font-size: 14px;
+  }
+
+  .cost-row.divider { border-top: 2px solid var(--border); margin-top: 4px; padding-top: 12px; }
+  .cost-row.total-row { font-size: 18px; font-weight: 800; color: var(--navy); }
+  .cost-row.total-row span:last-child { color: var(--gold-dark); }
+  .cost-row.muted span:first-child { color: var(--text-muted); }
+  .cost-row.muted span:last-child { color: var(--text-muted); }
+
+  .rate-toggle {
+    display: flex;
+    background: var(--bg);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 2px solid var(--border);
+    margin-bottom: 16px;
+  }
+
+  .rate-btn {
+    flex: 1;
+    padding: 14px;
+    border: none;
+    background: none;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 0.15s;
+  }
+
+  .rate-btn.active {
+    background: var(--navy);
+    color: var(--gold);
+  }
+
+  .rate-btn + .rate-btn { border-left: 2px solid var(--border); }
+
+  .price-display {
+    text-align: center;
+    padding: 20px;
+    background: linear-gradient(135deg, var(--navy), var(--navy-light));
+    border-radius: var(--radius);
+    color: white;
+    margin-bottom: 12px;
+  }
+
+  .price-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,0.6);
+    margin-bottom: 4px;
+  }
+
+  .price-amount {
+    font-size: 48px;
+    font-weight: 800;
+    color: var(--gold);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .price-sub {
+    font-size: 13px;
+    color: rgba(255,255,255,0.7);
+  }
+
+  .deposit-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .deposit-box {
+    flex: 1;
+    background: var(--bg);
+    border-radius: 10px;
+    padding: 10px;
+    text-align: center;
+  }
+
+  .deposit-lbl { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .deposit-val { font-size: 20px; font-weight: 800; color: var(--navy); margin-top: 2px; }
+
+  .override-wrap {
+    position: relative;
+  }
+
+  .override-wrap input { padding-left: 28px; }
+
+  .override-dollar {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+
+  .override-diff {
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 6px;
+    text-align: center;
+  }
+
+  .override-diff.pos { color: var(--green); }
+  .override-diff.neg { color: var(--red); }
+
+  .notes-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    padding: 4px 0;
+    user-select: none;
+  }
+
+  .notes-body { display: none; padding-top: 8px; }
+  .notes-body.open { display: block; }
+
+  .note-item {
+    display: flex;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+
+  .note-item:last-child { border-bottom: none; }
+
+  .note-dot { color: var(--gold); font-weight: 800; flex-shrink: 0; }
+
+  /* ─── ACTION BUTTONS ─── */
+  .action-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .action-btn {
+    padding: 14px 10px;
+    border-radius: 12px;
+    border: none;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.15s;
+  }
+
+  .action-btn:active { transform: scale(0.96); }
+
+  .btn-navy { background: var(--navy); color: white; }
+  .btn-gold { background: var(--gold); color: var(--navy); }
+  .btn-outline { background: white; color: var(--navy); border: 2px solid var(--border); }
+  .btn-green { background: var(--green); color: white; }
+
+  .action-btn.full-width { grid-column: 1 / -1; }
+
+  /* ─── STICKY BOTTOM BAR ─── */
+  .bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 480px;
+    background: var(--navy);
+    height: var(--bar-h);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    z-index: 200;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+  }
+
+  .bottom-bar-info {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .bar-chip {
+    background: rgba(255,255,255,0.12);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.8);
+  }
+
+  .bar-estimate {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--gold);
+  }
+
+  .bar-quote-btn {
+    background: var(--gold);
+    color: var(--navy);
+    border: none;
+    border-radius: 10px;
+    padding: 10px 18px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+
+  .bar-quote-btn:active { background: var(--gold-dark); transform: scale(0.96); }
+
+  /* ─── RESUME BANNER ─── */
+  .resume-banner {
+    background: var(--navy);
+    color: white;
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .resume-text { font-size: 13px; font-weight: 600; flex: 1; }
+  .resume-text span { color: var(--gold); }
+
+  .resume-btns { display: flex; gap: 8px; }
+
+  .resume-btn {
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: none;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .resume-yes { background: var(--gold); color: var(--navy); }
+  .resume-no  { background: rgba(255,255,255,0.15); color: white; }
+
+  /* ─── TIME COLOR CODING ─── */
+  .time-green  { color: #16a34a; font-weight: 700; }
+  .time-gold   { color: var(--gold-dark); font-weight: 700; }
+  .time-orange { color: #ea580c; font-weight: 700; }
+  .time-red    { color: var(--red); font-weight: 700; }
+
+  /* ─── PRINT STYLES ─── */
+  @media print {
+    .tab-nav, .bottom-bar, .action-grid, .rate-toggle { display: none !important; }
+    .screen { display: block !important; padding-bottom: 0 !important; }
+    body { max-width: 100%; }
+  }
+
+  /* ─── MISC ─── */
+  .empty-state {
+    text-align: center;
+    padding: 24px 16px;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+
+  .toast {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--navy);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 1000;
+    white-space: nowrap;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    animation: toastIn 0.3s ease, toastOut 0.3s ease 2s forwards;
+  }
+
+  @keyframes toastIn  { from { opacity: 0; transform: translateX(-50%) translateY(-10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+  @keyframes toastOut { from { opacity: 1; } to { opacity: 0; } }
+
+  .separator {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 4px 0;
+  }
+
+  .hr-double {
+    border: none;
+    border-top: 2px solid var(--border);
+    margin: 8px 0;
+  }
+
+  .subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .cat-body { overflow: hidden; }
+
+  /* Category color dots */
+  .cat-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+  }
+
+  /* ─── VOLUME / TRUCK BAR ─── */
+  .vol-bar-wrap {
+    margin-top: 8px;
+  }
+  .vol-bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+  .vol-bar-track {
+    height: 10px;
+    background: var(--bg);
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1.5px solid var(--border);
+  }
+  .vol-bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.3s, background 0.3s;
+  }
+
+  /* ─── TRUCK CARD ─── */
+  .truck-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 2px solid var(--border);
+    cursor: pointer;
+    margin-bottom: 8px;
+    transition: all 0.15s;
+    background: var(--bg);
+  }
+  .truck-option.selected {
+    border-color: var(--gold);
+    background: rgba(245,166,35,0.08);
+  }
+  .truck-option-icon { font-size: 20px; flex-shrink: 0; margin-top: 2px; }
+  .truck-option-body { flex: 1; }
+  .truck-option-label { font-size: 14px; font-weight: 700; color: var(--navy); }
+  .truck-option-note  { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .truck-option-cost  { font-size: 12px; font-weight: 600; color: var(--gold-dark); margin-top: 2px; }
+
+  /* ─── DISCOUNT ROW ─── */
+  .discount-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow);
+  }
+  .discount-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .discount-label { font-size: 13px; font-weight: 600; color: var(--text); }
+  .discount-btns  { display: flex; gap: 6px; }
+  .disc-btn {
+    padding: 7px 14px;
+    border-radius: 8px;
+    border: 2px solid var(--border);
+    background: var(--bg);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    color: var(--text-muted);
+    transition: all 0.15s;
+  }
+  .disc-btn.active  { background: var(--navy); color: var(--gold); border-color: var(--navy); }
+  .disc-btn.manager { border-color: #f97316; color: #c2410c; }
+  .disc-btn.manager.active { background: #f97316; color: white; border-color: #f97316; }
+  .discount-amount { font-size: 14px; font-weight: 800; color: var(--red); white-space: nowrap; }
+
+  /* ─── SUPPLIES SECTION ─── */
+  .supplies-item-row {
+    display: flex;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    min-height: 50px;
+  }
+  .supplies-item-row:last-child { border-bottom: none; }
+  .sup-info { flex: 1; min-width: 0; padding-right: 8px; }
+  .sup-name  { font-size: 13px; font-weight: 600; color: var(--text); }
+  .sup-price { font-size: 11px; color: var(--text-muted); }
+
+  /* ─── PRICING MODE HINT ─── */
+  .rate-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: center;
+    margin-top: -10px;
+    margin-bottom: 12px;
+    padding: 0 4px;
+  }
+
+  /* ─── QUICK RANGE BUTTON ─── */
+  .quick-range-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    background: var(--gold);
+    border: none;
+    color: var(--navy);
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    font-weight: 800;
+    cursor: pointer;
+    padding: 8px 10px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    border-left: 2px solid rgba(0,0,0,0.15);
+    flex-shrink: 0;
+  }
+  .quick-range-btn .tab-icon { font-size: 16px; line-height: 1; }
+
+  /* ─── FULL-SCREEN MODAL ─── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    background: rgba(0,0,0,0.7);
+    align-items: flex-start;
+    justify-content: center;
+    overflow-y: auto;
+    padding: 12px;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal-box {
+    background: var(--white);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 460px;
+    padding: 20px;
+    margin: auto;
+    position: relative;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: var(--bg);
+    border-radius: 50%;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-weight: 700;
+  }
+
+  .modal-title {
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--navy);
+    padding-right: 36px;
+    margin-bottom: 2px;
+  }
+
+  .modal-subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+  }
+
+  /* Quick Range grid buttons */
+  .qr-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+
+  .qr-btn {
+    padding: 12px 4px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg);
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+  }
+  .qr-btn.active { background: var(--navy); color: var(--gold); border-color: var(--navy); }
+
+  .qr-type-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+
+  .qr-type-btn {
+    padding: 14px 6px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg);
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--text-muted);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+    line-height: 1.3;
+  }
+  .qr-type-btn.active { background: var(--navy); color: var(--gold); border-color: var(--navy); }
+
+  .qr-check-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+
+  .qr-check-btn {
+    padding: 10px 10px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg);
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s;
+  }
+  .qr-check-btn.active { background: rgba(245,166,35,0.15); color: var(--navy); border-color: var(--gold); }
+
+  .qr-result {
+    background: linear-gradient(135deg, var(--navy), var(--navy-light));
+    border-radius: var(--radius);
+    padding: 16px;
+    color: white;
+    margin-bottom: 12px;
+    display: none;
+  }
+  .qr-result.visible { display: block; }
+
+  .qr-result-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 4px;
+  }
+
+  .qr-result-range {
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--gold);
+    line-height: 1;
+  }
+
+  .qr-result-hst {
+    font-size: 12px;
+    color: rgba(255,255,255,0.6);
+    margin-bottom: 8px;
+  }
+
+  .qr-result-meta {
+    font-size: 13px;
+    color: rgba(255,255,255,0.8);
+  }
+
+  .qr-script-box {
+    background: rgba(245,166,35,0.1);
+    border: 1.5px solid rgba(245,166,35,0.4);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 13px;
+    color: var(--text);
+    font-style: italic;
+    line-height: 1.5;
+    margin-bottom: 12px;
+    display: none;
+  }
+  .qr-script-box.visible { display: block; }
+
+  .qr-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  /* ─── DEPOSIT MODAL ─── */
+  .deposit-option {
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .deposit-option:hover { border-color: var(--gold); background: rgba(245,166,35,0.05); }
+  .deposit-option-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 6px;
+  }
+  .deposit-option-body {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+  .deposit-option.disabled { opacity: 0.5; cursor: default; }
+  .deposit-option.disabled:hover { border-color: var(--border); background: none; }
+
+  .deposit-confirm-banner {
+    background: rgba(34,197,94,0.12);
+    border: 1.5px solid rgba(34,197,94,0.4);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: #15803d;
+    font-size: 14px;
+    font-weight: 700;
+    text-align: center;
+    margin-top: 10px;
+    display: none;
+  }
+  .deposit-confirm-banner.visible { display: block; }
+
+  /* ─── CLIENT SAVINGS ─── */
+  .savings-switch-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    min-height: 52px;
+  }
+  .savings-switch-row:last-child { border-bottom: none; }
+  .savings-label-wrap { flex: 1; padding-right: 10px; }
+  .savings-label { font-size: 13px; font-weight: 600; color: var(--text); }
+  .savings-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    color: #15803d;
+    background: rgba(34,197,94,0.1);
+    border-radius: 6px;
+    padding: 1px 6px;
+    margin-top: 2px;
+  }
+
+  /* ─── OUT OF PROVINCE WARNING ─── */
+  .oop-warning {
+    background: rgba(239,68,68,0.08);
+    border: 1.5px solid rgba(239,68,68,0.35);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-top: 10px;
+    font-size: 13px;
+    color: #b91c1c;
+    line-height: 1.5;
+    display: none;
+  }
+  .oop-warning.visible { display: block; }
+  .oop-warning strong { display: block; font-size: 14px; margin-bottom: 4px; }
+
+  .oop-manual-wrap {
+    margin-top: 10px;
+    display: none;
+  }
+  .oop-manual-wrap.visible { display: block; }
+
+  /* ─── COLLECT DEPOSIT CARD ─── */
+  .collect-deposit-card {
+    background: linear-gradient(135deg, #1a2744, #243460);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+    color: white;
+  }
+  .collect-deposit-card .section-title { color: rgba(255,255,255,0.6); }
+  .collect-deposit-amounts {
+    display: flex;
+    gap: 10px;
+    margin: 10px 0 14px;
+  }
+  .collect-deposit-box {
+    flex: 1;
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 10px;
+    text-align: center;
+  }
+  .collect-deposit-lbl { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.5px; }
+  .collect-deposit-val { font-size: 22px; font-weight: 800; color: var(--gold); margin-top: 2px; }
+  .collect-deposit-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--gold);
+    color: var(--navy);
+    border: none;
+    border-radius: 10px;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .collect-deposit-btn:active { background: var(--gold-dark); transform: scale(0.98); }
+  .collect-deposit-collected {
+    width: 100%;
+    padding: 10px;
+    background: rgba(34,197,94,0.2);
+    color: #15803d;
+    border: 1.5px solid rgba(34,197,94,0.4);
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+    margin-top: 8px;
+    display: none;
+  }
+  .collect-deposit-collected.visible { display: block; }
+</style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="tab-nav">
+  <button class="tab-btn active" onclick="showScreen(0)" id="tab0">
+    <span class="tab-icon">📋</span>
+    <span>Setup</span>
+    <span class="tab-check" id="check0">✓</span>
+  </button>
+  <button class="tab-btn" onclick="showScreen(1)" id="tab1">
+    <span class="tab-icon">📦</span>
+    <span>Inventory</span>
+    <span class="tab-check" id="check1">✓</span>
+  </button>
+  <button class="tab-btn" onclick="showScreen(2)" id="tab2">
+    <span class="tab-icon">⚡</span>
+    <span>Complexity</span>
+    <span class="tab-check" id="check2">✓</span>
+  </button>
+  <button class="tab-btn" onclick="showScreen(3)" id="tab3">
+    <span class="tab-icon">💰</span>
+    <span>Quote</span>
+    <span class="tab-check" id="check3">✓</span>
+  </button>
+  <button class="quick-range-btn" onclick="openQuickRange()" title="Quick Range Estimator">
+    <span class="tab-icon">📞</span>
+    <span>Range</span>
+  </button>
+</nav>
+
+<!-- SCREEN 1: JOB SETUP -->
+<div class="screen active" id="screen0">
+  <div id="resumeBanner" style="display:none"></div>
+
+  <div class="card">
+    <div class="section-title">Client Information</div>
+    <label>Client Name</label>
+    <input type="text" id="clientName" placeholder="e.g. John Boeke" oninput="autoSave()">
+    <label>Origin Address</label>
+    <input type="text" id="originAddr" placeholder="113 Golfview Dr, Windsor" oninput="autoSave()">
+    <label>Destination Address</label>
+    <input type="text" id="destAddr" placeholder="4032 Village Creek Dr, Fort Erie" oninput="autoSave()">
+  </div>
+
+  <div class="card">
+    <div class="section-title">Distance & Logistics</div>
+    <label>Distance (km)</label>
+    <input type="number" id="distKm" placeholder="0" min="0" oninput="onDistanceChange()">
+    <div class="km-helpers">
+      <button class="km-btn" onclick="setKm(15)">~15km local</button>
+      <button class="km-btn" onclick="setKm(50)">~50km</button>
+      <button class="km-btn" onclick="setKm(100)">~100km</button>
+      <button class="km-btn" onclick="setKm(200)">~200km</button>
+      <button class="km-btn" onclick="setKm(389)">~389km Fort Erie</button>
+      <button class="km-btn" onclick="setKm(500)">~500km</button>
+    </div>
+
+    <label>Office to Site (km)</label>
+    <input type="number" id="officeKm" value="15" min="0" oninput="autoSave()">
+
+    <label>Move Type</label>
+    <div class="toggle-group" style="margin-top:6px">
+      <button class="toggle-option active" id="moveLocal" onclick="setMoveType('local')">LOCAL</button>
+      <button class="toggle-option" id="moveLong" onclick="setMoveType('long')">LONG DIST</button>
+      <button class="toggle-option" id="moveOOP" onclick="setMoveType('outofprovince')" style="font-size:11px">OUT OF PROV</button>
+    </div>
+    <div class="oop-warning" id="oopWarning">
+      <strong>⚠️ Out of Province Move — manager review required</strong>
+      This move requires manager review before quoting. Confirm: customs/border requirements, insurance coverage, overnight arrangements, and applicable regulations.
+    </div>
+    <div class="oop-manual-wrap" id="oopManualWrap">
+      <label>Manual Price (Out of Province)</label>
+      <div class="override-wrap">
+        <span class="override-dollar">$</span>
+        <input type="number" id="oopManualPrice" placeholder="Enter confirmed price" oninput="autoSave()">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Crew Size</div>
+    <div class="stepper-row" style="margin-top:6px">
+      <div class="stepper-options">
+        <button class="stepper-option" id="crew2" onclick="setCrewSize(2)">2</button>
+        <button class="stepper-option active" id="crew3" onclick="setCrewSize(3)">3</button>
+        <button class="stepper-option" id="crew4" onclick="setCrewSize(4)">4</button>
+        <button class="stepper-option" id="crew5" onclick="setCrewSize(5)">5</button>
+      </div>
+    </div>
+    <p class="subtitle" style="margin-top:8px; text-align:center">1 driver + helpers. Recommend 3 for most jobs.</p>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Job Options</div>
+    <div class="switch-row">
+      <div class="switch-label">
+        2-Day Move
+        <span class="switch-sublabel">Load Day 1, deliver Day 2</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="twoDayMove" onchange="autoSave(); recalc()">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="switch-row">
+      <div class="switch-label">
+        Assembly Requested
+        <span class="switch-sublabel">Reassemble furniture at destination</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="assemblyReq" onchange="autoSave(); recalc()">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN 2: INVENTORY -->
+<div class="screen" id="screen1">
+  <div class="inv-search">
+    <div class="inv-search-wrap">
+      <span class="inv-search-icon">🔍</span>
+      <input type="text" id="searchBox" placeholder="Search items..." oninput="filterInventory()">
+    </div>
+    <div class="inv-stats" style="margin-top:8px">
+      <div class="inv-stat">
+        <div class="inv-stat-val" id="statItems">0</div>
+        <div class="inv-stat-lbl">Items</div>
+      </div>
+      <div class="inv-stat">
+        <div class="inv-stat-val" id="statCuft">0</div>
+        <div class="inv-stat-lbl">Cu Ft</div>
+      </div>
+      <div class="inv-stat">
+        <div class="inv-stat-val" id="statPack">0m</div>
+        <div class="inv-stat-lbl">Pack</div>
+      </div>
+      <div class="inv-stat">
+        <div class="inv-stat-val" id="statLoad">0m</div>
+        <div class="inv-stat-lbl">Load</div>
+      </div>
+      <div class="inv-stat">
+        <div class="inv-stat-val" id="statUnload">0m</div>
+        <div class="inv-stat-lbl">Unload</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="addedSection" style="display:none">
+    <div class="added-section">
+      <div class="added-header">
+        <span class="added-title">✓ Added to Move</span>
+        <button class="clear-all-btn" onclick="clearAll()">Clear All</button>
+      </div>
+      <div id="addedItems"></div>
+    </div>
+  </div>
+
+  <div id="inventoryList"></div>
+</div>
+
+<!-- SCREEN 3: COMPLEXITY -->
+<div class="screen" id="screen2">
+  <div class="card">
+    <div class="section-title">Access Conditions</div>
+    <div class="switch-row">
+      <div class="switch-label">
+        Stairs at Origin
+        <span class="switch-sublabel">+15% load time</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="stairsOrigin" onchange="autoSave(); recalc()">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="switch-row">
+      <div class="switch-label">
+        Stairs at Destination
+        <span class="switch-sublabel">+10% unload time</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="stairsDest" onchange="autoSave(); recalc()">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="switch-row">
+      <div class="switch-label">
+        Elevator / Long Carry
+        <span class="switch-sublabel">Walk &gt;50ft to truck</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="elevatorCarry" onchange="autoSave(); recalc()">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="switch-row">
+      <div class="switch-label">
+        Parking Far from Entrance
+        <span class="switch-sublabel">Street parking, no driveway access</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="parkingFar" onchange="autoSave(); recalc()">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="switch-row">
+      <div class="switch-label">
+        Narrow Hallways / Doorways
+        <span class="switch-sublabel">May require furniture tipping</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="narrowHalls" onchange="autoSave(); recalc()">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Time Savers & Extras</div>
+    <div class="switch-row">
+      <div class="switch-label">
+        Client Disassembled Furniture
+        <span class="switch-sublabel">Saves time — −15% load time</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="clientDisass" onchange="autoSave(); recalc()">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="switch-row">
+      <div class="switch-label">
+        Packing Assistance Needed
+        <span class="switch-sublabel">We pack boxes — adds ~1h</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="packAssist" onchange="autoSave(); recalc()">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="switch-row">
+      <div class="switch-label">
+        Fragile / High-Value Items
+        <span class="switch-sublabel">Extra care time, document condition</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="fragileItems" onchange="autoSave(); recalc()">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">✂️ Client Is Handling...</div>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Turn on to reduce the price — client is handling these tasks themselves.</p>
+    <div id="clientSavingsList"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">📦 Supplies & Boxes</div>
+    <div id="suppliesList"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Special Notes</div>
+    <textarea id="specialNotes" placeholder="e.g. Key pickup at 9am, dog on premises, tight staircase, client wants BBQ disconnected by plumber..." oninput="autoSave()"></textarea>
+  </div>
+</div>
+
+<!-- SCREEN 4: QUOTE -->
+<div class="screen" id="screen3">
+  <div id="flagsSection" style="display:none">
+    <div class="card">
+      <div class="section-title">⚠ Alerts</div>
+      <div id="flagsList"></div>
+    </div>
+  </div>
+
+  <div id="twoDayBanner" style="display:none">
+    <div class="twoday-banner">
+      <div class="twoday-text" id="twoDayText"></div>
+      <button class="twoday-btn" onclick="switchToTwoDay()">Switch →</button>
+    </div>
+  </div>
+
+  <div class="card" id="truckCard">
+    <div class="section-title">🚛 Truck Recommendation</div>
+    <div id="truckCardBody"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Phase Breakdown</div>
+    <table class="phase-table">
+      <thead>
+        <tr>
+          <th>Phase</th>
+          <th style="text-align:center">Time</th>
+          <th>Cost</th>
+        </tr>
+      </thead>
+      <tbody id="phaseRows"></tbody>
+      <tfoot>
+        <tr>
+          <td colspan="3" style="padding-top:10px">
+            <div id="fixedCostRows"></div>
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Cost Summary</div>
+    <div id="costSummary"></div>
+  </div>
+
+  <div class="collect-deposit-card" id="collectDepositCard">
+    <div class="section-title">💳 Collect Deposit</div>
+    <div class="collect-deposit-amounts" id="collectDepositAmounts">
+      <div class="collect-deposit-box">
+        <div class="collect-deposit-lbl">Deposit (20%)</div>
+        <div class="collect-deposit-val" id="collectDepositVal">$—</div>
+      </div>
+      <div class="collect-deposit-box">
+        <div class="collect-deposit-lbl">Balance on Move Day</div>
+        <div class="collect-deposit-val" id="collectBalanceVal">$—</div>
+      </div>
+    </div>
+    <button class="collect-deposit-btn" onclick="openDepositModal()">💳 Collect Deposit</button>
+    <div class="collect-deposit-collected" id="depositCollectedBanner"></div>
+  </div>
+
+  <div class="discount-card" id="discountCard">
+    <div class="section-title" style="margin-bottom:10px">Discount</div>
+    <div class="discount-row">
+      <span class="discount-label">Apply Discount</span>
+      <div class="discount-btns">
+        <button class="disc-btn active" id="disc0" onclick="setDiscount(0)">None</button>
+        <button class="disc-btn" id="disc5" onclick="setDiscount(5)">5%</button>
+        <button class="disc-btn manager" id="disc10" onclick="setDiscount(10)">10% ⚠️</button>
+      </div>
+      <span class="discount-amount" id="discountAmount">−$0</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="rate-toggle">
+      <button class="rate-btn active" id="rateFlat" onclick="setRateMode('flat')">FLAT RATE</button>
+      <button class="rate-btn" id="rateHourly" onclick="setRateMode('hourly')">HOURLY</button>
+    </div>
+    <div id="rateModeHint" class="rate-hint"></div>
+    <div id="rateOutput"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Manual Override</div>
+    <div class="override-wrap">
+      <span class="override-dollar">$</span>
+      <input type="number" id="overridePrice" placeholder="Leave blank to use calculated" oninput="onOverride()">
+    </div>
+    <div class="override-diff" id="overrideDiff"></div>
+  </div>
+
+  <div class="card" id="itemNotesCard" style="display:none">
+    <div class="notes-toggle" onclick="toggleNotes()">
+      <span class="section-title" style="margin-bottom:0">Item Notes</span>
+      <span id="notesChevron" style="font-size:16px;color:var(--text-muted)">▼</span>
+    </div>
+    <div class="notes-body" id="notesBody"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Actions</div>
+    <div class="action-grid">
+      <button class="action-btn btn-navy" onclick="copyQuote()">📋 Copy Quote</button>
+      <button class="action-btn btn-gold" onclick="saveCRM()">💾 Save to CRM</button>
+      <button class="action-btn btn-outline" onclick="openEmail()">📧 Email Client</button>
+      <button class="action-btn btn-outline" onclick="window.print()">🖨️ Print</button>
+    </div>
+  </div>
+</div>
+
+<!-- QUICK RANGE MODAL -->
+<div class="modal-overlay" id="quickRangeModal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeQuickRange()">×</button>
+    <div class="modal-title">📞 Quick Range Estimator</div>
+    <div class="modal-subtitle">Phone Call Mode — get a range in 3 taps. Goal: book the consultation.</div>
+
+    <div class="section-title" style="margin-bottom:8px">1. Home Size</div>
+    <div class="qr-grid" id="qrSizeGrid">
+      <button class="qr-btn" data-size="studio"   onclick="qrSetSize(this)">Studio</button>
+      <button class="qr-btn" data-size="1bed"     onclick="qrSetSize(this)">1 Bed</button>
+      <button class="qr-btn" data-size="2bed"     onclick="qrSetSize(this)">2 Bed</button>
+      <button class="qr-btn" data-size="3bed"     onclick="qrSetSize(this)">3 Bed</button>
+      <button class="qr-btn" data-size="4bed"     onclick="qrSetSize(this)">4 Bed</button>
+      <button class="qr-btn" data-size="5bed"     onclick="qrSetSize(this)">5 Bed+</button>
+      <button class="qr-btn" data-size="office_sm" onclick="qrSetSize(this)">Sm Office</button>
+      <button class="qr-btn" data-size="office_lg" onclick="qrSetSize(this)">Lg Office</button>
+    </div>
+
+    <div class="section-title" style="margin-bottom:8px">2. Move Type</div>
+    <div class="qr-type-grid">
+      <button class="qr-type-btn" data-type="local"   onclick="qrSetType(this)">LOCAL<br><span style="font-size:10px;font-weight:600">Windsor area</span></button>
+      <button class="qr-type-btn" data-type="long"    onclick="qrSetType(this)">LONG DIST<br><span style="font-size:10px;font-weight:600">100km+</span></button>
+      <button class="qr-type-btn" data-type="outprov" onclick="qrSetType(this)">OUT OF PROV<br><span style="font-size:10px;font-weight:600">Provincial</span></button>
+    </div>
+
+    <div class="section-title" style="margin-bottom:8px">3. Any of these?</div>
+    <div class="qr-check-grid">
+      <button class="qr-check-btn" data-flag="piano"    onclick="qrToggleFlag(this)">🎹 Piano</button>
+      <button class="qr-check-btn" data-flag="workshop" onclick="qrToggleFlag(this)">🔧 Workshop/Tools</button>
+      <button class="qr-check-btn" data-flag="stairs"   onclick="qrToggleFlag(this)">🪜 Extra Stairs</button>
+      <button class="qr-check-btn" data-flag="large"    onclick="qrToggleFlag(this)">📦 Very Large Items</button>
+    </div>
+
+    <div class="qr-result" id="qrResult">
+      <div class="qr-result-label">Rough Estimate</div>
+      <div class="qr-result-range" id="qrRange">$—</div>
+      <div class="qr-result-hst">(incl. HST)</div>
+      <div class="qr-result-meta" id="qrMeta"></div>
+    </div>
+
+    <div class="qr-script-box" id="qrScript"></div>
+
+    <div class="qr-actions" id="qrActions" style="display:none">
+      <button class="action-btn btn-navy" onclick="qrBookCRM()" style="font-size:12px">📅 Book Consultation → Log in CRM</button>
+      <button class="action-btn btn-gold" onclick="qrCopyRange()" style="font-size:12px">📋 Copy Range to Clipboard</button>
+    </div>
+  </div>
+</div>
+
+<!-- DEPOSIT MODAL -->
+<div class="modal-overlay" id="depositModal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeDepositModal()">×</button>
+    <div class="modal-title">💳 Collect Deposit</div>
+    <div class="modal-subtitle" id="depositModalSubtitle">Choose how to collect the deposit.</div>
+
+    <div class="deposit-option" onclick="depositETransfer()">
+      <div class="deposit-option-title">Option A — E-Transfer</div>
+      <div class="deposit-option-body" id="etransferBody">
+        Send <strong id="dmDepositAmt">$—</strong> to:<br>
+        <strong><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="670512140e0902141427141306150a0811021514490406">[email&#160;protected]</a></strong><br>
+        Message: "<span id="dmEtransferMsg">Move Deposit</span>"<br>
+        Reference: <span id="dmRef">SSM-—</span>
+      </div>
+      <button class="action-btn btn-navy" style="margin-top:10px;width:100%;font-size:13px" onclick="event.stopPropagation();copyETransferInstructions()">📋 Copy to Clipboard</button>
+    </div>
+
+    <div class="deposit-option disabled">
+      <div class="deposit-option-title">Option B — Payment Link (Stripe)</div>
+      <div class="deposit-option-body">Connect Stripe in Settings to enable online payments.<br><em>Coming soon — connect Stripe in Settings</em></div>
+    </div>
+
+    <div class="deposit-option" onclick="depositCash()">
+      <div class="deposit-option-title">Option C — Cash on Day of Move</div>
+      <div class="deposit-option-body">
+        Note: Cash deposit collected in person.<br>
+        Amount: <strong id="dmCashAmt">$—</strong>
+      </div>
+      <button class="action-btn btn-outline" style="margin-top:10px;width:100%;font-size:13px" onclick="event.stopPropagation();markCashDeposit()">💵 Mark as Cash — Log It</button>
+    </div>
+
+    <hr class="hr-double" style="margin:14px 0">
+    <button class="action-btn btn-green" style="width:100%;font-size:15px" onclick="markDepositReceived()">✓ Mark Deposit Received</button>
+    <div class="deposit-confirm-banner" id="depositConfirmBanner"></div>
+  </div>
+</div>
+
+<!-- STICKY BOTTOM BAR -->
+<div class="bottom-bar" id="bottomBar" style="display:none">
+  <div class="bottom-bar-info">
+    <div class="bar-chip" id="barItems">0 items</div>
+    <div class="bar-chip" id="barVolume" style="display:none">📦 0 cu ft</div>
+    <div class="bar-chip" id="barTime">0h</div>
+  </div>
+  <div class="bar-estimate" id="barEstimate">$—</div>
+  <button class="bar-quote-btn" onclick="showScreen(3)">→ Quote</button>
+</div>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+// ─── ITEM DATABASE ───────────────────────────────────────────────────────────
+const ITEMS = {
+  'King Bed Set':        { wrap:25, load:15, unload:10, weight:'heavy',   cat:'Bedroom',   note:'Disassemble/reassemble',                  cuft:90  },
+  'Queen Bed Set':       { wrap:20, load:12, unload:8,  weight:'heavy',   cat:'Bedroom',   note:'Disassemble/reassemble',                  cuft:70  },
+  'Single/Twin Bed':     { wrap:12, load:8,  unload:6,  weight:'medium',  cat:'Bedroom',   note:'',                                        cuft:45  },
+  'Mattress Only':       { wrap:5,  load:5,  unload:4,  weight:'medium',  cat:'Bedroom',   note:'Mattress bag recommended',                cuft:25  },
+  'Tall Dresser':        { wrap:8,  load:8,  unload:6,  weight:'heavy',   cat:'Bedroom',   note:'Remove drawers to lighten',               cuft:35  },
+  'Long Dresser':        { wrap:8,  load:7,  unload:5,  weight:'heavy',   cat:'Bedroom',   note:'',                                        cuft:40  },
+  'Small Dresser':       { wrap:6,  load:5,  unload:4,  weight:'medium',  cat:'Bedroom',   note:'',                                        cuft:20  },
+  'Sofa (2-seater)':     { wrap:10, load:7,  unload:5,  weight:'heavy',   cat:'Living',    note:'',                                        cuft:75  },
+  'Sofa (3-seater)':     { wrap:12, load:9,  unload:7,  weight:'heavy',   cat:'Living',    note:'',                                        cuft:100 },
+  'Sectional (per sec)': { wrap:10, load:6,  unload:5,  weight:'heavy',   cat:'Living',    note:'Count each section separately',           cuft:55  },
+  'Loveseat':            { wrap:8,  load:6,  unload:5,  weight:'heavy',   cat:'Living',    note:'',                                        cuft:60  },
+  'Armchair':            { wrap:5,  load:4,  unload:3,  weight:'medium',  cat:'Living',    note:'',                                        cuft:25  },
+  'Recliner':            { wrap:8,  load:7,  unload:5,  weight:'heavy',   cat:'Living',    note:'',                                        cuft:35  },
+  'Ottoman':             { wrap:5,  load:3,  unload:3,  weight:'medium',  cat:'Living',    note:'',                                        cuft:15  },
+  'Eames Chair + Stool': { wrap:15, load:5,  unload:4,  weight:'medium',  cat:'Living',    note:'High value — extra care, separate wrap',  cuft:20  },
+  'Dining Table':        { wrap:10, load:8,  unload:6,  weight:'heavy',   cat:'Dining',    note:'Remove legs if possible',                 cuft:40  },
+  'Dining Chair':        { wrap:3,  load:2,  unload:2,  weight:'light',   cat:'Dining',    note:'Stack 4 per load',                        cuft:8   },
+  'Glass Table':         { wrap:15, load:8,  unload:6,  weight:'medium',  cat:'Living',    note:'Corner protectors, tempered glass',       cuft:30  },
+  'Coffee/Center Table': { wrap:6,  load:4,  unload:3,  weight:'medium',  cat:'Living',    note:'',                                        cuft:20  },
+  'End Table':           { wrap:4,  load:3,  unload:2,  weight:'light',   cat:'Living',    note:'',                                        cuft:10  },
+  'Side Table':          { wrap:4,  load:3,  unload:2,  weight:'light',   cat:'Living',    note:'',                                        cuft:10  },
+  'Console Table':       { wrap:6,  load:4,  unload:3,  weight:'medium',  cat:'Living',    note:'',                                        cuft:15  },
+  'Office Desk':         { wrap:10, load:7,  unload:5,  weight:'heavy',   cat:'Office',    note:'Disassemble large desks',                 cuft:45  },
+  'Office Chair':        { wrap:3,  load:2,  unload:2,  weight:'light',   cat:'Office',    note:'',                                        cuft:15  },
+  'Bookshelf':           { wrap:8,  load:5,  unload:4,  weight:'medium',  cat:'Storage',   note:'Empty before move',                       cuft:25  },
+  'Metal Cabinet':       { wrap:8,  load:7,  unload:5,  weight:'heavy',   cat:'Storage',   note:'',                                        cuft:30  },
+  'Filing Cabinet':      { wrap:5,  load:6,  unload:5,  weight:'heavy',   cat:'Office',    note:'Lock drawers',                            cuft:20  },
+  'Wardrobe Box':        { wrap:5,  load:3,  unload:2,  weight:'medium',  cat:'Bedroom',   note:'Client fills',                            cuft:18  },
+  'Fridge (tall)':       { wrap:12, load:12, unload:10, weight:'xheavy',  cat:'Appliance', note:'Appliance dolly, 2 people min',           cuft:40  },
+  'Fridge (standard)':   { wrap:10, load:10, unload:8,  weight:'xheavy',  cat:'Appliance', note:'Appliance dolly',                         cuft:30  },
+  'Chest Freezer':       { wrap:8,  load:10, unload:8,  weight:'xheavy',  cat:'Appliance', note:'Very heavy when full',                    cuft:25  },
+  'Washer':              { wrap:10, load:10, unload:8,  weight:'xheavy',  cat:'Appliance', note:'Disconnect hoses',                        cuft:27  },
+  'Dryer':               { wrap:8,  load:8,  unload:7,  weight:'xheavy',  cat:'Appliance', note:'Disconnect vent',                         cuft:25  },
+  'Dishwasher':          { wrap:8,  load:8,  unload:7,  weight:'xheavy',  cat:'Appliance', note:'Disconnect',                              cuft:20  },
+  'TV (in box)':         { wrap:2,  load:2,  unload:2,  weight:'medium',  cat:'Electronics', note:'Already boxed',                         cuft:12  },
+  'TV (no box, <55in)':  { wrap:8,  load:4,  unload:3,  weight:'medium',  cat:'Electronics', note:'Blanket wrap',                          cuft:8   },
+  'TV (no box, 55in+)':  { wrap:12, load:5,  unload:4,  weight:'medium',  cat:'Electronics', note:'TV box recommended',                    cuft:14  },
+  'Box (standard)':      { wrap:1,  load:1,  unload:1,  weight:'light',   cat:'Boxes',     note:'',                                        cuft:2   },
+  'Box (heavy)':         { wrap:1,  load:2,  unload:2,  weight:'medium',  cat:'Boxes',     note:'',                                        cuft:2   },
+  'Painting (standard)': { wrap:8,  load:4,  unload:3,  weight:'light',   cat:'Fragile',   note:'Bubble wrap + corner protectors',         cuft:5   },
+  'Painting (large/oil)':{ wrap:15, load:6,  unload:5,  weight:'medium',  cat:'Fragile',   note:'High value — document condition',         cuft:10  },
+  'Mirror':              { wrap:10, load:5,  unload:4,  weight:'medium',  cat:'Fragile',   note:'Mirror box ideal',                        cuft:8   },
+  'Vase / Crystal':      { wrap:10, load:3,  unload:3,  weight:'light',   cat:'Fragile',   note:'Individual bubble wrap',                  cuft:3   },
+  'Plant (small)':       { wrap:2,  load:1,  unload:1,  weight:'light',   cat:'Plants',    note:'',                                        cuft:2   },
+  'Plant (large)':       { wrap:5,  load:4,  unload:3,  weight:'medium',  cat:'Plants',    note:'Liability waiver for long distance',      cuft:8   },
+  'Rug':                 { wrap:4,  load:2,  unload:2,  weight:'medium',  cat:'Misc',      note:'Roll and tie',                            cuft:10  },
+  'Elliptical':          { wrap:20, load:15, unload:12, weight:'xheavy',  cat:'Exercise',  note:'May need disassembly',                    cuft:40  },
+  'Treadmill':           { wrap:15, load:12, unload:10, weight:'xheavy',  cat:'Exercise',  note:'Fold if possible',                        cuft:35  },
+  'Exercise Bike':       { wrap:10, load:8,  unload:6,  weight:'heavy',   cat:'Exercise',  note:'',                                        cuft:20  },
+  'Table Saw':           { wrap:15, load:15, unload:12, weight:'xheavy',  cat:'Workshop',  note:'Strap in truck, blade guard on',          cuft:20  },
+  'Bench Saw':           { wrap:12, load:12, unload:10, weight:'xheavy',  cat:'Workshop',  note:'Strap in',                                cuft:18  },
+  'Scroll Saw':          { wrap:10, load:8,  unload:6,  weight:'heavy',   cat:'Workshop',  note:'',                                        cuft:12  },
+  'Lathe':               { wrap:20, load:18, unload:15, weight:'xheavy',  cat:'Workshop',  note:'Very heavy, 2+ people, strap in',         cuft:25  },
+  'Drill Press':         { wrap:10, load:10, unload:8,  weight:'xheavy',  cat:'Workshop',  note:'Heavy base',                              cuft:15  },
+  'Planer':              { wrap:12, load:12, unload:10, weight:'xheavy',  cat:'Workshop',  note:'Heavy machinery',                         cuft:18  },
+  'Sander (large)':      { wrap:8,  load:7,  unload:6,  weight:'heavy',   cat:'Workshop',  note:'',                                        cuft:10  },
+  'Grinder':             { wrap:5,  load:5,  unload:4,  weight:'heavy',   cat:'Workshop',  note:'',                                        cuft:5   },
+  'Oscillator':          { wrap:6,  load:6,  unload:5,  weight:'heavy',   cat:'Workshop',  note:'',                                        cuft:8   },
+  'Rotor Table':         { wrap:10, load:10, unload:8,  weight:'heavy',   cat:'Workshop',  note:'',                                        cuft:12  },
+  'Shop Vac':            { wrap:3,  load:3,  unload:2,  weight:'medium',  cat:'Workshop',  note:'',                                        cuft:6   },
+  'Vacuum':              { wrap:3,  load:2,  unload:2,  weight:'light',   cat:'Misc',      note:'',                                        cuft:4   },
+  'Workbench':           { wrap:15, load:15, unload:12, weight:'xheavy',  cat:'Workshop',  note:'Heavy, may need to disassemble',          cuft:35  },
+  'Tool Chest':          { wrap:8,  load:12, unload:10, weight:'xheavy',  cat:'Workshop',  note:'Remove tools to lighten',                 cuft:30  },
+  'Workshop Table':      { wrap:12, load:12, unload:10, weight:'xheavy',  cat:'Workshop',  note:'',                                        cuft:30  },
+  'Metal Shelf (disass)':{ wrap:4,  load:3,  unload:3,  weight:'medium',  cat:'Workshop',  note:'Pre-disassembled',                        cuft:15  },
+  'Piano (upright)':     { wrap:30, load:30, unload:25, weight:'xheavy',  cat:'Specialty', note:'Piano board required, 4 people minimum',  cuft:120 },
+  'Grand Piano':         { wrap:60, load:50, unload:40, weight:'xheavy',  cat:'Specialty', note:'Specialist required, disassemble legs',   cuft:200 },
+  'Safe (heavy)':        { wrap:15, load:25, unload:20, weight:'xheavy',  cat:'Specialty', note:'Appliance dolly, 3+ people',              cuft:20  },
+  'Pool Table':          { wrap:45, load:35, unload:30, weight:'xheavy',  cat:'Specialty', note:'Disassemble, felt protection',            cuft:80  },
+  'BBQ Grill':           { wrap:8,  load:7,  unload:5,  weight:'heavy',   cat:'Outdoor',   note:'Empty propane first',                     cuft:25  },
+  'Lawn Mower':          { wrap:6,  load:6,  unload:4,  weight:'heavy',   cat:'Outdoor',   note:'Empty fuel first',                        cuft:20  },
+  'Wheelbarrow':         { wrap:3,  load:4,  unload:3,  weight:'medium',  cat:'Outdoor',   note:'',                                        cuft:12  },
+  'Patio Table':         { wrap:8,  load:6,  unload:4,  weight:'medium',  cat:'Outdoor',   note:'',                                        cuft:20  },
+  'Patio Chair':         { wrap:3,  load:2,  unload:2,  weight:'light',   cat:'Outdoor',   note:'Stack if possible',                       cuft:8   },
+  'Outdoor Bench':       { wrap:5,  load:4,  unload:3,  weight:'medium',  cat:'Outdoor',   note:'',                                        cuft:15  },
+  'Planting Pot (large)':{ wrap:5,  load:5,  unload:4,  weight:'heavy',   cat:'Outdoor',   note:'Heavy when full of soil',                 cuft:10  },
+};
+
+// ─── SUPPLIES DATABASE ───────────────────────────────────────────────────────
+const SUPPLIES = {
+  wardrobe_box:   { label: 'Wardrobe Box',            price: 25,  cuft: 18,  unit: 'each' },
+  std_box_sm:     { label: 'Small Moving Box',         price: 3,   cuft: 1.5, unit: 'each' },
+  std_box_med:    { label: 'Medium Moving Box',        price: 4,   cuft: 2,   unit: 'each' },
+  std_box_lg:     { label: 'Large Moving Box',         price: 5,   cuft: 3,   unit: 'each' },
+  mattress_bag_q: { label: 'Mattress Bag (Queen)',     price: 15,  cuft: 0,   unit: 'each' },
+  mattress_bag_k: { label: 'Mattress Bag (King)',      price: 18,  cuft: 0,   unit: 'each' },
+  tv_box_sm:      { label: 'TV Box (<55in)',            price: 20,  cuft: 0,   unit: 'each' },
+  tv_box_lg:      { label: 'TV Box (55in+)',            price: 25,  cuft: 0,   unit: 'each' },
+  mirror_box:     { label: 'Mirror/Picture Box',       price: 18,  cuft: 0,   unit: 'each' },
+  bubble_wrap:    { label: 'Bubble Wrap Roll',         price: 12,  cuft: 0,   unit: 'roll' },
+  packing_paper:  { label: 'Packing Paper (25 sheets)',price: 8,   cuft: 0,   unit: 'pack' },
+  tape:           { label: 'Packing Tape Roll',        price: 4,   cuft: 0,   unit: 'each' },
+};
+
+// ─── CLIENT SAVINGS ──────────────────────────────────────────────────────────
+const CLIENT_SAVINGS = {
+  disassemble_beds:    { label: 'Client disassembling all beds',          saveMin: 45,  note: 'Removes disassembly time' },
+  disassemble_shelves: { label: 'Client disassembling shelves/furniture', saveMin: 30,  note: '' },
+  pack_kitchen:        { label: 'Client packing kitchen',                 saveMin: 60,  note: 'Removes packing time' },
+  pack_all:            { label: 'Client fully packed & ready',            saveMin: 90,  note: 'Load-only job' },
+  tools_ready:         { label: 'Workshop items pre-wrapped/ready',       saveMin: 30,  note: 'Removes workshop prep time' },
+  beds_stripped:       { label: 'All beds stripped & mattress bagged',    saveMin: 15,  note: '' },
+  appliances_ready:    { label: 'Appliances disconnected & ready',        saveMin: 20,  note: '' },
+};
+
+// ─── TRUCK CONSTANTS ─────────────────────────────────────────────────────────
+const TRUCKS = {
+  '26ft':  { cuft: 950,  label: '26ft Box Truck',  dailyRate: 150 },
+  '20ft':  { cuft: 650,  label: '20ft Box Truck',  dailyRate: 120 },
+  'cargo': { cuft: 300,  label: 'Cargo Van',        dailyRate: 80  },
+};
+const PACKING_EFFICIENCY = 0.72; // 72% of raw cuft fits due to wrapping bulk
+
+function calculateTrucks(totalCuft) {
+  const effective = totalCuft / PACKING_EFFICIENCY;
+  const trucks26 = Math.ceil(effective / TRUCKS['26ft'].cuft);
+  const recommendation = [];
+
+  if (effective <= TRUCKS['26ft'].cuft) {
+    recommendation.push({ option: 'A', label: '1 × 26ft Truck', note: 'Fits comfortably', trucks: 1, cost: TRUCKS['26ft'].dailyRate });
+  } else if (effective <= TRUCKS['26ft'].cuft * 2) {
+    recommendation.push({ option: 'A', label: '2 × 26ft Trucks', note: 'Recommended — done in one trip', trucks: 2, cost: TRUCKS['26ft'].dailyRate * 2 });
+    recommendation.push({ option: 'B', label: '1 × 26ft Truck (2 trips)', note: 'Cheaper but takes longer', trucks: 1, cost: TRUCKS['26ft'].dailyRate, twoTrips: true });
+  } else {
+    recommendation.push({ option: 'A', label: `${trucks26} × 26ft Trucks`, note: 'Large move', trucks: trucks26, cost: TRUCKS['26ft'].dailyRate * trucks26 });
+  }
+
+  return { effectiveCuft: Math.round(effective), rawCuft: Math.round(totalCuft), recommendation, trucks26 };
+}
+
+// ─── RATES ───────────────────────────────────────────────────────────────────
+function getRates() {
+  try {
+    const saved = localStorage.getItem('sspr_rates');
+    if (saved) return { ...DEFAULTS, ...JSON.parse(saved) };
+  } catch(e) {}
+  return { ...DEFAULTS };
+}
+
+const DEFAULTS = {
+  driver_hr: 26,
+  mover_hr: 22,
+  overhead_pct: 0.40,
+  fuel_per_km: 0.55,
+  truck_day: 150,
+  supplies: 80,
+  office_to_site_km: 15,
+  hst: 0.13,
+  deposit_pct: 0.20,
+  long_distance_km: 100,
+};
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let inventory = {};
+let supplies = {};
+let clientSavings = {};
+let crewSize = 3;
+let rateMode = 'flat';
+let notesOpen = false;
+let lastResult = null;
+let collapsedCats = {};
+let discountPct = 0;
+let truckOption = 'A'; // 'A' = recommended, 'B' = single truck / two trips
+let moveType = 'local'; // 'local' | 'long' | 'outofprovince'
+
+// Quick Range state
+let qrSize = null, qrType = null, qrFlags = {};
+
+// ─── CALCULATION ENGINE ───────────────────────────────────────────────────────
+function calculateQuote(job) {
+  const RATES = getRates();
+  const crew = job.crewSize || 3;
+  const driverCount = 1;
+  const moverCount = crew - driverCount;
+  const crewHrRate = (driverCount * RATES.driver_hr + moverCount * RATES.mover_hr) / crew;
+
+  const officeToOriginKm = job.officeToOriginKm || RATES.office_to_site_km;
+  const phase1Hours = officeToOriginKm / 60;
+  const phase1Cost = phase1Hours * crew * crewHrRate;
+
+  let totalWrapMin = 0, totalLoadMin = 0, totalUnloadMin = 0;
+  const itemNotes = [];
+
+  for (const [itemName, qty] of Object.entries(job.inventory)) {
+    const item = ITEMS[itemName];
+    if (!item || qty <= 0) continue;
+    totalWrapMin   += item.wrap   * qty;
+    totalLoadMin   += item.load   * qty;
+    totalUnloadMin += item.unload * qty;
+    if (item.note) itemNotes.push({ item: itemName, qty, note: item.note });
+  }
+
+  let stairsMult = 1 + (job.stairsOrigin ? 0.15 : 0) + (job.stairsDest ? 0.10 : 0);
+  if (job.narrowHalls)   stairsMult += 0.05;
+  if (job.elevatorCarry) stairsMult += 0.08;
+  if (job.parkingFar)    stairsMult += 0.05;
+  if (job.clientDisass)  stairsMult -= 0.15;
+  stairsMult = Math.max(stairsMult, 0.7);
+
+  totalLoadMin   *= stairsMult;
+  totalUnloadMin *= stairsMult;
+
+  if (job.packAssist)  totalWrapMin += 60;
+  if (job.fragileItems) totalWrapMin += 30;
+
+  const workshopItems = ['Table Saw','Bench Saw','Lathe','Drill Press','Planer','Rotor Table','Workbench','Tool Chest'];
+  const hasWorkshop = workshopItems.some(w => (job.inventory[w] || 0) > 0);
+  if (hasWorkshop) totalLoadMin += 30;
+
+  // Apply client savings deductions
+  let totalSavingsMin = 0;
+  for (const [key, active] of Object.entries(job.clientSavings || {})) {
+    if (active && CLIENT_SAVINGS[key]) totalSavingsMin += CLIENT_SAVINGS[key].saveMin;
+  }
+  totalWrapMin = Math.max(0, totalWrapMin - totalSavingsMin);
+  totalLoadMin = Math.max(0, totalLoadMin - 0); // savings already removed from wrap; no further deduction from load
+
+  const wrapHours   = totalWrapMin   / 60;
+  const loadHours   = totalLoadMin   / 60;
+  const unloadHours = totalUnloadMin / 60;
+
+  const phase23Hours = wrapHours + loadHours;
+  const phase23Cost  = phase23Hours * crew * crewHrRate;
+
+  const distKm = job.distanceKm || 0;
+  const driveHours = distKm / 85;
+  const fuelCost = distKm * RATES.fuel_per_km;
+  const phase4Cost = driveHours * crew * crewHrRate + fuelCost;
+
+  const assemblyMin = job.assemblyRequested ? (totalUnloadMin * 0.25) : 0;
+  const phase5Hours = (totalUnloadMin + assemblyMin) / 60;
+  const phase5Cost  = phase5Hours * crew * crewHrRate;
+
+  const phase6Hours = driveHours;
+  const phase6Cost  = phase6Hours * 1 * RATES.driver_hr;
+
+  const days = job.twoDayMove ? 2 : 1;
+
+  // Calculate total cubic footage
+  let totalCuft = 0;
+  for (const [itemName, qty] of Object.entries(job.inventory)) {
+    const item = ITEMS[itemName];
+    if (!item || qty <= 0) continue;
+    totalCuft += (item.cuft || 10) * qty;
+  }
+  // Add supply items cuft
+  for (const [supplyKey, qty] of Object.entries(job.supplies || {})) {
+    const supply = SUPPLIES[supplyKey];
+    if (supply && qty > 0) totalCuft += (supply.cuft || 2) * qty;
+  }
+  const truckCalc = calculateTrucks(totalCuft);
+
+  // Respect user's truck option selection (A = recommended, B = one truck / two trips)
+  const truckOptionIdx = job.truckOption === 'B' && truckCalc.recommendation.length > 1 ? 1 : 0;
+  const truckCost = truckCalc.recommendation[truckOptionIdx].cost * days;
+
+  let suppliesCost = 80; // base supplies (blankets, stretch wrap)
+  for (const [key, qty] of Object.entries(job.supplies || {})) {
+    const s = SUPPLIES[key];
+    if (s && qty > 0) suppliesCost += s.price * qty;
+  }
+
+  const totalHours = phase1Hours + phase23Hours + driveHours + phase5Hours;
+  const laborCost  = phase1Cost + phase23Cost + phase4Cost + phase5Cost + phase6Cost;
+  const fixedCost  = truckCost + suppliesCost;
+  const rawCost    = laborCost + fixedCost;
+  const withMarkup = rawCost * (1 + RATES.overhead_pct);
+
+  const flatRate   = Math.ceil(withMarkup / 50) * 50;
+  const hourlyRate = Math.ceil((withMarkup / Math.max(totalHours, 0.1)) / 5) * 5;
+  const discountAmount  = flatRate * ((job.discountPct || 0) / 100);
+  const discountedRate  = flatRate - discountAmount;
+
+  const recommendTwoDay = !job.twoDayMove && (distKm >= 200 || (phase23Hours + driveHours + phase5Hours) > 10);
+
+  const flags = [];
+  if (distKm >= 300) flags.push({ level:'high', text:`Long distance (${distKm}km) — fuel cost $${Math.round(fuelCost)}` });
+  if (recommendTwoDay) flags.push({ level:'high', text:'Total job exceeds 10h — recommend 2-day split (load Day 1, deliver Day 2)' });
+  if (hasWorkshop)  flags.push({ level:'high', text:'Workshop equipment detected — add 30min strapping time, secure first in truck' });
+  if (job.stairsOrigin) flags.push({ level:'med', text:'Stairs at origin — +15% load time' });
+  if (job.stairsDest)   flags.push({ level:'med', text:'Stairs at destination — +10% unload time' });
+  if ((job.inventory['Plant (large)']||0) > 0 && distKm >= 100) flags.push({ level:'med', text:'Large plants on long distance — liability waiver required' });
+  if ((job.inventory['Elliptical']||0) > 0) flags.push({ level:'med', text:'Elliptical detected — confirm still coming (may be sold)' });
+  if ((job.inventory['Piano (upright)']||0) > 0 || (job.inventory['Grand Piano']||0) > 0) flags.push({ level:'critical', text:'PIANO detected — piano board required, 4 people minimum' });
+  if ((job.inventory['Safe (heavy)']||0) > 0) flags.push({ level:'high', text:'Heavy safe — appliance dolly required, 3+ people' });
+  if (crew < 3 && (hasWorkshop || (job.inventory['Piano (upright)']||0) > 0)) flags.push({ level:'high', text:`Crew (${crew}) may be insufficient — recommend 3-4 for this job` });
+  if (job.fragileItems) flags.push({ level:'med', text:'Fragile/high-value items — document condition before loading' });
+  if (truckCalc.recommendation[0].trucks > 1) {
+    flags.push({ level:'high', text:`Volume estimate: ${truckCalc.rawCuft} cu ft raw → needs ~${truckCalc.effectiveCuft} cu ft space. Recommend ${truckCalc.recommendation[0].label}` });
+  }
+
+  const uniqueNotes = [];
+  itemNotes.forEach(n => { if (!uniqueNotes.find(u => u.item === n.item)) uniqueNotes.push(n); });
+
+  return {
+    phases: [
+      { name: 'Travel to Origin',          hours: phase1Hours,  cost: phase1Cost,  detail: `${officeToOriginKm}km × ${crew} crew` },
+      { name: 'Pack & Wrap',               hours: wrapHours,    cost: wrapHours*crew*crewHrRate, detail: `${Math.round(totalWrapMin)} min total` },
+      { name: 'Load Truck',                hours: loadHours,    cost: loadHours*crew*crewHrRate, detail: `${Math.round(totalLoadMin)} min${job.stairsOrigin?' +stairs':''}${hasWorkshop?' +strapping':''}` },
+      { name: `Drive (${distKm}km)`,       hours: driveHours,   cost: phase4Cost,  detail: `~${Math.round(driveHours*60)} min + $${Math.round(fuelCost)} fuel` },
+      { name: 'Unload & Place',            hours: phase5Hours,  cost: phase5Cost,  detail: `${Math.round(totalUnloadMin)} min${job.assemblyRequested?' +assembly':''}` },
+      { name: 'Return Drive',              hours: phase6Hours,  cost: phase6Cost,  detail: 'Driver only' },
+    ],
+    fixed: [
+      { name: `Truck (${days} day${days>1?'s':''})`, cost: truckCost },
+      { name: 'Supplies (blankets, wrap)',  cost: suppliesCost },
+    ],
+    totalHours, laborCost, fixedCost, rawCost, withMarkup,
+    flatRate, hourlyRate,
+    flags, itemNotes: uniqueNotes,
+    recommendTwoDay, crewHrRate: Math.round(crewHrRate * 100) / 100,
+    crew, totalWrapMin, totalLoadMin, totalUnloadMin,
+    wrapHours, loadHours, unloadHours, driveHours,
+    truckCalc, totalCuft,
+    discountAmount, discountedRate, discountPct: job.discountPct || 0,
+    hst: discountedRate * RATES.hst,
+    total: discountedRate + discountedRate * RATES.hst,
+    deposit: (discountedRate + discountedRate * RATES.hst) * RATES.deposit_pct,
+    suppliesCostBreakdown: suppliesCost,
+    suppliesLineItems: Object.entries(job.supplies || {}).filter(([,q]) => q > 0).map(([k,q]) => ({ name: SUPPLIES[k].label, qty: q, cost: SUPPLIES[k].price * q })),
+    totalSavingsMin,
+  };
+}
+
+// ─── GETJOB ──────────────────────────────────────────────────────────────────
+function getJob() {
+  return {
+    clientName:       document.getElementById('clientName').value,
+    origin:           document.getElementById('originAddr').value,
+    destination:      document.getElementById('destAddr').value,
+    distanceKm:       parseFloat(document.getElementById('distKm').value) || 0,
+    officeToOriginKm: parseFloat(document.getElementById('officeKm').value) || 15,
+    crewSize:         crewSize,
+    twoDayMove:       document.getElementById('twoDayMove').checked,
+    assemblyRequested:document.getElementById('assemblyReq').checked,
+    stairsOrigin:     document.getElementById('stairsOrigin').checked,
+    stairsDest:       document.getElementById('stairsDest').checked,
+    elevatorCarry:    document.getElementById('elevatorCarry').checked,
+    parkingFar:       document.getElementById('parkingFar').checked,
+    narrowHalls:      document.getElementById('narrowHalls').checked,
+    clientDisass:     document.getElementById('clientDisass').checked,
+    packAssist:       document.getElementById('packAssist').checked,
+    fragileItems:     document.getElementById('fragileItems').checked,
+    specialNotes:     document.getElementById('specialNotes').value,
+    inventory:        { ...inventory },
+    supplies:         { ...supplies },
+    clientSavings:    { ...clientSavings },
+    discountPct:      discountPct,
+    truckOption:      truckOption,
+    moveType:         moveType,
+    oopManualPrice:   parseFloat(document.getElementById('oopManualPrice') && document.getElementById('oopManualPrice').value) || 0,
+  };
+}
+
+// ─── RECALC ───────────────────────────────────────────────────────────────────
+function recalc() {
+  const job = getJob();
+  lastResult = calculateQuote(job);
+  updateBottomBar(lastResult);
+  updateInventoryStats();
+  updateTabChecks(job);
+  if (document.getElementById('screen3').classList.contains('active')) {
+    renderQuote(lastResult, job);
+  }
+  autoSave();
+}
+
+// ─── BOTTOM BAR ──────────────────────────────────────────────────────────────
+function updateBottomBar(r) {
+  const itemCount = Object.values(inventory).reduce((a,b) => a+b, 0);
+  document.getElementById('barItems').textContent = itemCount + ' items';
+  document.getElementById('barTime').textContent  = fmtHours(r.totalHours);
+
+  const ov = parseFloat(document.getElementById('overridePrice').value);
+  const price = !isNaN(ov) && ov > 0 ? ov : r.flatRate;
+  document.getElementById('barEstimate').textContent = '$' + fmt(price);
+
+  // Volume indicator
+  const volEl = document.getElementById('barVolume');
+  if (volEl && r.truckCalc) {
+    const tc = r.truckCalc;
+    const oneTruckPct = Math.round((tc.effectiveCuft / TRUCKS['26ft'].cuft) * 100);
+    if (tc.rawCuft > 0) {
+      volEl.style.display = 'block';
+      if (oneTruckPct > 100) {
+        const needTrucks = tc.recommendation[0].trucks;
+        volEl.textContent = `📦 ${tc.rawCuft} cu ft`;
+        volEl.style.color = '#ef4444';
+        volEl.title = `🚛🚛 ${needTrucks} trucks needed`;
+      } else {
+        volEl.textContent = `📦 ~${tc.rawCuft} cu ft · ${oneTruckPct}% full`;
+        volEl.style.color = oneTruckPct > 90 ? '#f97316' : 'rgba(255,255,255,0.8)';
+      }
+    } else {
+      volEl.style.display = 'none';
+    }
+  }
+
+  const bar = document.getElementById('bottomBar');
+  bar.style.display = 'flex';
+}
+
+// ─── TAB CHECKS ──────────────────────────────────────────────────────────────
+function updateTabChecks(job) {
+  const c0 = job.clientName && job.origin && job.destination && job.distanceKm > 0;
+  const c1 = Object.values(inventory).some(v => v > 0);
+  document.getElementById('check0').classList.toggle('visible', !!c0);
+  document.getElementById('check1').classList.toggle('visible', !!c1);
+  document.getElementById('check2').classList.toggle('visible', true); // always green once visited
+}
+
+// ─── SCREEN NAV ──────────────────────────────────────────────────────────────
+function showScreen(n) {
+  document.querySelectorAll('.screen').forEach((s,i) => s.classList.toggle('active', i === n));
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', i === n));
+  if (n === 3) {
+    const job = getJob();
+    lastResult = calculateQuote(job);
+    renderQuote(lastResult, job);
+    document.getElementById('overridePrice').value = '';
+    document.getElementById('overrideDiff').textContent = '';
+  }
+  if (n === 1) renderInventory();
+  if (n === 2) { renderSupplies(); renderClientSavings(); }
+  window.scrollTo(0, 0);
+}
+
+// ─── INVENTORY RENDER ─────────────────────────────────────────────────────────
+const CAT_COLORS = {
+  Bedroom:'#8b5cf6', Living:'#3b82f6', Dining:'#f59e0b', Appliance:'#ef4444',
+  Electronics:'#06b6d4', Workshop:'#78716c', Outdoor:'#22c55e', Specialty:'#ec4899',
+  Boxes:'#64748b', Fragile:'#f472b6', Plants:'#84cc16', Exercise:'#f97316',
+  Misc:'#94a3b8', Storage:'#a78bfa', Office:'#60a5fa'
+};
+
+function renderInventory(filterText) {
+  const search = (filterText || document.getElementById('searchBox').value || '').toLowerCase();
+  const container = document.getElementById('inventoryList');
+
+  // Group items by category
+  const cats = {};
+  for (const [name, data] of Object.entries(ITEMS)) {
+    if (search && !name.toLowerCase().includes(search) && !data.cat.toLowerCase().includes(search) && !data.note.toLowerCase().includes(search)) continue;
+    if (!cats[data.cat]) cats[data.cat] = [];
+    cats[data.cat].push(name);
+  }
+
+  let html = '';
+  for (const [cat, items] of Object.entries(cats)) {
+    const isOpen = collapsedCats[cat] !== true || search;
+    const color = CAT_COLORS[cat] || '#94a3b8';
+    html += `<div class="card" style="margin-bottom:10px; padding:12px 16px;">
+      <div class="cat-header" onclick="toggleCat('${cat}')">
+        <span class="cat-title"><span class="cat-dot" style="background:${color}"></span>${cat}</span>
+        <span class="cat-chevron ${isOpen?'open':''}" id="chev-${cat}">▼</span>
+      </div>
+      <div class="cat-body" id="cat-${cat}" style="${isOpen?'':'display:none'}">`;
+    for (const name of items) {
+      const d = ITEMS[name];
+      const qty = inventory[name] || 0;
+      const totalMin = d.wrap + d.load + d.unload;
+      html += `<div class="item-row ${qty > 0 ? 'highlighted' : ''}">
+        <div class="item-info">
+          <div class="item-name">${name}</div>
+          ${d.note ? `<div class="item-note">${d.note}</div>` : ''}
+          <div class="item-time">~${totalMin}min/item</div>
+        </div>
+        <div class="item-controls">
+          <button class="qty-btn" onclick="changeQty('${escName(name)}', -1)" style="${qty===0?'opacity:0.3':''}">−</button>
+          <span class="qty-display ${qty > 0 ? 'active' : ''}" id="qty-${escName(name)}">${qty}</span>
+          <button class="qty-btn gold-btn" onclick="changeQty('${escName(name)}', 1)">+</button>
+        </div>
+      </div>`;
+    }
+    html += `</div></div>`;
+  }
+
+  if (!html) html = `<div class="empty-state">No items match "${search}"</div>`;
+  container.innerHTML = html;
+
+  renderAddedSection();
+  updateInventoryStats();
+}
+
+function escName(name) {
+  return name.replace(/'/g,"&#39;").replace(/\\/g,'\\\\');
+}
+
+function renderAddedSection() {
+  const added = Object.entries(inventory).filter(([,v]) => v > 0);
+  const sec = document.getElementById('addedSection');
+  if (!added.length) { sec.style.display = 'none'; return; }
+  sec.style.display = 'block';
+  let html = '';
+  for (const [name, qty] of added) {
+    const d = ITEMS[name];
+    const totalMin = (d.wrap + d.load + d.unload) * qty;
+    html += `<div class="item-row highlighted">
+      <div class="item-info">
+        <div class="item-name">${name} <span style="color:var(--gold-dark);font-weight:800">×${qty}</span></div>
+        <div class="item-time">~${totalMin}min total</div>
+      </div>
+      <div class="item-controls">
+        <button class="qty-btn" onclick="changeQty('${escName(name)}', -1)">−</button>
+        <span class="qty-display active">${qty}</span>
+        <button class="qty-btn gold-btn" onclick="changeQty('${escName(name)}', 1)">+</button>
+      </div>
+    </div>`;
+  }
+  document.getElementById('addedItems').innerHTML = html;
+}
+
+function updateInventoryStats() {
+  let totalItems = 0, wrapMin = 0, loadMin = 0, unloadMin = 0, rawCuft = 0;
+  for (const [name, qty] of Object.entries(inventory)) {
+    const d = ITEMS[name];
+    if (!d || qty <= 0) continue;
+    totalItems += qty;
+    wrapMin   += d.wrap   * qty;
+    loadMin   += d.load   * qty;
+    unloadMin += d.unload * qty;
+    rawCuft   += (d.cuft || 10) * qty;
+  }
+  document.getElementById('statItems').textContent  = totalItems;
+  document.getElementById('statPack').textContent   = fmtMins(wrapMin);
+  document.getElementById('statLoad').textContent   = fmtMins(loadMin);
+  document.getElementById('statUnload').textContent = fmtMins(unloadMin);
+
+  const cuftEl = document.getElementById('statCuft');
+  if (cuftEl) cuftEl.textContent = rawCuft;
+
+  // Update volume chip in bottom bar (also driven by updateBottomBar, but keep in sync)
+  const volEl = document.getElementById('barVolume');
+  if (volEl && rawCuft > 0) {
+    const effectiveCuft = rawCuft / PACKING_EFFICIENCY;
+    const oneTruckPct = Math.round((effectiveCuft / TRUCKS['26ft'].cuft) * 100);
+    if (oneTruckPct > 100) {
+      const needTrucks = Math.ceil(effectiveCuft / TRUCKS['26ft'].cuft);
+      volEl.style.display = 'block';
+      volEl.textContent = `📦 ${Math.round(rawCuft)} cu ft`;
+      volEl.style.color = '#ef4444';
+      volEl.title = `🚛🚛 ${needTrucks} trucks needed`;
+    } else {
+      volEl.style.display = 'block';
+      volEl.textContent = `📦 ~${Math.round(rawCuft)} cu ft · ${oneTruckPct}% full`;
+      volEl.style.color = oneTruckPct > 90 ? '#f97316' : 'rgba(255,255,255,0.8)';
+    }
+  } else if (volEl && rawCuft === 0) {
+    volEl.style.display = 'none';
+  }
+}
+
+function changeQty(name, delta) {
+  const realName = name.replace(/&#39;/g, "'");
+  inventory[realName] = Math.max(0, (inventory[realName] || 0) + delta);
+  if (inventory[realName] === 0) delete inventory[realName];
+
+  // Update qty display in DOM without full re-render
+  const el = document.getElementById('qty-' + name);
+  if (el) {
+    const qty = inventory[realName] || 0;
+    el.textContent = qty;
+    el.classList.toggle('active', qty > 0);
+    const row = el.closest('.item-row');
+    if (row) row.classList.toggle('highlighted', qty > 0);
+    const minBtn = el.previousElementSibling;
+    if (minBtn) minBtn.style.opacity = qty === 0 ? '0.3' : '1';
+  }
+
+  renderAddedSection();
+  updateInventoryStats();
+  recalc();
+}
+
+function clearAll() {
+  if (!confirm('Clear all items from inventory?')) return;
+  inventory = {};
+  renderInventory();
+  recalc();
+}
+
+function filterInventory() {
+  renderInventory();
+}
+
+// ─── SUPPLIES RENDER ──────────────────────────────────────────────────────────
+function renderSupplies() {
+  const container = document.getElementById('suppliesList');
+  if (!container) return;
+  let html = '';
+  for (const [key, s] of Object.entries(SUPPLIES)) {
+    const qty = supplies[key] || 0;
+    html += `<div class="supplies-item-row">
+      <div class="sup-info">
+        <div class="sup-name">${s.label}</div>
+        <div class="sup-price">$${s.price} / ${s.unit}${s.cuft > 0 ? ' · ' + s.cuft + ' cu ft' : ''}</div>
+      </div>
+      <div class="item-controls">
+        <button class="qty-btn" onclick="changeSupplyQty('${key}', -1)" style="${qty===0?'opacity:0.3':''}">−</button>
+        <span class="qty-display ${qty > 0 ? 'active' : ''}" id="sqty-${key}">${qty}</span>
+        <button class="qty-btn gold-btn" onclick="changeSupplyQty('${key}', 1)">+</button>
+      </div>
+    </div>`;
+  }
+  container.innerHTML = html;
+}
+
+// ─── CLIENT SAVINGS RENDER ────────────────────────────────────────────────────
+function renderClientSavings() {
+  const container = document.getElementById('clientSavingsList');
+  if (!container) return;
+  let html = '';
+  for (const [key, s] of Object.entries(CLIENT_SAVINGS)) {
+    const active = clientSavings[key] || false;
+    const h = Math.floor(s.saveMin / 60);
+    const m = s.saveMin % 60;
+    const timeStr = h > 0 ? `${h}h ${m > 0 ? m + 'm' : ''}` : `${m}m`;
+    html += `<div class="savings-switch-row">
+      <div class="savings-label-wrap">
+        <div class="savings-label">${s.label}</div>
+        <span class="savings-badge">−${timeStr}${s.note ? ' · ' + s.note : ''}</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" ${active ? 'checked' : ''} onchange="toggleClientSaving('${key}', this.checked)">
+        <span class="slider"></span>
+      </label>
+    </div>`;
+  }
+  container.innerHTML = html;
+}
+
+function toggleClientSaving(key, val) {
+  if (val) clientSavings[key] = true;
+  else delete clientSavings[key];
+  autoSave();
+  recalc();
+}
+
+function changeSupplyQty(key, delta) {
+  supplies[key] = Math.max(0, (supplies[key] || 0) + delta);
+  if (supplies[key] === 0) delete supplies[key];
+  const el = document.getElementById('sqty-' + key);
+  if (el) {
+    const qty = supplies[key] || 0;
+    el.textContent = qty;
+    el.classList.toggle('active', qty > 0);
+    const minBtn = el.previousElementSibling;
+    if (minBtn) minBtn.style.opacity = qty === 0 ? '0.3' : '1';
+  }
+  recalc();
+}
+
+// ─── DISCOUNT ────────────────────────────────────────────────────────────────
+function setDiscount(pct) {
+  if (pct === 10) {
+    const code = prompt('Enter manager code to apply 10% discount:');
+    if (code !== '1234') {
+      alert('Manager approval required.');
+      return;
+    }
+  }
+  discountPct = pct;
+  [0, 5, 10].forEach(p => {
+    const btn = document.getElementById('disc' + p);
+    if (btn) {
+      btn.classList.toggle('active', p === pct);
+    }
+  });
+  recalc();
+}
+
+// ─── TRUCK OPTION TOGGLE ─────────────────────────────────────────────────────
+function setTruckOption(option) {
+  truckOption = option;
+  recalc();
+}
+
+function toggleCat(cat) {
+  collapsedCats[cat] = !collapsedCats[cat];
+  const body = document.getElementById('cat-' + cat);
+  const chev = document.getElementById('chev-' + cat);
+  if (body) body.style.display = collapsedCats[cat] ? 'none' : '';
+  if (chev) chev.classList.toggle('open', !collapsedCats[cat]);
+}
+
+// ─── QUOTE RENDER ─────────────────────────────────────────────────────────────
+function renderQuote(r, job) {
+  // Flags
+  const flagsSec = document.getElementById('flagsSection');
+  const flagsList = document.getElementById('flagsList');
+  if (r.flags.length) {
+    flagsSec.style.display = 'block';
+    flagsList.innerHTML = r.flags.map(f =>
+      `<span class="flag-pill flag-${f.level}">${f.level === 'critical' ? '🚨' : f.level === 'high' ? '⚠' : '💡'} ${f.text}</span>`
+    ).join('');
+  } else {
+    flagsSec.style.display = 'none';
+  }
+
+  // 2-day banner
+  const banner = document.getElementById('twoDayBanner');
+  if (r.recommendTwoDay) {
+    banner.style.display = 'block';
+    document.getElementById('twoDayText').textContent =
+      `⚡ This job is ~${fmtHours(r.totalHours)} total. We recommend loading Day 1 and delivering Day 2.`;
+  } else {
+    banner.style.display = 'none';
+  }
+
+  // Phase rows
+  let phaseHtml = '';
+  r.phases.forEach(p => {
+    if (p.hours <= 0 && p.cost <= 0) return;
+    phaseHtml += `<tr>
+      <td><div style="font-weight:600">${p.name}</div><div class="phase-detail">${p.detail}</div></td>
+      <td style="text-align:center"><span class="${timeClass(p.hours)}">${fmtHours(p.hours)}</span></td>
+      <td>$${fmt(p.cost)}</td>
+    </tr>`;
+  });
+  document.getElementById('phaseRows').innerHTML = phaseHtml;
+
+  let fixedHtml = '';
+  r.fixed.forEach(f => {
+    fixedHtml += `<div class="cost-row muted"><span>${f.name}</span><span>$${fmt(f.cost)}</span></div>`;
+  });
+  // Supplies line items
+  if (r.suppliesLineItems && r.suppliesLineItems.length > 0) {
+    r.suppliesLineItems.forEach(s => {
+      fixedHtml += `<div class="cost-row muted" style="padding-left:12px"><span style="font-size:12px">↳ ${s.name} ×${s.qty}</span><span style="font-size:12px">$${fmt(s.cost)}</span></div>`;
+    });
+  }
+  document.getElementById('fixedCostRows').innerHTML = fixedHtml;
+
+  // Cost summary
+  const RATES = getRates();
+  const savingsHtml = r.totalSavingsMin > 0 ? (() => {
+    const savingsCost = (r.totalSavingsMin / 60) * (r.crew || 3) * r.crewHrRate * (1 + RATES.overhead_pct);
+    const savingsH = Math.floor(r.totalSavingsMin / 60);
+    const savingsM = Math.round(r.totalSavingsMin % 60);
+    const savingsStr = savingsH > 0 ? `${savingsH}h ${savingsM}m` : `${savingsM}m`;
+    return `<div class="cost-row" style="color:#15803d;font-weight:700"><span>✂️ Client savings</span><span>−${savingsStr} (−$${fmt(savingsCost)})</span></div>`;
+  })() : '';
+  document.getElementById('costSummary').innerHTML = `
+    <div class="cost-row muted"><span>Labor Cost</span><span>$${fmt(r.laborCost)}</span></div>
+    <div class="cost-row muted"><span>Fixed Costs</span><span>$${fmt(r.fixedCost)}</span></div>
+    ${savingsHtml}
+    <hr class="separator">
+    <div class="cost-row"><span>Base Cost</span><span>$${fmt(r.rawCost)}</span></div>
+    <div class="cost-row muted"><span>Overhead (${Math.round(RATES.overhead_pct*100)}%)</span><span>+$${fmt(r.withMarkup - r.rawCost)}</span></div>
+    <hr class="hr-double">
+    <div class="cost-row" style="font-weight:800"><span>RECOMMENDED</span><span style="color:var(--gold-dark)">$${fmt(r.withMarkup)}</span></div>
+  `;
+
+  renderRateOutput(r);
+
+  // Truck recommendation card
+  renderTruckCard(r);
+
+  // Discount display
+  const discAmtEl = document.getElementById('discountAmount');
+  if (discAmtEl) {
+    discAmtEl.textContent = r.discountPct > 0 ? `−$${fmt(r.discountAmount)}` : '−$0';
+  }
+
+  // Item notes
+  if (r.itemNotes.length) {
+    document.getElementById('itemNotesCard').style.display = 'block';
+    document.getElementById('notesBody').innerHTML = r.itemNotes.map(n =>
+      `<div class="note-item"><span class="note-dot">●</span><span><strong>${n.item}</strong> — ${n.note}</span></div>`
+    ).join('');
+  } else {
+    document.getElementById('itemNotesCard').style.display = 'none';
+  }
+
+  // Update Collect Deposit card
+  const ov2 = parseFloat(document.getElementById('overridePrice').value);
+  const basePrice2 = (!isNaN(ov2) && ov2 > 0) ? ov2 : r.discountedRate;
+  const totalWithHst = basePrice2 + basePrice2 * RATES.hst;
+  const dep2 = totalWithHst * RATES.deposit_pct;
+  const bal2 = totalWithHst - dep2;
+  const dvEl = document.getElementById('collectDepositVal');
+  const dbEl = document.getElementById('collectBalanceVal');
+  if (dvEl) dvEl.textContent = '$' + fmt(dep2);
+  if (dbEl) dbEl.textContent = '$' + fmt(bal2);
+}
+
+function renderRateOutput(r) {
+  const ov = parseFloat(document.getElementById('overridePrice').value);
+  const hasOverride = !isNaN(ov) && ov > 0;
+  const basePrice = hasOverride ? ov : r.discountedRate;
+  const RATES = getRates();
+  const hst   = basePrice * RATES.hst;
+  const total = basePrice + hst;
+  const dep   = total * RATES.deposit_pct;
+
+  // Update rateModeHint if not already set by onDistanceChange
+  const hint = document.getElementById('rateModeHint');
+  if (hint && !hint.textContent) {
+    const distKm = parseFloat(document.getElementById('distKm').value) || 0;
+    const isLong = distKm >= RATES.long_distance_km;
+    hint.textContent = isLong
+      ? '💡 Flat rate recommended — both sides need certainty on long distance moves'
+      : '💡 Hourly recommended — customer pays actual time on local moves';
+  }
+
+  if (rateMode === 'flat') {
+    let breakdownHtml = '';
+    if (r.discountPct > 0 && !hasOverride) {
+      breakdownHtml = `
+        <div style="font-size:13px; padding: 0 4px 10px; line-height:1.9">
+          <div style="display:flex;justify-content:space-between"><span>Flat Rate</span><span><strong>$${fmt(r.flatRate)}</strong></span></div>
+          <div style="display:flex;justify-content:space-between;color:var(--red)"><span>Discount (${r.discountPct}%)</span><span>−$${fmt(r.discountAmount)}</span></div>
+          <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:4px"><span>Subtotal</span><span><strong>$${fmt(r.discountedRate)}</strong></span></div>
+        </div>`;
+    }
+    document.getElementById('rateOutput').innerHTML = `
+      ${breakdownHtml}
+      <div class="price-display">
+        <div class="price-label">${r.discountPct > 0 ? 'Discounted Flat Rate' : 'Flat Rate'}</div>
+        <div class="price-amount">$${fmt(basePrice)}</div>
+        <div class="price-sub">+ HST $${fmt(hst)} = <strong>$${fmt(total)}</strong></div>
+      </div>
+      <div class="deposit-row">
+        <div class="deposit-box">
+          <div class="deposit-lbl">Deposit (${Math.round(RATES.deposit_pct*100)}%)</div>
+          <div class="deposit-val">$${fmt(dep)}</div>
+        </div>
+        <div class="deposit-box">
+          <div class="deposit-lbl">Balance on Move</div>
+          <div class="deposit-val">$${fmt(total - dep)}</div>
+        </div>
+      </div>
+    `;
+  } else {
+    document.getElementById('rateOutput').innerHTML = `
+      <div class="price-display">
+        <div class="price-label">Hourly Rate</div>
+        <div class="price-amount">$${fmt(r.hourlyRate)}<span style="font-size:22px;font-weight:600">/hr</span></div>
+        <div class="price-sub">Est. ~${fmtHours(r.totalHours)} × $${fmt(r.hourlyRate)}/hr</div>
+      </div>
+      <div style="background:rgba(245,166,35,0.1); border:1.5px solid rgba(245,166,35,0.3); border-radius:10px; padding:12px 14px; margin-top:10px; font-size:13px; color:var(--text-muted);">
+        💡 Final invoice billed at actual hours. HST added at checkout.
+        <br>Crew rate: <strong>$${r.crewHrRate}/hr per person</strong> × ${r.crew} crew.
+      </div>
+    `;
+  }
+}
+
+// ─── TRUCK CARD RENDER ────────────────────────────────────────────────────────
+function renderTruckCard(r) {
+  const card = document.getElementById('truckCard');
+  const body = document.getElementById('truckCardBody');
+  if (!card || !body) return;
+
+  const tc = r.truckCalc;
+  const fillPct = Math.min((tc.effectiveCuft / TRUCKS['26ft'].cuft) * 100, 200);
+  const oneTruckPct = Math.round((tc.effectiveCuft / TRUCKS['26ft'].cuft) * 100);
+
+  let barColor = '#22c55e';
+  if (oneTruckPct > 100) barColor = '#ef4444';
+  else if (oneTruckPct > 90) barColor = '#f97316';
+  else if (oneTruckPct > 70) barColor = '#f5a623';
+
+  const barWidth = Math.min(fillPct, 100);
+  const fillLabel = oneTruckPct > 100
+    ? `${oneTruckPct}% — won't fit in 1 truck`
+    : `${oneTruckPct}% of one 26ft truck`;
+
+  let optionsHtml = '';
+  tc.recommendation.forEach((opt, idx) => {
+    const days = document.getElementById('twoDayMove') && document.getElementById('twoDayMove').checked ? 2 : 1;
+    const selected = truckOption === opt.option;
+    optionsHtml += `<div class="truck-option ${selected ? 'selected' : ''}" onclick="setTruckOption('${opt.option}')">
+      <div class="truck-option-icon">${selected ? '✅' : '⬜'}</div>
+      <div class="truck-option-body">
+        <div class="truck-option-label">Option ${opt.option}: ${opt.label}</div>
+        <div class="truck-option-note">${opt.note}${opt.twoTrips ? ' — adds 3–4 hours' : ''}</div>
+        <div class="truck-option-cost">+$${fmt(opt.cost * days)} truck${days > 1 ? ' (×' + days + ' days)' : ''}</div>
+      </div>
+    </div>`;
+  });
+
+  body.innerHTML = `
+    <div style="font-size:13px; color:var(--text-muted); margin-bottom:10px;">
+      Estimated Volume: <strong>${tc.rawCuft} cu ft</strong> raw →
+      <strong>${tc.effectiveCuft} cu ft</strong> needed (with wrapping)
+    </div>
+    <div class="vol-bar-wrap" style="margin-bottom:14px">
+      <div class="vol-bar-label">
+        <span>Truck fill (one 26ft)</span>
+        <span style="color:${barColor};font-weight:700">${fillLabel}</span>
+      </div>
+      <div class="vol-bar-track">
+        <div class="vol-bar-fill" style="width:${barWidth}%;background:${barColor}"></div>
+      </div>
+    </div>
+    ${optionsHtml}
+  `;
+}
+
+// ─── UI HELPERS ───────────────────────────────────────────────────────────────
+function setKm(v) {
+  document.getElementById('distKm').value = v;
+  onDistanceChange();
+}
+
+function onDistanceChange() {
+  const v = parseFloat(document.getElementById('distKm').value) || 0;
+  const RATES = getRates();
+  const isLong = v >= RATES.long_distance_km;
+  // Only auto-switch if not already set to out-of-province
+  if (moveType !== 'outofprovince') {
+    moveType = isLong ? 'long' : 'local';
+    document.getElementById('moveLocal').classList.toggle('active', !isLong);
+    document.getElementById('moveLong').classList.toggle('active', isLong);
+    document.getElementById('moveOOP').classList.remove('active');
+    const oopWarn = document.getElementById('oopWarning');
+    const oopManual = document.getElementById('oopManualWrap');
+    if (oopWarn) oopWarn.classList.remove('visible');
+    if (oopManual) oopManual.classList.remove('visible');
+  }
+
+  // Auto-switch pricing mode based on distance
+  if (isLong || moveType === 'outofprovince') {
+    rateMode = 'flat';
+  } else {
+    rateMode = 'hourly';
+  }
+  document.getElementById('rateFlat').classList.toggle('active', rateMode === 'flat');
+  document.getElementById('rateHourly').classList.toggle('active', rateMode === 'hourly');
+
+  // Update mode hint
+  const hint = document.getElementById('rateModeHint');
+  if (hint) {
+    if (isLong || moveType === 'outofprovince') {
+      hint.textContent = '💡 Flat rate recommended — both sides need certainty on long distance moves';
+    } else {
+      hint.textContent = '💡 Hourly recommended — customer pays actual time on local moves';
+    }
+  }
+
+  recalc();
+}
+
+function setMoveType(type) {
+  moveType = type;
+  document.getElementById('moveLocal').classList.toggle('active', type === 'local');
+  document.getElementById('moveLong').classList.toggle('active', type === 'long');
+  document.getElementById('moveOOP').classList.toggle('active', type === 'outofprovince');
+  const oopWarn = document.getElementById('oopWarning');
+  const oopManual = document.getElementById('oopManualWrap');
+  if (oopWarn) oopWarn.classList.toggle('visible', type === 'outofprovince');
+  if (oopManual) oopManual.classList.toggle('visible', type === 'outofprovince');
+  recalc();
+}
+
+function setCrewSize(n) {
+  crewSize = n;
+  document.querySelectorAll('[id^="crew"]').forEach(b => {
+    b.classList.toggle('active', parseInt(b.id.replace('crew','')) === n);
+  });
+  recalc();
+}
+
+function setRateMode(mode) {
+  rateMode = mode;
+  document.getElementById('rateFlat').classList.toggle('active', mode === 'flat');
+  document.getElementById('rateHourly').classList.toggle('active', mode === 'hourly');
+  if (lastResult) renderRateOutput(lastResult);
+}
+
+function onOverride() {
+  const ov  = parseFloat(document.getElementById('overridePrice').value);
+  const diff = document.getElementById('overrideDiff');
+  if (!lastResult || isNaN(ov) || ov <= 0) { diff.textContent = ''; }
+  else {
+    const delta = ov - lastResult.flatRate;
+    const pct   = Math.round((delta / lastResult.flatRate) * 100);
+    diff.className = 'override-diff ' + (delta >= 0 ? 'pos' : 'neg');
+    diff.textContent = (delta >= 0 ? '+' : '') + `$${fmt(Math.abs(delta))} (${pct >= 0 ? '+' : ''}${pct}%) vs recommended`;
+  }
+  if (lastResult) renderRateOutput(lastResult);
+  updateBottomBar(lastResult);
+}
+
+function switchToTwoDay() {
+  document.getElementById('twoDayMove').checked = true;
+  showScreen(0);
+  recalc();
+}
+
+function toggleNotes() {
+  notesOpen = !notesOpen;
+  document.getElementById('notesBody').classList.toggle('open', notesOpen);
+  document.getElementById('notesChevron').textContent = notesOpen ? '▲' : '▼';
+}
+
+// ─── FORMAT HELPERS ───────────────────────────────────────────────────────────
+function fmt(n) {
+  if (isNaN(n) || n === undefined) return '0';
+  return Math.round(n).toLocaleString('en-CA');
+}
+
+function fmtHours(h) {
+  if (!h || h <= 0) return '0m';
+  const hrs = Math.floor(h);
+  const min = Math.round((h - hrs) * 60);
+  if (hrs === 0) return `${min}m`;
+  if (min === 0) return `${hrs}h`;
+  return `${hrs}h ${min}m`;
+}
+
+function fmtMins(m) {
+  if (!m) return '0m';
+  if (m < 60) return Math.round(m) + 'm';
+  const h = Math.floor(m / 60);
+  const min = Math.round(m % 60);
+  return min ? `${h}h${min}m` : `${h}h`;
+}
+
+function timeClass(h) {
+  if (h < 2)  return 'time-green';
+  if (h < 5)  return 'time-gold';
+  if (h < 8)  return 'time-orange';
+  return 'time-red';
+}
+
+function toast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
+
+// ─── ACTIONS ──────────────────────────────────────────────────────────────────
+function copyQuote() {
+  if (!lastResult) return;
+  const job = getJob();
+  const r   = lastResult;
+  const RATES = getRates();
+  const ov  = parseFloat(document.getElementById('overridePrice').value);
+  const price = (!isNaN(ov) && ov > 0) ? ov : r.flatRate;
+  const hst   = price * RATES.hst;
+
+  let txt = `SATURN STAR MOVING — QUOTE SUMMARY\n`;
+  txt += `${'='.repeat(38)}\n`;
+  txt += `Client:      ${job.clientName || 'N/A'}\n`;
+  txt += `Origin:      ${job.origin || 'N/A'}\n`;
+  txt += `Destination: ${job.destination || 'N/A'}\n`;
+  txt += `Distance:    ${job.distanceKm} km\n`;
+  txt += `Crew:        ${r.crew} people\n`;
+  txt += `Est. Time:   ${fmtHours(r.totalHours)}\n`;
+  txt += `\nPHASE BREAKDOWN\n${'-'.repeat(38)}\n`;
+  r.phases.forEach(p => {
+    if (p.hours > 0 || p.cost > 0)
+      txt += `${p.name.padEnd(20)} ${fmtHours(p.hours).padStart(6)}  $${fmt(p.cost).padStart(8)}\n`;
+  });
+  txt += `\nFIXED COSTS\n${'-'.repeat(38)}\n`;
+  r.fixed.forEach(f => txt += `${f.name.padEnd(26)} $${fmt(f.cost).padStart(8)}\n`);
+  txt += `\n${'─'.repeat(38)}\n`;
+  txt += `Labor Cost:   $${fmt(r.laborCost)}\n`;
+  txt += `Fixed Costs:  $${fmt(r.fixedCost)}\n`;
+  txt += `Overhead:    +$${fmt(r.withMarkup - r.rawCost)}\n`;
+  txt += `${'─'.repeat(38)}\n`;
+  if (rateMode === 'flat') {
+    txt += `FLAT RATE:    $${fmt(price)}\n`;
+    txt += `HST (13%):   +$${fmt(hst)}\n`;
+    txt += `TOTAL:        $${fmt(price + hst)}\n`;
+    txt += `Deposit:      $${fmt((price + hst) * RATES.deposit_pct)}\n`;
+    txt += `Balance:      $${fmt((price + hst) * (1 - RATES.deposit_pct))}\n`;
+  } else {
+    txt += `HOURLY RATE:  $${fmt(r.hourlyRate)}/hr\n`;
+    txt += `Est. ~${fmtHours(r.totalHours)} × $${fmt(r.hourlyRate)}/hr\n`;
+    txt += `HST added at actual invoice\n`;
+  }
+  if (r.flags.length) {
+    txt += `\nNOTES & ALERTS\n${'-'.repeat(38)}\n`;
+    r.flags.forEach(f => txt += `[${f.level.toUpperCase()}] ${f.text}\n`);
+  }
+  if (r.itemNotes.length) {
+    txt += `\nITEM NOTES\n${'-'.repeat(38)}\n`;
+    r.itemNotes.forEach(n => txt += `• ${n.item}: ${n.note}\n`);
+  }
+  if (job.specialNotes) txt += `\nSpecial Notes: ${job.specialNotes}\n`;
+  txt += `\nSaturn Star Moving | Quote generated ${new Date().toLocaleDateString('en-CA')}`;
+
+  navigator.clipboard.writeText(txt).then(() => toast('✓ Quote copied to clipboard!'));
+}
+
+function saveCRM() {
+  const job  = getJob();
+  const r    = lastResult || calculateQuote(job);
+  const RATES = getRates();
+  const ov   = parseFloat(document.getElementById('overridePrice').value);
+  const price = (!isNaN(ov) && ov > 0) ? ov : r.flatRate;
+  const entry = {
+    id: Date.now(),
+    date: new Date().toISOString(),
+    clientName: job.clientName,
+    origin: job.origin,
+    destination: job.destination,
+    distanceKm: job.distanceKm,
+    crew: r.crew,
+    flatRate: price,
+    hourlyRate: r.hourlyRate,
+    totalHours: r.totalHours,
+    total: price + price * RATES.hst,
+    inventory: job.inventory,
+    flags: r.flags,
+    notes: job.specialNotes,
+    rateMode,
+    status: 'quote',
+  };
+  const leads = JSON.parse(localStorage.getItem('sscrm_leads') || '[]');
+  leads.unshift(entry);
+  localStorage.setItem('sscrm_leads', JSON.stringify(leads));
+  toast(`✓ Saved "${job.clientName || 'Quote'}" to CRM`);
+}
+
+function openEmail() {
+  const job = getJob();
+  const r   = lastResult || calculateQuote(job);
+  const RATES = getRates();
+  const ov  = parseFloat(document.getElementById('overridePrice').value);
+  const price = (!isNaN(ov) && ov > 0) ? ov : r.flatRate;
+  const total = price + price * RATES.hst;
+
+  const sub  = encodeURIComponent(`Moving Quote — ${job.clientName || 'Your Move'} | Saturn Star Moving`);
+  const body = encodeURIComponent(
+    `Hi ${job.clientName || 'there'},\n\nThank you for meeting with us today! Here is your moving quote:\n\n` +
+    `Origin: ${job.origin}\nDestination: ${job.destination}\nDistance: ${job.distanceKm}km\nCrew: ${r.crew} people\nEst. Time: ${fmtHours(r.totalHours)}\n\n` +
+    (rateMode === 'flat'
+      ? `Flat Rate: $${fmt(price)}\nHST (13%): $${fmt(price * RATES.hst)}\nTOTAL: $${fmt(total)}\nDeposit to secure date: $${fmt(total * RATES.deposit_pct)}\n`
+      : `Hourly Rate: $${fmt(r.hourlyRate)}/hr\nEstimated ${fmtHours(r.totalHours)} × $${fmt(r.hourlyRate)}/hr\n`
+    ) +
+    `\nTo confirm your booking, please reply to this email or call us.\n\nSaturn Star Moving\n`
+  );
+  window.location.href = `mailto:?subject=${sub}&body=${body}`;
+}
+
+// ─── AUTO SAVE ────────────────────────────────────────────────────────────────
+function autoSave() {
+  try {
+    const state = {
+      ...getJob(),
+      crewSize,
+      rateMode,
+      discountPct,
+      truckOption,
+    };
+    localStorage.setItem('sspr_current_job', JSON.stringify(state));
+  } catch(e) {}
+  recalc();
+}
+
+function loadState(state) {
+  if (!state) return;
+  const set = (id, val) => { const el = document.getElementById(id); if(el) el.value = val || ''; };
+  const chk = (id, val) => { const el = document.getElementById(id); if(el) el.checked = !!val; };
+  set('clientName', state.clientName);
+  set('originAddr', state.origin);
+  set('destAddr', state.destination);
+  set('distKm', state.distanceKm);
+  set('officeKm', state.officeToOriginKm || 15);
+  set('specialNotes', state.specialNotes);
+  chk('twoDayMove', state.twoDayMove);
+  chk('assemblyReq', state.assemblyRequested);
+  chk('stairsOrigin', state.stairsOrigin);
+  chk('stairsDest', state.stairsDest);
+  chk('elevatorCarry', state.elevatorCarry);
+  chk('parkingFar', state.parkingFar);
+  chk('narrowHalls', state.narrowHalls);
+  chk('clientDisass', state.clientDisass);
+  chk('packAssist', state.packAssist);
+  chk('fragileItems', state.fragileItems);
+  if (state.crewSize) setCrewSize(state.crewSize);
+  if (state.inventory) inventory = { ...state.inventory };
+  if (state.supplies)  supplies  = { ...state.supplies };
+  if (typeof state.discountPct === 'number') setDiscount(state.discountPct);
+  if (state.truckOption) truckOption = state.truckOption;
+  if (state.distanceKm) {
+    const RATES = getRates();
+    const isLong = state.distanceKm >= RATES.long_distance_km;
+    document.getElementById('moveLocal').classList.toggle('active', !isLong);
+    document.getElementById('moveLong').classList.toggle('active', isLong);
+  }
+}
+
+// ─── URL PARAMS ──────────────────────────────────────────────────────────────
+function parseURLParams() {
+  const params = new URLSearchParams(window.location.search);
+  const data = {};
+  if (params.get('client'))  data.clientName  = params.get('client');
+  if (params.get('origin'))  data.origin      = params.get('origin');
+  if (params.get('dest'))    data.destination = params.get('dest');
+  if (params.get('km'))      data.distanceKm  = parseFloat(params.get('km'));
+  return Object.keys(data).length ? data : null;
+}
+
+// ─── RESUME BANNER ────────────────────────────────────────────────────────────
+function checkResume() {
+  const urlData = parseURLParams();
+  if (urlData) { loadState(urlData); return; }
+
+  const saved = localStorage.getItem('sspr_current_job');
+  if (!saved) return;
+  try {
+    const state = JSON.parse(saved);
+    if (!state.clientName && !state.origin) return;
+    const banner = document.getElementById('resumeBanner');
+    banner.style.display = 'block';
+    banner.innerHTML = `
+      <div class="resume-banner">
+        <div class="resume-text">Resume last job? <span>${state.clientName || 'Unnamed'}</span> — ${state.origin || '?'}</div>
+        <div class="resume-btns">
+          <button class="resume-btn resume-yes" onclick="doResume()">Resume</button>
+          <button class="resume-btn resume-no"  onclick="dismissResume()">New</button>
+        </div>
+      </div>`;
+  } catch(e) {}
+}
+
+function doResume() {
+  try {
+    const state = JSON.parse(localStorage.getItem('sspr_current_job'));
+    loadState(state);
+    document.getElementById('resumeBanner').style.display = 'none';
+    recalc();
+    if (document.getElementById('screen1').classList.contains('active')) renderInventory();
+  } catch(e) {}
+}
+
+function dismissResume() {
+  document.getElementById('resumeBanner').style.display = 'none';
+  localStorage.removeItem('sspr_current_job');
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  checkResume();
+  renderInventory();
+  renderSupplies();
+  recalc();
+
+  // Auto-save on any input change
+  document.querySelectorAll('input, textarea').forEach(el => {
+    el.addEventListener('change', autoSave);
+  });
+});
+</script>
+</body>
+</html>

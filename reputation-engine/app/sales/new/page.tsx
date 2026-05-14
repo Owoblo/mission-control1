@@ -200,7 +200,7 @@ export default function NewSalesLeadPage() {
           </label>
           <label>
             <span className="crm-label">Move Date</span>
-            <input type="date" className="crm-input mt-2" value={form.moveDate} onChange={e => setField('moveDate', e.target.value)} />
+            <input type="date" className="crm-input mt-2" value={form.moveDate} onChange={e => setField('moveDate', e.target.value)} min="2024-01-01" />
           </label>
           <label>
             <span className="crm-label">Move Type</span>

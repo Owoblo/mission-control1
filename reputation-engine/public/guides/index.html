@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Saturn Star OS — Team Guides</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: #f0f2f5; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 32px 16px; }
+  .container { max-width: 680px; width: 100%; }
+  .header { text-align: center; margin-bottom: 40px; }
+  .logo { width: 80px; height: 80px; border-radius: 14px; object-fit: cover; margin: 0 auto 16px; display: block; }
+  .header h1 { font-size: 24px; font-weight: 800; color: #1a2744; }
+  .header p { font-size: 14px; color: #6b7280; margin-top: 6px; }
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .card { background: #fff; border-radius: 16px; padding: 24px; text-decoration: none; color: inherit; border: 2px solid transparent; transition: all 0.2s; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.1); }
+  .card-icon { font-size: 32px; margin-bottom: 12px; }
+  .card h2 { font-size: 16px; font-weight: 700; color: #1a2744; margin-bottom: 6px; }
+  .card p { font-size: 13px; color: #6b7280; line-height: 1.5; }
+  .card .badge { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 2px 8px; border-radius: 20px; margin-top: 12px; }
+  .card-sales { --accent: #f5a623; }
+  .card-sales .badge { background: #fef3c7; color: #92400e; }
+  .card-field { --accent: #7c3aed; }
+  .card-field .badge { background: #f5f3ff; color: #5b21b6; }
+  .card-ops { --accent: #0891b2; }
+  .card-ops .badge { background: #ecfeff; color: #0e7490; }
+  .card-crew { --accent: #16a34a; }
+  .card-crew .badge { background: #f0fdf4; color: #15803d; }
+  .print-note { text-align: center; margin-top: 24px; font-size: 12px; color: #9ca3af; }
+  @media (max-width: 480px) { .cards { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <img src="/saturn-star-logo.png" alt="Saturn Star Moving" class="logo">
+    <h1>Saturn Star OS — Team Guides</h1>
+    <p>Select your role to open your guide. Open in browser and use File → Print to save as PDF.</p>
+  </div>
+  <div class="cards">
+    <a href="/guides/sales-rep.html" class="card card-sales">
+      <div class="card-icon">📞</div>
+      <h2>Sales Rep</h2>
+      <p>Leads, calls, quotes, dialer, inbox, booking, follow-ups. Everything you need to close moves.</p>
+      <span class="badge">Sales</span>
+    </a>
+    <a href="/guides/field-rep.html" class="card card-field">
+      <div class="card-icon">🏠</div>
+      <h2>Field Rep / Manager</h2>
+      <p>In-home consultations, on-site checklist, live handoff to office, CRM updates.</p>
+      <span class="badge">Field</span>
+    </a>
+    <a href="/guides/operations.html" class="card card-ops">
+      <div class="card-icon">🚛</div>
+      <h2>Operations</h2>
+      <p>Job management, dispatch briefs, crew assignment, truck reservation, pre-move checklist.</p>
+      <span class="badge">Operations</span>
+    </a>
+    <a href="/guides/crew.html" class="card card-crew">
+      <div class="card-icon">💪</div>
+      <h2>Crew Leads & Movers</h2>
+      <p>Crew Calendar app, reading dispatch briefs, move day rules, what to do when things go wrong.</p>
+      <span class="badge">Crew</span>
+    </a>
+  </div>
+  <p class="print-note">To save as PDF: open any guide → File → Print → Save as PDF · Internal use only · Saturn Star Moving Company</p>
+</div>
+</body>
+</html>

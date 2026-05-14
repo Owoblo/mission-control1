@@ -90,13 +90,10 @@ function buildLinkedInDraft(contact: Record<string, unknown>, batch: Record<stri
 }
 
 export async function POST(request: Request) {
-  const isVercelCron = request.headers.get('x-vercel-cron') === '1'
-  if (!isVercelCron) {
-    const auth = request.headers.get('authorization')
-    const secret = readEnv('CRON_SECRET') || 'saturn-cron-2026'
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+  const auth = request.headers.get('authorization')
+  const secret = readEnv('CRON_SECRET')
+  if (!secret || auth !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   const { url, headers } = requireSupabaseEnv()

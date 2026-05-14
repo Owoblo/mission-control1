@@ -11,3 +11,4 @@ reputation-engine/.env*.local
 **/.DS_Store
 .vercel
 reputation-engine/.vercel
+.env*.local

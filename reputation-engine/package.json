@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "test:logic": "rm -rf .tmp-logic-tests && tsc -p tsconfig.logic-tests.json && node --test .tmp-logic-tests/tests/logic/*.test.js",
     "smoke:automation": "bash scripts/automation-smoke.sh",
     "deploy": "vercel deploy --prod"
   },

@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Saturn Star Movers — SOPs</title>
+<style>
+  /* ═══════ NEUMORPHIC APPLE DESIGN SYSTEM ═══════ */
+  :root {
+    --navy: #0F1B2D;
+    --gold: #E6A817;
+    --gold-dark: #B8941F;
+    --gold-light: #FFD54F;
+    --sidebar-width: 272px;
+    --radius: 16px;
+    --radius-sm: 12px;
+    --radius-xs: 8px;
+    --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  [data-theme="light"] {
+    --bg: #f0f0f3;
+    --bg-alt: #e8e8eb;
+    --card-bg: #f0f0f3;
+    --sidebar-bg: rgba(255,255,255,0.72);
+    --sidebar-blur: blur(20px) saturate(180%);
+    --sidebar-header-bg: var(--navy);
+    --text: #1d1d1f;
+    --text-secondary: #424245;
+    --text-muted: #86868b;
+    --border: rgba(0,0,0,0.06);
+    --divider: rgba(0,0,0,0.08);
+    --hero-bg: linear-gradient(135deg, #ffffff 0%, #f5f5f7 100%);
+    --hero-text: var(--navy);
+    --script-bg: #fffbeb;
+    --script-border: var(--gold);
+    --table-header-bg: rgba(0,0,0,0.02);
+    --hover-row: rgba(0,0,0,0.015);
+    --badge-role-bg: #e8f0fe;
+    --badge-role-color: #1a73e8;
+    --badge-metric-bg: #e6f4ea;
+    --badge-metric-color: #137333;
+    --neu-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.9);
+    --neu-shadow-sm: 3px 3px 6px rgba(0,0,0,0.06), -3px -3px 6px rgba(255,255,255,0.8);
+    --neu-shadow-inset: inset 2px 2px 5px rgba(0,0,0,0.06), inset -2px -2px 5px rgba(255,255,255,0.8);
+    --neu-shadow-hover: 8px 8px 16px rgba(0,0,0,0.1), -8px -8px 16px rgba(255,255,255,0.95);
+    --glass-bg: rgba(255,255,255,0.6);
+    --glass-border: rgba(255,255,255,0.3);
+    --topbar-bg: rgba(255,255,255,0.72);
+    --nav-active-bg: rgba(230,168,23,0.08);
+    --checklist-border: #c7c7cc;
+    --success: #34c759; --warning: #ff9f0a; --danger: #ff3b30; --info: #007aff;
+    --level1-bg: #fffbeb; --level2-bg: #fff4e6; --level3-bg: #fff1f0;
+  }
+
+  [data-theme="dark"] {
+    --bg: #1c1c1e;
+    --bg-alt: #2c2c2e;
+    --card-bg: #2c2c2e;
+    --sidebar-bg: rgba(44,44,46,0.72);
+    --sidebar-blur: blur(20px) saturate(180%);
+    --sidebar-header-bg: #000000;
+    --text: #f5f5f7;
+    --text-secondary: #d1d1d6;
+    --text-muted: #8e8e93;
+    --border: rgba(255,255,255,0.08);
+    --divider: rgba(255,255,255,0.1);
+    --hero-bg: linear-gradient(135deg, #2c2c2e 0%, #1c1c1e 100%);
+    --hero-text: var(--gold);
+    --script-bg: rgba(230,168,23,0.06);
+    --script-border: var(--gold);
+    --table-header-bg: rgba(255,255,255,0.03);
+    --hover-row: rgba(255,255,255,0.02);
+    --badge-role-bg: rgba(0,122,255,0.15);
+    --badge-role-color: #64d2ff;
+    --badge-metric-bg: rgba(52,199,89,0.15);
+    --badge-metric-color: #30d158;
+    --neu-shadow: 4px 4px 8px rgba(0,0,0,0.4), -4px -4px 8px rgba(255,255,255,0.03);
+    --neu-shadow-sm: 2px 2px 4px rgba(0,0,0,0.3), -2px -2px 4px rgba(255,255,255,0.02);
+    --neu-shadow-inset: inset 2px 2px 5px rgba(0,0,0,0.3), inset -2px -2px 5px rgba(255,255,255,0.03);
+    --neu-shadow-hover: 6px 6px 12px rgba(0,0,0,0.5), -6px -6px 12px rgba(255,255,255,0.04);
+    --glass-bg: rgba(44,44,46,0.6);
+    --glass-border: rgba(255,255,255,0.08);
+    --topbar-bg: rgba(28,28,30,0.72);
+    --nav-active-bg: rgba(230,168,23,0.1);
+    --checklist-border: #48484a;
+    --success: #30d158; --warning: #ff9f0a; --danger: #ff453a; --info: #0a84ff;
+    --level1-bg: rgba(255,159,10,0.08); --level2-bg: rgba(255,149,0,0.08); --level3-bg: rgba(255,69,58,0.08);
+  }
+
+  /* ═══════ BASE ═══════ */
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    min-height: 100vh;
+    transition: background var(--transition), color var(--transition);
+    letter-spacing: -0.01em;
+  }
+
+  /* ═══════ SIDEBAR — FROSTED GLASS ═══════ */
+  .sidebar {
+    width: var(--sidebar-width);
+    background: var(--sidebar-bg);
+    backdrop-filter: var(--sidebar-blur);
+    -webkit-backdrop-filter: var(--sidebar-blur);
+    border-right: 1px solid var(--border);
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    overflow-y: auto;
+    z-index: 100;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background var(--transition);
+  }
+
+  .sidebar::-webkit-scrollbar { width: 0; }
+
+  .sidebar-header {
+    padding: 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--sidebar-header-bg);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo-spot {
+    width: 48px; height: 48px;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    flex-shrink: 0;
+    background: rgba(255,255,255,0.1);
+  }
+
+  .logo-spot img { width: 100%; height: 100%; object-fit: cover; }
+
+  .sidebar-header-text h1 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+  }
+
+  .sidebar-header-text p {
+    font-size: 10px;
+    color: rgba(255,255,255,0.45);
+    margin-top: 3px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    font-weight: 500;
+  }
+
+  .nav-section { padding: 12px 0; }
+
+  .nav-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    padding: 0 20px 6px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 16px;
+    margin: 2px 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-radius: var(--radius-xs);
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--text-secondary);
+    text-decoration: none;
+  }
+
+  .nav-item:hover { background: var(--nav-active-bg); color: var(--text); }
+
+  .nav-item.active {
+    background: var(--nav-active-bg);
+    color: var(--gold);
+    font-weight: 600;
+  }
+
+  .nav-icon { width: 22px; text-align: center; font-size: 16px; opacity: 0.7; }
+  .nav-item.active .nav-icon { opacity: 1; }
+
+  .sidebar-footer {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .theme-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    background: var(--card-bg);
+    border: none;
+    border-radius: var(--radius-xs);
+    padding: 8px 14px;
+    width: 100%;
+    justify-content: center;
+    box-shadow: var(--neu-shadow-sm);
+    transition: all 0.2s;
+  }
+
+  .theme-toggle:hover { color: var(--gold); box-shadow: var(--neu-shadow); }
+  .theme-toggle:active { box-shadow: var(--neu-shadow-inset); }
+
+  /* ═══════ MAIN ═══════ */
+  .main { margin-left: var(--sidebar-width); flex: 1; min-height: 100vh; }
+
+  .topbar {
+    background: var(--topbar-bg);
+    backdrop-filter: var(--sidebar-blur);
+    -webkit-backdrop-filter: var(--sidebar-blur);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    transition: background var(--transition);
+  }
+
+  .topbar-title { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+  .topbar-meta { font-size: 12px; color: var(--text-muted); font-weight: 400; }
+  .topbar-right { display: flex; gap: 8px; align-items: center; }
+
+  .search-box {
+    background: var(--card-bg);
+    border: none;
+    border-radius: 10px;
+    padding: 8px 14px;
+    color: var(--text);
+    font-size: 13px;
+    width: 240px;
+    outline: none;
+    box-shadow: var(--neu-shadow-inset);
+    transition: box-shadow 0.2s;
+    font-family: inherit;
+  }
+
+  .search-box:focus { box-shadow: var(--neu-shadow-inset), 0 0 0 2px rgba(230,168,23,0.3); }
+  .search-box::placeholder { color: var(--text-muted); }
+
+  .print-btn {
+    background: var(--card-bg);
+    border: none;
+    color: var(--text-muted);
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: var(--neu-shadow-sm);
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+
+  .print-btn:hover { color: var(--gold); box-shadow: var(--neu-shadow); }
+  .print-btn:active { box-shadow: var(--neu-shadow-inset); }
+
+  .content { padding: 28px 32px; max-width: 880px; }
+
+  /* ═══════ MOBILE ═══════ */
+  .mobile-toggle {
+    display: none;
+    position: fixed; bottom: 24px; right: 24px;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--gold);
+    color: white; border: none; font-size: 20px;
+    cursor: pointer; z-index: 200;
+    box-shadow: 0 6px 20px rgba(230,168,23,0.4);
+  }
+  .overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.3); backdrop-filter:blur(4px); z-index:90; }
+  @media(max-width:768px){
+    .sidebar{transform:translateX(-100%);} .sidebar.open{transform:translateX(0);}
+    .main{margin-left:0;} .mobile-toggle{display:flex;align-items:center;justify-content:center;}
+    .overlay.show{display:block;} .search-box{width:140px;} .content{padding:20px 16px;}
+  }
+
+  /* ═══════ NEUMORPHIC CARDS ═══════ */
+  .section-hero {
+    background: var(--hero-bg);
+    border-radius: var(--radius);
+    padding: 32px;
+    margin-bottom: 28px;
+    box-shadow: var(--neu-shadow);
+    border: 1px solid var(--glass-border);
+  }
+
+  .section-hero h2 { font-size: 26px; font-weight: 700; color: var(--hero-text); margin-bottom: 8px; letter-spacing: -0.03em; }
+  .section-hero p { color: var(--text-muted); font-size: 15px; line-height: 1.65; font-weight: 400; }
+
+  .badge {
+    display: inline-block; padding: 4px 12px; border-radius: 20px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
+  }
+  .badge-role { background: var(--badge-role-bg); color: var(--badge-role-color); }
+  .badge-metric { background: var(--badge-metric-bg); color: var(--badge-metric-color); }
+
+  h3 {
+    font-size: 17px; font-weight: 700; margin: 32px 0 12px;
+    color: var(--text); letter-spacing: -0.02em;
+    padding-bottom: 8px; border-bottom: 1px solid var(--divider);
+  }
+
+  h4 { font-size: 15px; font-weight: 600; margin: 20px 0 8px; color: var(--text); letter-spacing: -0.01em; }
+  p, li { font-size: 14px; line-height: 1.72; font-weight: 400; }
+  ul, ol { padding-left: 20px; margin: 8px 0; }
+  li { margin: 5px 0; }
+  strong { font-weight: 600; }
+
+  .card {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin: 14px 0;
+    box-shadow: var(--neu-shadow);
+    border: 1px solid var(--glass-border);
+    transition: box-shadow 0.2s;
+  }
+
+  .card:hover { box-shadow: var(--neu-shadow-hover); }
+
+  /* ═══════ TABLES ═══════ */
+  table {
+    width: 100%; border-collapse: separate; border-spacing: 0;
+    margin: 14px 0; font-size: 13px;
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--neu-shadow);
+    border: 1px solid var(--glass-border);
+  }
+
+  th {
+    background: var(--table-header-bg); text-align: left;
+    padding: 11px 16px; color: var(--text-muted);
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px;
+    border-bottom: 1px solid var(--divider);
+  }
+
+  td { padding: 11px 16px; border-bottom: 1px solid var(--divider); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--hover-row); }
+
+  /* ═══════ CHECKLIST ═══════ */
+  .checklist { list-style: none; padding: 0; }
+  .checklist li {
+    padding: 10px 0 10px 34px; position: relative;
+    border-bottom: 1px solid var(--divider);
+    cursor: pointer; user-select: none;
+    transition: color 0.2s;
+  }
+  .checklist li::before {
+    content: ''; position: absolute; left: 0; top: 12px;
+    width: 20px; height: 20px;
+    border: 2px solid var(--checklist-border);
+    border-radius: 6px; cursor: pointer;
+    transition: all 0.2s;
+    background: var(--card-bg);
+    box-shadow: var(--neu-shadow-sm);
+  }
+  .checklist li.checked::before { background: var(--gold); border-color: var(--gold); box-shadow: none; }
+  .checklist li.checked::after { content: '\\2713'; position: absolute; left: 5px; top: 10px; font-size: 13px; color: white; font-weight: 700; }
+  .checklist li.checked { color: var(--text-muted); text-decoration: line-through; }
+  .checklist li:last-child { border-bottom: none; }
+
+  /* ═══════ SCRIPT BLOCK ═══════ */
+  .script-block {
+    background: var(--script-bg);
+    border-left: 3px solid var(--script-border);
+    padding: 16px 20px; margin: 14px 0;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    font-style: italic; color: var(--gold-dark); font-size: 14px; line-height: 1.72;
+  }
+
+  /* ═══════ METRICS ═══════ */
+  .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin: 18px 0; }
+
+  .metric-card {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    padding: 20px 16px;
+    text-align: center;
+    box-shadow: var(--neu-shadow);
+    border: 1px solid var(--glass-border);
+    transition: box-shadow 0.2s, transform 0.2s;
+  }
+
+  .metric-card:hover { box-shadow: var(--neu-shadow-hover); transform: translateY(-2px); }
+  .metric-value { font-size: 30px; font-weight: 800; color: var(--gold); letter-spacing: -0.03em; }
+  .metric-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 6px; font-weight: 600; }
+
+  /* ═══════ OBJECTIONS ═══════ */
+  .objection-row {
+    display: grid; grid-template-columns: 1fr 2fr; gap: 16px;
+    margin: 10px 0; padding: 16px;
+    background: var(--card-bg); border-radius: var(--radius);
+    box-shadow: var(--neu-shadow); border: 1px solid var(--glass-border);
+  }
+  .objection-label { color: var(--danger); font-weight: 600; font-size: 13px; }
+  .objection-response { font-size: 13px; line-height: 1.65; }
+
+  /* ═══════ LEVEL CARDS ═══════ */
+  .level-card {
+    border-left: 4px solid; padding: 18px 22px;
+    background: var(--card-bg); border-radius: 0 var(--radius) var(--radius) 0;
+    margin: 14px 0; box-shadow: var(--neu-shadow-sm);
+  }
+  .level-1 { border-left-color: var(--warning); background: var(--level1-bg); }
+  .level-2 { border-left-color: #f97316; background: var(--level2-bg); }
+  .level-3 { border-left-color: var(--danger); background: var(--level3-bg); }
+  .level-title { font-weight: 700; margin-bottom: 10px; font-size: 14px; }
+  .level-1 .level-title { color: var(--warning); }
+  .level-2 .level-title { color: #f97316; }
+  .level-3 .level-title { color: var(--danger); }
+
+  /* ═══════ HOME CARDS ═══════ */
+  .home-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(255px, 1fr)); gap: 16px; margin: 24px 0; }
+
+  .home-card {
+    background: var(--card-bg); border-radius: var(--radius);
+    padding: 24px; cursor: pointer;
+    box-shadow: var(--neu-shadow);
+    border: 1px solid var(--glass-border);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .home-card:hover { box-shadow: var(--neu-shadow-hover); transform: translateY(-3px); }
+  .home-card:active { box-shadow: var(--neu-shadow-inset); transform: translateY(0); }
+  .home-card-icon { font-size: 30px; margin-bottom: 14px; }
+  .home-card h3 { font-size: 16px; color: var(--text); border: none; margin: 0 0 6px; padding: 0; }
+  .home-card p { font-size: 12px; color: var(--text-muted); line-height: 1.55; }
+  .home-card .card-roles { margin-top: 14px; display: flex; gap: 6px; flex-wrap: wrap; }
+
+  /* ═══════ VALUES ═══════ */
+  .values-list { display: grid; gap: 12px; margin: 16px 0; }
+  .value-item {
+    display: flex; gap: 16px; align-items: flex-start;
+    padding: 18px; background: var(--card-bg); border-radius: var(--radius);
+    box-shadow: var(--neu-shadow); border: 1px solid var(--glass-border);
+  }
+  .value-num {
+    width: 34px; height: 34px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--gold), var(--gold-light));
+    color: white; display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 14px; flex-shrink: 0;
+  }
+  .value-text strong { display: block; margin-bottom: 3px; font-weight: 600; }
+  .value-text span { font-size: 13px; color: var(--text-muted); }
+
+  /* ═══════ DO/DON'T ═══════ */
+  .do-dont { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 14px 0; }
+  .do-col, .dont-col {
+    background: var(--card-bg); border-radius: var(--radius);
+    padding: 20px; box-shadow: var(--neu-shadow);
+    border: 1px solid var(--glass-border);
+  }
+  .do-col { border-top: 4px solid var(--success); }
+  .dont-col { border-top: 4px solid var(--danger); }
+  .do-col h4 { color: var(--success); margin-top: 0; }
+  .dont-col h4 { color: var(--danger); margin-top: 0; }
+
+  /* ═══════ FLOW STEPS ═══════ */
+  .flow-step {
+    display: flex; gap: 16px; margin: 14px 0; padding: 20px;
+    background: var(--card-bg); border-radius: var(--radius);
+    box-shadow: var(--neu-shadow); border: 1px solid var(--glass-border);
+  }
+  .flow-num {
+    width: 38px; height: 38px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+    color: white; display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 16px; flex-shrink: 0;
+  }
+  .flow-content h4 { margin: 0 0 6px; font-size: 15px; }
+  .flow-content p { font-size: 13px; color: var(--text-muted); line-height: 1.65; }
+  .flow-content ul { margin-top: 8px; }
+  .flow-content li { font-size: 13px; }
+
+  /* ═══════ DECISION BOX ═══════ */
+  .decision-box { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 18px 0; }
+  .decision-option {
+    padding: 22px; border-radius: var(--radius);
+    background: var(--card-bg); box-shadow: var(--neu-shadow);
+    border: 2px solid var(--border);
+  }
+  .decision-option.option-a { border-color: var(--success); }
+  .decision-option.option-b { border-color: var(--info); }
+  .decision-option h4 { margin-top: 0; }
+  .decision-option .option-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; font-weight: 700; margin-bottom: 8px; }
+  .option-a .option-label { color: var(--success); }
+  .option-b .option-label { color: var(--info); }
+
+  /* ═══════ CALLOUT ═══════ */
+  .callout { padding: 18px 22px; border-radius: var(--radius); margin: 18px 0; font-size: 14px; line-height: 1.65; border: 1px solid; }
+  .callout-gold { background: var(--script-bg); border-color: rgba(230,168,23,0.2); color: var(--gold-dark); }
+  .callout-success { background: rgba(52,199,89,0.04); border-color: rgba(52,199,89,0.2); }
+  .callout-danger { background: var(--level3-bg); border-color: rgba(255,59,48,0.2); }
+
+  /* ═══════ PRICING HIGHLIGHT ═══════ */
+  .pricing-highlight {
+    background: var(--card-bg); border: 2px solid var(--gold);
+    border-radius: var(--radius); padding: 26px; margin: 18px 0;
+    box-shadow: var(--neu-shadow), 0 0 0 4px rgba(230,168,23,0.06);
+  }
+  .pricing-highlight h4 { color: var(--gold); margin-top: 0; font-size: 16px; letter-spacing: -0.02em; }
+  .price-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--divider); }
+  .price-row:last-child { border-bottom: none; }
+  .price-label { font-size: 14px; font-weight: 600; }
+  .price-value { font-size: 22px; font-weight: 800; color: var(--gold); letter-spacing: -0.02em; }
+  .price-note { font-size: 12px; color: var(--text-muted); margin-top: 2px; font-weight: 400; }
+
+  /* ═══════ POLICY BOX ═══════ */
+  .policy-box {
+    background: var(--card-bg); border-radius: var(--radius);
+    padding: 22px 24px; margin: 14px 0;
+    border-left: 4px solid var(--gold);
+    box-shadow: var(--neu-shadow);
+  }
+  .policy-box h4 { color: var(--gold); margin: 0 0 10px; font-size: 15px; }
+
+  @media(max-width:600px){ .do-dont,.decision-box{grid-template-columns:1fr;} .objection-row{grid-template-columns:1fr;} .metric-grid{grid-template-columns:1fr 1fr;} }
+
+  @media print {
+    .sidebar,.topbar,.mobile-toggle,.overlay{display:none!important;}
+    .main{margin-left:0!important;}
+    body{background:white;color:black;}
+    .card,.metric-card,.home-card,.value-item,.flow-step,.decision-option,.pricing-highlight,.policy-box,.level-card,.objection-row,.do-col,.dont-col{
+      box-shadow:none!important;background:#f9f9f9!important;border:1px solid #ddd!important;
+    }
+    .section-hero{box-shadow:none!important;background:#f5f5f5!important;}
+    h3,.section-hero h2{color:#333!important;}
+    .metric-value{color:#333!important;}
+    table{box-shadow:none!important;border:1px solid #ddd!important;}
+  }
+</style>
+</head>
+<body>
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="logo-spot">
+      <img src="logo.jpg" alt="Saturn Star Movers">
+    </div>
+    <div class="sidebar-header-text">
+      <h1>SATURN STAR</h1>
+      <p>Standard Operating Procedures</p>
+    </div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Overview</div>
+    <div class="nav-item active" data-page="home"><span class="nav-icon">&#9733;</span> Home</div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Mission Control</div>
+    <a class="nav-item" href="mission-control-team-handbook.html"><span class="nav-icon">&#128214;</span> Team Handbook</a>
+    <a class="nav-item" href="mission-control-map.html"><span class="nav-icon">&#128506;</span> System Map</a>
+    <a class="nav-item" href="fidelis-operations-lead.html"><span class="nav-icon">&#128736;</span> Operations Lead SOP</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Departments</div>
+    <div class="nav-item" data-page="operations"><span class="nav-icon">&#9881;</span> Operations</div>
+    <div class="nav-item" data-page="sales"><span class="nav-icon">&#9742;</span> Sales & Estimating</div>
+    <div class="nav-item" data-page="cs"><span class="nav-icon">&#9829;</span> Customer Service</div>
+    <div class="nav-item" data-page="marketing"><span class="nav-icon">&#9776;</span> Marketing</div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Calls & Pricing</div>
+    <div class="nav-item" data-page="inbound"><span class="nav-icon">&#128222;</span> Inbound Call Handling</div>
+    <div class="nav-item" data-page="pricing"><span class="nav-icon">&#128176;</span> Pricing & Quoting</div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Company</div>
+    <div class="nav-item" data-page="hr"><span class="nav-icon">&#9823;</span> HR & Onboarding</div>
+    <div class="nav-item" data-page="quality"><span class="nav-icon">&#10004;</span> Quality & Standards</div>
+    <div class="nav-item" data-page="finance"><span class="nav-icon">&#36;</span> Finance & Admin</div>
+  </div>
+  <div class="sidebar-footer">
+    <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()">
+      <span id="themeIcon">&#9790;</span> <span id="themeLabel">Dark Mode</span>
+    </button>
+  </div>
+</nav>
+<div class="overlay" id="overlay"></div>
+<button class="mobile-toggle" id="mobileToggle">&#9776;</button>
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title" id="topbarTitle">Welcome</div>
+      <div class="topbar-meta" id="topbarMeta">Last updated: April 30, 2026</div>
+    </div>
+    <div class="topbar-right">
+      <input type="text" class="search-box" id="searchBox" placeholder="Search SOPs..." />
+      <button class="print-btn" onclick="window.print()">Print</button>
+    </div>
+  </div>
+  <div class="content" id="content"></div>
+</div>
+<script>
+const pages={home:{title:'Welcome',meta:'Saturn Star Movers SOP Portal',html:`
+  <div class="section-hero">
+    <h2>Saturn Star Movers SOPs</h2>
+    <p>Everything your team needs to deliver a world-class moving experience. Click any department below to view its full standard operating procedure.</p>
+  </div>
+  <div class="home-grid">
+    <div class="home-card" onclick="window.location.href='mission-control-team-handbook.html'"><div class="home-card-icon">&#128214;</div><h3>Mission Control Handbook</h3><p>How sales, booking, operations, and crew should use the software day to day, including the truck-reservation handoff.</p><div class="card-roles"><span class="badge badge-role">Sales</span><span class="badge badge-role">Operations</span><span class="badge badge-role">Managers</span></div></div>
+    <div class="home-card" onclick="window.location.href='mission-control-map.html'"><div class="home-card-icon">&#128506;</div><h3>Mission Control System Map</h3><p>A visual diagram of how leads, quotes, booked jobs, truck planning, crew assignment, and move-day execution connect.</p><div class="card-roles"><span class="badge badge-role">All Staff</span></div></div>
+    <div class="home-card" onclick="window.location.href='fidelis-operations-lead.html'"><div class="home-card-icon">&#128736;</div><h3>Fidelis Operations Lead SOP</h3><p>A short branch-operations SOP covering what Fidelis can control, what stays out of scope, and when to escalate.</p><div class="card-roles"><span class="badge badge-role">Operations</span><span class="badge badge-role">Waterloo</span></div></div>
+    <div class="home-card" onclick="navigateTo('operations')"><div class="home-card-icon">&#9881;</div><h3>Operations</h3><p>Moving day execution, crew start times, loading standards, safety, damage protocol</p><div class="card-roles"><span class="badge badge-role">Movers</span><span class="badge badge-role">Crew Leads</span><span class="badge badge-role">Drivers</span></div></div>
+    <div class="home-card" onclick="navigateTo('sales')"><div class="home-card-icon">&#9742;</div><h3>Sales & Estimating</h3><p>The full consultation journey — AI pre-scan, in-home walkthrough, add-on services, 20 free boxes, pricing, objection handling</p><div class="card-roles"><span class="badge badge-role">Moving Consultants</span><span class="badge badge-role">Sales Reps</span></div></div>
+    <div class="home-card" onclick="navigateTo('cs')"><div class="home-card-icon">&#9829;</div><h3>Customer Service</h3><p>Call handling, CRM workflow, complaint resolution, confirmation calls, booking flow</p><div class="card-roles"><span class="badge badge-role">CS Reps</span><span class="badge badge-role">Office Staff</span></div></div>
+    <div class="home-card" onclick="navigateTo('marketing')"><div class="home-card-icon">&#9776;</div><h3>Marketing</h3><p>Direct mail (2x/week), commercial outreach, social media, referral programs</p><div class="card-roles"><span class="badge badge-role">Marketing</span><span class="badge badge-role">Owner</span></div></div>
+    <div class="home-card" onclick="navigateTo('hr')"><div class="home-card-icon">&#9823;</div><h3>HR & Onboarding</h3><p>Pay rates ($18-$22/hr), commission structure, dress code, probation, conduct</p><div class="card-roles"><span class="badge badge-role">All New Hires</span><span class="badge badge-role">HR</span></div></div>
+    <div class="home-card" onclick="navigateTo('quality')"><div class="home-card-icon">&#10004;</div><h3>Quality & Standards</h3><p>Customer experience checklist, audits, damage prevention, vehicle standards</p><div class="card-roles"><span class="badge badge-role">All Staff</span></div></div>
+    <div class="home-card" onclick="navigateTo('finance')"><div class="home-card-icon">&#36;</div><h3>Finance & Admin</h3><p>Invoicing, deposits, payment collection, insurance claims ($300 threshold)</p><div class="card-roles"><span class="badge badge-role">Admin</span><span class="badge badge-role">Owner</span></div></div>
+    <div class="home-card" onclick="navigateTo('inbound')"><div class="home-card-icon">&#128222;</div><h3>Inbound Call Handling</h3><p>Scripts for every call type — rough estimates, hourly rate inquiries, long distance, and the 5-question intake checklist</p><div class="card-roles"><span class="badge badge-role">CS Reps</span><span class="badge badge-role">Sales Reps</span></div></div>
+    <div class="home-card" onclick="navigateTo('pricing')"><div class="home-card-icon">&#128176;</div><h3>Pricing & Quoting Standards</h3><p>How to present prices, handle objections, discount authority, and when to use flat rate vs hourly</p><div class="card-roles"><span class="badge badge-role">CS Reps</span><span class="badge badge-role">Sales Reps</span><span class="badge badge-role">Owner</span></div></div>
+  </div>
+  <h3>Core Values</h3>
+  <div class="values-list">
+    <div class="value-item"><div class="value-num">1</div><div class="value-text"><strong>Protect the customer's property</strong><span>Everything is wrapped, padded, and handled with care</span></div></div>
+    <div class="value-item"><div class="value-num">2</div><div class="value-text"><strong>Communicate proactively</strong><span>No surprises, no ghosting, no excuses</span></div></div>
+    <div class="value-item"><div class="value-num">3</div><div class="value-text"><strong>Look professional</strong><span>Uniform, clean truck, branded materials</span></div></div>
+    <div class="value-item"><div class="value-num">4</div><div class="value-text"><strong>Earn the referral</strong><span>Every job is a chance to get 3 more</span></div></div>
+    <div class="value-item"><div class="value-num">5</div><div class="value-text"><strong>Document everything</strong><span>Photos, inventory lists, signed agreements</span></div></div>
+  </div>`},operations:{title:'Operations',meta:'For: Movers, Crew Leads, Drivers',html:`
+  <div class="section-hero"><h2>Operations — Moving Day Execution</h2><p>This is the playbook for every move. No guessing, no improvising. Follow it step by step.</p><div style="margin-top:12px"><span class="badge badge-role">Movers</span> <span class="badge badge-role">Crew Leads</span> <span class="badge badge-role">Drivers</span></div></div>
+  <h3>Crew Day Start — Where & When</h3>
+  <div class="policy-box"><h4>Convergence Rule</h4><p>All crew members must arrive at the <strong>office or designated meeting point at least 30 minutes before the scheduled departure time.</strong></p><ul><li>This is when you start getting paid — the clock starts when you arrive at the meeting point</li><li>Everyone converges at the same place wearing the <strong>same branded uniform</strong> before heading to the job site</li><li>Use these 30 minutes to: review the job details, load supplies, confirm the route</li><li>If you are late to the meeting point, you delay the entire crew and the customer</li></ul><p><strong>Example:</strong> If the customer's move starts at 9:00 AM, the crew meets at the office by 8:15-8:30 AM.</p></div>
+  <h3>Pre-Move Checklist (Day Before)</h3>
+  <ul class="checklist"><li>Confirm job details: address, access, elevator booking, parking</li><li>Call/text customer to confirm time window</li><li>Check truck is loaded with supplies (see table below)</li><li>Assign crew (2 guys minimum, 3-4 for standard, more for large/commercial)</li><li>Review special items on the estimate (piano, pool table, fragile art, safe)</li><li>Ensure truck is fueled, clean inside and out</li></ul>
+  <h3>Supply Inventory (Per Truck)</h3>
+  <table><tr><th>Item</th><th>Min Qty</th></tr><tr><td>Moving blankets</td><td>24</td></tr><tr><td>Shrink wrap rolls</td><td>4</td></tr><tr><td>Packing tape rolls</td><td>6</td></tr><tr><td>Wardrobe boxes</td><td>4</td></tr><tr><td>Dollies (4-wheel + appliance)</td><td>2 each</td></tr><tr><td>Ratchet straps</td><td>8</td></tr><tr><td>Toolbox (screwdrivers, wrenches, Allen keys)</td><td>1</td></tr><tr><td>Floor runners / carpet protectors</td><td>2 rolls</td></tr><tr><td>Door frame protectors</td><td>4</td></tr><tr><td>Mattress bags (Queen + King)</td><td>2 each</td></tr></table>
+  <h3>Arrival at Pickup — First 10 Minutes</h3>
+  <div class="callout callout-gold"><strong>This sets the tone for the entire move.</strong> You never get a second chance at a first impression.</div>
+  <div class="card"><ol><li>Park truck, ensure uniform is on properly (shirt tucked in, boots on)</li><li>Crew Lead introduces the team by name to the customer</li><li>Walk through the home WITH the customer — every room</li><li>Note any pre-existing damage (scratches, dents, wall marks) — <strong>take photos</strong></li><li>Confirm what's going and what's staying</li><li>Ask: <em>"Is there anything fragile or sentimental I should know about?"</em></li><li>Lay floor runners and door frame protectors BEFORE moving anything</li></ol></div>
+  <h3>Loading Standards</h3>
+  <ul><li><strong>Heavy items first</strong> — appliances, dressers, sofas against the walls</li><li><strong>Blanket-wrap ALL furniture</strong> — no exceptions</li><li><strong>Mattresses in bags</strong> — always</li><li><strong>TVs face-to-face</strong> with blankets between, strapped upright</li><li><strong>Boxes heaviest on bottom</strong>, labeled side out</li><li><strong>Fill gaps</strong> with blankets/soft items</li><li><strong>Strap every 3 feet</strong> of height</li></ul>
+  <h3>What NOT to Move</h3>
+  <div class="card"><ul><li>Hazardous materials (paint, propane, chemicals, ammunition)</li><li>Perishable food (unless short local move and customer insists)</li><li>Plants (warn they may not survive)</li><li>Personal documents / jewelry / cash — advise customer to transport personally</li></ul></div>
+  <h3>In Transit</h3><ul><li>Drive the speed limit — no exceptions</li><li>No sudden stops or sharp turns</li><li>Call customer with updated ETA if route changes</li><li>No personal stops (gas only if needed)</li><li>No passengers other than crew</li></ul>
+  <h3>Delivery — At Destination</h3><ol><li>Walk through with customer BEFORE unloading</li><li>Lay floor runners and door protectors</li><li>Place furniture exactly where customer directs</li><li>Reassemble everything you disassembled</li><li>Unwrap everything and take all packing materials</li><li>Final walkthrough — check every room</li><li>Check truck is completely empty — <strong>shine a flashlight in corners</strong></li></ol>
+  <h3>Post-Move (Before Leaving)</h3>
+  <ul class="checklist"><li>Ask: "Is there anything else we can help with?"</li><li>Hand them the feedback card / QR code for Google review</li><li>Mention the referral program</li><li>Collect payment or confirm payment method</li><li>Take a photo of the completed move (with permission)</li><li>Crew Lead texts/calls office: job complete, hours, any issues</li></ul>
+  <h3>Lunch Breaks</h3>
+  <div class="policy-box"><h4>Break Policy</h4><ul><li>On jobs over 5 hours, crew gets a <strong>15-30 minute lunch break</strong></li><li>Break time is unpaid — the customer's clock pauses</li><li>Inform the customer: <em>"We're going to take a quick 15-minute break, then we'll finish up strong"</em></li><li>Company provides water and snacks/drinks for the crew</li><li>Do NOT leave food or trash at the customer's property</li></ul></div>
+  <h3>What If the Job Runs Longer Than Estimated?</h3>
+  <div class="policy-box"><h4>Hourly Jobs (Standard)</h4><p>Most jobs are billed hourly. If running longer than estimated:</p><ol><li>Call the customer when approaching the top of the range</li><li>Explain: <em>"We're about [X] hours in. We have about [Y] more to finish. You only pay for actual time."</em></li><li>If we finish early, they pay less. If it runs longer, they pay actual hours.</li><li>No surprises — communicate proactively</li></ol><h4>Flat Rate Jobs (Rare)</h4><p>Flat rates only given with exact inventory and boss approval. If a flat rate was quoted, <strong>we honor it</strong> even if it takes longer.</p></div>
+  <h3>Overtime / Backup</h3><div class="card"><ul><li>If the job runs late, the crew <strong>stays to finish</strong></li><li>If a crew member is exhausted or has a commitment, <strong>call the office for backup</strong></li><li>Never just leave — always communicate</li></ul></div>
+  <h3>Parking</h3><div class="card"><ul><li>Park directly in front of the customer's house</li><li>For apartments/condos: notify property manager <strong>in advance</strong></li><li>We have never received a parking ticket — keep it that way</li></ul></div>
+  <h3>Damage Protocol</h3>
+  <div class="card" style="border-left:4px solid var(--danger);"><ol><li><strong>Tell the customer immediately</strong> — never hide it</li><li>Take photos</li><li>Document: what, how</li><li>Apologize: <em>"I'm sorry. We'll make it right."</em></li><li>Report to office same day</li><li>Under $300 — handle internally</li><li>Over $300 — file with insurance</li></ol></div>
+  <h3>Safety Rules</h3><ul><li>Steel-toe boots required (you bring your own)</li><li>Lift with legs, not back</li><li>Two-person lift for 50+ lbs</li><li>Never carry on stairs without a spotter</li><li>Keep pathways clear</li><li>Water breaks every 45 min in heat</li><li>If injured, report immediately</li></ul>
+  <h3>Success Metrics</h3>
+  <div class="metric-grid"><div class="metric-card"><div class="metric-value">95%+</div><div class="metric-label">On-Time Arrival</div></div><div class="metric-card"><div class="metric-value">90%+</div><div class="metric-label">Zero-Damage</div></div><div class="metric-card"><div class="metric-value">4.5+</div><div class="metric-label">Satisfaction</div></div><div class="metric-card"><div class="metric-value">40%+</div><div class="metric-label">Review Rate</div></div><div class="metric-card"><div class="metric-value">100%</div><div class="metric-label">Supply Check</div></div></div>`},sales:{title:'Sales & Estimating',meta:'For: Moving Consultants, Sales Reps, CS',html:`
+  <div class="section-hero"><h2>Sales & Estimating</h2><p>You are a <strong>Moving Consultant</strong>, not just a salesperson. Speed wins, expertise closes, and genuine care earns referrals for life.</p><div style="margin-top:12px"><span class="badge badge-role">Moving Consultants</span> <span class="badge badge-role">Sales Reps</span> <span class="badge badge-role">Customer Service</span></div></div>
+
+  <h3>The Consultant Mindset</h3>
+  <div class="callout callout-gold"><strong>You are a doctor, not a cashier.</strong> Diagnose what they need. Prescribe the right solution. Most customers have never moved or haven't moved in 20 years. They need an expert, not a quote machine.</div>
+  <div class="do-dont"><div class="do-col"><h4>What Sets Us Apart</h4><ul><li><strong>Speed</strong> — we get there before anyone else</li><li><strong>Expertise</strong> — we advise on elevator booking, splitting moves, what to pack first</li><li><strong>Value</strong> — 20 free boxes + tape, full wrapping, insurance, no surprises</li><li><strong>Technology</strong> — AI scans MLS photos and builds inventory before we even talk</li></ul></div><div class="dont-col"><h4>Consultant vs Salesperson</h4><ul><li>Recommend splitting into 2 days if it saves stress</li><li>Tell them they need 2 trucks if the furniture is oversized</li><li>Say "honestly, you only need 2 guys" — trust builds referrals</li><li>Solve their problem, don't just quote a number</li></ul></div></div>
+
+  <h3>Response Times</h3>
+  <div class="callout callout-danger"><strong>Speed is everything.</strong> Whoever responds first gets the job. If they call at 4:45 PM wanting an estimate, you go at 5:30 PM. Do NOT push to next week.</div>
+  <table><tr><th>Channel</th><th>Frequency</th><th>Response Target</th></tr><tr><td><strong>Phone call</strong></td><td>Most common</td><td>ASAP</td></tr><tr><td>Text message</td><td>Common</td><td>ASAP</td></tr><tr><td>Email</td><td>Regular</td><td>ASAP</td></tr><tr><td>Facebook / Instagram</td><td>Regular</td><td>ASAP</td></tr><tr><td>Website / Sold2Move</td><td>Regular</td><td>ASAP</td></tr><tr><td>Referral</td><td>Hot lead</td><td>ASAP</td></tr><tr><td>Direct mail callback</td><td>Warm lead</td><td>ASAP</td></tr></table>
+
+  <h3>Phone Script</h3>
+  <div class="script-block">"Thank you for calling Saturn Star Movers, this is [Your Name]. How can I help you today?"</div>
+  <h4>Information to Gather (Conversational, Not a Form)</h4>
+  <ol><li><strong>Moving from:</strong> Full address</li><li><strong>Moving to:</strong> Full address</li><li><strong>When:</strong> Preferred date + flexibility</li><li><strong>What:</strong> House/apt/condo — bedrooms? Special items?</li><li><strong>Who:</strong> Name + callback number</li><li><strong>Source:</strong> "How did you hear about us?"</li></ol>
+  <h4>Qualifying Questions</h4>
+  <ul><li>"Full move or just a few items?"</li><li>"Need packing services or just the move?"</li><li>"Any stairs, elevators, or long carries?"</li><li>"Heavy or specialty items? Piano, safe, oversized furniture?"</li></ul>
+
+  <h3>The Estimate Journey</h3>
+  <div class="level-card level-1"><div class="level-title">Step 1 — AI Pre-Scan (Before You Even Talk)</div><ol><li>Get the origin address</li><li>Check if it is on MLS — most listed homes have photos</li><li>Run the <strong>AI scan</strong> — it pulls MLS photos and auto-generates inventory</li><li>Review the output: item count, room-by-room breakdown</li><li><strong>Red flags the AI catches:</strong> long driveways, stairs, narrow doorways, basement access, tight parking, walkway distance</li><li>You now know 70-80% of what they have before the first conversation</li></ol><div class="callout callout-gold"><strong>Power move:</strong> Call back and say "I can see you have about a 3-bedroom with a finished basement — does that sound right?" They are instantly impressed.</div></div>
+
+  <div class="level-card level-2"><div class="level-title">Step 2 — Choose the Estimate Type</div><table><tr><th>Type</th><th>When</th><th>Speed</th></tr><tr><td><strong>Phone/Virtual</strong></td><td>Small-medium, AI scan looks clean</td><td>Same call or hours</td></tr><tr><td><strong>In-Home Consultation</strong></td><td>Large home, specialty items, anxious customer, high value</td><td>ASAP — same day if possible</td></tr><tr><td><strong>AI-Only</strong></td><td>Simple move, clear MLS photos</td><td>Minutes</td></tr></table><p><strong>Default:</strong> If in doubt, go in person. In-home close rate is significantly higher.</p></div>
+
+  <div class="level-card level-3"><div class="level-title">Step 3A — Phone/Virtual Estimate</div><ol><li>Pull up AI scan results during the call</li><li>Walk them through: "Based on the photos, it looks like [X]. Sound right?"</li><li>Ask what is NOT in photos (garage, storage, packed items)</li><li>Confirm access at both locations (stairs, elevator, parking, walkway)</li><li>Give a <strong>range</strong>: "[X] to [Y] hours with [crew]. Between $[low] and $[high]."</li><li>Deliver the Value Pitch (below)</li><li>Ask for the booking or schedule in-home visit</li></ol></div>
+
+  <h3>In-Home Consultation (Full Process)</h3>
+  <div class="callout callout-gold"><strong>This is your highest-conversion opportunity.</strong> Treat it like a doctor's house call. The AI tool goes with you — use it on-site.</div>
+
+  <h4>Before You Arrive</h4>
+  <ul class="checklist"><li>Review AI scan — know the inventory already</li><li>Bring: business cards, brochure, free box voucher, estimate forms, tape measure</li><li>Dress: branded Saturn Star shirt, clean appearance</li><li>Arrive on time or early — NEVER late</li></ul>
+
+  <h4>First 2 Minutes (Set the Tone)</h4>
+  <div class="script-block">"Hi [Name], I am [Your Name] from Saturn Star Movers. Thanks for having me. What I am going to do is walk through room by room, take some notes, and give you an honest recommendation. No pressure, no sales pitch — just straight answers."</div>
+
+  <h4>Room-by-Room Walkthrough</h4>
+  <div class="card"><p>Go through <strong>every room</strong>. For each one:</p><ol><li><strong>Note furniture</strong> — large, heavy, awkward items</li><li><strong>Ask what is going vs staying</strong> — do not assume</li><li><strong>Identify problem items:</strong><ul><li>Will the couch fit through the doorway or need disassembly?</li><li>Dresser going down narrow stairs?</li><li>Wall-mounted TV? We dismount and remount (special charge).</li><li>King bed — can it navigate hallway corners?</li></ul></li><li><strong>Confirm AI red flags in person:</strong><ul><li>Parking distance from truck to front door</li><li>Number of flights (interior + exterior stairs)</li><li>Doorway widths — any tight squeezes?</li><li>Elevator — does the building have one? Booked?</li></ul></li><li><strong>Check areas customers forget:</strong> Garage, shed, storage locker, attic, crawlspace, balcony/patio</li></ol></div>
+
+  <h4>The Consultation (After the Walkthrough)</h4>
+  <p>Sit down with them and lay it out like an expert:</p>
+  <div class="card"><h4>1. Size the Job Honestly</h4><ul><li>"You are looking at a [X]-hour job with [crew size] and a [truck size]"</li><li>"I would recommend [2/3/4] guys because [reason]"</li></ul><h4>2. Flag Issues + Give Solutions</h4><ul><li>"Your parking is far from the door — I have accounted for it."</li><li>"Those basement stairs are tight — we will remove the feet from the sectional."</li><li>"The elevator needs to be booked — have you done that? Here is how..."</li><li>"Closing date not confirmed? We will hold tentatively and confirm 48 hours out."</li></ul><h4>3. Recommend the Right Solution</h4><ul><li>"I would split this into 2 days. Day 1 heavy stuff + boxes, Day 2 the rest. Less stress."</li><li>"We might need 2 trucks — the sectional and king bed would not leave room for the rest."</li><li>"For this size, 3 guys is the sweet spot. 2 would take too long, 4 is overkill."</li></ul></div>
+
+  <h4>4. Offer Add-On Services (Consult, Don't Push)</h4>
+  <table><tr><th>Service</th><th>What It Is</th><th>When to Mention</th></tr><tr><td><strong>Packing</strong></td><td>$150/hr for 2 packers + materials</td><td>They seem overwhelmed, haven't started, or haven't moved in years</td></tr><tr><td><strong>20 Free Boxes + Tape</strong></td><td>Dropped off after deposit</td><td>EVERY booking — this is standard</td></tr><tr><td><strong>Junk Removal</strong></td><td>Haul away unwanted items</td><td>You see old furniture, clutter, "I need to get rid of this"</td></tr><tr><td><strong>Cleaning</strong></td><td>Post-move cleaning at origin</td><td>They mention landlord or new buyers need it clean</td></tr><tr><td><strong>Split Delivery</strong></td><td>Items to 2+ locations</td><td>Storage, relative's house, donation drop-off</td></tr><tr><td><strong>Split Move (2 Days)</strong></td><td>Break large move into sessions</td><td>Huge house, stressed customer, genuinely saves time</td></tr><tr><td><strong>2-Truck Move</strong></td><td>Two trucks simultaneously</td><td>Oversized items + volume won't fit in one load</td></tr><tr><td><strong>Elevator Booking</strong></td><td>Coordinate with building mgmt</td><td>Condo/apartment — they don't know the process</td></tr><tr><td><strong>Key Coordination</strong></td><td>Work around closing timeline</td><td>They don't have keys yet, date not confirmed</td></tr><tr><td><strong>TV Mount/Dismount</strong></td><td>Dismount at origin, remount at destination</td><td>Wall-mounted TVs — special charge</td></tr><tr><td><strong>Grand Piano</strong></td><td>Outsourced to specialist, we coordinate</td><td>We include it in the quote — one point of contact</td></tr><tr><td><strong>Pool Table</strong></td><td>Outsourced to specialist, we coordinate</td><td>We include it in the quote — one point of contact</td></tr></table>
+
+  <h4>5. Drop the 20 Free Boxes + Tape</h4>
+  <div class="script-block">"One thing we do — once you book and put down the deposit, we drop off 20 free boxes and tape so you can start packing right away. No charge."</div>
+  <div class="callout callout-gold"><strong>This is a closer.</strong> It removes a barrier and shows you care about their experience before the move even happens.</div>
+
+  <h4>6. Give the Price</h4>
+  <div class="callout callout-danger"><strong>Always use the pricing software.</strong> Never calculate manually or guess. Every job is custom — a 3-bedroom with 3 treadmills in the garage is completely different from a 3-bedroom apartment. The software accounts for every variable.</div>
+  <ol><li>Present the pricing confidently — do not apologize</li><li>Explain exactly what is included</li><li>If hourly: give the range and explain how it works</li><li>Ask: <strong>"Does that work for you? Want to lock in the date?"</strong></li></ol>
+
+  <h4>7. Before You Leave</h4>
+  <ul class="checklist"><li>Hand them your card</li><li>Leave the brochure</li><li>Mention the free boxes + tape again</li><li>"I will send you the written estimate by text and email right away"</li><li>"Any questions, call me directly"</li></ul>
+
+  <h3>Specialty Items</h3>
+  <div class="do-dont"><div class="do-col"><h4>We DO Move (Special Charges)</h4><ul><li><strong>Upright pianos</strong> — min 3 crew</li><li><strong>Safes / gun safes</strong> — heavy-duty dollies</li><li><strong>Wall-mounted TVs</strong> — dismount + remount</li><li><strong>Oversized furniture</strong> — disassembly in-house</li><li><strong>Appliances</strong> — standard</li></ul></div><div class="dont-col"><h4>We DO NOT Move (We Coordinate)</h4><ul><li><strong>Grand pianos</strong> — partner specialist</li><li><strong>Pool tables</strong> — partner specialist</li><li><strong>Hot tubs</strong> — crane/rigging needed</li><li><em>Never say "we can't help." Say "we'll coordinate it and include it in your quote."</em></li></ul></div></div>
+  <div class="callout callout-gold"><strong>The Consultant Approach:</strong> The customer gets one point of contact — us. We bring in the specialist, add it to the quote, and manage the whole move. This is what separates us.</div>
+
+  <h3>Packing Services</h3>
+  <div class="pricing-highlight"><h4>Professional Packing</h4><div class="price-row"><div><div class="price-label">2 Packers</div><div class="price-note">Plus cost of materials (boxes, tape, paper, bubble wrap)</div></div><div class="price-value">$150/hr</div></div></div>
+  <div class="script-block">"We offer professional packing — our team comes in with all the materials. It is $150/hr for two packers plus materials. Most 2-3 bedroom homes take about 3-5 hours. We can also do partial — just the kitchen and fragile items."</div>
+  <p><strong>When to recommend:</strong> They haven't started packing, seem overwhelmed, haven't moved in 10-20+ years, elderly/mobility issues, too busy, or don't know where to start.</p>
+
+  <h3>20 Free Boxes + Tape — Drop-Off</h3>
+  <div class="card"><h4>What They Get</h4><ul><li>20 boxes (mix of small, medium, large)</li><li>Packing tape</li><li>Delivered within 24-48 hours of deposit</li></ul><h4>Who Delivers</h4><p>Anyone on the team — mover, sales rep, or owner. Whoever is in the area.</p><h4>What to Say</h4><div class="script-block">"Here are your 20 boxes and tape — completely free. Start with the stuff you use least. Kitchen last. If you need more, let us know."</div><h4>If They Need More</h4><p>We sell additional boxes at a fair price. Or suggest: liquor stores and grocery stores often have free boxes. Don't nickel-and-dime — the free boxes are about goodwill.</p></div>
+
+  <h3>Our Pricing — Reference Ranges</h3>
+  <div class="callout callout-danger"><strong>Always use the pricing software for actual estimates.</strong> These ranges are for quick phone ballparks only. Every job is custom.</div>
+  <div class="pricing-highlight"><h4>Standard Hourly Rates</h4><div class="price-row"><div><div class="price-label">2 Movers + Truck</div><div class="price-note">Small moves, apartments, few items</div></div><div class="price-value">$150-160/hr</div></div><div class="price-row"><div><div class="price-label">3 Movers + Truck</div><div class="price-note">Standard residential (2-3 bedrooms)</div></div><div class="price-value">$230/hr</div></div><div class="price-row"><div><div class="price-label">4 Movers + Truck</div><div class="price-note">Large homes, heavy items, complex moves</div></div><div class="price-value">$260/hr</div></div><div class="price-row" style="border-bottom:none;"><div><div class="price-label">Minimum Charge</div><div class="price-note">3-hour minimum on all jobs (~$500 flat for small moves)</div></div><div class="price-value">3 hr min</div></div></div>
+
+  <h3>Travel Fees</h3>
+  <div class="pricing-highlight"><h4>Distance-Based</h4><div class="price-row"><div><div class="price-label">Within 30 min of service area</div><div class="price-note">Windsor / Chatham and surrounding</div></div><div class="price-value">No fee</div></div><div class="price-row"><div><div class="price-label">Over 30 min one-way</div><div class="price-note">Covers gas + drive time</div></div><div class="price-value">Fee applies</div></div><div class="price-row" style="border-bottom:none;"><div><div class="price-label">Long distance</div><div class="price-note">Full mileage fee — calculated in software</div></div><div class="price-value">Calculated</div></div></div>
+
+  <h3>Long Distance Formula</h3>
+  <div class="card"><p>Long distance is price-competitive. Our all-in formula:</p><ol><li><strong>U-Haul cost</strong> — one-way truck rental for the route</li><li><strong>Gas + insurance</strong> for the trip</li><li><strong>Labour</strong> — crew hours for loading, driving, unloading</li><li><strong>40% markup</strong> — covers overhead, coordination, profit</li></ol><p><strong>Present as a single flat rate.</strong> The customer doesn't see the breakdown.</p></div>
+
+  <div class="policy-box"><h4>Surcharges</h4><ul><li><strong>Weekends (Sat-Sun) when demand is high:</strong> +$10/hr</li><li><strong>Public holidays:</strong> +$10/hr</li><li><strong>Same-day / emergency moves:</strong> 10% surcharge OR $100 minimum — whichever is greater</li></ul></div>
+
+  <h3>Hourly vs Flat Rate</h3>
+  <div class="do-dont"><div class="do-col"><h4>Hourly (Default)</h4><ul><li>Customer pays actual time</li><li>Finish early = they pay less</li><li>Runs longer = actual hours</li><li>No surprises — honest billing</li></ul></div><div class="dont-col"><h4>Flat Rate (Rare)</h4><ul><li>Only with exact inventory</li><li>Boss approval required</li><li>We honor it even if it takes longer</li><li>Only when you are 100% confident</li></ul></div></div>
+  <div class="script-block">"We charge by the hour, and I will give you a realistic range. Finish early, you pay less. Runs a bit longer, you pay actual hours. No surprise fees — just honest billing."</div>
+
+  <h3>Deposits & Policies</h3>
+  <div class="pricing-highlight"><h4>Required to Book</h4><div class="price-row"><div><div class="price-label">Local Move</div></div><div class="price-value">20%</div></div><div class="price-row" style="border-bottom:none;"><div><div class="price-label">Long Distance</div></div><div class="price-value">40-45%</div></div></div>
+  <div class="policy-box"><h4>Cancellation & Rescheduling</h4><ul><li>3+ weeks: full refund</li><li>Under 3 weeks: forfeited</li><li>No-show: forfeited</li><li>Rescheduling: 1 free with 1+ week notice, then subject to availability</li></ul></div>
+  <div class="policy-box"><h4>Estimate Validity</h4><ul><li>Estimates are valid for <strong>30 days</strong></li><li>After 30 days: rates may have changed, availability may differ — new estimate required</li><li>Tell them: "This estimate is good for 30 days. After that, give us a call and we will update it."</li></ul></div>
+
+  <h3>The Value Pitch</h3>
+  <div class="script-block">"That rate covers everything: your crew of [X] experienced, insured movers — not day laborers. A clean, equipped truck. All blanket-wrapping for every piece of furniture. Floor runners and door protectors. Shrink wrap, tape, mattress bags. Disassembly and reassembly. Full insurance. And once you book, we drop off 20 free boxes and tape."</div>
+
+  <h3>Moving Day Scenarios</h3>
+  <div class="level-card level-1"><div class="level-title">Customer Added Items Not on Estimate</div><p>Crew does a walkthrough before starting. If extra items found:</p><div class="script-block">"I see a few things that were not on the original estimate — [list them]. Since we are hourly, this will add some time. Just wanted you to know upfront so there are no surprises."</div><p>They already know it is hourly. No argument — just transparency.</p></div>
+
+  <div class="level-card level-1"><div class="level-title">Customer Is Not Packed When Crew Arrives</div><div class="script-block">"No problem — we can help you finish packing. Just know that packing time is on the clock, so it will add to the total hours."</div><p>Crew assists. Time is time. Handle with grace — this is actually an upsell they didn't plan for.</p></div>
+
+  <div class="level-card level-2"><div class="level-title">Destination Not Ready / Keys Delayed</div><ul><li><strong>Under 1 hour delay:</strong> We wait. No extra charge. Good customer experience earns loyalty.</li><li><strong>Over 1 hour:</strong> Gently let them know the clock is still running, but we are here for them.</li><li><strong>Always ask about keys during the day-before confirmation call</strong> — catch this early.</li></ul><div class="script-block">"We totally understand — these things happen. We will wait here and be ready to go as soon as you get access."</div></div>
+
+  <div class="level-card level-1"><div class="level-title">Customer Wants to Ride in the Truck</div><div class="script-block">"We would love to, but with [3-4] guys and equipment, the cab is pretty full. Most customers drive separately or grab an Uber — that way you can get there early and let us in."</div></div>
+
+  <div class="level-card level-1"><div class="level-title">Customer Wants to Help the Crew</div><div class="script-block">"We appreciate the help! But honestly, we have got a system — let us handle the heavy stuff so nothing gets damaged and you don't get hurt. We are insured, but you are not covered if something happens."</div><p>Small stuff (directing, small boxes) is fine. Never let them carry heavy furniture.</p></div>
+
+  <div class="level-card level-2"><div class="level-title">Items Won't Fit Through the Door</div><p><strong>We disassemble.</strong> We have the tools in-house. Remove feet, legs, cushions, door hinges if needed. Never leave an item behind without trying everything first. If it was built in the room and truly cannot fit — inform customer and discuss options.</p></div>
+
+  <div class="level-card level-3"><div class="level-title">Customer Disputes the Hours</div><ol><li>Stay calm. "The crew arrived at [time] and finished at [time]. Here is the breakdown."</li><li>"The hourly rate was agreed before we started. No damages. The crew worked the entire time."</li><li>Minor difference (15-30 min): use judgment — rounding down builds goodwill</li><li>If aggressive: "I understand your concern. Let me have our office follow up with you today."</li><li>Escalate to owner same day. Never argue on-site.</li></ol></div>
+
+  <h3>Objection Handling</h3>
+  <div class="objection-row"><div class="objection-label">"Getting other quotes"</div><div class="objection-response">"Absolutely. Compare what is included — we blanket-wrap everything, fully insured, no surprise fees."</div></div>
+  <div class="objection-row"><div class="objection-label">"More than expected"</div><div class="objection-response">"Our rate reflects experienced pros, not day laborers. Your stuff is safe. Some quote cheap then add charges on moving day."</div></div>
+  <div class="objection-row"><div class="objection-label">"I will think about it"</div><div class="objection-response">"No pressure. I will send the estimate. What date? Weekends go fast."</div></div>
+  <div class="objection-row"><div class="objection-label">"Friend can help"</div><div class="objection-response">"A lot of our customers started there — then called after the couch got stuck. We are here if needed."</div></div>
+  <div class="objection-row"><div class="objection-label">"Insurance?"</div><div class="objection-response">"Yes — full commercial liability. I can show you the certificate right now."</div></div>
+  <div class="objection-row"><div class="objection-label">"Can you do it cheaper?"</div><div class="objection-response">"I want to give you a fair price, not a cheap one. Cheap means cutting corners — fewer blankets, rushed crew, no insurance. We don't do that."</div></div>
+  <div class="objection-row"><div class="objection-label">"Don't know my date yet"</div><div class="objection-response">"No problem. I will put the estimate together now. Once you know the date, one call and we lock it in."</div></div>
+
+  <h3>Follow-Up Cadence</h3>
+  <table><tr><th>Day</th><th>Action</th><th>What to Say</th></tr><tr><td>Same day</td><td>Send written estimate (email + text)</td><td>"Here is your estimate as promised. Any questions, call me directly."</td></tr><tr><td>Day 2</td><td>Follow-up text</td><td>"Hi [Name], checking in — any questions about the estimate?"</td></tr><tr><td>Day 5</td><td>Call</td><td>"Hey [Name], making sure you are all set. Still looking at [date]?"</td></tr><tr><td>Day 10</td><td>Final text</td><td>"We still have availability around your date. Let me know!"</td></tr><tr><td>Day 14+</td><td>Automatic sequence</td><td>System handles periodic check-ins — no manual action needed</td></tr></table>
+
+  <h3>Lost Lead Recovery (Automated)</h3>
+  <div class="card"><p>After Day 14, the system automatically continues:</p><ul><li><strong>Day 30:</strong> "Still thinking about your move? We are here whenever you are ready."</li><li><strong>Day 60:</strong> Seasonal promo or helpful moving tip</li><li><strong>Day 90:</strong> "Still moving? Happy to update your estimate anytime."</li></ul><p>They stay in the system until they book, unsubscribe, or tell us they went elsewhere.</p></div>
+
+  <h3>Booking Confirmation</h3>
+  <div class="policy-box"><h4>Once They Commit</h4><ol><li>Confirm: date, time, both addresses, crew size, truck, scope</li><li>Collect deposit (20% local, 40-45% long distance)</li><li>Send written confirmation (email + text) immediately</li><li><strong>Schedule 20 free box + tape drop-off</strong> (within 24-48 hrs)</li><li>Enter everything into pricing software (Quotient)</li><li>Add to crew schedule</li><li>Set reminder: confirmation call day before</li><li>Elevator booking, key coordination, packing — set up NOW</li><li>Specialty items (grand piano, pool table): contact partner immediately</li></ol></div>
+
+  <h3>Referrals</h3>
+  <div class="callout callout-gold"><strong>Do NOT ask for referrals during the estimate.</strong> It feels salesy. Ask <strong>after the move is completed</strong> — when you have earned it. During the estimate, focus 100% on being their consultant.</div>
+
+  <h3>Success Metrics</h3>
+  <div class="metric-grid"><div class="metric-card"><div class="metric-value">ASAP</div><div class="metric-label">Response Time</div></div><div class="metric-card"><div class="metric-value">50%+</div><div class="metric-label">In-Home Close</div></div><div class="metric-card"><div class="metric-value">35%+</div><div class="metric-label">Overall Convert</div></div><div class="metric-card"><div class="metric-value">3-4</div><div class="metric-label">Follow-Ups/Lead</div></div><div class="metric-card"><div class="metric-value">100%</div><div class="metric-label">Boxes Delivered</div></div><div class="metric-card"><div class="metric-value">100%</div><div class="metric-label">Software Used</div></div></div>`},cs:{title:'Customer Service',meta:'For: CS Reps, Office Staff',html:`
+  <div class="section-hero"><h2>Customer Service</h2><p>You are the voice of Saturn Star Movers. Every interaction either earns a customer for life or loses one.</p><div style="margin-top:12px"><span class="badge badge-role">CS Reps</span> <span class="badge badge-role">Office Staff</span></div></div>
+  <h3>What Success Looks Like</h3><div class="card"><ul><li>Customers say "that was easy"</li><li>You handle 90% without escalating</li><li>People mention your name in reviews</li><li>Zero move-day surprises</li><li>You book 6+ jobs per day</li></ul></div>
+  <h3>Your Compensation</h3><div class="pricing-highlight"><h4>Pay Structure</h4><div class="price-row"><div><div class="price-label">Base Rate</div></div><div class="price-value">$18/hr</div></div><div class="price-row" style="border-bottom:none;"><div><div class="price-label">Booking Commission</div><div class="price-note">Per job you personally book</div></div><div class="price-value">$20/job</div></div></div>
+  <div class="callout callout-gold"><strong>Example:</strong> 6 bookings/day = $120 commission on top of hourly. Speed and follow-up = more income.</div>
+  <h3>Daily Workflow</h3><h4>Start of Day (15 min)</h4><ol><li>Return missed calls</li><li>Review today's moves</li><li>Respond to overnight inquiries</li><li>Make tomorrow's confirmation calls</li></ol><h4>Throughout Day</h4><ul><li>Answer within 3 rings</li><li>Log everything in system</li><li>Build estimates in Quotient</li><li>Collect deposits</li><li>Follow up on open estimates</li></ul><h4>End of Day (15 min)</h4><ol><li>Follow up on today's estimates</li><li>Update records</li><li>Flag issues</li><li>Confirm tomorrow's schedule</li></ol>
+  <h3>Phone Etiquette</h3><div class="do-dont"><div class="do-col"><h4>DO</h4><ul><li>Smile — they hear it</li><li>Use their name 2x</li><li>Listen before responding</li><li>Take notes</li><li>"Let me find out and call you right back"</li><li>"Anything else I can help with?"</li></ul></div><div class="dont-col"><h4>DON'T</h4><ul><li>Hold 60+ sec without checking</li><li>"I don't know" without action</li><li>Argue — ever</li><li>Overpromise</li><li>Slang/unprofessional language</li><li>Eat on the phone</li></ul></div></div>
+  <h3>Confirmation Call (Day Before)</h3><div class="script-block">"Hi [Name], this is [Your Name] from Saturn Star Movers. Confirming your move tomorrow — [time] from [origin] to [destination]. [X] movers, [size] truck. Anything changed?"</div>
+  <h3>Complaint Protocol</h3><div class="level-card level-1"><div class="level-title">Level 1 — Minor</div><ol><li>Listen fully</li><li>Apologize sincerely</li><li>"What would make this right?"</li><li>Handle on spot if reasonable</li><li>Document + inform owner</li></ol></div><div class="level-card level-2"><div class="level-title">Level 2 — Significant (damage, missing items)</div><ol><li>Get details + photos</li><li>"Resolution within 24 hours"</li><li>Under $300 = internal</li><li>Over $300 = escalate for insurance</li></ol></div><div class="level-card level-3"><div class="level-title">Level 3 — Serious (injury, legal)</div><ol><li>Stay calm</li><li>Do NOT admit fault</li><li>Owner calls within 2 hours</li><li>Document everything</li></ol></div>
+  <h3>Lead Status</h3><table><tr><th>Status</th><th>Next Action</th></tr><tr><td>New Lead</td><td>Build estimate in Quotient ASAP</td></tr><tr><td>Estimate Sent</td><td>Follow-up Day 2, 5, 10</td></tr><tr><td>Booked</td><td>Confirm call day before</td></tr><tr><td>Completed</td><td>Review request within 24 hrs</td></tr><tr><td>Lost</td><td>Note why</td></tr></table>
+  <h3>Success Metrics</h3><div class="metric-grid"><div class="metric-card"><div class="metric-value">90%+</div><div class="metric-label">3-Ring Answer</div></div><div class="metric-card"><div class="metric-value">6+/day</div><div class="metric-label">Bookings</div></div><div class="metric-card"><div class="metric-value">100%</div><div class="metric-label">Confirms</div></div><div class="metric-card"><div class="metric-value">95%+</div><div class="metric-label">Resolved &lt;24h</div></div></div>`},marketing:{title:'Marketing',meta:'For: Marketing Staff, Owner',html:`
+  <div class="section-hero"><h2>Marketing</h2><p>Direct mail, commercial outreach, social media, partnerships. Consistency and follow-up win.</p><div style="margin-top:12px"><span class="badge badge-role">Marketing</span> <span class="badge badge-role">Owner</span></div></div>
+  <h3>Active Channels</h3><table><tr><th>Channel</th><th>Status</th><th>Frequency</th></tr><tr><td><strong>Direct Mail</strong></td><td><span class="badge badge-metric">Active</span></td><td>2x/week</td></tr><tr><td><strong>Commercial Outreach</strong></td><td><span class="badge badge-metric">Active</span></td><td>Ongoing</td></tr><tr><td>Google Business Profile</td><td><span class="badge badge-metric">Active</span></td><td>Weekly</td></tr><tr><td>Social Media</td><td>Setting up</td><td>3-5x/week</td></tr><tr><td>Referral Program</td><td><span class="badge badge-metric">Active</span></td><td>Every job</td></tr></table>
+  <h3>Direct Mail</h3><div class="policy-box"><h4>2x Per Week</h4><p>New houses listed constantly. We mail <strong>twice weekly</strong> to stay ahead. Print at the <strong>local print shop</strong> (cost-effective, fast).</p></div>
+  <div class="card"><h4>5-Tier System</h4><table><tr><th>Tier</th><th>Target</th></tr><tr><td>A</td><td>Referral Partners (Lawyers, Mortgage Brokers)</td></tr><tr><td>B</td><td>B2B (Builders, Insurance, Property Mgmt)</td></tr><tr><td>C</td><td>Corporate HR (Employers, Schools, Hospitals)</td></tr><tr><td>D</td><td>Community (Churches, Nonprofits)</td></tr><tr><td>E</td><td>Care Facilities (Retirement, Funeral Homes)</td></tr></table></div>
+  <h3>Commercial Outreach — Follow-Up</h3><div class="callout callout-gold"><strong>Commercial relationships don't close on the first touch.</strong> Stay on their radar.</div>
+  <table><tr><th>Touch</th><th>When</th><th>What</th></tr><tr><td>1</td><td>Day 0</td><td>Drop off flyer + card</td></tr><tr><td>2</td><td>Week 1</td><td>Follow-up call/email</td></tr><tr><td>3</td><td>Week 3</td><td>Send postcard</td></tr><tr><td>4</td><td>Month 2</td><td>Check-in call</td></tr><tr><td>5</td><td>Month 3</td><td>Another postcard</td></tr><tr><td>6</td><td>Quarterly</td><td>In-person visit/lunch</td></tr></table>
+  <h3>Social Media Calendar</h3><p><em>Handles being set up. Canva templates ready.</em></p><table><tr><th>Day</th><th>Type</th></tr><tr><td>Mon</td><td>Moving tip</td></tr><tr><td>Tue</td><td>Job photo</td></tr><tr><td>Wed</td><td>Testimonial</td></tr><tr><td>Thu</td><td>Behind-scenes</td></tr><tr><td>Fri</td><td>Promo/CTA</td></tr><tr><td>Sat</td><td>Story/Reel</td></tr></table>
+  <h3>Review Responses</h3><div class="level-card level-1" style="border-left-color:var(--success);"><div class="level-title" style="color:var(--success);">5-Star</div><div class="script-block">"Thank you, [Name]! Pleasure helping with your move. If you know someone moving, we're always here!"</div></div><div class="level-card level-2" style="border-left-color:var(--warning);"><div class="level-title" style="color:var(--warning);">3-4 Star</div><div class="script-block">"Thanks for the feedback, [Name]. Reach out directly — we'd love to make it right."</div></div><div class="level-card level-3"><div class="level-title">1-2 Star</div><div class="script-block">"We're sorry, [Name]. Please reach out at [phone] so we can make this right."</div></div>
+  <h3>Success Metrics</h3><div class="metric-grid"><div class="metric-card"><div class="metric-value">2x/wk</div><div class="metric-label">Mail Sent</div></div><div class="metric-card"><div class="metric-value">3-5/wk</div><div class="metric-label">Social Posts</div></div><div class="metric-card"><div class="metric-value">4.7+</div><div class="metric-label">Google Rating</div></div><div class="metric-card"><div class="metric-value">25%+</div><div class="metric-label">Referrals</div></div></div>`},hr:{title:'HR & Onboarding',meta:'For: All New Hires, Owner',html:`
+  <div class="section-hero"><h2>HR & Onboarding</h2><p>Exact pay, exact expectations. No guessing.</p><div style="margin-top:12px"><span class="badge badge-role">All New Hires</span> <span class="badge badge-role">Owner</span></div></div>
+  <h3>Pay Rates</h3>
+  <div class="pricing-highlight"><h4>Compensation</h4><div class="price-row"><div><div class="price-label">Mover (Starting)</div></div><div class="price-value">$18/hr</div></div><div class="price-row"><div><div class="price-label">Experienced / Crew Lead</div></div><div class="price-value">$21-22/hr</div></div><div class="price-row"><div><div class="price-label">Customer Service</div><div class="price-note">$18/hr + $20 per job booked</div></div><div class="price-value">$18 + comm</div></div></div>
+  <div class="policy-box"><h4>Payment Schedule</h4><ul><li>Paid <strong>hourly</strong> — no cash, proper system only</li><li><strong>Weekly pay:</strong> Full amount (recommended)</li><li><strong>Same-day pay:</strong> Available, but 10% processing fee deducted</li><li>Tips: movers keep 100%</li></ul></div>
+  <h3>Roles</h3><table><tr><th>Role</th><th>Reports To</th><th>Focus</th></tr><tr><td>Owner/GM</td><td>—</td><td>Strategy, finances, decisions</td></tr><tr><td>CS Rep</td><td>Owner</td><td>Phones, Quotient, bookings, deposits</td></tr><tr><td>Crew Lead</td><td>Owner</td><td>Moving day execution, quality</td></tr><tr><td>Mover</td><td>Crew Lead</td><td>Loading, wrapping, carrying</td></tr><tr><td>Driver</td><td>Owner</td><td>Drives truck, helps with move</td></tr></table>
+  <h3>Onboarding</h3><h4>Day 1: Orientation</h4><ul class="checklist"><li>Welcome + company overview</li><li>Tour office/warehouse/trucks</li><li>Provide branded shirts (company supplies)</li><li>Review: dark pants, steel-toe boots (you bring)</li><li>Set up Quotient access (office roles)</li><li>Read department SOP together</li><li>Sign agreement + NDA</li></ul><h4>Day 2-3: Shadow</h4><div class="card"><ul><li><strong>Movers:</strong> Ride along, then assist</li><li><strong>CS:</strong> Listen to calls, then handle with supervision</li></ul></div><h4>Day 4-5: Supervised Solo</h4><p>Work independently, senior available. Debrief daily.</p>
+  <h3>Probation</h3><div class="policy-box"><h4>First 10 Months</h4><ul><li>We're evaluating: reliability, quality, attitude, customer feedback</li><li>After 10 months: full status, raise discussion</li><li>Can end early if exceptional — or lead to termination</li></ul></div>
+  <h3>Dress Code</h3><div class="do-dont"><div class="do-col"><h4>Required</h4><ul><li>Saturn Star shirt (provided)</li><li>Dark pants/shorts (you provide)</li><li>Steel-toe boots (you provide)</li><li>Clean and groomed</li></ul></div><div class="dont-col"><h4>Not Acceptable</h4><ul><li>Dirty/ripped clothing</li><li>Competitor branding</li><li>Strong odor</li><li>Headphones with customers</li></ul></div></div>
+  <h3>No-Show Policy</h3><div class="policy-box"><h4>Attendance</h4><table><tr><th>Offense</th><th>Result</th></tr><tr><td>1st (with reason + 2hr notice)</td><td>Warning</td></tr><tr><td>2nd or no-call</td><td>Serious conversation</td></tr><tr><td>3rd or pattern</td><td>Terminated</td></tr></table></div>
+  <h3>Conduct at Customer's Home</h3><div class="card" style="border-left:4px solid var(--danger);"><ul><li><strong>Never</strong> use bathroom without permission</li><li><strong>Never</strong> eat/drink in their home</li><li><strong>Never</strong> smoke on property</li><li><strong>Never</strong> use phone (except work)</li><li><strong>Never</strong> comment on belongings</li><li><strong>Always</strong> be polite</li><li><strong>Always</strong> full uniform</li></ul></div>
+  <h3>Company Provides vs You Provide</h3><div class="do-dont"><div class="do-col"><h4>We Provide</h4><ul><li>Branded shirts</li><li>All equipment/supplies</li><li>Water + snacks on job days</li><li>Training + SOPs</li><li>Insurance coverage</li></ul></div><div class="dont-col" style="border-top-color:var(--info);"><h4>You Provide</h4><ul><li>Steel-toe boots</li><li>Dark pants/shorts</li><li>Transport to meeting point</li><li>Positive attitude</li></ul></div></div>
+  <h3>Reviews</h3><table><tr><th>When</th><th>What</th></tr><tr><td>Week 1</td><td>Quick check-in</td></tr><tr><td>Month 1</td><td>30-day review</td></tr><tr><td>Quarterly</td><td>Full review</td></tr><tr><td>10 months</td><td>Probation decision</td></tr></table>
+  <h3>Success Metrics</h3><div class="metric-grid"><div class="metric-card"><div class="metric-value">100%</div><div class="metric-label">Onboarding</div></div><div class="metric-card"><div class="metric-value">100%</div><div class="metric-label">SOP Wk1</div></div><div class="metric-card"><div class="metric-value">80%+</div><div class="metric-label">30-Day Retain</div></div><div class="metric-card"><div class="metric-value">70%+</div><div class="metric-label">90-Day Retain</div></div></div>`},quality:{title:'Quality & Standards',meta:'For: All Staff',html:`
+  <div class="section-hero"><h2>Quality & Standards</h2><p><strong>"Would I recommend us after this?"</strong> If not a confident yes, something needs to change.</p><div style="margin-top:12px"><span class="badge badge-role">All Staff</span></div></div>
+  <h3>Customer Experience Checklist</h3><h4>Before</h4><ul class="checklist"><li>Estimate ASAP</li><li>Confirmation sent (email + text)</li><li>Deposit collected</li><li>Day-before confirmation call</li><li>Crew knows job details</li></ul><h4>During</h4><ul class="checklist"><li>Uniform, on time</li><li>Introductions + walkthrough</li><li>Floor/door protection</li><li>All furniture wrapped</li><li>Customer updated on changes</li></ul><h4>After</h4><ul class="checklist"><li>Final walkthrough</li><li>Materials removed</li><li>Satisfaction check</li><li>Review card given</li><li>Referral mentioned</li><li>Payment confirmed</li><li>Follow-up text &lt;24hr</li></ul>
+  <h3>Monthly Audits</h3><div class="card"><ul><li>Owner rides along 1-2 jobs</li><li>Review 10 random records</li><li>Listen to 5 calls</li><li>Check Google reviews for patterns</li></ul></div>
+  <h3>High-Risk Items</h3><table><tr><th>Item</th><th>Protection</th></tr><tr><td>TV</td><td>Wrapped + strapped upright</td></tr><tr><td>Glass/Mirrors</td><td>Blanket + cardboard + FRAGILE</td></tr><tr><td>Mattress</td><td>Bag — sealed</td></tr><tr><td>Antiques</td><td>Double-blanket, nothing on top</td></tr><tr><td>Piano</td><td>Special equipment, 3+ crew</td></tr></table>
+  <h3>Vehicle Standards</h3><div class="do-dont"><div class="do-col"><h4>Trucks</h4><ul><li>Washed weekly</li><li>Swept after every job</li><li>Branding visible</li><li>Maintenance on schedule</li></ul></div><div class="do-col"><h4>Equipment</h4><ul><li>Blankets washed monthly</li><li>Damaged = replaced</li><li>Dollies checked weekly</li><li>Straps inspected</li></ul></div></div>
+  <h3>Success Metrics</h3><div class="metric-grid"><div class="metric-card"><div class="metric-value">4.5+</div><div class="metric-label">Satisfaction</div></div><div class="metric-card"><div class="metric-value">4.7+</div><div class="metric-label">Google</div></div><div class="metric-card"><div class="metric-value">&lt;10%</div><div class="metric-label">Damage Rate</div></div><div class="metric-card"><div class="metric-value">95%+</div><div class="metric-label">&lt;24hr Resolve</div></div><div class="metric-card"><div class="metric-value">90%+</div><div class="metric-label">SOP Compliance</div></div></div>`},finance:{title:'Finance & Admin',meta:'For: Office Admin, Owner',html:`
+  <div class="section-hero"><h2>Finance & Admin</h2><p>Invoicing, deposits, insurance, expenses. Keep it clean.</p><div style="margin-top:12px"><span class="badge badge-role">Admin</span> <span class="badge badge-role">Owner</span></div></div>
+  <h3>Payment Methods</h3><table><tr><th>Method</th><th>Notes</th></tr><tr><td>E-Transfer</td><td>Preferred</td></tr><tr><td>Credit Card</td><td>If processor set up</td></tr><tr><td>Cash</td><td>Receipt immediately</td></tr><tr><td>Cheque</td><td>Commercial only</td></tr></table>
+  <h3>Deposits</h3><div class="pricing-highlight"><h4>Required to Book</h4><div class="price-row"><div><div class="price-label">Local</div></div><div class="price-value">20%</div></div><div class="price-row" style="border-bottom:none;"><div><div class="price-label">Long Distance</div></div><div class="price-value">40-45%</div></div></div>
+  <div class="policy-box"><h4>Cancellation</h4><ul><li>3+ weeks: full refund</li><li>Under 3 weeks: forfeited</li><li>No-show: forfeited</li></ul></div>
+  <h3>Crew Payment</h3><div class="policy-box"><h4>How Crew Gets Paid</h4><ul><li>Hourly — no cash</li><li>Weekly: full amount</li><li>Same-day: minus 10% fee</li><li>Clock starts at meeting point</li></ul></div>
+  <h3>Invoices</h3><div class="card"><ul><li>Company info + invoice # (SSM-0001...)</li><li>Customer + date + description</li><li>Crew size, hours, rate</li><li>Itemized + HST (13%) + Total</li></ul></div>
+  <h3>Accounting</h3><div class="callout callout-danger"><strong>Action needed:</strong> Currently tracking receipts manually. Need to set up QuickBooks/Wave/FreshBooks. Keep ALL receipts organized by month.</div>
+  <h3>Damage Claims</h3><div class="pricing-highlight"><h4>Threshold</h4><div class="price-row"><div><div class="price-label">Under $300</div></div><div class="price-value">Internal</div></div><div class="price-row" style="border-bottom:none;"><div><div class="price-label">Over $300</div></div><div class="price-value">Insurance</div></div></div>
+  <h3>Expenses</h3><table><tr><th>Category</th><th>Examples</th></tr><tr><td>Fuel</td><td>Gas</td></tr><tr><td>Labour</td><td>Wages ($18-22/hr)</td></tr><tr><td>Supplies</td><td>Blankets, tape, wrap</td></tr><tr><td>Maintenance</td><td>Oil, tires, repairs</td></tr><tr><td>Insurance</td><td>Premiums</td></tr><tr><td>Marketing</td><td>Print shop, postage</td></tr><tr><td>Software</td><td>Quotient, phone</td></tr></table>
+  <h3>Document Retention</h3><table><tr><th>Doc</th><th>Keep</th></tr><tr><td>Invoices/receipts</td><td>7 years</td></tr><tr><td>Contracts</td><td>3 years</td></tr><tr><td>Insurance certs</td><td>Current + 1yr</td></tr><tr><td>Employee records</td><td>Employment + 3yr</td></tr><tr><td>HST filings</td><td>7 years</td></tr></table>
+  <h3>Success Metrics</h3><div class="metric-grid"><div class="metric-card"><div class="metric-value">95%+</div><div class="metric-label">Invoice &lt;24h</div></div><div class="metric-card"><div class="metric-value">&lt;5%</div><div class="metric-label">AR &gt;30 Days</div></div><div class="metric-card"><div class="metric-value">100%</div><div class="metric-label">HST On Time</div></div></div>`},inbound:{title:'Inbound Call Handling',meta:'For: CS Reps, Sales Reps',html:`
+  <div class="section-hero"><h2>&#128222; Inbound Call Handling</h2><p>Every inbound call is a buying signal. Someone chose to call <em>you</em>. Your job is to answer fast, give a confident answer, and convert the call into a booking.</p><div style="margin-top:12px"><span class="badge badge-role">CS Reps</span> <span class="badge badge-role">Sales Reps</span></div></div>
+
+  <h3>Call Type 1 — "Can I get a rough estimate?" <span style="font-size:12px;font-weight:400;color:var(--text-muted)">(Most Common)</span></h3>
+  <div class="callout callout-gold"><strong>This is a buying signal.</strong> They called YOU. Your goal: give a confident range in 30 seconds, then pivot to booking the consultation or locking in the quote on the spot. Never say "I'll have to get back to you."</div>
+
+  <div class="script-block">"Absolutely — I can give you a ballpark right now.<br>Can I ask: how many bedrooms, and where are you moving to?"<br><br>[They answer]<br><br>"Perfect. For a [X] bedroom move [local/to destination],<br>you're typically looking at $[LOW] to $[HIGH] — that's<br>fully insured, professional crew, everything wrapped and protected.<br><br>To get you an exact locked-in price, I can do a quick<br>20-minute walkthrough — no obligation. When works for<br>you this week?"</div>
+
+  <h4>Ballpark Range Reference Card</h4>
+  <div class="callout callout-gold"><strong>Use these ranges for phone ballparks only.</strong> Always use pricing software for actual estimates. All prices include HST.</div>
+  <table>
+    <tr><th>Home Size</th><th>Local</th><th>Long Distance</th><th>Out of Province</th></tr>
+    <tr><td><strong>Studio</strong></td><td>$340–$565</td><td>$677–$1,017</td><td>$1,017–$1,581</td></tr>
+    <tr><td><strong>1 Bedroom</strong></td><td>$508–$790</td><td>$903–$1,355</td><td>$1,355–$2,034</td></tr>
+    <tr><td><strong>2 Bedroom</strong></td><td>$677–$1,017</td><td>$1,242–$1,807</td><td>$1,807–$2,599</td></tr>
+    <tr><td><strong>3 Bedroom</strong></td><td>$903–$1,355</td><td>$1,581–$2,259</td><td>$2,259–$3,389</td></tr>
+    <tr><td><strong>4 Bedroom</strong></td><td>$1,129–$1,694</td><td>$2,034–$2,937</td><td>$2,937–$4,294</td></tr>
+    <tr><td><strong>5 Bedroom+</strong></td><td>$1,468–$2,147</td><td>$2,599–$3,728</td><td>$3,728–$5,424</td></tr>
+  </table>
+
+  <h4>Add-On Ranges (Mention If Applicable)</h4>
+  <div class="card"><ul><li><strong>Piano:</strong> +$170–$285</li><li><strong>Workshop / heavy tools:</strong> +$226–$452</li><li><strong>Extra flights of stairs:</strong> +$85–$170</li></ul></div>
+
+  <h4>Key Rules — Rough Estimates on the Phone</h4>
+  <div class="do-dont"><div class="do-col"><h4>Always</h4><ul><li>Give a <strong>range</strong>, never a single number on the phone</li><li>Lower end = straightforward job; upper end = specialty items, stairs, complexity</li><li>Pivot to booking <strong>immediately</strong> after giving the range</li></ul></div><div class="dont-col"><h4>Never</h4><ul><li>Apologize for the price</li><li>Say "I'll have to get back to you"</li><li>Give a flat single number — always a range</li></ul></div></div>
+
+  <h3>Call Type 2 — "How much do you charge per hour?"</h3>
+  <div class="callout callout-gold">They're price shopping. Acknowledge it, give the rate, pivot to value.</div>
+  <div class="script-block">"Our hourly rate is $[rate] for a [X]-person crew —<br>that includes the truck, all equipment, blankets and<br>wrap, fully insured.<br><br>Most [X]-bedroom moves take about [Y] hours, so<br>you're typically looking at $[estimate] all in.<br><br>The nice thing is you only pay for actual time —<br>if we finish early, you pay less. Want me to come<br>take a quick look so I can give you a more accurate<br>time estimate?"</div>
+
+  <h3>Call Type 3 — Long Distance Inquiry</h3>
+  <div class="callout callout-gold">They're moving 100km+. Flat rate is always better for both sides on long distance.</div>
+  <div class="script-block">"For long distance we work on a flat rate —<br>you know exactly what you're paying upfront,<br>no surprises at the end of a long day.<br><br>For a [size] home moving to [destination],<br>you're looking at roughly $[LOW]–$[HIGH]<br>all in including tax.<br><br>That covers everything — full wrap,<br>[X] guys, we load one day and deliver<br>the next morning so you're not waiting<br>around all day.<br><br>Want me to come walk through the home<br>so I can lock that number in for you?"</div>
+
+  <h3>Call Type 4 — "Someone just called and I'm not sure what to ask"</h3>
+  <div class="callout callout-gold">Use this checklist on every inbound call. Get all 5 pieces of info before the call ends.</div>
+
+  <h4>The 5 Questions — Memorize These</h4>
+  <div class="values-list">
+    <div class="value-item"><div class="value-num">1</div><div class="value-text"><strong>"How many bedrooms?"</strong><span>Determines size, crew, and truck needed</span></div></div>
+    <div class="value-item"><div class="value-num">2</div><div class="value-text"><strong>"Where are you moving from and to?"</strong><span>Determines local vs long distance and fuel charges</span></div></div>
+    <div class="value-item"><div class="value-num">3</div><div class="value-text"><strong>"Any large specialty items — piano, safe, pool table, heavy workshop equipment?"</strong><span>Flags extra cost items before quoting a range</span></div></div>
+    <div class="value-item"><div class="value-num">4</div><div class="value-text"><strong>"What date are you looking at?"</strong><span>Checks availability and creates urgency to book</span></div></div>
+    <div class="value-item"><div class="value-num">5</div><div class="value-text"><strong>"Anything tricky about access — stairs, tight hallways, elevator?"</strong><span>Flags complexity and adjusts the range accordingly</span></div></div>
+  </div>
+
+  <h4>After the 5 Questions</h4>
+  <div class="flow-step"><div class="flow-num">&#10142;</div><div class="flow-content"><h4>Give range or schedule consultation</h4><p>Use the ballpark range card above, or offer a 20-minute in-home walkthrough if the job is large or complex.</p></div></div>
+  <div class="flow-step"><div class="flow-num">&#10142;</div><div class="flow-content"><h4>Get their name and number before they hang up</h4><p>Even if they're not ready to book — this keeps them in your follow-up pipeline.</p></div></div>
+  <div class="flow-step"><div class="flow-num">&#10142;</div><div class="flow-content"><h4>Log in CRM immediately after the call</h4><p>Do not wait. Log while details are fresh: name, number, date, size, origin, destination, any flags.</p></div></div>
+
+  <h3>Success Metrics</h3>
+  <div class="metric-grid"><div class="metric-card"><div class="metric-value">30 sec</div><div class="metric-label">Ballpark Delivered</div></div><div class="metric-card"><div class="metric-value">100%</div><div class="metric-label">5 Qs Captured</div></div><div class="metric-card"><div class="metric-value">100%</div><div class="metric-label">CRM Logged</div></div><div class="metric-card"><div class="metric-value">60%+</div><div class="metric-label">Pivot to Booking</div></div></div>`},pricing:{title:'Pricing & Quoting Standards',meta:'For: CS Reps, Sales Reps, Owner',html:`
+  <div class="section-hero"><h2>&#128176; Pricing & Quoting Standards</h2><p>The software gives the price. You present it. You stop talking. Confidence closes — hesitation loses.</p><div style="margin-top:12px"><span class="badge badge-role">CS Reps</span> <span class="badge badge-role">Sales Reps</span> <span class="badge badge-role">Owner</span></div></div>
+
+  <h3>The Golden Rule</h3>
+  <div class="policy-box"><h4>Present. Stop. Wait.</h4><p>Use the pricing software for every quote. Never calculate manually. After you deliver the price — <strong>stop talking</strong>. Silence is not awkward. It's professional. The first person to speak after the price is given loses negotiating position.</p></div>
+
+  <h4>Presenting the Price</h4>
+  <div class="script-block">"Based on everything I've seen, you're looking at $[X]<br>all in including tax. That covers [brief summary of<br>what's included]. To lock in your date I just need<br>a $[deposit] deposit."<br><br>&#10142; Stop talking. Wait for their response.</div>
+
+  <h3>If They Say "That's More Than I Expected"</h3>
+  <div class="script-block">"I totally understand — moving is a big investment.<br>What I can tell you is that price covers [X crew],<br>full insurance, all the equipment, and we won't<br>leave until everything is exactly where you want it.<br><br>A lot of our customers have been caught off guard<br>by cheaper quotes that ended up costing more in<br>damages or hidden fees.<br><br>What I can do is [5% off if date is flexible /<br>drop the packing service / adjust the crew size].<br>Would that work better for you?"</div>
+
+  <h3>Discount Authority</h3>
+  <div class="card">
+    <table>
+      <tr><th>Role</th><th>Max Discount (No Approval)</th></tr>
+      <tr><td><strong>CSR / Sales Rep</strong></td><td>Up to 5%</td></tr>
+      <tr><td><strong>Manager / Owner</strong></td><td>Up to 10%</td></tr>
+    </table>
+  </div>
+  <div class="do-dont"><div class="do-col"><h4>Discount Rules</h4><ul><li>Always attach a <strong>reason</strong> to any discount ("if your date is flexible", "if you can book today")</li><li>A discount with no reason just teaches them to always negotiate</li><li>A discount tied to a condition creates a trade, not a concession</li></ul></div><div class="dont-col"><h4>Hard Limits</h4><ul><li><strong>Never go below 10%</strong> total — protect your margins</li><li><strong>Never discount preemptively</strong> — wait until they push back</li><li><strong>Never apologize for the price</strong> before presenting it</li></ul></div></div>
+
+  <h3>Flat Rate vs Hourly — When to Use Each</h3>
+  <table>
+    <tr><th>Situation</th><th>Use</th></tr>
+    <tr><td>Local, straightforward</td><td><strong>Hourly</strong> — transparent, fair, builds trust</td></tr>
+    <tr><td>Local, complex or large</td><td><strong>Flat Rate</strong> — protects you from scope creep</td></tr>
+    <tr><td>Long distance (100km+)</td><td><strong>Always Flat Rate</strong></td></tr>
+    <tr><td>Out of province</td><td><strong>Always Flat Rate</strong> + manager review required</td></tr>
+    <tr><td>Commercial / office move</td><td><strong>Always Flat Rate</strong></td></tr>
+  </table>
+
+  <div class="callout callout-gold"><strong>Flat rate requires exact inventory and manager approval.</strong> If you are not 100% confident in the scope, use hourly. We honor every flat rate we give — even if the job runs long.</div>
+
+  <h3>Objection: "I Got a Cheaper Quote"</h3>
+  <div class="objection-row"><div class="objection-label">"Company X quoted $400 less"</div><div class="objection-response">"That's worth comparing closely. Ask them: is that fully insured? Does it include blanket-wrapping on every piece? What happens if something gets damaged? Our price covers all of that — no surprises on moving day."</div></div>
+  <div class="objection-row"><div class="objection-label">"Can you match it?"</div><div class="objection-response">"I can't match a price I can't verify. What I can do is make sure you know exactly what you're getting with us — full wrap, licensed and insured crew, and we don't leave until you're happy."</div></div>
+  <div class="objection-row"><div class="objection-label">"Just need a ballpark"</div><div class="objection-response">"Totally. [Give range from the reference card.] For an exact locked-in number, I can come do a quick walk-through — no obligation."</div></div>
+
+  <h3>After Delivering the Price — What to Listen For</h3>
+  <div class="level-card level-1"><div class="level-title">They Go Quiet</div><p>Good sign. They are thinking. Do NOT fill the silence. Wait. Let them respond.</p></div>
+  <div class="level-card level-1"><div class="level-title">"Okay, sounds good" / "Let's do it"</div><p>Move immediately to deposit. <strong>"Great — I just need a $[deposit] e-transfer to lock in the date. What email should I send the confirmation to?"</strong></p></div>
+  <div class="level-card level-2"><div class="level-title">"Let me think about it" / "I'll call you back"</div><p>Acknowledge and anchor the date. <em>"Of course — take your time. Just know that [their date] tends to book up fast, especially on weekends. If you want I can hold it tentatively for 24 hours while you decide?"</em></p></div>
+  <div class="level-card level-3"><div class="level-title">"That's too expensive"</div><p>Do not drop price immediately. Restate value first. Then offer a conditional discount if they remain unmoved. Escalate to owner if they want more than 5% off.</p></div>
+
+  <h3>Success Metrics</h3>
+  <div class="metric-grid"><div class="metric-card"><div class="metric-value">100%</div><div class="metric-label">Software Used</div></div><div class="metric-card"><div class="metric-value">50%+</div><div class="metric-label">Quote-to-Book</div></div><div class="metric-card"><div class="metric-value">&lt;5%</div><div class="metric-label">Discounts Given</div></div><div class="metric-card"><div class="metric-value">0</div><div class="metric-label">Manual Calcs</div></div></div>`}};
+
+const contentEl=document.getElementById('content'),topbarTitle=document.getElementById('topbarTitle'),topbarMeta=document.getElementById('topbarMeta'),sidebar=document.getElementById('sidebar'),overlay=document.getElementById('overlay'),mobileToggle=document.getElementById('mobileToggle'),searchBox=document.getElementById('searchBox');
+function navigateTo(p){const page=pages[p];if(!page)return;contentEl.innerHTML=page.html;topbarTitle.textContent=page.title;topbarMeta.textContent=page.meta;document.querySelectorAll('.nav-item').forEach(i=>i.classList.toggle('active',i.dataset.page===p));contentEl.querySelectorAll('.checklist li').forEach(li=>li.addEventListener('click',()=>li.classList.toggle('checked')));sidebar.classList.remove('open');overlay.classList.remove('show');window.scrollTo(0,0);history.pushState(null,'','#'+p);}
+document.querySelectorAll('.nav-item').forEach(i=>i.addEventListener('click',()=>navigateTo(i.dataset.page)));
+mobileToggle.addEventListener('click',()=>{sidebar.classList.toggle('open');overlay.classList.toggle('show');});
+overlay.addEventListener('click',()=>{sidebar.classList.remove('open');overlay.classList.remove('show');});
+searchBox.addEventListener('input',e=>{const q=e.target.value.toLowerCase();if(q.length<2)return;for(const[id,page]of Object.entries(pages)){if(page.html.toLowerCase().includes(q)||page.title.toLowerCase().includes(q)){navigateTo(id);break;}}});
+window.addEventListener('popstate',()=>{navigateTo(location.hash.replace('#','')||'home');});
+function toggleTheme(){const h=document.documentElement,n=h.getAttribute('data-theme')==='light'?'dark':'light';h.setAttribute('data-theme',n);localStorage.setItem('sop-theme',n);updateThemeButton(n);}
+function updateThemeButton(t){document.getElementById('themeIcon').innerHTML=t==='light'?'&#9790;':'&#9728;';document.getElementById('themeLabel').textContent=t==='light'?'Dark Mode':'Light Mode';}
+const saved=localStorage.getItem('sop-theme')||'light';document.documentElement.setAttribute('data-theme',saved);updateThemeButton(saved);
+navigateTo(location.hash.replace('#','')||'home');
+</script>
+</body>
+</html>

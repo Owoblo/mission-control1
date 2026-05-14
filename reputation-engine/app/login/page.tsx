@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useSearchParams } from 'next/navigation'
 import { FormEvent, Suspense, useState } from 'react'
 
@@ -51,11 +52,9 @@ function LoginForm() {
     <div className="w-full max-w-sm">
       <div className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-panel)] p-8 shadow-sm">
         {/* Logo */}
-        <div className="mb-8 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1a2744]">
-            <span className="text-lg font-bold text-[#f5a623]">S</span>
-          </div>
-          <div>
+        <div className="mb-8 flex flex-col items-center gap-2">
+          <Image src="/saturn-star-logo.png" alt="Saturn Star Moving" width={96} height={96} priority />
+          <div className="text-center">
             <div className="font-semibold text-[var(--app-ink)]">Saturn Star OS</div>
             <div className="text-xs text-[var(--app-muted)]">Mission Control</div>
           </div>

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fidelis Operations Lead SOP</title>
+<style>
+  :root {
+    --navy: #0f1b2d;
+    --gold: #e6a817;
+    --bg: #f5f5f7;
+    --panel: #ffffff;
+    --line: #e5e7eb;
+    --text: #111827;
+    --muted: #6b7280;
+    --ok: #dcfce7;
+    --warn: #fff7ed;
+    --bad: #fef2f2;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .shell {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 32px 20px 64px;
+  }
+  .topbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+  .back {
+    color: var(--navy);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .hero {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    padding: 28px;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+    margin-bottom: 20px;
+  }
+  .eyebrow {
+    display: inline-block;
+    border-radius: 999px;
+    background: rgba(230, 168, 23, 0.12);
+    color: #9a6a00;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  h1 {
+    margin: 0 0 10px;
+    font-size: clamp(30px, 5vw, 44px);
+    line-height: 1.02;
+    letter-spacing: -0.04em;
+    color: var(--navy);
+  }
+  .hero p {
+    margin: 0;
+    max-width: 720px;
+    color: var(--muted);
+    font-size: 16px;
+    line-height: 1.7;
+  }
+  .grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(12, 1fr);
+    margin: 20px 0 28px;
+  }
+  .card {
+    grid-column: span 12;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    padding: 20px;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+  }
+  .card h2 {
+    margin: 0 0 10px;
+    font-size: 18px;
+    letter-spacing: -0.02em;
+    color: var(--navy);
+  }
+  .card p, .card li {
+    font-size: 14px;
+    line-height: 1.7;
+    color: #334155;
+  }
+  .span-6 { grid-column: span 12; }
+  .pill-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .pill {
+    border-radius: 999px;
+    padding: 8px 12px;
+    background: #f8fafc;
+    border: 1px solid var(--line);
+    font-size: 12px;
+    font-weight: 600;
+    color: #334155;
+  }
+  ul, ol { margin: 0; padding-left: 18px; }
+  .box-ok, .box-warn, .box-bad {
+    border-radius: 18px;
+    padding: 16px 18px;
+    border: 1px solid var(--line);
+  }
+  .box-ok { background: var(--ok); }
+  .box-warn { background: var(--warn); }
+  .box-bad { background: var(--bad); }
+  .login-box {
+    background: var(--navy);
+    color: white;
+    border-radius: 24px;
+    padding: 24px;
+    margin-top: 28px;
+  }
+  .login-box h2 {
+    margin: 0 0 10px;
+    color: white;
+    font-size: 20px;
+  }
+  .login-box a { color: #fde68a; }
+  .meta {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    margin-top: 14px;
+  }
+  .meta div {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 14px;
+  }
+  .meta-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.65);
+    margin-bottom: 6px;
+  }
+  .meta-value {
+    font-size: 15px;
+    font-weight: 700;
+  }
+  @media (min-width: 840px) {
+    .span-6 { grid-column: span 6; }
+  }
+</style>
+</head>
+<body>
+  <div class="shell">
+    <div class="topbar">
+      <a class="back" href="/SOPs/index.html">&larr; Back to SOP Portal</a>
+    </div>
+
+    <section class="hero">
+      <div class="eyebrow">Operations Lead SOP</div>
+      <h1>Fidelis Operations Lead SOP</h1>
+      <p>
+        This is the short working SOP for Fidelis as the Waterloo operations lead.
+        The role is designed to run booked jobs, dispatch, truck setup, crew setup,
+        and post-move actuals. It is not a sales or admin control role.
+      </p>
+      <div class="pill-row">
+        <span class="pill">Role: Operations Lead</span>
+        <span class="pill">Branch: Waterloo</span>
+        <span class="pill">Workspace: Operations</span>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card span-6">
+        <h2>What Fidelis Controls</h2>
+        <ul>
+          <li>Booked jobs for the Waterloo branch</li>
+          <li>Crew assignment and crew notes</li>
+          <li>Truck reservation status, vendor, size, pickup, return, and reservation details</li>
+          <li>Ops checklist items like access, parking, tools, and job packet readiness</li>
+          <li>Crew hours after the move</li>
+          <li>Actual hours and actual crew after the move</li>
+          <li>Marking jobs complete and triggering the review request flow</li>
+        </ul>
+      </div>
+
+      <div class="card span-6">
+        <h2>What Fidelis Does Not Control</h2>
+        <ul>
+          <li>Pipeline, inbox, or normal sales workflow</li>
+          <li>Quote building, quote revisions, or discounts</li>
+          <li>Finance, analytics, or rep management</li>
+          <li>Creating users, changing roles, or resetting passwords</li>
+          <li>Changing the truck count sold on the quote</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>Daily Workflow</h2>
+        <ol>
+          <li>Log in and open the Operations page.</li>
+          <li>Review booked and deposit-paid jobs for Waterloo.</li>
+          <li>Open <strong>Ops Setup</strong> on each job.</li>
+          <li>Assign crew, add crew notes, and confirm truck reservation details.</li>
+          <li>Confirm access, parking, tools, and job packet readiness.</li>
+          <li>After the move, log actual hours and actual crew.</li>
+          <li>Mark the move complete once the job is done.</li>
+        </ol>
+      </div>
+
+      <div class="card span-6">
+        <h2>Guardrails</h2>
+        <div class="box-ok">
+          Truck count is pulled from the quote. Operations works around that plan, but does not change what was sold.
+        </div>
+        <div style="height:10px"></div>
+        <div class="box-warn">
+          Stay inside the Waterloo branch scope unless ownership explicitly expands it.
+        </div>
+      </div>
+
+      <div class="card span-6">
+        <h2>Escalate When</h2>
+        <div class="box-bad">
+          <ul>
+            <li>The customer wants the quote or commercial terms changed</li>
+            <li>The invoice, deposit, or balance logic looks wrong</li>
+            <li>The truck plan sold to the customer looks wrong</li>
+            <li>A new team account or password reset is needed</li>
+            <li>There is a dispute, damage issue, or exception that affects pricing or commitments</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="login-box">
+      <h2>Login Reference</h2>
+      <p>Use the Mission Control login page below to access the operations workspace.</p>
+      <div class="meta">
+        <div>
+          <div class="meta-label">Login Link</div>
+          <div class="meta-value"><a href="https://go.quote2move.com/login">go.quote2move.com/login</a></div>
+        </div>
+        <div>
+          <div class="meta-label">Email</div>
+          <div class="meta-value">undiefidelis@gmail.com</div>
+        </div>
+        <div>
+          <div class="meta-label">Role</div>
+          <div class="meta-value">Operations Lead</div>
+        </div>
+        <div>
+          <div class="meta-label">Branch</div>
+          <div class="meta-value">Waterloo</div>
+        </div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

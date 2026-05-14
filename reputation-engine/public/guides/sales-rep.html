@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sales Rep Guide — Saturn Star Moving</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; color: #1a2744; background: #fff; font-size: 14px; line-height: 1.6; }
+  .page { max-width: 800px; margin: 0 auto; padding: 48px 40px; }
+  .header { display: flex; align-items: center; gap: 16px; padding-bottom: 24px; border-bottom: 3px solid #1a2744; margin-bottom: 32px; }
+  .logo { width: 64px; height: 64px; border-radius: 10px; object-fit: cover; }
+  .header-text h1 { font-size: 22px; font-weight: 800; color: #1a2744; }
+  .header-text p { font-size: 13px; color: #6b7280; margin-top: 2px; }
+  .role-badge { background: #f5a623; color: #1a2744; font-weight: 700; font-size: 11px; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.08em; }
+  h2 { font-size: 16px; font-weight: 700; color: #1a2744; margin: 28px 0 12px; padding-bottom: 6px; border-bottom: 2px solid #f0f2f5; display: flex; align-items: center; gap: 8px; }
+  h3 { font-size: 13px; font-weight: 600; color: #1a2744; margin: 16px 0 6px; }
+  p { margin-bottom: 8px; color: #374151; }
+  ul, ol { padding-left: 20px; margin-bottom: 12px; }
+  li { margin-bottom: 5px; color: #374151; }
+  .step { display: flex; gap: 12px; margin-bottom: 12px; align-items: flex-start; }
+  .step-num { background: #1a2744; color: #f5a623; font-weight: 700; font-size: 12px; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+  .step-body strong { display: block; font-size: 13px; color: #1a2744; }
+  .step-body span { font-size: 12px; color: #6b7280; }
+  .tip { background: #fffbeb; border-left: 3px solid #f5a623; padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 12px 0; font-size: 13px; }
+  .tip strong { color: #92400e; }
+  .screen { background: #f0f2f5; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 14px; margin: 10px 0; font-size: 12px; font-family: monospace; color: #374151; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 12px 0; }
+  .card { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px; }
+  .card h4 { font-size: 12px; font-weight: 700; color: #1a2744; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .phone { background: #1a2744; color: #f5a623; font-weight: 700; padding: 2px 8px; border-radius: 4px; font-size: 13px; }
+  .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 11px; color: #9ca3af; }
+  @media print {
+    body { font-size: 13px; }
+    .page { padding: 32px 28px; }
+    h2 { page-break-after: avoid; }
+    .step { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <img src="/saturn-star-logo.png" alt="Saturn Star" class="logo">
+    <div class="header-text">
+      <h1>Saturn Star OS — Sales Rep Guide</h1>
+      <p>Mission Control Platform · Internal Use Only</p>
+    </div>
+    <div class="role-badge">Sales Rep</div>
+  </div>
+
+  <h2>🌅 Starting Your Day</h2>
+  <div class="step"><div class="step-num">1</div><div class="step-body"><strong>Open Morning Briefing</strong><span>Go to <b>/sales/read-first</b> — this shows your priority leads, scheduled follow-ups, and any booked moves for today. Start here every shift.</span></div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-body"><strong>Check the Inbox</strong><span>Go to <b>/sales/inbox</b> — any new SMS replies or emails from leads appear here. Respond to anything urgent before making outbound calls.</span></div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-body"><strong>Check your Follow-Up Queue</strong><span>On the leads page, the "Needs Follow-Up" tab shows every lead with an action due today. Work through this list in priority order.</span></div></div>
+
+  <h2>📞 Handling a New Lead</h2>
+  <div class="step"><div class="step-num">1</div><div class="step-body"><strong>Claim the lead</strong><span>New leads appear in <b>Inbox → New Leads</b>. Click Claim — this assigns it to you and moves it to your pipeline.</span></div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-body"><strong>Call within 5 minutes</strong><span>Speed wins moves. Use the browser dialer (green Dialer button, bottom right). Introduce yourself: <em>"Hi [Name], this is [Your Name] with Saturn Star Moving — you reached out about a move?"</em></span></div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-body"><strong>Collect the essentials</strong><span>Moving from / to, move date, type of home, anything special (piano, appliances, packing). Update the lead card as you talk.</span></div></div>
+  <div class="step"><div class="step-num">4</div><div class="step-body"><strong>Send the survey link</strong><span>Click <b>Send Survey</b> on the lead. Customer gets a text with a link — they upload photos of their home. This is how we quote accurately without visiting.</span></div></div>
+  <div class="step"><div class="step-num">5</div><div class="step-body"><strong>Set a follow-up</strong><span>If they haven't responded in 2 hours, follow up. Set the follow-up date on the lead so it shows in your queue.</span></div></div>
+
+  <div class="tip"><strong>Script:</strong> "We already have a system that reviews your home's photos and builds the estimate automatically — no one needs to come out, and the price you see is the price you pay on moving day."</div>
+
+  <h2>📋 Building and Sending a Quote</h2>
+  <div class="step"><div class="step-num">1</div><div class="step-body"><strong>Scan the survey</strong><span>Once photos are submitted, open the lead and click <b>Scan Survey</b>. The AI analyzes the photos and pre-fills the inventory.</span></div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-body"><strong>Review the inventory</strong><span>In the quote builder, go through each room. Add anything missing. For appliances (washer, fridge, stove) — confirm with the customer if they're moving them, then click <b>Include Back</b>.</span></div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-body"><strong>Recalculate</strong><span>Click Recalculate to generate crew size, hours, and pricing based on the inventory. Review the numbers — make sure the margin is 65%+.</span></div></div>
+  <div class="step"><div class="step-num">4</div><div class="step-body"><strong>Send the quote</strong><span>Click <b>Send Quote</b>. Customer gets an SMS with a link to their personalized estimate. They can accept and pay the deposit directly from the link.</span></div></div>
+  <div class="step"><div class="step-num">5</div><div class="step-body"><strong>Follow up on the quote</strong><span>If not accepted within 2 hours: "Hi [Name], just checking that you received the estimate — want me to walk you through anything?" The system auto-follows up too, but a personal touch closes more.</span></div></div>
+
+  <h2>✅ Booking a Move</h2>
+  <p>When the customer accepts the quote and pays the deposit:</p>
+  <ul>
+    <li>The lead automatically moves to <b>Booked</b> stage</li>
+    <li>Click <b>Confirm Job</b> to lock in the move date and crew plan</li>
+    <li>Operations gets notified automatically</li>
+    <li>You get credit for the booking in your rep leaderboard</li>
+  </ul>
+
+  <h2>💬 Using the Inbox (SMS + Email)</h2>
+  <div class="two-col">
+    <div class="card"><h4>SMS Inbox</h4><ul><li>Shows all two-way texts per lead</li><li>Reply directly from the thread</li><li>AI can draft a reply — click Smart Compose</li></ul></div>
+    <div class="card"><h4>Email Inbox</h4><ul><li>Customer replies to your quote emails land here</li><li>Reply from inside the CRM — keeps history in one place</li></ul></div>
+  </div>
+
+  <h2>📱 Using the Dialer</h2>
+  <ol>
+    <li>Click the green <b>Dialer</b> button (bottom-right of any screen)</li>
+    <li>Enter the phone number or it auto-fills from the lead</li>
+    <li>Click Call — the call comes from the business number <span class="phone">226-773-2993</span></li>
+    <li>All calls are recorded automatically for training and accuracy</li>
+    <li>After the call, add notes on the lead card</li>
+  </ol>
+
+  <div class="tip"><strong>Tip:</strong> If a lead goes cold, use the <b>Smart Compose</b> button in the SMS tab — the AI reads the full conversation history and writes the right follow-up message automatically.</div>
+
+  <h2>🎯 Key Rules</h2>
+  <ul>
+    <li><strong>Call within 5 minutes</strong> of a new lead coming in — speed wins moves</li>
+    <li><strong>Always say "binding estimate"</strong> — no surprise fees, what they see is what they pay</li>
+    <li><strong>Save the lead</strong> before leaving the page (amber warning shows unsaved changes)</li>
+    <li><strong>Never quote a number without seeing the inventory</strong> — always send the survey link first</li>
+    <li>If you can't close over the phone, ask: <em>"Would it help to have someone come by and do a quick walkthrough?"</em></li>
+  </ul>
+
+  <h2>📞 Key Contacts</h2>
+  <div class="two-col">
+    <div class="card"><h4>Business Line</h4><p>226-773-2993<br>Shows on all outbound calls</p></div>
+    <div class="card"><h4>Platform Help</h4><p>go.quote2move.com<br>mission-control1-reputation-engine.vercel.app</p></div>
+  </div>
+
+  <div class="footer">Saturn Star Moving Company · Saturn Star OS — Internal Platform · Confidential</div>
+</div>
+</body>
+</html>

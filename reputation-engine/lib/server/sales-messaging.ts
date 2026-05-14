@@ -25,6 +25,52 @@ import type { CRMEmail, CRMLead, FollowUpLog } from '@/lib/types'
 const DEFAULT_HUMAN_PAUSE_HOURS = 12
 const OUTBOUND_SMS_DEDUPE_WINDOW_MS = 60 * 1000
 
+// ── SMS number safety guard ───────────────────────────────────────────────────
+// Blocks sends to numbers that will always fail: shortcodes, OTP senders,
+// known non-customer numbers. Protects Twilio number trust score (error 21265).
+
+const BLOCKED_NUMBER_PATTERNS: RegExp[] = [
+  /^\+1?8[0-9]{3,5}$/,     // US shortcodes (+8XXXX, +18XXXX — 4-6 digit codes)
+  /^\+1?[2-9]\d{4}$/,      // General 5-digit shortcodes
+  /^\+1?[2-9]\d{5}$/,      // 6-digit shortcodes
+]
+
+// Specific known numbers that should never receive automated/manual SMS from us
+const BLOCKED_NUMBERS_EXACT = new Set<string>([
+  '+84285',   // UHaul shortcode — "Thank you for your reservation"
+])
+
+export function shouldBlockSmsTo(rawTo: string, actor: 'human' | 'automation' = 'automation'): { blocked: boolean; reason: string } {
+  const digits = rawTo.replace(/\D/g, '')
+
+  // Block shortcodes: less than 10 digits (US/Canada numbers are always 10+ digits)
+  if (digits.length < 10) {
+    return { blocked: true, reason: `Shortcode / verification sender (${digits.length} digits) — not a real customer phone` }
+  }
+
+  // Block non-North American numbers for automation (can't have customer relationship)
+  if (actor === 'automation') {
+    const isNorthAmerican = /^\+1\d{10}$/.test(rawTo)
+    if (!isNorthAmerican) {
+      return { blocked: true, reason: `Non-North American number (${rawTo}) — automation blocked, human send still allowed` }
+    }
+  }
+
+  // Block known patterns (shortcodes that normalizePhone converts to +8XXXX etc.)
+  for (const pattern of BLOCKED_NUMBER_PATTERNS) {
+    if (pattern.test(rawTo)) {
+      return { blocked: true, reason: `Matches blocked pattern — OTP/shortcode sender (${rawTo})` }
+    }
+  }
+
+  // Block exact known numbers
+  if (BLOCKED_NUMBERS_EXACT.has(rawTo)) {
+    return { blocked: true, reason: `Exact match on blocked number list (${rawTo})` }
+  }
+
+  return { blocked: false, reason: '' }
+}
+
 export interface SendSalesMessageInput {
   channel: 'email' | 'sms' | 'whatsapp'
   to: string
@@ -246,7 +292,29 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
     const rawFrom = await resolveSmsFromNumber(input)
     const rawTo = normalizePhone(input.to) || input.to
 
-    const duplicateOutbound = await outboundSmsRecentlySent({
+    // ── Safety guard: block shortcodes, OTP numbers, non-NANP automation ──
+    const blockCheck = shouldBlockSmsTo(rawTo, actor)
+    if (blockCheck.blocked) {
+      const blockLog: FollowUpLog = {
+        id: uid('fu'),
+        leadId: input.leadId,
+        quoteId: input.quoteId,
+        type: 'note',
+        date: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        notes: `SMS blocked — ${blockCheck.reason}. Protecting Twilio trust score (error 21265 prevention).`,
+      }
+      return {
+        ok: true,
+        deduped: false,
+        result: { ok: true, blocked: true, reason: blockCheck.reason },
+        log: await saveFollowUpLog(blockLog),
+        email: null,
+        lead: null,
+      }
+    }
+
+    const duplicateOutbound = actor !== 'human' && await outboundSmsRecentlySent({
       to: rawTo,
       from: rawFrom,
       leadId: input.leadId,

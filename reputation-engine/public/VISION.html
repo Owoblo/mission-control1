@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saturn Star — Mission Control Vision</title>
+    <style>
+        :root {
+            --navy: #1a2744;
+            --navy-light: #2d3a52;
+            --gold: #f5a623;
+            --gold-dark: #e8941f;
+            --bg: #f0f2f5;
+            --white: #ffffff;
+            --border: #e0e0e0;
+            --text: #1a2744;
+            --muted: #666;
+            --success: #4caf50;
+            --warning: #ff9800;
+            --danger: #e53935;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--text); }
+
+        .hero {
+            background: linear-gradient(135deg, var(--navy) 0%, #2d3a52 100%);
+            color: white;
+            padding: 60px 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at 70% 50%, rgba(245,166,35,.15) 0%, transparent 70%);
+        }
+        .hero-star { font-size: 48px; margin-bottom: 16px; }
+        .hero h1 { font-size: 38px; font-weight: 900; letter-spacing: -1px; margin-bottom: 8px; position: relative; }
+        .hero h1 span { color: var(--gold); }
+        .hero-sub { font-size: 16px; color: rgba(255,255,255,.6); max-width: 600px; margin: 0 auto 24px; position: relative; line-height: 1.6; }
+        .hero-quote {
+            background: rgba(245,166,35,.12);
+            border: 1px solid rgba(245,166,35,.3);
+            border-radius: 12px;
+            padding: 18px 28px;
+            max-width: 700px;
+            margin: 0 auto;
+            font-size: 15px;
+            font-style: italic;
+            color: rgba(255,255,255,.85);
+            line-height: 1.7;
+            position: relative;
+        }
+
+        .body { max-width: 1000px; margin: 0 auto; padding: 48px 24px; }
+
+        /* STATUS BAR */
+        .status-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+            margin-bottom: 48px;
+        }
+        .status-card {
+            background: var(--white);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            padding: 20px;
+            text-align: center;
+        }
+        .status-card .s-num { font-size: 32px; font-weight: 900; color: var(--navy); line-height: 1; }
+        .status-card .s-label { font-size: 12px; color: var(--muted); margin-top: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+        .status-card.gold .s-num { color: var(--gold-dark); }
+        .status-card.green .s-num { color: var(--success); }
+
+        /* SECTION */
+        .section { margin-bottom: 48px; }
+        .section-title {
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--muted);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-title::after { content:''; flex:1; height:1px; background:var(--border); }
+
+        /* MODULES GRID */
+        .modules-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+        }
+        .module-card {
+            background: var(--white);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            padding: 18px 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        .module-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+        }
+        .module-card.built::before  { background: var(--success); }
+        .module-card.live::before   { background: var(--gold); }
+        .module-card.planned::before { background: #e0e0e0; }
+        .module-card .m-icon { font-size: 22px; margin-bottom: 8px; }
+        .module-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+        .module-card p  { font-size: 12px; color: var(--muted); line-height: 1.5; }
+        .module-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-top: 8px;
+        }
+        .status-built   { background: #e8f5e9; color: #2e7d32; }
+        .status-live    { background: rgba(245,166,35,.15); color: var(--gold-dark); }
+        .status-planned { background: #f4f4f4; color: #888; }
+
+        /* ROADMAP */
+        .roadmap { display: flex; flex-direction: column; gap: 14px; }
+        .road-item {
+            background: var(--white);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            padding: 20px 24px;
+            display: grid;
+            grid-template-columns: 48px 1fr auto;
+            gap: 16px;
+            align-items: start;
+        }
+        .road-num {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+        .road-num.p1 { background: rgba(229,57,53,.1); }
+        .road-num.p2 { background: rgba(245,166,35,.1); }
+        .road-num.p3 { background: rgba(124,58,237,.1); }
+        .road-num.p4 { background: rgba(37,99,235,.1); }
+        .road-num.p5 { background: rgba(5,150,105,.1); }
+        .road-content h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+        .road-content p  { font-size: 13px; color: var(--muted); line-height: 1.5; }
+        .road-content .features {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 10px;
+        }
+        .feat-tag {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 3px 8px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--navy);
+        }
+        .effort-badge {
+            flex-shrink: 0;
+            text-align: right;
+        }
+        .effort-badge .effort {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            padding: 4px 10px;
+            border-radius: 8px;
+        }
+        .effort-sm  { background: #e8f5e9; color: #2e7d32; }
+        .effort-md  { background: #fff3e0; color: #e65100; }
+        .effort-lg  { background: #fdecea; color: #c62828; }
+        .effort-badge .impact { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+        /* INFRASTRUCTURE */
+        .infra-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+        }
+        .infra-card {
+            background: var(--navy);
+            border-radius: 12px;
+            padding: 20px 24px;
+            color: white;
+        }
+        .infra-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--gold); }
+        .infra-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 0;
+            border-bottom: 1px solid rgba(255,255,255,.08);
+            font-size: 13px;
+        }
+        .infra-item:last-child { border-bottom: none; }
+        .infra-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+        .dot-green  { background: #4caf50; }
+        .dot-gold   { background: var(--gold); }
+        .dot-grey   { background: #888; }
+        .infra-val  { color: rgba(255,255,255,.5); font-size: 12px; margin-left: auto; font-family: monospace; }
+
+        /* VISION STATEMENT */
+        .vision-box {
+            background: linear-gradient(135deg, var(--navy), var(--navy-light));
+            border-radius: 16px;
+            padding: 40px;
+            color: white;
+            text-align: center;
+            margin-bottom: 48px;
+        }
+        .vision-box h2 { font-size: 22px; font-weight: 800; margin-bottom: 16px; }
+        .vision-box h2 span { color: var(--gold); }
+        .vision-box p { font-size: 15px; color: rgba(255,255,255,.7); line-height: 1.8; max-width: 700px; margin: 0 auto; }
+        .pillars {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            margin-top: 28px;
+        }
+        .pillar {
+            background: rgba(255,255,255,.06);
+            border: 1px solid rgba(255,255,255,.1);
+            border-radius: 10px;
+            padding: 18px;
+        }
+        .pillar .p-icon { font-size: 26px; margin-bottom: 8px; }
+        .pillar h4 { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+        .pillar p  { font-size: 12px; color: rgba(255,255,255,.5); line-height: 1.5; }
+
+        .last-updated {
+            text-align: center;
+            font-size: 12px;
+            color: var(--muted);
+            padding: 24px 0;
+            border-top: 1px solid var(--border);
+        }
+    </style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+    <div class="hero-star">★</div>
+    <h1>Saturn Star <span>Mission Control</span></h1>
+    <p class="hero-sub">A fully systemized business operating system — software, SOPs, and people working as one.</p>
+    <div class="hero-quote">
+        "I want to build a system so dialled in that staff can operate independently without calling the founder.
+        Scalable to multiple locations. Windsor → Toronto → Michigan → Global.
+        The system is the software and the exact standard operating procedures."
+        <br><br><strong style="color:var(--gold);font-style:normal;">— John, Founder, Saturn Star Moving</strong>
+    </div>
+</div>
+
+<div class="body">
+
+    <!-- STATUS BAR -->
+    <div class="status-bar">
+        <div class="status-card">
+            <div class="s-num">12</div>
+            <div class="s-label">Modules Built</div>
+        </div>
+        <div class="status-card gold">
+            <div class="s-num">3</div>
+            <div class="s-label">Live in Cloud</div>
+        </div>
+        <div class="status-card green">
+            <div class="s-num">4</div>
+            <div class="s-label">Lead Sources Active</div>
+        </div>
+        <div class="status-card">
+            <div class="s-num">∞</div>
+            <div class="s-label">Vision</div>
+        </div>
+    </div>
+
+    <!-- VISION -->
+    <div class="vision-box">
+        <h2>The <span>North Star</span></h2>
+        <p>Mission Control is not just software. It is the operating system of a franchise-ready moving company.
+        Every lead captured. Every call recorded and transcribed. Every move tracked. Every team member guided.
+        Every dollar accounted for. The founder wakes up to a morning briefing, not a pile of questions.
+        Staff follow the system. The system scales to every city.</p>
+        <div class="pillars">
+            <div class="pillar">
+                <div class="p-icon">🧠</div>
+                <h4>Intelligence</h4>
+                <p>AI handles intake, pricing, transcription, and personalization. Nothing slips through the cracks.</p>
+            </div>
+            <div class="pillar">
+                <div class="p-icon">⚙️</div>
+                <h4>Systems</h4>
+                <p>SOPs, checklists, and guided flows so any trained staff member can run a move perfectly.</p>
+            </div>
+            <div class="pillar">
+                <div class="p-icon">🌍</div>
+                <h4>Scale</h4>
+                <p>Windsor → Toronto → Michigan → Global. One system, any location, any team.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODULES BUILT -->
+    <div class="section">
+        <div class="section-title">What's Built</div>
+        <div class="modules-grid">
+            <div class="module-card built">
+                <div class="m-icon">▦</div>
+                <h3>Mission Control Hub</h3>
+                <p>Morning briefing dashboard — live KPIs, today's moves, crew, alerts, revenue chart</p>
+                <span class="module-status status-built">✓ Built</span>
+            </div>
+            <div class="module-card built">
+                <div class="m-icon">📋</div>
+                <h3>CRM + Lead Board</h3>
+                <p>Kanban pipeline, AI inventory, call recording, scripts, follow-ups, lead scoring, analytics</p>
+                <span class="module-status status-built">✓ Built</span>
+            </div>
+            <div class="module-card live">
+                <div class="m-icon">📥</div>
+                <h3>Lead Inbox</h3>
+                <p>Real-time leads from Twilio calls, SMS, website form, Facebook, Instagram, Email</p>
+                <span class="module-status status-live">⚡ Live</span>
+            </div>
+            <div class="module-card built">
+                <div class="m-icon">📞</div>
+                <h3>CSR Guided Call Flow</h3>
+                <p>6-step intake for frontline reps — live timer, auto-pricing, AI flags, writes to CRM</p>
+                <span class="module-status status-built">✓ Built</span>
+            </div>
+            <div class="module-card built">
+                <div class="m-icon">💰</div>
+                <h3>Pricing Engine</h3>
+                <p>Rate management, seasonal pricing, phase-based calculator, markup rules</p>
+                <span class="module-status status-built">✓ Built</span>
+            </div>
+            <div class="module-card built">
+                <div class="m-icon">📱</div>
+                <h3>On-Site Calculator</h3>
+                <p>Mobile-first quote tool — 75+ items, truck volume detection, savings toggles, deposit flow</p>
+                <span class="module-status status-built">✓ Built</span>
+            </div>
+            <div class="module-card built">
+                <div class="m-icon">⚙️</div>
+                <h3>Operations Hub</h3>
+                <p>Digital move checklist, ETA notifications, job profitability, end-of-day summary</p>
+                <span class="module-status status-built">✓ Built</span>
+            </div>
+            <div class="module-card built">
+                <div class="m-icon">🚨</div>
+                <h3>Customer Recovery</h3>
+                <p>Incident management — cases, photos, investigation, decisions, resolution tracking</p>
+                <span class="module-status status-built">✓ Built</span>
+            </div>
+            <div class="module-card built">
+                <div class="m-icon">⭐</div>
+                <h3>Reputation Engine</h3>
+                <p>Review flow, partner triggers, flagged job sync, analytics dashboard</p>
+                <span class="module-status status-built">✓ Built</span>
+            </div>
+            <div class="module-card built">
+                <div class="m-icon">💵</div>
+                <h3>Finance Hub</h3>
+                <p>Invoices, expenses, payroll, P&L — reads from CRM quotes automatically</p>
+                <span class="module-status status-built">✓ Built</span>
+            </div>
+            <div class="module-card built">
+                <div class="m-icon">🚚</div>
+                <h3>Fleet & Compliance</h3>
+                <p>Vehicle maintenance, driver documents matrix, fuel log, compliance tracking</p>
+                <span class="module-status status-built">✓ Built</span>
+            </div>
+            <div class="module-card built">
+                <div class="m-icon">👥</div>
+                <h3>HR & Team Hub</h3>
+                <p>Employee profiles, hiring kanban, training matrix, onboarding checklist</p>
+                <span class="module-status status-built">✓ Built</span>
+            </div>
+            <div class="module-card built">
+                <div class="m-icon">🔍</div>
+                <h3>Intelligence</h3>
+                <p>Competitor tracking, market signals, feedback patterns, auto-generated recommendations</p>
+                <span class="module-status status-built">✓ Built</span>
+            </div>
+            <div class="module-card built">
+                <div class="m-icon">📖</div>
+                <h3>SOPs</h3>
+                <p>Inbound call handling, pricing standards, scripts, range tables, discount rules</p>
+                <span class="module-status status-built">✓ Built</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- INFRASTRUCTURE LIVE -->
+    <div class="section">
+        <div class="section-title">Infrastructure — Live in Cloud</div>
+        <div class="infra-grid">
+            <div class="infra-card">
+                <h3>🔶 Cloudflare</h3>
+                <div class="infra-item">
+                    <span class="infra-dot dot-green"></span>
+                    <span>Pages — Mission Control hosted</span>
+                    <span class="infra-val">mc.starmovers.ca</span>
+                </div>
+                <div class="infra-item">
+                    <span class="infra-dot dot-green"></span>
+                    <span>Worker — Lead Intake webhook</span>
+                    <span class="infra-val">saturn-lead-intake</span>
+                </div>
+                <div class="infra-item">
+                    <span class="infra-dot dot-gold"></span>
+                    <span>Access — Private login wall</span>
+                    <span class="infra-val">pending setup</span>
+                </div>
+                <div class="infra-item">
+                    <span class="infra-dot dot-green"></span>
+                    <span>DNS — starmovers.ca managed</span>
+                    <span class="infra-val">active</span>
+                </div>
+            </div>
+            <div class="infra-card">
+                <h3>📡 Integrations Live</h3>
+                <div class="infra-item">
+                    <span class="infra-dot dot-green"></span>
+                    <span>Twilio +1 226-773-2993 — Calls</span>
+                    <span class="infra-val">webhook live</span>
+                </div>
+                <div class="infra-item">
+                    <span class="infra-dot dot-green"></span>
+                    <span>Twilio +1 226-773-2993 — SMS</span>
+                    <span class="infra-val">webhook live</span>
+                </div>
+                <div class="infra-item">
+                    <span class="infra-dot dot-green"></span>
+                    <span>Website Form — formspree.io</span>
+                    <span class="infra-val">3-line JS snippet</span>
+                </div>
+                <div class="infra-item">
+                    <span class="infra-dot dot-green"></span>
+                    <span>Supabase — inbound_leads table</span>
+                    <span class="infra-val">idbyrtwdee...</span>
+                </div>
+                <div class="infra-item">
+                    <span class="infra-dot dot-grey"></span>
+                    <span>Facebook / Instagram — Zapier</span>
+                    <span class="infra-val">pending</span>
+                </div>
+                <div class="infra-item">
+                    <span class="infra-dot dot-grey"></span>
+                    <span>Gmail — <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="4f2d3a3c26212a3c3c0f3c3b2e3d2220392a3d3c612c2e">[email&#160;protected]</a></span>
+                    <span class="infra-val">pending</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ROADMAP -->
+    <div class="section">
+        <div class="section-title">Next Up — Build Roadmap</div>
+        <div class="roadmap">
+
+            <div class="road-item">
+                <div class="road-num p1">✉️</div>
+                <div class="road-content">
+                    <h3>Email Integration — Full Two-Way</h3>
+                    <p>Gmail API → Worker → Lead Inbox (receive). Resend API → send emails with AI-generated personalization directly from a lead's profile. Claude reads move details and writes a tailored message — you review and fire.</p>
+                    <div class="features">
+                        <span class="feat-tag">Gmail → Inbox</span>
+                        <span class="feat-tag">AI-personalized outbound</span>
+                        <span class="feat-tag">Send from lead profile</span>
+                        <span class="feat-tag">Thread history in CRM</span>
+                    </div>
+                </div>
+                <div class="effort-badge">
+                    <div class="effort effort-sm">Small</div>
+                    <div class="impact">High impact</div>
+                </div>
+            </div>
+
+            <div class="road-item">
+                <div class="road-num p1">📨</div>
+                <div class="road-content">
+                    <h3>Estimate → Email + SMS Simultaneously</h3>
+                    <p>One button on the quote page fires both channels at once. Client receives a professional HTML email with the full quote breakdown AND an SMS with a short link to view it. Uses Twilio + Resend already in the stack.</p>
+                    <div class="features">
+                        <span class="feat-tag">One-click dual send</span>
+                        <span class="feat-tag">HTML email quote</span>
+                        <span class="feat-tag">SMS with quote link</span>
+                        <span class="feat-tag">Delivery confirmation</span>
+                    </div>
+                </div>
+                <div class="effort-badge">
+                    <div class="effort effort-sm">Small</div>
+                    <div class="impact">Immediate use</div>
+                </div>
+            </div>
+
+            <div class="road-item">
+                <div class="road-num p2">📝</div>
+                <div class="road-content">
+                    <h3>Notes — Everywhere</h3>
+                    <p>Rich notes panel on every lead, job, client, and employee. Pin important notes. Tag notes by type (call recap, visit notes, client preference, complaint). Notes feed into AI context for personalization.</p>
+                    <div class="features">
+                        <span class="feat-tag">Rich text notes</span>
+                        <span class="feat-tag">Pin important notes</span>
+                        <span class="feat-tag">Note types/tags</span>
+                        <span class="feat-tag">Feeds AI context</span>
+                        <span class="feat-tag">All modules</span>
+                    </div>
+                </div>
+                <div class="effort-badge">
+                    <div class="effort effort-sm">Small</div>
+                    <div class="impact">Foundation</div>
+                </div>
+            </div>
+
+            <div class="road-item">
+                <div class="road-num p3">🎙️</div>
+                <div class="road-content">
+                    <h3>AI Call Transcription — Phone Calls</h3>
+                    <p>Every Twilio call recording → OpenAI Whisper transcribes it → Claude analyzes the transcript and extracts move details, objections raised, follow-up commitments, and sentiment. Stored in the lead automatically. Nothing slips through the cracks.</p>
+                    <div class="features">
+                        <span class="feat-tag">Auto-transcription</span>
+                        <span class="feat-tag">Move detail extraction</span>
+                        <span class="feat-tag">Objection detection</span>
+                        <span class="feat-tag">Follow-up commitments</span>
+                        <span class="feat-tag">Sentiment score</span>
+                        <span class="feat-tag">Suggested next action</span>
+                    </div>
+                </div>
+                <div class="effort-badge">
+                    <div class="effort effort-md">Medium</div>
+                    <div class="impact">Game changer</div>
+                </div>
+            </div>
+
+            <div class="road-item">
+                <div class="road-num p3">📸</div>
+                <div class="road-content">
+                    <h3>MLS Photo AI Inventory Detection</h3>
+                    <p>When a lead comes from a direct mail listing, the CRM already has their Zillow/MLS listing photos. GPT-4o Vision scans every room photo and auto-generates a structured inventory list — furniture, appliances, specialty items — before you've even spoken to the client. You walk in already knowing what's there.</p>
+                    <div class="features">
+                        <span class="feat-tag">GPT-4o Vision scanning</span>
+                        <span class="feat-tag">Auto inventory from photos</span>
+                        <span class="feat-tag">Room-by-room detection</span>
+                        <span class="feat-tag">AI flags auto-generated</span>
+                        <span class="feat-tag">Pre-call intelligence</span>
+                        <span class="feat-tag">Already in CRM (partial)</span>
+                    </div>
+                    <div style="margin-top:12px;padding:10px 14px;background:rgba(5,150,105,.06);border:1px solid rgba(5,150,105,.25);border-radius:8px;font-size:12px;color:#555;line-height:1.6;">
+                        <strong style="color:#1a2744;">The edge:</strong> Your sales rep calls a direct mail lead and already knows they have a grand piano in the living room, a workshop in the garage, and a sectional on the second floor — before the client says a word. That's the difference between a rep who sounds prepared and one who's guessing.
+                    </div>
+                </div>
+                <div class="effort-badge">
+                    <div class="effort effort-md">Medium</div>
+                    <div class="impact">Pre-call intel</div>
+                </div>
+            </div>
+
+            <div class="road-item">
+                <div class="road-num p3">🏠</div>
+                <div class="road-content">
+                    <h3>In-Home Consultation Recording — Full Intelligence Layer</h3>
+                    <p>The recording is not just about inventory. It is a full intelligence capture of one of the most important moments in the sales process — the in-person consultation. Hit Record when you walk in. Everything said is captured. When you leave, the AI goes to work across four dimensions:</p>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0;">
+                        <div style="background:#f8f9fb;border-radius:10px;padding:14px;border-left:3px solid #7c3aed;">
+                            <div style="font-size:12px;font-weight:700;color:#7c3aed;margin-bottom:6px;">📦 Inventory & Logistics</div>
+                            <div style="font-size:12px;color:#555;line-height:1.6;">Items mentioned room by room, special concerns (stairs, narrow doors, heavy equipment), pricing flags. Pre-fills quote builder automatically.</div>
+                        </div>
+                        <div style="background:#f8f9fb;border-radius:10px;padding:14px;border-left:3px solid #059669;">
+                            <div style="font-size:12px;font-weight:700;color:#059669;margin-bottom:6px;">🧡 Client Care Notes</div>
+                            <div style="font-size:12px;color:#555;line-height:1.6;">Everything the client said they were careful about — the antique dresser, the crystal collection, the grandfather clock. Flagged and attached to the lead so the crew knows before move day.</div>
+                        </div>
+                        <div style="background:#f8f9fb;border-radius:10px;padding:14px;border-left:3px solid #d97706;">
+                            <div style="font-size:12px;font-weight:700;color:#d97706;margin-bottom:6px;">🎯 Sales Coaching</div>
+                            <div style="font-size:12px;color:#555;line-height:1.6;">Replay the consultation. Review how the rep handled objections, built rapport, presented price, and closed. Score the call. Identify exactly where deals are won or lost.</div>
+                        </div>
+                        <div style="background:#f8f9fb;border-radius:10px;padding:14px;border-left:3px solid #2563eb;">
+                            <div style="font-size:12px;font-weight:700;color:#2563eb;margin-bottom:6px;">📈 Rep Training Library</div>
+                            <div style="font-size:12px;color:#555;line-height:1.6;">Best consultations become training material. New reps study real recordings of what great looks like. Weaknesses get corrected fast — not months later after lost jobs.</div>
+                        </div>
+                    </div>
+
+                    <div class="features">
+                        <span class="feat-tag">One-tap record in browser</span>
+                        <span class="feat-tag">Full Whisper transcription</span>
+                        <span class="feat-tag">Client care items flagged</span>
+                        <span class="feat-tag">Crew briefing auto-generated</span>
+                        <span class="feat-tag">Sales style scoring</span>
+                        <span class="feat-tag">Objection handling review</span>
+                        <span class="feat-tag">Rep performance tracking</span>
+                        <span class="feat-tag">Training clip library</span>
+                        <span class="feat-tag">Replay at any time</span>
+                        <span class="feat-tag">Pre-fills inventory + quote</span>
+                    </div>
+
+                    <div style="margin-top:12px;padding:12px 16px;background:rgba(245,166,35,.08);border:1px solid rgba(245,166,35,.3);border-radius:8px;font-size:12px;color:#555;line-height:1.7;">
+                        <strong style="color:#1a2744;">The big picture:</strong> Right now knowledge lives in John's head. When a rep does a consultation, what they notice — what the client said they cared about, how the conversation really went — mostly disappears. This feature captures all of it. The client who said "please be careful with my mother's china cabinet" — that note is waiting for the crew when they show up. The rep who talked too much about price too early — John can coach that exact moment. This is how a moving company becomes a brand people trust and refer.
+                    </div>
+                </div>
+                <div class="effort-badge">
+                    <div class="effort effort-md">Medium</div>
+                    <div class="impact">Zero slippage</div>
+                </div>
+            </div>
+
+            <div class="road-item">
+                <div class="road-num p4">📞</div>
+                <div class="road-content">
+                    <h3>Browser Dialer — Built-In Calling</h3>
+                    <p>Twilio Voice SDK embedded in Mission Control. Click any lead → hit Call → call connects through the browser using your business number +1 226-773-2993. Client sees the Saturn Star number. Both sides recorded. Transcript auto-generated. Your personal cell is out of the picture completely.</p>
+                    <div class="features">
+                        <span class="feat-tag">Browser-based WebRTC</span>
+                        <span class="feat-tag">Shows business number</span>
+                        <span class="feat-tag">Both sides recorded</span>
+                        <span class="feat-tag">Auto-transcribed</span>
+                        <span class="feat-tag">Lead auto-updated</span>
+                        <span class="feat-tag">Call history</span>
+                    </div>
+                </div>
+                <div class="effort-badge">
+                    <div class="effort effort-lg">Large</div>
+                    <div class="impact">Crown jewel</div>
+                </div>
+            </div>
+
+            <div class="road-item">
+                <div class="road-num p4">📱</div>
+                <div class="road-content">
+                    <h3>Mobile-First Experience — Phone & Tablet</h3>
+                    <p>Reps are in the field. They're at a client's house with a tablet, in a truck with a phone, on a job site checking the checklist. Mission Control has to feel native on every screen — not a desktop app squeezed onto a phone. Every module gets a purpose-built mobile layout designed around what a rep actually needs in that moment.</p>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:14px 0;">
+                        <div style="background:#f8f9fb;border-radius:10px;padding:14px;border-left:3px solid #7c3aed;">
+                            <div style="font-size:12px;font-weight:700;color:#7c3aed;margin-bottom:6px;">📞 CSR on Phone</div>
+                            <div style="font-size:12px;color:#555;line-height:1.6;">Call flow, lead intake, quick range estimator — one thumb, one hand. Fast, clean, no pinching or zooming.</div>
+                        </div>
+                        <div style="background:#f8f9fb;border-radius:10px;padding:14px;border-left:3px solid #059669;">
+                            <div style="font-size:12px;font-weight:700;color:#059669;margin-bottom:6px;">🏠 Rep on Tablet</div>
+                            <div style="font-size:12px;color:#555;line-height:1.6;">On-site calculator, consultation recording, inventory walkthrough — designed for a tablet in hand at a client's home.</div>
+                        </div>
+                        <div style="background:#f8f9fb;border-radius:10px;padding:14px;border-left:3px solid #2563eb;">
+                            <div style="font-size:12px;font-weight:700;color:#2563eb;margin-bottom:6px;">🚚 Crew on Phone</div>
+                            <div style="font-size:12px;color:#555;line-height:1.6;">Move checklist, ETA updates, job notes, client care flags — crew sees exactly what to handle with care before they touch anything.</div>
+                        </div>
+                    </div>
+
+                    <div class="features">
+                        <span class="feat-tag">Responsive every module</span>
+                        <span class="feat-tag">Touch-optimised UI</span>
+                        <span class="feat-tag">No pinch/zoom</span>
+                        <span class="feat-tag">Tablet layout for on-site</span>
+                        <span class="feat-tag">Phone layout for crew</span>
+                        <span class="feat-tag">Bottom nav on mobile</span>
+                        <span class="feat-tag">Large tap targets</span>
+                        <span class="feat-tag">Works offline (cached)</span>
+                        <span class="feat-tag">Add to home screen (PWA)</span>
+                        <span class="feat-tag">Same data, same system</span>
+                    </div>
+
+                    <div style="margin-top:12px;padding:12px 16px;background:rgba(245,166,35,.08);border:1px solid rgba(245,166,35,.3);border-radius:8px;font-size:12px;color:#555;line-height:1.7;">
+                        <strong style="color:#1a2744;">The standard:</strong> A rep should be able to open Mission Control on their phone the morning of a job and see exactly what they need — client name, care notes, checklist, route — without squinting, scrolling sideways, or calling John to ask. Same system, same data, perfectly formatted for the screen they're holding. Desktop for the office. Tablet for the walkthrough. Phone for the field. One platform, every device.
+                    </div>
+                </div>
+                <div class="effort-badge">
+                    <div class="effort effort-md">Medium</div>
+                    <div class="impact">Field ready</div>
+                </div>
+            </div>
+
+            <div class="road-item">
+                <div class="road-num p5">🌍</div>
+                <div class="road-content">
+                    <h3>Multi-Location / Franchise Mode</h3>
+                    <p>Each location (Windsor, Toronto, Michigan) gets its own data scope, team, and reporting — but the founder sees everything from one view. Franchise onboarding: new location spun up in one click with all SOPs, pricing, and workflows pre-loaded.</p>
+                    <div class="features">
+                        <span class="feat-tag">Location switcher</span>
+                        <span class="feat-tag">Per-location teams</span>
+                        <span class="feat-tag">Consolidated founder view</span>
+                        <span class="feat-tag">Franchise onboarding</span>
+                        <span class="feat-tag">SOPs auto-loaded</span>
+                    </div>
+                </div>
+                <div class="effort-badge">
+                    <div class="effort effort-lg">Large</div>
+                    <div class="impact">The Vision</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="last-updated">
+        Saturn Star Mission Control — Vision Document · Last updated March 2026 · Built brick by brick 🧱
+    </div>
+
+</div>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script></body>
+</html>

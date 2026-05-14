@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 import { uid } from '@/lib/sales'
+import { sendSalesMessage } from '@/lib/server/sales-messaging'
 import { getSalesLead, saveFollowUpLog, saveSalesLead } from '@/lib/server/sales-repository'
 import { hasInternalSession } from '@/lib/server/session'
-import { getWorkerSharedSecret, requireWorkerBaseUrl } from '@/lib/server/runtime'
 
 const GOOGLE_REVIEW_URL = process.env.NEXT_PUBLIC_GOOGLE_REVIEW_URL || 'https://g.page/r/YOUR_GOOGLE_REVIEW_LINK'
 const YELP_URL = process.env.NEXT_PUBLIC_YELP_REVIEW_URL || 'https://yelp.com/biz/saturn-star-moving'
@@ -10,17 +10,6 @@ const YELP_URL = process.env.NEXT_PUBLIC_YELP_REVIEW_URL || 'https://yelp.com/bi
 export async function POST(request: Request) {
   const authed = await hasInternalSession()
   if (!authed) return new Response('Unauthorized', { status: 401 })
-
-  let workerBase: string
-  try {
-    workerBase = requireWorkerBaseUrl()
-  } catch {
-    return NextResponse.json({ ok: false, error: 'WORKER_BASE_URL not configured' }, { status: 500 })
-  }
-  const workerSecret = getWorkerSharedSecret()
-  if (!workerSecret) {
-    return NextResponse.json({ ok: false, error: 'WORKER_SHARED_SECRET not configured' }, { status: 500 })
-  }
 
   const { leadId, leadName, leadEmail, leadPhone, quoteNumber, channel } = await request.json() as {
     leadId?: string
@@ -39,31 +28,30 @@ export async function POST(request: Request) {
   // SMS
   if ((channel === 'both' || channel === 'sms') && leadPhone) {
     const smsBody = `Hi ${firstName}! 🌟 It was a pleasure moving you today! If we earned it, would you mind leaving us a quick Google review? It means the world to a growing team like ours:\n\n${GOOGLE_REVIEW_URL}\n\nThank you! — Saturn Star Moving 🚛`
-
-    const smsResult = await fetch(`${workerBase}/send-sms`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-internal-secret': workerSecret },
-      body: JSON.stringify({ to: leadPhone, body: smsBody }),
-    }).catch(() => null)
-    results.push({ channel: 'sms', ok: !!smsResult?.ok })
+    const smsOk = await sendSalesMessage({
+      channel: 'sms',
+      to: leadPhone,
+      body: smsBody,
+      leadId,
+      actor: 'automation',
+    }).then(() => true).catch(() => false)
+    results.push({ channel: 'sms', ok: smsOk })
   }
 
   // Email
   if ((channel === 'both' || channel === 'email') && leadEmail) {
     const html = buildReviewEmailHtml(firstName, quoteNumber, GOOGLE_REVIEW_URL, YELP_URL)
     const plain = `Hi ${firstName},\n\nThank you for choosing Saturn Star Moving! We hope your move was smooth and stress-free.\n\nIf you had a great experience, we'd be so grateful for a review:\n\nGoogle: ${GOOGLE_REVIEW_URL}\nYelp: ${YELP_URL}\n\nAs a thank you, mention this email for $25 off your next move or referral!\n\nWith gratitude,\nSaturn Star Moving Team\n226-773-2993 · starmovers.ca`
-
-    const emailResult = await fetch(`${workerBase}/send-email`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-internal-secret': workerSecret },
-      body: JSON.stringify({
-        to: leadEmail,
-        subject: `Thank you for choosing Saturn Star Moving! ⭐`,
-        body: plain,
-        htmlBody: html,
-      }),
-    }).catch(() => null)
-    results.push({ channel: 'email', ok: !!emailResult?.ok })
+    const emailOk = await sendSalesMessage({
+      channel: 'email',
+      to: leadEmail,
+      subject: 'Thank you for choosing Saturn Star Moving! ⭐',
+      body: plain,
+      htmlBody: html,
+      leadId,
+      actor: 'automation',
+    }).then(() => true).catch(() => false)
+    results.push({ channel: 'email', ok: emailOk })
   }
 
   if (leadId) {

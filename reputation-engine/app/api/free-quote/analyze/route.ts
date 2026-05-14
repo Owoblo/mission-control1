@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { matchInventoryPreset } from '@/lib/item-presets'
 import { getListingPropertyContext } from '@/lib/listing'
 import { analyzeListingPhotos } from '@/lib/server/inventory-enrichment'
+import { getClientIp, rateLimit } from '@/lib/server/rate-limit'
 import {
   getListingInventoryScan,
   lookupListingsByAddress,
@@ -27,6 +28,18 @@ export async function POST(request: Request) {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
+  }
+
+  const ip = getClientIp(request)
+  const { allowed, retryAfterMs } = rateLimit(`analyze:${ip}`, 5, 60_000)
+  if (!allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please wait a moment and try again.' },
+      {
+        status: 429,
+        headers: { ...corsHeaders, 'Retry-After': String(Math.ceil(retryAfterMs / 1000)) },
+      }
+    )
   }
 
   try {

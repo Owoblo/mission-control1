@@ -50,7 +50,7 @@ export async function POST(
         const phone = lead.phone.replace(/\D/g, '')
         const e164 = phone.startsWith('1') ? `+${phone}` : `+1${phone}`
         const firstName = (lead.name || '').split(' ')[0] || 'there'
-        const defaultMsg = `Hi ${firstName}! Saturn Star Movers here 👋 To give you the most accurate moving quote, can you snap a few photos or a quick walkthrough video of your items? Just click this link: ${surveyUrl} — takes 2 mins! 📦`
+        const defaultMsg = `Hi ${firstName}! Saturn Star Movers here. To tighten up your moving quote, please review your inventory, flag anything staying behind, and add a few photos for any missing rooms here: ${surveyUrl}. Takes about 2 minutes.`
         const smsBody = body.customMessage || defaultMsg
         await sendSalesMessage({
           channel: 'sms',
@@ -71,7 +71,7 @@ export async function POST(
 
     const firstName = (lead.name || '').split(' ')[0] || 'there'
     const defaultSmsTemplate = lead.phone
-      ? `Hi ${firstName}! Saturn Star Movers here 👋 To give you the most accurate moving quote, can you snap a few photos or a quick walkthrough video of your items? Just click this link: ${surveyUrl} — takes 2 mins! 📦`
+      ? `Hi ${firstName}! Saturn Star Movers here. To tighten up your moving quote, please review your inventory, flag anything staying behind, and add a few photos for any missing rooms here: ${surveyUrl}. Takes about 2 minutes.`
       : null
 
     return NextResponse.json({ token, surveyUrl, expiresAt, defaultSmsTemplate })

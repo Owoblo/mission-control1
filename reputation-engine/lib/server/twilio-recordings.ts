@@ -77,7 +77,10 @@ export function normalizeTwilioRecordingMediaUrl(rawUrl?: string | null) {
 
 async function fetchTwilioJson<T>(url: string, auth: string): Promise<T | null> {
   try {
-    const response = await fetch(url, { headers: { Authorization: auth } })
+    const response = await fetch(url, {
+      headers: { Authorization: auth },
+      signal: AbortSignal.timeout(15_000),
+    })
     if (!response.ok) return null
     return response.json() as Promise<T>
   } catch {
@@ -242,9 +245,8 @@ export async function downloadTwilioRecording({
     let response: Response
     try {
       response = await fetch(candidate, {
-        headers: {
-          Authorization: auth,
-        },
+        headers: { Authorization: auth },
+        signal: AbortSignal.timeout(30_000),
       })
     } catch {
       sawNetworkFailure = true

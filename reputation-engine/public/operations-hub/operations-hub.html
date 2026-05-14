@@ -1,0 +1,2197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Saturn Star — Operations Hub</title>
+<style>
+:root {
+  --navy: #1a2744;
+  --navy-light: #2d3a52;
+  --gold: #f5a623;
+  --gold-dark: #e8941f;
+  --bg: #f0f2f5;
+  --white: #ffffff;
+  --text: #1a2744;
+  --text-muted: #666;
+  --border: #e0e0e0;
+  --success: #4caf50;
+  --danger: #e53935;
+  --sidebar-width: 220px;
+  --s-scheduled-bg: #e8eaf6; --s-scheduled-c: #283593;
+  --s-arrived-bg: #e3f2fd;   --s-arrived-c: #1565c0;
+  --s-loading-bg: #fff3e0;   --s-loading-c: #e65100;
+  --s-driving-bg: #f3e5f5;   --s-driving-c: #6a1b9a;
+  --s-unloading-bg: #fff8e1; --s-unloading-c: #f57f17;
+  --s-completed-bg: #e8f5e9; --s-completed-c: #2e7d32;
+  --s-cancelled-bg: #fdecea; --s-cancelled-c: #c62828;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--text); display:flex; min-height:100vh; }
+
+/* SIDEBAR */
+.sidebar { width:var(--sidebar-width); background:var(--navy); display:flex; flex-direction:column; position:fixed; top:0; left:0; bottom:0; z-index:100; }
+.sidebar-logo { padding:22px 20px; border-bottom:1px solid rgba(255,255,255,0.1); }
+.sidebar-logo .logo-title { color:#fff; font-size:15px; font-weight:700; letter-spacing:0.5px; }
+.sidebar-logo .logo-sub { color:var(--gold); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; margin-top:4px; }
+.sidebar-nav { flex:1; padding:16px 0; overflow-y:auto; }
+.nav-item { display:flex; align-items:center; gap:12px; padding:12px 20px; color:rgba(255,255,255,0.65); cursor:pointer; transition:all 0.2s; font-size:14px; font-weight:500; border-left:3px solid transparent; user-select:none; }
+.nav-item:hover { background:rgba(255,255,255,0.05); color:#fff; }
+.nav-item.active { background:rgba(245,166,35,0.1); color:var(--gold); border-left-color:var(--gold); }
+.nav-item svg { width:16px; height:16px; flex-shrink:0; }
+.sidebar-footer { padding:16px 20px; border-top:1px solid rgba(255,255,255,0.1); }
+.sidebar-footer span { color:rgba(255,255,255,0.4); font-size:11px; }
+
+/* MAIN */
+.main { margin-left:var(--sidebar-width); flex:1; display:flex; flex-direction:column; min-height:100vh; }
+.topbar { background:#fff; border-bottom:1px solid var(--border); padding:0 28px; height:56px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:50; }
+.topbar-title { font-size:17px; font-weight:700; color:var(--navy); }
+.topbar-actions { display:flex; align-items:center; gap:10px; }
+.content { padding:28px; flex:1; }
+
+/* CARDS */
+.card { background:#fff; border-radius:10px; border:1px solid var(--border); padding:20px; }
+.card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.card-title { font-size:14px; font-weight:700; color:var(--navy); text-transform:uppercase; letter-spacing:0.5px; }
+
+/* STATS ROW */
+.stats-row { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:24px; }
+.stat-card { background:#fff; border-radius:10px; border:1px solid var(--border); padding:18px 20px; }
+.stat-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.6px; color:var(--text-muted); margin-bottom:8px; }
+.stat-value { font-size:28px; font-weight:800; color:var(--navy); line-height:1; }
+.stat-sub { font-size:12px; color:var(--text-muted); margin-top:4px; }
+.stat-card.alert { border-color:#e53935; background:#fff8f8; }
+.stat-card.alert .stat-value { color:#e53935; }
+
+/* BUTTONS */
+.btn { display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius:7px; border:none; cursor:pointer; font-size:13px; font-weight:600; transition:all 0.2s; }
+.btn-primary { background:var(--gold); color:#fff; }
+.btn-primary:hover { background:var(--gold-dark); }
+.btn-navy { background:var(--navy); color:#fff; }
+.btn-navy:hover { background:var(--navy-light); }
+.btn-outline { background:#fff; color:var(--navy); border:1px solid var(--border); }
+.btn-outline:hover { border-color:var(--navy); }
+.btn-sm { padding:5px 12px; font-size:12px; }
+.btn-danger { background:#e53935; color:#fff; }
+.btn-danger:hover { background:#c62828; }
+.btn-success { background:#4caf50; color:#fff; }
+.btn-success:hover { background:#388e3c; }
+
+/* STATUS BADGE */
+.badge { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:20px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
+.badge-scheduled { background:var(--s-scheduled-bg); color:var(--s-scheduled-c); }
+.badge-arrived { background:var(--s-arrived-bg); color:var(--s-arrived-c); }
+.badge-loading { background:var(--s-loading-bg); color:var(--s-loading-c); }
+.badge-driving { background:var(--s-driving-bg); color:var(--s-driving-c); }
+.badge-unloading { background:var(--s-unloading-bg); color:var(--s-unloading-c); }
+.badge-completed { background:var(--s-completed-bg); color:var(--s-completed-c); }
+.badge-cancelled { background:var(--s-cancelled-bg); color:var(--s-cancelled-c); }
+
+/* TABLE */
+.table-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+thead th { background:#f8f9fb; padding:10px 14px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); border-bottom:2px solid var(--border); white-space:nowrap; }
+tbody td { padding:12px 14px; border-bottom:1px solid var(--border); vertical-align:middle; }
+tbody tr:hover { background:#fafbfd; }
+tbody tr:last-child td { border-bottom:none; }
+
+/* MODAL */
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1000; align-items:center; justify-content:center; }
+.modal-overlay.open { display:flex; }
+.modal { background:#fff; border-radius:12px; padding:28px; width:560px; max-width:95vw; max-height:90vh; overflow-y:auto; position:relative; }
+.modal-lg { width:720px; }
+.modal h2 { font-size:18px; font-weight:700; color:var(--navy); margin-bottom:20px; }
+.modal-close { position:absolute; top:16px; right:16px; background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-muted); line-height:1; }
+.modal-close:hover { color:var(--text); }
+
+/* FORM */
+.form-group { margin-bottom:16px; }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.form-row-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
+label { display:block; font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:5px; }
+input, select, textarea { width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:7px; font-size:13px; font-family:inherit; color:var(--text); background:#fff; transition:border 0.2s; }
+input:focus, select:focus, textarea:focus { outline:none; border-color:var(--navy); }
+textarea { resize:vertical; min-height:70px; }
+.form-divider { border:none; border-top:1px solid var(--border); margin:20px 0; }
+
+/* TOAST */
+#toast-container { position:fixed; bottom:24px; right:24px; z-index:9999; display:flex; flex-direction:column; gap:8px; }
+.toast { background:var(--navy); color:#fff; padding:12px 20px; border-radius:8px; font-size:13px; font-weight:500; box-shadow:0 4px 12px rgba(0,0,0,0.2); animation:slideIn 0.3s ease; max-width:320px; display:flex; align-items:center; gap:10px; }
+.toast.success { background:#2e7d32; }
+.toast.error { background:#c62828; }
+@keyframes slideIn { from { transform:translateX(100%); opacity:0; } to { transform:translateX(0); opacity:1; } }
+
+/* ALERT BANNER */
+.alert-banner { background:#fff3cd; border:1px solid #ffc107; border-radius:8px; padding:12px 16px; margin-bottom:20px; display:flex; align-items:center; gap:10px; font-size:13px; font-weight:500; color:#856404; }
+
+/* MOVE CARD (dashboard) */
+.move-card { background:#fff; border-radius:10px; border:1px solid var(--border); padding:18px 20px; margin-bottom:12px; transition:box-shadow 0.2s; }
+.move-card:hover { box-shadow:0 3px 12px rgba(0,0,0,0.08); }
+.move-card.active-move { border-left:4px solid var(--gold); }
+.move-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.move-time { font-size:20px; font-weight:800; color:var(--navy); }
+.move-client { font-size:16px; font-weight:700; color:var(--navy); margin-bottom:3px; }
+.move-route { font-size:13px; color:var(--text-muted); margin-bottom:8px; }
+.move-meta { display:flex; align-items:center; gap:16px; font-size:12px; color:var(--text-muted); margin-bottom:12px; flex-wrap:wrap; }
+.meta-item { display:flex; align-items:center; gap:4px; }
+.move-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.pulse-dot { width:8px; height:8px; border-radius:50%; background:#4caf50; animation:pulse 1.5s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(1.3)} }
+
+/* SCHEDULE */
+.schedule-container { display:flex; }
+.time-col { width:64px; flex-shrink:0; }
+.time-slot-label { height:60px; display:flex; align-items:flex-start; padding-top:4px; font-size:11px; color:var(--text-muted); font-weight:600; }
+.schedule-grid { flex:1; position:relative; }
+.hour-row { height:60px; border-bottom:1px solid var(--border); position:relative; }
+.hour-row.half { border-bottom:1px dashed #eee; height:30px; }
+.move-block { position:absolute; left:4px; right:4px; border-radius:7px; padding:6px 8px; cursor:pointer; font-size:12px; overflow:hidden; transition:opacity 0.2s; z-index:2; }
+.move-block:hover { opacity:0.85; }
+.move-block-title { font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.move-block-sub { font-size:11px; opacity:0.8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.date-nav { display:flex; align-items:center; gap:12px; }
+.date-nav-label { font-size:16px; font-weight:700; color:var(--navy); min-width:180px; text-align:center; }
+
+/* DETAIL */
+.detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.briefing-card { background:var(--navy); color:#fff; border-radius:10px; padding:24px; margin-bottom:16px; }
+.briefing-card .bc-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; opacity:0.6; margin-bottom:3px; }
+.briefing-card .bc-value { font-size:14px; font-weight:600; margin-bottom:12px; }
+.briefing-card .bc-route { font-size:18px; font-weight:800; margin:8px 0; }
+.notes-highlight { background:#fff3cd; color:#856404; border-radius:6px; padding:8px 12px; font-size:13px; font-weight:500; }
+.status-timeline { display:flex; flex-direction:column; gap:0; }
+.tl-item { display:flex; align-items:flex-start; gap:12px; padding:10px 0; position:relative; }
+.tl-item:not(:last-child)::after { content:''; position:absolute; left:11px; top:28px; bottom:-10px; width:2px; background:var(--border); }
+.tl-dot { width:24px; height:24px; border-radius:50%; border:2px solid var(--border); background:#fff; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:10px; }
+.tl-dot.done { background:var(--navy); border-color:var(--navy); color:#fff; }
+.tl-dot.active { background:var(--gold); border-color:var(--gold); color:#fff; animation:pulse 1.5s infinite; }
+.tl-content { flex:1; }
+.tl-label { font-size:13px; font-weight:600; color:var(--navy); }
+.tl-time { font-size:11px; color:var(--text-muted); }
+.dispatch-msg { background:#f8f9fb; border-radius:8px; padding:10px 14px; margin-bottom:8px; }
+.dispatch-msg-from { font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:3px; }
+.dispatch-msg-text { font-size:13px; color:var(--text); }
+.dispatch-msg-time { font-size:10px; color:var(--text-muted); margin-top:3px; }
+.star-rating { display:flex; gap:4px; }
+.star { font-size:24px; cursor:pointer; color:#ddd; transition:color 0.15s; }
+.star.filled { color:var(--gold); }
+
+/* CREW */
+.crew-row-expanded { background:#f8f9fb; }
+.training-tag { display:inline-block; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:600; background:#e8eaf6; color:#283593; margin:2px; }
+
+/* TRUCKS */
+.trucks-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+.truck-card { background:#fff; border-radius:10px; border:1px solid var(--border); padding:20px; }
+.truck-number { font-size:22px; font-weight:800; color:var(--navy); margin-bottom:4px; }
+.truck-size { font-size:13px; color:var(--text-muted); margin-bottom:12px; }
+
+/* STAFFING */
+.avail-grid { overflow-x:auto; }
+.avail-table { border-collapse:collapse; min-width:600px; }
+.avail-table th, .avail-table td { padding:10px 14px; border:1px solid var(--border); text-align:center; font-size:13px; }
+.avail-table th { background:#f8f9fb; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); }
+.avail-cell { width:36px; height:36px; border-radius:6px; cursor:pointer; margin:auto; transition:background 0.2s; }
+.avail-cell.available { background:#c8e6c9; }
+.avail-cell.off { background:#f5f5f5; }
+.avail-cell.assigned { background:#fff3e0; }
+
+/* FILTER ROW */
+.filter-row { display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+.filter-row input, .filter-row select { width:auto; padding:7px 12px; }
+
+/* CREW CHECKBOX LIST */
+.crew-checkbox-list { display:flex; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto; border:1px solid var(--border); border-radius:7px; padding:8px; }
+.crew-checkbox-item { display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer; padding:3px 4px; border-radius:4px; }
+.crew-checkbox-item:hover { background:#f0f2f5; }
+.crew-checkbox-item input { width:auto; }
+
+/* SECTION HEADER */
+.section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+.section-title { font-size:20px; font-weight:800; color:var(--navy); }
+
+/* IMPORT ITEM */
+.import-item { border:1px solid var(--border); border-radius:8px; padding:14px; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.import-item-info { flex:1; }
+.import-item-name { font-weight:700; font-size:14px; }
+.import-item-sub { font-size:12px; color:var(--text-muted); }
+
+/* COMPLETION PANEL */
+.completion-panel { background:#e8f5e9; border:1px solid #a5d6a7; border-radius:10px; padding:18px; }
+.completion-panel h3 { color:#2e7d32; margin-bottom:14px; font-size:15px; }
+
+/* TRAINING TABLE */
+.training-matrix { overflow-x:auto; }
+.training-matrix table th:first-child, .training-matrix table td:first-child { text-align:left; font-weight:600; }
+.training-cb { width:18px; height:18px; cursor:pointer; }
+
+/* CHECKLIST */
+.checklist-section { margin-top:16px; }
+.checklist-subsection { margin-bottom:14px; }
+.checklist-subsection-title { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); margin-bottom:8px; }
+.checklist-item { display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:6px; font-size:13px; cursor:pointer; transition:background 0.15s; }
+.checklist-item:hover { background:#f5f7fa; }
+.checklist-item input[type=checkbox] { width:16px; height:16px; cursor:pointer; accent-color:var(--navy); flex-shrink:0; }
+.checklist-item.done-item { color:var(--text-muted); text-decoration:line-through; }
+.checklist-item .done-at { font-size:10px; color:var(--text-muted); margin-left:auto; white-space:nowrap; }
+.progress-bar-wrap { background:#eee; border-radius:20px; height:8px; margin-bottom:6px; overflow:hidden; }
+.progress-bar-fill { height:100%; border-radius:20px; background:var(--navy); transition:width 0.3s; }
+.progress-bar-fill.complete { background:#4caf50; }
+.progress-label { font-size:11px; color:var(--text-muted); margin-bottom:8px; }
+
+/* PROFITABILITY */
+.profit-card { border-radius:8px; padding:14px 16px; margin-top:4px; }
+.profit-row { display:flex; justify-content:space-between; font-size:13px; padding:4px 0; border-bottom:1px solid rgba(0,0,0,0.06); }
+.profit-row:last-child { border-bottom:none; }
+.profit-row.total { font-weight:700; font-size:14px; padding-top:8px; margin-top:4px; border-top:2px solid rgba(0,0,0,0.1); }
+.profit-margin { display:inline-block; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:700; margin-top:8px; }
+.profit-green { background:#e8f5e9; color:#2e7d32; }
+.profit-gold  { background:#fff8e1; color:#f57f17; }
+.profit-red   { background:#fdecea; color:#c62828; }
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width:5px; height:5px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:rgba(0,0,0,0.15); border-radius:10px; }
+
+@media(max-width:900px) {
+  .stats-row { grid-template-columns:repeat(3,1fr); }
+  .trucks-grid { grid-template-columns:repeat(2,1fr); }
+  .detail-grid { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-title">&#11088; Saturn Star</div>
+    <div class="logo-sub">Operations Hub</div>
+  </div>
+  <nav class="sidebar-nav" id="sidebar-nav"></nav>
+  <div class="sidebar-footer"><span>v1.0 &copy; 2026</span></div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="topbar-title">Dashboard</div>
+    <div class="topbar-actions" id="topbar-actions"></div>
+  </div>
+  <div class="content" id="app-content"></div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal-box">
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast-container"></div>
+
+<script>
+// ─── UTILS ───────────────────────────────────────────────────────────────────
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+function fmtDate(d) {
+  if(!d) return '—';
+  const dt = new Date(d);
+  return dt.toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'});
+}
+function fmtDateShort(d) {
+  if(!d) return '—';
+  return new Date(d).toLocaleDateString('en-CA',{month:'short',day:'numeric'});
+}
+function fmtTime(d) {
+  if(!d) return '—';
+  return new Date(d).toLocaleTimeString('en-CA',{hour:'2-digit',minute:'2-digit',hour12:true});
+}
+function todayStr() {
+  return new Date().toISOString().slice(0,10);
+}
+function parseDate(str) {
+  // returns Date object from YYYY-MM-DD
+  const [y,m,d] = str.split('-').map(Number);
+  return new Date(y,m-1,d);
+}
+function fmtDayLabel(str) {
+  const d = parseDate(str);
+  return d.toLocaleDateString('en-CA',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+}
+function addDays(str, n) {
+  const d = parseDate(str);
+  d.setDate(d.getDate()+n);
+  return d.toISOString().slice(0,10);
+}
+function timeToMinutes(t) {
+  // "08:30" → 510
+  const [h,m] = t.split(':').map(Number);
+  return h*60+m;
+}
+function minutesToTime(m) {
+  const h = Math.floor(m/60);
+  const mm = m%60;
+  return String(h).padStart(2,'0')+':'+String(mm).padStart(2,'0');
+}
+function fmt12(t) {
+  if(!t) return '—';
+  const [h,m] = t.split(':').map(Number);
+  const ampm = h>=12?'PM':'AM';
+  const h12 = h===0?12:h>12?h-12:h;
+  return h12+':'+(m===0?'00':String(m).padStart(2,'0'))+' '+ampm;
+}
+function currency(n) {
+  return '$'+Number(n||0).toLocaleString('en-CA',{minimumFractionDigits:0});
+}
+
+function toast(msg, type='') {
+  const tc = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = 'toast'+(type?' '+type:'');
+  t.innerHTML = (type==='success'?'✓ ':type==='error'?'✕ ':'')+msg;
+  tc.appendChild(t);
+  setTimeout(()=>t.remove(),3500);
+}
+
+// ─── DB ──────────────────────────────────────────────────────────────────────
+const DB = {
+  get(key) { try { return JSON.parse(localStorage.getItem('ssops_'+key)) || []; } catch { return []; } },
+  set(key,val) { localStorage.setItem('ssops_'+key, JSON.stringify(val)); },
+  getObj(key,def={}) { try { return JSON.parse(localStorage.getItem('ssops_'+key)) || def; } catch { return def; } },
+  setObj(key,val) { localStorage.setItem('ssops_'+key, JSON.stringify(val)); },
+  getMoves() { return this.get('moves'); },
+  saveMoves(d) { this.set('moves',d); },
+  addMove(m) { const l=this.getMoves(); l.unshift(m); this.saveMoves(l); },
+  updateMove(id,u) { const l=this.getMoves(); const i=l.findIndex(m=>m.id===id); if(i>-1){l[i]={...l[i],...u};this.saveMoves(l);} },
+  deleteMove(id) { this.saveMoves(this.getMoves().filter(m=>m.id!==id)); },
+  getMove(id) { return this.getMoves().find(m=>m.id===id); },
+  getCrew() { return this.get('crew'); },
+  saveCrew(d) { this.set('crew',d); },
+  addCrewMember(c) { const l=this.getCrew(); l.push(c); this.saveCrew(l); },
+  updateCrewMember(id,u) { const l=this.getCrew(); const i=l.findIndex(c=>c.id===id); if(i>-1){l[i]={...l[i],...u};this.saveCrew(l);} },
+  deleteCrewMember(id) { this.saveCrew(this.getCrew().filter(c=>c.id!==id)); },
+  getCrewMember(id) { return this.getCrew().find(c=>c.id===id); },
+  getTrucks() { return this.get('trucks'); },
+  saveTrucks(d) { this.set('trucks',d); },
+  addTruck(t) { const l=this.getTrucks(); l.push(t); this.saveTrucks(l); },
+  updateTruck(id,u) { const l=this.getTrucks(); const i=l.findIndex(t=>t.id===id); if(i>-1){l[i]={...l[i],...u};this.saveTrucks(l);} },
+  deleteTruck(id) { this.saveTrucks(this.getTrucks().filter(t=>t.id!==id)); },
+  getTruck(id) { return this.getTrucks().find(t=>t.id===id); },
+  getSettings() { return this.getObj('settings',{companyName:'Saturn Star Moving Company',phone:'(226) 555-0100',hstRate:13,defaultEquipment:'2 dollies, 10 blankets'}); },
+  saveSettings(s) { this.setObj('settings',s); },
+  getAvailability() { return this.getObj('availability',{}); },
+  saveAvailability(a) { this.setObj('availability',a); },
+};
+
+// ─── SEED DATA ────────────────────────────────────────────────────────────────
+function seedData() {
+  if(DB.getCrew().length > 0) return;
+  const today = todayStr();
+  const yesterday = addDays(today,-1);
+
+  const crew = [
+    { id:'c1', name:'Mike Thompson', role:'driver', phone:'(226) 555-0101', status:'active', trainings:['furniture_wrap','truck_load','safety','specialty'], totalMoves:142, totalHours:890, avgMoveTime:6.3, rating:4.8, damageIncidents:1, hireDate:'2022-03-15' },
+    { id:'c2', name:'Daniel Okafor', role:'mover',  phone:'(226) 555-0102', status:'active', trainings:['furniture_wrap','truck_load','safety'], totalMoves:98, totalHours:610, avgMoveTime:6.2, rating:4.7, damageIncidents:0, hireDate:'2022-07-20' },
+    { id:'c3', name:'Luis Martinez', role:'mover',  phone:'(226) 555-0103', status:'active', trainings:['furniture_wrap','truck_load','safety','piano'], totalMoves:115, totalHours:720, avgMoveTime:6.3, rating:4.9, damageIncidents:0, hireDate:'2022-05-10' },
+    { id:'c4', name:'Aisha Patel',   role:'mover',  phone:'(226) 555-0104', status:'active', trainings:['furniture_wrap','truck_load'], totalMoves:67, totalHours:415, avgMoveTime:6.2, rating:4.6, damageIncidents:1, hireDate:'2023-02-01' },
+    { id:'c5', name:'James Reed',    role:'driver', phone:'(226) 555-0105', status:'active', trainings:['furniture_wrap','truck_load','safety'], totalMoves:88, totalHours:550, avgMoveTime:6.3, rating:4.7, damageIncidents:0, hireDate:'2022-11-14' },
+  ];
+  DB.saveCrew(crew);
+
+  const trucks = [
+    { id:'t1', number:'Truck #1', size:'26ft', plateNumber:'ABC-1234', status:'active', notes:'' },
+    { id:'t2', number:'Truck #2', size:'26ft', plateNumber:'DEF-5678', status:'active', notes:'' },
+    { id:'t3', number:'Truck #3', size:'20ft', plateNumber:'GHI-9012', status:'active', notes:'' },
+  ];
+  DB.saveTrucks(trucks);
+
+  const moves = [
+    {
+      id:'m1', quoteId:null, clientName:'Johnson Family', phone:'(519) 555-2001',
+      date: today, startTime:'08:00', estimatedHours:5,
+      originAddress:'2847 Pillette Rd', originCity:'Windsor', originFloor:'Main',
+      destAddress:'354 Kane Ave', destCity:'Toronto', destFloor:'2nd',
+      moveType:'residential', inventoryCubicFeet:480,
+      crewIds:['c1','c2','c3'], driverId:'c1', truckId:'t1',
+      status:'loading', arrivedAt: new Date(today+'T08:05:00').toISOString(), loadingAt: new Date(today+'T08:20:00').toISOString(),
+      drivingAt:null, unloadingAt:null, completedAt:null, startedAt: new Date(today+'T08:05:00').toISOString(),
+      specialNotes:'Heavy treadmill, tight staircase on origin side',
+      equipment:['Piano board','2 dollies','10 blankets'],
+      dispatchMessages:[
+        {id:'dm1',text:'On our way — parking in driveway.',sentAt:new Date(today+'T07:55:00').toISOString(),from:'Mike T.'},
+        {id:'dm2',text:'Arrived. Starting walkthrough.',sentAt:new Date(today+'T08:06:00').toISOString(),from:'Mike T.'}
+      ],
+      customerSigned:false, revenue:2260, actualHours:null, createdAt: new Date(today+'T07:00:00').toISOString()
+    },
+    {
+      id:'m2', quoteId:null, clientName:'Chen Apartment Move', phone:'(519) 555-2002',
+      date: today, startTime:'11:30', estimatedHours:3,
+      originAddress:'1204 Ouellette Ave', originCity:'Windsor', originFloor:'4th',
+      destAddress:'88 Elm St', destCity:'London', destFloor:'Main',
+      moveType:'residential', inventoryCubicFeet:220,
+      crewIds:['c5','c4'], driverId:'c5', truckId:'t2',
+      status:'scheduled', arrivedAt:null, loadingAt:null, drivingAt:null, unloadingAt:null, completedAt:null, startedAt:null,
+      specialNotes:'',
+      equipment:['2 dollies','6 blankets'],
+      dispatchMessages:[],
+      customerSigned:false, revenue:1180, actualHours:null, createdAt: new Date(today+'T07:00:00').toISOString()
+    },
+    {
+      id:'m3', quoteId:null, clientName:'St. Clair Office Phase 2', phone:'(519) 555-2003',
+      date: today, startTime:'14:00', estimatedHours:6,
+      originAddress:'333 Riverside Dr', originCity:'Windsor', originFloor:'1st',
+      destAddress:'2000 Talbot Rd', destCity:'Windsor', destFloor:'2nd',
+      moveType:'commercial', inventoryCubicFeet:640,
+      crewIds:['c1','c2','c3'], driverId:'c1', truckId:'t1',
+      status:'scheduled', arrivedAt:null, loadingAt:null, drivingAt:null, unloadingAt:null, completedAt:null, startedAt:null,
+      specialNotes:'2nd floor destination — no elevator',
+      equipment:['4 dollies','20 blankets','stretch wrap'],
+      dispatchMessages:[],
+      customerSigned:false, revenue:1950, actualHours:null, createdAt: new Date(today+'T07:00:00').toISOString()
+    },
+    {
+      id:'m4', quoteId:null, clientName:'Sharma Long Distance', phone:'(519) 555-2004',
+      date: yesterday, startTime:'09:00', estimatedHours:8,
+      originAddress:'1891 Riverside Drive W', originCity:'Windsor', originFloor:'Main',
+      destAddress:'4520 Brentwood Blvd NW', destCity:'Calgary AB', destFloor:'Main',
+      moveType:'long_distance', inventoryCubicFeet:720,
+      crewIds:['c5','c4','c3'], driverId:'c5', truckId:'t2',
+      status:'completed',
+      arrivedAt: new Date(yesterday+'T09:10:00').toISOString(),
+      loadingAt:  new Date(yesterday+'T09:25:00').toISOString(),
+      drivingAt:  new Date(yesterday+'T11:30:00').toISOString(),
+      unloadingAt:new Date(yesterday+'T17:10:00').toISOString(),
+      completedAt:new Date(yesterday+'T18:05:00').toISOString(),
+      startedAt:  new Date(yesterday+'T09:10:00').toISOString(),
+      specialNotes:'',
+      equipment:['6 dollies','30 blankets','stretch wrap','mattress bags'],
+      dispatchMessages:[{id:'dm3',text:'All done — customer happy!',sentAt:new Date(yesterday+'T18:05:00').toISOString(),from:'James R.'}],
+      customerSigned:true, revenue:3200, actualHours:9, createdAt: new Date(yesterday+'T07:00:00').toISOString()
+    },
+  ];
+  DB.saveMoves(moves);
+}
+
+// ─── CRM INTEGRATION ─────────────────────────────────────────────────────────
+function getCRMBookedJobs() {
+  try {
+    const quotes = JSON.parse(localStorage.getItem('sscrm_quotes')) || [];
+    const clients = JSON.parse(localStorage.getItem('sscrm_clients')) || [];
+    return quotes
+      .filter(q => (q.status==='accepted'||q.status==='invoiced') && !DB.getMoves().find(m=>m.quoteId===q.id))
+      .map(q => {
+        const client = clients.find(c=>c.id===q.clientId);
+        return {...q, clientName:client?.name||'—', clientPhone:client?.phone||''};
+      });
+  } catch { return []; }
+}
+
+// ─── STATUS HELPERS ───────────────────────────────────────────────────────────
+const STATUS_ORDER = ['scheduled','arrived','loading','driving','unloading','completed'];
+const STATUS_LABELS = {
+  scheduled:'Scheduled', arrived:'Arrived', loading:'Loading',
+  driving:'Driving', unloading:'Unloading', completed:'Completed', cancelled:'Cancelled'
+};
+const STATUS_NEXT_LABEL = {
+  scheduled:'Mark Arrived', arrived:'Start Loading', loading:'Start Driving',
+  driving:'Start Unloading', unloading:'Mark Complete'
+};
+const STATUS_NEXT_KEY = {
+  scheduled:'arrived', arrived:'loading', loading:'driving',
+  driving:'unloading', unloading:'completed'
+};
+const STATUS_TS_KEY = {
+  arrived:'arrivedAt', loading:'loadingAt', driving:'drivingAt',
+  unloading:'unloadingAt', completed:'completedAt'
+};
+
+function badgeHtml(status) {
+  return `<span class="badge badge-${status}">${STATUS_LABELS[status]||status}</span>`;
+}
+
+function advanceStatus(moveId) {
+  const move = DB.getMove(moveId);
+  if(!move) return;
+  const next = STATUS_NEXT_KEY[move.status];
+  if(!next) return;
+  const tsKey = STATUS_TS_KEY[next];
+  const update = { status:next };
+  if(tsKey) update[tsKey] = new Date().toISOString();
+  if(next==='arrived' && !move.startedAt) update.startedAt = new Date().toISOString();
+  if(next==='completed') {
+    if(!move.actualHours) update.actualHours = move.estimatedHours;
+  }
+  DB.updateMove(moveId, update);
+  toast(`Move updated: ${STATUS_LABELS[next]}`, 'success');
+  render();
+}
+
+function getStatusColor(status) {
+  const map = {
+    scheduled:['#e8eaf6','#283593'],
+    arrived:['#e3f2fd','#1565c0'],
+    loading:['#fff3e0','#e65100'],
+    driving:['#f3e5f5','#6a1b9a'],
+    unloading:['#fff8e1','#f57f17'],
+    completed:['#e8f5e9','#2e7d32'],
+    cancelled:['#fdecea','#c62828'],
+  };
+  return map[status] || ['#f5f5f5','#333'];
+}
+
+// ─── CHECKLIST ────────────────────────────────────────────────────────────────
+const DEFAULT_ORIGIN_CHECKLIST = [
+  'All furniture wrapped/padded',
+  'Fragile items bubble-wrapped',
+  'Boxes sealed and labelled',
+  'Heavy items on dollies',
+  'All rooms walked through',
+  'Truck loaded and secured',
+  'Client signature obtained — origin',
+  'Nothing left behind (final walkthrough)'
+];
+const DEFAULT_DEST_CHECKLIST = [
+  'Furniture placed per client instructions',
+  'All boxes delivered to correct rooms',
+  'No damage to walls/floors/doorframes',
+  'Fragile items unpacked check (if applicable)',
+  'All blankets/dollies returned to truck',
+  'Client walkthrough completed',
+  'Client signature obtained — destination',
+  'Invoice reviewed with client'
+];
+
+function getChecklist(move, listType) {
+  if(listType==='origin') {
+    if(!move.originChecklist || move.originChecklist.length===0)
+      return DEFAULT_ORIGIN_CHECKLIST.map(t=>({text:t,done:false,doneAt:null}));
+    return move.originChecklist;
+  } else {
+    if(!move.destinationChecklist || move.destinationChecklist.length===0)
+      return DEFAULT_DEST_CHECKLIST.map(t=>({text:t,done:false,doneAt:null}));
+    return move.destinationChecklist;
+  }
+}
+
+function toggleChecklistItem(moveId, listType, index, checked) {
+  const move = DB.getMove(moveId);
+  if(!move) return;
+  const originList = getChecklist(move, 'origin');
+  const destList = getChecklist(move, 'destination');
+  const list = listType==='origin' ? originList : destList;
+  list[index].done = checked;
+  list[index].doneAt = checked ? new Date().toISOString() : null;
+  if(listType==='origin') DB.updateMove(moveId, {originChecklist: originList});
+  else DB.updateMove(moveId, {destinationChecklist: destList});
+  // Refresh just the checklist area without full re-render
+  const originFresh = DB.getMove(moveId);
+  renderChecklistSection(moveId, originFresh);
+}
+
+function renderChecklistSection(moveId, move) {
+  const originList = getChecklist(move, 'origin');
+  const destList   = getChecklist(move, 'destination');
+
+  function buildProgressBar(list) {
+    const done = list.filter(i=>i.done).length;
+    const total = list.length;
+    const pct = total>0 ? Math.round(done/total*100) : 0;
+    const complete = done===total;
+    return `
+      <div class="progress-bar-wrap"><div class="progress-bar-fill${complete?' complete':''}" style="width:${pct}%"></div></div>
+      <div class="progress-label">${done}/${total} items complete${complete?' ✓':''}</div>`;
+  }
+
+  function buildItems(list, type) {
+    return list.map((item,i)=>`
+      <label class="checklist-item${item.done?' done-item':''}">
+        <input type="checkbox" ${item.done?'checked':''} onchange="toggleChecklistItem('${moveId}','${type}',${i},this.checked)">
+        <span>${item.text}</span>
+        ${item.doneAt?`<span class="done-at">${fmtTime(item.doneAt)}</span>`:''}
+      </label>`).join('');
+  }
+
+  const html = `
+    <div class="card" style="margin-top:16px;">
+      <div class="card-title" style="margin-bottom:14px;">📋 Move Checklist</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div class="checklist-subsection">
+          <div class="checklist-subsection-title">At Origin</div>
+          ${buildProgressBar(originList)}
+          <div>${buildItems(originList,'origin')}</div>
+        </div>
+        <div class="checklist-subsection">
+          <div class="checklist-subsection-title">At Destination</div>
+          ${buildProgressBar(destList)}
+          <div>${buildItems(destList,'destination')}</div>
+        </div>
+      </div>
+    </div>`;
+
+  const el = document.getElementById('checklist-section-'+moveId);
+  if(el) el.outerHTML = `<div id="checklist-section-${moveId}">${html}</div>`;
+}
+
+// ─── JOB PROFITABILITY ────────────────────────────────────────────────────────
+function calculateJobProfit(move) {
+  const quotes = JSON.parse(localStorage.getItem('sscrm_quotes') || '[]');
+  const quote = quotes.find(q =>
+    q.clientName === move.clientName ||
+    (q.fromAddress && move.originAddress && q.fromAddress.includes(move.originAddress.split(',')[0]))
+  );
+  const revenue = move.revenueOverride || (quote ? (quote.total||quote.totalAmount||0) : (move.revenue||0));
+  const crewCount = move.crewIds ? move.crewIds.length : 2;
+  const hours = move.actualHours || move.estimatedHours || 4;
+  const crewCost = crewCount * hours * 24;
+  const fuelCost = move.fuelOverride || (move.estimatedKm ? move.estimatedKm * 0.85 : 80);
+  const profit = revenue - crewCost - fuelCost;
+  const margin = revenue > 0 ? Math.round((profit / revenue) * 100) : 0;
+  return { revenue, crewCost, fuelCost, profit, margin };
+}
+
+function renderProfitCard(move) {
+  const p = calculateJobProfit(move);
+  const marginClass = p.margin >= 30 ? 'profit-green' : p.margin >= 15 ? 'profit-gold' : 'profit-red';
+  return `
+    <div class="card" style="margin-top:16px;">
+      <div class="card-title" style="margin-bottom:12px;">💰 Job Profitability</div>
+      <div class="profit-card">
+        <div class="profit-row"><span>Revenue</span><span style="font-weight:600;">${currency(p.revenue)}</span></div>
+        <div class="profit-row"><span>Crew Cost (${move.crewIds?move.crewIds.length:2} × ${move.actualHours||move.estimatedHours||4}h × $24)</span><span style="color:#e53935;">−${currency(p.crewCost)}</span></div>
+        <div class="profit-row"><span>Fuel Estimate${move.estimatedKm?` (${move.estimatedKm}km)`:''}</span><span style="color:#e53935;">−${currency(p.fuelCost)}</span></div>
+        <div class="profit-row total"><span>Profit</span><span style="${p.profit>=0?'color:#2e7d32':'color:#e53935'}">${currency(p.profit)}</span></div>
+      </div>
+      <span class="profit-margin ${marginClass}">${p.margin}% margin</span>
+      <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-group" style="margin-bottom:0;">
+          <label>Revenue Override ($)</label>
+          <input type="number" placeholder="${p.revenue||'Auto from CRM'}" value="${move.revenueOverride||''}"
+            onchange="DB.updateMove('${move.id}',{revenueOverride:parseFloat(this.value)||null});renderProfitCardInPlace('${move.id}')">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label>Fuel Override ($)</label>
+          <input type="number" placeholder="${p.fuelCost||80}" value="${move.fuelOverride||''}"
+            onchange="DB.updateMove('${move.id}',{fuelOverride:parseFloat(this.value)||null});renderProfitCardInPlace('${move.id}')">
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderProfitCardInPlace(moveId) {
+  const move = DB.getMove(moveId);
+  if(!move) return;
+  const el = document.getElementById('profit-card-'+moveId);
+  if(el) el.innerHTML = renderProfitCard(move);
+}
+
+// ─── ETA NOTIFICATION ────────────────────────────────────────────────────────
+function openETAModal(moveId) {
+  const move = DB.getMove(moveId);
+  if(!move) return;
+  const crew = DB.getCrew();
+  const driver = move.driverId ? crew.find(c=>c.id===move.driverId) : null;
+  const crewLead = driver ? driver.name : (move.crewIds&&move.crewIds.length>0 ? crew.find(c=>c.id===move.crewIds[0])?.name||'Crew Lead' : 'Crew Lead');
+  // Default ETA = 30 min from now
+  const now = new Date();
+  now.setMinutes(now.getMinutes()+30);
+  const etaH = String(now.getHours()).padStart(2,'0');
+  const etaM = String(now.getMinutes()).padStart(2,'0');
+  const etaDefault = `${etaH}:${etaM}`;
+
+  function buildMsg(phone, time, name, lead) {
+    const t = time || etaDefault;
+    const [h,m] = t.split(':').map(Number);
+    const ampm = h>=12?'PM':'AM';
+    const h12 = h===0?12:h>12?h-12:h;
+    const timeStr = h12+':'+(m===0?'00':String(m).padStart(2,'0'))+' '+ampm;
+    return `Hi ${name||'there'}! Your Saturn Star crew is on the way and should arrive by ${timeStr}. Crew lead: ${lead}. Questions? Call 226-773-2993. See you soon! 🚛`;
+  }
+
+  openModal(`
+    <h2>📱 Send ETA to Customer</h2>
+    <div class="form-group">
+      <label>Customer Phone</label>
+      <input type="tel" id="eta-phone" value="${move.phone||''}" placeholder="(226) 555-0000">
+    </div>
+    <div class="form-group">
+      <label>ETA Time</label>
+      <input type="time" id="eta-time" value="${etaDefault}"
+        oninput="document.getElementById('eta-preview').value=buildETAMsg()">
+    </div>
+    <div class="form-group">
+      <label>Message Preview</label>
+      <textarea id="eta-preview" rows="4" style="font-size:13px;">${buildMsg(move.phone, etaDefault, move.clientName, crewLead)}</textarea>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:8px;">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-outline btn-sm" onclick="copyETAMsg()">📋 Copy Message</button>
+      <button class="btn btn-primary" onclick="openSMSLink('${moveId}')">📱 Open SMS</button>
+    </div>
+    <script>
+      function buildETAMsg() {
+        const phone = document.getElementById('eta-phone').value;
+        const time  = document.getElementById('eta-time').value;
+        const [h,m] = (time||'${etaDefault}').split(':').map(Number);
+        const ampm = h>=12?'PM':'AM';
+        const h12 = h===0?12:h>12?h-12:h;
+        const ts = h12+':'+(m===0?'00':String(m).padStart(2,'0'))+' '+ampm;
+        return 'Hi ${(move.clientName||'there').replace(/'/g,"\\'")}! Your Saturn Star crew is on the way and should arrive by '+ts+'. Crew lead: ${crewLead.replace(/'/g,"\\'")}. Questions? Call 226-773-2993. See you soon! 🚛';
+      }
+    <\/script>
+  `);
+}
+
+function copyETAMsg() {
+  const text = document.getElementById('eta-preview')?.value;
+  if(!text) return;
+  navigator.clipboard.writeText(text).then(()=>toast('Message copied!','success')).catch(()=>toast('Copy failed','error'));
+}
+
+function openSMSLink(moveId) {
+  const move = DB.getMove(moveId);
+  if(!move) return;
+  const phone = document.getElementById('eta-phone')?.value || move.phone || '';
+  const msg   = document.getElementById('eta-preview')?.value || '';
+  const clean = phone.replace(/\D/g,'');
+  DB.updateMove(moveId, {etaNotificationSentAt: new Date().toISOString()});
+  toast('ETA notification logged','success');
+  window.location.href = `sms:${clean}?body=${encodeURIComponent(msg)}`;
+  closeModal();
+}
+
+// ─── END OF DAY SUMMARY ───────────────────────────────────────────────────────
+function openEndOfDayModal() {
+  const today = todayStr();
+  const allMoves = DB.getMoves();
+  const crew = DB.getCrew();
+  const todayMoves = allMoves.filter(m=>m.date===today);
+  const completed = todayMoves.filter(m=>m.status==='completed');
+  const inProgress = todayMoves.filter(m=>['arrived','loading','driving','unloading'].includes(m.status));
+  const revenueToday = completed.reduce((s,m)=>s+(m.revenue||0),0);
+
+  // Crew on shift
+  const crewOnShift = new Map();
+  todayMoves.filter(m=>m.status!=='cancelled').forEach(m=>{
+    (m.crewIds||[]).forEach(cid=>{
+      const member = crew.find(c=>c.id===cid);
+      if(!member) return;
+      if(!crewOnShift.has(cid)) crewOnShift.set(cid,{name:member.name,jobs:[]});
+      crewOnShift.get(cid).jobs.push({name:m.clientName,hours:m.actualHours||m.estimatedHours||0});
+    });
+  });
+
+  // Tomorrow's moves
+  const tomorrow = addDays(today,1);
+  const tomorrowMoves = allMoves.filter(m=>m.date===tomorrow).sort((a,b)=>a.startTime.localeCompare(b.startTime));
+
+  const dateLabel = new Date().toLocaleDateString('en-CA',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  const crewLines = [...crewOnShift.values()].map(c=>{
+    const totalH = c.jobs.reduce((s,j)=>s+j.hours,0);
+    const jobNames = c.jobs.map(j=>j.name).join(', ');
+    return `${c.name} — ${totalH}h on ${jobNames}`;
+  }).join('\n');
+
+  const summary = `📋 SATURN STAR — END OF DAY SUMMARY
+${dateLabel}
+
+JOBS TODAY: ${todayMoves.length}
+✅ Completed: ${completed.length>0?completed.map(m=>m.clientName).join(', '):'None'}
+🔄 In Progress: ${inProgress.length>0?inProgress.map(m=>m.clientName).join(', '):'None'}
+
+CREW ON SHIFT:
+${crewLines||'No crew data'}
+
+REVENUE TODAY: ${currency(revenueToday)} (completed/invoiced moves)
+ISSUES: None
+
+NEXT DAY PREVIEW:
+${tomorrowMoves.length>0?tomorrowMoves.map(m=>`• ${fmt12(m.startTime)} — ${m.clientName} (${m.originCity} → ${m.destCity})`).join('\n'):'No moves scheduled for tomorrow'}`;
+
+  openModal(`
+    <h2>📋 End of Day Summary</h2>
+    <textarea id="eod-text" rows="22" style="font-family:monospace;font-size:12px;line-height:1.6;width:100%;border:1px solid var(--border);border-radius:7px;padding:12px;">${summary}</textarea>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px;">
+      <button class="btn btn-outline" onclick="closeModal()">Close</button>
+      <button class="btn btn-primary" onclick="copyEOD()">📋 Copy to Clipboard</button>
+    </div>
+  `, true);
+}
+
+function copyEOD() {
+  const text = document.getElementById('eod-text')?.value;
+  if(!text) return;
+  navigator.clipboard.writeText(text).then(()=>toast('Summary copied!','success')).catch(()=>toast('Copy failed','error'));
+}
+
+// ─── ROUTER ───────────────────────────────────────────────────────────────────
+let currentView = 'dashboard';
+let detailId = null;
+let scheduleDate = todayStr();
+let crewExpandId = null;
+let movesFilter = { dateFrom:'', dateTo:'', status:'', crewId:'', truckId:'' };
+
+function nav(v, id=null) {
+  currentView = v;
+  detailId = id;
+  render();
+}
+
+// ─── NAV ITEMS ────────────────────────────────────────────────────────────────
+const NAV_ITEMS = [
+  { id:'dashboard', label:'Dashboard',  icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>' },
+  { id:'schedule',  label:'Schedule',   icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' },
+  { id:'moves',     label:'Moves',      icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 3h15v13H1z"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>' },
+  { id:'crew',      label:'Crew',       icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>' },
+  { id:'trucks',    label:'Trucks',     icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>' },
+  { id:'staffing',  label:'Staffing',   icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>' },
+  { id:'settings',  label:'Settings',   icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>' },
+];
+
+// ─── RENDER SIDEBAR ───────────────────────────────────────────────────────────
+function renderSidebar() {
+  const nav = document.getElementById('sidebar-nav');
+  nav.innerHTML = NAV_ITEMS.map(item => `
+    <div class="nav-item${currentView===item.id?' active':''}" onclick="nav('${item.id}')">
+      ${item.icon} ${item.label}
+    </div>
+  `).join('');
+}
+
+// ─── MAIN RENDER ─────────────────────────────────────────────────────────────
+function render() {
+  renderSidebar();
+  const titleMap = { dashboard:'Dashboard', schedule:'Schedule', moves:'Moves', crew:'Crew Roster', trucks:'Fleet', staffing:'Staffing', settings:'Settings' };
+  const content = document.getElementById('app-content');
+  const topbarTitle = document.getElementById('topbar-title');
+  const topbarActions = document.getElementById('topbar-actions');
+
+  if(currentView==='move-detail') {
+    topbarTitle.innerHTML = '<span style="cursor:pointer;color:var(--text-muted);font-weight:500;" onclick="nav(\'moves\')">Moves</span> <span style="color:var(--text-muted)"> › </span> Move Detail';
+  } else {
+    topbarTitle.textContent = titleMap[currentView]||'Operations Hub';
+  }
+  topbarActions.innerHTML = '';
+
+  if(currentView==='dashboard')    { renderDashboard(content, topbarActions); }
+  else if(currentView==='schedule'){ renderSchedule(content, topbarActions); }
+  else if(currentView==='moves')   { renderMoves(content, topbarActions); }
+  else if(currentView==='move-detail') { renderMoveDetail(content, topbarActions); }
+  else if(currentView==='crew')    { renderCrew(content, topbarActions); }
+  else if(currentView==='trucks')  { renderTrucks(content, topbarActions); }
+  else if(currentView==='staffing'){ renderStaffing(content, topbarActions); }
+  else if(currentView==='settings'){ renderSettings(content, topbarActions); }
+}
+
+// ─── DASHBOARD ───────────────────────────────────────────────────────────────
+function renderDashboard(container, actions) {
+  const today = todayStr();
+  const allMoves = DB.getMoves();
+  const todayMoves = allMoves.filter(m=>m.date===today).sort((a,b)=>a.startTime.localeCompare(b.startTime));
+  const activeMoves = todayMoves.filter(m=>['arrived','loading','driving','unloading'].includes(m.status));
+  const revenueToday = todayMoves.filter(m=>m.status==='completed').reduce((s,m)=>s+(m.revenue||0),0);
+  const crewDeployed = new Set(todayMoves.filter(m=>m.status!=='cancelled').flatMap(m=>m.crewIds||[])).size;
+  const unassigned = todayMoves.filter(m=>(!m.crewIds||m.crewIds.length===0||!m.truckId) && m.status!=='cancelled').length;
+
+  actions.innerHTML = `
+    <button class="btn btn-outline btn-sm" onclick="openEndOfDayModal()">📋 End of Day</button>
+    <button class="btn btn-primary btn-sm" onclick="openNewMoveModal('${today}')">+ New Move</button>
+  `;
+
+  const hasAlerts = unassigned > 0;
+  const alertBanner = hasAlerts ? `<div class="alert-banner">&#9888; ${unassigned} move(s) today have no crew or truck assigned.</div>` : '';
+
+  container.innerHTML = `
+    <div style="margin-bottom:20px;">
+      <div style="font-size:13px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">${new Date().toLocaleDateString('en-CA',{weekday:'long'})}</div>
+      <div style="font-size:28px;font-weight:800;color:var(--navy);">${new Date().toLocaleDateString('en-CA',{month:'long',day:'numeric',year:'numeric'})}</div>
+    </div>
+    ${alertBanner}
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Moves Today</div>
+        <div class="stat-value">${todayMoves.length}</div>
+        <div class="stat-sub">${todayMoves.filter(m=>m.status==='completed').length} completed</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Crews Deployed</div>
+        <div class="stat-value">${crewDeployed}</div>
+        <div class="stat-sub">across ${todayMoves.filter(m=>m.status!=='cancelled').length} active jobs</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Revenue Today</div>
+        <div class="stat-value">${currency(revenueToday)}</div>
+        <div class="stat-sub">completed jobs</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Active Right Now</div>
+        <div class="stat-value">${activeMoves.length}</div>
+        <div class="stat-sub">in progress</div>
+      </div>
+      <div class="stat-card${unassigned>0?' alert':''}">
+        <div class="stat-label">Unassigned Jobs</div>
+        <div class="stat-value">${unassigned}</div>
+        <div class="stat-sub">${unassigned>0?'⚠ Needs attention':'All assigned'}</div>
+      </div>
+    </div>
+
+    <div class="section-header">
+      <div class="section-title">Today's Moves</div>
+    </div>
+    ${todayMoves.length===0 ? '<div class="card" style="text-align:center;padding:40px;color:var(--text-muted);">No moves scheduled for today.</div>' : ''}
+    ${todayMoves.map(m=>renderMoveCard(m)).join('')}
+  `;
+}
+
+function renderMoveCard(move) {
+  const crew = DB.getCrew();
+  const crewNames = (move.crewIds||[]).map(id=>crew.find(c=>c.id===id)?.name||id).join(', ');
+  const truck = DB.getTruck(move.truckId);
+  const isActive = ['arrived','loading','driving','unloading'].includes(move.status);
+  const nextLabel = STATUS_NEXT_LABEL[move.status];
+  const [sc,tc] = getStatusColor(move.status);
+
+  const crewAlert = (!move.crewIds||move.crewIds.length===0) ? '<span style="color:#e53935;font-size:12px;font-weight:600;">⚠ No crew assigned</span>' : '';
+  const truckAlert = !move.truckId ? '<span style="color:#e53935;font-size:12px;font-weight:600;">⚠ No truck assigned</span>' : '';
+
+  return `
+    <div class="move-card${isActive?' active-move':''}">
+      <div class="move-card-header">
+        <div style="display:flex;align-items:center;gap:12px;">
+          ${isActive?'<div class="pulse-dot"></div>':''}
+          <span class="move-time">${fmt12(move.startTime)}</span>
+          ${badgeHtml(move.status)}
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-outline btn-sm" onclick="nav('move-detail','${move.id}')">View Detail</button>
+          ${nextLabel ? `<button class="btn btn-primary btn-sm" onclick="advanceStatus('${move.id}')">${nextLabel}</button>` : ''}
+        </div>
+      </div>
+      <div class="move-client">${move.clientName}</div>
+      <div class="move-route">${move.originAddress}, ${move.originCity} → ${move.destAddress}, ${move.destCity}</div>
+      <div class="move-meta">
+        <span class="meta-item">👥 ${crewNames||'No crew'}</span>
+        <span class="meta-item">🚛 ${truck?truck.number:'No truck'}</span>
+        <span class="meta-item">⏱ ${move.estimatedHours}h est.</span>
+        ${move.moveType ? `<span class="meta-item">📦 ${move.moveType}</span>` : ''}
+        ${crewAlert}${truckAlert}
+      </div>
+      ${move.specialNotes ? `<div class="notes-highlight" style="margin-bottom:10px;">📌 ${move.specialNotes}</div>` : ''}
+      <div class="move-actions">
+        <button class="btn btn-outline btn-sm" onclick="openDispatchModal('${move.id}')">💬 Add Note</button>
+        ${move.status==='completed' && !move.customerSigned ? `<button class="btn btn-success btn-sm" onclick="signComplete('${move.id}')">✓ Customer Sign-off</button>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+// ─── SCHEDULE ────────────────────────────────────────────────────────────────
+function renderSchedule(container, actions) {
+  const allMoves = DB.getMoves();
+  const dayMoves = allMoves.filter(m=>m.date===scheduleDate).sort((a,b)=>a.startTime.localeCompare(b.startTime));
+
+  actions.innerHTML = `<button class="btn btn-primary btn-sm" onclick="openNewMoveModal('${scheduleDate}')">+ New Move</button>`;
+
+  const START_HOUR = 6;
+  const END_HOUR = 22;
+  const SLOT_HEIGHT = 60; // px per hour
+
+  // Build time labels
+  let timeLabels = '';
+  let hourRows = '';
+  for(let h=START_HOUR; h<=END_HOUR; h++) {
+    const label = fmt12(minutesToTime(h*60));
+    timeLabels += `<div class="time-slot-label">${label}</div>`;
+    if(h < END_HOUR) hourRows += `<div class="hour-row" style="height:${SLOT_HEIGHT}px;"></div>`;
+  }
+
+  // Build move blocks
+  const totalMinutes = (END_HOUR - START_HOUR)*60;
+  const totalHeight = (END_HOUR - START_HOUR)*SLOT_HEIGHT;
+
+  let moveBlocks = '';
+  dayMoves.forEach(move => {
+    const startMins = timeToMinutes(move.startTime) - START_HOUR*60;
+    if(startMins < 0) return;
+    const durMins = (move.estimatedHours||1)*60;
+    const top = (startMins/60)*SLOT_HEIGHT;
+    const height = Math.max(30, (durMins/60)*SLOT_HEIGHT - 4);
+    const [bg,color] = getStatusColor(move.status);
+    const crew = DB.getCrew();
+    const driverName = move.driverId ? crew.find(c=>c.id===move.driverId)?.name||'' : '';
+    const truck = DB.getTruck(move.truckId);
+    moveBlocks += `
+      <div class="move-block" onclick="nav('move-detail','${move.id}')"
+        style="top:${top}px;height:${height}px;background:${bg};border-left:4px solid ${color};">
+        <div class="move-block-title" style="color:${color};">${move.clientName}</div>
+        <div class="move-block-sub" style="color:${color};">${fmt12(move.startTime)} · ${driverName} · ${truck?truck.number:''}</div>
+        <div class="move-block-sub" style="color:${color};">${STATUS_LABELS[move.status]}</div>
+      </div>`;
+  });
+
+  container.innerHTML = `
+    <div class="card" style="margin-bottom:20px;">
+      <div class="date-nav" style="display:flex;align-items:center;gap:14px;">
+        <button class="btn btn-outline btn-sm" onclick="scheduleDate=addDays(scheduleDate,-1);render()">&#8592; Prev</button>
+        <span class="date-nav-label">${fmtDayLabel(scheduleDate)}</span>
+        <button class="btn btn-outline btn-sm" onclick="scheduleDate=addDays(scheduleDate,1);render()">Next &#8594;</button>
+        <button class="btn btn-outline btn-sm" onclick="scheduleDate=todayStr();render()">Today</button>
+      </div>
+    </div>
+    <div class="card">
+      <div style="display:flex;gap:0;">
+        <div class="time-col">${timeLabels}</div>
+        <div class="schedule-grid" style="position:relative;height:${totalHeight}px;flex:1;">
+          ${hourRows}
+          ${moveBlocks}
+          ${dayMoves.length===0?'<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:14px;">No moves scheduled for this day</div>':''}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ─── MOVES LIST ───────────────────────────────────────────────────────────────
+function renderMoves(container, actions) {
+  actions.innerHTML = `
+    <button class="btn btn-outline btn-sm" onclick="openImportModal()">&#8595; Import from CRM</button>
+    <button class="btn btn-primary btn-sm" onclick="openNewMoveModal()">+ New Move</button>
+  `;
+
+  let moves = DB.getMoves();
+  const crew = DB.getCrew();
+  const trucks = DB.getTrucks();
+
+  // Apply filters
+  if(movesFilter.dateFrom) moves = moves.filter(m=>m.date>=movesFilter.dateFrom);
+  if(movesFilter.dateTo)   moves = moves.filter(m=>m.date<=movesFilter.dateTo);
+  if(movesFilter.status)   moves = moves.filter(m=>m.status===movesFilter.status);
+  if(movesFilter.crewId)   moves = moves.filter(m=>(m.crewIds||[]).includes(movesFilter.crewId));
+  if(movesFilter.truckId)  moves = moves.filter(m=>m.truckId===movesFilter.truckId);
+
+  moves.sort((a,b)=>b.date.localeCompare(a.date)||a.startTime.localeCompare(b.startTime));
+
+  container.innerHTML = `
+    <div class="card">
+      <div class="filter-row">
+        <input type="date" placeholder="From" value="${movesFilter.dateFrom}" onchange="movesFilter.dateFrom=this.value;render()" style="width:140px;">
+        <input type="date" placeholder="To" value="${movesFilter.dateTo}" onchange="movesFilter.dateTo=this.value;render()" style="width:140px;">
+        <select onchange="movesFilter.status=this.value;render()">
+          <option value="">All Statuses</option>
+          ${['scheduled','arrived','loading','driving','unloading','completed','cancelled'].map(s=>`<option value="${s}"${movesFilter.status===s?' selected':''}>${STATUS_LABELS[s]}</option>`).join('')}
+        </select>
+        <select onchange="movesFilter.crewId=this.value;render()">
+          <option value="">All Crew</option>
+          ${crew.map(c=>`<option value="${c.id}"${movesFilter.crewId===c.id?' selected':''}>${c.name}</option>`).join('')}
+        </select>
+        <select onchange="movesFilter.truckId=this.value;render()">
+          <option value="">All Trucks</option>
+          ${trucks.map(t=>`<option value="${t.id}"${movesFilter.truckId===t.id?' selected':''}>${t.number}</option>`).join('')}
+        </select>
+        <button class="btn btn-outline btn-sm" onclick="movesFilter={dateFrom:'',dateTo:'',status:'',crewId:'',truckId:''};render()">Clear</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th><th>Time</th><th>Client</th><th>Route</th>
+              <th>Crew</th><th>Truck</th><th>Status</th><th>Est.</th><th>Revenue</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${moves.length===0?'<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text-muted);">No moves found.</td></tr>':''}
+            ${moves.map(m=>{
+              const crewNames = (m.crewIds||[]).map(id=>crew.find(c=>c.id===id)?.name?.split(' ')[0]||id).join(', ');
+              const truck = trucks.find(t=>t.id===m.truckId);
+              return `<tr>
+                <td>${fmtDateShort(m.date)}</td>
+                <td style="font-weight:600;">${fmt12(m.startTime)}</td>
+                <td style="font-weight:600;">${m.clientName}</td>
+                <td style="font-size:12px;">${m.originCity} → ${m.destCity}</td>
+                <td style="font-size:12px;">${crewNames||'<span style="color:#e53935;">None</span>'}</td>
+                <td style="font-size:12px;">${truck?truck.number:'<span style="color:#e53935;">None</span>'}</td>
+                <td>${badgeHtml(m.status)}</td>
+                <td>${m.estimatedHours}h</td>
+                <td>${m.revenue?currency(m.revenue):'—'}</td>
+                <td>
+                  <div style="display:flex;gap:6px;">
+                    <button class="btn btn-outline btn-sm" onclick="nav('move-detail','${m.id}')">View</button>
+                    <button class="btn btn-outline btn-sm" onclick="openEditMoveModal('${m.id}')" title="Edit">✎</button>
+                    <button class="btn btn-outline btn-sm" style="color:#e53935;" onclick="confirmDeleteMove('${m.id}')" title="Delete">✕</button>
+                  </div>
+                </td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+// ─── MOVE DETAIL ──────────────────────────────────────────────────────────────
+function renderMoveDetail(container, actions) {
+  const move = DB.getMove(detailId);
+  if(!move) { container.innerHTML='<div class="card">Move not found.</div>'; return; }
+
+  const crew = DB.getCrew();
+  const crewNames = (move.crewIds||[]).map(id=>crew.find(c=>c.id===id)?.name||id).join(', ');
+  const driver = move.driverId ? crew.find(c=>c.id===move.driverId) : null;
+  const truck = DB.getTruck(move.truckId);
+  const nextLabel = STATUS_NEXT_LABEL[move.status];
+
+  actions.innerHTML = `
+    <button class="btn btn-outline btn-sm" onclick="openEditMoveModal('${move.id}')">✎ Edit</button>
+    ${nextLabel ? `<button class="btn btn-primary btn-sm" onclick="advanceStatus('${move.id}')">${nextLabel}</button>` : ''}
+  `;
+
+  // Timeline
+  const tlSteps = [
+    {key:'scheduled', label:'Scheduled', ts: move.createdAt},
+    {key:'arrived',   label:'Arrived',   ts: move.arrivedAt},
+    {key:'loading',   label:'Loading',   ts: move.loadingAt},
+    {key:'driving',   label:'En Route',  ts: move.drivingAt},
+    {key:'unloading', label:'Unloading', ts: move.unloadingAt},
+    {key:'completed', label:'Completed', ts: move.completedAt},
+  ];
+  const currentIdx = STATUS_ORDER.indexOf(move.status);
+  const tlHtml = tlSteps.map((step,i) => {
+    let dotClass = 'tl-dot';
+    if(i < currentIdx) dotClass += ' done';
+    else if(i===currentIdx) dotClass += ' active';
+    return `<div class="tl-item">
+      <div class="${dotClass}">${i<currentIdx?'✓':i+1}</div>
+      <div class="tl-content">
+        <div class="tl-label">${step.label}</div>
+        <div class="tl-time">${step.ts?fmtTime(step.ts):'—'}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Dispatch messages
+  const msgs = (move.dispatchMessages||[]).map(msg=>`
+    <div class="dispatch-msg">
+      <div class="dispatch-msg-from">${msg.from}</div>
+      <div class="dispatch-msg-text">${msg.text}</div>
+      <div class="dispatch-msg-time">${fmtTime(msg.sentAt)}</div>
+    </div>
+  `).join('');
+
+  // Completion panel
+  const completionHtml = move.status==='completed' ? `
+    <div class="completion-panel" style="margin-top:16px;">
+      <h3>✓ Move Completed</h3>
+      <div class="form-row" style="margin-bottom:12px;">
+        <div class="form-group">
+          <label>Actual Hours</label>
+          <input type="number" id="actual-hours" value="${move.actualHours||move.estimatedHours}" step="0.5" onchange="DB.updateMove('${move.id}',{actualHours:parseFloat(this.value)})">
+        </div>
+        <div class="form-group">
+          <label>Revenue ($)</label>
+          <input type="number" id="move-revenue" value="${move.revenue||''}" onchange="DB.updateMove('${move.id}',{revenue:parseFloat(this.value)})">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Customer Rating</label>
+        <div class="star-rating" id="star-rating-${move.id}">
+          ${[1,2,3,4,5].map(n=>`<span class="star${(move.rating||0)>=n?' filled':''}" onclick="setMoveRating('${move.id}',${n})">★</span>`).join('')}
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:10px;">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13px;font-weight:500;color:var(--text);">
+          <input type="checkbox" ${move.customerSigned?'checked':''} onchange="DB.updateMove('${move.id}',{customerSigned:this.checked});toast('Customer sign-off updated','success')"> Customer Signed
+        </label>
+        <button class="btn btn-outline btn-sm" onclick="triggerReview('${move.id}')">⭐ Request Review</button>
+      </div>
+    </div>
+  ` : '';
+
+  // Crew assignment
+  const crewCheckboxes = crew.filter(c=>c.status==='active').map(c=>{
+    const checked = (move.crewIds||[]).includes(c.id);
+    return `<label class="crew-checkbox-item">
+      <input type="checkbox" ${checked?'checked':''} onchange="toggleCrewAssign('${move.id}','${c.id}',this.checked)">
+      ${c.name} <span style="color:var(--text-muted);font-size:11px;">(${c.role})</span>
+    </label>`;
+  }).join('');
+
+  const truckOptions = DB.getTrucks().map(t=>`<option value="${t.id}"${move.truckId===t.id?' selected':''}>${t.number} (${t.size})</option>`).join('');
+  const driverOptions = crew.filter(c=>c.role==='driver'&&c.status==='active').map(c=>`<option value="${c.id}"${move.driverId===c.id?' selected':''}>${c.name}</option>`).join('');
+
+  // Pre-build checklist + profit HTML
+  const originList = getChecklist(move, 'origin');
+  const destList   = getChecklist(move, 'destination');
+
+  function buildProgressBar(list) {
+    const done = list.filter(i=>i.done).length;
+    const total = list.length;
+    const pct = total>0 ? Math.round(done/total*100) : 0;
+    const complete = done===total;
+    return `<div class="progress-bar-wrap"><div class="progress-bar-fill${complete?' complete':''}" style="width:${pct}%"></div></div>
+            <div class="progress-label">${done}/${total} items complete${complete?' ✓':''}</div>`;
+  }
+  function buildCheckItems(list, type) {
+    return list.map((item,i)=>`
+      <label class="checklist-item${item.done?' done-item':''}">
+        <input type="checkbox" ${item.done?'checked':''} onchange="toggleChecklistItem('${move.id}','${type}',${i},this.checked)">
+        <span>${item.text}</span>
+        ${item.doneAt?`<span class="done-at">${fmtTime(item.doneAt)}</span>`:''}
+      </label>`).join('');
+  }
+
+  const checklistHtml = `
+    <div id="checklist-section-${move.id}">
+      <div class="card" style="margin-top:16px;">
+        <div class="card-title" style="margin-bottom:14px;">📋 Move Checklist</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+          <div class="checklist-subsection">
+            <div class="checklist-subsection-title">At Origin</div>
+            ${buildProgressBar(originList)}
+            <div>${buildCheckItems(originList,'origin')}</div>
+          </div>
+          <div class="checklist-subsection">
+            <div class="checklist-subsection-title">At Destination</div>
+            ${buildProgressBar(destList)}
+            <div>${buildCheckItems(destList,'destination')}</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+  const etaHtml = `
+    <div class="card" style="margin-top:16px;">
+      <div class="card-title" style="margin-bottom:12px;">📱 ETA Notification</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div style="font-size:13px;color:var(--text-muted);">
+          ${move.etaNotificationSentAt ? `Last sent: ${fmtTime(move.etaNotificationSentAt)}` : 'No ETA sent yet'}
+        </div>
+        <button class="btn btn-navy btn-sm" onclick="openETAModal('${move.id}')">📱 Send ETA to Customer</button>
+      </div>
+    </div>`;
+
+  const profitHtml = `<div id="profit-card-${move.id}">${renderProfitCard(move)}</div>`;
+
+  container.innerHTML = `
+    <div class="detail-grid">
+      <!-- LEFT COLUMN -->
+      <div>
+        <div class="briefing-card">
+          <div class="bc-label">Client</div>
+          <div class="bc-value" style="font-size:20px;">${move.clientName} &nbsp;
+            <a href="tel:${move.phone}" style="color:var(--gold);font-size:13px;">${move.phone||''}</a>
+          </div>
+          <div class="bc-label">Date & Time</div>
+          <div class="bc-value">${fmtDate(move.date)} at ${fmt12(move.startTime)}</div>
+          <div class="bc-label">Route</div>
+          <div class="bc-route">${move.originAddress}, ${move.originCity} (${move.originFloor||'Main'})</div>
+          <div style="color:var(--gold);font-size:12px;margin:-6px 0 4px;">↓ to</div>
+          <div class="bc-route">${move.destAddress}, ${move.destCity} (${move.destFloor||'Main'})</div>
+          <div style="display:flex;gap:20px;margin-top:8px;">
+            <div><div class="bc-label">Est. Hours</div><div class="bc-value">${move.estimatedHours}h</div></div>
+            <div><div class="bc-label">Inventory</div><div class="bc-value">${move.inventoryCubicFeet||'—'} cu ft</div></div>
+            <div><div class="bc-label">Move Type</div><div class="bc-value" style="text-transform:capitalize;">${(move.moveType||'').replace('_',' ')||'—'}</div></div>
+          </div>
+        </div>
+        ${move.specialNotes?`<div class="notes-highlight" style="margin-bottom:16px;">📌 ${move.specialNotes}</div>`:''}
+        ${(move.equipment&&move.equipment.length)?`
+          <div class="card" style="margin-bottom:16px;">
+            <div class="card-title" style="margin-bottom:10px;">Equipment Needed</div>
+            ${move.equipment.map(e=>`<span class="training-tag">📦 ${e}</span>`).join('')}
+          </div>`:''}
+        <div class="card">
+          <div class="card-title" style="margin-bottom:14px;">Status Timeline</div>
+          <div class="status-timeline">${tlHtml}</div>
+        </div>
+        ${completionHtml}
+      </div>
+      <!-- RIGHT COLUMN -->
+      <div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title" style="margin-bottom:14px;">Assignment</div>
+          <div class="form-group">
+            <label>Crew Members</label>
+            <div class="crew-checkbox-list">${crewCheckboxes}</div>
+          </div>
+          <div class="form-group">
+            <label>Driver</label>
+            <select onchange="DB.updateMove('${move.id}',{driverId:this.value});toast('Driver updated','success')">
+              <option value="">Select driver…</option>
+              ${driverOptions}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Truck</label>
+            <select onchange="DB.updateMove('${move.id}',{truckId:this.value});toast('Truck updated','success')">
+              <option value="">Select truck…</option>
+              ${truckOptions}
+            </select>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title" style="margin-bottom:12px;">Dispatch Log</div>
+          <div style="max-height:220px;overflow-y:auto;margin-bottom:10px;">${msgs||'<div style="color:var(--text-muted);font-size:13px;">No messages yet.</div>'}</div>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="dispatch-input-${move.id}" placeholder="Send note to crew…" onkeydown="if(event.key==='Enter')sendDispatch('${move.id}')">
+            <button class="btn btn-navy btn-sm" onclick="sendDispatch('${move.id}')">Send</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="margin-bottom:12px;">Time Tracking</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px;">
+            <div><div style="color:var(--text-muted);font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:3px;">Started</div><div style="font-weight:600;">${move.startedAt?fmtTime(move.startedAt):'Not started'}</div></div>
+            <div><div style="color:var(--text-muted);font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:3px;">Est. Finish</div><div style="font-weight:600;">${move.startedAt?fmt12(minutesToTime(timeToMinutes(move.startTime)+move.estimatedHours*60)):'—'}</div></div>
+            <div><div style="color:var(--text-muted);font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:3px;">Actual Hours</div><div style="font-weight:600;">${move.actualHours||'—'}</div></div>
+            <div><div style="color:var(--text-muted);font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:3px;">Completed</div><div style="font-weight:600;">${move.completedAt?fmtTime(move.completedAt):'—'}</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    ${checklistHtml}
+    ${etaHtml}
+    ${profitHtml}
+  `;
+}
+
+function toggleCrewAssign(moveId, crewId, checked) {
+  const move = DB.getMove(moveId);
+  if(!move) return;
+  let ids = [...(move.crewIds||[])];
+  if(checked) { if(!ids.includes(crewId)) ids.push(crewId); }
+  else { ids = ids.filter(id=>id!==crewId); }
+  DB.updateMove(moveId, {crewIds:ids});
+  toast('Crew assignment updated','success');
+}
+
+function sendDispatch(moveId) {
+  const input = document.getElementById('dispatch-input-'+moveId);
+  const text = input?.value?.trim();
+  if(!text) return;
+  const move = DB.getMove(moveId);
+  if(!move) return;
+  const msgs = [...(move.dispatchMessages||[])];
+  msgs.push({id:uid(), text, sentAt:new Date().toISOString(), from:'Dispatch'});
+  DB.updateMove(moveId, {dispatchMessages:msgs});
+  input.value='';
+  toast('Message sent','success');
+  render();
+}
+
+function setMoveRating(moveId, rating) {
+  DB.updateMove(moveId, {rating});
+  toast('Rating saved','success');
+  render();
+}
+
+function signComplete(moveId) {
+  DB.updateMove(moveId, {customerSigned:true});
+  toast('Customer sign-off recorded','success');
+  render();
+}
+
+function triggerReview(moveId) {
+  const move = DB.getMove(moveId);
+  toast(`Review request triggered for ${move?.clientName||'client'}`, 'success');
+}
+
+// ─── CREW ─────────────────────────────────────────────────────────────────────
+const TRAINING_TYPES = [
+  {key:'furniture_wrap', label:'Furniture Wrap'},
+  {key:'truck_load',     label:'Truck Loading'},
+  {key:'safety',         label:'Safety'},
+  {key:'specialty',      label:'Specialty'},
+  {key:'piano',          label:'Piano'},
+  {key:'driving',        label:'Long Drive'},
+];
+
+function renderCrew(container, actions) {
+  actions.innerHTML = `<button class="btn btn-primary btn-sm" onclick="openCrewModal()">+ Add Crew Member</button>`;
+  const crew = DB.getCrew();
+
+  const rows = crew.map(c=>{
+    const trainTags = (c.trainings||[]).map(t=>{
+      const tl = TRAINING_TYPES.find(tt=>tt.key===t);
+      return `<span class="training-tag">${tl?tl.label:t}</span>`;
+    }).join('');
+    const isExpanded = crewExpandId===c.id;
+    const expandedHtml = isExpanded ? `
+      <tr class="crew-row-expanded">
+        <td colspan="10" style="padding:16px 24px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+            <div>
+              <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;">Performance</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;">
+                <div><span style="color:var(--text-muted);">Total Moves:</span> <strong>${c.totalMoves||0}</strong></div>
+                <div><span style="color:var(--text-muted);">Total Hours:</span> <strong>${c.totalHours||0}</strong></div>
+                <div><span style="color:var(--text-muted);">Avg Move Time:</span> <strong>${c.avgMoveTime||0}h</strong></div>
+                <div><span style="color:var(--text-muted);">Damage Incidents:</span> <strong>${c.damageIncidents||0}</strong></div>
+                <div><span style="color:var(--text-muted);">Hire Date:</span> <strong>${c.hireDate||'—'}</strong></div>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;">Trainings</div>
+              ${TRAINING_TYPES.map(tt=>`
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:5px;cursor:pointer;">
+                  <input type="checkbox" ${(c.trainings||[]).includes(tt.key)?'checked':''}
+                    onchange="toggleTraining('${c.id}','${tt.key}',this.checked)">
+                  ${tt.label}
+                </label>`).join('')}
+            </div>
+          </div>
+          <div style="margin-top:12px;display:flex;gap:8px;">
+            <button class="btn btn-outline btn-sm" onclick="openCrewModal('${c.id}')">✎ Edit</button>
+            <button class="btn btn-outline btn-sm" style="color:#e53935;" onclick="confirmDeleteCrew('${c.id}')">✕ Remove</button>
+          </div>
+        </td>
+      </tr>` : '';
+    return `
+      <tr style="cursor:pointer;" onclick="crewExpandId=crewExpandId==='${c.id}'?null:'${c.id}';render()">
+        <td style="font-weight:600;">${c.name}</td>
+        <td><span class="badge badge-${c.role==='driver'?'driving':'loading'}">${c.role}</span></td>
+        <td>${c.phone}</td>
+        <td><span class="badge badge-${c.status==='active'?'completed':'cancelled'}">${c.status}</span></td>
+        <td>${c.totalMoves||0}</td>
+        <td>${c.avgMoveTime||0}h</td>
+        <td>${c.rating?'★'.repeat(Math.round(c.rating))+' '+c.rating:'—'}</td>
+        <td style="font-size:12px;">${trainTags}</td>
+        <td style="color:var(--text-muted);">${isExpanded?'▲':'▼'}</td>
+      </tr>
+      ${expandedHtml}
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="card">
+      <div class="card-header"><div class="card-title">Crew Roster (${crew.length})</div></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Role</th><th>Phone</th><th>Status</th><th>Total Moves</th><th>Avg Time</th><th>Rating</th><th>Trainings</th><th></th></tr></thead>
+          <tbody>${rows||'<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-muted);">No crew members.</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function toggleTraining(crewId, trainingKey, checked) {
+  const c = DB.getCrewMember(crewId);
+  if(!c) return;
+  let trainings = [...(c.trainings||[])];
+  if(checked) { if(!trainings.includes(trainingKey)) trainings.push(trainingKey); }
+  else { trainings = trainings.filter(t=>t!==trainingKey); }
+  DB.updateCrewMember(crewId, {trainings});
+  toast('Training updated','success');
+}
+
+// ─── TRUCKS ───────────────────────────────────────────────────────────────────
+function renderTrucks(container, actions) {
+  actions.innerHTML = `<button class="btn btn-primary btn-sm" onclick="openTruckModal()">+ Add Truck</button>`;
+  const trucks = DB.getTrucks();
+  const allMoves = DB.getMoves();
+  const today = todayStr();
+
+  const cards = trucks.map(t=>{
+    const todayAssignment = allMoves.find(m=>m.truckId===t.id && m.date===today && m.status!=='cancelled' && m.status!=='completed');
+    const statusLabel = todayAssignment ? 'Assigned' : (t.status==='maintenance'?'Maintenance':'Available');
+    const statusColor = todayAssignment?'var(--gold)':t.status==='maintenance'?'#e53935':'#4caf50';
+    return `
+      <div class="truck-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
+          <div class="truck-number">${t.number}</div>
+          <span class="badge" style="background:${statusColor}20;color:${statusColor};">${statusLabel}</span>
+        </div>
+        <div class="truck-size">${t.size} &middot; ${t.plateNumber}</div>
+        ${todayAssignment?`<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">Today: <strong>${todayAssignment.clientName}</strong> at ${fmt12(todayAssignment.startTime)}</div>`:''}
+        ${t.notes?`<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">${t.notes}</div>`:''}
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button class="btn btn-outline btn-sm" onclick="openTruckModal('${t.id}')">✎ Edit</button>
+          <button class="btn btn-outline btn-sm" onclick="toggleTruckStatus('${t.id}')">${t.status==='maintenance'?'Mark Active':'Maintenance'}</button>
+          <button class="btn btn-outline btn-sm" style="color:#e53935;" onclick="confirmDeleteTruck('${t.id}')">✕</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="trucks-grid">${cards||'<div class="card">No trucks added yet.</div>'}</div>
+  `;
+}
+
+function toggleTruckStatus(truckId) {
+  const t = DB.getTruck(truckId);
+  if(!t) return;
+  DB.updateTruck(truckId, {status: t.status==='maintenance'?'active':'maintenance'});
+  toast('Truck status updated','success');
+  render();
+}
+
+// ─── STAFFING ─────────────────────────────────────────────────────────────────
+function renderStaffing(container, actions) {
+  const crew = DB.getCrew().filter(c=>c.status==='active');
+  const avail = DB.getAvailability();
+  const allMoves = DB.getMoves();
+
+  // Build 7 day headers
+  const today = todayStr();
+  const days = Array.from({length:7},(_,i)=>addDays(today,i));
+
+  const gridRows = crew.map(c => {
+    const cells = days.map(day => {
+      const assigned = allMoves.some(m=>m.date===day && (m.crewIds||[]).includes(c.id) && m.status!=='cancelled');
+      const key = `${c.id}_${day}`;
+      let state = avail[key];
+      if(assigned) state='assigned';
+      else if(!state) state='available';
+      return `<td>
+        <div class="avail-cell ${state}" title="${state}" onclick="${assigned?'':`toggleAvail('${c.id}','${day}')`}"></div>
+      </td>`;
+    }).join('');
+    return `<tr><td style="text-align:left;font-weight:600;white-space:nowrap;">${c.name}</td>${cells}</tr>`;
+  }).join('');
+
+  const dayHeaders = days.map(d=>`<th>${parseDate(d).toLocaleDateString('en-CA',{weekday:'short',month:'short',day:'numeric'})}</th>`).join('');
+
+  // Hiring needs
+  const weekMoves = allMoves.filter(m=>m.date>=today&&m.date<=addDays(today,6)&&m.status!=='cancelled');
+  const crewNeeded = weekMoves.reduce((s,m)=>s+(m.crewIds?m.crewIds.length:0),0);
+  const activeCrew = crew.length;
+  const movesCount = weekMoves.length;
+
+  container.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 300px;gap:20px;margin-bottom:20px;">
+      <div class="card">
+        <div class="card-title" style="margin-bottom:6px;">Hiring Needs</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;font-size:14px;margin-top:10px;">
+          <div class="stat-card"><div class="stat-label">Moves This Week</div><div class="stat-value">${movesCount}</div></div>
+          <div class="stat-card"><div class="stat-label">Active Crew</div><div class="stat-value">${activeCrew}</div></div>
+          <div class="stat-card${crewNeeded>activeCrew?' alert':''}"><div class="stat-label">Crew Deployed</div><div class="stat-value">${crewNeeded}</div></div>
+        </div>
+        ${crewNeeded>activeCrew*5?'<div class="alert-banner" style="margin-top:12px;">Consider hiring — crew capacity may be stretched this week.</div>':''}
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:10px;">Legend</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;">
+          <div style="display:flex;align-items:center;gap:8px;"><div class="avail-cell available" style="width:24px;height:24px;flex-shrink:0;"></div> Available</div>
+          <div style="display:flex;align-items:center;gap:8px;"><div class="avail-cell assigned" style="width:24px;height:24px;flex-shrink:0;"></div> Assigned to Move</div>
+          <div style="display:flex;align-items:center;gap:8px;"><div class="avail-cell off" style="width:24px;height:24px;flex-shrink:0;"></div> Off / Unavailable</div>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:10px;">Click a cell to toggle availability. Assigned cells are auto-set.</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-title" style="margin-bottom:14px;">Availability — Next 7 Days</div>
+      <div class="avail-grid">
+        <table class="avail-table">
+          <thead><tr><th style="text-align:left;">Crew Member</th>${dayHeaders}</tr></thead>
+          <tbody>${gridRows}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:14px;">Training Tracker</div>
+      <div class="training-matrix">
+        <table>
+          <thead>
+            <tr>
+              <th>Crew Member</th>
+              ${TRAINING_TYPES.map(t=>`<th>${t.label}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${DB.getCrew().map(c=>`
+              <tr>
+                <td style="font-weight:600;white-space:nowrap;">${c.name}</td>
+                ${TRAINING_TYPES.map(t=>`
+                  <td style="text-align:center;">
+                    <input type="checkbox" class="training-cb" ${(c.trainings||[]).includes(t.key)?'checked':''}
+                      onchange="toggleTraining('${c.id}','${t.key}',this.checked)">
+                  </td>`).join('')}
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function toggleAvail(crewId, day) {
+  const avail = DB.getAvailability();
+  const key = `${crewId}_${day}`;
+  const current = avail[key]||'available';
+  avail[key] = current==='available'?'off':'available';
+  DB.saveAvailability(avail);
+  render();
+}
+
+// ─── SETTINGS ─────────────────────────────────────────────────────────────────
+function renderSettings(container, actions) {
+  const s = DB.getSettings();
+  container.innerHTML = `
+    <div class="card" style="max-width:520px;">
+      <div class="card-title" style="margin-bottom:20px;">Company Settings</div>
+      <div class="form-group">
+        <label>Company Name</label>
+        <input type="text" id="set-name" value="${s.companyName||''}">
+      </div>
+      <div class="form-group">
+        <label>Phone</label>
+        <input type="text" id="set-phone" value="${s.phone||''}">
+      </div>
+      <div class="form-group">
+        <label>HST Rate (%)</label>
+        <input type="number" id="set-hst" value="${s.hstRate||13}" min="0" max="20" step="0.5">
+      </div>
+      <div class="form-group">
+        <label>Default Equipment (comma-separated)</label>
+        <textarea id="set-equip">${s.defaultEquipment||''}</textarea>
+      </div>
+      <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+    </div>
+
+    <div class="card" style="max-width:520px;margin-top:20px;">
+      <div class="card-title" style="margin-bottom:16px;">Data Management</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-outline btn-sm" onclick="exportData()">Export All Data (JSON)</button>
+        <button class="btn btn-outline btn-sm" style="color:#e53935;" onclick="confirmClearData()">Clear All Data</button>
+      </div>
+    </div>
+  `;
+}
+
+function saveSettings() {
+  DB.saveSettings({
+    companyName: document.getElementById('set-name').value,
+    phone: document.getElementById('set-phone').value,
+    hstRate: parseFloat(document.getElementById('set-hst').value)||13,
+    defaultEquipment: document.getElementById('set-equip').value,
+  });
+  toast('Settings saved','success');
+}
+
+function exportData() {
+  const data = { moves:DB.getMoves(), crew:DB.getCrew(), trucks:DB.getTrucks(), settings:DB.getSettings() };
+  const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'saturn-ops-export.json';
+  a.click();
+}
+
+function confirmClearData() {
+  if(confirm('Clear ALL operations data? This cannot be undone.')) {
+    ['moves','crew','trucks','settings','availability'].forEach(k=>localStorage.removeItem('ssops_'+k));
+    toast('All data cleared','success');
+    seedData();
+    render();
+  }
+}
+
+// ─── MODALS ───────────────────────────────────────────────────────────────────
+function openModal(html, large=false) {
+  const box = document.getElementById('modal-box');
+  box.className = 'modal'+(large?' modal-lg':'');
+  document.getElementById('modal-content').innerHTML = html;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  document.getElementById('modal-content').innerHTML = '';
+}
+
+// NEW / EDIT MOVE MODAL
+function openNewMoveModal(date='') {
+  const settings = DB.getSettings();
+  const defEquip = settings.defaultEquipment || '';
+  openMoveFormModal(null, date || todayStr());
+}
+function openEditMoveModal(moveId) {
+  openMoveFormModal(moveId, '');
+}
+
+function openMoveFormModal(moveId, defaultDate) {
+  const move = moveId ? DB.getMove(moveId) : null;
+  const crew = DB.getCrew().filter(c=>c.status==='active');
+  const trucks = DB.getTrucks();
+  const settings = DB.getSettings();
+
+  const v = (field, def='') => move ? (move[field]||def) : def;
+  const title = move ? 'Edit Move' : 'New Move';
+  const today = defaultDate || todayStr();
+
+  const crewChecks = crew.map(c=>`
+    <label class="crew-checkbox-item">
+      <input type="checkbox" name="crew_cb" value="${c.id}" ${move&&(move.crewIds||[]).includes(c.id)?'checked':''}>
+      ${c.name} <span style="color:var(--text-muted);font-size:11px;">(${c.role})</span>
+    </label>`).join('');
+
+  const truckOpts = trucks.map(t=>`<option value="${t.id}" ${move&&move.truckId===t.id?'selected':''}>${t.number} (${t.size})</option>`).join('');
+  const driverOpts = crew.filter(c=>c.role==='driver').map(c=>`<option value="${c.id}" ${move&&move.driverId===c.id?'selected':''}>${c.name}</option>`).join('');
+
+  const equip = move ? (move.equipment||[]).join(', ') : (settings.defaultEquipment||'');
+
+  openModal(`
+    <h2>${title}</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Client Name</label>
+        <input type="text" id="fm-client" value="${v('clientName')}" placeholder="Full name or company">
+      </div>
+      <div class="form-group">
+        <label>Phone</label>
+        <input type="text" id="fm-phone" value="${v('phone')}" placeholder="(226) 555-0000">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="fm-date" value="${v('date',today)}">
+      </div>
+      <div class="form-group">
+        <label>Start Time</label>
+        <input type="time" id="fm-time" value="${v('startTime','08:00')}">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Estimated Hours</label>
+        <input type="number" id="fm-hours" value="${v('estimatedHours',3)}" min="1" max="24" step="0.5">
+      </div>
+      <div class="form-group">
+        <label>Move Type</label>
+        <select id="fm-type">
+          <option value="residential" ${v('moveType')==='residential'?'selected':''}>Residential</option>
+          <option value="commercial" ${v('moveType')==='commercial'?'selected':''}>Commercial</option>
+          <option value="long_distance" ${v('moveType')==='long_distance'?'selected':''}>Long Distance</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Estimated Distance (km)</label>
+        <input type="number" id="fm-km" value="${v('estimatedKm','')}" min="0" placeholder="e.g. 120">
+      </div>
+      <div class="form-group">
+        <label>Actual Hours (post-move)</label>
+        <input type="number" id="fm-actual-hours" value="${v('actualHours','')}" min="0" max="24" step="0.5" placeholder="Fill after move">
+      </div>
+    </div>
+    <hr class="form-divider">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Origin Address</label>
+        <input type="text" id="fm-orig-addr" value="${v('originAddress')}" placeholder="123 Main St">
+      </div>
+      <div class="form-group">
+        <label>Origin City</label>
+        <input type="text" id="fm-orig-city" value="${v('originCity','Windsor')}" placeholder="Windsor">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Origin Floor</label>
+        <input type="text" id="fm-orig-floor" value="${v('originFloor','Main')}" placeholder="Main / 2nd / etc">
+      </div>
+      <div class="form-group">
+        <label>Inventory (cu ft)</label>
+        <input type="number" id="fm-cuft" value="${v('inventoryCubicFeet',0)}" min="0">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Destination Address</label>
+        <input type="text" id="fm-dest-addr" value="${v('destAddress')}" placeholder="456 King St">
+      </div>
+      <div class="form-group">
+        <label>Destination City</label>
+        <input type="text" id="fm-dest-city" value="${v('destCity')}" placeholder="Toronto">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Destination Floor</label>
+        <input type="text" id="fm-dest-floor" value="${v('destFloor','Main')}" placeholder="Main / 2nd / etc">
+      </div>
+      <div class="form-group">
+        <label>Revenue ($)</label>
+        <input type="number" id="fm-revenue" value="${v('revenue',0)}" min="0">
+      </div>
+    </div>
+    <hr class="form-divider">
+    <div class="form-group">
+      <label>Special Notes</label>
+      <textarea id="fm-notes">${v('specialNotes')}</textarea>
+    </div>
+    <div class="form-group">
+      <label>Equipment (comma-separated)</label>
+      <input type="text" id="fm-equip" value="${equip}" placeholder="2 dollies, 10 blankets">
+    </div>
+    <hr class="form-divider">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Assign Crew</label>
+        <div class="crew-checkbox-list">${crewChecks}</div>
+      </div>
+      <div>
+        <div class="form-group">
+          <label>Driver</label>
+          <select id="fm-driver">
+            <option value="">Select driver…</option>
+            ${driverOpts}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Truck</label>
+          <select id="fm-truck">
+            <option value="">Select truck…</option>
+            ${truckOpts}
+          </select>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px;">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveMoveForm(${moveId?`'${moveId}'`:'null'})">${move?'Save Changes':'Create Move'}</button>
+    </div>
+  `, true);
+}
+
+function saveMoveForm(moveId) {
+  const get = id => document.getElementById(id)?.value?.trim();
+  const clientName = get('fm-client');
+  if(!clientName) { toast('Client name is required','error'); return; }
+
+  const crewIds = Array.from(document.querySelectorAll('input[name="crew_cb"]:checked')).map(el=>el.value);
+  const equipStr = get('fm-equip');
+  const equipment = equipStr ? equipStr.split(',').map(s=>s.trim()).filter(Boolean) : [];
+
+  const data = {
+    clientName,
+    phone: get('fm-phone'),
+    date: get('fm-date') || todayStr(),
+    startTime: get('fm-time') || '08:00',
+    estimatedHours: parseFloat(document.getElementById('fm-hours').value)||3,
+    moveType: get('fm-type'),
+    originAddress: get('fm-orig-addr'),
+    originCity: get('fm-orig-city'),
+    originFloor: get('fm-orig-floor'),
+    inventoryCubicFeet: parseInt(document.getElementById('fm-cuft').value)||0,
+    destAddress: get('fm-dest-addr'),
+    destCity: get('fm-dest-city'),
+    destFloor: get('fm-dest-floor'),
+    revenue: parseFloat(document.getElementById('fm-revenue').value)||0,
+    estimatedKm: parseFloat(document.getElementById('fm-km').value)||null,
+    actualHours: parseFloat(document.getElementById('fm-actual-hours').value)||null,
+    specialNotes: document.getElementById('fm-notes').value.trim(),
+    equipment,
+    crewIds,
+    driverId: get('fm-driver'),
+    truckId: get('fm-truck'),
+  };
+
+  if(moveId) {
+    DB.updateMove(moveId, data);
+    toast('Move updated','success');
+  } else {
+    DB.addMove({ id:uid(), ...data, status:'scheduled', arrivedAt:null, loadingAt:null, drivingAt:null, unloadingAt:null, completedAt:null, startedAt:null, dispatchMessages:[], customerSigned:false, actualHours:null, createdAt:new Date().toISOString() });
+    toast('Move created','success');
+  }
+  closeModal();
+  render();
+}
+
+// CREW MODAL
+function openCrewModal(crewId=null) {
+  const c = crewId ? DB.getCrewMember(crewId) : null;
+  const v = (f,d='') => c ? (c[f]||d) : d;
+  const title = c ? 'Edit Crew Member' : 'Add Crew Member';
+  openModal(`
+    <h2>${title}</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="cm-name" value="${v('name')}">
+      </div>
+      <div class="form-group">
+        <label>Role</label>
+        <select id="cm-role">
+          <option value="mover" ${v('role')==='mover'?'selected':''}>Mover</option>
+          <option value="driver" ${v('role')==='driver'?'selected':''}>Driver</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Phone</label>
+        <input type="text" id="cm-phone" value="${v('phone')}">
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="cm-status">
+          <option value="active" ${v('status','active')==='active'?'selected':''}>Active</option>
+          <option value="inactive" ${v('status')==='inactive'?'selected':''}>Inactive</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Hire Date</label>
+        <input type="date" id="cm-hire" value="${v('hireDate')}">
+      </div>
+      <div class="form-group">
+        <label>Rating (1-5)</label>
+        <input type="number" id="cm-rating" value="${v('rating',5)}" min="1" max="5" step="0.1">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px;">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCrewForm(${crewId?`'${crewId}'`:'null'})">${c?'Save Changes':'Add Member'}</button>
+    </div>
+  `);
+}
+
+function saveCrewForm(crewId) {
+  const name = document.getElementById('cm-name').value.trim();
+  if(!name) { toast('Name required','error'); return; }
+  const data = {
+    name,
+    role: document.getElementById('cm-role').value,
+    phone: document.getElementById('cm-phone').value.trim(),
+    status: document.getElementById('cm-status').value,
+    hireDate: document.getElementById('cm-hire').value,
+    rating: parseFloat(document.getElementById('cm-rating').value)||5,
+  };
+  if(crewId) {
+    DB.updateCrewMember(crewId, data);
+    toast('Crew member updated','success');
+  } else {
+    DB.addCrewMember({id:uid(), ...data, trainings:[], totalMoves:0, totalHours:0, avgMoveTime:0, damageIncidents:0});
+    toast('Crew member added','success');
+  }
+  closeModal();
+  render();
+}
+
+function confirmDeleteCrew(crewId) {
+  const c = DB.getCrewMember(crewId);
+  if(!c) return;
+  if(confirm(`Remove ${c.name} from crew?`)) {
+    DB.deleteCrewMember(crewId);
+    crewExpandId = null;
+    toast('Crew member removed','success');
+    render();
+  }
+}
+
+// TRUCK MODAL
+function openTruckModal(truckId=null) {
+  const t = truckId ? DB.getTruck(truckId) : null;
+  const v = (f,d='') => t ? (t[f]||d) : d;
+  openModal(`
+    <h2>${t?'Edit Truck':'Add Truck'}</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Truck Number / Name</label>
+        <input type="text" id="tm-number" value="${v('number')}" placeholder="Truck #4">
+      </div>
+      <div class="form-group">
+        <label>Size</label>
+        <select id="tm-size">
+          <option value="16ft" ${v('size')==='16ft'?'selected':''}>16 ft</option>
+          <option value="20ft" ${v('size','20ft')==='20ft'?'selected':''}>20 ft</option>
+          <option value="26ft" ${v('size')==='26ft'?'selected':''}>26 ft</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Plate Number</label>
+        <input type="text" id="tm-plate" value="${v('plateNumber')}">
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="tm-status">
+          <option value="active" ${v('status','active')==='active'?'selected':''}>Active</option>
+          <option value="maintenance" ${v('status')==='maintenance'?'selected':''}>Maintenance</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Notes</label>
+      <textarea id="tm-notes">${v('notes')}</textarea>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px;">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTruckForm(${truckId?`'${truckId}'`:'null'})">${t?'Save Changes':'Add Truck'}</button>
+    </div>
+  `);
+}
+
+function saveTruckForm(truckId) {
+  const number = document.getElementById('tm-number').value.trim();
+  if(!number) { toast('Truck name required','error'); return; }
+  const data = {
+    number,
+    size: document.getElementById('tm-size').value,
+    plateNumber: document.getElementById('tm-plate').value.trim(),
+    status: document.getElementById('tm-status').value,
+    notes: document.getElementById('tm-notes').value.trim(),
+  };
+  if(truckId) {
+    DB.updateTruck(truckId, data);
+    toast('Truck updated','success');
+  } else {
+    DB.addTruck({id:uid(), ...data});
+    toast('Truck added','success');
+  }
+  closeModal();
+  render();
+}
+
+function confirmDeleteTruck(truckId) {
+  const t = DB.getTruck(truckId);
+  if(!t) return;
+  if(confirm(`Remove ${t.number}?`)) {
+    DB.deleteTruck(truckId);
+    toast('Truck removed','success');
+    render();
+  }
+}
+
+// DISPATCH MODAL (from dashboard)
+function openDispatchModal(moveId) {
+  const move = DB.getMove(moveId);
+  if(!move) return;
+  const msgs = (move.dispatchMessages||[]);
+  openModal(`
+    <h2>Dispatch — ${move.clientName}</h2>
+    <div style="max-height:200px;overflow-y:auto;margin-bottom:12px;border:1px solid var(--border);border-radius:8px;padding:10px;">
+      ${msgs.length===0?'<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:10px;">No messages yet.</div>':''}
+      ${msgs.map(m=>`<div class="dispatch-msg"><div class="dispatch-msg-from">${m.from}</div><div class="dispatch-msg-text">${m.text}</div><div class="dispatch-msg-time">${fmtTime(m.sentAt)}</div></div>`).join('')}
+    </div>
+    <div class="form-group">
+      <label>Send Note to Crew</label>
+      <textarea id="dispatch-modal-text" rows="3" placeholder="Type your message…"></textarea>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn btn-outline" onclick="closeModal()">Close</button>
+      <button class="btn btn-navy" onclick="sendDispatchModal('${moveId}')">Send Note</button>
+    </div>
+  `);
+}
+
+function sendDispatchModal(moveId) {
+  const text = document.getElementById('dispatch-modal-text')?.value?.trim();
+  if(!text) return;
+  const move = DB.getMove(moveId);
+  if(!move) return;
+  const msgs = [...(move.dispatchMessages||[])];
+  msgs.push({id:uid(), text, sentAt:new Date().toISOString(), from:'Dispatch'});
+  DB.updateMove(moveId, {dispatchMessages:msgs});
+  toast('Note sent','success');
+  closeModal();
+  render();
+}
+
+// IMPORT FROM CRM MODAL
+function openImportModal() {
+  const jobs = getCRMBookedJobs();
+  const settings = DB.getSettings();
+  const defEquip = settings.defaultEquipment||'';
+
+  if(jobs.length===0) {
+    openModal(`
+      <h2>Import from CRM</h2>
+      <div style="text-align:center;padding:30px 20px;color:var(--text-muted);">
+        <div style="font-size:40px;margin-bottom:10px;">📋</div>
+        <div>No new accepted quotes found in CRM.</div>
+        <div style="font-size:12px;margin-top:6px;">Quotes must have status "accepted" or "invoiced" to appear here.</div>
+      </div>
+      <div style="text-align:right;"><button class="btn btn-outline" onclick="closeModal()">Close</button></div>
+    `);
+    return;
+  }
+
+  const items = jobs.map(q=>`
+    <div class="import-item">
+      <div class="import-item-info">
+        <div class="import-item-name">${q.clientName}</div>
+        <div class="import-item-sub">${q.moveDate||q.date||'No date'} · ${q.moveType||'Move'} · ${q.totalAmount?currency(q.totalAmount):''}</div>
+        <div class="import-item-sub">${q.originCity||''}${q.destCity?' → '+q.destCity:''}</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="importCRMJob('${q.id}')">Import</button>
+    </div>
+  `).join('');
+
+  openModal(`
+    <h2>Import from CRM (${jobs.length})</h2>
+    ${items}
+    <div style="text-align:right;margin-top:10px;"><button class="btn btn-outline" onclick="closeModal()">Close</button></div>
+  `, true);
+}
+
+function importCRMJob(quoteId) {
+  const jobs = getCRMBookedJobs();
+  const q = jobs.find(j=>j.id===quoteId);
+  if(!q) { toast('Quote not found','error'); return; }
+  const settings = DB.getSettings();
+  const defEquip = (settings.defaultEquipment||'').split(',').map(s=>s.trim()).filter(Boolean);
+  const move = {
+    id: uid(),
+    quoteId: q.id,
+    clientName: q.clientName,
+    phone: q.clientPhone||q.phone||'',
+    date: q.moveDate || q.date || todayStr(),
+    startTime: q.startTime || '09:00',
+    estimatedHours: q.estimatedHours || q.hours || 3,
+    originAddress: q.originAddress || q.pickupAddress || '',
+    originCity: q.originCity || '',
+    originFloor: q.originFloor || 'Main',
+    destAddress: q.destAddress || q.deliveryAddress || '',
+    destCity: q.destCity || '',
+    destFloor: q.destFloor || 'Main',
+    moveType: q.moveType || 'residential',
+    inventoryCubicFeet: q.inventoryCubicFeet || q.cubicFeet || 0,
+    crewIds: [],
+    driverId: '',
+    truckId: '',
+    status: 'scheduled',
+    arrivedAt:null, loadingAt:null, drivingAt:null, unloadingAt:null, completedAt:null, startedAt:null,
+    specialNotes: q.notes || '',
+    equipment: defEquip,
+    dispatchMessages: [],
+    customerSigned: false,
+    revenue: q.totalAmount || q.revenue || 0,
+    actualHours: null,
+    createdAt: new Date().toISOString(),
+  };
+  DB.addMove(move);
+  toast(`Imported: ${q.clientName}`, 'success');
+  closeModal();
+  render();
+}
+
+function confirmDeleteMove(moveId) {
+  const m = DB.getMove(moveId);
+  if(!m) return;
+  if(confirm(`Delete move for ${m.clientName}?`)) {
+    DB.deleteMove(moveId);
+    toast('Move deleted','success');
+    render();
+  }
+}
+
+// ─── KEYBOARD ────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if(e.key==='Escape') closeModal();
+});
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+seedData();
+render();
+</script>
+</body>
+</html>

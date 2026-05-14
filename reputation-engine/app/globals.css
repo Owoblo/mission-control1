@@ -4,6 +4,18 @@
 
 @layer base {
   * { box-sizing: border-box; }
+  html, body {
+    background-color: #fcfcfc;
+    /* prevent horizontal overflow on mobile */
+    overflow-x: hidden;
+    /* safe area support for notched iPhones */
+    padding-top: env(safe-area-inset-top);
+  }
+  /* Hide scrollbars on mobile touch scroll */
+  @media (pointer: coarse) {
+    * { scrollbar-width: none; -ms-overflow-style: none; }
+    *::-webkit-scrollbar { display: none; }
+  }
   :root {
     --app-ink: #111111;
     --app-muted: #8a8a8a;

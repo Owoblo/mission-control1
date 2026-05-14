@@ -1,4 +1,5 @@
 import type { InventoryItem, InventoryScanDraft, ListingMatch } from '@/lib/types'
+import { matchInventoryPreset } from '@/lib/item-presets'
 import { applyMovePolicyToInventory, summarizeMovePolicy } from '@/lib/move-policy'
 import { readEnv } from '@/lib/server/runtime'
 
@@ -8,6 +9,154 @@ export function getOpenAIConfig() {
   const apiKey = readEnv('OPENAI_API_KEY')
   const model = readEnv('OPENAI_VISION_MODEL') || 'gpt-4o-mini'
   return apiKey ? { apiKey, model } : null
+}
+
+const EXACT_PHOTO_HASH_TIMEOUT_MS = 8000
+const MAX_ROOM_PHOTOS_FOR_DETECTION = 4
+const MIN_DETECTION_CONFIDENCE = 0.55
+const REVIEW_CONFIDENCE_THRESHOLD = 0.82
+const LOW_CONFIDENCE_THRESHOLD = 0.75
+
+const MOVABLE_TAXONOMY_GROUPS = {
+  seating: ['sofa', 'sectional', 'loveseat', 'recliner', 'armchair', 'dining chair', 'office chair', 'bench', 'ottoman'],
+  tables: ['dining table', 'coffee table', 'end table', 'console table', 'desk', 'nightstand'],
+  bedsAndStorage: ['bed', 'mattress', 'dresser', 'mirror dresser', 'bookshelf', 'freestanding wardrobe', 'crib', 'bunk bed'],
+  electronicsAndDecor: ['tv', 'monitor', 'floor lamp', 'large artwork', 'freestanding mirror', 'sound system'],
+  garageAndOutdoor: ['tool chest', 'workbench', 'bicycle', 'lawn mower', 'patio set', 'bbq grill', 'outdoor storage box'],
+  packedGoods: ['moving boxes', 'storage bins', 'wardrobe boxes', 'suitcases'],
+} as const
+
+const FIXTURE_KEYWORDS = [
+  'built in', 'built-in', 'custom cabinetry', 'cabinetry', 'kitchen island', 'countertop',
+  'ceiling fan', 'chandelier', 'medicine cabinet', 'toilet', 'sink', 'bathtub', 'shower',
+  'vanity cabinet', 'range hood', 'hood vent', 'wall oven', 'cooktop', 'closet organizer',
+  'wall shelf', 'wall mounted bracket', 'hardwired', 'mounted lighting',
+]
+
+const FIXTURE_CONFIRMATION_KEYWORDS = [
+  'custom cabinetry', 'cabinetry', 'kitchen island', 'built in cabinet', 'built-in cabinet',
+  'built in wardrobe', 'built-in wardrobe', 'closet organizer',
+]
+
+const AMBIGUOUS_MOVEABILITY_KEYWORDS = [
+  'wall mounted', 'wall-mounted', 'mounted tv', 'mounted mirror', 'custom built',
+  'modular unit', 'cabinet system', 'storage system',
+]
+
+const GENERIC_LOW_SIGNAL_LABELS = new Set([
+  'appliance',
+  'cabinet',
+  'cabinets',
+  'decor',
+  'furniture',
+  'item',
+  'shelving',
+  'storage',
+  'table',
+  'unit',
+])
+
+function renderTaxonomyPrompt(groups: Record<string, readonly string[]>) {
+  return Object.entries(groups)
+    .map(([label, values]) => `- ${label}: ${values.join(', ')}`)
+    .join('\n')
+}
+
+const MOVABLE_TAXONOMY_PROMPT = renderTaxonomyPrompt(MOVABLE_TAXONOMY_GROUPS)
+const FIXTURE_TAXONOMY_PROMPT = FIXTURE_KEYWORDS.join(', ')
+
+function normalizeDetectionText(value?: string) {
+  return (value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+function includesKeyword(text: string, keywords: readonly string[]) {
+  return keywords.some(keyword => text.includes(normalizeDetectionText(keyword)))
+}
+
+function appendDetectionNote(existing: string | undefined, addition: string) {
+  const next = addition.trim()
+  if (!next) return existing
+  const current = (existing || '').trim()
+  if (!current) return next
+  if (current.toLowerCase().includes(next.toLowerCase())) return current
+  return `${current} ${next}`
+}
+
+function normalizePhotoUrl(url: string) {
+  try {
+    const parsed = new URL(url)
+    return `${parsed.origin}${parsed.pathname}`
+  } catch {
+    return url.trim()
+  }
+}
+
+function bytesToHex(buffer: ArrayBuffer) {
+  return Array.from(new Uint8Array(buffer))
+    .map(value => value.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+async function fingerprintPhoto(url: string) {
+  const fallback = `url:${normalizePhotoUrl(url)}`
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), EXACT_PHOTO_HASH_TIMEOUT_MS)
+
+  try {
+    const response = await fetch(url, { signal: controller.signal, cache: 'force-cache' })
+    if (!response.ok) return fallback
+    const body = await response.arrayBuffer()
+    const digest = await crypto.subtle.digest('SHA-1', body)
+    return `sha1:${bytesToHex(digest)}`
+  } catch {
+    return fallback
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+export async function dedupePhotosBeforeVision(photos: string[]) {
+  const uniqueUrls = Array.from(new Set(photos.map(url => url.trim()).filter(Boolean)))
+  if (uniqueUrls.length <= 1) return uniqueUrls
+
+  const fingerprints = await Promise.all(uniqueUrls.map(url => fingerprintPhoto(url)))
+  const seen = new Set<string>()
+  const deduped: string[] = []
+
+  uniqueUrls.forEach((url, index) => {
+    const key = fingerprints[index] || `url:${normalizePhotoUrl(url)}`
+    if (seen.has(key)) return
+    seen.add(key)
+    deduped.push(url)
+  })
+
+  return deduped
+}
+
+export function selectRepresentativeRoomPhotos(roomPhotos: string[], maxPhotos = MAX_ROOM_PHOTOS_FOR_DETECTION) {
+  const uniquePhotos = Array.from(new Set(roomPhotos.map(url => url.trim()).filter(Boolean)))
+  if (uniquePhotos.length <= maxPhotos) return uniquePhotos
+
+  const selected: string[] = []
+  const selectedIndices = new Set<number>()
+
+  for (let slot = 0; slot < maxPhotos; slot += 1) {
+    const index = Math.round((slot * (uniquePhotos.length - 1)) / Math.max(1, maxPhotos - 1))
+    if (selectedIndices.has(index)) continue
+    selectedIndices.add(index)
+    selected.push(uniquePhotos[index])
+  }
+
+  for (let index = 0; index < uniquePhotos.length && selected.length < maxPhotos; index += 1) {
+    if (selectedIndices.has(index)) continue
+    selectedIndices.add(index)
+    selected.push(uniquePhotos[index])
+  }
+
+  return selected
 }
 
 export function suggestTruckConfig(totalCubicFeet: number) {
@@ -49,8 +198,28 @@ function buildPolicyFlags(inventory: InventoryItem[], existingFlags: string[] = 
   return Array.from(new Set([...existingFlags, ...generated]))
 }
 
+// ── Room sanity check ─────────────────────────────────────────────────────────
+// Catches mislabeled rooms (e.g. bathroom containing sofas)
+const BATHROOM_ONLY_ITEMS = ['toilet', 'sink', 'bathtub', 'shower', 'towel bar', 'medicine cabinet']
+const LIVING_FURNITURE = ['sofa', 'sectional', 'loveseat', 'coffee table', 'tv stand', 'recliner', 'entertainment', 'area rug']
+const LAUNDRY_FURNITURE = ['washer', 'dryer']
+
+function sanitizeRoomLabel(roomName: string, items: Array<{ label?: string; name?: string }>): string {
+  const itemNames = items.map(i => (i.label || i.name || '').toLowerCase())
+  const hasLivingFurniture = LIVING_FURNITURE.some(f => itemNames.some(n => n.includes(f)))
+
+  if (roomName === 'bathroom_1' || roomName === 'bathroom_2') {
+    if (hasLivingFurniture) return 'unknown_living_area'
+  }
+  if (roomName === 'laundry') {
+    const hasOnlyLaundry = itemNames.every(n => LAUNDRY_FURNITURE.some(f => n.includes(f)) || BATHROOM_ONLY_ITEMS.some(f => n.includes(f)))
+    if (!hasOnlyLaundry && hasLivingFurniture) return 'basement_living_area'
+  }
+  return roomName
+}
+
 // ── Phase 1: Classify all listing photos by room ─────────────────────────────
-// Sends all photos at low resolution to GPT — returns a map of room → [urls]
+// Uses unique instance IDs to distinguish multiple living areas, basements, etc.
 export async function classifyPhotosByRoom(
   photos: string[],
   config: { apiKey: string; model: string },
@@ -60,23 +229,33 @@ export async function classifyPhotosByRoom(
   const bathroomsHint = propertyContext?.bathrooms ? `- ${propertyContext.bathrooms} bathrooms` : ''
 
   const prompt = `You are a real estate photo classifier for a moving company.
-Analyze these ${photos.length} property photos and classify each by which room it shows.
+Analyze these ${photos.length} property photos and classify each by which UNIQUE room instance it shows.
 
 ${bedroomsHint || bathroomsHint ? `PROPERTY: ${bedroomsHint} ${bathroomsHint}`.trim() : ''}
 
-ROOM CATEGORIES (use these exact names):
-- living_room, family_room, dining_room, kitchen
-- bedroom_1, bedroom_2, bedroom_3, bedroom_4 (based on what you see)
+CRITICAL — USE UNIQUE INSTANCE IDs:
+Many homes have multiple living areas (main floor, basement, theatre room). NEVER merge different rooms just because they have similar furniture.
+Use architectural cues to identify unique rooms: fireplace location, window placement, flooring type, wall color, cabinet style, ceiling height.
+
+ROOM INSTANCE ID FORMAT:
+- living_room_main, living_room_basement, living_room_theatre (separate each living area)
+- family_room_main, family_room_lower
+- dining_room_main, dining_room_basement
+- kitchen_main
+- bedroom_1, bedroom_2, bedroom_3, bedroom_4
 - bathroom_1, bathroom_2
-- office, laundry, garage, outdoor, basement, other
+- office, laundry, garage, outdoor, basement_rec, other
 
-RULES:
-1. If multiple photos clearly show the same room from different angles, put them in the same group
-2. Number bedrooms and bathrooms sequentially
-3. If unsure, group with the most similar room
+GROUPING RULES:
+1. Photos showing the SAME room from different angles → same group (use shared architectural features as evidence)
+2. Different rooms with similar furniture → DIFFERENT groups
+3. If you see a fireplace in photos 3, 7, 9 → they are the same room
+4. If photos 3, 7, 9 have beige sofas but photos 14, 15 have grey sofas + different windows → two different living areas
+5. Number bedrooms and bathrooms sequentially
+6. If unsure between two similar rooms, create two groups rather than merging
 
-Return ONLY a JSON object mapping room names to arrays of photo indices (0-${photos.length - 1}):
-{"living_room":[0,3,7],"kitchen":[1,5],"bedroom_1":[2,8,9],"bedroom_2":[4,11]}
+Return ONLY a JSON object mapping unique room instance IDs to arrays of photo indices (0-${photos.length - 1}):
+{"living_room_main":[0,3,7],"living_room_basement":[14,15,16],"kitchen_main":[1,5],"bedroom_1":[2,8,9],"bedroom_2":[4,11]}
 
 Return ONLY valid JSON, no other text.`
 
@@ -91,11 +270,11 @@ Return ONLY valid JSON, no other text.`
           { type: 'text', text: prompt },
           ...photos.map((url: string) => ({
             type: 'image_url',
-            image_url: { url, detail: 'low' },  // low detail = fast + cheap for classification
+            image_url: { url, detail: 'low' },
           })),
         ],
       }],
-      max_tokens: 800,
+      max_tokens: 1000,
       temperature: 0.1,
     }),
   })
@@ -112,7 +291,6 @@ Return ONLY valid JSON, no other text.`
 
   const classification = JSON.parse(jsonMatch[1]) as Record<string, number[]>
 
-  // Convert indices → URLs
   const result: Record<string, string[]> = {}
   for (const [room, indices] of Object.entries(classification)) {
     if (Array.isArray(indices)) {
@@ -122,6 +300,105 @@ Return ONLY valid JSON, no other text.`
   return result
 }
 
+// ── Items that always go to needs_confirmation ─────────────────────────────────
+const NEEDS_CONFIRMATION_KEYWORDS = [
+  'wall-mounted', 'wall mounted', 'mounted tv', 'safe', 'piano', 'gym equipment',
+  'exercise', 'treadmill', 'elliptical', 'weight rack', 'aquarium', 'projector',
+  'projection screen', 'patio', 'outdoor', 'bbq', 'grill', 'shed', 'garage',
+]
+
+function isNeedsConfirmation(itemName: string, notes?: string): boolean {
+  const text = `${itemName} ${notes || ''}`.toLowerCase()
+  return NEEDS_CONFIRMATION_KEYWORDS.some(kw => text.includes(kw))
+}
+
+function buildInventoryItemFromDetection(
+  roomName: string,
+  effectiveRoom: string,
+  detection: Record<string, unknown>
+): InventoryItem | null {
+  const itemName = String(detection.label || detection.name || '').trim()
+  if (!itemName) return null
+
+  const itemNotes = detection.notes ? String(detection.notes).trim() : undefined
+  const normalizedName = normalizeDetectionText(itemName)
+  const combinedText = normalizeDetectionText([itemName, itemNotes, detection.size].filter(Boolean).join(' '))
+  const confidence = Number(detection.confidence) || 0.8
+
+  if (confidence < MIN_DETECTION_CONFIDENCE) return null
+  if (GENERIC_LOW_SIGNAL_LABELS.has(normalizedName) && confidence < REVIEW_CONFIDENCE_THRESHOLD) return null
+
+  const preset = matchInventoryPreset(itemName)
+  const looksLikeFixture = includesKeyword(combinedText, FIXTURE_KEYWORDS)
+  const fixtureNeedsExplicitConfirmation = includesKeyword(combinedText, FIXTURE_CONFIRMATION_KEYWORDS)
+  const ambiguousMoveability = includesKeyword(combinedText, AMBIGUOUS_MOVEABILITY_KEYWORDS)
+
+  const nextItem: InventoryItem = {
+    room: effectiveRoom.replace(/_\d+$/, '').replace(/_/g, ' '),
+    sourcePhotoRoom: effectiveRoom,
+    name: itemName,
+    item: itemName,
+    qty: Math.max(1, Number(detection.qty || 1)),
+    cubicFeet: Number(detection.cubicFeet || preset?.item.cubicFeet || 10),
+    weightLbs: Number(detection.weightLbs || detection.weight || preset?.item.weightLbs || 0) || Math.round(Number(detection.cubicFeet || preset?.item.cubicFeet || 10) * 7),
+    included: detection.included !== false,
+    confidence,
+    size: detection.size ? String(detection.size) : preset?.item.size,
+    notes: itemNotes || preset?.item.notes,
+  }
+
+  if (looksLikeFixture) {
+    nextItem.included = false
+    nextItem.status = 'excluded'
+    nextItem.policyCategory = 'default_exclude'
+    nextItem.policyReason = fixtureNeedsExplicitConfirmation
+      ? 'Likely built-in fixture or custom install. Only include if the customer explicitly confirms removal.'
+      : 'Built-in or property-attached fixture. Exclude from standard moving inventory.'
+    nextItem.exclusionReason = fixtureNeedsExplicitConfirmation
+      ? 'Likely built-in fixture or custom install — only include if the customer explicitly confirms it is being removed.'
+      : 'Built-in fixture or property-attached item — stays with the property by default.'
+    nextItem.notes = appendDetectionNote(
+      nextItem.notes,
+      fixtureNeedsExplicitConfirmation
+        ? 'Likely custom/built-in fixture — confirm separately if customer is removing it from the property.'
+        : 'Built-in fixture/property-attached item — exclude from standard move scope.'
+    )
+    return nextItem
+  }
+
+  const policyApplied = applyMovePolicyToInventory([nextItem], { enforceExclusion: true })[0]
+  const needsReview =
+    isNeedsConfirmation(itemName, itemNotes) ||
+    ambiguousMoveability ||
+    confidence < LOW_CONFIDENCE_THRESHOLD ||
+    (!preset && confidence < REVIEW_CONFIDENCE_THRESHOLD)
+
+  if (policyApplied.included === false) {
+    policyApplied.status = 'excluded'
+    if (fixtureNeedsExplicitConfirmation) {
+      policyApplied.notes = appendDetectionNote(
+        policyApplied.notes,
+        'Custom or property-attached fixture — include only with explicit customer confirmation.'
+      )
+    }
+    return policyApplied
+  }
+
+  policyApplied.status = needsReview ? 'needs_confirmation' : 'confirmed'
+
+  const reviewReasons = [
+    confidence < LOW_CONFIDENCE_THRESHOLD ? `Low confidence (${Math.round(confidence * 100)}%)` : '',
+    !preset && confidence < REVIEW_CONFIDENCE_THRESHOLD ? 'No preset taxonomy match' : '',
+    ambiguousMoveability ? 'Ambiguous moveability / mounting' : '',
+  ].filter(Boolean)
+
+  if (reviewReasons.length > 0) {
+    policyApplied.confirmReason = reviewReasons.join(' · ')
+  }
+
+  return policyApplied
+}
+
 // ── Phase 2: Detect furniture for a specific room ─────────────────────────────
 // Sends all photos of ONE room together — prevents counting same item multiple times
 export async function detectFurnitureInRoom(
@@ -129,6 +406,7 @@ export async function detectFurnitureInRoom(
   roomPhotos: string[],
   config: { apiKey: string; model: string }
 ): Promise<InventoryItem[]> {
+  const scopedPhotos = selectRepresentativeRoomPhotos(roomPhotos)
   const isBedroomRoom = roomName.includes('bedroom')
   const isBathroomRoom = roomName.includes('bathroom')
   const isGarage = roomName.includes('garage')
@@ -146,25 +424,20 @@ BATHROOM RULES:
 - Only count truly movable items: hamper, storage cart, freestanding shelving` : ''
 
   const prompt = `You are a professional moving company inventory specialist.
-These ${roomPhotos.length} photo${roomPhotos.length > 1 ? 's' : ''} show THE SAME ROOM (${roomName.replace(/_/g, ' ').toUpperCase()}) from different angles.
+These ${scopedPhotos.length} photo${scopedPhotos.length > 1 ? 's' : ''} show THE SAME ROOM (${roomName.replace(/_/g, ' ').toUpperCase()}) from different angles.
 
 ⚠️ DO NOT COUNT THE SAME ITEM MULTIPLE TIMES — even if it appears in every photo.
 ${bedroomRules}${bathroomRules}
 
-✅ DETECT ONLY MOVABLE ITEMS:
-- SEATING: Sofas, Sectionals, Loveseats, Recliners, Chairs (Dining/Office/Accent), Ottomans, Benches
-- TABLES: Dining Tables, Coffee Tables, End Tables, Console Tables, Desks
-- BEDS & STORAGE: Beds (size: King/Queen/Full/Twin), Dressers, Nightstands, Bookshelves, Wardrobes (freestanding only)
-- APPLIANCES (freestanding only): Washer, Dryer, Fridge (excluded by default), Stove (if freestanding)
-- ELECTRONICS: TVs (estimate screen size), Monitors, Sound Systems
-- DECOR: Floor Lamps, Area Rugs, Large Artwork, Mirrors (freestanding)
-- GARAGE/OUTDOOR: Tool Chest, Workbench, Bicycles, Lawn Mower, Patio Set, BBQ${isGarage || isOutdoor ? '' : ''}
-- SPECIAL CASES: Safes, pianos, propane tanks, gas cans, oxygen tanks, pool chemicals, pool tables, hot tubs, server racks, copiers, restaurant equipment
+USE THIS CURATED TAXONOMY:
+✅ MOVABLE INVENTORY (focus here)
+${MOVABLE_TAXONOMY_PROMPT}
 
-❌ NEVER DETECT:
-- Built-in cabinets, Built-in shelving, Built-in appliances, Chandeliers, Ceiling fans
-- Built-in vanities, Medicine cabinets, Wall-mounted items that stay with property
-- Toilets, sinks, bathtubs, showers
+❌ FIXTURES / PROPERTY-ATTACHED ITEMS (exclude or mark included:false)
+${FIXTURE_TAXONOMY_PROMPT}
+
+APPLIANCES / FIXTURES THAT STAY EXCLUDED BY DEFAULT UNLESS THE CUSTOMER CONFIRMS THEY ARE TAKING THEM:
+- washer, dryer, fridge, freezer, stove, range, oven, dishwasher, freestanding appliance with uncertain ownership
 
 REQUIREMENTS:
 1. Count each unique item ONCE only
@@ -175,6 +448,9 @@ REQUIREMENTS:
 6. If a hazardous or non-transport item is clearly visible (propane tank, gas can, fireworks, oxygen tank, chemical container), still list it with included:false and notes "Hazardous / non-transport item — customer must move separately"
 7. If a blocked item is visible (hot tub, pool table), list it with included:false and notes "We do not move this item — special arrangement required"
 8. If a commercial item is visible (server rack, copier, restaurant equipment, pallet racking), list it with included:false and notes "Commercial equipment — management review required"
+9. If a likely fixture is visible but you think it might be removable (custom cabinetry, island, built-in storage system), list it with included:false and notes "Likely built-in fixture — confirm separately if customer is removing it"
+10. Every item needs a confidence score from 0.00 to 1.00
+11. If unsure whether something is movable or built-in, err toward included:false with an explanatory note
 
 Return ONLY a JSON array:
 [{"label":"Queen Platform Bed","qty":1,"confidence":0.92,"room":"${roomName}","size":"Queen (60×80 in)","cubicFeet":65,"weightLbs":175,"notes":"Upholstered headboard, wrap recommended"}]
@@ -190,7 +466,7 @@ Return ONLY valid JSON array, no other text.`
         role: 'user',
         content: [
           { type: 'text', text: prompt },
-          ...roomPhotos.map((url: string) => ({
+          ...scopedPhotos.map((url: string) => ({
             type: 'image_url',
             image_url: { url, detail: 'high' },  // high detail for accurate furniture detection
           })),
@@ -215,6 +491,10 @@ Return ONLY valid JSON array, no other text.`
   const detections = JSON.parse(jsonMatch[1]) as Array<Record<string, unknown>>
   if (!Array.isArray(detections)) return []
 
+  // Room sanity check — fix mislabeled rooms before processing
+  const sanitizedRoom = sanitizeRoomLabel(roomName, detections as Array<{ label?: string; name?: string }>)
+  const effectiveRoom = sanitizedRoom !== roomName ? sanitizedRoom : roomName
+
   // Post-process: enforce one bed per bedroom
   let processed = detections
   if (isBedroomRoom) {
@@ -230,18 +510,48 @@ Return ONLY valid JSON array, no other text.`
     }
   }
 
-  // Map to InventoryItem shape
-  return applyMovePolicyToInventory(processed.map(d => ({
-    room: roomName.replace(/_\d+$/, '').replace(/_/g, ' '),
-    name: String(d.label || d.name || ''),
-    item: String(d.label || d.name || ''),
-    qty: Number(d.qty || 1),
-    cubicFeet: Number(d.cubicFeet || 10),
-    weightLbs: Number(d.weightLbs || d.weight || 0) || Math.round(Number(d.cubicFeet || 10) * 7),
-    included: true,
-    size: d.size ? String(d.size) : undefined,
-    notes: d.notes ? String(d.notes) : undefined,
-  })), { enforceExclusion: true })
+  // Drop items below 0.50 confidence — too uncertain to include at all
+  processed = processed.filter(d => (Number(d.confidence) || 1) >= 0.50)
+
+  return processed
+    .map(d => buildInventoryItemFromDetection(roomName, effectiveRoom, d))
+    .filter((item): item is InventoryItem => !!item)
+}
+
+// ── Generate customer confirmation questions ──────────────────────────────────
+export function generateConfirmationQuestions(
+  allItems: InventoryItem[],
+  needsConfirmation: InventoryItem[]
+): string[] {
+  const questions: string[] = []
+  const names = allItems.map(i => (i.name || i.item || '').toLowerCase())
+  const confirmNames = needsConfirmation.map(i => (i.name || i.item || '').toLowerCase())
+
+  const hasWallTV = [...names, ...confirmNames].some(n => n.includes('wall-mounted') || n.includes('mounted tv'))
+  const hasFridge = allItems.some(i => (i.name || i.item || '').toLowerCase().includes('fridge') || (i.name || i.item || '').toLowerCase().includes('refrigerator'))
+  const hasWasherDryer = allItems.some(i => {
+    const n = (i.name || i.item || '').toLowerCase()
+    return n.includes('washer') || n.includes('dryer')
+  })
+  const hasSafe = [...names, ...confirmNames].some(n => n.includes('safe'))
+  const hasGym = [...names, ...confirmNames].some(n => n.includes('treadmill') || n.includes('elliptical') || n.includes('weight') || n.includes('gym'))
+  const hasPatio = [...names, ...confirmNames].some(n => n.includes('patio') || n.includes('outdoor') || n.includes('bbq') || n.includes('grill'))
+  const hasPiano = [...names, ...confirmNames].some(n => n.includes('piano'))
+
+  if (hasWallTV) questions.push('Are you moving the wall-mounted TV(s)?')
+  if (hasFridge) questions.push('Are you moving the fridge/freezer?')
+  if (hasWasherDryer) questions.push('Are you moving the washer and/or dryer?')
+  if (hasSafe) questions.push('Are you moving the safe? If yes, approximate weight?')
+  if (hasGym) questions.push('Are you moving gym or exercise equipment?')
+  if (hasPatio) questions.push('Are patio/outdoor furniture and BBQ included in the move?')
+  if (hasPiano) questions.push('The piano will require a specialty team — please confirm it is being moved.')
+
+  // Always ask about hidden inventory
+  questions.push('Is there anything in the garage or storage room not shown in the photos?')
+  questions.push('Are there boxes or bins packed? If yes, approximately how many?')
+  questions.push('Is any furniture staying behind and NOT being moved?')
+
+  return questions
 }
 
 // ── Phase 3: Validate and flag anomalies ─────────────────────────────────────
@@ -276,6 +586,7 @@ export async function analyzePhotoBatch(
 ): Promise<InventoryItem[]> {
   const config = getOpenAIConfig()
   if (!config || photos.length === 0) return []
+  const scopedPhotos = selectRepresentativeRoomPhotos(photos, Math.min(photos.length, 5))
   const propertyHintParts = [
     propertyContext?.bedrooms ? `${propertyContext.bedrooms} bedrooms` : '',
     propertyContext?.bathrooms ? `${propertyContext.bathrooms} bathrooms` : '',
@@ -301,9 +612,11 @@ export async function analyzePhotoBatch(
             {
               type: 'input_text',
               text:
-                `You are a professional moving estimator analyzing ${photos.length} home interior photos (batch ${batchIndex + 1}). ` +
+                `You are a professional moving estimator analyzing ${scopedPhotos.length} home interior photos (batch ${batchIndex + 1}). ` +
                 propertyHint +
                 'Identify every clearly visible movable furniture item. Be specific: not "chair" but "standard dining chair" or "large wingback armchair". ' +
+                `Use this curated moveable taxonomy: ${MOVABLE_TAXONOMY_PROMPT}. ` +
+                `Treat these as fixtures or property-attached unless explicitly removable: ${FIXTURE_TAXONOMY_PROMPT}. ` +
                 'For each item return: room (string), name (descriptive), qty (number), cubicFeet (realistic), weightLbs (realistic, never 0), included (true/false), size (short descriptor), notes (material + handling tip). ' +
                 'Real weights: king bed frame 150-180 lbs, queen mattress 80-100 lbs, 3-seat sofa 200-250 lbs, large sectional 300-350 lbs, 6-seat dining table 130-160 lbs, 6-drawer dresser 120-150 lbs, 65-inch TV 80-100 lbs, washer 150-200 lbs, dryer 100-130 lbs. ' +
                 'Use the property context as a cap hint, not a guessing tool: do not invent extra bedrooms, bathrooms, or duplicate beds just because multiple angles show the same room. ' +
@@ -316,9 +629,10 @@ export async function analyzePhotoBatch(
                 'COMMERCIAL / MANUAL REVIEW (set included:false): server racks, copiers, restaurant equipment, pallet racking, vending machines. Note "Commercial equipment — management review required." ' +
                 'Freestanding wardrobes only (not built-in). Flag specialty items (piano, safe) in specialtyFlags. Safes should note "Specialty fee + photo confirmation required." ' +
                 'DUPLICATES: If the same item appears in multiple photos, count it ONCE. Same room + same item = one entry. ' +
+                'Every item needs a confidence score from 0.00 to 1.00. ' +
                 'Return ONLY strict JSON: { "inventory": [...], "specialtyFlags": [] } — no markdown, no explanation.',
             },
-            ...photos.map(url => ({
+            ...scopedPhotos.map(url => ({
               type: 'input_image',
               image_url: url,
             })),
@@ -344,8 +658,10 @@ export async function analyzePhotoBatch(
     ''
 
   try {
-    const parsed = coerceJsonBlock(outputText) as { inventory?: InventoryItem[] }
-    return applyMovePolicyToInventory(Array.isArray(parsed.inventory) ? parsed.inventory : [], { enforceExclusion: true })
+    const parsed = coerceJsonBlock(outputText) as { inventory?: Array<Record<string, unknown>> }
+    return (Array.isArray(parsed.inventory) ? parsed.inventory : [])
+      .map(item => buildInventoryItemFromDetection(`batch_${batchIndex + 1}`, String(item.room || `batch_${batchIndex + 1}`), item))
+      .filter((item): item is InventoryItem => !!item)
   } catch {
     return []
   }
@@ -365,7 +681,9 @@ export async function analyzeListingPhotos(
   if (!config || allPhotos.length === 0) return null
 
   // Limit to 20 photos — skip first 3 (usually exterior shots)
-  const photos = allPhotos.slice(3, 23)
+  const rawInteriorPhotos = allPhotos.slice(3, 23)
+  const photos = await dedupePhotosBeforeVision(rawInteriorPhotos)
+  const duplicatePhotoCount = Math.max(0, rawInteriorPhotos.length - photos.length)
 
   // ── Phase 1: Classify photos by room ──────────────────────────────────────
   let roomMap: Record<string, string[]> = {}
@@ -393,30 +711,61 @@ export async function analyzeListingPhotos(
       }
     }
 
-    // ── Phase 3: Validation ────────────────────────────────────────────────
+    // ── Phase 3: Validation + bucketing ───────────────────────────────────
     const validationFlags = validateInventory(allItems, propertyContext)
     if (validationFlags.length > 0) {
       console.warn('Inventory validation flags:', validationFlags)
     }
 
     const policyInventory = applyMovePolicyToInventory(allItems, { enforceExclusion: true })
-    const includedItems = policyInventory.filter(item => item.included !== false)
-    const totalCubicFeet = Math.round(includedItems.reduce((sum, item) =>
+
+    // Split into confirmed vs needs_confirmation vs excluded
+    const confirmedItems = policyInventory.filter(item =>
+      item.included !== false && item.status !== 'needs_confirmation'
+    )
+    const needsConfirmItems = policyInventory.filter(item =>
+      item.included !== false && item.status === 'needs_confirmation'
+    )
+    const excludedItems = policyInventory.filter(item => item.included === false)
+
+    // Mark excluded items status
+    excludedItems.forEach(item => { item.status = 'excluded' })
+
+    const totalCubicFeet = Math.round(confirmedItems.reduce((sum, item) =>
       sum + (item.cubicFeet || 0) * (item.qty || 1), 0
     ))
-    const totalWeightLbs = Math.round(includedItems.reduce((sum, item) =>
+    const totalWeightLbs = Math.round(confirmedItems.reduce((sum, item) =>
       sum + (item.weightLbs || 0) * (item.qty || 1), 0
     ))
-    const totalItems = includedItems.reduce((sum, item) => sum + (item.qty || 1), 0)
+    const totalItems = confirmedItems.reduce((sum, item) => sum + (item.qty || 1), 0)
 
     const roomBreakdown: Record<string, number> = {}
-    for (const item of includedItems) {
+    for (const item of confirmedItems) {
       const room = item.room || 'Other'
       roomBreakdown[room] = (roomBreakdown[room] || 0) + (item.qty || 1)
     }
 
+    // Identify duplicate risks (items with same name across different rooms)
+    const nameCounts: Record<string, string[]> = {}
+    for (const item of confirmedItems) {
+      const key = (item.name || item.item || '').toLowerCase()
+      if (!nameCounts[key]) nameCounts[key] = []
+      nameCounts[key].push(item.room || 'unknown')
+    }
+    const duplicateRisks = Object.entries(nameCounts)
+      .filter(([, rooms]) => rooms.length > 1)
+      .map(([name, rooms]) => `"${name}" appears in ${rooms.join(' + ')} — verify count`)
+
+    const confirmationQuestions = generateConfirmationQuestions(
+      [...confirmedItems, ...needsConfirmItems],
+      needsConfirmItems
+    )
+
+    const MLS_DISCLAIMER = 'Inventory based on visible MLS photos only. May exclude: garage, storage rooms, closets, boxes, patio storage, shed, and items hidden from view. Use this as a starting estimate — confirm full inventory with the customer.'
+
     return {
-      inventory: policyInventory,
+      inventory: [...confirmedItems, ...needsConfirmItems, ...excludedItems],
+      needsConfirmation: needsConfirmItems.length > 0 ? needsConfirmItems : undefined,
       totalItems,
       totalCubicFeet,
       totalWeightLbs,
@@ -424,7 +773,10 @@ export async function analyzeListingPhotos(
       source: 'mls_photo_ai',
       confidence: roomCount >= 4 ? 'high' : roomCount >= 2 ? 'medium' : 'low',
       specialtyFlags: buildPolicyFlags(policyInventory, validationFlags),
-      notes: `3-phase scan: ${roomCount} rooms classified from ${photos.length} photos. ${validationFlags.length > 0 ? 'Flags: ' + validationFlags.join('; ') : 'No anomalies.'}`,
+      confirmationQuestions: confirmationQuestions.length > 0 ? confirmationQuestions : undefined,
+      duplicateRisks: duplicateRisks.length > 0 ? duplicateRisks : undefined,
+      mlsDisclaimer: MLS_DISCLAIMER,
+      notes: `3-phase scan: ${roomCount} room instances classified from ${photos.length} deduped photos${duplicatePhotoCount > 0 ? ` (${duplicatePhotoCount} duplicate photo${duplicatePhotoCount > 1 ? 's' : ''} removed before vision)` : ''}. ${confirmedItems.length} confirmed, ${needsConfirmItems.length} need confirmation, ${excludedItems.length} excluded. ${validationFlags.length > 0 ? 'Flags: ' + validationFlags.join('; ') : ''}`.trim(),
     }
   }
 
@@ -450,6 +802,8 @@ export async function analyzeListingPhotos(
               text:
                 'You are a professional moving estimator. Analyze every single photo provided — do not skip any. ' +
                 'Your job is to identify every movable furniture item and estimate its specific weight and cubic footage based on your knowledge of real furniture dimensions and weights. ' +
+                `Use this curated moveable taxonomy: ${MOVABLE_TAXONOMY_PROMPT}. ` +
+                `Treat these as fixtures or property-attached unless explicitly removable: ${FIXTURE_TAXONOMY_PROMPT}. ` +
                 'Be specific: do not say "chair" — say "large wingback armchair" or "standard dining chair" or "office task chair". ' +
                 'Use your real-world knowledge of furniture weights. Examples: king bed frame 150-180 lbs, queen mattress 80-100 lbs, 3-seat sofa 200-250 lbs, large sectional 280-350 lbs, dining table 6-seat 120-160 lbs, upright dresser 6-drawer 120-150 lbs, 65-inch TV 80-100 lbs, standard washer 150-200 lbs, standard dryer 100-130 lbs. ' +
                 'For each item in the inventory array include: room (string), name (specific descriptive name), qty (number), cubicFeet (realistic volume), weightLbs (realistic weight — never 0), included (true unless fixed/built-in), size (concise size descriptor), notes (1 short sentence covering material, condition, and handling flag). ' +
@@ -463,6 +817,7 @@ export async function analyzeListingPhotos(
                 'COMMERCIAL / MANUAL REVIEW (set included:false): server racks, copiers, restaurant equipment, pallet racking, vending machines. Note "Commercial equipment — management review required." ' +
                 'DUPLICATES: If same item appears from multiple angles in different photos, list it ONCE with accurate qty. ' +
                 'Flag specialty items (piano, safe, large gym equipment) in specialtyFlags. Safes should note "Specialty fee + photo confirmation required." ' +
+                'Every item needs a confidence score from 0.00 to 1.00. ' +
                 'Return strict JSON with keys: inventory, totalItems, totalCubicFeet, totalWeightLbs, roomBreakdown, specialtyFlags, notes, confidence.',
             },
             ...photos.map(url => ({
@@ -492,19 +847,43 @@ export async function analyzeListingPhotos(
     payload.output?.flatMap(item => item.content || []).find(item => item.type === 'output_text')?.text ||
     ''
   const parsed = coerceJsonBlock(outputText)
-  const policyInventory = applyMovePolicyToInventory(Array.isArray(parsed.inventory) ? parsed.inventory : [], { enforceExclusion: true })
-  const includedItems = policyInventory.filter(item => item.included !== false)
-  const totalItems = includedItems.reduce((sum, item) => sum + (item.qty || 1), 0)
-  const totalCubicFeet = Math.round(includedItems.reduce((sum, item) => sum + (item.cubicFeet || 0) * (item.qty || 1), 0))
-  const totalWeightLbs = Math.round(includedItems.reduce((sum, item) => sum + (item.weightLbs || 0) * (item.qty || 1), 0))
-  const roomBreakdown = includedItems.reduce<Record<string, number>>((acc, item) => {
+  const policyInventory = (Array.isArray(parsed.inventory) ? parsed.inventory : [])
+    .map(item => buildInventoryItemFromDetection('fallback_scan', String(item.room || 'fallback_scan'), item as Record<string, unknown>))
+    .filter((item): item is InventoryItem => !!item)
+
+  // Apply confidence bucketing and status tagging to fallback results too
+  policyInventory.forEach(item => {
+    if (item.included === false) {
+      item.status = 'excluded'
+    } else if (isNeedsConfirmation(item.name || item.item || '', item.notes)) {
+      item.status = 'needs_confirmation'
+    } else {
+      item.status = 'confirmed'
+    }
+  })
+
+  const confirmedItems = policyInventory.filter(item => item.included !== false && item.status !== 'needs_confirmation')
+  const needsConfirmItems = policyInventory.filter(item => item.included !== false && item.status === 'needs_confirmation')
+
+  const totalItems = confirmedItems.reduce((sum, item) => sum + (item.qty || 1), 0)
+  const totalCubicFeet = Math.round(confirmedItems.reduce((sum, item) => sum + (item.cubicFeet || 0) * (item.qty || 1), 0))
+  const totalWeightLbs = Math.round(confirmedItems.reduce((sum, item) => sum + (item.weightLbs || 0) * (item.qty || 1), 0))
+  const roomBreakdown = confirmedItems.reduce<Record<string, number>>((acc, item) => {
     const room = item.room || 'Other'
     acc[room] = (acc[room] || 0) + (item.qty || 1)
     return acc
   }, {})
 
+  const confirmationQuestions = generateConfirmationQuestions(
+    [...confirmedItems, ...needsConfirmItems],
+    needsConfirmItems
+  )
+
+  const MLS_DISCLAIMER = 'Inventory based on visible MLS photos only. May exclude: garage, storage rooms, closets, boxes, patio storage, shed, and items hidden from view. Use this as a starting estimate — confirm full inventory with the customer.'
+
   return {
     inventory: policyInventory,
+    needsConfirmation: needsConfirmItems.length > 0 ? needsConfirmItems : undefined,
     totalItems,
     totalCubicFeet,
     totalWeightLbs,
@@ -512,6 +891,8 @@ export async function analyzeListingPhotos(
     source: 'mls_photo_ai',
     confidence: parsed.confidence || 'low',
     specialtyFlags: buildPolicyFlags(policyInventory, parsed.specialtyFlags || []),
-    notes: parsed.notes || `Generated from ${photos.length} MLS photos via vision model (single-pass fallback).`,
+    confirmationQuestions: confirmationQuestions.length > 0 ? confirmationQuestions : undefined,
+    mlsDisclaimer: MLS_DISCLAIMER,
+    notes: parsed.notes || `Single-pass scan from ${photos.length} MLS photos. ${confirmedItems.length} confirmed, ${needsConfirmItems.length} need confirmation. (Room classification unavailable — results may include duplicates.)`,
   }
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { buildInboundQueueSummary, decorateInboundLead } from '@/lib/inbound-inbox'
 import { calculateLeadScore, isClosedLeadStage, normalizeLead, uid } from '@/lib/sales'
 import {
   getSalesBranchFromSaturnLabel,
@@ -12,26 +13,42 @@ import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { recordLeadCreatedAudit, recordLeadUpdateAudit } from '@/lib/server/sales-audit'
 import {
   getInboundLead,
+  getSalesLead,
   getSalesLeadByInboundId,
-  listClosedInboundLeads,
-  listInboundJunkLeads,
-  listInboundLeads,
-  listSalesLeads,
+  listAllInboundLeads,
+  listSalesLeadIdentitySnapshots,
+  listSalesLeadInboxSnapshots,
   markInboundLeadClaimed,
-  markInboundLeadJunk,
   restoreInboundLead,
   saveCrmCallSidMapping,
+  setInboundLeadDisposition,
   saveSalesLead,
 } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
 import { validateLeadPayload } from '@/lib/server/sales-validation'
 import type { CallLogEntry, CRMLead, InboundLead } from '@/lib/types'
 
+type InboxLeadContext = Pick<
+  CRMLead,
+  'id' | 'name' | 'stage' | 'phone' | 'email' | 'branch' | 'originAddress' | 'originCity' | 'destAddress' | 'destCity' | 'moveType' | 'totalCubicFeet' | 'callLogs'
+>
+
 function digitsOnly(value?: string) {
   return (value || '').replace(/\D/g, '')
 }
 
-function findMatchingActiveLead(leads: CRMLead[], phone?: string, email?: string) {
+function hasUsableInboundName(value?: string | null) {
+  const normalized = (value || '').trim().toLowerCase()
+  if (!normalized) return false
+  if (/^unknown\b/.test(normalized)) return false
+  return !['new caller', 'new contact', 'new lead', 'new inquiry', 'caller', 'contact'].includes(normalized)
+}
+
+function findMatchingActiveLead(
+  leads: Array<Pick<CRMLead, 'id' | 'stage' | 'phone' | 'email' | 'name'>>,
+  phone?: string,
+  email?: string
+) {
   const phoneDigits = digitsOnly(phone)
   const normalizedEmail = (email || '').trim().toLowerCase()
 
@@ -128,7 +145,7 @@ async function ensureInboundCallMapping(item: InboundLead, lead?: CRMLead) {
   }
 }
 
-function getLatestCallIntelligence(lead?: CRMLead) {
+function getLatestCallIntelligence(lead?: InboxLeadContext) {
   if (!lead?.callLogs?.length) return null
   const sorted = [...lead.callLogs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   return (
@@ -138,7 +155,7 @@ function getLatestCallIntelligence(lead?: CRMLead) {
   )
 }
 
-function mergeInboxRawData(item: InboundLead, lead?: CRMLead): InboundLead['raw_data'] {
+function mergeInboxRawData(item: InboundLead, lead?: InboxLeadContext): InboundLead['raw_data'] {
   const raw = parseRawData(item.raw_data) || {}
   const latestCall = getLatestCallIntelligence(lead)
   const branchNumber =
@@ -218,10 +235,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const mode = new URL(request.url).searchParams.get('mode')
     const [items, leads] = await Promise.all([
-      mode === 'junk' ? listInboundJunkLeads() : mode === 'closed' ? listClosedInboundLeads() : listInboundLeads(),
-      listSalesLeads(),
+      listAllInboundLeads(),
+      listSalesLeadInboxSnapshots(),
     ])
     const existingLeadIdsByInboundId = new Map(
       leads.filter(lead => lead.inboundId).map(lead => [lead.inboundId as string, lead.id])
@@ -230,27 +246,30 @@ export async function GET(request: Request) {
       leads.filter(lead => lead.inboundId).map(lead => [lead.inboundId as string, lead])
     )
 
-    const hydrated =
-      mode === 'junk' || mode === 'closed'
-        ? items.map(item => ({
-            ...item,
-            name: item.name || leadByInboundId.get(item.id)?.name || 'New Caller',
-            linkedLeadId: existingLeadIdsByInboundId.get(item.id),
-            raw_data: mergeInboxRawData(item, leadByInboundId.get(item.id)),
-          }))
-        : items.map(item => {
-            const ensured = ensureLeadForInbound(item, existingLeadIdsByInboundId)
-            const linkedLead = leadByInboundId.get(item.id) || leads.find(lead => lead.id === ensured.linkedLeadId)
-            return {
-              ...ensured,
-              name:
-                ensured.name ||
-                linkedLead?.name ||
-                (ensured.source === 'twilio_call' ? 'New Caller' : ensured.source === 'twilio_sms' ? 'New Contact' : 'New Lead'),
-              raw_data: mergeInboxRawData(ensured, linkedLead),
-            }
-          })
-    return NextResponse.json(hydrated)
+    const hydrated = items.map(item => {
+      const ensured = ensureLeadForInbound(item, existingLeadIdsByInboundId)
+      const linkedLead = leadByInboundId.get(item.id) || leads.find(lead => lead.id === ensured.linkedLeadId)
+      const matchedLead = linkedLead || findMatchingActiveLead(leads, ensured.phone, ensured.email)
+      const fallbackName =
+        matchedLead?.name ||
+        (ensured.source === 'twilio_call' ? 'New Caller' : ensured.source === 'twilio_sms' ? 'New Contact' : 'New Lead')
+      return decorateInboundLead({
+        ...ensured,
+        matchedLeadId: matchedLead?.id,
+        matchedLeadName: matchedLead?.name,
+        matchedLeadStage: matchedLead?.stage,
+        name:
+          hasUsableInboundName(ensured.name)
+            ? ensured.name
+            : fallbackName,
+        raw_data: mergeInboxRawData(ensured, matchedLead || linkedLead || undefined),
+      })
+    })
+
+    return NextResponse.json({
+      items: hydrated,
+      summary: buildInboundQueueSummary(hydrated),
+    })
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to load inbox' },
@@ -301,7 +320,12 @@ export async function POST(request: Request) {
       email: payload.email || inbound.email,
       moveType: payload.moveType || 'residential',
     })
-    const duplicateLead = findMatchingActiveLead(await listSalesLeads(), validated.phone || inbound.phone, validated.email || inbound.email)
+    const duplicateLeadMatch = findMatchingActiveLead(
+      await listSalesLeadIdentitySnapshots(),
+      validated.phone || inbound.phone,
+      validated.email || inbound.email
+    )
+    const duplicateLead = duplicateLeadMatch ? await getSalesLead(duplicateLeadMatch.id) : null
 
     if (duplicateLead) {
       const inboundCallLog = buildInboundCallLog(inbound)
@@ -414,13 +438,17 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const payload = (await request.json()) as { inboundId?: string; action?: 'junk' | 'restore' }
+    const payload = (await request.json()) as { inboundId?: string; action?: 'junk' | 'lost' | 'not_interested' | 'restore' }
     if (!payload.inboundId || !payload.action) {
       return NextResponse.json({ error: 'inboundId and action are required' }, { status: 400 })
     }
 
     if (payload.action === 'junk') {
-      await markInboundLeadJunk(payload.inboundId)
+      await setInboundLeadDisposition(payload.inboundId, 'junk')
+    } else if (payload.action === 'lost') {
+      await setInboundLeadDisposition(payload.inboundId, 'lost')
+    } else if (payload.action === 'not_interested') {
+      await setInboundLeadDisposition(payload.inboundId, 'not_interested')
     } else if (payload.action === 'restore') {
       await restoreInboundLead(payload.inboundId)
     } else {

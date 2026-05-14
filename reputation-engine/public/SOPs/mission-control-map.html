@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mission Control System Map</title>
+<style>
+  :root {
+    --ink: #13233b;
+    --ink-soft: #41536d;
+    --gold: #d8a437;
+    --gold-soft: #f6ead1;
+    --sky: #dbeafe;
+    --sky-ink: #1d4f91;
+    --green: #dff3e6;
+    --green-ink: #236642;
+    --rose: #fde8e7;
+    --rose-ink: #a7423e;
+    --sand: #f6f1e7;
+    --paper: #fcfbf7;
+    --line: #d8d2c5;
+    --shadow: 0 18px 40px rgba(19, 35, 59, 0.08);
+    --radius: 22px;
+    --radius-sm: 16px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
+    color: var(--ink);
+    background:
+      radial-gradient(circle at top left, rgba(216, 164, 55, 0.14), transparent 32%),
+      radial-gradient(circle at top right, rgba(59, 130, 246, 0.10), transparent 28%),
+      linear-gradient(180deg, #f8f4ec 0%, #fdfcf8 100%);
+  }
+
+  .page {
+    max-width: 1360px;
+    margin: 0 auto;
+    padding: 40px 24px 72px;
+  }
+
+  .hero {
+    display: grid;
+    grid-template-columns: 1.3fr 0.9fr;
+    gap: 24px;
+    margin-bottom: 28px;
+  }
+
+  .hero-card,
+  .status-card,
+  .section,
+  .matrix,
+  .legend,
+  .rule-card {
+    background: rgba(252, 251, 247, 0.88);
+    border: 1px solid rgba(216, 210, 197, 0.9);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+  }
+
+  .hero-card {
+    padding: 30px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero-card::after {
+    content: "";
+    position: absolute;
+    inset: auto -40px -40px auto;
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    background: rgba(216, 164, 55, 0.12);
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: var(--gold-soft);
+    color: #7b5917;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    margin: 18px 0 14px;
+    font-size: clamp(34px, 5vw, 56px);
+    line-height: 0.96;
+    letter-spacing: -0.05em;
+  }
+
+  .hero-copy {
+    max-width: 760px;
+    font-size: 17px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+  }
+
+  .badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  .action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 18px;
+  }
+
+  .action-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 15px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: white;
+    color: var(--ink);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .action-link.primary {
+    background: linear-gradient(135deg, #1d4f91, #13233b);
+    border-color: transparent;
+    color: white;
+  }
+
+  .badge {
+    padding: 10px 14px;
+    border-radius: 999px;
+    background: white;
+    border: 1px solid var(--line);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .status-card {
+    padding: 24px;
+    display: grid;
+    gap: 16px;
+  }
+
+  .status-title {
+    margin: 0;
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.10em;
+    color: var(--ink-soft);
+  }
+
+  .status-list {
+    display: grid;
+    gap: 12px;
+  }
+
+  .status-item {
+    padding: 14px 16px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    background: white;
+  }
+
+  .status-item strong {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 14px;
+  }
+
+  .status-item span {
+    font-size: 13px;
+    color: var(--ink-soft);
+    line-height: 1.5;
+  }
+
+  .status-live { border-left: 5px solid #4b8c62; }
+  .status-manual { border-left: 5px solid #d8a437; }
+  .status-future { border-left: 5px solid #b55750; }
+
+  .section {
+    padding: 24px;
+    margin-top: 22px;
+  }
+
+  .section h2 {
+    margin: 0 0 8px;
+    font-size: 28px;
+    letter-spacing: -0.04em;
+  }
+
+  .section-intro {
+    margin: 0 0 20px;
+    font-size: 15px;
+    color: var(--ink-soft);
+    line-height: 1.65;
+    max-width: 880px;
+  }
+
+  .flow-grid {
+    display: grid;
+    gap: 18px;
+  }
+
+  .flow-row {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  .flow-row.sales {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .flow-row.ops {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .step {
+    position: relative;
+    padding: 18px 16px 20px;
+    border-radius: 18px;
+    border: 1px solid var(--line);
+    background: white;
+    min-height: 164px;
+  }
+
+  .step::after {
+    content: "->";
+    position: absolute;
+    right: -18px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-weight: 800;
+    color: #9a8d71;
+    z-index: 2;
+  }
+
+  .flow-row .step:last-child::after {
+    display: none;
+  }
+
+  .step-label {
+    display: inline-block;
+    margin-bottom: 10px;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-soft);
+  }
+
+  .step h3 {
+    margin: 0 0 8px;
+    font-size: 18px;
+    letter-spacing: -0.03em;
+  }
+
+  .step p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+  }
+
+  .step.sales { background: linear-gradient(180deg, #ffffff 0%, #f9f5ec 100%); }
+  .step.ops { background: linear-gradient(180deg, #ffffff 0%, #eef6ff 100%); }
+  .step.crew { background: linear-gradient(180deg, #ffffff 0%, #eef8f1 100%); }
+  .step.future {
+    border-style: dashed;
+    background: linear-gradient(180deg, #fff 0%, #fff3f1 100%);
+  }
+
+  .rule-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 18px;
+    margin-top: 18px;
+  }
+
+  .rule-card {
+    padding: 22px;
+  }
+
+  .rule-card h3 {
+    margin: 0 0 10px;
+    font-size: 20px;
+    letter-spacing: -0.03em;
+  }
+
+  .rule-card p,
+  .rule-card li {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+  }
+
+  .rule-card ul {
+    margin: 12px 0 0 18px;
+    padding: 0;
+  }
+
+  .rule-callout {
+    padding: 18px;
+    border-radius: 18px;
+    background: var(--gold-soft);
+    border: 1px solid #e6cf9f;
+  }
+
+  .rule-callout strong {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 15px;
+  }
+
+  .matrix {
+    padding: 24px;
+    margin-top: 22px;
+  }
+
+  .matrix-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 18px;
+  }
+
+  .role-card {
+    padding: 18px;
+    border-radius: 18px;
+    border: 1px solid var(--line);
+    background: white;
+  }
+
+  .role-card h3 {
+    margin: 0 0 10px;
+    font-size: 18px;
+  }
+
+  .role-card ul {
+    margin: 0;
+    padding-left: 18px;
+    color: var(--ink-soft);
+  }
+
+  .role-card li {
+    margin: 0 0 8px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .legend {
+    padding: 20px 24px;
+    margin-top: 22px;
+  }
+
+  .legend-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 14px;
+  }
+
+  .legend-item {
+    padding: 14px 16px;
+    border-radius: 16px;
+    border: 1px solid var(--line);
+    background: white;
+  }
+
+  .legend-item strong {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 14px;
+  }
+
+  .legend-item span {
+    font-size: 13px;
+    color: var(--ink-soft);
+    line-height: 1.5;
+  }
+
+  .footer-note {
+    margin-top: 24px;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+
+  @media (max-width: 1120px) {
+    .hero,
+    .rule-grid,
+    .matrix-grid,
+    .legend-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .flow-row,
+    .flow-row.sales,
+    .flow-row.ops {
+      grid-template-columns: 1fr;
+    }
+
+    .step::after {
+      content: "v";
+      right: 50%;
+      top: auto;
+      bottom: -18px;
+      transform: translateX(50%);
+    }
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <div class="hero-card">
+        <div class="eyebrow">Mission Control Map</div>
+        <h1>How sales, booking, dispatch, trucks, and crew all connect.</h1>
+        <p class="hero-copy">
+          This is the working visual for Saturn Star's current system. It shows where new business enters, how reps turn that into a quote, how booking hands work to operations, and how crew sees the final job plan.
+        </p>
+        <div class="action-row">
+          <a class="action-link primary" href="/SOPs/mission-control-team-handbook.html">Open Team Handbook</a>
+          <a class="action-link" href="/SOPs/index.html">Open SOP Portal</a>
+        </div>
+        <div class="badge-row">
+          <div class="badge">Sales workspace: /sales/*</div>
+          <div class="badge">Operations workspace: /sales/operations</div>
+          <div class="badge">Crew workspace: /crew/calendar</div>
+          <div class="badge">Date: April 30, 2026</div>
+        </div>
+      </div>
+      <aside class="status-card">
+        <h2 class="status-title">Live vs Not Live</h2>
+        <div class="status-list">
+          <div class="status-item status-live">
+            <strong>Live now</strong>
+            <span>Sales CRM, quote flow, booked-job handoff, crew assignment, truck reservation tracking, readiness checklist, and crew hours capture.</span>
+          </div>
+          <div class="status-item status-manual">
+            <strong>Manual-first now</strong>
+            <span>Truck vendor reservation still happens manually, then the reservation details are stored back into Mission Control.</span>
+          </div>
+          <div class="status-item status-future">
+            <strong>Future phase</strong>
+            <span>Automatic vendor-side truck booking, nearest-branch recommendation, and deeper payroll automation.</span>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="section">
+      <h2>Sales Flow</h2>
+      <p class="section-intro">
+        Sales owns the customer conversation from first touch to accepted quote. The lead page is the working file, and the quote is the commercial promise.
+      </p>
+      <div class="flow-grid">
+        <div class="flow-row sales">
+          <article class="step sales">
+            <div class="step-label">Step 1</div>
+            <h3>Inbound source</h3>
+            <p>Calls, SMS, email, and website forms create or update the lead.</p>
+          </article>
+          <article class="step sales">
+            <div class="step-label">Step 2</div>
+            <h3>Inbox triage</h3>
+            <p>Reps review fresh inbound activity in Inbox and claim or continue the conversation.</p>
+          </article>
+          <article class="step sales">
+            <div class="step-label">Step 3</div>
+            <h3>Lead page</h3>
+            <p>Rep confirms route, date, inventory, parking, access, and notes in the main customer file.</p>
+          </article>
+          <article class="step sales">
+            <div class="step-label">Step 4</div>
+            <h3>Quote engine</h3>
+            <p>The system calculates crew size, hours, truck count, route pricing, deposit, and total.</p>
+          </article>
+          <article class="step sales">
+            <div class="step-label">Step 5</div>
+            <h3>Quote sent</h3>
+            <p>The customer receives a quote link and can review the move plan and pricing.</p>
+          </article>
+          <article class="step sales">
+            <div class="step-label">Step 6</div>
+            <h3>Accepted and deposit</h3>
+            <p>Once the quote is accepted and deposit is confirmed, the job moves into booked state.</p>
+          </article>
+          <article class="step sales">
+            <div class="step-label">Step 7</div>
+            <h3>Booked handoff</h3>
+            <p>Booking creates the operations handoff and seeds the dispatch layer for the move.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Operations Flow</h2>
+      <p class="section-intro">
+        Operations owns execution after booking. The operations board turns the sold move into a scheduled truck, an assigned crew, and a move-day-ready job.
+      </p>
+      <div class="flow-grid">
+        <div class="flow-row ops">
+          <article class="step ops">
+            <div class="step-label">Step 1</div>
+            <h3>Booked job appears</h3>
+            <p>The move shows up on the operations board with branch, route, deposit, quoted crew, truck count, and estimated hours.</p>
+          </article>
+          <article class="step ops">
+            <div class="step-label">Step 2</div>
+            <h3>Dispatch setup</h3>
+            <p>Manager or ops lead opens the setup panel and assigns crew, notes, and readiness items.</p>
+          </article>
+          <article class="step ops">
+            <div class="step-label">Step 3</div>
+            <h3>Truck reservation</h3>
+            <p>Ops reserves the truck manually with the vendor, then records pickup, return, status, and reservation number.</p>
+          </article>
+          <article class="step ops">
+            <div class="step-label">Step 4</div>
+            <h3>Readiness check</h3>
+            <p>Ops confirms access, parking, tools, job packet, and final walkthrough status before move day.</p>
+          </article>
+          <article class="step crew">
+            <div class="step-label">Step 5</div>
+            <h3>Crew calendar</h3>
+            <p>Crew sees assigned jobs only, including route, move type, truck count, key items, and dispatch note.</p>
+          </article>
+          <article class="step crew">
+            <div class="step-label">Step 6</div>
+            <h3>Move day</h3>
+            <p>The team executes the move using the agreed plan instead of improvising trucks or scope on the day.</p>
+          </article>
+          <article class="step ops">
+            <div class="step-label">Step 7</div>
+            <h3>Actuals and review</h3>
+            <p>After the move, ops logs actual hours and crew counts and the review flow can be triggered.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Source of Truth Rule</h2>
+      <p class="section-intro">
+        This is the rule that matters most for summer truck planning: operations should reserve the same truck plan that sales sold.
+      </p>
+      <div class="rule-grid">
+        <div class="rule-card">
+          <h3>Truck count comes from the quote</h3>
+          <p>
+            The quote is the commercial promise. If the customer was sold <strong>1 truck</strong>, operations should reserve <strong>1 truck</strong>. If the customer was sold <strong>2 trucks</strong>, operations should reserve <strong>2 trucks</strong>.
+          </p>
+          <ul>
+            <li>The quote owns pricing, crew size, route, and truck count.</li>
+            <li>The booked job stores reservation details against that promise.</li>
+            <li>The dispatch panel should not be used to quietly change what the customer bought.</li>
+          </ul>
+        </div>
+        <div class="rule-card">
+          <div class="rule-callout">
+            <strong>Current live behavior</strong>
+            <p>
+              When a job is confirmed, Mission Control seeds the booked job with the quoted truck count and marks the reservation status as <strong>Needs booking</strong>.
+            </p>
+          </div>
+          <div class="rule-callout" style="margin-top: 14px; background: var(--sky); border-color: #bdd6f7;">
+            <strong>Meaning for the team</strong>
+            <p>
+              Sales sells the plan. Operations executes the plan. Crew receives the plan. Everyone works from the same truck count.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="matrix">
+      <h2>Role Map</h2>
+      <p class="section-intro">
+        Different people should work different surfaces. The system is already split that way.
+      </p>
+      <div class="matrix-grid">
+        <article class="role-card">
+          <h3>Owner</h3>
+          <ul>
+            <li>Full access across sales, operations, finance, and team management.</li>
+            <li>Can review quotes, bookings, dispatch, and audit behavior.</li>
+          </ul>
+        </article>
+        <article class="role-card">
+          <h3>Manager</h3>
+          <ul>
+            <li>Works across sales and operations.</li>
+            <li>Can assign crew, review booked jobs, and oversee readiness.</li>
+          </ul>
+        </article>
+        <article class="role-card">
+          <h3>Sales Rep</h3>
+          <ul>
+            <li>Lives in Dashboard, Pipeline, Inbox, Quotes, and the Lead page.</li>
+            <li>Owns customer communication and quote creation.</li>
+          </ul>
+        </article>
+        <article class="role-card">
+          <h3>Operations Lead</h3>
+          <ul>
+            <li>Lives in the Operations board.</li>
+            <li>Owns dispatch setup, truck reservation details, checklist, and crew hours.</li>
+          </ul>
+        </article>
+        <article class="role-card">
+          <h3>Crew</h3>
+          <ul>
+            <li>Lives in the Crew calendar.</li>
+            <li>Sees assigned jobs and the execution note, not the full CRM.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="legend">
+      <h2>Key System Objects</h2>
+      <div class="legend-grid">
+        <div class="legend-item">
+          <strong>Lead</strong>
+          <span>The working customer file. Communication, stage, route, notes, and post-booking ops details all live here.</span>
+        </div>
+        <div class="legend-item">
+          <strong>Quote</strong>
+          <span>The customer-facing commercial promise. Price, deposit, crew size, route, and truck count live here.</span>
+        </div>
+        <div class="legend-item">
+          <strong>Booked job</strong>
+          <span>The lead after confirmation. This is where dispatch, truck reservation, and readiness get managed.</span>
+        </div>
+      </div>
+      <p class="footer-note">
+        Recommendation for today: reserve trucks immediately after booking, store every reservation detail in Mission Control, and use the dispatch panel as the single operations checklist until vendor automation is built.
+      </p>
+    </section>
+  </div>
+</body>
+</html>

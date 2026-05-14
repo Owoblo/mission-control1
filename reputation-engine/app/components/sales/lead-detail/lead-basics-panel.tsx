@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { formatListingPropertySummary } from '@/lib/listing'
 import { formatDate, getSalesBranchLabel } from '@/lib/sales'
 import type { CRMLead } from '@/lib/types'
@@ -31,6 +31,7 @@ type Props = {
   destAccess: string
   parkingNotes: string
   moveReason: string
+  customerPriority?: string
   totalCubicFeet: number
   onLeadNameChange: (value: string) => void
   onLeadPhoneChange: (value: string) => void
@@ -38,6 +39,7 @@ type Props = {
   onLeadSourceChange: (value: string) => void
   moveDateFlexible: boolean
   moveDateFlexibleReason: string
+  onCustomerPriorityChange?: (value: string) => void
   onMoveDateChange: (value: string) => void
   onMoveDateFlexibleChange: (value: boolean) => void
   onMoveDateFlexibleReasonChange: (value: string) => void
@@ -165,6 +167,158 @@ function AddressInput({
   )
 }
 
+// ── Property Intelligence Card ────────────────────────────────────────────────
+type PropertyAccess = {
+  propertyType: string
+  propertyTypeLabel: string
+  estimatedFloors: number
+  unitFloor: number | null
+  hasElevator: boolean | null
+  elevatorReservationLikely: boolean
+  parkingType: string
+  carryDistanceEstimate: string
+  stairsEstimate: number
+  notes: string[]
+  confidence: 'high' | 'medium' | 'low'
+  source: string[]
+}
+
+const PROPERTY_ICONS: Record<string, string> = {
+  house_detached: '🏠',
+  house_semi: '🏠',
+  townhouse: '🏘️',
+  condo_lowrise: '🏢',
+  condo_highrise: '🏢',
+  apartment: '🏢',
+  unknown: '📍',
+}
+
+function PropertyIntelligenceCard({
+  field,
+  access,
+  onApplyToAccess,
+  onDismiss,
+}: {
+  field: 'origin' | 'dest'
+  access: PropertyAccess
+  onApplyToAccess: (text: string) => void
+  onDismiss: () => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const [floorOverride, setFloorOverride] = useState<string>(String(access.unitFloor ?? ''))
+  const [elevatorOverride, setElevatorOverride] = useState<boolean | null>(access.hasElevator)
+  const [applied, setApplied] = useState(false)
+
+  function buildAccessText() {
+    const parts: string[] = []
+    parts.push(access.propertyTypeLabel)
+    const floor = floorOverride ? parseInt(floorOverride, 10) : access.unitFloor
+    if (floor && floor > 0) parts.push(`Floor ${floor}`)
+    const elevator = elevatorOverride !== null ? elevatorOverride : access.hasElevator
+    if (elevator === true) parts.push(access.elevatorReservationLikely ? 'Elevator (reservation needed)' : 'Elevator available')
+    else if (elevator === false && access.stairsEstimate > 0) parts.push(`${access.stairsEstimate} flight${access.stairsEstimate > 1 ? 's' : ''} of stairs`)
+    if (access.parkingType === 'driveway') parts.push('Driveway access')
+    else if (access.parkingType === 'street') parts.push('Street parking')
+    else if (access.parkingType === 'underground') parts.push('Underground parking')
+    return parts.join(' · ')
+  }
+
+  function apply() {
+    onApplyToAccess(buildAccessText())
+    setApplied(true)
+    setTimeout(() => setApplied(false), 2000)
+  }
+
+  const icon = PROPERTY_ICONS[access.propertyType] ?? '📍'
+  const confidenceColor = access.confidence === 'high' ? 'emerald' : access.confidence === 'medium' ? 'sky' : 'amber'
+
+  return (
+    <div className={`rounded-[8px] border border-${confidenceColor}-200 bg-${confidenceColor}-50 px-3 py-2.5`}>
+      <div className="flex items-start gap-2">
+        <span className="text-base leading-none mt-0.5">{icon}</span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-semibold text-slate-800">
+              {access.propertyTypeLabel}
+              <span className={`ml-1.5 text-[10px] font-normal text-${confidenceColor}-700`}>
+                {access.confidence === 'high' ? '· confirmed' : access.confidence === 'medium' ? '· likely' : '· estimated'}
+              </span>
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button type="button" onClick={() => setExpanded(v => !v)} className={`text-[10px] text-${confidenceColor}-700 hover:underline`}>
+                {expanded ? 'Less' : 'Details'}
+              </button>
+              <button type="button" onClick={onDismiss} className="text-slate-400 hover:text-slate-700 text-xs leading-none">✕</button>
+            </div>
+          </div>
+          <div className={`mt-0.5 text-[10px] text-${confidenceColor}-800`}>
+            {access.notes.slice(0, 2).join(' · ')}
+          </div>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="mt-2.5 space-y-2 border-t border-slate-200 pt-2">
+          <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-700">
+            <div>
+              <span className="font-semibold">Floors in building: </span>
+              {access.estimatedFloors}
+            </div>
+            <div>
+              <span className="font-semibold">Parking: </span>
+              {access.parkingType}
+            </div>
+            <div>
+              <span className="font-semibold">Carry distance: </span>
+              {access.carryDistanceEstimate}
+            </div>
+            <div>
+              <span className="font-semibold">Source: </span>
+              {access.source.join(', ')}
+            </div>
+          </div>
+          <div className="text-[10px] font-semibold text-slate-600 mt-1">Override</div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1">
+              <label className="text-[10px] text-slate-700">Unit floor</label>
+              <input
+                type="number" min={1} max={60}
+                value={floorOverride}
+                onChange={e => setFloorOverride(e.target.value)}
+                placeholder="—"
+                className="w-12 rounded-[6px] border border-slate-300 bg-white px-1.5 py-0.5 text-xs text-center"
+              />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <label className="text-[10px] text-slate-700">Elevator</label>
+              <select
+                value={elevatorOverride === null ? '' : elevatorOverride ? 'yes' : 'no'}
+                onChange={e => setElevatorOverride(e.target.value === '' ? null : e.target.value === 'yes')}
+                className="rounded-[6px] border border-slate-300 bg-white px-1.5 py-0.5 text-[10px]"
+              >
+                <option value="">Auto</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-2 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={apply}
+          className="rounded-[6px] bg-[#1a2744] px-3 py-1 text-[10px] font-semibold text-white hover:bg-[#243460] transition"
+        >
+          {applied ? '✓ Applied' : `Apply to ${field} access`}
+        </button>
+        <span className="text-[10px] text-slate-500 truncate">{buildAccessText()}</span>
+      </div>
+    </div>
+  )
+}
+
 function ApartmentPrompt({
   field,
   onApply,
@@ -238,11 +392,13 @@ export function LeadBasicsPanel({
   destAccess,
   parkingNotes,
   moveReason,
+  customerPriority,
   totalCubicFeet,
   onLeadNameChange,
   onLeadPhoneChange,
   onLeadEmailChange,
   onLeadSourceChange,
+  onCustomerPriorityChange,
   onMoveDateChange,
   onMoveDateFlexibleChange,
   onMoveDateFlexibleReasonChange,
@@ -265,6 +421,43 @@ export function LeadBasicsPanel({
 
   const [originAptPending, setOriginAptPending] = useState(false)
   const [destAptPending, setDestAptPending] = useState(false)
+  const [originIntelligence, setOriginIntelligence] = useState<PropertyAccess | null>(null)
+  const [destIntelligence, setDestIntelligence] = useState<PropertyAccess | null>(null)
+  const originIntelTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const destIntelTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Fetch property intelligence when a full address is entered (debounced 1.5s)
+  const fetchIntelligence = useCallback(async (address: string, side: 'origin' | 'dest') => {
+    if (!address || address.trim().length < 8) return
+    try {
+      const res = await fetch(`/api/sales/property-intelligence?address=${encodeURIComponent(address)}`, { credentials: 'include' })
+      if (!res.ok) return
+      const data = (await res.json()) as PropertyAccess
+      if (data.propertyType !== 'unknown') {
+        if (side === 'origin') setOriginIntelligence(data)
+        else setDestIntelligence(data)
+      }
+    } catch { /* non-fatal */ }
+  }, [])
+
+  // Trigger intelligence fetch when address fields change
+  useEffect(() => {
+    if (originIntelTimer.current) clearTimeout(originIntelTimer.current)
+    setOriginIntelligence(null)
+    if (originAddress.length >= 8) {
+      originIntelTimer.current = setTimeout(() => void fetchIntelligence(originAddress, 'origin'), 1500)
+    }
+    return () => { if (originIntelTimer.current) clearTimeout(originIntelTimer.current) }
+  }, [originAddress, fetchIntelligence])
+
+  useEffect(() => {
+    if (destIntelTimer.current) clearTimeout(destIntelTimer.current)
+    setDestIntelligence(null)
+    if (destAddress.length >= 8) {
+      destIntelTimer.current = setTimeout(() => void fetchIntelligence(destAddress, 'dest'), 1500)
+    }
+    return () => { if (destIntelTimer.current) clearTimeout(destIntelTimer.current) }
+  }, [destAddress, fetchIntelligence])
 
   function applyApartment(field: 'origin' | 'dest', info: ApartmentInfo) {
     const label = `Apt — Floor ${info.floor} — ${info.hasElevator ? 'Elevator available' : 'No elevator (stairs)'}`
@@ -336,7 +529,7 @@ export function LeadBasicsPanel({
       <div className="border-b border-[var(--app-line)] p-5">
         <div className="crm-label">Move Details</div>
         <fieldset disabled={disabled} className="mt-4 grid gap-3">
-          <input type="date" value={moveDate} onChange={event => onMoveDateChange(event.target.value)} className="crm-input" />
+          <input type="date" value={moveDate} onChange={event => onMoveDateChange(event.target.value)} className="crm-input" min="2024-01-01" />
           <label className="flex cursor-pointer items-center gap-2">
             <input
               type="checkbox"
@@ -368,6 +561,20 @@ export function LeadBasicsPanel({
               <option key={option.id} value={option.id}>{option.label}</option>
             ))}
           </select>
+          <div>
+            <label className="crm-label">Customer Priority</label>
+            <select
+              value={customerPriority || ''}
+              onChange={e => onCustomerPriorityChange?.(e.target.value)}
+              className="crm-input mt-1 w-full"
+            >
+              <option value="">Not specified</option>
+              <option value="price">Price — most budget-conscious</option>
+              <option value="speed">Speed — needs it done fast</option>
+              <option value="care">Care — careful with belongings</option>
+              <option value="full_service">Full service — wants everything handled</option>
+            </select>
+          </div>
 
           {/* Origin address with autocomplete */}
           <AddressInput
@@ -379,7 +586,15 @@ export function LeadBasicsPanel({
             onCityChange={onOriginCityChange}
             onApartmentDetected={isApt => { if (isApt && !disabled) setOriginAptPending(true) }}
           />
-          {originAptPending && !disabled && (
+          {originIntelligence && !disabled && (
+            <PropertyIntelligenceCard
+              field="origin"
+              access={originIntelligence}
+              onApplyToAccess={text => { onOriginAccessChange(text); setOriginIntelligence(null) }}
+              onDismiss={() => setOriginIntelligence(null)}
+            />
+          )}
+          {originAptPending && !originIntelligence && !disabled && (
             <ApartmentPrompt
               field="origin"
               onApply={info => applyApartment('origin', info)}
@@ -428,7 +643,15 @@ export function LeadBasicsPanel({
             onCityChange={onDestCityChange}
             onApartmentDetected={isApt => { if (isApt && !disabled) setDestAptPending(true) }}
           />
-          {destAptPending && !disabled && (
+          {destIntelligence && !disabled && (
+            <PropertyIntelligenceCard
+              field="dest"
+              access={destIntelligence}
+              onApplyToAccess={text => { onDestAccessChange(text); setDestIntelligence(null) }}
+              onDismiss={() => setDestIntelligence(null)}
+            />
+          )}
+          {destAptPending && !destIntelligence && !disabled && (
             <ApartmentPrompt
               field="dest"
               onApply={info => applyApartment('dest', info)}

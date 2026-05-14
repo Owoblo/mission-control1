@@ -1,19 +1,21 @@
 import { NextResponse } from 'next/server'
+import { buildInboundQueueSummary, decorateInboundLead } from '@/lib/inbound-inbox'
 import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
+import { listAllInboundLeads, listSalesLeadIdentitySnapshots } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
-import { requireSupabaseEnv as requireSupabase } from '@/lib/server/runtime'
 
 // Lightweight count — polled by header every 30s for the badge
 export async function GET() {
   const session = await getSessionUser()
   if (!canAccessSalesWorkspace(session)) return NextResponse.json({ count: 0 })
 
-  const { url, headers } = requireSupabase()
-  const res = await fetch(
-    `${url}/rest/v1/inbound_leads?claimed=eq.false&select=id`,
-    { headers: { ...headers, Prefer: 'count=exact' }, cache: 'no-store' }
+  const [items, leads] = await Promise.all([listAllInboundLeads(), listSalesLeadIdentitySnapshots()])
+  const linkedLeadIds = new Map(
+    leads.filter(lead => lead.inboundId).map(lead => [lead.inboundId as string, lead.id] as const)
   )
-
-  const count = parseInt(res.headers.get('content-range')?.split('/')[1] ?? '0', 10)
-  return NextResponse.json({ count: isNaN(count) ? 0 : count })
+  const hydrated = items.map(item => decorateInboundLead({
+    ...item,
+    linkedLeadId: linkedLeadIds.get(item.id),
+  }))
+  return NextResponse.json({ count: buildInboundQueueSummary(hydrated).queue })
 }

@@ -1,0 +1,2298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HR & Team Hub — Saturn Star Moving</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ── RESET & VARIABLES ─────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --navy: #1a2744; --navy-light: #243358; --navy-dark: #111b33; --navy-mid: #1e2f52;
+  --gold: #f5a623; --gold-light: #f7b84b; --gold-dim: rgba(245,166,35,.15);
+  --bg: #f0f2f5; --text: #1a2744; --text-muted: #6b7280;
+  --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --info: #3b82f6;
+  --purple: #8b5cf6; --pink: #ec4899;
+  --card-bg: #ffffff; --border: #e5e7eb;
+  --radius: 12px; --sidebar-w: 240px;
+  --shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.06);
+  --shadow-lg: 0 4px 6px rgba(0,0,0,.07), 0 10px 30px rgba(0,0,0,.10);
+}
+html, body { height: 100%; }
+body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; display: flex; min-height: 100vh; }
+
+/* ── SIDEBAR ───────────────────────────────────────────── */
+#sidebar {
+  width: var(--sidebar-w); background: var(--navy-dark);
+  display: flex; flex-direction: column;
+  position: fixed; top: 0; left: 0; bottom: 0; z-index: 200;
+  border-right: 1px solid rgba(255,255,255,.06);
+}
+.sb-logo {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.sb-logo-title { color: var(--gold); font-size: 17px; font-weight: 800; letter-spacing: -.3px; }
+.sb-logo-sub { color: rgba(255,255,255,.35); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.2px; margin-top: 2px; }
+.sb-section-label {
+  font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+  color: rgba(255,255,255,.25); padding: 14px 20px 6px;
+}
+.sb-nav { flex: 1; overflow-y: auto; padding: 8px 0; }
+.sb-nav::-webkit-scrollbar { width: 0; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 20px; color: rgba(255,255,255,.55);
+  cursor: pointer; font-size: 13px; font-weight: 500;
+  border-left: 3px solid transparent;
+  transition: all .15s; user-select: none;
+}
+.nav-item:hover { background: rgba(255,255,255,.05); color: #fff; }
+.nav-item.active { background: rgba(245,166,35,.1); color: var(--gold); border-left-color: var(--gold); }
+.nav-item .nav-icon { font-size: 15px; flex-shrink: 0; width: 18px; text-align: center; }
+.nav-item .nav-badge {
+  margin-left: auto; background: var(--danger);
+  color: #fff; font-size: 10px; font-weight: 700;
+  padding: 1px 6px; border-radius: 10px; min-width: 18px; text-align: center;
+}
+.sb-footer {
+  padding: 14px 20px; border-top: 1px solid rgba(255,255,255,.08);
+}
+.sb-footer a { color: rgba(255,255,255,.3); font-size: 11px; text-decoration: none; display: block; margin-bottom: 4px; }
+.sb-footer a:hover { color: rgba(255,255,255,.6); }
+.sb-footer .sb-version { color: rgba(255,255,255,.2); font-size: 10px; margin-top: 6px; }
+
+/* ── MAIN WRAP ──────────────────────────────────────────── */
+#app { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+
+/* ── TOPBAR ─────────────────────────────────────────────── */
+#topbar {
+  background: #fff; border-bottom: 1px solid var(--border);
+  padding: 0 28px; height: 58px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 1px 8px rgba(0,0,0,.06);
+}
+.topbar-left { display: flex; align-items: center; gap: 10px; }
+#topbar-title { font-size: 17px; font-weight: 700; color: var(--navy); }
+#topbar-crumb { font-size: 12px; color: var(--text-muted); }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+#topbar-date { font-size: 12px; color: var(--text-muted); }
+
+/* ── CONTENT ─────────────────────────────────────────────── */
+#content { padding: 24px 28px 48px; flex: 1; }
+
+/* ── ALERT BANNERS ──────────────────────────────────────── */
+#alert-banners { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+.alert-banner {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 500;
+  border-left: 4px solid;
+}
+.alert-banner.gold   { background: #fffbeb; border-color: var(--warning); color: #92400e; }
+.alert-banner.orange { background: #fff7ed; border-color: #f97316; color: #9a3412; }
+.alert-banner.blue   { background: #eff6ff; border-color: var(--info); color: #1e40af; }
+.alert-banner .ab-icon { font-size: 15px; flex-shrink: 0; }
+.alert-banner .ab-text { flex: 1; }
+
+/* ── BUTTONS ─────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: 8px; border: none;
+  cursor: pointer; font-size: 13px; font-weight: 600;
+  font-family: inherit; transition: all .15s; white-space: nowrap;
+}
+.btn-primary { background: var(--gold); color: #fff; }
+.btn-primary:hover { background: var(--gold-light); }
+.btn-navy { background: var(--navy); color: #fff; }
+.btn-navy:hover { background: var(--navy-light); }
+.btn-outline { background: #fff; color: var(--navy); border: 1px solid var(--border); }
+.btn-outline:hover { border-color: var(--navy); background: #f8f9fb; }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover { background: #dc2626; }
+.btn-success { background: var(--success); color: #fff; }
+.btn-success:hover { background: #059669; }
+.btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+.btn-ghost:hover { background: #f3f4f6; color: var(--navy); }
+.btn-sm { padding: 5px 11px; font-size: 12px; border-radius: 6px; }
+.btn-xs { padding: 3px 8px; font-size: 11px; border-radius: 5px; }
+.btn-icon { background: transparent; border: none; cursor: pointer; padding: 5px; border-radius: 6px; font-size: 15px; color: var(--text-muted); transition: background .15s; }
+.btn-icon:hover { background: #f3f4f6; color: var(--navy); }
+
+/* ── CARDS ──────────────────────────────────────────────── */
+.card { background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--border); overflow: hidden; }
+.card-header { padding: 14px 18px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.card-title { font-size: 13px; font-weight: 700; color: var(--navy); }
+.card-body { padding: 16px 18px; }
+.card-body.no-pad { padding: 0; }
+
+/* ── STAT CARDS ─────────────────────────────────────────── */
+.stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 20px; }
+.stat-card {
+  background: var(--card-bg); border-radius: var(--radius);
+  box-shadow: var(--shadow); border: 1px solid var(--border);
+  padding: 16px 18px; border-left: 4px solid var(--gold);
+  display: flex; align-items: center; gap: 12px;
+  transition: box-shadow .2s, transform .2s; cursor: default;
+}
+.stat-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-1px); }
+.stat-card.c-success { border-left-color: var(--success); }
+.stat-card.c-info    { border-left-color: var(--info); }
+.stat-card.c-warning { border-left-color: var(--warning); }
+.stat-card.c-danger  { border-left-color: var(--danger); }
+.stat-card.c-purple  { border-left-color: var(--purple); }
+.stat-icon { font-size: 24px; flex-shrink: 0; }
+.stat-data { flex: 1; min-width: 0; }
+.stat-value { font-size: 26px; font-weight: 800; color: var(--navy); line-height: 1.1; }
+.stat-label { font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; margin-top: 2px; }
+.stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+/* ── BADGES ─────────────────────────────────────────────── */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 9px; border-radius: 20px;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+}
+.badge-active   { background: #d1fae5; color: #065f46; }
+.badge-probation{ background: #fef3c7; color: #92400e; }
+.badge-inactive { background: #f3f4f6; color: #6b7280; }
+.badge-terminated{ background: #fee2e2; color: #991b1b; }
+.badge-driver   { background: #dbeafe; color: #1e40af; }
+.badge-mover    { background: #e0e7ff; color: #3730a3; }
+.badge-crew_lead{ background: #fce7f3; color: #9d174d; }
+.badge-csr      { background: #d1fae5; color: #065f46; }
+.badge-manager  { background: var(--gold-dim); color: #92400e; }
+.badge-other    { background: #f3f4f6; color: #6b7280; }
+.badge-safety   { background: #fee2e2; color: #991b1b; }
+.badge-customer_service { background: #d1fae5; color: #065f46; }
+.badge-operations { background: #dbeafe; color: #1e40af; }
+.badge-equipment  { background: #e0e7ff; color: #3730a3; }
+.badge-company_policy { background: #fef3c7; color: #92400e; }
+.badge-stage-applied  { background: #f3f4f6; color: #6b7280; }
+.badge-stage-phone_screen { background: #dbeafe; color: #1e40af; }
+.badge-stage-interview    { background: #e0e7ff; color: #3730a3; }
+.badge-stage-trial_shift  { background: #fef3c7; color: #92400e; }
+.badge-stage-offer_sent   { background: #d1fae5; color: #065f46; }
+.badge-stage-hired        { background: #d1fae5; color: #065f46; }
+.badge-stage-rejected     { background: #fee2e2; color: #991b1b; }
+.badge-source-indeed   { background: #dbeafe; color: #1e40af; }
+.badge-source-facebook { background: #e0e7ff; color: #3730a3; }
+.badge-source-referral { background: #d1fae5; color: #065f46; }
+.badge-source-walk_in  { background: #fef3c7; color: #92400e; }
+.badge-source-other    { background: #f3f4f6; color: #6b7280; }
+.badge-verbal_warning  { background: #fef3c7; color: #92400e; }
+.badge-written_warning { background: #fed7aa; color: #9a3412; }
+.badge-suspension      { background: #fee2e2; color: #991b1b; }
+.badge-final_warning   { background: #fee2e2; color: #7f1d1d; }
+.badge-termination     { background: #1f2937; color: #fff; }
+.badge-note            { background: #f3f4f6; color: #6b7280; }
+.badge-required        { background: #fee2e2; color: #991b1b; }
+.badge-optional        { background: #f3f4f6; color: #6b7280; }
+
+/* ── PROGRESS BAR ────────────────────────────────────────── */
+.prog-wrap { background: #f3f4f6; border-radius: 99px; height: 6px; overflow: hidden; }
+.prog-bar { height: 100%; border-radius: 99px; background: var(--success); transition: width .4s; }
+.prog-bar.warn { background: var(--warning); }
+.prog-bar.danger { background: var(--danger); }
+
+/* ── AVATAR ──────────────────────────────────────────────── */
+.avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--navy-light), var(--navy-dark));
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; flex-shrink: 0; letter-spacing: .5px;
+}
+.avatar.lg { width: 48px; height: 48px; font-size: 15px; }
+
+/* ── EMPLOYEE GRID ───────────────────────────────────────── */
+.emp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 14px; }
+.emp-card {
+  background: var(--card-bg); border-radius: var(--radius);
+  box-shadow: var(--shadow); border: 1px solid var(--border);
+  padding: 16px; transition: box-shadow .2s, transform .2s;
+}
+.emp-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-1px); }
+.emp-card-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+.emp-card-info { flex: 1; min-width: 0; }
+.emp-name { font-size: 15px; font-weight: 700; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.emp-badges { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; }
+.emp-card-body { font-size: 12px; color: var(--text-muted); display: flex; flex-direction: column; gap: 4px; }
+.emp-card-row { display: flex; align-items: center; gap: 6px; }
+.emp-card-row a { color: var(--info); text-decoration: none; }
+.emp-card-row a:hover { text-decoration: underline; }
+.emp-card-footer { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.emp-disc-badge {
+  background: #fee2e2; color: var(--danger);
+  font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px;
+}
+
+/* ── FILTER TABS ─────────────────────────────────────────── */
+.filter-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.filter-tab {
+  padding: 5px 13px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  cursor: pointer; border: 1.5px solid var(--border); background: #fff;
+  color: var(--text-muted); transition: all .15s; user-select: none;
+}
+.filter-tab:hover { border-color: var(--navy); color: var(--navy); }
+.filter-tab.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+
+/* ── HIRING KANBAN ───────────────────────────────────────── */
+#hiring-board { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 12px; }
+#hiring-board::-webkit-scrollbar { height: 6px; }
+#hiring-board::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+.kanban-col {
+  min-width: 210px; flex-shrink: 0;
+  background: #f8f9fb; border-radius: var(--radius);
+  border: 1px solid var(--border); display: flex; flex-direction: column;
+}
+.kanban-col-header {
+  padding: 12px 14px 10px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.kanban-col-title { font-size: 12px; font-weight: 700; color: var(--navy); }
+.kanban-count {
+  background: var(--navy); color: #fff;
+  font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 10px;
+}
+.kanban-cards { padding: 10px; display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 80px; }
+.applicant-card {
+  background: #fff; border-radius: 8px; border: 1px solid var(--border);
+  padding: 11px 12px; cursor: pointer; transition: box-shadow .15s, transform .15s;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
+}
+.applicant-card:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+.ap-name { font-size: 13px; font-weight: 700; color: var(--navy); }
+.ap-meta { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+.ap-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+.stars { color: var(--gold); font-size: 11px; letter-spacing: 1px; }
+
+/* ── TRAINING MATRIX ─────────────────────────────────────── */
+.matrix-wrap { overflow: auto; max-height: 500px; }
+.matrix-wrap::-webkit-scrollbar { width: 5px; height: 5px; }
+.matrix-wrap::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+.matrix-table { border-collapse: collapse; font-size: 12px; min-width: 600px; }
+.matrix-table th, .matrix-table td { border: 1px solid var(--border); }
+.matrix-table th { background: #f8f9fb; padding: 8px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--text-muted); white-space: nowrap; position: sticky; top: 0; z-index: 2; }
+.matrix-table th:first-child { position: sticky; left: 0; z-index: 3; min-width: 140px; }
+.matrix-table td { padding: 7px 10px; vertical-align: middle; }
+.matrix-table td:first-child { position: sticky; left: 0; background: #fff; z-index: 1; font-weight: 600; color: var(--navy); font-size: 11px; }
+.matrix-cell { text-align: center; cursor: pointer; }
+.matrix-cell:hover { background: #f0f7ff !important; }
+.cell-complete { color: var(--success); font-size: 16px; }
+.cell-pending  { color: #d1d5db; font-size: 16px; }
+.cell-overdue  { color: var(--danger); font-size: 16px; }
+.cell-na       { color: #e5e7eb; font-size: 13px; }
+
+/* ── TRAINING MODULE CARDS ───────────────────────────────── */
+.module-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.module-card {
+  background: var(--card-bg); border-radius: var(--radius);
+  box-shadow: var(--shadow); border: 1px solid var(--border);
+  padding: 14px;
+}
+.module-card-title { font-size: 14px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
+.module-card-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.module-card-desc { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+.module-card-footer { font-size: 11px; color: var(--text-muted); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+/* ── ONBOARDING ──────────────────────────────────────────── */
+.onboard-section { margin-bottom: 20px; }
+.onboard-section-title {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px;
+  color: var(--text-muted); margin-bottom: 10px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.checklist-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 8px 0; border-bottom: 1px solid #f3f4f6;
+}
+.checklist-item:last-child { border-bottom: none; }
+.checklist-item input[type=checkbox] { margin-top: 2px; width: 15px; height: 15px; accent-color: var(--success); cursor: pointer; flex-shrink: 0; }
+.checklist-label { font-size: 13px; color: var(--text); flex: 1; cursor: pointer; }
+.checklist-label.done { text-decoration: line-through; color: var(--text-muted); }
+.checklist-date { font-size: 10px; color: var(--text-muted); flex-shrink: 0; margin-top: 2px; }
+
+/* ── MODAL ───────────────────────────────────────────────── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.5); z-index: 500;
+  align-items: flex-start; justify-content: center;
+  padding: 40px 20px; overflow-y: auto;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: #fff; border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.2);
+  width: 100%; max-width: 680px;
+  margin: auto;
+  animation: modal-in .2s ease;
+}
+.modal.wide { max-width: 860px; }
+.modal.narrow { max-width: 480px; }
+@keyframes modal-in { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: translateY(0); } }
+.modal-header {
+  padding: 18px 22px 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.modal-title { font-size: 16px; font-weight: 700; color: var(--navy); }
+.modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text-muted); line-height: 1; padding: 2px 6px; border-radius: 6px; }
+.modal-close:hover { background: #f3f4f6; color: var(--navy); }
+.modal-body { padding: 20px 22px; }
+.modal-footer { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+
+/* ── FORMS ───────────────────────────────────────────────── */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+.form-grid.cols-1 { grid-template-columns: 1fr; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group.span-2 { grid-column: 1 / -1; }
+label { font-size: 12px; font-weight: 600; color: var(--navy); }
+.form-control {
+  padding: 8px 12px; border: 1.5px solid var(--border);
+  border-radius: 8px; font-size: 13px; font-family: inherit;
+  color: var(--text); background: #fff; width: 100%;
+  transition: border-color .15s;
+}
+.form-control:focus { outline: none; border-color: var(--navy); }
+select.form-control { cursor: pointer; }
+textarea.form-control { resize: vertical; min-height: 80px; }
+.form-divider { grid-column: 1 / -1; border: none; border-top: 1px solid var(--border); margin: 2px 0; }
+.form-section-label { grid-column: 1 / -1; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text-muted); padding-top: 4px; }
+
+/* ── PROFILE MODAL TABS ──────────────────────────────────── */
+.profile-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin: -20px -22px 20px; padding: 0 22px; }
+.profile-tab {
+  padding: 12px 16px; font-size: 13px; font-weight: 600;
+  color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent;
+  margin-bottom: -1px; transition: all .15s; white-space: nowrap;
+}
+.profile-tab:hover { color: var(--navy); }
+.profile-tab.active { color: var(--navy); border-bottom-color: var(--gold); }
+
+/* ── TABLE ───────────────────────────────────────────────── */
+.tbl-wrap { overflow-x: auto; }
+table.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.data-table thead th { background: #f8f9fb; padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--text-muted); border-bottom: 2px solid var(--border); white-space: nowrap; }
+table.data-table tbody td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+table.data-table tbody tr:last-child td { border-bottom: none; }
+table.data-table tbody tr:hover { background: #fafbfd; }
+
+/* ── DISC LOG ────────────────────────────────────────────── */
+.disc-item { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.disc-item:last-child { border-bottom: none; }
+.disc-item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; flex-wrap: wrap; }
+.disc-item-date { font-size: 11px; color: var(--text-muted); }
+.disc-item-desc { font-size: 13px; color: var(--text); }
+.disc-item-footer { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+/* ── HIRING MINI FUNNEL ──────────────────────────────────── */
+.funnel-row { display: flex; gap: 0; align-items: center; margin-bottom: 16px; }
+.funnel-step {
+  flex: 1; text-align: center; padding: 10px 6px;
+  background: #f8f9fb; border: 1px solid var(--border);
+  cursor: pointer; transition: background .15s;
+  position: relative;
+}
+.funnel-step:first-child { border-radius: 8px 0 0 8px; }
+.funnel-step:last-child  { border-radius: 0 8px 8px 0; }
+.funnel-step:not(:first-child) { border-left: none; }
+.funnel-step:hover { background: #eef2ff; }
+.funnel-step-count { font-size: 20px; font-weight: 800; color: var(--navy); }
+.funnel-step-label { font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
+.funnel-arrow { font-size: 16px; color: var(--text-muted); flex-shrink: 0; }
+
+/* ── STARS SELECTOR ──────────────────────────────────────── */
+.star-select { display: flex; gap: 4px; }
+.star-select span { font-size: 22px; cursor: pointer; color: #d1d5db; transition: color .1s; }
+.star-select span.filled, .star-select span:hover { color: var(--gold); }
+
+/* ── SECTION SCROLLABLE ──────────────────────────────────── */
+.scroll-box { max-height: 320px; overflow-y: auto; }
+.scroll-box::-webkit-scrollbar { width: 4px; }
+.scroll-box::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
+
+/* ── UPCOMING LIST ───────────────────────────────────────── */
+.upcoming-item { display: flex; align-items: flex-start; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+.upcoming-item:last-child { border-bottom: none; }
+.upcoming-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+.upcoming-item-text { flex: 1; font-size: 13px; color: var(--navy); }
+.upcoming-item-meta { font-size: 11px; color: var(--text-muted); }
+.upcoming-date { font-size: 11px; color: var(--text-muted); flex-shrink: 0; margin-top: 2px; }
+.empty-state { text-align: center; padding: 32px 20px; color: var(--text-muted); font-size: 13px; }
+.empty-state .empty-icon { font-size: 32px; margin-bottom: 8px; }
+
+/* ── QUICK ROSTER GRID ───────────────────────────────────── */
+.roster-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.roster-mini {
+  background: var(--card-bg); border-radius: 10px;
+  border: 1px solid var(--border); padding: 12px;
+  display: flex; flex-direction: column; gap: 6px;
+  transition: box-shadow .15s;
+}
+.roster-mini:hover { box-shadow: var(--shadow); }
+.roster-mini-name { font-size: 13px; font-weight: 700; color: var(--navy); }
+.roster-mini-badges { display: flex; gap: 4px; flex-wrap: wrap; }
+.roster-mini-stat { font-size: 11px; color: var(--text-muted); }
+
+/* ── PRINT / REPORT ──────────────────────────────────────── */
+@media print {
+  #sidebar, #topbar, .btn, .modal-overlay { display: none !important; }
+  #app { margin-left: 0 !important; }
+  #content { padding: 0 !important; }
+}
+
+/* ── RESPONSIVE ──────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .form-grid { grid-template-columns: 1fr; }
+  .form-grid.span-2 { grid-column: 1; }
+}
+
+/* ── VIEWS ───────────────────────────────────────────────── */
+.view { display: none; }
+.view.active { display: block; }
+
+/* ── CONFIRM DIALOG ──────────────────────────────────────── */
+#confirm-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.55); z-index: 900;
+  align-items: center; justify-content: center;
+}
+#confirm-overlay.open { display: flex; }
+#confirm-box {
+  background: #fff; border-radius: 12px; padding: 24px;
+  max-width: 380px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,.2);
+  text-align: center;
+}
+#confirm-title { font-size: 16px; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
+#confirm-msg   { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5; }
+#confirm-actions { display: flex; gap: 10px; justify-content: center; }
+
+/* ── TOAST ───────────────────────────────────────────────── */
+#toast {
+  position: fixed; bottom: 28px; right: 28px;
+  background: var(--navy); color: #fff;
+  padding: 12px 20px; border-radius: 10px;
+  font-size: 13px; font-weight: 500;
+  box-shadow: var(--shadow-lg);
+  z-index: 1000; opacity: 0;
+  transform: translateY(8px);
+  transition: opacity .25s, transform .25s;
+  pointer-events: none; max-width: 320px;
+}
+#toast.show { opacity: 1; transform: translateY(0); }
+#toast.success { border-left: 4px solid var(--success); }
+#toast.error   { border-left: 4px solid var(--danger); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════ SIDEBAR ═══════════════════════ -->
+<nav id="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-title">⭐ Saturn Star</div>
+    <div class="sb-logo-sub">HR & Team Hub</div>
+  </div>
+  <div class="sb-nav">
+    <div class="sb-section-label">HR Modules</div>
+    <div class="nav-item active" data-view="dashboard">
+      <span class="nav-icon">📊</span> Dashboard
+    </div>
+    <div class="nav-item" data-view="team">
+      <span class="nav-icon">👥</span> Team
+    </div>
+    <div class="nav-item" data-view="hiring">
+      <span class="nav-icon">🎯</span> Hiring Pipeline
+    </div>
+    <div class="nav-item" data-view="training">
+      <span class="nav-icon">📋</span> Training
+    </div>
+    <div class="nav-item" data-view="onboarding">
+      <span class="nav-icon">🚀</span> Onboarding
+    </div>
+    <div class="sb-section-label">Mission Control</div>
+    <div class="nav-item" onclick="window.location.href='../index.html'">
+      <span class="nav-icon">🏠</span> Home
+    </div>
+    <div class="nav-item" onclick="window.location.href='../operations-hub/operations-hub.html'">
+      <span class="nav-icon">🚚</span> Operations
+    </div>
+    <div class="nav-item" onclick="window.location.href='../crm/saturn-crm.html'">
+      <span class="nav-icon">💼</span> CRM
+    </div>
+    <div class="nav-item" onclick="window.location.href='../SOPs/index.html'">
+      <span class="nav-icon">📖</span> SOPs
+    </div>
+  </div>
+  <div class="sb-footer">
+    <div class="sb-version">HR Hub v1.0 · Saturn Star Moving</div>
+  </div>
+</nav>
+
+<!-- ═══════════════════════ MAIN APP ═════════════════════════ -->
+<div id="app">
+  <!-- TOPBAR -->
+  <div id="topbar">
+    <div class="topbar-left">
+      <div id="topbar-title">Dashboard</div>
+    </div>
+    <div class="topbar-right">
+      <span id="topbar-date"></span>
+      <button class="btn btn-primary btn-sm" id="topbar-action-btn" onclick="handleTopbarAction()">+ Add Employee</button>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div id="content">
+
+    <!-- ══════════ DASHBOARD VIEW ══════════ -->
+    <div class="view active" id="view-dashboard">
+      <div id="alert-banners"></div>
+      <div class="stats-row" id="dash-stats"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+        <!-- Quick Roster -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">👥 Active Team Roster</span>
+            <button class="btn btn-ghost btn-sm" onclick="showView('team')">View All →</button>
+          </div>
+          <div class="card-body" id="dash-roster"></div>
+        </div>
+        <!-- Upcoming -->
+        <div class="card">
+          <div class="card-header"><span class="card-title">📅 This Week</span></div>
+          <div class="card-body" id="dash-upcoming"></div>
+        </div>
+      </div>
+      <!-- Hiring Funnel -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🎯 Hiring Funnel</span>
+          <button class="btn btn-ghost btn-sm" onclick="showView('hiring')">Full Board →</button>
+        </div>
+        <div class="card-body" id="dash-funnel"></div>
+      </div>
+    </div>
+
+    <!-- ══════════ TEAM VIEW ══════════ -->
+    <div class="view" id="view-team">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+        <div class="filter-tabs" id="team-filter-tabs">
+          <div class="filter-tab active" data-filter="all">All</div>
+          <div class="filter-tab" data-filter="active">Active</div>
+          <div class="filter-tab" data-filter="probation">Probation</div>
+          <div class="filter-tab" data-filter="inactive">Inactive</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <input type="text" class="form-control" id="team-search" placeholder="Search employees…" style="width:200px;" oninput="renderTeam()">
+          <button class="btn btn-primary" onclick="openEmployeeModal()">+ Add Employee</button>
+        </div>
+      </div>
+      <div class="emp-grid" id="team-grid"></div>
+    </div>
+
+    <!-- ══════════ HIRING VIEW ══════════ -->
+    <div class="view" id="view-hiring">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+        <div class="filter-tabs" id="hiring-stage-filter">
+          <div class="filter-tab active" data-stage="">All Stages</div>
+          <div class="filter-tab" data-stage="applied">Applied</div>
+          <div class="filter-tab" data-stage="phone_screen">Phone Screen</div>
+          <div class="filter-tab" data-stage="interview">Interview</div>
+          <div class="filter-tab" data-stage="trial_shift">Trial Shift</div>
+          <div class="filter-tab" data-stage="offer_sent">Offer Sent</div>
+          <div class="filter-tab" data-stage="hired">Hired</div>
+          <div class="filter-tab" data-stage="rejected">Rejected</div>
+        </div>
+        <button class="btn btn-primary" onclick="openApplicantModal()">+ Add Applicant</button>
+      </div>
+      <div id="hiring-board"></div>
+    </div>
+
+    <!-- ══════════ TRAINING VIEW ══════════ -->
+    <div class="view" id="view-training">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+        <h2 style="font-size:15px;font-weight:700;color:var(--navy);">Training Matrix</h2>
+        <button class="btn btn-primary" onclick="openModuleModal()">+ Add Module</button>
+      </div>
+      <div class="card" style="margin-bottom:18px;">
+        <div class="card-header"><span class="card-title">📊 Completion Matrix</span>
+          <span style="font-size:11px;color:var(--text-muted);">Click any cell to mark complete</span>
+        </div>
+        <div class="card-body no-pad">
+          <div class="matrix-wrap" id="training-matrix"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">📋 Training Modules</span></div>
+        <div class="card-body">
+          <div class="module-grid" id="module-grid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ ONBOARDING VIEW ══════════ -->
+    <div class="view" id="view-onboarding">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;flex-wrap:wrap;">
+        <select class="form-control" id="onboard-employee-select" style="max-width:280px;" onchange="renderOnboarding()">
+          <option value="">— Select new hire —</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="printOnboardingReport()">🖨 Print Report</button>
+      </div>
+      <div id="onboarding-content">
+        <div class="empty-state"><div class="empty-icon">🚀</div>Select a new hire to view their onboarding checklist.</div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /app -->
+
+<!-- ══════════════════ MODALS ══════════════════════ -->
+
+<!-- Employee Modal -->
+<div class="modal-overlay" id="modal-employee">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="emp-modal-title">Add Employee</span>
+      <button class="modal-close" onclick="closeModal('modal-employee')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="emp-id">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Full Name *</label>
+          <input type="text" class="form-control" id="emp-name" placeholder="Mike Torres">
+        </div>
+        <div class="form-group">
+          <label>Role *</label>
+          <select class="form-control" id="emp-role">
+            <option value="driver">Driver</option>
+            <option value="mover">Mover</option>
+            <option value="crew_lead">Crew Lead</option>
+            <option value="csr">CSR</option>
+            <option value="manager">Manager</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="tel" class="form-control" id="emp-phone" placeholder="226-555-1001">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" class="form-control" id="emp-email" placeholder="name@saturnstar.ca">
+        </div>
+        <div class="form-group">
+          <label>Hire Date *</label>
+          <input type="date" class="form-control" id="emp-hireDate">
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select class="form-control" id="emp-status">
+            <option value="active">Active</option>
+            <option value="probation">Probation</option>
+            <option value="inactive">Inactive</option>
+            <option value="terminated">Terminated</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Hourly Rate ($)</label>
+          <input type="number" class="form-control" id="emp-hourlyRate" placeholder="22" min="15" step="0.50">
+        </div>
+        <div class="form-group">
+          <label>T-Shirt Size</label>
+          <select class="form-control" id="emp-tShirtSize">
+            <option value="XS">XS</option>
+            <option value="S">S</option>
+            <option value="M">M</option>
+            <option value="L" selected>L</option>
+            <option value="XL">XL</option>
+            <option value="XXL">XXL</option>
+          </select>
+        </div>
+        <div class="form-section-label">Emergency Contact</div>
+        <div class="form-group">
+          <label>Contact Name</label>
+          <input type="text" class="form-control" id="emp-ecName" placeholder="Rosa Torres">
+        </div>
+        <div class="form-group">
+          <label>Contact Phone</label>
+          <input type="tel" class="form-control" id="emp-ecPhone" placeholder="226-555-1002">
+        </div>
+        <div class="form-group span-2">
+          <label>Notes</label>
+          <textarea class="form-control" id="emp-notes" placeholder="Performance notes, specialties, etc."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-employee')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEmployee()">Save Employee</button>
+    </div>
+  </div>
+</div>
+
+<!-- Employee Profile Modal -->
+<div class="modal-overlay" id="modal-profile">
+  <div class="modal wide">
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="avatar lg" id="profile-avatar"></div>
+        <div>
+          <div class="modal-title" id="profile-name"></div>
+          <div style="display:flex;gap:6px;margin-top:4px;" id="profile-badges"></div>
+        </div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-profile')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="profile-tabs">
+        <div class="profile-tab active" data-tab="info">Personal Info</div>
+        <div class="profile-tab" data-tab="training">Training</div>
+        <div class="profile-tab" data-tab="disciplinary">Disciplinary</div>
+      </div>
+      <div id="profile-tab-content"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="editEmployeeFromProfile()">✏️ Edit</button>
+      <button class="btn btn-danger btn-sm" onclick="terminateEmployee()">Terminate</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-profile')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Disciplinary Modal -->
+<div class="modal-overlay" id="modal-disc">
+  <div class="modal narrow">
+    <div class="modal-header">
+      <span class="modal-title">Log Disciplinary Issue</span>
+      <button class="modal-close" onclick="closeModal('modal-disc')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="disc-empId">
+      <input type="hidden" id="disc-id">
+      <div class="form-grid cols-1">
+        <div class="form-group">
+          <label>Type *</label>
+          <select class="form-control" id="disc-type">
+            <option value="note">General Note</option>
+            <option value="verbal_warning">Verbal Warning</option>
+            <option value="written_warning">Written Warning</option>
+            <option value="suspension">Suspension</option>
+            <option value="final_warning">Final Warning</option>
+            <option value="termination">Termination</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Date *</label>
+          <input type="date" class="form-control" id="disc-date">
+        </div>
+        <div class="form-group">
+          <label>Description *</label>
+          <textarea class="form-control" id="disc-description" placeholder="Describe the incident or issue…"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Action Taken</label>
+          <input type="text" class="form-control" id="disc-action" placeholder="e.g. Counselled re: punctuality">
+        </div>
+        <div class="form-group">
+          <label>Issued By</label>
+          <input type="text" class="form-control" id="disc-issuedBy" placeholder="Manager name">
+        </div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="disc-acknowledged"> Employee Acknowledged
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-disc')">Cancel</button>
+      <button class="btn btn-danger" onclick="saveDisc()">Save Record</button>
+    </div>
+  </div>
+</div>
+
+<!-- Applicant Modal -->
+<div class="modal-overlay" id="modal-applicant">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="ap-modal-title">Add Applicant</span>
+      <button class="modal-close" onclick="closeModal('modal-applicant')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ap-id">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Full Name *</label>
+          <input type="text" class="form-control" id="ap-name" placeholder="Jordan Smith">
+        </div>
+        <div class="form-group">
+          <label>Role Applied For</label>
+          <select class="form-control" id="ap-role">
+            <option value="driver">Driver</option>
+            <option value="mover" selected>Mover</option>
+            <option value="crew_lead">Crew Lead</option>
+            <option value="csr">CSR</option>
+            <option value="manager">Manager</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="tel" class="form-control" id="ap-phone" placeholder="226-555-2001">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" class="form-control" id="ap-email" placeholder="applicant@email.com">
+        </div>
+        <div class="form-group">
+          <label>Source</label>
+          <select class="form-control" id="ap-source">
+            <option value="indeed">Indeed</option>
+            <option value="facebook">Facebook</option>
+            <option value="referral">Referral</option>
+            <option value="walk_in">Walk-in</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Applied Date</label>
+          <input type="date" class="form-control" id="ap-appliedDate">
+        </div>
+        <div class="form-group">
+          <label>Stage</label>
+          <select class="form-control" id="ap-stage">
+            <option value="applied">Applied</option>
+            <option value="phone_screen">Phone Screen</option>
+            <option value="interview">Interview</option>
+            <option value="trial_shift">Trial Shift</option>
+            <option value="offer_sent">Offer Sent</option>
+            <option value="hired">Hired</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Rating</label>
+          <div class="star-select" id="ap-rating-stars" data-val="0">
+            <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
+          </div>
+          <input type="hidden" id="ap-rating" value="0">
+        </div>
+        <div class="form-group">
+          <label>Interview Date</label>
+          <input type="date" class="form-control" id="ap-interviewDate">
+        </div>
+        <div class="form-group">
+          <label>Trial Shift Date</label>
+          <input type="date" class="form-control" id="ap-trialDate">
+        </div>
+        <div class="form-group span-2">
+          <label>Resume Note</label>
+          <input type="text" class="form-control" id="ap-resumeNote" placeholder="e.g. 2 years warehouse, clean driving record">
+        </div>
+        <div class="form-group span-2">
+          <label>Notes / Interview Notes</label>
+          <textarea class="form-control" id="ap-notes" placeholder="Impressions, questions, follow-ups…"></textarea>
+        </div>
+        <div class="form-group span-2" id="ap-rejection-row" style="display:none;">
+          <label>Rejection Reason</label>
+          <input type="text" class="form-control" id="ap-rejectionReason" placeholder="e.g. No longer available, poor fit">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer" id="ap-modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-applicant')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveApplicant()">Save Applicant</button>
+    </div>
+  </div>
+</div>
+
+<!-- Training Module Modal -->
+<div class="modal-overlay" id="modal-module">
+  <div class="modal narrow">
+    <div class="modal-header">
+      <span class="modal-title" id="mod-modal-title">Add Training Module</span>
+      <button class="modal-close" onclick="closeModal('modal-module')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="mod-id">
+      <div class="form-grid cols-1">
+        <div class="form-group">
+          <label>Title *</label>
+          <input type="text" class="form-control" id="mod-title" placeholder="Safe Lifting Techniques">
+        </div>
+        <div class="form-group">
+          <label>Category</label>
+          <select class="form-control" id="mod-category">
+            <option value="safety">Safety</option>
+            <option value="customer_service">Customer Service</option>
+            <option value="operations">Operations</option>
+            <option value="equipment">Equipment</option>
+            <option value="company_policy">Company Policy</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea class="form-control" id="mod-description" placeholder="What does this module cover?"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Estimated Duration (minutes)</label>
+          <input type="number" class="form-control" id="mod-minutes" placeholder="20" min="5">
+        </div>
+        <div class="form-group">
+          <label>SOP Link (optional)</label>
+          <input type="text" class="form-control" id="mod-sopLink" placeholder="../SOPs/index.html#piano">
+        </div>
+        <div class="form-group">
+          <label>Required Roles (comma-separated, blank = all)</label>
+          <input type="text" class="form-control" id="mod-roles" placeholder="driver, mover, crew_lead">
+        </div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="mod-required"> Mandatory for all applicable roles
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-module')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveModule()">Save Module</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mark Complete Modal -->
+<div class="modal-overlay" id="modal-mark-complete">
+  <div class="modal narrow">
+    <div class="modal-header">
+      <span class="modal-title" id="mc-title">Mark Training Complete</span>
+      <button class="modal-close" onclick="closeModal('modal-mark-complete')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="mc-empId">
+      <input type="hidden" id="mc-moduleId">
+      <div class="form-grid cols-1">
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;font-size:13px;color:#065f46;" id="mc-info"></div>
+        <div class="form-group">
+          <label>Completion Date</label>
+          <input type="date" class="form-control" id="mc-date">
+        </div>
+        <div class="form-group">
+          <label>Signed Off By</label>
+          <input type="text" class="form-control" id="mc-signedOff" placeholder="Manager / Supervisor name">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="removeTrainingCompletion()" id="mc-remove-btn" style="margin-right:auto;">Remove Completion</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-mark-complete')">Cancel</button>
+      <button class="btn btn-success" onclick="saveTrainingCompletion()">✓ Mark Complete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Dialog -->
+<div id="confirm-overlay">
+  <div id="confirm-box">
+    <div id="confirm-title">Are you sure?</div>
+    <div id="confirm-msg"></div>
+    <div id="confirm-actions">
+      <button class="btn btn-ghost" id="confirm-cancel">Cancel</button>
+      <button class="btn btn-danger" id="confirm-ok">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+//  DATABASE LAYER
+// ══════════════════════════════════════════════════════════════
+const DB = {
+  getEmployees()   { try { return JSON.parse(localStorage.getItem('sshr_employees')||'[]') } catch { return [] } },
+  saveEmployees(d) { localStorage.setItem('sshr_employees', JSON.stringify(d)) },
+  getEmployee(id)  { return this.getEmployees().find(e => e.id === id) || null },
+  getDisciplinary()   { try { return JSON.parse(localStorage.getItem('sshr_disciplinary')||'[]') } catch { return [] } },
+  saveDisciplinary(d) { localStorage.setItem('sshr_disciplinary', JSON.stringify(d)) },
+  getApplicants()   { try { return JSON.parse(localStorage.getItem('sshr_applicants')||'[]') } catch { return [] } },
+  saveApplicants(d) { localStorage.setItem('sshr_applicants', JSON.stringify(d)) },
+  getTraining()   { try { return JSON.parse(localStorage.getItem('sshr_training')||'[]') } catch { return [] } },
+  saveTraining(d) { localStorage.setItem('sshr_training', JSON.stringify(d)) },
+  generateId()    { return Date.now().toString(36) + Math.random().toString(36).slice(2) },
+  getOpsCrew()    { try { return JSON.parse(localStorage.getItem('ssops_crew')||'[]') } catch { return [] } }
+};
+
+// ══════════════════════════════════════════════════════════════
+//  SEED DATA
+// ══════════════════════════════════════════════════════════════
+const SEED_EMPLOYEES = [
+  { id:'hr1', name:'Mike Torres', role:'driver', phone:'226-555-1001', email:'mike@saturnstar.ca', hireDate:'2024-03-15', status:'active', hourlyRate:26, emergencyContactName:'Rosa Torres', emergencyContactPhone:'226-555-1002', tShirtSize:'L', notes:'Lead driver. Reliable, punctual. Customer favourite.', trainingCompleted:[], disciplinaryCount:0, createdAt:'2024-03-15T00:00:00Z' },
+  { id:'hr2', name:'James Cooper', role:'driver', phone:'226-555-1003', email:'james@saturnstar.ca', hireDate:'2024-05-01', status:'active', hourlyRate:26, emergencyContactName:'', emergencyContactPhone:'', tShirtSize:'XL', notes:'Strong driver. Good with tight spaces.', trainingCompleted:[], disciplinaryCount:0, createdAt:'2024-05-01T00:00:00Z' },
+  { id:'hr3', name:'Daniel Park', role:'mover', phone:'226-555-1005', email:'', hireDate:'2024-06-10', status:'active', hourlyRate:22, emergencyContactName:'', emergencyContactPhone:'', tShirtSize:'M', notes:'Fast and careful. Good feedback from customers.', trainingCompleted:[], disciplinaryCount:0, createdAt:'2024-06-10T00:00:00Z' },
+  { id:'hr4', name:'Luis Reyes', role:'mover', phone:'226-555-1007', email:'', hireDate:'2024-09-01', status:'probation', hourlyRate:20, emergencyContactName:'Maria Reyes', emergencyContactPhone:'226-555-1008', tShirtSize:'L', notes:'On probation — still building speed. Good attitude.', trainingCompleted:[], disciplinaryCount:0, createdAt:'2024-09-01T00:00:00Z' },
+  { id:'hr5', name:'Aisha Brown', role:'mover', phone:'226-555-1009', email:'aisha@saturnstar.ca', hireDate:'2025-01-15', status:'active', hourlyRate:22, emergencyContactName:'', emergencyContactPhone:'', tShirtSize:'S', notes:'Excellent with customers. Strong team player.', trainingCompleted:[], disciplinaryCount:0, createdAt:'2025-01-15T00:00:00Z' }
+];
+
+const SEED_APPLICANTS = [
+  { id:'ap1', name:'Jordan Smith', phone:'226-555-2001', email:'jordan@email.com', role:'mover', source:'indeed', appliedDate:'2026-03-05', stage:'interview', rating:4, notes:'Good energy. 2 years warehouse experience. Interview scheduled March 12.', resumeNote:'Basic resume — relevant experience highlighted', interviewDate:'2026-03-12', trialShiftDate:null, rejectionReason:null, createdAt:'2026-03-05T10:00:00Z' },
+  { id:'ap2', name:'Priya Nair', phone:'226-555-2003', email:'priya.n@email.com', role:'csr', source:'facebook', appliedDate:'2026-03-07', stage:'phone_screen', rating:3, notes:'Friendly voice, good phone manner. Needs to confirm availability.', resumeNote:'Customer service background at Rogers.', interviewDate:null, trialShiftDate:null, rejectionReason:null, createdAt:'2026-03-07T14:00:00Z' }
+];
+
+const DEFAULT_MODULES = [
+  { title:'Company Orientation & Values', category:'company_policy', description:'Introduction to Saturn Star culture, mission, and expectations.', estimatedMinutes:30, required:true, requiredRoles:[] },
+  { title:'Safe Lifting Techniques', category:'safety', description:'Proper body mechanics, lifting posture, team lifts, back injury prevention.', estimatedMinutes:20, required:true, requiredRoles:[] },
+  { title:'Furniture Wrapping & Protection', category:'operations', description:'How to wrap, pad, and protect furniture items for safe transport.', estimatedMinutes:20, required:true, requiredRoles:['driver','mover','crew_lead'] },
+  { title:'Customer Interaction Standards', category:'customer_service', description:'How to greet, communicate, and handle customer concerns professionally.', estimatedMinutes:15, required:true, requiredRoles:[] },
+  { title:'Truck Loading & Weight Distribution', category:'operations', description:'Safe loading patterns, weight limits, securing loads, and balance.', estimatedMinutes:25, required:true, requiredRoles:['driver','mover','crew_lead'] },
+  { title:'Piano & Specialty Item Handling', category:'equipment', description:'Moving pianos, antiques, safes, and fragile specialty items.', estimatedMinutes:20, required:true, requiredRoles:['driver','mover','crew_lead'] },
+  { title:'Damage Prevention Checklist', category:'safety', description:'Pre-move walkthrough: door frames, floors, walls, and item condition documentation.', estimatedMinutes:15, required:true, requiredRoles:[] },
+  { title:'CRM & Software Walkthrough', category:'operations', description:'How to use Mission Control, CRM, and job tracking tools.', estimatedMinutes:45, required:true, requiredRoles:['csr','manager'] },
+  { title:'Incident Reporting Procedure', category:'company_policy', description:'How to report on-the-job accidents, injuries, or property damage.', estimatedMinutes:10, required:true, requiredRoles:[] },
+  { title:'End of Day Truck Checklist', category:'equipment', description:'Post-shift truck inspection, equipment storage, and fuel reporting.', estimatedMinutes:10, required:true, requiredRoles:['driver'] }
+];
+
+const ONBOARDING_CHECKLIST = {
+  day1_admin: {
+    label: 'Day 1 — Admin',
+    items: {
+      contract_signed:   'Employment contract signed',
+      emergency_contact: 'Emergency contact collected',
+      direct_deposit:    'Direct deposit / banking info',
+      uniform_issued:    'T-shirt + uniform issued',
+      group_chat:        'Added to group chat (WhatsApp)',
+      mc_login:          'Mission Control login shown',
+      photo_id:          'Photo ID copied for file'
+    }
+  },
+  day1_training: {
+    label: 'Day 1 — Training',
+    items: {
+      orientation:       'Company orientation walkthrough',
+      crm_shown:         'Showed CRM / operations hub (if applicable)',
+      lifting_demo:      'Safe lifting demonstration',
+      truck_walkaround:  'Truck walk-around (equipment location)'
+    }
+  },
+  week1: {
+    label: 'Week 1',
+    items: {
+      shadowed_crew:     'Shadowed experienced crew member (min 1 job)',
+      solo_supervised:   'Solo job completed with supervision',
+      feedback_given:    'Feedback given after first job',
+      questions_answered:'Questions answered'
+    }
+  },
+  probation: {
+    label: 'Week 2–4 (Probation)',
+    items: {
+      training_complete: 'All required training modules completed',
+      customer_review:   'Customer interaction review',
+      check_in_30:       'Performance check-in (30 days)'
+    }
+  }
+};
+
+// ══════════════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════════════
+function init() {
+  // Seed if empty
+  if (!DB.getEmployees().length) DB.saveEmployees(SEED_EMPLOYEES);
+  if (!DB.getApplicants().length) DB.saveApplicants(SEED_APPLICANTS);
+  if (!DB.getTraining().length) {
+    const mods = DEFAULT_MODULES.map(m => ({
+      ...m, id: DB.generateId(), createdAt: new Date().toISOString()
+    }));
+    DB.saveTraining(mods);
+  }
+  setTopbarDate();
+  setupNav();
+  setupStarSelect();
+  renderView('dashboard');
+}
+
+function setTopbarDate() {
+  const now = new Date();
+  const opts = { weekday:'long', year:'numeric', month:'long', day:'numeric' };
+  document.getElementById('topbar-date').textContent = now.toLocaleDateString('en-CA', opts);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════════════════════════
+let currentView = 'dashboard';
+
+function setupNav() {
+  document.querySelectorAll('.nav-item[data-view]').forEach(item => {
+    item.addEventListener('click', () => showView(item.dataset.view));
+  });
+  document.querySelectorAll('.filter-tab[data-filter]').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('#team-filter-tabs .filter-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      renderTeam();
+    });
+  });
+  document.querySelectorAll('.filter-tab[data-stage]').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('#hiring-stage-filter .filter-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      renderHiring();
+    });
+  });
+  // Profile tabs
+  document.querySelectorAll('.profile-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.profile-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      renderProfileTab(tab.dataset.tab);
+    });
+  });
+}
+
+function showView(name) {
+  currentView = name;
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  document.querySelectorAll('.nav-item[data-view]').forEach(n => n.classList.remove('active'));
+  const navItem = document.querySelector(`.nav-item[data-view="${name}"]`);
+  if (navItem) navItem.classList.add('active');
+
+  const titles = { dashboard:'Dashboard', team:'Team', hiring:'Hiring Pipeline', training:'Training', onboarding:'Onboarding' };
+  const actions = { dashboard:'+ Add Employee', team:'+ Add Employee', hiring:'+ Add Applicant', training:'+ Add Module', onboarding:'' };
+  document.getElementById('topbar-title').textContent = titles[name] || name;
+  const btn = document.getElementById('topbar-action-btn');
+  btn.textContent = actions[name] || '';
+  btn.style.display = actions[name] ? '' : 'none';
+
+  renderView(name);
+}
+
+function handleTopbarAction() {
+  if (currentView === 'hiring')   openApplicantModal();
+  else if (currentView === 'training') openModuleModal();
+  else openEmployeeModal();
+}
+
+function renderView(name) {
+  if (name === 'dashboard')  renderDashboard();
+  if (name === 'team')       renderTeam();
+  if (name === 'hiring')     renderHiring();
+  if (name === 'training')   renderTraining();
+  if (name === 'onboarding') renderOnboardingSetup();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════════════════════
+function initials(name) {
+  return name.split(' ').map(p => p[0]).join('').toUpperCase().slice(0,2);
+}
+function tenure(hireDate) {
+  const ms = Date.now() - new Date(hireDate).getTime();
+  const months = Math.floor(ms / (1000 * 60 * 60 * 24 * 30.44));
+  if (months < 1) return 'New hire';
+  if (months < 12) return `${months}mo`;
+  const yr = Math.floor(months / 12), mo = months % 12;
+  return mo ? `${yr}yr ${mo}mo` : `${yr}yr`;
+}
+function daysAgo(dateStr) {
+  if (!dateStr) return '—';
+  const d = Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
+  if (d === 0) return 'Today';
+  if (d === 1) return 'Yesterday';
+  return `${d} days ago`;
+}
+function fmtDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('en-CA', { year:'numeric', month:'short', day:'numeric' });
+}
+function fmtDateShort(d) {
+  if (!d) return '—';
+  return new Date(d + 'T00:00:00').toLocaleDateString('en-CA', { month:'short', day:'numeric' });
+}
+function roleName(r) {
+  return { driver:'Driver', mover:'Mover', crew_lead:'Crew Lead', csr:'CSR', manager:'Manager', other:'Other' }[r] || r;
+}
+function stageName(s) {
+  return { applied:'Applied', phone_screen:'Phone Screen', interview:'Interview', trial_shift:'Trial Shift', offer_sent:'Offer Sent', hired:'Hired', rejected:'Rejected' }[s] || s;
+}
+function sourceName(s) {
+  return { indeed:'Indeed', facebook:'Facebook', referral:'Referral', walk_in:'Walk-in', other:'Other' }[s] || s;
+}
+function stars(n) {
+  return '★'.repeat(n) + '☆'.repeat(5 - n);
+}
+function badge(cls, text) {
+  return `<span class="badge badge-${cls}">${text}</span>`;
+}
+function progBar(pct, cls='') {
+  const c = pct >= 80 ? '' : pct >= 50 ? 'warn' : 'danger';
+  return `<div class="prog-wrap"><div class="prog-bar ${c} ${cls}" style="width:${pct}%"></div></div>`;
+}
+
+// Training completion helpers
+function getModulesForEmployee(emp, modules) {
+  return modules.filter(m => {
+    if (!m.requiredRoles || m.requiredRoles.length === 0) return true;
+    return m.requiredRoles.includes(emp.role);
+  });
+}
+function getCompletionPct(emp, modules) {
+  const applicable = getModulesForEmployee(emp, modules).filter(m => m.required);
+  if (!applicable.length) return 100;
+  const completed = (emp.trainingCompleted || []).filter(tc =>
+    applicable.some(m => m.id === tc.module)
+  ).length;
+  return Math.round((completed / applicable.length) * 100);
+}
+function isModuleComplete(emp, moduleId) {
+  return (emp.trainingCompleted || []).some(tc => tc.module === moduleId);
+}
+function getModuleCompletion(emp, moduleId) {
+  return (emp.trainingCompleted || []).find(tc => tc.module === moduleId) || null;
+}
+function isModuleOverdue(emp, module) {
+  if (!module.required) return false;
+  if (isModuleComplete(emp, module.id)) return false;
+  const applicable = !module.requiredRoles.length || module.requiredRoles.includes(emp.role);
+  if (!applicable) return false;
+  const daysSinceHire = Math.floor((Date.now() - new Date(emp.hireDate)) / (1000*60*60*24));
+  return daysSinceHire > 30;
+}
+
+function countOverdueTraining() {
+  const emps = DB.getEmployees().filter(e => e.status === 'active' || e.status === 'probation');
+  const mods = DB.getTraining();
+  let count = 0;
+  emps.forEach(emp => mods.forEach(m => { if (isModuleOverdue(emp, m)) count++; }));
+  return count;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  DASHBOARD
+// ══════════════════════════════════════════════════════════════
+function renderDashboard() {
+  const emps   = DB.getEmployees();
+  const discs  = DB.getDisciplinary();
+  const apps   = DB.getApplicants();
+  const mods   = DB.getTraining();
+
+  renderAlertBanners(emps, discs, apps);
+  renderDashStats(emps, apps, mods);
+  renderDashRoster(emps, mods);
+  renderDashFunnel(apps);
+  renderDashUpcoming(apps);
+}
+
+function renderAlertBanners(emps, discs, apps) {
+  const container = document.getElementById('alert-banners');
+  const alerts = [];
+  const now = new Date();
+
+  // Probation > 90 days
+  const longProbation = emps.filter(e => {
+    if (e.status !== 'probation') return false;
+    const days = Math.floor((now - new Date(e.hireDate)) / (1000*60*60*24));
+    return days > 90;
+  });
+  if (longProbation.length) {
+    alerts.push(`<div class="alert-banner gold"><span class="ab-icon">⚠️</span><span class="ab-text"><strong>${longProbation.map(e=>e.name).join(', ')}</strong> — on probation for over 90 days. Review status.</span></div>`);
+  }
+
+  // Disciplinary in last 7 days
+  const recentDisc = discs.filter(d => {
+    const days = Math.floor((now - new Date(d.date)) / (1000*60*60*24));
+    return days <= 7 && d.type !== 'note';
+  });
+  if (recentDisc.length) {
+    alerts.push(`<div class="alert-banner orange"><span class="ab-icon">🚨</span><span class="ab-text"><strong>${recentDisc.length} disciplinary record${recentDisc.length>1?'s':''}</strong> issued in the last 7 days. <a href="#" onclick="showView('team')" style="color:inherit;font-weight:700;">Review →</a></span></div>`);
+  }
+
+  // Interview stale > 3 days
+  const staleInterviews = apps.filter(a => {
+    if (a.stage !== 'interview') return false;
+    const days = Math.floor((now - new Date(a.createdAt)) / (1000*60*60*24));
+    return days > 3;
+  });
+  if (staleInterviews.length) {
+    alerts.push(`<div class="alert-banner blue"><span class="ab-icon">📅</span><span class="ab-text"><strong>${staleInterviews.map(a=>a.name).join(', ')}</strong> — interview stage with no update in 3+ days. <a href="#" onclick="showView('hiring')" style="color:inherit;font-weight:700;">Review →</a></span></div>`);
+  }
+
+  container.innerHTML = alerts.join('');
+}
+
+function renderDashStats(emps, apps, mods) {
+  const active     = emps.filter(e => e.status === 'active').length;
+  const probation  = emps.filter(e => e.status === 'probation').length;
+  const inPipeline = apps.filter(a => !['hired','rejected'].includes(a.stage)).length;
+  const overdue    = countOverdueTraining();
+
+  const html = `
+    <div class="stat-card c-success"><span class="stat-icon">✅</span><div class="stat-data"><div class="stat-value">${active}</div><div class="stat-label">Active Staff</div></div></div>
+    <div class="stat-card c-warning"><span class="stat-icon">⏳</span><div class="stat-data"><div class="stat-value">${probation}</div><div class="stat-label">On Probation</div></div></div>
+    <div class="stat-card c-info"><span class="stat-icon">🎯</span><div class="stat-data"><div class="stat-value">${inPipeline}</div><div class="stat-label">In Pipeline</div></div></div>
+    <div class="stat-card c-purple"><span class="stat-icon">👥</span><div class="stat-data"><div class="stat-value">${emps.length}</div><div class="stat-label">Total Employees</div></div></div>
+    <div class="stat-card ${overdue > 0 ? 'c-danger' : 'c-success'}"><span class="stat-icon">📋</span><div class="stat-data"><div class="stat-value">${overdue}</div><div class="stat-label">Training Overdue</div></div></div>
+  `;
+  document.getElementById('dash-stats').innerHTML = html;
+}
+
+function renderDashRoster(emps, mods) {
+  const active = emps.filter(e => ['active','probation'].includes(e.status));
+  if (!active.length) {
+    document.getElementById('dash-roster').innerHTML = '<div class="empty-state"><div class="empty-icon">👥</div>No active employees.</div>';
+    return;
+  }
+  const html = `<div class="roster-grid">${active.map(emp => {
+    const pct = getCompletionPct(emp, mods);
+    const discs = DB.getDisciplinary().filter(d => d.employeeId === emp.id).length;
+    return `<div class="roster-mini">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="avatar">${initials(emp.name)}</div>
+        <div>
+          <div class="roster-mini-name">${emp.name}</div>
+          <div class="roster-mini-badges">${badge(emp.role, roleName(emp.role))} ${badge(emp.status, emp.status)}</div>
+        </div>
+      </div>
+      <div class="roster-mini-stat">Hired ${fmtDateShort(emp.hireDate)} · ${tenure(emp.hireDate)}</div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <div style="flex:1">${progBar(pct)}</div>
+        <span style="font-size:10px;color:var(--text-muted);white-space:nowrap;">${pct}% trained</span>
+      </div>
+      ${discs > 0 ? `<div><span class="emp-disc-badge">⚠ ${discs} issue${discs>1?'s':''}</span></div>` : ''}
+      <button class="btn btn-ghost btn-xs" onclick="openProfile('${emp.id}')">View Profile</button>
+    </div>`;
+  }).join('')}</div>`;
+  document.getElementById('dash-roster').innerHTML = html;
+}
+
+function renderDashFunnel(apps) {
+  const stages = ['applied','phone_screen','interview','trial_shift','offer_sent'];
+  const counts = {};
+  stages.forEach(s => counts[s] = apps.filter(a => a.stage === s).length);
+  const html = `
+    <div class="funnel-row">
+      ${stages.map((s, i) => `
+        ${i > 0 ? '<div class="funnel-arrow">→</div>' : ''}
+        <div class="funnel-step" onclick="filterHiringStage('${s}')">
+          <div class="funnel-step-count">${counts[s]}</div>
+          <div class="funnel-step-label">${stageName(s)}</div>
+        </div>
+      `).join('')}
+    </div>
+    <div style="display:flex;gap:10px;font-size:12px;color:var(--text-muted);">
+      <span>✅ Hired: <strong>${apps.filter(a=>a.stage==='hired').length}</strong></span>
+      <span>❌ Rejected: <strong>${apps.filter(a=>a.stage==='rejected').length}</strong></span>
+      <span>Total: <strong>${apps.length}</strong></span>
+    </div>
+  `;
+  document.getElementById('dash-funnel').innerHTML = html;
+}
+
+function filterHiringStage(stage) {
+  showView('hiring');
+  document.querySelectorAll('#hiring-stage-filter .filter-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.stage === stage);
+  });
+  renderHiring();
+}
+
+function renderDashUpcoming(apps) {
+  const today = new Date();
+  const weekEnd = new Date(today); weekEnd.setDate(today.getDate() + 7);
+
+  const items = [];
+
+  apps.forEach(a => {
+    if (a.interviewDate) {
+      const d = new Date(a.interviewDate + 'T00:00:00');
+      if (d >= today && d <= weekEnd)
+        items.push({ date: a.interviewDate, text: `Interview: ${a.name}`, meta: `${roleName(a.role)} · ${sourceName(a.source)}`, color: 'var(--purple)' });
+    }
+    if (a.trialShiftDate) {
+      const d = new Date(a.trialShiftDate + 'T00:00:00');
+      if (d >= today && d <= weekEnd)
+        items.push({ date: a.trialShiftDate, text: `Trial Shift: ${a.name}`, meta: `${roleName(a.role)}`, color: 'var(--warning)' });
+    }
+  });
+
+  items.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  if (!items.length) {
+    document.getElementById('dash-upcoming').innerHTML = '<div class="empty-state"><div class="empty-icon">📅</div>No scheduled interviews or trials this week.</div>';
+    return;
+  }
+
+  document.getElementById('dash-upcoming').innerHTML = items.map(it => `
+    <div class="upcoming-item">
+      <div class="upcoming-dot" style="background:${it.color}"></div>
+      <div style="flex:1;">
+        <div class="upcoming-item-text">${it.text}</div>
+        <div class="upcoming-item-meta">${it.meta}</div>
+      </div>
+      <div class="upcoming-date">${fmtDateShort(it.date)}</div>
+    </div>
+  `).join('');
+}
+
+// ══════════════════════════════════════════════════════════════
+//  TEAM VIEW
+// ══════════════════════════════════════════════════════════════
+function renderTeam() {
+  const filter = document.querySelector('#team-filter-tabs .filter-tab.active')?.dataset.filter || 'all';
+  const search = (document.getElementById('team-search')?.value || '').toLowerCase();
+  const mods = DB.getTraining();
+  let emps = DB.getEmployees();
+
+  if (filter !== 'all') emps = emps.filter(e => e.status === filter);
+  if (search) emps = emps.filter(e => e.name.toLowerCase().includes(search) || e.role.toLowerCase().includes(search));
+
+  const grid = document.getElementById('team-grid');
+  if (!emps.length) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">👥</div>No employees found.</div>';
+    return;
+  }
+
+  grid.innerHTML = emps.map(emp => {
+    const pct     = getCompletionPct(emp, mods);
+    const appMods = getModulesForEmployee(emp, mods).filter(m => m.required);
+    const doneCnt = (emp.trainingCompleted||[]).filter(tc => appMods.some(m => m.id === tc.module)).length;
+    const discs   = DB.getDisciplinary().filter(d => d.employeeId === emp.id);
+    const lastDisc = discs.sort((a,b) => new Date(b.date) - new Date(a.date))[0];
+    return `
+    <div class="emp-card">
+      <div class="emp-card-header">
+        <div class="avatar lg">${initials(emp.name)}</div>
+        <div class="emp-card-info">
+          <div class="emp-name">${emp.name}</div>
+          <div class="emp-badges">
+            ${badge(emp.role, roleName(emp.role))}
+            ${badge(emp.status, emp.status)}
+          </div>
+        </div>
+        ${emp.disciplinaryCount > 0 || discs.length > 0 ? `<span class="emp-disc-badge">⚠ ${discs.length}</span>` : ''}
+      </div>
+      <div class="emp-card-body">
+        ${emp.phone ? `<div class="emp-card-row">📞 <a href="tel:${emp.phone}">${emp.phone}</a></div>` : ''}
+        ${emp.email ? `<div class="emp-card-row">✉️ <a href="mailto:${emp.email}">${emp.email}</a></div>` : ''}
+        <div class="emp-card-row">📅 Hired ${fmtDate(emp.hireDate)} · ${tenure(emp.hireDate)}</div>
+        <div class="emp-card-row">💰 $${emp.hourlyRate}/hr</div>
+        <div style="margin-top:8px;">
+          <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;">
+            <span>Training</span>
+            <span style="color:${pct >= 80 ? 'var(--success)' : pct >= 50 ? 'var(--warning)' : 'var(--danger)'};">${doneCnt}/${appMods.length} required</span>
+          </div>
+          ${progBar(pct)}
+        </div>
+        ${lastDisc ? `<div class="emp-card-row" style="color:var(--danger);font-size:11px;">⚠ Last issue: ${fmtDate(lastDisc.date)}</div>` : ''}
+      </div>
+      <div class="emp-card-footer">
+        <button class="btn btn-outline btn-sm" onclick="openProfile('${emp.id}')">View Profile</button>
+        <button class="btn btn-ghost btn-sm" onclick="openEmployeeModal('${emp.id}')">✏️ Edit</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════════
+//  EMPLOYEE MODAL
+// ══════════════════════════════════════════════════════════════
+function openEmployeeModal(id) {
+  const emp = id ? DB.getEmployee(id) : null;
+  document.getElementById('emp-modal-title').textContent = emp ? 'Edit Employee' : 'Add Employee';
+  document.getElementById('emp-id').value           = emp?.id || '';
+  document.getElementById('emp-name').value         = emp?.name || '';
+  document.getElementById('emp-role').value         = emp?.role || 'mover';
+  document.getElementById('emp-phone').value        = emp?.phone || '';
+  document.getElementById('emp-email').value        = emp?.email || '';
+  document.getElementById('emp-hireDate').value     = emp?.hireDate || todayStr();
+  document.getElementById('emp-status').value       = emp?.status || 'active';
+  document.getElementById('emp-hourlyRate').value   = emp?.hourlyRate || '';
+  document.getElementById('emp-tShirtSize').value   = emp?.tShirtSize || 'L';
+  document.getElementById('emp-ecName').value       = emp?.emergencyContactName || '';
+  document.getElementById('emp-ecPhone').value      = emp?.emergencyContactPhone || '';
+  document.getElementById('emp-notes').value        = emp?.notes || '';
+  openModal('modal-employee');
+}
+
+function saveEmployee() {
+  const name = document.getElementById('emp-name').value.trim();
+  const hireDate = document.getElementById('emp-hireDate').value;
+  if (!name) { showToast('Name is required', 'error'); return; }
+  if (!hireDate) { showToast('Hire date is required', 'error'); return; }
+
+  const id = document.getElementById('emp-id').value;
+  const emps = DB.getEmployees();
+
+  const record = {
+    id: id || DB.generateId(),
+    name,
+    role:     document.getElementById('emp-role').value,
+    phone:    document.getElementById('emp-phone').value.trim(),
+    email:    document.getElementById('emp-email').value.trim(),
+    hireDate,
+    status:   document.getElementById('emp-status').value,
+    hourlyRate: parseFloat(document.getElementById('emp-hourlyRate').value) || 0,
+    tShirtSize: document.getElementById('emp-tShirtSize').value,
+    emergencyContactName:  document.getElementById('emp-ecName').value.trim(),
+    emergencyContactPhone: document.getElementById('emp-ecPhone').value.trim(),
+    notes:    document.getElementById('emp-notes').value.trim(),
+    trainingCompleted: (id ? DB.getEmployee(id)?.trainingCompleted : null) || [],
+    disciplinaryCount: (id ? DB.getEmployee(id)?.disciplinaryCount : null) || 0,
+    onboardingChecklist: (id ? DB.getEmployee(id)?.onboardingChecklist : null) || {},
+    createdAt: (id ? DB.getEmployee(id)?.createdAt : null) || new Date().toISOString()
+  };
+
+  if (id) {
+    const idx = emps.findIndex(e => e.id === id);
+    if (idx >= 0) emps[idx] = record;
+  } else {
+    emps.push(record);
+  }
+  DB.saveEmployees(emps);
+  closeModal('modal-employee');
+  showToast(id ? 'Employee updated' : 'Employee added', 'success');
+  renderView(currentView);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  EMPLOYEE PROFILE MODAL
+// ══════════════════════════════════════════════════════════════
+let currentProfileId = null;
+
+function openProfile(id) {
+  currentProfileId = id;
+  const emp = DB.getEmployee(id);
+  if (!emp) return;
+
+  document.getElementById('profile-avatar').textContent = initials(emp.name);
+  document.getElementById('profile-name').textContent   = emp.name;
+  document.getElementById('profile-badges').innerHTML   = badge(emp.role, roleName(emp.role)) + ' ' + badge(emp.status, emp.status);
+
+  // Reset tabs
+  document.querySelectorAll('.profile-tab').forEach(t => t.classList.remove('active'));
+  document.querySelector('.profile-tab[data-tab="info"]').classList.add('active');
+
+  renderProfileTab('info');
+  openModal('modal-profile');
+}
+
+function renderProfileTab(tab) {
+  const emp = DB.getEmployee(currentProfileId);
+  if (!emp) return;
+  const container = document.getElementById('profile-tab-content');
+
+  if (tab === 'info') {
+    container.innerHTML = `
+      <div class="form-grid" style="margin-top:0;">
+        <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;">Phone</div><div>${emp.phone || '—'}</div></div>
+        <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;">Email</div><div>${emp.email || '—'}</div></div>
+        <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;">Hire Date</div><div>${fmtDate(emp.hireDate)} (${tenure(emp.hireDate)})</div></div>
+        <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;">Hourly Rate</div><div>$${emp.hourlyRate}/hr</div></div>
+        <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;">Status</div><div>${badge(emp.status, emp.status)}</div></div>
+        <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;">T-Shirt Size</div><div>${emp.tShirtSize || '—'}</div></div>
+        <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;">Emergency Contact</div><div>${emp.emergencyContactName || '—'}</div></div>
+        <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;">Emergency Phone</div><div>${emp.emergencyContactPhone || '—'}</div></div>
+        ${emp.notes ? `<div style="grid-column:1/-1;"><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;">Notes</div><div style="font-size:13px;color:var(--text-muted);background:#f8f9fb;padding:10px 12px;border-radius:8px;">${emp.notes}</div></div>` : ''}
+      </div>`;
+  }
+
+  if (tab === 'training') {
+    const mods = DB.getTraining();
+    const applicable = getModulesForEmployee(emp, mods);
+    const pct = getCompletionPct(emp, mods);
+    container.innerHTML = `
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+        <div style="flex:1;">${progBar(pct)}</div>
+        <span style="font-size:13px;font-weight:700;color:var(--navy);">${pct}% Complete</span>
+      </div>
+      <div class="tbl-wrap">
+        <table class="data-table">
+          <thead><tr><th>Module</th><th>Category</th><th>Required</th><th>Status</th><th>Action</th></tr></thead>
+          <tbody>
+            ${applicable.map(m => {
+              const comp = getModuleCompletion(emp, m.id);
+              const overdue = isModuleOverdue(emp, m);
+              const statusHtml = comp
+                ? `<span style="color:var(--success);font-weight:600;">✅ ${fmtDate(comp.completedAt)}</span>`
+                : overdue
+                  ? `<span style="color:var(--danger);font-weight:600;">❌ Overdue</span>`
+                  : `<span style="color:var(--text-muted);">⬜ Pending</span>`;
+              return `<tr>
+                <td><strong>${m.title}</strong>${comp ? `<div style="font-size:10px;color:var(--text-muted);">Signed off: ${comp.signedOff || '—'}</div>` : ''}</td>
+                <td>${badge(m.category, m.category.replace('_',' '))}</td>
+                <td>${m.required ? badge('required','Required') : badge('optional','Optional')}</td>
+                <td>${statusHtml}</td>
+                <td><button class="btn btn-ghost btn-xs" onclick="openMarkComplete('${emp.id}','${m.id}')">
+                  ${comp ? '✏️ Edit' : '✓ Mark'}
+                </button></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  if (tab === 'disciplinary') {
+    const discs = DB.getDisciplinary().filter(d => d.employeeId === emp.id).sort((a,b) => new Date(b.date) - new Date(a.date));
+    container.innerHTML = `
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+        <button class="btn btn-danger btn-sm" onclick="openDiscModal('${emp.id}')">+ Log Issue</button>
+      </div>
+      ${discs.length ? discs.map(d => `
+        <div class="disc-item">
+          <div class="disc-item-header">
+            ${badge('badge-' + d.type.replace('_','-'), d.type.replace(/_/g,' '))}
+            <span class="disc-item-date">${fmtDate(d.date)}</span>
+            ${d.acknowledged ? '<span style="font-size:10px;color:var(--success);font-weight:600;">✓ Acknowledged</span>' : ''}
+          </div>
+          <div class="disc-item-desc">${d.description}</div>
+          <div class="disc-item-footer">
+            ${d.actionTaken ? `Action: ${d.actionTaken}` : ''}
+            ${d.issuedBy ? ` · Issued by: ${d.issuedBy}` : ''}
+          </div>
+        </div>
+      `).join('') : '<div class="empty-state"><div class="empty-icon">✅</div>No disciplinary records. Clean record!</div>'}`;
+  }
+}
+
+function openDiscModal(empId) {
+  document.getElementById('disc-empId').value = empId;
+  document.getElementById('disc-id').value = '';
+  document.getElementById('disc-type').value = 'verbal_warning';
+  document.getElementById('disc-date').value = todayStr();
+  document.getElementById('disc-description').value = '';
+  document.getElementById('disc-action').value = '';
+  document.getElementById('disc-issuedBy').value = '';
+  document.getElementById('disc-acknowledged').checked = false;
+  openModal('modal-disc');
+}
+
+function saveDisc() {
+  const empId = document.getElementById('disc-empId').value;
+  const desc = document.getElementById('disc-description').value.trim();
+  if (!desc) { showToast('Description required', 'error'); return; }
+
+  const discs = DB.getDisciplinary();
+  const record = {
+    id: DB.generateId(),
+    employeeId: empId,
+    employeeName: DB.getEmployee(empId)?.name || '',
+    type:        document.getElementById('disc-type').value,
+    date:        document.getElementById('disc-date').value,
+    description: desc,
+    actionTaken: document.getElementById('disc-action').value.trim(),
+    issuedBy:    document.getElementById('disc-issuedBy').value.trim(),
+    acknowledged:document.getElementById('disc-acknowledged').checked,
+    createdAt:   new Date().toISOString()
+  };
+  discs.push(record);
+  DB.saveDisciplinary(discs);
+
+  // Update count on employee
+  const emps = DB.getEmployees();
+  const idx = emps.findIndex(e => e.id === empId);
+  if (idx >= 0) { emps[idx].disciplinaryCount = (emps[idx].disciplinaryCount || 0) + 1; DB.saveEmployees(emps); }
+
+  closeModal('modal-disc');
+  showToast('Disciplinary record saved', 'success');
+  renderProfileTab('disciplinary');
+  renderView(currentView);
+}
+
+function editEmployeeFromProfile() {
+  closeModal('modal-profile');
+  openEmployeeModal(currentProfileId);
+}
+
+function terminateEmployee() {
+  confirm2('Terminate Employee', 'Mark this employee as terminated? This cannot be undone easily.', () => {
+    const emps = DB.getEmployees();
+    const idx = emps.findIndex(e => e.id === currentProfileId);
+    if (idx >= 0) { emps[idx].status = 'terminated'; DB.saveEmployees(emps); }
+    closeModal('modal-profile');
+    showToast('Employee marked as terminated', 'success');
+    renderView(currentView);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+//  HIRING VIEW
+// ══════════════════════════════════════════════════════════════
+const STAGES = ['applied','phone_screen','interview','trial_shift','offer_sent','hired','rejected'];
+const STAGE_NEXT = { applied:'phone_screen', phone_screen:'interview', interview:'trial_shift', trial_shift:'offer_sent', offer_sent:'hired' };
+
+function renderHiring() {
+  const activeStage = document.querySelector('#hiring-stage-filter .filter-tab.active')?.dataset.stage || '';
+  const allApps = DB.getApplicants();
+  const board = document.getElementById('hiring-board');
+
+  const visibleStages = activeStage ? [activeStage] : STAGES;
+
+  board.innerHTML = visibleStages.map(stage => {
+    const cards = allApps.filter(a => a.stage === stage);
+    return `
+      <div class="kanban-col">
+        <div class="kanban-col-header">
+          <span class="kanban-col-title">${stageName(stage)}</span>
+          <span class="kanban-count">${cards.length}</span>
+        </div>
+        <div class="kanban-cards">
+          ${cards.length ? cards.map(a => renderApplicantCard(a)).join('') : '<div style="text-align:center;font-size:12px;color:var(--text-muted);padding:16px 0;">Empty</div>'}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderApplicantCard(a) {
+  const daysAgoText = daysAgo(a.appliedDate);
+  const nextStage = STAGE_NEXT[a.stage];
+  return `
+    <div class="applicant-card" onclick="openApplicantDetail('${a.id}')">
+      <div class="ap-name">${a.name}</div>
+      <div class="ap-meta">${roleName(a.role)} · ${badge('source-' + a.source, sourceName(a.source))}</div>
+      <div class="ap-meta" style="margin-top:3px;">Applied: ${daysAgoText}</div>
+      ${a.notes ? `<div class="ap-meta" style="margin-top:4px;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${a.notes.slice(0,60)}${a.notes.length>60?'…':''}</div>` : ''}
+      <div class="ap-footer">
+        <span class="stars">${stars(a.rating||0)}</span>
+        <div style="display:flex;gap:4px;" onclick="event.stopPropagation()">
+          ${nextStage ? `<button class="btn btn-success btn-xs" onclick="advanceApplicant('${a.id}')">→ ${stageName(nextStage).split(' ')[0]}</button>` : ''}
+          ${!['hired','rejected'].includes(a.stage) ? `<button class="btn btn-danger btn-xs" onclick="rejectApplicant('${a.id}')">✕</button>` : ''}
+          ${a.stage === 'hired' ? `<button class="btn btn-primary btn-xs" onclick="convertToEmployee('${a.id}')">Onboard →</button>` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+function advanceApplicant(id) {
+  const apps = DB.getApplicants();
+  const idx = apps.findIndex(a => a.id === id);
+  if (idx < 0) return;
+  const next = STAGE_NEXT[apps[idx].stage];
+  if (!next) return;
+  apps[idx].stage = next;
+  DB.saveApplicants(apps);
+  showToast(`Moved to ${stageName(next)}`, 'success');
+  renderHiring();
+  renderDashboard();
+}
+
+function rejectApplicant(id) {
+  const reason = prompt('Reason for rejection (optional):') || '';
+  const apps = DB.getApplicants();
+  const idx = apps.findIndex(a => a.id === id);
+  if (idx < 0) return;
+  apps[idx].stage = 'rejected';
+  apps[idx].rejectionReason = reason;
+  DB.saveApplicants(apps);
+  showToast('Applicant rejected', 'success');
+  renderHiring();
+}
+
+function convertToEmployee(apId) {
+  const ap = DB.getApplicants().find(a => a.id === apId);
+  if (!ap) return;
+  // Pre-fill employee form from applicant
+  openEmployeeModal();
+  document.getElementById('emp-name').value   = ap.name;
+  document.getElementById('emp-role').value   = ap.role;
+  document.getElementById('emp-phone').value  = ap.phone;
+  document.getElementById('emp-email').value  = ap.email;
+  document.getElementById('emp-hireDate').value = todayStr();
+  document.getElementById('emp-status').value = 'probation';
+  document.getElementById('emp-notes').value  = `Hired from pipeline. Applied via ${sourceName(ap.source)}. ${ap.notes || ''}`.trim();
+  showToast('Fill in details and save to onboard', 'success');
+}
+
+// ── APPLICANT MODAL ───────────────────────────────────────────
+function openApplicantModal(id) {
+  const ap = id ? DB.getApplicants().find(a => a.id === id) : null;
+  document.getElementById('ap-modal-title').textContent = ap ? 'Edit Applicant' : 'Add Applicant';
+  document.getElementById('ap-id').value             = ap?.id || '';
+  document.getElementById('ap-name').value           = ap?.name || '';
+  document.getElementById('ap-role').value           = ap?.role || 'mover';
+  document.getElementById('ap-phone').value          = ap?.phone || '';
+  document.getElementById('ap-email').value          = ap?.email || '';
+  document.getElementById('ap-source').value         = ap?.source || 'indeed';
+  document.getElementById('ap-appliedDate').value    = ap?.appliedDate || todayStr();
+  document.getElementById('ap-stage').value          = ap?.stage || 'applied';
+  document.getElementById('ap-interviewDate').value  = ap?.interviewDate || '';
+  document.getElementById('ap-trialDate').value      = ap?.trialShiftDate || '';
+  document.getElementById('ap-resumeNote').value     = ap?.resumeNote || '';
+  document.getElementById('ap-notes').value          = ap?.notes || '';
+  document.getElementById('ap-rejectionReason').value = ap?.rejectionReason || '';
+  document.getElementById('ap-rating').value         = ap?.rating || 0;
+  setStarRating(ap?.rating || 0);
+
+  const isReject = ap?.stage === 'rejected';
+  document.getElementById('ap-rejection-row').style.display = isReject ? '' : 'none';
+
+  // Footer: show Hire/Advance buttons for existing
+  const footer = document.getElementById('ap-modal-footer');
+  let extra = '';
+  if (ap && ap.stage === 'hired') {
+    extra = `<button class="btn btn-success btn-sm" onclick="convertToEmployee('${ap.id}');closeModal('modal-applicant')">🚀 Onboard →</button>`;
+  } else if (ap && STAGE_NEXT[ap.stage]) {
+    extra = `<button class="btn btn-success btn-sm" onclick="advanceApplicant('${ap.id}');closeModal('modal-applicant')">→ ${stageName(STAGE_NEXT[ap.stage])}</button>`;
+  }
+  footer.innerHTML = `<button class="btn btn-ghost" onclick="closeModal('modal-applicant')">Cancel</button>${extra}<button class="btn btn-primary" onclick="saveApplicant()">Save</button>`;
+
+  // Show rejection reason if rejected
+  document.getElementById('ap-stage').addEventListener('change', function() {
+    document.getElementById('ap-rejection-row').style.display = this.value === 'rejected' ? '' : 'none';
+  });
+
+  openModal('modal-applicant');
+}
+
+function openApplicantDetail(id) {
+  openApplicantModal(id);
+}
+
+function saveApplicant() {
+  const name = document.getElementById('ap-name').value.trim();
+  if (!name) { showToast('Name required', 'error'); return; }
+
+  const id = document.getElementById('ap-id').value;
+  const apps = DB.getApplicants();
+  const record = {
+    id: id || DB.generateId(),
+    name,
+    phone:          document.getElementById('ap-phone').value.trim(),
+    email:          document.getElementById('ap-email').value.trim(),
+    role:           document.getElementById('ap-role').value,
+    source:         document.getElementById('ap-source').value,
+    appliedDate:    document.getElementById('ap-appliedDate').value,
+    stage:          document.getElementById('ap-stage').value,
+    rating:         parseInt(document.getElementById('ap-rating').value) || 0,
+    notes:          document.getElementById('ap-notes').value.trim(),
+    resumeNote:     document.getElementById('ap-resumeNote').value.trim(),
+    interviewDate:  document.getElementById('ap-interviewDate').value || null,
+    trialShiftDate: document.getElementById('ap-trialDate').value || null,
+    rejectionReason:document.getElementById('ap-rejectionReason').value.trim() || null,
+    createdAt: (id ? apps.find(a=>a.id===id)?.createdAt : null) || new Date().toISOString()
+  };
+
+  if (id) {
+    const idx = apps.findIndex(a => a.id === id);
+    if (idx >= 0) apps[idx] = record;
+  } else {
+    apps.push(record);
+  }
+  DB.saveApplicants(apps);
+  closeModal('modal-applicant');
+  showToast(id ? 'Applicant updated' : 'Applicant added', 'success');
+  renderHiring();
+  renderDashboard();
+}
+
+// Star rating setup
+function setupStarSelect() {
+  const container = document.getElementById('ap-rating-stars');
+  container.querySelectorAll('span').forEach(star => {
+    star.addEventListener('click', () => {
+      setStarRating(parseInt(star.dataset.v));
+    });
+    star.addEventListener('mouseover', () => highlightStars(parseInt(star.dataset.v)));
+    star.addEventListener('mouseout',  () => highlightStars(parseInt(document.getElementById('ap-rating').value)||0));
+  });
+}
+function setStarRating(val) {
+  document.getElementById('ap-rating').value = val;
+  highlightStars(val);
+}
+function highlightStars(val) {
+  document.getElementById('ap-rating-stars').querySelectorAll('span').forEach(s => {
+    s.classList.toggle('filled', parseInt(s.dataset.v) <= val);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+//  TRAINING VIEW
+// ══════════════════════════════════════════════════════════════
+function renderTraining() {
+  renderMatrix();
+  renderModules();
+}
+
+function renderMatrix() {
+  const emps  = DB.getEmployees().filter(e => ['active','probation'].includes(e.status));
+  const mods  = DB.getTraining();
+
+  if (!emps.length || !mods.length) {
+    document.getElementById('training-matrix').innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div>No employees or modules yet.</div>';
+    return;
+  }
+
+  const header = `<tr>
+    <th>Employee</th>
+    ${mods.map(m => `<th title="${m.title}">${m.title.length > 18 ? m.title.slice(0,16)+'…' : m.title}</th>`).join('')}
+    <th>Total</th>
+  </tr>`;
+
+  const rows = emps.map(emp => {
+    const appMods = getModulesForEmployee(emp, mods).filter(m => m.required);
+    const doneCnt = (emp.trainingCompleted||[]).filter(tc => appMods.some(m => m.id === tc.module)).length;
+    const cells = mods.map(m => {
+      const applicable = !m.requiredRoles.length || m.requiredRoles.includes(emp.role);
+      if (!applicable) return `<td class="matrix-cell cell-na" title="N/A for this role">–</td>`;
+      const comp    = getModuleCompletion(emp, m.id);
+      const overdue = isModuleOverdue(emp, m);
+      const icon    = comp ? '✅' : overdue ? '❌' : '⬜';
+      const tip     = comp ? `Complete: ${fmtDate(comp.completedAt)}` : overdue ? 'Overdue' : 'Pending';
+      return `<td class="matrix-cell" title="${tip}" onclick="openMarkComplete('${emp.id}','${m.id}')">
+        <span class="${comp ? 'cell-complete' : overdue ? 'cell-overdue' : 'cell-pending'}">${icon}</span>
+      </td>`;
+    }).join('');
+    const pct = getCompletionPct(emp, mods);
+    const pctColor = pct >= 80 ? 'var(--success)' : pct >= 50 ? 'var(--warning)' : 'var(--danger)';
+    return `<tr>
+      <td><strong style="font-size:12px;">${emp.name}</strong><br><span style="font-size:10px;color:var(--text-muted);">${roleName(emp.role)}</span></td>
+      ${cells}
+      <td style="font-weight:700;color:${pctColor};font-size:12px;white-space:nowrap;">${doneCnt}/${appMods.length}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('training-matrix').innerHTML = `<table class="matrix-table"><thead>${header}</thead><tbody>${rows}</tbody></table>`;
+}
+
+function renderModules() {
+  const mods = DB.getTraining();
+  const emps = DB.getEmployees().filter(e => ['active','probation'].includes(e.status));
+
+  document.getElementById('module-grid').innerHTML = mods.map(m => {
+    const applicable = emps.filter(e => !m.requiredRoles.length || m.requiredRoles.includes(e.role));
+    const done = applicable.filter(e => isModuleComplete(e, m.id)).length;
+    const roles = m.requiredRoles.length ? m.requiredRoles.map(r => roleName(r)).join(', ') : 'All roles';
+    return `
+      <div class="module-card">
+        <div class="module-card-title">${m.title}</div>
+        <div class="module-card-meta">
+          ${badge(m.category, m.category.replace(/_/g,' '))}
+          ${m.required ? badge('required', 'Required') : badge('optional', 'Optional')}
+        </div>
+        ${m.description ? `<div class="module-card-desc">${m.description}</div>` : ''}
+        <div class="module-card-footer">
+          <span>⏱ ${m.estimatedMinutes} min · ${roles}</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:12px;font-weight:700;color:${done===applicable.length&&applicable.length?'var(--success)':'var(--text-muted)'};">${done}/${applicable.length} done</span>
+            ${m.sopLink ? `<a href="${m.sopLink}" target="_blank" class="btn btn-ghost btn-xs">SOP →</a>` : ''}
+            <button class="btn btn-ghost btn-xs" onclick="openModuleModal('${m.id}')">✏️</button>
+            <button class="btn btn-danger btn-xs" onclick="deleteModule('${m.id}')">🗑</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── MODULE MODAL ──────────────────────────────────────────────
+function openModuleModal(id) {
+  const m = id ? DB.getTraining().find(x => x.id === id) : null;
+  document.getElementById('mod-modal-title').textContent = m ? 'Edit Module' : 'Add Training Module';
+  document.getElementById('mod-id').value          = m?.id || '';
+  document.getElementById('mod-title').value       = m?.title || '';
+  document.getElementById('mod-category').value    = m?.category || 'safety';
+  document.getElementById('mod-description').value = m?.description || '';
+  document.getElementById('mod-minutes').value     = m?.estimatedMinutes || '';
+  document.getElementById('mod-sopLink').value     = m?.sopLink || '';
+  document.getElementById('mod-roles').value       = (m?.requiredRoles||[]).join(', ');
+  document.getElementById('mod-required').checked  = m?.required !== false;
+  openModal('modal-module');
+}
+
+function saveModule() {
+  const title = document.getElementById('mod-title').value.trim();
+  if (!title) { showToast('Title required', 'error'); return; }
+
+  const id = document.getElementById('mod-id').value;
+  const mods = DB.getTraining();
+  const rolesRaw = document.getElementById('mod-roles').value;
+  const roles = rolesRaw ? rolesRaw.split(',').map(r => r.trim()).filter(Boolean) : [];
+
+  const record = {
+    id: id || DB.generateId(),
+    title,
+    category:         document.getElementById('mod-category').value,
+    description:      document.getElementById('mod-description').value.trim(),
+    estimatedMinutes: parseInt(document.getElementById('mod-minutes').value) || 0,
+    sopLink:          document.getElementById('mod-sopLink').value.trim(),
+    requiredRoles:    roles,
+    required:         document.getElementById('mod-required').checked,
+    createdAt: (id ? mods.find(m=>m.id===id)?.createdAt : null) || new Date().toISOString()
+  };
+
+  if (id) {
+    const idx = mods.findIndex(m => m.id === id);
+    if (idx >= 0) mods[idx] = record;
+  } else {
+    mods.push(record);
+  }
+  DB.saveTraining(mods);
+  closeModal('modal-module');
+  showToast(id ? 'Module updated' : 'Module added', 'success');
+  renderTraining();
+}
+
+function deleteModule(id) {
+  confirm2('Delete Module', 'Remove this training module? Employee completion records will be preserved.', () => {
+    const mods = DB.getTraining().filter(m => m.id !== id);
+    DB.saveTraining(mods);
+    showToast('Module deleted', 'success');
+    renderTraining();
+  });
+}
+
+// ── MARK COMPLETE MODAL ───────────────────────────────────────
+let mc_empId = null, mc_moduleId = null;
+
+function openMarkComplete(empId, modId) {
+  mc_empId = empId; mc_moduleId = modId;
+  const emp = DB.getEmployee(empId);
+  const mod = DB.getTraining().find(m => m.id === modId);
+  const existing = getModuleCompletion(emp, modId);
+
+  document.getElementById('mc-title').textContent = 'Mark Training Complete';
+  document.getElementById('mc-empId').value   = empId;
+  document.getElementById('mc-moduleId').value = modId;
+  document.getElementById('mc-info').textContent = `${emp?.name} — ${mod?.title}`;
+  document.getElementById('mc-date').value    = existing?.completedAt?.slice(0,10) || todayStr();
+  document.getElementById('mc-signedOff').value = existing?.signedOff || '';
+  document.getElementById('mc-remove-btn').style.display = existing ? '' : 'none';
+  openModal('modal-mark-complete');
+}
+
+function saveTrainingCompletion() {
+  const empId   = document.getElementById('mc-empId').value;
+  const moduleId = document.getElementById('mc-moduleId').value;
+  const date    = document.getElementById('mc-date').value;
+  const signedOff = document.getElementById('mc-signedOff').value.trim();
+  if (!date) { showToast('Date required', 'error'); return; }
+
+  const emps = DB.getEmployees();
+  const idx = emps.findIndex(e => e.id === empId);
+  if (idx < 0) return;
+
+  const tc = emps[idx].trainingCompleted || [];
+  const existing = tc.findIndex(t => t.module === moduleId);
+  const entry = { module: moduleId, completedAt: date, signedOff };
+  if (existing >= 0) tc[existing] = entry;
+  else tc.push(entry);
+  emps[idx].trainingCompleted = tc;
+  DB.saveEmployees(emps);
+
+  closeModal('modal-mark-complete');
+  showToast('Training marked complete', 'success');
+  renderTraining();
+  if (document.getElementById('modal-profile').classList.contains('open')) {
+    renderProfileTab('training');
+  }
+}
+
+function removeTrainingCompletion() {
+  const empId   = document.getElementById('mc-empId').value;
+  const moduleId = document.getElementById('mc-moduleId').value;
+  const emps = DB.getEmployees();
+  const idx = emps.findIndex(e => e.id === empId);
+  if (idx < 0) return;
+  emps[idx].trainingCompleted = (emps[idx].trainingCompleted || []).filter(t => t.module !== moduleId);
+  DB.saveEmployees(emps);
+  closeModal('modal-mark-complete');
+  showToast('Completion removed', 'success');
+  renderTraining();
+  if (document.getElementById('modal-profile').classList.contains('open')) {
+    renderProfileTab('training');
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  ONBOARDING VIEW
+// ══════════════════════════════════════════════════════════════
+function renderOnboardingSetup() {
+  const emps = DB.getEmployees();
+  const now  = new Date();
+  const recent = emps.filter(e => {
+    const days = Math.floor((now - new Date(e.hireDate)) / (1000*60*60*24));
+    return days <= 60 && e.status !== 'terminated';
+  });
+
+  const sel = document.getElementById('onboard-employee-select');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">— Select new hire —</option>' +
+    emps.sort((a,b) => new Date(b.hireDate) - new Date(a.hireDate)).slice(0, 20).map(e => {
+      const days = Math.floor((now - new Date(e.hireDate)) / (1000*60*60*24));
+      const label = days <= 60 ? `${e.name} (${days}d ago)` : e.name;
+      return `<option value="${e.id}" ${e.id === current ? 'selected' : ''}>${label}</option>`;
+    }).join('');
+
+  if (current) renderOnboarding();
+}
+
+function renderOnboarding() {
+  const empId = document.getElementById('onboard-employee-select').value;
+  const container = document.getElementById('onboarding-content');
+  if (!empId) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">🚀</div>Select a new hire to view their onboarding checklist.</div>';
+    return;
+  }
+
+  const emp = DB.getEmployee(empId);
+  if (!emp) return;
+
+  const checklist = emp.onboardingChecklist || {};
+  let totalItems = 0, doneItems = 0;
+
+  Object.values(ONBOARDING_CHECKLIST).forEach(section => {
+    Object.keys(section.items).forEach(key => {
+      totalItems++;
+      if (checklist[key]?.done) doneItems++;
+    });
+  });
+
+  const pct = totalItems ? Math.round((doneItems / totalItems) * 100) : 0;
+
+  let html = `
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-body">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+          <div>
+            <div style="font-size:16px;font-weight:700;color:var(--navy);">${emp.name}</div>
+            <div style="font-size:12px;color:var(--text-muted);">Hired ${fmtDate(emp.hireDate)} · ${tenure(emp.hireDate)} · ${roleName(emp.role)}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:22px;font-weight:800;color:${pct>=100?'var(--success)':pct>=60?'var(--warning)':'var(--navy)'};">${pct}%</div>
+            <div style="font-size:11px;color:var(--text-muted);">${doneItems} of ${totalItems} complete</div>
+          </div>
+        </div>
+        ${progBar(pct)}
+      </div>
+    </div>`;
+
+  Object.entries(ONBOARDING_CHECKLIST).forEach(([sectionKey, section]) => {
+    const sectionItems = Object.entries(section.items);
+    const secDone = sectionItems.filter(([k]) => checklist[k]?.done).length;
+    html += `
+      <div class="card onboard-section" style="margin-bottom:14px;">
+        <div class="card-header">
+          <span class="card-title">${section.label}</span>
+          <span style="font-size:12px;color:${secDone===sectionItems.length?'var(--success)':'var(--text-muted)'};">${secDone}/${sectionItems.length}</span>
+        </div>
+        <div class="card-body">
+          ${sectionItems.map(([key, label]) => {
+            const item = checklist[key] || {};
+            return `
+              <div class="checklist-item">
+                <input type="checkbox" id="cb-${key}" ${item.done ? 'checked' : ''} onchange="toggleChecklist('${empId}','${key}',this.checked)">
+                <label class="checklist-label ${item.done ? 'done' : ''}" for="cb-${key}">${label}</label>
+                ${item.done && item.doneAt ? `<span class="checklist-date">${fmtDate(item.doneAt.slice(0,10))}</span>` : ''}
+              </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+function toggleChecklist(empId, key, checked) {
+  const emps = DB.getEmployees();
+  const idx  = emps.findIndex(e => e.id === empId);
+  if (idx < 0) return;
+  if (!emps[idx].onboardingChecklist) emps[idx].onboardingChecklist = {};
+  emps[idx].onboardingChecklist[key] = {
+    done:   checked,
+    doneAt: checked ? new Date().toISOString() : null
+  };
+  DB.saveEmployees(emps);
+  // Update label style live
+  const label = document.querySelector(`label[for="cb-${key}"]`);
+  if (label) label.classList.toggle('done', checked);
+  renderOnboardingSetup(); // refresh progress
+}
+
+function printOnboardingReport() {
+  const empId = document.getElementById('onboard-employee-select').value;
+  if (!empId) { showToast('Select an employee first', 'error'); return; }
+  window.print();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  MODAL HELPERS
+// ══════════════════════════════════════════════════════════════
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) closeModal(overlay.id);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+//  CONFIRM DIALOG
+// ══════════════════════════════════════════════════════════════
+let confirmCallback = null;
+function confirm2(title, msg, cb) {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-msg').textContent   = msg;
+  confirmCallback = cb;
+  document.getElementById('confirm-overlay').classList.add('open');
+}
+document.getElementById('confirm-cancel').addEventListener('click', () => {
+  document.getElementById('confirm-overlay').classList.remove('open');
+  confirmCallback = null;
+});
+document.getElementById('confirm-ok').addEventListener('click', () => {
+  document.getElementById('confirm-overlay').classList.remove('open');
+  if (confirmCallback) confirmCallback();
+  confirmCallback = null;
+});
+
+// ══════════════════════════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════════════════════════
+let toastTimer = null;
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (type ? ' ' + type : '');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ''; }, 3000);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  UTILITY
+// ══════════════════════════════════════════════════════════════
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// ESC to close modals
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-overlay.open').forEach(m => closeModal(m.id));
+    document.getElementById('confirm-overlay').classList.remove('open');
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+//  BOOT
+// ══════════════════════════════════════════════════════════════
+init();
+</script>
+</body>
+</html>

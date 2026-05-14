@@ -1,6 +1,9 @@
 import { normalizeLead, uid } from '@/lib/sales'
 import { applyMovePolicyToInventory } from '@/lib/move-policy'
-import { readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
+import { dedupePhotosBeforeVision, detectFurnitureInRoom, getOpenAIConfig } from '@/lib/server/inventory-enrichment'
+import { saveSalesLead } from '@/lib/server/sales-repository'
+import { getTwilioCredentials, requireSupabaseEnv } from '@/lib/server/runtime'
+import { twilioAuth } from '@/lib/server/twilio-recordings'
 import type { CRMLead, InventoryItem, LeadMediaAsset } from '@/lib/types'
 
 const BUCKET = 'survey-photos'
@@ -21,6 +24,24 @@ function buildRoomBreakdown(items: InventoryItem[]) {
 
 function inferMediaKind(file: File) {
   return file.type.startsWith('video/') ? 'video' : 'image'
+}
+
+function inferMediaKindFromMimeType(mimeType?: string) {
+  return mimeType?.startsWith('video/') ? 'video' : 'image'
+}
+
+function extensionFromMimeType(mimeType?: string) {
+  const normalized = (mimeType || '').toLowerCase().split(';')[0].trim()
+  if (!normalized) return 'bin'
+  if (normalized === 'image/jpeg') return 'jpg'
+  if (normalized === 'image/png') return 'png'
+  if (normalized === 'image/webp') return 'webp'
+  if (normalized === 'image/gif') return 'gif'
+  if (normalized === 'video/mp4') return 'mp4'
+  if (normalized === 'video/quicktime') return 'mov'
+  if (normalized === 'video/webm') return 'webm'
+  const subtype = normalized.split('/')[1]
+  return subtype ? subtype.replace(/[^a-z0-9]/g, '') || 'bin' : 'bin'
 }
 
 async function uploadToStorage(leadId: string, namespace: string, filename: string, buffer: ArrayBuffer, mime: string): Promise<string> {
@@ -79,99 +100,76 @@ export async function uploadLeadMediaAssets(input: {
   return assets
 }
 
-export async function analyzeLeadPhotosWithVision(room: string, photoUrls: string[]): Promise<InventoryItem[]> {
-  const apiKey = readEnv('OPENAI_API_KEY')
-  const model = readEnv('OPENAI_VISION_MODEL') || 'gpt-4o-mini'
-  if (!apiKey) throw new Error('No OpenAI API key')
+export async function persistInboundMmsToLead(input: {
+  lead: CRMLead
+  media: Array<{ url: string; contentType?: string }>
+  messageSid: string
+}) {
+  if (!input.media.length) return input.lead
 
-  const roomLabel = room.replace(/_/g, ' ').toUpperCase()
-  const isBedroomRoom = room.toLowerCase().includes('bedroom')
-  const isBathroomRoom = room.toLowerCase().includes('bathroom')
+  const { accountSid, authToken } = getTwilioCredentials()
+  const existingAssets = Array.isArray(input.lead.mediaAssets) ? input.lead.mediaAssets : []
+  const nextAssets: LeadMediaAsset[] = []
 
-  const bedroomRules = isBedroomRoom ? `\nBEDROOM RULES:\n- ONE BED PER BEDROOM — multiple photos = same bed from different angles\n- Typical: 1 bed, 1-2 nightstands, 1 dresser` : ''
-  const bathroomRules = isBathroomRoom ? `\nBATHROOM RULES:\n- SKIP built-in fixtures (vanity, toilet, sink, bathtub, shower)\n- Only count freestanding movable items` : ''
+  for (let index = 0; index < input.media.length; index += 1) {
+    const media = input.media[index]
+    const dedupeKey = `twilio:${input.messageSid}:${index}`
+    if (existingAssets.some(asset => asset.source === 'mms' && asset.notes === dedupeKey)) {
+      continue
+    }
 
-  const prompt = `You are a professional moving company inventory specialist analyzing customer photos for a moving quote.
-These ${photoUrls.length} photo${photoUrls.length > 1 ? 's' : ''} show THE SAME ROOM (${roomLabel}) from different angles.
+    const response = await fetch(media.url, {
+      headers: {
+        Authorization: twilioAuth(accountSid, authToken),
+      },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(20_000),
+    })
 
-⚠️ DO NOT COUNT THE SAME ITEM MULTIPLE TIMES even if visible in every photo.
-${bedroomRules}${bathroomRules}
+    if (!response.ok) {
+      throw new Error(`Failed to download MMS media ${index + 1}: ${response.status}`)
+    }
 
-✅ DETECT ONLY MOVABLE ITEMS:
-- SEATING: Sofas, Sectionals, Recliners, Chairs (dining/accent/office), Ottomans, Benches
-- TABLES: Dining tables, Coffee tables, End tables, Desks
-- BEDS & STORAGE: Beds (specify King/Queen/Full/Twin), Dressers, Nightstands, Bookshelves
-- APPLIANCES (freestanding only): Washer, Dryer, Fridge (if clearly being moved), Stove
-- ELECTRONICS: TVs (estimate size), Monitors
-- DECOR: Floor lamps, Large mirrors, Large artwork
-- OUTDOOR/GARAGE: Patio furniture, BBQ, Bicycles, Tools, Lawn equipment
-- SPECIAL CASES: Safes, pianos, propane tanks, gas cans, oxygen tanks, fireworks, chemical containers, pool tables, hot tubs, server racks, copiers
+    const mimeType = media.contentType || response.headers.get('content-type') || 'application/octet-stream'
+    const extension = extensionFromMimeType(mimeType)
+    const filename = `mms_${input.messageSid}_${index + 1}.${extension}`
+    const buffer = await response.arrayBuffer()
+    const storedUrl = await uploadToStorage(input.lead.id, 'mms', filename, buffer, mimeType)
 
-❌ NEVER DETECT: Built-in cabinets, built-in appliances, toilets, sinks, vanity cabinets, chandeliers, wall-mounted items
-
-REQUIREMENTS:
-1. Count each unique item ONCE only
-2. Be specific: "Queen Platform Bed" not just "bed"
-3. Estimate realistic cubic feet and weight for movers
-4. Typical weights: king bed frame 160 lbs, queen mattress 90 lbs, 3-seat sofa 220 lbs, dresser 130 lbs
-5. Washer, dryer, fridge, freezer, stove, cooker, oven, dishwasher, and vanity cabinet should be listed included:false by default unless the customer clearly says they are taking it
-6. If a blocked item is visible (hot tub, pool table), still list it with included:false and notes "We do not move this item — special arrangement required"
-7. If a hazardous item is visible (propane tank, gas can, fireworks, oxygen tank, chemical container), list it with included:false and notes "Hazardous / non-transport item — customer must move separately"
-8. If a commercial item is visible (server rack, copier, restaurant equipment, pallet racking), list it with included:false and notes "Commercial equipment — management review required"
-9. If a safe is visible, add notes "Specialty fee + photo confirmation required"
-
-Return ONLY a JSON array (no other text):
-[{"name":"3-Seat Sofa","qty":1,"room":"${room}","cubicFeet":70,"weightLbs":180,"included":true,"notes":"Wrap carefully"},{"name":"Coffee Table","qty":1,"room":"${room}","cubicFeet":15,"weightLbs":35,"included":true,"notes":""}]`
-
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'text', text: prompt },
-          ...photoUrls.map(url => ({ type: 'image_url', image_url: { url, detail: 'high' } })),
-        ],
-      }],
-      max_tokens: 2000,
-      temperature: 0.05,
-    }),
-  })
-
-  if (!response.ok) {
-    throw new Error(`Vision API error: ${response.status}`)
+    nextAssets.push({
+      id: uid('media'),
+      url: storedUrl,
+      kind: inferMediaKindFromMimeType(mimeType),
+      source: 'mms',
+      filename,
+      mimeType,
+      uploadedAt: new Date().toISOString(),
+      uploadedByName: 'Twilio MMS',
+      notes: dedupeKey,
+    })
   }
 
-  const data = await response.json() as { choices: Array<{ message: { content: string } }> }
-  const content = data.choices[0]?.message?.content || '[]'
-  const match = content.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/) || content.match(/(\[[\s\S]*?\])/)
-  if (!match) return []
+  if (nextAssets.length === 0) {
+    return input.lead
+  }
 
-  const parsed = JSON.parse(match[1]) as Array<{
-    name?: string
-    label?: string
-    qty?: number
-    room?: string
-    cubicFeet?: number
-    weightLbs?: number
-    included?: boolean
-    notes?: string
-  }>
+  const updatedLead = normalizeLead({
+    ...input.lead,
+    mediaAssets: [...existingAssets, ...nextAssets],
+  })
 
-  return applyMovePolicyToInventory(parsed.map(item => ({
-    id: uid('inv_media'),
-    name: item.name || item.label || 'Unknown Item',
-    qty: item.qty || 1,
+  return saveSalesLead(updatedLead)
+}
+
+export async function analyzeLeadPhotosWithVision(room: string, photoUrls: string[]): Promise<InventoryItem[]> {
+  const config = getOpenAIConfig()
+  if (!config) throw new Error('No OpenAI API key')
+  const dedupedPhotoUrls = await dedupePhotosBeforeVision(photoUrls)
+  const detected = await detectFurnitureInRoom(room, dedupedPhotoUrls, config)
+  return applyMovePolicyToInventory(detected.map(item => ({
+    ...item,
+    id: item.id || uid('inv_media'),
     room: item.room || room,
-    cubicFeet: item.cubicFeet || 0,
-    weightLbs: item.weightLbs || 0,
-    included: item.included !== false,
-    notes: item.notes || '',
   })), { enforceExclusion: true })
 }
 

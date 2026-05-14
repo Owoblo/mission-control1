@@ -8,6 +8,59 @@ function getOpenAIKey() {
   return readEnv('OPENAI_API_KEY')
 }
 
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+function isRetryableOpenAiFetchError(error: unknown) {
+  if (!(error instanceof Error)) return false
+  const name = error.name.toLowerCase()
+  const message = error.message.toLowerCase()
+  return (
+    name.includes('abort') ||
+    name.includes('timeout') ||
+    message.includes('fetch failed') ||
+    message.includes('other side closed') ||
+    message.includes('socket') ||
+    message.includes('timeout') ||
+    message.includes('timed out') ||
+    message.includes('econnreset') ||
+    message.includes('connection reset')
+  )
+}
+
+async function fetchWithRetry(
+  factory: () => Promise<Response>,
+  options?: { attempts?: number; baseDelayMs?: number }
+) {
+  const attempts = options?.attempts ?? 3
+  const baseDelayMs = options?.baseDelayMs ?? 400
+  let lastError: unknown
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await factory()
+    } catch (error) {
+      lastError = error
+      if (attempt >= attempts || !isRetryableOpenAiFetchError(error)) {
+        throw error
+      }
+      await sleep(baseDelayMs * attempt)
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Request failed')
+}
+
+function buildAudioTranscriptionForm(bytes: Buffer, filename: string, mimeType: string) {
+  const blobBytes = new Uint8Array(bytes)
+  const form = new FormData()
+  form.append('file', new File([blobBytes], filename, { type: mimeType }))
+  form.append('model', 'whisper-1')
+  form.append('language', 'en')
+  return form
+}
+
 function parseAudioDataUrl(dataUrl: string) {
   // Handle MIME types with codec params e.g. "audio/webm;codecs=opus;base64,..."
   const match = dataUrl.match(/^data:(audio\/[a-zA-Z0-9.+-]+)(?:;[^,]*)?;base64,(.+)$/)
@@ -32,16 +85,14 @@ export async function transcribeConsultationRecording(recordingDataUrl: string) 
   if (!apiKey || !recordingDataUrl.startsWith('data:audio/')) return null
 
   const { mimeType, bytes, ext } = parseAudioDataUrl(recordingDataUrl)
-  const form = new FormData()
-  form.append('file', new File([bytes], `consultation.${ext}`, { type: mimeType }))
-  form.append('model', 'whisper-1')
-  form.append('language', 'en')
-
-  const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}` },
-    body: form,
-  })
+  const response = await fetchWithRetry(() =>
+    fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: buildAudioTranscriptionForm(bytes, `consultation.${ext}`, mimeType),
+      signal: AbortSignal.timeout(45_000),
+    })
+  )
 
   if (!response.ok) {
     const detail = await response.text().catch(() => '')
@@ -68,16 +119,14 @@ export async function transcribeFromUrl(audioUrl: string, accountSid: string, au
     contentType.includes('wav') ? 'wav' :
     contentType.includes('mpeg') || contentType.includes('mp3') ? 'mp3' :
     'mp3'
-  const form = new FormData()
-  form.append('file', new File([buffer], `call.${ext}`, { type: recording.contentType }))
-  form.append('model', 'whisper-1')
-  form.append('language', 'en')
-
-  const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}` },
-    body: form,
-  })
+  const response = await fetchWithRetry(() =>
+    fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: buildAudioTranscriptionForm(buffer, `call.${ext}`, recording.contentType),
+      signal: AbortSignal.timeout(45_000),
+    })
+  )
 
   if (!response.ok) {
     const detail = await response.text().catch(() => '')
@@ -210,6 +259,8 @@ export async function summarizePhoneCall(lead: CRMLead, transcript: string, dire
 
   const systemPrompt = `You are an AI moving-sales assistant for Saturn Star Moving. Analyze this phone call transcript and return JSON only.
 
+Today's date: ${new Date().toISOString().slice(0, 10)}. Use this to resolve relative dates like "next Tuesday" or "June 7" into YYYY-MM-DD format.
+
 Return:
 {
   "summary": "2-3 sentence call summary",
@@ -251,22 +302,25 @@ Focus on: move scope, objections, budget signals, timeline, route details, and c
     .filter(Boolean)
     .join('\n\n')
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      max_tokens: 500,
-    }),
-  })
+  const response = await fetchWithRetry(() =>
+    fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        max_tokens: 500,
+      }),
+      signal: AbortSignal.timeout(45_000),
+    })
+  )
 
   if (!response.ok) {
     const detail = await response.text().catch(() => '')
@@ -324,22 +378,25 @@ Focus on:
     `Transcript:\n${transcript}`,
   ].filter(Boolean).join('\n\n')
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      max_tokens: 700,
-    }),
-  })
+  const response = await fetchWithRetry(() =>
+    fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        max_tokens: 700,
+      }),
+      signal: AbortSignal.timeout(45_000),
+    })
+  )
 
   if (!response.ok) {
     const detail = await response.text().catch(() => '')
@@ -413,22 +470,25 @@ Use the thread context to understand where this message fits in the relationship
     `\nThis Message (${direction === 'outbound' ? 'Rep → Lead' : 'Lead → Rep'}):\n${message}`,
   ].filter(Boolean).join('\n')
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      max_tokens: 400,
-    }),
-  })
+  const response = await fetchWithRetry(() =>
+    fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        max_tokens: 400,
+      }),
+      signal: AbortSignal.timeout(45_000),
+    })
+  )
 
   if (!response.ok) return null
 
@@ -623,19 +683,22 @@ Return JSON only — no explanation outside the JSON:
 
 Valid stages: new, contacted, estimate_scheduled, estimate_completed, pricing, quoted, nurture, booked, lost`
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'gpt-4o',
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: fullContext },
-      ],
-      max_tokens: 1200,
-    }),
-  })
+  const response = await fetchWithRetry(() =>
+    fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: fullContext },
+        ],
+        max_tokens: 1200,
+      }),
+      signal: AbortSignal.timeout(60_000),
+    })
+  )
 
   if (!response.ok) return null
 

@@ -1,0 +1,1893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Saturn Star — Customer Recovery Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #1a2744;
+  --navy-light: #243358;
+  --navy-dark: #111b33;
+  --gold: #f5a623;
+  --gold-light: #f7b84b;
+  --bg: #f0f2f5;
+  --text: #1a2744;
+  --text-muted: #6b7280;
+  --success: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --info: #3b82f6;
+  --border: #e5e7eb;
+  --white: #ffffff;
+  --sidebar-width: 240px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh;}
+
+/* SIDEBAR */
+.sidebar{width:var(--sidebar-width);background:var(--navy-dark);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;}
+.sidebar-logo{padding:22px 20px;border-bottom:1px solid rgba(255,255,255,0.08);}
+.sidebar-logo .logo-title{color:#fff;font-size:15px;font-weight:700;letter-spacing:0.5px;}
+.sidebar-logo .logo-sub{color:var(--gold);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;margin-top:3px;}
+.sidebar-nav{flex:1;padding:14px 0;overflow-y:auto;}
+.nav-section{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:rgba(255,255,255,0.3);padding:10px 20px 4px;}
+.nav-item{display:flex;align-items:center;gap:11px;padding:11px 20px;color:rgba(255,255,255,0.6);cursor:pointer;transition:all 0.18s;font-size:13px;font-weight:500;border-left:3px solid transparent;user-select:none;}
+.nav-item:hover{background:rgba(255,255,255,0.05);color:#fff;}
+.nav-item.active{background:rgba(245,166,35,0.12);color:var(--gold);border-left-color:var(--gold);}
+.nav-icon{font-size:15px;width:18px;text-align:center;}
+.sidebar-footer{padding:14px 20px;border-top:1px solid rgba(255,255,255,0.08);}
+.sidebar-footer span{color:rgba(255,255,255,0.3);font-size:10px;}
+
+/* MAIN */
+.main{margin-left:var(--sidebar-width);flex:1;display:flex;flex-direction:column;min-height:100vh;}
+.topbar{background:#fff;border-bottom:1px solid var(--border);padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+.topbar-left{display:flex;align-items:center;gap:12px;}
+.topbar-title{font-size:17px;font-weight:700;color:var(--navy);}
+.topbar-sub{font-size:12px;color:var(--text-muted);}
+.topbar-actions{display:flex;align-items:center;gap:10px;}
+.content{padding:28px;flex:1;}
+
+/* CARDS */
+.card{background:#fff;border-radius:12px;border:1px solid var(--border);padding:22px;box-shadow:0 1px 4px rgba(0,0,0,0.04);}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+.card-title{font-size:12px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:0.6px;}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:24px;}
+.stat-card{background:#fff;border-radius:12px;border:1px solid var(--border);padding:18px 20px;box-shadow:0 1px 4px rgba(0,0,0,0.04);}
+.stat-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-muted);margin-bottom:8px;}
+.stat-value{font-size:26px;font-weight:800;color:var(--navy);line-height:1;}
+.stat-sub{font-size:11px;color:var(--text-muted);margin-top:4px;}
+.stat-card.danger{border-color:var(--danger);background:#fff8f8;}
+.stat-card.danger .stat-value{color:var(--danger);}
+.stat-card.warning{border-color:var(--warning);background:#fffbf0;}
+.stat-card.warning .stat-value{color:var(--warning);}
+.stat-card.success{border-color:var(--success);background:#f0fdf8;}
+.stat-card.success .stat-value{color:var(--success);}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:600;transition:all 0.18s;font-family:inherit;}
+.btn-primary{background:var(--gold);color:#fff;}
+.btn-primary:hover{background:var(--gold-light);}
+.btn-navy{background:var(--navy);color:#fff;}
+.btn-navy:hover{background:var(--navy-light);}
+.btn-outline{background:#fff;color:var(--navy);border:1px solid var(--border);}
+.btn-outline:hover{border-color:var(--navy);background:#f8f9fb;}
+.btn-ghost{background:transparent;color:var(--text-muted);border:none;}
+.btn-ghost:hover{color:var(--navy);background:#f0f2f5;}
+.btn-sm{padding:6px 12px;font-size:12px;}
+.btn-xs{padding:4px 9px;font-size:11px;}
+.btn-danger{background:var(--danger);color:#fff;}
+.btn-danger:hover{background:#dc2626;}
+.btn-success{background:var(--success);color:#fff;}
+.btn-success:hover{background:#059669;}
+.btn-warning{background:var(--warning);color:#fff;}
+.btn-warning:hover{background:#d97706;}
+.btn-info{background:var(--info);color:#fff;}
+.btn-info:hover{background:#2563eb;}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap;}
+.badge-new{background:#eff6ff;color:#1d4ed8;}
+.badge-investigating{background:#fef3c7;color:#92400e;}
+.badge-decision-pending{background:#fdf4ff;color:#7e22ce;}
+.badge-in-resolution{background:#ecfdf5;color:#065f46;}
+.badge-closed{background:#f0f2f5;color:#4b5563;}
+.badge-escalated{background:#fff1f2;color:#9f1239;}
+.badge-low{background:#f0fdf4;color:#15803d;}
+.badge-medium{background:#fefce8;color:#a16207;}
+.badge-high{background:#fff7ed;color:#c2410c;}
+.badge-critical{background:#fff1f2;color:#be123c;}
+.badge-damage{background:#fef2f2;color:#b91c1c;}
+.badge-loss{background:#fff7ed;color:#c2410c;}
+.badge-injury{background:#fdf4ff;color:#7c3aed;}
+.badge-billing{background:#f0f9ff;color:#0369a1;}
+.badge-conduct{background:#fdf2f8;color:#9d174d;}
+.badge-delay{background:#fffbeb;color:#b45309;}
+.badge-other{background:#f9fafb;color:#374151;}
+
+/* TABLE */
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead th{background:#f8f9fb;padding:10px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);border-bottom:2px solid var(--border);white-space:nowrap;}
+tbody td{padding:12px 14px;border-bottom:1px solid var(--border);vertical-align:middle;}
+tbody tr:hover{background:#fafbfd;cursor:pointer;}
+tbody tr:last-child td{border-bottom:none;}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1000;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:#fff;border-radius:14px;padding:28px;width:580px;max-width:95vw;max-height:92vh;overflow-y:auto;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.2);}
+.modal-lg{width:740px;}
+.modal-xl{width:880px;}
+.modal h2{font-size:18px;font-weight:700;color:var(--navy);margin-bottom:20px;}
+.modal-close{position:absolute;top:18px;right:18px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);line-height:1;padding:4px;}
+.modal-close:hover{color:var(--text);}
+.modal-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:22px;padding-top:18px;border-top:1px solid var(--border);}
+
+/* FORM */
+.form-group{margin-bottom:16px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+label{display:block;font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;}
+input,select,textarea{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;color:var(--text);background:#fff;transition:border 0.18s;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 3px rgba(26,39,68,0.08);}
+textarea{resize:vertical;min-height:80px;}
+.form-divider{border:none;border-top:1px solid var(--border);margin:22px 0;}
+.input-hint{font-size:11px;color:var(--text-muted);margin-top:4px;}
+
+/* TOAST */
+#toast-container{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;}
+.toast{background:var(--navy);color:#fff;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,0.2);animation:slideIn 0.3s ease;max-width:340px;display:flex;align-items:center;gap:10px;}
+.toast.success{background:#065f46;}
+.toast.error{background:#9f1239;}
+.toast.warning{background:#92400e;}
+@keyframes slideIn{from{transform:translateX(110%);opacity:0;}to{transform:translateX(0);opacity:1;}}
+@keyframes slideOut{from{transform:translateX(0);opacity:1;}to{transform:translateX(110%);opacity:0;}}
+
+/* TABS */
+.tabs{display:flex;border-bottom:2px solid var(--border);margin-bottom:22px;gap:0;}
+.tab{padding:10px 20px;font-size:13px;font-weight:600;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.18s;white-space:nowrap;}
+.tab:hover{color:var(--navy);}
+.tab.active{color:var(--navy);border-bottom-color:var(--gold);}
+
+/* FILTER BAR */
+.filter-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:18px;}
+.filter-chip{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:#fff;color:var(--text-muted);transition:all 0.18s;}
+.filter-chip:hover{border-color:var(--navy);color:var(--navy);}
+.filter-chip.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+.filter-chip.priority-critical.active{background:#be123c;border-color:#be123c;}
+.filter-chip.priority-high.active{background:#c2410c;border-color:#c2410c;}
+.filter-chip.priority-medium.active{background:#a16207;border-color:#a16207;}
+.filter-chip.priority-low.active{background:#15803d;border-color:#15803d;}
+
+/* CASE HEADER */
+.case-header{background:var(--navy);border-radius:12px;padding:22px 26px;margin-bottom:22px;color:#fff;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;}
+.case-header-left{}
+.case-number{font-size:22px;font-weight:800;color:#fff;margin-bottom:4px;}
+.case-meta{font-size:13px;color:rgba(255,255,255,0.65);}
+.case-header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+
+/* STATUS TIMELINE */
+.status-progress{display:flex;align-items:center;margin:16px 0;}
+.sp-step{display:flex;flex-direction:column;align-items:center;flex:1;position:relative;}
+.sp-step:not(:last-child)::after{content:'';position:absolute;top:14px;left:60%;width:80%;height:2px;background:var(--border);}
+.sp-step:not(:last-child).done::after{background:var(--success);}
+.sp-dot{width:28px;height:28px;border-radius:50%;border:2px solid var(--border);background:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;z-index:1;position:relative;}
+.sp-dot.done{background:var(--success);border-color:var(--success);color:#fff;}
+.sp-dot.active{background:var(--gold);border-color:var(--gold);color:#fff;}
+.sp-label{font-size:10px;font-weight:600;color:var(--text-muted);margin-top:5px;text-align:center;}
+.sp-label.active{color:var(--navy);font-weight:700;}
+
+/* COMM LOG */
+.comm-item{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);}
+.comm-item:last-child{border-bottom:none;}
+.comm-icon{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.comm-icon.call{background:#eff6ff;}
+.comm-icon.email{background:#f0fdf4;}
+.comm-icon.sms{background:#fef3c7;}
+.comm-icon.in-person{background:#fdf4ff;}
+.comm-body{flex:1;}
+.comm-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;}
+.comm-type{font-size:12px;font-weight:700;color:var(--navy);}
+.comm-time{font-size:11px;color:var(--text-muted);}
+.comm-summary{font-size:13px;color:var(--text);}
+.comm-staff{font-size:11px;color:var(--text-muted);margin-top:2px;}
+.comm-dir{font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;margin-left:6px;}
+.comm-dir.inbound{background:#eff6ff;color:#1d4ed8;}
+.comm-dir.outbound{background:#f0fdf4;color:#065f46;}
+
+/* PHOTO GRID */
+.photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;margin-top:12px;}
+.photo-item{position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--border);}
+.photo-item img{width:100%;height:100px;object-fit:cover;display:block;}
+.photo-caption{padding:6px 8px;font-size:11px;color:var(--text-muted);}
+.photo-del{position:absolute;top:5px;right:5px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;padding:2px 6px;}
+.photo-upload-zone{border:2px dashed var(--border);border-radius:10px;padding:28px;text-align:center;cursor:pointer;transition:all 0.18s;}
+.photo-upload-zone:hover{border-color:var(--gold);background:#fffbf0;}
+.photo-upload-zone input{display:none;}
+
+/* DAMAGE TABLE */
+.severity-minor{color:#15803d;font-weight:600;}
+.severity-moderate{color:#a16207;font-weight:600;}
+.severity-major{color:#b91c1c;font-weight:600;}
+
+/* FACTOR TAGS */
+.factor-tag{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:16px;font-size:12px;font-weight:600;background:#e8eaf6;color:#283593;margin:3px;cursor:default;}
+.factor-tag .del-factor{cursor:pointer;color:#9fa8da;font-size:10px;margin-left:2px;}
+.factor-tag .del-factor:hover{color:#283593;}
+.factor-suggestions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.factor-suggestion{padding:4px 10px;border-radius:16px;font-size:12px;font-weight:500;background:#f0f2f5;color:var(--text-muted);cursor:pointer;border:1px solid var(--border);transition:all 0.15s;}
+.factor-suggestion:hover{background:var(--navy);color:#fff;border-color:var(--navy);}
+
+/* PRIORITY SELECTOR */
+.priority-options{display:flex;gap:8px;flex-wrap:wrap;}
+.priority-opt{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:2px solid var(--border);background:#fff;transition:all 0.18s;}
+.priority-opt:hover{transform:translateY(-1px);}
+.priority-opt[data-p="low"].selected,.priority-opt[data-p="low"]:hover{border-color:#15803d;background:#f0fdf4;color:#15803d;}
+.priority-opt[data-p="medium"].selected,.priority-opt[data-p="medium"]:hover{border-color:#a16207;background:#fefce8;color:#a16207;}
+.priority-opt[data-p="high"].selected,.priority-opt[data-p="high"]:hover{border-color:#c2410c;background:#fff7ed;color:#c2410c;}
+.priority-opt[data-p="critical"].selected,.priority-opt[data-p="critical"]:hover{border-color:#be123c;background:#fff1f2;color:#be123c;}
+
+/* DECISION TILES */
+.decision-options{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.decision-opt{padding:14px;border-radius:10px;border:2px solid var(--border);cursor:pointer;text-align:center;transition:all 0.18s;background:#fff;}
+.decision-opt:hover{border-color:var(--navy);}
+.decision-opt.selected{border-color:var(--gold);background:#fffbf0;}
+.decision-opt-icon{font-size:22px;margin-bottom:6px;}
+.decision-opt-label{font-size:12px;font-weight:700;color:var(--navy);}
+
+/* PREVENTION */
+.bar-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+.bar-label{font-size:12px;font-weight:600;color:var(--text);width:200px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bar-track{flex:1;background:#f0f2f5;border-radius:20px;height:12px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:20px;background:var(--navy);transition:width 0.5s;}
+.bar-count{font-size:12px;font-weight:700;color:var(--text-muted);width:30px;text-align:right;}
+
+/* GRID LAYOUTS */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;}
+
+/* MISC */
+.empty-state{padding:40px;text-align:center;color:var(--text-muted);}
+.empty-state-icon{font-size:40px;margin-bottom:12px;}
+.empty-state-text{font-size:14px;}
+.total-row{background:#f8f9fb;font-weight:700;}
+.section-title{font-size:13px;font-weight:700;color:var(--navy);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.info-item label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:3px;}
+.info-item .val{font-size:13px;font-weight:500;color:var(--text);}
+.alert-item{display:flex;align-items:center;gap:12px;padding:12px;background:#fff8f0;border:1px solid #fed7aa;border-radius:8px;margin-bottom:8px;}
+.playbook-item{padding:12px 16px;background:#f8f9fb;border-radius:8px;margin-bottom:8px;border-left:3px solid var(--navy);}
+.playbook-item .pi-case{font-size:11px;color:var(--text-muted);margin-bottom:4px;}
+.playbook-item .pi-text{font-size:13px;color:var(--text);}
+.step-header{display:flex;align-items:center;gap:10px;margin-bottom:20px;}
+.step-num{width:28px;height:28px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;}
+.step-title{font-size:16px;font-weight:700;color:var(--navy);}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-title">⭐ Saturn Star</div>
+    <div class="logo-sub">Customer Recovery</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">Main</div>
+    <div class="nav-item active" onclick="navigate('dashboard')" id="nav-dashboard">
+      <span class="nav-icon">🏠</span> Dashboard
+    </div>
+    <div class="nav-item" onclick="navigate('cases')" id="nav-cases">
+      <span class="nav-icon">📋</span> All Cases
+    </div>
+    <div class="nav-section">Analysis</div>
+    <div class="nav-item" onclick="navigate('prevention')" id="nav-prevention">
+      <span class="nav-icon">🔍</span> Prevention
+    </div>
+    <div class="nav-item" onclick="navigate('reports')" id="nav-reports">
+      <span class="nav-icon">📊</span> Reports
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <span>Saturn Star Moving Co.</span>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-title" id="topbar-title">Customer Recovery Hub</div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-primary" onclick="navigate('new-case')">＋ New Case</button>
+    </div>
+  </header>
+  <div class="content" id="app">
+    <div class="empty-state"><div class="empty-state-icon">⏳</div><div>Loading...</div></div>
+  </div>
+</div>
+
+<!-- MODAL OVERLAY -->
+<div class="modal-overlay" id="modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="modal" id="modal-box"></div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<script>
+// ─── DB ────────────────────────────────────────────────────────────────────
+const DB = {
+  getCases(){return JSON.parse(localStorage.getItem('sscr_cases')||'[]')},
+  saveCases(c){localStorage.setItem('sscr_cases',JSON.stringify(c))},
+  getCase(id){return this.getCases().find(c=>c.id===id)||null},
+  addCase(c){const cases=this.getCases();cases.unshift(c);this.saveCases(cases)},
+  updateCase(c){
+    const cases=this.getCases();
+    const i=cases.findIndex(x=>x.id===c.id);
+    c.updatedAt=new Date().toISOString();
+    if(i>=0)cases[i]=c;else cases.unshift(c);
+    this.saveCases(cases);
+  },
+  deleteCase(id){this.saveCases(this.getCases().filter(c=>c.id!==id))},
+  generateId(){return Date.now().toString(36)+Math.random().toString(36).slice(2)},
+  generateCaseNumber(){
+    const cases=this.getCases();
+    const n=cases.length+1;
+    return 'CR-2026-'+String(n).padStart(3,'0');
+  },
+  getOpsMoves(){try{return JSON.parse(localStorage.getItem('ssops_moves')||'[]')}catch{return[]}},
+  getOpsCrew(){try{return JSON.parse(localStorage.getItem('ssops_crew')||'[]')}catch{return[]}},
+  getCRMClients(){try{return JSON.parse(localStorage.getItem('sscrm_clients')||'[]')}catch{return[]}},
+};
+
+// ─── STATE ─────────────────────────────────────────────────────────────────
+window.currentView = 'dashboard';
+window.currentCase = null;
+window.currentTab = 0;
+window.caseFilter = 'all';
+window.priorityFilter = 'all';
+window.newCaseStep = 1;
+window.newCaseDraft = {};
+window.newCaseDamages = [];
+
+// ─── HELPERS ───────────────────────────────────────────────────────────────
+function fmt(iso){
+  if(!iso)return'—';
+  const d=new Date(iso);
+  return d.toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'});
+}
+function fmtDateTime(iso){
+  if(!iso)return'—';
+  const d=new Date(iso);
+  return d.toLocaleDateString('en-CA',{month:'short',day:'numeric'})+' '+d.toLocaleTimeString('en-CA',{hour:'2-digit',minute:'2-digit'});
+}
+function fmtMoney(n){
+  if(!n&&n!==0)return'—';
+  return '$'+Number(n).toLocaleString('en-CA',{minimumFractionDigits:0});
+}
+function elapsed(iso){
+  if(!iso)return'—';
+  const ms=Date.now()-new Date(iso).getTime();
+  const d=Math.floor(ms/86400000);
+  if(d===0)return'Today';
+  if(d===1)return'Yesterday';
+  return d+' days ago';
+}
+function statusLabel(s){
+  const m={new:'New','investigating':'Investigating','decision-pending':'Decision Pending','in-resolution':'In Resolution','closed':'Closed','escalated':'Escalated'};
+  return m[s]||s;
+}
+function statusBadge(s){
+  const map={new:'badge-new',investigating:'badge-investigating','decision-pending':'badge-decision-pending','in-resolution':'badge-in-resolution',closed:'badge-closed',escalated:'badge-escalated'};
+  return`<span class="badge ${map[s]||''}">${statusLabel(s)}</span>`;
+}
+function priorityBadge(p){
+  return`<span class="badge badge-${p}">${p}</span>`;
+}
+function typeBadge(t){
+  return`<span class="badge badge-${t}">${t}</span>`;
+}
+function nextStatus(s){
+  const flow=['new','investigating','decision-pending','in-resolution','closed'];
+  const i=flow.indexOf(s);
+  return i>=0&&i<flow.length-1?flow[i+1]:null;
+}
+function commIcon(type){
+  const m={call:'📞',email:'✉️',sms:'💬','in-person':'🤝'};
+  return m[type]||'📌';
+}
+
+// ─── TOAST ─────────────────────────────────────────────────────────────────
+function toast(msg,type=''){
+  const c=document.getElementById('toast-container');
+  const el=document.createElement('div');
+  el.className='toast '+(type==='success'?'success':type==='error'?'error':type==='warning'?'warning':'');
+  el.innerHTML=(type==='success'?'✅ ':type==='error'?'❌ ':type==='warning'?'⚠️ ':'ℹ️ ')+msg;
+  c.appendChild(el);
+  setTimeout(()=>{el.style.animation='slideOut 0.3s ease forwards';setTimeout(()=>el.remove(),300);},3200);
+}
+
+// ─── MODAL ─────────────────────────────────────────────────────────────────
+function showModal(html, large=false, xl=false){
+  const box=document.getElementById('modal-box');
+  box.className='modal'+(xl?' modal-xl':large?' modal-lg':'');
+  box.innerHTML=html;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal(){
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+function handleOverlayClick(e){
+  if(e.target===document.getElementById('modal-overlay'))closeModal();
+}
+
+// ─── ROUTER ────────────────────────────────────────────────────────────────
+function navigate(view, caseId){
+  window.currentView=view;
+  if(caseId){window.currentCase=DB.getCase(caseId);window.currentTab=0;}
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  const navMap={'dashboard':'nav-dashboard','cases':'nav-cases','case-detail':'nav-cases','new-case':'nav-cases','prevention':'nav-prevention','reports':'nav-reports'};
+  const navEl=document.getElementById(navMap[view]);
+  if(navEl)navEl.classList.add('active');
+  const titles={'dashboard':'Dashboard','cases':'All Cases','case-detail':'Case Detail','new-case':'New Case','prevention':'Prevention Center','reports':'Reports'};
+  document.getElementById('topbar-title').textContent=titles[view]||view;
+  render();
+}
+function render(){
+  const app=document.getElementById('app');
+  closeModal();
+  switch(window.currentView){
+    case'dashboard':app.innerHTML=renderDashboard();break;
+    case'cases':app.innerHTML=renderCases();break;
+    case'case-detail':app.innerHTML=renderCaseDetail();break;
+    case'new-case':app.innerHTML=renderNewCase();break;
+    case'prevention':app.innerHTML=renderPrevention();break;
+    case'reports':app.innerHTML=renderReports();break;
+    default:app.innerHTML=renderDashboard();
+  }
+}
+
+// ─── DASHBOARD ─────────────────────────────────────────────────────────────
+function renderDashboard(){
+  const cases=DB.getCases();
+  const now=new Date();
+  const thisMonth=cases.filter(c=>{
+    const d=new Date(c.createdAt);
+    return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
+  });
+  const open=cases.filter(c=>c.status!=='closed').length;
+  const investigating=cases.filter(c=>c.status==='investigating').length;
+  const decisionPending=cases.filter(c=>c.status==='decision-pending').length;
+  const inResolution=cases.filter(c=>c.status==='in-resolution').length;
+  const closedMonth=thisMonth.filter(c=>c.status==='closed').length;
+  const insurance=cases.filter(c=>c.insuranceStatus&&c.insuranceStatus!=='not-filed').length;
+
+  // priority counts among open
+  const openCases=cases.filter(c=>c.status!=='closed');
+  const pCount={critical:0,high:0,medium:0,low:0};
+  openCases.forEach(c=>pCount[c.priority]=(pCount[c.priority]||0)+1);
+  const maxP=Math.max(...Object.values(pCount),1);
+
+  // prevention alerts: root cause identified but no preventionActions
+  const prevAlerts=cases.filter(c=>c.rootCause&&!c.preventionActions&&c.status!=='closed');
+
+  const recent=cases.slice(0,5);
+
+  return`
+<div class="stats-row">
+  <div class="stat-card ${open>5?'danger':''}">
+    <div class="stat-label">Open Cases</div>
+    <div class="stat-value">${open}</div>
+    <div class="stat-sub">Active</div>
+  </div>
+  <div class="stat-card ${investigating>0?'warning':''}">
+    <div class="stat-label">Investigating</div>
+    <div class="stat-value">${investigating}</div>
+    <div class="stat-sub">Under review</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Pending Decision</div>
+    <div class="stat-value">${decisionPending}</div>
+    <div class="stat-sub">Awaiting resolution</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">In Resolution</div>
+    <div class="stat-value">${inResolution}</div>
+    <div class="stat-sub">Being resolved</div>
+  </div>
+  <div class="stat-card success">
+    <div class="stat-label">Closed This Month</div>
+    <div class="stat-value">${closedMonth}</div>
+    <div class="stat-sub">Resolved</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Insurance Claims</div>
+    <div class="stat-value">${insurance}</div>
+    <div class="stat-sub">Filed / Active</div>
+  </div>
+</div>
+
+<div class="two-col" style="margin-bottom:20px;">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Recent Cases</div>
+      <button class="btn btn-outline btn-sm" onclick="navigate('cases')">View All</button>
+    </div>
+    ${recent.length===0?`<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">No cases yet</div></div>`:''}
+    ${recent.map(c=>`
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;" onclick="navigate('case-detail','${c.id}')">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--navy);">${c.caseNumber} — ${c.clientName}</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${c.type} · ${elapsed(c.createdAt)}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          ${priorityBadge(c.priority)}
+          ${statusBadge(c.status)}
+        </div>
+      </div>
+    `).join('')}
+  </div>
+
+  <div>
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header"><div class="card-title">Open Cases by Priority</div></div>
+      ${['critical','high','medium','low'].map(p=>`
+        <div class="bar-row">
+          <div class="bar-label" style="text-transform:capitalize;">${p}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.round((pCount[p]||0)/maxP*100)}%;background:${p==='critical'?'#be123c':p==='high'?'#c2410c':p==='medium'?'#a16207':'#15803d'};"></div></div>
+          <div class="bar-count">${pCount[p]||0}</div>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">⚠️ Prevention Alerts</div>
+      </div>
+      ${prevAlerts.length===0?`<div style="font-size:13px;color:var(--text-muted);padding:8px 0;">No unresolved prevention gaps.</div>`:''}
+      ${prevAlerts.map(c=>`
+        <div class="alert-item" onclick="navigate('case-detail','${c.id}')" style="cursor:pointer;">
+          <div>
+            <div style="font-size:12px;font-weight:700;color:var(--navy);">${c.caseNumber} · ${c.clientName}</div>
+            <div style="font-size:11px;color:var(--text-muted);">Root cause documented — no prevention plan added</div>
+          </div>
+          <button class="btn btn-warning btn-xs" onclick="event.stopPropagation();navigate('case-detail','${c.id}')">Add Plan</button>
+        </div>
+      `).join('')}
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Quick Actions</div>
+  </div>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;">
+    <button class="btn btn-primary" onclick="navigate('new-case')">＋ New Case</button>
+    <button class="btn btn-navy" onclick="navigate('cases')">📋 View All Cases</button>
+    <button class="btn btn-outline" onclick="navigate('prevention')">🔍 Prevention Center</button>
+    <button class="btn btn-outline" onclick="navigate('reports')">📊 View Reports</button>
+  </div>
+</div>`;
+}
+
+// ─── CASES VIEW ────────────────────────────────────────────────────────────
+function renderCases(){
+  let cases=DB.getCases();
+  const statusFilters=['all','new','investigating','decision-pending','in-resolution','closed','escalated'];
+  const pFilters=['all','critical','high','medium','low'];
+
+  if(window.caseFilter!=='all') cases=cases.filter(c=>c.status===window.caseFilter);
+  if(window.priorityFilter!=='all') cases=cases.filter(c=>c.priority===window.priorityFilter);
+
+  return`
+<div class="filter-bar">
+  ${statusFilters.map(f=>`<div class="filter-chip ${window.caseFilter===f?'active':''}" onclick="window.caseFilter='${f}';render()">${f==='all'?'All Statuses':statusLabel(f)}</div>`).join('')}
+  <div style="width:1px;height:24px;background:var(--border);margin:0 4px;"></div>
+  ${pFilters.map(f=>`<div class="filter-chip priority-${f} ${window.priorityFilter===f?'active':''}" onclick="window.priorityFilter='${f}';render()">${f==='all'?'All Priority':f.charAt(0).toUpperCase()+f.slice(1)}</div>`).join('')}
+</div>
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Cases (${cases.length})</div>
+    <button class="btn btn-primary btn-sm" onclick="navigate('new-case')">＋ New Case</button>
+  </div>
+  ${cases.length===0?`<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">No cases match the selected filters.</div></div>`:`
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>Case #</th><th>Client</th><th>Type</th><th>Priority</th><th>Status</th><th>Move Date</th><th>Est. Value</th><th>Opened</th><th>Action</th>
+      </tr></thead>
+      <tbody>
+      ${cases.map(c=>`<tr onclick="navigate('case-detail','${c.id}')">
+        <td><strong>${c.caseNumber}</strong></td>
+        <td>
+          <div style="font-weight:600;">${c.clientName}</div>
+          <div style="font-size:11px;color:var(--text-muted);">${c.clientPhone||''}</div>
+        </td>
+        <td>${typeBadge(c.type)}</td>
+        <td>${priorityBadge(c.priority)}</td>
+        <td>${statusBadge(c.status)}</td>
+        <td>${c.moveDate?fmt(c.moveDate):'—'}</td>
+        <td>${c.totalEstimatedValue>0?fmtMoney(c.totalEstimatedValue):'—'}</td>
+        <td>${elapsed(c.createdAt)}</td>
+        <td onclick="event.stopPropagation()">
+          <button class="btn btn-outline btn-xs" onclick="navigate('case-detail','${c.id}')">Open →</button>
+        </td>
+      </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>`}
+</div>`;
+}
+
+// ─── CASE DETAIL ───────────────────────────────────────────────────────────
+function renderCaseDetail(){
+  const c=window.currentCase;
+  if(!c)return`<div class="empty-state"><div class="empty-state-icon">❓</div><div>Case not found.</div></div>`;
+  const tabs=['Overview','Evidence & Damage','Investigation','Decision & Payout','Resolution'];
+  const tab=window.currentTab||0;
+  const ns=nextStatus(c.status);
+
+  return`
+<div style="margin-bottom:8px;">
+  <button class="btn btn-ghost btn-sm" onclick="navigate('cases')">← Back to Cases</button>
+</div>
+<div class="case-header">
+  <div class="case-header-left">
+    <div class="case-number">${c.caseNumber}</div>
+    <div class="case-meta">${c.clientName} · ${c.type} · Opened ${fmt(c.createdAt)}</div>
+  </div>
+  <div class="case-header-right">
+    ${priorityBadge(c.priority)}
+    ${statusBadge(c.status)}
+    ${ns?`<button class="btn btn-primary btn-sm" onclick="showAdvanceStatus('${c.id}')">Advance → ${statusLabel(ns)}</button>`:''}
+    <button class="btn btn-outline btn-sm" style="color:#fff;border-color:rgba(255,255,255,0.3);" onclick="showDeleteCase('${c.id}')">🗑</button>
+  </div>
+</div>
+
+<div class="tabs">
+  ${tabs.map((t,i)=>`<div class="tab ${tab===i?'active':''}" onclick="window.currentTab=${i};render()">${t}</div>`).join('')}
+</div>
+
+${tab===0?renderCaseOverview(c):''}
+${tab===1?renderCaseEvidence(c):''}
+${tab===2?renderCaseInvestigation(c):''}
+${tab===3?renderCaseDecision(c):''}
+${tab===4?renderCaseResolution(c):''}`;
+}
+
+function renderCaseOverview(c){
+  const statuses=['new','investigating','decision-pending','in-resolution','closed'];
+  const cur=statuses.indexOf(c.status);
+  const comms=c.communications||[];
+  return`
+<div class="two-col">
+  <div>
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header"><div class="card-title">Case Information</div></div>
+      <div class="info-grid">
+        <div class="info-item"><label>Case #</label><div class="val">${c.caseNumber}</div></div>
+        <div class="info-item"><label>Status</label><div class="val">${statusBadge(c.status)}</div></div>
+        <div class="info-item"><label>Priority</label><div class="val">${priorityBadge(c.priority)}</div></div>
+        <div class="info-item"><label>Type</label><div class="val">${typeBadge(c.type)}</div></div>
+        <div class="info-item"><label>Client</label><div class="val">${c.clientName}</div></div>
+        <div class="info-item"><label>Phone</label><div class="val"><a href="tel:${c.clientPhone}">${c.clientPhone||'—'}</a></div></div>
+        <div class="info-item"><label>Email</label><div class="val">${c.clientEmail||'—'}</div></div>
+        <div class="info-item"><label>Move Date</label><div class="val">${c.moveDate?fmt(c.moveDate):'—'}</div></div>
+        <div class="info-item"><label>Move From</label><div class="val">${c.moveFrom||'—'}</div></div>
+        <div class="info-item"><label>Move To</label><div class="val">${c.moveTo||'—'}</div></div>
+        <div class="info-item"><label>Crew Lead</label><div class="val">${c.crewLead||'—'}</div></div>
+        <div class="info-item"><label>Crew</label><div class="val">${(c.crewMembers||[]).join(', ')||'—'}</div></div>
+        <div class="info-item"><label>Truck</label><div class="val">${c.truckId||'—'}</div></div>
+        <div class="info-item"><label>Reported</label><div class="val">${fmtDateTime(c.reportedAt)}</div></div>
+      </div>
+      ${c.incidentDescription?`<div style="margin-top:16px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:6px;">Incident Description</div><div style="font-size:13px;color:var(--text);line-height:1.6;">${c.incidentDescription}</div></div>`:''}
+    </div>
+  </div>
+
+  <div>
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header"><div class="card-title">Status Progression</div></div>
+      <div class="status-progress">
+        ${statuses.map((s,i)=>`
+          <div class="sp-step ${i<cur?'done':i===cur?'active':''}">
+            <div class="sp-dot ${i<cur?'done':i===cur?'active':''}">
+              ${i<cur?'✓':i+1}
+            </div>
+            <div class="sp-label ${i===cur?'active':''}">${statusLabel(s)}</div>
+          </div>
+        `).join('')}
+      </div>
+      ${nextStatus(c.status)?`<div style="margin-top:14px;text-align:center;"><button class="btn btn-primary btn-sm" onclick="showAdvanceStatus('${c.id}')">Advance to ${statusLabel(nextStatus(c.status))}</button></div>`:'<div style="text-align:center;margin-top:12px;"><span class="badge badge-closed" style="font-size:13px;">Case Closed</span></div>'}
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Communication Log (${comms.length})</div>
+        <button class="btn btn-navy btn-sm" onclick="showLogComm('${c.id}')">+ Log</button>
+      </div>
+      ${comms.length===0?`<div style="font-size:13px;color:var(--text-muted);">No communications logged yet.</div>`:''}
+      <div>
+        ${comms.slice().reverse().map(comm=>`
+          <div class="comm-item">
+            <div class="comm-icon ${comm.type}">${commIcon(comm.type)}</div>
+            <div class="comm-body">
+              <div class="comm-header">
+                <div class="comm-type">${comm.type.replace('-',' ')} <span class="comm-dir ${comm.direction}">${comm.direction}</span></div>
+                <div class="comm-time">${fmtDateTime(comm.timestamp)}</div>
+              </div>
+              <div class="comm-summary">${comm.summary}</div>
+              <div class="comm-staff">— ${comm.staffMember||'Unknown'}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  </div>
+</div>`;
+}
+
+function renderCaseEvidence(c){
+  const damages=c.damages||[];
+  const photos=c.photos||[];
+  const total=damages.reduce((s,d)=>s+(Number(d.estimatedValue)||0),0);
+  return`
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header"><div class="card-title">Photos & Evidence</div></div>
+  <label class="photo-upload-zone" for="photo-upload-${c.id}">
+    <input type="file" id="photo-upload-${c.id}" accept="image/*" multiple onchange="handlePhotoUpload(event,'${c.id}')">
+    <div style="font-size:28px;margin-bottom:8px;">📷</div>
+    <div style="font-size:14px;font-weight:600;color:var(--navy);">Click to upload photos</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">JPG, PNG, WEBP — stored locally</div>
+  </label>
+  ${photos.length>0?`
+  <div class="photo-grid">
+    ${photos.map(p=>`
+      <div class="photo-item">
+        <img src="${p.dataUrl}" alt="${p.caption||'photo'}">
+        <div class="photo-caption">${p.caption||'No caption'}</div>
+        <button class="photo-del" onclick="deletePhoto('${c.id}','${p.id}')">✕</button>
+      </div>
+    `).join('')}
+  </div>`:'<div style="font-size:13px;color:var(--text-muted);margin-top:12px;">No photos uploaded yet.</div>'}
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Damage Items</div>
+    <button class="btn btn-navy btn-sm" onclick="showAddDamage('${c.id}')">+ Add Item</button>
+  </div>
+  ${damages.length===0?`<div class="empty-state" style="padding:20px;"><div class="empty-state-icon" style="font-size:24px;">📦</div><div class="empty-state-text">No damage items recorded.</div></div>`:`
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Item</th><th>Description</th><th>Severity</th><th>Est. Value</th><th>Resolution Type</th><th></th></tr></thead>
+      <tbody>
+        ${damages.map(d=>`<tr>
+          <td><strong>${d.item}</strong></td>
+          <td style="max-width:220px;">${d.description}</td>
+          <td><span class="severity-${d.severity}">${d.severity}</span></td>
+          <td>${fmtMoney(d.estimatedValue)}</td>
+          <td>${d.replacementType}</td>
+          <td><button class="btn btn-ghost btn-xs" onclick="deleteDamage('${c.id}','${d.id}')">🗑</button></td>
+        </tr>`).join('')}
+        <tr class="total-row">
+          <td colspan="3"><strong>Total Estimated</strong></td>
+          <td colspan="3"><strong>${fmtMoney(total)}</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>`}
+</div>`;
+}
+
+function renderCaseInvestigation(c){
+  const factors=c.contributingFactors||[];
+  const suggestions=['improper packing','equipment failure','rushed schedule','wet/slippery conditions','crew error','customer error','traffic/accident','structural issue','inadequate padding','communication failure'];
+  const crewMembers=c.crewMembers||[];
+  return`
+<div class="two-col">
+  <div>
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header"><div class="card-title">Root Cause Analysis</div></div>
+      <div class="form-group">
+        <label>Root Cause</label>
+        <textarea id="inv-root" placeholder="What was the primary cause of this incident?" rows="4">${c.rootCause||''}</textarea>
+      </div>
+      <div class="form-group">
+        <label>Prevention Actions</label>
+        <textarea id="inv-prev" placeholder="What will we do differently to prevent this?" rows="4">${c.preventionActions||''}</textarea>
+      </div>
+      <button class="btn btn-navy" onclick="saveInvestigation('${c.id}')">💾 Save Investigation</button>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title">Crew Accountability</div></div>
+      ${crewMembers.length===0?`<div style="font-size:13px;color:var(--text-muted);">No crew members listed on this case.</div>`:''}
+      ${crewMembers.map(m=>`
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
+          <div>
+            <div style="font-size:13px;font-weight:600;">${m}</div>
+          </div>
+          <button class="btn btn-warning btn-xs" onclick="flagForTraining('${c.id}','${m.replace(/'/g,"\\'")}')">🚩 Flag for Training</button>
+        </div>
+      `).join('')}
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">Contributing Factors</div></div>
+      <div id="factors-display" style="margin-bottom:12px;">
+        ${factors.map(f=>`<span class="factor-tag">${f}<span class="del-factor" onclick="removeFactor('${c.id}','${f.replace(/'/g,"\\'")}')">✕</span></span>`).join('')}
+        ${factors.length===0?`<span style="font-size:13px;color:var(--text-muted);">No factors added yet.</span>`:''}
+      </div>
+      <label>Add Factor</label>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <input type="text" id="factor-input" placeholder="Type a factor..." onkeydown="if(event.key==='Enter')addFactorCustom('${c.id}')">
+        <button class="btn btn-navy btn-sm" onclick="addFactorCustom('${c.id}')">Add</button>
+      </div>
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:8px;">Common Factors</div>
+      <div class="factor-suggestions">
+        ${suggestions.filter(s=>!factors.includes(s)).map(s=>`<div class="factor-suggestion" onclick="addFactor('${c.id}','${s}')">${s}</div>`).join('')}
+      </div>
+    </div>
+  </div>
+</div>`;
+}
+
+function renderCaseDecision(c){
+  const decisions=[
+    {val:'repair',icon:'🔧',label:'Repair'},
+    {val:'replacement',icon:'📦',label:'Replacement'},
+    {val:'cash-payout',icon:'💵',label:'Cash Payout'},
+    {val:'insurance-claim',icon:'📄',label:'Insurance Claim'},
+    {val:'no-fault',icon:'✅',label:'No Fault'},
+    {val:'pending',icon:'⏳',label:'Pending'},
+  ];
+  const isCash=c.decision==='cash-payout';
+  const isInsurance=c.decision==='insurance-claim';
+  const total=(c.damages||[]).reduce((s,d)=>s+(Number(d.estimatedValue)||0),0);
+  return`
+<div class="two-col">
+  <div>
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header"><div class="card-title">Decision</div></div>
+      <div class="decision-options" style="margin-bottom:20px;">
+        ${decisions.map(d=>`
+          <div class="decision-opt ${c.decision===d.val?'selected':''}" onclick="setDecision('${c.id}','${d.val}')">
+            <div class="decision-opt-icon">${d.icon}</div>
+            <div class="decision-opt-label">${d.label}</div>
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="form-group">
+        <label>Decision Notes</label>
+        <textarea id="dec-notes" rows="3" placeholder="Explain the decision...">${c.decisionNotes||''}</textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Decision Made By</label>
+          <input type="text" id="dec-by" value="${c.decisionMadeBy||''}" placeholder="Staff name">
+        </div>
+        <div class="form-group">
+          <label>Decision Date</label>
+          <input type="date" id="dec-date" value="${c.decisionDate?c.decisionDate.slice(0,10):''}">
+        </div>
+      </div>
+
+      <div id="cash-fields" style="${isCash?'':'display:none'}">
+        <div class="form-group">
+          <label>Payout Amount ($)</label>
+          <input type="number" id="dec-payout" value="${c.payoutAmount||''}" placeholder="0.00">
+        </div>
+      </div>
+
+      <div id="insurance-fields" style="${isInsurance?'':'display:none'}">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Claim Number</label>
+            <input type="text" id="dec-claim-num" value="${c.insuranceClaimNumber||''}" placeholder="INS-XXXX">
+          </div>
+          <div class="form-group">
+            <label>Insurance Status</label>
+            <select id="dec-ins-status">
+              <option value="not-filed" ${c.insuranceStatus==='not-filed'?'selected':''}>Not Filed</option>
+              <option value="filed" ${c.insuranceStatus==='filed'?'selected':''}>Filed</option>
+              <option value="approved" ${c.insuranceStatus==='approved'?'selected':''}>Approved</option>
+              <option value="denied" ${c.insuranceStatus==='denied'?'selected':''}>Denied</option>
+              <option value="partial" ${c.insuranceStatus==='partial'?'selected':''}>Partial</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-navy" onclick="saveDecision('${c.id}')">💾 Save Decision</button>
+        <button class="btn btn-success" onclick="finalizeDecision('${c.id}')">✅ Approve & Finalize</button>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">Damage Summary</div></div>
+      <div style="font-size:32px;font-weight:800;color:var(--navy);margin-bottom:4px;">${fmtMoney(total)}</div>
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:18px;">Total estimated damage</div>
+      ${(c.damages||[]).map(d=>`
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">
+          <div>${d.item}</div>
+          <div style="font-weight:600;">${fmtMoney(d.estimatedValue)}</div>
+        </div>
+      `).join('')}
+      ${c.decisionDate?`
+        <div style="margin-top:16px;padding:12px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#065f46;margin-bottom:4px;">Decision Finalized</div>
+          <div style="font-size:13px;color:#065f46;">${c.decision} · ${fmtDateTime(c.decisionDate)}</div>
+          <div style="font-size:12px;color:#065f46;margin-top:2px;">By ${c.decisionMadeBy||'Unknown'}</div>
+        </div>
+      `:''}
+    </div>
+  </div>
+</div>`;
+}
+
+function renderCaseResolution(c){
+  const isClosed=c.status==='closed';
+  const canTrigger=c.customerSatisfied&&(c.type==='damage'||c.type==='loss'||c.type==='billing');
+  return`
+<div class="two-col">
+  <div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">Resolution</div></div>
+      ${isClosed?`
+        <div style="padding:14px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;margin-bottom:18px;">
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:#065f46;margin-bottom:4px;">✅ Case Closed</div>
+          <div style="font-size:13px;color:#065f46;">Resolved on ${fmtDateTime(c.resolvedAt)}</div>
+        </div>
+      `:''}
+      <div class="form-group">
+        <label>Resolution Notes</label>
+        <textarea id="res-notes" rows="5" placeholder="How was this resolved? What outcome was reached?">${c.resolutionNotes||''}</textarea>
+      </div>
+      <div class="form-group" style="display:flex;align-items:center;gap:10px;">
+        <input type="checkbox" id="res-satisfied" style="width:auto;" ${c.customerSatisfied?'checked':''} onchange="updateSatisfied('${c.id}')">
+        <label for="res-satisfied" style="text-transform:none;font-size:13px;font-weight:500;color:var(--text);cursor:pointer;">Customer is satisfied with the resolution</label>
+      </div>
+      ${!isClosed?`<button class="btn btn-success" onclick="markResolved('${c.id}')">✅ Mark as Resolved</button>`:''}
+      ${isClosed&&canTrigger&&!c.reviewRecoveryTriggered?`
+        <div style="margin-top:16px;padding:14px;background:#fffbf0;border-radius:8px;border:1px solid var(--gold);">
+          <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:8px;">🌟 Customer is satisfied — request a review?</div>
+          <button class="btn btn-primary btn-sm" onclick="triggerReviewRecovery('${c.id}')">Trigger Review Recovery</button>
+        </div>
+      `:''}
+      ${c.reviewRecoveryTriggered?`<div style="margin-top:14px;padding:10px 14px;background:#f0fdf4;border-radius:8px;font-size:13px;color:#065f46;font-weight:600;">✅ Review request sent to Reputation Engine</div>`:''}
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">Case Summary</div></div>
+      <div class="info-grid">
+        <div class="info-item"><label>Status</label><div class="val">${statusBadge(c.status)}</div></div>
+        <div class="info-item"><label>Priority</label><div class="val">${priorityBadge(c.priority)}</div></div>
+        <div class="info-item"><label>Decision</label><div class="val">${c.decision||'Pending'}</div></div>
+        <div class="info-item"><label>Payout</label><div class="val">${c.payoutAmount>0?fmtMoney(c.payoutAmount):'—'}</div></div>
+        <div class="info-item"><label>Opened</label><div class="val">${fmtDateTime(c.createdAt)}</div></div>
+        <div class="info-item"><label>Resolved</label><div class="val">${c.resolvedAt?fmtDateTime(c.resolvedAt):'—'}</div></div>
+        <div class="info-item"><label>Total Damage</label><div class="val">${fmtMoney((c.damages||[]).reduce((s,d)=>s+(Number(d.estimatedValue)||0),0))}</div></div>
+        <div class="info-item"><label>Satisfied</label><div class="val">${c.customerSatisfied?'✅ Yes':'❌ No'}</div></div>
+      </div>
+    </div>
+  </div>
+</div>`;
+}
+
+// ─── NEW CASE ───────────────────────────────────────────────────────────────
+function renderNewCase(){
+  const step=window.newCaseStep||1;
+  const draft=window.newCaseDraft||{};
+  const damages=window.newCaseDamages||[];
+  const total=damages.reduce((s,d)=>s+(Number(d.estimatedValue)||0),0);
+
+  return`
+<div style="max-width:760px;margin:0 auto;">
+  <div style="display:flex;align-items:center;gap:16px;margin-bottom:28px;">
+    ${[1,2,3].map(n=>`
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="width:28px;height:28px;border-radius:50%;background:${step>=n?'var(--navy)':'var(--border)'};color:${step>=n?'#fff':'var(--text-muted)'};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;">${n}</div>
+        <div style="font-size:13px;font-weight:${step===n?700:500};color:${step===n?'var(--navy)':'var(--text-muted)'};">${['Client & Move Info','Incident Report','Damage Assessment'][n-1]}</div>
+        ${n<3?`<div style="width:40px;height:2px;background:${step>n?'var(--navy)':'var(--border)'};"></div>`:''}
+      </div>
+    `).join('')}
+  </div>
+
+  <div class="card">
+    ${step===1?renderNewCaseStep1(draft):''}
+    ${step===2?renderNewCaseStep2(draft):''}
+    ${step===3?renderNewCaseStep3(damages,total):''}
+  </div>
+</div>`;
+}
+
+function renderNewCaseStep1(d){
+  const moves=DB.getOpsMoves();
+  return`
+<div class="step-header"><div class="step-num">1</div><div class="step-title">Client & Move Info</div></div>
+${moves.length>0?`
+<div style="margin-bottom:18px;padding:14px;background:#f0f9ff;border-radius:10px;border:1px solid #bae6fd;">
+  <div style="font-size:13px;font-weight:600;color:#0369a1;margin-bottom:8px;">📥 Pull from Operations</div>
+  <select id="ops-pull" style="margin-bottom:8px;">
+    <option value="">Select a move to auto-fill...</option>
+    ${moves.map(m=>`<option value="${m.id}">${m.clientName||'Move'} — ${m.date||''} (${m.from||''}→${m.to||''})</option>`).join('')}
+  </select>
+  <button class="btn btn-info btn-sm" onclick="pullFromOps()">Pull Data</button>
+</div>`:''}
+<div class="form-row">
+  <div class="form-group"><label>Client Name *</label><input id="nc-client-name" value="${d.clientName||''}" placeholder="Full name"></div>
+  <div class="form-group"><label>Phone</label><input id="nc-phone" value="${d.clientPhone||''}" placeholder="226-555-0000"></div>
+</div>
+<div class="form-group"><label>Email</label><input id="nc-email" type="email" value="${d.clientEmail||''}" placeholder="client@email.com"></div>
+<hr class="form-divider">
+<div class="form-row">
+  <div class="form-group"><label>Move Date</label><input type="date" id="nc-move-date" value="${d.moveDate||''}"></div>
+  <div class="form-group"><label>Truck ID</label><input id="nc-truck" value="${d.truckId||''}" placeholder="e.g. T-01"></div>
+</div>
+<div class="form-row">
+  <div class="form-group"><label>Move From</label><input id="nc-from" value="${d.moveFrom||''}" placeholder="Origin address"></div>
+  <div class="form-group"><label>Move To</label><input id="nc-to" value="${d.moveTo||''}" placeholder="Destination address"></div>
+</div>
+<div class="form-row">
+  <div class="form-group"><label>Crew Lead</label><input id="nc-crew-lead" value="${d.crewLead||''}" placeholder="Lead name"></div>
+  <div class="form-group"><label>Crew Members</label><input id="nc-crew" value="${(d.crewMembers||[]).join(', ')}" placeholder="Comma-separated names"></div>
+</div>
+<div style="display:flex;justify-content:flex-end;margin-top:8px;">
+  <button class="btn btn-primary" onclick="nextStep(1)">Next: Incident Report →</button>
+</div>`;
+}
+
+function renderNewCaseStep2(d){
+  const types=['damage','loss','injury','billing','conduct','delay','other'];
+  return`
+<div class="step-header"><div class="step-num">2</div><div class="step-title">Incident Report</div></div>
+<div class="form-row">
+  <div class="form-group">
+    <label>Incident Type *</label>
+    <select id="nc-type">
+      ${types.map(t=>`<option value="${t}" ${d.type===t?'selected':''}>${t.charAt(0).toUpperCase()+t.slice(1)}</option>`).join('')}
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Incident Date</label>
+    <input type="date" id="nc-inc-date" value="${d.incidentDate||''}">
+  </div>
+</div>
+<div class="form-group">
+  <label>Priority *</label>
+  <div class="priority-options" id="priority-opts">
+    ${['low','medium','high','critical'].map(p=>`<div class="priority-opt ${(d.priority||'medium')===p?'selected':''}" data-p="${p}" onclick="selectPriority('${p}')">${p.charAt(0).toUpperCase()+p.slice(1)}</div>`).join('')}
+  </div>
+  <input type="hidden" id="nc-priority" value="${d.priority||'medium'}">
+</div>
+<div class="form-group">
+  <label>Incident Description *</label>
+  <textarea id="nc-desc" rows="5" placeholder="Describe what happened in detail...">${d.incidentDescription||''}</textarea>
+</div>
+<div style="display:flex;justify-content:space-between;margin-top:8px;">
+  <button class="btn btn-outline" onclick="prevStep(2)">← Back</button>
+  <button class="btn btn-primary" onclick="nextStep(2)">Next: Damage Assessment →</button>
+</div>`;
+}
+
+function renderNewCaseStep3(damages,total){
+  return`
+<div class="step-header"><div class="step-num">3</div><div class="step-title">Initial Damage Assessment</div></div>
+<div style="margin-bottom:14px;">
+  <button class="btn btn-navy btn-sm" onclick="showAddDamageNew()">+ Add Damage Item</button>
+</div>
+${damages.length===0?`<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;background:#f8f9fb;border-radius:8px;margin-bottom:14px;">No damage items added yet — add items or leave blank for no damage.</div>`:`
+<div class="table-wrap" style="margin-bottom:14px;">
+  <table>
+    <thead><tr><th>Item</th><th>Severity</th><th>Est. Value</th><th>Type</th><th></th></tr></thead>
+    <tbody>
+      ${damages.map((d,i)=>`<tr>
+        <td><strong>${d.item}</strong><div style="font-size:11px;color:var(--text-muted);">${d.description}</div></td>
+        <td><span class="severity-${d.severity}">${d.severity}</span></td>
+        <td>${fmtMoney(d.estimatedValue)}</td>
+        <td>${d.replacementType}</td>
+        <td><button class="btn btn-ghost btn-xs" onclick="removeNewDamage(${i})">🗑</button></td>
+      </tr>`).join('')}
+      <tr class="total-row"><td colspan="2"><strong>Total</strong></td><td colspan="3"><strong>${fmtMoney(total)}</strong></td></tr>
+    </tbody>
+  </table>
+</div>`}
+<div style="display:flex;justify-content:space-between;margin-top:8px;">
+  <button class="btn btn-outline" onclick="prevStep(3)">← Back</button>
+  <button class="btn btn-success" onclick="saveNewCase()">✅ Create Case</button>
+</div>`;
+}
+
+// ─── PREVENTION ────────────────────────────────────────────────────────────
+function renderPrevention(){
+  const cases=DB.getCases();
+  // factor frequencies
+  const factorMap={};
+  cases.forEach(c=>{(c.contributingFactors||[]).forEach(f=>{factorMap[f]=(factorMap[f]||0)+1;});});
+  const factors=Object.entries(factorMap).sort((a,b)=>b[1]-a[1]);
+  const maxF=factors.length>0?factors[0][1]:1;
+
+  // damaged items frequency
+  const itemMap={};
+  cases.forEach(c=>{(c.damages||[]).forEach(d=>{const k=d.item.toLowerCase();itemMap[k]=(itemMap[k]||0)+1;});});
+  const items=Object.entries(itemMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
+
+  // high-risk crew/trucks
+  const crewMap={};
+  const truckMap={};
+  cases.forEach(c=>{
+    (c.crewMembers||[]).forEach(m=>{crewMap[m]=(crewMap[m]||0)+1;});
+    if(c.truckId)truckMap[c.truckId]=(truckMap[c.truckId]||0)+1;
+  });
+  const riskCrew=Object.entries(crewMap).filter(([,v])=>v>=2).sort((a,b)=>b[1]-a[1]);
+  const riskTruck=Object.entries(truckMap).filter(([,v])=>v>=2).sort((a,b)=>b[1]-a[1]);
+
+  // prevention playbook
+  const playbook=cases.filter(c=>c.preventionActions).sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt));
+
+  return`
+<div class="two-col" style="margin-bottom:20px;">
+  <div class="card">
+    <div class="card-header"><div class="card-title">Root Cause Patterns</div></div>
+    ${factors.length===0?`<div style="font-size:13px;color:var(--text-muted);">No contributing factors recorded yet.</div>`:''}
+    ${factors.map(([f,n])=>`
+      <div class="bar-row">
+        <div class="bar-label">${f}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${Math.round(n/maxF*100)}%"></div></div>
+        <div class="bar-count">${n}</div>
+      </div>
+    `).join('')}
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-title">Most Damaged Items</div></div>
+    ${items.length===0?`<div style="font-size:13px;color:var(--text-muted);">No damage items recorded yet.</div>`:''}
+    ${items.map(([item,n])=>`
+      <div class="bar-row">
+        <div class="bar-label" style="text-transform:capitalize;">${item}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${Math.round(n/items[0][1]*100)}%;background:var(--danger);"></div></div>
+        <div class="bar-count">${n}</div>
+      </div>
+    `).join('')}
+  </div>
+</div>
+
+<div class="two-col" style="margin-bottom:20px;">
+  <div class="card">
+    <div class="card-header"><div class="card-title">⚠️ High-Risk Crew</div></div>
+    ${riskCrew.length===0?`<div style="font-size:13px;color:var(--text-muted);">No crew members with 2+ cases.</div>`:''}
+    ${riskCrew.map(([name,n])=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div style="font-size:13px;font-weight:600;">${name}</div>
+        <span class="badge ${n>=3?'badge-escalated':'badge-high'}">${n} cases</span>
+      </div>
+    `).join('')}
+    ${riskTruck.length>0?`
+      <div style="margin-top:14px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:8px;">High-Risk Trucks</div>
+      ${riskTruck.map(([t,n])=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+          <div style="font-size:13px;font-weight:600;">Truck ${t}</div>
+          <span class="badge badge-warning">${n} cases</span>
+        </div>
+      `).join('')}</div>`:''}
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-title">📚 Prevention Playbook</div></div>
+    ${playbook.length===0?`<div style="font-size:13px;color:var(--text-muted);">No prevention actions documented yet.</div>`:''}
+    ${playbook.map(c=>`
+      <div class="playbook-item">
+        <div class="pi-case">${c.caseNumber} · ${c.clientName} · ${fmt(c.updatedAt)}</div>
+        <div class="pi-text">${c.preventionActions}</div>
+      </div>
+    `).join('')}
+  </div>
+</div>`;
+}
+
+// ─── REPORTS ───────────────────────────────────────────────────────────────
+function renderReports(){
+  const cases=DB.getCases();
+  const closed=cases.filter(c=>c.status==='closed');
+  const totalPayout=cases.reduce((s,c)=>s+(Number(c.payoutAmount)||0),0);
+  const insuranceCases=cases.filter(c=>c.insuranceStatus&&c.insuranceStatus!=='not-filed');
+  const satisfied=closed.filter(c=>c.customerSatisfied).length;
+  const satRate=closed.length>0?Math.round(satisfied/closed.length*100):0;
+
+  // avg resolution time
+  let totalMs=0;let rCount=0;
+  closed.forEach(c=>{
+    if(c.createdAt&&c.resolvedAt){
+      totalMs+=new Date(c.resolvedAt)-new Date(c.createdAt);
+      rCount++;
+    }
+  });
+  const avgDays=rCount>0?Math.round(totalMs/rCount/86400000):0;
+
+  // by type
+  const typeMap={};
+  cases.forEach(c=>{typeMap[c.type]=(typeMap[c.type]||0)+1;});
+  const types=Object.entries(typeMap).sort((a,b)=>b[1]-a[1]);
+  const maxT=types.length>0?types[0][1]:1;
+
+  // by month (last 6)
+  const monthMap={};
+  const now=new Date();
+  for(let i=5;i>=0;i--){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    const k=d.toLocaleDateString('en-CA',{month:'short',year:'numeric'});
+    monthMap[k]=0;
+  }
+  cases.forEach(c=>{
+    const d=new Date(c.createdAt);
+    const k=d.toLocaleDateString('en-CA',{month:'short',year:'numeric'});
+    if(k in monthMap)monthMap[k]++;
+  });
+  const months=Object.entries(monthMap);
+  const maxM=Math.max(...months.map(([,v])=>v),1);
+
+  // decision breakdown
+  const cashPayout=cases.filter(c=>c.decision==='cash-payout').reduce((s,c)=>s+(Number(c.payoutAmount)||0),0);
+  const insCases=cases.filter(c=>c.decision==='insurance-claim').length;
+
+  // top contributing factors
+  const factorMap={};
+  cases.forEach(c=>{(c.contributingFactors||[]).forEach(f=>{factorMap[f]=(factorMap[f]||0)+1;});});
+  const topFactors=Object.entries(factorMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  // status funnel
+  const statusOrder=['new','investigating','decision-pending','in-resolution','closed'];
+  const funnelData=statusOrder.map(s=>({s,n:cases.filter(c=>c.status===s).length}));
+  const maxFunnel=Math.max(...funnelData.map(x=>x.n),1);
+
+  return`
+<div class="stats-row" style="grid-template-columns:repeat(5,1fr);">
+  <div class="stat-card"><div class="stat-label">Total Cases</div><div class="stat-value">${cases.length}</div></div>
+  <div class="stat-card warning"><div class="stat-label">Total Payout</div><div class="stat-value">${fmtMoney(totalPayout)}</div></div>
+  <div class="stat-card"><div class="stat-label">Insurance Claims</div><div class="stat-value">${insuranceCases.length}</div></div>
+  <div class="stat-card"><div class="stat-label">Avg Resolution</div><div class="stat-value">${avgDays}d</div></div>
+  <div class="stat-card success"><div class="stat-label">Satisfaction Rate</div><div class="stat-value">${satRate}%</div></div>
+</div>
+
+<div class="two-col" style="margin-bottom:20px;">
+  <div class="card">
+    <div class="card-header"><div class="card-title">Cases by Type</div></div>
+    ${types.length===0?`<div style="font-size:13px;color:var(--text-muted);">No data.</div>`:''}
+    ${types.map(([t,n])=>`
+      <div class="bar-row">
+        <div class="bar-label" style="text-transform:capitalize;">${t}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${Math.round(n/maxT*100)}%;background:var(--info);"></div></div>
+        <div class="bar-count">${n}</div>
+      </div>
+    `).join('')}
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-title">Cases by Month (Last 6)</div></div>
+    ${months.map(([m,n])=>`
+      <div class="bar-row">
+        <div class="bar-label">${m}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${Math.round(n/maxM*100)}%;background:var(--gold);"></div></div>
+        <div class="bar-count">${n}</div>
+      </div>
+    `).join('')}
+  </div>
+</div>
+
+<div class="two-col" style="margin-bottom:20px;">
+  <div class="card">
+    <div class="card-header"><div class="card-title">Top Contributing Factors</div></div>
+    ${topFactors.length===0?`<div style="font-size:13px;color:var(--text-muted);">No factors logged yet.</div>`:''}
+    ${topFactors.map(([f,n],i)=>`
+      <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);">
+        <div style="width:22px;height:22px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">${i+1}</div>
+        <div style="flex:1;font-size:13px;">${f}</div>
+        <span class="badge badge-high">${n}</span>
+      </div>
+    `).join('')}
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-title">Case Status Funnel</div></div>
+    ${funnelData.map(({s,n})=>`
+      <div class="bar-row">
+        <div class="bar-label">${statusLabel(s)}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${Math.round(n/maxFunnel*100)}%;background:var(--navy-light);"></div></div>
+        <div class="bar-count">${n}</div>
+      </div>
+    `).join('')}
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+      <div style="display:flex;justify-content:space-between;font-size:13px;">
+        <span style="color:var(--text-muted);">Cash Payouts:</span>
+        <strong>${fmtMoney(cashPayout)}</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-top:6px;">
+        <span style="color:var(--text-muted);">Insurance Claims:</span>
+        <strong>${insCases}</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-top:6px;">
+        <span style="color:var(--text-muted);">Satisfied Customers:</span>
+        <strong>${satisfied} / ${closed.length} closed</strong>
+      </div>
+    </div>
+  </div>
+</div>`;
+}
+
+// ─── ACTIONS ───────────────────────────────────────────────────────────────
+
+function selectPriority(p){
+  document.getElementById('nc-priority').value=p;
+  document.querySelectorAll('.priority-opt').forEach(el=>{
+    el.classList.toggle('selected',el.dataset.p===p);
+  });
+}
+
+function pullFromOps(){
+  const sel=document.getElementById('ops-pull');
+  if(!sel||!sel.value)return;
+  const moves=DB.getOpsMoves();
+  const move=moves.find(m=>m.id===sel.value);
+  if(!move){toast('Move not found','error');return;}
+  if(document.getElementById('nc-client-name'))document.getElementById('nc-client-name').value=move.clientName||'';
+  if(document.getElementById('nc-phone'))document.getElementById('nc-phone').value=move.clientPhone||'';
+  if(document.getElementById('nc-email'))document.getElementById('nc-email').value=move.clientEmail||'';
+  if(document.getElementById('nc-move-date'))document.getElementById('nc-move-date').value=move.date||'';
+  if(document.getElementById('nc-from'))document.getElementById('nc-from').value=move.from||move.origin||'';
+  if(document.getElementById('nc-to'))document.getElementById('nc-to').value=move.to||move.destination||'';
+  if(document.getElementById('nc-crew-lead'))document.getElementById('nc-crew-lead').value=move.crewLead||'';
+  if(document.getElementById('nc-truck'))document.getElementById('nc-truck').value=move.truckId||move.truck||'';
+  toast('Move data pulled','success');
+}
+
+function nextStep(from){
+  if(from===1){
+    const name=document.getElementById('nc-client-name').value.trim();
+    if(!name){toast('Client name is required','error');return;}
+    window.newCaseDraft={
+      ...window.newCaseDraft,
+      clientName:name,
+      clientPhone:document.getElementById('nc-phone').value.trim(),
+      clientEmail:document.getElementById('nc-email').value.trim(),
+      moveDate:document.getElementById('nc-move-date').value,
+      moveFrom:document.getElementById('nc-from').value.trim(),
+      moveTo:document.getElementById('nc-to').value.trim(),
+      crewLead:document.getElementById('nc-crew-lead').value.trim(),
+      crewMembers:document.getElementById('nc-crew').value.split(',').map(s=>s.trim()).filter(Boolean),
+      truckId:document.getElementById('nc-truck').value.trim(),
+    };
+    window.newCaseStep=2;render();
+  } else if(from===2){
+    const desc=document.getElementById('nc-desc').value.trim();
+    if(!desc){toast('Incident description is required','error');return;}
+    window.newCaseDraft={
+      ...window.newCaseDraft,
+      type:document.getElementById('nc-type').value,
+      incidentDate:document.getElementById('nc-inc-date').value,
+      priority:document.getElementById('nc-priority').value,
+      incidentDescription:desc,
+    };
+    window.newCaseStep=3;render();
+  }
+}
+
+function prevStep(from){
+  window.newCaseStep=from-1;render();
+}
+
+function saveNewCase(){
+  const d=window.newCaseDraft;
+  const damages=window.newCaseDamages||[];
+  const total=damages.reduce((s,x)=>s+(Number(x.estimatedValue)||0),0);
+  const now=new Date().toISOString();
+  const c={
+    id:DB.generateId(),
+    caseNumber:DB.generateCaseNumber(),
+    status:'new',
+    priority:d.priority||'medium',
+    type:d.type||'other',
+    clientName:d.clientName||'Unknown',
+    clientPhone:d.clientPhone||'',
+    clientEmail:d.clientEmail||'',
+    moveId:'',
+    moveDate:d.moveDate||'',
+    moveFrom:d.moveFrom||'',
+    moveTo:d.moveTo||'',
+    crewLead:d.crewLead||'',
+    crewMembers:d.crewMembers||[],
+    truckId:d.truckId||'',
+    incidentDescription:d.incidentDescription||'',
+    reportedAt:now,
+    incidentDate:d.incidentDate||'',
+    photos:[],
+    damages:damages,
+    totalEstimatedValue:total,
+    rootCause:'',contributingFactors:[],preventionActions:'',
+    decision:'pending',decisionNotes:'',decisionMadeBy:'',decisionDate:null,payoutAmount:0,
+    insuranceClaimNumber:'',insuranceStatus:'not-filed',
+    resolutionNotes:'',resolvedAt:null,customerSatisfied:false,reviewRecoveryTriggered:false,
+    communications:[],
+    createdAt:now,updatedAt:now,
+  };
+  DB.addCase(c);
+  window.newCaseDraft={};window.newCaseDamages=[];window.newCaseStep=1;
+  toast('Case '+c.caseNumber+' created','success');
+  navigate('case-detail',c.id);
+}
+
+function showAddDamageNew(){
+  showModal(`
+<button class="modal-close" onclick="closeModal()">✕</button>
+<h2>Add Damage Item</h2>
+<div class="form-group"><label>Item Name *</label><input id="dm-item" placeholder="e.g. 65&quot; Samsung TV"></div>
+<div class="form-group"><label>Description</label><textarea id="dm-desc" rows="2" placeholder="What was damaged?"></textarea></div>
+<div class="form-row">
+  <div class="form-group">
+    <label>Severity</label>
+    <select id="dm-sev"><option value="minor">Minor</option><option value="moderate" selected>Moderate</option><option value="major">Major</option></select>
+  </div>
+  <div class="form-group">
+    <label>Est. Value ($)</label>
+    <input type="number" id="dm-val" placeholder="0">
+  </div>
+</div>
+<div class="form-group">
+  <label>Resolution Type</label>
+  <select id="dm-type"><option value="repair">Repair</option><option value="replace">Replace</option><option value="cash">Cash Settlement</option></select>
+</div>
+<div class="modal-footer">
+  <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+  <button class="btn btn-primary" onclick="addDamageNew()">Add Item</button>
+</div>`);
+}
+
+function addDamageNew(){
+  const item=document.getElementById('dm-item').value.trim();
+  if(!item){toast('Item name required','error');return;}
+  if(!window.newCaseDamages)window.newCaseDamages=[];
+  window.newCaseDamages.push({
+    id:DB.generateId(),
+    item,
+    description:document.getElementById('dm-desc').value.trim(),
+    severity:document.getElementById('dm-sev').value,
+    estimatedValue:parseFloat(document.getElementById('dm-val').value)||0,
+    replacementType:document.getElementById('dm-type').value,
+  });
+  closeModal();render();
+}
+
+function removeNewDamage(idx){
+  window.newCaseDamages.splice(idx,1);render();
+}
+
+function showAddDamage(caseId){
+  showModal(`
+<button class="modal-close" onclick="closeModal()">✕</button>
+<h2>Add Damage Item</h2>
+<div class="form-group"><label>Item Name *</label><input id="dm-item" placeholder="e.g. Dining table"></div>
+<div class="form-group"><label>Description</label><textarea id="dm-desc" rows="2" placeholder="Describe the damage..."></textarea></div>
+<div class="form-row">
+  <div class="form-group">
+    <label>Severity</label>
+    <select id="dm-sev"><option value="minor">Minor</option><option value="moderate" selected>Moderate</option><option value="major">Major</option></select>
+  </div>
+  <div class="form-group">
+    <label>Est. Value ($)</label>
+    <input type="number" id="dm-val" placeholder="0">
+  </div>
+</div>
+<div class="form-group">
+  <label>Resolution Type</label>
+  <select id="dm-type"><option value="repair">Repair</option><option value="replace">Replace</option><option value="cash">Cash Settlement</option></select>
+</div>
+<div class="modal-footer">
+  <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+  <button class="btn btn-primary" onclick="saveDamage('${caseId}')">Add Item</button>
+</div>`);
+}
+
+function saveDamage(caseId){
+  const item=document.getElementById('dm-item').value.trim();
+  if(!item){toast('Item name required','error');return;}
+  const c=DB.getCase(caseId);
+  if(!c)return;
+  if(!c.damages)c.damages=[];
+  c.damages.push({
+    id:DB.generateId(),
+    item,
+    description:document.getElementById('dm-desc').value.trim(),
+    severity:document.getElementById('dm-sev').value,
+    estimatedValue:parseFloat(document.getElementById('dm-val').value)||0,
+    replacementType:document.getElementById('dm-type').value,
+  });
+  c.totalEstimatedValue=c.damages.reduce((s,d)=>s+(Number(d.estimatedValue)||0),0);
+  DB.updateCase(c);
+  window.currentCase=c;
+  closeModal();render();
+  toast('Damage item added','success');
+}
+
+function deleteDamage(caseId,damageId){
+  const c=DB.getCase(caseId);
+  if(!c)return;
+  c.damages=(c.damages||[]).filter(d=>d.id!==damageId);
+  c.totalEstimatedValue=c.damages.reduce((s,d)=>s+(Number(d.estimatedValue)||0),0);
+  DB.updateCase(c);
+  window.currentCase=c;
+  render();toast('Item removed','success');
+}
+
+function handlePhotoUpload(event,caseId){
+  const files=Array.from(event.target.files);
+  if(!files.length)return;
+  const c=DB.getCase(caseId);
+  if(!c)return;
+  if(!c.photos)c.photos=[];
+  let done=0;
+  files.forEach(file=>{
+    const reader=new FileReader();
+    reader.onload=function(e){
+      const id=DB.generateId();
+      c.photos.push({id,dataUrl:e.target.result,caption:'',uploadedAt:new Date().toISOString()});
+      done++;
+      if(done===files.length){
+        DB.updateCase(c);
+        window.currentCase=c;
+        render();toast(files.length+' photo(s) uploaded','success');
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function deletePhoto(caseId,photoId){
+  const c=DB.getCase(caseId);
+  if(!c)return;
+  c.photos=(c.photos||[]).filter(p=>p.id!==photoId);
+  DB.updateCase(c);
+  window.currentCase=c;
+  render();toast('Photo removed','success');
+}
+
+function saveInvestigation(caseId){
+  const c=DB.getCase(caseId);
+  if(!c)return;
+  c.rootCause=document.getElementById('inv-root').value.trim();
+  c.preventionActions=document.getElementById('inv-prev').value.trim();
+  DB.updateCase(c);
+  window.currentCase=c;
+  toast('Investigation saved','success');
+}
+
+function addFactor(caseId,factor){
+  const c=DB.getCase(caseId);
+  if(!c)return;
+  if(!c.contributingFactors)c.contributingFactors=[];
+  if(!c.contributingFactors.includes(factor)){
+    c.contributingFactors.push(factor);
+    DB.updateCase(c);
+    window.currentCase=c;
+    render();
+  }
+}
+
+function addFactorCustom(caseId){
+  const inp=document.getElementById('factor-input');
+  if(!inp)return;
+  const val=inp.value.trim();
+  if(!val)return;
+  addFactor(caseId,val);
+}
+
+function removeFactor(caseId,factor){
+  const c=DB.getCase(caseId);
+  if(!c)return;
+  c.contributingFactors=(c.contributingFactors||[]).filter(f=>f!==factor);
+  DB.updateCase(c);
+  window.currentCase=c;
+  render();
+}
+
+function flagForTraining(caseId,member){
+  toast('Training flag added for '+member,'warning');
+  // Could write to ops crew data; for now just a toast
+}
+
+function setDecision(caseId,decision){
+  const c=DB.getCase(caseId);
+  if(!c)return;
+  c.decision=decision;
+  DB.updateCase(c);
+  window.currentCase=c;
+  render();
+}
+
+function saveDecision(caseId){
+  const c=DB.getCase(caseId);
+  if(!c)return;
+  c.decisionNotes=document.getElementById('dec-notes').value.trim();
+  c.decisionMadeBy=document.getElementById('dec-by').value.trim();
+  const dateVal=document.getElementById('dec-date').value;
+  c.decisionDate=dateVal?new Date(dateVal).toISOString():c.decisionDate;
+  if(c.decision==='cash-payout'){
+    c.payoutAmount=parseFloat(document.getElementById('dec-payout').value)||0;
+  }
+  if(c.decision==='insurance-claim'){
+    c.insuranceClaimNumber=document.getElementById('dec-claim-num').value.trim();
+    c.insuranceStatus=document.getElementById('dec-ins-status').value;
+  }
+  DB.updateCase(c);
+  window.currentCase=c;
+  toast('Decision saved','success');
+}
+
+function finalizeDecision(caseId){
+  const c=DB.getCase(caseId);
+  if(!c)return;
+  c.decisionNotes=(document.getElementById('dec-notes')||{value:c.decisionNotes}).value;
+  c.decisionMadeBy=(document.getElementById('dec-by')||{value:c.decisionMadeBy}).value;
+  c.decisionDate=new Date().toISOString();
+  if(c.decision==='cash-payout'){
+    const pEl=document.getElementById('dec-payout');
+    if(pEl)c.payoutAmount=parseFloat(pEl.value)||0;
+  }
+  if(c.decision==='insurance-claim'){
+    const cnEl=document.getElementById('dec-claim-num');
+    const isEl=document.getElementById('dec-ins-status');
+    if(cnEl)c.insuranceClaimNumber=cnEl.value.trim();
+    if(isEl)c.insuranceStatus=isEl.value;
+  }
+  if(c.status==='decision-pending'||c.status==='investigating'){
+    c.status='in-resolution';
+  }
+  DB.updateCase(c);
+  window.currentCase=c;
+  toast('Decision finalized ✅','success');
+  render();
+}
+
+function updateSatisfied(caseId){
+  const c=DB.getCase(caseId);
+  if(!c)return;
+  c.customerSatisfied=document.getElementById('res-satisfied').checked;
+  DB.updateCase(c);
+  window.currentCase=c;
+}
+
+function markResolved(caseId){
+  const c=DB.getCase(caseId);
+  if(!c)return;
+  const notesEl=document.getElementById('res-notes');
+  if(notesEl)c.resolutionNotes=notesEl.value.trim();
+  const satEl=document.getElementById('res-satisfied');
+  if(satEl)c.customerSatisfied=satEl.checked;
+  c.status='closed';
+  c.resolvedAt=new Date().toISOString();
+  DB.updateCase(c);
+  window.currentCase=c;
+  toast('Case closed ✅','success');
+  render();
+}
+
+function triggerReviewRecovery(caseId){
+  const c=DB.getCase(caseId);
+  if(!c)return;
+  // Write to reputation engine
+  const jobs=JSON.parse(localStorage.getItem('ssm_jobs')||'[]');
+  jobs.unshift({
+    id:DB.generateId(),
+    clientName:c.clientName,
+    clientEmail:c.clientEmail,
+    clientPhone:c.clientPhone,
+    moveDate:c.moveDate,
+    source:'customer-recovery',
+    caseNumber:c.caseNumber,
+    status:'pending-review-request',
+    createdAt:new Date().toISOString(),
+  });
+  localStorage.setItem('ssm_jobs',JSON.stringify(jobs));
+  c.reviewRecoveryTriggered=true;
+  DB.updateCase(c);
+  window.currentCase=c;
+  toast('Review request sent to Reputation Engine 🌟','success');
+  render();
+}
+
+function showAdvanceStatus(caseId){
+  const c=DB.getCase(caseId);
+  if(!c)return;
+  const ns=nextStatus(c.status);
+  if(!ns)return;
+  showModal(`
+<button class="modal-close" onclick="closeModal()">✕</button>
+<h2>Advance Case Status</h2>
+<p style="font-size:14px;color:var(--text);margin-bottom:20px;">
+  Move <strong>${c.caseNumber}</strong> from<br>
+  <span style="display:inline-block;margin-top:8px;">${statusBadge(c.status)}</span>
+  <span style="margin:0 10px;color:var(--text-muted);">→</span>
+  <span>${statusBadge(ns)}</span>
+</p>
+<div class="modal-footer">
+  <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+  <button class="btn btn-success" onclick="advanceStatus('${caseId}')">Confirm Advance</button>
+</div>`);
+}
+
+function advanceStatus(caseId){
+  const c=DB.getCase(caseId);
+  if(!c)return;
+  const ns=nextStatus(c.status);
+  if(!ns)return;
+  c.status=ns;
+  DB.updateCase(c);
+  window.currentCase=c;
+  closeModal();
+  toast('Status advanced to '+statusLabel(ns),'success');
+  render();
+}
+
+function showDeleteCase(caseId){
+  const c=DB.getCase(caseId);
+  if(!c)return;
+  showModal(`
+<button class="modal-close" onclick="closeModal()">✕</button>
+<h2>Delete Case</h2>
+<p style="font-size:14px;color:var(--text);margin-bottom:20px;">Are you sure you want to permanently delete <strong>${c.caseNumber}</strong> (${c.clientName})? This cannot be undone.</p>
+<div class="modal-footer">
+  <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+  <button class="btn btn-danger" onclick="deleteCase('${caseId}')">Delete Case</button>
+</div>`);
+}
+
+function deleteCase(caseId){
+  DB.deleteCase(caseId);
+  closeModal();
+  toast('Case deleted','success');
+  navigate('cases');
+}
+
+function showLogComm(caseId){
+  showModal(`
+<button class="modal-close" onclick="closeModal()">✕</button>
+<h2>Log Communication</h2>
+<div class="form-row">
+  <div class="form-group">
+    <label>Type</label>
+    <select id="comm-type">
+      <option value="call">📞 Call</option>
+      <option value="email">✉️ Email</option>
+      <option value="sms">💬 SMS</option>
+      <option value="in-person">🤝 In Person</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Direction</label>
+    <select id="comm-dir">
+      <option value="inbound">Inbound</option>
+      <option value="outbound">Outbound</option>
+    </select>
+  </div>
+</div>
+<div class="form-group">
+  <label>Summary *</label>
+  <textarea id="comm-summary" rows="3" placeholder="What was discussed or communicated?"></textarea>
+</div>
+<div class="form-group">
+  <label>Staff Member</label>
+  <input id="comm-staff" placeholder="Your name">
+</div>
+<div class="modal-footer">
+  <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+  <button class="btn btn-primary" onclick="saveComm('${caseId}')">Log Communication</button>
+</div>`);
+}
+
+function saveComm(caseId){
+  const summary=document.getElementById('comm-summary').value.trim();
+  if(!summary){toast('Summary is required','error');return;}
+  const c=DB.getCase(caseId);
+  if(!c)return;
+  if(!c.communications)c.communications=[];
+  c.communications.push({
+    id:DB.generateId(),
+    type:document.getElementById('comm-type').value,
+    direction:document.getElementById('comm-dir').value,
+    summary,
+    staffMember:document.getElementById('comm-staff').value.trim(),
+    timestamp:new Date().toISOString(),
+  });
+  DB.updateCase(c);
+  window.currentCase=c;
+  closeModal();
+  toast('Communication logged','success');
+  render();
+}
+
+// ─── SEED DATA ─────────────────────────────────────────────────────────────
+function seedData(){
+  if(DB.getCases().length>0)return;
+  const seed=[
+    {
+      id:'cr001',caseNumber:'CR-2026-001',
+      status:'investigating',priority:'high',type:'damage',
+      clientName:'Sarah Johnson',clientPhone:'226-555-0101',clientEmail:'sarah@email.com',
+      moveDate:'2026-03-01',moveFrom:'234 Oak Ave, Windsor',moveTo:'789 Elm St, Windsor',
+      crewLead:'Mike Torres',crewMembers:['Mike Torres','Daniel Park'],truckId:'T-02',
+      incidentDescription:'Customer reporting 65" Samsung TV arrived with cracked screen. TV was in original box with padding.',
+      reportedAt:'2026-03-02T10:30:00Z',incidentDate:'2026-03-01',
+      photos:[],
+      damages:[{id:'d1',item:'65" Samsung TV',description:'Cracked screen, unit non-functional',estimatedValue:1200,severity:'major',replacementType:'replace'}],
+      totalEstimatedValue:1200,
+      rootCause:'',contributingFactors:[],preventionActions:'',
+      decision:'pending',decisionNotes:'',decisionMadeBy:'',decisionDate:null,payoutAmount:0,
+      insuranceClaimNumber:'',insuranceStatus:'not-filed',
+      resolutionNotes:'',resolvedAt:null,customerSatisfied:false,reviewRecoveryTriggered:false,
+      communications:[{id:'c1',type:'call',direction:'inbound',summary:'Customer called to report damaged TV. Photos requested.',staffMember:'John',timestamp:'2026-03-02T10:30:00Z'}],
+      createdAt:'2026-03-02T10:30:00Z',updatedAt:'2026-03-02T10:30:00Z'
+    },
+    {
+      id:'cr002',caseNumber:'CR-2026-002',
+      status:'decision-pending',priority:'medium',type:'loss',
+      clientName:'Marcus Williams',clientPhone:'226-555-0202',clientEmail:'marcus@email.com',
+      moveDate:'2026-02-28',moveFrom:'456 Pine St, Windsor',moveTo:'123 Maple Dr, LaSalle',
+      crewLead:'James Cooper',crewMembers:['James Cooper','Luis Reyes','Aisha Brown'],truckId:'T-01',
+      incidentDescription:'Customer reports one box of kitchen items missing. Box contained small appliances.',
+      reportedAt:'2026-03-01T14:00:00Z',incidentDate:'2026-02-28',
+      photos:[],
+      damages:[{id:'d2',item:'Box of kitchen appliances',description:'Missing box — Instant Pot, KitchenAid mixer, assorted items',estimatedValue:450,severity:'moderate',replacementType:'cash'}],
+      totalEstimatedValue:450,
+      rootCause:'Box left at origin location due to end-of-day rush.',
+      contributingFactors:['rushed schedule','crew error'],
+      preventionActions:'Final walkthrough checklist required before leaving origin. Two-person sign-off.',
+      decision:'pending',decisionNotes:'',decisionMadeBy:'',decisionDate:null,payoutAmount:0,
+      insuranceClaimNumber:'',insuranceStatus:'not-filed',
+      resolutionNotes:'',resolvedAt:null,customerSatisfied:false,reviewRecoveryTriggered:false,
+      communications:[
+        {id:'c2',type:'call',direction:'inbound',summary:'Customer reported missing box. Crew checked truck and storage — not found.',staffMember:'John',timestamp:'2026-03-01T14:00:00Z'},
+        {id:'c3',type:'email',direction:'outbound',summary:'Sent apology email and informed customer we are reviewing options.',staffMember:'John',timestamp:'2026-03-01T15:30:00Z'}
+      ],
+      createdAt:'2026-03-01T14:00:00Z',updatedAt:'2026-03-02T09:00:00Z'
+    },
+    {
+      id:'cr003',caseNumber:'CR-2026-003',
+      status:'closed',priority:'low',type:'billing',
+      clientName:'Priya Sharma',clientPhone:'226-555-0303',clientEmail:'priya@email.com',
+      moveDate:'2026-02-20',moveFrom:'789 Sunset Blvd, Windsor',moveTo:'321 Oak Park, Windsor',
+      crewLead:'Mike Torres',crewMembers:['Mike Torres','Daniel Park'],truckId:'T-02',
+      incidentDescription:'Customer disputed extra hour charge — claimed move finished on time.',
+      reportedAt:'2026-02-21T09:00:00Z',incidentDate:'2026-02-20',
+      photos:[],damages:[],totalEstimatedValue:0,
+      rootCause:'Time tracking not confirmed with customer at end of job.',
+      contributingFactors:['crew error'],
+      preventionActions:'Crew lead must get customer signature on final time sheet before leaving.',
+      decision:'cash-payout',decisionNotes:'Refunded disputed hour as goodwill gesture.',decisionMadeBy:'John',decisionDate:'2026-02-22T10:00:00Z',payoutAmount:85,
+      insuranceClaimNumber:'',insuranceStatus:'not-filed',
+      resolutionNotes:'Customer accepted refund. Happy with the gesture.',resolvedAt:'2026-02-22T11:00:00Z',customerSatisfied:true,reviewRecoveryTriggered:true,
+      communications:[],
+      createdAt:'2026-02-21T09:00:00Z',updatedAt:'2026-02-22T11:00:00Z'
+    }
+  ];
+  DB.saveCases(seed);
+}
+
+// ─── INIT ──────────────────────────────────────────────────────────────────
+seedData();
+navigate('dashboard');
+</script>
+</body>
+</html>

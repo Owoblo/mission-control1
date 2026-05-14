@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
-import { getSalesLead, getSalesQuote } from '@/lib/server/sales-repository'
+import { getSalesLead, getSalesQuote, listFollowUpLogs } from '@/lib/server/sales-repository'
 import { generateCrewBrief } from '@/lib/server/crew-dispatch'
 import { getSessionUser } from '@/lib/server/session'
 
@@ -16,8 +16,15 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
     const lead = await getSalesLead(params.id)
     if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
 
-    const quote = lead.quoteId ? await getSalesQuote(lead.quoteId).catch(() => null) : null
-    const brief = await generateCrewBrief({ lead, quote })
+    const [quote, allFollowUps] = await Promise.all([
+      lead.quoteId ? getSalesQuote(lead.quoteId).catch(() => null) : Promise.resolve(null),
+      listFollowUpLogs().catch(() => []),
+    ])
+
+    // Filter follow-up logs for this lead
+    const leadFollowUps = allFollowUps.filter(f => f.leadId === lead.id)
+
+    const brief = await generateCrewBrief({ lead, quote, followUps: leadFollowUps })
     return NextResponse.json({ brief })
   } catch (error) {
     return NextResponse.json(

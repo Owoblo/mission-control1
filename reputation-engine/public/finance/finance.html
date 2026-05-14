@@ -1,0 +1,2447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Saturn Star — Finance Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #1a2744;
+  --navy-light: #243358;
+  --navy-dark: #111b33;
+  --gold: #f5a623;
+  --gold-dark: #e8941f;
+  --bg: #f0f2f5;
+  --white: #ffffff;
+  --text: #1a2744;
+  --text-muted: #6b7280;
+  --border: #e2e8f0;
+  --success: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --info: #3b82f6;
+  --sidebar-width: 240px;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  min-height: 100vh;
+  font-size: 14px;
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: var(--sidebar-width);
+  background: var(--navy-dark);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  z-index: 100;
+}
+
+.sidebar-logo {
+  padding: 24px 20px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.logo-title {
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+}
+
+.logo-sub {
+  color: var(--gold);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+  margin-top: 4px;
+}
+
+.sidebar-nav { flex: 1; padding: 14px 0; overflow-y: auto; }
+
+.nav-section-label {
+  padding: 12px 20px 5px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: rgba(255,255,255,0.28);
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 20px;
+  color: rgba(255,255,255,0.6);
+  cursor: pointer;
+  transition: all 0.18s;
+  font-size: 13.5px;
+  font-weight: 500;
+  border-left: 3px solid transparent;
+  user-select: none;
+}
+
+.nav-item:hover { background: rgba(255,255,255,0.05); color: #fff; }
+
+.nav-item.active {
+  background: rgba(245,166,35,0.1);
+  color: var(--gold);
+  border-left-color: var(--gold);
+  font-weight: 600;
+}
+
+.nav-icon { font-size: 15px; width: 18px; text-align: center; flex-shrink: 0; }
+
+.sidebar-footer {
+  padding: 16px 20px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  font-size: 11px;
+  color: rgba(255,255,255,0.3);
+  line-height: 1.6;
+}
+
+/* ── MAIN ── */
+.main {
+  margin-left: var(--sidebar-width);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.topbar {
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.topbar-left { display: flex; align-items: center; gap: 14px; }
+.topbar-title { font-size: 17px; font-weight: 700; color: var(--navy); }
+.topbar-subtitle { font-size: 13px; color: var(--text-muted); }
+.topbar-actions { display: flex; align-items: center; gap: 10px; }
+
+.content { padding: 28px 32px; flex: 1; }
+
+/* ── VIEWS ── */
+.view { display: none; }
+.view.active { display: block; }
+
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.18s;
+  font-family: inherit;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.btn-primary { background: var(--gold); color: var(--navy); }
+.btn-primary:hover { background: var(--gold-dark); }
+.btn-navy { background: var(--navy); color: #fff; }
+.btn-navy:hover { background: var(--navy-light); }
+.btn-outline { background: #fff; color: var(--navy); border: 1.5px solid var(--border); }
+.btn-outline:hover { border-color: var(--navy-light); background: var(--bg); }
+.btn-danger { background: #fef2f2; color: var(--danger); border: 1.5px solid #fecaca; }
+.btn-danger:hover { background: #fee2e2; }
+.btn-success { background: #ecfdf5; color: var(--success); border: 1.5px solid #a7f3d0; }
+.btn-success:hover { background: #d1fae5; }
+.btn-sm { padding: 5px 11px; font-size: 12px; border-radius: 6px; }
+.btn-xs { padding: 4px 9px; font-size: 11px; border-radius: 5px; }
+.btn-ghost { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 13px; font-family: inherit; padding: 5px 8px; border-radius: 6px; }
+.btn-ghost:hover { background: var(--bg); color: var(--navy); }
+
+/* ── CARDS ── */
+.card {
+  background: var(--white);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  padding: 22px 24px;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.card-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+/* ── STATS GRID ── */
+.stats-grid {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stats-grid-4 { grid-template-columns: repeat(4, 1fr); }
+.stats-grid-3 { grid-template-columns: repeat(3, 1fr); }
+
+.stat-card {
+  background: var(--white);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  padding: 20px 22px;
+}
+
+.stat-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--navy);
+  line-height: 1;
+}
+
+.stat-sub { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+
+.stat-card.gold .stat-value { color: var(--gold-dark); }
+.stat-card.green .stat-value { color: var(--success); }
+.stat-card.red .stat-value { color: var(--danger); }
+.stat-card.blue .stat-value { color: var(--info); }
+
+/* ── PROGRESS BAR ── */
+.progress-bar-wrap {
+  background: var(--border);
+  border-radius: 99px;
+  height: 6px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.4s ease;
+}
+
+/* ── BADGES ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.badge-draft     { background: #f1f5f9; color: #64748b; }
+.badge-sent      { background: #eff6ff; color: #1d4ed8; }
+.badge-accepted  { background: #fffbeb; color: #92400e; }
+.badge-invoiced  { background: #faf5ff; color: #6b21a8; }
+.badge-paid      { background: #ecfdf5; color: #065f46; }
+.badge-declined  { background: #fef2f2; color: #991b1b; }
+.badge-overdue   { background: #fef2f2; color: #991b1b; }
+
+.badge-fuel        { background: #fff7ed; color: #c2410c; }
+.badge-supplies    { background: #eff6ff; color: #1d4ed8; }
+.badge-equipment   { background: #faf5ff; color: #6b21a8; }
+.badge-maintenance { background: #fef2f2; color: #991b1b; }
+.badge-marketing   { background: #fffbeb; color: #92400e; }
+.badge-insurance   { background: #f8fafc; color: #475569; }
+.badge-payroll     { background: #ecfdf5; color: #065f46; }
+.badge-other       { background: #f1f5f9; color: #475569; }
+
+/* ── TABLES ── */
+.table-wrap { overflow-x: auto; }
+
+table { width: 100%; border-collapse: collapse; }
+
+thead th {
+  background: #f8fafc;
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+
+tbody td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  font-size: 13.5px;
+}
+
+tbody tr:hover { background: #fafbfd; }
+tbody tr:last-child td { border-bottom: none; }
+
+/* ── TABLE MONTH GROUP ── */
+.month-group-row td {
+  background: var(--bg);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── MODAL ── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.48);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.open { display: flex; }
+
+.modal {
+  background: var(--white);
+  border-radius: 14px;
+  padding: 28px 30px;
+  width: 560px;
+  max-width: 96vw;
+  max-height: 92vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+}
+
+.modal-lg { width: 680px; }
+.modal-sm { width: 420px; }
+
+.modal h2 {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--navy);
+  margin-bottom: 22px;
+}
+
+.modal-close {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  background: none;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  color: var(--text-muted);
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 5px;
+  transition: all 0.15s;
+}
+
+.modal-close:hover { background: var(--bg); color: var(--text); }
+
+/* ── FORMS ── */
+.form-group { margin-bottom: 16px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 5px;
+}
+
+input, select, textarea {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--white);
+  transition: border-color 0.2s;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+textarea { resize: vertical; min-height: 70px; }
+
+.form-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 20px 0;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+/* ── FILTERS BAR ── */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: var(--white);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.18s;
+  font-family: inherit;
+}
+
+.filter-btn:hover { border-color: var(--navy-light); color: var(--navy); }
+.filter-btn.active { background: var(--navy); color: var(--white); border-color: var(--navy); }
+
+/* ── WEEK NAV ── */
+.week-nav {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.week-nav-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--navy);
+  min-width: 220px;
+  text-align: center;
+}
+
+/* ── GAUGE (conic-gradient) ── */
+.gauge-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.gauge {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: conic-gradient(var(--gauge-color, var(--gold)) var(--gauge-pct, 0%), #e8edf5 0%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.gauge::before {
+  content: '';
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  background: var(--white);
+  border-radius: 50%;
+}
+
+.gauge-inner {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+}
+
+.gauge-pct-label {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--navy);
+  line-height: 1;
+}
+
+.gauge-pct-sub {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.gauge-amounts {
+  margin-top: 12px;
+  text-align: center;
+}
+
+.gauge-curr { font-size: 20px; font-weight: 800; color: var(--navy); }
+.gauge-goal { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* ── BAR CHART ── */
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 7px;
+  height: 120px;
+  padding-top: 8px;
+}
+
+.bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+}
+
+.bar-fill-wrap {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+
+.bar-fill {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  min-height: 2px;
+  transition: height 0.3s ease;
+  cursor: default;
+}
+
+.bar-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.bar-col.current .bar-fill { background: var(--gold); }
+.bar-col:not(.current) .bar-fill { background: #c8d5e8; }
+
+/* ── P&L BAR CHART ── */
+.pl-bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  height: 160px;
+  padding-top: 10px;
+}
+
+.pl-bar-group {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 100%;
+}
+
+.pl-bar-rev  { background: #d1fae5; border-radius: 4px 4px 0 0; flex: 1; min-height: 2px; }
+.pl-bar-exp  { background: #fee2e2; border-radius: 4px 4px 0 0; flex: 1; min-height: 2px; }
+.pl-bar-net  { background: var(--gold); border-radius: 4px 4px 0 0; flex: 1; min-height: 2px; }
+
+.pl-chart-labels {
+  display: flex;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.pl-chart-label {
+  flex: 1;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* ── EXPENSE DOT LIST ── */
+.exp-cat-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.exp-cat-row:last-child { border-bottom: none; }
+
+.exp-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.exp-cat-name { flex: 1; font-weight: 500; text-transform: capitalize; }
+.exp-cat-amt  { font-weight: 700; color: var(--navy); }
+.exp-cat-pct  { font-size: 11px; color: var(--text-muted); min-width: 36px; text-align: right; }
+
+/* ── P&L TABLE ── */
+.pl-table { width: 100%; border-collapse: collapse; }
+
+.pl-table tr td { padding: 9px 14px; font-size: 14px; border-bottom: 1px solid var(--border); }
+.pl-table tr:last-child td { border-bottom: none; }
+.pl-table .pl-section-header td {
+  background: var(--bg);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  padding: 10px 14px;
+}
+.pl-table .pl-total-row td {
+  font-weight: 800;
+  font-size: 15px;
+  background: #fafbfc;
+  border-top: 2px solid var(--border);
+}
+.pl-table .pl-net-row td {
+  font-size: 18px;
+  font-weight: 800;
+  border-top: 3px solid var(--navy);
+  padding: 14px;
+}
+.pl-table .pl-margin-row td {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-muted);
+  border-top: none;
+  padding: 6px 14px 12px;
+}
+.pl-table .pl-divider td {
+  padding: 2px 0;
+  border: none;
+}
+.pl-table .pl-divider-line {
+  border: none;
+  border-top: 1px dashed var(--border);
+  margin: 0;
+}
+
+.val-right { text-align: right; }
+.val-green { color: var(--success); }
+.val-red { color: var(--danger); }
+.val-gold { color: var(--gold-dark); }
+.val-muted { color: var(--text-muted); font-size: 13px; }
+
+/* ── PAYROLL STATUS ── */
+.badge-approved { background: #ecfdf5; color: #065f46; }
+.badge-draft2   { background: #f1f5f9; color: #475569; }
+.badge-paid2    { background: #eff6ff; color: #1d4ed8; }
+
+/* ── PAYROLL HISTORY CARDS ── */
+.payroll-history-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.payroll-hist-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+.payroll-hist-week { font-size: 12px; color: var(--text-muted); font-weight: 600; margin-bottom: 6px; }
+.payroll-hist-amt  { font-size: 20px; font-weight: 800; color: var(--navy); margin-bottom: 4px; }
+.payroll-hist-meta { font-size: 12px; color: var(--text-muted); }
+
+/* ── TOAST ── */
+#toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toast {
+  background: var(--navy);
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+  animation: slideIn 0.3s ease;
+  max-width: 340px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.toast.success { background: #064e3b; border-left: 3px solid var(--success); }
+.toast.error   { background: #7f1d1d; border-left: 3px solid var(--danger); }
+.toast.warning { background: #78350f; border-left: 3px solid var(--warning); }
+
+@keyframes slideIn {
+  from { transform: translateX(110%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+/* ── EDITABLE INPUT IN TABLE ── */
+.table-input {
+  padding: 5px 8px;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  width: 80px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--white);
+}
+
+.table-input:focus { outline: none; border-color: var(--gold); }
+
+/* ── RECOVERY CARD ── */
+.recovery-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.recovery-row:last-child { border-bottom: none; }
+.recovery-case { font-weight: 700; color: var(--navy); min-width: 80px; }
+.recovery-client { flex: 1; color: var(--text-muted); }
+.recovery-amt { font-weight: 700; color: var(--danger); }
+
+/* ── SETTINGS ── */
+.settings-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1100px) {
+  .stats-grid-4 { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-title">⭐ Saturn Star</div>
+    <div class="logo-sub">Finance Hub</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Finance</div>
+    <div class="nav-item active" data-view="dashboard" onclick="navigate('dashboard')">
+      <span class="nav-icon">📊</span> Dashboard
+    </div>
+    <div class="nav-item" data-view="invoices" onclick="navigate('invoices')">
+      <span class="nav-icon">🧾</span> Invoices
+    </div>
+    <div class="nav-item" data-view="expenses" onclick="navigate('expenses')">
+      <span class="nav-icon">💸</span> Expenses
+    </div>
+    <div class="nav-item" data-view="payroll" onclick="navigate('payroll')">
+      <span class="nav-icon">👷</span> Payroll
+    </div>
+    <div class="nav-item" data-view="pl" onclick="navigate('pl')">
+      <span class="nav-icon">📈</span> P&amp;L Report
+    </div>
+    <div class="nav-section-label" style="margin-top:8px;">System</div>
+    <div class="nav-item" data-view="settings" onclick="navigate('settings')">
+      <span class="nav-icon">⚙️</span> Settings
+    </div>
+    <div class="nav-item" onclick="window.location.href='../crm/saturn-crm.html'" style="margin-top:4px;">
+      <span class="nav-icon">🔗</span> CRM
+    </div>
+    <div class="nav-item" onclick="window.location.href='../operations-hub/operations-hub.html'">
+      <span class="nav-icon">🔗</span> Operations
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    Saturn Star Moving<br>Finance Hub v1.0
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-title" id="topbar-title">Financial Dashboard</div>
+      <div class="topbar-subtitle" id="topbar-subtitle"></div>
+    </div>
+    <div class="topbar-actions" id="topbar-actions"></div>
+  </div>
+
+  <!-- CONTENT AREA -->
+  <div class="content">
+
+    <!-- ═══════════════ DASHBOARD VIEW ═══════════════ -->
+    <div class="view active" id="view-dashboard">
+
+      <!-- Row 1: Revenue stats -->
+      <div class="stats-grid stats-grid-4" id="dash-stats-row"></div>
+
+      <!-- Row 2: 3 columns -->
+      <div style="display:grid;grid-template-columns:1fr 1.6fr 1.4fr;gap:18px;margin-bottom:24px;">
+
+        <!-- Gauge -->
+        <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 16px;">
+          <div class="card-title" style="margin-bottom:14px;text-align:center;">Monthly Goal</div>
+          <div class="gauge-wrap">
+            <div class="gauge" id="dash-gauge">
+              <div class="gauge-inner">
+                <div class="gauge-pct-label" id="dash-gauge-pct">0%</div>
+                <div class="gauge-pct-sub">of goal</div>
+              </div>
+            </div>
+            <div class="gauge-amounts">
+              <div class="gauge-curr" id="dash-gauge-curr">$0</div>
+              <div class="gauge-goal" id="dash-gauge-goal">Goal: $25,000</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Weekly bar chart -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Revenue — Last 8 Weeks</div>
+          </div>
+          <div class="bar-chart" id="dash-weekly-chart"></div>
+          <div style="display:flex;gap:6px;margin-top:8px;" id="dash-weekly-labels"></div>
+        </div>
+
+        <!-- Expense breakdown -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Expenses This Month</div>
+          </div>
+          <div id="dash-exp-breakdown"></div>
+        </div>
+      </div>
+
+      <!-- Row 3: 2 columns -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+
+        <!-- Recent Invoices -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Recent Invoices</div>
+            <button class="btn btn-ghost btn-sm" onclick="navigate('invoices')">View All →</button>
+          </div>
+          <div id="dash-recent-invoices"></div>
+        </div>
+
+        <!-- Recovery Payouts -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Recovery Payouts</div>
+            <span id="dash-recovery-total" style="font-size:13px;font-weight:700;color:var(--danger);"></span>
+          </div>
+          <div id="dash-recovery-list"></div>
+        </div>
+
+      </div>
+    </div><!-- /dashboard -->
+
+    <!-- ═══════════════ INVOICES VIEW ═══════════════ -->
+    <div class="view" id="view-invoices">
+
+      <div class="stats-grid stats-grid-4" id="inv-stats-row" style="margin-bottom:20px;"></div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="filter-bar" style="margin:0;gap:7px;">
+            <button class="filter-btn active" data-filter="all"        onclick="setInvFilter('all',this)">All</button>
+            <button class="filter-btn"         data-filter="outstanding" onclick="setInvFilter('outstanding',this)">Outstanding</button>
+            <button class="filter-btn"         data-filter="overdue"    onclick="setInvFilter('overdue',this)">Overdue</button>
+            <button class="filter-btn"         data-filter="paid"       onclick="setInvFilter('paid',this)">Paid</button>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="exportInvoicesCsv()">⬇ Export CSV</button>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Invoice #</th>
+                <th>Client</th>
+                <th>Move Date</th>
+                <th>Service</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Days Since Sent</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="inv-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /invoices -->
+
+    <!-- ═══════════════ EXPENSES VIEW ═══════════════ -->
+    <div class="view" id="view-expenses">
+
+      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px;" id="exp-stats-row"></div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Expense Log</div>
+          <div style="display:flex;gap:10px;">
+            <button class="btn btn-outline btn-sm" onclick="exportExpensesCsv()">⬇ Export CSV</button>
+            <button class="btn btn-primary btn-sm" onclick="openExpenseModal()">+ Add Expense</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Category</th>
+                <th>Description</th>
+                <th>Vendor</th>
+                <th>Truck</th>
+                <th>Amount</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="exp-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /expenses -->
+
+    <!-- ═══════════════ PAYROLL VIEW ═══════════════ -->
+    <div class="view" id="view-payroll">
+
+      <div class="week-nav">
+        <button class="btn btn-outline btn-sm" onclick="shiftPayrollWeek(-1)">← Prev</button>
+        <div class="week-nav-label" id="payroll-week-label">Loading…</div>
+        <button class="btn btn-outline btn-sm" onclick="shiftPayrollWeek(1)">Next →</button>
+        <div style="margin-left:auto;display:flex;gap:10px;">
+          <button class="btn btn-success btn-sm" onclick="approveAllPayroll()">✓ Approve All</button>
+          <button class="btn btn-outline btn-sm" onclick="exportPayrollCsv()">⬇ Export CSV</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:24px;">
+        <div class="card-header">
+          <div class="card-title">Crew Hours &amp; Pay</div>
+          <div style="font-size:13px;color:var(--text-muted);" id="payroll-week-total"></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Hours</th>
+                <th>Rate ($/hr)</th>
+                <th>Overtime Hrs</th>
+                <th>Gross Pay</th>
+                <th>Deductions</th>
+                <th>Net Pay</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="payroll-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Payroll History -->
+      <div style="margin-bottom:10px;">
+        <div class="card-title" style="margin-bottom:14px;">Payroll History — Last 4 Weeks</div>
+        <div class="payroll-history-grid" id="payroll-history"></div>
+      </div>
+
+    </div><!-- /payroll -->
+
+    <!-- ═══════════════ P&L VIEW ═══════════════ -->
+    <div class="view" id="view-pl">
+
+      <div class="week-nav" style="margin-bottom:22px;">
+        <button class="btn btn-outline btn-sm" onclick="shiftPlMonth(-1)">← Prev</button>
+        <div class="week-nav-label" id="pl-month-label">Loading…</div>
+        <button class="btn btn-outline btn-sm" onclick="shiftPlMonth(1)">Next →</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+
+        <!-- P&L Table -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Profit &amp; Loss Statement</div>
+          </div>
+          <div id="pl-table-wrap"></div>
+        </div>
+
+        <!-- 6-Month Trend -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">6-Month Trend</div>
+          </div>
+          <div style="display:flex;gap:14px;margin-bottom:10px;font-size:11px;">
+            <span><span style="display:inline-block;width:10px;height:10px;background:#d1fae5;border-radius:2px;margin-right:4px;"></span>Revenue</span>
+            <span><span style="display:inline-block;width:10px;height:10px;background:#fee2e2;border-radius:2px;margin-right:4px;"></span>Expenses</span>
+            <span><span style="display:inline-block;width:10px;height:10px;background:var(--gold);border-radius:2px;margin-right:4px;"></span>Net</span>
+          </div>
+          <div class="pl-bar-chart" id="pl-trend-chart"></div>
+          <div class="pl-chart-labels" id="pl-trend-labels"></div>
+        </div>
+
+      </div>
+    </div><!-- /pl -->
+
+    <!-- ═══════════════ SETTINGS VIEW ═══════════════ -->
+    <div class="view" id="view-settings">
+      <div style="max-width:600px;">
+        <div class="card">
+          <div class="card-header" style="margin-bottom:22px;">
+            <div class="card-title">Finance Settings</div>
+          </div>
+
+          <div class="settings-section-title">Revenue Goals</div>
+          <div class="form-row" style="margin-bottom:20px;">
+            <div class="form-group">
+              <label>Monthly Revenue Goal</label>
+              <input type="number" id="set-monthly-goal" placeholder="25000">
+            </div>
+            <div class="form-group">
+              <label>Weekly Revenue Goal</label>
+              <input type="number" id="set-weekly-goal" placeholder="6000">
+            </div>
+          </div>
+
+          <div class="settings-section-title">Default Hourly Rates</div>
+          <div class="form-row" style="margin-bottom:20px;">
+            <div class="form-group">
+              <label>Mover Rate ($/hr)</label>
+              <input type="number" id="set-mover-rate" placeholder="22">
+            </div>
+            <div class="form-group">
+              <label>Driver Rate ($/hr)</label>
+              <input type="number" id="set-driver-rate" placeholder="26">
+            </div>
+          </div>
+
+          <div class="settings-section-title">Payroll</div>
+          <div class="form-row" style="margin-bottom:20px;">
+            <div class="form-group">
+              <label>Overtime Multiplier</label>
+              <input type="number" step="0.1" id="set-ot-mult" placeholder="1.5">
+            </div>
+            <div class="form-group">
+              <label>Company Name (for exports)</label>
+              <input type="text" id="set-company" placeholder="Saturn Star Moving">
+            </div>
+          </div>
+
+          <button class="btn btn-primary" onclick="saveSettings()">💾 Save Settings</button>
+        </div>
+      </div>
+    </div><!-- /settings -->
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- ══════════ EXPENSE MODAL ══════════ -->
+<div class="modal-overlay" id="expense-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeExpenseModal()">✕</button>
+    <h2 id="expense-modal-title">Add Expense</h2>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Date *</label>
+        <input type="date" id="exp-date">
+      </div>
+      <div class="form-group">
+        <label>Category *</label>
+        <select id="exp-category">
+          <option value="">Select category…</option>
+          <option value="fuel">Fuel</option>
+          <option value="supplies">Supplies</option>
+          <option value="equipment">Equipment</option>
+          <option value="maintenance">Maintenance</option>
+          <option value="marketing">Marketing</option>
+          <option value="insurance">Insurance</option>
+          <option value="payroll">Payroll</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Description *</label>
+      <input type="text" id="exp-desc" placeholder="Brief description of the expense">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Amount ($) *</label>
+        <input type="number" step="0.01" id="exp-amount" placeholder="0.00">
+      </div>
+      <div class="form-group">
+        <label>Vendor</label>
+        <input type="text" id="exp-vendor" placeholder="e.g. Shell, Uline">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Linked Truck</label>
+        <select id="exp-truck">
+          <option value="">None</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Receipt Note</label>
+        <input type="text" id="exp-receipt-note" placeholder="Receipt or note reference">
+      </div>
+    </div>
+
+    <input type="hidden" id="exp-edit-id">
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeExpenseModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveExpense()">Save Expense</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ DELETE CONFIRM MODAL ══════════ -->
+<div class="modal-overlay" id="delete-modal">
+  <div class="modal modal-sm">
+    <button class="modal-close" onclick="closeDeleteModal()">✕</button>
+    <h2>Delete Expense?</h2>
+    <p style="color:var(--text-muted);font-size:14px;margin-bottom:8px;">This action cannot be undone.</p>
+    <p style="font-size:13px;color:var(--text-muted);" id="delete-modal-desc"></p>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ PAYROLL APPROVE MODAL ══════════ -->
+<div class="modal-overlay" id="payroll-approve-modal">
+  <div class="modal modal-sm">
+    <button class="modal-close" onclick="closePayrollApproveModal()">✕</button>
+    <h2>Approve All Payroll?</h2>
+    <p style="color:var(--text-muted);font-size:14px;" id="payroll-approve-desc"></p>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closePayrollApproveModal()">Cancel</button>
+      <button class="btn btn-success" onclick="confirmApproveAll()">Approve All</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ TOAST CONTAINER ══════════ -->
+<div id="toast-container"></div>
+
+<script>
+'use strict';
+
+/* ════════════════════════════════════════
+   DATA LAYER
+════════════════════════════════════════ */
+const DB = {
+  getExpenses()     { return JSON.parse(localStorage.getItem('ssfin_expenses')||'[]') },
+  saveExpenses(d)   { localStorage.setItem('ssfin_expenses', JSON.stringify(d)) },
+  addExpense(e)     { const d=this.getExpenses(); d.unshift(e); this.saveExpenses(d) },
+  updateExpense(e)  { const d=this.getExpenses(); const i=d.findIndex(x=>x.id===e.id); if(i>=0)d[i]=e; this.saveExpenses(d) },
+  deleteExpense(id) { this.saveExpenses(this.getExpenses().filter(e=>e.id!==id)) },
+
+  getPayroll()      { return JSON.parse(localStorage.getItem('ssfin_payroll')||'[]') },
+  savePayroll(d)    { localStorage.setItem('ssfin_payroll', JSON.stringify(d)) },
+
+  getGoals()        { return JSON.parse(localStorage.getItem('ssfin_goals')||'{"monthly":25000,"weekly":6000}') },
+  saveGoals(g)      { localStorage.setItem('ssfin_goals', JSON.stringify(g)) },
+
+  getSettings()     { return JSON.parse(localStorage.getItem('ssfin_settings')||'{"moverRate":22,"driverRate":26,"otMult":1.5,"company":"Saturn Star Moving"}') },
+  saveSettings(s)   { localStorage.setItem('ssfin_settings', JSON.stringify(s)) },
+
+  getInvoiceStatus() { return JSON.parse(localStorage.getItem('ssfin_invoice_status')||'{}') },
+  saveInvoiceStatus(m){ localStorage.setItem('ssfin_invoice_status', JSON.stringify(m)) },
+  markInvoicePaid(id) {
+    const m = this.getInvoiceStatus();
+    m[id] = 'paid';
+    this.saveInvoiceStatus(m);
+  },
+
+  getQuotes()  { try { return JSON.parse(localStorage.getItem('sscrm_quotes')||'[]')  } catch{return[]} },
+  getClients() { try { return JSON.parse(localStorage.getItem('sscrm_clients')||'[]') } catch{return[]} },
+  getCrew()    { try { return JSON.parse(localStorage.getItem('ssops_crew')||'[]')    } catch{return[]} },
+  getMoves()   { try { return JSON.parse(localStorage.getItem('ssops_moves')||'[]')   } catch{return[]} },
+  getTrucks()  { try { return JSON.parse(localStorage.getItem('ssops_trucks')||'[]')  } catch{return[]} },
+  getCases()   { try { return JSON.parse(localStorage.getItem('sscr_cases')||'[]')    } catch{return[]} },
+
+  generateId() { return Date.now().toString(36)+Math.random().toString(36).slice(2) }
+};
+
+/* ════════════════════════════════════════
+   SEED DATA (only if empty)
+════════════════════════════════════════ */
+function seedIfEmpty() {
+  if (DB.getExpenses().length === 0) {
+    const seed = [
+      { id:'e001', date:'2026-03-07', category:'fuel',        description:'Fuel fill-up — Truck 1',                       amount:180,  vendor:'Shell Station',  truckId:'t1', receiptNote:'', createdAt:'2026-03-07T08:00:00Z' },
+      { id:'e002', date:'2026-03-06', category:'supplies',    description:'Moving blankets x10, tape, plastic wrap',      amount:340,  vendor:'Uline',           truckId:null, receiptNote:'', createdAt:'2026-03-06T14:00:00Z' },
+      { id:'e003', date:'2026-03-05', category:'fuel',        description:'Fuel fill-up — Truck 2',                       amount:210,  vendor:'Petro-Canada',    truckId:'t2', receiptNote:'', createdAt:'2026-03-05T09:00:00Z' },
+      { id:'e004', date:'2026-02-28', category:'maintenance', description:'Oil change + brake inspection — Truck 1',      amount:485,  vendor:'Speedy Auto',     truckId:'t1', receiptNote:'', createdAt:'2026-02-28T16:00:00Z' },
+      { id:'e005', date:'2026-02-25', category:'marketing',   description:'Facebook ad campaign — March spring push',     amount:600,  vendor:'Meta',            truckId:null, receiptNote:'', createdAt:'2026-02-25T11:00:00Z' },
+    ];
+    DB.saveExpenses(seed);
+  }
+}
+
+/* ════════════════════════════════════════
+   HELPERS
+════════════════════════════════════════ */
+const fmt = n => '$' + Number(n||0).toLocaleString('en-CA', {minimumFractionDigits:2, maximumFractionDigits:2});
+const fmtShort = n => '$' + Number(n||0).toLocaleString('en-CA', {maximumFractionDigits:0});
+
+function getMonday(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  d.setDate(diff);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+function isoDate(d) {
+  return d.toISOString().slice(0,10);
+}
+
+function addDays(d, n) {
+  const r = new Date(d);
+  r.setDate(r.getDate() + n);
+  return r;
+}
+
+function addWeeks(d, n) { return addDays(d, n*7); }
+
+function startOfMonth(y, m) { return new Date(y, m, 1); }
+function endOfMonth(y, m)   { return new Date(y, m+1, 0); }
+
+function parseDateLocal(s) {
+  // parse YYYY-MM-DD as local date
+  const [y,m,d] = s.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+
+function monthLabel(y, m) {
+  return new Date(y, m, 1).toLocaleString('en-CA', {month:'short', year:'numeric'});
+}
+
+function weekLabel(mon) {
+  const sun = addDays(mon, 6);
+  const fmt2 = d => d.toLocaleString('en-CA', {month:'short', day:'numeric'});
+  return `${fmt2(mon)} – ${fmt2(sun)}`;
+}
+
+const CAT_COLORS = {
+  fuel: '#f97316', supplies: '#3b82f6', equipment: '#8b5cf6',
+  maintenance: '#ef4444', marketing: '#f5a623', insurance: '#94a3b8',
+  payroll: '#10b981', other: '#64748b'
+};
+
+function catDot(cat) {
+  return `<span class="exp-dot" style="background:${CAT_COLORS[cat]||'#94a3b8'}"></span>`;
+}
+
+function statusBadge(status) {
+  const map = {
+    draft:    ['badge-draft',    'Draft'],
+    sent:     ['badge-sent',     'Sent'],
+    viewed:   ['badge-sent',     'Viewed'],
+    accepted: ['badge-accepted', 'Accepted'],
+    invoiced: ['badge-invoiced', 'Invoiced'],
+    paid:     ['badge-paid',     '✓ Paid'],
+    declined: ['badge-declined', 'Declined'],
+    overdue:  ['badge-overdue',  'Overdue'],
+  };
+  const [cls, label] = map[status] || ['badge-draft', status];
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+function getEffectiveStatus(quote) {
+  const overrides = DB.getInvoiceStatus();
+  if (overrides[quote.id]) return overrides[quote.id];
+  return quote.status || 'draft';
+}
+
+/* quote revenue: use total field or lineItems sum */
+function quoteAmount(q) {
+  if (q.total != null) return Number(q.total) || 0;
+  if (q.lineItems && q.lineItems.length) {
+    return q.lineItems.reduce((s,li) => s + (Number(li.amount)||0), 0);
+  }
+  if (q.amount != null) return Number(q.amount) || 0;
+  return 0;
+}
+
+function quoteClientName(q) {
+  if (q.clientName) return q.clientName;
+  if (q.client) return q.client;
+  const clients = DB.getClients();
+  const c = clients.find(x => x.id === q.clientId);
+  return c ? (c.name || c.contactName || c.company || 'Unknown') : 'Unknown';
+}
+
+function isRevenueStatus(s) {
+  return ['invoiced','paid','accepted'].includes(s);
+}
+
+/* get move date from quote */
+function quoteMoveDate(q) {
+  return q.moveDate || q.date || q.scheduledDate || null;
+}
+
+/* ════════════════════════════════════════
+   DATE RANGES
+════════════════════════════════════════ */
+const TODAY = new Date(2026, 2, 9); // March 9 2026 (fixed for seed consistency)
+
+function todayRange() {
+  const s = new Date(TODAY); s.setHours(0,0,0,0);
+  const e = new Date(TODAY); e.setHours(23,59,59,999);
+  return [s,e];
+}
+
+function thisWeekRange() {
+  const mon = getMonday(TODAY);
+  return [mon, addDays(mon, 6)];
+}
+
+function thisMonthRange() {
+  return [startOfMonth(TODAY.getFullYear(), TODAY.getMonth()),
+          endOfMonth(TODAY.getFullYear(), TODAY.getMonth())];
+}
+
+function inRange(dateStr, s, e) {
+  if (!dateStr) return false;
+  const d = parseDateLocal(dateStr);
+  return d >= s && d <= e;
+}
+
+/* ════════════════════════════════════════
+   NAVIGATION
+════════════════════════════════════════ */
+const VIEW_TITLES = {
+  dashboard: 'Financial Dashboard',
+  invoices:  'Invoices',
+  expenses:  'Expenses',
+  payroll:   'Payroll',
+  pl:        'P&L Report',
+  settings:  'Settings',
+};
+
+function navigate(view) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('view-'+view).classList.add('active');
+  document.querySelector(`[data-view="${view}"]`)?.classList.add('active');
+  document.getElementById('topbar-title').textContent = VIEW_TITLES[view];
+
+  if (view === 'dashboard') renderDashboard();
+  if (view === 'invoices')  renderInvoices();
+  if (view === 'expenses')  renderExpenses();
+  if (view === 'payroll')   renderPayroll();
+  if (view === 'pl')        renderPL();
+  if (view === 'settings')  renderSettings();
+}
+
+/* ════════════════════════════════════════
+   TOAST
+════════════════════════════════════════ */
+function toast(msg, type='') {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = 'toast' + (type ? ' '+type : '');
+  t.innerHTML = `<span>${msg}</span>`;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+/* ════════════════════════════════════════
+   DASHBOARD
+════════════════════════════════════════ */
+function renderDashboard() {
+  const quotes = DB.getQuotes();
+  const expenses = DB.getExpenses();
+  const goals = DB.getGoals();
+
+  const [todayS, todayE] = todayRange();
+  const [weekS, weekE]   = thisWeekRange();
+  const [monthS, monthE] = thisMonthRange();
+
+  function revIn(s, e) {
+    return quotes
+      .filter(q => {
+        const md = quoteMoveDate(q);
+        if (!md) return false;
+        const eff = getEffectiveStatus(q);
+        return isRevenueStatus(eff) && inRange(md, s, e);
+      })
+      .reduce((sum, q) => sum + quoteAmount(q), 0);
+  }
+
+  const todayRev = revIn(todayS, todayE);
+  const weekRev  = revIn(weekS, weekE);
+  const monthRev = revIn(monthS, monthE);
+
+  const outstanding = quotes
+    .filter(q => {
+      const eff = getEffectiveStatus(q);
+      return ['sent','accepted'].includes(eff);
+    })
+    .reduce((sum, q) => sum + quoteAmount(q), 0);
+
+  // Stats Row
+  const statsRow = document.getElementById('dash-stats-row');
+  statsRow.innerHTML = `
+    <div class="stat-card">
+      <div class="stat-label">Today's Revenue</div>
+      <div class="stat-value">${fmtShort(todayRev)}</div>
+      <div class="stat-sub">Invoiced / Accepted moves today</div>
+    </div>
+    <div class="stat-card gold">
+      <div class="stat-label">This Week</div>
+      <div class="stat-value">${fmtShort(weekRev)}</div>
+      <div class="stat-sub">${weekLabel(weekS)}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">This Month</div>
+      <div class="stat-value">${fmtShort(monthRev)}</div>
+      <div class="stat-sub">
+        <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+          <div class="progress-bar-wrap" style="flex:1;">
+            <div class="progress-bar-fill" style="width:${Math.min(100,(monthRev/goals.monthly)*100).toFixed(1)}%;background:${monthRev/goals.monthly<0.5?'var(--danger)':monthRev/goals.monthly<0.8?'var(--gold)':'var(--success)'};"></div>
+          </div>
+          <span>${((monthRev/goals.monthly)*100).toFixed(0)}%</span>
+        </div>
+      </div>
+    </div>
+    <div class="stat-card ${outstanding>0?'red':''}">
+      <div class="stat-label">Outstanding</div>
+      <div class="stat-value">${fmtShort(outstanding)}</div>
+      <div class="stat-sub">Awaiting collection</div>
+    </div>
+  `;
+
+  // Gauge
+  const pct = Math.min(100, (monthRev / goals.monthly) * 100);
+  const gaugeColor = pct < 50 ? 'var(--danger)' : pct < 80 ? 'var(--gold)' : 'var(--success)';
+  const gauge = document.getElementById('dash-gauge');
+  gauge.style.setProperty('--gauge-pct', pct.toFixed(1)+'%');
+  gauge.style.setProperty('--gauge-color', gaugeColor);
+  document.getElementById('dash-gauge-pct').textContent = pct.toFixed(0)+'%';
+  document.getElementById('dash-gauge-curr').textContent = fmt(monthRev);
+  document.getElementById('dash-gauge-goal').textContent = `Goal: ${fmt(goals.monthly)}`;
+
+  // Weekly Bar Chart (last 8 weeks)
+  const chartWrap = document.getElementById('dash-weekly-chart');
+  const labelsWrap = document.getElementById('dash-weekly-labels');
+  const currentMonday = isoDate(getMonday(TODAY));
+  const weeks = [];
+  for (let i=7; i>=0; i--) {
+    const mon = addWeeks(getMonday(TODAY), -i);
+    const sun = addDays(mon, 6);
+    const rev = revIn(mon, sun);
+    weeks.push({ mon, sun, rev, isCurrent: isoDate(mon) === currentMonday });
+  }
+  const maxRev = Math.max(...weeks.map(w=>w.rev), 1);
+
+  chartWrap.innerHTML = weeks.map(w => {
+    const h = Math.round((w.rev / maxRev) * 100);
+    const label = w.mon.toLocaleString('en-CA',{month:'short',day:'numeric'});
+    return `
+      <div class="bar-col ${w.isCurrent?'current':''}">
+        <div class="bar-fill-wrap">
+          <div class="bar-fill" style="height:${h}%;background:${w.isCurrent?'var(--gold)':'#c8d5e8'};"
+               title="${label}: ${fmt(w.rev)}"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  labelsWrap.innerHTML = weeks.map(w => {
+    const label = w.mon.toLocaleString('en-CA',{month:'short',day:'numeric'});
+    return `<div style="flex:1;text-align:center;font-size:9px;color:var(--text-muted);font-weight:600;">${label}</div>`;
+  }).join('');
+
+  // Expense breakdown
+  const expThisMonth = expenses.filter(e => inRange(e.date, monthS, monthE));
+  const catTotals = {};
+  expThisMonth.forEach(e => {
+    catTotals[e.category] = (catTotals[e.category]||0) + Number(e.amount||0);
+  });
+  const totalExp = Object.values(catTotals).reduce((s,v)=>s+v,0);
+  const sorted = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]);
+
+  const expBreak = document.getElementById('dash-exp-breakdown');
+  if (sorted.length === 0) {
+    expBreak.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:12px 0;">No expenses this month.</div>';
+  } else {
+    expBreak.innerHTML = sorted.map(([cat, amt]) => `
+      <div class="exp-cat-row">
+        ${catDot(cat)}
+        <span class="exp-cat-name">${cat}</span>
+        <span class="exp-cat-amt">${fmt(amt)}</span>
+        <span class="exp-cat-pct">${totalExp>0?((amt/totalExp)*100).toFixed(0)+'%':'-'}</span>
+      </div>
+    `).join('') + `
+      <div style="display:flex;justify-content:space-between;padding:8px 0 0;font-size:12px;font-weight:700;color:var(--text-muted);">
+        <span>Total</span><span style="color:var(--navy);">${fmt(totalExp)}</span>
+      </div>
+    `;
+  }
+
+  // Recent Invoices
+  const invStatus = DB.getInvoiceStatus();
+  const recent = [...quotes]
+    .sort((a,b) => {
+      const da = quoteMoveDate(a)||''; const db = quoteMoveDate(b)||'';
+      return db.localeCompare(da);
+    })
+    .slice(0, 5);
+
+  const recentWrap = document.getElementById('dash-recent-invoices');
+  if (recent.length === 0) {
+    recentWrap.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:12px 0;">No invoices yet. Add quotes in CRM.</div>';
+  } else {
+    recentWrap.innerHTML = recent.map(q => {
+      const eff = getEffectiveStatus(q);
+      const md  = quoteMoveDate(q);
+      return `
+        <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;font-size:13px;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${quoteClientName(q)}</div>
+            <div style="font-size:11px;color:var(--text-muted);">${md||'No date'}</div>
+          </div>
+          <div style="font-weight:700;color:var(--navy);font-size:13px;">${fmt(quoteAmount(q))}</div>
+          ${statusBadge(eff)}
+        </div>
+      `;
+    }).join('') + `<div style="padding-top:10px;"><button class="btn btn-ghost btn-sm" onclick="navigate('invoices')" style="padding:4px 0;">View all invoices →</button></div>`;
+  }
+
+  // Recovery Payouts
+  const cases = DB.getCases();
+  const payoutCases = cases.filter(c =>
+    ['cash-payout','insurance-claim'].includes(c.decision || c.resolution || c.type)
+  );
+  const payoutsThisMonth = payoutCases
+    .filter(c => {
+      const d = c.createdAt||c.date||c.updatedAt||'';
+      if (!d) return false;
+      return inRange(d.slice(0,10), monthS, monthE);
+    })
+    .reduce((s,c) => s + Number(c.payoutAmount||c.amount||0), 0);
+
+  document.getElementById('dash-recovery-total').textContent =
+    payoutCases.length > 0 ? `This month: ${fmt(payoutsThisMonth)}` : '';
+
+  const recList = document.getElementById('dash-recovery-list');
+  if (payoutCases.length === 0) {
+    recList.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:12px 0;">No recovery payouts found.</div>';
+  } else {
+    recList.innerHTML = payoutCases.slice(0,6).map(c => `
+      <div class="recovery-row">
+        <span class="recovery-case">#${c.id||c.caseId||'—'}</span>
+        <span class="recovery-client">${c.clientName||c.client||'—'}</span>
+        <span class="recovery-amt">${fmt(c.payoutAmount||c.amount||0)}</span>
+        ${statusBadge(c.status||'draft')}
+      </div>
+    `).join('');
+  }
+}
+
+/* ════════════════════════════════════════
+   INVOICES
+════════════════════════════════════════ */
+let invFilter = 'all';
+
+function setInvFilter(f, btn) {
+  invFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderInvoices();
+}
+
+function renderInvoices() {
+  const quotes = DB.getQuotes();
+  const invStatus = DB.getInvoiceStatus();
+
+  const [monthS, monthE] = thisMonthRange();
+
+  let totalBilled = 0, totalCollected = 0, outstanding = 0, overdue = 0;
+
+  quotes.forEach(q => {
+    const eff = getEffectiveStatus(q);
+    const amt = quoteAmount(q);
+    const md  = quoteMoveDate(q);
+
+    if (['sent','accepted','invoiced','paid'].includes(eff)) totalBilled += amt;
+    if (['invoiced','paid'].includes(eff)) totalCollected += amt;
+    if (['sent','accepted'].includes(eff)) outstanding += amt;
+
+    // overdue = sent > 14 days ago
+    if (eff === 'sent' && q.sentAt) {
+      const daysSince = Math.floor((TODAY - new Date(q.sentAt)) / 86400000);
+      if (daysSince > 14) overdue += amt;
+    }
+  });
+
+  document.getElementById('inv-stats-row').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-label">Total Billed</div>
+      <div class="stat-value">${fmtShort(totalBilled)}</div>
+      <div class="stat-sub">All invoiced quotes</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-label">Total Collected</div>
+      <div class="stat-value">${fmtShort(totalCollected)}</div>
+      <div class="stat-sub">Invoiced + Paid</div>
+    </div>
+    <div class="stat-card ${outstanding>0?'gold':''}">
+      <div class="stat-label">Outstanding</div>
+      <div class="stat-value">${fmtShort(outstanding)}</div>
+      <div class="stat-sub">Awaiting payment</div>
+    </div>
+    <div class="stat-card ${overdue>0?'red':''}">
+      <div class="stat-label">Overdue</div>
+      <div class="stat-value">${fmtShort(overdue)}</div>
+      <div class="stat-sub">Sent &gt;14 days ago</div>
+    </div>
+  `;
+
+  // Filter
+  let filtered = [...quotes].sort((a,b)=>{
+    const da=quoteMoveDate(a)||''; const db=quoteMoveDate(b)||'';
+    return db.localeCompare(da);
+  });
+
+  if (invFilter === 'outstanding') {
+    filtered = filtered.filter(q => ['sent','accepted'].includes(getEffectiveStatus(q)));
+  } else if (invFilter === 'overdue') {
+    filtered = filtered.filter(q => {
+      if (getEffectiveStatus(q) !== 'sent') return false;
+      if (!q.sentAt) return false;
+      return Math.floor((TODAY - new Date(q.sentAt)) / 86400000) > 14;
+    });
+  } else if (invFilter === 'paid') {
+    filtered = filtered.filter(q => getEffectiveStatus(q) === 'paid');
+  }
+
+  const tbody = document.getElementById('inv-tbody');
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-muted);">No invoices match this filter.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(q => {
+    const eff = getEffectiveStatus(q);
+    const md  = quoteMoveDate(q);
+    const amt = quoteAmount(q);
+    const shortId = String(q.id||'').slice(-6).toUpperCase();
+    const daysSince = q.sentAt
+      ? Math.floor((TODAY - new Date(q.sentAt)) / 86400000)
+      : null;
+
+    const isOverdue = eff === 'sent' && daysSince !== null && daysSince > 14;
+    const displayStatus = isOverdue ? 'overdue' : eff;
+
+    return `
+      <tr>
+        <td style="font-family:monospace;font-weight:700;color:var(--navy);">${shortId}</td>
+        <td style="font-weight:600;">${quoteClientName(q)}</td>
+        <td>${md||'—'}</td>
+        <td style="text-transform:capitalize;">${q.serviceType||q.type||'—'}</td>
+        <td style="font-weight:700;">${fmt(amt)}</td>
+        <td>${statusBadge(displayStatus)}</td>
+        <td style="color:${isOverdue?'var(--danger)':'var(--text-muted)'};">
+          ${daysSince !== null ? daysSince+'d' : '—'}
+        </td>
+        <td>
+          ${eff !== 'paid' ? `<button class="btn btn-success btn-xs" onclick="markPaid('${q.id}')">Mark Paid</button>` : '<span style="color:var(--success);font-size:12px;font-weight:700;">✓ Paid</span>'}
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function markPaid(quoteId) {
+  DB.markInvoicePaid(quoteId);
+  toast('Invoice marked as paid', 'success');
+  renderInvoices();
+}
+
+function exportInvoicesCsv() {
+  const quotes = DB.getQuotes();
+  const rows = [['Invoice#','Client','MoveDate','Service','Amount','Status','DaysSinceSent']];
+  quotes.forEach(q => {
+    const eff = getEffectiveStatus(q);
+    const md  = quoteMoveDate(q);
+    const daysSince = q.sentAt ? Math.floor((TODAY - new Date(q.sentAt)) / 86400000) : '';
+    rows.push([
+      String(q.id||'').slice(-6).toUpperCase(),
+      quoteClientName(q),
+      md||'',
+      q.serviceType||q.type||'',
+      quoteAmount(q).toFixed(2),
+      eff,
+      daysSince
+    ]);
+  });
+  downloadCsv(rows, 'invoices.csv');
+  toast('Invoices exported', 'success');
+}
+
+/* ════════════════════════════════════════
+   EXPENSES
+════════════════════════════════════════ */
+let expenseToDelete = null;
+
+function renderExpenses() {
+  const expenses = DB.getExpenses();
+  const [monthS, monthE] = thisMonthRange();
+  const [weekS, weekE]   = thisWeekRange();
+
+  const monthExp = expenses.filter(e => inRange(e.date, monthS, monthE));
+  const weekExp  = expenses.filter(e => inRange(e.date, weekS, weekE));
+  const monthTotal = monthExp.reduce((s,e)=>s+Number(e.amount||0),0);
+  const weekTotal  = weekExp.reduce((s,e)=>s+Number(e.amount||0),0);
+
+  // Top 2 categories
+  const catTotals = {};
+  monthExp.forEach(e => { catTotals[e.category] = (catTotals[e.category]||0) + Number(e.amount||0); });
+  const top2 = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]).slice(0,2);
+
+  const statsRow = document.getElementById('exp-stats-row');
+  statsRow.innerHTML = `
+    <div class="stat-card red">
+      <div class="stat-label">This Month</div>
+      <div class="stat-value">${fmtShort(monthTotal)}</div>
+      <div class="stat-sub">${monthExp.length} expense${monthExp.length!==1?'s':''}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">This Week</div>
+      <div class="stat-value">${fmtShort(weekTotal)}</div>
+      <div class="stat-sub">${weekExp.length} expense${weekExp.length!==1?'s':''}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Top Categories</div>
+      <div class="stat-value" style="font-size:16px;margin-top:4px;">
+        ${top2.length>0 ? top2.map(([c,a])=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">${catDot(c)}<span style="text-transform:capitalize;font-size:14px;">${c}</span><span style="font-size:13px;font-weight:600;margin-left:auto;">${fmt(a)}</span></div>`).join('') : '<span style="font-size:14px;color:var(--text-muted);">—</span>'}
+      </div>
+    </div>
+  `;
+
+  // Table grouped by month
+  const sorted = [...expenses].sort((a,b) => b.date.localeCompare(a.date));
+  const groups = {};
+  sorted.forEach(e => {
+    const d = parseDateLocal(e.date);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const label = d.toLocaleString('en-CA',{month:'long',year:'numeric'});
+    if (!groups[key]) groups[key] = { label, items: [] };
+    groups[key].items.push(e);
+  });
+
+  const tbody = document.getElementById('exp-tbody');
+  if (sorted.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted);">No expenses yet. Click "Add Expense" to get started.</td></tr>`;
+    return;
+  }
+
+  let html = '';
+  Object.values(groups).forEach(g => {
+    const groupTotal = g.items.reduce((s,e)=>s+Number(e.amount||0),0);
+    html += `<tr class="month-group-row"><td colspan="6">${g.label}</td><td style="background:var(--bg);font-size:11px;font-weight:700;color:var(--text-muted);padding:8px 14px;text-align:right;">${fmt(groupTotal)}</td></tr>`;
+    g.items.forEach(e => {
+      html += `
+        <tr>
+          <td>${e.date}</td>
+          <td><span class="badge badge-${e.category}">${e.category}</span></td>
+          <td style="max-width:260px;">
+            <div style="font-weight:500;">${e.description||'—'}</div>
+            ${e.receiptNote?`<div style="font-size:11px;color:var(--text-muted);">${e.receiptNote}</div>`:''}
+          </td>
+          <td style="color:var(--text-muted);">${e.vendor||'—'}</td>
+          <td style="color:var(--text-muted);">${e.truckId||'—'}</td>
+          <td style="font-weight:700;">${fmt(e.amount)}</td>
+          <td>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-outline btn-xs" onclick="openExpenseModal('${e.id}')">Edit</button>
+              <button class="btn btn-danger btn-xs" onclick="openDeleteModal('${e.id}')">Del</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    });
+  });
+  tbody.innerHTML = html;
+}
+
+function openExpenseModal(editId) {
+  const modal = document.getElementById('expense-modal');
+  const trucks = DB.getTrucks();
+
+  // Populate truck dropdown
+  const truckSel = document.getElementById('exp-truck');
+  truckSel.innerHTML = '<option value="">None</option>';
+  trucks.forEach(t => {
+    truckSel.innerHTML += `<option value="${t.id}">${t.name||t.id}</option>`;
+  });
+  // Add seed trucks if none from DB
+  if (trucks.length === 0) {
+    ['t1 — Truck 1','t2 — Truck 2','t3 — Truck 3'].forEach(s => {
+      const [id, name] = s.split(' — ');
+      truckSel.innerHTML += `<option value="${id}">${name}</option>`;
+    });
+  }
+
+  if (editId) {
+    const exp = DB.getExpenses().find(e => e.id === editId);
+    if (!exp) return;
+    document.getElementById('expense-modal-title').textContent = 'Edit Expense';
+    document.getElementById('exp-date').value        = exp.date||'';
+    document.getElementById('exp-category').value   = exp.category||'';
+    document.getElementById('exp-desc').value        = exp.description||'';
+    document.getElementById('exp-amount').value      = exp.amount||'';
+    document.getElementById('exp-vendor').value      = exp.vendor||'';
+    document.getElementById('exp-truck').value       = exp.truckId||'';
+    document.getElementById('exp-receipt-note').value= exp.receiptNote||'';
+    document.getElementById('exp-edit-id').value     = editId;
+  } else {
+    document.getElementById('expense-modal-title').textContent = 'Add Expense';
+    document.getElementById('exp-date').value        = isoDate(TODAY);
+    document.getElementById('exp-category').value   = '';
+    document.getElementById('exp-desc').value        = '';
+    document.getElementById('exp-amount').value      = '';
+    document.getElementById('exp-vendor').value      = '';
+    document.getElementById('exp-truck').value       = '';
+    document.getElementById('exp-receipt-note').value= '';
+    document.getElementById('exp-edit-id').value     = '';
+  }
+
+  modal.classList.add('open');
+}
+
+function closeExpenseModal() {
+  document.getElementById('expense-modal').classList.remove('open');
+}
+
+function saveExpense() {
+  const editId   = document.getElementById('exp-edit-id').value;
+  const date     = document.getElementById('exp-date').value;
+  const category = document.getElementById('exp-category').value;
+  const desc     = document.getElementById('exp-desc').value.trim();
+  const amount   = parseFloat(document.getElementById('exp-amount').value);
+  const vendor   = document.getElementById('exp-vendor').value.trim();
+  const truckId  = document.getElementById('exp-truck').value||null;
+  const receiptNote = document.getElementById('exp-receipt-note').value.trim();
+
+  if (!date)        { toast('Please enter a date','error'); return; }
+  if (!category)    { toast('Please select a category','error'); return; }
+  if (!desc)        { toast('Please enter a description','error'); return; }
+  if (isNaN(amount)||amount<=0) { toast('Please enter a valid amount','error'); return; }
+
+  const entry = { id: editId||DB.generateId(), date, category, description:desc, amount, vendor, truckId, receiptNote, createdAt: editId ? undefined : new Date().toISOString() };
+  if (!entry.createdAt) {
+    const existing = DB.getExpenses().find(e=>e.id===editId);
+    entry.createdAt = existing ? existing.createdAt : new Date().toISOString();
+  }
+
+  if (editId) {
+    DB.updateExpense(entry);
+    toast('Expense updated','success');
+  } else {
+    DB.addExpense(entry);
+    toast('Expense added','success');
+  }
+
+  closeExpenseModal();
+  renderExpenses();
+}
+
+function openDeleteModal(id) {
+  const exp = DB.getExpenses().find(e=>e.id===id);
+  if (!exp) return;
+  expenseToDelete = id;
+  document.getElementById('delete-modal-desc').textContent =
+    `"${exp.description}" — ${fmt(exp.amount)} on ${exp.date}`;
+  document.getElementById('delete-modal').classList.add('open');
+}
+
+function closeDeleteModal() {
+  document.getElementById('delete-modal').classList.remove('open');
+  expenseToDelete = null;
+}
+
+function confirmDelete() {
+  if (!expenseToDelete) return;
+  DB.deleteExpense(expenseToDelete);
+  toast('Expense deleted','success');
+  closeDeleteModal();
+  renderExpenses();
+}
+
+function exportExpensesCsv() {
+  const rows = [['Date','Category','Description','Vendor','TruckID','Amount','ReceiptNote']];
+  DB.getExpenses().forEach(e => {
+    rows.push([e.date, e.category, e.description, e.vendor||'', e.truckId||'', Number(e.amount).toFixed(2), e.receiptNote||'']);
+  });
+  downloadCsv(rows, 'expenses.csv');
+  toast('Expenses exported','success');
+}
+
+/* ════════════════════════════════════════
+   PAYROLL
+════════════════════════════════════════ */
+let payrollWeekMonday = getMonday(TODAY);
+
+function shiftPayrollWeek(n) {
+  payrollWeekMonday = addWeeks(payrollWeekMonday, n);
+  renderPayroll();
+}
+
+function renderPayroll() {
+  const weekIso   = isoDate(payrollWeekMonday);
+  const weekEnd   = addDays(payrollWeekMonday, 6);
+  const weekEndIso= isoDate(weekEnd);
+
+  document.getElementById('payroll-week-label').textContent = weekLabel(payrollWeekMonday);
+
+  const settings = DB.getSettings();
+  const crew     = DB.getCrew();
+  const moves    = DB.getMoves();
+  const payroll  = DB.getPayroll();
+
+  // Build effective crew list (use crew from ops, fallback to payroll entries for this week)
+  let crewList = crew.length > 0 ? crew : [];
+  // If no ops crew, create stub entries from existing payroll for this week
+  const weekPayroll = payroll.filter(p => p.weekOf === weekIso);
+
+  // For each crew member, find existing payroll entry or create default
+  function getEntry(member) {
+    const existing = weekPayroll.find(p => p.crewMemberId === (member.id||member.crewMemberId));
+    if (existing) return existing;
+
+    // Auto-calculate hours from moves
+    const memberMoves = moves.filter(m => {
+      if (!m.crew || !Array.isArray(m.crew)) return false;
+      if (!m.date) return false;
+      return m.date >= weekIso && m.date <= weekEndIso && m.crew.includes(member.id);
+    });
+
+    let autoHours = 0;
+    memberMoves.forEach(m => {
+      if (m.startTime && m.endTime) {
+        const [sh,sm] = m.startTime.split(':').map(Number);
+        const [eh,em] = m.endTime.split(':').map(Number);
+        autoHours += (eh*60+em - sh*60-sm) / 60;
+      } else {
+        autoHours += 8; // default 8h
+      }
+    });
+
+    const role       = member.role||'mover';
+    const hourlyRate = role.toLowerCase().includes('driver') ? settings.driverRate : settings.moverRate;
+    const hours      = Math.round(autoHours * 10)/10;
+    const otHours    = Math.max(0, hours - 40);
+    const regHours   = hours - otHours;
+    const grossPay   = regHours*hourlyRate + otHours*hourlyRate*settings.otMult;
+
+    return {
+      id: DB.generateId(),
+      weekOf: weekIso,
+      crewMemberId: member.id,
+      crewMemberName: member.name||member.firstName+' '+(member.lastName||''),
+      hoursWorked: hours||0,
+      hourlyRate,
+      overtimeHours: otHours,
+      overtimeRate: hourlyRate * settings.otMult,
+      grossPay: Math.round(grossPay*100)/100,
+      deductions: 0,
+      netPay: Math.round(grossPay*100)/100,
+      status: 'draft',
+      notes: '',
+      _unsaved: true
+    };
+  }
+
+  const entries = crewList.length > 0
+    ? crewList.map(m => getEntry(m))
+    : weekPayroll; // if no crew in ops, show existing payroll entries
+
+  // If zero entries and zero crew
+  const tbody = document.getElementById('payroll-tbody');
+  if (entries.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text-muted);">No crew found. Add crew members in Operations Hub.</td></tr>`;
+    document.getElementById('payroll-week-total').textContent = '';
+    renderPayrollHistory();
+    return;
+  }
+
+  // Calculate gross from inputs
+  function calcPay(hours, rate, otHours, mult, deductions) {
+    const regH = hours - otHours;
+    const gross = regH*rate + otHours*rate*mult;
+    return { gross: Math.round(gross*100)/100, net: Math.round((gross - deductions)*100)/100 };
+  }
+
+  tbody.innerHTML = entries.map((entry, idx) => {
+    const { gross, net } = calcPay(
+      entry.hoursWorked, entry.hourlyRate,
+      entry.overtimeHours, settings.otMult, entry.deductions||0
+    );
+
+    const statusMap = {
+      draft:    ['badge-draft2','Draft'],
+      approved: ['badge-approved','Approved'],
+      paid:     ['badge-paid2','Paid'],
+    };
+    const [sCls, sLabel] = statusMap[entry.status||'draft']||['badge-draft2','Draft'];
+
+    return `
+      <tr data-payroll-id="${entry.id}" data-crew-id="${entry.crewMemberId}">
+        <td style="font-weight:600;">${entry.crewMemberName||'Unknown'}</td>
+        <td style="text-transform:capitalize;color:var(--text-muted);">${entry.role||''}</td>
+        <td>
+          <input class="table-input" type="number" step="0.5" min="0"
+            value="${entry.hoursWorked||0}"
+            onchange="updatePayrollRow(this,'hoursWorked')"
+            data-entry-idx="${idx}">
+        </td>
+        <td>
+          <input class="table-input" type="number" step="0.5" min="0"
+            value="${entry.hourlyRate||settings.moverRate}"
+            onchange="updatePayrollRow(this,'hourlyRate')"
+            data-entry-idx="${idx}">
+        </td>
+        <td>
+          <input class="table-input" type="number" step="0.5" min="0"
+            value="${entry.overtimeHours||0}"
+            onchange="updatePayrollRow(this,'overtimeHours')"
+            data-entry-idx="${idx}">
+        </td>
+        <td style="font-weight:700;" id="pr-gross-${idx}">${fmt(gross)}</td>
+        <td>
+          <input class="table-input" type="number" step="0.01" min="0"
+            value="${entry.deductions||0}"
+            onchange="updatePayrollRow(this,'deductions')"
+            data-entry-idx="${idx}">
+        </td>
+        <td style="font-weight:700;color:var(--success);" id="pr-net-${idx}">${fmt(net)}</td>
+        <td><span class="badge ${sCls}" id="pr-status-${idx}">${sLabel}</span></td>
+        <td>
+          <button class="btn btn-outline btn-xs" onclick="savePayrollEntry(${idx})">Save</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  // Store entries in window for live updates
+  window._payrollEntries = entries;
+
+  const weekTotal = entries.reduce((s,e) => {
+    const { net } = calcPay(e.hoursWorked, e.hourlyRate, e.overtimeHours, settings.otMult, e.deductions||0);
+    return s + net;
+  }, 0);
+  document.getElementById('payroll-week-total').textContent = `Total: ${fmt(weekTotal)}`;
+
+  renderPayrollHistory();
+}
+
+window.updatePayrollRow = function(input, field) {
+  const idx = parseInt(input.getAttribute('data-entry-idx'));
+  const settings = DB.getSettings();
+  const entry = window._payrollEntries[idx];
+  if (!entry) return;
+  entry[field] = parseFloat(input.value)||0;
+
+  // Recalculate
+  const regH   = entry.hoursWorked - (entry.overtimeHours||0);
+  const gross  = regH*entry.hourlyRate + (entry.overtimeHours||0)*entry.hourlyRate*settings.otMult;
+  const net    = gross - (entry.deductions||0);
+
+  entry.grossPay = Math.round(gross*100)/100;
+  entry.netPay   = Math.round(net*100)/100;
+
+  const gEl = document.getElementById('pr-gross-'+idx);
+  const nEl = document.getElementById('pr-net-'+idx);
+  if (gEl) gEl.textContent = fmt(entry.grossPay);
+  if (nEl) nEl.textContent = fmt(Math.max(0, entry.netPay));
+
+  // Update week total
+  const weekTotal = window._payrollEntries.reduce((s,e) => s + Math.max(0,e.netPay||0), 0);
+  document.getElementById('payroll-week-total').textContent = `Total: ${fmt(weekTotal)}`;
+};
+
+window.savePayrollEntry = function(idx) {
+  const entry = window._payrollEntries[idx];
+  if (!entry) return;
+
+  const payroll = DB.getPayroll();
+  const existing = payroll.findIndex(p => p.id === entry.id);
+  const toSave = { ...entry, _unsaved: undefined };
+
+  if (existing >= 0) {
+    payroll[existing] = toSave;
+  } else {
+    payroll.unshift(toSave);
+  }
+  DB.savePayroll(payroll);
+  toast(`${entry.crewMemberName} payroll saved`, 'success');
+
+  const statusEl = document.getElementById('pr-status-'+idx);
+  if (statusEl) statusEl.textContent = 'Draft';
+};
+
+function approveAllPayroll() {
+  if (!window._payrollEntries || window._payrollEntries.length === 0) {
+    toast('No payroll entries to approve','error');
+    return;
+  }
+  const total = window._payrollEntries.reduce((s,e)=>s+Math.max(0,e.netPay||0),0);
+  document.getElementById('payroll-approve-desc').textContent =
+    `Approve ${window._payrollEntries.length} entries totalling ${fmt(total)} for week of ${document.getElementById('payroll-week-label').textContent}?`;
+  document.getElementById('payroll-approve-modal').classList.add('open');
+}
+
+function closePayrollApproveModal() {
+  document.getElementById('payroll-approve-modal').classList.remove('open');
+}
+
+function confirmApproveAll() {
+  const payroll = DB.getPayroll();
+  const weekIso = isoDate(payrollWeekMonday);
+
+  (window._payrollEntries||[]).forEach(entry => {
+    entry.status = 'approved';
+    const existing = payroll.findIndex(p => p.id === entry.id);
+    const toSave = { ...entry, _unsaved: undefined };
+    if (existing >= 0) payroll[existing] = toSave;
+    else payroll.unshift(toSave);
+  });
+  DB.savePayroll(payroll);
+  toast('All payroll entries approved', 'success');
+  closePayrollApproveModal();
+  renderPayroll();
+}
+
+function renderPayrollHistory() {
+  const payroll = DB.getPayroll();
+  const wrap = document.getElementById('payroll-history');
+  const weeks = [];
+  for (let i=1; i<=4; i++) {
+    const mon = addWeeks(payrollWeekMonday, -i);
+    const weekIso = isoDate(mon);
+    const entries = payroll.filter(p => p.weekOf === weekIso);
+    const total   = entries.reduce((s,e)=>s+Math.max(0,e.netPay||0),0);
+    const status  = entries.length===0 ? 'No data'
+                  : entries.every(e=>e.status==='paid') ? 'Paid'
+                  : entries.every(e=>e.status==='approved'||e.status==='paid') ? 'Approved'
+                  : 'Draft';
+    weeks.push({ mon, total, count: entries.length, status });
+  }
+
+  wrap.innerHTML = weeks.map(w => `
+    <div class="payroll-hist-card">
+      <div class="payroll-hist-week">Week of ${w.mon.toLocaleString('en-CA',{month:'short',day:'numeric',year:'numeric'})}</div>
+      <div class="payroll-hist-amt">${w.total>0?fmt(w.total):'—'}</div>
+      <div class="payroll-hist-meta">${w.count} crew · ${w.status}</div>
+    </div>
+  `).join('');
+}
+
+function exportPayrollCsv() {
+  const settings = DB.getSettings();
+  const weekIso  = isoDate(payrollWeekMonday);
+  const entries  = window._payrollEntries || DB.getPayroll().filter(p=>p.weekOf===weekIso);
+  const rows = [['Name','Role','WeekOf','HoursWorked','HourlyRate','OvertimeHours','GrossPay','Deductions','NetPay','Status']];
+  entries.forEach(e => {
+    rows.push([
+      e.crewMemberName||'',
+      e.role||'',
+      e.weekOf||weekIso,
+      e.hoursWorked||0,
+      e.hourlyRate||0,
+      e.overtimeHours||0,
+      (e.grossPay||0).toFixed(2),
+      (e.deductions||0).toFixed(2),
+      (e.netPay||0).toFixed(2),
+      e.status||'draft'
+    ]);
+  });
+  downloadCsv(rows, 'payroll_'+weekIso+'.csv');
+  toast('Payroll exported', 'success');
+}
+
+/* ════════════════════════════════════════
+   P&L
+════════════════════════════════════════ */
+let plYear  = TODAY.getFullYear();
+let plMonth = TODAY.getMonth(); // 0-based
+
+function shiftPlMonth(n) {
+  plMonth += n;
+  if (plMonth > 11) { plMonth = 0; plYear++; }
+  if (plMonth < 0)  { plMonth = 11; plYear--; }
+  renderPL();
+}
+
+function getMonthRevenue(y, m) {
+  const s = startOfMonth(y, m);
+  const e = endOfMonth(y, m);
+  return DB.getQuotes()
+    .filter(q => {
+      const md = quoteMoveDate(q);
+      if (!md) return false;
+      const eff = getEffectiveStatus(q);
+      return isRevenueStatus(eff) && inRange(md, s, e);
+    })
+    .reduce((sum, q) => sum + quoteAmount(q), 0);
+}
+
+function getMonthExpenses(y, m) {
+  const s = startOfMonth(y, m);
+  const e = endOfMonth(y, m);
+  const expenses = DB.getExpenses().filter(ex => inRange(ex.date, s, e));
+  const catTotals = {};
+  const cats = ['payroll','fuel','supplies','equipment','maintenance','marketing','insurance','other'];
+  cats.forEach(c => catTotals[c] = 0);
+
+  expenses.forEach(ex => {
+    const cat = ex.category || 'other';
+    catTotals[cat] = (catTotals[cat]||0) + Number(ex.amount||0);
+  });
+
+  // Add payroll from payroll entries
+  const weekStart = isoDate(startOfMonth(y,m));
+  const weekEnd   = isoDate(endOfMonth(y,m));
+  const payroll = DB.getPayroll().filter(p => p.weekOf >= weekStart && p.weekOf <= weekEnd);
+  const payrollTotal = payroll.reduce((s,p)=>s+Math.max(0,p.netPay||p.grossPay||0),0);
+  catTotals['payroll'] += payrollTotal;
+
+  // Recovery payouts
+  const cases = DB.getCases();
+  const recoveryTotal = cases
+    .filter(c => {
+      const d = (c.createdAt||c.date||'').slice(0,10);
+      return d >= weekStart && d <= weekEnd &&
+             ['cash-payout','insurance-claim'].includes(c.decision||c.resolution||c.type);
+    })
+    .reduce((s,c) => s + Number(c.payoutAmount||c.amount||0), 0);
+
+  return { catTotals, recoveryTotal };
+}
+
+function renderPL() {
+  document.getElementById('pl-month-label').textContent =
+    new Date(plYear, plMonth, 1).toLocaleString('en-CA', {month:'long', year:'numeric'});
+
+  const revenue = getMonthRevenue(plYear, plMonth);
+  const { catTotals, recoveryTotal } = getMonthExpenses(plYear, plMonth);
+
+  const cats = ['payroll','fuel','supplies','equipment','maintenance','marketing','insurance','other'];
+  const totalExp = cats.reduce((s,c)=>s+catTotals[c],0) + recoveryTotal;
+  const netProfit = revenue - totalExp;
+  const margin    = revenue > 0 ? (netProfit/revenue*100) : 0;
+
+  const netColor = netProfit >= 0 ? 'val-green' : 'val-red';
+  const marginColor = margin >= 0 ? 'val-green' : 'val-red';
+
+  let plHtml = `
+    <table class="pl-table">
+      <tr class="pl-section-header"><td colspan="2">Revenue</td></tr>
+      <tr><td>Job Revenue (from CRM)</td><td class="val-right val-green">${fmt(revenue)}</td></tr>
+      <tr class="pl-total-row"><td>Total Revenue</td><td class="val-right val-green">${fmt(revenue)}</td></tr>
+      <tr class="pl-section-header"><td colspan="2">Expenses</td></tr>
+  `;
+
+  cats.forEach(c => {
+    const amt = catTotals[c];
+    if (amt > 0) {
+      plHtml += `<tr><td style="padding-left:24px;text-transform:capitalize;">${c}</td><td class="val-right val-red">(${fmt(amt)})</td></tr>`;
+    }
+  });
+
+  if (recoveryTotal > 0) {
+    plHtml += `<tr><td style="padding-left:24px;">Recovery Payouts</td><td class="val-right val-red">(${fmt(recoveryTotal)})</td></tr>`;
+  }
+
+  plHtml += `
+      <tr class="pl-total-row"><td>Total Expenses</td><td class="val-right val-red">(${fmt(totalExp)})</td></tr>
+      <tr class="pl-net-row">
+        <td>Net Profit</td>
+        <td class="val-right ${netColor}">${netProfit>=0?'':'('}${fmt(Math.abs(netProfit))}${netProfit>=0?'':')'}</td>
+      </tr>
+      <tr class="pl-margin-row">
+        <td>Profit Margin</td>
+        <td class="val-right ${marginColor}">${margin.toFixed(1)}%</td>
+      </tr>
+    </table>
+  `;
+
+  document.getElementById('pl-table-wrap').innerHTML = plHtml;
+
+  // 6-month trend chart
+  const months = [];
+  for (let i=5; i>=0; i--) {
+    let y = plYear, m = plMonth - i;
+    while (m < 0) { m += 12; y--; }
+    const rev = getMonthRevenue(y, m);
+    const { catTotals: ec, recoveryTotal: rt } = getMonthExpenses(y, m);
+    const exp = ['payroll','fuel','supplies','equipment','maintenance','marketing','insurance','other'].reduce((s,c)=>s+ec[c],0) + rt;
+    const net = rev - exp;
+    months.push({ y, m, rev, exp, net });
+  }
+
+  const maxVal = Math.max(...months.map(mo => Math.max(mo.rev, mo.exp, 1)), 1);
+  const chartWrap  = document.getElementById('pl-trend-chart');
+  const labelWrap  = document.getElementById('pl-trend-labels');
+
+  chartWrap.innerHTML = months.map(mo => {
+    const rh = Math.round((mo.rev/maxVal)*140);
+    const eh = Math.round((mo.exp/maxVal)*140);
+    const nh = Math.max(0, Math.round((Math.max(0,mo.net)/maxVal)*140));
+    return `
+      <div class="pl-bar-group" title="${monthLabel(mo.y,mo.m)}: Rev ${fmt(mo.rev)} | Exp ${fmt(mo.exp)} | Net ${fmt(mo.net)}">
+        <div class="pl-bar-rev" style="height:${rh}px;"></div>
+        <div class="pl-bar-exp" style="height:${eh}px;"></div>
+        <div class="pl-bar-net" style="height:${nh}px;"></div>
+      </div>
+    `;
+  }).join('');
+
+  labelWrap.innerHTML = months.map(mo =>
+    `<div class="pl-chart-label">${new Date(mo.y,mo.m,1).toLocaleString('en-CA',{month:'short'})}</div>`
+  ).join('');
+}
+
+/* ════════════════════════════════════════
+   SETTINGS
+════════════════════════════════════════ */
+function renderSettings() {
+  const goals    = DB.getGoals();
+  const settings = DB.getSettings();
+  document.getElementById('set-monthly-goal').value = goals.monthly||25000;
+  document.getElementById('set-weekly-goal').value  = goals.weekly||6000;
+  document.getElementById('set-mover-rate').value   = settings.moverRate||22;
+  document.getElementById('set-driver-rate').value  = settings.driverRate||26;
+  document.getElementById('set-ot-mult').value      = settings.otMult||1.5;
+  document.getElementById('set-company').value      = settings.company||'Saturn Star Moving';
+}
+
+function saveSettings() {
+  const monthly    = parseFloat(document.getElementById('set-monthly-goal').value)||25000;
+  const weekly     = parseFloat(document.getElementById('set-weekly-goal').value)||6000;
+  const moverRate  = parseFloat(document.getElementById('set-mover-rate').value)||22;
+  const driverRate = parseFloat(document.getElementById('set-driver-rate').value)||26;
+  const otMult     = parseFloat(document.getElementById('set-ot-mult').value)||1.5;
+  const company    = document.getElementById('set-company').value.trim()||'Saturn Star Moving';
+
+  DB.saveGoals({ monthly, weekly });
+  DB.saveSettings({ moverRate, driverRate, otMult, company });
+  toast('Settings saved', 'success');
+}
+
+/* ════════════════════════════════════════
+   CSV EXPORT UTILITY
+════════════════════════════════════════ */
+function downloadCsv(rows, filename) {
+  const csv = rows.map(r =>
+    r.map(v => {
+      const s = String(v||'').replace(/"/g,'""');
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s}"` : s;
+    }).join(',')
+  ).join('\n');
+
+  const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* ════════════════════════════════════════
+   CLOSE MODALS ON OVERLAY CLICK
+════════════════════════════════════════ */
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) {
+      overlay.classList.remove('open');
+      expenseToDelete = null;
+    }
+  });
+});
+
+/* ════════════════════════════════════════
+   INIT
+════════════════════════════════════════ */
+seedIfEmpty();
+navigate('dashboard');
+</script>
+</body>
+</html>

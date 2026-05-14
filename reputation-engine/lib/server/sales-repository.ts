@@ -9,6 +9,7 @@ import {
 import { LEAD_ARCHIVED_NOTE, LEAD_RESTORED_NOTE } from '@/lib/server/sales-audit'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import type {
+  CallLogEntry,
   CRMClient,
   CRMEmail,
   CRMLead,
@@ -22,6 +23,36 @@ import type {
 
 type TableName = 'crm_leads' | 'crm_quotes' | 'crm_clients' | 'crm_emails' | 'crm_followup_logs'
 type PersistedRecord<T> = { id: string; data: T; updated_at?: string; deleted?: boolean }
+type LeadIdentityLike = Pick<CRMLead, 'id' | 'stage' | 'phone' | 'email' | 'inboundId'>
+type LeadLifecycleSnapshot = {
+  leadId?: string
+  notes?: string
+  date?: string
+  createdAt?: string
+}
+type LeadIdentityRow = {
+  id: string
+  name?: string | null
+  stage?: string | null
+  phone?: string | null
+  email?: string | null
+  inboundId?: string | null
+}
+type LeadInboxRow = LeadIdentityRow & {
+  branch?: string | null
+  originAddress?: string | null
+  originCity?: string | null
+  destAddress?: string | null
+  destCity?: string | null
+  moveType?: string | null
+  totalCubicFeet?: number | string | null
+  callLogs?: CallLogEntry[] | string | null
+}
+
+export type SalesLeadIdentitySnapshot = Pick<CRMLead, 'id' | 'name' | 'stage' | 'phone' | 'email' | 'inboundId'>
+export type SalesLeadInboxSnapshot =
+  SalesLeadIdentitySnapshot &
+  Pick<CRMLead, 'branch' | 'originAddress' | 'originCity' | 'destAddress' | 'destCity' | 'moveType' | 'totalCubicFeet' | 'callLogs'>
 
 function requireSupabase() {
   return requireSupabaseEnv()
@@ -35,7 +66,60 @@ function normalizeEmail(value?: string) {
   return (value || '').trim().toLowerCase()
 }
 
-function leadsShareIdentity(left: CRMLead, right: CRMLead) {
+function normalizeProjectedText(value?: string | null) {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : undefined
+}
+
+function normalizeProjectedNumber(value?: number | string | null) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : undefined
+  }
+  return undefined
+}
+
+function normalizeProjectedCallLogs(value?: CallLogEntry[] | string | null) {
+  if (Array.isArray(value)) return value
+  if (typeof value === 'string' && value.trim()) {
+    try {
+      const parsed = JSON.parse(value) as CallLogEntry[]
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
+function normalizeLeadIdentitySnapshot(row: LeadIdentityRow): SalesLeadIdentitySnapshot {
+  return {
+    id: row.id,
+    name: normalizeProjectedText(row.name) || 'Unknown Lead',
+    stage: (normalizeProjectedText(row.stage) || 'new') as CRMLead['stage'],
+    phone: normalizeProjectedText(row.phone),
+    email: normalizeProjectedText(row.email),
+    inboundId: normalizeProjectedText(row.inboundId),
+  }
+}
+
+function normalizeLeadInboxSnapshot(row: LeadInboxRow): SalesLeadInboxSnapshot {
+  const identity = normalizeLeadIdentitySnapshot(row)
+  return {
+    ...identity,
+    branch: normalizeProjectedText(row.branch) as CRMLead['branch'] | undefined,
+    originAddress: normalizeProjectedText(row.originAddress),
+    originCity: normalizeProjectedText(row.originCity),
+    destAddress: normalizeProjectedText(row.destAddress),
+    destCity: normalizeProjectedText(row.destCity),
+    moveType: normalizeProjectedText(row.moveType) as CRMLead['moveType'] | undefined,
+    totalCubicFeet: normalizeProjectedNumber(row.totalCubicFeet),
+    callLogs: normalizeProjectedCallLogs(row.callLogs),
+  }
+}
+
+function leadsShareIdentity(left: LeadIdentityLike, right: LeadIdentityLike) {
   if (left.id === right.id) return false
 
   if (left.inboundId && right.inboundId && left.inboundId === right.inboundId) {
@@ -53,7 +137,7 @@ function leadsShareIdentity(left: CRMLead, right: CRMLead) {
   return !!leftEmail && !!rightEmail && leftEmail === rightEmail
 }
 
-function getArchivedLeadIds(logs: FollowUpLog[]) {
+function getArchivedLeadIds(logs: LeadLifecycleSnapshot[]) {
   const latestLifecycle = new Map<string, { archived: boolean; date: number }>()
 
   for (const log of logs) {
@@ -75,6 +159,87 @@ function getArchivedLeadIds(logs: FollowUpLog[]) {
       .filter(([, value]) => value.archived)
       .map(([leadId]) => leadId)
   )
+}
+
+const LEAD_IDENTITY_SELECT = [
+  'id',
+  'name:data->>name',
+  'stage:data->>stage',
+  'phone:data->>phone',
+  'email:data->>email',
+  'inboundId:data->>inboundId',
+].join(',')
+
+const LEAD_INBOX_SELECT = [
+  'id',
+  'name:data->>name',
+  'stage:data->>stage',
+  'phone:data->>phone',
+  'email:data->>email',
+  'inboundId:data->>inboundId',
+  'branch:data->>branch',
+  'originAddress:data->>originAddress',
+  'originCity:data->>originCity',
+  'destAddress:data->>destAddress',
+  'destCity:data->>destCity',
+  'moveType:data->>moveType',
+  'totalCubicFeet:data->>totalCubicFeet',
+  'callLogs:data->callLogs',
+].join(',')
+
+const LEAD_LIFECYCLE_SELECT = [
+  'leadId:data->>leadId',
+  'notes:data->>notes',
+  'date:data->>date',
+  'createdAt:data->>createdAt',
+].join(',')
+
+async function selectLeadLifecycleSnapshots() {
+  try {
+    const { url, headers } = requireSupabase()
+    const response = await fetch(
+      `${url}/rest/v1/crm_followup_logs?select=${encodeURIComponent(LEAD_LIFECYCLE_SELECT)}&deleted=eq.false&order=updated_at.desc`,
+      { headers, cache: 'no-store' }
+    )
+
+    if (!response.ok) {
+      throw new Error('Failed to read crm_followup_logs lifecycle rows')
+    }
+
+    const rows = (await response.json()) as Array<{
+      leadId?: string | null
+      notes?: string | null
+      date?: string | null
+      createdAt?: string | null
+    }>
+
+    return rows.map(row => ({
+      leadId: normalizeProjectedText(row.leadId),
+      notes: normalizeProjectedText(row.notes),
+      date: normalizeProjectedText(row.date),
+      createdAt: normalizeProjectedText(row.createdAt),
+    }))
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (isMissingRelationError(message)) {
+      return [] as LeadLifecycleSnapshot[]
+    }
+    throw error
+  }
+}
+
+async function selectProjectedLeadRows<T>(select: string): Promise<T[]> {
+  const { url, headers } = requireSupabase()
+  const response = await fetch(
+    `${url}/rest/v1/crm_leads?select=${encodeURIComponent(select)}&deleted=eq.false&order=updated_at.desc`,
+    { headers, cache: 'no-store' }
+  )
+
+  if (!response.ok) {
+    throw new Error('Failed to read projected crm_leads rows')
+  }
+
+  return (await response.json()) as T[]
 }
 
 async function selectAll<T>(table: TableName): Promise<T[]> {
@@ -168,21 +333,78 @@ async function markDeleted(table: TableName, id: string) {
 }
 
 export async function listSalesLeads() {
-  const [leads, followUps] = await Promise.all([
+  const [leads, lifecycle] = await Promise.all([
     selectAll<CRMLead>('crm_leads'),
-    listFollowUpLogs(),
+    selectLeadLifecycleSnapshots(),
   ])
-  const archivedLeadIds = getArchivedLeadIds(followUps)
+  const archivedLeadIds = getArchivedLeadIds(lifecycle)
   return leads
     .map(lead => normalizeLead(lead))
     .filter(lead => !archivedLeadIds.has(lead.id))
+}
+
+export async function listSalesLeadIdentitySnapshots() {
+  const [rows, lifecycle] = await Promise.all([
+    selectProjectedLeadRows<LeadIdentityRow>(LEAD_IDENTITY_SELECT),
+    selectLeadLifecycleSnapshots(),
+  ])
+  const archivedLeadIds = getArchivedLeadIds(lifecycle)
+  return rows
+    .map(normalizeLeadIdentitySnapshot)
+    .filter(lead => !archivedLeadIds.has(lead.id))
+}
+
+export async function listSalesLeadInboxSnapshots() {
+  const [rows, lifecycle] = await Promise.all([
+    selectProjectedLeadRows<LeadInboxRow>(LEAD_INBOX_SELECT),
+    selectLeadLifecycleSnapshots(),
+  ])
+  const archivedLeadIds = getArchivedLeadIds(lifecycle)
+  return rows
+    .map(normalizeLeadInboxSnapshot)
+    .filter(lead => !archivedLeadIds.has(lead.id))
+}
+
+export async function listSalesLeadsPaginated(page: number, limit: number) {
+  const { url, headers } = requireSupabase()
+  const start = page * limit
+  const end = start + limit - 1
+
+  const response = await fetch(
+    `${url}/rest/v1/crm_leads?select=id,data,updated_at,deleted&deleted=eq.false&order=updated_at.desc`,
+    {
+      headers: {
+        ...headers,
+        'Range-Unit': 'items',
+        Range: `${start}-${end}`,
+        Prefer: 'count=exact',
+      },
+      cache: 'no-store',
+    }
+  )
+
+  if (!response.ok) {
+    throw new Error('Failed to read crm_leads')
+  }
+
+  const contentRange = response.headers.get('Content-Range')
+  const total = contentRange ? parseInt(contentRange.split('/')[1] || '0') : 0
+  const records = (await response.json()) as PersistedRecord<CRMLead>[]
+
+  return {
+    leads: records.map(r => normalizeLead(r.data)),
+    total,
+    page,
+    limit,
+    hasMore: start + limit < total,
+  }
 }
 
 export async function getSalesLead(id: string) {
   const lead = await selectById<CRMLead>('crm_leads', id)
   if (!lead) return null
 
-  const archivedLeadIds = getArchivedLeadIds(await listFollowUpLogs())
+  const archivedLeadIds = getArchivedLeadIds(await selectLeadLifecycleSnapshots())
   return archivedLeadIds.has(id) ? null : normalizeLead(lead)
 }
 
@@ -231,7 +453,7 @@ export async function deleteSalesLead(id: string) {
     return [id]
   }
 
-  const activeDuplicates = (await listSalesLeads())
+  const activeDuplicates = (await listSalesLeadIdentitySnapshots())
     .filter(lead => !isClosedLeadStage(lead.stage))
     .filter(lead => leadsShareIdentity(current, lead))
 
@@ -432,6 +654,20 @@ export async function listClosedInboundLeads() {
   return (await response.json()) as InboundLead[]
 }
 
+export async function listAllInboundLeads() {
+  const { url, headers } = requireSupabase()
+  const response = await fetch(
+    `${url}/rest/v1/inbound_leads?select=id,source,name,phone,email,message,raw_data,created_at,claimed,claimed_at&order=created_at.desc&limit=200`,
+    { headers, cache: 'no-store' }
+  )
+
+  if (!response.ok) {
+    throw new Error('Failed to read all inbound leads')
+  }
+
+  return (await response.json()) as InboundLead[]
+}
+
 export async function getInboundLead(id: string) {
   const { url, headers } = requireSupabase()
   const response = await fetch(
@@ -459,14 +695,25 @@ export async function getInboundLeadByPhone(phone: string) {
   return records[0] || null
 }
 
-export async function appendSmsToInboundLead(id: string, smsBody: string, messageSid: string) {
+export async function appendSmsToInboundLead(
+  id: string,
+  smsBody: string,
+  messageSid: string,
+  media?: Array<{ url: string; contentType?: string }>
+) {
   const existing = await getInboundLead(id)
   if (!existing) throw new Error(`Inbound lead ${id} not found`)
 
   const { url, headers } = requireSupabase()
   const raw = typeof existing.raw_data === 'object' && existing.raw_data ? existing.raw_data as Record<string, unknown> : {}
   const thread = Array.isArray(raw.smsThread) ? [...raw.smsThread as unknown[]] : []
-  thread.push({ direction: 'inbound', body: smsBody, messageSid, at: new Date().toISOString() })
+  thread.push({
+    direction: 'inbound',
+    body: smsBody,
+    messageSid,
+    at: new Date().toISOString(),
+    ...(media?.length ? { media } : {}),
+  })
 
   const newMessage = `${existing.message || ''}\n\n[Reply] ${smsBody}`.trim()
 
@@ -507,11 +754,20 @@ export async function updateInboundLeadRawData(id: string, patch: Record<string,
 }
 
 export async function markInboundLeadClaimed(id: string) {
+  const existing = await getInboundLead(id)
+  const raw = typeof existing?.raw_data === 'object' && existing.raw_data ? existing.raw_data as Record<string, unknown> : {}
   const { url, headers } = requireSupabase()
   const response = await fetch(`${url}/rest/v1/inbound_leads?id=eq.${encodeURIComponent(id)}`, {
     method: 'PATCH',
     headers,
-    body: JSON.stringify({ claimed: true, claimed_at: new Date().toISOString() }),
+    body: JSON.stringify({
+      claimed: true,
+      claimed_at: new Date().toISOString(),
+      raw_data: {
+        ...raw,
+        inboxDisposition: 'open',
+      },
+    }),
   })
 
   if (!response.ok) {
@@ -519,25 +775,46 @@ export async function markInboundLeadClaimed(id: string) {
   }
 }
 
-export async function markInboundLeadJunk(id: string) {
+export async function setInboundLeadDisposition(id: string, disposition: 'junk' | 'lost' | 'not_interested') {
+  const existing = await getInboundLead(id)
+  const raw = typeof existing?.raw_data === 'object' && existing.raw_data ? existing.raw_data as Record<string, unknown> : {}
+  const now = new Date().toISOString()
   const { url, headers } = requireSupabase()
   const response = await fetch(`${url}/rest/v1/inbound_leads?id=eq.${encodeURIComponent(id)}`, {
     method: 'PATCH',
     headers,
-    body: JSON.stringify({ claimed: true, claimed_at: new Date().toISOString(), message: 'Marked as junk' }),
+    body: JSON.stringify({
+      claimed: true,
+      claimed_at: now,
+      raw_data: {
+        ...raw,
+        inboxDisposition: disposition,
+        inboxDispositionAt: now,
+      },
+    }),
   })
 
   if (!response.ok) {
-    throw new Error(`Failed to junk inbound lead ${id}`)
+    throw new Error(`Failed to mark inbound lead ${id} as ${disposition}`)
   }
 }
 
 export async function restoreInboundLead(id: string) {
+  const existing = await getInboundLead(id)
+  const raw = typeof existing?.raw_data === 'object' && existing.raw_data ? existing.raw_data as Record<string, unknown> : {}
   const { url, headers } = requireSupabase()
   const response = await fetch(`${url}/rest/v1/inbound_leads?id=eq.${encodeURIComponent(id)}`, {
     method: 'PATCH',
     headers,
-    body: JSON.stringify({ claimed: false, claimed_at: null }),
+    body: JSON.stringify({
+      claimed: false,
+      claimed_at: null,
+      raw_data: {
+        ...raw,
+        inboxDisposition: 'open',
+        inboxDispositionAt: null,
+      },
+    }),
   })
 
   if (!response.ok) {

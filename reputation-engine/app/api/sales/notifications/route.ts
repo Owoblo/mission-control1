@@ -1,17 +1,16 @@
 import { NextResponse } from 'next/server'
+import { decorateInboundLead, getInboundStatus, parseInboundRawData } from '@/lib/inbound-inbox'
 import {
   getSaturnBranchLabel,
   getSaturnBranchNumberFromRawData,
   getSaturnTrackingLabel,
-  getSmsContactPhone,
-  getSaturnBusinessNumberFromSmsMessage,
-  isSaturnBranchPhoneNumber,
 } from '@/lib/sales-phones'
+import { isClosedLeadStage } from '@/lib/sales'
 import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { parseSalesAlertNote } from '@/lib/server/sales-alerts'
 import { getSessionUser } from '@/lib/server/session'
-import { listFollowUpLogs, listInboundLeads, listSalesEmails } from '@/lib/server/sales-repository'
-import { requireSupabaseEnv } from '@/lib/server/runtime'
+import { listAllInboundLeads, listFollowUpLogs, listSalesEmails, listSalesLeads } from '@/lib/server/sales-repository'
+import { buildSmsThreads, listSmsMessages } from '@/lib/server/sms-threads'
 
 export interface NotificationItem {
   id: string
@@ -33,7 +32,9 @@ const SOURCE_LABELS: Record<string, string> = {
   facebook_dm:   'Facebook DM',
   instagram_dm:  'Instagram DM',
   email:         'Inbound email',
+  direct_mail:   'QR / direct-mail inquiry',
   website_form:  'Web form inquiry',
+  zapier:        'Lead form inquiry',
 }
 
 function getLeadPreviewLabel(source: string, raw: Record<string, unknown> | null) {
@@ -43,28 +44,102 @@ function getLeadPreviewLabel(source: string, raw: Record<string, unknown> | null
   return missedCall ? 'Missed call' : 'Inbound call'
 }
 
+function formatNotificationPhone(value?: string | null) {
+  if (!value) return null
+  const d = value.replace(/\D/g, '')
+  if (d.length === 11 && d.startsWith('1')) return `+1 (${d.slice(1, 4)}) ${d.slice(4, 7)}-${d.slice(7)}`
+  if (d.length === 10) return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`
+  return value
+}
+
+function digitsOnly(value?: string | null) {
+  return (value || '').replace(/\D/g, '')
+}
+
+function findMatchingActiveLead(leads: Awaited<ReturnType<typeof listSalesLeads>>, phone?: string | null, email?: string | null) {
+  const phoneDigits = digitsOnly(phone)
+  const normalizedEmail = (email || '').trim().toLowerCase()
+
+  const matches = leads.filter(lead => {
+    if (isClosedLeadStage(lead.stage)) return false
+
+    const leadPhoneDigits = digitsOnly(lead.phone)
+    const leadEmail = (lead.email || '').trim().toLowerCase()
+
+    if (
+      phoneDigits &&
+      leadPhoneDigits &&
+      (
+        leadPhoneDigits === phoneDigits ||
+        leadPhoneDigits.endsWith(phoneDigits) ||
+        phoneDigits.endsWith(leadPhoneDigits)
+      )
+    ) {
+      return true
+    }
+
+    return !!normalizedEmail && !!leadEmail && leadEmail === normalizedEmail
+  })
+
+  matches.sort((left, right) => new Date(right.lastTouchedAt || right.createdAt || 0).getTime() - new Date(left.lastTouchedAt || left.createdAt || 0).getTime())
+  return matches[0] || null
+}
+
 export async function GET() {
   const session = await getSessionUser()
   if (!canAccessSalesWorkspace(session)) {
     return NextResponse.json({ items: [], totalCount: 0, breakdown: { leads: 0, sms: 0, emails: 0, alerts: 0 } })
   }
 
-  const { url, headers } = requireSupabaseEnv()
+  const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000)
 
-  const [inboundLeads, allEmails, followUpLogs, smsRes] = await Promise.all([
-    listInboundLeads().catch(() => [] as Awaited<ReturnType<typeof listInboundLeads>>),
+  const [allInboundLeads, crmLeads, allEmails, followUpLogs, smsMessages] = await Promise.all([
+    listAllInboundLeads().catch(() => [] as Awaited<ReturnType<typeof listAllInboundLeads>>),
+    listSalesLeads().catch(() => [] as Awaited<ReturnType<typeof listSalesLeads>>),
     listSalesEmails().catch(() => [] as Awaited<ReturnType<typeof listSalesEmails>>),
     listFollowUpLogs().catch(() => [] as Awaited<ReturnType<typeof listFollowUpLogs>>),
-    fetch(`${url}/rest/v1/sms_messages?select=*&order=created_at.desc&limit=400`, {
-      headers, cache: 'no-store',
-    }),
+    listSmsMessages().catch(() => []),
   ])
 
   // ── 1. Unclaimed inbound leads ──────────────────────────────────────────
-  const leadItems: NotificationItem[] = inboundLeads
-    .filter(l => !l.claimed)
+  // Filter out shortcode/OTP senders (e.g. UHaul +84285) — these are never real customers
+  function isRealCustomerPhone(phone: string | null | undefined) {
+    if (!phone) return true  // no phone = could be web form, keep
+    const digits = phone.replace(/\D/g, '')
+    return digits.length >= 10  // shortcodes have < 10 digits
+  }
+
+  const leadIdByInboundId = new Map(
+    crmLeads.filter(lead => lead.inboundId).map(lead => [lead.inboundId as string, lead.id] as const)
+  )
+  const hydratedInbound = allInboundLeads.map(item => decorateInboundLead({
+    ...item,
+    linkedLeadId: leadIdByInboundId.get(item.id),
+  }))
+  const openSmsLeadPhones = new Set(
+    hydratedInbound
+      .filter(item => item.source === 'twilio_sms' && getInboundStatus(item) === 'needs_action')
+      .map(item => digitsOnly(item.phone))
+      .filter(Boolean)
+  )
+  const openEmailContacts = new Set(
+    hydratedInbound
+      .filter(item => item.source === 'email' && getInboundStatus(item) === 'needs_action')
+      .flatMap(item => {
+        const raw = parseInboundRawData(item.raw_data)
+        return [
+          (item.email || '').trim().toLowerCase(),
+          (typeof raw?.from === 'string' ? raw.from : '').trim().toLowerCase(),
+        ]
+      })
+      .filter(Boolean)
+  )
+
+  const leadItems: NotificationItem[] = hydratedInbound
+    .filter(l => getInboundStatus(l) === 'needs_action' && isRealCustomerPhone(l.phone))
     .map(l => {
-      const raw = typeof l.raw_data === 'object' && l.raw_data ? l.raw_data as Record<string, unknown> : null
+      const raw = parseInboundRawData(l.raw_data)
+      const matchedLead = findMatchingActiveLead(crmLeads, l.phone, l.email)
       const branchNumber = getSaturnBranchNumberFromRawData(raw)
       const branchLabel =
         getSaturnBranchLabel(branchNumber) ||
@@ -76,16 +151,11 @@ export async function GET() {
         undefined
       const inboundName = l.name?.trim()
       // Use actual phone number as title when name is unknown — much more useful than "New Caller"
-      const phoneTitle = l.phone
-        ? (() => {
-            const d = l.phone.replace(/\D/g, '')
-            if (d.length === 11 && d.startsWith('1')) return `+1 (${d.slice(1,4)}) ${d.slice(4,7)}-${d.slice(7)}`
-            if (d.length === 10) return `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`
-            return l.phone
-          })()
-        : null
+      const phoneTitle = formatNotificationPhone(l.phone)
       const name = inboundName && !/^unknown/i.test(inboundName)
         ? inboundName
+        : matchedLead?.name?.trim()
+          ? matchedLead.name
         : phoneTitle
           ?? (l.source === 'twilio_call' ? 'Unknown Caller' : l.source === 'twilio_sms' ? 'Unknown Contact' : 'New Inquiry')
       // Don't include branchLabel here — the component already prepends it to avoid duplication
@@ -97,74 +167,37 @@ export async function GET() {
         title: name,
         preview: previewParts.join(' • '),
         time: l.created_at,
-        leadId: null,
+        leadId: matchedLead?.id || null,
         phone: l.phone || null,
         branchLabel,
         trackingLabel,
-        href: '/sales/inbox',
+        href: matchedLead?.id ? `/sales/leads/${matchedLead.id}` : '/sales/inbox',
       }
     })
 
   // ── 2. SMS threads where last message is inbound (customer awaiting reply) ─
-  const smsItems: NotificationItem[] = []
-  if (smsRes.ok) {
-    type SmsMsg = {
-      id: string
-      from_number: string
-      to_number: string
-      body: string
-      direction: 'inbound' | 'outbound'
-      lead_id: string | null
-      created_at: string
-    }
-    const msgs = (await smsRes.json()) as SmsMsg[]
-
-    const threadMap = new Map<string, { msgs: SmsMsg[]; leadId: string | null; branchNumber: string | null }>()
-    for (const msg of msgs) {
-      const contactPhone = getSmsContactPhone(msg)
-      if (!contactPhone || isSaturnBranchPhoneNumber(contactPhone)) continue
-      if (!threadMap.has(contactPhone)) {
-        threadMap.set(contactPhone, {
-          msgs: [],
-          leadId: msg.lead_id,
-          branchNumber: getSaturnBusinessNumberFromSmsMessage(msg),
-        })
-      }
-      threadMap.get(contactPhone)!.msgs.push(msg)
-      // Always update to the most recent non-null lead_id
-      if (msg.lead_id) threadMap.get(contactPhone)!.leadId = msg.lead_id
-      threadMap.get(contactPhone)!.branchNumber = getSaturnBusinessNumberFromSmsMessage(msg)
-    }
-
-    for (const [phone, thread] of Array.from(threadMap.entries())) {
-      thread.msgs.sort(
-        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-      )
-      const last = thread.msgs[thread.msgs.length - 1]
-      if (!last || last.direction !== 'inbound') continue  // only awaiting-reply threads
-      // Ignore if older than 7 days (likely stale)
-      if (Date.now() - new Date(last.created_at).getTime() > 7 * 24 * 60 * 60 * 1000) continue
-
-      smsItems.push({
-        id: `sms-${phone}`,
-        type: 'sms',
-        source: 'twilio_sms',
-        title: thread.leadId ? phone : phone,
-        preview: last.body?.slice(0, 120) || 'SMS received',
-        time: last.created_at,
-        leadId: thread.leadId,
-        phone,
-        branchLabel: getSaturnBranchLabel(thread.branchNumber),
-        trackingLabel: getSaturnTrackingLabel(thread.branchNumber) || undefined,
-        href: thread.leadId ? `/sales/leads/${thread.leadId}` : '/sales/inbox',
-      })
-    }
-  }
+  const smsItems: NotificationItem[] = buildSmsThreads(smsMessages, crmLeads)
+    .filter(thread => thread.unread)
+    .filter(thread => Date.now() - new Date(thread.lastAt).getTime() <= 7 * 24 * 60 * 60 * 1000)
+    .filter(thread => !openSmsLeadPhones.has(digitsOnly(thread.contactPhone)))
+    .map(thread => ({
+      id: `sms-${thread.contactPhone}`,
+      type: 'sms' as const,
+      source: 'twilio_sms',
+      title: thread.leadName || formatNotificationPhone(thread.contactPhone) || thread.contactPhone,
+      preview: thread.lastMessage?.slice(0, 120) || 'SMS received',
+      time: thread.lastAt,
+      leadId: thread.leadId,
+      phone: thread.contactPhone,
+      branchLabel: thread.branchLabel || undefined,
+      trackingLabel: thread.trackingLabel,
+      href: thread.leadId ? `/sales/leads/${thread.leadId}` : `/sales/inbox?tab=sms&phone=${encodeURIComponent(thread.contactPhone)}`,
+    }))
 
   // ── 3. Inbound emails from last 48 h ────────────────────────────────────
-  const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000)
   const emailItems: NotificationItem[] = allEmails
     .filter(em => em.direction === 'inbound' && new Date(em.sentAt) > cutoff)
+    .filter(em => !openEmailContacts.has((em.from || '').trim().toLowerCase()))
     .map(em => ({
       id: `email-${em.id}`,
       type: 'email' as const,
@@ -174,7 +207,7 @@ export async function GET() {
       time: em.sentAt,
       leadId: em.leadId || null,
       phone: null,
-      href: em.leadId ? `/sales/leads/${em.leadId}` : '/sales/inbox',
+      href: em.leadId ? `/sales/leads/${em.leadId}` : `/sales/inbox?tab=email&id=${encodeURIComponent(em.id)}`,
     }))
 
   const alertItems: NotificationItem[] = followUpLogs

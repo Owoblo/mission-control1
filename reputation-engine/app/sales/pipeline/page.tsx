@@ -99,6 +99,7 @@ const SOURCE_DOT: Record<string, string> = {
 type AttentionFilter = 'overdue' | 'cold' | 'no_quote' | 'new_today' | ''
 type MoveDateFilter = 'today' | 'this_week' | 'this_month' | ''
 type SortMode = 'score' | 'move_date' | 'last_touched' | 'follow_up' | 'created'
+type WorkflowFilter = 'all' | 'follow_up' | 'draft' | 'sent' | 'accepted' | 'declined'
 
 function dayStart(d: Date) { const c = new Date(d); c.setHours(0,0,0,0); return c }
 function today() { return dayStart(new Date()) }
@@ -143,6 +144,7 @@ function SalesPipelineContent() {
   const [filterAttention, setFilterAttention] = useState<AttentionFilter>('')
   const [sortMode, setSortMode] = useState<SortMode>('score')
   const [ownershipView, setOwnershipView] = useState<'all' | 'mine' | 'unassigned'>('all')
+  const [workflowFilter, setWorkflowFilter] = useState<WorkflowFilter>('all')
 
   // ── Trash drawer ──
   const [showDeletedDrawer, setShowDeletedDrawer] = useState(false)
@@ -235,6 +237,55 @@ function SalesPipelineContent() {
   }
 
   const quoteMap = useMemo(() => new Map(quotes.map(q => [q.id, q])), [quotes])
+  function matchesWorkflowFilter(lead: CRMLead, quote: CRMQuote | null | undefined, filter: WorkflowFilter) {
+    if (filter === 'all') return true
+
+    const leadClosed = isClosedLeadStage(lead.stage)
+    const dueTodayOrEarlier =
+      !!lead.followUpDate &&
+      dayStart(new Date(lead.followUpDate)).getTime() <= today().getTime()
+    const quoteStatus = quote?.status
+
+    if (filter === 'follow_up') {
+      return !leadClosed && (dueTodayOrEarlier || quoteStatus === 'sent' || quoteStatus === 'viewed')
+    }
+
+    if (filter === 'draft') {
+      return !leadClosed && (!quote || quoteStatus === 'draft')
+    }
+
+    if (filter === 'sent') {
+      return quoteStatus === 'sent' || quoteStatus === 'viewed'
+    }
+
+    if (filter === 'accepted') {
+      return quoteStatus === 'accepted' || quoteStatus === 'invoiced' || ['booked', 'completed', 'customer_success'].includes(lead.stage)
+    }
+
+    return quoteStatus === 'declined' || lead.stage === 'lost'
+  }
+
+  const workflowCounts = useMemo(() => {
+    const counts: Record<WorkflowFilter, number> = {
+      all: leads.length,
+      follow_up: 0,
+      draft: 0,
+      sent: 0,
+      accepted: 0,
+      declined: 0,
+    }
+
+    for (const lead of leads) {
+      const quote = lead.quoteId ? quoteMap.get(lead.quoteId) || null : null
+      if (matchesWorkflowFilter(lead, quote, 'follow_up')) counts.follow_up += 1
+      if (matchesWorkflowFilter(lead, quote, 'draft')) counts.draft += 1
+      if (matchesWorkflowFilter(lead, quote, 'sent')) counts.sent += 1
+      if (matchesWorkflowFilter(lead, quote, 'accepted')) counts.accepted += 1
+      if (matchesWorkflowFilter(lead, quote, 'declined')) counts.declined += 1
+    }
+
+    return counts
+  }, [leads, quoteMap])
   const followUpsByLead = useMemo(() => {
     const map = new Map<string, FollowUpLog[]>()
     for (const item of followUps) {
@@ -294,6 +345,7 @@ function SalesPipelineContent() {
         if (ownershipView === 'unassigned') return !l.assignedRepUserId && !getLeadAssignedRepName(l)
         return true
       })
+      .filter(l => matchesWorkflowFilter(l, l.quoteId ? quoteMap.get(l.quoteId) || null : null, workflowFilter))
       .filter(l => {
         if (!filterMoveDate || !l.moveDate) return !filterMoveDate
         const md = dayStart(new Date(l.moveDate))
@@ -355,19 +407,20 @@ function SalesPipelineContent() {
       })
     ),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  })), [guidanceMap, leads, query, filterStage, filterSource, filterCity, filterRep, filterBranch, filterMoveDate, filterAttention, sortMode, ownershipView, currentUser?.name, currentUser?.userId])
+  })), [guidanceMap, leads, query, filterStage, filterSource, filterCity, filterRep, filterBranch, filterMoveDate, filterAttention, sortMode, ownershipView, workflowFilter, currentUser?.name, currentUser?.userId, quoteMap])
 
   const visibleLeads = useMemo(() => {
     if (viewMode === 'board') return grouped.flatMap(c => c.cards)
     return applyFilters(leads)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [guidanceMap, leads, viewMode, grouped, query, filterStage, filterSource, filterCity, filterRep, filterBranch, filterMoveDate, filterAttention, sortMode, ownershipView, currentUser?.name, currentUser?.userId])
+  }, [guidanceMap, leads, viewMode, grouped, query, filterStage, filterSource, filterCity, filterRep, filterBranch, filterMoveDate, filterAttention, sortMode, ownershipView, workflowFilter, currentUser?.name, currentUser?.userId, quoteMap])
 
-  const activeFilterCount = [filterStage, filterSource, filterCity, filterRep, filterBranch, filterMoveDate, filterAttention].filter(Boolean).length
+  const activeFilterCount = [filterStage, filterSource, filterCity, filterRep, filterBranch, filterMoveDate, filterAttention, workflowFilter === 'all' ? '' : workflowFilter].filter(Boolean).length
 
   function clearAllFilters() {
     setFilterStage(''); setFilterSource(''); setFilterCity(''); setFilterRep('')
     setFilterBranch(''); setFilterMoveDate(''); setFilterAttention('')
+    setWorkflowFilter('all')
   }
 
   // ── Urgency helpers for list view ──
@@ -448,6 +501,42 @@ function SalesPipelineContent() {
           </div>
           <button onClick={() => void refresh()} className="crm-button">Refresh</button>
           <Link href="/sales/leads/new" className="crm-button-primary text-xs px-3 py-2">+ New Lead</Link>
+        </div>
+      </section>
+
+      <section className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-4">
+        <div className="mb-3 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">Simple Workflow</div>
+            <div className="mt-1 text-sm text-[var(--app-muted)]">Work from follow-up first, then drafts, then sent quotes. Accepted jobs stay visible without cluttering the chase list.</div>
+          </div>
+          {workflowFilter !== 'all' ? (
+            <button onClick={() => setWorkflowFilter('all')} className="text-xs font-medium text-[var(--app-accent)] hover:underline">
+              Show full pipeline
+            </button>
+          ) : null}
+        </div>
+        <div className="grid gap-2 md:grid-cols-5">
+          {([
+            ['follow_up', 'Follow Up Today', workflowCounts.follow_up],
+            ['draft', 'Draft / Not Sent', workflowCounts.draft],
+            ['sent', 'Quote Sent', workflowCounts.sent],
+            ['accepted', 'Accepted / Booked', workflowCounts.accepted],
+            ['declined', 'Declined / Lost', workflowCounts.declined],
+          ] as Array<[WorkflowFilter, string, number]>).map(([key, label, count]) => (
+            <button
+              key={key}
+              onClick={() => setWorkflowFilter(current => current === key ? 'all' : key)}
+              className={`rounded-[10px] border px-4 py-3 text-left transition ${
+                workflowFilter === key
+                  ? 'border-[var(--app-accent)] bg-[var(--app-accent-soft)]'
+                  : 'border-[var(--app-line)] bg-[var(--app-bg)] hover:border-[var(--app-ink)]'
+              }`}
+            >
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">{label}</div>
+              <div className="mt-2 text-2xl font-semibold text-[var(--app-ink)]">{count}</div>
+            </button>
+          ))}
         </div>
       </section>
 
@@ -544,7 +633,7 @@ function SalesPipelineContent() {
         <>
           {/* ── DESKTOP LIST TABLE ── */}
           <div className="hidden rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] md:block overflow-hidden">
-            <div className="grid grid-cols-[minmax(0,1.4fr)_150px_220px_110px_160px_110px_100px_90px] gap-0 border-b border-[var(--app-line)] bg-[var(--app-wash)] px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">
+            <div className="grid grid-cols-[minmax(180px,1.8fr)_130px_200px_100px_180px_110px_110px_90px] gap-0 border-b border-[var(--app-line)] bg-[var(--app-wash)] px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">
               <div>Lead</div>
               <div>Stage</div>
               <div>Next Action</div>
@@ -565,7 +654,7 @@ function SalesPipelineContent() {
               return (
                 <div
                   key={lead.id}
-                  className={`group relative grid grid-cols-[minmax(0,1.4fr)_150px_220px_110px_160px_110px_100px_90px] gap-0 border-b border-[var(--app-line)] px-5 py-3.5 text-sm transition cursor-pointer
+                  className={`group relative grid grid-cols-[minmax(180px,1.8fr)_130px_200px_100px_180px_110px_110px_90px] gap-0 border-b border-[var(--app-line)] px-5 py-3.5 text-sm transition cursor-pointer
                     ${guidance?.action.goldenMoment ? 'bg-orange-50/80 shadow-[inset_0_0_0_1px_rgba(249,115,22,0.2)] hover:bg-orange-50' : urgency === 'overdue' ? 'bg-red-50/40 hover:bg-red-50' : urgency === 'cold' ? 'bg-amber-50/30 hover:bg-amber-50/60' : 'hover:bg-[var(--app-bg)]'}`}
                   onClick={() => router.push(`/sales/leads/${lead.id}`)}
                 >
@@ -575,9 +664,9 @@ function SalesPipelineContent() {
                   )}
 
                   {/* Lead name + info */}
-                  <div className="pl-2 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-[var(--app-ink)] truncate">{lead.name}</span>
+                  <div className="pl-2 min-w-0 overflow-hidden">
+                    <div className="flex items-center gap-1.5 flex-nowrap overflow-hidden">
+                      <span className="font-semibold text-[var(--app-ink)] truncate min-w-0">{lead.name}</span>
                       {guidance ? <HeatTag label={guidance.heat.label} score={guidance.heat.score} tone={guidance.heat.tone} /> : null}
                       {guidance?.action.goldenMoment ? (
                         <span className="rounded-full border border-orange-200 bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-800">QUOTE VIEWED NOW</span>
@@ -662,14 +751,14 @@ function SalesPipelineContent() {
                     {quote ? formatMoney(quote.total) : <span className="font-normal opacity-30 text-[var(--app-muted)]">—</span>}
                   </div>
 
-                  <div className="absolute right-3 bottom-3 hidden items-center gap-1.5 group-hover:flex">
+                  <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-[var(--app-line)]">
                     <button onClick={event => void handleQuickAction(event, lead, 'call', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[10px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">Call</button>
                     <button onClick={event => void handleQuickAction(event, lead, 'sms', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[10px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">SMS</button>
                     <button onClick={event => void handleQuickAction(event, lead, 'open', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[10px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">Open</button>
                     <button onClick={event => void handleQuickAction(event, lead, 'snooze', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[10px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">Snooze</button>
                     <button
                       onClick={e => void removeLead(e, lead)}
-                      className="px-1 text-[10px] text-[var(--app-muted)] hover:text-rose-600 transition"
+                      className="ml-auto px-1 text-[10px] text-[var(--app-muted)] hover:text-rose-600 transition"
                     >
                       {deleteBusyId === lead.id ? '…' : '✕'}
                     </button>
@@ -793,7 +882,7 @@ function SalesPipelineContent() {
                               )}
                             </div>
                           </div>
-                          <div className="mt-3 hidden gap-1.5 group-hover:flex">
+                          <div className="mt-2 flex gap-1.5">
                             <button onClick={event => void handleQuickAction(event, lead, 'call', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[10px] font-semibold text-[var(--app-ink)]">Call</button>
                             <button onClick={event => void handleQuickAction(event, lead, 'sms', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[10px] font-semibold text-[var(--app-ink)]">SMS</button>
                             <button onClick={event => void handleQuickAction(event, lead, 'open', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[10px] font-semibold text-[var(--app-ink)]">Open</button>

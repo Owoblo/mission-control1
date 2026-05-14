@@ -1,4 +1,4 @@
-import { getWorkerSharedSecret, requireWorkerBaseUrl } from '@/lib/server/runtime'
+import { readEnv } from '@/lib/server/runtime'
 
 export type DepositReceiptPayload = {
   toEmail: string
@@ -160,31 +160,32 @@ export function buildDepositReceiptEmail(payload: DepositReceiptPayload) {
 }
 
 export async function sendDepositReceipt(payload: DepositReceiptPayload) {
-  const workerSecret = getWorkerSharedSecret()
-  const workerBase = requireWorkerBaseUrl()
-  if (!workerSecret) {
-    throw new Error('WORKER_SHARED_SECRET not configured')
+  const resendKey = readEnv('RESEND_API_KEY')
+  if (!resendKey) {
+    throw new Error('RESEND_API_KEY not configured')
   }
 
   const { subject, html, plain } = buildDepositReceiptEmail(payload)
-  const resp = await fetch(`${workerBase}/send-email`, {
+  const resp = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-internal-secret': workerSecret,
+      Authorization: `Bearer ${resendKey}`,
     },
     body: JSON.stringify({
-      to: payload.toEmail,
+      from: 'Saturn Star Movers <business@starmovers.ca>',
+      to: [payload.toEmail],
       subject,
-      body: plain,
-      htmlBody: html,
+      text: plain,
+      html,
+      reply_to: 'business@inbound.starmovers.ca',
     }),
   })
 
-  const result = await resp.json().catch(() => ({})) as { ok?: boolean; error?: string }
+  const result = await resp.json().catch(() => ({})) as { id?: string; message?: string; error?: string }
   if (!resp.ok) {
-    throw new Error(result.error || 'Email failed')
+    throw new Error(result.error || result.message || 'Email failed')
   }
 
-  return result
+  return { ok: true, id: result.id || null }
 }

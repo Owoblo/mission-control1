@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
-import { requireSupabaseEnv, requireWorkerBaseUrl } from '@/lib/server/runtime'
+import { getClientIp, rateLimit } from '@/lib/server/rate-limit'
+import { sendInternalAlertSms, sendRepAlertEmail } from '@/lib/server/internal-notifications'
+import { getWorkerSharedSecret, requireSupabaseEnv } from '@/lib/server/runtime'
 
 const JOHN_NUMBER = '+12267241730'
 const BUSINESS_NUMBER = '+12267732993'
@@ -14,7 +16,26 @@ export async function OPTIONS() {
   return new Response(null, { status: 200, headers: corsHeaders })
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
 export async function POST(request: Request) {
+  const internalSecret = request.headers.get('x-internal-secret')
+  const isHealthCheck = request.headers.get('x-health-check') === '1' && internalSecret === getWorkerSharedSecret()
+  const ip = getClientIp(request)
+  const { allowed, retryAfterMs } = rateLimit(`capture:${ip}`, 10, 60_000)
+  if (!isHealthCheck && !allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again shortly.' },
+      { status: 429, headers: { ...corsHeaders, 'Retry-After': String(Math.ceil(retryAfterMs / 1000)) } }
+    )
+  }
+
   try {
     const body = (await request.json()) as {
       name?: string
@@ -25,6 +46,7 @@ export async function POST(request: Request) {
       estimateMax?: number
       inventorySummary?: string
       crewSize?: number
+      healthCheck?: boolean
     }
 
     const { name = '', phone = '', email = '', address = '', estimateMin, estimateMax, inventorySummary, crewSize } = body
@@ -37,7 +59,8 @@ export async function POST(request: Request) {
     }
 
     const { url, headers } = requireSupabaseEnv()
-    const leadId = `fq_${crypto.randomUUID().slice(0, 8)}`
+    const leadId = crypto.randomUUID()
+    const createdAt = new Date().toISOString()
 
     const message = [
       address ? `Moving from: ${address}` : '',
@@ -53,7 +76,7 @@ export async function POST(request: Request) {
       headers: { ...headers, Prefer: 'resolution=merge-duplicates,return=minimal' },
       body: JSON.stringify({
         id: leadId,
-        source: 'free_quote_qr',
+        source: isHealthCheck ? 'health_check_form' : 'free_quote_qr',
         name: name.trim(),
         phone: phone.trim(),
         email: email.trim(),
@@ -66,8 +89,9 @@ export async function POST(request: Request) {
           crewSize,
           channel: 'qr_direct_mail',
         },
-        claimed: false,
-        created_at: new Date().toISOString(),
+        claimed: isHealthCheck,
+        claimed_at: isHealthCheck ? createdAt : null,
+        created_at: createdAt,
       }),
     })
 
@@ -94,32 +118,15 @@ export async function POST(request: Request) {
       `Source: QR code / direct mail`,
     ].join('\n')
 
-    // SMS to John's personal cell
-    try {
-      const workerUrl = requireWorkerBaseUrl()
-      await fetch(`${workerUrl}/send-sms`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: JOHN_NUMBER, body: smsText, leadId }),
-      })
-    } catch { /* non-critical */ }
+    if (!isHealthCheck) {
+      void sendInternalAlertSms(JOHN_NUMBER, smsText, BUSINESS_NUMBER)
+      void sendRepAlertEmail(
+        emailSubject,
+        `<div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:24px;color:#0f172a"><pre style="white-space:pre-wrap;font:14px/1.6 Arial,sans-serif;margin:0">${escapeHtml(emailBody)}</pre></div>`
+      )
+    }
 
-    // Email to business@starmovers.ca
-    try {
-      const workerUrl = requireWorkerBaseUrl()
-      await fetch(`${workerUrl}/send-email`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: 'business@starmovers.ca',
-          subject: emailSubject,
-          body: emailBody,
-          leadId,
-        }),
-      })
-    } catch { /* non-critical */ }
-
-    return NextResponse.json({ success: true, leadId }, { headers: corsHeaders })
+    return NextResponse.json({ success: true, leadId, healthCheck: isHealthCheck }, { headers: corsHeaders })
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to save your info' },

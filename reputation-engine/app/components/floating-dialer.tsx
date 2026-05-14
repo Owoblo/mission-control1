@@ -1200,7 +1200,8 @@ export function FloatingDialer() {
     })
     try { activeCallRef.current?.disconnect?.() } catch {}
     try { incomingCallRef.current?.reject?.() } catch {}
-    try { deviceRef.current?.unregister?.() } catch {}
+    // unregister() returns a Promise — must .catch() to avoid unhandled rejection when device is already unregistered
+    try { deviceRef.current?.unregister?.()?.catch?.(() => {}) } catch {}
     try { deviceRef.current?.destroy?.() } catch {}
     activeCallRef.current = null
     incomingCallRef.current = null

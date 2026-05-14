@@ -1,0 +1,1733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mission Control — Saturn Star Moving</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:        #1a2744;
+      --navy-light:  #243358;
+      --navy-dark:   #111b33;
+      --navy-mid:    #1e2f52;
+      --gold:        #f5a623;
+      --gold-light:  #f7b84b;
+      --gold-dim:    rgba(245,166,35,.15);
+      --bg:          #f0f2f5;
+      --text:        #1a2744;
+      --text-muted:  #6b7280;
+      --success:     #10b981;
+      --danger:      #ef4444;
+      --warning:     #f59e0b;
+      --info:        #3b82f6;
+      --purple:      #8b5cf6;
+      --card-bg:     #ffffff;
+      --border:      #e5e7eb;
+      --radius:      12px;
+      --shadow:      0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.06);
+      --shadow-lg:   0 4px 6px rgba(0,0,0,.07), 0 10px 30px rgba(0,0,0,.10);
+    }
+
+    html, body { height: 100%; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── TOPBAR ─────────────────────────────────────────────── */
+    #topbar {
+      background: linear-gradient(90deg, var(--navy-dark) 0%, var(--navy-mid) 100%);
+      color: #fff;
+      padding: 0 24px;
+      height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 16px rgba(0,0,0,.35);
+      border-bottom: 1px solid rgba(255,255,255,.05);
+    }
+    .topbar-left { display: flex; align-items: center; gap: 12px; }
+    .topbar-logo-wrap { display: flex; flex-direction: column; }
+    .topbar-logo { font-size: 21px; font-weight: 800; color: var(--gold); letter-spacing: -.4px; line-height: 1.1; }
+    .topbar-sub  { font-size: 10px; color: #9ca3af; font-weight: 500; letter-spacing: 1.2px; text-transform: uppercase; }
+    .live-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 0 0 rgba(16,185,129,.4);
+      animation: pulse-dot 2s infinite;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    @keyframes pulse-dot {
+      0%   { box-shadow: 0 0 0 0 rgba(16,185,129,.5); }
+      70%  { box-shadow: 0 0 0 7px rgba(16,185,129,0); }
+      100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+    }
+    .topbar-center { text-align: center; }
+    .topbar-date { font-size: 18px; font-weight: 700; color: #fff; letter-spacing: -.2px; }
+    .topbar-right { display: flex; align-items: center; gap: 14px; }
+    .topbar-clock {
+      font-size: 24px; font-weight: 300; color: var(--gold);
+      font-variant-numeric: tabular-nums; min-width: 96px; text-align: right;
+      letter-spacing: 1px;
+    }
+    .topbar-meta { text-align: right; }
+    .topbar-updated { font-size: 11px; color: #6b7280; }
+    .topbar-autorefresh { font-size: 10px; color: #4b5563; margin-top: 1px; }
+    .btn-refresh {
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.14);
+      color: #e2e8f0;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: inherit;
+      transition: background .15s, border-color .15s;
+      display: flex; align-items: center; gap: 6px;
+      white-space: nowrap;
+    }
+    .btn-refresh:hover { background: rgba(255,255,255,.15); border-color: rgba(255,255,255,.25); }
+    .btn-refresh.spinning .btn-icon { display: inline-block; animation: spin .6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── NAV BAR ────────────────────────────────────────────── */
+    #navbar {
+      background: var(--navy);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      height: 46px;
+      border-bottom: 1px solid rgba(255,255,255,.05);
+      overflow-x: auto;
+    }
+    #navbar::-webkit-scrollbar { height: 0; }
+    .nav-label { font-size: 10px; color: #4b5563; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; margin-right: 10px; white-space: nowrap; flex-shrink: 0; }
+    .nav-btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 6px 12px;
+      border-radius: 7px;
+      color: #94a3b8;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 500;
+      transition: background .15s, color .15s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .nav-btn:hover { background: rgba(255,255,255,.09); color: #fff; }
+    .nav-btn .nav-icon { font-size: 13px; }
+    .nav-sep { width: 1px; height: 20px; background: rgba(255,255,255,.08); margin: 0 4px; flex-shrink: 0; }
+
+    /* ── LAYOUT ─────────────────────────────────────────────── */
+    #main { padding: 20px 24px 48px; display: flex; flex-direction: column; gap: 18px; }
+
+    /* ── CARDS ──────────────────────────────────────────────── */
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 13px 18px 11px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .card-title { font-size: 13px; font-weight: 700; color: var(--navy); white-space: nowrap; }
+    .card-body  { padding: 14px 18px; }
+    .card-body.no-pad { padding: 0; }
+
+    /* ── KPI STRIP ──────────────────────────────────────────── */
+    #kpi-row {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 13px;
+    }
+    .kpi-card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      padding: 16px 18px 14px;
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      border-left: 4px solid var(--gold);
+      position: relative;
+      overflow: hidden;
+      transition: box-shadow .2s, transform .2s;
+    }
+    .kpi-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-1px); }
+    .kpi-card::after {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 60px; height: 60px;
+      border-radius: 50%;
+      opacity: .04;
+      transform: translate(20px, -20px);
+    }
+    .kpi-card.border-success { border-left-color: var(--success); }
+    .kpi-card.border-success::after { background: var(--success); }
+    .kpi-card.border-info    { border-left-color: var(--info); }
+    .kpi-card.border-info::after { background: var(--info); }
+    .kpi-card.border-warning { border-left-color: var(--warning); }
+    .kpi-card.border-warning::after { background: var(--warning); }
+    .kpi-card.border-danger  { border-left-color: var(--danger); }
+    .kpi-card.border-danger::after { background: var(--danger); }
+    .kpi-card.border-purple  { border-left-color: var(--purple); }
+    .kpi-card.border-purple::after { background: var(--purple); }
+    .kpi-icon { font-size: 26px; line-height: 1; flex-shrink: 0; }
+    .kpi-data { flex: 1; min-width: 0; }
+    .kpi-value { font-size: 26px; font-weight: 800; color: var(--navy); line-height: 1.1; font-variant-numeric: tabular-nums; }
+    .kpi-label { font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; margin-top: 3px; }
+    .kpi-delta { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+
+    /* ── ROW 2 ──────────────────────────────────────────────── */
+    #row2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+
+    /* ── SECTION SCROLL ─────────────────────────────────────── */
+    .section-scroll { max-height: 310px; overflow-y: auto; padding-right: 2px; }
+    .section-scroll::-webkit-scrollbar { width: 4px; }
+    .section-scroll::-webkit-scrollbar-track { background: transparent; }
+    .section-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
+
+    /* ── MOVE ROWS ──────────────────────────────────────────── */
+    .move-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      transition: background .1s;
+    }
+    .move-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .move-row:first-child { padding-top: 0; }
+    .move-time { font-size: 12px; font-weight: 700; color: var(--navy); min-width: 58px; padding-top: 2px; flex-shrink: 0; }
+    .move-info { flex: 1; min-width: 0; }
+    .move-client { font-size: 13px; font-weight: 600; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .move-route  { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+    .move-crew   { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .move-actions { display: flex; align-items: flex-start; gap: 6px; flex-shrink: 0; padding-top: 2px; }
+    .link-open {
+      font-size: 11px; color: var(--info); text-decoration: none; font-weight: 500;
+      white-space: nowrap;
+    }
+    .link-open:hover { text-decoration: underline; }
+
+    /* ── ALERTS ─────────────────────────────────────────────── */
+    .alert-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 9px 0;
+      border-bottom: 1px dashed var(--border);
+    }
+    .alert-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .alert-row:first-child { padding-top: 0; }
+    .alert-icon { font-size: 14px; line-height: 1.5; flex-shrink: 0; }
+    .alert-text { font-size: 12px; color: var(--text); flex: 1; line-height: 1.4; }
+    .alert-text strong { font-weight: 600; }
+    .alert-link { font-size: 11px; color: var(--info); text-decoration: none; font-weight: 500; flex-shrink: 0; padding-top: 1px; }
+    .alert-link:hover { text-decoration: underline; }
+    .all-clear {
+      text-align: center;
+      padding: 28px 16px;
+      color: var(--success);
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    /* ── CREW ───────────────────────────────────────────────── */
+    .crew-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .crew-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .crew-row:first-child { padding-top: 0; }
+    .crew-avatar {
+      width: 33px; height: 33px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--navy-light), var(--navy));
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700;
+      flex-shrink: 0;
+      box-shadow: 0 1px 4px rgba(0,0,0,.15);
+    }
+    .crew-details { flex: 1; min-width: 0; }
+    .crew-name { font-size: 13px; font-weight: 600; color: var(--navy); }
+    .crew-role { font-size: 11px; color: var(--text-muted); }
+    .crew-status { text-align: right; flex-shrink: 0; }
+    .crew-on-job { font-size: 11px; color: var(--success); font-weight: 600; }
+    .crew-job-name { font-size: 10px; color: var(--text-muted); margin-top: 1px; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
+    .crew-available { font-size: 11px; color: var(--text-muted); }
+
+    /* Truck divider */
+    .crew-section-label {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .8px; color: var(--text-muted);
+      padding: 8px 0 4px;
+      border-top: 1px solid var(--border);
+      margin-top: 4px;
+    }
+    .truck-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .truck-row:last-child { border-bottom: none; }
+    .truck-icon { font-size: 18px; flex-shrink: 0; }
+    .truck-details { flex: 1; min-width: 0; }
+    .truck-name { font-size: 12px; font-weight: 600; color: var(--navy); }
+    .truck-info { font-size: 11px; color: var(--text-muted); }
+    .truck-status { flex-shrink: 0; }
+
+    /* ── ROW 3 ──────────────────────────────────────────────── */
+    #row3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+
+    /* ── PIPELINE / FUNNEL ──────────────────────────────────── */
+    .funnel-stage {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 5px 0;
+    }
+    .funnel-label { font-size: 11px; color: var(--text-muted); width: 78px; flex-shrink: 0; font-weight: 500; }
+    .funnel-bar-wrap { flex: 1; background: #f1f3f6; border-radius: 100px; height: 9px; overflow: hidden; }
+    .funnel-bar { height: 100%; border-radius: 100px; background: var(--navy); transition: width .7s cubic-bezier(.4,0,.2,1); }
+    .funnel-bar.stage-new       { background: var(--info); }
+    .funnel-bar.stage-contacted { background: var(--purple); }
+    .funnel-bar.stage-quoted    { background: var(--gold); }
+    .funnel-bar.stage-booked    { background: var(--success); }
+    .funnel-count { font-size: 12px; font-weight: 700; color: var(--navy); min-width: 22px; text-align: right; }
+    .funnel-total { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-muted); }
+    .funnel-total strong { color: var(--navy); font-size: 15px; font-weight: 700; }
+    .funnel-conversion { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+
+    /* ── RECOVERY ───────────────────────────────────────────── */
+    .case-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .case-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .case-row:first-child { padding-top: 0; }
+    .case-info { flex: 1; min-width: 0; }
+    .case-num    { font-size: 10px; color: var(--text-muted); font-family: monospace; }
+    .case-client { font-size: 13px; font-weight: 600; color: var(--navy); }
+    .case-badges { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
+    .case-meta   { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+    .case-days   { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+
+    /* ── REPUTATION ─────────────────────────────────────────── */
+    .rep-stat { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border); }
+    .rep-stat:last-of-type { border-bottom: none; }
+    .rep-stat-label { font-size: 12px; color: var(--text-muted); }
+    .rep-stat-value { font-size: 15px; font-weight: 700; color: var(--navy); font-variant-numeric: tabular-nums; }
+    .dot-grid { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+    .dot {
+      width: 30px; height: 30px; border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700;
+      cursor: default;
+      transition: transform .15s;
+    }
+    .dot:hover { transform: scale(1.12); }
+    .dot.g       { background: #d1fae5; color: var(--success); }
+    .dot.y       { background: #fef3c7; color: #92400e; }
+    .dot.f       { background: #dbeafe; color: #1e40af; }
+    .dot.pending { background: #f3f4f6; color: var(--text-muted); }
+    .dot.flagged { background: #fee2e2; color: var(--danger); }
+
+    /* ── REVENUE CHART ──────────────────────────────────────── */
+    .chart-container { position: relative; }
+    .bar-chart { display: flex; align-items: flex-end; gap: 7px; height: 110px; padding-top: 4px; }
+    .bar-col   { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; min-width: 0; }
+    .bar-wrap  { flex: 1; display: flex; align-items: flex-end; width: 100%; }
+    .bar {
+      width: 100%; border-radius: 6px 6px 0 0;
+      transition: height .7s cubic-bezier(.4,0,.2,1);
+      min-height: 4px;
+      background: #e5e7eb;
+      position: relative;
+      cursor: default;
+    }
+    .bar.has-value { background: #b8c5e0; }
+    .bar.today { background: var(--gold); }
+    .bar.today.has-value { background: var(--gold); }
+    .bar:hover { filter: brightness(1.08); }
+    .bar-tooltip {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 5px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--navy-dark);
+      color: #fff;
+      font-size: 10px;
+      padding: 3px 7px;
+      border-radius: 5px;
+      white-space: nowrap;
+      z-index: 10;
+      pointer-events: none;
+    }
+    .bar-tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%; left: 50%; transform: translateX(-50%);
+      border: 4px solid transparent;
+      border-top-color: var(--navy-dark);
+    }
+    .bar:hover .bar-tooltip { display: block; }
+    .bar-day { font-size: 10px; color: var(--text-muted); font-weight: 500; }
+    .bar-day.today { color: var(--gold); font-weight: 700; }
+    .chart-footer { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .chart-total { font-size: 12px; color: var(--text-muted); }
+    .chart-total strong { color: var(--navy); font-size: 15px; font-weight: 700; }
+    .chart-avg { font-size: 11px; color: var(--text-muted); }
+
+    /* ── BRIEFING ───────────────────────────────────────────── */
+    #briefing-panel {
+      background: linear-gradient(135deg, var(--navy-dark) 0%, #162040 100%);
+      border-radius: var(--radius);
+      border: 1px solid rgba(255,255,255,.07);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+    }
+    .briefing-inner {
+      padding: 24px 28px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 24px;
+      align-items: start;
+    }
+    .briefing-header {
+      font-size: 11px; font-weight: 700; color: var(--gold);
+      text-transform: uppercase; letter-spacing: 1px;
+      margin-bottom: 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .briefing-text {
+      font-size: 14px;
+      line-height: 1.95;
+      color: #94a3b8;
+    }
+    .briefing-text .greeting { font-size: 17px; font-weight: 700; color: #fff; display: block; margin-bottom: 2px; }
+    .briefing-text .subtitle { font-size: 13px; color: #64748b; display: block; margin-bottom: 12px; }
+    .briefing-text .bullet   { display: block; padding-left: 2px; color: #94a3b8; }
+    .briefing-text .bullet strong { color: #e2e8f0; }
+    .briefing-text .alert-line  { color: var(--warning); font-weight: 600; display: block; margin-top: 8px; }
+    .briefing-text .clear-line  { color: var(--success);  font-weight: 600; display: block; margin-top: 8px; }
+    /* Quick stats sidebar */
+    .briefing-stats {
+      display: flex; flex-direction: column; gap: 10px;
+      min-width: 160px;
+    }
+    .bstat {
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 10px;
+      padding: 10px 14px;
+      text-align: center;
+    }
+    .bstat-value { font-size: 22px; font-weight: 800; color: var(--gold); font-variant-numeric: tabular-nums; line-height: 1; }
+    .bstat-label { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: .5px; margin-top: 4px; font-weight: 600; }
+
+    /* ── UPCOMING STRIP ─────────────────────────────────────── */
+    #upcoming-strip .upcoming-inner { padding: 0 18px; }
+    .upcoming-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .upcoming-row:last-child { border-bottom: none; }
+    .upcoming-date { font-size: 11px; font-weight: 700; color: var(--navy); min-width: 68px; flex-shrink: 0; }
+    .upcoming-date span { display: block; font-size: 10px; color: var(--text-muted); font-weight: 400; }
+    .upcoming-client { font-size: 13px; font-weight: 600; color: var(--navy); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .upcoming-meta { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
+
+    /* ── WELCOME STATE ──────────────────────────────────────── */
+    #welcome-state {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 64px 24px;
+      text-align: center;
+    }
+    .welcome-star {
+      font-size: 72px; line-height: 1; margin-bottom: 20px;
+      animation: float 3s ease-in-out infinite;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(-8px); }
+    }
+    .welcome-title { font-size: 30px; font-weight: 800; color: var(--navy); margin-bottom: 8px; letter-spacing: -.5px; }
+    .welcome-sub   { font-size: 15px; color: var(--text-muted); margin-bottom: 36px; max-width: 400px; }
+    .welcome-checklist { list-style: none; display: flex; flex-direction: column; gap: 10px; text-align: left; max-width: 480px; width: 100%; }
+    .welcome-checklist li {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      padding: 14px 18px;
+      display: flex; align-items: center; gap: 12px;
+      font-size: 14px;
+      box-shadow: var(--shadow);
+      transition: box-shadow .15s;
+    }
+    .welcome-checklist li:hover { box-shadow: var(--shadow-lg); }
+    .welcome-checklist .check-icon { font-size: 18px; flex-shrink: 0; }
+    .welcome-checklist a { color: var(--info); text-decoration: none; font-weight: 600; }
+    .welcome-checklist a:hover { text-decoration: underline; }
+    .welcome-demo-btn {
+      margin-top: 28px;
+      background: var(--gold);
+      color: var(--navy-dark);
+      border: none;
+      padding: 12px 28px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background .15s, transform .15s;
+      box-shadow: 0 4px 14px rgba(245,166,35,.4);
+    }
+    .welcome-demo-btn:hover { background: var(--gold-light); transform: translateY(-1px); }
+
+    /* ── BADGES ─────────────────────────────────────────────── */
+    .badge {
+      display: inline-flex; align-items: center;
+      padding: 2px 8px;
+      border-radius: 100px;
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .3px;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .badge-scheduled    { background: #dbeafe; color: #1d4ed8; }
+    .badge-in-progress  { background: #fef3c7; color: #92400e; }
+    .badge-loading      { background: #fef3c7; color: #92400e; }
+    .badge-driving      { background: #fde8b4; color: #78350f; }
+    .badge-unloading    { background: #fde8b4; color: #78350f; }
+    .badge-completed    { background: #d1fae5; color: #065f46; }
+    .badge-flagged      { background: #fee2e2; color: #991b1b; }
+    .badge-critical     { background: #fee2e2; color: #991b1b; }
+    .badge-high         { background: #fde8b4; color: #92400e; }
+    .badge-medium       { background: #fef3c7; color: #78350f; }
+    .badge-pending      { background: #f3f4f6; color: #4b5563; }
+    .badge-new          { background: #eff6ff; color: #1d4ed8; }
+    .badge-investigating { background: #ede9fe; color: #5b21b6; }
+    .badge-open         { background: #dbeafe; color: #1e40af; }
+    .badge-resolved     { background: #d1fae5; color: #065f46; }
+    .badge-closed       { background: #f3f4f6; color: #6b7280; }
+    .badge-low          { background: #f3f4f6; color: #6b7280; }
+    .badge-complete     { background: #d1fae5; color: #065f46; }
+    .badge-contacted    { background: #ede9fe; color: #5b21b6; }
+    .badge-quoted       { background: #fef3c7; color: #92400e; }
+    .badge-booked       { background: #d1fae5; color: #065f46; }
+    .badge-lost         { background: #fee2e2; color: #991b1b; }
+
+    /* ── EMPTY ──────────────────────────────────────────────── */
+    .empty-state {
+      text-align: center; padding: 24px 16px;
+      color: var(--text-muted); font-size: 13px;
+    }
+
+    /* ── TOAST ──────────────────────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 13px; font-weight: 500; color: #fff;
+      background: var(--navy);
+      box-shadow: 0 4px 20px rgba(0,0,0,.25);
+      z-index: 9999;
+      transform: translateY(80px); opacity: 0;
+      transition: transform .25s ease, opacity .25s ease;
+      max-width: 320px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    #toast.show    { transform: translateY(0); opacity: 1; }
+    #toast.success { background: var(--success); }
+    #toast.danger  { background: var(--danger); }
+    #toast.warning { background: var(--warning); color: var(--navy-dark); }
+
+    /* ── DEMO BANNER ────────────────────────────────────────── */
+    #demo-banner {
+      display: none;
+      background: linear-gradient(90deg, #7c3aed, #4f46e5);
+      color: #fff;
+      padding: 8px 24px;
+      font-size: 12px;
+      font-weight: 500;
+      text-align: center;
+      gap: 12px;
+      align-items: center;
+      justify-content: center;
+    }
+    #demo-banner.visible { display: flex; }
+    .demo-clear-btn {
+      background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.3);
+      color: #fff; padding: 3px 10px; border-radius: 6px;
+      cursor: pointer; font-size: 11px; font-family: inherit; font-weight: 600;
+    }
+    .demo-clear-btn:hover { background: rgba(255,255,255,.3); }
+
+    /* ── RESPONSIVE ─────────────────────────────────────────── */
+    @media (max-width: 1300px) {
+      #kpi-row { grid-template-columns: repeat(3, 1fr); }
+      #row3    { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 900px) {
+      #kpi-row { grid-template-columns: repeat(2, 1fr); }
+      #row2    { grid-template-columns: 1fr; }
+      #row3    { grid-template-columns: 1fr; }
+      .topbar-center { display: none; }
+      .briefing-inner { grid-template-columns: 1fr; }
+      .briefing-stats { flex-direction: row; flex-wrap: wrap; }
+      .bstat { flex: 1; min-width: 120px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- DEMO BANNER -->
+<div id="demo-banner">
+  <span>⚡ Demo Mode — Viewing sample data</span>
+  <button class="demo-clear-btn" onclick="clearDemoData()">Clear Demo Data</button>
+</div>
+
+<!-- TOPBAR -->
+<div id="topbar">
+  <div class="topbar-left">
+    <div class="live-dot" title="Live"></div>
+    <div class="topbar-logo-wrap">
+      <div class="topbar-logo">⭐ Saturn Star</div>
+      <div class="topbar-sub">Mission Control</div>
+    </div>
+  </div>
+  <div class="topbar-center">
+    <div class="topbar-date" id="topbar-date">—</div>
+  </div>
+  <div class="topbar-right">
+    <div class="topbar-meta">
+      <div class="topbar-updated" id="topbar-updated">Last updated: —</div>
+      <div class="topbar-autorefresh">Auto-refresh: 60s</div>
+    </div>
+    <div class="topbar-clock" id="topbar-clock">—</div>
+    <button class="btn-refresh" onclick="refreshAll()" id="refresh-btn">
+      <span class="btn-icon">↻</span> Refresh
+    </button>
+  </div>
+</div>
+
+<!-- NAV BAR -->
+<div id="navbar">
+  <span class="nav-label">Modules</span>
+  <a class="nav-btn" href="market-engine/" target="_blank"><span class="nav-icon">📣</span> Market Engine</a>
+  <div class="nav-sep"></div>
+  <a class="nav-btn" href="crm/saturn-crm.html" target="_blank"><span class="nav-icon">👥</span> CRM</a>
+  <div class="nav-sep"></div>
+  <a class="nav-btn" href="operations-hub/operations-hub.html" target="_blank"><span class="nav-icon">🚛</span> Operations</a>
+  <div class="nav-sep"></div>
+  <a class="nav-btn" href="customer-recovery/customer-recovery.html" target="_blank"><span class="nav-icon">🛡️</span> Recovery</a>
+  <div class="nav-sep"></div>
+  <a class="nav-btn" href="reputation-engine/reputation-engine.html" target="_blank"><span class="nav-icon">⭐</span> Reputation</a>
+  <div class="nav-sep"></div>
+  <a class="nav-btn" href="SOPs/index.html" target="_blank"><span class="nav-icon">📚</span> SOPs</a>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- ── WELCOME STATE ── -->
+  <div id="welcome-state">
+    <div class="welcome-star">⭐</div>
+    <div class="welcome-title">Welcome to Mission Control</div>
+    <div class="welcome-sub">Your command centre is ready. Open each module to start adding data — it will all appear here automatically.</div>
+    <ul class="welcome-checklist">
+      <li><span class="check-icon">👥</span><span>Open <a href="crm/saturn-crm.html">CRM</a> and add your first lead or quote</span></li>
+      <li><span class="check-icon">🚛</span><span>Open <a href="operations-hub/operations-hub.html">Operations Hub</a> and add your crew &amp; today's moves</span></li>
+      <li><span class="check-icon">⭐</span><span>Open <a href="reputation-engine/reputation-engine.html">Reputation Engine</a> and mark a job complete</span></li>
+      <li><span class="check-icon">🛡️</span><span>Open <a href="customer-recovery/customer-recovery.html">Recovery Module</a> to handle any customer issues</span></li>
+    </ul>
+    <button class="welcome-demo-btn" onclick="loadDemoData()">✨ Load Demo Data to Preview Dashboard</button>
+  </div>
+
+  <!-- ── DASHBOARD CONTENT ── -->
+  <div id="dashboard-content" style="display:none;display:flex;flex-direction:column;gap:18px;">
+
+    <!-- ROW 1: KPI STRIP -->
+    <div id="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-icon">💵</div>
+        <div class="kpi-data">
+          <div class="kpi-value" id="kpi-today-rev">$0</div>
+          <div class="kpi-label">Today's Revenue</div>
+        </div>
+      </div>
+      <div class="kpi-card border-success">
+        <div class="kpi-icon">📈</div>
+        <div class="kpi-data">
+          <div class="kpi-value" id="kpi-month-rev">$0</div>
+          <div class="kpi-label">Month Revenue</div>
+        </div>
+      </div>
+      <div class="kpi-card border-info">
+        <div class="kpi-icon">🔥</div>
+        <div class="kpi-data">
+          <div class="kpi-value" id="kpi-active-leads">0</div>
+          <div class="kpi-label">Active Leads</div>
+        </div>
+      </div>
+      <div class="kpi-card border-warning">
+        <div class="kpi-icon">🚛</div>
+        <div class="kpi-data">
+          <div class="kpi-value" id="kpi-jobs-today">0</div>
+          <div class="kpi-label">Jobs Today</div>
+        </div>
+      </div>
+      <div class="kpi-card border-danger">
+        <div class="kpi-icon">🛡️</div>
+        <div class="kpi-data">
+          <div class="kpi-value" id="kpi-open-cases">0</div>
+          <div class="kpi-label">Open Cases</div>
+        </div>
+      </div>
+      <div class="kpi-card border-purple">
+        <div class="kpi-icon">⭐</div>
+        <div class="kpi-data">
+          <div class="kpi-value" id="kpi-pending-reviews">0</div>
+          <div class="kpi-label">Pending Reviews</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 2: Moves / Alerts / Crew -->
+    <div id="row2">
+
+      <!-- Today's Moves -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🚛 Today's Moves</span>
+          <a href="operations-hub/operations-hub.html" class="link-open" target="_blank">Open Hub →</a>
+        </div>
+        <div class="card-body section-scroll" id="moves-list">
+          <div class="empty-state">No moves scheduled today</div>
+        </div>
+      </div>
+
+      <!-- Needs Attention -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">⚡ Needs Attention</span>
+          <span id="alert-count-badge" style="display:none" class="badge badge-flagged">0</span>
+        </div>
+        <div class="card-body section-scroll" id="alerts-list">
+          <div class="all-clear">✅ All clear — nothing urgent</div>
+        </div>
+      </div>
+
+      <!-- Crew Today -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">👷 Crew Today</span>
+          <a href="operations-hub/operations-hub.html" class="link-open" target="_blank">Open Hub →</a>
+        </div>
+        <div class="card-body section-scroll" id="crew-list">
+          <div class="empty-state">No crew data found</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ROW 3: Pipeline / Recovery / Reputation / Revenue -->
+    <div id="row3">
+
+      <!-- Lead Pipeline -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">👥 Lead Pipeline</span>
+          <a href="crm/saturn-crm.html" class="link-open" target="_blank">Open CRM →</a>
+        </div>
+        <div class="card-body" id="pipeline-body">
+          <div class="empty-state">No leads data</div>
+        </div>
+      </div>
+
+      <!-- Recovery Cases -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🛡️ Recovery Cases</span>
+          <a href="customer-recovery/customer-recovery.html" class="link-open" target="_blank">Open →</a>
+        </div>
+        <div class="card-body" id="recovery-body">
+          <div class="empty-state">No open cases</div>
+        </div>
+      </div>
+
+      <!-- Reputation Snapshot -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">⭐ Reputation</span>
+          <a href="reputation-engine/reputation-engine.html" class="link-open" target="_blank">Open →</a>
+        </div>
+        <div class="card-body" id="rep-body">
+          <div class="empty-state">No reputation data</div>
+        </div>
+      </div>
+
+      <!-- Revenue Chart -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">💰 Revenue — 7 Days</span>
+          <a href="crm/saturn-crm.html" class="link-open" target="_blank">Open CRM →</a>
+        </div>
+        <div class="card-body" id="chart-body">
+          <div class="empty-state">No revenue data</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ROW 4: Morning Briefing -->
+    <div id="briefing-panel">
+      <div class="briefing-inner">
+        <div>
+          <div class="briefing-header">📋 Today's Briefing</div>
+          <div class="briefing-text" id="briefing-text">Loading briefing…</div>
+        </div>
+        <div class="briefing-stats" id="briefing-stats">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 5: Upcoming Moves Strip -->
+    <div class="card" id="upcoming-strip">
+      <div class="card-header">
+        <span class="card-title">📅 Upcoming Moves — Next 7 Days</span>
+        <a href="operations-hub/operations-hub.html" class="link-open" target="_blank">Open Hub →</a>
+      </div>
+      <div class="card-body no-pad">
+        <div class="upcoming-inner" id="upcoming-list" style="padding:14px 18px">
+          <div class="empty-state">No upcoming moves found</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /dashboard-content -->
+</div><!-- /main -->
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- ── SCRIPT ─────────────────────────────────────────────── -->
+<script>
+'use strict';
+
+/* ═══════════════════════════════════════════════════════════
+   UTILITIES
+═══════════════════════════════════════════════════════════ */
+function fmt$(n) {
+  if (!n || isNaN(n)) return '$0';
+  return '$' + Number(n).toLocaleString('en-CA', { maximumFractionDigits: 0 });
+}
+function fmtShort$(n) {
+  n = Number(n) || 0;
+  if (n >= 1000000) return '$' + (n/1000000).toFixed(1) + 'M';
+  if (n >= 1000)    return '$' + Math.round(n/1000) + 'k';
+  return '$' + Math.round(n);
+}
+
+function todayStr() {
+  return new Date().toISOString().split('T')[0];
+}
+function dateStr(d) { return d.toISOString().split('T')[0]; }
+
+function sameDay(val, ref) {
+  if (!val) return false;
+  return String(val).substring(0, 10) === ref;
+}
+function sameMonth(val) {
+  if (!val) return false;
+  return String(val).substring(0, 7) === new Date().toISOString().substring(0, 7);
+}
+function daysBetween(val) {
+  if (!val) return 0;
+  return Math.max(0, Math.floor((Date.now() - new Date(val).getTime()) / 86400000));
+}
+function hoursAgo(val) {
+  if (!val) return 0;
+  return Math.max(0, (Date.now() - new Date(val).getTime()) / 3600000);
+}
+
+function truncate(s, n) {
+  s = String(s || '');
+  return s.length > n ? s.substring(0, n) + '…' : s;
+}
+function initials(name) {
+  name = String(name || '').trim();
+  if (!name) return '?';
+  const parts = name.split(/\s+/);
+  return parts.length >= 2
+    ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase()
+    : name.substring(0, 2).toUpperCase();
+}
+function formatTime12(t) {
+  if (!t) return '—';
+  const parts = String(t).split(':');
+  let h = parseInt(parts[0], 10);
+  const m = (parts[1] || '00').padStart(2, '0');
+  const ap = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h}:${m} ${ap}`;
+}
+
+function isAllEmpty(ops, crm, rec, rep) {
+  return ops.moves.length === 0 && ops.crew.length === 0
+      && crm.leads.length === 0 && crm.quotes.length === 0
+      && rec.cases.length === 0 && rep.jobs.length === 0;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DATA ACCESSORS
+═══════════════════════════════════════════════════════════ */
+function getOpsData() {
+  return {
+    moves:  JSON.parse(localStorage.getItem('ssops_moves')  || '[]'),
+    crew:   JSON.parse(localStorage.getItem('ssops_crew')   || '[]'),
+    trucks: JSON.parse(localStorage.getItem('ssops_trucks') || '[]'),
+  };
+}
+function getCRMData() {
+  return {
+    leads:   JSON.parse(localStorage.getItem('sscrm_leads')   || '[]'),
+    quotes:  JSON.parse(localStorage.getItem('sscrm_quotes')  || '[]'),
+    clients: JSON.parse(localStorage.getItem('sscrm_clients') || '[]'),
+  };
+}
+function getRecoveryData() {
+  return { cases: JSON.parse(localStorage.getItem('sscr_cases') || '[]') };
+}
+function getReputationData() {
+  return { jobs: JSON.parse(localStorage.getItem('ssm_jobs') || '[]') };
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════════════════════ */
+let _toastTimer = null;
+function toast(msg, type = 'info') {
+  const el = document.getElementById('toast');
+  el.innerHTML = msg;
+  el.className = 'show ' + type;
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { el.className = ''; }, 3200);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CLOCK & DATE
+═══════════════════════════════════════════════════════════ */
+function updateClock() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+  document.getElementById('topbar-clock').textContent = `${hh}:${mm}:${ss}`;
+}
+function updateDate() {
+  const now  = new Date();
+  const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const MONS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('topbar-date').textContent =
+    `${DAYS[now.getDay()]}, ${MONS[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
+}
+function updateLastUpdated() {
+  const now = new Date();
+  let h = now.getHours();
+  const m = String(now.getMinutes()).padStart(2, '0');
+  const ap = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  document.getElementById('topbar-updated').textContent = `Last updated: ${h}:${m} ${ap}`;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ANIMATED COUNTER
+═══════════════════════════════════════════════════════════ */
+function animateCounter(el, target, prefix, suffix, duration) {
+  if (!el) return;
+  const start = performance.now();
+  const isMoney = prefix === '$';
+  (function step(now) {
+    const p = Math.min((now - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - p, 3);
+    const cur = Math.round(target * ease);
+    el.textContent = prefix + (isMoney ? cur.toLocaleString('en-CA') : cur) + suffix;
+    if (p < 1) requestAnimationFrame(step);
+  })(start);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   STATUS BADGES
+═══════════════════════════════════════════════════════════ */
+function statusBadge(status) {
+  if (!status) status = 'unknown';
+  const s = String(status).toLowerCase().replace(/\s+/g, '-');
+  const lbl = String(status).charAt(0).toUpperCase() + String(status).slice(1).toLowerCase();
+  return `<span class="badge badge-${s}">${lbl}</span>`;
+}
+function priorityBadge(priority) {
+  if (!priority) return '';
+  const p = String(priority).toLowerCase();
+  const lbl = String(priority).charAt(0).toUpperCase() + String(priority).slice(1).toLowerCase();
+  return `<span class="badge badge-${p}">${lbl}</span>`;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   KPI STRIP
+═══════════════════════════════════════════════════════════ */
+function renderKPIs(crm, ops, rec, rep) {
+  const today = todayStr();
+
+  const invoiced = (q) => ['invoiced','accepted','paid','complete'].includes(String(q.status||'').toLowerCase());
+
+  const todayRev = crm.quotes
+    .filter(q => invoiced(q) && sameDay(q.moveDate || q.date, today))
+    .reduce((s, q) => s + (parseFloat(q.total || q.price || q.amount || 0)), 0);
+
+  const monthRev = crm.quotes
+    .filter(q => invoiced(q) && sameMonth(q.moveDate || q.date))
+    .reduce((s, q) => s + (parseFloat(q.total || q.price || q.amount || 0)), 0);
+
+  const activeLeads = crm.leads.filter(l => {
+    const s = String(l.status || '').toLowerCase();
+    return s !== 'lost' && s !== 'booked' && s !== 'closed';
+  }).length;
+
+  const jobsToday = ops.moves.filter(m => sameDay(m.moveDate || m.date, today)).length;
+
+  const openCases = rec.cases.filter(c =>
+    String(c.status || '').toLowerCase() !== 'closed'
+  ).length;
+
+  const pendingReviews = rep.jobs.filter(j =>
+    String(j.status || '').toLowerCase() !== 'complete'
+  ).length;
+
+  // Animate KPIs
+  animateCounter(document.getElementById('kpi-today-rev'),  todayRev,      '$', '', 600);
+  animateCounter(document.getElementById('kpi-month-rev'),  monthRev,      '$', '', 700);
+  animateCounter(document.getElementById('kpi-active-leads'), activeLeads, '',  '', 500);
+  animateCounter(document.getElementById('kpi-jobs-today'), jobsToday,     '',  '', 400);
+  animateCounter(document.getElementById('kpi-open-cases'), openCases,     '',  '', 450);
+  animateCounter(document.getElementById('kpi-pending-reviews'), pendingReviews, '', '', 500);
+
+  return { todayRev, monthRev, activeLeads, jobsToday, openCases, pendingReviews };
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TODAY'S MOVES
+═══════════════════════════════════════════════════════════ */
+function renderMoves(ops) {
+  const today = todayStr();
+  const moves = ops.moves.filter(m => sameDay(m.moveDate || m.date, today));
+  const el    = document.getElementById('moves-list');
+
+  if (moves.length === 0) {
+    el.innerHTML = '<div class="empty-state">No moves scheduled today</div>';
+    return 0;
+  }
+
+  moves.sort((a, b) =>
+    String(a.startTime || a.time || '').localeCompare(String(b.startTime || b.time || ''))
+  );
+
+  el.innerHTML = moves.map(m => {
+    const time   = formatTime12(m.startTime || m.time || '');
+    const client = truncate(m.clientName || m.client || 'Unknown', 24);
+    const from   = truncate(m.fromAddress || m.pickupAddress || m.from || '—', 22);
+    const to     = truncate(m.toAddress || m.deliveryAddress || m.to || '—', 22);
+    const crew   = m.crewLead || (Array.isArray(m.crew) ? m.crew[0] : m.crew) || '';
+    const status = m.status || 'scheduled';
+    return `
+      <div class="move-row">
+        <div class="move-time">${time}</div>
+        <div class="move-info">
+          <div class="move-client">${client}</div>
+          <div class="move-route">${from} → ${to}</div>
+          ${crew ? `<div class="move-crew">👤 ${crew}</div>` : ''}
+        </div>
+        <div class="move-actions">
+          ${statusBadge(status)}
+          <a class="link-open" href="operations-hub/operations-hub.html" target="_blank">Open</a>
+        </div>
+      </div>`;
+  }).join('');
+
+  return moves.length;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ALERTS  (sorted: red → orange → yellow)
+═══════════════════════════════════════════════════════════ */
+function renderAlerts(crm, ops, rec, rep) {
+  const today = todayStr();
+  const now   = new Date();
+  const alerts = [];
+
+  // ── Recovery: critical / high open cases ──────────────────
+  rec.cases.forEach(c => {
+    const status = String(c.status || '').toLowerCase();
+    const pri    = String(c.priority || '').toLowerCase();
+    if (status === 'closed') return;
+    if (pri === 'critical') {
+      alerts.push({ order: 0, icon: '🔴', text: `<strong>Critical case:</strong> ${c.clientName || c.client || ('Case #' + (c.id||''))}`, link: 'customer-recovery/customer-recovery.html' });
+    } else if (pri === 'high') {
+      alerts.push({ order: 1, icon: '🟠', text: `<strong>High priority case:</strong> ${c.clientName || c.client || ('Case #' + (c.id||''))}`, link: 'customer-recovery/customer-recovery.html' });
+    }
+  });
+
+  // ── Recovery: stale (not updated >48h) ────────────────────
+  rec.cases.forEach(c => {
+    const status = String(c.status || '').toLowerCase();
+    const pri    = String(c.priority || '').toLowerCase();
+    if (status === 'closed' || pri === 'critical' || pri === 'high') return;
+    const updated = c.updatedAt || c.lastUpdated || c.createdAt || c.dateCreated;
+    if (updated && hoursAgo(updated) > 48) {
+      alerts.push({ order: 2, icon: '🟡', text: `<strong>Stale case (${daysBetween(updated)}d no update):</strong> ${c.clientName || c.client || 'Unknown'}`, link: 'customer-recovery/customer-recovery.html' });
+    }
+  });
+
+  // ── Reputation: flagged jobs ───────────────────────────────
+  rep.jobs.forEach(j => {
+    if (String(j.status || '').toLowerCase() === 'flagged') {
+      alerts.push({ order: 0, icon: '🔴', text: `<strong>Bad review flag:</strong> ${j.customerName || j.client || 'Customer'}`, link: 'reputation-engine/reputation-engine.html' });
+    }
+  });
+
+  // ── CRM Leads: follow-up overdue ──────────────────────────
+  crm.leads.forEach(l => {
+    const s = String(l.status || '').toLowerCase();
+    if (s === 'lost' || s === 'booked' || s === 'closed') return;
+    if (l.followUpDate && l.followUpDate <= today) {
+      alerts.push({ order: 2, icon: '🟡', text: `<strong>Follow up overdue:</strong> ${l.name || l.clientName || 'Lead'}`, link: 'crm/saturn-crm.html' });
+    }
+  });
+
+  // ── CRM Leads: uncontacted >2 days ────────────────────────
+  crm.leads.forEach(l => {
+    if (String(l.status || '').toLowerCase() !== 'new') return;
+    const created = l.createdAt || l.dateCreated || l.date;
+    if (created && daysBetween(created) > 2) {
+      alerts.push({ order: 2, icon: '🟡', text: `<strong>Uncontacted ${daysBetween(created)}d:</strong> ${l.name || l.clientName || 'New lead'}`, link: 'crm/saturn-crm.html' });
+    }
+  });
+
+  // ── Ops: moves today not yet started past start time ──────
+  ops.moves
+    .filter(m => sameDay(m.moveDate || m.date, today) && String(m.status || '').toLowerCase() === 'scheduled')
+    .forEach(m => {
+      const t = m.startTime || m.time || '';
+      if (!t) return;
+      const [hh, mm] = t.split(':').map(Number);
+      const moveTime = new Date(); moveTime.setHours(hh, mm || 0, 0, 0);
+      if (moveTime < now) {
+        alerts.push({ order: 1, icon: '🟠', text: `<strong>Not yet started:</strong> ${m.clientName || m.client || 'Move'} (${formatTime12(t)})`, link: 'operations-hub/operations-hub.html' });
+      }
+    });
+
+  // ── CRM: stale sent quotes >7 days ────────────────────────
+  crm.quotes.forEach(q => {
+    if (String(q.status || '').toLowerCase() !== 'sent') return;
+    const created = q.createdAt || q.dateCreated || q.date;
+    if (created && daysBetween(created) > 7) {
+      alerts.push({ order: 2, icon: '🟡', text: `<strong>Quote expiring (${daysBetween(created)}d):</strong> ${q.clientName || q.client || 'Client'}`, link: 'crm/saturn-crm.html' });
+    }
+  });
+
+  // Sort by priority (0=red, 1=orange, 2=yellow) then cap at 8
+  alerts.sort((a, b) => a.order - b.order);
+  const top8  = alerts.slice(0, 8);
+  const el    = document.getElementById('alerts-list');
+  const badge = document.getElementById('alert-count-badge');
+
+  if (top8.length === 0) {
+    el.innerHTML = '<div class="all-clear">✅ All clear — nothing urgent</div>';
+    badge.style.display = 'none';
+  } else {
+    badge.textContent   = top8.length;
+    badge.style.display = 'inline-flex';
+    el.innerHTML = top8.map(a => `
+      <div class="alert-row">
+        <span class="alert-icon">${a.icon}</span>
+        <span class="alert-text">${a.text}</span>
+        <a href="${a.link}" class="alert-link" target="_blank">View</a>
+      </div>`).join('');
+  }
+
+  return alerts;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CREW TODAY
+═══════════════════════════════════════════════════════════ */
+function renderCrew(ops) {
+  const today = todayStr();
+  const el    = document.getElementById('crew-list');
+  const crew  = ops.crew;
+
+  if (crew.length === 0 && ops.trucks.length === 0) {
+    el.innerHTML = '<div class="empty-state">No crew data found</div>';
+    return;
+  }
+
+  // Build assignment map from today's moves
+  const assignedMap = {}; // name.toLowerCase() → job label
+  ops.moves
+    .filter(m => sameDay(m.moveDate || m.date, today))
+    .forEach(m => {
+      const jobLabel = m.clientName || m.client || 'Move';
+      const names = [
+        m.crewLead,
+        ...(Array.isArray(m.crew) ? m.crew : (m.crew ? [m.crew] : [])),
+        ...(Array.isArray(m.crewMembers) ? m.crewMembers : [])
+      ].filter(Boolean);
+      names.forEach(n => { assignedMap[String(n).toLowerCase()] = jobLabel; });
+    });
+
+  let html = '';
+
+  // Crew members
+  if (crew.length > 0) {
+    html += crew.map(c => {
+      const name    = c.name || c.fullName || 'Unknown';
+      const role    = c.role || c.position || 'Crew';
+      const jobName = assignedMap[name.toLowerCase()] || null;
+      return `
+        <div class="crew-row">
+          <div class="crew-avatar">${initials(name)}</div>
+          <div class="crew-details">
+            <div class="crew-name">${name}</div>
+            <div class="crew-role">${role}</div>
+          </div>
+          <div class="crew-status">
+            ${jobName
+              ? `<div class="crew-on-job">● On Job</div><div class="crew-job-name">${truncate(jobName,18)}</div>`
+              : `<div class="crew-available">Available</div>`}
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // Trucks (if any)
+  if (ops.trucks.length > 0) {
+    html += `<div class="crew-section-label">🚛 Trucks</div>`;
+    html += ops.trucks.map(t => {
+      const name   = t.name || t.number ? `Truck ${t.number || t.name}` : 'Truck';
+      const status = t.status || 'available';
+      const info   = t.type || t.capacity || '';
+      return `
+        <div class="truck-row">
+          <div class="truck-icon">🚛</div>
+          <div class="truck-details">
+            <div class="truck-name">${name}</div>
+            ${info ? `<div class="truck-info">${info}</div>` : ''}
+          </div>
+          <div class="truck-status">${statusBadge(status)}</div>
+        </div>`;
+    }).join('');
+  }
+
+  el.innerHTML = html || '<div class="empty-state">No crew data found</div>';
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LEAD PIPELINE
+═══════════════════════════════════════════════════════════ */
+function renderPipeline(crm) {
+  const el    = document.getElementById('pipeline-body');
+  const leads = crm.leads;
+
+  if (leads.length === 0) {
+    el.innerHTML = '<div class="empty-state">No leads data</div>';
+    return;
+  }
+
+  const stages = ['new','contacted','quoted','booked'];
+  const labels = { new: 'New Call', contacted: 'Contacted', quoted: 'Quoted', booked: 'Booked' };
+  const counts = { new:0, contacted:0, quoted:0, booked:0, lost:0, other:0 };
+
+  leads.forEach(l => {
+    const s = String(l.status || 'new').toLowerCase();
+    if (counts[s] !== undefined) counts[s]++;
+    else counts.other++;
+  });
+
+  const maxCount = Math.max(...stages.map(s => counts[s]), 1);
+
+  const pipelineVal = leads
+    .filter(l => ['quoted','booked'].includes(String(l.status||'').toLowerCase()))
+    .reduce((s, l) => s + parseFloat(l.estimatedValue || l.value || l.quoteAmount || 0), 0);
+
+  const totalActive = leads.filter(l => !['lost','closed'].includes(String(l.status||'').toLowerCase())).length;
+  const bookedCount = counts.booked;
+  const convRate    = totalActive > 0 ? Math.round((bookedCount / leads.length) * 100) : 0;
+
+  el.innerHTML = stages.map(s => `
+    <div class="funnel-stage">
+      <div class="funnel-label">${labels[s]}</div>
+      <div class="funnel-bar-wrap">
+        <div class="funnel-bar stage-${s}" style="width:${Math.max((counts[s]/maxCount)*100, counts[s]>0?5:0)}%"></div>
+      </div>
+      <div class="funnel-count">${counts[s]}</div>
+    </div>`).join('')
+  + `<div class="funnel-total">Pipeline: <strong>${fmt$(pipelineVal)}</strong></div>`
+  + `<div class="funnel-conversion">Conversion rate: <strong>${convRate}%</strong> · ${counts.lost} lost</div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RECOVERY CASES
+═══════════════════════════════════════════════════════════ */
+function renderRecovery(rec) {
+  const el   = document.getElementById('recovery-body');
+  const open = rec.cases.filter(c => String(c.status||'').toLowerCase() !== 'closed');
+
+  if (open.length === 0) {
+    el.innerHTML = '<div class="empty-state" style="color:var(--success)">✅ No open cases</div>';
+    return;
+  }
+
+  const PRI = { critical:0, high:1, medium:2, low:3 };
+  const sorted = [...open].sort((a, b) => {
+    const pa = PRI[String(a.priority||'low').toLowerCase()] ?? 3;
+    const pb = PRI[String(b.priority||'low').toLowerCase()] ?? 3;
+    return pa - pb;
+  });
+
+  el.innerHTML = sorted.slice(0, 3).map(c => {
+    const caseNum = c.caseNumber || c.id || '—';
+    const client  = c.clientName || c.client || 'Unknown';
+    const days    = daysBetween(c.createdAt || c.dateCreated || c.date || todayStr());
+    const aged    = days > 7;
+    return `
+      <div class="case-row">
+        <div class="case-info">
+          <div class="case-num">Case #${caseNum}</div>
+          <div class="case-client">${client}</div>
+          <div class="case-badges">${statusBadge(c.status||'open')} ${priorityBadge(c.priority||'')}</div>
+        </div>
+        <div class="case-meta">
+          <div class="case-days" style="color:${aged?'var(--danger)':'var(--text-muted)'}">${days}d open</div>
+          <a href="customer-recovery/customer-recovery.html" class="link-open" target="_blank">Open</a>
+        </div>
+      </div>`;
+  }).join('');
+
+  if (open.length > 3) {
+    el.innerHTML += `<div style="font-size:12px;color:var(--text-muted);padding-top:10px;text-align:center">+${open.length-3} more case${open.length-3>1?'s':''}</div>`;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   REPUTATION SNAPSHOT
+═══════════════════════════════════════════════════════════ */
+function renderReputation(rep) {
+  const el   = document.getElementById('rep-body');
+  const jobs = rep.jobs;
+
+  if (jobs.length === 0) {
+    el.innerHTML = '<div class="empty-state">No reputation data</div>';
+    return;
+  }
+
+  const monthReviews = jobs.filter(j =>
+    sameMonth(j.completedAt || j.date || j.moveDate) &&
+    String(j.status||'').toLowerCase() === 'complete'
+  ).length;
+
+  const flagged    = jobs.filter(j => String(j.status||'').toLowerCase() === 'flagged').length;
+  const incentives = jobs.filter(j => j.incentiveEarned && !j.incentivePaid).length;
+
+  const last5 = [...jobs].sort((a,b) => {
+    const da = a.completedAt || a.date || a.moveDate || '';
+    const db = b.completedAt || b.date || b.moveDate || '';
+    return db.localeCompare(da);
+  }).slice(0, 5);
+
+  const dotHTML = last5.map(j => {
+    const s = String(j.status||'').toLowerCase();
+    if (s === 'flagged') return `<div class="dot flagged" title="Flagged">⚑</div>`;
+    const hasG = j.googleReview  || j.reviewG  || j.google;
+    const hasY = j.yelpReview    || j.reviewY  || j.yelp;
+    const hasF = j.fbReview      || j.reviewF  || j.facebook;
+    const hasP = j.photoUploaded || j.photo;
+    if (hasG) return `<div class="dot g" title="Google review">G</div>`;
+    if (hasF) return `<div class="dot f" title="Facebook review">F</div>`;
+    if (hasY) return `<div class="dot y" title="Yelp review">Y</div>`;
+    if (hasP) return `<div class="dot pending" title="Photo only">📸</div>`;
+    if (s === 'complete') return `<div class="dot pending" title="Complete, no review">✓</div>`;
+    return `<div class="dot pending" title="Pending">·</div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="rep-stat">
+      <span class="rep-stat-label">Reviews this month</span>
+      <span class="rep-stat-value">${monthReviews}</span>
+    </div>
+    <div class="rep-stat">
+      <span class="rep-stat-label">Flagged jobs</span>
+      <span class="rep-stat-value" style="color:${flagged>0?'var(--danger)':'var(--success)'}">${flagged}</span>
+    </div>
+    <div class="rep-stat">
+      <span class="rep-stat-label">Unpaid incentives</span>
+      <span class="rep-stat-value" style="color:${incentives>0?'var(--warning)':'var(--success)'}">${incentives}</span>
+    </div>
+    <div style="margin-top:10px;font-size:10px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Last 5 Jobs</div>
+    <div class="dot-grid">${dotHTML || '<span style="color:var(--text-muted);font-size:12px">No jobs yet</span>'}</div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   REVENUE CHART  (7-day CSS bars)
+═══════════════════════════════════════════════════════════ */
+function renderRevenueChart(crm) {
+  const el = document.getElementById('chart-body');
+
+  const today = new Date();
+  const days  = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    days.push({ dateStr: dateStr(d), label: ['Su','Mo','Tu','We','Th','Fr','Sa'][d.getDay()], isToday: i===0, rev: 0 });
+  }
+
+  crm.quotes.forEach(q => {
+    const s = String(q.status||'').toLowerCase();
+    if (!['invoiced','accepted','paid','complete'].includes(s)) return;
+    const mDate = q.moveDate || q.date;
+    if (!mDate) return;
+    const day = days.find(d => d.dateStr === String(mDate).substring(0,10));
+    if (day) day.rev += parseFloat(q.total || q.price || q.amount || 0);
+  });
+
+  const maxRev    = Math.max(...days.map(d => d.rev), 1);
+  const weekTotal = days.reduce((s, d) => s + d.rev, 0);
+  const weekDays  = days.filter(d => d.rev > 0).length;
+  const avgDay    = weekDays > 0 ? weekTotal / weekDays : 0;
+
+  if (weekTotal === 0) {
+    el.innerHTML = '<div class="empty-state">No revenue data this week</div>';
+    return;
+  }
+
+  const barsHTML = days.map(d => {
+    const pct     = Math.max((d.rev / maxRev) * 100, d.rev>0 ? 8 : 4);
+    const hasVal  = d.rev > 0;
+    const tipAmt  = d.rev > 0 ? fmt$(d.rev) : 'No revenue';
+    return `
+      <div class="bar-col">
+        <div class="bar-wrap">
+          <div class="bar ${d.isToday?'today':''} ${hasVal?'has-value':''}" style="height:${pct}%">
+            <div class="bar-tooltip">${d.isToday?'Today: ':''}${tipAmt}</div>
+          </div>
+        </div>
+        <div class="bar-day ${d.isToday?'today':''}">${d.label}</div>
+      </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="bar-chart">${barsHTML}</div>
+    <div class="chart-footer">
+      <div class="chart-total">Week: <strong>${fmt$(weekTotal)}</strong></div>
+      <div class="chart-avg">Avg/day: ${fmtShort$(avgDay)}</div>
+    </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   UPCOMING MOVES STRIP  (next 7 days, excludes today)
+═══════════════════════════════════════════════════════════ */
+function renderUpcoming(ops) {
+  const el    = document.getElementById('upcoming-list');
+  const today = todayStr();
+
+  const future = ops.moves.filter(m => {
+    const d = String(m.moveDate || m.date || '').substring(0,10);
+    return d > today;
+  }).sort((a,b) => {
+    const da = String(a.moveDate||a.date||'');
+    const db = String(b.moveDate||b.date||'');
+    return da.localeCompare(db);
+  }).slice(0, 10);
+
+  if (future.length === 0) {
+    el.innerHTML = '<div class="empty-state">No upcoming moves in the next 7 days</div>';
+    return;
+  }
+
+  const DAYS_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  el.innerHTML = future.map(m => {
+    const rawDate = m.moveDate || m.date || '';
+    const d       = rawDate ? new Date(rawDate + 'T12:00:00') : null;
+    const dLabel  = d ? `${DAYS_SHORT[d.getDay()]} ${d.getDate()}/${d.getMonth()+1}` : rawDate;
+    const from    = truncate(m.fromAddress || m.pickupAddress || m.from || '—', 20);
+    const to      = truncate(m.toAddress || m.deliveryAddress || m.to || '—', 20);
+    const crew    = m.crewLead || (Array.isArray(m.crew) ? m.crew[0] : m.crew) || '';
+    const time    = formatTime12(m.startTime || m.time || '');
+    return `
+      <div class="upcoming-row">
+        <div class="upcoming-date">${dLabel} <span>${time}</span></div>
+        <div class="upcoming-client">${truncate(m.clientName || m.client || 'Unknown', 26)}</div>
+        <div class="upcoming-meta">${from} → ${to}${crew ? ` · 👤 ${crew}` : ''}</div>
+        ${statusBadge(m.status || 'scheduled')}
+      </div>`;
+  }).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MORNING BRIEFING
+═══════════════════════════════════════════════════════════ */
+function renderBriefing(kpis, ops, crm, rec, alerts) {
+  const el  = document.getElementById('briefing-text');
+  const now = new Date();
+  const h   = now.getHours();
+  const greeting = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+
+  const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const MONS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const dateLabel = `${DAYS[now.getDay()]}, ${MONS[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
+
+  const today = todayStr();
+
+  // Crew on shift today
+  const crewNames = [...new Set(
+    ops.moves
+      .filter(m => sameDay(m.moveDate || m.date, today))
+      .flatMap(m => [m.crewLead, ...(Array.isArray(m.crew) ? m.crew : (m.crew ? [m.crew] : []))].filter(Boolean))
+  )];
+  const crewStr = crewNames.length > 0
+    ? crewNames.slice(0,3).join(', ') + (crewNames.length>3 ? ` +${crewNames.length-3} more` : '')
+    : 'no crew assigned';
+
+  // Follow-up leads due today
+  const followUps = crm.leads.filter(l => {
+    const s = String(l.status||'').toLowerCase();
+    return !['lost','booked','closed'].includes(s) && l.followUpDate && l.followUpDate <= today;
+  }).length;
+
+  // High/critical cases
+  const highCases = alerts.filter(a => a.order === 0 || a.order === 1).length;
+
+  // Week jobs (for sidebar stat)
+  const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  const weekJobs  = ops.moves.filter(m => {
+    const d = m.moveDate || m.date || '';
+    return d >= dateStr(weekStart);
+  }).length;
+
+  // Average quote value
+  const paidQuotes  = crm.quotes.filter(q => ['invoiced','accepted','paid','complete'].includes(String(q.status||'').toLowerCase()));
+  const avgQuoteVal = paidQuotes.length > 0
+    ? paidQuotes.reduce((s,q) => s + parseFloat(q.total||q.price||q.amount||0), 0) / paidQuotes.length
+    : 0;
+
+  // Open cases count
+  const openCasesCount = rec.cases.filter(c => String(c.status||'').toLowerCase() !== 'closed').length;
+
+  // Briefing text
+  el.innerHTML = [
+    `<span class="greeting">Good ${greeting}, John.</span>`,
+    `<span class="subtitle">Here's your snapshot for ${dateLabel}</span>`,
+    `<span class="bullet">• <strong>${kpis.jobsToday}</strong> job${kpis.jobsToday!==1?'s':''} scheduled today — <em>${crewStr}</em></span>`,
+    `<span class="bullet">• <strong>${kpis.activeLeads}</strong> active lead${kpis.activeLeads!==1?'s':''} in the pipeline${followUps>0 ? ` — <strong>${followUps}</strong> need${followUps===1?'s':''} follow-up today` : ', all follow-ups clear'}</span>`,
+    `<span class="bullet">• <strong>${openCasesCount}</strong> recovery case${openCasesCount!==1?'s':''} open${highCases>0 ? ` — <strong>${highCases}</strong> high/critical priority` : ', none high priority'}</span>`,
+    `<span class="bullet">• <strong>${kpis.pendingReviews}</strong> review${kpis.pendingReviews!==1?'s':''} pending from customers</span>`,
+    `<span class="bullet">• Revenue today: <strong>${fmt$(kpis.todayRev)}</strong> · This month: <strong>${fmt$(kpis.monthRev)}</strong></span>`,
+    alerts.length > 0
+      ? `<span class="alert-line">⚠️ ${alerts.length} item${alerts.length!==1?'s':''} need${alerts.length===1?'s':''} your attention above.</span>`
+      : `<span class="clear-line">✅ Operations looking clean — good day ahead.</span>`,
+  ].join('');
+
+  // Sidebar quick-stats
+  document.getElementById('briefing-stats').innerHTML = [
+    { value: kpis.jobsToday,   label: 'Today\'s Jobs',  },
+    { value: weekJobs,          label: 'This Week',       },
+    { value: fmtShort$(avgQuoteVal), label: 'Avg Job Value', raw: true },
+    { value: kpis.activeLeads, label: 'Active Leads',    },
+  ].map(s => `
+    <div class="bstat">
+      <div class="bstat-value">${s.raw ? s.value : s.value}</div>
+      <div class="bstat-label">${s.label}</div>
+    </div>`).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MAIN RENDER
+═══════════════════════════════════════════════════════════ */
+function refreshAll(silent) {
+  const btn = document.getElementById('refresh-btn');
+  btn.classList.add('spinning');
+
+  const ops = getOpsData();
+  const crm = getCRMData();
+  const rec = getRecoveryData();
+  const rep = getReputationData();
+
+  const empty = isAllEmpty(ops, crm, rec, rep);
+
+  document.getElementById('welcome-state').style.display      = empty ? 'flex' : 'none';
+  document.getElementById('dashboard-content').style.display  = empty ? 'none' : 'flex';
+
+  if (!empty) {
+    const kpis   = renderKPIs(crm, ops, rec, rep);
+    renderMoves(ops);
+    const alerts = renderAlerts(crm, ops, rec, rep);
+    renderCrew(ops);
+    renderPipeline(crm);
+    renderRecovery(rec);
+    renderReputation(rep);
+    renderRevenueChart(crm);
+    renderUpcoming(ops);
+    renderBriefing(kpis, ops, crm, rec, alerts);
+  }
+
+  updateLastUpdated();
+  setTimeout(() => btn.classList.remove('spinning'), 400);
+  if (!silent) toast('✓ Dashboard refreshed', 'success');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DEMO DATA
+═══════════════════════════════════════════════════════════ */
+function loadDemoData() {
+  const today    = todayStr();
+  const d = (offset) => {
+    const dt = new Date();
+    dt.setDate(dt.getDate() + offset);
+    return dateStr(dt);
+  };
+
+  // MOVES
+  localStorage.setItem('ssops_moves', JSON.stringify([
+    { id:'m1', clientName:'Sarah & Mike Thompson', fromAddress:'142 Riverside Dr', toAddress:'88 Elmwood Ave', moveDate:today, startTime:'08:00', crewLead:'Marcus Johnson', crew:['Derek Osei'], status:'in-progress' },
+    { id:'m2', clientName:'Chen Family', fromAddress:'55 Maple St', toAddress:'330 Lakeview Blvd', moveDate:today, startTime:'11:30', crewLead:'Kevin Tremblay', crew:['Alex Bowen'], status:'scheduled' },
+    { id:'m3', clientName:'Danielle Okafor', fromAddress:'901 West Ave', toAddress:'212 Harbor Rd', moveDate:d(1), startTime:'09:00', crewLead:'Marcus Johnson', status:'scheduled' },
+    { id:'m4', clientName:'Patel Residence', fromAddress:'77 Pine St', toAddress:'1405 North Blvd', moveDate:d(2), startTime:'08:30', crewLead:'Kevin Tremblay', status:'scheduled' },
+    { id:'m5', clientName:'Office Depot Ltd', fromAddress:'Business Park Bldg C', toAddress:'New Commercial Hub', moveDate:d(3), startTime:'07:00', crewLead:'Marcus Johnson', crew:['Derek Osei','Alex Bowen'], status:'scheduled' },
+    { id:'m6', clientName:'Emma Liu', fromAddress:'33 Garden Court', toAddress:'560 Sunrise Way', moveDate:d(5), startTime:'10:00', crewLead:'Kevin Tremblay', status:'scheduled' },
+  ]));
+
+  // CREW
+  localStorage.setItem('ssops_crew', JSON.stringify([
+    { id:'c1', name:'Marcus Johnson', role:'Lead Mover' },
+    { id:'c2', name:'Derek Osei', role:'Mover' },
+    { id:'c3', name:'Kevin Tremblay', role:'Lead Mover' },
+    { id:'c4', name:'Alex Bowen', role:'Mover' },
+  ]));
+
+  // TRUCKS
+  localStorage.setItem('ssops_trucks', JSON.stringify([
+    { id:'t1', number:'01', name:'Big Blue', type:'26ft Box Truck', status:'in-use' },
+    { id:'t2', number:'02', name:'Silver Bullet', type:'16ft Cargo Van', status:'in-use' },
+    { id:'t3', number:'03', name:'Backup', type:'16ft Cargo Van', status:'available' },
+  ]));
+
+  // LEADS
+  const ldates = [d(-5), d(-3), d(-1), d(-8), d(-2), d(-4)];
+  localStorage.setItem('sscrm_leads', JSON.stringify([
+    { id:'l1', name:'James Hartley', status:'new',       createdAt:ldates[0], followUpDate:d(-1), estimatedValue:1400 },
+    { id:'l2', name:'Maria Santos',  status:'contacted', createdAt:ldates[1], followUpDate:today,  estimatedValue:2200 },
+    { id:'l3', name:'Robert Khanna', status:'quoted',    createdAt:ldates[2], followUpDate:d(1),   estimatedValue:3800 },
+    { id:'l4', name:'Fatima Al-Zaid',status:'booked',    createdAt:ldates[3], followUpDate:d(2),   estimatedValue:1900 },
+    { id:'l5', name:'Tyler Brooks',  status:'contacted', createdAt:ldates[4], followUpDate:d(-2),  estimatedValue:2600 },
+    { id:'l6', name:'Linda Park',    status:'new',       createdAt:ldates[5], followUpDate:today,  estimatedValue:1100 },
+    { id:'l7', name:'George Benson', status:'lost',      createdAt:d(-10),    followUpDate:d(-5),  estimatedValue:1700 },
+  ]));
+
+  // QUOTES
+  localStorage.setItem('sscrm_quotes', JSON.stringify([
+    { id:'q1', clientName:'Sarah & Mike Thompson', status:'accepted', total:2150, moveDate:today },
+    { id:'q2', clientName:'Chen Family', status:'invoiced', total:1875, moveDate:today },
+    { id:'q3', clientName:'Danielle Okafor', status:'sent', total:3200, moveDate:d(1), createdAt:d(-9) },
+    { id:'q4', clientName:'Patel Residence', status:'accepted', total:2400, moveDate:d(2) },
+    { id:'q5', clientName:'Westfield Corp', status:'paid', total:4800, moveDate:d(-1) },
+    { id:'q6', clientName:'Emma Liu', status:'paid', total:1650, moveDate:d(-2) },
+    { id:'q7', clientName:'ABC Realty', status:'paid', total:3100, moveDate:d(-3) },
+    { id:'q8', clientName:'Hassan Family', status:'paid', total:2250, moveDate:d(-4) },
+    { id:'q9', clientName:'Grace Ho', status:'paid', total:1900, moveDate:d(-6) },
+  ]));
+
+  // CASES
+  localStorage.setItem('sscr_cases', JSON.stringify([
+    { id:'CR-041', caseNumber:'CR-041', clientName:'Wilson Residence', status:'open', priority:'high', createdAt:d(-4), updatedAt:d(-3) },
+    { id:'CR-038', caseNumber:'CR-038', clientName:'Nguyen Family', status:'investigating', priority:'medium', createdAt:d(-8), updatedAt:d(-7) },
+    { id:'CR-035', caseNumber:'CR-035', clientName:'Carla Mendes', status:'closed', priority:'low', createdAt:d(-15), updatedAt:d(-12) },
+  ]));
+
+  // REPUTATION JOBS
+  localStorage.setItem('ssm_jobs', JSON.stringify([
+    { id:'j1', customerName:'Hassan Family', status:'complete', google:true, completedAt:d(-4), moveDate:d(-4) },
+    { id:'j2', customerName:'Grace Ho', status:'complete', facebook:true, completedAt:d(-6), moveDate:d(-6) },
+    { id:'j3', customerName:'ABC Realty', status:'pending', completedAt:d(-3), moveDate:d(-3), incentiveEarned:true, incentivePaid:false },
+    { id:'j4', customerName:'Emma Liu', status:'complete', google:true, completedAt:d(-2), moveDate:d(-2) },
+    { id:'j5', customerName:'Westfield Corp', status:'flagged', completedAt:d(-1), moveDate:d(-1) },
+  ]));
+
+  document.getElementById('demo-banner').classList.add('visible');
+  refreshAll(true);
+  toast('✨ Demo data loaded', 'success');
+}
+
+function clearDemoData() {
+  ['ssops_moves','ssops_crew','ssops_trucks','sscrm_leads','sscrm_quotes','sscrm_clients','sscr_cases','ssm_jobs']
+    .forEach(k => localStorage.removeItem(k));
+  document.getElementById('demo-banner').classList.remove('visible');
+  refreshAll(true);
+  toast('Demo data cleared', 'info');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════════ */
+updateDate();
+updateClock();
+refreshAll(true);
+
+setInterval(updateClock, 1000);
+setInterval(() => { refreshAll(true); }, 60000);
+</script>
+</body>
+</html>

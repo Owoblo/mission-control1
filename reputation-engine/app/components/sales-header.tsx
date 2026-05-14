@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
@@ -9,6 +10,24 @@ import { NewLeadModal } from '@/app/components/sales/new-lead-modal'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import type { CRMLead } from '@/lib/types'
 import type { NotificationItem } from '@/app/api/sales/notifications/route'
+
+// Monotone SVG icons — consistent stroke-based, no emoji/color
+const NAV_ICONS: Record<string, React.ReactNode> = {
+  Dashboard:    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><rect x="2" y="2" width="7" height="7" rx="1.5"/><rect x="11" y="2" width="7" height="7" rx="1.5"/><rect x="2" y="11" width="7" height="7" rx="1.5"/><rect x="11" y="11" width="7" height="7" rx="1.5"/></svg>,
+  Inbox:        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M2 13l3-7h10l3 7"/><path d="M2 13h4l1 2h6l1-2h4v3a1 1 0 01-1 1H3a1 1 0 01-1-1v-3z"/></svg>,
+  Pipeline:     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><circle cx="4" cy="10" r="2"/><circle cx="10" cy="10" r="2"/><circle cx="16" cy="10" r="2"/><path d="M6 10h2M12 10h2"/></svg>,
+  Quotes:       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M4 4h12a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V5a1 1 0 011-1z"/><path d="M7 8h6M7 11h4"/></svg>,
+  Booked:       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M6 10l3 3 5-5"/><rect x="3" y="3" width="14" height="14" rx="2"/></svg>,
+  Academy:      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M10 3L2 7l8 4 8-4-8-4z"/><path d="M2 7v5M6 9.5v4a4 4 0 008 0v-4"/></svg>,
+  Operations:   <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M10 2a8 8 0 100 16A8 8 0 0010 2z"/><path d="M10 6v4l3 2"/></svg>,
+  Finance:      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M10 3v14M6 6h5.5a2.5 2.5 0 010 5H6m0 0h5a2.5 2.5 0 010 5H6"/></svg>,
+  'Live Feed':  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><circle cx="10" cy="10" r="2"/><path d="M5.5 5.5a6.5 6.5 0 000 9M14.5 5.5a6.5 6.5 0 010 9"/><path d="M3 3a10 10 0 000 14M17 3a10 10 0 010 14"/></svg>,
+  Analytics:    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M3 15l4-5 4 2 5-8"/><circle cx="3" cy="15" r="1" fill="currentColor" stroke="none"/></svg>,
+  Reps:         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><circle cx="8" cy="7" r="3"/><path d="M2 17a6 6 0 0112 0"/><circle cx="15" cy="7" r="2.5"/><path d="M14 17h4a4 4 0 00-4-4"/></svg>,
+  Settings:     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><circle cx="10" cy="10" r="2.5"/><path d="M10 2.5V5M10 15v2.5M2.5 10H5M15 10h2.5M4.4 4.4l1.8 1.8M13.8 13.8l1.8 1.8M4.4 15.6l1.8-1.8M13.8 6.2l1.8-1.8"/></svg>,
+  Team:         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><circle cx="10" cy="7" r="3"/><path d="M4 17a6 6 0 0112 0"/></svg>,
+  Partnerships: <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M7 10l2 2 4-4"/><path d="M3 10a7 7 0 1014 0A7 7 0 003 10z"/></svg>,
+}
 
 const BASE_NAV = [
   { href: '/sales', label: 'Dashboard', match: (p: string) => p === '/sales', roles: ['owner', 'manager', 'sales_rep'] },
@@ -22,7 +41,7 @@ const BASE_NAV = [
   { href: '/sales/activity', label: 'Live Feed', match: (p: string) => p.startsWith('/sales/activity'), roles: ['owner', 'manager'] },
   { href: '/sales/analytics', label: 'Analytics', match: (p: string) => p.startsWith('/sales/analytics'), roles: ['owner', 'manager'] },
   { href: '/sales/reps', label: 'Reps', match: (p: string) => p.startsWith('/sales/reps'), roles: ['owner', 'manager'] },
-  { href: '/sales/settings', label: '⚙ Settings', match: (p: string) => p.startsWith('/sales/settings'), roles: ['owner'] },
+  { href: '/sales/settings', label: 'Settings', match: (p: string) => p.startsWith('/sales/settings'), roles: ['owner'] },
   { href: '/admin/users', label: 'Team', match: (p: string) => p.startsWith('/admin'), roles: ['owner'] },
   { href: '/marketing', label: 'Partnerships', match: (p: string) => p.startsWith('/marketing'), roles: ['owner', 'manager'] },
 ]
@@ -40,6 +59,7 @@ const SOURCE_ICON: Record<string, string> = {
   facebook_dm:  '📘',
   instagram_dm: '📷',
   email:        '📧',
+  direct_mail:  '📬',
   website_form: '🌐',
   system_alert: '🚨',
 }
@@ -73,6 +93,7 @@ export function SalesHeader() {
   const [allLeads, setAllLeads] = useState<CRMLead[]>([])
   const [showDropdown, setShowDropdown] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   // ── Notification state ──────────────────────────────────────────────────
   const [notifItems, setNotifItems] = useState<NotificationItem[]>([])
@@ -81,6 +102,16 @@ export function SalesHeader() {
   const [notifOpen, setNotifOpen] = useState(false)
   const notifRef = useRef<HTMLDivElement>(null)
   const seenIdsRef = useRef<Set<string>>(new Set())
+  const [snoozedBefore, setSnoozedBefore] = useState<number>(() => {
+    try { return parseInt(localStorage.getItem('ss_notif_snoozed') || '0', 10) } catch { return 0 }
+  })
+
+  function markAllRead() {
+    const now = Date.now()
+    setSnoozedBefore(now)
+    try { localStorage.setItem('ss_notif_snoozed', String(now)) } catch { /* noop */ }
+    setNotifOpen(false)
+  }
   const [toast, setToast] = useState<NotificationItem | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
@@ -179,14 +210,22 @@ export function SalesHeader() {
         }
         data.items.forEach(item => seenIdsRef.current.add(item.id))
 
-        setNotifItems(data.items)
-        setNotifTotal(data.totalCount)
-        setNotifBreakdown(data.breakdown)
+        const visibleItems = snoozedBefore > 0
+          ? data.items.filter(item => new Date(item.time).getTime() > snoozedBefore)
+          : data.items
+        setNotifItems(visibleItems)
+        setNotifTotal(visibleItems.length)
+        setNotifBreakdown({
+          leads: visibleItems.filter(i => i.type === 'lead').length,
+          sms: visibleItems.filter(i => i.type === 'sms').length,
+          emails: visibleItems.filter(i => i.type === 'email').length,
+          alerts: visibleItems.filter(i => i.type === 'alert').length,
+        })
       } catch { /* non-fatal */ }
     }
 
     void fetchNotifications()
-    const interval = setInterval(() => void fetchNotifications(), 30_000)
+    const interval = setInterval(() => void fetchNotifications(), 10_000)
     return () => clearInterval(interval)
   }, [])
 
@@ -201,6 +240,17 @@ export function SalesHeader() {
     window.addEventListener('crm:new-lead', onOpen)
     return () => window.removeEventListener('crm:new-lead', onOpen)
   }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const saved = window.localStorage.getItem('ss_sales_sidebar_collapsed')
+    if (saved === '1') setSidebarCollapsed(true)
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem('ss_sales_sidebar_collapsed', sidebarCollapsed ? '1' : '0')
+  }, [sidebarCollapsed])
 
   function digitsOnly(s: string) { return s.replace(/\D/g, '') }
 
@@ -263,27 +313,57 @@ export function SalesHeader() {
         </div>
       )}
 
-      <header className="sticky top-0 z-40 border-b border-[var(--app-line)] bg-[var(--app-panel-strong)]">
-        <div className="mx-auto flex max-w-[1400px] flex-col gap-4 px-4 py-4 md:px-8">
-          <div className="flex items-center justify-between gap-4">
+      <header className={`sticky top-0 z-40 border-b border-[var(--app-line)] bg-[var(--app-panel-strong)] lg:h-screen lg:shrink-0 lg:border-b-0 lg:border-r ${sidebarCollapsed ? 'lg:w-[64px]' : 'lg:w-[260px]'}`}>
+        <div className="mx-auto flex max-w-[1400px] flex-col gap-4 px-4 py-4 md:px-8 lg:h-full lg:max-w-none lg:px-0">
+
+          {/* ── Brand strip — slim full-width horizontal ───────────────── */}
+          <div className={`hidden lg:flex items-center border-b border-[var(--app-line)] ${sidebarCollapsed ? 'h-14 justify-center px-0' : 'h-14 gap-2.5 px-4'}`}>
+            <Link href="/sales" className={`flex min-w-0 items-center ${sidebarCollapsed ? 'justify-center' : 'gap-2.5 flex-1 min-w-0'}`}>
+              <Image src="/saturn-star-logo.png" alt="Saturn Star" width={30} height={30} className="shrink-0" />
+              {!sidebarCollapsed && (
+                <span className="truncate text-sm font-bold tracking-tight text-[var(--app-ink)]">Saturn Star OS</span>
+              )}
+            </Link>
+            {!sidebarCollapsed && (
+              <button
+                onClick={() => setSidebarCollapsed(true)}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] text-[var(--app-muted)] hover:bg-[var(--app-line)] hover:text-[var(--app-ink)] transition text-xs"
+                title="Collapse sidebar"
+              >‹‹</button>
+            )}
+            {sidebarCollapsed && (
+              <button
+                onClick={() => setSidebarCollapsed(false)}
+                className="absolute hidden"
+                aria-hidden
+              />
+            )}
+          </div>
+
+          {/* Collapsed expand trigger — click the logo to expand */}
+          {sidebarCollapsed && (
+            <button
+              onClick={() => setSidebarCollapsed(false)}
+              className="hidden lg:flex absolute top-[18px] left-0 w-[64px] h-7 items-center justify-center text-[var(--app-muted)] hover:text-[var(--app-ink)] transition text-xs"
+              title="Expand sidebar"
+            >››</button>
+          )}
+
+          {/* ── Mobile/tablet top bar ─────────────────────────────────── */}
+          <div className="flex items-center justify-between gap-4 lg:hidden">
             <Link href="/sales" className="flex min-w-0 items-center gap-2.5">
               <Image src="/saturn-star-logo.png" alt="Saturn Star" width={28} height={28} className="shrink-0" />
               <div className="truncate font-semibold tracking-tight text-[var(--app-ink)]">Saturn Star OS</div>
             </Link>
-
             <div className="flex items-center gap-2">
               {(role === 'owner' || role === 'manager' || role === 'sales_rep') && (
-                <button onClick={() => setNewLeadOpen(true)} className="crm-button-dark h-9 px-3 text-sm">
-                  New Lead
-                </button>
+                <button onClick={() => setNewLeadOpen(true)} className="crm-button-dark h-9 px-3 text-sm">New Lead</button>
               )}
-
-              {/* ── Notification Bell ──────────────────────────────────── */}
               <div ref={notifRef} className="relative">
                 <button
                   onClick={() => { setNotifOpen(v => !v); requestPushPermission() }}
                   className={`relative flex h-9 w-9 items-center justify-center rounded-[8px] border text-lg transition ${notifOpen ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white' : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-ink)] hover:border-[var(--app-ink)]'}`}
-                  title="Notifications — click to enable alert sounds"
+                  title="Notifications"
                 >
                   🔔
                   {notifTotal > 0 && (
@@ -292,10 +372,41 @@ export function SalesHeader() {
                     </span>
                   )}
                 </button>
+              </div>
+              <LogoutButton compact />
+            </div>
+          </div>
 
-                {/* ── Notification Panel ──────────────────────────────── */}
+          {/* ── Desktop action row (New Lead + Bell) ─────────────────── */}
+          <div className={`hidden lg:flex items-center gap-2 ${sidebarCollapsed ? 'flex-col px-2 pt-1' : 'px-4'}`}>
+            {(role === 'owner' || role === 'manager' || role === 'sales_rep') && (
+              <button
+                onClick={() => setNewLeadOpen(true)}
+                className={`crm-button-dark h-9 text-sm ${sidebarCollapsed ? 'w-10 px-0 justify-center' : 'flex-1 justify-center'}`}
+                title="New Lead"
+              >
+                {sidebarCollapsed ? '+' : 'New Lead'}
+              </button>
+            )}
+
+            {/* ── Notification Bell ──────────────────────────────────── */}
+            <div ref={notifRef} className="relative">
+              <button
+                onClick={() => { setNotifOpen(v => !v); requestPushPermission() }}
+                className={`relative flex h-9 items-center justify-center rounded-[8px] border text-lg transition ${sidebarCollapsed ? 'w-10' : 'w-9'} ${notifOpen ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white' : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-ink)] hover:border-[var(--app-ink)]'}`}
+                title="Notifications — click to enable alert sounds"
+              >
+                🔔
+                {notifTotal > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white">
+                    {notifTotal > 99 ? '99+' : notifTotal}
+                  </span>
+                )}
+              </button>
+
+                {/* ── Notification Panel — fixed so it clears the sidebar ── */}
                 {notifOpen && (
-                  <div className="absolute right-0 top-full z-50 mt-2 w-[min(400px,calc(100vw-1rem))] max-h-[80vh] overflow-hidden rounded-[12px] border border-[var(--app-line)] bg-white shadow-2xl flex flex-col">
+                  <div className="fixed left-4 right-4 top-4 z-[60] mx-auto max-w-sm max-h-[80vh] overflow-hidden rounded-[12px] border border-[var(--app-line)] bg-white shadow-2xl flex flex-col lg:left-auto lg:right-6 lg:top-6 lg:w-[400px]">
                     {/* Panel header */}
                     <div className="flex items-center justify-between border-b border-[var(--app-line)] px-4 py-3">
                       <div>
@@ -308,13 +419,23 @@ export function SalesHeader() {
                           {notifTotal === 0 && <span>All clear</span>}
                         </div>
                       </div>
-                      <Link
-                        href="/sales/inbox"
-                        onClick={() => setNotifOpen(false)}
-                        className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-1 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)]"
-                      >
-                        Open Inbox →
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        {notifTotal > 0 && (
+                          <button
+                            onClick={markAllRead}
+                            className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-1 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)]"
+                          >
+                            Mark all read
+                          </button>
+                        )}
+                        <Link
+                          href="/sales/inbox"
+                          onClick={() => setNotifOpen(false)}
+                          className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-1 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)]"
+                        >
+                          Open Inbox →
+                        </Link>
+                      </div>
                     </div>
 
                     {/* Items */}
@@ -381,36 +502,41 @@ export function SalesHeader() {
                   </div>
                 )}
               </div>
-
-              <div
-                title={user?.name ?? ''}
-                className="hidden h-8 w-8 items-center justify-center rounded bg-[var(--app-line)] text-xs font-semibold text-[var(--app-ink)] sm:flex"
-              >
-                {initials}
-              </div>
-              <LogoutButton />
             </div>
-          </div>
 
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <nav className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1 md:gap-6 md:px-0 md:pb-0">
+          {/* ── Nav ───────────────────────────────────────────────────── */}
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between lg:flex-1 lg:flex-col lg:items-stretch lg:justify-start">
+            <nav className={`-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1 md:gap-6 md:px-0 md:pb-0 lg:mx-0 lg:flex-col lg:items-stretch lg:gap-0.5 lg:overflow-visible lg:p-0 ${sidebarCollapsed ? 'lg:px-2' : 'lg:px-3'}`}>
               {navItems.map(item => {
                 const active = item.match(pathname)
-                // Inbox link: show a small dot badge if there are unclaimed leads (fast signal)
                 const showInboxDot = item.href === '/sales/inbox' && notifBreakdown.leads > 0 && !active
                 return (
                   <button
                     key={item.href}
                     onClick={() => guardedNavigate(item.href, router)}
-                    className={`relative shrink-0 rounded-full border px-3 py-2 text-sm font-medium transition md:rounded-none md:border-x-0 md:border-t-0 md:border-b-2 md:px-0 md:py-1 ${
-                      active
-                        ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white md:bg-transparent md:text-[var(--app-ink)]'
-                        : 'border-[var(--app-line)] text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] md:border-transparent'
-                    }`}
+                    title={item.label}
+                    className={`relative shrink-0 rounded-full border px-3 py-2 text-sm font-medium transition
+                      md:rounded-none md:border-x-0 md:border-t-0 md:border-b-2 md:px-0 md:py-1
+                      lg:flex lg:w-full lg:rounded-[10px] lg:border lg:py-2
+                      ${sidebarCollapsed
+                        ? 'lg:flex-col lg:items-center lg:justify-center lg:gap-0 lg:px-0 lg:py-2.5'
+                        : 'lg:items-center lg:justify-between lg:px-3'}
+                      ${active
+                        ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white md:bg-transparent md:text-[var(--app-ink)] lg:border-[var(--app-accent)] lg:bg-[var(--app-accent-soft)] lg:text-[var(--app-accent)]'
+                        : 'border-[var(--app-line)] text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] md:border-transparent lg:border-transparent lg:hover:bg-[var(--app-line)]/40'
+                      }`}
                   >
-                    {item.label}
+                    {/* Desktop: SVG icon always visible */}
+                    <span className={`hidden lg:inline-flex shrink-0 items-center justify-center ${sidebarCollapsed ? '' : 'mr-2'}`}>
+                      {NAV_ICONS[item.label] ?? <span className="h-4 w-4" />}
+                    </span>
+                    {/* Label: shown on mobile + desktop expanded */}
+                    <span className={`lg:flex-1 lg:text-left ${sidebarCollapsed ? 'lg:hidden' : ''}`}>
+                      <span className="lg:hidden">{item.label}</span>
+                      <span className="hidden lg:inline">{item.label}</span>
+                    </span>
                     {showInboxDot && (
-                      <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-rose-500 md:-right-2 md:-top-0.5" />
+                      <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-rose-500 md:-right-2 md:-top-0.5 lg:right-1 lg:top-1" />
                     )}
                   </button>
                 )
@@ -428,7 +554,7 @@ export function SalesHeader() {
               </Link>
             </nav>
 
-            <div ref={searchRef} className="relative w-full md:max-w-[320px]">
+            <div ref={searchRef} className={`relative w-full md:max-w-[320px] lg:order-first lg:max-w-none ${sidebarCollapsed ? 'lg:hidden' : 'lg:px-3'}`}>
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[var(--app-muted)]">⌕</span>
               <input
                 type="text"
@@ -473,6 +599,19 @@ export function SalesHeader() {
                   )}
                 </div>
               )}
+            </div>
+
+            <div className={`hidden rounded-[16px] border border-[var(--app-line)] bg-[var(--app-bg)] p-2 lg:mt-auto lg:block ${sidebarCollapsed ? 'lg:hidden' : 'lg:mx-3'}`}>
+              <div className="mb-2 flex items-center gap-2 rounded-[12px] px-2 py-1">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--app-line)] text-xs font-semibold text-[var(--app-ink)]">
+                  {initials}
+                </div>
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold text-[var(--app-ink)]">{user?.name || 'Saturn User'}</div>
+                  <div className="truncate text-xs capitalize text-[var(--app-muted)]">{role.replaceAll('_', ' ')}</div>
+                </div>
+              </div>
+              <LogoutButton />
             </div>
           </div>
         </div>

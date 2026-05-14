@@ -20,10 +20,8 @@ export async function POST(request: Request) {
     let quote = await getSalesQuote(quoteId)
     if (!quote) return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
 
-    // Fast Lane quotes (status='sent', internalNotes starts with 'Fast Lane') auto-accept
-    // on checkout — no intermediate accept step needed for hourly rate quotes
-    const isFastLane = quote.internalNotes?.startsWith('Fast Lane')
-    if (quote.status === 'sent' && isFastLane) {
+    // Auto-accept any quote in sent/viewed status when customer initiates checkout
+    if (quote.status === 'sent' || quote.status === 'viewed') {
       const { saveSalesQuote: saveQ } = await import('@/lib/server/sales-repository')
       quote = await saveQ({
         ...quote,

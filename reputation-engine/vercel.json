@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/ops/lead-flow-health",
+      "schedule": "0 */12 * * *"
+    },
+    {
       "path": "/api/marketing/sequence/process",
       "schedule": "0 * * * *"
     }

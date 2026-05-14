@@ -62,6 +62,11 @@ export type AutomationStatus = 'idle' | 'active' | 'paused' | 'handoff' | 'do_no
 export type LeadOwnerStatus = 'unassigned' | 'assigned' | 'reassigned' | 'handoff'
 export type ConversationChannel = 'sms' | 'email'
 export type ConversationThreadStatus = 'open' | 'human_handoff' | 'closed'
+export type InboundLeadDisposition = 'open' | 'junk' | 'lost' | 'not_interested'
+export type InboundLeadStatus = 'needs_action' | 'recent_handoff' | 'closed' | 'archived'
+export type InboundLeadFocusFilter = 'needs_action' | 'web_qr' | 'calls' | 'sms' | 'high_intent' | 'answered'
+export type InboundClosedFilter = 'all' | 'junk' | 'lost' | 'not_interested'
+export type InventoryVerificationDecision = 'going' | 'not_going' | 'unsure'
 export type AutomationJobKind =
   | 'lead_response'
   | 'quote_followup'
@@ -204,9 +209,41 @@ export interface InventoryItem {
   exclusionReason?: string
   notes?: string
   size?: string
+  confidence?: number
+  status?: 'confirmed' | 'needs_confirmation' | 'excluded'
+  confirmReason?: string
+  sourcePhotoRoom?: string
   policyCategory?: MovePolicyCategory
   policyReason?: string
   policyOverride?: 'include'
+  source?: 'mls' | 'survey_ai' | 'rep_upload' | 'customer_verification' | 'manual'
+  icon?: string
+}
+
+export interface InventoryVerificationItemChoice {
+  itemKey: string
+  decision: InventoryVerificationDecision
+  note?: string
+  updatedAt: string
+}
+
+export interface InventoryVerificationAddedItem {
+  id: string
+  room: string
+  name: string
+  qty: number
+  note?: string
+  createdAt: string
+}
+
+export interface InventoryVerification {
+  startedAt?: string
+  lastUpdatedAt?: string
+  completedAt?: string
+  addressConfirmed?: boolean
+  addressMismatchNote?: string
+  itemChoices?: InventoryVerificationItemChoice[]
+  addedItems?: InventoryVerificationAddedItem[]
 }
 
 export interface LeadMediaAsset {
@@ -239,6 +276,7 @@ export interface ListingMatch {
 
 export interface InventoryScanDraft {
   inventory: InventoryItem[]
+  needsConfirmation?: InventoryItem[]
   totalItems: number
   totalCubicFeet: number
   totalWeightLbs?: number
@@ -246,6 +284,9 @@ export interface InventoryScanDraft {
   source: 'existing_scan' | 'mls_photo_ai'
   confidence?: 'low' | 'medium' | 'high'
   specialtyFlags?: string[]
+  confirmationQuestions?: string[]
+  duplicateRisks?: string[]
+  mlsDisclaimer?: string
   notes?: string
 }
 
@@ -310,6 +351,8 @@ export interface PricingBreakdown {
     truckDailyCost: number
     truckFuelMileageCost: number
     truckOpsCost: number
+    commissionCost?: number
+    suppliesCost?: number
     totalCost: number
     grossProfit: number
     grossMarginPct: number
@@ -531,6 +574,7 @@ export interface CRMLead {
   realtorOutreachStartedAt?: string
   realtorLastTouchAt?: string
   moveReason?: string
+  customerPriority?: string
   notes?: string
   followUpDate?: string
   followUpNote?: string
@@ -539,6 +583,8 @@ export interface CRMLead {
   surveyRequestedAt?: string
   surveyCompletedAt?: string
   surveyPhotoCount?: number
+  surveyScannedAt?: string
+  inventoryVerification?: InventoryVerification
   quoteId?: string
   quoteIds?: string[]   // all quote IDs on this lead (supports multi-job contacts)
   sourceLeadId?: string
@@ -615,6 +661,13 @@ export interface CRMLead {
   // Estimate appointment
   estimateDate?: string
   estimateTime?: string
+  consultationTriggerReason?: string
+  consultationAssignedManagerName?: string
+  consultationAssignedManagerId?: string
+  consultationCustomerConcern?: string
+  consultationPreVisitBrief?: string
+  consultationStatus?: 'booked' | 'in_progress' | 'completed'
+  consultationBookedAt?: string
   // Booking + payment
   bookedAt?: string
   depositAmount?: number
@@ -649,16 +702,56 @@ export interface QuoteLineItem {
   amount: number
 }
 
+export type QuoteLegType = 'move' | 'junk' | 'delivery' | 'storage' | 'storage_delivery'
+
+export interface QuoteChangeEntry {
+  id: string
+  changedAt: string
+  changedBy?: string
+  reason: string
+  changeType: 'onsite_addition' | 'price_revision' | 'scope_change' | 'customer_request' | 'correction'
+  previousTotal?: number
+  newTotal?: number
+  deltaHours?: number
+  note?: string
+  customerNotified?: boolean
+}
+
+export interface QuoteLeg {
+  id: string
+  label: string
+  type: QuoteLegType
+  originAddress?: string
+  originCity?: string
+  destAddress?: string
+  destCity?: string
+  distanceKm?: number
+  driveHours?: number
+  routeCategory?: EstimateRouteContext['routeCategory']
+  pricingStatus?: EstimateRouteContext['pricingStatus']
+  billableDistanceKm?: number
+  operationalDistanceKm?: number
+  billableDriveHours?: number
+  operationalDriveHours?: number
+  yardToOriginHours?: number
+  returnTripHours?: number
+  inventorySharePct?: number
+  scheduledDate?: string
+  notes?: string
+}
+
 export interface CRMQuote {
   id: string
   number: string
   clientId: string
   leadId?: string
   moveDate?: string
+  moveTime?: string   // e.g. "09:00" — crew start time shown on customer quote
   moveType?: string
   quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'
   originAddress?: string
   originCity?: string
+  destAddress?: string
   destCity?: string
   crewSize?: number
   estimatedHours?: number
@@ -677,6 +770,8 @@ export interface CRMQuote {
   status: QuoteStatus
   validDays?: number
   acceptToken?: string
+  legs?: QuoteLeg[]
+  changeLog?: QuoteChangeEntry[]
   lineItems: QuoteLineItem[]
   discountAmount?: number
   discountLabel?: string
@@ -741,9 +836,30 @@ export interface InboundLead {
   message?: string
   raw_data?: Record<string, unknown> | string | null
   linkedLeadId?: string
+  matchedLeadId?: string
+  matchedLeadName?: string
+  matchedLeadStage?: SalesLeadStage
+  inboxDisposition?: InboundLeadDisposition
+  inboxStatus?: InboundLeadStatus
+  lastActionAt?: string
   created_at: string
   claimed: boolean
   claimed_at?: string
+}
+
+export interface InboundLeadQueueSummary {
+  queue: number
+  priority: number
+  webForms: number
+  recentHandoffs: number
+  closed: number
+  focus: Record<InboundLeadFocusFilter, number>
+  closedByDisposition: Record<InboundClosedFilter, number>
+}
+
+export interface InboundInboxPayload {
+  items: InboundLead[]
+  summary: InboundLeadQueueSummary
 }
 
 export interface CRMEmail {

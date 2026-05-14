@@ -1,20 +1,8 @@
 import { NextResponse } from 'next/server'
-import { requireSupabaseEnv } from '@/lib/server/runtime'
+import { listSalesEmails } from '@/lib/server/sales-repository'
+import type { CRMEmail } from '@/lib/types'
 
-const WORKER_URL = 'https://saturn-lead-intake.johnowolabi80.workers.dev'
-
-export interface EmailMessage {
-  id: string
-  from_address: string
-  to_address: string
-  subject: string | null
-  body_preview: string | null
-  body: string | null
-  direction: 'inbound' | 'outbound'
-  lead_id: string | null
-  zoho_message_id: string | null
-  created_at: string
-}
+export type { CRMEmail as EmailMessage }
 
 export async function GET(request: Request) {
   try {
@@ -22,38 +10,13 @@ export async function GET(request: Request) {
     const email = (searchParams.get('email') || '').toLowerCase().trim()
     if (!email) return NextResponse.json([])
 
-    // Sync Zoho INBOX → Supabase via Worker before querying (best-effort, 8s max)
-    try {
-      await fetch(`${WORKER_URL}/email-messages`, {
-        signal: AbortSignal.timeout(8000),
-      })
-    } catch {
-      // non-fatal — proceed with whatever is already in Supabase
-    }
-
-    const { url, headers } = requireSupabaseEnv()
-    const encoded = encodeURIComponent(email)
-    // Fetch messages where from_address or to_address matches the lead email
-    const [inboundRes, outboundRes] = await Promise.all([
-      fetch(`${url}/rest/v1/email_messages?from_address=eq.${encoded}&order=created_at.desc&limit=50`, { headers, cache: 'no-store' }),
-      fetch(`${url}/rest/v1/email_messages?to_address=eq.${encoded}&order=created_at.desc&limit=50`, { headers, cache: 'no-store' }),
-    ])
-
-    const inbound: EmailMessage[] = inboundRes.ok ? await inboundRes.json() : []
-    const outbound: EmailMessage[] = outboundRes.ok ? await outboundRes.json() : []
-
-    // Merge, deduplicate by id, sort newest first
-    const seen = new Set<string>()
-    const merged: EmailMessage[] = []
-    for (const msg of [...inbound, ...outbound]) {
-      if (!seen.has(msg.id)) {
-        seen.add(msg.id)
-        merged.push(msg)
-      }
-    }
-    merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-
-    return NextResponse.json(merged)
+    const all = await listSalesEmails()
+    const filtered = all.filter((msg: CRMEmail) =>
+      msg.from?.toLowerCase() === email ||
+      msg.to?.toLowerCase() === email
+    )
+    filtered.sort((a: CRMEmail, b: CRMEmail) => (b.sentAt > a.sentAt ? 1 : -1))
+    return NextResponse.json(filtered)
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed' }, { status: 500 })
   }
