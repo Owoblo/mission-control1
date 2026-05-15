@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { formatListingPropertySummary } from '@/lib/listing'
+import { formatListingPropertySummary, getListingDescription, getListingOperationalHighlights } from '@/lib/listing'
 import { formatDate, getSalesBranchLabel } from '@/lib/sales'
 import type { CRMLead } from '@/lib/types'
 import { SALES_BRANCHES } from '@/lib/sales'
@@ -441,6 +441,12 @@ export function LeadBasicsPanel({
   disabled,
 }: Props) {
   const listingPropertySummary = formatListingPropertySummary(lead.supabaseListing)
+  const listingHighlights = getListingOperationalHighlights(lead.supabaseListing).slice(0, 3)
+  const listingDescription = getListingDescription(lead.supabaseListing)
+  const scanWatchouts = [
+    ...(lead.listingScanSnapshot?.duplicateRisks || []),
+    ...(lead.listingScanSnapshot?.confirmationQuestions || []),
+  ]
 
   const [originAptPending, setOriginAptPending] = useState(false)
   const [destAptPending, setDestAptPending] = useState(false)
@@ -812,10 +818,40 @@ export function LeadBasicsPanel({
             <div className="mt-2 font-medium text-[var(--app-ink)]">{listingPropertySummary || 'Not matched yet'}</div>
           </div>
           <div>
+            <div className="text-xs text-[var(--app-muted)]">Listing Intel</div>
+            <div className="mt-2 space-y-1 text-sm text-[var(--app-ink)]">
+              {listingHighlights.length > 0 ? (
+                listingHighlights.map(item => (
+                  <div key={item}>{item}</div>
+                ))
+              ) : (
+                <div className="font-medium text-[var(--app-ink)]">No structured listing intel yet</div>
+              )}
+            </div>
+          </div>
+          <div>
             <div className="text-xs text-[var(--app-muted)]">Access + Parking</div>
             <div className="mt-2 font-medium text-[var(--app-ink)]">{[originAccess, destAccess, parkingNotes].filter(Boolean).join(' • ') || 'Not captured yet'}</div>
           </div>
         </div>
+        {scanWatchouts.length > 0 ? (
+          <div className="mt-4 rounded-[10px] border border-amber-200 bg-amber-50 px-3 py-3">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700">MLS Watchouts</div>
+            <div className="mt-2 space-y-1 text-xs leading-5 text-amber-900">
+              {scanWatchouts.slice(0, 3).map(item => (
+                <div key={item}>{item}</div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        {listingDescription ? (
+          <div className="mt-4 rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-3">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Listing Description</div>
+            <div className="mt-2 text-xs leading-5 text-[var(--app-ink)]">
+              {listingDescription.length > 260 ? `${listingDescription.slice(0, 257)}...` : listingDescription}
+            </div>
+          </div>
+        ) : null}
       </div>
     </aside>
   )

@@ -33,6 +33,7 @@ import {
   normalizeRoomName,
 } from '@/app/components/sales/lead-detail/helpers'
 import { INVENTORY_PRESETS, createInventoryItemFromPreset } from '@/lib/item-presets'
+import { hasRichListingContext, shouldPreferListingSnapshot } from '@/lib/listing'
 import { getMovePolicyFinding } from '@/lib/move-policy'
 import { formatRelativeTime, getLeadGuidance } from '@/lib/lead-guidance'
 import {
@@ -743,14 +744,18 @@ export default function SalesLeadDetailPage() {
 
   useEffect(() => {
     if (!lead?.supabaseListing?.address) return
-    if ((lead.inventory || []).length > 0) return
 
     const leadId = lead.id
     const listingAddress = lead.supabaseListing.address
+    const currentListing = lead.supabaseListing
 
     let cancelled = false
 
-    const storedPhotoCount = (lead.supabaseListing?.carouselphotos || []).length
+    const hasInventory = (lead.inventory || []).length > 0
+    const hasListingScanSnapshot = !!lead.listingScanSnapshot
+    const needsHydration = !hasInventory || !hasListingScanSnapshot || !hasRichListingContext(lead.supabaseListing)
+
+    if (!needsHydration) return
 
     async function hydrateInventoryFromListing() {
       try {
@@ -760,20 +765,22 @@ export default function SalesLeadDetailPage() {
 
         const updates: Partial<import('@/lib/types').CRMLead> = {}
 
-        // Refresh supabaseListing if fresh listing has photos but stored one doesn't
-        if (result.listing && (result.listing.carouselphotos || []).length > storedPhotoCount) {
+        if (result.listing && shouldPreferListingSnapshot(currentListing, result.listing)) {
           updates.supabaseListing = result.listing
         }
 
         if (result.scan) {
+          updates.listingScanSnapshot = result.scan
           const nextInventory = result.scan.inventory || []
-          const nextMetrics = deriveInventoryMetrics(nextInventory)
-          setInventory(nextInventory)
-          updates.inventory = nextMetrics.inventory
-          updates.totalItems = nextMetrics.totalItems
-          updates.totalCubicFeet = nextMetrics.totalCubicFeet
-          updates.totalWeightLbs = nextMetrics.totalWeightLbs
-          updates.roomBreakdown = buildRoomBreakdown(nextMetrics.inventory)
+          if (!hasInventory) {
+            const nextMetrics = deriveInventoryMetrics(nextInventory)
+            setInventory(nextInventory)
+            updates.inventory = nextMetrics.inventory
+            updates.totalItems = nextMetrics.totalItems
+            updates.totalCubicFeet = nextMetrics.totalCubicFeet
+            updates.totalWeightLbs = nextMetrics.totalWeightLbs
+            updates.roomBreakdown = buildRoomBreakdown(nextMetrics.inventory)
+          }
         }
 
         if (Object.keys(updates).length > 0) {
@@ -796,7 +803,7 @@ export default function SalesLeadDetailPage() {
     return () => {
       cancelled = true
     }
-  }, [lead?.id, lead?.inventory, lead?.supabaseListing?.address])
+  }, [lead?.id, lead?.inventory, lead?.listingScanSnapshot, lead?.supabaseListing, lead?.supabaseListing?.address])
 
   const listingPhotos = useMemo(
     () =>
@@ -2340,6 +2347,7 @@ export default function SalesLeadDetailPage() {
               error?: string
               truckRecommendation?: { count: number; size: string; label: string; bufferedCubicFeet: number }
               validationFlags?: string[]
+              scan?: import('@/lib/types').InventoryScanDraft
             }
 
             if (event.type === 'start') {
@@ -2357,13 +2365,16 @@ export default function SalesLeadDetailPage() {
                 status: `Room ${event.batch}/${event.totalBatches} done — ${allItems.length} items found…`,
               })
             } else if (event.type === 'done') {
-              const metrics = deriveInventoryMetrics(allItems)
+              const nextInventory = event.scan?.inventory || allItems
+              const metrics = deriveInventoryMetrics(nextInventory)
+              setInventory(nextInventory)
               const finalSaved = await updateSalesLead(leadId, {
                 inventory: metrics.inventory,
                 totalItems: metrics.totalItems,
                 totalCubicFeet: metrics.totalCubicFeet,
                 totalWeightLbs: metrics.totalWeightLbs,
                 roomBreakdown: buildRoomBreakdown(metrics.inventory),
+                listingScanSnapshot: event.scan || undefined,
               })
               setLead(finalSaved)
               setScanProgress(null)

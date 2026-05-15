@@ -268,9 +268,19 @@ export interface ListingMatch {
   bathrooms?: number | string | null
   beds?: number | string | null
   baths?: number | string | null
+  homeStatus?: string | null
   brokername?: string | null
   is_furnished?: boolean | null
   furniture_scan_date?: string | null
+  description?: string | null
+  propertyDescription?: string | null
+  parkingFeatures?: string[] | string | null
+  basement?: string | null
+  livingArea?: number | string | null
+  lotSize?: number | string | null
+  yearBuilt?: number | string | null
+  streetViewMetadataUrl?: string | null
+  streetViewUrl?: string | null
   carouselphotos?: Array<{ url: string } | string>
 }
 
@@ -561,6 +571,7 @@ export interface CRMLead {
   destAccess?: string
   parkingNotes?: string
   supabaseListing?: ListingMatch | null
+  listingScanSnapshot?: InventoryScanDraft | null
   realtorName?: string
   realtorEmail?: string
   realtorPhone?: string

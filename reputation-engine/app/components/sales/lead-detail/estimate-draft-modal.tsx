@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
-import { formatListingPropertySummary } from '@/lib/listing'
+import { formatListingPropertySummary, getListingDescription, getListingOperationalHighlights } from '@/lib/listing'
 import { getQuotedTruckCount } from '@/lib/operations'
 import { fetchSalesOverview } from '@/lib/sales-api'
 import { estimateLeadQuote, deriveInventoryMetrics, formatMoney, getSalesBranchLabel, isBookedLikeStage, suggestTruckCount, detectSalesBranchFromLocation } from '@/lib/sales'
@@ -1039,6 +1039,10 @@ export function EstimateDraftModal({
   }
 
   const listingPropertySummary = formatListingPropertySummary(lead.supabaseListing)
+  const listingHighlights = getListingOperationalHighlights(lead.supabaseListing).slice(0, 4)
+  const listingDescription = getListingDescription(lead.supabaseListing)
+  const scanDuplicateRisks = lead.listingScanSnapshot?.duplicateRisks || []
+  const scanConfirmationQuestions = lead.listingScanSnapshot?.confirmationQuestions || []
   const selectedMoveDate = quote?.moveDate || lead.moveDate
   const moveDateDaysAway = daysUntilDate(selectedMoveDate)
   const canApproveMarginException = currentUser?.role === 'owner' || currentUser?.role === 'manager'
@@ -1339,6 +1343,7 @@ export function EstimateDraftModal({
               <span>{originFull || 'Origin TBD'} → {destFull || 'Destination TBD'}</span>
               <span>· {effectiveInventoryMetrics.totalCubicFeet} cu ft · {effectiveInventoryMetrics.totalWeightLbs} lbs</span>
               {listingPropertySummary ? <span>· MLS {listingPropertySummary}</span> : null}
+              {listingHighlights.length > 0 ? <span>· {listingHighlights.slice(0, 2).join(' · ')}</span> : null}
               {routeBusy && <span className="text-[10px] text-[var(--app-muted)]">Calculating route...</span>}
               {route && !routeBusy && (
                 <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${
@@ -2112,6 +2117,36 @@ export function EstimateDraftModal({
                 {listingPropertySummary ? (
                   <div className="mt-3 rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">
                     MLS property context: {listingPropertySummary}
+                  </div>
+                ) : null}
+                {listingHighlights.length > 0 ? (
+                  <div className="mt-3 rounded-[8px] border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-medium text-sky-900">
+                    Listing intel: {listingHighlights.join(' · ')}
+                  </div>
+                ) : null}
+                {scanDuplicateRisks.length > 0 ? (
+                  <div className="mt-3 rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                    <div className="font-semibold">Possible duplicates</div>
+                    <div className="mt-1 space-y-1">
+                      {scanDuplicateRisks.slice(0, 3).map(item => (
+                        <div key={item}>{item}</div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                {scanConfirmationQuestions.length > 0 ? (
+                  <div className="mt-3 rounded-[8px] border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-900">
+                    <div className="font-semibold">Confirm with customer</div>
+                    <div className="mt-1 space-y-1">
+                      {scanConfirmationQuestions.slice(0, 4).map(item => (
+                        <div key={item}>{item}</div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                {listingDescription ? (
+                  <div className="mt-3 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2 text-xs leading-5 text-[var(--app-muted)]">
+                    Listing description: {listingDescription.length > 220 ? `${listingDescription.slice(0, 217)}...` : listingDescription}
                   </div>
                 ) : null}
                 <div className="mt-4 space-y-2">

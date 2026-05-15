@@ -11,7 +11,7 @@ import {
   syncLeadFromQuoteStatus,
   uid,
 } from '@/lib/sales'
-import { getListingPropertyContext } from '@/lib/listing'
+import { getListingPropertyContext, shouldPreferListingSnapshot } from '@/lib/listing'
 import { logEvent } from '@/lib/server/analytics'
 import { analyzeListingPhotos } from '@/lib/server/inventory-enrichment'
 import { estimateRouteContext } from '@/lib/server/route-estimation'
@@ -718,7 +718,8 @@ async function hydrateLeadFromAddressAndInventory(lead: CRMLead) {
 
       next = normalizeLead({
         ...next,
-        supabaseListing: next.supabaseListing || listing,
+        supabaseListing: shouldPreferListingSnapshot(next.supabaseListing, listing) ? listing : next.supabaseListing,
+        listingScanSnapshot: scan || next.listingScanSnapshot || null,
         inventory: (next.inventory && next.inventory.length > 0) ? next.inventory : (scan?.inventory || next.inventory || []),
         totalItems: next.totalItems || scan?.totalItems || next.totalItems || 0,
         totalCubicFeet: next.totalCubicFeet || scan?.totalCubicFeet || next.totalCubicFeet || 0,

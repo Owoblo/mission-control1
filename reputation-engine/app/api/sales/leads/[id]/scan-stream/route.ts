@@ -1,6 +1,7 @@
 import { getSalesLead } from '@/lib/server/sales-repository'
 import { getListingPropertyContext } from '@/lib/listing'
 import {
+  buildInventoryScanDraftFromInventory,
   classifyPhotosByRoom,
   detectFurnitureInRoom,
   getOpenAIConfig,
@@ -104,14 +105,21 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
             }
           }
 
-          const included = allItems.filter(item => item.included !== false)
-          const totalCubicFeet = included.reduce((s, i) => s + (i.cubicFeet || 0) * (i.qty || 1), 0)
+          const validationFlags = validateInventory(allItems, propertyContext)
+          const scan = buildInventoryScanDraftFromInventory({
+            inventory: allItems,
+            source: 'mls_photo_ai',
+            confidence: 'low',
+            validationFlags,
+            notes: `Batch scan fallback from ${photos.length} MLS photos. Room classification unavailable in stream mode.`,
+          })
           send({
             type: 'done',
-            allItems,
-            totalItems: included.length,
-            truckRecommendation: suggestTruckConfig(totalCubicFeet),
-            validationFlags: validateInventory(allItems, propertyContext),
+            allItems: scan.inventory,
+            totalItems: scan.totalItems,
+            truckRecommendation: suggestTruckConfig(scan.totalCubicFeet),
+            validationFlags,
+            scan,
             propertyContext: propertyContext ?? null,
           })
           return
@@ -165,16 +173,22 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
 
         // Phase 3: validate
         const policyInventory = applyMovePolicyToInventory(allItems, { enforceExclusion: true })
-        const included = policyInventory.filter(item => item.included !== false)
-        const totalCubicFeet = included.reduce((s, item) => s + (item.cubicFeet || 0) * (item.qty || 1), 0)
         const validationFlags = validateInventory(policyInventory, propertyContext)
+        const scan = buildInventoryScanDraftFromInventory({
+          inventory: policyInventory,
+          source: 'mls_photo_ai',
+          confidence: roomCount >= 4 ? 'high' : roomCount >= 2 ? 'medium' : 'low',
+          validationFlags,
+          notes: `Stream scan across ${roomCount} room groups from ${photos.length} MLS photos.`,
+        })
 
         send({
           type: 'done',
-          allItems: policyInventory,
-          totalItems: included.length,
-          truckRecommendation: suggestTruckConfig(totalCubicFeet),
+          allItems: scan.inventory,
+          totalItems: scan.totalItems,
+          truckRecommendation: suggestTruckConfig(scan.totalCubicFeet),
           validationFlags,
+          scan,
           propertyContext: propertyContext ?? null,
         })
       } catch (err) {

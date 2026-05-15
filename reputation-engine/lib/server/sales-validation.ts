@@ -247,6 +247,7 @@ const ARRAY_FIELDS = [
 const OBJECT_FIELDS = [
   'attribution',
   'supabaseListing',
+  'listingScanSnapshot',
   'automationSettings',
   'qualificationState',
   'inventoryVerification',

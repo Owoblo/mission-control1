@@ -134,6 +134,7 @@ export async function POST(request: Request) {
       destAccess: payload.destAccess?.trim(),
       parkingNotes: payload.parkingNotes?.trim(),
       supabaseListing: payload.supabaseListing || null,
+      listingScanSnapshot: payload.listingScanSnapshot || null,
       moveReason: payload.moveReason?.trim(),
       notes: payload.notes?.trim(),
       followUpDate: payload.followUpDate,

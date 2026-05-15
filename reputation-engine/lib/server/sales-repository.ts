@@ -999,10 +999,18 @@ async function queryListingsByAddressVariant(address: string): Promise<ListingMa
   const encoded = encodeURIComponent(`%${address}%`)
   const baseSelect = 'zpid,address,city,brokername,is_furnished,furniture_scan_date,carouselphotos,carousel_photos_composable'
   const extendedSelect = `${baseSelect},bedrooms,bathrooms,beds,baths`
+  const richSelect = `${extendedSelect},homeStatus:home_status,description,propertyDescription:property_description,parkingFeatures:parking_features,parkingFeaturesLegacy:parkingfeatures,basement,livingArea:living_area,lotSize:lot_size,yearBuilt:year_built,streetViewMetadataUrl:streetviewmetadataurl,streetViewMetadataUrlLegacy:streetViewMetadataUrl,streetViewUrl:streetviewurl,streetViewUrlLegacy:streetViewUrl`
   let response = await fetch(
-    `${url}/rest/v1/listings?address=ilike.${encoded}&select=${extendedSelect}&limit=20`,
+    `${url}/rest/v1/listings?address=ilike.${encoded}&select=${richSelect}&limit=20`,
     { headers, cache: 'no-store' }
   )
+
+  if (!response.ok) {
+    response = await fetch(
+      `${url}/rest/v1/listings?address=ilike.${encoded}&select=${extendedSelect}&limit=20`,
+      { headers, cache: 'no-store' }
+    )
+  }
 
   if (!response.ok) {
     response = await fetch(
@@ -1018,6 +1026,9 @@ async function queryListingsByAddressVariant(address: string): Promise<ListingMa
   const rows = (await response.json()) as Array<ListingMatch & {
     carouselphotos?: ListingMatch['carouselphotos'] | string | null
     carousel_photos_composable?: { baseUrl?: string; photoData?: Array<{ photoKey?: string }> } | string | null
+    parkingFeaturesLegacy?: ListingMatch['parkingFeatures'] | string | null
+    streetViewMetadataUrlLegacy?: string | null
+    streetViewUrlLegacy?: string | null
   }>
   return rows.map(row => {
     let carouselphotos = row.carouselphotos
@@ -1050,9 +1061,18 @@ async function queryListingsByAddressVariant(address: string): Promise<ListingMa
       }
     }
 
-    const { carousel_photos_composable: _cpc, ...rest } = row
+    const {
+      carousel_photos_composable: _cpc,
+      parkingFeaturesLegacy,
+      streetViewMetadataUrlLegacy,
+      streetViewUrlLegacy,
+      ...rest
+    } = row
     return {
       ...rest,
+      parkingFeatures: row.parkingFeatures ?? parkingFeaturesLegacy ?? null,
+      streetViewMetadataUrl: row.streetViewMetadataUrl ?? streetViewMetadataUrlLegacy ?? null,
+      streetViewUrl: row.streetViewUrl ?? streetViewUrlLegacy ?? null,
       carouselphotos: Array.isArray(carouselphotos) ? carouselphotos : [],
     }
   })

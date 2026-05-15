@@ -198,6 +198,80 @@ function buildPolicyFlags(inventory: InventoryItem[], existingFlags: string[] = 
   return Array.from(new Set([...existingFlags, ...generated]))
 }
 
+export const MLS_SCAN_DISCLAIMER =
+  'Inventory based on visible MLS photos only. May exclude: garage, storage rooms, closets, boxes, patio storage, shed, and items hidden from view. Use this as a starting estimate — confirm full inventory with the customer.'
+
+function buildDuplicateRisks(inventory: InventoryItem[]) {
+  const nameCounts: Record<string, string[]> = {}
+  for (const item of inventory) {
+    const key = (item.name || item.item || '').toLowerCase().trim()
+    if (!key) continue
+    if (!nameCounts[key]) nameCounts[key] = []
+    nameCounts[key].push(item.room || 'unknown')
+  }
+
+  return Object.entries(nameCounts)
+    .filter(([, rooms]) => rooms.length > 1)
+    .map(([name, rooms]) => `"${name}" appears in ${rooms.join(' + ')} — verify count`)
+}
+
+export function buildInventoryScanDraftFromInventory(input: {
+  inventory: InventoryItem[]
+  source: InventoryScanDraft['source']
+  confidence?: InventoryScanDraft['confidence']
+  notes?: string
+  validationFlags?: string[]
+  disclaimer?: string
+}) {
+  const policyInventory = applyMovePolicyToInventory(input.inventory, { enforceExclusion: true })
+  const confirmedItems = policyInventory.filter(item =>
+    item.included !== false && item.status !== 'needs_confirmation'
+  )
+  const needsConfirmItems = policyInventory.filter(item =>
+    item.included !== false && item.status === 'needs_confirmation'
+  )
+  const excludedItems = policyInventory.filter(item => item.included === false)
+
+  excludedItems.forEach(item => { item.status = 'excluded' })
+
+  const totalCubicFeet = Math.round(confirmedItems.reduce((sum, item) =>
+    sum + (item.cubicFeet || 0) * (item.qty || 1), 0
+  ))
+  const totalWeightLbs = Math.round(confirmedItems.reduce((sum, item) =>
+    sum + (item.weightLbs || 0) * (item.qty || 1), 0
+  ))
+  const totalItems = confirmedItems.reduce((sum, item) => sum + (item.qty || 1), 0)
+
+  const roomBreakdown: Record<string, number> = {}
+  for (const item of confirmedItems) {
+    const room = item.room || 'Other'
+    roomBreakdown[room] = (roomBreakdown[room] || 0) + (item.qty || 1)
+  }
+
+  const confirmationQuestions = generateConfirmationQuestions(
+    [...confirmedItems, ...needsConfirmItems],
+    needsConfirmItems
+  )
+  const duplicateRisks = buildDuplicateRisks(confirmedItems)
+  const validationFlags = input.validationFlags || []
+
+  return {
+    inventory: [...confirmedItems, ...needsConfirmItems, ...excludedItems],
+    needsConfirmation: needsConfirmItems.length > 0 ? needsConfirmItems : undefined,
+    totalItems,
+    totalCubicFeet,
+    totalWeightLbs,
+    roomBreakdown,
+    source: input.source,
+    confidence: input.confidence,
+    specialtyFlags: buildPolicyFlags(policyInventory, validationFlags),
+    confirmationQuestions: confirmationQuestions.length > 0 ? confirmationQuestions : undefined,
+    duplicateRisks: duplicateRisks.length > 0 ? duplicateRisks : undefined,
+    mlsDisclaimer: input.disclaimer || MLS_SCAN_DISCLAIMER,
+    notes: input.notes,
+  } satisfies InventoryScanDraft
+}
+
 // ── Room sanity check ─────────────────────────────────────────────────────────
 // Catches mislabeled rooms (e.g. bathroom containing sofas)
 const BATHROOM_ONLY_ITEMS = ['toilet', 'sink', 'bathtub', 'shower', 'towel bar', 'medicine cabinet']
@@ -717,67 +791,13 @@ export async function analyzeListingPhotos(
       console.warn('Inventory validation flags:', validationFlags)
     }
 
-    const policyInventory = applyMovePolicyToInventory(allItems, { enforceExclusion: true })
-
-    // Split into confirmed vs needs_confirmation vs excluded
-    const confirmedItems = policyInventory.filter(item =>
-      item.included !== false && item.status !== 'needs_confirmation'
-    )
-    const needsConfirmItems = policyInventory.filter(item =>
-      item.included !== false && item.status === 'needs_confirmation'
-    )
-    const excludedItems = policyInventory.filter(item => item.included === false)
-
-    // Mark excluded items status
-    excludedItems.forEach(item => { item.status = 'excluded' })
-
-    const totalCubicFeet = Math.round(confirmedItems.reduce((sum, item) =>
-      sum + (item.cubicFeet || 0) * (item.qty || 1), 0
-    ))
-    const totalWeightLbs = Math.round(confirmedItems.reduce((sum, item) =>
-      sum + (item.weightLbs || 0) * (item.qty || 1), 0
-    ))
-    const totalItems = confirmedItems.reduce((sum, item) => sum + (item.qty || 1), 0)
-
-    const roomBreakdown: Record<string, number> = {}
-    for (const item of confirmedItems) {
-      const room = item.room || 'Other'
-      roomBreakdown[room] = (roomBreakdown[room] || 0) + (item.qty || 1)
-    }
-
-    // Identify duplicate risks (items with same name across different rooms)
-    const nameCounts: Record<string, string[]> = {}
-    for (const item of confirmedItems) {
-      const key = (item.name || item.item || '').toLowerCase()
-      if (!nameCounts[key]) nameCounts[key] = []
-      nameCounts[key].push(item.room || 'unknown')
-    }
-    const duplicateRisks = Object.entries(nameCounts)
-      .filter(([, rooms]) => rooms.length > 1)
-      .map(([name, rooms]) => `"${name}" appears in ${rooms.join(' + ')} — verify count`)
-
-    const confirmationQuestions = generateConfirmationQuestions(
-      [...confirmedItems, ...needsConfirmItems],
-      needsConfirmItems
-    )
-
-    const MLS_DISCLAIMER = 'Inventory based on visible MLS photos only. May exclude: garage, storage rooms, closets, boxes, patio storage, shed, and items hidden from view. Use this as a starting estimate — confirm full inventory with the customer.'
-
-    return {
-      inventory: [...confirmedItems, ...needsConfirmItems, ...excludedItems],
-      needsConfirmation: needsConfirmItems.length > 0 ? needsConfirmItems : undefined,
-      totalItems,
-      totalCubicFeet,
-      totalWeightLbs,
-      roomBreakdown,
+    return buildInventoryScanDraftFromInventory({
+      inventory: allItems,
       source: 'mls_photo_ai',
       confidence: roomCount >= 4 ? 'high' : roomCount >= 2 ? 'medium' : 'low',
-      specialtyFlags: buildPolicyFlags(policyInventory, validationFlags),
-      confirmationQuestions: confirmationQuestions.length > 0 ? confirmationQuestions : undefined,
-      duplicateRisks: duplicateRisks.length > 0 ? duplicateRisks : undefined,
-      mlsDisclaimer: MLS_DISCLAIMER,
-      notes: `3-phase scan: ${roomCount} room instances classified from ${photos.length} deduped photos${duplicatePhotoCount > 0 ? ` (${duplicatePhotoCount} duplicate photo${duplicatePhotoCount > 1 ? 's' : ''} removed before vision)` : ''}. ${confirmedItems.length} confirmed, ${needsConfirmItems.length} need confirmation, ${excludedItems.length} excluded. ${validationFlags.length > 0 ? 'Flags: ' + validationFlags.join('; ') : ''}`.trim(),
-    }
+      validationFlags,
+      notes: `3-phase scan: ${roomCount} room instances classified from ${photos.length} deduped photos${duplicatePhotoCount > 0 ? ` (${duplicatePhotoCount} duplicate photo${duplicatePhotoCount > 1 ? 's' : ''} removed before vision)` : ''}. ${validationFlags.length > 0 ? 'Flags: ' + validationFlags.join('; ') : ''}`.trim(),
+    })
   }
 
   // ── Fallback: single-pass if room classification failed ──────────────────
@@ -862,37 +882,13 @@ export async function analyzeListingPhotos(
     }
   })
 
-  const confirmedItems = policyInventory.filter(item => item.included !== false && item.status !== 'needs_confirmation')
-  const needsConfirmItems = policyInventory.filter(item => item.included !== false && item.status === 'needs_confirmation')
+  const fallbackValidationFlags = [...(parsed.specialtyFlags || []), ...validateInventory(policyInventory, propertyContext)]
 
-  const totalItems = confirmedItems.reduce((sum, item) => sum + (item.qty || 1), 0)
-  const totalCubicFeet = Math.round(confirmedItems.reduce((sum, item) => sum + (item.cubicFeet || 0) * (item.qty || 1), 0))
-  const totalWeightLbs = Math.round(confirmedItems.reduce((sum, item) => sum + (item.weightLbs || 0) * (item.qty || 1), 0))
-  const roomBreakdown = confirmedItems.reduce<Record<string, number>>((acc, item) => {
-    const room = item.room || 'Other'
-    acc[room] = (acc[room] || 0) + (item.qty || 1)
-    return acc
-  }, {})
-
-  const confirmationQuestions = generateConfirmationQuestions(
-    [...confirmedItems, ...needsConfirmItems],
-    needsConfirmItems
-  )
-
-  const MLS_DISCLAIMER = 'Inventory based on visible MLS photos only. May exclude: garage, storage rooms, closets, boxes, patio storage, shed, and items hidden from view. Use this as a starting estimate — confirm full inventory with the customer.'
-
-  return {
+  return buildInventoryScanDraftFromInventory({
     inventory: policyInventory,
-    needsConfirmation: needsConfirmItems.length > 0 ? needsConfirmItems : undefined,
-    totalItems,
-    totalCubicFeet,
-    totalWeightLbs,
-    roomBreakdown,
     source: 'mls_photo_ai',
     confidence: parsed.confidence || 'low',
-    specialtyFlags: buildPolicyFlags(policyInventory, parsed.specialtyFlags || []),
-    confirmationQuestions: confirmationQuestions.length > 0 ? confirmationQuestions : undefined,
-    mlsDisclaimer: MLS_DISCLAIMER,
-    notes: parsed.notes || `Single-pass scan from ${photos.length} MLS photos. ${confirmedItems.length} confirmed, ${needsConfirmItems.length} need confirmation. (Room classification unavailable — results may include duplicates.)`,
-  }
+    validationFlags: fallbackValidationFlags,
+    notes: parsed.notes || `Single-pass scan from ${photos.length} MLS photos. (Room classification unavailable — results may include duplicates.)`,
+  })
 }
