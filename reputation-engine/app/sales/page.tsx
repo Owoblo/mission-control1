@@ -154,7 +154,7 @@ export default function SalesDashboardPage() {
 
   useEffect(() => {
     void refresh()
-    // Silent background refresh every 30s
+    // Silent background refresh every 60s
     const interval = setInterval(() => {
       Promise.all([
         fetchSalesOverview(),
@@ -168,7 +168,7 @@ export default function SalesDashboardPage() {
           setTelephonyHealth(telephonyResponse)
         })
         .catch(() => {/* silently ignore — stale data is fine */})
-    }, 30_000)
+    }, 60_000)
     return () => clearInterval(interval)
   }, [])
 
@@ -202,6 +202,10 @@ export default function SalesDashboardPage() {
     if (dashboardMode !== 'rep') return leads
     return leads.filter(lead => leadOwnedByUser(lead, currentUser) || !lead.assignedRepUserId)
   }, [currentUser, dashboardMode, leads])
+  const scopedActiveLeads = useMemo(
+    () => scopedLeads.filter(lead => !isClosedLeadStage(lead.stage)),
+    [scopedLeads]
+  )
   const guidedLeads = useMemo(() => {
     return scopedLeads
       .filter(lead => !isClosedLeadStage(lead.stage))
@@ -390,7 +394,7 @@ export default function SalesDashboardPage() {
         <div className="grid gap-0 border border-[var(--app-line)] bg-[var(--app-panel)] md:grid-cols-4">
           <div className="border-b border-[var(--app-line)] p-5 md:border-b-0 md:border-r">
             <div className="crm-label">{dashboardMode === 'rep' ? 'My Active Leads' : 'Total Active Leads'}</div>
-            <div className="mt-2 text-5xl font-semibold leading-none text-[var(--app-ink)]">{dashboardMode === 'rep' ? scopedLeads.length : (summary?.totalLeads ?? 0)}</div>
+            <div className="mt-2 text-5xl font-semibold leading-none text-[var(--app-ink)]">{dashboardMode === 'rep' ? scopedActiveLeads.length : (summary?.activeLeads ?? 0)}</div>
             <div className="mt-2 text-sm text-[var(--app-muted)]">{requiredActions.length} required today</div>
           </div>
           <div className="border-b border-[var(--app-line)] p-5 md:border-b-0 md:border-r">
@@ -412,7 +416,28 @@ export default function SalesDashboardPage() {
           </div>
         </div>
 
-        {!workflowHidden && (
+        {workflowHidden ? (
+        <section className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] px-4 py-3">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="text-sm font-semibold text-[var(--app-ink)]">Simple Workflow hidden</div>
+              <div className="mt-1 text-xs text-[var(--app-muted)]">
+                New {newInboundLeads.length} · Working {workingQueue.length} · Waiting {waitingQueue.length} · Booked {bookedQueue.length}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setWorkflowHidden(false)
+                try { localStorage.setItem('ss_workflow_hidden', '0') } catch { /* noop */ }
+              }}
+              className="shrink-0 rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2 text-xs font-semibold text-[var(--app-ink)] transition hover:border-[var(--app-ink)]"
+            >
+              Show simple workflow
+            </button>
+          </div>
+        </section>
+        ) : (
         <section className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
           <div className="flex flex-col gap-3 border-b border-[var(--app-line)] pb-4 md:flex-row md:items-end md:justify-between">
             <div>

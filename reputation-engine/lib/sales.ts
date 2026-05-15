@@ -1940,6 +1940,7 @@ export function buildSalesSummary(leads: CRMLead[], quotes: CRMQuote[]): SalesDa
 
   return {
     totalLeads: leads.length,
+    activeLeads: activeLeads.length,
     leadsDueToday,
     overdueLeads,
     quotedLeads: quotedLeads.length,

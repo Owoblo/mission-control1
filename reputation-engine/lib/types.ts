@@ -829,6 +829,7 @@ export interface FollowUpLog {
 
 export interface SalesDashboardSummary {
   totalLeads: number
+  activeLeads: number
   leadsDueToday: number
   overdueLeads: number
   quotedLeads: number

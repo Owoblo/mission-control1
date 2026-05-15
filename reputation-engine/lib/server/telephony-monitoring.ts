@@ -1,4 +1,4 @@
-import { uid } from '@/lib/sales'
+import { dateStamp, uid } from '@/lib/sales'
 import type { DialerEventPayload, DialerPresencePayload } from '@/lib/dialer'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 
@@ -276,9 +276,8 @@ function summarizeCountMap(input: Map<string, number>) {
 }
 
 export async function buildTelephonyDashboardMetrics() {
-  const todayStart = new Date()
-  todayStart.setHours(0, 0, 0, 0)
-  const sinceIso = todayStart.toISOString()
+  const today = dateStamp()
+  const sinceIso = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
 
   const [callOutcomeRows, dialerEventRows] = await Promise.all([
     queryAnalyticsRows({
@@ -299,8 +298,20 @@ export async function buildTelephonyDashboardMetrics() {
 
   // Filter out spam calls (impossible phone numbers > 15 digits) from all metrics and display
   const isSpamPhone = (phone: unknown) => typeof phone === 'string' && phone.replace(/\D/g, '').length > 15
-  const outcomes = callOutcomeRows.map(mapAnalyticsRow).filter(row => !isSpamPhone(row.properties.phoneNumber))
-  const dialerEvents = dialerEventRows.map(mapAnalyticsRow)
+  const isSalesToday = (value?: string) => {
+    if (!value) return false
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return false
+    return dateStamp(parsed) === today
+  }
+
+  const outcomes = callOutcomeRows
+    .map(mapAnalyticsRow)
+    .filter(row => isSalesToday(row.ts))
+    .filter(row => !isSpamPhone(row.properties.phoneNumber))
+  const dialerEvents = dialerEventRows
+    .map(mapAnalyticsRow)
+    .filter(row => isSalesToday(row.ts))
 
   const answerTimes = outcomes
     .map(row => Number(row.properties.answerTimeSeconds))
