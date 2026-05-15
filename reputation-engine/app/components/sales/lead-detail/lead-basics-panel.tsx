@@ -14,6 +14,15 @@ type AddressSuggestion = {
 
 type ApartmentInfo = { floor: number; hasElevator: boolean }
 
+type PropertyAccessApplication = {
+  accessText: string
+  floor: number | null
+  hasElevator: boolean | null
+  elevatorReserved: boolean | undefined
+  parkingOk: boolean | undefined
+  parkingType: 'driveway' | 'street' | 'lot' | 'underground' | 'unknown'
+}
+
 type Props = {
   lead: CRMLead
   leadName: string
@@ -53,6 +62,7 @@ type Props = {
   onDestAccessChange: (value: string) => void
   onParkingNotesChange: (value: string) => void
   onApartmentDetected?: (field: 'origin' | 'dest', info: ApartmentInfo) => void
+  onPropertyIntelligenceDetected?: (field: 'origin' | 'dest', info: PropertyAccessApplication) => void
   listingLookupBusy?: boolean
   hasListing?: boolean
   onScanListing?: () => void
@@ -175,12 +185,14 @@ type PropertyAccess = {
   unitFloor: number | null
   hasElevator: boolean | null
   elevatorReservationLikely: boolean
-  parkingType: string
+  parkingType: 'driveway' | 'street' | 'lot' | 'underground' | 'unknown'
   carryDistanceEstimate: string
   stairsEstimate: number
   notes: string[]
   confidence: 'high' | 'medium' | 'low'
   source: string[]
+  rawAddress?: string
+  placeId?: string
 }
 
 const PROPERTY_ICONS: Record<string, string> = {
@@ -201,7 +213,7 @@ function PropertyIntelligenceCard({
 }: {
   field: 'origin' | 'dest'
   access: PropertyAccess
-  onApplyToAccess: (text: string) => void
+  onApplyToAccess: (application: PropertyAccessApplication) => void
   onDismiss: () => void
 }) {
   const [expanded, setExpanded] = useState(false)
@@ -209,7 +221,7 @@ function PropertyIntelligenceCard({
   const [elevatorOverride, setElevatorOverride] = useState<boolean | null>(access.hasElevator)
   const [applied, setApplied] = useState(false)
 
-  function buildAccessText() {
+  function buildAccessApplication(): PropertyAccessApplication {
     const parts: string[] = []
     parts.push(access.propertyTypeLabel)
     const floor = floorOverride ? parseInt(floorOverride, 10) : access.unitFloor
@@ -220,11 +232,21 @@ function PropertyIntelligenceCard({
     if (access.parkingType === 'driveway') parts.push('Driveway access')
     else if (access.parkingType === 'street') parts.push('Street parking')
     else if (access.parkingType === 'underground') parts.push('Underground parking')
-    return parts.join(' · ')
+    return {
+      accessText: parts.join(' · '),
+      floor: floor && floor > 0 ? floor : (access.unitFloor ?? access.estimatedFloors ?? null),
+      hasElevator: elevator,
+      elevatorReserved: elevator === true ? false : undefined,
+      parkingOk:
+        access.parkingType === 'unknown'
+          ? undefined
+          : access.parkingType === 'driveway' || access.parkingType === 'underground',
+      parkingType: access.parkingType,
+    }
   }
 
   function apply() {
-    onApplyToAccess(buildAccessText())
+    onApplyToAccess(buildAccessApplication())
     setApplied(true)
     setTimeout(() => setApplied(false), 2000)
   }
@@ -313,7 +335,7 @@ function PropertyIntelligenceCard({
         >
           {applied ? '✓ Applied' : `Apply to ${field} access`}
         </button>
-        <span className="text-[10px] text-slate-500 truncate">{buildAccessText()}</span>
+        <span className="text-[10px] text-slate-500 truncate">{buildAccessApplication().accessText}</span>
       </div>
     </div>
   )
@@ -412,6 +434,7 @@ export function LeadBasicsPanel({
   onDestAccessChange,
   onParkingNotesChange,
   onApartmentDetected,
+  onPropertyIntelligenceDetected,
   listingLookupBusy,
   hasListing,
   onScanListing,
@@ -425,6 +448,8 @@ export function LeadBasicsPanel({
   const [destIntelligence, setDestIntelligence] = useState<PropertyAccess | null>(null)
   const originIntelTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const destIntelTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const originAutoAppliedKey = useRef<string | null>(null)
+  const destAutoAppliedKey = useRef<string | null>(null)
 
   // Fetch property intelligence when a full address is entered (debounced 1.5s)
   const fetchIntelligence = useCallback(async (address: string, side: 'origin' | 'dest') => {
@@ -444,6 +469,7 @@ export function LeadBasicsPanel({
   useEffect(() => {
     if (originIntelTimer.current) clearTimeout(originIntelTimer.current)
     setOriginIntelligence(null)
+    originAutoAppliedKey.current = null
     if (originAddress.length >= 8) {
       originIntelTimer.current = setTimeout(() => void fetchIntelligence(originAddress, 'origin'), 1500)
     }
@@ -453,11 +479,90 @@ export function LeadBasicsPanel({
   useEffect(() => {
     if (destIntelTimer.current) clearTimeout(destIntelTimer.current)
     setDestIntelligence(null)
+    destAutoAppliedKey.current = null
     if (destAddress.length >= 8) {
       destIntelTimer.current = setTimeout(() => void fetchIntelligence(destAddress, 'dest'), 1500)
     }
     return () => { if (destIntelTimer.current) clearTimeout(destIntelTimer.current) }
   }, [destAddress, fetchIntelligence])
+
+  useEffect(() => {
+    if (!originIntelligence || disabled) return
+    const key = originIntelligence.placeId || originIntelligence.rawAddress || originAddress
+    if (originAutoAppliedKey.current === key) return
+    originAutoAppliedKey.current = key
+
+    const application: PropertyAccessApplication = {
+      accessText: [
+        originIntelligence.propertyTypeLabel,
+        originIntelligence.unitFloor ? `Floor ${originIntelligence.unitFloor}` : null,
+        originIntelligence.hasElevator === true
+          ? (originIntelligence.elevatorReservationLikely ? 'Elevator (reservation needed)' : 'Elevator available')
+          : originIntelligence.hasElevator === false && originIntelligence.stairsEstimate > 0
+            ? `${originIntelligence.stairsEstimate} flight${originIntelligence.stairsEstimate > 1 ? 's' : ''} of stairs`
+            : null,
+        originIntelligence.parkingType === 'driveway'
+          ? 'Driveway access'
+          : originIntelligence.parkingType === 'street'
+            ? 'Street parking'
+            : originIntelligence.parkingType === 'underground'
+              ? 'Underground parking'
+              : null,
+      ].filter(Boolean).join(' · '),
+      floor: originIntelligence.unitFloor ?? originIntelligence.estimatedFloors ?? null,
+      hasElevator: originIntelligence.hasElevator,
+      elevatorReserved: originIntelligence.hasElevator === true ? false : undefined,
+      parkingOk:
+        originIntelligence.parkingType === 'unknown'
+          ? undefined
+          : originIntelligence.parkingType === 'driveway' || originIntelligence.parkingType === 'underground',
+      parkingType: originIntelligence.parkingType,
+    }
+
+    onPropertyIntelligenceDetected?.('origin', application)
+    if (!originAccess.trim() && application.accessText) {
+      onOriginAccessChange(application.accessText)
+    }
+  }, [disabled, onOriginAccessChange, onPropertyIntelligenceDetected, originAccess, originAddress, originIntelligence])
+
+  useEffect(() => {
+    if (!destIntelligence || disabled) return
+    const key = destIntelligence.placeId || destIntelligence.rawAddress || destAddress
+    if (destAutoAppliedKey.current === key) return
+    destAutoAppliedKey.current = key
+
+    const application: PropertyAccessApplication = {
+      accessText: [
+        destIntelligence.propertyTypeLabel,
+        destIntelligence.unitFloor ? `Floor ${destIntelligence.unitFloor}` : null,
+        destIntelligence.hasElevator === true
+          ? (destIntelligence.elevatorReservationLikely ? 'Elevator (reservation needed)' : 'Elevator available')
+          : destIntelligence.hasElevator === false && destIntelligence.stairsEstimate > 0
+            ? `${destIntelligence.stairsEstimate} flight${destIntelligence.stairsEstimate > 1 ? 's' : ''} of stairs`
+            : null,
+        destIntelligence.parkingType === 'driveway'
+          ? 'Driveway access'
+          : destIntelligence.parkingType === 'street'
+            ? 'Street parking'
+            : destIntelligence.parkingType === 'underground'
+              ? 'Underground parking'
+              : null,
+      ].filter(Boolean).join(' · '),
+      floor: destIntelligence.unitFloor ?? destIntelligence.estimatedFloors ?? null,
+      hasElevator: destIntelligence.hasElevator,
+      elevatorReserved: destIntelligence.hasElevator === true ? false : undefined,
+      parkingOk:
+        destIntelligence.parkingType === 'unknown'
+          ? undefined
+          : destIntelligence.parkingType === 'driveway' || destIntelligence.parkingType === 'underground',
+      parkingType: destIntelligence.parkingType,
+    }
+
+    onPropertyIntelligenceDetected?.('dest', application)
+    if (!destAccess.trim() && application.accessText) {
+      onDestAccessChange(application.accessText)
+    }
+  }, [destAccess, destAddress, destIntelligence, disabled, onDestAccessChange, onPropertyIntelligenceDetected])
 
   function applyApartment(field: 'origin' | 'dest', info: ApartmentInfo) {
     const label = `Apt — Floor ${info.floor} — ${info.hasElevator ? 'Elevator available' : 'No elevator (stairs)'}`
@@ -590,7 +695,11 @@ export function LeadBasicsPanel({
             <PropertyIntelligenceCard
               field="origin"
               access={originIntelligence}
-              onApplyToAccess={text => { onOriginAccessChange(text); setOriginIntelligence(null) }}
+              onApplyToAccess={application => {
+                onOriginAccessChange(application.accessText)
+                onPropertyIntelligenceDetected?.('origin', application)
+                setOriginIntelligence(null)
+              }}
               onDismiss={() => setOriginIntelligence(null)}
             />
           )}
@@ -647,7 +756,11 @@ export function LeadBasicsPanel({
             <PropertyIntelligenceCard
               field="dest"
               access={destIntelligence}
-              onApplyToAccess={text => { onDestAccessChange(text); setDestIntelligence(null) }}
+              onApplyToAccess={application => {
+                onDestAccessChange(application.accessText)
+                onPropertyIntelligenceDetected?.('dest', application)
+                setDestIntelligence(null)
+              }}
               onDismiss={() => setDestIntelligence(null)}
             />
           )}

@@ -348,9 +348,12 @@ export async function analyzePropertyAccess(address: string): Promise<PropertyAc
 export function propertyAccessToJobFactors(access: PropertyAccess, side: 'origin' | 'dest') {
   const prefix = side === 'origin' ? 'origin' : 'dest'
   return {
-    [`${prefix}Floors`]: access.estimatedFloors,
+    [`${prefix}Floors`]: access.unitFloor ?? access.estimatedFloors,
     [`${prefix}HasElevator`]: access.hasElevator ?? undefined,
-    [`${prefix}ElevatorReserved`]: access.elevatorReservationLikely,
-    [`${prefix}ParkingOk`]: access.parkingType === 'driveway' || access.parkingType === 'underground',
+    [`${prefix}ElevatorReserved`]: access.hasElevator === true ? false : undefined,
+    [`${prefix}ParkingOk`]:
+      access.parkingType === 'unknown'
+        ? undefined
+        : access.parkingType === 'driveway' || access.parkingType === 'underground',
   }
 }

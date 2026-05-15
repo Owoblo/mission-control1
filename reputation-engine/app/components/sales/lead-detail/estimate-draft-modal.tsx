@@ -205,7 +205,10 @@ type Props = {
   branch?: CRMLead['branch']
   originAddress: string
   originCity: string
+  originAccess: string
   destCity: string
+  destAccess: string
+  parkingNotes: string
   recalculateBusy: boolean
   listingPhotos: string[]
   customerPhotos?: string[]
@@ -313,8 +316,11 @@ export function EstimateDraftModal({
   branch,
   originAddress,
   originCity,
+  originAccess,
   destCity,
   destAddress,
+  destAccess,
+  parkingNotes,
   recalculateBusy,
   listingPhotos,
   customerPhotos,
@@ -1094,9 +1100,9 @@ export function EstimateDraftModal({
   }, [quoteLineItems, pricingBreakdown])
 
   const accessConfirmed = Boolean(
-    lead.originAccess ||
-    lead.destAccess ||
-    lead.parkingNotes ||
+    originAccess ||
+    destAccess ||
+    parkingNotes ||
     jobFactors.originParkingOk !== undefined ||
     jobFactors.destParkingOk !== undefined ||
     jobFactors.originHasElevator !== undefined ||

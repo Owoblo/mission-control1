@@ -3308,6 +3308,24 @@ export default function SalesLeadDetailPage() {
                   : { destFloors: info.floor, destHasElevator: info.hasElevator }),
               }))
             }}
+            onPropertyIntelligenceDetected={(field, info) => {
+              setJobFactors(prev => ({
+                ...prev,
+                ...(field === 'origin'
+                  ? {
+                      originFloors: info.floor ?? prev.originFloors,
+                      originHasElevator: info.hasElevator ?? prev.originHasElevator,
+                      originElevatorReserved: info.elevatorReserved,
+                      originParkingOk: info.parkingOk,
+                    }
+                  : {
+                      destFloors: info.floor ?? prev.destFloors,
+                      destHasElevator: info.hasElevator ?? prev.destHasElevator,
+                      destElevatorReserved: info.elevatorReserved,
+                      destParkingOk: info.parkingOk,
+                    }),
+              }))
+            }}
             listingLookupBusy={listingLookupBusy}
             hasListing={!!lead.supabaseListing}
             onScanListing={() => {
@@ -4616,8 +4634,11 @@ export default function SalesLeadDetailPage() {
         branch={branch}
         originAddress={originAddress}
         originCity={originCity}
+        originAccess={originAccess}
         destCity={destCity}
         destAddress={destAddress}
+        destAccess={destAccess}
+        parkingNotes={parkingNotes}
         recalculateBusy={recalculateBusy}
         legs={quoteLegs}
         onLegsChange={setQuoteLegs}
