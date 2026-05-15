@@ -1,12 +1,18 @@
 import { dateStamp, detectSalesBranchFromLocation, isLocationWithinBranchServiceArea, normalizeLead, uid } from '@/lib/sales'
 import type { CRMLead, DestinationOpportunityStatus, RealtorLookupStatus } from '@/lib/types'
 import {
+  applyRealtorContactToOpportunityLead,
+  buildDestinationOpportunityPitch,
+} from '@/lib/realtor-opportunity'
+import {
+  getSalesLead,
   getListingInventoryScan,
   listSalesOpportunityLeadsBySourceLeadId,
   lookupListingsByAddress,
   saveFollowUpLog,
   saveSalesLead,
 } from '@/lib/server/sales-repository'
+import { sendSalesMessage } from '@/lib/server/sales-messaging'
 import { readEnv } from '@/lib/server/runtime'
 
 function normalizeAddressKey(...values: Array<string | null | undefined>) {
@@ -60,11 +66,97 @@ function inferLeadBranch(lead: CRMLead) {
   )
 }
 
+function validEmail(value?: string | null) {
+  return !!value && value.includes('@')
+}
+
+function hasPitchableOpportunityContact(lead: CRMLead) {
+  return Boolean(lead.realtorPhone || lead.phone || validEmail(lead.realtorEmail) || validEmail(lead.email))
+}
+
+function shouldSkipAutoPitch(lead: CRMLead) {
+  if (lead.leadKind !== 'realtor_opportunity' || lead.primaryContactRole !== 'realtor') return true
+  if (lead.realtorOutreachStartedAt) return true
+  return lead.realtorOutreachStatus === 'sent' || lead.realtorOutreachStatus === 'responded' || lead.realtorOutreachStatus === 'closed'
+}
+
+async function maybeAutoPitchDestinationOpportunityLead(lead: CRMLead) {
+  if (shouldSkipAutoPitch(lead)) return lead
+
+  const sourceLead = lead.sourceLeadId ? await getSalesLead(lead.sourceLeadId).catch(() => null) : null
+  if (sourceLead?.stage === 'lost') return lead
+
+  const smsTo = lead.realtorPhone || lead.phone || ''
+  const emailTo = validEmail(lead.realtorEmail) ? lead.realtorEmail : (validEmail(lead.email) ? lead.email : '')
+  if (!smsTo && !emailTo) return lead
+
+  const sentChannels: string[] = []
+
+  if (smsTo) {
+    const smsResult = await sendSalesMessage({
+      channel: 'sms',
+      to: smsTo,
+      body: buildDestinationOpportunityPitch(lead, 'sms'),
+      leadId: lead.id,
+      actor: 'automation',
+      notes: 'Destination opportunity auto-pitch SMS sent.',
+    })
+    if (!smsResult.deduped && !Boolean((smsResult.result as { blocked?: boolean }).blocked)) {
+      sentChannels.push('sms')
+    }
+  }
+
+  if (emailTo) {
+    const emailPitch = buildDestinationOpportunityPitch(lead, 'email')
+    await sendSalesMessage({
+      channel: 'email',
+      to: emailTo,
+      subject: emailPitch.subject,
+      body: emailPitch.body,
+      leadId: lead.id,
+      actor: 'automation',
+      notes: 'Destination opportunity auto-pitch email sent.',
+    })
+    sentChannels.push('email')
+  }
+
+  if (sentChannels.length === 0) return lead
+
+  const now = new Date().toISOString()
+  return saveSalesLead({
+    ...lead,
+    realtorOutreachStatus: 'sent',
+    realtorOutreachStartedAt: lead.realtorOutreachStartedAt || now,
+    realtorLastTouchAt: now,
+  })
+}
+
+async function queueOpportunityOutreach(lead: CRMLead) {
+  if (shouldSkipAutoPitch(lead)) return
+
+  if (hasPitchableOpportunityContact(lead)) {
+    void maybeAutoPitchDestinationOpportunityLead(lead).catch(() => {})
+    return
+  }
+
+  const queuedLead = lead.realtorOutreachStatus === 'queued'
+    ? lead
+    : await saveSalesLead({
+        ...lead,
+        realtorOutreachStatus: 'queued',
+      }).catch(() => lead)
+
+  void runRealtorLookupBackground(queuedLead)
+}
+
 // Runs in background — no await, failures are silent
 export async function runRealtorLookupBackground(lead: CRMLead) {
   const apiKey = readEnv('OPENAI_API_KEY')
   if (!apiKey) return
-  if (lead.realtorName && (lead.realtorPhone || lead.realtorEmail)) return // already have full contact
+  if (lead.realtorName && (lead.realtorPhone || lead.realtorEmail || lead.phone || lead.email)) {
+    await maybeAutoPitchDestinationOpportunityLead(lead).catch(() => {})
+    return
+  }
 
   const address = [lead.opportunityAddress || lead.originAddress, lead.opportunityCity || lead.originCity]
     .filter(Boolean).join(', ')
@@ -112,13 +204,23 @@ export async function runRealtorLookupBackground(lead: CRMLead) {
     if (extracted.realtorEmail && !lead.realtorEmail) updates.realtorEmail = extracted.realtorEmail
     if (extracted.realtorBrokerage && !lead.realtorBrokerage) updates.realtorBrokerage = extracted.realtorBrokerage
 
-    const name = updates.realtorName || lead.realtorName
-    const phone = updates.realtorPhone || lead.realtorPhone
-    const email = updates.realtorEmail || lead.realtorEmail
-    updates.realtorLookupStatus = (phone || email) ? 'matched' : name ? 'partial' : 'missing'
+    const mergedLead = applyRealtorContactToOpportunityLead(lead, updates)
+    const name = mergedLead.realtorName
+    const phone = mergedLead.realtorPhone || mergedLead.phone
+    const email = mergedLead.realtorEmail || mergedLead.email
+    mergedLead.realtorLookupStatus = (phone || email) ? 'matched' : name ? 'partial' : 'missing'
 
-    if (Object.keys(updates).length > 1) {
-      await saveSalesLead({ ...lead, ...updates })
+    const nextLead = Object.keys(updates).length > 1 || mergedLead.name !== lead.name || mergedLead.phone !== lead.phone || mergedLead.email !== lead.email
+      ? await saveSalesLead(mergedLead)
+      : mergedLead
+
+    if (phone || email) {
+      await maybeAutoPitchDestinationOpportunityLead(nextLead).catch(() => {})
+    } else if (nextLead.realtorOutreachStatus === 'queued') {
+      await saveSalesLead({
+        ...nextLead,
+        realtorOutreachStatus: 'not_started',
+      }).catch(() => {})
     }
   } catch { /* non-fatal */ }
 }
@@ -208,6 +310,7 @@ export async function maybeCreateDestinationOpportunityLead(current: CRMLead, sa
       totalWeightLbs: existing.totalWeightLbs || scan?.totalWeightLbs || 0,
       roomBreakdown: (existing.roomBreakdown && Object.keys(existing.roomBreakdown).length > 0) ? existing.roomBreakdown : (scan?.roomBreakdown || {}),
       realtorBrokerage: existing.realtorBrokerage || brokerage,
+      realtorOutreachStatus: existing.realtorOutreachStartedAt ? (existing.realtorOutreachStatus || 'sent') : (existing.realtorOutreachStatus || 'queued'),
       realtorLookupStatus: getLookupStatus({
         realtorName: existing.realtorName,
         realtorEmail: existing.realtorEmail,
@@ -217,6 +320,7 @@ export async function maybeCreateDestinationOpportunityLead(current: CRMLead, sa
       notes: existing.notes || buildOpportunityNote(saved, { brokerage, hasScan: !!scan }),
     })
 
+    void queueOpportunityOutreach(nextOpportunity)
     return updateSourceOpportunityStatus({ ...saved, branch }, 'linked_existing', nextOpportunity.id)
   }
 
@@ -235,6 +339,7 @@ export async function maybeCreateDestinationOpportunityLead(current: CRMLead, sa
       originCity: saved.destCity,
       supabaseListing: listing,
       realtorBrokerage: brokerage,
+      realtorOutreachStatus: 'queued',
       realtorLookupStatus,
       sourceLeadId: saved.id,
       sourceLeadName: saved.name,
@@ -276,8 +381,7 @@ export async function maybeCreateDestinationOpportunityLead(current: CRMLead, sa
     }),
   ])
 
-  // Auto-lookup realtor contact in background — don't block the save flow
-  void runRealtorLookupBackground(opportunityLead)
+  void queueOpportunityOutreach(opportunityLead)
 
   return updateSourceOpportunityStatus({ ...saved, branch }, 'generated', opportunityLead.id)
 }

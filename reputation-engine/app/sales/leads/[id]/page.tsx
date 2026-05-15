@@ -3385,6 +3385,11 @@ export default function SalesLeadDetailPage() {
                           if (data.realtorPhone && !lead.realtorPhone) updates.realtorPhone = data.realtorPhone
                           if (data.realtorEmail && !lead.realtorEmail) updates.realtorEmail = data.realtorEmail
                           if (data.realtorBrokerage && !lead.realtorBrokerage) updates.realtorBrokerage = data.realtorBrokerage
+                          if (lead.primaryContactRole === 'realtor') {
+                            if (data.realtorName && (!lead.name || /^Realtor lead —/.test(lead.name))) updates.name = data.realtorName
+                            if (data.realtorPhone && !lead.phone) updates.phone = data.realtorPhone
+                            if (data.realtorEmail && !lead.email) updates.email = data.realtorEmail
+                          }
                           if (Object.keys(updates).length > 0) {
                             const saved = await updateSalesLead(lead.id, updates as Parameters<typeof updateSalesLead>[1])
                             applyLeadSnapshot(saved, { hydrateForm: true })
