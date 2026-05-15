@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { normalizeLead } from '../../lib/sales'
 import { applyRealtorContactToOpportunityLead, buildDestinationOpportunityPitch } from '../../lib/realtor-opportunity'
 import type { CRMLead } from '../../lib/types'
 
@@ -28,6 +29,17 @@ const baseLead: CRMLead = {
   assert.equal(updated.name, 'Varinder Singh')
   assert.equal(updated.phone, '+15195551212')
   assert.equal(updated.email, 'varinder@example.com')
+}
+
+{
+  const normalized = normalizeLead({
+    ...baseLead,
+    realtorName: 'Varinder Kaur Singh',
+    realtorPhone: '4167405100',
+  })
+
+  assert.equal(normalized.name, 'Varinder Kaur Singh')
+  assert.equal(normalized.phone, '4167405100')
 }
 
 {

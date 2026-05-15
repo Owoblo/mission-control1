@@ -19,6 +19,7 @@ import type {
 import { applyMovePolicyToInventory } from './move-policy'
 import { normalizeCrewPayouts } from './operations'
 import { buildPackingMaterialsEstimate } from './packing-materials'
+import { applyRealtorContactToOpportunityLead } from './realtor-opportunity'
 
 function normalizeOptionalText(value?: string | null) {
   const trimmed = value?.trim()
@@ -259,7 +260,7 @@ export function normalizeLead(lead: CRMLead): CRMLead {
     enforceExclusion: true,
   })
   const inventoryMetrics = deriveInventoryMetrics(inventory)
-  return {
+  const normalizedLead: CRMLead = {
     ...lead,
     leadKind,
     primaryContactRole: lead.primaryContactRole || (leadKind === 'realtor_opportunity' ? 'realtor' : 'customer'),
@@ -282,6 +283,17 @@ export function normalizeLead(lead: CRMLead): CRMLead {
     lastTouchedByUserId,
     lastTouchedAt,
   }
+
+  if (normalizedLead.leadKind === 'realtor_opportunity' && normalizedLead.primaryContactRole === 'realtor') {
+    return applyRealtorContactToOpportunityLead(normalizedLead, {
+      realtorName: normalizedLead.realtorName,
+      realtorPhone: normalizedLead.realtorPhone,
+      realtorEmail: normalizedLead.realtorEmail,
+      realtorBrokerage: normalizedLead.realtorBrokerage,
+    })
+  }
+
+  return normalizedLead
 }
 
 export function normalizeClient(client: CRMClient): CRMClient {

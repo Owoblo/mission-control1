@@ -96,6 +96,19 @@ export function getListingOperationalHighlights(listing?: ListingMatch | null) {
   return highlights
 }
 
+export function formatListingContextSummary(listing?: ListingMatch | null) {
+  const propertySummary = formatListingPropertySummary(listing)
+  if (propertySummary) return propertySummary
+
+  const highlights = getListingOperationalHighlights(listing)
+  if (highlights.length > 0) return highlights[0]
+
+  if (getListingDescription(listing)) return 'Listing matched'
+  if (normalizeOptionalText(listing?.address)) return 'Listing matched'
+
+  return ''
+}
+
 function getListingCompletenessScore(listing?: ListingMatch | null) {
   if (!listing) return 0
 

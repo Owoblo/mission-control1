@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
-import { formatListingPropertySummary, getListingDescription, getListingOperationalHighlights } from '@/lib/listing'
+import { formatListingContextSummary, getListingDescription, getListingOperationalHighlights } from '@/lib/listing'
 import { getQuotedTruckCount } from '@/lib/operations'
 import { fetchSalesOverview } from '@/lib/sales-api'
 import { estimateLeadQuote, deriveInventoryMetrics, formatMoney, getSalesBranchLabel, isBookedLikeStage, suggestTruckCount, detectSalesBranchFromLocation } from '@/lib/sales'
@@ -1038,7 +1038,7 @@ export function EstimateDraftModal({
     window.setTimeout(() => setInventoryCopyNotice(null), 1800)
   }
 
-  const listingPropertySummary = formatListingPropertySummary(lead.supabaseListing)
+  const listingContextSummary = formatListingContextSummary(lead.supabaseListing)
   const listingHighlights = getListingOperationalHighlights(lead.supabaseListing).slice(0, 4)
   const listingDescription = getListingDescription(lead.supabaseListing)
   const scanDuplicateRisks = lead.listingScanSnapshot?.duplicateRisks || []
@@ -1342,7 +1342,7 @@ export function EstimateDraftModal({
             <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[var(--app-muted)]">
               <span>{originFull || 'Origin TBD'} → {destFull || 'Destination TBD'}</span>
               <span>· {effectiveInventoryMetrics.totalCubicFeet} cu ft · {effectiveInventoryMetrics.totalWeightLbs} lbs</span>
-              {listingPropertySummary ? <span>· MLS {listingPropertySummary}</span> : null}
+              {listingContextSummary ? <span>· MLS {listingContextSummary}</span> : null}
               {listingHighlights.length > 0 ? <span>· {listingHighlights.slice(0, 2).join(' · ')}</span> : null}
               {routeBusy && <span className="text-[10px] text-[var(--app-muted)]">Calculating route...</span>}
               {route && !routeBusy && (
@@ -2114,9 +2114,9 @@ export function EstimateDraftModal({
                     <div className="crm-value">{effectiveInventoryMetrics.totalWeightLbs}</div>
                   </div>
                 </div>
-                {listingPropertySummary ? (
+                {listingContextSummary ? (
                   <div className="mt-3 rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">
-                    MLS property context: {listingPropertySummary}
+                    MLS property context: {listingContextSummary}
                   </div>
                 ) : null}
                 {listingHighlights.length > 0 ? (

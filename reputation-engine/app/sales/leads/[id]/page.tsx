@@ -2955,6 +2955,11 @@ export default function SalesLeadDetailPage() {
     return <div className="crm-shell"><div className="crm-panel p-16 text-center text-sm text-stone-500">{error || 'Lead not found'}</div></div>
   }
 
+  const displayLeadName =
+    lead.leadKind === 'realtor_opportunity' && lead.primaryContactRole !== 'customer'
+      ? (lead.realtorName || lead.name)
+      : lead.name
+
   return (
     <div className="crm-shell space-y-6">
       {/* ── Sticky jump nav ─────────────────────────────────────────── */}
@@ -2976,7 +2981,7 @@ export default function SalesLeadDetailPage() {
             </button>
           ))}
           <div className="ml-auto flex items-center gap-2 text-xs text-[var(--app-muted)]">
-            <span className="font-semibold text-[var(--app-ink)]">{lead.name}</span>
+            <span className="font-semibold text-[var(--app-ink)]">{displayLeadName}</span>
             <span>·</span>
             <span className="capitalize">{lead.stage?.replace(/_/g, ' ')}</span>
           </div>
@@ -3031,7 +3036,7 @@ export default function SalesLeadDetailPage() {
             {guidancePanelCollapsed ? (
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-[var(--app-ink)] truncate">
-                  <span className="truncate">{lead.name}</span>
+                  <span className="truncate">{displayLeadName}</span>
                   <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-[var(--app-muted)] shrink-0">{leadGuidance.stageLabel}</span>
                   <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold shrink-0 ${leadGuidance.heat.tone === 'risk' ? 'border-rose-200 bg-rose-50 text-rose-700' : leadGuidance.heat.tone === 'hot' ? 'border-orange-200 bg-orange-50 text-orange-700' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>{leadGuidance.heat.label} · {leadGuidance.heat.score}</span>
                   <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold shrink-0 ${autoSaveMeta.tone}`}>{autoSaveMeta.label}</span>
@@ -3042,7 +3047,7 @@ export default function SalesLeadDetailPage() {
             <div className={`flex flex-col ${leadCommandBarCompact ? 'gap-2 xl:flex-row xl:items-center xl:justify-between' : 'gap-3 xl:flex-row xl:items-start xl:justify-between'}`}>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-[var(--app-ink)]">
-                  <span className={`truncate ${leadCommandBarCompact ? 'text-sm' : 'text-base'}`}>{lead.name}</span>
+                  <span className={`truncate ${leadCommandBarCompact ? 'text-sm' : 'text-base'}`}>{displayLeadName}</span>
                   <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-[var(--app-muted)]">{leadGuidance.stageLabel}</span>
                   <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[10px] font-medium text-[var(--app-muted)]">{leadGuidance.branchLabel}</span>
                   <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[10px] font-medium text-[var(--app-muted)]">Owner: {leadGuidance.ownerLabel}</span>
@@ -3167,7 +3172,7 @@ export default function SalesLeadDetailPage() {
           >
             ← Back
           </button>
-          <h1 className="font-display text-base font-semibold text-[var(--app-ink)]">{lead.name}</h1>
+          <h1 className="font-display text-base font-semibold text-[var(--app-ink)]">{displayLeadName}</h1>
           <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] ${
             lead.stage === 'customer_success' ? 'bg-sky-100 text-sky-700' :
             lead.stage === 'completed' ? 'bg-indigo-100 text-indigo-700' :

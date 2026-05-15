@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  formatListingContextSummary,
   formatListingPropertySummary,
   getListingDescription,
   getListingOperationalHighlights,
@@ -53,4 +54,15 @@ test('richer listing snapshots replace thin snapshots', () => {
 
   assert.equal(shouldPreferListingSnapshot(thin, rich), true)
   assert.equal(shouldPreferListingSnapshot(rich, thin), false)
+})
+
+test('matched listings still surface a context summary when structured bed and bath fields are missing', () => {
+  const thinMatched: ListingMatch = {
+    zpid: '12345',
+    address: '631 Doon South Drive, Kitchener, ON, Canada',
+    city: 'Kitchener',
+    carouselphotos: ['https://example.com/1.jpg'],
+  }
+
+  assert.equal(formatListingContextSummary(thinMatched), 'Listing matched')
 })

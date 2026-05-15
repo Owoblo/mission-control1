@@ -43,13 +43,34 @@ type LeadInventoryMetrics = {
   totalWeightLbs: number
 }
 
+function getDraftLeadName(lead: CRMLead) {
+  if (lead.leadKind === 'realtor_opportunity' && lead.primaryContactRole !== 'customer') {
+    return lead.realtorName || lead.name || ''
+  }
+  return lead.name || ''
+}
+
+function getDraftLeadPhone(lead: CRMLead) {
+  if (lead.leadKind === 'realtor_opportunity' && lead.primaryContactRole !== 'customer') {
+    return lead.realtorPhone || lead.phone || ''
+  }
+  return lead.phone || ''
+}
+
+function getDraftLeadEmail(lead: CRMLead) {
+  if (lead.leadKind === 'realtor_opportunity' && lead.primaryContactRole !== 'customer') {
+    return lead.realtorEmail || lead.email || ''
+  }
+  return lead.email || ''
+}
+
 export function createLeadDraftState(lead: CRMLead): LeadDraftState {
   return {
     stage: lead.stage || 'new',
     followUpDate: lead.followUpDate || '',
-    leadName: lead.name || '',
-    leadPhone: lead.phone || '',
-    leadEmail: lead.email || '',
+    leadName: getDraftLeadName(lead),
+    leadPhone: getDraftLeadPhone(lead),
+    leadEmail: getDraftLeadEmail(lead),
     moveDate: lead.moveDate || '',
     moveDateFlexible: !!lead.moveDateFlexible,
     moveDateFlexibleReason: lead.moveDateFlexibleReason || '',
@@ -81,9 +102,9 @@ export function createLeadDraftState(lead: CRMLead): LeadDraftState {
 
 export function buildSavedLeadSignature(lead: CRMLead) {
   return buildLeadSignature({
-    name: lead.name || '',
-    phone: lead.phone || '',
-    email: lead.email || '',
+    name: getDraftLeadName(lead),
+    phone: getDraftLeadPhone(lead),
+    email: getDraftLeadEmail(lead),
     moveDate: lead.moveDate || '',
     moveDateFlexible: !!lead.moveDateFlexible,
     moveDateFlexibleReason: lead.moveDateFlexibleReason || '',

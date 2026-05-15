@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { formatListingPropertySummary, getListingDescription, getListingOperationalHighlights } from '@/lib/listing'
+import { formatListingContextSummary, formatListingPropertySummary, getListingDescription, getListingOperationalHighlights } from '@/lib/listing'
 import { formatDate, getSalesBranchLabel } from '@/lib/sales'
 import type { CRMLead } from '@/lib/types'
 import { SALES_BRANCHES } from '@/lib/sales'
@@ -441,6 +441,7 @@ export function LeadBasicsPanel({
   disabled,
 }: Props) {
   const listingPropertySummary = formatListingPropertySummary(lead.supabaseListing)
+  const listingContextSummary = formatListingContextSummary(lead.supabaseListing)
   const listingHighlights = getListingOperationalHighlights(lead.supabaseListing).slice(0, 3)
   const listingDescription = getListingDescription(lead.supabaseListing)
   const scanWatchouts = [
@@ -815,7 +816,7 @@ export function LeadBasicsPanel({
           </div>
           <div>
             <div className="text-xs text-[var(--app-muted)]">MLS Context</div>
-            <div className="mt-2 font-medium text-[var(--app-ink)]">{listingPropertySummary || 'Not matched yet'}</div>
+            <div className="mt-2 font-medium text-[var(--app-ink)]">{listingContextSummary || 'Not matched yet'}</div>
           </div>
           <div>
             <div className="text-xs text-[var(--app-muted)]">Listing Intel</div>
