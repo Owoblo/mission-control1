@@ -610,6 +610,8 @@ export default function SalesLeadDetailPage() {
   // This fixes stale subtotals that were saved before the inventory scan ran
   useEffect(() => {
     if (!quoteModalOpen || !lead) return
+    // Don't overwrite an active price override when inventory updates come in
+    if (quoteLineItems.some(li => li.description === 'Moving Services — Agreed Rate')) return
     recalculateEstimate()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inventoryMetrics.totalCubicFeet, inventoryMetrics.totalWeightLbs, quoteModalOpen])
