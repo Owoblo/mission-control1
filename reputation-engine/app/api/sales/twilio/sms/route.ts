@@ -115,8 +115,9 @@ export async function POST(request: Request) {
       await appendSmsToInboundLead(existing.id, body || '(no body)', messageSid)
       void writeInboundSmsMessage(normalized || from, body || '(no body)', messageSid, existing.id)
     } else {
-      const newLead = await saveInboundLead({
-        id: uid('inb'),
+      const newLeadId = uid('inb')
+      await saveInboundLead({
+        id: newLeadId,
         source: 'twilio_sms',
         phone: normalized || from,
         message: body || 'Inbound SMS (no body)',
@@ -127,7 +128,7 @@ export async function POST(request: Request) {
           smsThread: [{ direction: 'inbound', body: body || '(no body)', messageSid, at: new Date().toISOString() }],
         },
       }).catch(() => null)
-      leadId = newLead?.id
+      leadId = newLeadId
       void writeInboundSmsMessage(normalized || from, body || '(no body)', messageSid, leadId)
     }
 
