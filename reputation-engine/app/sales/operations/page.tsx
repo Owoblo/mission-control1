@@ -204,7 +204,7 @@ export default function OperationsPage() {
             </a>
           ) : null}
           <div className="ml-auto flex gap-2">
-            {(currentUser?.role === 'owner' || currentUser?.role === 'manager') && crewPool.length > 0 && (
+            {(currentUser?.role === 'owner' || currentUser?.role === 'manager' || currentUser?.role === 'sales_rep') && crewPool.length > 0 && (
               <button
                 onClick={() => setAssigningJob(job)}
                 className="rounded-lg border border-[#1a2744]/30 px-3 py-1.5 text-xs font-medium text-[#1a2744] hover:bg-[#1a2744]/5 transition"

@@ -6,7 +6,7 @@ import type { CRMLead } from '@/lib/types'
 
 export async function GET() {
   const session = await getSessionUser()
-  if (!session || (session.role !== 'owner' && session.role !== 'manager')) {
+  if (!session || (session.role !== 'owner' && session.role !== 'manager' && session.role !== 'sales_rep')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
