@@ -857,6 +857,16 @@ function QuoteAcceptPageInner() {
           )
         })()}
 
+        {/* ── Special notes from rep ── */}
+        {quote.customerNotes ? (
+          <div className="mb-8">
+            <SectionLabel>Special Notes</SectionLabel>
+            <div className="rounded-xl border border-[#0f6a53]/20 bg-[#f0f7f4] p-5">
+              <p className="text-sm text-[#1a2744]/80 leading-7 whitespace-pre-line">{quote.customerNotes}</p>
+            </div>
+          </div>
+        ) : null}
+
         {/* ── What's included ── */}
         <div className="mb-8">
           <SectionLabel>What&apos;s Included</SectionLabel>

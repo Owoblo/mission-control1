@@ -28,6 +28,7 @@ function buildQuoteEmailHtml({
   validUntilText,
   moveDescription,
   scopeNotes,
+  customerNotes,
   isRevision,
 }: {
   customerName: string
@@ -41,6 +42,7 @@ function buildQuoteEmailHtml({
   validUntilText: string
   moveDescription?: string
   scopeNotes?: string[]
+  customerNotes?: string
   isRevision?: boolean
 }) {
   const heading = isRevision ? 'Your quote has been updated.' : 'Your quote is ready.'
@@ -86,6 +88,7 @@ function buildQuoteEmailHtml({
         </div>
         ${moveDescription ? `<div style="margin-bottom:18px;padding:14px 18px;border-radius:12px;background:#f4efe4;border:1px solid #eee7da;font-size:14px;line-height:1.7;color:#374151;">${moveDescription}</div>` : ''}
         ${scopeNotes && scopeNotes.length > 0 ? `<div style="margin-bottom:18px;padding:14px 18px;border-radius:12px;background:#fcfbf8;border:1px solid #eee7da;"><div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8a8478;font-weight:700;margin-bottom:8px;">Move-specific notes</div>${scopeNotes.map(note => `<div style="font-size:13px;line-height:1.7;color:#4b5563;">• ${note}</div>`).join('')}</div>` : ''}
+        ${customerNotes ? `<div style="margin-bottom:18px;padding:14px 18px;border-radius:12px;background:#f0f7f4;border:1px solid #c6ddd6;"><div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#0f6a53;font-weight:700;margin-bottom:8px;">Special notes from your rep</div><div style="font-size:13px;line-height:1.8;color:#374151;white-space:pre-line;">${customerNotes}</div></div>` : ''}
         <div style="margin-bottom:18px;font-size:15px;line-height:1.7;color:#374151;">${summary}</div>
         <div style="margin-bottom:28px;">
           <a href="${acceptUrl}" style="display:inline-block;padding:14px 22px;border-radius:999px;background:#0f6a53;color:#ffffff;text-decoration:none;font-weight:700;">Open Quote</a>
@@ -285,6 +288,7 @@ Saturn Star Movers`
         validUntilText: validUntil(quote),
         moveDescription: quote.moveDescription,
         scopeNotes,
+        customerNotes: quote.customerNotes,
         isRevision,
       }),
       href: `mailto:${client?.email || lead?.email || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
@@ -949,6 +953,21 @@ Saturn Star Movers`
                     className="crm-input w-full resize-none text-sm"
                     placeholder={`e.g. 3-bedroom house from ${quote.originCity || 'Windsor'} to ${quote.destCity || 'destination'}`}
                   />
+                </div>
+                <div>
+                  <div className="crm-label mb-1.5">Special Notes for Customer <span className="font-normal normal-case text-[var(--app-muted)]">shown on quote &amp; email</span></div>
+                  <textarea
+                    rows={3}
+                    value={quote.customerNotes || ''}
+                    onChange={e => setQuote(q => q ? { ...q, customerNotes: e.target.value } : q)}
+                    onBlur={() => {
+                      if (!quote) return
+                      void updateSalesQuote(quote.id, { customerNotes: quote.customerNotes || undefined }).catch(() => {})
+                    }}
+                    className="crm-input w-full resize-none text-sm"
+                    placeholder="e.g. Junk removal included, TV boxes provided, piano wrap at no extra charge..."
+                  />
+                  <div className="mt-1 text-[10px] text-[var(--app-muted)]">Visible to the customer on their quote page and in the email.</div>
                 </div>
                 <div>
                   <div className="crm-label mb-1.5">Internal Notes <span className="font-normal normal-case text-[var(--app-muted)]">crew only</span></div>
