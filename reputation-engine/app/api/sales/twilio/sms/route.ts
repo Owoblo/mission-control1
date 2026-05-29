@@ -145,23 +145,6 @@ export async function POST(request: Request) {
       },
     })
 
-    // ── Smart bot reply ────────────────────────────────────────────────────
-    // Read conversation history (includes the message we just wrote)
-    const thread = await getRecentSmsThread(normalized || from)
-
-    // Find most recent outbound message timestamp for dedup check
-    const lastOutbound = [...thread].reverse().find(m => m.direction === 'outbound')
-    const lastOutboundAt = lastOutbound?.createdAt ?? null
-
-    // Generate context-aware reply (returns null = stay silent)
-    const reply = await generateSmsBotReply(body || '', thread, lastOutboundAt).catch(() => null)
-
-    if (reply) {
-      // Log the outbound reply so future messages see it in thread history
-      void writeOutboundSmsMessage(normalized || from, reply, leadId)
-      return twimlReply(reply)
-    }
-
   } catch {
     // Always return 200 to Twilio — never error out
   }
