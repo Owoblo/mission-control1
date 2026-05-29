@@ -323,7 +323,7 @@ export default function SalesDashboardPage() {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5 text-xs text-[var(--app-muted)]">
               <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-[var(--app-accent)]" />
-              Auto-refreshes every 60s
+              Auto-refreshes every 30s
             </div>
             <button onClick={() => void refresh()} className="crm-button">Refresh now</button>
           </div>
@@ -332,28 +332,28 @@ export default function SalesDashboardPage() {
         {error ? <div className="rounded-[4px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
 
         <div className="grid gap-0 border border-[var(--app-line)] bg-[var(--app-panel)] md:grid-cols-4">
-          <div className="border-b border-[var(--app-line)] p-5 md:border-b-0 md:border-r">
+          <Link href="/sales/leads" className="block border-b border-[var(--app-line)] p-5 transition hover:bg-[var(--app-bg)] md:border-b-0 md:border-r">
             <div className="crm-label">{dashboardMode === 'rep' ? 'My Active Leads' : 'Total Active Leads'}</div>
             <div className="mt-2 text-5xl font-semibold leading-none text-[var(--app-ink)]">{dashboardMode === 'rep' ? scopedLeads.length : (summary?.totalLeads ?? 0)}</div>
-            <div className="mt-2 text-sm text-[var(--app-muted)]">{requiredActions.length} required today</div>
-          </div>
-          <div className="border-b border-[var(--app-line)] p-5 md:border-b-0 md:border-r">
+            <div className="mt-2 text-sm text-[var(--app-muted)]">{requiredActions.length} required today · <span className="underline">inspect</span></div>
+          </Link>
+          <Link href="/sales/quotes" className="block border-b border-[var(--app-line)] p-5 transition hover:bg-[var(--app-bg)] md:border-b-0 md:border-r">
             <div className="crm-label">{dashboardMode === 'rep' ? 'Hot Close Opportunities' : 'Quotes Sent Today'}</div>
             <div className="mt-2 text-5xl font-semibold leading-none text-[var(--app-ink)]">{dashboardMode === 'rep' ? hotCloseOpportunities.length : quotesSentToday}</div>
-            <div className="mt-2 text-sm text-[var(--app-muted)]">{dashboardMode === 'rep' ? `${quoteViewFollowUps.length} quote views need follow-up` : `${quotes.filter(item => item.sentAt).length} total sent`}</div>
-          </div>
-          <div className="border-b border-[var(--app-line)] p-5 md:border-b-0 md:border-r">
+            <div className="mt-2 text-sm text-[var(--app-muted)]">{dashboardMode === 'rep' ? `${quoteViewFollowUps.length} quote views need follow-up` : `${quotes.filter(item => item.sentAt).length} total sent`} · <span className="underline">inspect</span></div>
+          </Link>
+          <Link href="/sales/booked" className="block border-b border-[var(--app-line)] p-5 transition hover:bg-[var(--app-bg)] md:border-b-0 md:border-r">
             <div className="crm-label">{dashboardMode === 'rep' ? 'Pending Deposits' : 'Booked Jobs'}</div>
             <div className="mt-2 text-5xl font-semibold leading-none text-[var(--app-ink)]">{dashboardMode === 'rep' ? pendingDeposits.length : (summary?.bookedLeads ?? 0)}</div>
-            <div className="mt-2 text-sm text-[var(--app-muted)]">{dashboardMode === 'rep' ? `${myBookedJobs.length} booked / completed` : `${summary?.quotedLeads ?? 0} tentative / quoted`}</div>
-          </div>
-          <div className="p-5">
+            <div className="mt-2 text-sm text-[var(--app-muted)]">{dashboardMode === 'rep' ? `${myBookedJobs.length} booked / completed` : `${summary?.quotedLeads ?? 0} tentative / quoted`} · <span className="underline">inspect</span></div>
+          </Link>
+          <Link href="/sales/finance" className="block p-5 transition hover:bg-[var(--app-bg)]">
             <div className="crm-label">{dashboardMode === 'rep' ? 'My Follow-ups Due' : 'Confirmed Revenue'}</div>
             <div className={`mt-2 text-5xl font-semibold leading-none ${dashboardMode !== 'rep' && (summary?.bookedRevenue ?? 0) > 0 ? 'text-emerald-600' : 'text-[var(--app-ink)]'}`}>
               {dashboardMode === 'rep' ? followUpFocus.length : formatMoney(summary?.bookedRevenue ?? 0)}
             </div>
-            <div className="mt-2 text-sm text-[var(--app-muted)]">{dashboardMode === 'rep' ? `${newInboundLeads.length} new inbound leads` : `${formatMoney(summary?.quotedPipelineValue ?? 0)} in open pipeline`}</div>
-          </div>
+            <div className="mt-2 text-sm text-[var(--app-muted)]">{dashboardMode === 'rep' ? `${newInboundLeads.length} new inbound leads` : `${formatMoney(summary?.quotedPipelineValue ?? 0)} in open pipeline`} · <span className="underline">inspect</span></div>
+          </Link>
         </div>
 
         {dashboardMode !== 'rep' ? (
@@ -564,11 +564,11 @@ export default function SalesDashboardPage() {
                           <span className={`h-1.5 w-1.5 rounded-full ${item.tone === 'accepted' ? 'bg-[var(--app-accent)]' : item.tone === 'viewed' ? 'bg-[var(--app-warm)]' : item.tone === 'new' ? 'bg-[var(--app-warm)]' : 'bg-stone-300'}`} />
                         </div>
                         <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <div className="text-sm font-medium text-[var(--app-ink)]">{item.title}</div>
-                            <div className="mt-1 text-sm text-[var(--app-muted)]">{item.subtitle}</div>
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-sm font-medium text-[var(--app-ink)]">{item.title}</div>
+                            <div className="mt-1 truncate text-sm text-[var(--app-muted)]">{item.subtitle}</div>
                           </div>
-                          <div className="text-xs text-[var(--app-muted)]">{timeLabel(item.date)}</div>
+                          <div className="shrink-0 text-xs text-[var(--app-muted)]">{timeLabel(item.date)}</div>
                         </div>
                       </Link>
                     ))}
