@@ -43,6 +43,29 @@ export function classifyRouteCategory(distanceKm: number, driveHours: number): E
 }
 
 export async function geocodeAddress(address: string): Promise<GeocodeResult | null> {
+  // Try Google Geocoding API first — it understands addresses it generated via Places Autocomplete
+  const apiKey = getGoogleMapsApiKey()
+  if (apiKey) {
+    try {
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&region=ca&key=${apiKey}`
+      const res = await fetch(url, { cache: 'no-store' })
+      if (res.ok) {
+        const data = (await res.json()) as {
+          status: string
+          results?: Array<{ geometry: { location: { lat: number; lng: number } }; formatted_address: string }>
+        }
+        if (data.status === 'OK' && data.results?.length) {
+          return {
+            lat: data.results[0].geometry.location.lat,
+            lng: data.results[0].geometry.location.lng,
+            displayName: data.results[0].formatted_address,
+          }
+        }
+      }
+    } catch { /* fall through to Nominatim */ }
+  }
+
+  // Fallback: Nominatim (OpenStreetMap)
   const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&countrycodes=ca,us`
   const response = await fetch(url, {
     headers: { 'User-Agent': 'SaturnStarMissionControl/1.0 (business@starmovers.ca)' },

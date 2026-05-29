@@ -92,20 +92,28 @@ export function SalesAddressAutocompleteInput({
         </span>
       )}
       {open && suggestions.length > 0 && (
-        <div className="absolute left-0 right-0 top-full z-[60] mt-1 max-h-52 overflow-y-auto rounded-[8px] border border-[var(--app-line)] bg-white shadow-xl">
-          {suggestions.map((suggestion, index) => (
-            <button
-              key={`${suggestion.label}-${index}`}
-              type="button"
-              onMouseDown={() => handleSelect(suggestion)}
-              className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-[var(--app-bg)]"
-            >
-              <span className="text-[11px] shrink-0">
-                {suggestion.placeType === 'apartment' ? '🏢' : suggestion.placeType === 'commercial' ? '🏬' : '🏠'}
-              </span>
-              <span className="min-w-0 flex-1 truncate text-sm text-[var(--app-ink)]">{suggestion.label}</span>
-            </button>
-          ))}
+        <div className="absolute left-0 top-full z-[60] mt-1 w-full min-w-full max-w-[560px] overflow-y-auto rounded-[8px] border border-[var(--app-line)] bg-white shadow-xl sm:w-max">
+          {suggestions.map((suggestion, index) => {
+            const parts = suggestion.label.split(', ')
+            const street = parts[0] || suggestion.label
+            const location = parts.slice(1).join(', ')
+            return (
+              <button
+                key={`${suggestion.label}-${index}`}
+                type="button"
+                onMouseDown={() => handleSelect(suggestion)}
+                className="flex w-full items-start gap-2 px-3 py-2.5 text-left hover:bg-[var(--app-bg)]"
+              >
+                <span className="mt-0.5 text-[11px] shrink-0">
+                  {suggestion.placeType === 'apartment' ? '🏢' : suggestion.placeType === 'commercial' ? '🏬' : '🏠'}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-[var(--app-ink)]">{street}</div>
+                  {location ? <div className="text-xs text-[var(--app-muted)]">{location}</div> : null}
+                </div>
+              </button>
+            )
+          })}
         </div>
       )}
     </div>

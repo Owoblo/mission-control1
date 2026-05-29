@@ -59,14 +59,22 @@ function AddressAutocompleteInput({ value, placeholder, onSelect }: {
         placeholder={placeholder} autoComplete="off" />
       {fetching && <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 block h-3 w-3 animate-spin rounded-full border-2 border-[var(--app-accent)] border-t-transparent" />}
       {open && suggestions.length > 0 && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-52 overflow-y-auto rounded-[8px] border border-[var(--app-line)] bg-white shadow-xl">
-          {suggestions.map((s, i) => (
-            <button key={i} type="button" onMouseDown={() => select(s)}
-              className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-[var(--app-bg)]">
-              <span className="text-[10px]">{s.placeType === 'apartment' ? '🏢' : '🏠'}</span>
-              <span className="min-w-0 flex-1 truncate text-sm text-[var(--app-ink)]">{s.label}</span>
-            </button>
-          ))}
+        <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-full max-w-[560px] overflow-y-auto rounded-[8px] border border-[var(--app-line)] bg-white shadow-xl sm:w-max">
+          {suggestions.map((s, i) => {
+            const parts = s.label.split(', ')
+            const street = parts[0] || s.label
+            const location = parts.slice(1).join(', ')
+            return (
+              <button key={i} type="button" onMouseDown={() => select(s)}
+                className="flex w-full items-start gap-2 px-3 py-2.5 text-left hover:bg-[var(--app-bg)]">
+                <span className="mt-0.5 text-[10px] shrink-0">{s.placeType === 'apartment' ? '🏢' : '🏠'}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-[var(--app-ink)]">{street}</div>
+                  {location ? <div className="text-xs text-[var(--app-muted)]">{location}</div> : null}
+                </div>
+              </button>
+            )
+          })}
         </div>
       )}
     </div>
