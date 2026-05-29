@@ -149,5 +149,7 @@ export async function POST(request: Request) {
     // Always return 200 to Twilio — never error out
   }
 
-  return twimlEmpty()
+  return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
+    headers: { 'Content-Type': 'text/xml' },
+  })
 }
