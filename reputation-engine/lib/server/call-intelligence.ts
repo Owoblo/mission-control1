@@ -696,3 +696,19 @@ Valid stages: new, contacted, estimate_scheduled, estimate_completed, pricing, q
     return null
   }
 }
+
+export async function analyzeLeadForFollowUp(
+  lead: CRMLead,
+  _followUps: unknown[],
+  _quote: unknown
+): Promise<{ suggestedDate: string; followUpNote: string; suggestedChannel: string; commitmentDetected?: string } | null> {
+  const intelligence = await synthesizeLeadIntelligence(lead)
+  if (!intelligence) return null
+  const firstFollowUp = intelligence.followUpSchedule?.[0]
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
+  return {
+    suggestedDate: intelligence.followUpAt?.slice(0, 10) || firstFollowUp?.dueDate || tomorrow,
+    followUpNote: intelligence.followUpNote || intelligence.nextAction || 'Follow up recommended',
+    suggestedChannel: firstFollowUp?.channel || 'call',
+  }
+}

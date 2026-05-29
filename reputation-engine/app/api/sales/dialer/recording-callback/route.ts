@@ -315,6 +315,17 @@ export async function POST(request: Request) {
       })
     }
 
+    const extracted = aiSummary ? {
+      name: (aiSummary as any).capturedName as string | undefined,
+      originCity: (aiSummary as any).originCity as string | undefined,
+      originAddress: (aiSummary as any).originAddress as string | undefined,
+      destCity: (aiSummary as any).destCity as string | undefined,
+      destAddress: (aiSummary as any).destAddress as string | undefined,
+      moveDate: (aiSummary as any).moveDate as string | undefined,
+      depositMentioned: (aiSummary as any).depositConfirmed as boolean | undefined,
+      depositAmount: (aiSummary as any).depositAmount as number | undefined,
+    } : null
+
     if (inboundLead) {
       await updateInboundLeadRawData(inboundLead.id, {
         recordingUrl: mp3Url,
