@@ -3560,23 +3560,21 @@ export function EstimateDraftModal({
               </div>
             ) : null}
 
-            {/* ── MULTI-DAY LOGISTICS SUGGESTION ── */}
+            {/* ── JOB PLAN (Logistics + Scope merged) ── */}
             {pricingBreakdown && (() => {
               const totalH = pricingBreakdown.totalHours
               const trucks = pricingBreakdown.truckCount
               const needsPacking = jobFactors.packingStatus === 'not-started' || jobFactors.packingStatus === 'partial'
-              const isBigMove = trucks >= 2 || totalH >= 10
               const hasStorage = legsEnabled && legs.some(l => l.type === 'storage' || l.type === 'storage_delivery')
-              if (!isBigMove && !hasStorage) return null
+              const isBigMove = trucks >= 2 || totalH >= 10
 
               const days: Array<{ label: string; who: string; hours: string; color: string; note?: string }> = []
 
               if (needsPacking) {
-                const packH = flags?.packingDayEstimate?.hours
                 days.push({
                   label: 'Packing Day',
                   who: `${flags?.packingDayEstimate?.crewSize ?? 2} packers`,
-                  hours: packH ? `~${packH}h` : '~4-6h',
+                  hours: flags?.packingDayEstimate?.hours ? `~${flags.packingDayEstimate.hours}h` : '~4-6h',
                   color: 'emerald',
                   note: 'Day before move — crew packs and labels everything',
                 })
@@ -3598,7 +3596,7 @@ export function EstimateDraftModal({
                   color: 'purple',
                   note: 'Pickup from storage, deliver + reassemble — no rewrap charge',
                 })
-              } else if (totalH >= 10 && flags?.twoDayMoveEstimate) {
+              } else if (isBigMove && flags?.twoDayMoveEstimate) {
                 days.push({
                   label: 'Unloading Day',
                   who: `${pricingBreakdown.crewSize} movers`,
@@ -3608,6 +3606,16 @@ export function EstimateDraftModal({
                 })
               }
 
+              // Scope items
+              const scopeLines: string[] = [
+                `${effectiveInventoryMetrics.totalItems} items · ${effectiveInventoryMetrics.totalCubicFeet} cu ft · wrap + pad all furniture`,
+              ]
+              if (includedDisassemblyItems.length > 0) {
+                scopeLines.push(`${disassemblyScopeLabel}: ${includedDisassemblyItems.join(', ')}`)
+              }
+              pricingBreakdown.specialtyItemFlags.forEach(item => scopeLines.push(`Specialty handling: ${item}`))
+              if (jobFactors.specialtyNotes?.trim()) scopeLines.push(jobFactors.specialtyNotes.trim())
+
               const colorMap: Record<string, string> = {
                 emerald: 'border-emerald-200 bg-emerald-50 text-emerald-800',
                 blue: 'border-blue-200 bg-blue-50 text-blue-800',
@@ -3616,71 +3624,38 @@ export function EstimateDraftModal({
 
               return (
                 <div>
-                  <div className="crm-label mb-3">Logistics Plan</div>
-                  <div className="space-y-2">
-                    {days.map((day, i) => (
-                      <div key={i} className={`rounded-[8px] border px-3 py-2.5 ${colorMap[day.color]}`}>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/60 text-[9px] font-bold">D{i + 1}</span>
-                            <span className="text-xs font-semibold">{day.label}</span>
+                  <div className="crm-label mb-3">Job Plan</div>
+                  <div className="rounded-[8px] border border-[var(--app-line)] overflow-hidden">
+                    {/* Day cards */}
+                    {days.length > 0 && (
+                      <div className={`divide-y divide-[var(--app-line)] ${days.length === 0 ? '' : ''}`}>
+                        {days.map((day, i) => (
+                          <div key={i} className={`px-3 py-2.5 ${colorMap[day.color]}`}>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/60 text-[9px] font-bold">D{i + 1}</span>
+                                <span className="text-xs font-semibold">{day.label}</span>
+                              </div>
+                              <span className="text-[10px] font-semibold">{day.hours}</span>
+                            </div>
+                            <div className="mt-0.5 text-[10px] opacity-80">{day.who}{day.note ? ` · ${day.note}` : ''}</div>
                           </div>
-                          <div className="text-[10px] font-semibold">{day.hours}</div>
-                        </div>
-                        <div className="mt-1 text-[10px] opacity-80">{day.who}{day.note ? ` · ${day.note}` : ''}</div>
+                        ))}
                       </div>
-                    ))}
-                    <div className="text-[10px] text-[var(--app-muted)]">
-                      Auto-generated from job factors. Adjust start time and dates per leg above.
+                    )}
+                    {/* Scope lines */}
+                    <div className="px-3 py-2.5 bg-white space-y-1">
+                      {scopeLines.map((line, i) => (
+                        <div key={i} className="text-[11px] text-[var(--app-muted)]">✓ {line}</div>
+                      ))}
+                      {pricingBreakdown.pricingStatus === 'provisional' && (
+                        <div className="text-[11px] text-amber-700">⚠ Travel time provisional — add destination address</div>
+                      )}
                     </div>
                   </div>
                 </div>
               )
             })()}
-
-            {/* ── SCOPE OF WORK ── */}
-            {pricingBreakdown ? (
-              <div>
-                <div className="crm-label mb-3">Scope of Work</div>
-                <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 px-4 py-3 space-y-1.5 text-xs text-emerald-800">
-                  <div>✓ Moving {effectiveInventoryMetrics.totalItems} items ({effectiveInventoryMetrics.totalCubicFeet} cu ft)</div>
-                  <div>✓ Wrapping + padding all furniture</div>
-                  {includedDisassemblyItems.length > 0 && (
-                    <div>✓ {disassemblyScopeLabel}: {includedDisassemblyItems.join(', ')}</div>
-                  )}
-                  {pricingBreakdown.specialtyItemFlags.map((item, i) => (
-                    <div key={i}>✓ Specialty handling: {item}</div>
-                  ))}
-                  {jobFactors.specialtyNotes?.trim() ? (
-                    <div>✓ Additional scope notes: {jobFactors.specialtyNotes.trim()}</div>
-                  ) : null}
-                  {/* Boxes from inventory */}
-                  {(() => {
-                    const effectiveInventory = effectiveInventoryMetrics.inventory
-                    const smallBoxes = effectiveInventory.filter(i => i.included !== false && (i.name || '').toLowerCase().includes('small box')).reduce((s, i) => s + (i.qty || 1), 0)
-                    const medBoxes = effectiveInventory.filter(i => i.included !== false && (i.name || '').toLowerCase().includes('medium box')).reduce((s, i) => s + (i.qty || 1), 0)
-                    const largeBoxes = effectiveInventory.filter(i => i.included !== false && (i.name || '').toLowerCase().includes('large box')).reduce((s, i) => s + (i.qty || 1), 0)
-                    const xlBoxes = effectiveInventory.filter(i => i.included !== false && (i.name || '').toLowerCase().includes('xl box')).reduce((s, i) => s + (i.qty || 1), 0)
-                    const tvBoxes = effectiveInventory.filter(i => i.included !== false && (i.name || '').toLowerCase().includes('tv box'))
-                    const boxSummary: string[] = []
-                    const tvBoxCount = tvBoxes.reduce((s, i) => s + (i.qty || 1), 0)
-                    const tvBoxSizes = Array.from(new Set(tvBoxes.map(i => i.size || i.name).filter(Boolean))).join(', ')
-                    if (smallBoxes > 0) boxSummary.push(`${smallBoxes} small`)
-                    if (medBoxes > 0) boxSummary.push(`${medBoxes} medium`)
-                    if (largeBoxes > 0) boxSummary.push(`${largeBoxes} large`)
-                    if (xlBoxes > 0) boxSummary.push(`${xlBoxes} XL`)
-                    if (tvBoxCount > 0) {
-                      boxSummary.push(`${tvBoxCount} TV box${tvBoxCount > 1 ? 'es' : ''}${tvBoxSizes ? ` (${tvBoxSizes})` : ''}`)
-                    }
-                    if (boxSummary.length === 0) return null
-                    return <div>✓ Boxes included: {boxSummary.join(', ')}</div>
-                  })()}
-                  {pricingBreakdown.pricingStatus === 'provisional' && (
-                    <div className="text-amber-700 mt-1">⚠ Travel time provisional — add destination address</div>
-                  )}
-                </div>
-              </div>
-            ) : null}
 
 
             {/* U-Haul Job Cost Calculator */}
@@ -3739,7 +3714,7 @@ export function EstimateDraftModal({
                             <span className="text-[var(--app-ink)]">{formatMoney(cost.dailyRental)}</span>
                           </div>
                           <div className="flex justify-between text-xs">
-                            <span className="text-[var(--app-muted)]">Mileage ({Math.round(cost.totalOperationalKm)} km)</span>
+                            <span className="text-[var(--app-muted)]">Mileage ({truckCount > 1 ? `${truckCount}× trucks, ` : ''}{Math.round(cost.totalOperationalKm)} km total)</span>
                             <span className="text-[var(--app-ink)]">{formatMoney(cost.mileageCharge)}</span>
                           </div>
                           <div className="flex justify-between text-xs">
