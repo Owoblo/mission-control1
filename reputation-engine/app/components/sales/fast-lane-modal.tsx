@@ -43,6 +43,8 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
     minTotal: number
     maxTotal: number
     rate: number
+    channel: 'sms' | 'email'
+    recipient: string
   } | null>(null)
 
   const rate = RATES[moveType]?.[crew] ?? 225
@@ -82,6 +84,8 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
         minTotal?: number
         maxTotal?: number
         rate?: number
+        channel?: 'sms' | 'email'
+        recipient?: string
         error?: string
       }
       if (!res.ok || data.error) throw new Error(data.error || 'Failed to send')
@@ -94,6 +98,8 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
         minTotal: data.minTotal!,
         maxTotal: data.maxTotal!,
         rate: data.rate!,
+        channel: data.channel || (lead.phone ? 'sms' : 'email'),
+        recipient: data.recipient || lead.phone || lead.email || '',
       })
     } catch (err) {
       alert((err as Error).message)
@@ -128,7 +134,9 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
             <div className="rounded-[12px] bg-emerald-50 border border-emerald-200 p-4 text-center">
               <div className="text-3xl mb-2">✅</div>
               <div className="text-sm font-semibold text-emerald-800">Quote + booking link sent!</div>
-              <div className="mt-1 text-xs text-emerald-700">SMS delivered to {lead.phone}</div>
+              <div className="mt-1 text-xs text-emerald-700">
+                {result.channel === 'email' ? 'Email sent to' : 'SMS delivered to'} {result.recipient}
+              </div>
             </div>
 
             <div className="rounded-[10px] bg-[var(--app-bg)] px-4 py-3 space-y-1">

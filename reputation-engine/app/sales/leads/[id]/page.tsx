@@ -4079,9 +4079,9 @@ export default function SalesLeadDetailPage() {
               </button>
               <button
                 onClick={() => setFastLaneOpen(true)}
-                disabled={!canEditCurrentLead || !lead.phone}
+                disabled={!canEditCurrentLead || (!lead.phone && !lead.email)}
                 className="crm-button w-full justify-center border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 disabled:opacity-60"
-                title="Send a quick SMS quote — no inventory scan needed"
+                title="Send a quick quote by SMS or email — no inventory scan needed"
               >
                 ⚡ Fast Lane Quote
               </button>

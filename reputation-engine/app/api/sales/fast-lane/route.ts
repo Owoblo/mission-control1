@@ -69,6 +69,9 @@ export async function POST(request: Request) {
 
     const lead = await getSalesLead(leadId)
     if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
+    if (!lead.phone && !lead.email) {
+      return NextResponse.json({ error: 'Add a phone number or email before sending a Fast Lane quote.' }, { status: 400 })
+    }
 
     const rate = RATES[moveType]?.[crew] ?? 225
     const quotedHours = minHours
@@ -139,6 +142,8 @@ export async function POST(request: Request) {
         maximumHours: maxHours,
         minTotal: Math.round(rate * minHours * (1 + HST)),
         maxTotal: Math.round(rate * maxHours * (1 + HST)),
+        channel: lead.phone ? 'sms' : 'email',
+        recipient: lead.phone || lead.email,
         deduped: true,
       })
     }
@@ -222,6 +227,9 @@ export async function POST(request: Request) {
       `Questions? Call/text 226-773-2993`,
     ].filter(line => line !== null && line !== undefined && !(line === '' && false)).join('\n').replace(/\n{3,}/g, '\n\n')
 
+    const sentChannel: 'sms' | 'email' = lead.phone ? 'sms' : 'email'
+    const sentRecipient = lead.phone || lead.email || ''
+
     if (lead.phone) {
       await sendSalesMessage({
         channel: 'sms',
@@ -230,6 +238,19 @@ export async function POST(request: Request) {
         leadId: lead.id,
         quoteId: quote.id,
         notes: `⚡ Fast Lane Quote sent — ${crewLabel} · $${rate}/hr · ${rangeLabel}`,
+        actor: 'human',
+        actorName: session?.name,
+        actorUserId: session?.userId,
+      })
+    } else if (lead.email) {
+      await sendSalesMessage({
+        channel: 'email',
+        to: lead.email,
+        subject: 'Your Saturn Star moving quote',
+        body: smsBody,
+        leadId: lead.id,
+        quoteId: quote.id,
+        notes: `⚡ Fast Lane Quote emailed — ${crewLabel} · $${rate}/hr · ${rangeLabel}`,
         actor: 'human',
         actorName: session?.name,
         actorUserId: session?.userId,
@@ -248,6 +269,8 @@ export async function POST(request: Request) {
       maximumHours: maxHours,
       minTotal,
       maxTotal,
+      channel: sentChannel,
+      recipient: sentRecipient,
     })
   } catch (error) {
     return NextResponse.json(

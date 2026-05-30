@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { formatListingContextSummary, formatListingPropertySummary, getListingDescription, getListingOperationalHighlights } from '@/lib/listing'
 import { getListingSideContactDisplayName } from '@/lib/realtor-opportunity'
-import { CRM_LEAD_SOURCES, formatDate, getSalesBranchLabel, PROPERTY_BEDROOM_OPTIONS, PROPERTY_TYPE_OPTIONS } from '@/lib/sales'
+import { CRM_LEAD_SOURCES, formatDate, getSalesBranchLabel } from '@/lib/sales'
 import type { CRMLead } from '@/lib/types'
 import { SALES_BRANCHES } from '@/lib/sales'
 
@@ -422,12 +422,6 @@ export function LeadBasicsPanel({
   moveDateFlexible,
   moveDateFlexibleReason,
   moveType,
-  propertyBedrooms,
-  propertyType,
-  originStairFlights,
-  destStairFlights,
-  originElevatorAccess,
-  destElevatorAccess,
   originAddress,
   originCity,
   originAccess,
@@ -449,12 +443,6 @@ export function LeadBasicsPanel({
   onMoveDateFlexibleReasonChange,
   onMoveTypeChange,
   onBranchChange,
-  onPropertyBedroomsChange,
-  onPropertyTypeChange,
-  onOriginStairFlightsChange,
-  onDestStairFlightsChange,
-  onOriginElevatorAccessChange,
-  onDestElevatorAccessChange,
   onOriginAddressChange,
   onOriginCityChange,
   onOriginAccessChange,
@@ -720,83 +708,6 @@ export function LeadBasicsPanel({
               <option value="full_service">Full service — wants everything handled</option>
             </select>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="crm-label">Home Size</label>
-              <select
-                value={propertyBedrooms || ''}
-                onChange={event => onPropertyBedroomsChange?.((event.target.value || undefined) as CRMLead['propertyBedrooms'] | undefined)}
-                className="crm-input mt-1 w-full"
-              >
-                <option value="">Select bedrooms</option>
-                {PROPERTY_BEDROOM_OPTIONS.map(option => (
-                  <option key={option.id} value={option.id}>{option.label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="crm-label">Property Type</label>
-              <select
-                value={propertyType || ''}
-                onChange={event => onPropertyTypeChange?.((event.target.value || undefined) as CRMLead['propertyType'] | undefined)}
-                className="crm-input mt-1 w-full"
-              >
-                <option value="">Select property type</option>
-                {PROPERTY_TYPE_OPTIONS.map(option => (
-                  <option key={option.id} value={option.id}>{option.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-[10px] border border-[var(--app-line)] bg-white px-3 py-3">
-              <div className="crm-label">Origin Access Structure</div>
-              <div className="mt-2 grid gap-2">
-                <select
-                  value={originStairFlights ?? 0}
-                  onChange={event => onOriginStairFlightsChange?.(Number(event.target.value))}
-                  className="crm-input w-full"
-                >
-                  {[0, 1, 2, 3, 4].map(option => (
-                    <option key={`origin-${option}`} value={option}>{option === 4 ? '4+ flights of stairs' : `${option} flight${option === 1 ? '' : 's'} of stairs`}</option>
-                  ))}
-                </select>
-                <select
-                  value={originElevatorAccess === undefined ? '' : originElevatorAccess ? 'yes' : 'no'}
-                  onChange={event => onOriginElevatorAccessChange?.(event.target.value === '' ? undefined : event.target.value === 'yes')}
-                  className="crm-input w-full"
-                >
-                  <option value="">Elevator access unknown</option>
-                  <option value="yes">Elevator access: Yes</option>
-                  <option value="no">Elevator access: No</option>
-                </select>
-              </div>
-            </div>
-            <div className="rounded-[10px] border border-[var(--app-line)] bg-white px-3 py-3">
-              <div className="crm-label">Destination Access Structure</div>
-              <div className="mt-2 grid gap-2">
-                <select
-                  value={destStairFlights ?? 0}
-                  onChange={event => onDestStairFlightsChange?.(Number(event.target.value))}
-                  className="crm-input w-full"
-                >
-                  {[0, 1, 2, 3, 4].map(option => (
-                    <option key={`dest-${option}`} value={option}>{option === 4 ? '4+ flights of stairs' : `${option} flight${option === 1 ? '' : 's'} of stairs`}</option>
-                  ))}
-                </select>
-                <select
-                  value={destElevatorAccess === undefined ? '' : destElevatorAccess ? 'yes' : 'no'}
-                  onChange={event => onDestElevatorAccessChange?.(event.target.value === '' ? undefined : event.target.value === 'yes')}
-                  className="crm-input w-full"
-                >
-                  <option value="">Elevator access unknown</option>
-                  <option value="yes">Elevator access: Yes</option>
-                  <option value="no">Elevator access: No</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
           {/* Origin address with autocomplete */}
           <AddressInput
             value={originAddress}
