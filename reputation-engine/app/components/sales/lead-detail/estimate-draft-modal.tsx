@@ -3742,7 +3742,7 @@ export function EstimateDraftModal({
 
                       {/* U-Haul Job Cost */}
                       <div>
-                        <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center justify-between mb-1">
                           <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">🚛 U-Haul Job Cost</div>
                           {uhaulDepotName && (
                             <div className="text-[10px] text-[var(--app-muted)] truncate max-w-[180px]" title={uhaulDepotName}>
@@ -3750,19 +3750,25 @@ export function EstimateDraftModal({
                             </div>
                           )}
                         </div>
+                        {/* Route summary */}
+                        <div className="text-[10px] text-[var(--app-muted)] mb-1.5 font-mono bg-slate-50 rounded px-2 py-1">
+                          {activeStrategy === 'single_truck_two_trips'
+                            ? `UHaul(${pickupKm}km) → Org → Dest(${oneWayKm}km) → Org → Dest → UHaul · total ${Math.round(cost.totalOperationalKm)}km`
+                            : `UHaul(${pickupKm}km) → Org → Dest(${oneWayKm}km) → UHaul${activeTruckCount > 1 ? ` × ${activeTruckCount} trucks` : ''} · total ${Math.round(cost.totalOperationalKm)}km`}
+                        </div>
                         <div className="space-y-1">
                           <div className="flex justify-between text-xs">
-                            <span className="text-[var(--app-muted)]">{truckCount}× {truckSize} rental</span>
+                            <span className="text-[var(--app-muted)]">{activeTruckCount}× {truckSize} rental (1 day)</span>
                             <span className="text-[var(--app-ink)]">{formatMoney(cost.dailyRental)}</span>
                           </div>
                           {pickupKm > 0 && (
                             <div className="flex justify-between text-xs">
                               <span className="text-[var(--app-muted)]">
-                                {tripStrategy === 'single_truck_two_trips'
-                                  ? `UHaul→Org→Dest→Org→Dest→UHaul (depot legs: ${pickupKm * 2} km)`
-                                  : `UHaul→Origin→Dest→UHaul${truckCount > 1 ? ` × ${truckCount} trucks` : ''} (depot: ${pickupKm * 2 * truckCount} km)`}
+                                {activeStrategy === 'single_truck_two_trips'
+                                  ? `UHaul→Org→Dest→Org→Dest→UHaul · depot legs: ${pickupKm * 2} km`
+                                  : `UHaul→Origin→Dest→UHaul${activeTruckCount > 1 ? ` × ${activeTruckCount} trucks` : ''} · depot: ${pickupKm * 2 * activeTruckCount} km`}
                               </span>
-                              <span className="text-[var(--app-muted)]">{pickupKm * 2 * truckCount} km</span>
+                              <span className="text-[var(--app-muted)]">{pickupKm * 2 * activeTruckCount} km</span>
                             </div>
                           )}
                           <div className="flex justify-between text-xs">
