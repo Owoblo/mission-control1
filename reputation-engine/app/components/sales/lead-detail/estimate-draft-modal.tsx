@@ -379,6 +379,10 @@ export function EstimateDraftModal({
   const [overrideInput, setOverrideInput] = useState('')
   const [overrideReason, setOverrideReason] = useState('relationship')
   const [overrideApplied, setOverrideApplied] = useState(false)
+  const [approvalNote, setApprovalNote] = useState('')
+  const [approvalSending, setApprovalSending] = useState(false)
+  const [approvalError, setApprovalError] = useState<string | null>(null)
+  const [approvalStatus, setApprovalStatus] = useState<'pending' | 'approved' | undefined>(lead.marginApprovalStatus)
 
   // Manual inventory quick-add state
   const [quickRoom, setQuickRoom] = useState('Living Room')
@@ -455,6 +459,8 @@ export function EstimateDraftModal({
     const hasSpotDiscount = quoteDiscountAmount > 0 && (quoteDiscountLabel || '').toLowerCase() === '10% spot discount'.toLowerCase()
     setTenPctActive(current => current === hasSpotDiscount ? current : hasSpotDiscount)
   }, [quoteDiscountAmount, quoteDiscountLabel])
+
+  useEffect(() => { setApprovalStatus(lead.marginApprovalStatus) }, [lead.marginApprovalStatus])
 
   useEffect(() => {
     if (!tenPctActive) return
@@ -575,6 +581,28 @@ export function EstimateDraftModal({
     onJobFactorsChange({ ...jobFactors, disassemblyItemCount: newCount === 0 && next.size > 0 ? 0 : newCount })
   }
 
+  async function requestManagerApproval(overrideAmount: number, projectedMargin: number) {
+    setApprovalSending(true)
+    setApprovalError(null)
+    try {
+      const res = await fetch(`/api/sales/leads/${lead.id}/request-approval`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ overrideAmount, projectedMargin, note: approvalNote, customerName: lead.name, moveDate: lead.moveDate }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string }
+        throw new Error(err.error || 'Failed to send approval request')
+      }
+      setApprovalStatus('pending')
+      setApprovalNote('')
+    } catch (err) {
+      setApprovalError((err as Error).message)
+    } finally {
+      setApprovalSending(false)
+    }
+  }
+
   const effectiveInventoryMetrics = useMemo(() => deriveInventoryMetrics(inventory), [inventory])
   const inventoryPolicySummary = useMemo(() => summarizeMovePolicy(inventory, { moveType: lead.moveType }), [inventory, lead.moveType])
   const blockedPolicyLabels = useMemo(() => uniquePolicyLabels(inventoryPolicySummary.blocked), [inventoryPolicySummary.blocked])
@@ -673,6 +701,8 @@ export function EstimateDraftModal({
   const selectedMoveDate = quote?.moveDate || lead.moveDate
   const moveDateDaysAway = daysUntilDate(selectedMoveDate)
   const canApproveMarginException = currentUser?.role === 'owner' || currentUser?.role === 'manager'
+  const approvalGranted = approvalStatus === 'approved'
+  const approvalPending = approvalStatus === 'pending'
   const liveMarginSummary = useMemo(() => {
     if (!pricingBreakdown) return null
     const dealCosts: Record<string, number> = {
@@ -2604,12 +2634,38 @@ export function EstimateDraftModal({
                   {overrideProjectedMargin !== null && (
                     <div className={`text-[10px] ${overrideProjectedMargin < 55 ? 'text-rose-700' : 'text-[var(--app-muted)]'}`}>
                       Projected margin after override: {overrideProjectedMargin.toFixed(1)}%
-                      {overrideProjectedMargin < 55 ? canApproveMarginException ? ' · manager approval should be documented.' : ' · manager approval required below threshold.' : ''}
+                      {overrideProjectedMargin < 55 ? canApproveMarginException ? ' · manager approval should be documented.' : '' : ''}
                     </div>
+                  )}
+                  {overrideProjectedMargin !== null && overrideProjectedMargin < 55 && !canApproveMarginException && (
+                    approvalGranted ? (
+                      <div className="text-[10px] font-semibold text-emerald-700">✓ Manager approved — you can apply the override.</div>
+                    ) : approvalPending ? (
+                      <div className="text-[10px] text-amber-700">Approval requested · Awaiting manager response.</div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <textarea
+                          value={approvalNote}
+                          onChange={e => setApprovalNote(e.target.value)}
+                          placeholder="Optional note to manager (e.g. customer situation, competitor quote)..."
+                          rows={2}
+                          className="crm-input text-[10px] w-full resize-none"
+                        />
+                        {approvalError && <div className="text-[10px] text-rose-700">{approvalError}</div>}
+                        <button
+                          type="button"
+                          disabled={approvalSending || !overrideInput || Number(overrideInput) <= 0}
+                          onClick={() => requestManagerApproval(Number(overrideInput), overrideProjectedMargin ?? 0)}
+                          className="w-full rounded-[6px] bg-amber-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-amber-700 disabled:opacity-40 transition"
+                        >
+                          {approvalSending ? 'Sending...' : 'Request Manager Approval'}
+                        </button>
+                      </div>
+                    )
                   )}
                   <button
                     type="button"
-                    disabled={!overrideInput || Number(overrideInput) <= 0 || (overrideProjectedMargin !== null && overrideProjectedMargin < 55 && !canApproveMarginException)}
+                    disabled={!overrideInput || Number(overrideInput) <= 0 || (overrideProjectedMargin !== null && overrideProjectedMargin < 55 && !canApproveMarginException && !approvalGranted)}
                     onClick={() => {
                       const total = Math.round(Number(overrideInput) * 100) / 100
                       if (total <= 0) return
@@ -2645,7 +2701,7 @@ export function EstimateDraftModal({
                     <div className="text-xs font-semibold text-[var(--app-ink)]">Book Today — $150 off</div>
                     <button
                       type="button"
-                      disabled={!bookTodayGate.eligible || (bookTodayGate.approvalRequired && !canApproveMarginException)}
+                      disabled={!bookTodayGate.eligible || (bookTodayGate.approvalRequired && !canApproveMarginException && !approvalGranted)}
                       onClick={() => {
                         const next = !bookTodayActive
                         setBookTodayActive(next)
@@ -2675,12 +2731,37 @@ export function EstimateDraftModal({
                   {!bookTodayGate.eligible && (
                     <div className="text-[10px] text-amber-700">Available only when {bookTodayGate.reasons.join(', ')}.</div>
                   )}
-                  {bookTodayGate.approvalRequired && (
+                  {bookTodayGate.approvalRequired && canApproveMarginException && (
                     <div className="text-[10px] text-rose-700">
-                      {canApproveMarginException
-                        ? `Projected margin after discount: ${bookTodayProjectedMargin?.toFixed(1) || '0.0'}%`
-                        : `Projected margin drops to ${bookTodayProjectedMargin?.toFixed(1) || '0.0'}% — manager approval required.`}
+                      Projected margin after discount: {bookTodayProjectedMargin?.toFixed(1) || '0.0'}%
                     </div>
+                  )}
+                  {bookTodayGate.approvalRequired && !canApproveMarginException && (
+                    approvalGranted ? (
+                      <div className="text-[10px] font-semibold text-emerald-700">✓ Manager approved — discount unlocked.</div>
+                    ) : approvalPending ? (
+                      <div className="text-[10px] text-amber-700">Approval requested · Awaiting manager response.</div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <div className="text-[10px] text-rose-700">Projected margin drops to {bookTodayProjectedMargin?.toFixed(1) || '0.0'}% — manager approval required.</div>
+                        <textarea
+                          value={approvalNote}
+                          onChange={e => setApprovalNote(e.target.value)}
+                          placeholder="Optional note to manager..."
+                          rows={2}
+                          className="crm-input text-[10px] w-full resize-none"
+                        />
+                        {approvalError && <div className="text-[10px] text-rose-700">{approvalError}</div>}
+                        <button
+                          type="button"
+                          disabled={approvalSending}
+                          onClick={() => requestManagerApproval(0, bookTodayProjectedMargin ?? 0)}
+                          className="w-full rounded-[6px] bg-amber-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-amber-700 disabled:opacity-40 transition"
+                        >
+                          {approvalSending ? 'Sending...' : 'Request Manager Approval'}
+                        </button>
+                      </div>
+                    )
                   )}
                 </div>
 
@@ -2690,7 +2771,7 @@ export function EstimateDraftModal({
                     <div className="text-xs font-semibold text-[var(--app-ink)]">10% Spot Discount</div>
                     <button
                       type="button"
-                      disabled={!tenPctGate.eligible || (tenPctGate.approvalRequired && !canApproveMarginException)}
+                      disabled={!tenPctGate.eligible || (tenPctGate.approvalRequired && !canApproveMarginException && !approvalGranted)}
                       onClick={() => {
                         const next = !tenPctActive
                         setTenPctActive(next)
@@ -2717,12 +2798,37 @@ export function EstimateDraftModal({
                   {!tenPctGate.eligible && (
                     <div className="text-[10px] text-amber-700">Available only when {tenPctGate.reasons.join(', ')}.</div>
                   )}
-                  {tenPctGate.approvalRequired && (
+                  {tenPctGate.approvalRequired && canApproveMarginException && (
                     <div className="text-[10px] text-rose-700">
-                      {canApproveMarginException
-                        ? `Projected margin after discount: ${tenPctProjectedMargin?.toFixed(1) || '0.0'}%`
-                        : `Projected margin drops to ${tenPctProjectedMargin?.toFixed(1) || '0.0'}% — manager approval required.`}
+                      Projected margin after discount: {tenPctProjectedMargin?.toFixed(1) || '0.0'}%
                     </div>
+                  )}
+                  {tenPctGate.approvalRequired && !canApproveMarginException && (
+                    approvalGranted ? (
+                      <div className="text-[10px] font-semibold text-emerald-700">✓ Manager approved — discount unlocked.</div>
+                    ) : approvalPending ? (
+                      <div className="text-[10px] text-amber-700">Approval requested · Awaiting manager response.</div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <div className="text-[10px] text-rose-700">Projected margin drops to {tenPctProjectedMargin?.toFixed(1) || '0.0'}% — manager approval required.</div>
+                        <textarea
+                          value={approvalNote}
+                          onChange={e => setApprovalNote(e.target.value)}
+                          placeholder="Optional note to manager..."
+                          rows={2}
+                          className="crm-input text-[10px] w-full resize-none"
+                        />
+                        {approvalError && <div className="text-[10px] text-rose-700">{approvalError}</div>}
+                        <button
+                          type="button"
+                          disabled={approvalSending}
+                          onClick={() => requestManagerApproval(0, tenPctProjectedMargin ?? 0)}
+                          className="w-full rounded-[6px] bg-amber-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-amber-700 disabled:opacity-40 transition"
+                        >
+                          {approvalSending ? 'Sending...' : 'Request Manager Approval'}
+                        </button>
+                      </div>
+                    )
                   )}
                 </div>
 

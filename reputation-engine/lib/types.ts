@@ -640,6 +640,13 @@ export interface CRMLead {
   reviewCompletedAt?: string
   reviewRating?: number
   reviewNotes?: string
+  // Manager approval for below-threshold margin overrides
+  marginApprovalStatus?: 'pending' | 'approved'
+  marginApprovalToken?: string
+  marginApprovalRequestedAt?: string
+  marginApprovalRequestedBy?: string
+  marginApprovalContext?: string  // JSON: { overrideAmount, projectedMargin, note }
+  marginApprovedAt?: string
   createdAt: string
 }
 
