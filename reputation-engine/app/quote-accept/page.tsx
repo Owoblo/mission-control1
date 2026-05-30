@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { buildMoveSpecificNotes } from '@/lib/move-scope'
@@ -72,13 +73,21 @@ const REVIEWS = [
   { name: 'Lazlo', text: 'You guys did a great job, definitely recommended.', stars: 5 },
 ]
 
-// Saturn Star logo mark — gold circle with navy pillar (SVG, matches icon-192.png)
-function LogoMark({ size = 32 }: { size?: number }) {
+function LogoMark({ size = 32, dark = false }: { size?: number; dark?: boolean }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="192" height="192" rx="96" fill="#f5a623" />
-      <rect x="77" y="44" width="38" height="104" rx="4" fill="#1a2744" />
-    </svg>
+    <span
+      className={`inline-flex shrink-0 items-center justify-center rounded-[10px] ${dark ? 'bg-white/95 p-1 shadow-sm' : ''}`}
+      style={{ width: size, height: size }}
+    >
+      <Image
+        src="/saturn-star-logo.png"
+        alt="Saturn Star Moving"
+        width={size}
+        height={size}
+        className="h-full w-full object-contain"
+        priority={size >= 40}
+      />
+    </span>
   )
 }
 
@@ -236,7 +245,7 @@ function AcceptBlock({
       <div className="rounded-lg bg-[#1a2744] px-4 py-2 text-xs font-bold text-[#f5a623]">Deposit Paid — You&apos;re Booked</div>
     ) : (
       <div className="rounded-xl border-2 border-[#1a2744] bg-[#1a2744] p-8 text-center">
-        <LogoMark size={48} />
+        <LogoMark size={56} dark />
         <div className="mt-4 text-xl font-black text-white mb-2">You&apos;re on the calendar.</div>
         <div className="text-sm text-white/70 max-w-sm mx-auto leading-6">
           Your deposit has been received. The Saturn Star team will be in touch shortly to confirm move-day details.
@@ -498,7 +507,7 @@ function QuoteAcceptPageInner() {
 
           {alreadyPaid ? (
             <div className="rounded-2xl border-2 border-[#1a2744] bg-[#1a2744] p-8 text-center">
-              <LogoMark size={48} />
+              <LogoMark size={56} dark />
               <div className="mt-4 text-xl font-black text-white mb-2">You&apos;re on the calendar.</div>
               <div className="text-sm text-white/70 max-w-sm mx-auto leading-6">
                 Deposit received. The Saturn Star team will be in touch to confirm your move details.
@@ -631,7 +640,7 @@ function QuoteAcceptPageInner() {
           <div className="px-6 py-7">
             {/* Logo + brand */}
             <div className="flex items-center gap-3 mb-5">
-              <LogoMark size={40} />
+              <LogoMark size={52} dark />
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#f5a623]">Saturn Star Moving</div>
                 <div className="text-[9px] text-white/30 tracking-wider uppercase mt-0.5">Windsor, Ontario</div>
@@ -1056,7 +1065,7 @@ function QuoteAcceptPageInner() {
         <div className="overflow-hidden rounded-2xl bg-[#1a2744]">
           <div className="h-1 bg-[#f5a623]" />
           <div className="flex flex-col items-center gap-2 px-6 py-7 text-center">
-            <LogoMark size={44} />
+            <LogoMark size={56} dark />
             <div className="mt-2 text-base font-black tracking-tight text-white">SATURN STAR MOVING</div>
             <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#f5a623]/70">Professional Moving Services</div>
             <div className="mt-3 text-[10px] text-white/30 leading-6">
