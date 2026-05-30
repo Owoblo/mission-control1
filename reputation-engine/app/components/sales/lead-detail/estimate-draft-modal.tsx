@@ -441,6 +441,9 @@ export function EstimateDraftModal({
   const [uhaulMisc, setUhaulMisc] = useState(DEFAULT_MISC_BUFFER)
   const [uhaulStraightDrop, setUhaulStraightDrop] = useState(false)
   const [uhaulBlankets, setUhaulBlankets] = useState<number | null>(null)  // null = auto
+  const [uhaulDepotName, setUhaulDepotName] = useState<string | null>(null)
+  const [uhaulPickupKm, setUhaulPickupKm] = useState<number | null>(null)
+  const [uhaulDepotLookupDone, setUhaulDepotLookupDone] = useState(false)
   const [junkAmount, setJunkAmount] = useState('299')
   const [junkAddress, setJunkAddress] = useState('')
   const [junkVolumeTier, setJunkVolumeTier] = useState<'unknown' | 'mini' | 'small' | 'medium' | 'large' | 'xl'>('unknown')
@@ -806,6 +809,22 @@ export function EstimateDraftModal({
     onQuoteDiscountAmountChange(tenPctDiscountAmount)
     onQuoteDiscountLabelChange(nextLabel)
   }, [tenPctActive, tenPctDiscountAmount, quoteDiscountAmount, quoteDiscountLabel, onQuoteDiscountAmountChange, onQuoteDiscountLabelChange])
+
+  // Auto-find nearest U-Haul to origin when origin address is known
+  useEffect(() => {
+    const addr = originFull || lead.originAddress
+    if (!addr || uhaulDepotLookupDone) return
+    setUhaulDepotLookupDone(true)
+    void fetch(`/api/sales/uhaul-nearest?address=${encodeURIComponent(addr)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then((data: { name?: string; distanceKm?: number | null } | null) => {
+        if (data?.distanceKm != null) {
+          setUhaulPickupKm(data.distanceKm)
+          setUhaulDepotName(data.name ?? null)
+        }
+      })
+      .catch(() => {})
+  }, [originFull, lead.originAddress, uhaulDepotLookupDone])
 
   const routeContext = useMemo<EstimateRouteContext | undefined>(() => {
     if (!originFull) return undefined
@@ -3671,8 +3690,11 @@ export function EstimateDraftModal({
               const crewSize = pricingBreakdown.crewSize || 3
               const revenue = quoteModalTotals.subtotal || 0
 
+              const pickupKm = uhaulPickupKm ?? 0
+
               const cost = calcUHaulCost({
                 truckSize, truckCount, tripStrategy, oneWayDistanceKm: oneWayKm,
+                uhaulPickupKm: pickupKm,
                 gasPrice: uhaulGasPrice, blanketBags, includeStraightDrop: uhaulStraightDrop,
                 crewSize, estimatedHours, miscBuffer: uhaulMisc, revenue,
               })
@@ -3680,7 +3702,7 @@ export function EstimateDraftModal({
               const showComparison = oneWayKm > 0 && oneWayKm < 120 &&
                 (tripStrategy === 'single_truck_two_trips' || tripStrategy === 'two_trucks')
               const comparison = showComparison
-                ? compareStrategies({ truckSize, oneWayDistanceKm: oneWayKm, gasPrice: uhaulGasPrice, blanketBags, includeStraightDrop: uhaulStraightDrop, crewSize, estimatedHours, miscBuffer: uhaulMisc, revenue })
+                ? compareStrategies({ truckSize, oneWayDistanceKm: oneWayKm, uhaulPickupKm: pickupKm, gasPrice: uhaulGasPrice, blanketBags, includeStraightDrop: uhaulStraightDrop, crewSize, estimatedHours, miscBuffer: uhaulMisc, revenue })
                 : null
 
               return (
@@ -3707,14 +3729,27 @@ export function EstimateDraftModal({
 
                       {/* U-Haul Job Cost */}
                       <div>
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">🚛 U-Haul Job Cost</div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">🚛 U-Haul Job Cost</div>
+                          {uhaulDepotName && (
+                            <div className="text-[10px] text-[var(--app-muted)] truncate max-w-[180px]" title={uhaulDepotName}>
+                              📍 {uhaulDepotName}{pickupKm > 0 ? ` · ${pickupKm} km away` : ''}
+                            </div>
+                          )}
+                        </div>
                         <div className="space-y-1">
                           <div className="flex justify-between text-xs">
                             <span className="text-[var(--app-muted)]">{truckCount}× {truckSize} rental</span>
                             <span className="text-[var(--app-ink)]">{formatMoney(cost.dailyRental)}</span>
                           </div>
+                          {pickupKm > 0 && (
+                            <div className="flex justify-between text-xs">
+                              <span className="text-[var(--app-muted)]">UHaul → Origin → UHaul ({pickupKm} km × 2{truckCount > 1 ? ` × ${truckCount} trucks` : ''})</span>
+                              <span className="text-[var(--app-muted)]">{pickupKm * 2 * truckCount} km</span>
+                            </div>
+                          )}
                           <div className="flex justify-between text-xs">
-                            <span className="text-[var(--app-muted)]">Mileage ({truckCount > 1 ? `${truckCount}× trucks, ` : ''}{Math.round(cost.totalOperationalKm)} km total)</span>
+                            <span className="text-[var(--app-muted)]">Mileage total ({Math.round(cost.totalOperationalKm)} km @ $0.99)</span>
                             <span className="text-[var(--app-ink)]">{formatMoney(cost.mileageCharge)}</span>
                           </div>
                           <div className="flex justify-between text-xs">

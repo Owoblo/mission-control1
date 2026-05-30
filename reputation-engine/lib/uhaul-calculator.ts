@@ -39,13 +39,14 @@ export interface UHaulCostParams {
   truckCount: number
   tripStrategy: TripStrategy
   oneWayDistanceKm: number   // origin → destination
+  uhaulPickupKm?: number     // nearest U-Haul depot → origin (added each way)
   gasPrice: number
   blanketBags: number
   includeStraightDrop: boolean
   crewSize: number
   estimatedHours: number
   miscBuffer: number
-  revenue: number            // what the customer pays (incl HST)
+  revenue: number
 }
 
 export interface UHaulCostResult {
@@ -73,22 +74,22 @@ export interface UHaulCostResult {
 
 function r(n: number) { return Math.round(n * 100) / 100 }
 
-// Operational km per truck based on trip strategy:
-// single_truck       → go + return to depot   = 2× one-way
-// single_truck_two_trips → go + back + go + return = 4× one-way
-// two_trucks / three_trucks → each truck: go + return  = 2× one-way
-function kmPerTruck(strategy: TripStrategy, oneWayKm: number): number {
-  return strategy === 'single_truck_two_trips' ? oneWayKm * 4 : oneWayKm * 2
+// Operational km per truck based on trip strategy + U-Haul pickup leg:
+// U-Haul → Origin → Destination → U-Haul (return)
+// pickup leg (uhaul→origin + return) adds 2 × uhaulPickupKm per truck
+function kmPerTruck(strategy: TripStrategy, oneWayKm: number, uhaulPickupKm = 0): number {
+  const jobKm = strategy === 'single_truck_two_trips' ? oneWayKm * 4 : oneWayKm * 2
+  return jobKm + uhaulPickupKm * 2  // to pickup + return drop-off
 }
 
 export function calcUHaulCost(params: UHaulCostParams): UHaulCostResult {
   const {
     truckSize, truckCount, tripStrategy, oneWayDistanceKm,
-    gasPrice, blanketBags, includeStraightDrop,
+    uhaulPickupKm = 0, gasPrice, blanketBags, includeStraightDrop,
     crewSize, estimatedHours, miscBuffer, revenue,
   } = params
 
-  const kmEach = kmPerTruck(tripStrategy, oneWayDistanceKm)
+  const kmEach = kmPerTruck(tripStrategy, oneWayDistanceKm, uhaulPickupKm)
   const totalKm = kmEach * truckCount
 
   const dailyRate = UHAUL_DAILY_RATES[truckSize] ?? UHAUL_DAILY_RATES['26ft']
@@ -122,6 +123,7 @@ export function calcUHaulCost(params: UHaulCostParams): UHaulCostResult {
 }
 
 // Side-by-side comparison: 1 truck 2 trips vs 2 trucks 1 trip
+// uhaulPickupKm is included automatically via spread
 export function compareStrategies(base: Omit<UHaulCostParams, 'tripStrategy' | 'truckCount'>) {
   const oneTruckTwoTrips = calcUHaulCost({ ...base, truckCount: 1, tripStrategy: 'single_truck_two_trips' })
   const twoTrucksOneTrip = calcUHaulCost({ ...base, truckCount: 2, tripStrategy: 'two_trucks' })
