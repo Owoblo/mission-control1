@@ -14,6 +14,11 @@ import { getTvBoxMaterialPresetForSize } from '@/lib/packing-materials'
 import { buildStarterInventoryPlan } from '@/lib/starter-inventory'
 import { DEFAULT_ROOM_OPTIONS } from './helpers'
 import type { EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, PricingBreakdown, QuoteLineItem, QuoteLeg, QuoteLegType } from '@/lib/types'
+import {
+  calcUHaulCost, compareStrategies, truckSizeFromCubicFeet,
+  DEFAULT_BLANKET_BAGS, DEFAULT_GAS_PRICE_PER_L, DEFAULT_MISC_BUFFER,
+  UHAUL_DAILY_RATES, UHAUL_PER_KM_RATE, UHAUL_FUEL_L_PER_100KM, type TripStrategy,
+} from '@/lib/uhaul-calculator'
 
 // Inline address autocomplete — shares the same API as lead-basics-panel
 function AddressAutocompleteInput({ value, placeholder, onSelect }: {
@@ -430,6 +435,12 @@ export function EstimateDraftModal({
   const [, startTransition] = useTransition()
   const [marginGateAck, setMarginGateAck] = useState(false)
   const [overrideApplied, setOverrideApplied] = useState(false)
+  // U-Haul cost panel
+  const [uhaulOpen, setUhaulOpen] = useState(false)
+  const [uhaulGasPrice, setUhaulGasPrice] = useState(DEFAULT_GAS_PRICE_PER_L)
+  const [uhaulMisc, setUhaulMisc] = useState(DEFAULT_MISC_BUFFER)
+  const [uhaulStraightDrop, setUhaulStraightDrop] = useState(false)
+  const [uhaulBlankets, setUhaulBlankets] = useState<number | null>(null)  // null = auto
   const [junkAmount, setJunkAmount] = useState('299')
   const [junkAddress, setJunkAddress] = useState('')
   const [junkVolumeTier, setJunkVolumeTier] = useState<'unknown' | 'mini' | 'small' | 'medium' | 'large' | 'xl'>('unknown')
@@ -3886,6 +3897,181 @@ export function EstimateDraftModal({
                 </div>
               </div>
             ) : null}
+
+            {/* U-Haul Job Cost Calculator */}
+            {pricingBreakdown && (distanceKm > 0 || (route?.distanceKm ?? 0) > 0) && (() => {
+              const oneWayKm = distanceKm || route?.distanceKm || 0
+              const truckCount = pricingBreakdown.truckCount || 1
+              const tripStrategy = (pricingBreakdown.tripStrategy || 'single_truck') as TripStrategy
+              const totalCubicFeet = pricingBreakdown.totalCubicFeet || effectiveInventoryMetrics.totalCubicFeet || 0
+              const truckSize = truckSizeFromCubicFeet(totalCubicFeet)
+              const defaultBlankets = DEFAULT_BLANKET_BAGS[truckSize] ?? 6
+              const blanketBags = uhaulBlankets ?? (defaultBlankets * truckCount)
+              const estimatedHours = pricingBreakdown.totalHours || 3
+              const crewSize = pricingBreakdown.crewSize || 3
+              const revenue = quoteModalTotals.total || 0
+
+              const cost = calcUHaulCost({
+                truckSize, truckCount, tripStrategy, oneWayDistanceKm: oneWayKm,
+                gasPrice: uhaulGasPrice, blanketBags, includeStraightDrop: uhaulStraightDrop,
+                crewSize, estimatedHours, miscBuffer: uhaulMisc, revenue,
+              })
+
+              const showComparison = oneWayKm > 0 && oneWayKm < 120 &&
+                (tripStrategy === 'single_truck_two_trips' || tripStrategy === 'two_trucks')
+              const comparison = showComparison
+                ? compareStrategies({ truckSize, oneWayDistanceKm: oneWayKm, gasPrice: uhaulGasPrice, blanketBags, includeStraightDrop: uhaulStraightDrop, crewSize, estimatedHours, miscBuffer: uhaulMisc, revenue })
+                : null
+
+              const profitColor = cost.grossMarginPct >= 55 ? 'text-emerald-700' : cost.grossMarginPct >= 40 ? 'text-amber-700' : 'text-rose-700'
+
+              return (
+                <div className="border border-[var(--app-line)] rounded-[10px] overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setUhaulOpen(o => !o)}
+                    className="w-full flex items-center justify-between px-3.5 py-2.5 bg-[var(--app-surface)] hover:bg-[var(--app-line)]/40 transition text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">🚛</span>
+                      <span className="text-xs font-semibold text-[var(--app-ink)]">U-Haul Job Cost</span>
+                      <span className="text-[10px] text-[var(--app-muted)]">{truckCount}× {truckSize} · {Math.round(oneWayKm)} km</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-bold ${profitColor}`}>{cost.grossMarginPct.toFixed(1)}% margin</span>
+                      <span className="text-[var(--app-muted)] text-xs">{uhaulOpen ? '▲' : '▼'}</span>
+                    </div>
+                  </button>
+
+                  {uhaulOpen && (
+                    <div className="px-3.5 pb-3.5 pt-2 space-y-3 bg-white">
+                      {/* Truck bucket */}
+                      <div>
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">🚛 Truck (U-Haul)</div>
+                        <div className="space-y-1">
+                          {[
+                            [`${truckCount}× ${truckSize} rental (1 day)`, cost.dailyRental],
+                            [`Mileage (${Math.round(cost.totalOperationalKm)} km @ $${UHAUL_PER_KM_RATE}/km)`, cost.mileageCharge],
+                            [`Fuel (~${Math.round(cost.totalOperationalKm * (UHAUL_FUEL_L_PER_100KM[truckSize] ?? 23.5) / 100)}L @ $${uhaulGasPrice.toFixed(2)}/L)`, cost.fuelCost],
+                            [`SafeMove insurance (${truckCount}×)`, cost.safeMoveInsurance],
+                            [`Blankets (${blanketBags} bags)`, cost.blankets],
+                            ...(uhaulStraightDrop ? [['Straight drop fee', cost.straightDrop]] : []),
+                          ].map(([label, val]) => (
+                            <div key={String(label)} className="flex justify-between text-[11px]">
+                              <span className="text-[var(--app-muted)]">{label}</span>
+                              <span className="text-[var(--app-ink)]">${Number(val).toFixed(2)}</span>
+                            </div>
+                          ))}
+                          <div className="flex justify-between text-[11px] border-t border-[var(--app-line)] pt-1">
+                            <span className="text-[var(--app-muted)]">HST (13%)</span>
+                            <span className="text-[var(--app-ink)]">${cost.truckHST.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between text-xs font-semibold">
+                            <span>Truck total</span>
+                            <span>${cost.truckTotal.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Labor bucket */}
+                      <div>
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">👷 Labor</div>
+                        <div className="flex justify-between text-[11px]">
+                          <span className="text-[var(--app-muted)]">{crewSize} movers × $25/hr × {estimatedHours}h (budget rate)</span>
+                          <span className="text-[var(--app-ink)]">${cost.laborCost.toFixed(2)}</span>
+                        </div>
+                      </div>
+
+                      {/* Misc bucket */}
+                      <div>
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">📦 Misc</div>
+                        <div className="flex justify-between text-[11px]">
+                          <span className="text-[var(--app-muted)]">Food + crew gas buffer</span>
+                          <span className="text-[var(--app-ink)]">${cost.miscCost.toFixed(2)}</span>
+                        </div>
+                      </div>
+
+                      {/* P&L summary */}
+                      <div className="border-t border-[var(--app-line)] pt-2 space-y-1">
+                        <div className="flex justify-between text-[11px]">
+                          <span className="text-[var(--app-muted)]">Customer pays</span>
+                          <span className="font-medium text-[var(--app-ink)]">${revenue.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-[11px]">
+                          <span className="text-[var(--app-muted)]">Total cost</span>
+                          <span className="text-[var(--app-ink)]">${cost.totalCost.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm font-bold border-t border-[var(--app-line)] pt-1">
+                          <span>Gross profit</span>
+                          <span className={profitColor}>${cost.grossProfit.toFixed(2)} ({cost.grossMarginPct.toFixed(1)}%)</span>
+                        </div>
+                      </div>
+
+                      {/* Trip comparison */}
+                      {comparison && (
+                        <div className="border-t border-[var(--app-line)] pt-2">
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-2">Trip Strategy</div>
+                          <div className="grid grid-cols-2 gap-2">
+                            {[
+                              { label: '1 truck · 2 trips', data: comparison.oneTruckTwoTrips, tag: 'cheaper' },
+                              { label: '2 trucks · 1 trip', data: comparison.twoTrucksOneTrip, tag: 'faster' },
+                            ].map(({ label, data, tag }) => {
+                              const isCheaper = tag === 'cheaper'
+                                ? comparison.oneTruckTwoTrips.truckTotal <= comparison.twoTrucksOneTrip.truckTotal
+                                : comparison.twoTrucksOneTrip.truckTotal < comparison.oneTruckTwoTrips.truckTotal
+                              return (
+                                <div key={label} className={`rounded-[6px] border p-2 ${isCheaper ? 'border-emerald-300 bg-emerald-50' : 'border-[var(--app-line)]'}`}>
+                                  <div className="text-[10px] font-semibold text-[var(--app-ink)] mb-1">{label}</div>
+                                  <div className="text-[10px] text-[var(--app-muted)]">Truck cost</div>
+                                  <div className="text-xs font-bold text-[var(--app-ink)]">${data.truckTotal.toFixed(0)}</div>
+                                  <div className="text-[10px] text-[var(--app-muted)] mt-0.5">{Math.round(data.totalOperationalKm)} km total</div>
+                                  {isCheaper && <div className="mt-1 text-[9px] font-semibold text-emerald-700">★ {tag === 'cheaper' ? 'Lower truck cost' : 'Finishes sooner'}</div>}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Adjustments */}
+                      <div className="border-t border-[var(--app-line)] pt-2 space-y-2">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Adjust</div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <label className="block">
+                            <div className="text-[10px] text-[var(--app-muted)] mb-0.5">Gas price ($/L)</div>
+                            <input type="number" step="0.05" min="1" max="3"
+                              value={uhaulGasPrice}
+                              onChange={e => setUhaulGasPrice(Number(e.target.value))}
+                              className="crm-input text-xs w-full"
+                            />
+                          </label>
+                          <label className="block">
+                            <div className="text-[10px] text-[var(--app-muted)] mb-0.5">Blanket bags</div>
+                            <input type="number" step="1" min="0" max="20"
+                              value={uhaulBlankets ?? (defaultBlankets * truckCount)}
+                              onChange={e => setUhaulBlankets(Number(e.target.value))}
+                              className="crm-input text-xs w-full"
+                            />
+                          </label>
+                          <label className="block">
+                            <div className="text-[10px] text-[var(--app-muted)] mb-0.5">Misc buffer ($)</div>
+                            <input type="number" step="5" min="0" max="200"
+                              value={uhaulMisc}
+                              onChange={e => setUhaulMisc(Number(e.target.value))}
+                              className="crm-input text-xs w-full"
+                            />
+                          </label>
+                          <label className="flex items-center gap-2 pt-4 cursor-pointer">
+                            <input type="checkbox" checked={uhaulStraightDrop} onChange={e => setUhaulStraightDrop(e.target.checked)} className="rounded" />
+                            <span className="text-[10px] text-[var(--app-muted)]">Straight drop ($35)</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
 
             {/* Draft Summary */}
             <div>
