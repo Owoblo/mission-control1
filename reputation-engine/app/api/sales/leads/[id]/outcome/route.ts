@@ -5,11 +5,11 @@ import { uid } from '@/lib/sales'
 import { logEvent } from '@/lib/server/analytics'
 import { recalculateQuoteFromActuals } from '@/lib/server/job-billing'
 import { getSalesLead, getSalesQuote, saveFollowUpLog, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
-import { canAccessOperationsWorkspace, canAccessSalesWorkspace, canEditLead } from '@/lib/server/sales-permissions'
+import { canAccessOperationsWorkspace, canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 
 function canManageOutcome(session: Awaited<ReturnType<typeof getSessionUser>>, lead: Awaited<ReturnType<typeof getSalesLead>>) {
   if (!session || !lead) return false
-  if (canAccessSalesWorkspace(session)) return canEditLead(session, lead)
+  if (canAccessSalesWorkspace(session)) return true
   if (session.role === 'owner' || session.role === 'manager') return true
   if (session.role === 'operations_lead') {
     return !session.branch || !lead.branch || session.branch === lead.branch

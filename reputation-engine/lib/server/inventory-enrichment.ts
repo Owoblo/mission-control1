@@ -302,36 +302,52 @@ export async function classifyPhotosByRoom(
   const bedroomsHint = propertyContext?.bedrooms ? `- ${propertyContext.bedrooms} bedrooms` : ''
   const bathroomsHint = propertyContext?.bathrooms ? `- ${propertyContext.bathrooms} bathrooms` : ''
 
-  const prompt = `You are a real estate photo classifier for a moving company.
-Analyze these ${photos.length} property photos and classify each by which UNIQUE room instance it shows.
+  const bedsCount = propertyContext?.bedrooms || 0
+  const bathsCount = propertyContext?.bathrooms || 0
+  const expectedRooms = bedsCount > 0
+    ? `EXPECTED LAYOUT: ${bedsCount} bedroom${bedsCount > 1 ? 's' : ''}, ${bathsCount || '?'} bathroom${bathsCount !== 1 ? 's' : ''}.
+- You MUST produce exactly ${bedsCount} bedroom groups: bedroom_1 through bedroom_${bedsCount}
+- bedroom_1 = PRIMARY/MASTER bedroom (largest, usually has en-suite, walk-in closet, or is clearly the owner's room)
+- bedroom_2, bedroom_3, etc. = secondary bedrooms in order of size
+- Do NOT merge two different bedrooms into one group`
+    : ''
 
-${bedroomsHint || bathroomsHint ? `PROPERTY: ${bedroomsHint} ${bathroomsHint}`.trim() : ''}
+  const prompt = `You are an expert real estate photo analyst for a moving company. Your job is to classify ${photos.length} listing photos into room groups so movers know exactly what furniture is in each room.
 
-CRITICAL — USE UNIQUE INSTANCE IDs:
-Many homes have multiple living areas (main floor, basement, theatre room). NEVER merge different rooms just because they have similar furniture.
-Use architectural cues to identify unique rooms: fireplace location, window placement, flooring type, wall color, cabinet style, ceiling height.
+${expectedRooms}
 
-ROOM INSTANCE ID FORMAT:
-- living_room_main, living_room_basement, living_room_theatre (separate each living area)
-- family_room_main, family_room_lower
-- dining_room_main, dining_room_basement
+SPATIAL REASONING — think about how houses are laid out:
+- Kitchen: cabinets, counters, appliances, sink, island. Usually main floor.
+- Primary bedroom: largest bedroom, often has walk-in closet or en-suite, king/queen bed, more furniture.
+- Secondary bedrooms: smaller, single or queen beds.
+- Living room (main): typically largest open space, hardwood/carpet, connected to dining or kitchen.
+- Basement: lower ceilings, utility pipes visible, often finished rec room or storage.
+- Dining room: table with chairs, often near kitchen.
+- Bathroom: toilet, vanity, shower/tub visible.
+- Garage: concrete floor, garage door, vehicles or shelving.
+- Laundry: washer/dryer, utility sink.
+
+ROOM INSTANCE IDs TO USE:
 - kitchen_main
-- bedroom_1, bedroom_2, bedroom_3, bedroom_4
-- bathroom_1, bathroom_2
-- office, laundry, garage, outdoor, basement_rec, other
+- living_room_main, living_room_basement
+- dining_room_main
+- bedroom_1 (primary/master), bedroom_2, bedroom_3, bedroom_4
+- bathroom_1, bathroom_2, bathroom_3
+- office, laundry, garage, outdoor, basement_rec, storage, other
 
-GROUPING RULES:
-1. Photos showing the SAME room from different angles → same group (use shared architectural features as evidence)
-2. Different rooms with similar furniture → DIFFERENT groups
-3. If you see a fireplace in photos 3, 7, 9 → they are the same room
-4. If photos 3, 7, 9 have beige sofas but photos 14, 15 have grey sofas + different windows → two different living areas
-5. Number bedrooms and bathrooms sequentially
-6. If unsure between two similar rooms, create two groups rather than merging
+GROUPING RULES (follow strictly):
+1. Photos of the SAME room from different angles → SAME group. Evidence: matching flooring, wall color, window placement, fixtures.
+2. Photos of DIFFERENT rooms → DIFFERENT groups even if furniture looks similar.
+3. A bedroom with a king bed + large walk-in closet = bedroom_1 (primary).
+4. Never assign a photo to a room that doesn't match its contents (e.g., a kitchen photo cannot be bedroom_1).
+5. If a photo shows an exterior, deck, or yard → outdoor.
+6. If you see a staircase only → skip it (assign to "other").
+7. When in doubt, create a separate group rather than merging.
 
-Return ONLY a JSON object mapping unique room instance IDs to arrays of photo indices (0-${photos.length - 1}):
-{"living_room_main":[0,3,7],"living_room_basement":[14,15,16],"kitchen_main":[1,5],"bedroom_1":[2,8,9],"bedroom_2":[4,11]}
+Return ONLY a valid JSON object — photo indices start at 0:
+{"kitchen_main":[1,5],"living_room_main":[0,3,7],"dining_room_main":[2],"bedroom_1":[8,9,10],"bedroom_2":[11,12],"bathroom_1":[4],"garage":[6]}
 
-Return ONLY valid JSON, no other text.`
+Return ONLY the JSON object, no explanation or markdown.`
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -344,12 +360,12 @@ Return ONLY valid JSON, no other text.`
           { type: 'text', text: prompt },
           ...photos.map((url: string) => ({
             type: 'image_url',
-            image_url: { url, detail: 'low' },
+            image_url: { url, detail: 'high' },
           })),
         ],
       }],
-      max_tokens: 1000,
-      temperature: 0.1,
+      max_tokens: 1500,
+      temperature: 0.05,
     }),
   })
 

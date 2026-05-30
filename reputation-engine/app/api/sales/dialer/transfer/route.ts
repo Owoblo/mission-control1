@@ -1,10 +1,9 @@
 import { getTwilioCredentials } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
 import { hasInternalSession } from '@/lib/server/session'
+import { pickSaturnBranchPhoneNumber } from '@/lib/sales-phones'
 
-const CALLER_ID = '+12267732993'
-
-function buildTransferTwiml(to: string): string {
+function buildTransferTwiml(to: string, callerId?: string | null): string {
   const lower = to.toLowerCase()
   if (lower.startsWith('sip:')) {
     return `<?xml version="1.0" encoding="UTF-8"?><Response><Dial><Sip>${to}</Sip></Dial></Response>`
@@ -15,7 +14,7 @@ function buildTransferTwiml(to: string): string {
     return `<?xml version="1.0" encoding="UTF-8"?><Response><Dial><Client>${identity}</Client></Dial></Response>`
   }
   // Phone number
-  return `<?xml version="1.0" encoding="UTF-8"?><Response><Dial callerId="${CALLER_ID}"><Number>${to}</Number></Dial></Response>`
+  return `<?xml version="1.0" encoding="UTF-8"?><Response><Dial callerId="${pickSaturnBranchPhoneNumber(callerId)}"><Number>${to}</Number></Dial></Response>`
 }
 
 export async function POST(request: Request) {
@@ -23,13 +22,13 @@ export async function POST(request: Request) {
   if (!authed) return new Response('Unauthorized', { status: 401 })
 
   try {
-    const { callSid, to } = await request.json() as { callSid?: string; to?: string }
+    const { callSid, to, callerId } = await request.json() as { callSid?: string; to?: string; callerId?: string | null }
     if (!callSid || !to) {
       return Response.json({ error: 'callSid and to are required' }, { status: 400 })
     }
 
     const { accountSid, authToken } = getTwilioCredentials()
-    const twiml = buildTransferTwiml(to.trim())
+    const twiml = buildTransferTwiml(to.trim(), callerId)
 
     const res = await fetch(
       `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls/${callSid}.json`,

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { buildSmsThreads, listSmsMessages } from '@/lib/server/sms-threads'
-import { listSalesLeads } from '@/lib/server/sales-repository'
+import { listAllInboundLeads, listSalesLeads } from '@/lib/server/sales-repository'
 
 export { type SalesSmsThread as SmsThread, type SmsMessageRecord as SmsMessage } from '@/lib/server/sms-threads'
 
@@ -15,8 +15,11 @@ export async function GET(request: Request) {
       return NextResponse.json(messages)
     }
 
-    const leads = await listSalesLeads().catch(() => [])
-    return NextResponse.json(buildSmsThreads(messages, leads))
+    const [leads, inboundLeads] = await Promise.all([
+      listSalesLeads().catch(() => []),
+      listAllInboundLeads().catch(() => []),
+    ])
+    return NextResponse.json(buildSmsThreads(messages, leads, inboundLeads))
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to load SMS threads' },

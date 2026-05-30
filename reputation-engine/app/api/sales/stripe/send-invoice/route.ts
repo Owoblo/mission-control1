@@ -1,26 +1,10 @@
 import { NextResponse } from 'next/server'
-import { hasInternalSession } from '@/lib/server/session'
+import { recordLeadPaymentAudit, recordQuoteUpdatedAudit } from '@/lib/server/sales-audit'
+import { canHandleLeadPayments } from '@/lib/server/sales-permissions'
+import { ensureStripeCustomerForLead, stripeGet, stripePost } from '@/lib/server/stripe-payments'
 import { readEnv } from '@/lib/server/runtime'
-import { getSalesQuote, listSalesLeads, saveSalesQuote } from '@/lib/server/sales-repository'
-
-async function stripeGet(path: string, key: string) {
-  const res = await fetch(`https://api.stripe.com/v1/${path}`, {
-    headers: { Authorization: `Bearer ${key}` },
-  })
-  return res.json() as Promise<Record<string, unknown>>
-}
-
-async function stripePost(path: string, key: string, body: URLSearchParams) {
-  const res = await fetch(`https://api.stripe.com/v1/${path}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${key}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: body.toString(),
-  })
-  return res.json() as Promise<Record<string, unknown>>
-}
+import { getSalesLead, getSalesQuote, saveSalesQuote } from '@/lib/server/sales-repository'
+import { getSessionUser } from '@/lib/server/session'
 
 function appendInternalNote(existing: string | undefined, nextLine: string) {
   const trimmed = (existing || '').trim()
@@ -30,8 +14,7 @@ function appendInternalNote(existing: string | undefined, nextLine: string) {
 }
 
 export async function POST(request: Request) {
-  const authed = await hasInternalSession()
-  if (!authed) return new Response('Unauthorized', { status: 401 })
+  const session = await getSessionUser()
 
   const stripeKey = readEnv('STRIPE_SECRET_KEY')
   if (!stripeKey) return NextResponse.json({ error: 'Stripe not configured' }, { status: 503 })
@@ -49,11 +32,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'leadId and quoteId are required' }, { status: 400 })
     }
 
-    const [quote, leads] = await Promise.all([getSalesQuote(quoteId), listSalesLeads()])
+    const [quote, lead] = await Promise.all([getSalesQuote(quoteId), getSalesLead(leadId)])
     if (!quote) return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
-
-    const lead = leads.find(item => item.id === leadId)
     if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
+    if (quote.leadId !== leadId) {
+      return NextResponse.json({ error: 'Quote does not belong to this lead.' }, { status: 400 })
+    }
+    if (!canHandleLeadPayments(session, lead)) {
+      return NextResponse.json({ error: 'You do not have permission to send payment requests for this lead.' }, { status: 403 })
+    }
     if (!lead.email) {
       return NextResponse.json({ error: 'Customer email is required before sending an invoice.' }, { status: 400 })
     }
@@ -65,28 +52,7 @@ export async function POST(request: Request) {
 
     const note = (description || '').trim() || `Remaining balance - ${quote.number} - ${lead.name}`
 
-    let customerId = String(quote.depositStripeCustomerId || '')
-    if (!customerId) {
-      const searchRes = await fetch(
-        `https://api.stripe.com/v1/customers/search?query=${encodeURIComponent(`email:"${lead.email}"`)}`,
-        { headers: { Authorization: `Bearer ${stripeKey}` } }
-      )
-      const searchData = await searchRes.json() as { data?: Array<{ id: string }> }
-      customerId = searchData.data?.[0]?.id || ''
-    }
-
-    if (!customerId) {
-      const customerParams = new URLSearchParams()
-      customerParams.set('name', lead.name)
-      customerParams.set('email', lead.email)
-      if (lead.phone) customerParams.set('phone', lead.phone)
-      customerParams.set('metadata[leadId]', lead.id)
-      const customer = await stripePost('customers', stripeKey, customerParams) as { id?: string; error?: { message?: string } }
-      if (!customer.id) {
-        return NextResponse.json({ error: customer.error?.message || 'Could not create Stripe customer.' }, { status: 502 })
-      }
-      customerId = customer.id
-    }
+    const { customerId } = await ensureStripeCustomerForLead(stripeKey, lead, quote.depositStripeCustomerId)
 
     const itemParams = new URLSearchParams()
     itemParams.set('customer', customerId)
@@ -148,6 +114,16 @@ export async function POST(request: Request) {
         quote.internalNotes,
         `Manual Stripe invoice sent on ${timestamp.slice(0, 10)} for $${amount.toFixed(2)}.`
       ),
+    })
+
+    await recordQuoteUpdatedAudit(quote, savedQuote, session?.name)
+    await recordLeadPaymentAudit({
+      leadId,
+      quoteId,
+      actorName: session?.name,
+      action: 'invoice_sent',
+      amount,
+      note: `Hosted invoice ready${refreshedInvoice.hosted_invoice_url || sent.hosted_invoice_url ? ' for customer payment.' : '.'}`,
     })
 
     return NextResponse.json({

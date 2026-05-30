@@ -42,6 +42,24 @@ function itemEmoji(name?: string) {
   return '📦'
 }
 
+function getInventoryDisplayLabel(item: InventoryItem) {
+  const explicit = [item.name, item.item]
+    .map(value => (value || '').trim())
+    .find(Boolean)
+  if (explicit) return explicit
+
+  const sizeFallback = (item.size || '').trim()
+  if (sizeFallback) return sizeFallback
+
+  const noteFallback = (item.notes || '').trim()
+  if (noteFallback) {
+    const firstSentence = noteFallback.split(/[\n.;]/).map(part => part.trim()).find(Boolean)
+    if (firstSentence) return firstSentence
+  }
+
+  return ''
+}
+
 type Props = {
   item: InventoryItem
   index: number
@@ -56,26 +74,27 @@ export function InventoryItemRow({ item, index, onUpdate, onToggle, onRemove }: 
   const cuFt = Number(item.cubicFeet || 0)
   const lbs = Number(item.weightLbs || 0)
   const excluded = item.included === false
+  const displayLabel = getInventoryDisplayLabel(item)
 
   return (
     <div className={excluded ? 'opacity-50' : ''}>
       {/* Compact row */}
       <div className="flex items-center gap-2 py-1.5 group">
         {/* Emoji icon */}
-        <span className="w-6 text-center text-base shrink-0 select-none">{itemEmoji(item.name || item.item)}</span>
+        <span className="w-6 text-center text-base shrink-0 select-none">{itemEmoji(displayLabel)}</span>
 
         {/* Name + meta */}
         <div className="flex-1 min-w-0">
           {editing ? (
             <input
               autoFocus
-              value={item.name || item.item || ''}
+              value={displayLabel}
               onChange={e => onUpdate(index, 'name', e.target.value)}
               className="w-full border-0 border-b border-stone-300 bg-transparent text-sm font-medium text-stone-900 outline-none focus:border-stone-600 py-0.5"
               placeholder="Item name"
             />
           ) : (
-            <span className="text-sm font-medium text-stone-900 truncate block">{item.name || item.item}</span>
+            <span className="text-sm font-medium text-stone-900 truncate block">{displayLabel || 'Item'}</span>
           )}
           {!editing && (
             <div className="mt-0.5 space-y-0.5">

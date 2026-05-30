@@ -2,6 +2,7 @@ import type {
   LeadKind,
   CRMLead,
   CRMQuote,
+  LeadFollowUpStatus,
   JobFactors,
   JobPenalty,
   PricingBreakdown,
@@ -16,6 +17,7 @@ import type {
   SalesDashboardSummary,
   SalesLeadStage,
 } from './types'
+import { normalizePhone as normalizeIdentityPhone } from './sales-phones'
 import { applyMovePolicyToInventory } from './move-policy'
 import { normalizeCrewPayouts } from './operations'
 import { buildPackingMaterialsEstimate } from './packing-materials'
@@ -77,6 +79,47 @@ export const SALES_BRANCHES: Array<{ id: SalesBranch; label: string }> = [
   { id: 'waterloo', label: 'Waterloo / KW' },
   { id: 'london', label: 'London' },
   { id: 'ottawa', label: 'Ottawa' },
+]
+
+export const CRM_LEAD_SOURCES: Array<{ id: string; label: string }> = [
+  { id: 'google_online_search', label: 'Google / Online Search' },
+  { id: 'facebook_instagram_ad', label: 'Facebook / Instagram Ad' },
+  { id: 'review_marketplace', label: 'Yelp / HomeAdvisor / Thumbtack' },
+  { id: 'customer_referral', label: 'Customer Referral' },
+  { id: 'repeat_customer', label: 'Repeat Customer' },
+  { id: 'walk_in', label: 'Walk-In' },
+  { id: 'cold_call', label: 'Cold Call' },
+  { id: 'corporate_account', label: 'Corporate Account' },
+  { id: 'direct_mail', label: 'QR / Direct Mail' },
+  { id: 'website_form', label: 'Website Form' },
+  { id: 'email', label: 'Email' },
+  { id: 'phone', label: 'Phone' },
+  { id: 'other', label: 'Other' },
+]
+
+export const PROPERTY_BEDROOM_OPTIONS: Array<{ id: NonNullable<CRMLead['propertyBedrooms']>; label: string }> = [
+  { id: 'studio', label: 'Studio' },
+  { id: '1_bedroom', label: '1 Bedroom' },
+  { id: '2_bedrooms', label: '2 Bedrooms' },
+  { id: '3_bedrooms', label: '3 Bedrooms' },
+  { id: '4_bedrooms', label: '4 Bedrooms' },
+  { id: '5_plus', label: '5+ Bedrooms' },
+]
+
+export const PROPERTY_TYPE_OPTIONS: Array<{ id: NonNullable<CRMLead['propertyType']>; label: string }> = [
+  { id: 'apartment', label: 'Apartment' },
+  { id: 'condo', label: 'Condo' },
+  { id: 'townhouse', label: 'Townhouse' },
+  { id: 'detached_house', label: 'Detached House' },
+  { id: 'commercial', label: 'Commercial' },
+  { id: 'storage_unit', label: 'Storage Unit' },
+]
+
+export const FOLLOW_UP_STATUSES: Array<{ id: LeadFollowUpStatus; label: string }> = [
+  { id: 'pending', label: 'Pending' },
+  { id: 'following_up', label: 'Following Up' },
+  { id: 'followed_up', label: 'Followed Up' },
+  { id: 'no_response', label: 'No Response' },
 ]
 
 const SALES_BRANCH_AREAS: Record<SalesBranch, string[]> = {
@@ -215,10 +258,10 @@ export function validUntil(quote: CRMQuote) {
 
 export function calculateLeadScore(lead: CRMLead) {
   let score = 0
-  if (lead.source === 'referral') score += 25
-  else if (lead.source === 'google') score += 20
+  if (lead.source === 'customer_referral' || lead.source === 'referral') score += 25
+  else if (lead.source === 'google_online_search' || lead.source === 'google') score += 20
   else if (lead.source === 'direct_mail') score += 15
-  else if (lead.source === 'repeat') score += 30
+  else if (lead.source === 'repeat_customer' || lead.source === 'repeat') score += 30
   else if (lead.source === 'destination_opportunity') score += 12
 
   if (lead.stage === 'quoted') score += 20
@@ -249,6 +292,61 @@ export function getLeadAssignedRepKey(lead?: Pick<CRMLead, 'assignedRep' | 'assi
   return normalizeOptionalText(lead?.assignedRepUserId) || getLeadAssignedRepName(lead)
 }
 
+const LEGACY_LEAD_SOURCE_MAP: Record<string, string> = {
+  google: 'google_online_search',
+  facebook: 'facebook_instagram_ad',
+  instagram: 'facebook_instagram_ad',
+  referral: 'customer_referral',
+  repeat: 'repeat_customer',
+  corporate: 'corporate_account',
+  yelp: 'review_marketplace',
+  homeadvisor: 'review_marketplace',
+  thumbtack: 'review_marketplace',
+}
+
+export function normalizeLeadSource(source?: string | null) {
+  const value = normalizeOptionalText(source)
+  if (!value) return undefined
+  return LEGACY_LEAD_SOURCE_MAP[value] || value
+}
+
+export function getLeadSourceLabel(source?: string | null) {
+  const normalized = normalizeLeadSource(source)
+  if (!normalized) return 'Other'
+  return CRM_LEAD_SOURCES.find(item => item.id === normalized)?.label || normalized.replace(/_/g, ' ')
+}
+
+export function deriveLeadFollowUpStatus(
+  lead: Pick<CRMLead, 'followUpStatus' | 'followUpDate' | 'stage' | 'lastInboundAt' | 'lastHumanOutboundAt'>
+) {
+  if (lead.followUpStatus) return lead.followUpStatus
+  if (lead.stage === 'lost' || lead.stage === 'completed' || lead.stage === 'customer_success') {
+    return 'followed_up' as LeadFollowUpStatus
+  }
+
+  const today = new Date().toISOString().slice(0, 10)
+  const hasHumanFollowUp =
+    !!lead.lastHumanOutboundAt &&
+    (!lead.lastInboundAt || new Date(lead.lastHumanOutboundAt).getTime() >= new Date(lead.lastInboundAt).getTime())
+
+  if (lead.followUpDate) {
+    if (lead.followUpDate < today && hasHumanFollowUp) {
+      return 'no_response' as LeadFollowUpStatus
+    }
+    return hasHumanFollowUp ? ('following_up' as LeadFollowUpStatus) : ('pending' as LeadFollowUpStatus)
+  }
+
+  if (hasHumanFollowUp) {
+    return 'following_up' as LeadFollowUpStatus
+  }
+
+  if (lead.lastInboundAt) {
+    return 'pending' as LeadFollowUpStatus
+  }
+
+  return undefined
+}
+
 export function normalizeLead(lead: CRMLead): CRMLead {
   const leadKind: LeadKind = lead.leadKind || 'customer'
   const assignedRepName = getLeadAssignedRepName(lead)
@@ -256,15 +354,27 @@ export function normalizeLead(lead: CRMLead): CRMLead {
   const lastTouchedByName = normalizeOptionalText(lead.lastTouchedByName)
   const lastTouchedByUserId = normalizeOptionalText(lead.lastTouchedByUserId)
   const lastTouchedAt = normalizeOptionalText(lead.lastTouchedAt)
+  const mergedIntoLeadId = normalizeOptionalText(lead.mergedIntoLeadId)
+  const mergedAt = normalizeOptionalText(lead.mergedAt)
+  const mergedByUserId = normalizeOptionalText(lead.mergedByUserId)
+  const mergedByName = normalizeOptionalText(lead.mergedByName)
+  const mergedReason = normalizeOptionalText(lead.mergedReason)
   const inventory = applyMovePolicyToInventory(Array.isArray(lead.inventory) ? lead.inventory : [], {
     enforceExclusion: true,
   })
   const inventoryMetrics = deriveInventoryMetrics(inventory)
+  const normalizedPhone = normalizeOptionalText(lead.phone)
+  const normalizedEmail = normalizeOptionalText(lead.email)?.toLowerCase()
   const normalizedLead: CRMLead = {
     ...lead,
     leadKind,
     primaryContactRole: lead.primaryContactRole || (leadKind === 'realtor_opportunity' ? 'realtor' : 'customer'),
     stage: lead.stage || 'new',
+    source: normalizeLeadSource(lead.source),
+    phone: normalizedPhone,
+    email: normalizedEmail,
+    identityPhone: normalizeOptionalText(lead.identityPhone) || normalizeIdentityPhone(normalizedPhone) || undefined,
+    identityEmail: normalizeOptionalText(lead.identityEmail)?.toLowerCase() || normalizedEmail,
     callLogs: Array.isArray(lead.callLogs) ? lead.callLogs : [],
     inventory,
     mediaAssets: Array.isArray(lead.mediaAssets) ? lead.mediaAssets : [],
@@ -279,9 +389,15 @@ export function normalizeLead(lead: CRMLead): CRMLead {
     assignedRepUserId,
     leadOwnerStatus: assignedRepName ? lead.leadOwnerStatus || 'assigned' : 'unassigned',
     ownedAt: assignedRepName ? normalizeOptionalText(lead.ownedAt) : undefined,
+    followUpStatus: deriveLeadFollowUpStatus(lead),
     lastTouchedByName,
     lastTouchedByUserId,
     lastTouchedAt,
+    mergedIntoLeadId,
+    mergedAt,
+    mergedByUserId,
+    mergedByName,
+    mergedReason,
   }
 
   if (normalizedLead.leadKind === 'realtor_opportunity' && normalizedLead.primaryContactRole === 'realtor') {
@@ -352,12 +468,12 @@ const LOCAL_CREW_RATES_TRUCK_AWARE: Record<string, number> = {
   '2-1': 160,
   '3-1': 225,
   '4-1': 270,   // rare — 4 movers, 1 large truck
-  '4-2': 350,   // standard 2-truck job — built-in efficiency discount
-  '5-2': 395,
-  '6-2': 445,
-  '6-3': 530,
-  '7-3': 580,
-  '8-3': 630,
+  '4-2': 290,   // standard 2-truck job — competitive market rate
+  '5-2': 350,
+  '6-2': 395,
+  '6-3': 480,
+  '7-3': 530,
+  '8-3': 580,
 }
 
 const LABOR_ONLY_CREW_RATES: Record<number, number> = {
@@ -444,6 +560,7 @@ const AUTO_ESTIMATE_LINE_ITEM_DESCRIPTIONS = new Set([
   'Long-distance misc allowance',
   'Long-distance route markup',
   'Travel & destination handling pending',
+  'Moving Services — Agreed Rate',
 ])
 
 export function isAutoGeneratedEstimateLineItemDescription(description?: string) {
@@ -712,8 +829,8 @@ export function computeJobPenalties(factors: JobFactors): {
   const disassemblyCount = factors.disassemblyItemCount || 0
   if (disassemblyCount > 0) {
     const mode = factors.disassemblyMode || 'both'
-    // Both = 0.33h/item (full service), single side = 0.2h/item
-    const hoursPerItem = mode === 'both' ? 0.33 : 0.2
+    // Both = 0.25h/item (crew works in parallel), single side = 0.15h/item
+    const hoursPerItem = mode === 'both' ? 0.25 : 0.15
     const modeLabel = mode === 'both'
       ? 'Disassembly + reassembly'
       : mode === 'disassemble_only'
@@ -969,9 +1086,9 @@ function estimateSingleLeadQuote(
   const effectiveOperationalDriveHours = roundQuarterHour(operationalDriveHours + additionalTripDriveHours)
   const baseHours = roundQuarterHour(rawLaborHours + secondTripHandlingHours + effectiveBillableDriveHours)
   const preBufferHours = roundQuarterHour(baseHours + extraHours)
-  const driveBufferHours = roundQuarterHour(routeCategory === 'long-distance' ? 0 : effectiveBillableDriveHours * 0.1)
+  const driveBufferHours = roundQuarterHour(routeCategory === 'long-distance' ? 0 : effectiveBillableDriveHours * 0.06)
   // Long-distance: no buffer — it's a planned full-day job, experienced crew, no padding needed
-  const loadUnloadBufferHours = routeCategory === 'long-distance' ? 0 : roundQuarterHour((rawLaborHours + secondTripHandlingHours + extraHours) * 0.1)
+  const loadUnloadBufferHours = routeCategory === 'long-distance' ? 0 : roundQuarterHour((rawLaborHours + secondTripHandlingHours + extraHours) * 0.06)
   const bufferHours = roundQuarterHour(driveBufferHours + loadUnloadBufferHours)
   const estimatedHours = Math.max(3, Number(overrides?.estimatedHours || roundQuarterHour(preBufferHours + bufferHours)))
   const operationalPreBufferHours = roundQuarterHour(rawLaborHours + secondTripHandlingHours + effectiveOperationalDriveHours + extraHours)

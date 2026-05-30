@@ -13,6 +13,7 @@ import type { NotificationItem } from '@/app/api/sales/notifications/route'
 
 // Monotone SVG icons — consistent stroke-based, no emoji/color
 const NAV_ICONS: Record<string, React.ReactNode> = {
+  'Follow-Up':  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M10 2a8 8 0 100 16A8 8 0 0010 2z"/><path d="M10 6v5l3 2"/></svg>,
   Dashboard:    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><rect x="2" y="2" width="7" height="7" rx="1.5"/><rect x="11" y="2" width="7" height="7" rx="1.5"/><rect x="2" y="11" width="7" height="7" rx="1.5"/><rect x="11" y="11" width="7" height="7" rx="1.5"/></svg>,
   Inbox:        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M2 13l3-7h10l3 7"/><path d="M2 13h4l1 2h6l1-2h4v3a1 1 0 01-1 1H3a1 1 0 01-1-1v-3z"/></svg>,
   Pipeline:     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><circle cx="4" cy="10" r="2"/><circle cx="10" cy="10" r="2"/><circle cx="16" cy="10" r="2"/><path d="M6 10h2M12 10h2"/></svg>,
@@ -20,6 +21,7 @@ const NAV_ICONS: Record<string, React.ReactNode> = {
   Booked:       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M6 10l3 3 5-5"/><rect x="3" y="3" width="14" height="14" rx="2"/></svg>,
   Academy:      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M10 3L2 7l8 4 8-4-8-4z"/><path d="M2 7v5M6 9.5v4a4 4 0 008 0v-4"/></svg>,
   Operations:   <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M10 2a8 8 0 100 16A8 8 0 0010 2z"/><path d="M10 6v4l3 2"/></svg>,
+  'Ops SMS':    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M3 4h14a1 1 0 011 1v8a1 1 0 01-1 1H6l-4 3V5a1 1 0 011-1z"/></svg>,
   Finance:      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M10 3v14M6 6h5.5a2.5 2.5 0 010 5H6m0 0h5a2.5 2.5 0 010 5H6"/></svg>,
   'Live Feed':  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><circle cx="10" cy="10" r="2"/><path d="M5.5 5.5a6.5 6.5 0 000 9M14.5 5.5a6.5 6.5 0 010 9"/><path d="M3 3a10 10 0 000 14M17 3a10 10 0 010 14"/></svg>,
   Analytics:    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M3 15l4-5 4 2 5-8"/><circle cx="3" cy="15" r="1" fill="currentColor" stroke="none"/></svg>,
@@ -31,12 +33,14 @@ const NAV_ICONS: Record<string, React.ReactNode> = {
 
 const BASE_NAV = [
   { href: '/sales', label: 'Dashboard', match: (p: string) => p === '/sales', roles: ['owner', 'manager', 'sales_rep'] },
+  { href: '/sales/follow-up', label: 'Follow-Up', match: (p: string) => p.startsWith('/sales/follow-up'), roles: ['owner', 'manager', 'sales_rep'] },
   { href: '/sales/inbox', label: 'Inbox', match: (p: string) => p.startsWith('/sales/inbox'), roles: ['owner', 'manager', 'sales_rep'] },
   { href: '/sales/pipeline', label: 'Pipeline', match: (p: string) => p.startsWith('/sales/pipeline'), roles: ['owner', 'manager', 'sales_rep'] },
   { href: '/sales/quotes', label: 'Quotes', match: (p: string) => p.startsWith('/sales/quotes'), roles: ['owner', 'manager', 'sales_rep'] },
   { href: '/sales/booked', label: 'Booked', match: (p: string) => p.startsWith('/sales/booked'), roles: ['owner', 'manager', 'sales_rep'] },
   { href: '/sales/academy', label: 'Academy', match: (p: string) => p.startsWith('/sales/academy'), roles: ['owner', 'manager', 'sales_rep'] },
-  { href: '/sales/operations', label: 'Operations', match: (p: string) => p.startsWith('/sales/operations'), roles: ['owner', 'manager', 'operations_lead'] },
+  { href: '/sales/operations', label: 'Operations', match: (p: string) => p.startsWith('/sales/operations') && !p.startsWith('/sales/operations/sms'), roles: ['owner', 'manager', 'operations_lead'] },
+  { href: '/sales/operations/sms', label: 'Ops SMS', match: (p: string) => p.startsWith('/sales/operations/sms'), roles: ['owner', 'manager', 'operations_lead'] },
   { href: '/sales/finance', label: 'Finance', match: (p: string) => p.startsWith('/sales/finance'), roles: ['owner', 'manager'] },
   { href: '/sales/activity', label: 'Live Feed', match: (p: string) => p.startsWith('/sales/activity'), roles: ['owner', 'manager'] },
   { href: '/sales/analytics', label: 'Analytics', match: (p: string) => p.startsWith('/sales/analytics'), roles: ['owner', 'manager'] },
@@ -82,6 +86,22 @@ function guardedNavigate(href: string, router: ReturnType<typeof useRouter>) {
   if (guard) { guard(href) } else { router.push(href) }
 }
 
+function readLocalStorageItem(key: string) {
+  if (typeof window === 'undefined') return null
+  try {
+    return window.localStorage?.getItem(key) ?? null
+  } catch {
+    return null
+  }
+}
+
+function writeLocalStorageItem(key: string, value: string) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage?.setItem(key, value)
+  } catch {}
+}
+
 export function SalesHeader() {
   const pathname = usePathname()
   const router = useRouter()
@@ -103,13 +123,13 @@ export function SalesHeader() {
   const notifRef = useRef<HTMLDivElement>(null)
   const seenIdsRef = useRef<Set<string>>(new Set())
   const [snoozedBefore, setSnoozedBefore] = useState<number>(() => {
-    try { return parseInt(localStorage.getItem('ss_notif_snoozed') || '0', 10) } catch { return 0 }
+    return parseInt(readLocalStorageItem('ss_notif_snoozed') || '0', 10) || 0
   })
 
   function markAllRead() {
     const now = Date.now()
     setSnoozedBefore(now)
-    try { localStorage.setItem('ss_notif_snoozed', String(now)) } catch { /* noop */ }
+    writeLocalStorageItem('ss_notif_snoozed', String(now))
     setNotifOpen(false)
   }
   const [toast, setToast] = useState<NotificationItem | null>(null)
@@ -243,13 +263,13 @@ export function SalesHeader() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const saved = window.localStorage.getItem('ss_sales_sidebar_collapsed')
+    const saved = readLocalStorageItem('ss_sales_sidebar_collapsed')
     if (saved === '1') setSidebarCollapsed(true)
   }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    window.localStorage.setItem('ss_sales_sidebar_collapsed', sidebarCollapsed ? '1' : '0')
+    writeLocalStorageItem('ss_sales_sidebar_collapsed', sidebarCollapsed ? '1' : '0')
   }, [sidebarCollapsed])
 
   function digitsOnly(s: string) { return s.replace(/\D/g, '') }
@@ -510,6 +530,7 @@ export function SalesHeader() {
               {navItems.map(item => {
                 const active = item.match(pathname)
                 const showInboxDot = item.href === '/sales/inbox' && notifBreakdown.leads > 0 && !active
+                const showFollowUpDot = item.href === '/sales/follow-up' && notifBreakdown.leads > 0 && !active
                 return (
                   <button
                     key={item.href}
@@ -535,6 +556,9 @@ export function SalesHeader() {
                       <span className="lg:hidden">{item.label}</span>
                       <span className="hidden lg:inline">{item.label}</span>
                     </span>
+                    {showFollowUpDot && (
+                      <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-rose-500 md:-right-2 md:-top-0.5 lg:right-1 lg:top-1" />
+                    )}
                     {showInboxDot && (
                       <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-rose-500 md:-right-2 md:-top-0.5 lg:right-1 lg:top-1" />
                     )}

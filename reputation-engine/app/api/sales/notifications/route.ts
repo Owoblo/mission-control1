@@ -5,9 +5,10 @@ import {
   getSaturnBranchNumberFromRawData,
   getSaturnTrackingLabel,
 } from '@/lib/sales-phones'
-import { isClosedLeadStage } from '@/lib/sales'
+import { findMatchingActiveLead } from '@/lib/server/lead-identity'
 import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { parseSalesAlertNote } from '@/lib/server/sales-alerts'
+import { isInboundLeadUnread, isSalesEmailUnread } from '@/lib/server/inbox-state'
 import { getSessionUser } from '@/lib/server/session'
 import { listAllInboundLeads, listFollowUpLogs, listSalesEmails, listSalesLeads } from '@/lib/server/sales-repository'
 import { buildSmsThreads, listSmsMessages } from '@/lib/server/sms-threads'
@@ -52,39 +53,6 @@ function formatNotificationPhone(value?: string | null) {
   return value
 }
 
-function digitsOnly(value?: string | null) {
-  return (value || '').replace(/\D/g, '')
-}
-
-function findMatchingActiveLead(leads: Awaited<ReturnType<typeof listSalesLeads>>, phone?: string | null, email?: string | null) {
-  const phoneDigits = digitsOnly(phone)
-  const normalizedEmail = (email || '').trim().toLowerCase()
-
-  const matches = leads.filter(lead => {
-    if (isClosedLeadStage(lead.stage)) return false
-
-    const leadPhoneDigits = digitsOnly(lead.phone)
-    const leadEmail = (lead.email || '').trim().toLowerCase()
-
-    if (
-      phoneDigits &&
-      leadPhoneDigits &&
-      (
-        leadPhoneDigits === phoneDigits ||
-        leadPhoneDigits.endsWith(phoneDigits) ||
-        phoneDigits.endsWith(leadPhoneDigits)
-      )
-    ) {
-      return true
-    }
-
-    return !!normalizedEmail && !!leadEmail && leadEmail === normalizedEmail
-  })
-
-  matches.sort((left, right) => new Date(right.lastTouchedAt || right.createdAt || 0).getTime() - new Date(left.lastTouchedAt || left.createdAt || 0).getTime())
-  return matches[0] || null
-}
-
 export async function GET() {
   const session = await getSessionUser()
   if (!canAccessSalesWorkspace(session)) {
@@ -119,7 +87,7 @@ export async function GET() {
   const openSmsLeadPhones = new Set(
     hydratedInbound
       .filter(item => item.source === 'twilio_sms' && getInboundStatus(item) === 'needs_action')
-      .map(item => digitsOnly(item.phone))
+      .map(item => (item.phone || '').replace(/\D/g, ''))
       .filter(Boolean)
   )
   const openEmailContacts = new Set(
@@ -137,6 +105,7 @@ export async function GET() {
 
   const leadItems: NotificationItem[] = hydratedInbound
     .filter(l => getInboundStatus(l) === 'needs_action' && isRealCustomerPhone(l.phone))
+    .filter(l => isInboundLeadUnread(l))
     .map(l => {
       const raw = parseInboundRawData(l.raw_data)
       const matchedLead = findMatchingActiveLead(crmLeads, l.phone, l.email)
@@ -176,10 +145,10 @@ export async function GET() {
     })
 
   // ── 2. SMS threads where last message is inbound (customer awaiting reply) ─
-  const smsItems: NotificationItem[] = buildSmsThreads(smsMessages, crmLeads)
+  const smsItems: NotificationItem[] = buildSmsThreads(smsMessages, crmLeads, allInboundLeads)
     .filter(thread => thread.unread)
     .filter(thread => Date.now() - new Date(thread.lastAt).getTime() <= 7 * 24 * 60 * 60 * 1000)
-    .filter(thread => !openSmsLeadPhones.has(digitsOnly(thread.contactPhone)))
+    .filter(thread => !openSmsLeadPhones.has((thread.contactPhone || '').replace(/\D/g, '')))
     .map(thread => ({
       id: `sms-${thread.contactPhone}`,
       type: 'sms' as const,
@@ -197,6 +166,7 @@ export async function GET() {
   // ── 3. Inbound emails from last 48 h ────────────────────────────────────
   const emailItems: NotificationItem[] = allEmails
     .filter(em => em.direction === 'inbound' && new Date(em.sentAt) > cutoff)
+    .filter(isSalesEmailUnread)
     .filter(em => !openEmailContacts.has((em.from || '').trim().toLowerCase()))
     .map(em => ({
       id: `email-${em.id}`,

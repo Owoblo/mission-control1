@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getSalesLead, saveCrmCallSidMapping, saveSalesLead, updateLeadCallLogEntry } from '@/lib/server/sales-repository'
+import { getSalesLead, saveCrmCallSidMapping, saveSalesLead, setInboundLeadHandoff, updateLeadCallLogEntry } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
 import { logTelephonyCallOutcome } from '@/lib/server/telephony-monitoring'
 import { uid } from '@/lib/sales'
@@ -20,6 +20,7 @@ export async function POST(request: Request) {
     const payload = (await request.json()) as {
       leadId?: string
       phone?: string
+      branchNumber?: string
       direction?: 'inbound' | 'outbound'
       durationSeconds?: number
       callSid?: string
@@ -52,6 +53,7 @@ export async function POST(request: Request) {
       (answered ? 'completed' : payload.failureReason === 'failed_media_connection' ? 'failed_media_connection' : 'no_answer')
     const duration = answered ? formatDuration(durationSeconds) : callOutcome.replaceAll('_', ' ')
     const phone = payload.phone || lead.phone || ''
+    const branchNumber = payload.branchNumber || undefined
     const callSid = payload.callSid || undefined
     const now = new Date().toISOString()
     const audioConnected = typeof payload.audioConnected === 'boolean' ? payload.audioConnected : answered
@@ -70,6 +72,7 @@ export async function POST(request: Request) {
       const updated = await updateLeadCallLogEntry(lead.id, existingLog.id, {
         notes,
         phone,
+        branchNumber,
         duration,
         durationSeconds: answered ? durationSeconds : undefined,
         direction,
@@ -91,6 +94,8 @@ export async function POST(request: Request) {
         properties: {
           callSid,
           phoneNumber: phone,
+          sourceNumber: branchNumber || null,
+          branchNumber: branchNumber || null,
           direction,
           outcome: callOutcome,
           answered,
@@ -128,6 +133,7 @@ export async function POST(request: Request) {
           notes,
           date: now,
           phone,
+          branchNumber,
           duration,
           durationSeconds: answered ? durationSeconds : undefined,
           callSid,
@@ -155,6 +161,8 @@ export async function POST(request: Request) {
       properties: {
         callSid,
         phoneNumber: phone,
+        sourceNumber: branchNumber || null,
+        branchNumber: branchNumber || null,
         direction,
         outcome: callOutcome,
         answered,
@@ -176,6 +184,11 @@ export async function POST(request: Request) {
       } catch {
         // Mapping is best-effort so recording processing does not block call logging.
       }
+    }
+
+    // Auto-clear from inbox when rep makes an outbound call
+    if (direction === 'outbound' && saved.inboundId) {
+      void setInboundLeadHandoff(saved.inboundId).catch(() => {})
     }
 
     return NextResponse.json(saved)

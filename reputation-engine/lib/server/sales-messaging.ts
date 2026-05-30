@@ -1,19 +1,14 @@
 import { uid } from '@/lib/sales'
 import {
-  DEFAULT_SATURN_BRANCH_NUMBER,
-  getSaturnBusinessNumberFromSmsMessage,
   getSaturnBranchLabel,
-  getSaturnBranchNumberFromRawData,
-  isSaturnBranchPhoneNumber,
   normalizePhone,
-  pickSaturnBranchPhoneNumber,
 } from '@/lib/sales-phones'
 import { summarizeMessage } from '@/lib/server/call-intelligence'
 import { logEvent } from '@/lib/server/analytics'
 import { getTwilioCredentials, readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
+import { resolveVoiceCallerId } from '@/lib/server/voice-caller-id'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
 import {
-  getInboundLead,
   getSalesLead,
   listFollowUpLogs,
   saveFollowUpLog,
@@ -81,6 +76,7 @@ export interface SendSalesMessageInput {
   quoteId?: string
   notes?: string
   fromNumber?: string
+  mediaUrls?: string[]
   actor?: 'human' | 'automation'
   actorName?: string
   actorUserId?: string
@@ -168,59 +164,13 @@ export async function outboundSmsRecentlySent(input: {
   return matches.some(message => message.direction === 'outbound')
 }
 
-function pickRecentThreadBranchNumber(messages: SmsHistoryMessage[]) {
-  for (const message of messages) {
-    const branchNumber = getSaturnBusinessNumberFromSmsMessage(message)
-    if (isSaturnBranchPhoneNumber(branchNumber)) {
-      return branchNumber
-    }
-  }
-  return null
-}
-
 async function resolveSmsFromNumber(input: SendSalesMessageInput) {
-  const explicit = normalizePhone(input.fromNumber)
-  if (isSaturnBranchPhoneNumber(explicit)) {
-    return explicit
-  }
-
-  let inboundBranchNumber: string | null = null
-  let recentCallBranchNumber: string | null = null
-
-  if (input.leadId) {
-    const lead = await getSalesLead(input.leadId).catch(() => null)
-
-    recentCallBranchNumber =
-      (lead?.callLogs || [])
-        .slice()
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        .map(entry => normalizePhone(entry.branchNumber))
-        .find(isSaturnBranchPhoneNumber) || null
-
-    if (lead?.inboundId) {
-      const inboundLead = await getInboundLead(lead.inboundId).catch(() => null)
-      inboundBranchNumber = getSaturnBranchNumberFromRawData(inboundLead?.raw_data) || null
-    }
-
-    const leadMessages = await querySmsMessagesByFilter(`lead_id=eq.${encodeURIComponent(input.leadId)}`)
-    const leadThreadBranch = pickRecentThreadBranchNumber(leadMessages)
-    if (leadThreadBranch) {
-      return leadThreadBranch
-    }
-  }
-
-  const contactPhone = normalizePhone(input.to)
-  if (contactPhone) {
-    const contactMessages = await querySmsMessagesByFilter(
-      `or=(from_number.eq.${encodeURIComponent(contactPhone)},to_number.eq.${encodeURIComponent(contactPhone)})`
-    )
-    const threadBranch = pickRecentThreadBranchNumber(contactMessages)
-    if (threadBranch) {
-      return threadBranch
-    }
-  }
-
-  return pickSaturnBranchPhoneNumber(inboundBranchNumber, recentCallBranchNumber, DEFAULT_SATURN_BRANCH_NUMBER)
+  const resolution = await resolveVoiceCallerId({
+    leadId: input.leadId,
+    phone: input.to,
+    preferredFromNumber: input.fromNumber,
+  })
+  return resolution.fromNumber
 }
 
 async function syncLeadMessagingState(leadId: string, actor: 'human' | 'automation') {
@@ -351,11 +301,11 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
         Authorization: twilioAuth(accountSid, authToken),
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: new URLSearchParams({
-        To: toNumber,
-        From: fromNumber,
-        Body: input.body,
-      }).toString(),
+      body: (() => {
+        const p = new URLSearchParams({ To: toNumber, From: fromNumber, Body: input.body })
+        if (input.mediaUrls?.length) input.mediaUrls.forEach(u => p.append('MediaUrl', u))
+        return p.toString()
+      })(),
     })
 
     const smsResult = await smsRes.json().catch(() => ({})) as Record<string, unknown>

@@ -36,7 +36,7 @@ function probe(name: string, lastSeenAt: string | null): HealthProbe {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const [lastInboundCallAt, lastInboundSmsAt, lastRecordingCallbackAt, lastTranscriptionAt, followUpLogs, metrics, browserPresence, recentDialerEvents] = await Promise.all([
     fetchLatestTimestamp('inbound_leads?source=eq.twilio_call&select=created_at&order=created_at.desc&limit=1'),
     fetchLatestTimestamp('sms_messages?direction=eq.inbound&select=created_at&order=created_at.desc&limit=1'),
@@ -47,6 +47,14 @@ export async function GET() {
     getHealthyBrowserPresence({ maxAgeSeconds: 90 }).catch(() => null),
     listRecentDialerEvents({ limit: 20, sinceMinutes: 24 * 60 }).catch(() => []),
   ])
+  const { searchParams } = new URL(request.url)
+  if (searchParams.get('alerts') === '1') {
+    return NextResponse.json({
+      ok: true,
+      generatedAt: new Date().toISOString(),
+      alerts: metrics?.alerts || [],
+    })
+  }
 
   const alertCutoff = Date.now() - 24 * 60 * 60 * 1000
   const recentAlerts = followUpLogs
@@ -66,6 +74,7 @@ export async function GET() {
     browserPresence,
     metrics,
     recentDialerEvents,
+    alerts: metrics?.alerts || [],
     recentAlertCount: recentAlerts.length,
     recentAlerts: recentAlerts.slice(0, 10),
   })

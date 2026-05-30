@@ -5,6 +5,10 @@ import { getSalesLead, getSalesQuote, saveFollowUpLog, saveSalesLead } from '@/l
 import { getSessionUser } from '@/lib/server/session'
 import type { FollowUpLog } from '@/lib/types'
 
+function hasOwn(source: object, key: string) {
+  return Object.prototype.hasOwnProperty.call(source, key)
+}
+
 export async function POST(request: Request) {
   try {
     const session = await getSessionUser()
@@ -12,7 +16,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const payload = (await request.json()) as Partial<FollowUpLog> & { followUpDate?: string }
+    const payload = (await request.json()) as Partial<FollowUpLog> & {
+      followUpDate?: string
+      followUpStatus?: import('@/lib/types').CRMLead['followUpStatus']
+    }
     if (!payload.type) {
       return NextResponse.json({ error: 'type is required' }, { status: 400 })
     }
@@ -47,12 +54,22 @@ export async function POST(request: Request) {
     const savedLog = await saveFollowUpLog(log)
     let lead = null
 
-    if (targetLeadId && payload.followUpDate) {
+    const followUpDateProvided = hasOwn(payload, 'followUpDate')
+    const followUpStatusProvided = hasOwn(payload, 'followUpStatus')
+
+    if (targetLeadId && (followUpDateProvided || followUpStatusProvided)) {
       const currentLead = await getSalesLead(targetLeadId)
       if (currentLead) {
+        const nextFollowUpStatus =
+          payload.followUpStatus ??
+          (followUpDateProvided
+            ? (currentLead.followUpStatus === 'followed_up' ? 'pending' : currentLead.followUpStatus || 'pending')
+            : currentLead.followUpStatus)
+
         lead = await saveSalesLead({
           ...currentLead,
-          followUpDate: payload.followUpDate,
+          followUpDate: followUpDateProvided ? payload.followUpDate : currentLead.followUpDate,
+          followUpStatus: nextFollowUpStatus,
         })
       }
     }

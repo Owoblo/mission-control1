@@ -48,6 +48,15 @@ export interface SurveyVerificationPayload {
   rooms: SurveyVerificationRoomPayload[]
 }
 
+export interface InventoryVerificationActivityItem {
+  id: string
+  ts: string
+  actor: 'customer' | 'rep'
+  kind: 'choice' | 'added_item' | 'address'
+  title: string
+  detail: string
+}
+
 export const DEFAULT_SURVEY_ROOMS: SurveyRoomSeed[] = [
   { id: 'living_room', label: 'Living Room' },
   { id: 'dining_room', label: 'Dining Room' },
@@ -157,6 +166,67 @@ export function buildInventoryVerificationSummary(verification?: InventoryVerifi
     completedAt: verification?.completedAt,
     lastUpdatedAt: verification?.lastUpdatedAt,
   }
+}
+
+export function buildInventoryVerificationActivity(lead: CRMLead): InventoryVerificationActivityItem[] {
+  const verification = lead.inventoryVerification
+  if (!verification) return []
+
+  const baseInventory = (lead.inventory || []).filter(item => item.source !== 'customer_verification')
+  const keyMap = buildInventoryVerificationChoiceKeyMap(baseInventory)
+  const inventoryByChoiceKey = new Map<string, InventoryItem>()
+  keyMap.forEach((value, index) => {
+    const item = baseInventory[index]
+    if (item && value) inventoryByChoiceKey.set(value, item)
+  })
+
+  const choiceEvents = (verification.itemChoices || [])
+    .filter(choice => !!choice.updatedAt)
+    .map(choice => {
+      const item = inventoryByChoiceKey.get(choice.itemKey)
+      const itemLabel = normalizeItemName(item || { name: 'Inventory item' })
+      const roomLabel = canonicalizeSurveyRoomLabel(item?.room || 'Unassigned')
+      const decisionLabel =
+        choice.decision === 'going'
+          ? 'confirmed this is moving'
+          : choice.decision === 'not_going'
+            ? 'marked this as staying behind'
+            : 'flagged this for review'
+
+      return {
+        id: `choice:${choice.itemKey}:${choice.updatedAt}`,
+        ts: choice.updatedAt,
+        actor: choice.updatedBy || 'customer',
+        kind: 'choice' as const,
+        title: itemLabel,
+        detail: `${decisionLabel} · ${roomLabel}${choice.note ? ` · ${choice.note}` : ''}`,
+      }
+    })
+
+  const addedItemEvents = (verification.addedItems || [])
+    .filter(item => !!item.createdAt)
+    .map(item => ({
+      id: `added:${item.id}:${item.createdAt}`,
+      ts: item.createdAt,
+      actor: item.createdBy || 'customer',
+      kind: 'added_item' as const,
+      title: `${item.name} added`,
+      detail: `${Math.max(1, Number(item.qty || 1))} item${Math.max(1, Number(item.qty || 1)) === 1 ? '' : 's'} · ${canonicalizeSurveyRoomLabel(item.room)}${item.note ? ` · ${item.note}` : ''}`,
+    }))
+
+  const addressEvents = verification.addressMismatchNote?.trim()
+    ? [{
+        id: `address:${verification.lastUpdatedAt || verification.completedAt || verification.startedAt || 'now'}`,
+        ts: verification.lastUpdatedAt || verification.completedAt || verification.startedAt || new Date().toISOString(),
+        actor: 'customer' as const,
+        kind: 'address' as const,
+        title: 'Address mismatch flagged',
+        detail: verification.addressMismatchNote.trim(),
+      }]
+    : []
+
+  return [...choiceEvents, ...addedItemEvents, ...addressEvents]
+    .sort((left, right) => right.ts.localeCompare(left.ts))
 }
 
 export function applyInventoryVerificationToInventory(

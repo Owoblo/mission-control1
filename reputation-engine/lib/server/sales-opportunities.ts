@@ -1,7 +1,7 @@
 import { dateStamp, detectSalesBranchFromLocation, isLocationWithinBranchServiceArea, normalizeLead, uid } from '@/lib/sales'
 import type { CRMLead, DestinationOpportunityStatus, RealtorLookupStatus } from '@/lib/types'
 import {
-  applyRealtorContactToOpportunityLead,
+  canAutoApplyRealtorContact,
   buildDestinationOpportunityPitch,
 } from '@/lib/realtor-opportunity'
 import {
@@ -71,7 +71,7 @@ function validEmail(value?: string | null) {
 }
 
 function hasPitchableOpportunityContact(lead: CRMLead) {
-  return Boolean(lead.realtorPhone || lead.phone || validEmail(lead.realtorEmail) || validEmail(lead.email))
+  return Boolean(lead.realtorPhone || validEmail(lead.realtorEmail))
 }
 
 function shouldSkipAutoPitch(lead: CRMLead) {
@@ -86,8 +86,8 @@ async function maybeAutoPitchDestinationOpportunityLead(lead: CRMLead) {
   const sourceLead = lead.sourceLeadId ? await getSalesLead(lead.sourceLeadId).catch(() => null) : null
   if (sourceLead?.stage === 'lost') return lead
 
-  const smsTo = lead.realtorPhone || lead.phone || ''
-  const emailTo = validEmail(lead.realtorEmail) ? lead.realtorEmail : (validEmail(lead.email) ? lead.email : '')
+  const smsTo = lead.realtorPhone || ''
+  const emailTo = validEmail(lead.realtorEmail) ? lead.realtorEmail : ''
   if (!smsTo && !emailTo) return lead
 
   const sentChannels: string[] = []
@@ -149,11 +149,10 @@ async function queueOpportunityOutreach(lead: CRMLead) {
   void runRealtorLookupBackground(queuedLead)
 }
 
-// Runs in background — no await, failures are silent
 export async function runRealtorLookupBackground(lead: CRMLead) {
   const apiKey = readEnv('OPENAI_API_KEY')
   if (!apiKey) return
-  if (lead.realtorName && (lead.realtorPhone || lead.realtorEmail || lead.phone || lead.email)) {
+  if (lead.realtorName && (lead.realtorPhone || lead.realtorEmail)) {
     await maybeAutoPitchDestinationOpportunityLead(lead).catch(() => {})
     return
   }
@@ -191,30 +190,60 @@ export async function runRealtorLookupBackground(lead: CRMLead) {
         response_format: { type: 'json_object' },
         max_tokens: 250,
         temperature: 0.0,
-        messages: [{ role: 'user', content: `Extract realtor contact info from this text about ${address}:\n\n${rawText}\n\nReturn JSON only: {"realtorName": null, "realtorPhone": null, "realtorEmail": null, "realtorBrokerage": null}. Use null if not found. Do NOT invent numbers.` }],
+        messages: [{ role: 'user', content: `Extract listing-side contact info from this text about ${address}:\n\n${rawText}\n\nReturn JSON only: {"realtorName": null, "realtorPhone": null, "realtorEmail": null, "realtorBrokerage": null, "contactKind": "listing_agent|sales_representative|brokerage_office|unknown", "confidence": "high|medium|low"}. Use null if not found. Do NOT invent numbers. If the contact appears to be an office line or brokerage front desk, set contactKind to brokerage_office. If it appears to be a named rep but not clearly the listing agent, set sales_representative.` }],
       }),
     })
     const extractData = (await extractRes.json()) as { choices?: Array<{ message?: { content?: string } }> }
     const content = extractData.choices?.[0]?.message?.content || '{}'
     const extracted: Record<string, string | null> = JSON.parse(content)
 
-    const updates: Partial<CRMLead> = { realtorEnrichedAt: new Date().toISOString() }
-    if (extracted.realtorName && !lead.realtorName) updates.realtorName = extracted.realtorName
-    if (extracted.realtorPhone && !lead.realtorPhone) updates.realtorPhone = extracted.realtorPhone
-    if (extracted.realtorEmail && !lead.realtorEmail) updates.realtorEmail = extracted.realtorEmail
-    if (extracted.realtorBrokerage && !lead.realtorBrokerage) updates.realtorBrokerage = extracted.realtorBrokerage
+    const canAutoApply = canAutoApplyRealtorContact({
+      rawText,
+      expectedBrokerage: brokerage,
+      realtorName: extracted.realtorName,
+      realtorPhone: extracted.realtorPhone,
+      realtorEmail: extracted.realtorEmail,
+      realtorBrokerage: extracted.realtorBrokerage,
+      contactKind: extracted.contactKind,
+      confidence: extracted.confidence,
+    })
 
-    const mergedLead = applyRealtorContactToOpportunityLead(lead, updates)
-    const name = mergedLead.realtorName
-    const phone = mergedLead.realtorPhone || mergedLead.phone
-    const email = mergedLead.realtorEmail || mergedLead.email
-    mergedLead.realtorLookupStatus = (phone || email) ? 'matched' : name ? 'partial' : 'missing'
+    const updates: Partial<CRMLead> = {}
+    if (typeof extracted.contactKind === 'string' && extracted.contactKind) updates.realtorContactKind = extracted.contactKind as CRMLead['realtorContactKind']
+    if (typeof extracted.confidence === 'string' && extracted.confidence) updates.realtorLookupConfidence = extracted.confidence as CRMLead['realtorLookupConfidence']
+    if (canAutoApply) {
+      updates.realtorEnrichedAt = new Date().toISOString()
+      if (extracted.realtorName && !lead.realtorName) updates.realtorName = extracted.realtorName
+      if (extracted.realtorPhone && !lead.realtorPhone) updates.realtorPhone = extracted.realtorPhone
+      if (extracted.realtorEmail && !lead.realtorEmail) updates.realtorEmail = extracted.realtorEmail
+      if (extracted.realtorBrokerage && !lead.realtorBrokerage) updates.realtorBrokerage = extracted.realtorBrokerage
+    } else if (extracted.realtorBrokerage && !lead.realtorBrokerage) {
+      updates.realtorBrokerage = extracted.realtorBrokerage
+    }
 
-    const nextLead = Object.keys(updates).length > 1 || mergedLead.name !== lead.name || mergedLead.phone !== lead.phone || mergedLead.email !== lead.email
-      ? await saveSalesLead(mergedLead)
-      : mergedLead
+    const nextLead = Object.keys(updates).length > 0
+      ? await saveSalesLead({
+          ...lead,
+          ...updates,
+          realtorLookupStatus: getLookupStatus({
+            realtorName: canAutoApply ? (updates.realtorName || lead.realtorName) : lead.realtorName,
+            realtorEmail: canAutoApply ? (updates.realtorEmail || lead.realtorEmail) : lead.realtorEmail,
+            realtorPhone: canAutoApply ? (updates.realtorPhone || lead.realtorPhone) : lead.realtorPhone,
+            brokerage: updates.realtorBrokerage || lead.realtorBrokerage || brokerage,
+          }),
+        })
+      : await saveSalesLead({
+          ...lead,
+          realtorLookupStatus: getLookupStatus({
+            realtorName: lead.realtorName,
+            realtorEmail: lead.realtorEmail,
+            realtorPhone: lead.realtorPhone,
+            brokerage: lead.realtorBrokerage || extracted.realtorBrokerage || brokerage,
+          }),
+          realtorOutreachStatus: lead.realtorOutreachStatus === 'queued' ? 'not_started' : lead.realtorOutreachStatus,
+        }).catch(() => lead)
 
-    if (phone || email) {
+    if (canAutoApply && hasPitchableOpportunityContact(nextLead)) {
       await maybeAutoPitchDestinationOpportunityLead(nextLead).catch(() => {})
     } else if (nextLead.realtorOutreachStatus === 'queued') {
       await saveSalesLead({
@@ -311,7 +340,9 @@ export async function maybeCreateDestinationOpportunityLead(current: CRMLead, sa
       totalWeightLbs: existing.totalWeightLbs || scan?.totalWeightLbs || 0,
       roomBreakdown: (existing.roomBreakdown && Object.keys(existing.roomBreakdown).length > 0) ? existing.roomBreakdown : (scan?.roomBreakdown || {}),
       realtorBrokerage: existing.realtorBrokerage || brokerage,
-      realtorOutreachStatus: existing.realtorOutreachStartedAt ? (existing.realtorOutreachStatus || 'sent') : (existing.realtorOutreachStatus || 'queued'),
+      realtorOutreachStatus: existing.realtorOutreachStartedAt
+        ? (existing.realtorOutreachStatus || 'sent')
+        : (existing.realtorOutreachStatus || 'queued'),
       realtorLookupStatus: getLookupStatus({
         realtorName: existing.realtorName,
         realtorEmail: existing.realtorEmail,

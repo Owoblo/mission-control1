@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { SalesAddressAutocompleteInput } from '@/app/components/sales/address-autocomplete-input'
 import { createSalesLead } from '@/lib/sales-api'
+import { CRM_LEAD_SOURCES } from '@/lib/sales'
 import type { CRMLead } from '@/lib/types'
 
 function digitsOnly(v: string) { return v.replace(/\D/g, '') }
@@ -11,17 +12,6 @@ function phonesMatch(a: string, b: string) {
   const da = digitsOnly(a); const db = digitsOnly(b)
   return da.length >= 10 && db.length >= 10 && (da === db || da.endsWith(db) || db.endsWith(da))
 }
-
-const SOURCES = [
-  { id: 'referral', label: 'Referral' },
-  { id: 'google', label: 'Google' },
-  { id: 'direct_mail', label: 'Direct Mail' },
-  { id: 'cold_call', label: 'Cold Call' },
-  { id: 'walk_in', label: 'Walk-In' },
-  { id: 'facebook', label: 'Facebook' },
-  { id: 'instagram', label: 'Instagram' },
-  { id: 'other', label: 'Other' },
-] as const
 
 const MOVE_TYPES: CRMLead['moveType'][] = [
   'residential',
@@ -42,6 +32,7 @@ const EMPTY = {
   phone: '',
   email: '',
   source: 'other',
+  referralCustomerName: '',
   moveDate: '',
   moveType: 'residential',
   originAddress: '',
@@ -122,6 +113,7 @@ export function NewLeadModal({ open, onClose }: Props) {
       const lead = await createSalesLead({
         name: form.name,
         source: form.source,
+        referralCustomerName: form.source === 'customer_referral' ? form.referralCustomerName : undefined,
         phone: form.phone,
         email: form.email,
         moveDate: form.moveDate || undefined,
@@ -223,9 +215,20 @@ export function NewLeadModal({ open, onClose }: Props) {
             <label>
               <span className="crm-label">Source</span>
               <select className="crm-input mt-1.5" value={form.source} onChange={e => set('source', e.target.value)}>
-                {SOURCES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                {CRM_LEAD_SOURCES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
               </select>
             </label>
+            {form.source === 'customer_referral' ? (
+              <label className="col-span-2 sm:col-span-1">
+                <span className="crm-label">Referring Customer</span>
+                <input
+                  className="crm-input mt-1.5"
+                  placeholder="Customer name"
+                  value={form.referralCustomerName}
+                  onChange={e => set('referralCustomerName', e.target.value)}
+                />
+              </label>
+            ) : null}
           </div>
 
           {/* Row 2: Phone + Email */}

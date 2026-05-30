@@ -13,6 +13,35 @@ import type {
 } from './types'
 import type { UserRole } from './auth'
 
+export type DashboardDrilldownMetric =
+  | 'active_leads'
+  | 'quotes_sent_today'
+  | 'booked_jobs'
+  | 'booked_revenue'
+  | 'follow_ups_due'
+  | 'hot_close_opportunities'
+  | 'pending_deposits'
+  | 'calls_today'
+  | 'inbound_calls_today'
+  | 'outbound_calls_today'
+  | 'missed_calls_today'
+  | 'failed_calls_today'
+
+export type DashboardDrilldownResponse = {
+  metric: DashboardDrilldownMetric
+  title: string
+  subtitle: string
+  items: Array<{
+    id: string
+    kind: 'lead' | 'quote' | 'call'
+    href: string
+    title: string
+    subtitle?: string
+    meta?: string
+    badge?: string
+  }>
+}
+
 async function readJson<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const payload = await response.json().catch(() => null)
@@ -30,6 +59,14 @@ export async function fetchSalesOverview(): Promise<{
   summary: SalesDashboardSummary
 }> {
   const response = await fetch('/api/sales/overview', { cache: 'no-store', credentials: 'include' })
+  return readJson(response)
+}
+
+export async function fetchDashboardDrilldown(metric: DashboardDrilldownMetric): Promise<DashboardDrilldownResponse> {
+  const response = await fetch(`/api/sales/dashboard-drilldown?metric=${encodeURIComponent(metric)}`, {
+    cache: 'no-store',
+    credentials: 'include',
+  })
   return readJson(response)
 }
 
@@ -116,11 +153,12 @@ export async function saveLeadConsultation(
 
 export async function uploadLeadMedia(
   id: string,
-  payload: { room: string; files: File[]; notes?: string }
+  payload: { room: string; files: File[]; notes?: string; purpose?: 'customer_media' | 'receipt' }
 ): Promise<{ ok: boolean; lead: CRMLead; uploadedCount: number; analyzedImageCount: number; skippedVideoCount: number; detectedItems: InventoryItem[] }> {
   const form = new FormData()
   form.append('room', payload.room)
   if (payload.notes) form.append('notes', payload.notes)
+  if (payload.purpose) form.append('purpose', payload.purpose)
   payload.files.forEach(file => form.append('files', file))
 
   const response = await fetch(`/api/sales/leads/${id}/media-upload`, {
@@ -179,7 +217,10 @@ export async function updateSalesQuote(
   return readJson(response)
 }
 
-export async function saveSalesFollowUp(payload: Partial<FollowUpLog> & { followUpDate?: string }): Promise<{
+export async function saveSalesFollowUp(payload: Partial<FollowUpLog> & {
+  followUpDate?: string
+  followUpStatus?: CRMLead['followUpStatus']
+}): Promise<{
   log: FollowUpLog
   lead: CRMLead | null
 }> {
@@ -199,9 +240,12 @@ export async function sendSalesMessage(payload: {
   body: string
   htmlBody?: string
   leadId?: string
+  inboundId?: string
   quoteId?: string
   notes?: string
   fromNumber?: string
+  mediaUrls?: string[]
+  replyEmailIds?: string[]
 }): Promise<{ ok: boolean; log: FollowUpLog; result?: { fromNumber?: string; branchLabel?: string } }> {
   const response = await fetch('/api/sales/send', {
     method: 'POST',
@@ -245,6 +289,30 @@ export async function markInboundLeadDisposition(
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ inboundId, action }),
+  })
+  return readJson(response)
+}
+
+export async function markInboundLeadHandled(inboundId: string): Promise<{ ok: boolean }> {
+  const response = await fetch('/api/sales/inbox', {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ inboundId, action: 'handoff' }),
+  })
+  return readJson(response)
+}
+
+export async function markInboxRead(payload: {
+  inboundIds?: string[]
+  emailIds?: string[]
+  smsThreads?: Array<{ leadId?: string | null; inboundId?: string | null; channel?: 'sms' | 'email' | 'calls' | 'webforms' }>
+}): Promise<{ ok: boolean; counts: { inbound: number; emails: number; smsThreads: number } }> {
+  const response = await fetch('/api/sales/inbox/read', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
   })
   return readJson(response)
 }
@@ -301,6 +369,7 @@ export async function estimateSalesRoute(payload: {
 export async function logDialerCall(payload: {
   leadId: string
   phone?: string
+  branchNumber?: string
   direction?: 'inbound' | 'outbound'
   durationSeconds?: number
   callSid?: string

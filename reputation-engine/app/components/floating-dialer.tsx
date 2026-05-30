@@ -12,6 +12,7 @@ import {
   type DialerPresencePayload,
 } from '@/lib/dialer'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
+import { getSaturnBranchLabel, isSaturnBranchPhoneNumber, normalizePhone as normalizeSharedPhone } from '@/lib/sales-phones'
 
 declare global {
   type TwilioCallLike = {
@@ -96,11 +97,36 @@ interface DialerTokenPayload {
   error?: string
 }
 
+interface InternalDirectoryEntry {
+  id: string
+  label: string
+  target: string
+  status: 'available' | 'fallback'
+  kind: 'browser' | 'sip'
+}
+
+interface WarmTransferSession {
+  conferenceName: string
+  target: string
+  targetLabel: string
+  targetCallSid?: string | null
+  repCallSid?: string | null
+  startedAt: string
+}
+
+interface DialerCallerProfile {
+  fromNumber: string
+  branchLabel: string
+  reason: string
+  matchedLeadId?: string | null
+}
+
 // ── helpers ────────────────────────────────────────────────────────────────
 
 const DIALER_PRESENCE_INTERVAL_MS = 20_000
 const DIALER_STUCK_WARNING_MS = 35_000
 const DIALER_TOKEN_REFRESH_SAFETY_MS = 5 * 60 * 1000
+const WARM_TRANSFER_BRIDGE_TIMEOUT_MS = 15_000
 
 function toE164(phone: string) {
   const digits = phone.replace(/\D/g, '')
@@ -111,7 +137,7 @@ function toE164(phone: string) {
 
 function supportsOutputSelection() {
   if (typeof window === 'undefined') return false
-  return typeof HTMLMediaElement !== 'undefined' && 'setSinkId' in HTMLMediaElement.prototype
+  return typeof HTMLMediaElement !== 'undefined' && !!HTMLMediaElement.prototype && 'setSinkId' in HTMLMediaElement.prototype
 }
 
 function getNetworkType() {
@@ -131,11 +157,45 @@ function safeJsonParse<T>(value: string | null, fallback: T) {
   }
 }
 
+function getBrowserStorage(kind: 'local' | 'session') {
+  if (typeof window === 'undefined') return null
+  try {
+    return kind === 'local' ? window.localStorage ?? null : window.sessionStorage ?? null
+  } catch {
+    return null
+  }
+}
+
+function readBrowserStorage(kind: 'local' | 'session', key: string) {
+  try {
+    return getBrowserStorage(kind)?.getItem(key) ?? null
+  } catch {
+    return null
+  }
+}
+
+function writeBrowserStorage(kind: 'local' | 'session', key: string, value: string) {
+  try {
+    getBrowserStorage(kind)?.setItem(key, value)
+  } catch {}
+}
+
 function createSessionId() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID()
   }
   return `dialer-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+function buildCallerProfile(number?: string | null, reason = 'preview'): DialerCallerProfile | null {
+  const normalized = normalizeSharedPhone(number)
+  if (!isSaturnBranchPhoneNumber(normalized)) return null
+  return {
+    fromNumber: normalized,
+    branchLabel: getSaturnBranchLabel(normalized),
+    reason,
+    matchedLeadId: null,
+  }
 }
 
 async function loadTwilioSdk() {
@@ -181,6 +241,8 @@ export function FloatingDialer() {
   const [errorCode, setErrorCode] = useState<number | null>(null)
   const [activeLeadId, setActiveLeadId] = useState<string | null>(null)
   const [activeLeadName, setActiveLeadName] = useState<string | null>(null)
+  const [callerProfile, setCallerProfile] = useState<DialerCallerProfile | null>(null)
+  const [callerProfileLoading, setCallerProfileLoading] = useState(false)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [muted, setMuted] = useState(false)
   const [callNotes, setCallNotes] = useState('')
@@ -192,7 +254,9 @@ export function FloatingDialer() {
   const [showConference, setShowConference] = useState(false)
   const [conferenceTarget, setConferenceTarget] = useState('')
   const [conferencing, setConferencing] = useState(false)
-  const [conferenceActive, setConferenceActive] = useState(false)
+  const [warmTransferSession, setWarmTransferSession] = useState<WarmTransferSession | null>(null)
+  const [internalDirectory, setInternalDirectory] = useState<InternalDirectoryEntry[]>([])
+  const [internalDirectoryLoading, setInternalDirectoryLoading] = useState(false)
 
   // diagnostics state
   const [micPermission, setMicPermission] = useState<MicPermission>('unknown')
@@ -214,6 +278,9 @@ export function FloatingDialer() {
   const callStartRef = useRef<number | null>(null)
   const callSidRef = useRef<string | undefined>(undefined)
   const activeLeadIdRef = useRef<string | null>(null)
+  const callerProfileRef = useRef<DialerCallerProfile | null>(null)
+  const currentBusinessNumberRef = useRef<string>('')
+  const callerProfileLookupSeqRef = useRef(0)
   const finalizedCallRef = useRef(false)
   const initializedRef = useRef(false)
   const tokenRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -237,6 +304,9 @@ export function FloatingDialer() {
   const stuckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const presenceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const tokenRefreshInFlightRef = useRef(false)
+  const warmTransferSessionRef = useRef<WarmTransferSession | null>(null)
+  const warmTransferBridgePendingRef = useRef(false)
+  const warmTransferBridgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const dialerStateKeyRef = useRef(getDialerStateStorageKey(currentUser?.userId))
   const dialerEventsKeyRef = useRef(getDialerStorageKey(currentUser?.userId))
   const preferencesKeyRef = useRef(`dialer_prefs:${currentUser?.userId || 'anonymous'}`)
@@ -266,10 +336,8 @@ export function FloatingDialer() {
 
   function persistCallEvent(entry: CallEvent) {
     callEventsRef.current = [...callEventsRef.current.slice(-49), entry]
-    try {
-      sessionStorage.setItem(dialerEventsKeyRef.current, JSON.stringify(callEventsRef.current))
-      sessionStorage.setItem('dialer_events', JSON.stringify(callEventsRef.current))
-    } catch {}
+    writeBrowserStorage('session', dialerEventsKeyRef.current, JSON.stringify(callEventsRef.current))
+    writeBrowserStorage('session', 'dialer_events', JSON.stringify(callEventsRef.current))
   }
 
   function syncDebugState(extra?: Record<string, unknown>) {
@@ -282,21 +350,50 @@ export function FloatingDialer() {
       activeCallDirection: activeCallDirectionRef.current,
       incomingFrom: incomingFromRef.current || null,
       phone: phone.trim() || callingNumberRef.current || incomingFromRef.current || null,
+      businessNumber: inferCurrentBusinessNumber() || null,
+      branchLabel: callerProfileRef.current?.branchLabel || null,
       leadId: activeLeadIdRef.current || null,
       tokenExpiresAt: tokenExpiresAtRef.current,
       identity: identityRef.current,
       userId: currentUser?.userId || null,
       userName: currentUser?.name || null,
       browserWarning: compatibility?.warning || null,
+      warmTransfer: warmTransferSessionRef.current,
       environment: getEnvironmentSnapshot(),
       updatedAt: new Date().toISOString(),
       ...extra,
     }
 
-    try {
-      localStorage.setItem(dialerStateKeyRef.current, JSON.stringify(snapshot))
-    } catch {}
+    writeBrowserStorage('local', dialerStateKeyRef.current, JSON.stringify(snapshot))
   }
+
+  useEffect(() => {
+    if (status !== 'active' || (!showTransfer && !showConference)) {
+      return
+    }
+
+    let cancelled = false
+    setInternalDirectoryLoading(true)
+    fetch('/api/sales/dialer/internal-directory', { cache: 'no-store', credentials: 'include' })
+      .then(response => response.ok ? response.json() : { entries: [] })
+      .then(payload => {
+        if (cancelled) return
+        setInternalDirectory(Array.isArray(payload.entries) ? payload.entries : [])
+      })
+      .catch(() => {
+        if (cancelled) return
+        setInternalDirectory([])
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setInternalDirectoryLoading(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [showConference, showTransfer, status])
 
   async function postDialerTelemetry(
     kind: 'event' | 'presence',
@@ -321,8 +418,86 @@ export function FloatingDialer() {
     return explicit || callingNumberRef.current || phone.trim() || incomingFromRef.current || undefined
   }
 
+  function inferCurrentBusinessNumber() {
+    return currentBusinessNumberRef.current || callerProfileRef.current?.fromNumber || undefined
+  }
+
   function inferCurrentDirection(explicit?: 'inbound' | 'outbound') {
     return explicit || activeCallDirectionRef.current || undefined
+  }
+
+  async function resolveCallerProfileNow(input?: {
+    phone?: string
+    leadId?: string | null
+    preferredFromNumber?: string | null
+  }) {
+    const nextPhone = input?.phone || phone.trim()
+    const nextLeadId = input?.leadId ?? activeLeadIdRef.current
+    const preferredFromNumber = input?.preferredFromNumber || callerProfileRef.current?.fromNumber || currentBusinessNumberRef.current || ''
+    const digits = nextPhone.replace(/\D/g, '')
+
+    if (!nextLeadId && digits.length < 10) {
+      setCallerProfile(null)
+      callerProfileRef.current = null
+      currentBusinessNumberRef.current = ''
+      setCallerProfileLoading(false)
+      return null
+    }
+
+    const lookupSeq = ++callerProfileLookupSeqRef.current
+
+    const params = new URLSearchParams()
+    if (nextLeadId) params.set('leadId', nextLeadId)
+    if (nextPhone) params.set('phone', toE164(nextPhone))
+    if (preferredFromNumber) params.set('preferredFromNumber', preferredFromNumber)
+
+    setCallerProfileLoading(true)
+    try {
+      const response = await fetch(`/api/sales/dialer/caller-id?${params.toString()}`, {
+        cache: 'no-store',
+        credentials: 'include',
+      })
+      if (!response.ok) {
+        throw new Error(`Caller ID lookup failed: ${response.status}`)
+      }
+      const payload = await response.json() as {
+        ok?: boolean
+        fromNumber?: string
+        branchLabel?: string
+        reason?: string
+        matchedLeadId?: string | null
+      }
+      if (!payload.ok || !payload.fromNumber) {
+        throw new Error('Caller ID lookup failed')
+      }
+      const profile: DialerCallerProfile = {
+        fromNumber: payload.fromNumber,
+        branchLabel: payload.branchLabel || getSaturnBranchLabel(payload.fromNumber),
+        reason: payload.reason || 'resolved',
+        matchedLeadId: payload.matchedLeadId || null,
+      }
+      if (lookupSeq === callerProfileLookupSeqRef.current) {
+        setCallerProfile(profile)
+        callerProfileRef.current = profile
+        currentBusinessNumberRef.current = profile.fromNumber
+      }
+      return profile
+    } catch {
+      const fallbackProfile =
+        callerProfileRef.current ||
+        buildCallerProfile(currentBusinessNumberRef.current, 'fallback') ||
+        null
+      if (fallbackProfile && lookupSeq === callerProfileLookupSeqRef.current) {
+        setCallerProfile(fallbackProfile)
+        callerProfileRef.current = fallbackProfile
+        currentBusinessNumberRef.current = fallbackProfile.fromNumber
+      }
+      return fallbackProfile
+    } finally {
+      if (lookupSeq === callerProfileLookupSeqRef.current) {
+        setCallerProfileLoading(false)
+      }
+    }
   }
 
   function logCallEvent(event: DialerEventName, detail?: Partial<DialerEventPayload> & { extra?: Record<string, unknown> }) {
@@ -343,7 +518,11 @@ export function FloatingDialer() {
       deviceState: detail?.deviceState || deviceStateRef.current,
       tokenExpiresAt: detail?.tokenExpiresAt ?? tokenExpiresAtRef.current,
       identity: detail?.identity || identityRef.current,
-      extra: detail?.extra,
+      extra: {
+        businessNumber: inferCurrentBusinessNumber(),
+        branchLabel: callerProfileRef.current?.branchLabel || null,
+        ...(detail?.extra || {}),
+      },
     }
 
     const entry: CallEvent = {
@@ -447,6 +626,51 @@ export function FloatingDialer() {
     deviceStateRef.current = next
     setDeviceState(next)
     syncDebugState({ deviceState: next })
+  }
+
+  function clearWarmTransferBridgeTimer() {
+    if (warmTransferBridgeTimerRef.current) {
+      clearTimeout(warmTransferBridgeTimerRef.current)
+      warmTransferBridgeTimerRef.current = null
+    }
+  }
+
+  function setWarmTransferState(next: WarmTransferSession | null) {
+    warmTransferSessionRef.current = next
+    setWarmTransferSession(next)
+    syncDebugState({ warmTransfer: next })
+  }
+
+  function clearWarmTransferState() {
+    warmTransferBridgePendingRef.current = false
+    clearWarmTransferBridgeTimer()
+    setWarmTransferState(null)
+    setShowConference(false)
+    setConferenceTarget('')
+  }
+
+  function expectWarmTransferBridge() {
+    warmTransferBridgePendingRef.current = true
+    clearWarmTransferBridgeTimer()
+    warmTransferBridgeTimerRef.current = setTimeout(() => {
+      warmTransferBridgePendingRef.current = false
+      syncDebugState({ warmTransferBridgePending: false })
+    }, WARM_TRANSFER_BRIDGE_TIMEOUT_MS)
+    syncDebugState({ warmTransferBridgePending: true })
+  }
+
+  function holdForWarmTransferBridge() {
+    if (!warmTransferBridgePendingRef.current) return false
+    warmTransferBridgePendingRef.current = false
+    clearWarmTransferBridgeTimer()
+    activeCallRef.current = null
+    callSidRef.current = undefined
+    audioConnectedRef.current = false
+    setMuted(false)
+    setDialerStatus('connecting')
+    setError(null)
+    pushPresence()
+    return true
   }
 
   // ── incoming tone ────────────────────────────────────────────────────────
@@ -639,6 +863,71 @@ export function FloatingDialer() {
     device.on('incoming', (call: TwilioCallLike) => {
       incomingCallRef.current = call
       const from = call?.parameters?.From || call?.parameters?.from || 'Unknown'
+      const inboundBusinessNumber = normalizeSharedPhone(call?.parameters?.To || call?.parameters?.to || '')
+      const inboundProfile = buildCallerProfile(inboundBusinessNumber, 'incoming')
+      if (inboundProfile) {
+        currentBusinessNumberRef.current = inboundProfile.fromNumber
+        callerProfileRef.current = inboundProfile
+        setCallerProfile(inboundProfile)
+      }
+      const isWarmTransferBridge = !!warmTransferSessionRef.current && isSaturnBranchPhoneNumber(normalizeSharedPhone(from))
+
+      if (isWarmTransferBridge) {
+        incomingFromRef.current = from
+        activeLocalCallIdRef.current = activeLocalCallIdRef.current || crypto.randomUUID()
+        activeCallRef.current = call
+        incomingCallRef.current = null
+        audioConnectedRef.current = true
+        callSidRef.current = call?.parameters?.CallSid || call?.parameters?.callsid || undefined
+        warmTransferBridgePendingRef.current = false
+        clearWarmTransferBridgeTimer()
+        setOpen(true)
+        call.accept?.()
+        logCallEvent('warm_transfer_bridge_ready', {
+          callDirection: activeCallDirectionRef.current || 'outbound',
+          phoneNumber: inferCurrentPhoneNumber(),
+          callSid: callSidRef.current,
+          audioConnected: true,
+          extra: {
+            conferenceName: warmTransferSessionRef.current?.conferenceName,
+            target: warmTransferSessionRef.current?.target,
+          },
+        })
+        setDialerStatus('active')
+        pushPresence()
+
+        call.on('disconnect', () => {
+          const duration = callStartRef.current ? Math.floor((Date.now() - callStartRef.current) / 1000) : 0
+          logCallEvent('call_disconnected', {
+            callDirection: activeCallDirectionRef.current || 'outbound',
+            durationSeconds: duration,
+          })
+          void finalizeCall(activeCallDirectionRef.current || 'outbound', {
+            answered: duration > 0,
+            callOutcome: duration > 0 ? 'completed' : 'no_answer',
+            answeredBy: 'browser',
+            audioConnected: audioConnectedRef.current,
+          })
+          activeCallRef.current = null
+          callStartRef.current = null
+          callSidRef.current = undefined
+          activeLocalCallIdRef.current = undefined
+          activeCallDirectionRef.current = null
+          audioConnectedRef.current = false
+          currentBusinessNumberRef.current = ''
+          callerProfileRef.current = null
+          setCallerProfile(null)
+          finalizedCallRef.current = false
+          setMuted(false)
+          setCallNotes('')
+          setShowTransfer(false)
+          clearWarmTransferState()
+          setDialerStatus('ready')
+          pushPresence()
+        })
+        return
+      }
+
       incomingFromRef.current = from
       activeCallDirectionRef.current = 'inbound'
       activeLocalCallIdRef.current = crypto.randomUUID()
@@ -669,6 +958,9 @@ export function FloatingDialer() {
         logCallEvent('call_cancelled', { callDirection: 'inbound', phoneNumber: from })
         incomingCallRef.current = null
         callStartRef.current = null
+        currentBusinessNumberRef.current = ''
+        callerProfileRef.current = null
+        setCallerProfile(null)
         setDialerStatus('ready')
         pushPresence()
       })
@@ -681,6 +973,10 @@ export function FloatingDialer() {
         callSidRef.current = undefined
         activeLocalCallIdRef.current = undefined
         activeCallDirectionRef.current = null
+        currentBusinessNumberRef.current = ''
+        callerProfileRef.current = null
+        setCallerProfile(null)
+        clearWarmTransferState()
         setDialerStatus('ready')
         pushPresence()
       })
@@ -750,8 +1046,7 @@ export function FloatingDialer() {
     setMuted(false)
     setCallNotes('')
     setShowTransfer(false)
-    setShowConference(false)
-    setConferenceActive(false)
+    clearWarmTransferState()
     setActiveLeadName(null)
     clearStuckTimer()
     setDialerStatus('ready')
@@ -841,16 +1136,31 @@ export function FloatingDialer() {
       }
     }
 
-    callingNumberRef.current = phone.trim()
-    activeLocalCallIdRef.current = crypto.randomUUID()
-    activeCallDirectionRef.current = 'outbound'
-    audioConnectedRef.current = false
-    logCallEvent('outbound_call_started', {
-      callDirection: 'outbound',
-      phoneNumber: e164,
-    })
-
     try {
+      const resolvedCallerProfile = await resolveCallerProfileNow({
+        phone: e164,
+        leadId: activeLeadIdRef.current,
+      })
+      const outboundBusinessNumber = resolvedCallerProfile?.fromNumber || currentBusinessNumberRef.current || ''
+
+      callingNumberRef.current = phone.trim()
+      activeLocalCallIdRef.current = crypto.randomUUID()
+      activeCallDirectionRef.current = 'outbound'
+      audioConnectedRef.current = false
+      if (resolvedCallerProfile) {
+        callerProfileRef.current = resolvedCallerProfile
+        setCallerProfile(resolvedCallerProfile)
+      }
+      currentBusinessNumberRef.current = outboundBusinessNumber
+      logCallEvent('outbound_call_started', {
+        callDirection: 'outbound',
+        phoneNumber: e164,
+        extra: {
+          fromNumber: outboundBusinessNumber || null,
+          branchLabel: resolvedCallerProfile?.branchLabel || null,
+        },
+      })
+
       const preflight = await runPreCallDiagnostics()
       if (!preflight.ok) {
         setDialerStatus('error')
@@ -880,7 +1190,13 @@ export function FloatingDialer() {
         }
       }, DIALER_STUCK_WARNING_MS)
 
-      const call = await deviceRef.current.connect({ params: { To: e164 } })
+      const call = await deviceRef.current.connect({
+        params: {
+          To: e164,
+          ...(activeLeadIdRef.current ? { leadId: activeLeadIdRef.current } : {}),
+          ...(outboundBusinessNumber ? { preferredFromNumber: outboundBusinessNumber } : {}),
+        },
+      })
       activeCallRef.current = call
 
       call.on('ringing', () => {
@@ -922,6 +1238,9 @@ export function FloatingDialer() {
         const duration = callStartRef.current ? Math.floor((Date.now() - callStartRef.current) / 1000) : 0
         logCallEvent('call_disconnected', { callDirection: 'outbound', durationSeconds: duration })
         clearStuckTimer()
+        if (holdForWarmTransferBridge()) {
+          return
+        }
         void finalizeCall('outbound', {
           answered: duration > 0,
           callOutcome: duration > 0 ? 'completed' : 'no_answer',
@@ -938,6 +1257,7 @@ export function FloatingDialer() {
         setMuted(false)
         setCallNotes('')
         setShowTransfer(false)
+        clearWarmTransferState()
         setDialerStatus('ready')
         pushPresence()
       })
@@ -945,6 +1265,9 @@ export function FloatingDialer() {
       call.on('cancel', () => {
         logCallEvent('call_cancelled', { callDirection: 'outbound', phoneNumber: e164, audioConnected: false })
         clearStuckTimer()
+        if (holdForWarmTransferBridge()) {
+          return
+        }
         void finalizeCall('outbound', {
           answered: false,
           callOutcome: 'cancelled',
@@ -962,6 +1285,7 @@ export function FloatingDialer() {
         setMuted(false)
         setCallNotes('')
         setShowTransfer(false)
+        clearWarmTransferState()
         setDialerStatus('ready')
         pushPresence()
       })
@@ -1003,6 +1327,7 @@ export function FloatingDialer() {
         setMuted(false)
         setCallNotes('')
         setShowTransfer(false)
+        clearWarmTransferState()
         audioConnectedRef.current = false
         activeLocalCallIdRef.current = undefined
         activeCallDirectionRef.current = null
@@ -1103,6 +1428,9 @@ export function FloatingDialer() {
     call.on('disconnect', () => {
       const duration = callStartRef.current ? Math.floor((Date.now() - callStartRef.current) / 1000) : 0
       logCallEvent('call_disconnected', { callDirection: 'inbound', durationSeconds: duration })
+      if (holdForWarmTransferBridge()) {
+        return
+      }
       void finalizeCall('inbound', {
         answered: duration > 0,
         callOutcome: duration > 0 ? 'completed' : 'no_answer',
@@ -1119,6 +1447,7 @@ export function FloatingDialer() {
       setMuted(false)
       setCallNotes('')
       setShowTransfer(false)
+      clearWarmTransferState()
       setDialerStatus('ready')
       pushPresence()
     })
@@ -1161,6 +1490,7 @@ export function FloatingDialer() {
       const updatedLead = await logDialerCall({
         leadId,
         phone: inferCurrentPhoneNumber(),
+        branchNumber: inferCurrentBusinessNumber(),
         direction,
         durationSeconds,
         callSid,
@@ -1210,6 +1540,10 @@ export function FloatingDialer() {
     activeLocalCallIdRef.current = undefined
     activeCallDirectionRef.current = null
     audioConnectedRef.current = false
+    currentBusinessNumberRef.current = ''
+    callerProfileRef.current = null
+    setCallerProfile(null)
+    clearWarmTransferState()
     setTwilioDeviceState('offline')
     setDialerStatus('idle')
     pushPresence(keepalive, 'offline')
@@ -1221,9 +1555,9 @@ export function FloatingDialer() {
     dialerStateKeyRef.current = getDialerStateStorageKey(currentUser?.userId)
     dialerEventsKeyRef.current = getDialerStorageKey(currentUser?.userId)
     preferencesKeyRef.current = `dialer_prefs:${currentUser?.userId || 'anonymous'}`
-    callEventsRef.current = safeJsonParse<CallEvent[]>(sessionStorage.getItem(dialerEventsKeyRef.current), [])
+    callEventsRef.current = safeJsonParse<CallEvent[]>(readBrowserStorage('session', dialerEventsKeyRef.current), [])
 
-    const savedPreferences = safeJsonParse<DialerPreferences>(localStorage.getItem(preferencesKeyRef.current), {})
+    const savedPreferences = safeJsonParse<DialerPreferences>(readBrowserStorage('local', preferencesKeyRef.current), {})
     if (savedPreferences.selectedMicId) {
       setSelectedMicId(savedPreferences.selectedMicId)
       selectedMicIdRef.current = savedPreferences.selectedMicId
@@ -1244,12 +1578,18 @@ export function FloatingDialer() {
     syncDebugState()
 
     function handleOpenDialer(event: Event) {
-      const customEvent = event as CustomEvent<{ phone?: string; leadId?: string; name?: string }>
+      const customEvent = event as CustomEvent<{ phone?: string; leadId?: string; name?: string; branchNumber?: string }>
       if (customEvent.detail?.phone) setPhone(customEvent.detail.phone)
       const nextLeadId = customEvent.detail?.leadId || null
       setActiveLeadId(nextLeadId)
       activeLeadIdRef.current = nextLeadId
       setActiveLeadName(customEvent.detail?.name || null)
+      const incomingProfile = buildCallerProfile(customEvent.detail?.branchNumber, 'explicit')
+      if (incomingProfile) {
+        setCallerProfile(incomingProfile)
+        callerProfileRef.current = incomingProfile
+        currentBusinessNumberRef.current = incomingProfile.fromNumber
+      }
       setOpen(true)
     }
 
@@ -1306,6 +1646,7 @@ export function FloatingDialer() {
       navigator.connection?.removeEventListener?.('change', onConnectionChange)
       if (tokenRefreshTimerRef.current) clearTimeout(tokenRefreshTimerRef.current)
       if (presenceTimerRef.current) clearInterval(presenceTimerRef.current)
+      clearWarmTransferBridgeTimer()
       clearStuckTimer()
       stopIncomingTone()
     }
@@ -1321,6 +1662,37 @@ export function FloatingDialer() {
   useEffect(() => { activeLeadIdRef.current = activeLeadId }, [activeLeadId])
 
   useEffect(() => {
+    if (!open || status === 'connecting' || status === 'active' || status === 'incoming') return
+
+    const nextPhone = phone.trim()
+    const digits = nextPhone.replace(/\D/g, '')
+    if (!activeLeadId && digits.length < 10) {
+      setCallerProfile(null)
+      callerProfileRef.current = null
+      currentBusinessNumberRef.current = ''
+      setCallerProfileLoading(false)
+      return
+    }
+
+    let cancelled = false
+    const timeout = window.setTimeout(() => {
+      void resolveCallerProfileNow({
+        phone: nextPhone,
+        leadId: activeLeadId,
+      }).then(profile => {
+        if (cancelled || !profile) return
+        setCallerProfile(profile)
+      })
+    }, activeLeadId ? 0 : 250)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timeout)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeLeadId, open, phone, status])
+
+  useEffect(() => {
     if (!currentUser) return
     selectedMicIdRef.current = selectedMicId
     selectedSpeakerIdRef.current = selectedSpeakerId
@@ -1328,9 +1700,7 @@ export function FloatingDialer() {
       selectedMicId: selectedMicId || undefined,
       selectedSpeakerId: selectedSpeakerId || undefined,
     } satisfies DialerPreferences
-    try {
-      localStorage.setItem(preferencesKeyRef.current, JSON.stringify(payload))
-    } catch {}
+    writeBrowserStorage('local', preferencesKeyRef.current, JSON.stringify(payload))
     if (selectedMicId || selectedSpeakerId) {
       logCallEvent('audio_preferences_updated', {
         extra: payload,
@@ -1352,7 +1722,7 @@ export function FloatingDialer() {
   useEffect(() => {
     window.__SATURN_DIALER_DEBUG__ = {
       snapshot: () =>
-        safeJsonParse<Record<string, unknown>>(localStorage.getItem(dialerStateKeyRef.current), {}),
+        safeJsonParse<Record<string, unknown>>(readBrowserStorage('local', dialerStateKeyRef.current), {}),
       refreshToken: () => refreshToken('manual'),
       simulateTokenExpiry: () => refreshToken('simulated_expiry'),
       simulateMicDenied: () => {
@@ -1469,7 +1839,11 @@ export function FloatingDialer() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ callSid: callSidRef.current, to: transferTarget.trim() }),
+        body: JSON.stringify({
+          callSid: callSidRef.current,
+          to: transferTarget.trim(),
+          callerId: inferCurrentBusinessNumber(),
+        }),
       })
       setShowTransfer(false)
       setTransferTarget('')
@@ -1485,18 +1859,40 @@ export function FloatingDialer() {
     if (!callSidRef.current || !conferenceTarget.trim()) return
     setConferencing(true)
     try {
+      const target = conferenceTarget.trim()
+      const targetLabel = internalDirectory.find(entry => entry.target === target)?.label || target
+      logCallEvent('warm_transfer_started', {
+        callDirection: activeCallDirectionRef.current || 'outbound',
+        phoneNumber: inferCurrentPhoneNumber(),
+        callSid: callSidRef.current,
+        extra: { target, targetLabel },
+      })
       const res = await fetch('/api/sales/dialer/conference', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customerCallSid: callSidRef.current,
-          addTarget: conferenceTarget.trim(),
+          addTarget: target,
           repIdentity: identityRef.current,
+          callerId: inferCurrentBusinessNumber(),
         }),
       })
       if (res.ok) {
-        setConferenceActive(true)
+        const payload = await res.json() as {
+          conferenceName?: string
+          targetCallSid?: string | null
+          repCallSid?: string | null
+        }
+        expectWarmTransferBridge()
+        setWarmTransferState({
+          conferenceName: payload.conferenceName || `saturn-conf-${Date.now()}`,
+          target,
+          targetLabel,
+          targetCallSid: payload.targetCallSid || null,
+          repCallSid: payload.repCallSid || null,
+          startedAt: new Date().toISOString(),
+        })
         setShowConference(false)
         setConferenceTarget('')
       }
@@ -1507,16 +1903,93 @@ export function FloatingDialer() {
     }
   }
 
+  async function completeWarmTransfer() {
+    if (!warmTransferSessionRef.current) return
+    setConferencing(true)
+    try {
+      await fetch('/api/sales/dialer/conference', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'complete',
+          conferenceName: warmTransferSessionRef.current.conferenceName,
+          targetCallSid: warmTransferSessionRef.current.targetCallSid,
+          repCallSid: warmTransferSessionRef.current.repCallSid,
+        }),
+      })
+      logCallEvent('warm_transfer_completed', {
+        callDirection: activeCallDirectionRef.current || 'outbound',
+        phoneNumber: inferCurrentPhoneNumber(),
+        callSid: callSidRef.current,
+        extra: { target: warmTransferSessionRef.current.targetLabel },
+      })
+    } catch {
+      // ignore
+    } finally {
+      setConferencing(false)
+    }
+  }
+
+  async function returnWarmTransferToCaller() {
+    if (!warmTransferSessionRef.current) return
+    setConferencing(true)
+    try {
+      await fetch('/api/sales/dialer/conference', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'return',
+          conferenceName: warmTransferSessionRef.current.conferenceName,
+          targetCallSid: warmTransferSessionRef.current.targetCallSid,
+          repCallSid: warmTransferSessionRef.current.repCallSid,
+        }),
+      })
+      logCallEvent('warm_transfer_returned', {
+        callDirection: activeCallDirectionRef.current || 'outbound',
+        phoneNumber: inferCurrentPhoneNumber(),
+        callSid: callSidRef.current,
+        extra: { target: warmTransferSessionRef.current.targetLabel },
+      })
+      clearWarmTransferState()
+    } catch {
+      // ignore
+    } finally {
+      setConferencing(false)
+    }
+  }
+
   async function acceptQueueCall() {
     setAcceptingQueue(true)
     try {
-      await fetch('/api/sales/dialer/queue', {
+      logCallEvent('queue_call_accept_started', {
+        callDirection: 'inbound',
+        extra: { identity: identityRef.current },
+      })
+      const response = await fetch('/api/sales/dialer/queue', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identity: identityRef.current }),
       })
-      setQueueSize(q => Math.max(0, q - 1))
+      const payload = await response.json().catch(() => null) as { ok?: boolean; rerouted?: boolean; identity?: string; message?: string } | null
+      if (response.ok && payload?.ok) {
+        setQueueSize(q => Math.max(0, q - 1))
+        logCallEvent('queue_call_connected', {
+          callDirection: 'inbound',
+          extra: {
+            identity: payload.identity || identityRef.current,
+            rerouted: payload.rerouted === true,
+          },
+        })
+      } else {
+        logCallEvent('queue_call_requeued', {
+          callDirection: 'inbound',
+          errorMessage: payload?.message || 'Queue pickup unavailable',
+          extra: { identity: identityRef.current },
+        })
+      }
     } catch {
       // ignore
     } finally {
@@ -1622,6 +2095,11 @@ export function FloatingDialer() {
                   {activeLeadName ? 'CRM lead' : 'Linked to CRM lead'}
                 </div>
               )}
+              {callerProfile && (
+                <div className="mt-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-white/60">
+                  {status === 'active' ? 'Live on' : 'Calling from'} {callerProfile.branchLabel || 'Primary'} · {callerProfile.fromNumber}
+                </div>
+              )}
 
               <div className="mt-3 h-9 flex items-center">
                 {status === 'connecting' ? (
@@ -1720,25 +2198,67 @@ export function FloatingDialer() {
                           Cancel
                         </button>
                       </div>
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/30">Internal targets</div>
+                        {internalDirectoryLoading ? (
+                          <div className="text-[10px] text-white/25">Loading available reps…</div>
+                        ) : internalDirectory.length === 0 ? (
+                          <div className="text-[10px] text-white/25">No live browser reps detected. SIP fallbacks still work.</div>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {internalDirectory.slice(0, 8).map(entry => (
+                              <button
+                                key={entry.id}
+                                type="button"
+                                onClick={() => setTransferTarget(entry.target)}
+                                className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] text-white/70 transition hover:bg-white/10"
+                              >
+                                {entry.label} · {entry.kind}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                       <div className="text-[10px] text-white/25">Quick: sip:john@saturn.sip.twilio.com · sip:salesrep1@saturn.sip.twilio.com</div>
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Conference bridge */}
+              {/* Warm transfer bridge */}
               {status === 'active' && (
                 <div className="mt-2 px-1">
-                  {conferenceActive ? (
-                    <div className="rounded-[10px] border border-emerald-400/20 bg-emerald-400/8 px-3 py-2 text-xs font-medium text-emerald-300">
-                      🎙 Conference active — all parties connected
+                  {warmTransferSession ? (
+                    <div className="space-y-2 rounded-[10px] border border-sky-400/20 bg-sky-400/8 px-3 py-3 text-xs text-sky-100">
+                      <div className="font-semibold text-sky-200">
+                        Warm transfer live with {warmTransferSession.targetLabel}
+                      </div>
+                      <div className="text-[11px] text-sky-100/80">
+                        Keep the customer on the line, talk to the teammate, then either hand the call off or pull it back.
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => void completeWarmTransfer()}
+                          disabled={conferencing}
+                          className="flex-1 rounded-[10px] bg-emerald-500/90 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                        >
+                          {conferencing ? 'Working…' : 'Complete handoff'}
+                        </button>
+                        <button
+                          onClick={() => void returnWarmTransferToCaller()}
+                          disabled={conferencing}
+                          className="flex-1 rounded-[10px] border border-white/10 bg-white/5 py-1.5 text-xs font-semibold text-white/80 disabled:opacity-50"
+                        >
+                          Return caller
+                        </button>
+                      </div>
                     </div>
                   ) : !showConference ? (
                     <button
                       onClick={() => setShowConference(true)}
                       className="w-full rounded-[10px] border border-white/10 bg-white/5 py-2 text-xs font-medium text-white/50 transition hover:bg-white/10 hover:text-white/80"
                     >
-                      Add to conference
+                      Warm transfer / consult
                     </button>
                   ) : (
                     <div className="space-y-2">
@@ -1754,7 +2274,7 @@ export function FloatingDialer() {
                           disabled={!conferenceTarget.trim() || conferencing}
                           className="flex-1 rounded-[10px] bg-sky-500/80 py-1.5 text-xs font-semibold text-white disabled:opacity-50 transition hover:bg-sky-500"
                         >
-                          {conferencing ? 'Connecting…' : 'Start Conference'}
+                          {conferencing ? 'Connecting…' : 'Start consult'}
                         </button>
                         <button
                           onClick={() => { setShowConference(false); setConferenceTarget('') }}
@@ -1763,7 +2283,28 @@ export function FloatingDialer() {
                           Cancel
                         </button>
                       </div>
-                      <div className="text-[10px] text-white/25">You'll receive a new call to re-join · sip:john@saturn.sip.twilio.com</div>
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/30">Internal targets</div>
+                        {internalDirectoryLoading ? (
+                          <div className="text-[10px] text-white/25">Loading available reps…</div>
+                        ) : internalDirectory.length === 0 ? (
+                          <div className="text-[10px] text-white/25">No live browser reps detected. SIP fallbacks still work.</div>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {internalDirectory.slice(0, 8).map(entry => (
+                              <button
+                                key={entry.id}
+                                type="button"
+                                onClick={() => setConferenceTarget(entry.target)}
+                                className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] text-white/70 transition hover:bg-white/10"
+                              >
+                                {entry.label} · {entry.kind}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-white/25">If Twilio needs to re-bridge your browser, it will auto-join you back in.</div>
                     </div>
                   )}
                 </div>
@@ -1840,6 +2381,18 @@ export function FloatingDialer() {
                   </button>
                 )}
               </div>
+              {(callerProfile || callerProfileLoading) && (
+                <div className="mt-2 flex items-center justify-between rounded-[10px] border border-white/8 bg-white/5 px-3 py-2 text-[11px] text-white/55">
+                  <span>
+                    {callerProfileLoading
+                      ? 'Choosing local outbound line…'
+                      : `Calling from ${callerProfile?.branchLabel || 'Primary'} line`}
+                  </span>
+                  {!callerProfileLoading && callerProfile?.fromNumber ? (
+                    <span className="font-medium text-white/70">{callerProfile.fromNumber}</span>
+                  ) : null}
+                </div>
+              )}
 
               {/* Queue indicator */}
               {queueSize > 0 && status === 'ready' && (

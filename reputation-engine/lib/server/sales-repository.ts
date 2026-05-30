@@ -5,8 +5,23 @@ import {
   normalizeFollowUp,
   normalizeLead,
   normalizeQuote,
+  uid,
 } from '@/lib/sales'
-import { LEAD_ARCHIVED_NOTE, LEAD_RESTORED_NOTE } from '@/lib/server/sales-audit'
+import {
+  applyInboundLeadActionState,
+  applyInboundLeadReadState,
+  applyLeadInboxActionState,
+  applyLeadInboxReadState,
+  applySalesEmailActionState,
+  applySalesEmailReadState,
+} from '@/lib/server/inbox-state'
+import { LEAD_ARCHIVED_NOTE, LEAD_RESTORED_NOTE, recordLeadArchivedAudit } from '@/lib/server/sales-audit'
+import {
+  chooseCanonicalLead,
+  findLeadIdentityMatches,
+  leadSharesIdentity,
+  mergeLeadRecords,
+} from '@/lib/server/lead-identity'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import type {
   CallLogEntry,
@@ -17,13 +32,13 @@ import type {
   FollowUpLog,
   InboundLead,
   InventoryScanDraft,
+  LeadInboxChannel,
   ListingMatch,
   SalesDashboardSummary,
 } from '@/lib/types'
 
 type TableName = 'crm_leads' | 'crm_quotes' | 'crm_clients' | 'crm_emails' | 'crm_followup_logs'
 type PersistedRecord<T> = { id: string; data: T; updated_at?: string; deleted?: boolean }
-type LeadIdentityLike = Pick<CRMLead, 'id' | 'stage' | 'phone' | 'email' | 'inboundId'>
 type LeadLifecycleSnapshot = {
   leadId?: string
   notes?: string
@@ -56,14 +71,6 @@ export type SalesLeadInboxSnapshot =
 
 function requireSupabase() {
   return requireSupabaseEnv()
-}
-
-function digitsOnly(value?: string) {
-  return (value || '').replace(/\D/g, '')
-}
-
-function normalizeEmail(value?: string) {
-  return (value || '').trim().toLowerCase()
 }
 
 function normalizeProjectedText(value?: string | null) {
@@ -117,24 +124,6 @@ function normalizeLeadInboxSnapshot(row: LeadInboxRow): SalesLeadInboxSnapshot {
     totalCubicFeet: normalizeProjectedNumber(row.totalCubicFeet),
     callLogs: normalizeProjectedCallLogs(row.callLogs),
   }
-}
-
-function leadsShareIdentity(left: LeadIdentityLike, right: LeadIdentityLike) {
-  if (left.id === right.id) return false
-
-  if (left.inboundId && right.inboundId && left.inboundId === right.inboundId) {
-    return true
-  }
-
-  const leftPhone = digitsOnly(left.phone)
-  const rightPhone = digitsOnly(right.phone)
-  if (leftPhone && rightPhone && (leftPhone === rightPhone || leftPhone.endsWith(rightPhone) || rightPhone.endsWith(leftPhone))) {
-    return true
-  }
-
-  const leftEmail = normalizeEmail(left.email)
-  const rightEmail = normalizeEmail(right.email)
-  return !!leftEmail && !!rightEmail && leftEmail === rightEmail
 }
 
 function getArchivedLeadIds(logs: LeadLifecycleSnapshot[]) {
@@ -445,6 +434,173 @@ export async function saveSalesLead(lead: CRMLead) {
   return normalizeLead(await upsert<CRMLead>('crm_leads', normalizeLead(lead)))
 }
 
+type LeadIdentityInput = {
+  phone?: string | null
+  email?: string | null
+  inboundId?: string | null
+}
+
+type LeadMergeActor = {
+  userId?: string | null
+  name?: string | null
+}
+
+async function reassignLeadScopedArtifacts(fromLeadId: string, toLeadId: string) {
+  if (!fromLeadId || !toLeadId || fromLeadId === toLeadId) {
+    return
+  }
+
+  const [quoteRecords, followUpRecords, emailRecords] = await Promise.all([
+    selectAllRecords<CRMQuote>('crm_quotes'),
+    selectAllRecords<FollowUpLog>('crm_followup_logs').catch(() => [] as PersistedRecord<FollowUpLog>[]),
+    selectAllRecords<CRMEmail>('crm_emails'),
+  ])
+
+  await Promise.all([
+    ...quoteRecords
+      .filter(record => record.data?.leadId === fromLeadId)
+      .map(record => saveSalesQuote({ ...record.data, leadId: toLeadId })),
+    ...followUpRecords
+      .filter(record => record.data?.leadId === fromLeadId)
+      .map(record => saveFollowUpLog({ ...record.data, leadId: toLeadId })),
+    ...emailRecords
+      .filter(record => record.data?.leadId === fromLeadId)
+      .map(record => saveSalesEmail({ ...record.data, leadId: toLeadId })),
+  ])
+
+  const { url, headers } = requireSupabase()
+  await Promise.all([
+    fetch(`${url}/rest/v1/sms_messages?lead_id=eq.${encodeURIComponent(fromLeadId)}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ lead_id: toLeadId }),
+    }).catch(() => null),
+    fetch(`${url}/rest/v1/crm_call_sids?lead_id=eq.${encodeURIComponent(fromLeadId)}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ lead_id: toLeadId }),
+    }).catch(() => null),
+  ])
+}
+
+async function recordLeadMergeNotes(survivor: CRMLead, duplicate: CRMLead, actor?: LeadMergeActor) {
+  const now = new Date().toISOString()
+  const actorLabel = actor?.name?.trim() || 'System'
+  const duplicateLabel = duplicate.name?.trim() || duplicate.phone || duplicate.email || duplicate.id
+  const survivorLabel = survivor.name?.trim() || survivor.phone || survivor.email || survivor.id
+
+  await Promise.all([
+    saveFollowUpLog(normalizeFollowUp({
+      id: uid('fu'),
+      leadId: survivor.id,
+      type: 'note',
+      date: now,
+      createdAt: now,
+      notes: `${actorLabel} merged duplicate lead ${duplicateLabel} into this lead.`,
+    })),
+    saveFollowUpLog(normalizeFollowUp({
+      id: uid('fu'),
+      leadId: duplicate.id,
+      type: 'note',
+      date: now,
+      createdAt: now,
+      notes: `${actorLabel} merged this duplicate lead into ${survivorLabel} (${survivor.id}).`,
+    })),
+  ])
+}
+
+async function mergeSalesLeadIntoCanonical(
+  survivor: CRMLead,
+  duplicate: CRMLead,
+  actor?: LeadMergeActor,
+) {
+  const now = new Date().toISOString()
+  const mergedLead = mergeLeadRecords(survivor, duplicate, {
+    mergedAt: now,
+    mergedByUserId: actor?.userId,
+    mergedByName: actor?.name,
+    mergedReason: 'identity_duplicate',
+  })
+
+  await reassignLeadScopedArtifacts(duplicate.id, survivor.id)
+
+  for (const entry of mergedLead.callLogs || []) {
+    if (entry.callSid && entry.id) {
+      await saveCrmCallSidMapping(entry.callSid, survivor.id, entry.id).catch(() => {})
+    }
+  }
+
+  const savedSurvivor = await saveSalesLead({
+    ...mergedLead,
+    lastTouchedAt: now,
+    lastTouchedByUserId: actor?.userId || mergedLead.lastTouchedByUserId,
+    lastTouchedByName: actor?.name || mergedLead.lastTouchedByName,
+  })
+
+  await saveSalesLead({
+    ...duplicate,
+    mergedIntoLeadId: savedSurvivor.id,
+    mergedAt: now,
+    mergedByUserId: actor?.userId || undefined,
+    mergedByName: actor?.name || undefined,
+    mergedReason: 'identity_duplicate',
+    lastTouchedAt: now,
+    lastTouchedByUserId: actor?.userId || duplicate.lastTouchedByUserId,
+    lastTouchedByName: actor?.name || duplicate.lastTouchedByName,
+  })
+
+  await recordLeadMergeNotes(savedSurvivor, duplicate, actor)
+  await recordLeadArchivedAudit(duplicate.id)
+
+  return savedSurvivor
+}
+
+export async function getSalesLeadByContact(phone?: string | null, email?: string | null, inboundId?: string | null) {
+  const matches = findLeadIdentityMatches(await listSalesLeadIdentitySnapshots(), {
+    phone,
+    email,
+    inboundId,
+    includeClosed: false,
+  })
+  if (matches.length === 0) {
+    return null
+  }
+  return getSalesLead(matches[0].id)
+}
+
+export async function collapseDuplicateSalesLeadsByIdentity(
+  input: LeadIdentityInput,
+  actor?: LeadMergeActor,
+) {
+  const matches = findLeadIdentityMatches(await listSalesLeadIdentitySnapshots(), {
+    phone: input.phone,
+    email: input.email,
+    inboundId: input.inboundId,
+    includeClosed: false,
+  })
+
+  if (matches.length === 0) {
+    return null
+  }
+
+  if (matches.length === 1) {
+    return getSalesLead(matches[0].id)
+  }
+
+  const loaded = (await Promise.all(matches.map(match => getSalesLead(match.id)))).filter(Boolean) as CRMLead[]
+  let canonical = chooseCanonicalLead(loaded)
+  if (!canonical) {
+    return null
+  }
+
+  for (const duplicate of loaded) {
+    if (duplicate.id === canonical.id) continue
+    canonical = await mergeSalesLeadIntoCanonical(canonical, duplicate, actor)
+  }
+
+  return canonical
+}
+
 export async function deleteSalesLead(id: string) {
   const current = await selectById<CRMLead>('crm_leads', id)
   await markDeleted('crm_leads', id)
@@ -455,7 +611,12 @@ export async function deleteSalesLead(id: string) {
 
   const activeDuplicates = (await listSalesLeadIdentitySnapshots())
     .filter(lead => !isClosedLeadStage(lead.stage))
-    .filter(lead => leadsShareIdentity(current, lead))
+    .filter(lead => lead.id !== current.id)
+    .filter(lead => leadSharesIdentity(lead, {
+      phone: current.phone,
+      email: current.email,
+      inboundId: current.inboundId,
+    }))
 
   if (activeDuplicates.length === 0) {
     return [id]
@@ -615,7 +776,7 @@ export async function saveInboundLead(lead: {
 export async function listInboundLeads() {
   const { url, headers } = requireSupabase()
   const response = await fetch(
-    `${url}/rest/v1/inbound_leads?select=id,source,name,phone,email,message,raw_data,created_at,claimed,claimed_at&claimed=eq.false&order=created_at.desc&limit=100`,
+    `${url}/rest/v1/inbound_leads?select=id,source,name,phone,email,message,raw_data,created_at,claimed,claimed_at&claimed=eq.false&order=created_at.desc&limit=1000`,
     { headers, cache: 'no-store' }
   )
 
@@ -629,7 +790,7 @@ export async function listInboundLeads() {
 export async function listInboundJunkLeads() {
   const { url, headers } = requireSupabase()
   const response = await fetch(
-    `${url}/rest/v1/inbound_leads?select=id,source,name,phone,email,message,raw_data,created_at,claimed,claimed_at&claimed=eq.true&message=eq.Marked as junk&order=claimed_at.desc&limit=100`,
+    `${url}/rest/v1/inbound_leads?select=id,source,name,phone,email,message,raw_data,created_at,claimed,claimed_at&claimed=eq.true&message=eq.Marked as junk&order=claimed_at.desc&limit=1000`,
     { headers, cache: 'no-store' }
   )
 
@@ -643,7 +804,7 @@ export async function listInboundJunkLeads() {
 export async function listClosedInboundLeads() {
   const { url, headers } = requireSupabase()
   const response = await fetch(
-    `${url}/rest/v1/inbound_leads?select=id,source,name,phone,email,message,raw_data,created_at,claimed,claimed_at&claimed=eq.true&order=claimed_at.desc&limit=100`,
+    `${url}/rest/v1/inbound_leads?select=id,source,name,phone,email,message,raw_data,created_at,claimed,claimed_at&claimed=eq.true&order=claimed_at.desc&limit=1000`,
     { headers, cache: 'no-store' }
   )
 
@@ -657,7 +818,7 @@ export async function listClosedInboundLeads() {
 export async function listAllInboundLeads() {
   const { url, headers } = requireSupabase()
   const response = await fetch(
-    `${url}/rest/v1/inbound_leads?select=id,source,name,phone,email,message,raw_data,created_at,claimed,claimed_at&order=created_at.desc&limit=200`,
+    `${url}/rest/v1/inbound_leads?select=id,source,name,phone,email,message,raw_data,created_at,claimed,claimed_at&order=created_at.desc&limit=1000`,
     { headers, cache: 'no-store' }
   )
 
@@ -753,9 +914,12 @@ export async function updateInboundLeadRawData(id: string, patch: Record<string,
   }
 }
 
-export async function markInboundLeadClaimed(id: string) {
+export async function markInboundLeadClaimed(id: string, actor?: { userId?: string | null; name?: string | null }) {
   const existing = await getInboundLead(id)
   const raw = typeof existing?.raw_data === 'object' && existing.raw_data ? existing.raw_data as Record<string, unknown> : {}
+  const nextRaw = existing
+    ? applyInboundLeadActionState(existing, raw, actor)
+    : raw
   const { url, headers } = requireSupabase()
   const response = await fetch(`${url}/rest/v1/inbound_leads?id=eq.${encodeURIComponent(id)}`, {
     method: 'PATCH',
@@ -764,7 +928,7 @@ export async function markInboundLeadClaimed(id: string) {
       claimed: true,
       claimed_at: new Date().toISOString(),
       raw_data: {
-        ...raw,
+        ...nextRaw,
         inboxDisposition: 'open',
       },
     }),
@@ -775,10 +939,13 @@ export async function markInboundLeadClaimed(id: string) {
   }
 }
 
-export async function setInboundLeadDisposition(id: string, disposition: 'junk' | 'lost' | 'not_interested') {
+export async function setInboundLeadDisposition(id: string, disposition: 'junk' | 'lost' | 'not_interested', actor?: { userId?: string | null; name?: string | null }) {
   const existing = await getInboundLead(id)
   const raw = typeof existing?.raw_data === 'object' && existing.raw_data ? existing.raw_data as Record<string, unknown> : {}
   const now = new Date().toISOString()
+  const nextRaw = existing
+    ? applyInboundLeadActionState(existing, raw, actor, undefined, now)
+    : raw
   const { url, headers } = requireSupabase()
   const response = await fetch(`${url}/rest/v1/inbound_leads?id=eq.${encodeURIComponent(id)}`, {
     method: 'PATCH',
@@ -787,7 +954,7 @@ export async function setInboundLeadDisposition(id: string, disposition: 'junk' 
       claimed: true,
       claimed_at: now,
       raw_data: {
-        ...raw,
+        ...nextRaw,
         inboxDisposition: disposition,
         inboxDispositionAt: now,
       },
@@ -796,6 +963,32 @@ export async function setInboundLeadDisposition(id: string, disposition: 'junk' 
 
   if (!response.ok) {
     throw new Error(`Failed to mark inbound lead ${id} as ${disposition}`)
+  }
+}
+
+export async function setInboundLeadHandoff(id: string, actor?: { userId?: string | null; name?: string | null }) {
+  const existing = await getInboundLead(id)
+  const raw = typeof existing?.raw_data === 'object' && existing.raw_data ? existing.raw_data as Record<string, unknown> : {}
+  const now = new Date().toISOString()
+  const nextRaw = existing
+    ? applyInboundLeadActionState(existing, raw, actor, undefined, now)
+    : raw
+  const { url, headers } = requireSupabase()
+  const response = await fetch(`${url}/rest/v1/inbound_leads?id=eq.${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({
+      claimed: true,
+      claimed_at: now,
+      raw_data: {
+        ...nextRaw,
+        inboxDisposition: 'open',
+        inboxDispositionAt: now,
+      },
+    }),
+  })
+  if (!response.ok) {
+    throw new Error(`Failed to mark inbound lead ${id} as handled`)
   }
 }
 
@@ -820,6 +1013,56 @@ export async function restoreInboundLead(id: string) {
   if (!response.ok) {
     throw new Error(`Failed to restore inbound lead ${id}`)
   }
+}
+
+export async function markInboundLeadRead(id: string, actor?: { userId?: string | null; name?: string | null }, channel?: LeadInboxChannel) {
+  const existing = await getInboundLead(id)
+  if (!existing) throw new Error(`Inbound lead ${id} not found`)
+
+  const raw = typeof existing.raw_data === 'object' && existing.raw_data ? existing.raw_data as Record<string, unknown> : {}
+  const nextRaw = applyInboundLeadReadState(existing, raw, actor, channel)
+  const { url, headers } = requireSupabase()
+  const response = await fetch(`${url}/rest/v1/inbound_leads?id=eq.${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ raw_data: nextRaw }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to mark inbound lead ${id} as read`)
+  }
+}
+
+export async function markLeadInboxChannelRead(
+  leadId: string,
+  channel: LeadInboxChannel,
+  actor?: { userId?: string | null; name?: string | null }
+) {
+  const lead = await getSalesLead(leadId)
+  if (!lead) throw new Error(`Lead ${leadId} not found`)
+  await saveSalesLead(applyLeadInboxReadState(lead, channel, actor))
+}
+
+export async function markLeadInboxChannelActioned(
+  leadId: string,
+  channel: LeadInboxChannel,
+  actor?: { userId?: string | null; name?: string | null }
+) {
+  const lead = await getSalesLead(leadId)
+  if (!lead) throw new Error(`Lead ${leadId} not found`)
+  await saveSalesLead(applyLeadInboxActionState(lead, channel, actor))
+}
+
+export async function markSalesEmailRead(id: string, actor?: { userId?: string | null; name?: string | null }) {
+  const email = await selectById<CRMEmail>('crm_emails', id)
+  if (!email) throw new Error(`Email ${id} not found`)
+  await saveSalesEmail(applySalesEmailReadState(email, actor))
+}
+
+export async function markSalesEmailActioned(id: string, actor?: { userId?: string | null; name?: string | null }) {
+  const email = await selectById<CRMEmail>('crm_emails', id)
+  if (!email) throw new Error(`Email ${id} not found`)
+  await saveSalesEmail(applySalesEmailActionState(email, actor))
 }
 
 export async function getCrmCallSidMapping(callSid: string) {

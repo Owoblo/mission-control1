@@ -1,5 +1,6 @@
 import { defaultFollowUpDate, normalizePartnershipStage } from '@/lib/marketing'
 import { digitsOnly, normalizePhone } from '@/lib/sales-phones'
+import { partnershipInboundNotificationEmail, sendRepAlertEmail } from '@/lib/server/internal-notifications'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 
 type InboundChannel = 'email' | 'phone' | 'sms'
@@ -16,6 +17,7 @@ interface PausePartnershipSequenceInput {
 interface MarketContactMatch {
   id: string
   name: string | null
+  company: string | null
   email: string | null
   phone: string | null
   stage: string | null
@@ -42,7 +44,7 @@ async function findPartnershipContactMatch(input: PausePartnershipSequenceInput)
 
   const { url, headers } = requireSupabaseEnv()
   const response = await fetch(
-    `${url}/rest/v1/market_contacts?select=id,name,email,phone,stage,decision,sequence_paused,pipeline_phase&batch_id=not.is.null&order=created_at.desc&limit=2000`,
+    `${url}/rest/v1/market_contacts?select=id,name,company,email,phone,stage,decision,sequence_paused,pipeline_phase&batch_id=not.is.null&order=created_at.desc&limit=2000`,
     { headers, cache: 'no-store' }
   )
 
@@ -125,6 +127,20 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
       }),
     }),
   ])
+
+  void sendRepAlertEmail(
+    `Partner inbound ${input.channel.toUpperCase()} — ${contact.name || contact.company || 'Unknown contact'}`,
+    partnershipInboundNotificationEmail({
+      contactId: contact.id,
+      contactName: contact.name,
+      company: contact.company,
+      channel: input.channel,
+      occurredAt,
+      notes: input.notes,
+      phone: contact.phone || input.phone || null,
+      email: contact.email || input.email || null,
+    })
+  )
 
   return {
     matched: true as const,

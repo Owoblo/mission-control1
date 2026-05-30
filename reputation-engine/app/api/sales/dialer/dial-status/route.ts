@@ -160,6 +160,7 @@ export async function POST(request: Request) {
       const outboundLogUpdate = {
         notes: outboundNotes,
         phone: externalPhone || undefined,
+        branchNumber: branchNumber || undefined,
         duration: answered ? formatDuration(duration) : outcome,
         durationSeconds: answered ? duration : 0,
         direction: 'outbound',

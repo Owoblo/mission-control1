@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
 import { applyDetectedBranch } from '@/lib/server/sales-opportunities'
-import { calculateLeadScore, getLeadAssignedRepName, isClosedLeadStage, normalizeLead, uid } from '@/lib/sales'
+import { calculateLeadScore, getLeadAssignedRepName, normalizeLead, uid } from '@/lib/sales'
 import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { recordLeadCreatedAudit, recordLeadUpdateAudit } from '@/lib/server/sales-audit'
-import { getSalesLead, listSalesLeadIdentitySnapshots, listSalesLeadsPaginated, saveSalesLead } from '@/lib/server/sales-repository'
+import { collapseDuplicateSalesLeadsByIdentity, listSalesLeadsPaginated, saveSalesLead } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
-import { normalizeEmail, validateLeadPayload } from '@/lib/server/sales-validation'
+import { validateLeadPayload } from '@/lib/server/sales-validation'
 import type { CRMLead } from '@/lib/types'
 
 export async function GET(request: Request) {
@@ -29,34 +29,6 @@ export async function GET(request: Request) {
   }
 }
 
-function digitsOnly(value?: string) {
-  return (value || '').replace(/\D/g, '')
-}
-
-function findMatchingActiveLead(
-  leads: Array<Pick<CRMLead, 'id' | 'stage' | 'phone' | 'email'>>,
-  phone?: string,
-  email?: string
-) {
-  const phoneDigits = digitsOnly(phone)
-  const normalizedEmail = normalizeEmail(email)
-
-  return leads.find(lead => {
-    if (isClosedLeadStage(lead.stage)) {
-      return false
-    }
-
-    const leadPhoneDigits = digitsOnly(lead.phone)
-    const leadEmail = normalizeEmail(lead.email)
-
-    if (phoneDigits && leadPhoneDigits && (leadPhoneDigits === phoneDigits || leadPhoneDigits.endsWith(phoneDigits) || phoneDigits.endsWith(leadPhoneDigits))) {
-      return true
-    }
-
-    return !!normalizedEmail && !!leadEmail && leadEmail === normalizedEmail
-  }) || null
-}
-
 export async function POST(request: Request) {
   try {
     const session = await getSessionUser()
@@ -72,11 +44,15 @@ export async function POST(request: Request) {
     const requestedAssignedRepUserId = payload.assignedRepUserId?.trim()
     const assignedRepName = requestedAssignedRepName || (creatorOwnsLead ? session?.name?.trim() : undefined)
     const assignedRepUserId = requestedAssignedRepUserId || (creatorOwnsLead ? session?.userId : undefined)
-    const existingLeadMatch = payload.forceNew
+    const actor = { userId: session?.userId, name: session?.name?.trim() }
+    const existingLead = payload.forceNew
       || payload.leadKind === 'realtor_opportunity'
       ? null
-      : findMatchingActiveLead(await listSalesLeadIdentitySnapshots(), validated.phone, validated.email)
-    const existingLead = existingLeadMatch ? await getSalesLead(existingLeadMatch.id) : null
+      : await collapseDuplicateSalesLeadsByIdentity({
+        phone: validated.phone,
+        email: validated.email,
+        inboundId: payload.inboundId,
+      }, actor)
 
     if (existingLead) {
       // Placeholder names created by auto-routing should be overwritten by real names

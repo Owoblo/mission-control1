@@ -1,6 +1,6 @@
 'use client'
 
-import { buildInventoryVerificationSummary } from '@/lib/inventory-verification'
+import { buildInventoryVerificationActivity, buildInventoryVerificationSummary } from '@/lib/inventory-verification'
 import type { CRMLead, LeadMediaAsset } from '@/lib/types'
 
 type Props = {
@@ -30,6 +30,7 @@ export function InventoryVerificationPanel({
   const surveyCompleted = !!lead.surveyCompletedAt
   const surveyScanned = !!lead.surveyScannedAt
   const verificationSummary = buildInventoryVerificationSummary(lead.inventoryVerification)
+  const recentActivity = buildInventoryVerificationActivity(lead).slice(0, 4)
 
   return (
     <>
@@ -37,12 +38,12 @@ export function InventoryVerificationPanel({
         onClick={onRequestVerification}
         disabled={!canEditCurrentLead || surveyBusy}
         className="crm-button w-full justify-center disabled:opacity-60"
-        title="Customer can review the inventory, flag what stays behind, and upload missing room photos"
+        title="Sends customer a link to upload room photos and verify their inventory"
       >
         {surveyBusy ? '⏳ Generating link…'
-          : lead.surveyCompletedAt ? '📦 Resend Inventory Verification'
-          : lead.surveyRequestedAt ? '📦 Resend Inventory Verification'
-          : '📦 Request Inventory Verification'}
+          : lead.surveyCompletedAt ? '📷 Resend Photo Request'
+          : lead.surveyRequestedAt ? '📷 Resend Photo Request'
+          : '📷 Send Photo Request'}
       </button>
 
       {totalCustomerMedia > 0 ? (
@@ -55,12 +56,56 @@ export function InventoryVerificationPanel({
             </div>
           </div>
 
+          <div className="grid grid-cols-1 gap-2 rounded-[8px] bg-white/70 p-2 text-[11px] text-[var(--app-muted)] sm:grid-cols-3">
+            <div>
+              Request sent
+              <div className="font-semibold text-[var(--app-ink)]">
+                {lead.surveyRequestedAt
+                  ? new Date(lead.surveyRequestedAt).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+                  : 'Not yet'}
+              </div>
+            </div>
+            <div>
+              Customer updated
+              <div className="font-semibold text-[var(--app-ink)]">
+                {verificationSummary.lastUpdatedAt
+                  ? new Date(verificationSummary.lastUpdatedAt).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+                  : 'No edits yet'}
+              </div>
+            </div>
+            <div>
+              Survey status
+              <div className="font-semibold text-[var(--app-ink)]">
+                {surveyCompleted ? 'Completed' : lead.surveyRequestedAt ? 'In progress' : 'Not sent'}
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-2 rounded-[8px] bg-white/70 p-2 text-[11px] text-[var(--app-muted)]">
             <div>Moving confirmed: <span className="font-semibold text-[var(--app-ink)]">{verificationSummary.goingCount}</span></div>
             <div>Staying behind: <span className="font-semibold text-[var(--app-ink)]">{verificationSummary.notGoingCount}</span></div>
             <div>Needs review: <span className="font-semibold text-[var(--app-ink)]">{verificationSummary.unsureCount}</span></div>
             <div>Customer-added: <span className="font-semibold text-[var(--app-ink)]">{verificationSummary.addedCount}</span></div>
           </div>
+
+          {recentActivity.length > 0 ? (
+            <div className="rounded-[8px] bg-white/70 p-2 text-[11px] text-[var(--app-muted)]">
+              <div className="mb-2 font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Latest customer edits</div>
+              <div className="space-y-1.5">
+                {recentActivity.map(item => (
+                  <div key={item.id} className="rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="font-medium text-[var(--app-ink)]">{item.title}</div>
+                      <div className="text-[10px] text-[var(--app-muted)]">
+                        {new Date(item.ts).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                      </div>
+                    </div>
+                    <div className="mt-1">{item.detail}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {verificationSummary.addressMismatch ? (
             <div className="rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
@@ -154,7 +199,7 @@ export function InventoryVerificationPanel({
 
       {surveyUrl ? (
         <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-2.5 text-[10px] text-[var(--app-muted)]">
-          <div className="font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">Inventory verification link</div>
+          <div className="font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">Photo request link</div>
           <div className="mt-1 break-all">{surveyUrl}</div>
           <div className="mt-2 flex items-center gap-2">
             <button

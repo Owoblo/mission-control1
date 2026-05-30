@@ -618,13 +618,34 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
           </div>
         </div>
 
-        {showInventoryReview && (
+        {(showInventoryReview || (info?.listingPhotos?.length ?? 0) > 0) && (
           <div className="rounded-2xl bg-white p-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Inventory review</p>
             <h2 className="mt-1 text-base font-semibold text-[#1a2744]">Tell us what is moving.</h2>
             <p className="mt-1 text-sm text-gray-600">
-              Review our detected list room by room. Mark anything staying behind so we do not overquote the job.
+              We built your inventory from your home&apos;s listing. Review room by room — mark anything staying behind so we quote accurately.
             </p>
+
+            {/* MLS photo gallery for visual reference */}
+            {(info?.listingPhotos?.length ?? 0) > 0 && (
+              <div className="mt-3">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Your home — listing photos</p>
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {(info!.listingPhotos).slice(0, 12).map((url, i) => (
+                    <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                      <img src={url} alt={`Room ${i + 1}`} className="h-20 w-28 rounded-xl border border-gray-100 object-cover" />
+                    </a>
+                  ))}
+                </div>
+                <p className="mt-1 text-[10px] text-gray-400">Tap any photo to enlarge. Use these to verify items per room below.</p>
+              </div>
+            )}
+
+            {!showInventoryReview && (
+              <div className="mt-4 rounded-xl border border-dashed border-gray-200 px-4 py-6 text-center text-sm text-gray-400">
+                No inventory detected yet. Add missing items using the form below or upload room photos above.
+              </div>
+            )}
 
             <div className="mt-4 grid gap-4">
               {Array.from(groupedReviewItems.entries()).map(([room, items]) => (

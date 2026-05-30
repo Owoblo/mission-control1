@@ -4,10 +4,11 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { dateStamp, formatDate, formatMoney, isClosedLeadStage } from '@/lib/sales'
-import { fetchSalesOverview, sendSalesMessage, updateSalesLead } from '@/lib/sales-api'
+import { fetchDashboardDrilldown, fetchSalesOverview, sendSalesMessage, updateSalesLead } from '@/lib/sales-api'
 import { compareLeadsByGuidance, formatRelativeTime, getLeadGuidance } from '@/lib/lead-guidance'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import type { CRMLead, CRMQuote, FollowUpLog, SalesDashboardSummary } from '@/lib/types'
+import type { DashboardDrilldownMetric, DashboardDrilldownResponse } from '@/lib/sales-api'
 
 type TelephonyMetrics = {
   totalCallsToday: number
@@ -78,6 +79,22 @@ function leadOwnedByUser(lead: CRMLead, user?: { userId?: string | null; name?: 
   return (!!ownerUserId && ownerUserId === user.userId) || (!!ownerName && ownerName === user.name)
 }
 
+function readLocalStorageFlag(key: string) {
+  if (typeof window === 'undefined') return false
+  try {
+    return window.localStorage?.getItem(key) === '1'
+  } catch {
+    return false
+  }
+}
+
+function writeLocalStorageFlag(key: string, value: boolean) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage?.setItem(key, value ? '1' : '0')
+  } catch {}
+}
+
 export default function SalesDashboardPage() {
   const router = useRouter()
   const currentUser = useCurrentUser()
@@ -89,40 +106,46 @@ export default function SalesDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
-  const [showCallsDrawer, setShowCallsDrawer] = useState(false)
-  const [actionsCollapsed, setActionsCollapsed] = useState(() => {
-    try { return localStorage.getItem('ss_actions_collapsed') === '1' } catch { return false }
-  })
-  const [workflowHidden, setWorkflowHidden] = useState(() => {
-    try { return localStorage.getItem('ss_workflow_hidden') === '1' } catch { return false }
-  })
-  const [statsCollapsed, setStatsCollapsed] = useState(() => {
-    try { return localStorage.getItem('ss_stats_collapsed') === '1' } catch { return false }
-  })
-  const [advancedDashboardOpen, setAdvancedDashboardOpen] = useState(() => {
-    try { return localStorage.getItem('ss_sales_dashboard_advanced_open') === '1' } catch { return false }
-  })
+  const [drilldown, setDrilldown] = useState<DashboardDrilldownResponse | null>(null)
+  const [drilldownLoading, setDrilldownLoading] = useState(false)
+  const [actionsCollapsed, setActionsCollapsed] = useState(() => readLocalStorageFlag('ss_actions_collapsed'))
+  const [workflowHidden, setWorkflowHidden] = useState(() => readLocalStorageFlag('ss_workflow_hidden'))
+  const [statsCollapsed, setStatsCollapsed] = useState(() => readLocalStorageFlag('ss_stats_collapsed'))
+  const [advancedDashboardOpen, setAdvancedDashboardOpen] = useState(() => readLocalStorageFlag('ss_sales_dashboard_advanced_open'))
 
   function toggleActions() {
     setActionsCollapsed(v => {
       const next = !v
-      try { localStorage.setItem('ss_actions_collapsed', next ? '1' : '0') } catch {}
+      writeLocalStorageFlag('ss_actions_collapsed', next)
       return next
     })
   }
   function toggleStats() {
     setStatsCollapsed(v => {
       const next = !v
-      try { localStorage.setItem('ss_stats_collapsed', next ? '1' : '0') } catch {}
+      writeLocalStorageFlag('ss_stats_collapsed', next)
       return next
     })
   }
   function toggleAdvancedDashboard() {
     setAdvancedDashboardOpen(v => {
       const next = !v
-      try { localStorage.setItem('ss_sales_dashboard_advanced_open', next ? '1' : '0') } catch {}
+      writeLocalStorageFlag('ss_sales_dashboard_advanced_open', next)
       return next
     })
+  }
+
+  async function openDrilldown(metric: DashboardDrilldownMetric) {
+    try {
+      setDrilldownLoading(true)
+      setDrilldown({ metric, title: 'Loading…', subtitle: 'Gathering live rows behind this metric.', items: [] })
+      const payload = await fetchDashboardDrilldown(metric)
+      setDrilldown(payload)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setDrilldownLoading(false)
+    }
   }
 
   // Operations leads belong on the operations page, not here
@@ -392,28 +415,44 @@ export default function SalesDashboardPage() {
         {error ? <div className="rounded-[4px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
 
         <div className="grid gap-0 border border-[var(--app-line)] bg-[var(--app-panel)] md:grid-cols-4">
-          <div className="border-b border-[var(--app-line)] p-5 md:border-b-0 md:border-r">
+          <button
+            type="button"
+            onClick={() => void openDrilldown('active_leads')}
+            className="border-b border-[var(--app-line)] p-5 text-left transition hover:bg-[var(--app-bg)] md:border-b-0 md:border-r"
+          >
             <div className="crm-label">{dashboardMode === 'rep' ? 'My Active Leads' : 'Total Active Leads'}</div>
             <div className="mt-2 text-5xl font-semibold leading-none text-[var(--app-ink)]">{dashboardMode === 'rep' ? scopedActiveLeads.length : (summary?.activeLeads ?? 0)}</div>
-            <div className="mt-2 text-sm text-[var(--app-muted)]">{requiredActions.length} required today</div>
-          </div>
-          <div className="border-b border-[var(--app-line)] p-5 md:border-b-0 md:border-r">
+            <div className="mt-2 text-sm text-[var(--app-muted)]">{requiredActions.length} required today · click to inspect</div>
+          </button>
+          <button
+            type="button"
+            onClick={() => void openDrilldown(dashboardMode === 'rep' ? 'hot_close_opportunities' : 'quotes_sent_today')}
+            className="border-b border-[var(--app-line)] p-5 text-left transition hover:bg-[var(--app-bg)] md:border-b-0 md:border-r"
+          >
             <div className="crm-label">{dashboardMode === 'rep' ? 'Hot Close Opportunities' : 'Quotes Sent Today'}</div>
             <div className="mt-2 text-5xl font-semibold leading-none text-[var(--app-ink)]">{dashboardMode === 'rep' ? hotCloseOpportunities.length : quotesSentToday}</div>
-            <div className="mt-2 text-sm text-[var(--app-muted)]">{dashboardMode === 'rep' ? `${quoteViewFollowUps.length} quote views need follow-up` : `${quotes.filter(item => item.sentAt).length} total sent`}</div>
-          </div>
-          <div className="border-b border-[var(--app-line)] p-5 md:border-b-0 md:border-r">
+            <div className="mt-2 text-sm text-[var(--app-muted)]">{dashboardMode === 'rep' ? `${quoteViewFollowUps.length} quote views need follow-up` : `${quotes.filter(item => item.sentAt).length} total sent`} · click to inspect</div>
+          </button>
+          <button
+            type="button"
+            onClick={() => void openDrilldown(dashboardMode === 'rep' ? 'pending_deposits' : 'booked_jobs')}
+            className="border-b border-[var(--app-line)] p-5 text-left transition hover:bg-[var(--app-bg)] md:border-b-0 md:border-r"
+          >
             <div className="crm-label">{dashboardMode === 'rep' ? 'Pending Deposits' : 'Booked Jobs'}</div>
             <div className="mt-2 text-5xl font-semibold leading-none text-[var(--app-ink)]">{dashboardMode === 'rep' ? pendingDeposits.length : (summary?.bookedLeads ?? 0)}</div>
-            <div className="mt-2 text-sm text-[var(--app-muted)]">{dashboardMode === 'rep' ? `${myBookedJobs.length} booked / completed` : `${summary?.quotedLeads ?? 0} tentative / quoted`}</div>
-          </div>
-          <div className="p-5">
+            <div className="mt-2 text-sm text-[var(--app-muted)]">{dashboardMode === 'rep' ? `${myBookedJobs.length} booked / completed` : `${summary?.quotedLeads ?? 0} tentative / quoted`} · click to inspect</div>
+          </button>
+          <button
+            type="button"
+            onClick={() => void openDrilldown(dashboardMode === 'rep' ? 'follow_ups_due' : 'booked_revenue')}
+            className="p-5 text-left transition hover:bg-[var(--app-bg)]"
+          >
             <div className="crm-label">{dashboardMode === 'rep' ? 'My Follow-ups Due' : 'Confirmed Revenue'}</div>
             <div className={`mt-2 text-5xl font-semibold leading-none ${dashboardMode !== 'rep' && (summary?.bookedRevenue ?? 0) > 0 ? 'text-emerald-600' : 'text-[var(--app-ink)]'}`}>
               {dashboardMode === 'rep' ? followUpFocus.length : formatMoney(summary?.bookedRevenue ?? 0)}
             </div>
-            <div className="mt-2 text-sm text-[var(--app-muted)]">{dashboardMode === 'rep' ? `${newInboundLeads.length} new inbound leads` : `${formatMoney(summary?.quotedPipelineValue ?? 0)} in open pipeline`}</div>
-          </div>
+            <div className="mt-2 text-sm text-[var(--app-muted)]">{dashboardMode === 'rep' ? `${newInboundLeads.length} new inbound leads` : `${formatMoney(summary?.quotedPipelineValue ?? 0)} in open pipeline`} · click to inspect</div>
+          </button>
         </div>
 
         {workflowHidden ? (
@@ -429,7 +468,7 @@ export default function SalesDashboardPage() {
               type="button"
               onClick={() => {
                 setWorkflowHidden(false)
-                try { localStorage.setItem('ss_workflow_hidden', '0') } catch { /* noop */ }
+                writeLocalStorageFlag('ss_workflow_hidden', false)
               }}
               className="shrink-0 rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2 text-xs font-semibold text-[var(--app-ink)] transition hover:border-[var(--app-ink)]"
             >
@@ -449,7 +488,7 @@ export default function SalesDashboardPage() {
             <div className="flex items-center gap-3">
               <div className="text-xs text-[var(--app-muted)]">Open a lead only when it needs action. Everything else can wait.</div>
               <button
-                onClick={() => { setWorkflowHidden(true); try { localStorage.setItem('ss_workflow_hidden', '1') } catch { /* noop */ } }}
+                onClick={() => { setWorkflowHidden(true); writeLocalStorageFlag('ss_workflow_hidden', true) }}
                 className="shrink-0 rounded-full border border-[var(--app-line)] px-2.5 py-1 text-[10px] font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition"
                 title="Hide this section"
               >
@@ -601,37 +640,53 @@ export default function SalesDashboardPage() {
                 {!statsCollapsed && <div className="grid gap-0 border border-[var(--app-line)] bg-[var(--app-panel)] md:grid-cols-5">
                 <button
                   className="border-b border-[var(--app-line)] p-5 md:border-b-0 md:border-r text-left w-full hover:bg-[var(--app-bg)] transition"
-                  onClick={() => setShowCallsDrawer(true)}
+                  onClick={() => void openDrilldown('calls_today')}
                   title="Click to see today's calls"
                 >
                   <div className="crm-label">Calls Today</div>
                   <div className="mt-2 text-4xl font-semibold leading-none text-[var(--app-ink)]">{telephonyHealth?.metrics?.totalCallsToday ?? 0}</div>
                   <div className="mt-2 text-sm text-[var(--app-muted)]">{telephonyHealth?.browserPresence?.sessionCount ?? 0} browser sessions · <span className="text-[#1a2744] underline text-xs">view calls →</span></div>
                 </button>
-                <div className="border-b border-[var(--app-line)] p-5 md:border-b-0 md:border-r">
+                <button
+                  type="button"
+                  onClick={() => void openDrilldown('missed_calls_today')}
+                  className="border-b border-[var(--app-line)] p-5 text-left transition hover:bg-[var(--app-bg)] md:border-b-0 md:border-r"
+                >
                   <div className="crm-label">Missed Calls</div>
                   <div className="mt-2 text-4xl font-semibold leading-none text-[var(--app-ink)]">{telephonyHealth?.metrics?.missedCallsToday ?? 0}</div>
                   <div className="mt-2 text-sm text-[var(--app-muted)]">{telephonyHealth?.metrics?.abandonedBeforeAnswerToday ?? 0} abandoned before answer</div>
-                </div>
-                <div className="border-b border-[var(--app-line)] p-5 md:border-b-0 md:border-r">
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void openDrilldown('failed_calls_today')}
+                  className="border-b border-[var(--app-line)] p-5 text-left transition hover:bg-[var(--app-bg)] md:border-b-0 md:border-r"
+                >
                   <div className="crm-label">Failed Calls</div>
                   <div className="mt-2 text-4xl font-semibold leading-none text-[var(--app-ink)]">{telephonyHealth?.metrics?.failedCallsToday ?? 0}</div>
                   <div className="mt-2 text-sm text-[var(--app-muted)]">{telephonyHealth?.metrics?.mediaConnectionFailuresToday ?? 0} media failures (53405)</div>
-                </div>
-                <div className="border-b border-[var(--app-line)] p-5 md:border-b-0 md:border-r">
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void openDrilldown('calls_today')}
+                  className="border-b border-[var(--app-line)] p-5 text-left transition hover:bg-[var(--app-bg)] md:border-b-0 md:border-r"
+                >
                   <div className="crm-label">Browser vs Mobile</div>
                   <div className="mt-2 text-2xl font-semibold leading-none text-[var(--app-ink)]">
                     {telephonyHealth?.metrics?.browserCallsToday ?? 0} / {telephonyHealth?.metrics?.mobileCallsToday ?? 0}
                   </div>
                   <div className="mt-2 text-sm text-[var(--app-muted)]">Browser answered / Groundwire-mobile answered</div>
-                </div>
-                <div className="p-5">
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void openDrilldown('calls_today')}
+                  className="p-5 text-left transition hover:bg-[var(--app-bg)]"
+                >
                   <div className="crm-label">Average Answer Time</div>
                   <div className="mt-2 text-4xl font-semibold leading-none text-[var(--app-ink)]">
                     {telephonyHealth?.metrics?.avgAnswerTimeSeconds ?? '—'}
                   </div>
                   <div className="mt-2 text-sm text-[var(--app-muted)]">Seconds to first answer</div>
-                </div>
+                </button>
               </div>}
               </>
             ) : null}
@@ -858,46 +913,46 @@ export default function SalesDashboardPage() {
         ) : null}
       </div>
 
-      {/* ── Calls Today Drawer ────────────────────────────────── */}
-      {showCallsDrawer && (
+      {drilldown && (
         <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setShowCallsDrawer(false)} />
+          <div className="absolute inset-0 bg-black/30" onClick={() => setDrilldown(null)} />
           <div className="relative flex w-full max-w-md flex-col bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-[var(--app-line)] px-5 py-4">
               <div>
-                <h2 className="text-base font-semibold text-[var(--app-ink)]">Calls Today</h2>
-                <p className="text-xs text-[var(--app-muted)]">{telephonyHealth?.metrics?.totalCallsToday ?? 0} total · {telephonyHealth?.metrics?.missedCallsToday ?? 0} missed</p>
+                <h2 className="text-base font-semibold text-[var(--app-ink)]">{drilldown.title}</h2>
+                <p className="text-xs text-[var(--app-muted)]">{drilldown.subtitle}</p>
               </div>
-              <button onClick={() => setShowCallsDrawer(false)} className="rounded-full p-1.5 text-[var(--app-muted)] hover:bg-[var(--app-bg)]">✕</button>
+              <button onClick={() => setDrilldown(null)} className="rounded-full p-1.5 text-[var(--app-muted)] hover:bg-[var(--app-bg)]">✕</button>
             </div>
             <div className="flex-1 overflow-y-auto divide-y divide-[var(--app-line)]">
-              {((telephonyHealth?.metrics as any)?.recentOutcomes?.length ?? 0) === 0 ? (
-                <div className="p-8 text-center text-sm text-[var(--app-muted)]">No calls logged yet today.</div>
+              {drilldownLoading ? (
+                <div className="p-8 text-center text-sm text-[var(--app-muted)]">Loading…</div>
               ) : null}
-              {((telephonyHealth?.metrics as any)?.recentOutcomes || []).map((call: any, i: number) => {
-                const dir = call.direction as string | undefined
-                const answered = call.answered as boolean | undefined
-                const missed = call.missed as boolean | undefined
-                const dur = call.durationSeconds as number | undefined
+              {!drilldownLoading && drilldown.items.length === 0 ? (
+                <div className="p-8 text-center text-sm text-[var(--app-muted)]">Nothing matched this view.</div>
+              ) : null}
+              {drilldown.items.map(item => {
                 return (
-                  <div key={i} className="flex items-center gap-3 px-5 py-3">
-                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm ${
-                      missed ? 'bg-rose-50 text-rose-500' :
-                      dir === 'inbound' ? 'bg-blue-50 text-blue-600' :
-                      'bg-amber-50 text-amber-600'
-                    }`}>
-                      {missed ? '✕' : dir === 'inbound' ? '↙' : '↗'}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium text-[var(--app-ink)]">{call.phone || 'Unknown'}</div>
-                      <div className="text-xs text-[var(--app-muted)]">
-                        {dir === 'inbound' ? 'Inbound' : 'Outbound'}
-                        {call.repName ? ` · ${call.repName}` : ''}
-                        {' · '}{missed ? 'Missed' : answered ? `Answered${dur ? ` · ${Math.floor(dur / 60)}m ${dur % 60}s` : ''}` : 'No answer'}
+                  <Link key={item.id} href={item.href} onClick={() => setDrilldown(null)} className="block px-5 py-3 transition hover:bg-[var(--app-bg)]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium text-[var(--app-ink)]">{item.title}</div>
+                        {item.subtitle ? (
+                          <div className="mt-0.5 text-xs text-[var(--app-muted)]">{item.subtitle}</div>
+                        ) : null}
+                        {item.meta ? (
+                          <div className="mt-1 text-[11px] text-[var(--app-muted)]">{item.meta}</div>
+                        ) : null}
+                      </div>
+                      <div className="shrink-0 text-right">
+                        {item.badge ? (
+                          <div className="rounded-full border border-[var(--app-line)] bg-white px-2 py-0.5 text-[10px] font-semibold capitalize text-[var(--app-muted)]">
+                            {item.badge}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
-                    <div className="text-xs text-[var(--app-muted)]">{call.ts ? timeLabel(call.ts) : ''}</div>
-                  </div>
+                  </Link>
                 )
               })}
             </div>

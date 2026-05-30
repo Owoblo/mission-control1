@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { getSalesQuote, listSalesLeads } from '@/lib/server/sales-repository'
+import { ensureStripeCustomerForLead } from '@/lib/server/stripe-payments'
+import { getSalesLead, getSalesQuote } from '@/lib/server/sales-repository'
 import { getAppBaseUrl, readEnv } from '@/lib/server/runtime'
 
 export async function POST(request: Request) {
@@ -36,8 +37,7 @@ export async function POST(request: Request) {
     }
 
     // Find the linked lead for customer info + leadId in metadata
-    const leads = await listSalesLeads()
-    const lead = leads.find(l => l.id === quote.leadId)
+    const lead = quote.leadId ? await getSalesLead(quote.leadId).catch(() => null) : null
 
     const appUrl = getAppBaseUrl('https://mission-control1-reputation-engine.vercel.app')
     const returnBase = `${appUrl}/quote-accept?id=${encodeURIComponent(quote.id)}&token=${encodeURIComponent(quote.acceptToken || '')}`
@@ -54,9 +54,12 @@ export async function POST(request: Request) {
     params.set('payment_intent_data[metadata][quoteNumber]', quote.number)
     if (lead?.id) params.set('payment_intent_data[metadata][leadId]', lead.id)
 
-    // Pre-fill customer email so Stripe receipt goes to customer
-    const customerEmail = lead?.email
-    if (customerEmail) params.set('customer_email', customerEmail)
+    if (lead) {
+      const { customerId } = await ensureStripeCustomerForLead(stripeKey, lead, quote.depositStripeCustomerId)
+      if (customerId) {
+        params.set('customer', customerId)
+      }
+    }
 
     params.set('line_items[0][price_data][currency]', 'cad')
     params.set('line_items[0][price_data][product_data][name]', `Saturn Star Moving — ${quote.number} Deposit`)

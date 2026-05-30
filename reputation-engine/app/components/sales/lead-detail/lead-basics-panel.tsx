@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { formatListingContextSummary, formatListingPropertySummary, getListingDescription, getListingOperationalHighlights } from '@/lib/listing'
-import { formatDate, getSalesBranchLabel } from '@/lib/sales'
+import { getListingSideContactDisplayName } from '@/lib/realtor-opportunity'
+import { CRM_LEAD_SOURCES, formatDate, getSalesBranchLabel, PROPERTY_BEDROOM_OPTIONS, PROPERTY_TYPE_OPTIONS } from '@/lib/sales'
 import type { CRMLead } from '@/lib/types'
 import { SALES_BRANCHES } from '@/lib/sales'
 
@@ -29,9 +30,16 @@ type Props = {
   leadPhone: string
   leadEmail: string
   leadSource: string
+  referralCustomerName?: string
   moveDate: string
   branch?: CRMLead['branch']
   moveType: CRMLead['moveType']
+  propertyBedrooms?: CRMLead['propertyBedrooms']
+  propertyType?: CRMLead['propertyType']
+  originStairFlights?: number
+  destStairFlights?: number
+  originElevatorAccess?: boolean
+  destElevatorAccess?: boolean
   originAddress: string
   originCity: string
   originAccess: string
@@ -46,6 +54,7 @@ type Props = {
   onLeadPhoneChange: (value: string) => void
   onLeadEmailChange: (value: string) => void
   onLeadSourceChange: (value: string) => void
+  onReferralCustomerNameChange?: (value: string) => void
   moveDateFlexible: boolean
   moveDateFlexibleReason: string
   onCustomerPriorityChange?: (value: string) => void
@@ -54,6 +63,12 @@ type Props = {
   onMoveDateFlexibleReasonChange: (value: string) => void
   onMoveTypeChange: (value: CRMLead['moveType']) => void
   onBranchChange: (value: CRMLead['branch']) => void
+  onPropertyBedroomsChange?: (value: CRMLead['propertyBedrooms'] | undefined) => void
+  onPropertyTypeChange?: (value: CRMLead['propertyType'] | undefined) => void
+  onOriginStairFlightsChange?: (value: number) => void
+  onDestStairFlightsChange?: (value: number) => void
+  onOriginElevatorAccessChange?: (value: boolean | undefined) => void
+  onDestElevatorAccessChange?: (value: boolean | undefined) => void
   onOriginAddressChange: (value: string) => void
   onOriginCityChange: (value: string) => void
   onOriginAccessChange: (value: string) => void
@@ -401,11 +416,18 @@ export function LeadBasicsPanel({
   leadPhone,
   leadEmail,
   leadSource,
+  referralCustomerName,
   moveDate,
   branch,
   moveDateFlexible,
   moveDateFlexibleReason,
   moveType,
+  propertyBedrooms,
+  propertyType,
+  originStairFlights,
+  destStairFlights,
+  originElevatorAccess,
+  destElevatorAccess,
   originAddress,
   originCity,
   originAccess,
@@ -420,12 +442,19 @@ export function LeadBasicsPanel({
   onLeadPhoneChange,
   onLeadEmailChange,
   onLeadSourceChange,
+  onReferralCustomerNameChange,
   onCustomerPriorityChange,
   onMoveDateChange,
   onMoveDateFlexibleChange,
   onMoveDateFlexibleReasonChange,
   onMoveTypeChange,
   onBranchChange,
+  onPropertyBedroomsChange,
+  onPropertyTypeChange,
+  onOriginStairFlightsChange,
+  onDestStairFlightsChange,
+  onOriginElevatorAccessChange,
+  onDestElevatorAccessChange,
   onOriginAddressChange,
   onOriginCityChange,
   onOriginAccessChange,
@@ -578,12 +607,13 @@ export function LeadBasicsPanel({
     onApartmentDetected?.(field, info)
   }
 
-  const activeContactLabel =
-    lead.leadKind === 'realtor_opportunity' && lead.primaryContactRole !== 'customer'
-      ? 'Realtor contact'
-      : 'Customer contact'
+  const isListingSideLead = lead.leadKind === 'realtor_opportunity' && lead.primaryContactRole !== 'customer'
+  const activeContactLabel = isListingSideLead ? 'Listing-side contact' : 'Customer contact'
+  const activeContactName = isListingSideLead
+    ? (leadName || getListingSideContactDisplayName(lead))
+    : (leadName || lead.name || 'New contact')
   const customerSummary = [
-    leadName || lead.name || 'New contact',
+    activeContactName,
     moveType ? `${moveType} move` : 'Move type pending',
     moveDate ? `Move date ${formatDate(moveDate)}` : 'Move date pending',
     destCity || destAddress ? `Heading to ${destCity || destAddress}` : 'Destination pending',
@@ -594,10 +624,10 @@ export function LeadBasicsPanel({
       <div className="border-b border-[var(--app-line)] p-5">
         <div className="flex items-start gap-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(34,72,56,0.12)] text-lg font-semibold text-[var(--app-accent)]">
-            {(lead.name || 'L').slice(0, 2).toUpperCase()}
+            {(activeContactName || 'L').slice(0, 2).toUpperCase()}
           </div>
           <div className="min-w-0">
-            <div className="font-display text-[1.8rem] font-semibold tracking-tight text-[var(--app-ink)]">{leadName || lead.name}</div>
+            <div className="font-display text-[1.8rem] font-semibold tracking-tight text-[var(--app-ink)]">{activeContactName}</div>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--app-muted)]">
               <span className="rounded-full bg-[rgba(34,72,56,0.08)] px-2 py-0.5 font-medium text-[var(--app-accent)] capitalize">{lead.stage}</span>
               <span>ID: {lead.id}</span>
@@ -626,15 +656,18 @@ export function LeadBasicsPanel({
           <input value={leadEmail} onChange={event => onLeadEmailChange(event.target.value)} className="crm-input" placeholder="Email address" />
           <select value={leadSource} onChange={event => onLeadSourceChange(event.target.value)} className="crm-input">
             <option value="">Lead source</option>
-            <option value="twilio_call">Inbound call</option>
-            <option value="twilio_sms">SMS</option>
-            <option value="website_form">Web form</option>
-            <option value="email">Email</option>
-            <option value="referral">Referral</option>
-            <option value="direct_mail">Direct mail</option>
-            <option value="destination_opportunity">Destination opportunity</option>
-            <option value="other">Other</option>
+            {CRM_LEAD_SOURCES.map(option => (
+              <option key={option.id} value={option.id}>{option.label}</option>
+            ))}
           </select>
+          {leadSource === 'customer_referral' ? (
+            <input
+              value={referralCustomerName || ''}
+              onChange={event => onReferralCustomerNameChange?.(event.target.value)}
+              className="crm-input"
+              placeholder="Referring customer name"
+            />
+          ) : null}
         </fieldset>
       </div>
 
@@ -686,6 +719,82 @@ export function LeadBasicsPanel({
               <option value="care">Care — careful with belongings</option>
               <option value="full_service">Full service — wants everything handled</option>
             </select>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="crm-label">Home Size</label>
+              <select
+                value={propertyBedrooms || ''}
+                onChange={event => onPropertyBedroomsChange?.((event.target.value || undefined) as CRMLead['propertyBedrooms'] | undefined)}
+                className="crm-input mt-1 w-full"
+              >
+                <option value="">Select bedrooms</option>
+                {PROPERTY_BEDROOM_OPTIONS.map(option => (
+                  <option key={option.id} value={option.id}>{option.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="crm-label">Property Type</label>
+              <select
+                value={propertyType || ''}
+                onChange={event => onPropertyTypeChange?.((event.target.value || undefined) as CRMLead['propertyType'] | undefined)}
+                className="crm-input mt-1 w-full"
+              >
+                <option value="">Select property type</option>
+                {PROPERTY_TYPE_OPTIONS.map(option => (
+                  <option key={option.id} value={option.id}>{option.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-[10px] border border-[var(--app-line)] bg-white px-3 py-3">
+              <div className="crm-label">Origin Access Structure</div>
+              <div className="mt-2 grid gap-2">
+                <select
+                  value={originStairFlights ?? 0}
+                  onChange={event => onOriginStairFlightsChange?.(Number(event.target.value))}
+                  className="crm-input w-full"
+                >
+                  {[0, 1, 2, 3, 4].map(option => (
+                    <option key={`origin-${option}`} value={option}>{option === 4 ? '4+ flights of stairs' : `${option} flight${option === 1 ? '' : 's'} of stairs`}</option>
+                  ))}
+                </select>
+                <select
+                  value={originElevatorAccess === undefined ? '' : originElevatorAccess ? 'yes' : 'no'}
+                  onChange={event => onOriginElevatorAccessChange?.(event.target.value === '' ? undefined : event.target.value === 'yes')}
+                  className="crm-input w-full"
+                >
+                  <option value="">Elevator access unknown</option>
+                  <option value="yes">Elevator access: Yes</option>
+                  <option value="no">Elevator access: No</option>
+                </select>
+              </div>
+            </div>
+            <div className="rounded-[10px] border border-[var(--app-line)] bg-white px-3 py-3">
+              <div className="crm-label">Destination Access Structure</div>
+              <div className="mt-2 grid gap-2">
+                <select
+                  value={destStairFlights ?? 0}
+                  onChange={event => onDestStairFlightsChange?.(Number(event.target.value))}
+                  className="crm-input w-full"
+                >
+                  {[0, 1, 2, 3, 4].map(option => (
+                    <option key={`dest-${option}`} value={option}>{option === 4 ? '4+ flights of stairs' : `${option} flight${option === 1 ? '' : 's'} of stairs`}</option>
+                  ))}
+                </select>
+                <select
+                  value={destElevatorAccess === undefined ? '' : destElevatorAccess ? 'yes' : 'no'}
+                  onChange={event => onDestElevatorAccessChange?.(event.target.value === '' ? undefined : event.target.value === 'yes')}
+                  className="crm-input w-full"
+                >
+                  <option value="">Elevator access unknown</option>
+                  <option value="yes">Elevator access: Yes</option>
+                  <option value="no">Elevator access: No</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           {/* Origin address with autocomplete */}

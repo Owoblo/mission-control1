@@ -4,32 +4,15 @@
  * and optionally charges the deposit. Uses raw fetch (no SDK).
  */
 import { NextResponse } from 'next/server'
-import { hasInternalSession } from '@/lib/server/session'
+import { recordLeadPaymentAudit, recordQuoteUpdatedAudit } from '@/lib/server/sales-audit'
+import { canHandleLeadPayments } from '@/lib/server/sales-permissions'
+import { ensureStripeCustomerForLead, stripeGet, stripePost } from '@/lib/server/stripe-payments'
 import { readEnv } from '@/lib/server/runtime'
-import { getSalesQuote, listSalesLeads, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
-
-async function stripeGet(path: string, key: string) {
-  const res = await fetch(`https://api.stripe.com/v1/${path}`, {
-    headers: { Authorization: `Bearer ${key}` },
-  })
-  return res.json() as Promise<Record<string, unknown>>
-}
-
-async function stripePost(path: string, key: string, body: URLSearchParams) {
-  const res = await fetch(`https://api.stripe.com/v1/${path}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${key}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: body.toString(),
-  })
-  return res.json() as Promise<Record<string, unknown>>
-}
+import { getSalesLead, getSalesQuote, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
+import { getSessionUser } from '@/lib/server/session'
 
 export async function POST(request: Request) {
-  const authed = await hasInternalSession()
-  if (!authed) return new Response('Unauthorized', { status: 401 })
+  const session = await getSessionUser()
 
   const stripeKey = readEnv('STRIPE_SECRET_KEY')
   if (!stripeKey) return NextResponse.json({ error: 'Stripe not configured' }, { status: 503 })
@@ -44,13 +27,18 @@ export async function POST(request: Request) {
     }
 
     // Verify SetupIntent succeeded and get payment method
-    const si = await stripeGet(`setup_intents/${setupIntentId}`, stripeKey) as {
+    const si = await stripeGet<{
       status?: string
       payment_method?: string
+      customer?: string
+      metadata?: Record<string, string>
       error?: { message?: string }
-    }
+    }>(`setup_intents/${setupIntentId}`, stripeKey)
     if (si.status !== 'succeeded') {
       return NextResponse.json({ error: `Card not confirmed — status: ${si.status}` }, { status: 400 })
+    }
+    if ((si.metadata?.leadId || '') !== leadId) {
+      return NextResponse.json({ error: 'This card collection session does not belong to the selected lead.' }, { status: 400 })
     }
 
     const paymentMethodId = si.payment_method
@@ -59,26 +47,40 @@ export async function POST(request: Request) {
     }
 
     // Get card details (brand + last4)
-    const pm = await stripeGet(`payment_methods/${paymentMethodId}`, stripeKey) as {
+    const pm = await stripeGet<{
       card?: { brand?: string; last4?: string }
-    }
+    }>(`payment_methods/${paymentMethodId}`, stripeKey)
     const cardBrand = pm.card?.brand || 'card'
     const cardLast4 = pm.card?.last4 || '????'
 
-    const leads = await listSalesLeads()
-    const lead = leads.find(l => l.id === leadId)
+    const lead = await getSalesLead(leadId)
     if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
+    if (!canHandleLeadPayments(session, lead)) {
+      return NextResponse.json({ error: 'You do not have permission to charge or save cards for this lead.' }, { status: 403 })
+    }
+
+    const quote = quoteId ? await getSalesQuote(quoteId) : null
+    if (quoteId && !quote) return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
+    if (quote && quote.leadId && quote.leadId !== leadId) {
+      return NextResponse.json({ error: 'Quote does not belong to this lead.' }, { status: 400 })
+    }
+
+    const { customerId: resolvedCustomerId } = await ensureStripeCustomerForLead(
+      stripeKey,
+      lead,
+      si.customer || customerId || quote?.depositStripeCustomerId || ''
+    )
 
     let depositCharged = false
     let depositAmount = 0
+    let updatedQuote = quote
 
     if (chargeDepositNow && quoteId) {
-      const quote = await getSalesQuote(quoteId)
       if (quote && quote.deposit > 0) {
         const piParams = new URLSearchParams()
         piParams.set('amount', String(Math.round(quote.deposit * 100)))
         piParams.set('currency', 'cad')
-        piParams.set('customer', customerId)
+        piParams.set('customer', resolvedCustomerId)
         piParams.set('payment_method', paymentMethodId)
         piParams.set('confirm', 'true')
         piParams.set('off_session', 'true')
@@ -95,26 +97,29 @@ export async function POST(request: Request) {
           depositCharged = true
           depositAmount = quote.deposit
           const now = new Date().toISOString()
-          await saveSalesQuote({
+          updatedQuote = await saveSalesQuote({
             ...quote,
             depositPaidAt: now,
             depositPaidAmount: quote.deposit,
             depositPaidMethod: 'stripe',
             depositStripePaymentIntentId: pi.id,
-            depositStripeCustomerId: customerId,
+            depositStripeCustomerId: resolvedCustomerId,
             depositStripePaymentMethodId: paymentMethodId,
+            depositStripeCardBrand: cardBrand,
+            depositStripeCardLast4: cardLast4,
           })
         } else if (pi.error?.message) {
           return NextResponse.json({ error: pi.error.message }, { status: 402 })
         }
       }
     } else if (quoteId) {
-      const quote = await getSalesQuote(quoteId)
       if (quote) {
-        await saveSalesQuote({
+        updatedQuote = await saveSalesQuote({
           ...quote,
-          depositStripeCustomerId: customerId,
+          depositStripeCustomerId: resolvedCustomerId,
           depositStripePaymentMethodId: paymentMethodId,
+          depositStripeCardBrand: cardBrand,
+          depositStripeCardLast4: cardLast4,
         })
       }
     }
@@ -127,6 +132,23 @@ export async function POST(request: Request) {
       depositDate: depositCharged ? new Date().toISOString().slice(0, 10) : lead.depositDate,
     })
 
+    if (quote && updatedQuote) {
+      await recordQuoteUpdatedAudit(quote, updatedQuote, session?.name)
+    }
+
+    await recordLeadPaymentAudit({
+      leadId,
+      quoteId,
+      actorName: session?.name,
+      action: depositCharged ? 'deposit_charged' : 'card_saved',
+      amount: depositCharged ? depositAmount : undefined,
+      cardBrand,
+      cardLast4,
+      note: depositCharged
+        ? 'Customer card was taken over the phone and charged immediately.'
+        : 'Customer card was taken over the phone and saved on file.',
+    })
+
     return NextResponse.json({
       ok: true,
       depositCharged,
@@ -134,8 +156,9 @@ export async function POST(request: Request) {
       cardBrand,
       cardLast4,
       paymentMethodId,
-      customerId,
+      customerId: resolvedCustomerId,
       lead: updatedLead,
+      quote: updatedQuote,
     })
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Save failed' }, { status: 500 })

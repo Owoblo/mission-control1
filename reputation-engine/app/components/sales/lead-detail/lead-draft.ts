@@ -5,6 +5,7 @@ import type { CRMLead, InventoryItem, JobFactors } from '@/lib/types'
 export type LeadDraftState = {
   stage: CRMLead['stage']
   followUpDate: string
+  followUpStatus: CRMLead['followUpStatus'] | ''
   leadName: string
   leadPhone: string
   leadEmail: string
@@ -12,8 +13,15 @@ export type LeadDraftState = {
   moveDateFlexible: boolean
   moveDateFlexibleReason: string
   moveType: CRMLead['moveType']
+  propertyBedrooms?: CRMLead['propertyBedrooms']
+  propertyType?: CRMLead['propertyType']
+  originStairFlights?: number
+  destStairFlights?: number
+  originElevatorAccess?: boolean
+  destElevatorAccess?: boolean
   branch?: CRMLead['branch']
   leadSource: string
+  referralCustomerName: string
   originAddress: string
   originCity: string
   originAccess: string
@@ -45,21 +53,21 @@ type LeadInventoryMetrics = {
 
 function getDraftLeadName(lead: CRMLead) {
   if (lead.leadKind === 'realtor_opportunity' && lead.primaryContactRole !== 'customer') {
-    return lead.realtorName || lead.name || ''
+    return lead.realtorName || ''
   }
   return lead.name || ''
 }
 
 function getDraftLeadPhone(lead: CRMLead) {
   if (lead.leadKind === 'realtor_opportunity' && lead.primaryContactRole !== 'customer') {
-    return lead.realtorPhone || lead.phone || ''
+    return lead.realtorPhone || ''
   }
   return lead.phone || ''
 }
 
 function getDraftLeadEmail(lead: CRMLead) {
   if (lead.leadKind === 'realtor_opportunity' && lead.primaryContactRole !== 'customer') {
-    return lead.realtorEmail || lead.email || ''
+    return lead.realtorEmail || ''
   }
   return lead.email || ''
 }
@@ -68,6 +76,7 @@ export function createLeadDraftState(lead: CRMLead): LeadDraftState {
   return {
     stage: lead.stage || 'new',
     followUpDate: lead.followUpDate || '',
+    followUpStatus: lead.followUpStatus || '',
     leadName: getDraftLeadName(lead),
     leadPhone: getDraftLeadPhone(lead),
     leadEmail: getDraftLeadEmail(lead),
@@ -75,8 +84,15 @@ export function createLeadDraftState(lead: CRMLead): LeadDraftState {
     moveDateFlexible: !!lead.moveDateFlexible,
     moveDateFlexibleReason: lead.moveDateFlexibleReason || '',
     moveType: (lead.moveType || 'residential') as CRMLead['moveType'],
+    propertyBedrooms: lead.propertyBedrooms,
+    propertyType: lead.propertyType,
+    originStairFlights: lead.originStairFlights ?? 0,
+    destStairFlights: lead.destStairFlights ?? 0,
+    originElevatorAccess: lead.originElevatorAccess,
+    destElevatorAccess: lead.destElevatorAccess,
     branch: lead.branch,
     leadSource: lead.source || '',
+    referralCustomerName: lead.referralCustomerName || '',
     originAddress: lead.originAddress || '',
     originCity: lead.originCity || '',
     originAccess: lead.originAccess || '',
@@ -109,6 +125,12 @@ export function buildSavedLeadSignature(lead: CRMLead) {
     moveDateFlexible: !!lead.moveDateFlexible,
     moveDateFlexibleReason: lead.moveDateFlexibleReason || '',
     moveType: lead.moveType || '',
+    propertyBedrooms: lead.propertyBedrooms || '',
+    propertyType: lead.propertyType || '',
+    originStairFlights: lead.originStairFlights ?? 0,
+    destStairFlights: lead.destStairFlights ?? 0,
+    originElevatorAccess: lead.originElevatorAccess,
+    destElevatorAccess: lead.destElevatorAccess,
     branch: lead.branch || '',
     source: lead.source || '',
     originAddress: lead.originAddress || '',
@@ -124,6 +146,8 @@ export function buildSavedLeadSignature(lead: CRMLead) {
     stage: lead.stage || '',
     contextFlag: lead.contextFlag || '',
     followUpDate: lead.followUpDate || '',
+    followUpStatus: lead.followUpStatus || '',
+    referralCustomerName: lead.referralCustomerName || '',
     assignedRepName: getLeadAssignedRepName(lead) || '',
     assignedRepUserId: lead.assignedRepUserId || '',
     estimateDate: lead.estimateDate || '',
@@ -144,6 +168,12 @@ export function buildDraftLeadSignature(draft: LeadDraftState) {
     moveDateFlexible: draft.moveDateFlexible,
     moveDateFlexibleReason: draft.moveDateFlexibleReason,
     moveType: draft.moveType || '',
+    propertyBedrooms: draft.propertyBedrooms || '',
+    propertyType: draft.propertyType || '',
+    originStairFlights: draft.originStairFlights ?? 0,
+    destStairFlights: draft.destStairFlights ?? 0,
+    originElevatorAccess: draft.originElevatorAccess,
+    destElevatorAccess: draft.destElevatorAccess,
     branch: draft.branch || '',
     source: draft.leadSource,
     originAddress: draft.originAddress,
@@ -159,6 +189,8 @@ export function buildDraftLeadSignature(draft: LeadDraftState) {
     stage: draft.stage,
     contextFlag: draft.contextFlag,
     followUpDate: draft.followUpDate,
+    followUpStatus: draft.followUpStatus,
+    referralCustomerName: draft.referralCustomerName,
     assignedRepName: draft.assignedRep,
     assignedRepUserId: draft.assignedRepUserId,
     estimateDate: draft.estimateDate,
@@ -175,16 +207,27 @@ export function buildLeadDraftPayload(
   draft: LeadDraftState,
   inventoryMetrics: LeadInventoryMetrics,
 ) {
+  const preserveOpportunityIdentity =
+    lead.leadKind === 'realtor_opportunity' &&
+    lead.primaryContactRole !== 'customer'
+
   return {
-    name: draft.leadName,
-    phone: draft.leadPhone || undefined,
-    email: draft.leadEmail || undefined,
+    name: preserveOpportunityIdentity ? (lead.name || undefined) : draft.leadName,
+    phone: preserveOpportunityIdentity ? (lead.phone || undefined) : (draft.leadPhone || undefined),
+    email: preserveOpportunityIdentity ? (lead.email || undefined) : (draft.leadEmail || undefined),
     moveDate: draft.moveDate || undefined,
     moveDateFlexible: draft.moveDateFlexible || undefined,
     moveDateFlexibleReason: draft.moveDateFlexibleReason || undefined,
     moveType: draft.moveType || undefined,
+    propertyBedrooms: draft.propertyBedrooms || undefined,
+    propertyType: draft.propertyType || undefined,
+    originStairFlights: draft.originStairFlights,
+    destStairFlights: draft.destStairFlights,
+    originElevatorAccess: draft.originElevatorAccess,
+    destElevatorAccess: draft.destElevatorAccess,
     branch: draft.branch || undefined,
     source: draft.leadSource || undefined,
+    referralCustomerName: draft.leadSource === 'customer_referral' ? (draft.referralCustomerName || '') : '',
     originAddress: draft.originAddress || undefined,
     originCity: draft.originCity || undefined,
     originAccess: draft.originAccess || undefined,
@@ -194,9 +237,10 @@ export function buildLeadDraftPayload(
     parkingNotes: draft.parkingNotes || undefined,
     stage: draft.stage,
     followUpDate: draft.followUpDate || undefined,
-    realtorName: lead.leadKind === 'realtor_opportunity' && lead.primaryContactRole !== 'customer' ? (draft.leadName || undefined) : lead.realtorName,
-    realtorPhone: lead.leadKind === 'realtor_opportunity' && lead.primaryContactRole !== 'customer' ? (draft.leadPhone || undefined) : lead.realtorPhone,
-    realtorEmail: lead.leadKind === 'realtor_opportunity' && lead.primaryContactRole !== 'customer' ? (draft.leadEmail || undefined) : lead.realtorEmail,
+    followUpStatus: draft.followUpStatus || undefined,
+    realtorName: preserveOpportunityIdentity ? (draft.leadName || undefined) : lead.realtorName,
+    realtorPhone: preserveOpportunityIdentity ? (draft.leadPhone || undefined) : lead.realtorPhone,
+    realtorEmail: preserveOpportunityIdentity ? (draft.leadEmail || undefined) : lead.realtorEmail,
     realtorBrokerage: draft.realtorBrokerage || undefined,
     moveReason: draft.moveReason,
     customerPriority: draft.customerPriority || undefined,

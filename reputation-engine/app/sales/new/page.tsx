@@ -5,16 +5,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { SalesAddressAutocompleteInput } from '@/app/components/sales/address-autocomplete-input'
 import { createSalesLead, enrichSalesAddress } from '@/lib/sales-api'
+import { CRM_LEAD_SOURCES } from '@/lib/sales'
 import type { CRMLead } from '@/lib/types'
-
-const SOURCES = [
-  { id: 'referral', label: 'Referral' },
-  { id: 'google', label: 'Google' },
-  { id: 'direct_mail', label: 'Direct Mail' },
-  { id: 'cold_call', label: 'Cold Call' },
-  { id: 'walk_in', label: 'Walk-In' },
-  { id: 'other', label: 'Other' },
-] as const
 
 const MOVE_TYPES: CRMLead['moveType'][] = ['residential', 'long-distance', 'commercial', 'senior', 'labor-only', 'packing']
 
@@ -37,6 +29,7 @@ export default function NewSalesLeadPage() {
   const [form, setForm] = useState({
     name: '',
     source: 'other',
+    referralCustomerName: '',
     phone: '',
     email: '',
     moveDate: '',
@@ -77,6 +70,7 @@ export default function NewSalesLeadPage() {
     return createSalesLead({
       name: form.name,
       source: form.source,
+      referralCustomerName: form.source === 'customer_referral' ? form.referralCustomerName : undefined,
       phone: form.phone,
       email: form.email,
       moveDate: form.moveDate || undefined,
@@ -185,11 +179,17 @@ export default function NewSalesLeadPage() {
           <label>
             <span className="crm-label">Source</span>
             <select className="crm-input mt-2" value={form.source} onChange={e => setField('source', e.target.value)}>
-              {SOURCES.map(source => (
+              {CRM_LEAD_SOURCES.map(source => (
                 <option key={source.id} value={source.id}>{source.label}</option>
               ))}
             </select>
           </label>
+          {form.source === 'customer_referral' ? (
+            <label>
+              <span className="crm-label">Referring Customer Name</span>
+              <input className="crm-input mt-2" value={form.referralCustomerName} onChange={e => setField('referralCustomerName', e.target.value)} />
+            </label>
+          ) : null}
           <label>
             <span className="crm-label">Phone</span>
             <input className="crm-input mt-2" value={form.phone} onChange={e => setField('phone', e.target.value)} />

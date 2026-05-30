@@ -75,6 +75,19 @@ function buildQuoteLog(quote: CRMQuote, notes: string): FollowUpLog {
   })
 }
 
+function buildScopedLog(leadId: string, notes: string, options?: { quoteId?: string }) {
+  const now = new Date().toISOString()
+  return normalizeFollowUp({
+    id: uid('fu'),
+    leadId,
+    quoteId: options?.quoteId,
+    type: 'note',
+    date: now,
+    createdAt: now,
+    notes,
+  })
+}
+
 function hasOwn<T extends object>(source: T, key: keyof any) {
   return Object.prototype.hasOwnProperty.call(source, key)
 }
@@ -212,6 +225,43 @@ const QUOTE_AUDIT_FIELDS: Array<{
 function formatQuoteActor(actorName?: string | null) {
   const trimmed = actorName?.trim()
   return trimmed || 'System'
+}
+
+type PaymentAuditAction = 'card_saved' | 'deposit_charged' | 'deposit_charge_attempt' | 'balance_charged' | 'invoice_sent'
+
+export async function recordLeadPaymentAudit(input: {
+  leadId: string
+  quoteId?: string
+  actorName?: string | null
+  action: PaymentAuditAction
+  amount?: number | null
+  cardBrand?: string | null
+  cardLast4?: string | null
+  note?: string | null
+}) {
+  const actor = formatQuoteActor(input.actorName)
+  const amountText = typeof input.amount === 'number' && Number.isFinite(input.amount) && input.amount > 0
+    ? formatMoney(input.amount)
+    : ''
+  const cardText = [input.cardBrand, input.cardLast4 ? `ending ${input.cardLast4}` : '']
+    .filter(Boolean)
+    .join(' ')
+
+  const normalizedNote = (input.note || '').trim().replace(/[.]+$/g, '')
+  const detail = [amountText, cardText, normalizedNote].filter(Boolean).join(' · ')
+  const noteSuffix = detail ? ` ${detail}.` : '.'
+
+  const note = input.action === 'card_saved'
+    ? `${actor} saved a customer card on file through the CRM.${detail ? ` ${detail}.` : ''}`
+    : input.action === 'deposit_charged'
+      ? `${actor} charged the deposit through the CRM.${noteSuffix}`
+      : input.action === 'deposit_charge_attempt'
+        ? `${actor} attempted a deposit card charge through the CRM.${noteSuffix}`
+        : input.action === 'balance_charged'
+          ? `${actor} charged the remaining balance through the CRM.${noteSuffix}`
+          : `${actor} sent a Stripe invoice from the CRM.${noteSuffix}`
+
+  await persistLogs([buildScopedLog(input.leadId, note, { quoteId: input.quoteId })])
 }
 
 export function getQuoteFieldDiffs(previous: CRMQuote, next: CRMQuote): QuoteFieldDiff[] {

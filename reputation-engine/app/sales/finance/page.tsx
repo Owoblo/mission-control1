@@ -13,6 +13,25 @@ interface JobCost {
   description: string | null
   amount_cents: number
   cost_date: string
+  linkedReceiptCount?: number
+}
+
+interface ReceiptUpload {
+  assetId: string
+  leadId: string
+  leadName: string
+  branch?: string
+  moveDate?: string
+  url: string
+  filename?: string
+  mimeType?: string
+  uploadedAt: string
+  uploadedByName?: string
+  notes?: string
+  linkedCostId?: string
+  linkedCostCategory?: string
+  linkedCostAmountCents?: number
+  linkedAt?: string
 }
 
 interface BookedJob {
@@ -75,6 +94,7 @@ function costByCategory(costs: JobCost[], category: string) {
 
 export default function FinancePage() {
   const [costs, setCosts] = useState<JobCost[]>([])
+  const [receiptUploads, setReceiptUploads] = useState<ReceiptUpload[]>([])
   const [jobs, setJobs] = useState<BookedJob[]>([])
   const [loading, setLoading] = useState(true)
   const [addOpen, setAddOpen] = useState(false)
@@ -86,6 +106,7 @@ export default function FinancePage() {
     amount: '',
     cost_date: new Date().toISOString().slice(0, 10),
   })
+  const [selectedReceiptIds, setSelectedReceiptIds] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [tab, setTab] = useState<'jobs' | 'overhead' | 'all'>('jobs')
@@ -97,7 +118,11 @@ export default function FinancePage() {
       fetch('/api/sales/finance', { credentials: 'include' }),
       fetch('/api/sales/overview', { credentials: 'include' }),
     ])
-    if (costsRes.ok) setCosts(await costsRes.json())
+    if (costsRes.ok) {
+      const finance = await costsRes.json() as { costs?: JobCost[]; receiptUploads?: ReceiptUpload[] }
+      setCosts(finance.costs || [])
+      setReceiptUploads(finance.receiptUploads || [])
+    }
     if (jobsRes.ok) {
       const d = await jobsRes.json()
       const quotes = (d.quotes || []) as CRMQuote[]
@@ -147,11 +172,13 @@ export default function FinancePage() {
         description: form.description || undefined,
         amount_cents: Math.round(parseFloat(form.amount) * 100),
         cost_date: form.cost_date,
+        receipt_asset_ids: selectedReceiptIds,
       }),
     })
     setSaving(false)
     setAddOpen(false)
     setForm(f => ({ ...f, amount: '', description: '' }))
+    setSelectedReceiptIds([])
     void load()
   }
 
@@ -159,6 +186,17 @@ export default function FinancePage() {
     setDeleting(id)
     await fetch(`/api/sales/finance?id=${id}`, { method: 'DELETE', credentials: 'include' })
     setCosts(prev => prev.filter(c => c.id !== id))
+    setReceiptUploads(prev => prev.map(receipt => (
+      receipt.linkedCostId === id
+        ? {
+            ...receipt,
+            linkedCostId: undefined,
+            linkedCostCategory: undefined,
+            linkedCostAmountCents: undefined,
+            linkedAt: undefined,
+          }
+        : receipt
+    )))
     setDeleting(null)
   }
 
@@ -183,6 +221,19 @@ export default function FinancePage() {
     const created = payload as JobCost
     setCosts(current => [created, ...current])
     return created.id
+  }
+
+  function openCostModalForReceipt(receipt: ReceiptUpload) {
+    setSelectedJob(receipt.leadId)
+    setSelectedReceiptIds([receipt.assetId])
+    setForm({
+      lead_id: receipt.leadId,
+      category: 'fuel',
+      description: receipt.notes || receipt.filename || '',
+      amount: '',
+      cost_date: receipt.uploadedAt.slice(0, 10),
+    })
+    setAddOpen(true)
   }
 
   async function updatePayoutStatus(row: WorkerPayoutRow, nextStatus: CrewPayoutEntry['payoutStatus']) {
@@ -295,6 +346,8 @@ export default function FinancePage() {
   const approvedPayoutRows = pendingPayoutRows.filter(row => row.entry.payoutStatus === 'approved')
   const pendingPayoutTotal = pendingPayoutRows.reduce((sum, row) => sum + row.totalPay, 0)
   const approvedPayoutTotal = approvedPayoutRows.reduce((sum, row) => sum + row.totalPay, 0)
+  const unlinkedReceipts = receiptUploads.filter(receipt => !receipt.linkedCostId)
+  const linkedReceipts = receiptUploads.filter(receipt => !!receipt.linkedCostId)
 
   const visibleCosts =
     tab === 'jobs' ? costs.filter(c => c.lead_id !== 'overhead') :
@@ -310,7 +363,11 @@ export default function FinancePage() {
           <p className="mt-1 text-sm text-[var(--app-muted)]">Job P&L, cost tracking, and expense log.</p>
         </div>
         <button
-          onClick={() => { setForm(f => ({ ...f, lead_id: selectedJob })); setAddOpen(true) }}
+          onClick={() => {
+            setSelectedReceiptIds([])
+            setForm(f => ({ ...f, lead_id: selectedJob, description: '', amount: '' }))
+            setAddOpen(true)
+          }}
           className="crm-button-dark text-sm"
         >
           + Log Cost
@@ -433,6 +490,73 @@ export default function FinancePage() {
             )}
           </div>
 
+          <div className="crm-panel overflow-hidden">
+            <div className="flex items-center justify-between border-b border-[var(--app-line)] px-6 py-4">
+              <div>
+                <h2 className="font-semibold text-[#1a2744]">Receipt Inbox</h2>
+                <p className="mt-1 text-xs text-[var(--app-muted)]">Lead-uploaded receipts land here until finance links them to a job cost.</p>
+              </div>
+              <div className="text-right text-xs text-[var(--app-muted)]">
+                <div>Needs logging: <span className="font-semibold text-[#1a2744]">{unlinkedReceipts.length}</span></div>
+                <div>Linked: <span className="font-semibold text-emerald-700">{linkedReceipts.length}</span></div>
+              </div>
+            </div>
+            {receiptUploads.length === 0 ? (
+              <div className="p-10 text-center text-sm text-[var(--app-muted)]">
+                No lead-side receipts uploaded yet. Reps can attach fuel receipts, truck invoices, and dump tickets from the lead page.
+              </div>
+            ) : (
+              <div className="divide-y divide-[var(--app-line)]">
+                {receiptUploads.slice(0, 18).map(receipt => (
+                  <div key={receipt.assetId} className="flex flex-col gap-3 px-6 py-4 lg:flex-row lg:items-center">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold text-[#1a2744]">{receipt.leadName}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${receipt.linkedCostId ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                          {receipt.linkedCostId ? 'Linked' : 'Needs cost'}
+                        </span>
+                        {receipt.branch ? (
+                          <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[10px] font-semibold text-[var(--app-muted)]">
+                            {receipt.branch}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="mt-1 text-sm text-[var(--app-muted)]">
+                        {receipt.filename || 'Receipt upload'}
+                        {receipt.moveDate ? ` · move ${receipt.moveDate}` : ''}
+                        {receipt.uploadedByName ? ` · uploaded by ${receipt.uploadedByName}` : ''}
+                      </div>
+                      <div className="mt-1 text-xs text-[var(--app-muted)]">
+                        {new Date(receipt.uploadedAt).toLocaleString('en-CA')}
+                        {receipt.notes ? ` · ${receipt.notes}` : ''}
+                        {receipt.linkedCostCategory ? ` · ${receipt.linkedCostCategory}` : ''}
+                        {typeof receipt.linkedCostAmountCents === 'number' ? ` · ${formatMoney(receipt.linkedCostAmountCents / 100)}` : ''}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={receipt.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-lg border border-[var(--app-line)] px-3 py-1.5 text-xs font-medium text-[var(--app-muted)] hover:border-[#1a2744] hover:text-[#1a2744]"
+                      >
+                        View file
+                      </a>
+                      {!receipt.linkedCostId ? (
+                        <button
+                          onClick={() => openCostModalForReceipt(receipt)}
+                          className="rounded-lg bg-[#1a2744] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
+                        >
+                          Log from receipt
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Job P&L table */}
           {jobPL.length > 0 && (
             <div className="crm-panel overflow-hidden">
@@ -484,6 +608,11 @@ export default function FinancePage() {
                                 <span className="text-[var(--app-muted)]">{CAT_META[c.category]?.label ?? c.category}</span>
                                 <span className="font-semibold text-[#1a2744]">{formatMoney(c.amount_cents / 100)}</span>
                                 {c.description && <span className="text-[var(--app-muted)]">· {c.description}</span>}
+                                {c.linkedReceiptCount ? (
+                                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                                    {c.linkedReceiptCount} receipt{c.linkedReceiptCount === 1 ? '' : 's'}
+                                  </span>
+                                ) : null}
                                 <button
                                   onClick={() => void deleteCost(c.id)}
                                   disabled={deleting === c.id}
@@ -498,7 +627,12 @@ export default function FinancePage() {
                         )}
                       </div>
                       <button
-                        onClick={() => { setForm(f => ({ ...f, lead_id: job.id })); setAddOpen(true) }}
+                        onClick={() => {
+                          setSelectedJob(job.id)
+                          setSelectedReceiptIds([])
+                          setForm(f => ({ ...f, lead_id: job.id, description: '', amount: '' }))
+                          setAddOpen(true)
+                        }}
                         className="shrink-0 rounded-lg border border-[var(--app-line)] px-3 py-1.5 text-xs font-medium text-[var(--app-muted)] hover:border-[#1a2744] hover:text-[#1a2744] transition"
                       >
                         + Cost
@@ -556,6 +690,7 @@ export default function FinancePage() {
                         <div className="text-xs text-[var(--app-muted)]">
                           {c.cost_date}
                           {job ? <span> · {job.name}</span> : c.lead_id === 'overhead' ? ' · Overhead' : null}
+                          {c.linkedReceiptCount ? <span> · {c.linkedReceiptCount} linked receipt{c.linkedReceiptCount === 1 ? '' : 's'}</span> : null}
                         </div>
                       </div>
                       <div className="shrink-0 text-sm font-semibold text-rose-600">
@@ -577,7 +712,16 @@ export default function FinancePage() {
 
       {/* Log cost modal */}
       {addOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center p-4 md:items-center" style={{ background: 'rgba(15,27,56,0.55)', backdropFilter: 'blur(2px)' }} onClick={e => { if (e.target === e.currentTarget) setAddOpen(false) }}>
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center p-4 md:items-center"
+          style={{ background: 'rgba(15,27,56,0.55)', backdropFilter: 'blur(2px)' }}
+          onClick={e => {
+            if (e.target === e.currentTarget) {
+              setAddOpen(false)
+              setSelectedReceiptIds([])
+            }
+          }}
+        >
           <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
             <div className="bg-[#1a2744] px-6 py-5" style={{ borderBottom: '2px solid #f5a623' }}>
               <h2 className="font-bold text-white">Log a Cost</h2>
@@ -590,7 +734,10 @@ export default function FinancePage() {
                 <select
                   className="crm-input mt-1"
                   value={form.lead_id}
-                  onChange={e => setForm(f => ({ ...f, lead_id: e.target.value }))}
+                  onChange={e => {
+                    setSelectedJob(e.target.value)
+                    setForm(f => ({ ...f, lead_id: e.target.value }))
+                  }}
                 >
                   <option value="overhead">General Overhead</option>
                   {jobs.map(j => (
@@ -645,8 +792,22 @@ export default function FinancePage() {
                 />
               </label>
 
+              {selectedReceiptIds.length > 0 ? (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-800">
+                  This cost will be linked to {selectedReceiptIds.length} uploaded receipt file{selectedReceiptIds.length === 1 ? '' : 's'}.
+                </div>
+              ) : null}
+
               <div className="flex gap-3 pt-2">
-                <button onClick={() => setAddOpen(false)} className="flex-1 rounded-xl border border-[var(--app-line)] py-2.5 text-sm font-medium text-[var(--app-muted)]">Cancel</button>
+                <button
+                  onClick={() => {
+                    setAddOpen(false)
+                    setSelectedReceiptIds([])
+                  }}
+                  className="flex-1 rounded-xl border border-[var(--app-line)] py-2.5 text-sm font-medium text-[var(--app-muted)]"
+                >
+                  Cancel
+                </button>
                 <button
                   onClick={() => void saveCost()}
                   disabled={saving || !form.amount || !form.cost_date}

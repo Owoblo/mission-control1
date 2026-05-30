@@ -33,6 +33,7 @@ import {
   getListingInventoryScan,
   getLatestSalesQuoteByLeadId,
   getSalesLead,
+  getSalesLeadByContact,
   getSalesLeadByInboundId,
   getSalesQuote,
   listFollowUpLogs,
@@ -1131,23 +1132,7 @@ function chooseContactChannel(lead: CRMLead, preferred?: ConversationChannel | n
 }
 
 async function findLeadByContact(phone?: string, email?: string) {
-  const leads = await listSalesLeads()
-  const phoneDigits = digitsOnly(phone)
-  const emailValue = normalizeEmail(email)
-
-  const matches = leads.filter(lead => {
-    const leadPhone = digitsOnly(lead.phone)
-    const leadEmail = normalizeEmail(lead.email)
-
-    if (phoneDigits && leadPhone && (leadPhone === phoneDigits || leadPhone.endsWith(phoneDigits) || phoneDigits.endsWith(leadPhone))) {
-      return true
-    }
-
-    return !!emailValue && !!leadEmail && leadEmail === emailValue
-  })
-
-  matches.sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
-  return matches[0] || null
+  return getSalesLeadByContact(phone, email, undefined)
 }
 
 async function ensureLeadForInbound(event: InboundAutomationEvent): Promise<CRMLead> {

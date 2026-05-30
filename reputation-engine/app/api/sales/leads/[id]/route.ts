@@ -6,7 +6,7 @@ import { queueLeadIntelligenceRefresh } from '@/lib/server/lead-intelligence-ref
 import { scheduleMoveReminder } from '@/lib/server/sales-automation'
 import { getBookedJobFieldDiffs, recordLeadArchivedAudit, recordLeadUpdateAudit, sendBookedJobChangeNotice } from '@/lib/server/sales-audit'
 import { applyDetectedBranch, maybeCreateDestinationOpportunityLead } from '@/lib/server/sales-opportunities'
-import { canAccessOperationsWorkspace, canAccessSalesWorkspace, canDeleteLead, canEditLead, canReassignLead, isLeadOwnedBySession } from '@/lib/server/sales-permissions'
+import { canAccessOperationsWorkspace, canAccessSalesWorkspace, canDeleteLead, canReassignLead, isLeadOwnedBySession } from '@/lib/server/sales-permissions'
 import { sendSalesMessage } from '@/lib/server/sales-messaging'
 import { getSessionUser } from '@/lib/server/session'
 import { validateLeadPatchPayload } from '@/lib/server/sales-validation'
@@ -326,8 +326,6 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       if (!operationsOnlyUpdate) {
         return NextResponse.json({ error: 'Operations users can only update dispatch fields.' }, { status: 403 })
       }
-    } else if (!canEditLead(session, current)) {
-      return NextResponse.json({ error: 'You can only edit unassigned leads or leads you own.' }, { status: 403 })
     }
 
     const assignmentRequested =
@@ -345,14 +343,12 @@ export async function PATCH(request: Request, { params }: { params: { id: string
           (!!requestedAssignedRepUserId && requestedAssignedRepUserId === session?.userId) ||
           (!!requestedAssignedRep && requestedAssignedRep === normalizeOptional(session?.name))
         )
-      const keepingSelfAssignment =
-        isLeadOwnedBySession(current, session) &&
-        (
-          (!requestedAssignedRepUserId || requestedAssignedRepUserId === normalizeOptional(current.assignedRepUserId)) &&
-          (!requestedAssignedRep || requestedAssignedRep === currentAssignedRep)
-        )
+      // Allow through if the assignment values aren't actually changing (rep saving other fields)
+      const notActuallyChangingAssignment =
+        (!requestedAssignedRepUserId || requestedAssignedRepUserId === normalizeOptional(current.assignedRepUserId)) &&
+        (!requestedAssignedRep || requestedAssignedRep === currentAssignedRep)
 
-      if (!claimingSelf && !keepingSelfAssignment) {
+      if (!claimingSelf && !notActuallyChangingAssignment) {
         return NextResponse.json({ error: 'Only managers can reassign leads between reps.' }, { status: 403 })
       }
     }

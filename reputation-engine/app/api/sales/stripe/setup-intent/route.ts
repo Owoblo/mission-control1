@@ -5,55 +5,47 @@
  * Uses raw fetch (no SDK) — same pattern as the checkout route.
  */
 import { NextResponse } from 'next/server'
-import { hasInternalSession } from '@/lib/server/session'
+import { canHandleLeadPayments } from '@/lib/server/sales-permissions'
 import { readEnv } from '@/lib/server/runtime'
-import { listSalesLeads } from '@/lib/server/sales-repository'
-
-async function stripePost(path: string, key: string, body: URLSearchParams) {
-  const res = await fetch(`https://api.stripe.com/v1/${path}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${key}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: body.toString(),
-  })
-  return res.json() as Promise<Record<string, unknown>>
-}
+import { ensureStripeCustomerForLead, stripePost } from '@/lib/server/stripe-payments'
+import { getLatestSalesQuoteByLeadId, getSalesLead, getSalesQuote } from '@/lib/server/sales-repository'
+import { getSessionUser } from '@/lib/server/session'
 
 export async function POST(request: Request) {
-  const authed = await hasInternalSession()
-  if (!authed) return new Response('Unauthorized', { status: 401 })
+  const session = await getSessionUser()
 
   const stripeKey = readEnv('STRIPE_SECRET_KEY')
   if (!stripeKey) return NextResponse.json({ error: 'Stripe not configured' }, { status: 503 })
 
   try {
-    const { leadId } = (await request.json()) as { leadId: string }
+    const { leadId, quoteId } = (await request.json()) as { leadId: string; quoteId?: string }
     if (!leadId) return NextResponse.json({ error: 'leadId required' }, { status: 400 })
 
-    const leads = await listSalesLeads()
-    const lead = leads.find(l => l.id === leadId)
+    const lead = await getSalesLead(leadId)
     if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
-
-    // Create Stripe customer
-    const custParams = new URLSearchParams()
-    if (lead.name)  custParams.set('name',  lead.name)
-    if (lead.email) custParams.set('email', lead.email)
-    if (lead.phone) custParams.set('phone', lead.phone)
-    custParams.set('metadata[leadId]', leadId)
-
-    const customer = await stripePost('customers', stripeKey, custParams) as { id?: string; error?: { message?: string } }
-    if (!customer.id) {
-      return NextResponse.json({ error: customer.error?.message || 'Could not create Stripe customer' }, { status: 502 })
+    if (!canHandleLeadPayments(session, lead)) {
+      return NextResponse.json({ error: 'You do not have permission to collect payment details for this lead.' }, { status: 403 })
     }
+
+    const scopedQuote = quoteId ? await getSalesQuote(quoteId).catch(() => null) : null
+    if (quoteId && !scopedQuote) {
+      return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
+    }
+    if (scopedQuote && scopedQuote.leadId !== leadId) {
+      return NextResponse.json({ error: 'Quote does not belong to this lead.' }, { status: 400 })
+    }
+
+    const latestQuote = scopedQuote || await getLatestSalesQuoteByLeadId(leadId).catch(() => null)
+    const preferredCustomerId = latestQuote?.depositStripeCustomerId || ''
+    const { customerId } = await ensureStripeCustomerForLead(stripeKey, lead, preferredCustomerId)
 
     // Create SetupIntent
     const siParams = new URLSearchParams()
-    siParams.set('customer', customer.id)
+    siParams.set('customer', customerId)
     siParams.set('payment_method_types[0]', 'card')
     siParams.set('usage', 'off_session')
     siParams.set('metadata[leadId]', leadId)
+    if (quoteId) siParams.set('metadata[quoteId]', quoteId)
 
     const si = await stripePost('setup_intents', stripeKey, siParams) as { id?: string; client_secret?: string; error?: { message?: string } }
     if (!si.client_secret) {
@@ -62,7 +54,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       clientSecret: si.client_secret,
-      customerId: customer.id,
+      customerId,
       setupIntentId: si.id,
     })
   } catch (err) {

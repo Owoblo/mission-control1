@@ -7,17 +7,19 @@ const PUBLIC_PATHS = new Set(['/login'])
 
 // Webhooks / public API — no session cookie
 const PUBLIC_API_PATHS = new Set([
-  '/api/sales/dialer/twiml',
-  '/api/sales/dialer/recording-callback',
-  '/api/sales/dialer/dial-status',
-  '/api/sales/dialer/call-status',
-  '/api/sales/dialer/missed-call',
   '/api/sales/twilio/sms',
   '/api/sales/inbox/email-inbound',
+  '/api/sales/operations/sms',
+  '/api/sales/operations/twiml',
   '/api/sales/emails/backfill',
   '/api/sales/stripe/checkout',
   '/api/sales/stripe/webhook',
 ])
+
+// All Twilio dialer callbacks — Twilio hits these without auth, so the whole prefix is public
+function isPublicDialerPath(pathname: string) {
+  return pathname.startsWith('/api/sales/dialer/')
+}
 
 const INTERNAL_SECRET_API_PATHS = new Set([
   '/api/sales/automation/ingest',
@@ -37,10 +39,25 @@ function hasInternalSecretBypass(request: NextRequest, pathname: string) {
   return !!secret && !!workerSecret && secret === workerSecret
 }
 
+function hasResendPollBypass(request: NextRequest, pathname: string) {
+  if (pathname !== '/api/sales/inbox/resend-poll') return false
+  if (request.headers.get('x-vercel-cron') === '1') return true
+  const secret = request.headers.get('x-internal-secret')
+  const workerSecret = getWorkerSharedSecret()
+  return !!secret && !!workerSecret && secret === workerSecret
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl
 
-  if (PUBLIC_PATHS.has(pathname) || PUBLIC_API_PATHS.has(pathname) || isPublicMarketingPath(pathname) || hasInternalSecretBypass(request, pathname)) {
+  if (
+    PUBLIC_PATHS.has(pathname) ||
+    PUBLIC_API_PATHS.has(pathname) ||
+    isPublicDialerPath(pathname) ||
+    isPublicMarketingPath(pathname) ||
+    hasInternalSecretBypass(request, pathname) ||
+    hasResendPollBypass(request, pathname)
+  ) {
     return NextResponse.next()
   }
 

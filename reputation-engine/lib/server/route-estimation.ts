@@ -37,7 +37,7 @@ function extractAddressLocality(address?: Record<string, string | undefined>) {
 }
 
 export function classifyRouteCategory(distanceKm: number, driveHours: number): EstimateRouteContext['routeCategory'] {
-  if (driveHours >= 3 || distanceKm >= 300) return 'long-distance'
+  if (driveHours >= 4 || distanceKm >= 400) return 'long-distance'
   if (driveHours >= 1.25 || distanceKm >= 80) return 'medium'
   return 'local'
 }
@@ -47,7 +47,7 @@ export async function geocodeAddress(address: string): Promise<GeocodeResult | n
   const apiKey = getGoogleMapsApiKey()
   if (apiKey) {
     try {
-      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&components=country:CA|country:US&key=${apiKey}`
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`
       const res = await fetch(url, { cache: 'no-store' })
       if (res.ok) {
         const data = (await res.json()) as {

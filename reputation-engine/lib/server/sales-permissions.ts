@@ -48,6 +48,10 @@ export function canHandleLeadCommunications(session: SessionPayload | null | und
   return canAccessSalesWorkspace(session)
 }
 
+export function canHandleLeadPayments(session: SessionPayload | null | undefined, lead: CRMLead) {
+  return canEditLead(session, lead)
+}
+
 export function canReassignLead(session: SessionPayload | null | undefined) {
   return session?.role === 'owner' || session?.role === 'manager'
 }
@@ -94,9 +98,7 @@ export function validateQuotePricingPermissions(
     return 'Unauthorized'
   }
 
-  if ((updates.priceOverrideTotal !== undefined || updates.priceOverrideReason !== undefined) && session?.role !== 'owner') {
-    return 'Only the owner can apply a direct price override.'
-  }
+  // Any sales workspace user can apply a price override — audit trail captures who did it
 
   if (updates.discountAmount !== undefined) {
     const subtotal = deriveSubtotal(current, updates)

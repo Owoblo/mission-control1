@@ -2,8 +2,9 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
+import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import { fetchSalesOverview, sendSalesMessage, updateSalesLead } from '@/lib/sales-api'
-import { dateStamp, formatDate, formatMoney, isBookedLikeStage } from '@/lib/sales'
+import { dateStamp, formatDate, formatMoney, getLeadAssignedRepName, isBookedLikeStage } from '@/lib/sales'
 import type { CRMLead, CRMQuote } from '@/lib/types'
 
 const SATURN_PHONE = '226-773-2993'
@@ -65,13 +66,29 @@ function buildPreMoveSms(lead: CRMLead) {
   return `Hi ${first}! Your Saturn Star move is TOMORROW (${dateLine}). Make sure access is clear at both addresses. Any last-minute questions? Call or text ${SATURN_PHONE}. See you then! – Saturn Star Moving`
 }
 
+function hasTruckReserved(lead: CRMLead) {
+  return lead.truckReservationStatus === 'reserved' || lead.truckReservationStatus === 'not_needed'
+}
+
+function hasPreMoveFollowUp(lead: CRMLead) {
+  const notes = `${lead.notes || ''}\n${lead.followUpNote || ''}`.toLowerCase()
+  if (notes.includes('48-hr reminder sent') || notes.includes('move day tomorrow')) return true
+  if (lead.followUpStatus === 'followed_up') return true
+  if (!lead.lastHumanOutboundAt || !lead.moveDate) return false
+  const outboundAt = new Date(lead.lastHumanOutboundAt).getTime()
+  const moveDateAt = new Date(`${lead.moveDate}T12:00:00`).getTime()
+  return outboundAt <= moveDateAt && outboundAt >= moveDateAt - 14 * 24 * 60 * 60 * 1000
+}
+
 export default function BookedJobsPage() {
+  const currentUser = useCurrentUser()
   const [leads, setLeads] = useState<CRMLead[]>([])
   const [quotes, setQuotes] = useState<CRMQuote[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [reminderBusy, setReminderBusy] = useState<string | null>(null)
   const [reminderSent, setReminderSent] = useState<Set<string>>(new Set())
+  const [windowDays, setWindowDays] = useState<30 | 60 | 90 | 999>(30)
 
   async function refresh() {
     try {
@@ -93,17 +110,32 @@ export default function BookedJobsPage() {
   const quoteMap = useMemo(() => new Map(quotes.map(q => [q.id, q])), [quotes])
 
   const booked = useMemo(() => {
-    return leads
+    const scopedLeads = currentUser?.role === 'sales_rep'
+      ? leads.filter(lead => {
+        if (currentUser.userId && lead.assignedRepUserId === currentUser.userId) return true
+        return !!currentUser.name && getLeadAssignedRepName(lead) === currentUser.name
+      })
+      : leads
+
+    return scopedLeads
       .filter(l => isBookedLikeStage(l.stage))
       .sort((a, b) => {
+        const aOpsGaps = Number(!hasTruckReserved(a)) + Number(!hasPreMoveFollowUp(a))
+        const bOpsGaps = Number(!hasTruckReserved(b)) + Number(!hasPreMoveFollowUp(b))
+        if (aOpsGaps !== bOpsGaps) return bOpsGaps - aOpsGaps
         if (!a.moveDate && !b.moveDate) return 0
         if (!a.moveDate) return 1
         if (!b.moveDate) return -1
         return a.moveDate.localeCompare(b.moveDate)
       })
-  }, [leads])
+  }, [currentUser, leads])
 
-  const upcoming = booked.filter(l => !l.moveDate || l.moveDate >= today)
+  const upcoming = booked.filter(l => {
+    if (l.moveDate && l.moveDate < today) return false
+    if (windowDays === 999 || !l.moveDate) return true
+    const days = daysUntil(l.moveDate)
+    return days === null || days <= windowDays
+  })
   const past = booked.filter(l => l.moveDate && l.moveDate < today)
 
   async function sendReminder(lead: CRMLead) {
@@ -149,10 +181,18 @@ export default function BookedJobsPage() {
         <div>
           <h1 className="font-display text-[28px] font-semibold tracking-tight text-[var(--app-ink)]">Booked Jobs</h1>
           <div className="mt-2 text-sm text-[var(--app-muted)]">
-            {upcoming.length} upcoming · {past.length} completed
+            {upcoming.length} upcoming · {past.length} completed{currentUser?.role === 'sales_rep' ? ' · your moves only' : ''}
           </div>
         </div>
-        <button onClick={() => void refresh()} className="crm-button">Refresh</button>
+        <div className="flex items-center gap-2">
+          <select value={windowDays} onChange={event => setWindowDays(Number(event.target.value) as 30 | 60 | 90 | 999)} className="crm-input text-sm">
+            <option value={30}>Next 30 days</option>
+            <option value={60}>Next 60 days</option>
+            <option value={90}>Next 90 days</option>
+            <option value={999}>All upcoming</option>
+          </select>
+          <button onClick={() => void refresh()} className="crm-button">Refresh</button>
+        </div>
       </section>
 
       {error ? <div className="rounded-[8px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
@@ -178,10 +218,14 @@ export default function BookedJobsPage() {
                   const days = daysUntil(lead.moveDate)
                   const sent = reminderSent.has(lead.id)
                   const canRemind = !!(lead.phone || lead.email)
+                  const truckReserved = hasTruckReserved(lead)
+                  const preMoveDone = hasPreMoveFollowUp(lead)
+                  const assignedRep = getLeadAssignedRepName(lead) || 'Unassigned'
+                  const needsOpsAttention = !truckReserved || !preMoveDone
                   return (
                     <div
                       key={lead.id}
-                      className={`rounded-[10px] border bg-[var(--app-panel)] p-5 ${days !== null && days <= 1 ? 'border-amber-200' : 'border-[var(--app-line)]'}`}
+                      className={`rounded-[10px] border bg-[var(--app-panel)] p-5 ${needsOpsAttention ? 'border-rose-200 bg-rose-50/30' : days !== null && days <= 1 ? 'border-amber-200' : 'border-[var(--app-line)]'}`}
                     >
                       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                         <div className="flex-1 min-w-0">
@@ -203,6 +247,15 @@ export default function BookedJobsPage() {
                             {lead.originCity || lead.destCity ? <span>{lead.originCity || 'Origin'} → {lead.destCity || 'Destination'}</span> : null}
                             {lead.moveType ? <span className="capitalize">{lead.moveType.replace(/-/g, ' ')}</span> : null}
                             {lead.phone ? <span>{lead.phone}</span> : null}
+                            <span>Rep: {assignedRep}</span>
+                          </div>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${truckReserved ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-700'}`}>
+                              Truck Reserved: {truckReserved ? (lead.truckReservationStatus === 'not_needed' ? 'Not Needed' : 'Yes') : 'No'}
+                            </span>
+                            <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${preMoveDone ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
+                              Pre-Move Follow-Up: {preMoveDone ? 'Done' : 'Pending'}
+                            </span>
                           </div>
                           {lead.contextFlag ? (
                             <div className="mt-2 text-xs text-amber-700">{lead.contextFlag}</div>

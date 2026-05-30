@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { dateStamp, estimateLeadQuote, genQuoteNumber, normalizeClient, normalizeQuote, syncLeadFromQuoteStatus, uid } from '@/lib/sales'
 import { recordQuoteCreatedAudit } from '@/lib/server/sales-audit'
-import { canAccessSalesWorkspace, canEditQuote } from '@/lib/server/sales-permissions'
+import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { getSessionUser } from '@/lib/server/session'
 import { getLatestSalesQuoteByLeadId, getSalesLead, listSalesClients, saveSalesClient, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
 import type { CRMClient, CRMQuote } from '@/lib/types'
@@ -21,10 +21,6 @@ export async function POST(request: Request) {
     const lead = await getSalesLead(payload.leadId)
     if (!lead) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
-    }
-
-    if (!canEditQuote(session, lead)) {
-      return NextResponse.json({ error: 'You can only create quotes for leads you own or unassigned leads.' }, { status: 403 })
     }
 
     // If lead has a primary quote, allow adding more (multi-job support — e.g. residential + commercial)

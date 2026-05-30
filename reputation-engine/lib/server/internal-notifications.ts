@@ -37,6 +37,15 @@ export async function sendCallerIdSms(
 const NOTIFY_FROM = 'Saturn Star OS <notifications@starmovers.ca>'
 const NOTIFY_TO = 'business@starmovers.ca'
 
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 export async function sendInternalAlertSms(to: string, body: string, from: string) {
   const { accountSid, authToken } = getTwilioCredentials()
 
@@ -68,6 +77,60 @@ export async function sendRepAlertEmail(subject: string, htmlBody: string) {
       html: htmlBody,
     }),
   }).catch(() => {})
+}
+
+export function partnershipInboundNotificationEmail(options: {
+  contactId: string
+  contactName?: string | null
+  company?: string | null
+  channel: 'email' | 'phone' | 'sms'
+  occurredAt?: string | null
+  notes?: string | null
+  phone?: string | null
+  email?: string | null
+}) {
+  const {
+    contactId,
+    contactName,
+    company,
+    channel,
+    occurredAt,
+    notes,
+    phone,
+    email,
+  } = options
+
+  const contactLabel = escapeHtml(contactName?.trim() || 'Unknown partner contact')
+  const companyLabel = company?.trim() ? escapeHtml(company.trim()) : null
+  const detail = notes?.trim() ? escapeHtml(notes.trim()) : `Inbound ${channel} reply received`
+  const occurredLabel = occurredAt
+    ? new Date(occurredAt).toLocaleString('en-US', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      })
+    : 'Just now'
+  const crmLink = `https://go.quote2move.com/marketing/partners?tab=phone&contact=${encodeURIComponent(contactId)}`
+
+  return `
+<div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:24px">
+  <div style="background:#1a2744;color:#d7f5e6;padding:12px 20px;border-radius:8px 8px 0 0;font-weight:700;font-size:15px">
+    Partner inbound ${escapeHtml(channel.toUpperCase())} — ${contactLabel}
+  </div>
+  <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:20px">
+    <div style="font-size:14px;color:#1a2744;line-height:1.6">
+      <div><strong>Contact:</strong> ${contactLabel}</div>
+      ${companyLabel ? `<div><strong>Company:</strong> ${companyLabel}</div>` : ''}
+      ${phone ? `<div><strong>Phone:</strong> ${escapeHtml(phone)}</div>` : ''}
+      ${email ? `<div><strong>Email:</strong> ${escapeHtml(email)}</div>` : ''}
+      <div><strong>Received:</strong> ${escapeHtml(occurredLabel)}</div>
+    </div>
+    <div style="margin-top:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;font-size:14px;color:#1a2744;white-space:pre-wrap">${detail}</div>
+    <div style="margin-top:16px">
+      <a href="${crmLink}" style="background:#1a2744;color:#d7f5e6;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600">Open Partner Thread</a>
+    </div>
+    <div style="margin-top:16px;font-size:11px;color:#94a3b8">Saturn Star OS · Partnerships inbox alert</div>
+  </div>
+</div>`
 }
 
 export function smsNotificationEmail(from: string, body: string, leadId?: string | null) {

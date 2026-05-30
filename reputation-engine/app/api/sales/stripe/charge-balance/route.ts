@@ -5,13 +5,15 @@
  */
 import { NextResponse } from 'next/server'
 import { getQuotePaidSoFar } from '@/lib/server/job-billing'
-import { hasInternalSession } from '@/lib/server/session'
+import { recordLeadPaymentAudit, recordQuoteUpdatedAudit } from '@/lib/server/sales-audit'
+import { canHandleLeadPayments } from '@/lib/server/sales-permissions'
+import { fetchStripeCardSummary, stripePost } from '@/lib/server/stripe-payments'
 import { readEnv } from '@/lib/server/runtime'
-import { getSalesQuote, listSalesLeads, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
+import { getSalesLead, getSalesQuote, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
+import { getSessionUser } from '@/lib/server/session'
 
 export async function POST(request: Request) {
-  const authed = await hasInternalSession()
-  if (!authed) return new Response('Unauthorized', { status: 401 })
+  const session = await getSessionUser()
 
   const stripeKey = readEnv('STRIPE_SECRET_KEY')
   if (!stripeKey) return NextResponse.json({ error: 'Stripe not configured' }, { status: 503 })
@@ -27,11 +29,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'leadId and quoteId are required' }, { status: 400 })
     }
 
-    const [leads, quote] = await Promise.all([listSalesLeads(), getSalesQuote(quoteId)])
+    const [lead, quote] = await Promise.all([getSalesLead(leadId), getSalesQuote(quoteId)])
 
     if (!quote) return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
-    const lead = leads.find(l => l.id === leadId)
     if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
+    if (quote.leadId !== leadId) {
+      return NextResponse.json({ error: 'Quote does not belong to this lead.' }, { status: 400 })
+    }
+    if (!canHandleLeadPayments(session, lead)) {
+      return NextResponse.json({ error: 'You do not have permission to charge cards for this lead.' }, { status: 403 })
+    }
 
     const quoteRecord = quote as typeof quote & {
       depositStripePaymentMethodId?: string
@@ -65,23 +72,19 @@ export async function POST(request: Request) {
     piParams.set('metadata[leadId]', lead.id)
     piParams.set('metadata[type]', 'balance')
 
-    const piRes = await fetch('https://api.stripe.com/v1/payment_intents', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${stripeKey}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: piParams.toString(),
-    })
-    const pi = await piRes.json() as { id?: string; status?: string; error?: { message?: string } }
+    const pi = await stripePost<{
+      id?: string
+      status?: string
+      error?: { message?: string }
+    }>('payment_intents', stripeKey, piParams)
 
-    if (!piRes.ok || pi.error) {
+    if (pi.status !== 'succeeded' || !pi.id) {
       return NextResponse.json({ error: pi.error?.message || 'Charge failed' }, { status: 402 })
     }
 
     const paid = getQuotePaidSoFar(quote, lead)
     const nextBalance = Math.max(0, Math.round((quote.total - (paid.totalPaid + chargeAmount)) * 100) / 100)
-    await saveSalesQuote({
+    const updatedQuote = await saveSalesQuote({
       ...quote,
       balance: nextBalance,
       balancePaidAt: new Date().toISOString(),
@@ -89,12 +92,33 @@ export async function POST(request: Request) {
       balancePaidMethod: 'stripe',
     })
 
-    await saveSalesLead({
+    const updatedLead = await saveSalesLead({
       ...lead,
       paymentStatus: nextBalance <= 0 ? 'paid_in_full' : 'deposit_received',
     })
 
-    return NextResponse.json({ ok: true, paymentIntentId: pi.id, status: pi.status, amount: chargeAmount, balance: nextBalance })
+    const { cardBrand, cardLast4 } = await fetchStripeCardSummary(stripeKey, paymentMethodId)
+    await recordQuoteUpdatedAudit(quote, updatedQuote, session?.name)
+    await recordLeadPaymentAudit({
+      leadId,
+      quoteId,
+      actorName: session?.name,
+      action: 'balance_charged',
+      amount: chargeAmount,
+      cardBrand,
+      cardLast4,
+      note: nextBalance > 0 ? `Remaining balance is now ${nextBalance.toFixed(2)}.` : 'Move is now paid in full.',
+    })
+
+    return NextResponse.json({
+      ok: true,
+      paymentIntentId: pi.id,
+      status: pi.status,
+      amount: chargeAmount,
+      balance: nextBalance,
+      lead: updatedLead,
+      quote: updatedQuote,
+    })
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Charge failed' }, { status: 500 })
   }

@@ -115,8 +115,10 @@ export async function GET(request: Request) {
 
   const today = new Date()
   const enriched = contacts.map(contact => {
-    const contactTouches = touchMap.get(contact.id) ?? []
+    const contactTouches = [...(touchMap.get(contact.id) ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at))
     const pending = queueMap.get(contact.id) ?? []
+    const latestTouch = contactTouches[0] ?? null
+    const latestInboundTouch = contactTouches.find(touch => touch.direction === 'inbound') ?? null
     const lastDirectMail = contactTouches.find(touch => touch.channel === 'direct_mail')
     const lastCall = contactTouches.find(touch => touch.channel === 'phone')
     const lastEmail = contactTouches.find(touch => touch.channel === 'email')
@@ -136,6 +138,11 @@ export async function GET(request: Request) {
       last_direct_mail_at: lastDirectMail?.created_at ?? null,
       last_call_at: lastCall?.created_at ?? null,
       last_email_at: lastEmail?.created_at ?? null,
+      latest_touch_channel: latestTouch?.channel ?? null,
+      latest_touch_direction: latestTouch?.direction ?? null,
+      latest_touch_note: latestTouch?.notes ?? null,
+      latest_inbound_at: latestInboundTouch?.created_at ?? null,
+      latest_inbound_note: latestInboundTouch?.notes ?? null,
       needs_follow_up: needsFollowUp,
       has_reply: hasReply,
     }

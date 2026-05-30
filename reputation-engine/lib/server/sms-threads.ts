@@ -1,4 +1,3 @@
-import { isClosedLeadStage } from '@/lib/sales'
 import {
   getSaturnBranchLabel,
   getSaturnBusinessNumberFromSmsMessage,
@@ -7,8 +6,10 @@ import {
   isSaturnBranchPhoneNumber,
   normalizePhone,
 } from '@/lib/sales-phones'
+import { normalizeLeadIdentityPhone, sortLeadIdentityMatches } from '@/lib/server/lead-identity'
+import { getInboundLeadLatestActivityAt, getInboundInboxChannelState } from '@/lib/server/inbox-state'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
-import type { CRMLead } from '@/lib/types'
+import type { CRMLead, InboundLead } from '@/lib/types'
 
 export interface SmsMessageRecord {
   id: string
@@ -31,34 +32,44 @@ export interface SalesSmsThread {
   unread: boolean
   unreadCount: number
   leadId: string | null
+  inboundLeadId?: string | null
   leadName?: string
   leadStage?: CRMLead['stage']
   businessNumber: string
   branchLabel: string
   trackingLabel?: string
+  lastReadAt?: string
+  lastReadByName?: string
+  lastActionAt?: string
+  lastActionByName?: string
 }
+
+const HEALTH_PROBE_SMS_DIGITS = '15550001111'
 
 function digitsOnly(value?: string | null) {
   return (value || '').replace(/\D/g, '')
 }
 
-function getLeadRecencyTimestamp(lead: CRMLead) {
-  return new Date(lead.lastTouchedAt || lead.createdAt || 0).getTime()
+function isInternalHealthProbeSmsMessage(message: SmsMessageRecord) {
+  const body = (message.body || '').toLowerCase()
+  const fromDigits = digitsOnly(message.from_number)
+  const toDigits = digitsOnly(message.to_number)
+  const sid = (message.twilio_sid || '').trim()
+
+  if (sid.startsWith('HC_SMS_')) return true
+  if (body.includes('lead flow health sms probe')) return true
+
+  return fromDigits === HEALTH_PROBE_SMS_DIGITS || toDigits === HEALTH_PROBE_SMS_DIGITS
 }
 
 function sortLeadMatches(leads: CRMLead[]) {
-  return [...leads].sort((left, right) => {
-    const leftClosed = isClosedLeadStage(left.stage)
-    const rightClosed = isClosedLeadStage(right.stage)
-    if (leftClosed !== rightClosed) return leftClosed ? 1 : -1
-    return getLeadRecencyTimestamp(right) - getLeadRecencyTimestamp(left)
-  })
+  return sortLeadIdentityMatches(leads)
 }
 
 function buildLeadPhoneIndex(leads: CRMLead[]) {
   const index = new Map<string, CRMLead[]>()
   for (const lead of leads) {
-    const digits = digitsOnly(lead.phone)
+    const digits = digitsOnly(normalizeLeadIdentityPhone(lead.identityPhone || lead.phone))
     if (!digits) continue
     const bucket = index.get(digits) || []
     bucket.push(lead)
@@ -71,7 +82,7 @@ function buildLeadPhoneIndex(leads: CRMLead[]) {
 }
 
 function findLeadByPhone(phone: string, leadsByPhone: Map<string, CRMLead[]>) {
-  const digits = digitsOnly(phone)
+  const digits = digitsOnly(normalizeLeadIdentityPhone(phone))
   if (!digits) return null
   const exact = leadsByPhone.get(digits)
   if (exact?.length) return exact[0]
@@ -97,7 +108,7 @@ export async function listSmsMessages(filterPhone?: string, filterLeadId?: strin
   let messages: SmsMessageRecord[] = []
 
   if (normalizedPhone) {
-    const endpoint = `${url}/rest/v1/sms_messages?select=*&or=(from_number.eq.${encodeURIComponent(normalizedPhone)},to_number.eq.${encodeURIComponent(normalizedPhone)},from_number.eq.${encodeURIComponent(digits10)},to_number.eq.${encodeURIComponent(digits10)})&order=created_at.asc&limit=500`
+      const endpoint = `${url}/rest/v1/sms_messages?select=*&or=(from_number.eq.${encodeURIComponent(normalizedPhone)},to_number.eq.${encodeURIComponent(normalizedPhone)},from_number.eq.${encodeURIComponent(digits10)},to_number.eq.${encodeURIComponent(digits10)})&order=created_at.asc&limit=2000`
     const response = await fetch(endpoint, { headers, cache: 'no-store' })
     if (!response.ok) {
       const detail = await response.text().catch(() => '')
@@ -107,7 +118,7 @@ export async function listSmsMessages(filterPhone?: string, filterLeadId?: strin
   }
 
   if (filterLeadId) {
-    const endpoint = `${url}/rest/v1/sms_messages?select=*&lead_id=eq.${encodeURIComponent(filterLeadId)}&order=created_at.asc&limit=500`
+    const endpoint = `${url}/rest/v1/sms_messages?select=*&lead_id=eq.${encodeURIComponent(filterLeadId)}&order=created_at.asc&limit=2000`
     const response = await fetch(endpoint, { headers, cache: 'no-store' })
     if (response.ok) {
       const byLead = (await response.json()) as SmsMessageRecord[]
@@ -124,7 +135,7 @@ export async function listSmsMessages(filterPhone?: string, filterLeadId?: strin
   }
 
   if (!normalizedPhone && !filterLeadId) {
-    const endpoint = `${url}/rest/v1/sms_messages?select=*&order=created_at.desc&limit=500`
+    const endpoint = `${url}/rest/v1/sms_messages?select=*&order=created_at.desc&limit=2000`
     const response = await fetch(endpoint, { headers, cache: 'no-store' })
     if (!response.ok) {
       const detail = await response.text().catch(() => '')
@@ -133,13 +144,31 @@ export async function listSmsMessages(filterPhone?: string, filterLeadId?: strin
     messages = (await response.json()) as SmsMessageRecord[]
   }
 
-  return messages
+  return messages.filter(message => !isInternalHealthProbeSmsMessage(message))
 }
 
-export function buildSmsThreads(messages: SmsMessageRecord[], leads: CRMLead[]) {
+function getLatestInboundAt(messages: SmsMessageRecord[]) {
+  return messages
+    .filter(message => message.direction === 'inbound')
+    .map(message => message.created_at)
+    .sort()
+    .pop()
+}
+
+export function buildSmsThreads(messages: SmsMessageRecord[], leads: CRMLead[], inboundLeads: InboundLead[] = []) {
   const leadsById = new Map(leads.map(lead => [lead.id, lead]))
   const leadsByPhone = buildLeadPhoneIndex(leads)
+  const inboundByPhone = new Map<string, InboundLead>()
   const threadMap = new Map<string, SalesSmsThread>()
+
+  for (const inbound of inboundLeads) {
+    const digits = digitsOnly(inbound.phone)
+    if (!digits || inbound.source !== 'twilio_sms') continue
+    const current = inboundByPhone.get(digits)
+    if (!current || getInboundLeadLatestActivityAt(inbound) > getInboundLeadLatestActivityAt(current)) {
+      inboundByPhone.set(digits, inbound)
+    }
+  }
 
   for (const message of messages) {
     const contactPhone = getSmsContactPhone(message)
@@ -155,6 +184,7 @@ export function buildSmsThreads(messages: SmsMessageRecord[], leads: CRMLead[]) 
         unread: false,
         unreadCount: 0,
         leadId: null,
+        inboundLeadId: null,
         businessNumber: getSaturnBusinessNumberFromSmsMessage(message),
         branchLabel: getSaturnBranchLabel(getSaturnBusinessNumberFromSmsMessage(message)),
         trackingLabel: getSaturnTrackingLabel(getSaturnBusinessNumberFromSmsMessage(message)) || undefined,
@@ -180,15 +210,38 @@ export function buildSmsThreads(messages: SmsMessageRecord[], leads: CRMLead[]) 
     const directLead = messageLeadIds.map(id => leadsById.get(id)).find(Boolean) || null
     const phoneMatchedLead = findLeadByPhone(thread.contactPhone, leadsByPhone)
     const resolvedLead = directLead || phoneMatchedLead
+    const inboundLead = inboundByPhone.get(digitsOnly(thread.contactPhone)) || null
+    const leadState = resolvedLead?.inboxState?.sms
+    const inboundState = inboundLead ? getInboundInboxChannelState(inboundLead, undefined, 'sms') : undefined
+    const state = leadState || inboundState
+    const latestInboundAt = getLatestInboundAt(thread.messages)
+    const lastOutboundAt = thread.messages
+      .filter(message => message.direction === 'outbound')
+      .map(message => message.created_at)
+      .sort()
+      .pop()
+    const acknowledgedAt = [state?.lastReadAt, lastOutboundAt]
+      .filter((value): value is string => !!value)
+      .sort()
+      .pop()
 
     thread.leadId = resolvedLead?.id || directLead?.id || null
+    thread.inboundLeadId = inboundLead?.id || null
     thread.leadName = resolvedLead?.name || undefined
     thread.leadStage = resolvedLead?.stage
     thread.lastMessage = last?.body || ''
     thread.lastAt = last?.created_at || thread.lastAt
     thread.lastDirection = last?.direction || 'outbound'
-    thread.unread = thread.lastDirection === 'inbound'
-    thread.unreadCount = thread.messages.filter(message => message.direction === 'inbound').length
+    thread.lastReadAt = state?.lastReadAt
+    thread.lastReadByName = state?.lastReadByName
+    thread.lastActionAt = state?.lastActionAt
+    thread.lastActionByName = state?.lastActionByName
+    thread.unreadCount = thread.messages.filter(message => {
+      if (message.direction !== 'inbound') return false
+      if (!acknowledgedAt) return true
+      return new Date(message.created_at).getTime() > new Date(acknowledgedAt).getTime()
+    }).length
+    thread.unread = !!latestInboundAt && thread.unreadCount > 0
     threads.push(thread)
   }
 

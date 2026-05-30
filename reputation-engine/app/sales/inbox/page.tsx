@@ -17,7 +17,7 @@ import {
   parseInboundRawData as parseRawData,
 } from '@/lib/inbound-inbox'
 import { getSaturnBranchLabel, getSaturnBranchNumberFromRawData, getSaturnTrackingLabel } from '@/lib/sales-phones'
-import { claimInboundLead, fetchInboundLeads, markInboundLeadDisposition, restoreInboundLead, sendSalesMessage } from '@/lib/sales-api'
+import { claimInboundLead, fetchInboundLeads, markInboxRead, markInboundLeadDisposition, markInboundLeadHandled, restoreInboundLead, sendSalesMessage } from '@/lib/sales-api'
 import type { CRMEmail, InboundClosedFilter, InboundInboxPayload, InboundLead, InboundLeadFocusFilter } from '@/lib/types'
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -88,6 +88,42 @@ function formatAbsoluteTime(value: string) {
   } catch { return value }
 }
 
+// Speed-to-lead urgency helpers
+function secondsSince(value: string) {
+  return Math.floor((Date.now() - new Date(value).getTime()) / 1000)
+}
+
+function urgencyTier(secondsOld: number): 'live' | 'warning' | 'urgent' | 'overdue' | null {
+  if (secondsOld < 120) return 'live'       // 0–2 min
+  if (secondsOld < 300) return 'warning'    // 2–5 min
+  if (secondsOld < 900) return 'urgent'     // 5–15 min
+  if (secondsOld < 3600) return 'overdue'   // 15–60 min
+  return null
+}
+
+function liveTimer(secondsOld: number): string {
+  const m = Math.floor(secondsOld / 60)
+  const s = secondsOld % 60
+  if (m === 0) return `${s}s`
+  return `${m}m ${s}s`
+}
+
+function playAlertSound() {
+  try {
+    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.frequency.setValueAtTime(880, ctx.currentTime)
+    osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.1)
+    gain.gain.setValueAtTime(0.15, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4)
+    osc.start(ctx.currentTime)
+    osc.stop(ctx.currentTime + 0.4)
+  } catch { /* ignore — audio not supported */ }
+}
+
 function formatPhoneDisplay(value?: string) {
   const digits = (value || '').replace(/\D/g, '')
   if (digits.length === 11 && digits.startsWith('1')) {
@@ -116,6 +152,48 @@ function getInboundBranchMeta(item: InboundLead | null) {
     branchLabel: branchLabel || undefined,
     trackingLabel: trackingLabel || undefined,
   }
+}
+
+function getInboxChannelKey(item: InboundLead | null) {
+  if (!item) return 'webforms' as const
+  if (item.source === 'twilio_sms') return 'sms' as const
+  if (item.source === 'email') return 'email' as const
+  if (item.source === 'twilio_call' || item.source === 'missed_call') return 'calls' as const
+  return 'webforms' as const
+}
+
+function getInboundLatestAt(item: InboundLead | null) {
+  if (!item) return ''
+  const raw = parseRawData(item.raw_data)
+  const smsThread = Array.isArray(raw?.smsThread) ? raw.smsThread as Array<Record<string, unknown>> : []
+  const threadLatest = smsThread
+    .map(entry => (typeof entry.at === 'string' ? entry.at : ''))
+    .filter(Boolean)
+    .sort()
+    .pop()
+  return threadLatest || item.created_at
+}
+
+function getInboundReadMeta(item: InboundLead | null) {
+  if (!item) return null
+  const raw = parseRawData(item.raw_data)
+  const state = raw?.inboxState?.[getInboxChannelKey(item)] as
+    | { lastReadAt?: string; lastReadByName?: string; lastActionAt?: string; lastActionByName?: string }
+    | undefined
+  return state || null
+}
+
+function isInboundItemUnread(item: InboundLead | null) {
+  if (!item) return false
+  const state = getInboundReadMeta(item)
+  if (!state?.lastReadAt) return true
+  return new Date(getInboundLatestAt(item)).getTime() > new Date(state.lastReadAt).getTime()
+}
+
+function isUnreadEmail(email: CRMEmail) {
+  if (email.direction !== 'inbound') return false
+  if (!email.readAt) return true
+  return new Date(email.sentAt).getTime() > new Date(email.readAt).getTime()
 }
 
 function openDialer(phone?: string, name?: string, leadId?: string) {
@@ -218,10 +296,10 @@ function getLeadHeadline(item: InboundLead, rawInput?: Record<string, any> | nul
   if (typeof raw?.routeText === 'string' && raw.routeText.trim()) return raw.routeText
   if (item.source === 'email' && typeof raw?.subject === 'string' && raw.subject.trim()) return raw.subject
   if (item.source === 'twilio_call') {
-    return item.phone ? `Inbound call from ${formatPhoneDisplay(item.phone)}` : 'Inbound call received'
+    return 'Inbound call'
   }
   if (item.source === 'twilio_sms') {
-    return item.phone ? `SMS from ${formatPhoneDisplay(item.phone)}` : 'SMS conversation'
+    return 'SMS message'
   }
   if (item.message?.trim()) return item.message
   return item.phone || item.email || 'No contact details'
@@ -253,6 +331,7 @@ function SalesInboxPageInner() {
   const [busy, setBusy] = useState(false)
   const [messageBusy, setMessageBusy] = useState(false)
   const [dispositionBusy, setDispositionBusy] = useState<'junk' | 'lost' | 'not_interested' | null>(null)
+  const [handledBusy, setHandledBusy] = useState(false)
   const [restoreBusy, setRestoreBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [compose, setCompose] = useState({ emailSubject: 'Following up — Saturn Star Moving', emailBody: '', smsBody: '' })
@@ -264,12 +343,50 @@ function SalesInboxPageInner() {
   const [selectedThread, setSelectedThread] = useState<string | null>(null)
   const [smsReply, setSmsReply] = useState('')
   const [smsReplyBusy, setSmsReplyBusy] = useState(false)
+  const [smsMediaFiles, setSmsMediaFiles] = useState<File[]>([])
+  const [smsNewChatOpen, setSmsNewChatOpen] = useState(false)
+  const [smsNewChatPhone, setSmsNewChatPhone] = useState('')
+  const smsFileInputRef = React.useRef<HTMLInputElement>(null)
   // Email inbox state
   const [emailList, setEmailList] = useState<CRMEmail[]>([])
   const [emailLoading, setEmailLoading] = useState(false)
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null)
   const [emailReply, setEmailReply] = useState({ subject: '', body: '' })
   const [emailReplyBusy, setEmailReplyBusy] = useState(false)
+  const readStateRef = React.useRef(new Set<string>())
+
+  // Live urgency ticker — re-renders every second so timers stay accurate
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    const t = window.setInterval(() => setTick(n => n + 1), 1000)
+    return () => window.clearInterval(t)
+  }, [])
+
+  // Track previous items to detect new arrivals and fire alerts
+  const prevItemIdsRef = React.useRef<Set<string>>(new Set())
+  useEffect(() => {
+    if (items.length === 0) return
+    const currentIds = new Set(items.map(i => i.id))
+    const newArrivals = items.filter(i =>
+      !prevItemIdsRef.current.has(i.id) &&
+      prevItemIdsRef.current.size > 0 && // skip on first load
+      (i.inboxStatus || 'needs_action') === 'needs_action'
+    )
+    if (newArrivals.length > 0) {
+      playAlertSound()
+      if ('Notification' in window && Notification.permission === 'granted') {
+        const n = newArrivals[0]
+        const name = n.matchedLeadName || n.name || n.phone || 'New lead'
+        new Notification('New lead — Saturn Star', {
+          body: `${name} just came in. Respond now.`,
+          icon: '/icon-192.png',
+        })
+      } else if ('Notification' in window && Notification.permission === 'default') {
+        void Notification.requestPermission()
+      }
+    }
+    prevItemIdsRef.current = currentIds
+  }, [items])
 
   const SC_GOALS = [
     { id: 'follow_up', label: '👋 Follow-up', desc: 'Check in after first contact' },
@@ -358,6 +475,77 @@ function SalesInboxPageInner() {
     }
   }
 
+  async function markSelectedInboxRead(item: InboundLead) {
+    const key = `inbound:${item.id}:${getInboundLatestAt(item)}`
+    if (readStateRef.current.has(key) || !isInboundItemUnread(item)) return
+    readStateRef.current.add(key)
+    try {
+      await markInboxRead({ inboundIds: [item.id] })
+      await refresh(true)
+    } catch {
+      readStateRef.current.delete(key)
+    }
+  }
+
+  async function markThreadRead(thread: SmsThread) {
+    const key = `sms:${thread.contactPhone}:${thread.lastAt}`
+    if (readStateRef.current.has(key) || !thread.unread) return
+    readStateRef.current.add(key)
+    try {
+      await markInboxRead({
+        smsThreads: [{ leadId: thread.leadId, inboundId: thread.inboundLeadId, channel: 'sms' }],
+      })
+      await fetchSmsThreads(true)
+    } catch {
+      readStateRef.current.delete(key)
+    }
+  }
+
+  async function markEmailThreadRead(emailIds: string[], keySeed: string) {
+    if (emailIds.length === 0) return
+    const key = `email:${keySeed}:${emailIds.join(',')}`
+    if (readStateRef.current.has(key)) return
+    readStateRef.current.add(key)
+    try {
+      await markInboxRead({ emailIds })
+      await fetchEmails(true)
+    } catch {
+      readStateRef.current.delete(key)
+    }
+  }
+
+  async function markVisibleAsRead() {
+    try {
+      if (viewMode === 'messages') {
+        const unreadThreads = filteredSmsThreads
+          .filter(thread => thread.unread)
+          .map(thread => ({ leadId: thread.leadId, inboundId: thread.inboundLeadId, channel: 'sms' as const }))
+        if (unreadThreads.length === 0) return
+        await markInboxRead({ smsThreads: unreadThreads })
+        await fetchSmsThreads(true)
+        return
+      }
+
+      if (viewMode === 'email') {
+        const unreadEmailIds = emailList.filter(isUnreadEmail).map(email => email.id)
+        if (unreadEmailIds.length === 0) return
+        await markInboxRead({ emailIds: unreadEmailIds })
+        await fetchEmails(true)
+        return
+      }
+
+      const unreadInboundIds = filteredItems
+        .filter(item => (item.inboxStatus || getInboundStatus(item, parseRawData(item.raw_data))) === 'needs_action')
+        .filter(item => isInboundItemUnread(item))
+        .map(item => item.id)
+      if (unreadInboundIds.length === 0) return
+      await markInboxRead({ inboundIds: unreadInboundIds })
+      await refresh(true)
+    } catch (err) {
+      setError((err as Error).message)
+    }
+  }
+
   useEffect(() => {
     void refresh()
     void fetchSmsThreads(true)
@@ -417,16 +605,11 @@ function SalesInboxPageInner() {
       return true
     })
     if (deferredViewMode === 'calls') {
-      base = base.filter(item => {
-        const raw = parseRawData(item.raw_data)
-        const status = item.inboxStatus || getInboundStatus(item, raw)
-        return status === 'needs_action' && item.source === 'twilio_call'
-      })
+      base = base.filter(item => item.source === 'twilio_call')
     } else if (deferredViewMode === 'webforms') {
       base = base.filter(item => {
-        const raw = parseRawData(item.raw_data)
-        const status = item.inboxStatus || getInboundStatus(item, raw)
-        return isWebInquiryLead(item, raw) && (status === 'needs_action' || status === 'recent_handoff')
+        const status = item.inboxStatus || getInboundStatus(item, parseRawData(item.raw_data))
+        return (item.source === 'website_form' || item.source === 'zapier') && (status === 'needs_action' || status === 'recent_handoff')
       })
     } else if (deferredViewMode === 'handoffs') {
       base = base.filter(item => (item.inboxStatus || getInboundStatus(item, parseRawData(item.raw_data))) === 'recent_handoff')
@@ -486,14 +669,25 @@ function SalesInboxPageInner() {
     })
   }, [deferredClosedFilter, deferredFocusFilter, items, deferredSearch, deferredViewMode, deferredSortOrder])
 
-  // Filter SMS threads by search query (fixes SMS search not working)
+  // Filter + sort SMS threads
+  // Customer-initiated (has inbound messages) shown first, outbound-only at bottom
   const filteredSmsThreads = useMemo(() => {
     const q = deferredSearch.trim().toLowerCase()
-    if (!q || deferredViewMode !== 'messages') return smsThreads
-    return smsThreads.filter(thread => {
-      const text = [thread.leadName, thread.contactPhone, thread.lastMessage, thread.branchLabel]
-        .filter(Boolean).join(' ').toLowerCase()
-      return text.includes(q)
+    let threads = smsThreads
+    if (q && deferredViewMode === 'messages') {
+      threads = threads.filter(thread => {
+        const text = [thread.leadName, thread.contactPhone, thread.lastMessage, thread.branchLabel]
+          .filter(Boolean).join(' ').toLowerCase()
+        return text.includes(q)
+      })
+    }
+    // Sort: inbound threads (customer texted us) before outbound-only
+    return [...threads].sort((a, b) => {
+      const aHasInbound = a.unreadCount > 0 || a.lastDirection === 'inbound'
+      const bHasInbound = b.unreadCount > 0 || b.lastDirection === 'inbound'
+      if (aHasInbound && !bHasInbound) return -1
+      if (!aHasInbound && bHasInbound) return 1
+      return new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime()
     })
   }, [smsThreads, deferredSearch, deferredViewMode])
 
@@ -558,11 +752,10 @@ function SalesInboxPageInner() {
       return (item.inboxStatus || getInboundStatus(item, raw)) === 'needs_action' && item.source === 'twilio_call'
     }).length
     const forms = probeFiltered.filter(item => {
-      const raw = parseRawData(item.raw_data)
-      const status = item.inboxStatus || getInboundStatus(item, raw)
-      return isWebInquiryLead(item, raw) && (status === 'needs_action' || status === 'recent_handoff')
+      const status = item.inboxStatus || getInboundStatus(item, parseRawData(item.raw_data))
+      return (item.source === 'website_form' || item.source === 'zapier') && (status === 'needs_action' || status === 'recent_handoff')
     }).length
-    const inboundEmails = emailList.filter(item => item.direction === 'inbound').length
+    const inboundEmails = emailList.filter(isUnreadEmail).length
     const smsUnread = smsThreads.filter(item => item.unread).length
     return {
       live,
@@ -590,6 +783,17 @@ function SalesInboxPageInner() {
       emails: todayItems.filter(item => item.source === 'email').length,
     }
   }, [items])
+
+  useEffect(() => {
+    if (viewMode !== 'messages' || !selectedThread) return
+    if (smsThreads.some(thread => thread.contactPhone === selectedThread)) return
+    setSelectedThread(null)
+  }, [selectedThread, smsThreads, viewMode])
+  const unreadVisibleCount = useMemo(() => {
+    if (viewMode === 'messages') return filteredSmsThreads.filter(thread => thread.unread).length
+    if (viewMode === 'email') return emailList.filter(isUnreadEmail).length
+    return filteredItems.filter(item => isInboundItemUnread(item)).length
+  }, [emailList, filteredItems, filteredSmsThreads, viewMode])
   const selectedRoute = useMemo(
     () => ({
       origin:
@@ -637,6 +841,36 @@ function SalesInboxPageInner() {
     }
     return base
   }, [aiSummary?.summary, selected, transcript])
+
+  useEffect(() => {
+    if (!selected || viewMode === 'messages' || viewMode === 'email') return
+    if ((selected.inboxStatus || getInboundStatus(selected, selectedRaw)) !== 'needs_action') return
+    void markSelectedInboxRead(selected)
+  }, [selected, selectedRaw, viewMode])
+
+  useEffect(() => {
+    if (viewMode !== 'messages' || !selectedSmsThreadData) return
+    if (!selectedSmsThreadData.unread) return
+    void markThreadRead(selectedSmsThreadData)
+  }, [selectedSmsThreadData, viewMode])
+
+  useEffect(() => {
+    if (viewMode !== 'email' || !selectedEmailId) return
+    const selectedEmail = emailList.find(email => email.id === selectedEmailId)
+    if (!selectedEmail) return
+    const contactEmail = selectedEmail.direction === 'inbound' ? selectedEmail.from : selectedEmail.to
+    const unreadInboundIds = emailList
+      .filter(email => {
+        if (!isUnreadEmail(email)) return false
+        if (selectedEmail.leadId && email.leadId) return email.leadId === selectedEmail.leadId
+        const emailContact = email.direction === 'inbound' ? email.from : email.to
+        return emailContact.toLowerCase() === contactEmail.toLowerCase()
+      })
+      .map(email => email.id)
+    if (unreadInboundIds.length > 0) {
+      void markEmailThreadRead(unreadInboundIds, selectedEmailId)
+    }
+  }, [emailList, selectedEmailId, viewMode])
 
   useEffect(() => {
     if (!selected || viewMode === 'messages' || viewMode === 'email') return
@@ -709,6 +943,7 @@ function SalesInboxPageInner() {
         to,
         subject: channel === 'email' ? compose.emailSubject : undefined,
         body,
+        inboundId: selected.id,
         fromNumber: channel === 'sms' ? selectedBranch.branchNumber : undefined,
         notes: `${channel === 'email' ? 'Inbox email reply sent' : 'Inbox SMS reply sent'} for inbound lead ${selected.id}.`,
       })
@@ -730,6 +965,19 @@ function SalesInboxPageInner() {
       setError((err as Error).message)
     } finally {
       setDispositionBusy(null)
+    }
+  }
+
+  async function markSelectedHandled() {
+    if (!selected) return
+    try {
+      setHandledBusy(true)
+      await markInboundLeadHandled(selected.id)
+      await refresh()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setHandledBusy(false)
     }
   }
 
@@ -760,18 +1008,38 @@ function SalesInboxPageInner() {
     }
   }
 
+  async function uploadSmsMedia(file: File): Promise<string | null> {
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/sales/operations/upload-media', { method: 'POST', body: fd, credentials: 'include' })
+      if (!res.ok) return null
+      const data = (await res.json()) as { url?: string }
+      return data.url || null
+    } catch { return null }
+  }
+
   async function sendSmsReply() {
-    if (!selectedThread || !smsReply.trim()) return
+    if (!selectedThread || (!smsReply.trim() && smsMediaFiles.length === 0)) return
     try {
       setSmsReplyBusy(true)
+      const mediaUrls: string[] = []
+      for (const file of smsMediaFiles) {
+        const url = await uploadSmsMedia(file)
+        if (url) mediaUrls.push(url)
+      }
       await sendSalesMessage({
         channel: 'sms',
         to: selectedThread,
-        body: smsReply.trim(),
+        body: smsReply.trim() || ' ',
+        leadId: selectedSmsThreadData?.leadId || undefined,
+        inboundId: selectedSmsThreadData?.inboundLeadId || undefined,
         fromNumber: selectedSmsThreadData?.businessNumber,
+        mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
         notes: 'Reply from inbox messages view',
       })
       setSmsReply('')
+      setSmsMediaFiles([])
       await fetchSmsThreads()
     } catch (err) {
       setError((err as Error).message)
@@ -798,6 +1066,14 @@ function SalesInboxPageInner() {
     const selectedEmail = emailList.find(e => e.id === selectedEmailId)
     if (!selectedEmail || !emailReply.body.trim()) return
     const replyTo = selectedEmail.direction === 'inbound' ? selectedEmail.from : selectedEmail.to
+    const threadEmailIds = emailList
+      .filter(email => {
+        if (email.direction !== 'inbound') return false
+        if (selectedEmail.leadId && email.leadId) return email.leadId === selectedEmail.leadId
+        const emailContact = email.direction === 'inbound' ? email.from : email.to
+        return emailContact.toLowerCase() === replyTo.toLowerCase()
+      })
+      .map(email => email.id)
     try {
       setEmailReplyBusy(true)
       await sendSalesMessage({
@@ -807,6 +1083,7 @@ function SalesInboxPageInner() {
         body: emailReply.body,
         leadId: selectedEmail.leadId || undefined,
         quoteId: selectedEmail.quoteId || undefined,
+        replyEmailIds: threadEmailIds,
       })
       setEmailReply({ subject: '', body: '' })
       await fetchEmails()
@@ -824,8 +1101,8 @@ function SalesInboxPageInner() {
         {loading ? (
           <div className="flex-1 p-16 text-center text-sm text-[var(--app-muted)]">Loading lead inbox...</div>
         ) : (
-          <div className="flex-1 min-h-0 md:flex">
-            <section className={`${(selected || (viewMode === 'messages' && selectedThread) || (viewMode === 'email' && selectedEmailId)) ? 'hidden md:flex' : 'flex'} w-full flex-shrink-0 border-r border-[var(--app-line)] bg-[var(--app-panel)] md:w-[470px] min-h-0`}>
+          <div className="flex-1 min-h-0 min-w-0 md:flex">
+            <section className={`${(selected || (viewMode === 'messages' && selectedThread) || (viewMode === 'email' && selectedEmailId)) ? 'hidden md:flex' : 'flex'} w-full flex-shrink-0 overflow-hidden border-r border-[var(--app-line)] bg-[var(--app-panel)] md:w-[470px] min-h-0`}>
               <div className="flex min-h-0 flex-1 h-full">
                 <aside className="hidden w-[72px] shrink-0 flex-col border-r border-[var(--app-line)] bg-[var(--app-bg)] py-3 md:flex">
                   <div className="mb-3 px-3">
@@ -879,7 +1156,16 @@ function SalesInboxPageInner() {
                           {todayMetrics.forms > 0 ? ` · ${todayMetrics.forms} forms` : ''}
                         </span>
                       </div>
-                      <span className="text-xs font-semibold text-[var(--app-muted)]">{shownCount} shown</span>
+                      <div className="flex items-center gap-2">
+                        {unreadVisibleCount > 0 ? (
+                          <button onClick={() => void markVisibleAsRead()} className="rounded-full border border-[var(--app-line)] bg-white px-2.5 py-1 text-[11px] font-semibold text-[var(--app-ink)] transition hover:border-[var(--app-ink)]">
+                            Mark all read
+                          </button>
+                        ) : null}
+                        <span className="text-xs font-semibold text-[var(--app-muted)]">
+                          {shownCount} shown{unreadVisibleCount > 0 ? ` · ${unreadVisibleCount} unread` : ''}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Mobile tab row */}
@@ -955,6 +1241,32 @@ function SalesInboxPageInner() {
                     </div>
                   </div>
                   <div className="flex-1 overflow-y-auto bg-[var(--app-panel)]">
+                {/* Speed-to-lead: flash new unattended leads at the very top */}
+                {viewMode !== 'email' && viewMode !== 'messages' && viewMode !== 'closed' && (() => {
+                  void tick
+                  const fresh = items.filter(item => {
+                    if (item.phone === '+15550001111' || item.email?.includes('system.invalid')) return false
+                    const status = item.inboxStatus || getInboundStatus(item, parseRawData(item.raw_data))
+                    if (status !== 'needs_action') return false
+                    const secs = secondsSince(item.created_at)
+                    return secs < 1800 // within 30 min
+                  })
+                  if (fresh.length === 0) return null
+                  return (
+                    <div className="sticky top-0 z-20 border-b-2 border-rose-500 bg-rose-600 px-3 py-2.5 flex items-center gap-2">
+                      <span className="animate-ping h-2 w-2 rounded-full bg-white opacity-90 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[11px] font-bold text-white uppercase tracking-wide">
+                          🚨 {fresh.length} new lead{fresh.length > 1 ? 's' : ''} just in — respond before anything else
+                        </span>
+                        <div className="text-[10px] text-rose-100 mt-0.5">
+                          {fresh.map(i => i.matchedLeadName || i.name || i.phone || 'Unknown').slice(0, 3).join(' · ')}
+                          {fresh.length > 3 ? ` + ${fresh.length - 3} more` : ''}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
                 {viewMode === 'email' ? (
                   emailLoading ? (
                     <div className="p-6 text-sm text-[var(--app-muted)]">Loading emails...</div>
@@ -969,11 +1281,15 @@ function SalesInboxPageInner() {
                       }}
                       className={`relative block w-full border-b border-[var(--app-line)] p-4 text-left transition ${selectedEmailId === em.id ? 'bg-[rgba(15,106,83,0.05)]' : 'bg-[var(--app-panel)] hover:bg-[var(--app-bg)]'}`}
                     >
+                      {(() => {
+                        const unread = isUnreadEmail(em)
+                        return (
+                          <>
                       {selectedEmailId === em.id ? <div className="absolute bottom-0 left-0 top-0 w-1 bg-[var(--app-accent)]" /> : null}
                       <div className="mb-1 flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
-                          {em.direction === 'inbound' && <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--app-warm)]" />}
-                          <span className="truncate text-sm font-semibold text-[var(--app-ink)]">
+                          {unread && <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--app-warm)]" />}
+                          <span className={`truncate text-sm font-semibold ${unread ? 'text-[var(--app-ink)]' : 'text-[var(--app-muted)]'}`}>
                             {em.direction === 'inbound' ? em.from : em.to}
                           </span>
                         </div>
@@ -991,18 +1307,37 @@ function SalesInboxPageInner() {
                           </span>
                         )}
                       </div>
+                          </>
+                        )
+                      })()}
                     </button>
                   ))
                 ) : viewMode === 'messages' ? (
-                  threadsLoading ? (
+                  <>
+                  <div className="border-b border-[var(--app-line)] px-3 py-2 flex items-center gap-2">
+                    {smsNewChatOpen ? (
+                      <div className="flex flex-1 gap-1.5">
+                        <input autoFocus value={smsNewChatPhone} onChange={e => setSmsNewChatPhone(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter' && smsNewChatPhone.trim()) { const d = smsNewChatPhone.replace(/\D/g,''); const p = d.length === 10 ? `+1${d}` : d.length === 11 && d.startsWith('1') ? `+${d}` : smsNewChatPhone; setSelectedThread(p); setSmsNewChatOpen(false); setSmsNewChatPhone('') } if (e.key === 'Escape') setSmsNewChatOpen(false) }}
+                          placeholder="Enter phone number..." className="crm-input flex-1 text-xs py-1" />
+                        <button onClick={() => setSmsNewChatOpen(false)} className="text-[10px] text-[var(--app-muted)] px-1">✕</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setSmsNewChatOpen(true)} className="ml-auto rounded-[5px] bg-[var(--app-accent)] px-2.5 py-1 text-[10px] font-semibold text-white hover:opacity-90">+ New</button>
+                    )}
+                  </div>
+                  {threadsLoading ? (
                     <div className="p-6 text-sm text-[var(--app-muted)]">Loading conversations...</div>
                   ) : filteredSmsThreads.length === 0 ? (
-                    <div className="p-6 text-sm text-[var(--app-muted)]">No SMS conversations yet. Messages from leads will appear here.</div>
-                  ) : filteredSmsThreads.map(thread => (
+                    <div className="p-6 text-sm text-[var(--app-muted)]">No SMS conversations yet. Tap + New to start one.</div>
+                  ) : filteredSmsThreads.map(thread => {
+                    const hasInbound = thread.unreadCount > 0 || thread.lastDirection === 'inbound'
+                    const outboundOnly = !hasInbound
+                    return (
                     <button
                       key={thread.contactPhone}
-                      onClick={() => setSelectedThread(thread.contactPhone)}
-                      className={`relative block w-full border-b border-[var(--app-line)] px-3 py-3 text-left transition ${selectedThread === thread.contactPhone ? 'bg-[rgba(15,106,83,0.05)]' : 'bg-[var(--app-panel)] hover:bg-[var(--app-bg)]'}`}
+                      onClick={() => startTransition(() => setSelectedThread(thread.contactPhone))}
+                      className={`relative block w-full border-b border-[var(--app-line)] px-3 py-3 text-left transition ${selectedThread === thread.contactPhone ? 'bg-[rgba(15,106,83,0.05)]' : outboundOnly ? 'bg-[var(--app-bg)] opacity-70 hover:opacity-100' : 'bg-[var(--app-panel)] hover:bg-[var(--app-bg)]'}`}
                     >
                       {selectedThread === thread.contactPhone ? <div className="absolute bottom-0 left-0 top-0 w-[3px] bg-[var(--app-accent)]" /> : null}
                       <div className="flex items-center justify-between gap-2">
@@ -1014,6 +1349,14 @@ function SalesInboxPageInner() {
                           {thread.unreadCount > 0 && (
                             <span className="shrink-0 rounded-full bg-[var(--app-accent)] px-1.5 text-[9px] font-bold text-white">{thread.unreadCount}</span>
                           )}
+                          {!thread.unread && thread.lastReadAt ? (
+                            <span className="shrink-0 rounded-[3px] bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500">
+                              Read{thread.lastReadByName ? ` · ${thread.lastReadByName}` : ''}
+                            </span>
+                          ) : null}
+                          {outboundOnly && (
+                            <span className="shrink-0 rounded-[3px] bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500">No reply</span>
+                          )}
                         </div>
                         <span className="shrink-0 text-[10px] text-[var(--app-muted)]">{timeAgo(thread.lastAt)}</span>
                       </div>
@@ -1023,54 +1366,119 @@ function SalesInboxPageInner() {
                       </div>
                       <p className="mt-0.5 line-clamp-1 text-[11px] text-[var(--app-muted)] opacity-70">{thread.lastMessage || '—'}</p>
                     </button>
-                  ))
+                  )})}
+                  </>
                 ) : filteredItems.length === 0 ? (
                   <div className="p-6 text-sm text-[var(--app-muted)]">
                     {search.trim() ? 'No conversations match this search.' : 'No conversations in this view.'}
                   </div>
-                ) : filteredItems.map(item => {
-                  const raw = parseRawData(item.raw_data)
-                  const selectedState = item.id === selectedId
-                  const actionMeta = getLeadActionMeta(item, raw)
-                  const status = item.inboxStatus || getInboundStatus(item, raw)
-                  const lowPriority = status !== 'needs_action'
-                  const qrLead = isQrOrDirectMailLead(item, raw)
-                  const { branchLabel, trackingLabel } = getInboundBranchMeta(item)
-                  const trackingBadgeLabel = qrLead ? 'QR / Direct Mail' : trackingLabel
+                ) : (() => {
+                  // Urgency banner: count hot unresponded leads
+                  void tick // reference tick so urgency rerenders live
+                  const hotLeads = filteredItems.filter(item => {
+                    const status = item.inboxStatus || getInboundStatus(item, parseRawData(item.raw_data))
+                    if (status !== 'needs_action') return false
+                    const secs = secondsSince(item.created_at)
+                    const tier = urgencyTier(secs)
+                    return tier === 'urgent' || tier === 'overdue'
+                  })
                   return (
-                    <button
-                      key={item.id}
-                      onClick={() => setSelectedId(item.id)}
-                      className={`relative block w-full border-b border-[var(--app-line)] px-3 py-3 text-left transition ${selectedState ? 'bg-[rgba(15,106,83,0.05)]' : 'bg-[var(--app-panel)] hover:bg-[var(--app-bg)]'} ${lowPriority ? 'opacity-60' : ''}`}
-                    >
-                      {selectedState ? <div className="absolute bottom-0 left-0 top-0 w-[3px] bg-[var(--app-accent)]" /> : null}
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex min-w-0 items-center gap-1.5">
-                          {status === 'needs_action' && !selectedState && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--app-accent)]" />}
-                          <span className={`truncate text-sm font-semibold ${status === 'needs_action' ? 'text-[var(--app-ink)]' : 'text-[var(--app-muted)]'}`}>{displayLeadName(item)}</span>
-                          {item.matchedLeadId && <span className="shrink-0 rounded-[3px] bg-sky-100 px-1.5 py-0.5 text-[9px] font-semibold text-sky-700">EXISTING</span>}
+                    <>
+                      {hotLeads.length > 0 && (
+                        <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-rose-200 bg-rose-600 px-3 py-2 text-white">
+                          <span className="animate-pulse text-base">🔴</span>
+                          <span className="text-[11px] font-bold uppercase tracking-wide">
+                            {hotLeads.length} lead{hotLeads.length > 1 ? 's' : ''} waiting — respond now
+                          </span>
                         </div>
-                        <span className="shrink-0 text-[10px] text-[var(--app-muted)]">{timeAgo(getInboundActionTimestamp(item, raw))}</span>
-                      </div>
-                      <p className="mt-0.5 line-clamp-1 text-xs text-[var(--app-muted)]">
-                        {getLeadHeadline(item, raw)}
-                      </p>
-                      <p className="mt-0.5 line-clamp-1 text-[11px] text-[var(--app-muted)] opacity-70">
-                        {getLeadSummary(item, raw)}
-                      </p>
-                      {/* Single action tag — clean, no clutter */}
-                      <span className={`rounded-[3px] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${actionMeta.className}`}>
-                        {actionMeta.label}
-                      </span>
-                    </button>
+                      )}
+                      {filteredItems.map(item => {
+                        const raw = parseRawData(item.raw_data)
+                        const selectedState = item.id === selectedId
+                        const actionMeta = getLeadActionMeta(item, raw)
+                        const status = item.inboxStatus || getInboundStatus(item, raw)
+                        const unread = isInboundItemUnread(item)
+                        const readMeta = getInboundReadMeta(item)
+                        const lowPriority = status !== 'needs_action'
+                        const qrLead = isQrOrDirectMailLead(item, raw)
+                        const { branchLabel, trackingLabel } = getInboundBranchMeta(item)
+                        const trackingBadgeLabel = qrLead ? 'QR / Direct Mail' : trackingLabel
+
+                        // Speed-to-lead urgency
+                        const secs = status === 'needs_action' ? secondsSince(item.created_at) : Infinity
+                        const tier = urgencyTier(secs)
+
+                        const urgencyBorder =
+                          !selectedState && tier === 'live' ? 'border-l-[3px] border-l-emerald-500' :
+                          !selectedState && tier === 'warning' ? 'border-l-[3px] border-l-amber-400' :
+                          !selectedState && tier === 'urgent' ? 'border-l-[3px] border-l-rose-500' :
+                          !selectedState && tier === 'overdue' ? 'border-l-[3px] border-l-rose-700' : ''
+
+                        const urgencyBg =
+                          !selectedState && tier === 'live' ? 'bg-emerald-50/60' :
+                          !selectedState && tier === 'warning' ? 'bg-amber-50/60' :
+                          !selectedState && (tier === 'urgent' || tier === 'overdue') ? 'bg-rose-50/60' : ''
+
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => setSelectedId(item.id)}
+                            className={`relative block w-full border-b border-[var(--app-line)] px-3 py-3 text-left transition ${urgencyBorder} ${urgencyBg} ${selectedState ? 'bg-[rgba(15,106,83,0.05)]' : 'hover:bg-[var(--app-bg)]'} ${lowPriority ? 'opacity-60' : ''}`}
+                          >
+                            {selectedState ? <div className="absolute bottom-0 left-0 top-0 w-[3px] bg-[var(--app-accent)]" /> : null}
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex min-w-0 items-center gap-1.5">
+                                {tier === 'live' && !selectedState
+                                  ? <span className="relative flex h-2 w-2 shrink-0"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" /><span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" /></span>
+                                  : tier === 'warning' && !selectedState
+                                    ? <span className="relative flex h-2 w-2 shrink-0"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" /><span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" /></span>
+                                    : (tier === 'urgent' || tier === 'overdue') && !selectedState
+                                      ? <span className="relative flex h-2 w-2 shrink-0"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-500 opacity-75" /><span className="relative inline-flex h-2 w-2 rounded-full bg-rose-500" /></span>
+                                      : status === 'needs_action' && unread && !selectedState
+                                        ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--app-accent)]" />
+                                        : null}
+                                <span className={`truncate text-sm font-semibold ${status === 'needs_action' && unread ? 'text-[var(--app-ink)]' : 'text-[var(--app-muted)]'}`}>{displayLeadName(item)}</span>
+                                {item.matchedLeadId && <span className="shrink-0 rounded-[3px] bg-sky-100 px-1.5 py-0.5 text-[9px] font-semibold text-sky-700">EXISTING</span>}
+                                {!unread && readMeta?.lastReadAt ? (
+                                  <span className="shrink-0 rounded-[3px] bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500">
+                                    Read{readMeta.lastReadByName ? ` · ${readMeta.lastReadByName}` : ''}
+                                  </span>
+                                ) : null}
+                              </div>
+                              {/* Live urgency timer or regular timestamp */}
+                              {tier === 'live' && !selectedState ? (
+                                <span className="shrink-0 rounded-[3px] bg-emerald-500 px-1.5 py-0.5 text-[9px] font-bold text-white uppercase tracking-wide">LIVE · {liveTimer(secs)}</span>
+                              ) : tier === 'warning' && !selectedState ? (
+                                <span className="shrink-0 rounded-[3px] bg-amber-400 px-1.5 py-0.5 text-[9px] font-bold text-white uppercase tracking-wide">⚠ {liveTimer(secs)}</span>
+                              ) : tier === 'urgent' && !selectedState ? (
+                                <span className="shrink-0 rounded-[3px] bg-rose-500 px-1.5 py-0.5 text-[9px] font-bold text-white uppercase tracking-wide">⚠ URGENT · {liveTimer(secs)}</span>
+                              ) : tier === 'overdue' && !selectedState ? (
+                                <span className="shrink-0 rounded-[3px] bg-rose-700 px-1.5 py-0.5 text-[9px] font-bold text-white uppercase tracking-wide">OVERDUE · {liveTimer(secs)}</span>
+                              ) : (
+                                <span className="shrink-0 text-[10px] text-[var(--app-muted)]">{timeAgo(getInboundActionTimestamp(item, raw))}</span>
+                              )}
+                            </div>
+                            <p className="mt-0.5 line-clamp-1 text-xs text-[var(--app-muted)]">
+                              {getLeadHeadline(item, raw)}
+                            </p>
+                            <p className="mt-0.5 line-clamp-1 text-[11px] text-[var(--app-muted)] opacity-70">
+                              {getLeadSummary(item, raw)}
+                            </p>
+                            <span className={`rounded-[3px] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${actionMeta.className}`}>
+                              {actionMeta.label}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </>
                   )
-                })}
+                })()}
 	                  </div>
 	                </div>
 	              </div>
 	            </section>
 
-            <section className={`${selected || (viewMode === 'messages' && selectedThread) || (viewMode === 'email' && selectedEmailId) ? 'flex' : 'hidden md:flex'} flex-1 overflow-hidden flex-col bg-[var(--app-bg)]`}>
+            <section className={`${selected || (viewMode === 'messages' && selectedThread) || (viewMode === 'email' && selectedEmailId) ? 'flex' : 'hidden md:flex'} min-w-0 flex-1 overflow-hidden flex-col bg-[var(--app-bg)]`}>
               {viewMode === 'email' ? (
                 (() => {
                   const em = emailList.find(e => e.id === selectedEmailId)
@@ -1088,7 +1496,7 @@ function SalesInboxPageInner() {
                   const replyTo = em.direction === 'inbound' ? em.from : em.to
 
                   return (
-                    <div className="flex flex-1 flex-col min-h-0">
+                    <div className="flex min-w-0 flex-1 flex-col min-h-0">
                       {/* Header */}
                       <div className="sticky top-0 z-10 border-b border-[var(--app-line)] bg-[var(--app-panel)] px-5 py-3">
                         <button onClick={() => setSelectedEmailId(null)} className="crm-button mb-2 px-3 md:hidden">← Back</button>
@@ -1110,7 +1518,7 @@ function SalesInboxPageInner() {
                           </div>
                         </div>
                         {/* New reply banner */}
-                        {latestInbound && (
+                        {latestInbound && isUnreadEmail(latestInbound) && (
                           <div className="mt-2 flex items-center gap-2 rounded-[6px] border border-[var(--app-warm)] bg-[rgba(245,166,35,0.08)] px-3 py-1.5">
                             <span className="text-sm">✉️</span>
                             <span className="text-xs font-medium text-[var(--app-warm)]">
@@ -1141,7 +1549,7 @@ function SalesInboxPageInner() {
                                   </div>
                                   <div className="flex shrink-0 items-center gap-2">
                                     <span className="text-xs text-[var(--app-muted)]">{formatAbsoluteTime(msg.sentAt)}</span>
-                                    {idx === 0 && msg.direction === 'inbound' && (
+                                    {idx === 0 && msg.direction === 'inbound' && isUnreadEmail(msg) && (
                                       <span className="rounded-[4px] border border-[var(--app-warm)] bg-[rgba(245,166,35,0.1)] px-1.5 py-0.5 text-[10px] font-semibold uppercase text-[var(--app-warm)]">New</span>
                                     )}
                                   </div>
@@ -1194,13 +1602,13 @@ function SalesInboxPageInner() {
                   const thread = smsThreads.find(t => t.contactPhone === selectedThread)
                   if (!thread) return <div className="flex-1 p-16 text-center text-sm text-[var(--app-muted)]">Select a conversation.</div>
                   return (
-                    <div className="flex flex-1 flex-col min-h-0">
+                    <div className="flex min-w-0 flex-1 flex-col min-h-0">
                       <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-[var(--app-line)] bg-[var(--app-panel)] px-4 py-4">
                         <button onClick={() => setSelectedThread(null)} className="crm-button px-3 md:hidden">Back</button>
                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[rgba(15,106,83,0.1)] text-sm font-bold text-[var(--app-accent)]">
                           {(thread.leadName || thread.contactPhone).slice(0, 1).toUpperCase()}
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <div className="text-base font-semibold text-[var(--app-ink)]">{thread.leadName || formatPhoneDisplay(thread.contactPhone)}</div>
                             {thread.leadStage ? (
@@ -1214,17 +1622,18 @@ function SalesInboxPageInner() {
                             {thread.messages.length} messages
                             {thread.branchLabel ? ` • replying as ${thread.branchLabel}` : ''}
                             {thread.trackingLabel ? ` • ${thread.trackingLabel}` : ''}
+                            {thread.lastReadAt ? ` • read ${timeAgo(thread.lastReadAt)}${thread.lastReadByName ? ` by ${thread.lastReadByName}` : ''}` : ''}
                           </div>
                         </div>
                         {thread.leadId && (
                           <a href={`/sales/leads/${thread.leadId}`} className="ml-auto crm-button text-xs">View Lead →</a>
                         )}
                       </div>
-                      <div className="flex-1 overflow-y-auto space-y-2 px-4 py-4">
+                      <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-2 px-4 py-4">
                         {thread.messages.map(msg => (
-                          <div key={msg.id} className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[75%] rounded-[18px] px-3.5 py-2.5 text-sm shadow-sm ${msg.direction === 'outbound' ? 'rounded-br-[4px] bg-[#0b84ff] text-white' : 'rounded-bl-[4px] bg-[#e9e9eb] text-[#1c1c1e]'}`}>
-                              <p className="whitespace-pre-wrap break-words">{msg.body}</p>
+                          <div key={msg.id} className={`flex min-w-0 ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`max-w-[75%] min-w-0 rounded-[18px] px-3.5 py-2.5 text-sm shadow-sm ${msg.direction === 'outbound' ? 'rounded-br-[4px] bg-[#0b84ff] text-white' : 'rounded-bl-[4px] bg-[#e9e9eb] text-[#1c1c1e]'}`}>
+                              <p className="whitespace-pre-wrap break-words break-all">{msg.body}</p>
                               <p className={`mt-1 text-[10px] ${msg.direction === 'outbound' ? 'text-white/60' : 'text-[#8e8e93]'}`}>
                                 {new Date(msg.created_at).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                               </p>
@@ -1239,24 +1648,42 @@ function SalesInboxPageInner() {
                             {thread.trackingLabel ? <span className="ml-1">Tracking: <span className="font-semibold text-[var(--app-ink)]">{thread.trackingLabel}</span>.</span> : null}
                           </div>
                         ) : null}
-                        <div className="flex gap-3">
+                        <input ref={smsFileInputRef} type="file" accept="image/*,video/*" multiple className="hidden"
+                          onChange={e => { if (e.target.files) setSmsMediaFiles(fs => [...fs, ...Array.from(e.target.files!)]) }} />
+                        {smsMediaFiles.length > 0 && (
+                          <div className="mb-2 flex gap-2 flex-wrap">
+                            {smsMediaFiles.map((f, i) => (
+                              <div key={i} className="relative">
+                                {f.type.startsWith('image/') ? (
+                                  <img src={URL.createObjectURL(f)} alt={f.name} className="h-14 w-14 rounded-[6px] object-cover" />
+                                ) : (
+                                  <div className="h-14 w-14 rounded-[6px] bg-[var(--app-bg)] flex items-center justify-center text-[9px] text-[var(--app-muted)] text-center px-1">{f.name.slice(0,10)}</div>
+                                )}
+                                <button onClick={() => setSmsMediaFiles(fs => fs.filter((_, j) => j !== i))} className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">×</button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex gap-2 items-end">
+                          <button onClick={() => smsFileInputRef.current?.click()} title="Attach image or video"
+                            className="shrink-0 rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1.5 text-base hover:bg-[var(--app-bg)] transition">📎</button>
                           <textarea
                             className="crm-input flex-1 resize-none"
                             rows={2}
-                            placeholder="Type a reply..."
+                            placeholder={smsMediaFiles.length > 0 ? 'Add a caption...' : 'Type a reply...'}
                             value={smsReply}
                             onChange={e => setSmsReply(e.target.value)}
                             onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void sendSmsReply() }}
                           />
                           <button
                             onClick={() => void sendSmsReply()}
-                            disabled={smsReplyBusy || !smsReply.trim()}
+                            disabled={smsReplyBusy || (!smsReply.trim() && smsMediaFiles.length === 0)}
                             className="crm-button-dark self-end disabled:opacity-50"
                           >
                             {smsReplyBusy ? '...' : 'Send'}
                           </button>
                         </div>
-                        <p className="mt-1.5 text-xs text-[var(--app-muted)]">Cmd+Enter to send</p>
+                        <p className="mt-1.5 text-xs text-[var(--app-muted)]">Cmd+Enter to send · 📎 to attach image/video</p>
                       </div>
                     </div>
                   )
@@ -1309,6 +1736,12 @@ function SalesInboxPageInner() {
                           {selected.email && selected.phone && (selected.name || (selected.source !== 'twilio_call' && selected.source !== 'missed_call')) ? <span>•</span> : null}
                           {selected.phone && (selected.name || (selected.source !== 'twilio_call' && selected.source !== 'missed_call')) ? <span>{formatPhoneDisplay(selected.phone)}</span> : null}
                         </div>
+                        {!isInboundItemUnread(selected) && getInboundReadMeta(selected)?.lastReadAt ? (
+                          <div className="mt-1 text-xs text-[var(--app-muted)]">
+                            Read {timeAgo(getInboundReadMeta(selected)?.lastReadAt || '')}
+                            {getInboundReadMeta(selected)?.lastReadByName ? ` by ${getInboundReadMeta(selected)?.lastReadByName}` : ''}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                     <div className="flex flex-col items-start gap-2 md:items-end">
@@ -1318,28 +1751,44 @@ function SalesInboxPageInner() {
                             {restoreBusy ? 'Restoring...' : 'Restore'}
                           </button>
                         ) : selected.linkedLeadId ? (
-                          <button onClick={() => router.push(`/sales/leads/${selected.linkedLeadId}`)} className="crm-button">
-                            Open Lead
-                          </button>
+                          <>
+                            <button onClick={() => router.push(`/sales/leads/${selected.linkedLeadId}`)} className="crm-button">
+                              Open Lead
+                            </button>
+                            <button
+                              onClick={() => void markSelectedHandled()}
+                              disabled={handledBusy}
+                              className="crm-button"
+                            >
+                              {handledBusy ? 'Saving...' : 'Handled ✓'}
+                            </button>
+                          </>
                         ) : (
                           <>
                             <button
+                              onClick={() => void markSelectedHandled()}
+                              disabled={handledBusy || dispositionBusy !== null}
+                              className="crm-button"
+                            >
+                              {handledBusy ? 'Saving...' : 'Handled ✓'}
+                            </button>
+                            <button
                               onClick={() => void markSelectedDisposition('junk')}
-                              disabled={dispositionBusy !== null}
+                              disabled={dispositionBusy !== null || handledBusy}
                               className="crm-button"
                             >
                               {dispositionBusy === 'junk' ? 'Saving...' : 'Junk'}
                             </button>
                             <button
                               onClick={() => void markSelectedDisposition('not_interested')}
-                              disabled={dispositionBusy !== null}
+                              disabled={dispositionBusy !== null || handledBusy}
                               className="crm-button"
                             >
                               {dispositionBusy === 'not_interested' ? 'Saving...' : 'Not Interested'}
                             </button>
                             <button
                               onClick={() => void markSelectedDisposition('lost')}
-                              disabled={dispositionBusy !== null}
+                              disabled={dispositionBusy !== null || handledBusy}
                               className="crm-button"
                             >
                               {dispositionBusy === 'lost' ? 'Saving...' : 'Lost'}

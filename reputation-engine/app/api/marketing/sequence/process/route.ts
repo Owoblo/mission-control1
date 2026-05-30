@@ -5,6 +5,7 @@ import { Resend } from 'resend'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
+const STALE_JOB_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7
 
 const PARTNERSHIP_PHONE = '+12267746581'
 const PARTNERSHIP_EMAIL = 'eric@starmovers.ca'
@@ -135,12 +136,27 @@ export async function POST(request: Request) {
   for (const job of jobs) {
     const contact = contactMap.get(job.contact_id as string)
     const batch = batchMap.get(job.batch_id as string) ?? {}
+    const scheduledAt = typeof job.scheduled_at === 'string' ? job.scheduled_at : now
+    const scheduledTime = new Date(scheduledAt).getTime()
 
     // Cancel if contact responded (sequence paused)
     if (!contact || contact.sequence_paused) {
       await fetch(`${url}/rest/v1/sequence_jobs?id=eq.${job.id}`, {
         method: 'PATCH', headers,
         body: JSON.stringify({ status: 'cancelled' }),
+      })
+      skipped++
+      continue
+    }
+
+    if (Number.isFinite(scheduledTime) && Date.now() - scheduledTime > STALE_JOB_MAX_AGE_MS) {
+      await fetch(`${url}/rest/v1/sequence_jobs?id=eq.${job.id}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          status: 'cancelled',
+          error: `Skipped stale ${String(job.channel || 'sequence')} job after cron outage`,
+        }),
       })
       skipped++
       continue

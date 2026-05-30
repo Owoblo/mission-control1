@@ -122,7 +122,7 @@ const SOURCE_LABELS: Record<string, string> = {
   referral: 'Referral',
   google: 'Google',
   repeat: 'Repeat Customer',
-  destination_opportunity: 'Realtor Opportunity',
+  destination_opportunity: 'Listing Opportunity',
 }
 
 const PERSONA_PLAYBOOK: Record<string, string> = {

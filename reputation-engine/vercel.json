@@ -7,6 +7,10 @@
     {
       "path": "/api/marketing/sequence/process",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/sales/inbox/resend-poll",
+      "schedule": "*/2 * * * *"
     }
   ]
 }

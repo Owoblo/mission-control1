@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
+import { computeBranchCapacitySnapshot } from '@/lib/operations-capacity'
 import {
   computeCrewPayoutAmounts,
   countCompletedOpsChecklist,
@@ -56,6 +57,18 @@ interface CrewMember {
 type Job = {
   lead: CRMLead
   quote: CRMQuote | null
+}
+
+type OperationsConflict = {
+  date: string
+  branch: string
+  jobsBooked: number
+  crewUsed: number
+  crewCapacity: number
+  trucksUsed: number
+  truckCapacity: number
+  crewOverage: number
+  truckOverage: number
 }
 
 type OperationsRiskLevel = 'Low' | 'Medium' | 'High'
@@ -328,6 +341,7 @@ function sumCrewPayoutTotal(entries?: CrewPayoutEntry[]) {
 export default function OperationsPage() {
   const currentUser = useCurrentUser()
   const [jobs, setJobs] = useState<Job[]>([])
+  const [conflicts, setConflicts] = useState<OperationsConflict[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [completingId, setCompletingId] = useState<string | null>(null)
@@ -348,8 +362,9 @@ export default function OperationsPage() {
       const params = branch ? `?branch=${encodeURIComponent(branch)}` : ''
       const r = await fetch(`/api/sales/operations/jobs${params}`, { credentials: 'include' })
       if (!r.ok) throw new Error(await r.text())
-      const data = await r.json() as { jobs: Job[] }
+      const data = await r.json() as { jobs: Job[]; conflicts?: OperationsConflict[] }
       setJobs(data.jobs)
+      setConflicts(data.conflicts || [])
       setError(null)
     } catch (err) {
       setError((err as Error).message)
@@ -425,6 +440,26 @@ export default function OperationsPage() {
     const d = getJobMoveDate(j)
     return (!d || d < today) && !completedIds.has(j.lead.id)
   })
+  const scopedConflicts = useMemo(() => (
+    conflicts
+      .filter(conflict => !branchFilter || conflict.branch === branchFilter)
+      .filter(conflict => conflict.date >= today)
+  ), [branchFilter, conflicts, today])
+  const nearCapacityDays = useMemo(() => {
+    const days = new Set<string>()
+    for (const job of upcomingJobs) {
+      const moveDate = getJobMoveDate(job)
+      const branch = job.lead.branch
+      if (!moveDate || !branch) continue
+      const snapshot = computeBranchCapacitySnapshot(upcomingJobs, branch, moveDate)
+      if (snapshot.status === 'ready' && snapshot.risk === 'medium') {
+        days.add(`${branch}:${moveDate}`)
+      }
+    }
+    return Array.from(days)
+  }, [upcomingJobs])
+  const missingTruckCount = upcomingJobs.filter(job => requiresTruck(job) && !hasTruckAssigned(job)).length
+  const missingCrewCount = upcomingJobs.filter(job => !hasAssignedCrew(job)).length
 
   function toggleFilter(filter: OperationsFilterKey) {
     setActiveFilters(current =>
@@ -659,6 +694,45 @@ export default function OperationsPage() {
         </div>
       </div>
 
+      <div className="grid gap-4 md:grid-cols-4">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Red conflicts</div>
+          <div className={`mt-2 text-2xl font-bold ${scopedConflicts.length > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{scopedConflicts.length}</div>
+          <div className="mt-1 text-xs text-slate-500">Truck or crew over capacity in the next 30 days</div>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Near capacity</div>
+          <div className={`mt-2 text-2xl font-bold ${nearCapacityDays.length > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{nearCapacityDays.length}</div>
+          <div className="mt-1 text-xs text-slate-500">Dates that need a manager check before more bookings</div>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Missing trucks</div>
+          <div className={`mt-2 text-2xl font-bold ${missingTruckCount > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{missingTruckCount}</div>
+          <div className="mt-1 text-xs text-slate-500">Booked moves still waiting on a reservation</div>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Missing crew</div>
+          <div className={`mt-2 text-2xl font-bold ${missingCrewCount > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{missingCrewCount}</div>
+          <div className="mt-1 text-xs text-slate-500">Booked moves without an assigned team</div>
+        </div>
+      </div>
+
+      {scopedConflicts.length > 0 && (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 shadow-sm">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-rose-700">Manager alerts</div>
+          <div className="mt-3 grid gap-3 lg:grid-cols-2">
+            {scopedConflicts.slice(0, 6).map(conflict => (
+              <div key={`${conflict.branch}-${conflict.date}`} className="rounded-xl border border-rose-200 bg-white px-3 py-3 text-sm text-[#1a2744]">
+                <div className="font-semibold">{BRANCH_LABELS[conflict.branch] || conflict.branch} · {formatDate(conflict.date)}</div>
+                <div className="mt-1 text-xs text-slate-500">
+                  {conflict.jobsBooked} jobs · trucks {conflict.trucksUsed}/{conflict.truckCapacity} · crew {conflict.crewUsed}/{conflict.crewCapacity}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="rounded-xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div>
       )}
@@ -676,6 +750,7 @@ export default function OperationsPage() {
       ) : viewMode === 'calendar' ? (
         <JobsCalendar
           jobs={filteredJobs}
+          conflicts={scopedConflicts}
           crewPool={crewPool}
           calMonth={calMonth}
           onMonthChange={setCalMonth}
@@ -747,6 +822,7 @@ export default function OperationsPage() {
 
 function JobsCalendar({
   jobs,
+  conflicts,
   crewPool,
   calMonth,
   onMonthChange,
@@ -755,6 +831,7 @@ function JobsCalendar({
   canManageCrew,
 }: {
   jobs: Job[]
+  conflicts: OperationsConflict[]
   crewPool: CrewMember[]
   calMonth: string
   onMonthChange: (m: string) => void
@@ -836,6 +913,16 @@ function JobsCalendar({
     }
     return map
   }, [jobs])
+  const conflictsByDay = useMemo(() => {
+    const map = new Map<string, OperationsConflict[]>()
+    for (const conflict of conflicts) {
+      const key = conflict.date
+      const list = map.get(key) || []
+      list.push(conflict)
+      map.set(key, list)
+    }
+    return map
+  }, [conflicts])
 
   function prevMonth() {
     const d = new Date(year, month - 2, 1)
@@ -872,6 +959,13 @@ function JobsCalendar({
         <button onClick={nextMonth} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm hover:bg-slate-50 transition">Next →</button>
       </div>
 
+      <div className="flex flex-wrap gap-2 text-[11px] font-semibold">
+        <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">Green · ready</span>
+        <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-800">Yellow · missing truck / crew / confirmation</span>
+        <span className="rounded-full bg-rose-100 px-3 py-1 text-rose-700">Red · over branch capacity</span>
+        <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">Grey · past date</span>
+      </div>
+
       {/* Day headers */}
       <div className="grid grid-cols-7 gap-px rounded-t-xl overflow-hidden border border-slate-200">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
@@ -886,14 +980,43 @@ function JobsCalendar({
         {cells.map((cell, i) => {
           const dayJobs = cell.date ? (jobsByDate.get(cell.date) || []) : []
           const isToday = cell.date === today
+          const dayConflicts = cell.date ? (conflictsByDay.get(cell.date) || []) : []
+          const hasReadinessGap = dayJobs.some(job =>
+            !hasAssignedCrew(job) ||
+            (requiresTruck(job) && !hasTruckAssigned(job)) ||
+            !hasCustomerConfirmation(job)
+          )
+          const dayTone =
+            !cell.date ? 'bg-slate-50' :
+            cell.date < today ? 'bg-slate-100' :
+            dayConflicts.length > 0 ? 'bg-rose-50' :
+            hasReadinessGap ? 'bg-amber-50' :
+            dayJobs.length > 0 ? 'bg-emerald-50' :
+            'bg-white'
           return (
             <div
               key={i}
-              className={`min-h-[100px] p-1.5 ${cell.date ? 'bg-white' : 'bg-slate-50'} ${isToday ? 'ring-2 ring-inset ring-[#f5a623]' : ''}`}
+              className={`min-h-[112px] p-1.5 ${dayTone} ${isToday ? 'ring-2 ring-inset ring-[#f5a623]' : ''}`}
             >
               {cell.day !== null && (
-                <div className={`mb-1 flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${isToday ? 'bg-[#f5a623] text-white' : 'text-slate-400'}`}>
-                  {cell.day}
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <div className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${isToday ? 'bg-[#f5a623] text-white' : 'text-slate-500'}`}>
+                    {cell.day}
+                  </div>
+                  {dayJobs.length > 0 && (
+                    <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] ${
+                      dayConflicts.length > 0 ? 'bg-rose-100 text-rose-700' :
+                      hasReadinessGap ? 'bg-amber-100 text-amber-800' :
+                      'bg-emerald-100 text-emerald-700'
+                    }`}>
+                      {dayJobs.length} job{dayJobs.length === 1 ? '' : 's'}
+                    </span>
+                  )}
+                </div>
+              )}
+              {dayConflicts.length > 0 && (
+                <div className="mb-1 rounded bg-rose-100 px-1.5 py-1 text-[9px] font-semibold text-rose-700">
+                  Over capacity
                 </div>
               )}
               <div className="space-y-1">

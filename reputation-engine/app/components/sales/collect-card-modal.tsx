@@ -18,7 +18,13 @@ type Props = {
   lead: CRMLead
   quote: CRMQuote | null
   onClose: () => void
-  onSuccess: (result: { depositCharged: boolean; cardLast4: string; cardBrand: string; lead: CRMLead }) => void
+  onSuccess: (result: {
+    depositCharged: boolean
+    cardLast4: string
+    cardBrand: string
+    lead: CRMLead
+    quote?: CRMQuote | null
+  }) => void
 }
 
 const CARD_STYLE = {
@@ -53,7 +59,7 @@ function CardForm({ lead, quote, onClose, onSuccess }: Omit<Props, 'open'>) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ leadId: lead.id }),
+          body: JSON.stringify({ leadId: lead.id, quoteId: quote?.id }),
         })
         const data = await r.json() as { clientSecret?: string; setupIntentId?: string; customerId?: string; error?: string }
         if (!r.ok || !data.clientSecret) throw new Error(data.error || 'Could not init card collection')
@@ -97,7 +103,7 @@ function CardForm({ lead, quote, onClose, onSuccess }: Omit<Props, 'open'>) {
       })
       const result = await r.json() as {
         ok?: boolean; depositCharged?: boolean; cardBrand?: string
-        cardLast4?: string; lead?: CRMLead; error?: string
+        cardLast4?: string; lead?: CRMLead; quote?: CRMQuote | null; error?: string
       }
       if (!r.ok || !result.ok) throw new Error(result.error || 'Save failed')
 
@@ -106,6 +112,7 @@ function CardForm({ lead, quote, onClose, onSuccess }: Omit<Props, 'open'>) {
         cardLast4: result.cardLast4 || '????',
         cardBrand: result.cardBrand || 'card',
         lead: result.lead!,
+        quote: result.quote,
       })
     } catch (err) {
       setCardError(err instanceof Error ? err.message : 'Something went wrong')
@@ -251,11 +258,11 @@ export function CollectCardModal({ open, lead, quote, onClose, onSuccess }: Prop
           <div className="absolute inset-x-0 bottom-0 h-[2px] bg-[#f5a623]" />
           <div className="flex items-start justify-between">
             <div>
-              <h2 className="text-base font-bold text-white tracking-tight">Collect Card Details</h2>
+              <h2 className="text-base font-bold text-white tracking-tight">Take Card By Phone</h2>
               <p className="mt-0.5 text-xs text-slate-300">
                 {quote
-                  ? `${formatMoney(quote.deposit)} deposit · card saved for balance`
-                  : 'Save card on file for future charges'}
+                  ? `${formatMoney(quote.deposit)} deposit · Stripe-secure card entry`
+                  : 'Save a customer card on file with Stripe-secure entry'}
               </p>
             </div>
             <button

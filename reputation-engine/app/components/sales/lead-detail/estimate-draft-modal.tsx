@@ -11,6 +11,7 @@ import { INVENTORY_PRESETS } from '@/lib/item-presets'
 import { getDisassemblyServiceLabel, getIncludedDisassemblyItems } from '@/lib/move-scope'
 import { formatMovePolicyCategoryLabel, getMovePolicyFinding, summarizeMovePolicy } from '@/lib/move-policy'
 import { getTvBoxMaterialPresetForSize } from '@/lib/packing-materials'
+import { buildStarterInventoryPlan } from '@/lib/starter-inventory'
 import { DEFAULT_ROOM_OPTIONS } from './helpers'
 import type { EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, PricingBreakdown, QuoteLineItem, QuoteLeg, QuoteLegType } from '@/lib/types'
 
@@ -157,23 +158,54 @@ function prependUniqueLine(existing: string, nextLine: string) {
   return `${trimmedLine}\n${normalizedExisting}`
 }
 
+function getInventoryDisplayLabel(item: InventoryItem) {
+  const explicit = [item.name, item.item]
+    .map(value => (value || '').trim())
+    .find(Boolean)
+  if (explicit) return explicit
+
+  const sizeFallback = (item.size || '').trim()
+  if (sizeFallback) return sizeFallback
+
+  const noteFallback = (item.notes || '').trim()
+  if (noteFallback) {
+    const firstSentence = noteFallback.split(/[\n.;]/).map(part => part.trim()).find(Boolean)
+    if (firstSentence) return firstSentence
+  }
+
+  return 'Item'
+}
+
 function buildInventorySnapshotCopyText(groupedInventory: GroupedInventory) {
   return groupedInventory
     .map(([room, items]) => {
+      const roomItemCount = items.reduce((sum, { item }) => sum + Math.max(1, Number(item.qty || 1)), 0)
+      const roomCuFt = Math.round(items.reduce((sum, { item }) => {
+        const policyFinding = getMovePolicyFinding(item)
+        if (item.included === false || policyFinding?.forceExclude) return sum
+        return sum + (item.cubicFeet || 0) * Math.max(1, Number(item.qty || 1))
+      }, 0))
       const lines = items.map(({ item }) => {
         const qty = Math.max(1, Number(item.qty || 1))
-        const label = item.name || item.item || 'Unnamed item'
+        const label = getInventoryDisplayLabel(item)
         const policyFinding = getMovePolicyFinding(item)
-        const parts = [`- ${qty} x ${label}`]
-        if (item.size?.trim()) parts.push(`(${item.size.trim()})`)
-        if (item.notes?.trim()) parts.push(`- ${item.notes.trim()}`)
+        const hasExplicitLabel = [item.name, item.item].some(value => (value || '').trim().length > 0)
+        const sizeText = (item.size || '').trim()
+        const notesText = (item.notes || '').trim()
+        const parts = [`• ${qty} x ${label}`]
+        if (sizeText && (hasExplicitLabel || sizeText !== label)) parts.push(`— ${sizeText}`)
+        if (notesText && notesText !== label) parts.push(`— ${notesText}`)
         if (item.included === false) parts.push('[stays behind]')
         if (item.included !== false && policyFinding) {
           parts.push(`[${formatMovePolicyCategoryLabel(policyFinding.category)}: ${policyFinding.itemLabel}]`)
         }
         return parts.join(' ')
       })
-      return [room, ...lines].join('\n')
+      return [
+        room,
+        `${roomItemCount} item${roomItemCount === 1 ? '' : 's'} · ${roomCuFt} cu ft`,
+        ...lines,
+      ].join('\n')
     })
     .join('\n\n')
 }
@@ -203,6 +235,8 @@ type Props = {
   lead: CRMLead
   inventory: InventoryItem[]
   branch?: CRMLead['branch']
+  propertyBedrooms?: CRMLead['propertyBedrooms']
+  propertyType?: CRMLead['propertyType']
   originAddress: string
   originCity: string
   originAccess: string
@@ -262,6 +296,7 @@ type Props = {
   onBranchChange?: (value: NonNullable<CRMLead['branch']>) => void
   onJobFactorsChange: (factors: JobFactors) => void
   onAddInventoryItems: (items: InventoryItem[]) => void
+  onApplyStarterInventory?: () => number
   onUpdateInventoryItem: (index: number, field: keyof InventoryItem, value: string) => void
   onToggleInventoryItem: (index: number) => void
   onRemoveInventoryItem: (index: number) => void
@@ -314,6 +349,8 @@ export function EstimateDraftModal({
   lead,
   inventory,
   branch,
+  propertyBedrooms,
+  propertyType,
   originAddress,
   originCity,
   originAccess,
@@ -357,6 +394,7 @@ export function EstimateDraftModal({
   onBranchChange,
   onJobFactorsChange,
   onAddInventoryItems,
+  onApplyStarterInventory,
   onUpdateInventoryItem,
   onToggleInventoryItem,
   onRemoveInventoryItem,
@@ -381,6 +419,7 @@ export function EstimateDraftModal({
   const [excludedDisassemblyItems, setExcludedDisassemblyItems] = useState<Set<string>>(new Set())
   const [overrideInput, setOverrideInput] = useState('')
   const [overrideReason, setOverrideReason] = useState('relationship')
+  const [uhaulInputPerTruck, setUhaulInputPerTruck] = useState('')
   const [, startTransition] = useTransition()
   const [marginGateAck, setMarginGateAck] = useState(false)
   const [overrideApplied, setOverrideApplied] = useState(false)
@@ -399,6 +438,9 @@ export function EstimateDraftModal({
   const [intakeResult, setIntakeResult] = useState<import('@/app/api/sales/smart-intake/route').SmartIntakeResult | null>(null)
   const [intakeApplied, setIntakeApplied] = useState(false)
   const [legsEnabled, setLegsEnabled] = useState(() => (legsProp?.length ?? 0) > 0)
+  const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null)
+  const [dragOverRoom, setDragOverRoom] = useState<string | null>(null)
+  const [touchMoveItemIndex, setTouchMoveItemIndex] = useState<number | null>(null)
   const [legs, setLegs] = useState<QuoteLeg[]>(() => legsProp?.length ? legsProp : [])
   const [legRoutes, setLegRoutes] = useState<Record<string, { distanceKm: number; driveHours: number } | null>>({})
   const legRouteFetchRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
@@ -641,10 +683,14 @@ export function EstimateDraftModal({
     if (!q) return []
     return INVENTORY_PRESETS.filter(p =>
       p.label.toLowerCase().includes(q) ||
-      (p.item.name || '').toLowerCase().includes(q) ||
-      (p.room || '').toLowerCase().includes(q)
+      getInventoryDisplayLabel(p.item).toLowerCase().includes(q) ||
+        (p.room || '').toLowerCase().includes(q)
     ).slice(0, 12)
   }, [presetSearch])
+  const starterPlan = useMemo(
+    () => buildStarterInventoryPlan({ bedrooms: propertyBedrooms, propertyType }),
+    [propertyBedrooms, propertyType]
+  )
 
   // Auto-calculate route when both origin and destination are present
   // Don't double-append city if it's already in the address (Google Places includes city in the label)
@@ -684,6 +730,21 @@ export function EstimateDraftModal({
     () => Math.round(Math.max(0, baseQuoteSubtotal) * 0.1 * 100) / 100,
     [baseQuoteSubtotal]
   )
+
+  // When modal opens, detect if an override was previously applied (e.g. from a saved quote)
+  // and restore the override state so the rep sees it as active — not the default calculated price
+  useEffect(() => {
+    if (!open) return
+    const overrideItem = quoteLineItems.find(li => li.description === 'Moving Services — Agreed Rate')
+    if (overrideItem && overrideItem.amount > 0) {
+      setOverrideApplied(true)
+      setOverrideInput(String(overrideItem.amount))
+    } else if (!overrideItem) {
+      // No override present — reset so a fresh override can be applied
+      setOverrideApplied(false)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -858,14 +919,14 @@ export function EstimateDraftModal({
     return effectiveInventoryMetrics.inventory
       .filter(item => item.included !== false)
       .filter(item => {
-        const lower = (item.name || item.item || '').toLowerCase()
+        const lower = getInventoryDisplayLabel(item).toLowerCase()
         return lower.includes('tv') && !lower.includes('tv box')
       })
       .map((item, index) => ({
-        key: item.id || `${item.name || item.item || 'tv'}-${index}`,
-        itemLabel: item.name || item.item || `TV ${index + 1}`,
+        key: item.id || `${getInventoryDisplayLabel(item) || 'tv'}-${index}`,
+        itemLabel: getInventoryDisplayLabel(item) || `TV ${index + 1}`,
         sizeLabel: item.size?.trim() || 'Avg 55"',
-        recommendedMaterial: getTvBoxMaterialPresetForSize(item.size || item.name || item.notes),
+        recommendedMaterial: getTvBoxMaterialPresetForSize(item.size || getInventoryDisplayLabel(item) || item.notes),
       }))
   }, [effectiveInventoryMetrics.inventory])
 
@@ -1091,11 +1152,9 @@ export function EstimateDraftModal({
   }, [liveMarginSummary, quoteModalTotals.subtotal, tenPctActive, tenPctDiscountAmount])
   const overrideProjectedMargin = useMemo(() => {
     if (!liveMarginSummary) return null
-    const overrideTotal = Math.round(Number(overrideInput || 0) * 100) / 100
-    if (overrideTotal <= 0) return null
-    const projectedRevenue = Math.round((overrideTotal / 1.13) * 100) / 100
-    if (projectedRevenue <= 0) return 0
-    return Math.round(((projectedRevenue - liveMarginSummary.totalCost) / projectedRevenue) * 1000) / 10
+    const overrideAmount = Math.round(Number(overrideInput || 0) * 100) / 100
+    if (overrideAmount <= 0) return null
+    return Math.round(((overrideAmount - liveMarginSummary.totalCost) / overrideAmount) * 1000) / 10
   }, [liveMarginSummary, overrideInput])
 
   // Reset margin gate acknowledgement whenever the quote pricing changes
@@ -1115,7 +1174,7 @@ export function EstimateDraftModal({
   const boxesAsked = Boolean(
     Number(jobFactors.estimatedBoxes || 0) > 0 ||
     packingMaterialsEstimate?.plannedBoxes ||
-    effectiveInventoryMetrics.inventory.some(item => (item.name || item.item || '').toLowerCase().includes('box'))
+    effectiveInventoryMetrics.inventory.some(item => getInventoryDisplayLabel(item).toLowerCase().includes('box'))
   )
   const quoteExplanation = useMemo(() => {
     if (!pricingBreakdown || quoteModalTotals.total <= 0) {
@@ -1183,20 +1242,16 @@ export function EstimateDraftModal({
   )
   // Discounts available any time — rep decides when to apply them
   const bookTodayGate = useMemo(() => {
-    const reasons: string[] = []
-    if (lead.paymentStatus === 'deposit_received' || lead.paymentStatus === 'paid_in_full' || quote?.depositPaidAt) reasons.push('deposit is already paid')
     const approvalRequired = bookTodayProjectedMargin !== null && bookTodayProjectedMargin < 55
-    return { eligible: reasons.length === 0, reasons, approvalRequired }
-  }, [bookTodayProjectedMargin, lead.paymentStatus, quote?.depositPaidAt])
+    return { eligible: true, reasons: [] as string[], approvalRequired }
+  }, [bookTodayProjectedMargin])
   const tenPctGate = useMemo(() => {
-    const reasons: string[] = []
-    if (lead.paymentStatus === 'deposit_received' || lead.paymentStatus === 'paid_in_full' || quote?.depositPaidAt) reasons.push('deposit is already paid')
     return {
-      eligible: reasons.length === 0,
-      reasons,
+      eligible: true,
+      reasons: [] as string[],
       approvalRequired: tenPctProjectedMargin !== null && tenPctProjectedMargin < 55,
     }
-  }, [lead.paymentStatus, quote?.depositPaidAt, tenPctProjectedMargin])
+  }, [tenPctProjectedMargin])
 
   useEffect(() => {
     if (!open) return
@@ -2149,6 +2204,16 @@ export function EstimateDraftModal({
                     Listing description: {listingDescription.length > 220 ? `${listingDescription.slice(0, 217)}...` : listingDescription}
                   </div>
                 ) : null}
+                {/* Beds / baths from MLS — shown inline with inventory for context */}
+                {(lead.supabaseListing?.beds || lead.supabaseListing?.baths || lead.supabaseListing?.bathrooms) ? (
+                  <div className="mt-3 flex items-center gap-3 rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2 text-xs text-[var(--app-muted)]">
+                    <span className="font-semibold text-[var(--app-ink)]">MLS property</span>
+                    {lead.supabaseListing?.beds ? <span>🛏 <strong>{lead.supabaseListing.beds}</strong> bed{Number(lead.supabaseListing.beds) !== 1 ? 's' : ''}</span> : null}
+                    {(lead.supabaseListing?.baths || lead.supabaseListing?.bathrooms) ? <span>🚿 <strong>{lead.supabaseListing?.baths || lead.supabaseListing?.bathrooms}</strong> bath{Number(lead.supabaseListing?.baths || lead.supabaseListing?.bathrooms) !== 1 ? 's' : ''}</span> : null}
+                    <span className="ml-auto text-[10px]">Use this to verify the bedroom count below matches</span>
+                  </div>
+                ) : null}
+
                 <div className="mt-4 space-y-2">
                   {groupedInventory.length === 0 && (
                     <div className="rounded-[6px] border border-dashed border-[var(--app-line)] px-3 py-3 text-xs text-[var(--app-muted)]">
@@ -2161,10 +2226,28 @@ export function EstimateDraftModal({
                       if (el.item.included === false || policyFinding?.forceExclude) return sum
                       return sum + (el.item.cubicFeet || 0) * (el.item.qty || 1)
                     }, 0).toFixed(0)
+                    const isDropTarget = dragOverRoom === room && draggedItemIndex !== null
                     return (
-                      <details key={room} className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-panel)]">
+                      <details
+                        key={room}
+                        open
+                        className={`rounded-[6px] border bg-[var(--app-panel)] transition-colors ${isDropTarget ? 'border-blue-400 bg-blue-50' : 'border-[var(--app-line)]'}`}
+                        onDragOver={e => { e.preventDefault(); setDragOverRoom(room) }}
+                        onDragLeave={() => setDragOverRoom(null)}
+                        onDrop={e => {
+                          e.preventDefault()
+                          setDragOverRoom(null)
+                          if (draggedItemIndex !== null) {
+                            onUpdateInventoryItem(draggedItemIndex, 'room', room)
+                            setDraggedItemIndex(null)
+                          }
+                        }}
+                      >
                         <summary className="flex cursor-pointer items-center justify-between px-3 py-2" style={{ listStyle: 'none' }}>
-                          <div className="text-sm font-medium text-[var(--app-ink)]">{room}</div>
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm font-medium text-[var(--app-ink)]">{room}</div>
+                            {isDropTarget && <span className="text-[10px] font-semibold text-blue-600">Drop here</span>}
+                          </div>
                           <div className="text-xs text-[var(--app-muted)]">{items.length} items · {roomCuFt} cu ft</div>
                         </summary>
                         <div className="border-t border-[var(--app-line)] px-3 py-2 space-y-1">
@@ -2174,27 +2257,39 @@ export function EstimateDraftModal({
                               el.item.included === false ||
                               (!!policyFinding?.forceExclude && el.item.policyOverride !== 'include')
                             return (
-                            <div key={el.index} className={`rounded-[6px] border px-2 py-2 text-xs ${forceExcluded ? 'border-slate-200 bg-slate-50 text-slate-400' : 'border-transparent bg-white text-[var(--app-muted)]'}`}>
+                            <div
+                              key={el.index}
+                              draggable
+                              onDragStart={() => setDraggedItemIndex(el.index)}
+                              onDragEnd={() => { setDraggedItemIndex(null); setDragOverRoom(null) }}
+                              className={`rounded-[6px] border px-2 py-2 text-xs cursor-grab active:cursor-grabbing transition-opacity ${draggedItemIndex === el.index ? 'opacity-40' : ''} ${forceExcluded ? 'border-slate-200 bg-slate-50 text-slate-400' : 'border-transparent bg-white text-[var(--app-muted)]'}`}
+                            >
                               <div className="flex items-center justify-between gap-2">
-                                <div className="min-w-0">
-                                  <span className={`font-medium ${forceExcluded ? 'text-slate-500 line-through' : 'text-[var(--app-ink)]'}`}>{el.item.name || el.item.item}</span>
-                                  {policyFinding ? (
-                                    <div className="mt-1">
-                                      <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                                        policyFinding.category === 'default_exclude'
-                                          ? 'bg-slate-100 text-slate-700'
-                                          : policyFinding.category === 'blocked'
-                                          ? 'bg-rose-100 text-rose-700'
-                                          : policyFinding.category === 'hazardous'
-                                            ? 'bg-amber-100 text-amber-800'
-                                            : policyFinding.category === 'manual_review'
-                                              ? 'bg-slate-200 text-slate-700'
-                                              : 'bg-sky-100 text-sky-700'
-                                      }`}>
-                                        {formatMovePolicyCategoryLabel(policyFinding.category)}
-                                      </span>
-                                    </div>
-                                  ) : null}
+                                <div className="min-w-0 flex items-start gap-1.5">
+                                  <span className="mt-0.5 shrink-0 text-sm" title="Item type">
+                                    {el.item.icon || '📦'}
+                                  </span>
+                                  <span className="mt-0.5 shrink-0 text-[var(--app-muted)] text-[10px] select-none" title="Drag to move to another room">⠿</span>
+                                  <div className="min-w-0">
+                                    <span className={`font-medium ${forceExcluded ? 'text-slate-500 line-through' : 'text-[var(--app-ink)]'}`}>{getInventoryDisplayLabel(el.item)}</span>
+                                    {policyFinding ? (
+                                      <div className="mt-1">
+                                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                          policyFinding.category === 'default_exclude'
+                                            ? 'bg-slate-100 text-slate-700'
+                                            : policyFinding.category === 'blocked'
+                                            ? 'bg-rose-100 text-rose-700'
+                                            : policyFinding.category === 'hazardous'
+                                              ? 'bg-amber-100 text-amber-800'
+                                              : policyFinding.category === 'manual_review'
+                                                ? 'bg-slate-200 text-slate-700'
+                                                : 'bg-sky-100 text-sky-700'
+                                        }`}>
+                                          {formatMovePolicyCategoryLabel(policyFinding.category)}
+                                        </span>
+                                      </div>
+                                    ) : null}
+                                  </div>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
                                   <input
@@ -2221,7 +2316,7 @@ export function EstimateDraftModal({
                                   placeholder="Notes / scope details"
                                 />
                               </div>
-                              <div className="mt-2 flex flex-wrap gap-2">
+                              <div className="mt-2 flex flex-wrap items-center gap-2">
                                 <button
                                   type="button"
                                   disabled={policyFinding?.category === 'blocked' || policyFinding?.category === 'hazardous' || policyFinding?.category === 'manual_review'}
@@ -2236,14 +2331,57 @@ export function EstimateDraftModal({
                                 </button>
                                 <button
                                   type="button"
+                                  onClick={() => setTouchMoveItemIndex(current => current === el.index ? null : el.index)}
+                                  className="rounded-[6px] border border-[var(--app-line)] bg-white px-2.5 py-1 text-[10px] font-semibold text-[var(--app-ink)]"
+                                >
+                                  {touchMoveItemIndex === el.index ? 'Done moving' : 'Move to room'}
+                                </button>
+                                <button
+                                  type="button"
                                   onClick={() => onRemoveInventoryItem(el.index)}
                                   className="rounded-[6px] bg-rose-50 px-2.5 py-1 text-[10px] font-semibold text-rose-700"
                                 >
                                   Remove
                                 </button>
+                                <div className="flex items-center gap-1 ml-auto">
+                                  <span className="text-[10px] text-[var(--app-muted)]">Room:</span>
+                                  <select
+                                    value={el.item.room || 'Other'}
+                                    onChange={e => onUpdateInventoryItem(el.index, 'room', e.target.value)}
+                                    className="crm-input h-7 py-0 text-[10px] pr-6"
+                                  >
+                                    {DEFAULT_ROOM_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                                  </select>
+                                </div>
                               </div>
                               {(el.item.exclusionReason || policyFinding?.customerNote) ? (
                                 <div className="mt-1 text-[10px] text-slate-500">{el.item.exclusionReason || policyFinding?.customerNote}</div>
+                              ) : null}
+                              {touchMoveItemIndex === el.index ? (
+                                <div className="mt-2 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-2">
+                                  <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
+                                    Tap a room
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                                    {DEFAULT_ROOM_OPTIONS.map(roomOption => (
+                                      <button
+                                        key={`${el.index}-${roomOption}`}
+                                        type="button"
+                                        onClick={() => {
+                                          onUpdateInventoryItem(el.index, 'room', roomOption)
+                                          setTouchMoveItemIndex(null)
+                                        }}
+                                        className={`rounded-[6px] border px-2 py-1.5 text-left text-[10px] font-medium transition ${
+                                          (el.item.room || 'Other') === roomOption
+                                            ? 'border-[var(--app-accent)] bg-white text-[var(--app-ink)]'
+                                            : 'border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:border-[var(--app-ink)]'
+                                        }`}
+                                      >
+                                        {roomOption}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
                               ) : null}
                             </div>
                           )})}
@@ -2251,6 +2389,61 @@ export function EstimateDraftModal({
                       </details>
                     )
                   })}
+                  {/* Missing area prompts — Garage and Basement if not detected */}
+                  {(['Garage', 'Basement'].filter(area => !groupedInventory.find(([room]) => room === area))).map(area => (
+                    <div key={area} className="rounded-[6px] border border-dashed border-amber-200 bg-amber-50 px-3 py-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <div className="text-xs font-semibold text-amber-800">{area === 'Garage' ? '🚗' : '🏠'} {area} — not detected in photos</div>
+                          <div className="mt-0.5 text-[10px] text-amber-700">If there are items here, add them manually before sending the quote.</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => onAddInventoryItems([{ id: `${area.toLowerCase()}-placeholder-${Date.now()}`, name: `${area} items`, item: `${area} items`, room: area, qty: 1, cubicFeet: 0, weightLbs: 0, included: true }])}
+                          className="shrink-0 rounded-[6px] bg-amber-100 px-2.5 py-1 text-[10px] font-semibold text-amber-800 hover:bg-amber-200"
+                        >
+                          + Add {area}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="rounded-[10px] border border-[var(--app-line)] bg-white p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Starter Inventory</div>
+                        {starterPlan ? (
+                          <>
+                            <div className="mt-1 text-sm font-semibold text-[var(--app-ink)]">{starterPlan.title}</div>
+                            <div className="mt-1 text-[11px] text-[var(--app-muted)]">{starterPlan.summary}</div>
+                          </>
+                        ) : (
+                          <div className="mt-1 text-[11px] text-[var(--app-muted)]">
+                            Pick the home size and property type in Lead Basics to generate a starting inventory list.
+                          </div>
+                        )}
+                      </div>
+                      {starterPlan && onApplyStarterInventory ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const addedCount = onApplyStarterInventory()
+                            if (addedCount > 0) onRecalculate()
+                          }}
+                          className="crm-button text-xs px-3 py-1.5"
+                        >
+                          Add starter list
+                        </button>
+                      ) : null}
+                    </div>
+                    {starterPlan?.warnings.length ? (
+                      <div className="mt-3 space-y-1 rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+                        {starterPlan.warnings.map(warning => (
+                          <div key={warning}>{warning}</div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
                   {/* Preset search */}
                   <div className="pt-2">
                     <div className="relative">
@@ -3722,13 +3915,126 @@ export function EstimateDraftModal({
                   </div>
                 </div>
               </div>
+              {/* Long-Distance Pricing Calculator */}
+              {(route?.category === 'long-distance' || quoteType === 'long_distance') && (() => {
+                const uhaulPerTruck = Math.round(Number(uhaulInputPerTruck || 0) * 100) / 100
+                const ldTruckCount = pricingBreakdown?.truckCount || 1
+                const ldTruckOperational = Math.round(uhaulPerTruck * 1.5 * 100) / 100
+                const ldLaborCost = ldTruckCount >= 2 ? 3000 : 2000
+                const ldTotalCost = uhaulPerTruck > 0 ? Math.round((ldTruckOperational * ldTruckCount + ldLaborCost) * 100) / 100 : 0
+                const ldFloor = ldTotalCost > 0 ? Math.round(ldTotalCost / 0.60 * 100) / 100 : 0
+                const ldTarget = ldTotalCost > 0 ? Math.round(ldTotalCost / 0.50 * 100) / 100 : 0
+                const ldCeiling = ldTotalCost > 0 ? Math.round(ldTotalCost / 0.44 * 100) / 100 : 0
+                const originCityForUrl = originCity || originAddress || ''
+                const destCityForUrl = destCity || destAddress || ''
+                const uhaulUrl = originCityForUrl && destCityForUrl
+                  ? `https://www.uhaul.com/Truck-Rentals/?go=movingequipment&size=26ft&OneWay=true`
+                  : 'https://www.uhaul.com/Truck-Rentals/One-Way-Truck-Rentals.aspx'
+                return (
+                  <div className="mt-4 rounded-[10px] border border-blue-200 bg-blue-50 p-3 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <div className="text-xs font-semibold text-blue-900">Long-Distance Pricing</div>
+                        <div className="text-[10px] text-blue-700 mt-0.5">
+                          {route?.distanceKm ? `${route.distanceKm} km · ` : ''}{ldTruckCount} truck{ldTruckCount === 1 ? '' : 's'} detected — U-Haul one-way
+                        </div>
+                      </div>
+                      <a
+                        href={uhaulUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0 rounded-[6px] bg-blue-700 px-2.5 py-1.5 text-[10px] font-semibold text-white hover:bg-blue-800 transition"
+                      >
+                        Check U-Haul →
+                      </a>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="text-[10px] font-semibold text-blue-800 uppercase tracking-wide">U-Haul quote (per truck)</div>
+                      <div className="relative">
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--app-muted)]">$</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={50}
+                          value={uhaulInputPerTruck}
+                          onChange={e => setUhaulInputPerTruck(e.target.value)}
+                          placeholder="e.g. 2000"
+                          className="crm-input pl-5 w-full text-sm font-semibold"
+                        />
+                      </div>
+                      {ldTruckCount >= 2 && uhaulPerTruck > 0 && (
+                        <div className="text-[10px] text-blue-700">{ldTruckCount} trucks × {formatMoney(uhaulPerTruck)} = {formatMoney(uhaulPerTruck * ldTruckCount)} total U-Haul</div>
+                      )}
+                    </div>
+
+                    {uhaulPerTruck > 0 && ldTotalCost > 0 && (
+                      <div className="rounded-[8px] bg-white border border-blue-200 p-2.5 space-y-1.5 text-[10px]">
+                        <div className="flex justify-between text-blue-800">
+                          <span>Truck cost × 1.5 (gas + insurance)</span>
+                          <span className="font-semibold">{formatMoney(ldTruckOperational * ldTruckCount)}</span>
+                        </div>
+                        <div className="flex justify-between text-blue-800">
+                          <span>Labor (load + unload, baked in)</span>
+                          <span className="font-semibold">{formatMoney(ldLaborCost)}</span>
+                        </div>
+                        <div className="flex justify-between text-blue-900 font-semibold border-t border-blue-100 pt-1.5">
+                          <span>Our total cost</span>
+                          <span>{formatMoney(ldTotalCost)}</span>
+                        </div>
+                        <div className="border-t border-blue-100 pt-1.5 space-y-1">
+                          <div className="flex justify-between text-blue-700">
+                            <span>Floor — 40% margin</span>
+                            <span className="font-semibold">{formatMoney(ldFloor)}</span>
+                          </div>
+                          <div className="flex justify-between text-blue-900 font-bold">
+                            <span>Target — 50% margin</span>
+                            <span>{formatMoney(ldTarget)}</span>
+                          </div>
+                          <div className="flex justify-between text-blue-700">
+                            <span>Ceiling — 56% margin</span>
+                            <span className="font-semibold">{formatMoney(ldCeiling)}</span>
+                          </div>
+                          <div className="text-blue-600 text-[9px] pt-0.5">All pre-tax · customer pays +HST on top</div>
+                        </div>
+                      </div>
+                    )}
+
+                    {uhaulPerTruck > 0 && ldTarget > 0 && (
+                      <div className="space-y-1.5">
+                        <div className="text-[10px] text-blue-700 font-medium">
+                          Range: {formatMoney(ldFloor)} – {formatMoney(ldCeiling)} · Sweet spot: {formatMoney(ldTarget)} + HST = {formatMoney(Math.round(ldTarget * 1.13 * 100) / 100)}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onSetLineItems([{
+                              description: 'Long-Distance Moving Service — All Inclusive',
+                              details: `U-Haul one-way · ${ldTruckCount} truck${ldTruckCount === 1 ? '' : 's'} · packing, loading, transport, unloading`,
+                              amount: ldTarget,
+                            }])
+                            setOverrideInput(String(ldTarget))
+                            setOverrideApplied(true)
+                            setBookTodayActive(false)
+                            setTenPctActive(false)
+                          }}
+                          className="w-full rounded-[6px] bg-blue-700 px-3 py-2 text-[11px] font-semibold text-white hover:bg-blue-800 transition"
+                        >
+                          Lock in flat rate — {formatMoney(ldTarget)} + HST
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+
               {/* Discounts & Deals */}
               <div className="mt-4 space-y-2">
 
                 {/* Price Override */}
                 {overrideApplied && (
                   <div className="rounded-[8px] border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 flex items-center justify-between gap-2">
-                    <span>⚠ Override active — customer pays {formatMoney(Number(overrideInput) || 0)} total incl. HST</span>
+                    <span>⚠ Override active — {formatMoney(Number(overrideInput) || 0)} + HST = {formatMoney(Math.round(Number(overrideInput) * 1.13 * 100) / 100)} total</span>
                     <button
                       type="button"
                       onClick={() => {
@@ -3745,7 +4051,7 @@ export function EstimateDraftModal({
                 <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3 space-y-2">
                   <div className="text-xs font-semibold text-[var(--app-ink)]">Price Override</div>
                   <div className="text-[10px] leading-4 text-[var(--app-muted)]">
-                    Enter the <span className="font-semibold text-[var(--app-ink)]">total the customer pays</span> (incl. HST). Type $6,000 → customer sees $6,000. Override reason, user, timestamp, and price change will land in the audit trail.
+                    Enter the <span className="font-semibold text-[var(--app-ink)]">pre-tax base price</span>. HST (13%) is added on top — type $8,000 → customer pays $9,040. Override reason, user, and timestamp land in the audit trail.
                   </div>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
@@ -3777,7 +4083,7 @@ export function EstimateDraftModal({
                   </div>
                   {overrideInput && Number(overrideInput) > 0 && (
                     <div className="text-[10px] text-[var(--app-muted)]">
-                      Subtotal: {formatMoney(Math.round(Number(overrideInput) / 1.13 * 100) / 100)} + HST = <span className="font-semibold text-[var(--app-ink)]">{formatMoney(Number(overrideInput))}</span>
+                      {formatMoney(Number(overrideInput))} + HST (13%) = <span className="font-semibold text-[var(--app-ink)]">{formatMoney(Math.round(Number(overrideInput) * 1.13 * 100) / 100)}</span> total
                     </div>
                   )}
                   {overrideProjectedMargin !== null && (
@@ -3790,9 +4096,8 @@ export function EstimateDraftModal({
                     type="button"
                     disabled={!overrideInput || Number(overrideInput) <= 0 || (overrideProjectedMargin !== null && overrideProjectedMargin < 55 && !canApproveMarginException)}
                     onClick={() => {
-                      const total = Math.round(Number(overrideInput) * 100) / 100
-                      if (total <= 0) return
-                      const amount = Math.round(total / 1.13 * 100) / 100
+                      const amount = Math.round(Number(overrideInput) * 100) / 100
+                      if (amount <= 0) return
                       const reasonLabels: Record<string, string> = {
                         price_match: 'Price match',
                         relationship: 'Relationship pricing',

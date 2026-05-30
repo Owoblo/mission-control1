@@ -23,11 +23,15 @@ function buildRoomBreakdown(items: InventoryItem[]) {
 }
 
 function inferMediaKind(file: File) {
-  return file.type.startsWith('video/') ? 'video' : 'image'
+  if (file.type.startsWith('video/')) return 'video'
+  if (file.type.startsWith('image/')) return 'image'
+  return 'document'
 }
 
 function inferMediaKindFromMimeType(mimeType?: string) {
-  return mimeType?.startsWith('video/') ? 'video' : 'image'
+  if (mimeType?.startsWith('video/')) return 'video'
+  if (mimeType?.startsWith('image/')) return 'image'
+  return 'document'
 }
 
 function extensionFromMimeType(mimeType?: string) {
@@ -73,6 +77,7 @@ export async function uploadLeadMediaAssets(input: {
   files: File[]
   room?: string
   source: LeadMediaAsset['source']
+  category?: LeadMediaAsset['category']
   uploadedByUserId?: string
   uploadedByName?: string
   notes?: string
@@ -87,6 +92,7 @@ export async function uploadLeadMediaAssets(input: {
       url,
       kind: inferMediaKind(file),
       source: input.source,
+      category: input.category,
       room: input.room || undefined,
       filename: file.name || undefined,
       mimeType: file.type || undefined,

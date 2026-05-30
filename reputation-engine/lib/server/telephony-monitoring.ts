@@ -1,6 +1,6 @@
-import { dateStamp, uid } from '@/lib/sales'
-import type { DialerEventPayload, DialerPresencePayload } from '@/lib/dialer'
-import { requireSupabaseEnv } from '@/lib/server/runtime'
+import { dateStamp, uid } from '../sales'
+import type { DialerEventPayload, DialerPresencePayload } from '../dialer'
+import { requireSupabaseEnv } from './runtime'
 
 const DIALER_EVENT_TYPE = 'telephony_dialer_event'
 const DIALER_PRESENCE_TYPE = 'telephony_presence'
@@ -51,6 +51,60 @@ export interface TelephonyDashboardMetrics {
   mobileCallsToday: number
   callsWithNoAudioToday: number
   abandonedBeforeAnswerToday: number
+  queuePickupAttemptsToday: number
+  queueConnectedToday: number
+  queueRequeuedToday: number
+  queueReroutedToday: number
+  warmTransfersStartedToday: number
+  warmTransferBridgeReadyToday: number
+  warmTransfersCompletedToday: number
+  warmTransfersReturnedToday: number
+  warmTransfersCancelledToday: number
+  recentQueueEvents: TelephonyOperationalEvent[]
+  recentWarmTransferEvents: TelephonyOperationalEvent[]
+  alerts: TelephonyHealthAlert[]
+}
+
+export interface TelephonyCallOutcomeRecord {
+  ts: string
+  leadId?: string | null
+  repId?: string | null
+  repName?: string
+  direction?: 'inbound' | 'outbound'
+  phone?: string
+  answered?: boolean
+  missed?: boolean
+  failed?: boolean
+  durationSeconds?: number
+  answerChannel?: string
+  branchNumber?: string
+  sourceNumber?: string
+  callSid?: string
+}
+
+export interface DialerIdentityAvailability {
+  requestedIdentity: string | null
+  requestedHealthy: boolean
+  requestedAvailable: boolean
+  selectedIdentity: string | null
+  presence: HealthyBrowserPresence
+}
+
+export interface TelephonyOperationalEvent {
+  ts: string
+  event: string
+  callSid?: string
+  identity?: string
+  target?: string
+  rerouted?: boolean
+  message?: string
+}
+
+export interface TelephonyHealthAlert {
+  ts: string
+  errorCode: string
+  text: string
+  severity: 'warning' | 'critical'
 }
 
 function normalizeProperties(properties?: Record<string, unknown> | null) {
@@ -269,10 +323,157 @@ export async function getHealthyBrowserPresence(options: {
   } satisfies HealthyBrowserPresence
 }
 
+function normalizeDialerIdentity(identity?: string | null) {
+  const trimmed = (identity || '').trim()
+  if (!trimmed) return ''
+  return trimmed.toLowerCase().startsWith('client:') ? trimmed.slice(7) : trimmed
+}
+
+export async function getDialerIdentityAvailability(options: {
+  identity?: string | null
+  maxAgeSeconds?: number
+} = {}): Promise<DialerIdentityAvailability> {
+  const presence = await getHealthyBrowserPresence({
+    maxAgeSeconds: options.maxAgeSeconds ?? 90,
+  })
+  const requestedIdentity = normalizeDialerIdentity(options.identity)
+  const healthySet = new Set(presence.identities.map(normalizeDialerIdentity).filter(Boolean))
+  const availableSet = new Set(presence.availableIdentities.map(normalizeDialerIdentity).filter(Boolean))
+  const selectedIdentity =
+    (requestedIdentity && availableSet.has(requestedIdentity) ? requestedIdentity : '') ||
+    presence.availableIdentities.map(normalizeDialerIdentity).find(Boolean) ||
+    null
+
+  return {
+    requestedIdentity: requestedIdentity || null,
+    requestedHealthy: requestedIdentity ? healthySet.has(requestedIdentity) : false,
+    requestedAvailable: requestedIdentity ? availableSet.has(requestedIdentity) : false,
+    selectedIdentity,
+    presence,
+  }
+}
+
 function summarizeCountMap(input: Map<string, number>) {
   return Array.from(input.entries())
     .map(([key, count]) => ({ key, count }))
     .sort((a, b) => b.count - a.count)
+}
+
+function mapOperationalEvent(row: DialerAnalyticsEventRecord): TelephonyOperationalEvent {
+  const extra = (row.properties.extra && typeof row.properties.extra === 'object'
+    ? row.properties.extra
+    : {}) as Record<string, unknown>
+  return {
+    ts: row.ts,
+    event: String(row.properties.event || ''),
+    callSid: String(row.properties.callSid || '') || undefined,
+    identity: String(extra.identity || row.properties.identity || '') || undefined,
+    target: String(extra.targetLabel || extra.target || '') || undefined,
+    rerouted: extra.rerouted === true,
+    message: String(
+      row.properties.errorMessage ||
+      row.properties.failureReason ||
+      extra.reason ||
+      ''
+    ) || undefined,
+  }
+}
+
+export function buildTelephonyOperationalMetricsFromEvents(dialerEvents: DialerAnalyticsEventRecord[]) {
+  const queueEvents = dialerEvents
+    .filter(row => [
+      'queue_call_accept_started',
+      'queue_call_connected',
+      'queue_call_requeued',
+    ].includes(String(row.properties.event || '')))
+    .map(mapOperationalEvent)
+
+  const warmTransferEvents = dialerEvents
+    .filter(row => [
+      'warm_transfer_started',
+      'warm_transfer_bridge_ready',
+      'warm_transfer_completed',
+      'warm_transfer_returned',
+      'warm_transfer_cancelled',
+    ].includes(String(row.properties.event || '')))
+    .map(mapOperationalEvent)
+
+  return {
+    queuePickupAttemptsToday: queueEvents.filter(event => event.event === 'queue_call_accept_started').length,
+    queueConnectedToday: queueEvents.filter(event => event.event === 'queue_call_connected').length,
+    queueRequeuedToday: queueEvents.filter(event => event.event === 'queue_call_requeued').length,
+    queueReroutedToday: queueEvents.filter(event => event.event === 'queue_call_connected' && event.rerouted === true).length,
+    warmTransfersStartedToday: warmTransferEvents.filter(event => event.event === 'warm_transfer_started').length,
+    warmTransferBridgeReadyToday: warmTransferEvents.filter(event => event.event === 'warm_transfer_bridge_ready').length,
+    warmTransfersCompletedToday: warmTransferEvents.filter(event => event.event === 'warm_transfer_completed').length,
+    warmTransfersReturnedToday: warmTransferEvents.filter(event => event.event === 'warm_transfer_returned').length,
+    warmTransfersCancelledToday: warmTransferEvents.filter(event => event.event === 'warm_transfer_cancelled').length,
+    recentQueueEvents: queueEvents.slice(0, 8),
+    recentWarmTransferEvents: warmTransferEvents.slice(0, 8),
+  }
+}
+
+export function buildTelephonyHealthAlertsFromEvents(dialerEvents: DialerAnalyticsEventRecord[]) {
+  const alerts = dialerEvents.flatMap<TelephonyHealthAlert>(row => {
+    const event = String(row.properties.event || '')
+    const errorCode = row.properties.errorCode
+    const errorMessage = String(row.properties.errorMessage || row.properties.failureReason || '')
+
+    if (errorCode || event === 'call_error') {
+      return [{
+        ts: row.ts,
+        errorCode: String(errorCode || 'call_error'),
+        text: errorMessage || 'Dialer reported a call error.',
+        severity: 'critical',
+      }]
+    }
+
+    if (event === 'token_refresh_failed') {
+      return [{
+        ts: row.ts,
+        errorCode: 'token_refresh_failed',
+        text: errorMessage || 'Browser token refresh failed.',
+        severity: 'critical',
+      }]
+    }
+
+    if (event === 'preflight_failed' || event === 'call_stuck_connecting') {
+      return [{
+        ts: row.ts,
+        errorCode: event,
+        text: errorMessage || 'Dialer media negotiation failed.',
+        severity: 'warning',
+      }]
+    }
+
+    if (event === 'queue_call_requeued') {
+      return [{
+        ts: row.ts,
+        errorCode: 'queue_requeued',
+        text: errorMessage || 'Inbound queue pickup was requeued because no browser rep was available.',
+        severity: 'warning',
+      }]
+    }
+
+    if (event === 'warm_transfer_cancelled') {
+      return [{
+        ts: row.ts,
+        errorCode: 'warm_transfer_cancelled',
+        text: errorMessage || 'Warm transfer was cancelled before handoff completed.',
+        severity: 'warning',
+      }]
+    }
+
+    return []
+  })
+
+  const seen = new Set<string>()
+  return alerts.filter(alert => {
+    const key = `${alert.ts}:${alert.errorCode}:${alert.text}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  }).slice(0, 20)
 }
 
 export async function buildTelephonyDashboardMetrics() {
@@ -312,6 +513,8 @@ export async function buildTelephonyDashboardMetrics() {
   const dialerEvents = dialerEventRows
     .map(mapAnalyticsRow)
     .filter(row => isSalesToday(row.ts))
+  const operationalMetrics = buildTelephonyOperationalMetricsFromEvents(dialerEvents)
+  const alerts = buildTelephonyHealthAlertsFromEvents(dialerEvents)
 
   const answerTimes = outcomes
     .map(row => Number(row.properties.answerTimeSeconds))
@@ -357,6 +560,18 @@ export async function buildTelephonyDashboardMetrics() {
     mobileCallsToday,
     callsWithNoAudioToday,
     abandonedBeforeAnswerToday,
+    queuePickupAttemptsToday: operationalMetrics.queuePickupAttemptsToday,
+    queueConnectedToday: operationalMetrics.queueConnectedToday,
+    queueRequeuedToday: operationalMetrics.queueRequeuedToday,
+    queueReroutedToday: operationalMetrics.queueReroutedToday,
+    warmTransfersStartedToday: operationalMetrics.warmTransfersStartedToday,
+    warmTransferBridgeReadyToday: operationalMetrics.warmTransferBridgeReadyToday,
+    warmTransfersCompletedToday: operationalMetrics.warmTransfersCompletedToday,
+    warmTransfersReturnedToday: operationalMetrics.warmTransfersReturnedToday,
+    warmTransfersCancelledToday: operationalMetrics.warmTransfersCancelledToday,
+    recentQueueEvents: operationalMetrics.recentQueueEvents,
+    recentWarmTransferEvents: operationalMetrics.recentWarmTransferEvents,
+    alerts,
     // Raw outcomes for the calls drawer — last 30 calls today
     recentOutcomes: outcomes.slice(0, 30).map(row => ({
       ts: row.ts,
@@ -370,4 +585,48 @@ export async function buildTelephonyDashboardMetrics() {
       repName: row.properties.repName as string | undefined,
     })),
   }
+}
+
+export async function listTelephonyCallOutcomes(options: {
+  sinceHours?: number
+  date?: string
+  direction?: 'inbound' | 'outbound'
+  missedOnly?: boolean
+  failedOnly?: boolean
+  limit?: number
+} = {}) {
+  const sinceHours = options.sinceHours ?? 48
+  const date = options.date || dateStamp()
+  const limit = Math.max(1, Math.min(options.limit ?? 500, 1000))
+  const sinceIso = new Date(Date.now() - sinceHours * 60 * 60 * 1000).toISOString()
+  const rows = await queryAnalyticsRows({
+    select: 'id,event_type,lead_id,rep_id,ts,properties,created_at',
+    event_type: `eq.${CALL_OUTCOME_EVENT_TYPE}`,
+    ts: `gte.${sinceIso}`,
+    order: 'ts.desc',
+    limit,
+  }).catch(() => [] as AnalyticsQueryRow[])
+
+  return rows
+    .map(mapAnalyticsRow)
+    .filter(row => dateStamp(new Date(row.ts)) === date)
+    .filter(row => !options.direction || row.properties.direction === options.direction)
+    .filter(row => !options.missedOnly || row.properties.missed === true)
+    .filter(row => !options.failedOnly || row.properties.failed === true)
+    .map(row => ({
+      ts: row.ts,
+      leadId: row.leadId,
+      repId: row.repId,
+      repName: row.properties.repName as string | undefined,
+      direction: row.properties.direction as 'inbound' | 'outbound' | undefined,
+      phone: row.properties.phoneNumber as string | undefined,
+      answered: row.properties.answered as boolean | undefined,
+      missed: row.properties.missed as boolean | undefined,
+      failed: row.properties.failed as boolean | undefined,
+      durationSeconds: row.properties.durationSeconds as number | undefined,
+      answerChannel: row.properties.answerChannel as string | undefined,
+      branchNumber: row.properties.branchNumber as string | undefined,
+      sourceNumber: row.properties.sourceNumber as string | undefined,
+      callSid: row.properties.callSid as string | undefined,
+    }))
 }

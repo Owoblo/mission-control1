@@ -1,74 +1,122 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { formatMoney } from '@/lib/sales'
 
-interface AnalyticsData {
-  totals: {
-    leads: number
-    leadsThisMonth: number
-    quoted: number
-    accepted: number
-    conversionRate: number
-    revenueQuoted: number
-    revenueBooked: number
-    revenueCollected: number
-    bookedJobs: number
-    bookedRevenue: number
+type AnalyticsOption = {
+  id: string
+  label: string
+}
+
+type AnalyticsSnapshot = {
+  appliedFilters: {
+    range: 'week' | 'month' | 'ytd'
+    rep?: string
+    source?: string
+    branch?: string
+    dateFrom: string
+    dateTo: string
   }
-  stageCounts: Record<string, number>
-  sourceCounts: Record<string, number>
-  activityByType: Record<string, number>
-  monthlyLeads: { month: string; count: number }[]
-  monthlyRevenue: { month: string; amount: number }[]
-  weeklyActivity: { week: string; count: number }[]
+  totals: {
+    leadsReceived: number
+    confirmedBookings: number
+    confirmedRevenue: number
+    tentativeReservations: number
+    lostLeads: number
+    conversionRate: number
+    averageQuoteValue: number
+    followUpComplianceRate: number
+    followUpCompliant: number
+    followUpEligible: number
+    monthlyTarget: number
+    monthlyProgressPct: number
+  }
+  trend: Array<{
+    label: string
+    leads: number
+    bookings: number
+    revenue: number
+  }>
+  sourceBreakdown: Array<{
+    source: string
+    label: string
+    count: number
+  }>
+  lostReasons: Array<{
+    reason: string
+    label: string
+    count: number
+  }>
+  activityBreakdown: Array<{
+    type: string
+    count: number
+  }>
+  truckUtilizationDays: Array<{
+    date: string
+    branch: string
+    status: 'ready' | 'unavailable'
+    jobsBooked: number
+    crewUsed: number
+    crewCapacity: number
+    crewPct: number
+    trucksUsed: number
+    truckCapacity: number
+    truckPct: number
+    trucksRemaining: number
+    risk: 'low' | 'medium' | 'high' | 'unknown'
+    note?: string
+  }>
+  filters: {
+    repOptions: AnalyticsOption[]
+    sourceOptions: AnalyticsOption[]
+    branchOptions: AnalyticsOption[]
+  }
 }
 
-const SOURCE_LABELS: Record<string, string> = {
-  phone: 'Phone', web: 'Website', facebook: 'Facebook', instagram: 'Instagram',
-  referral: 'Referral', email: 'Email', other: 'Other',
-}
-
-const STAGE_LABELS: Record<string, string> = {
-  new: 'New', contacted: 'Contacted', estimate_scheduled: 'Est. Scheduled',
-  estimate_done: 'Est. Done', pricing: 'Pricing', quoted: 'Quoted',
-  shopping_around: 'Shopping', booked: 'Booked', lost: 'Lost',
-}
-
-const STAGE_COLORS: Record<string, string> = {
-  new: 'bg-slate-400', contacted: 'bg-sky-400', estimate_scheduled: 'bg-blue-400',
-  estimate_done: 'bg-indigo-400', pricing: 'bg-purple-400', quoted: 'bg-amber-400',
-  shopping_around: 'bg-orange-400', booked: 'bg-emerald-500', lost: 'bg-rose-400',
-}
-
-function shortMonth(m: string) {
-  const [year, month] = m.split('-')
-  return new Date(Number(year), Number(month) - 1, 1).toLocaleDateString('en-CA', { month: 'short' })
-}
-
-function BarChart({ data, valueKey, labelKey, color = 'bg-[#1a2744]', formatValue = String }: {
-  data: Record<string, unknown>[]
-  valueKey: string
-  labelKey: string
-  color?: string
-  formatValue?: (v: number) => string
-}) {
-  const max = Math.max(...data.map(d => Number(d[valueKey]) || 0), 1)
+function StatCard({ label, value, sub, accent }: { label: string; value: string | number; sub?: string; accent?: string }) {
   return (
-    <div className="flex items-end gap-1.5 h-24">
-      {data.map((d, i) => {
-        const val = Number(d[valueKey]) || 0
-        const pct = (val / max) * 100
+    <div className="crm-panel p-5">
+      <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--app-muted)]">{label}</div>
+      <div className={`mt-2 text-2xl font-bold ${accent || 'text-[#1a2744]'}`}>{value}</div>
+      {sub ? <div className="mt-1 text-xs text-[var(--app-muted)]">{sub}</div> : null}
+    </div>
+  )
+}
+
+function MiniBarRow({ label, value, total, tone = 'bg-[#1a2744]' }: { label: string; value: number; total: number; tone?: string }) {
+  const pct = total > 0 ? Math.max(4, Math.round((value / total) * 100)) : 0
+  return (
+    <div className="flex items-center gap-3">
+      <div className="w-36 shrink-0 text-sm font-medium text-[#1a2744]">{label}</div>
+      <div className="h-2 flex-1 rounded-full bg-slate-100">
+        <div className={`h-2 rounded-full ${tone}`} style={{ width: `${pct}%` }} />
+      </div>
+      <div className="w-14 text-right text-xs text-[var(--app-muted)]">{value}</div>
+    </div>
+  )
+}
+
+function TrendChart({ data, mode }: { data: AnalyticsSnapshot['trend']; mode: 'leads' | 'bookings' | 'revenue' }) {
+  const max = Math.max(
+    ...data.map(item => mode === 'revenue' ? item.revenue : mode === 'bookings' ? item.bookings : item.leads),
+    1
+  )
+
+  return (
+    <div className="flex h-40 items-end gap-2">
+      {data.map(item => {
+        const value = mode === 'revenue' ? item.revenue : mode === 'bookings' ? item.bookings : item.leads
+        const height = `${Math.max(8, Math.round((value / max) * 100))}%`
+        const tone = mode === 'revenue' ? 'bg-emerald-500' : mode === 'bookings' ? 'bg-[#f5a623]' : 'bg-[#1a2744]'
         return (
-          <div key={i} className="flex-1 flex flex-col items-center gap-1">
-            <div className="text-[9px] text-[var(--app-muted)] font-medium">{val > 0 ? formatValue(val) : ''}</div>
-            <div className="w-full flex items-end" style={{ height: 60 }}>
-              <div
-                className={`w-full rounded-t ${color} transition-all`}
-                style={{ height: `${Math.max(pct, val > 0 ? 4 : 0)}%`, minHeight: val > 0 ? 3 : 0 }}
-              />
+          <div key={`${mode}-${item.label}`} className="flex flex-1 flex-col items-center gap-2">
+            <div className="text-[10px] font-medium text-[var(--app-muted)]">
+              {mode === 'revenue' ? (value > 0 ? `$${Math.round(value / 1000)}k` : '') : value || ''}
             </div>
-            <div className="text-[9px] text-[var(--app-muted)] text-center truncate w-full">{String(d[labelKey])}</div>
+            <div className="flex w-full items-end" style={{ height: 96 }}>
+              <div className={`w-full rounded-t ${tone}`} style={{ height }} />
+            </div>
+            <div className="text-[10px] text-[var(--app-muted)]">{item.label}</div>
           </div>
         )
       })}
@@ -76,154 +124,215 @@ function BarChart({ data, valueKey, labelKey, color = 'bg-[#1a2744]', formatValu
   )
 }
 
-function StatCard({ label, value, sub, accent }: { label: string; value: string | number; sub?: string; accent?: string }) {
-  return (
-    <div className="crm-panel p-5">
-      <div className="text-xs font-bold uppercase tracking-wider text-[var(--app-muted)]">{label}</div>
-      <div className={`mt-2 text-2xl font-bold ${accent || 'text-[#1a2744]'}`}>{value}</div>
-      {sub && <div className="mt-0.5 text-xs text-[var(--app-muted)]">{sub}</div>}
-    </div>
-  )
-}
-
 export default function AnalyticsPage() {
-  const [data, setData] = useState<AnalyticsData | null>(null)
+  const [range, setRange] = useState<'week' | 'month' | 'ytd'>('month')
+  const [rep, setRep] = useState('')
+  const [source, setSource] = useState('')
+  const [branch, setBranch] = useState('')
+  const [data, setData] = useState<AnalyticsSnapshot | null>(null)
   const [loading, setLoading] = useState(true)
 
+  const queryString = useMemo(() => {
+    const params = new URLSearchParams({ range })
+    if (rep) params.set('rep', rep)
+    if (source) params.set('source', source)
+    if (branch) params.set('branch', branch)
+    return params.toString()
+  }, [branch, range, rep, source])
+
   useEffect(() => {
-    fetch('/api/sales/analytics', { credentials: 'include' })
-      .then(r => r.ok ? r.json() : null)
+    setLoading(true)
+    fetch(`/api/sales/analytics?${queryString}`, { credentials: 'include' })
+      .then(response => response.ok ? response.json() : null)
       .then(setData)
       .finally(() => setLoading(false))
-  }, [])
+  }, [queryString])
 
-  if (loading) return <div className="crm-shell"><div className="crm-panel p-16 text-center text-sm text-[var(--app-muted)]">Loading analytics...</div></div>
-  if (!data) return <div className="crm-shell"><div className="crm-panel p-16 text-center text-sm text-rose-500">Failed to load analytics.</div></div>
+  if (loading) {
+    return <div className="crm-shell"><div className="crm-panel p-16 text-center text-sm text-[var(--app-muted)]">Loading analytics...</div></div>
+  }
 
-  const { totals } = data
-  const stageEntries = Object.entries(data.stageCounts).sort(([, a], [, b]) => b - a)
-  const sourceEntries = Object.entries(data.sourceCounts).sort(([, a], [, b]) => b - a)
-  const activityEntries = Object.entries(data.activityByType).sort(([, a], [, b]) => b - a)
+  if (!data) {
+    return <div className="crm-shell"><div className="crm-panel p-16 text-center text-sm text-rose-600">Failed to load analytics.</div></div>
+  }
+
+  const utilizationHighlights = data.truckUtilizationDays
+    .filter(day => day.risk === 'high' || day.risk === 'medium')
+    .slice(0, 8)
+  const sourceTotal = data.sourceBreakdown.reduce((sum, item) => sum + item.count, 0)
+  const lostTotal = data.lostReasons.reduce((sum, item) => sum + item.count, 0)
+  const activityTotal = data.activityBreakdown.reduce((sum, item) => sum + item.count, 0)
 
   return (
-    <div className="crm-shell space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="font-display text-2xl font-bold text-[#1a2744]">Analytics</h1>
-        <p className="mt-1 text-sm text-[var(--app-muted)]">Performance across leads, quotes, revenue, and activity.</p>
+    <div className="crm-shell space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-[#1a2744]">Analytics</h1>
+          <p className="mt-1 text-sm text-[var(--app-muted)]">
+            Lead truth, booking pace, follow-up compliance, and next-30-day truck pressure.
+          </p>
+        </div>
+        <a
+          href={`/api/sales/analytics?${queryString}&format=csv`}
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-[#1a2744] transition hover:bg-slate-50"
+        >
+          Export CSV
+        </a>
       </div>
 
-      {/* Top KPIs */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <StatCard label="Total Leads" value={totals.leads.toLocaleString()} sub={`${totals.leadsThisMonth} this month`} />
-        <StatCard label="Quotes Sent" value={totals.quoted.toLocaleString()} sub={`${totals.accepted} accepted`} />
-        <StatCard label="Conversion Rate" value={`${totals.conversionRate}%`} sub="quotes → booked" accent={totals.conversionRate >= 50 ? 'text-emerald-600' : totals.conversionRate >= 30 ? 'text-amber-600' : 'text-rose-600'} />
-        <StatCard label="Booked Jobs" value={totals.bookedJobs.toLocaleString()} sub={formatMoney(totals.bookedRevenue)} accent="text-emerald-600" />
+      <div className="crm-panel p-4">
+        <div className="grid gap-3 md:grid-cols-4">
+          <div>
+            <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Range</div>
+            <select value={range} onChange={event => setRange(event.target.value as 'week' | 'month' | 'ytd')} className="crm-input w-full">
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+              <option value="ytd">Year to Date</option>
+            </select>
+          </div>
+          <div>
+            <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Rep</div>
+            <select value={rep} onChange={event => setRep(event.target.value)} className="crm-input w-full">
+              <option value="">All reps</option>
+              {data.filters.repOptions.map(option => (
+                <option key={option.id} value={option.id}>{option.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Lead Source</div>
+            <select value={source} onChange={event => setSource(event.target.value)} className="crm-input w-full">
+              <option value="">All sources</option>
+              {data.filters.sourceOptions.map(option => (
+                <option key={option.id} value={option.id}>{option.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Branch</div>
+            <select value={branch} onChange={event => setBranch(event.target.value)} className="crm-input w-full">
+              <option value="">All branches</option>
+              {data.filters.branchOptions.map(option => (
+                <option key={option.id} value={option.id}>{option.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="mt-3 text-xs text-[var(--app-muted)]">
+          Window: {data.appliedFilters.dateFrom} to {data.appliedFilters.dateTo}
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <StatCard label="Revenue Quoted" value={formatMoney(totals.revenueQuoted)} sub="total pipeline value" />
-        <StatCard label="Revenue Booked" value={formatMoney(totals.revenueBooked)} sub="accepted + invoiced" accent="text-[#1a2744]" />
-        <StatCard label="Revenue Collected" value={formatMoney(totals.revenueCollected)} sub="deposits + balances paid" accent="text-emerald-600" />
-        <StatCard label="Avg Booking Value" value={totals.bookedJobs > 0 ? formatMoney(Math.round(totals.bookedRevenue / totals.bookedJobs)) : '—'} sub="per booked job" />
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        <StatCard label="Leads Received" value={data.totals.leadsReceived.toLocaleString()} sub={`${data.totals.conversionRate}% conversion`} />
+        <StatCard label="Confirmed Bookings" value={data.totals.confirmedBookings.toLocaleString()} sub={formatMoney(data.totals.confirmedRevenue)} accent="text-emerald-600" />
+        <StatCard label="Tentative Reservations" value={data.totals.tentativeReservations.toLocaleString()} sub={`${data.totals.lostLeads} lost / declined`} accent="text-amber-600" />
+        <StatCard
+          label="Follow-Up Compliance"
+          value={`${data.totals.followUpComplianceRate}%`}
+          sub={`${data.totals.followUpCompliant}/${data.totals.followUpEligible} touched within 24h`}
+          accent={data.totals.followUpComplianceRate >= 85 ? 'text-emerald-600' : data.totals.followUpComplianceRate >= 70 ? 'text-amber-600' : 'text-rose-600'}
+        />
       </div>
 
-      {/* Charts row */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {/* Monthly leads */}
-        <div className="crm-panel p-6">
-          <h2 className="mb-4 font-semibold text-[#1a2744]">New Leads by Month</h2>
-          <BarChart
-            data={data.monthlyLeads.map(d => ({ label: shortMonth(d.month), count: d.count }))}
-            valueKey="count"
-            labelKey="label"
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        <StatCard label="Average Quote Value" value={data.totals.averageQuoteValue > 0 ? formatMoney(data.totals.averageQuoteValue) : '—'} />
+        <StatCard label="Revenue Target" value={formatMoney(data.totals.monthlyTarget)} sub={`${data.totals.monthlyProgressPct}% of goal`} />
+        <StatCard label="Source Mix" value={data.sourceBreakdown.length.toLocaleString()} sub="active lead sources in window" />
+        <StatCard label="Activity Logged" value={activityTotal.toLocaleString()} sub="calls, emails, sms, notes" />
+      </div>
+
+      <div className="crm-panel p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Revenue vs Target</div>
+            <div className="mt-1 text-lg font-semibold text-[#1a2744]">{formatMoney(data.totals.confirmedRevenue)}</div>
+          </div>
+          <div className="text-sm font-semibold text-[var(--app-muted)]">{data.totals.monthlyProgressPct}%</div>
+        </div>
+        <div className="mt-4 h-3 rounded-full bg-slate-100">
+          <div
+            className={`h-3 rounded-full ${data.totals.monthlyProgressPct >= 100 ? 'bg-emerald-500' : data.totals.monthlyProgressPct >= 70 ? 'bg-[#f5a623]' : 'bg-[#1a2744]'}`}
+            style={{ width: `${Math.max(6, data.totals.monthlyProgressPct)}%` }}
           />
         </div>
+      </div>
 
-        {/* Monthly revenue */}
-        <div className="crm-panel p-6">
-          <h2 className="mb-4 font-semibold text-[#1a2744]">Revenue Booked by Month</h2>
-          <BarChart
-            data={data.monthlyRevenue.map(d => ({ label: shortMonth(d.month), amount: d.amount }))}
-            valueKey="amount"
-            labelKey="label"
-            color="bg-emerald-500"
-            formatValue={v => v >= 1000 ? `$${Math.round(v / 1000)}k` : `$${v}`}
-          />
+      <div className="grid gap-6 xl:grid-cols-3">
+        <div className="crm-panel p-6 xl:col-span-2">
+          <h2 className="font-semibold text-[#1a2744]">Lead and Booking Trend</h2>
+          <div className="mt-5 grid gap-5 lg:grid-cols-3">
+            <div>
+              <div className="mb-3 text-sm font-medium text-[var(--app-muted)]">New leads</div>
+              <TrendChart data={data.trend} mode="leads" />
+            </div>
+            <div>
+              <div className="mb-3 text-sm font-medium text-[var(--app-muted)]">Bookings</div>
+              <TrendChart data={data.trend} mode="bookings" />
+            </div>
+            <div>
+              <div className="mb-3 text-sm font-medium text-[var(--app-muted)]">Booked revenue</div>
+              <TrendChart data={data.trend} mode="revenue" />
+            </div>
+          </div>
         </div>
 
-        {/* Weekly activity */}
         <div className="crm-panel p-6">
-          <h2 className="mb-4 font-semibold text-[#1a2744]">Weekly Activity (Last 8 Weeks)</h2>
-          <BarChart
-            data={data.weeklyActivity.map(d => ({ label: d.week.slice(5), count: d.count }))}
-            valueKey="count"
-            labelKey="label"
-            color="bg-sky-400"
-          />
-        </div>
-
-        {/* Lead sources */}
-        <div className="crm-panel p-6">
-          <h2 className="mb-4 font-semibold text-[#1a2744]">Lead Sources</h2>
-          <div className="space-y-2">
-            {sourceEntries.map(([source, count]) => {
-              const pct = Math.round((count / totals.leads) * 100)
-              return (
-                <div key={source} className="flex items-center gap-3">
-                  <div className="w-24 shrink-0 text-sm font-medium text-[#1a2744]">{SOURCE_LABELS[source] ?? source}</div>
-                  <div className="flex-1 rounded-full bg-slate-100 h-2">
-                    <div className="h-2 rounded-full bg-[#1a2744]" style={{ width: `${pct}%` }} />
+          <h2 className="font-semibold text-[#1a2744]">Truck Utilization</h2>
+          <p className="mt-1 text-xs text-[var(--app-muted)]">Next 30 days. Red means booked work is over branch capacity.</p>
+          <div className="mt-4 space-y-3">
+            {utilizationHighlights.length === 0 ? (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-700">
+                No truck or crew conflicts are forecast in the next 30 days.
+              </div>
+            ) : utilizationHighlights.map(day => (
+              <div key={`${day.branch}-${day.date}`} className={`rounded-xl border px-3 py-3 ${day.risk === 'high' ? 'border-rose-200 bg-rose-50' : 'border-amber-200 bg-amber-50'}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-semibold text-[#1a2744]">{day.branch} · {day.date}</div>
+                  <div className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] ${day.risk === 'high' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-800'}`}>
+                    {day.risk}
                   </div>
-                  <div className="w-16 text-right text-xs text-[var(--app-muted)]">{count} · {pct}%</div>
                 </div>
-              )
-            })}
-            {sourceEntries.length === 0 && <div className="text-sm text-[var(--app-muted)]">No source data yet.</div>}
+                <div className="mt-2 text-xs text-[var(--app-muted)]">
+                  {day.jobsBooked} jobs · trucks {day.trucksUsed}/{day.truckCapacity} · crew {day.crewUsed}/{day.crewCapacity}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Pipeline + Activity breakdown */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {/* Pipeline stages */}
+      <div className="grid gap-6 xl:grid-cols-3">
         <div className="crm-panel p-6">
-          <h2 className="mb-4 font-semibold text-[#1a2744]">Pipeline by Stage</h2>
-          <div className="space-y-2">
-            {stageEntries.map(([stage, count]) => {
-              const pct = Math.round((count / totals.leads) * 100)
-              const color = STAGE_COLORS[stage] ?? 'bg-slate-400'
-              return (
-                <div key={stage} className="flex items-center gap-3">
-                  <div className="w-28 shrink-0 text-sm font-medium text-[#1a2744]">{STAGE_LABELS[stage] ?? stage}</div>
-                  <div className="flex-1 rounded-full bg-slate-100 h-2">
-                    <div className={`h-2 rounded-full ${color}`} style={{ width: `${Math.max(pct, 2)}%` }} />
-                  </div>
-                  <div className="w-12 text-right text-xs text-[var(--app-muted)]">{count}</div>
-                </div>
-              )
-            })}
+          <h2 className="font-semibold text-[#1a2744]">Lead Sources</h2>
+          <div className="mt-4 space-y-3">
+            {data.sourceBreakdown.length === 0 ? (
+              <div className="text-sm text-[var(--app-muted)]">No source data in this window.</div>
+            ) : data.sourceBreakdown.map(item => (
+              <MiniBarRow key={item.source} label={item.label} value={item.count} total={sourceTotal} />
+            ))}
           </div>
         </div>
 
-        {/* Activity breakdown */}
         <div className="crm-panel p-6">
-          <h2 className="mb-4 font-semibold text-[#1a2744]">Activity Breakdown</h2>
-          <div className="space-y-2">
-            {activityEntries.length === 0 && <div className="text-sm text-[var(--app-muted)]">No activity logged yet.</div>}
-            {activityEntries.map(([type, count]) => {
-              const total = Object.values(data.activityByType).reduce((a, b) => a + b, 0)
-              const pct = Math.round((count / total) * 100)
-              return (
-                <div key={type} className="flex items-center gap-3">
-                  <div className="w-28 shrink-0 text-sm font-medium capitalize text-[#1a2744]">{type.replace(/_/g, ' ')}</div>
-                  <div className="flex-1 rounded-full bg-slate-100 h-2">
-                    <div className="h-2 rounded-full bg-[#f5a623]" style={{ width: `${Math.max(pct, 2)}%` }} />
-                  </div>
-                  <div className="w-12 text-right text-xs text-[var(--app-muted)]">{count}</div>
-                </div>
-              )
-            })}
+          <h2 className="font-semibold text-[#1a2744]">Lost / Declined Reasons</h2>
+          <div className="mt-4 space-y-3">
+            {data.lostReasons.length === 0 ? (
+              <div className="text-sm text-[var(--app-muted)]">No lost leads recorded in this window.</div>
+            ) : data.lostReasons.map(item => (
+              <MiniBarRow key={item.reason} label={item.label} value={item.count} total={lostTotal} tone="bg-rose-400" />
+            ))}
+          </div>
+        </div>
+
+        <div className="crm-panel p-6">
+          <h2 className="font-semibold text-[#1a2744]">Activity Breakdown</h2>
+          <div className="mt-4 space-y-3">
+            {data.activityBreakdown.length === 0 ? (
+              <div className="text-sm text-[var(--app-muted)]">No follow-up activity recorded in this window.</div>
+            ) : data.activityBreakdown.map(item => (
+              <MiniBarRow key={item.type} label={item.type.replace(/_/g, ' ')} value={item.count} total={activityTotal} tone="bg-sky-400" />
+            ))}
           </div>
         </div>
       </div>

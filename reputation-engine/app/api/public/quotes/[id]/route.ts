@@ -142,6 +142,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
         id: quote.id,
         number: quote.number,
         moveDate: quote.moveDate,
+        moveTime: quote.moveTime,
         moveType: quote.moveType,
         originCity: quote.originCity,
         originAddress: quote.originAddress,

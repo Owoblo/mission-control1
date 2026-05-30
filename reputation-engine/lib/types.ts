@@ -50,6 +50,7 @@ export type SalesLeadStage = 'new' | 'contacted' | 'estimate_scheduled' | 'estim
 export type MoveType = 'residential' | 'long-distance' | 'commercial' | 'senior' | 'labor-only' | 'packing'
 export type QuoteStatus = 'draft' | 'sent' | 'viewed' | 'accepted' | 'declined' | 'invoiced'
 export type PaymentStatus = 'pending' | 'deposit_received' | 'paid_in_full'
+export type LeadFollowUpStatus = 'pending' | 'following_up' | 'followed_up' | 'no_response'
 export type FollowUpType = 'note' | 'call' | 'sms' | 'email' | 'visit' | 'view' | 'accept' | 'decline' | 'consultation' | 'status_change'
 export type SalesBranch = 'windsor' | 'waterloo' | 'london' | 'ottawa'
 export type LeadKind = 'customer' | 'realtor_opportunity'
@@ -58,6 +59,7 @@ export type RealtorLookupStatus = 'not_checked' | 'matched' | 'partial' | 'missi
 export type DestinationOpportunityStatus = 'outside_area' | 'no_match' | 'generated' | 'linked_existing'
 export type RealtorWarmth = 'warm' | 'cold' | 'unknown'
 export type RealtorOutreachStatus = 'not_started' | 'queued' | 'sent' | 'responded' | 'closed'
+export type RealtorContactKind = 'listing_agent' | 'sales_representative' | 'brokerage_office' | 'unknown'
 export type AutomationStatus = 'idle' | 'active' | 'paused' | 'handoff' | 'do_not_contact'
 export type LeadOwnerStatus = 'unassigned' | 'assigned' | 'reassigned' | 'handoff'
 export type ConversationChannel = 'sms' | 'email'
@@ -67,6 +69,7 @@ export type InboundLeadStatus = 'needs_action' | 'recent_handoff' | 'closed' | '
 export type InboundLeadFocusFilter = 'needs_action' | 'web_qr' | 'calls' | 'sms' | 'high_intent' | 'answered'
 export type InboundClosedFilter = 'all' | 'junk' | 'lost' | 'not_interested'
 export type InventoryVerificationDecision = 'going' | 'not_going' | 'unsure'
+export type LeadInboxChannel = 'sms' | 'email' | 'calls' | 'webforms'
 export type AutomationJobKind =
   | 'lead_response'
   | 'quote_followup'
@@ -97,6 +100,22 @@ export interface LeadAutomationSettings {
   nudgeIfSurveyNotCompleted?: boolean
   nudgeIfQuoteViewedNoResponse?: boolean
   nudgeBeforeQuoteExpires?: boolean
+}
+
+export interface InboxChannelState {
+  lastReadAt?: string
+  lastReadByUserId?: string
+  lastReadByName?: string
+  lastActionAt?: string
+  lastActionByUserId?: string
+  lastActionByName?: string
+}
+
+export interface LeadInboxState {
+  sms?: InboxChannelState
+  email?: InboxChannelState
+  calls?: InboxChannelState
+  webforms?: InboxChannelState
 }
 
 export interface LeadIntelligence {
@@ -225,6 +244,7 @@ export interface InventoryVerificationItemChoice {
   decision: InventoryVerificationDecision
   note?: string
   updatedAt: string
+  updatedBy?: 'customer' | 'rep'
 }
 
 export interface InventoryVerificationAddedItem {
@@ -234,6 +254,7 @@ export interface InventoryVerificationAddedItem {
   qty: number
   note?: string
   createdAt: string
+  createdBy?: 'customer' | 'rep'
 }
 
 export interface InventoryVerification {
@@ -249,15 +270,20 @@ export interface InventoryVerification {
 export interface LeadMediaAsset {
   id: string
   url: string
-  kind: 'image' | 'video'
-  source: 'survey' | 'rep_upload' | 'mms'
+  kind: 'image' | 'video' | 'document'
+  source: 'survey' | 'rep_upload' | 'mms' | 'receipt_upload'
   room?: string
   filename?: string
   mimeType?: string
+  category?: 'customer_media' | 'receipt'
   uploadedAt: string
   uploadedByUserId?: string
   uploadedByName?: string
   notes?: string
+  linkedCostId?: string
+  linkedCostCategory?: string
+  linkedCostAmountCents?: number
+  linkedAt?: string
 }
 
 export interface ListingMatch {
@@ -554,13 +580,22 @@ export interface CRMLead {
   inboundId?: string
   inboundMessage?: string
   source?: string
+  referralCustomerName?: string
   attribution?: LeadAttribution
   phone?: string
   email?: string
+  identityPhone?: string
+  identityEmail?: string
   moveDate?: string
   moveDateFlexible?: boolean      // true = date TBD (e.g. waiting on house closing)
   moveDateFlexibleReason?: string // e.g. "Waiting on buyer", "New house not closed yet"
   moveType?: MoveType
+  propertyBedrooms?: 'studio' | '1_bedroom' | '2_bedrooms' | '3_bedrooms' | '4_bedrooms' | '5_plus'
+  propertyType?: 'apartment' | 'condo' | 'townhouse' | 'detached_house' | 'commercial' | 'storage_unit'
+  originStairFlights?: number
+  destStairFlights?: number
+  originElevatorAccess?: boolean
+  destElevatorAccess?: boolean
   quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'
   additionalStops?: number
   originAddress?: string
@@ -578,7 +613,9 @@ export interface CRMLead {
   realtorBrokerage?: string
   realtorWebsite?: string
   realtorContactId?: string
+  realtorContactKind?: RealtorContactKind
   realtorLookupStatus?: RealtorLookupStatus
+  realtorLookupConfidence?: 'high' | 'medium' | 'low'
   realtorWarmth?: RealtorWarmth
   realtorOutreachStatus?: RealtorOutreachStatus
   realtorEnrichedAt?: string
@@ -589,6 +626,7 @@ export interface CRMLead {
   notes?: string
   followUpDate?: string
   followUpNote?: string
+  followUpStatus?: LeadFollowUpStatus
   surveyToken?: string
   surveyTokenExpiresAt?: string
   surveyRequestedAt?: string
@@ -629,6 +667,7 @@ export interface CRMLead {
   automatedQuoteChannel?: ConversationChannel
   lastAutoEnrichmentAt?: string
   qualificationState?: LeadQualificationState
+  inboxState?: LeadInboxState
   directMailAttributed?: boolean
   inventory?: InventoryItem[]
   mediaAssets?: LeadMediaAsset[]
@@ -694,6 +733,11 @@ export interface CRMLead {
   reviewCompletedAt?: string
   reviewRating?: number
   reviewNotes?: string
+  mergedIntoLeadId?: string
+  mergedAt?: string
+  mergedByUserId?: string
+  mergedByName?: string
+  mergedReason?: string
   createdAt: string
 }
 
@@ -805,6 +849,8 @@ export interface CRMQuote {
   depositStripePaymentIntentId?: string
   depositStripeCustomerId?: string
   depositStripePaymentMethodId?: string
+  depositStripeCardBrand?: string
+  depositStripeCardLast4?: string
   // Balance charge
   balancePaidAt?: string
   balancePaidAmount?: number
@@ -886,6 +932,12 @@ export interface CRMEmail {
   direction: 'outbound' | 'inbound'
   status: 'sent' | 'failed' | 'opened'
   sentAt: string
+  readAt?: string | null
+  readByUserId?: string | null
+  readByName?: string | null
+  actionedAt?: string | null
+  actionedByUserId?: string | null
+  actionedByName?: string | null
 }
 
 export interface CRMConversationThread {

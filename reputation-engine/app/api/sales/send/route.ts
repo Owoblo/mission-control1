@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server'
 import { canAccessSalesWorkspace, canHandleLeadCommunications } from '@/lib/server/sales-permissions'
-import { getSalesLead, getSalesQuote } from '@/lib/server/sales-repository'
+import {
+  getSalesLead,
+  getSalesQuote,
+  markLeadInboxChannelActioned,
+  markSalesEmailActioned,
+  setInboundLeadHandoff,
+} from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
 import { sendSalesMessage } from '@/lib/server/sales-messaging'
 import { getAppBaseUrl, getWorkerSharedSecret } from '@/lib/server/runtime'
@@ -30,9 +36,12 @@ export async function POST(request: Request) {
       message?: string
       htmlBody?: string
       leadId?: string
+      inboundId?: string
       quoteId?: string
       notes?: string
       fromNumber?: string
+      mediaUrls?: string[]
+      replyEmailIds?: string[]
       actor?: 'human' | 'automation'
     }
 
@@ -69,6 +78,7 @@ export async function POST(request: Request) {
       quoteId: payload.quoteId,
       notes: payload.notes,
       fromNumber: payload.fromNumber,
+      mediaUrls: payload.mediaUrls,
       actor: payload.actor || 'human',
       actorName: session?.name,
       actorUserId: session?.userId,
@@ -77,6 +87,35 @@ export async function POST(request: Request) {
     // Fire intelligence re-analysis in background after every outbound message
     const sentLeadId = targetLeadId || result.lead?.id
     if (sentLeadId) triggerIntelligence(sentLeadId)
+
+    const actorMeta = {
+      userId: session?.userId,
+      name: session?.name,
+    }
+
+    if (payload.actor !== 'automation') {
+      if (sentLeadId) {
+        const channel = payload.channel === 'email' ? 'email' : 'sms'
+        void markLeadInboxChannelActioned(sentLeadId, channel, actorMeta).catch(() => {})
+      }
+
+      if (payload.channel === 'email' && payload.replyEmailIds?.length) {
+        void Promise.all(payload.replyEmailIds.map(emailId => markSalesEmailActioned(emailId, actorMeta).catch(() => {}))).catch(() => {})
+      }
+    }
+
+    // Auto-clear the inbound queue entry when a rep follows up — no more manual "Handled" click needed
+    if (payload.actor !== 'automation') {
+      if (payload.inboundId) {
+        void setInboundLeadHandoff(payload.inboundId, actorMeta).catch(() => {})
+      }
+    }
+    if (sentLeadId && payload.actor !== 'automation') {
+      const sentLead = await getSalesLead(sentLeadId).catch(() => null)
+      if (sentLead?.inboundId) {
+        void setInboundLeadHandoff(sentLead.inboundId, actorMeta).catch(() => {})
+      }
+    }
 
     return NextResponse.json(result)
   } catch (error) {

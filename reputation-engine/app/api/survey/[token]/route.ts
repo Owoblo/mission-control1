@@ -70,6 +70,7 @@ function sanitizeItemChoices(input: unknown, fallback: InventoryVerificationItem
       decision,
       note,
       updatedAt: now,
+      updatedBy: 'customer',
     })
   }
 
@@ -93,6 +94,7 @@ function sanitizeAddedItems(input: unknown, fallback: InventoryVerificationAdded
       qty: Math.max(1, Math.min(50, Number(rawItem.qty || 1) || 1)),
       note: String(rawItem.note || '').trim() || undefined,
       createdAt: String(rawItem.createdAt || now),
+      createdBy: 'customer',
     })
   }
 

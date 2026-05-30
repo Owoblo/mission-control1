@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { uid } from '@/lib/sales'
-import { canAccessSalesWorkspace, canEditLead } from '@/lib/server/sales-permissions'
+import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { getSalesLead, saveFollowUpLog, saveSalesLead } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
 
@@ -14,10 +14,6 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const current = await getSalesLead(params.id)
     if (!current) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
-    }
-
-    if (!canEditLead(session, current)) {
-      return NextResponse.json({ error: 'You can only hand off leads you own.' }, { status: 403 })
     }
 
     if (current.leadKind !== 'realtor_opportunity') {
@@ -42,7 +38,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       return NextResponse.json({ error: 'Client phone or email is required' }, { status: 400 })
     }
 
-    const referringRealtorName = current.realtorName || current.name
+    const referringRealtorName = current.realtorName || current.realtorBrokerage || 'listing-side contact'
     const saved = await saveSalesLead({
       ...current,
       name: clientName,
@@ -52,8 +48,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
       stage: current.stage === 'new' ? 'contacted' : current.stage,
       source: 'realtor_referral',
       realtorName: referringRealtorName,
-      realtorPhone: current.realtorPhone || current.phone,
-      realtorEmail: current.realtorEmail || current.email,
+      realtorPhone: current.realtorPhone || undefined,
+      realtorEmail: current.realtorEmail || undefined,
     })
 
     const log = await saveFollowUpLog({
@@ -62,7 +58,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       type: 'note',
       date: new Date().toISOString(),
       createdAt: new Date().toISOString(),
-      notes: `Realtor referral — ${referringRealtorName} handed off client. Active contact switched to ${clientName}. Source tagged as realtor_referral (20% discount eligible).`,
+      notes: `Listing-side referral — ${referringRealtorName} handed off client. Active contact switched to ${clientName}. Source tagged as realtor_referral (20% discount eligible).`,
     })
 
     return NextResponse.json({ lead: saved, log })

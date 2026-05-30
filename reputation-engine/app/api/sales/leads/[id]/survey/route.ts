@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { canAccessSalesWorkspace, canEditLead } from '@/lib/server/sales-permissions'
+import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { scheduleSurveyFollowup } from '@/lib/server/sales-automation'
 import { sendSalesMessage } from '@/lib/server/sales-messaging'
 import { getAppBaseUrl } from '@/lib/server/runtime'
@@ -24,10 +24,6 @@ export async function POST(
 
     const lead = await getSalesLead(params.id)
     if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
-    if (!canEditLead(session, lead)) {
-      return NextResponse.json({ error: 'You can only request photos for leads you own or unassigned leads.' }, { status: 403 })
-    }
-
     const body = (await request.json().catch(() => ({}))) as { skipSms?: boolean; customMessage?: string }
     const skipSms = body.skipSms === true
 

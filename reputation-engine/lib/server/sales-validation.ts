@@ -114,6 +114,13 @@ const PAYMENT_STATUSES = new Set<NonNullable<CRMLead['paymentStatus']>>([
   'paid_in_full',
 ])
 
+const FOLLOW_UP_STATUSES = new Set<NonNullable<CRMLead['followUpStatus']>>([
+  'pending',
+  'following_up',
+  'followed_up',
+  'no_response',
+])
+
 const CONSULTATION_STATUSES = new Set<NonNullable<CRMLead['consultationStatus']>>([
   'booked',
   'in_progress',
@@ -122,6 +129,9 @@ const CONSULTATION_STATUSES = new Set<NonNullable<CRMLead['consultationStatus']>
 
 const OPTIONAL_TEXT_FIELDS = [
   'source',
+  'referralCustomerName',
+  'identityPhone',
+  'identityEmail',
   'followUpDate',
   'moveDateFlexibleReason',
   'originAddress',
@@ -144,6 +154,7 @@ const OPTIONAL_TEXT_FIELDS = [
   'customerPriority',
   'notes',
   'followUpNote',
+  'followUpStatus',
   'surveyToken',
   'surveyTokenExpiresAt',
   'surveyRequestedAt',
@@ -213,15 +224,24 @@ const OPTIONAL_TEXT_FIELDS = [
   'reviewSentAt',
   'reviewCompletedAt',
   'reviewNotes',
+  'mergedIntoLeadId',
+  'mergedAt',
+  'mergedByUserId',
+  'mergedByName',
+  'mergedReason',
 ] satisfies Array<keyof CRMLead>
 
 const BOOLEAN_FIELDS = [
   'moveDateFlexible',
   'directMailAttributed',
+  'originElevatorAccess',
+  'destElevatorAccess',
 ] satisfies Array<keyof CRMLead>
 
 const NUMERIC_FIELDS = [
   'additionalStops',
+  'originStairFlights',
+  'destStairFlights',
   'surveyPhotoCount',
   'leadScore',
   'totalItems',
@@ -251,6 +271,7 @@ const OBJECT_FIELDS = [
   'listingScanSnapshot',
   'automationSettings',
   'qualificationState',
+  'inboxState',
   'inventoryVerification',
   'roomBreakdown',
   'jobFactors',
@@ -478,6 +499,11 @@ export function validateLeadPatchPayload(payload: Partial<CRMLead>) {
 
     if (key === 'paymentStatus') {
       updates.paymentStatus = rawValue == null ? undefined : validateEnum(rawValue, 'payment status', PAYMENT_STATUSES)
+      continue
+    }
+
+    if (key === 'followUpStatus') {
+      updates.followUpStatus = rawValue == null ? undefined : validateEnum(rawValue, 'follow-up status', FOLLOW_UP_STATUSES)
       continue
     }
 

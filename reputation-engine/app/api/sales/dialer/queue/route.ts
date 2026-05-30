@@ -1,6 +1,7 @@
 import { getTwilioCredentials, getAppBaseUrl } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
 import { hasInternalSession } from '@/lib/server/session'
+import { getDialerIdentityAvailability } from '@/lib/server/telephony-monitoring'
 
 const QUEUE_NAME = 'saturn-main-queue'
 
@@ -61,6 +62,14 @@ export async function POST(request: Request) {
       return Response.json({ error: 'identity is required' }, { status: 400 })
     }
 
+    const availability = await getDialerIdentityAvailability({ identity })
+    if (!availability.selectedIdentity) {
+      return Response.json({
+        ok: false,
+        message: 'No browser rep is currently available for queue pickup',
+      })
+    }
+
     const { accountSid, authToken } = getTwilioCredentials()
     const auth = twilioAuth(accountSid, authToken)
     const appUrl = getAppBaseUrl()
@@ -84,7 +93,7 @@ export async function POST(request: Request) {
     }
 
     // Dequeue: redirect the caller to connect to the rep's browser client
-    const connectUrl = `${appUrl}/api/sales/dialer/queue/connect?identity=${encodeURIComponent(identity)}`
+    const connectUrl = `${appUrl}/api/sales/dialer/queue/connect?identity=${encodeURIComponent(availability.selectedIdentity)}`
     const dequeueRes = await fetch(
       `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Queues/${queue.sid}/Members/${front.call_sid}.json`,
       {
@@ -102,7 +111,11 @@ export async function POST(request: Request) {
       return Response.json({ ok: false, message: body.message || 'Dequeue failed' }, { status: 502 })
     }
 
-    return Response.json({ ok: true })
+    return Response.json({
+      ok: true,
+      identity: availability.selectedIdentity,
+      rerouted: availability.selectedIdentity !== availability.requestedIdentity,
+    })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return Response.json({ error: msg }, { status: 500 })

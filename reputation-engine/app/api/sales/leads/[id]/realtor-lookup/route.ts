@@ -6,6 +6,7 @@
  * Works for active AND sold listings.
  */
 import { NextResponse } from 'next/server'
+import { canAutoApplyRealtorContact } from '@/lib/realtor-opportunity'
 import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { getSalesLead } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
@@ -94,7 +95,7 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
         temperature: 0.0,
         messages: [{
           role: 'user',
-          content: `Extract realtor contact info from this text about ${address}:\n\n${rawText}\n\nReturn JSON only: {"realtorName": null, "realtorPhone": null, "realtorEmail": null, "realtorBrokerage": null, "confidence": "high|medium|low", "source": "brief note"}. Use null if not found. Do NOT invent phone or email numbers.`,
+          content: `Extract listing-side contact info from this text about ${address}:\n\n${rawText}\n\nReturn JSON only: {"realtorName": null, "realtorPhone": null, "realtorEmail": null, "realtorBrokerage": null, "contactKind": "listing_agent|sales_representative|brokerage_office|unknown", "confidence": "high|medium|low", "source": "brief note"}. Use null if not found. Do NOT invent phone or email numbers.`,
         }],
       }),
     })
@@ -109,11 +110,23 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
       realtorPhone?: string | null
       realtorEmail?: string | null
       realtorBrokerage?: string | null
+      contactKind?: string
       confidence?: string
       source?: string
     } = {}
 
     try { extracted = JSON.parse(content) } catch { /* empty */ }
+
+    const autoApplySafe = canAutoApplyRealtorContact({
+      rawText,
+      expectedBrokerage: brokerage,
+      realtorName: extracted.realtorName,
+      realtorPhone: extracted.realtorPhone,
+      realtorEmail: extracted.realtorEmail,
+      realtorBrokerage: extracted.realtorBrokerage,
+      contactKind: extracted.contactKind,
+      confidence: extracted.confidence,
+    })
 
     return NextResponse.json({
       ok: true,
@@ -123,8 +136,10 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
       realtorPhone: extracted.realtorPhone || null,
       realtorEmail: extracted.realtorEmail || null,
       realtorBrokerage: extracted.realtorBrokerage || brokerage || null,
+      contactKind: extracted.contactKind || 'unknown',
       confidence: extracted.confidence || 'low',
       source: extracted.source || 'web search',
+      autoApplySafe,
     })
   } catch (error) {
     return NextResponse.json(

@@ -46,6 +46,17 @@ interface TwilioAlert {
   errorCode: string
   text: string
   ts: string
+  severity?: 'warning' | 'critical'
+}
+
+interface OperationalEvent {
+  ts: string
+  event: string
+  callSid?: string
+  identity?: string
+  target?: string
+  rerouted?: boolean
+  message?: string
 }
 
 interface TelephonyHealthResponse {
@@ -64,8 +75,20 @@ interface TelephonyHealthResponse {
     abandonedBeforeAnswerToday: number
     callsByRep: Array<{ rep: string; count: number }>
     callsBySourceNumber: Array<{ source: string; count: number }>
+    queuePickupAttemptsToday: number
+    queueConnectedToday: number
+    queueRequeuedToday: number
+    queueReroutedToday: number
+    warmTransfersStartedToday: number
+    warmTransferBridgeReadyToday: number
+    warmTransfersCompletedToday: number
+    warmTransfersReturnedToday: number
+    warmTransfersCancelledToday: number
+    recentQueueEvents: OperationalEvent[]
+    recentWarmTransferEvents: OperationalEvent[]
   } | null
   recentDialerEvents?: Array<{ ts: string; properties: Record<string, unknown> }>
+  alerts?: TwilioAlert[]
 }
 
 interface DialerEventsResponse {
@@ -90,6 +113,12 @@ function statusIcon(status: Check['status']) {
 function formatTime(value?: string | null) {
   if (!value) return 'Never'
   return new Date(value).toLocaleString()
+}
+
+function prettyDialerEventName(value?: string) {
+  return String(value || '')
+    .replaceAll('_', ' ')
+    .replace(/\b\w/g, char => char.toUpperCase())
 }
 
 export default function DialerHealthPage() {
@@ -402,7 +431,7 @@ export default function DialerHealthPage() {
             </span>
             <div>
               <div className={`text-sm font-semibold ${twilioAlerts.length === 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                Twilio alerts
+                Telephony alerts
               </div>
               <div className="text-xs text-[var(--app-muted)]">
                 {twilioAlerts.length === 0
@@ -419,6 +448,20 @@ export default function DialerHealthPage() {
             { label: 'Missed', value: health?.metrics?.missedCallsToday ?? 0 },
             { label: 'Failed', value: health?.metrics?.failedCallsToday ?? 0 },
             { label: '53405', value: health?.metrics?.mediaConnectionFailuresToday ?? 0 },
+          ].map(card => (
+            <div key={card.label} className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-4">
+              <div className="text-xs uppercase tracking-[0.16em] text-[var(--app-muted)]">{card.label}</div>
+              <div className="mt-2 text-3xl font-semibold text-[var(--app-ink)]">{card.value}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-4">
+          {[
+            { label: 'Queue Connected', value: health?.metrics?.queueConnectedToday ?? 0 },
+            { label: 'Queue Requeued', value: health?.metrics?.queueRequeuedToday ?? 0 },
+            { label: 'Warm Handoffs', value: health?.metrics?.warmTransfersCompletedToday ?? 0 },
+            { label: 'Warm Returns', value: health?.metrics?.warmTransfersReturnedToday ?? 0 },
           ].map(card => (
             <div key={card.label} className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-4">
               <div className="text-xs uppercase tracking-[0.16em] text-[var(--app-muted)]">{card.label}</div>
@@ -506,6 +549,10 @@ export default function DialerHealthPage() {
                 <div>Groundwire/mobile answered calls: {health?.metrics?.mobileCallsToday ?? 0}</div>
                 <div>Calls with no audio: {health?.metrics?.callsWithNoAudioToday ?? 0}</div>
                 <div>Abandoned before answer: {health?.metrics?.abandonedBeforeAnswerToday ?? 0}</div>
+                <div>Queue pickup attempts: {health?.metrics?.queuePickupAttemptsToday ?? 0}</div>
+                <div>Queue reroutes: {health?.metrics?.queueReroutedToday ?? 0}</div>
+                <div>Warm transfers started: {health?.metrics?.warmTransfersStartedToday ?? 0}</div>
+                <div>Warm transfers cancelled: {health?.metrics?.warmTransfersCancelledToday ?? 0}</div>
               </div>
               {health?.metrics?.callsByRep?.length ? (
                 <div className="mt-4 space-y-2">
@@ -518,6 +565,77 @@ export default function DialerHealthPage() {
                   ))}
                 </div>
               ) : null}
+            </div>
+
+            <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
+              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--app-muted)]">Queue Routing</h2>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {[
+                  ['Pickup attempts', health?.metrics?.queuePickupAttemptsToday ?? 0],
+                  ['Connected', health?.metrics?.queueConnectedToday ?? 0],
+                  ['Requeued', health?.metrics?.queueRequeuedToday ?? 0],
+                  ['Rerouted', health?.metrics?.queueReroutedToday ?? 0],
+                ].map(([label, value]) => (
+                  <div key={String(label)} className="rounded-[8px] bg-[var(--app-bg)] px-3 py-2">
+                    <div className="text-[10px] uppercase tracking-[0.14em] text-[var(--app-muted)]">{label}</div>
+                    <div className="mt-1 font-medium text-[var(--app-ink)]">{value}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 space-y-2">
+                {(health?.metrics?.recentQueueEvents || []).length === 0 ? (
+                  <div className="text-sm text-[var(--app-muted)]">No queue routing events captured yet.</div>
+                ) : (
+                  (health?.metrics?.recentQueueEvents || []).map((event, index) => (
+                    <div key={`${event.ts}-${event.event}-${index}`} className="rounded-[8px] bg-[var(--app-bg)] px-3 py-2 text-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="font-medium text-[var(--app-ink)]">{prettyDialerEventName(event.event)}</div>
+                        <div className="text-[11px] text-[var(--app-muted)]">{formatTime(event.ts)}</div>
+                      </div>
+                      <div className="mt-1 text-xs text-[var(--app-muted)]">
+                        {(event.identity ? `Rep ${event.identity}` : 'Rep not recorded')}
+                        {event.rerouted ? ' · rerouted' : ''}
+                        {event.message ? ` · ${event.message}` : ''}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
+              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--app-muted)]">Warm Transfers</h2>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {[
+                  ['Started', health?.metrics?.warmTransfersStartedToday ?? 0],
+                  ['Bridge ready', health?.metrics?.warmTransferBridgeReadyToday ?? 0],
+                  ['Completed', health?.metrics?.warmTransfersCompletedToday ?? 0],
+                  ['Returned', health?.metrics?.warmTransfersReturnedToday ?? 0],
+                ].map(([label, value]) => (
+                  <div key={String(label)} className="rounded-[8px] bg-[var(--app-bg)] px-3 py-2">
+                    <div className="text-[10px] uppercase tracking-[0.14em] text-[var(--app-muted)]">{label}</div>
+                    <div className="mt-1 font-medium text-[var(--app-ink)]">{value}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 space-y-2">
+                {(health?.metrics?.recentWarmTransferEvents || []).length === 0 ? (
+                  <div className="text-sm text-[var(--app-muted)]">No warm-transfer events captured yet.</div>
+                ) : (
+                  (health?.metrics?.recentWarmTransferEvents || []).map((event, index) => (
+                    <div key={`${event.ts}-${event.event}-${index}`} className="rounded-[8px] bg-[var(--app-bg)] px-3 py-2 text-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="font-medium text-[var(--app-ink)]">{prettyDialerEventName(event.event)}</div>
+                        <div className="text-[11px] text-[var(--app-muted)]">{formatTime(event.ts)}</div>
+                      </div>
+                      <div className="mt-1 text-xs text-[var(--app-muted)]">
+                        {event.target ? `Target ${event.target}` : 'Internal target not recorded'}
+                        {event.message ? ` · ${event.message}` : ''}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
 
             <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
@@ -564,7 +682,7 @@ export default function DialerHealthPage() {
 
             {twilioAlerts.length > 0 && (
               <div className="rounded-[10px] border border-rose-200 bg-rose-50 p-5">
-                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-rose-700">Twilio Error Alerts</h2>
+                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-rose-700">Telephony Error Alerts</h2>
                 <div className="space-y-2 font-mono text-xs">
                   {twilioAlerts.slice(0, 10).map((alert, i) => (
                     <div key={i} className="rounded-[6px] border border-rose-200 bg-white px-3 py-2">

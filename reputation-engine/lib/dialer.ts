@@ -30,6 +30,14 @@ export type DialerEventName =
   | 'audio_devices_changed'
   | 'audio_preferences_updated'
   | 'compatibility_warning'
+  | 'queue_call_accept_started'
+  | 'queue_call_connected'
+  | 'queue_call_requeued'
+  | 'warm_transfer_started'
+  | 'warm_transfer_bridge_ready'
+  | 'warm_transfer_completed'
+  | 'warm_transfer_returned'
+  | 'warm_transfer_cancelled'
 
 export type DialerPresenceState =
   | 'registering'

@@ -51,6 +51,11 @@ interface Contact {
   touch_count: number
   needs_follow_up: boolean
   normalized_stage: string
+  latest_touch_channel?: string | null
+  latest_touch_direction?: string | null
+  latest_touch_note?: string | null
+  latest_inbound_at?: string | null
+  latest_inbound_note?: string | null
 }
 
 interface Touch {
@@ -110,6 +115,63 @@ function timeAgo(d?: string | null) {
   return `${Math.floor(diff / 1440)}d ago`
 }
 
+function truncateText(value: string, max = 120) {
+  const normalized = value.replace(/\s+/g, ' ').trim()
+  if (normalized.length <= max) return normalized
+  return `${normalized.slice(0, max - 1).trimEnd()}…`
+}
+
+function unwrapAutoTouch(value: string, prefix: 'Auto-SMS sent:' | 'Auto-email sent:') {
+  return value.replace(prefix, '').trim().replace(/^"/, '').replace(/"$/, '')
+}
+
+function summarizeTouch(channel: string, direction?: string | null, notes?: string | null) {
+  const text = (notes || '').trim()
+
+  if (text.startsWith('Auto-SMS sent:')) {
+    return { label: 'Automated SMS', body: unwrapAutoTouch(text, 'Auto-SMS sent:'), automated: true }
+  }
+  if (text.startsWith('Auto-email sent:')) {
+    return { label: 'Automated Email', body: unwrapAutoTouch(text, 'Auto-email sent:'), automated: true }
+  }
+  if (text.startsWith('Inbound SMS:')) {
+    return { label: 'Inbound SMS', body: text.replace(/^Inbound SMS:\s*/, '') }
+  }
+  if (text.startsWith('Inbound email:')) {
+    return { label: 'Inbound Email', body: text.replace(/^Inbound email:\s*/, '') }
+  }
+  if (channel === 'direct_mail') {
+    return { label: 'Direct Mail', body: text || 'Direct mail sent' }
+  }
+  if (channel === 'phone' || channel === 'call') {
+    return { label: direction === 'inbound' ? 'Inbound Call' : 'Call', body: text || 'Call logged' }
+  }
+  if (channel === 'email') {
+    return { label: direction === 'inbound' ? 'Inbound Email' : 'Email Sent', body: text || 'Email sent' }
+  }
+  if (channel === 'sms') {
+    return { label: direction === 'inbound' ? 'Inbound SMS' : 'SMS Sent', body: text || 'SMS sent' }
+  }
+  if (channel === 'linkedin') {
+    return { label: 'LinkedIn', body: text || 'LinkedIn follow-up queued' }
+  }
+  if (channel === 'note') {
+    return { label: direction === 'internal' ? 'Internal Note' : 'Note', body: text || 'Note saved' }
+  }
+
+  return { label: channel.replace(/_/g, ' '), body: text }
+}
+
+function getContactPreview(contact: Contact) {
+  if (contact.latest_inbound_note) {
+    return summarizeTouch(contact.latest_touch_channel || 'sms', 'inbound', contact.latest_inbound_note)
+  }
+  if (contact.latest_touch_note) {
+    return summarizeTouch(contact.latest_touch_channel || 'note', contact.latest_touch_direction, contact.latest_touch_note)
+  }
+  return null
+}
+
 // ─── Small components ─────────────────────────────────────────────────────────
 
 function StageBadge({ stage }: { stage: string }) {
@@ -120,9 +182,11 @@ function StageBadge({ stage }: { stage: string }) {
 
 function ChannelIcon({ channel, direction }: { channel: string; direction?: string }) {
   const inbound = direction === 'inbound'
-  if (channel === 'call') return <span title={inbound ? 'Incoming call' : 'Outgoing call'}>{inbound ? '📲' : '📞'}</span>
+  if (channel === 'call' || channel === 'phone') return <span title={inbound ? 'Incoming call' : 'Outgoing call'}>{inbound ? '📲' : '📞'}</span>
   if (channel === 'sms') return <span title={inbound ? 'Inbound SMS' : 'Sent SMS'}>{inbound ? '💬' : '💬'}</span>
   if (channel === 'email') return <span title={inbound ? 'Email reply' : 'Email sent'}>✉️</span>
+  if (channel === 'direct_mail') return <span title="Direct mail">📬</span>
+  if (channel === 'linkedin') return <span title="LinkedIn">🔗</span>
   if (channel === 'note') return <span>📝</span>
   if (channel === 'visit') return <span>🤝</span>
   return <span>📌</span>
@@ -602,8 +666,19 @@ const PIPELINE_COLS = [
   { key: 'dormant',            label: '❄️ Nurture',           color: 'bg-slate-50 border-slate-200' },
 ]
 
-function PipelineTab({ contacts, onSelect }: { contacts: Contact[]; onSelect: (c: Contact) => void }) {
+function PipelineTab({
+  contacts,
+  onSelect,
+  onStageChange,
+}: {
+  contacts: Contact[]
+  onSelect: (c: Contact) => void
+  onStageChange: (contactId: string, stage: string) => Promise<void>
+}) {
   const responded = contacts.filter(c => c.sequence_paused)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [dropTarget, setDropTarget] = useState<string | null>(null)
+  const [movingId, setMovingId] = useState<string | null>(null)
 
   if (responded.length === 0) {
     return (
@@ -622,34 +697,78 @@ function PipelineTab({ contacts, onSelect }: { contacts: Contact[]; onSelect: (c
           <h2 className="text-base font-semibold text-[#1a2744]">Relationship Pipeline</h2>
           <p className="text-sm text-slate-500">{responded.length} contact{responded.length !== 1 ? 's' : ''} in play</p>
         </div>
+        <div className="text-xs font-medium text-slate-400">Drag a contact into the next column to update the relationship stage.</div>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {PIPELINE_COLS.map(col => {
           const col_contacts = responded.filter(c => c.normalized_stage === col.key)
           return (
-            <div key={col.key} className={`rounded-[22px] border p-4 ${col.color}`}>
+            <div
+              key={col.key}
+              onDragOver={event => {
+                event.preventDefault()
+                if (draggingId) setDropTarget(col.key)
+              }}
+              onDragLeave={event => {
+                if (event.currentTarget.contains(event.relatedTarget as Node | null)) return
+                setDropTarget(current => current === col.key ? null : current)
+              }}
+              onDrop={event => {
+                event.preventDefault()
+                const contactId = event.dataTransfer.getData('text/plain') || draggingId
+                if (!contactId) return
+                const current = responded.find(item => item.id === contactId)
+                setDropTarget(null)
+                setDraggingId(null)
+                if (!current || current.normalized_stage === col.key) return
+                setMovingId(contactId)
+                void onStageChange(contactId, col.key).finally(() => setMovingId(currentId => currentId === contactId ? null : currentId))
+              }}
+              className={`rounded-[22px] border p-4 transition ${col.color} ${dropTarget === col.key ? 'ring-2 ring-[#1a2744] ring-offset-2 ring-offset-white' : ''}`}
+            >
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-600">{col.label}</span>
                 <span className="rounded-full bg-white/80 px-2 py-0.5 text-[11px] font-semibold text-slate-600">{col_contacts.length}</span>
               </div>
               <div className="space-y-2">
                 {col_contacts.length === 0 ? (
-                  <div className="rounded-[14px] border border-dashed border-slate-200 bg-white/50 p-4 text-center text-xs text-slate-400">Empty</div>
+                  <div className={`rounded-[14px] border border-dashed border-slate-200 bg-white/50 p-4 text-center text-xs text-slate-400 transition ${dropTarget === col.key ? 'border-[#1a2744] bg-white text-[#1a2744]' : ''}`}>Drop here</div>
                 ) : col_contacts.map(c => (
-                  <button key={c.id} onClick={() => onSelect(c)}
-                    className="w-full rounded-[16px] border border-white bg-white p-3 text-left shadow-sm hover:shadow-md transition">
+                  <div
+                    key={c.id}
+                    role="button"
+                    tabIndex={0}
+                    draggable
+                    onClick={() => onSelect(c)}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        onSelect(c)
+                      }
+                    }}
+                    onDragStart={event => {
+                      event.dataTransfer.setData('text/plain', c.id)
+                      event.dataTransfer.effectAllowed = 'move'
+                      setDraggingId(c.id)
+                    }}
+                    onDragEnd={() => {
+                      setDraggingId(null)
+                      setDropTarget(null)
+                    }}
+                    className={`w-full rounded-[16px] border border-white bg-white p-3 text-left shadow-sm transition hover:shadow-md ${draggingId === c.id ? 'cursor-grabbing opacity-50' : 'cursor-grab'} ${movingId === c.id ? 'pointer-events-none opacity-60' : ''}`}
+                  >
                     <div className="text-sm font-semibold text-[#1a2744]">{c.name}</div>
                     <div className="mt-0.5 text-xs text-slate-500 truncate">{c.company ?? c.industry ?? ''}</div>
                     <div className="mt-1.5 flex items-center justify-between text-[10px] text-slate-400">
                       <span>{c.city ?? ''}</span>
-                      {c.last_touch_at && <span>{timeAgo(c.last_touch_at)}</span>}
+                      {movingId === c.id ? <span>Saving…</span> : c.last_touch_at && <span>{timeAgo(c.last_touch_at)}</span>}
                     </div>
                     {c.decision && (
                       <div className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${c.decision === 'agreed' ? 'bg-emerald-100 text-emerald-700' : c.decision === 'rejected' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>
                         {c.decision}
                       </div>
                     )}
-                  </button>
+                  </div>
                 ))}
               </div>
             </div>
@@ -666,6 +785,8 @@ const PARTNERSHIP_FROM_NUMBER = '+12267746581'
 const PARTNERSHIP_FROM_EMAIL = 'eric@starmovers.ca'
 
 function PhoneTab({ contacts }: { contacts: Contact[] }) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [touches, setTouches] = useState<Touch[]>([])
@@ -684,6 +805,19 @@ function PhoneTab({ contacts }: { contacts: Contact[] }) {
     .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()) || (c.company ?? '').toLowerCase().includes(search.toLowerCase()))
 
   const selected = contacts.find(c => c.id === selectedId) ?? null
+  const selectedPreview = selected ? getContactPreview(selected) : null
+  const selectedFromQuery = searchParams.get('contact')
+  const firstSortedId = sorted[0]?.id ?? null
+
+  useEffect(() => {
+    if (selectedFromQuery && contacts.some(contact => contact.id === selectedFromQuery)) {
+      setSelectedId(current => current === selectedFromQuery ? current : selectedFromQuery)
+      return
+    }
+    if (!selectedId && firstSortedId) {
+      setSelectedId(firstSortedId)
+    }
+  }, [contacts, firstSortedId, selectedFromQuery, selectedId])
 
   useEffect(() => {
     if (!selectedId) return
@@ -708,6 +842,11 @@ function PhoneTab({ contacts }: { contacts: Contact[] }) {
   }, [touches])
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(null), 3000) }
+
+  function handleSelectContact(contactId: string) {
+    setSelectedId(contactId)
+    router.replace(`/marketing/partners?tab=phone&contact=${contactId}`, { scroll: false })
+  }
 
   async function handleSend() {
     if (!selected) return
@@ -766,8 +905,9 @@ function PhoneTab({ contacts }: { contacts: Contact[] }) {
         <div className="flex-1 overflow-y-auto">
           {sorted.map(c => {
             const unread = c.needs_follow_up || (c.sequence_paused && !c.decision)
+            const preview = getContactPreview(c)
             return (
-              <button key={c.id} onClick={() => setSelectedId(c.id)}
+              <button key={c.id} onClick={() => handleSelectContact(c.id)}
                 className={`w-full px-4 py-3 text-left border-b border-slate-100 transition hover:bg-slate-50 ${selectedId === c.id ? 'bg-[#1a2744]' : ''}`}>
                 <div className="flex items-center justify-between gap-2">
                   <span className={`font-semibold text-sm truncate ${selectedId === c.id ? 'text-white' : 'text-[#1a2744]'}`}>{c.name}</span>
@@ -779,9 +919,19 @@ function PhoneTab({ contacts }: { contacts: Contact[] }) {
                 <div className={`mt-0.5 text-xs truncate ${selectedId === c.id ? 'text-white/70' : 'text-slate-400'}`}>
                   {c.company ?? c.industry ?? c.city ?? '—'}
                 </div>
-                <div className="mt-1">
+                <div className="mt-1 flex items-center gap-2">
                   <StageBadge stage={c.normalized_stage} />
+                  {preview && (
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${selectedId === c.id ? 'bg-white/15 text-white/90' : preview.automated ? 'bg-slate-100 text-slate-600' : 'bg-emerald-50 text-emerald-700'}`}>
+                      {preview.label}
+                    </span>
+                  )}
                 </div>
+                {preview?.body && (
+                  <div className={`mt-2 text-[11px] leading-4 ${selectedId === c.id ? 'text-white/75' : 'text-slate-500'}`}>
+                    {truncateText(preview.body, 96)}
+                  </div>
+                )}
               </button>
             )
           })}
@@ -819,6 +969,14 @@ function PhoneTab({ contacts }: { contacts: Contact[] }) {
                   {selected.phone && <span>{selected.phone}</span>}
                   {selected.email && <span>{selected.email}</span>}
                 </div>
+                {selectedPreview && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${selectedPreview.automated ? 'bg-slate-100 text-slate-600' : 'bg-emerald-50 text-emerald-700'}`}>
+                      {selectedPreview.label}
+                    </span>
+                    {selectedPreview.body && <span className="text-xs text-slate-500">{truncateText(selectedPreview.body, 140)}</span>}
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -843,20 +1001,30 @@ function PhoneTab({ contacts }: { contacts: Contact[] }) {
             {!touchLoading && touches.length === 0 && (
               <div className="text-center text-xs text-slate-400 py-8">No touch history yet. Send the first message below.</div>
             )}
-            {[...touches].reverse().map(touch => (
+            {[...touches].reverse().map(touch => {
+              const summary = summarizeTouch(touch.channel, touch.direction, touch.notes)
+              return (
               <div key={touch.id} className={`flex gap-3 ${touch.direction === 'outbound' ? 'flex-row-reverse' : ''}`}>
                 <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm ${touch.direction === 'outbound' ? 'bg-[#1a2744]' : 'bg-white border border-slate-200'}`}>
                   <ChannelIcon channel={touch.channel} direction={touch.direction} />
                 </div>
                 <div className={`max-w-[70%] rounded-[16px] px-4 py-2.5 text-sm ${touch.direction === 'outbound' ? 'bg-[#1a2744] text-white rounded-tr-sm' : 'bg-white border border-slate-200 text-[#1a2744] rounded-tl-sm'}`}>
-                  {touch.notes && <div className="leading-relaxed">{touch.notes}</div>}
+                  <div className={`mb-1 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] ${touch.direction === 'outbound' ? 'text-white/70' : 'text-slate-400'}`}>
+                    <span>{summary.label}</span>
+                    {summary.automated && (
+                      <span className={`rounded-full px-1.5 py-0.5 text-[9px] ${touch.direction === 'outbound' ? 'bg-white/15 text-white/90' : 'bg-slate-100 text-slate-500'}`}>
+                        Auto
+                      </span>
+                    )}
+                  </div>
+                  {summary.body && <div className="whitespace-pre-wrap leading-relaxed">{summary.body}</div>}
                   {touch.outcome_code && <div className={`mt-1 text-[10px] font-semibold uppercase ${touch.direction === 'outbound' ? 'text-white/60' : 'text-slate-400'}`}>{touch.outcome_code}</div>}
                   <div className={`mt-1 text-[10px] ${touch.direction === 'outbound' ? 'text-white/50' : 'text-slate-400'}`}>
                     {touch.channel} · {fmtDate(touch.created_at)} {fmtTime(touch.created_at)}
                   </div>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
 
           {/* Compose */}
@@ -1100,6 +1268,46 @@ function PartnershipEngineInner() {
 
   const needsReplyCount = contacts.filter(c => c.sequence_paused && !c.decision).length
 
+  async function handlePipelineStageChange(contactId: string, stage: string) {
+    const previous = contacts
+    setContacts(current => current.map(contact => (
+      contact.id === contactId
+        ? {
+            ...contact,
+            stage,
+            normalized_stage: stage,
+            last_touch_at: new Date().toISOString(),
+          }
+        : contact
+    )))
+
+    const response = await fetch('/api/marketing/contacts', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ id: contactId, stage }),
+    })
+
+    if (!response.ok) {
+      setContacts(previous)
+      return
+    }
+
+    const data = await response.json().catch(() => null) as { contact?: Partial<Contact> } | null
+    const updated = data?.contact
+    if (!updated) return
+
+    setContacts(current => current.map(contact => (
+      contact.id === contactId
+        ? {
+            ...contact,
+            ...updated,
+            normalized_stage: String(updated.stage || stage),
+          }
+        : contact
+    )))
+  }
+
   return (
     <div className="min-h-screen bg-[#f0f2f5]">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
@@ -1133,7 +1341,7 @@ function PartnershipEngineInner() {
           <OverviewTab batches={batches} contacts={contacts} loading={batchesLoading || contactsLoading} onRefresh={() => { void loadBatches(); void loadContacts() }} onTabChange={handleTabChange} />
         )}
         {tab === 'pipeline' && (
-          <PipelineTab contacts={contacts} onSelect={setSelectedContact} />
+          <PipelineTab contacts={contacts} onSelect={setSelectedContact} onStageChange={handlePipelineStageChange} />
         )}
         {tab === 'phone' && (
           <PhoneTab contacts={contacts} />

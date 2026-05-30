@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { buildInboundQueueSummary, decorateInboundLead } from '@/lib/inbound-inbox'
-import { calculateLeadScore, isClosedLeadStage, normalizeLead, uid } from '@/lib/sales'
+import { calculateLeadScore, normalizeLead, uid } from '@/lib/sales'
 import {
   getSalesBranchFromSaturnLabel,
   getSalesBranchFromSaturnPhone,
@@ -11,17 +11,21 @@ import {
 } from '@/lib/sales-phones'
 import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { recordLeadCreatedAudit, recordLeadUpdateAudit } from '@/lib/server/sales-audit'
+import { findMatchingActiveLead } from '@/lib/server/lead-identity'
+import { getInboxChannelForInboundSource } from '@/lib/server/inbox-state'
 import {
+  collapseDuplicateSalesLeadsByIdentity,
   getInboundLead,
   getSalesLead,
   getSalesLeadByInboundId,
   listAllInboundLeads,
-  listSalesLeadIdentitySnapshots,
   listSalesLeadInboxSnapshots,
   markInboundLeadClaimed,
+  markLeadInboxChannelActioned,
   restoreInboundLead,
   saveCrmCallSidMapping,
   setInboundLeadDisposition,
+  setInboundLeadHandoff,
   saveSalesLead,
 } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
@@ -33,9 +37,7 @@ type InboxLeadContext = Pick<
   'id' | 'name' | 'stage' | 'phone' | 'email' | 'branch' | 'originAddress' | 'originCity' | 'destAddress' | 'destCity' | 'moveType' | 'totalCubicFeet' | 'callLogs'
 >
 
-function digitsOnly(value?: string) {
-  return (value || '').replace(/\D/g, '')
-}
+const HEALTH_PROBE_SMS_DIGITS = '15550001111'
 
 function hasUsableInboundName(value?: string | null) {
   const normalized = (value || '').trim().toLowerCase()
@@ -44,29 +46,18 @@ function hasUsableInboundName(value?: string | null) {
   return !['new caller', 'new contact', 'new lead', 'new inquiry', 'caller', 'contact'].includes(normalized)
 }
 
-function findMatchingActiveLead(
-  leads: Array<Pick<CRMLead, 'id' | 'stage' | 'phone' | 'email' | 'name'>>,
-  phone?: string,
-  email?: string
-) {
-  const phoneDigits = digitsOnly(phone)
-  const normalizedEmail = (email || '').trim().toLowerCase()
-
-  return leads.find(lead => {
-    if (isClosedLeadStage(lead.stage)) {
-      return false
-    }
-
-    const leadPhoneDigits = digitsOnly(lead.phone)
-    const leadEmail = (lead.email || '').trim().toLowerCase()
-
-    if (phoneDigits && leadPhoneDigits && (leadPhoneDigits === phoneDigits || leadPhoneDigits.endsWith(phoneDigits) || phoneDigits.endsWith(leadPhoneDigits))) {
-      return true
-    }
-
-    return !!normalizedEmail && !!leadEmail && leadEmail === normalizedEmail
-  }) || null
+function digitsOnly(value?: string | null) {
+  return (value || '').replace(/\D/g, '')
 }
+
+function isInternalHealthProbeInbound(item: InboundLead) {
+  if (item.source === 'health_check_form') return true
+  if (digitsOnly(item.phone) === HEALTH_PROBE_SMS_DIGITS) return true
+  if ((item.email || '').toLowerCase().includes('system.invalid')) return true
+  if ((item.message || '').toLowerCase().includes('lead flow health')) return true
+  return false
+}
+
 
 function parseRawData(value: InboundLead['raw_data']) {
   if (!value) return null
@@ -235,10 +226,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const [items, leads] = await Promise.all([
+    const [allItems, leads] = await Promise.all([
       listAllInboundLeads(),
       listSalesLeadInboxSnapshots(),
     ])
+    const items = allItems.filter(item => !isInternalHealthProbeInbound(item))
     const existingLeadIdsByInboundId = new Map(
       leads.filter(lead => lead.inboundId).map(lead => [lead.inboundId as string, lead.id])
     )
@@ -288,6 +280,7 @@ export async function POST(request: Request) {
     const now = new Date().toISOString()
     const claimerName = session?.name?.trim()
     const claimerUserId = session?.userId || undefined
+    const actor = { userId: claimerUserId, name: claimerName }
     const payload = (await request.json()) as {
       inboundId?: string
       name?: string
@@ -305,7 +298,8 @@ export async function POST(request: Request) {
 
     const existingLead = await getSalesLeadByInboundId(payload.inboundId)
     if (existingLead) {
-      await markInboundLeadClaimed(payload.inboundId)
+      await markInboundLeadClaimed(payload.inboundId, actor)
+      await markLeadInboxChannelActioned(existingLead.id, getInboxChannelForInboundSource(existingLead.source), actor).catch(() => {})
       return NextResponse.json(existingLead)
     }
 
@@ -320,12 +314,11 @@ export async function POST(request: Request) {
       email: payload.email || inbound.email,
       moveType: payload.moveType || 'residential',
     })
-    const duplicateLeadMatch = findMatchingActiveLead(
-      await listSalesLeadIdentitySnapshots(),
-      validated.phone || inbound.phone,
-      validated.email || inbound.email
-    )
-    const duplicateLead = duplicateLeadMatch ? await getSalesLead(duplicateLeadMatch.id) : null
+    const duplicateLead = await collapseDuplicateSalesLeadsByIdentity({
+      phone: validated.phone || inbound.phone,
+      email: validated.email || inbound.email,
+      inboundId: payload.inboundId,
+    }, actor)
 
     if (duplicateLead) {
       const inboundCallLog = buildInboundCallLog(inbound)
@@ -373,7 +366,8 @@ export async function POST(request: Request) {
       })
       await recordLeadUpdateAudit(duplicateLead, savedLead)
       await ensureInboundCallMapping(inbound, savedLead)
-      await markInboundLeadClaimed(payload.inboundId)
+      await markInboundLeadClaimed(payload.inboundId, actor)
+      await markLeadInboxChannelActioned(savedLead.id, getInboxChannelForInboundSource(inbound.source), actor).catch(() => {})
 
       return NextResponse.json(savedLead)
     }
@@ -420,7 +414,8 @@ export async function POST(request: Request) {
     })
     await recordLeadCreatedAudit(savedLead)
     await ensureInboundCallMapping(inbound, savedLead)
-    await markInboundLeadClaimed(payload.inboundId)
+    await markInboundLeadClaimed(payload.inboundId, actor)
+    await markLeadInboxChannelActioned(savedLead.id, getInboxChannelForInboundSource(inbound.source), actor).catch(() => {})
 
     return NextResponse.json(savedLead)
   } catch (error) {
@@ -438,21 +433,36 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const payload = (await request.json()) as { inboundId?: string; action?: 'junk' | 'lost' | 'not_interested' | 'restore' }
+    const payload = (await request.json()) as { inboundId?: string; action?: 'junk' | 'lost' | 'not_interested' | 'restore' | 'handoff' }
     if (!payload.inboundId || !payload.action) {
       return NextResponse.json({ error: 'inboundId and action are required' }, { status: 400 })
     }
 
+    const actor = { userId: session?.userId, name: session?.name?.trim() }
+    const inbound = await getInboundLead(payload.inboundId)
+    const linkedLead = inbound?.linkedLeadId
+      ? await getSalesLead(inbound.linkedLeadId).catch(() => null)
+      : payload.action === 'restore'
+        ? null
+        : await getSalesLeadByInboundId(payload.inboundId).catch(() => null)
+    const channel = getInboxChannelForInboundSource(inbound?.source)
+
     if (payload.action === 'junk') {
-      await setInboundLeadDisposition(payload.inboundId, 'junk')
+      await setInboundLeadDisposition(payload.inboundId, 'junk', actor)
     } else if (payload.action === 'lost') {
-      await setInboundLeadDisposition(payload.inboundId, 'lost')
+      await setInboundLeadDisposition(payload.inboundId, 'lost', actor)
     } else if (payload.action === 'not_interested') {
-      await setInboundLeadDisposition(payload.inboundId, 'not_interested')
+      await setInboundLeadDisposition(payload.inboundId, 'not_interested', actor)
     } else if (payload.action === 'restore') {
       await restoreInboundLead(payload.inboundId)
+    } else if (payload.action === 'handoff') {
+      await setInboundLeadHandoff(payload.inboundId, actor)
     } else {
       return NextResponse.json({ error: 'Unsupported action' }, { status: 400 })
+    }
+
+    if (linkedLead && payload.action !== 'restore') {
+      await markLeadInboxChannelActioned(linkedLead.id, channel, actor).catch(() => {})
     }
 
     return NextResponse.json({ ok: true })

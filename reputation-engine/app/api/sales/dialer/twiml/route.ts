@@ -4,11 +4,11 @@ import { getAppBaseUrl } from '@/lib/server/runtime'
 import { getHealthyBrowserPresence } from '@/lib/server/telephony-monitoring'
 import { getDialerSettings, isWithinBusinessHoursSettings } from '@/lib/server/dialer-settings'
 import { sendCallerIdSms } from '@/lib/server/internal-notifications'
+import { resolveVoiceCallerId } from '@/lib/server/voice-caller-id'
 import { uid } from '@/lib/sales'
-import { getSaturnTrackingLabel, getSaturnTrackingSource } from '@/lib/sales-phones'
+import { getDefaultSaturnBranchNumber, getSaturnBranchLabel, getSaturnTrackingLabel, getSaturnTrackingSource, pickSaturnBranchPhoneNumber } from '@/lib/sales-phones'
 import type { CRMLead } from '@/lib/types'
 
-const CALLER_ID = '+12267732993'
 const FALLBACK_CLIENT_IDENTITY = 'saturn-star-rep'
 const SIP_DOMAIN = 'saturn.sip.twilio.com'
 const INTERNAL_SIP_USERS = ['john', 'salesrep1']
@@ -281,7 +281,7 @@ export async function POST(request: Request) {
               // Caller ID SMS to rep phones — fires while Groundwire is still ringing
               if (crmLead.name && dialerSettings?.notifications?.notifyCallerIdSms !== false) {
                 const repPhones = dialerSettings?.notifications?.repPhones || []
-                const biz = normalizedTo || to || CALLER_ID
+                const biz = pickSaturnBranchPhoneNumber(normalizedTo, to, getDefaultSaturnBranchNumber())
                 void sendCallerIdSms(from, crmLead.name, branchCity, repPhones, biz)
               }
 
@@ -378,11 +378,29 @@ export async function POST(request: Request) {
     const dialTarget = sipDialTarget || to || ''
     if (!dialTarget) return fallbackTwiml(getRequestOrigin(request) || getAppUrl())
 
+    const outboundLeadId =
+      ((formData.get('leadId') as string | null) || (formData.get('LeadId') as string | null) || '').trim() || null
+    const outboundPreferredFrom =
+      ((formData.get('preferredFromNumber') as string | null) || (formData.get('PreferredFromNumber') as string | null) || '').trim() || null
+    const callerIdResolution = await resolveVoiceCallerId({
+      leadId: outboundLeadId,
+      phone: dialTarget,
+      preferredFromNumber: outboundPreferredFrom,
+    }).catch(() => ({
+      fromNumber: getDefaultSaturnBranchNumber(),
+      branchLabel: getSaturnBranchLabel(getDefaultSaturnBranchNumber()),
+      matchedLeadId: outboundLeadId,
+      reason: 'default' as const,
+    }))
     const appUrl = getRequestOrigin(request) || getAppUrl()
     const recordingCallback = appUrl ? `${appUrl}/api/sales/dialer/recording-callback` : ''
-    const dialStatusCallback = appUrl ? `${appUrl}/api/sales/dialer/dial-status` : ''
+    const dialStatusParams = new URLSearchParams()
+    dialStatusParams.set('branchNumber', callerIdResolution.fromNumber)
+    if (outboundLeadId) dialStatusParams.set('leadId', outboundLeadId)
+    const dialStatusQuery = dialStatusParams.toString() ? `?${dialStatusParams.toString()}` : ''
+    const dialStatusCallback = appUrl ? `${appUrl}/api/sales/dialer/dial-status${dialStatusQuery}` : ''
     const dialAttrs = [
-      `callerId="${CALLER_ID}"`,
+      `callerId="${callerIdResolution.fromNumber}"`,
       buildDialRecordingAttrs(recordingCallback, dialStatusCallback),
     ]
       .filter(Boolean)
