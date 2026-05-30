@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server'
-import { hasInternalSession } from '@/lib/server/session'
+import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
+import { getSessionUser } from '@/lib/server/session'
 import { requireSupabaseEnv as requireSupabase } from '@/lib/server/runtime'
 
 // Lightweight count — polled by header every 30s for the badge
 export async function GET() {
-  if (!await hasInternalSession()) return NextResponse.json({ count: 0 })
+  const session = await getSessionUser()
+  if (!canAccessSalesWorkspace(session)) return NextResponse.json({ count: 0 })
 
   const { url, headers } = requireSupabase()
   const res = await fetch(

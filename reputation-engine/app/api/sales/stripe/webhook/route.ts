@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
-import { getSalesQuote, listSalesLeads, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
+import { sendDepositReceipt } from '@/lib/server/deposit-receipts'
+import { scheduleMoveReminder } from '@/lib/server/sales-automation'
+import { readEnv } from '@/lib/server/runtime'
+import { getSalesLead, getSalesQuote, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
 
 export async function POST(request: Request) {
-  const stripeKey = process.env.STRIPE_SECRET_KEY
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+  const stripeKey = readEnv('STRIPE_SECRET_KEY')
+  const webhookSecret = readEnv('STRIPE_WEBHOOK_SECRET')
   if (!stripeKey) return new Response('Stripe not configured', { status: 503 })
 
   const body = await request.text()
@@ -43,6 +46,7 @@ export async function POST(request: Request) {
 
         // Update the quote with deposit payment info
         const quote = await getSalesQuote(quoteId)
+        const receiptAlreadyRecorded = quote?.depositStripeSessionId === session.id && !!quote.depositPaidAt
         if (quote) {
           await saveSalesQuote({
             ...quote,
@@ -59,8 +63,7 @@ export async function POST(request: Request) {
         // Update the lead: mark deposit received, save Stripe IDs for balance charge
         const targetLeadId = leadId || quote?.leadId
         if (targetLeadId) {
-          const leads = await listSalesLeads()
-          const lead = leads.find(l => l.id === targetLeadId)
+          const lead = await getSalesLead(targetLeadId)
           if (lead) {
             await saveSalesLead({
               ...lead,
@@ -69,6 +72,25 @@ export async function POST(request: Request) {
               depositMethod: 'Credit Card',
               depositDate: now.slice(0, 10),
             })
+            void scheduleMoveReminder(targetLeadId)
+
+            if (!receiptAlreadyRecorded && lead.email && quote) {
+              void sendDepositReceipt({
+                toEmail: lead.email,
+                toName: lead.name,
+                quoteNumber: quote.number,
+                moveDate: quote.moveDate,
+                originCity: quote.originCity,
+                destCity: quote.destCity,
+                depositAmount: session.amount_total ? session.amount_total / 100 : quote.deposit,
+                balanceAmount: Math.max(
+                  0,
+                  Math.round(((quote.total || 0) - (session.amount_total ? session.amount_total / 100 : quote.deposit)) * 100) / 100
+                ),
+                totalAmount: quote.total,
+                paymentMethod: 'Credit Card',
+              }).catch(() => null)
+            }
           }
         }
       } catch (err) {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { fetchJob, saveJob } from '@/lib/api'
+import { fetchJob, savePublicReviewJob } from '@/lib/api'
 import { BRAND, INCENTIVE_AMOUNT, REVIEW_LINKS } from '@/lib/config'
 import { reviewCount } from '@/lib/store'
 import type { Job, ReviewKey } from '@/lib/types'
@@ -59,7 +59,7 @@ export default function ReviewPage() {
   }, [jobId])
 
   async function updateJob(nextJob: Job, nextStep?: Step) {
-    const saved = await saveJob(nextJob)
+    const saved = await savePublicReviewJob(nextJob)
     setJob(saved)
     if (nextStep) setStep(nextStep)
   }

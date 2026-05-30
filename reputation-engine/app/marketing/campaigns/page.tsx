@@ -15,6 +15,10 @@ interface Campaign {
   bookings: number
   revenue_cents: number
   notes: string
+  live_letters_sent?: number
+  live_responses?: number
+  live_bookings?: number
+  live_total?: number
 }
 
 const INDUSTRY_CODES = [
@@ -42,8 +46,9 @@ function fmt(cents: number) {
 }
 
 function roi(c: Campaign) {
-  if (c.revenue_cents <= 0 || c.letters_sent <= 0) return null
-  const cost = c.cost_cents > 0 ? c.cost_cents : c.letters_sent * 200 // $2/letter default
+  const letters = c.live_letters_sent ?? c.letters_sent
+  if (c.revenue_cents <= 0 || letters <= 0) return null
+  const cost = c.cost_cents > 0 ? c.cost_cents : letters * 200 // $2/letter default
   return ((c.revenue_cents - cost) / cost * 100).toFixed(0)
 }
 
@@ -109,11 +114,11 @@ export default function CampaignsPage() {
 
   // Summary totals
   const totals = campaigns.reduce((acc, c) => ({
-    letters: acc.letters + c.letters_sent,
-    responses: acc.responses + c.responses,
-    bookings: acc.bookings + c.bookings,
+    letters: acc.letters + (c.live_letters_sent ?? c.letters_sent),
+    responses: acc.responses + (c.live_responses ?? c.responses),
+    bookings: acc.bookings + (c.live_bookings ?? c.bookings),
     revenue: acc.revenue + c.revenue_cents,
-    cost: acc.cost + (c.cost_cents || c.letters_sent * 200),
+    cost: acc.cost + (c.cost_cents || (c.live_letters_sent ?? c.letters_sent) * 200),
   }), { letters: 0, responses: 0, bookings: 0, revenue: 0, cost: 0 })
 
   return (
@@ -157,8 +162,11 @@ export default function CampaignsPage() {
         <div className="crm-panel divide-y divide-slate-100">
           {campaigns.map(c => {
             const roiVal = roi(c)
-            const responseRate = c.letters_sent > 0 ? ((c.responses / c.letters_sent) * 100).toFixed(1) : '—'
-            const convRate = c.responses > 0 ? ((c.bookings / c.responses) * 100).toFixed(0) : '—'
+            const letters = c.live_letters_sent ?? c.letters_sent
+            const responses = c.live_responses ?? c.responses
+            const bookings = c.live_bookings ?? c.bookings
+            const responseRate = letters > 0 ? ((responses / letters) * 100).toFixed(1) : '—'
+            const convRate = responses > 0 ? ((bookings / responses) * 100).toFixed(0) : '—'
             return (
               <div key={c.id} className="p-5 space-y-3">
                 <div className="flex items-start justify-between gap-3">
@@ -180,9 +188,9 @@ export default function CampaignsPage() {
 
                 <div className="grid grid-cols-4 gap-3 text-center">
                   {[
-                    { label: 'Sent', val: c.letters_sent.toLocaleString() },
-                    { label: 'Responses', val: `${c.responses} (${responseRate}%)` },
-                    { label: 'Bookings', val: `${c.bookings} (${convRate}%)` },
+                    { label: 'Sent', val: letters.toLocaleString() },
+                    { label: 'Responses', val: `${responses} (${responseRate}%)` },
+                    { label: 'Bookings', val: `${bookings} (${convRate}%)` },
                     { label: 'Revenue', val: c.revenue_cents > 0 ? fmt(c.revenue_cents) : '—' },
                   ].map(item => (
                     <div key={item.label} className="rounded-lg bg-slate-50 p-2">

@@ -7,9 +7,39 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { url, headers } = requireSupabaseEnv()
-  const res = await fetch(`${url}/rest/v1/market_campaigns?select=*&order=sent_date.desc`, { headers, cache: 'no-store' })
-  if (!res.ok) return NextResponse.json({ error: 'Failed' }, { status: 500 })
-  return NextResponse.json(await res.json())
+  const [campaignRes, contactRes] = await Promise.all([
+    fetch(`${url}/rest/v1/market_campaigns?select=*&order=sent_date.desc`, { headers, cache: 'no-store' }),
+    fetch(`${url}/rest/v1/market_contacts?select=batch_id,stage,decision,sequence_paused,pipeline_phase&batch_id=not.is.null`, { headers, cache: 'no-store' }),
+  ])
+
+  if (!campaignRes.ok) return NextResponse.json({ error: 'Failed' }, { status: 500 })
+
+  const campaigns = await campaignRes.json() as Array<Record<string, unknown>>
+  const contacts = contactRes.ok ? await contactRes.json() as Array<Record<string, unknown>> : []
+
+  const byBatch = new Map<string, Array<Record<string, unknown>>>()
+  for (const contact of contacts) {
+    const batchId = String(contact.batch_id || '')
+    if (!batchId) continue
+    byBatch.set(batchId, [...(byBatch.get(batchId) ?? []), contact])
+  }
+
+  const enriched = campaigns.map(campaign => {
+    const batchContacts = byBatch.get(String(campaign.id)) ?? []
+    const liveLetters = batchContacts.length
+    const liveResponses = batchContacts.filter(contact => Boolean(contact.sequence_paused)).length
+    const liveBookings = batchContacts.filter(contact => String(contact.decision || '') === 'agreed' || String(contact.stage || '') === 'partnership_active').length
+
+    return {
+      ...campaign,
+      live_letters_sent: liveLetters,
+      live_responses: liveResponses,
+      live_bookings: liveBookings,
+      live_total: batchContacts.length,
+    }
+  })
+
+  return NextResponse.json(enriched)
 }
 
 export async function POST(request: Request) {

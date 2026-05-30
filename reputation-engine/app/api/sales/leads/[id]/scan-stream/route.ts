@@ -1,4 +1,5 @@
 import { getSalesLead } from '@/lib/server/sales-repository'
+import { getListingPropertyContext } from '@/lib/listing'
 import { analyzePhotoBatch } from '@/lib/server/inventory-enrichment'
 import { hasInternalSession } from '@/lib/server/session'
 
@@ -17,6 +18,7 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
   const photos = (lead.supabaseListing?.carouselphotos || [])
     .map((p: string | { url?: string }) => (typeof p === 'string' ? p : p?.url))
     .filter((u): u is string => !!u)
+  const propertyContext = getListingPropertyContext(lead.supabaseListing)
 
   if (photos.length === 0) return new Response('No MLS photos on this lead', { status: 400 })
   if (!process.env.OPENAI_API_KEY) return new Response('OpenAI not configured', { status: 400 })
@@ -54,7 +56,7 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
           })
 
           try {
-            const items = await analyzePhotoBatch(batches[i], i)
+            const items = await analyzePhotoBatch(batches[i], i, propertyContext)
             allItems.push(...items)
             send({
               type: 'batch',

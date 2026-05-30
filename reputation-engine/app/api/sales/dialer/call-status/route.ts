@@ -3,25 +3,48 @@
  * Twilio status callback — fires when a call ends.
  * If the call was missed (no-answer/busy/failed), auto-SMS the caller.
  */
-import { NextResponse } from 'next/server'
+import {
+  getSaturnBranchLabel,
+  normalizePhone,
+  pickSaturnBranchPhoneNumber,
+} from '@/lib/sales-phones'
+import { createSalesSystemAlert } from '@/lib/server/sales-alerts'
 import { getTwilioCredentials } from '@/lib/server/runtime'
+import { twilioAuth } from '@/lib/server/twilio-recordings'
 import { listSalesLeads } from '@/lib/server/sales-repository'
+import { verifyTwilioWebhook } from '@/lib/server/webhook-verification'
 
-const SATURN_PHONE = '+12267732993'
+export async function GET() {
+  return Response.json({
+    ok: true,
+    route: 'sales-dialer-call-status',
+    checks: ['missed-call-sms', 'branch-aware-from-number'],
+  })
+}
 
 export async function POST(request: Request) {
   try {
-    const form = await request.formData()
-    const callStatus = (form.get('CallStatus') as string || '').toLowerCase()
-    const from = (form.get('From') as string || '').trim()
+    const { searchParams } = new URL(request.url)
+    const rawBody = await request.text()
+    if (!verifyTwilioWebhook(request, rawBody)) {
+      return new Response('Unauthorized', { status: 401 })
+    }
+
+    const form = new URLSearchParams(rawBody)
+    const callStatus = (form.get('CallStatus') || '').toLowerCase()
+    const from = (form.get('From') || '').trim()
     const callDuration = Number(form.get('CallDuration') || 0)
+    const branchNumber = pickSaturnBranchPhoneNumber(
+      searchParams.get('branchNumber'),
+      normalizePhone(form.get('To'))
+    )
 
     // Only auto-SMS on missed/short calls
     const isMissed = ['no-answer', 'busy', 'failed'].includes(callStatus)
       || (callStatus === 'completed' && callDuration < 10)
 
     if (!isMissed || !from || from === 'anonymous' || from.toLowerCase().startsWith('client:')) {
-      return new Response('', { status: 204 })
+      return new Response(null, { status: 204 })
     }
 
     // Try to find lead name for personalization
@@ -35,24 +58,32 @@ export async function POST(request: Request) {
 
     const { accountSid, authToken } = getTwilioCredentials()
     const greeting = firstName ? `Hi ${firstName}!` : 'Hi there!'
-
-    const body = `${greeting} This is Saturn Star Moving — sorry we missed your call! 🚛 We'd love to help with your move. Reply here or call us back at 226-773-2993 and we'll get you sorted right away.`
+    const branchLabel = getSaturnBranchLabel(branchNumber)
+    const body = `${greeting} This is Saturn Star Moving${branchLabel ? ` on the ${branchLabel} line` : ''} — sorry we missed your call! Reply here or call us back here and we'll get you sorted right away.`
 
     await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
       method: 'POST',
       headers: {
-        Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`,
+        Authorization: twilioAuth(accountSid, authToken),
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: new URLSearchParams({
-        From: SATURN_PHONE,
+        From: branchNumber,
         To: from,
         Body: body,
       }).toString(),
     })
 
-    return new Response('', { status: 204 })
+    void createSalesSystemAlert({
+      title: 'Missed inbound call',
+      leadId: matchedLead?.id,
+      branchNumber,
+      details: `Caller ${from} was sent an automatic missed-call SMS from ${branchNumber}.`,
+      occurredAt: new Date().toISOString(),
+    })
+
+    return new Response(null, { status: 204 })
   } catch {
-    return new Response('', { status: 204 })
+    return new Response(null, { status: 204 })
   }
 }

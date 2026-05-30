@@ -5,6 +5,7 @@ import { formatMoney } from '@/lib/sales'
 
 interface RepStat {
   repId: string
+  repName: string
   totalLeads: number
   bookedLeads: number
   lostLeads: number
@@ -65,13 +66,13 @@ export default function RepsPage() {
             <div className="flex items-center justify-between border-b border-[var(--app-line)] p-5">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1a2744] text-sm font-bold text-white">
-                  {rep.repId === 'Unassigned' ? '?' : rep.repId.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)}
+                  {rep.repName === 'Unassigned' ? '?' : rep.repName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)}
                 </div>
                 <div>
-                  <div className="font-semibold text-[#1a2744]">{rep.repId}</div>
+                  <div className="font-semibold text-[#1a2744]">{rep.repName}</div>
                   <div className="text-xs text-[var(--app-muted)]">{rep.totalLeads} leads total</div>
                 </div>
-                {i === 0 && data.reps.length > 1 && rep.repId !== 'Unassigned' && (
+                {i === 0 && data.reps.length > 1 && rep.repName !== 'Unassigned' && (
                   <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">Top Performer</span>
                 )}
                 {rep.hotLeads > 0 && (

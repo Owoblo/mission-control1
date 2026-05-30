@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { isBookedLikeStage } from '@/lib/sales'
 import { getSessionUser } from '@/lib/server/session'
 import { listSalesLeads } from '@/lib/server/sales-repository'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
@@ -74,7 +75,7 @@ export async function GET() {
   }
 
   // ── Booked jobs ───────────────────────────────────────────────
-  const booked = leads.filter(l => l.stage === 'booked')
+  const booked = leads.filter(l => isBookedLikeStage(l.stage))
   const bookedRevenue = booked.reduce((sum, l) => {
     const q = quotes.find(q => String(q.lead_id) === l.id)
     return sum + Number(q?.total || 0)

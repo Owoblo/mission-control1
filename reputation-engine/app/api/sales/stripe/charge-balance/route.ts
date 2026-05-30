@@ -4,14 +4,16 @@
  * Uses raw fetch (no SDK) — same pattern as the checkout route.
  */
 import { NextResponse } from 'next/server'
+import { getQuotePaidSoFar } from '@/lib/server/job-billing'
 import { hasInternalSession } from '@/lib/server/session'
-import { getSalesQuote, listSalesLeads, saveSalesLead } from '@/lib/server/sales-repository'
+import { readEnv } from '@/lib/server/runtime'
+import { getSalesQuote, listSalesLeads, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
 
 export async function POST(request: Request) {
   const authed = await hasInternalSession()
   if (!authed) return new Response('Unauthorized', { status: 401 })
 
-  const stripeKey = process.env.STRIPE_SECRET_KEY
+  const stripeKey = readEnv('STRIPE_SECRET_KEY')
   if (!stripeKey) return NextResponse.json({ error: 'Stripe not configured' }, { status: 503 })
 
   try {
@@ -77,9 +79,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: pi.error?.message || 'Charge failed' }, { status: 402 })
     }
 
-    await saveSalesLead({ ...lead, paymentStatus: 'paid_in_full' })
+    const paid = getQuotePaidSoFar(quote, lead)
+    const nextBalance = Math.max(0, Math.round((quote.total - (paid.totalPaid + chargeAmount)) * 100) / 100)
+    await saveSalesQuote({
+      ...quote,
+      balance: nextBalance,
+      balancePaidAt: new Date().toISOString(),
+      balancePaidAmount: Math.round((paid.balancePaid + chargeAmount) * 100) / 100,
+      balancePaidMethod: 'stripe',
+    })
 
-    return NextResponse.json({ ok: true, paymentIntentId: pi.id, status: pi.status, amount: chargeAmount })
+    await saveSalesLead({
+      ...lead,
+      paymentStatus: nextBalance <= 0 ? 'paid_in_full' : 'deposit_received',
+    })
+
+    return NextResponse.json({ ok: true, paymentIntentId: pi.id, status: pi.status, amount: chargeAmount, balance: nextBalance })
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Charge failed' }, { status: 500 })
   }

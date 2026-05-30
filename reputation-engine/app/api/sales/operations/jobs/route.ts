@@ -1,16 +1,28 @@
 import { NextResponse } from 'next/server'
-import { hasInternalSession } from '@/lib/server/session'
+import { isBookedLikeStage } from '@/lib/sales'
+import { canAccessOperationsWorkspace } from '@/lib/server/sales-permissions'
+import { getSessionUser } from '@/lib/server/session'
 import { listSalesLeads, listSalesQuotes } from '@/lib/server/sales-repository'
 
-export async function GET() {
-  const authed = await hasInternalSession()
-  if (!authed) return new Response('Unauthorized', { status: 401 })
+export async function GET(request: Request) {
+  const session = await getSessionUser()
+  if (!canAccessOperationsWorkspace(session)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const { searchParams } = new URL(request.url)
+  const branchFilter = searchParams.get('branch') || session?.branch || null
 
   const [leads, quotes] = await Promise.all([listSalesLeads(), listSalesQuotes()])
 
-  const bookedLeads = leads.filter(l =>
-    l.stage === 'booked' || l.paymentStatus === 'deposit_received' || l.paymentStatus === 'paid_in_full'
-  )
+  const bookedLeads = leads.filter(l => {
+    if (!isBookedLikeStage(l.stage) && l.paymentStatus !== 'deposit_received' && l.paymentStatus !== 'paid_in_full') {
+      return false
+    }
+    // operations_lead: filter to their branch (from session or query param)
+    if (branchFilter && l.branch && l.branch !== branchFilter) return false
+    return true
+  })
 
   const jobs = bookedLeads.map(lead => ({
     lead,
@@ -21,5 +33,5 @@ export async function GET() {
     return dateA.localeCompare(dateB)
   })
 
-  return NextResponse.json({ jobs })
+  return NextResponse.json({ jobs, branch: branchFilter })
 }

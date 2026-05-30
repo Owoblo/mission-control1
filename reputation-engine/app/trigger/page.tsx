@@ -120,7 +120,7 @@ export default function TriggerPage() {
     const body = encodeURIComponent(
       `Hi ${form.customerName},\n\nThank you for trusting Saturn Star Movers with your move.\n\n` +
         `We'd love to hear how it went. You can share feedback here:\n\n${jobLink}\n\n` +
-        `Thanks,\nSaturn Star Movers\n226-724-1730`
+        `Thanks,\nSaturn Star Movers\n226-773-2993`
     )
     return `mailto:${form.customerEmail}?subject=${subject}&body=${body}`
   }

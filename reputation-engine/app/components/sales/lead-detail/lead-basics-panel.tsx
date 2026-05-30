@@ -1,8 +1,18 @@
 'use client'
 
-import { formatDate } from '@/lib/sales'
+import { useEffect, useRef, useState } from 'react'
+import { formatListingPropertySummary } from '@/lib/listing'
+import { formatDate, getSalesBranchLabel } from '@/lib/sales'
 import type { CRMLead } from '@/lib/types'
-import { AddressAutocomplete } from '@/app/components/address-autocomplete'
+import { SALES_BRANCHES } from '@/lib/sales'
+
+type AddressSuggestion = {
+  label: string
+  city?: string
+  placeType?: 'house' | 'apartment' | 'commercial' | 'unknown'
+}
+
+type ApartmentInfo = { floor: number; hasElevator: boolean }
 
 type Props = {
   lead: CRMLead
@@ -11,6 +21,7 @@ type Props = {
   leadEmail: string
   leadSource: string
   moveDate: string
+  branch?: CRMLead['branch']
   moveType: CRMLead['moveType']
   originAddress: string
   originCity: string
@@ -31,6 +42,7 @@ type Props = {
   onMoveDateFlexibleChange: (value: boolean) => void
   onMoveDateFlexibleReasonChange: (value: string) => void
   onMoveTypeChange: (value: CRMLead['moveType']) => void
+  onBranchChange: (value: CRMLead['branch']) => void
   onOriginAddressChange: (value: string) => void
   onOriginCityChange: (value: string) => void
   onOriginAccessChange: (value: string) => void
@@ -38,9 +50,178 @@ type Props = {
   onDestCityChange: (value: string) => void
   onDestAccessChange: (value: string) => void
   onParkingNotesChange: (value: string) => void
+  onApartmentDetected?: (field: 'origin' | 'dest', info: ApartmentInfo) => void
   listingLookupBusy?: boolean
   hasListing?: boolean
   onScanListing?: () => void
+  disabled?: boolean
+}
+
+function AddressInput({
+  value,
+  placeholder,
+  disabled,
+  onChange,
+  onCityChange,
+  onApartmentDetected,
+}: {
+  value: string
+  placeholder: string
+  disabled?: boolean
+  onChange: (v: string) => void
+  onCityChange?: (city: string) => void
+  onApartmentDetected?: (isApt: boolean) => void
+}) {
+  // Local raw state so typing doesn't trigger heavy parent re-renders on every keystroke
+  const [raw, setRaw] = useState(value)
+  const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([])
+  const [open, setOpen] = useState(false)
+  const [fetching, setFetching] = useState(false)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // Sync when parent resets the value (e.g. form clear)
+  useEffect(() => { setRaw(value) }, [value])
+
+  useEffect(() => {
+    function onDown(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [])
+
+  function handleInput(val: string) {
+    setRaw(val)
+    // Defer parent state update to after suggestions settle — avoids INP lag
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (val.length < 4) {
+      onChange(val)  // still sync short values immediately
+      setSuggestions([])
+      setOpen(false)
+      return
+    }
+    debounceRef.current = setTimeout(async () => {
+      onChange(val)  // now update parent (after 380ms)
+      setFetching(true)
+      try {
+        const res = await fetch(`/api/sales/address-suggest?q=${encodeURIComponent(val)}`, { credentials: 'include' })
+        const data = (await res.json()) as { suggestions?: AddressSuggestion[] }
+        const list = data.suggestions || []
+        setSuggestions(list)
+        if (list.length > 0) setOpen(true)
+      } catch { setSuggestions([]) }
+      finally { setFetching(false) }
+    }, 380)
+  }
+
+  function select(s: AddressSuggestion) {
+    setRaw(s.label)
+    onChange(s.label)
+    if (s.city && onCityChange) onCityChange(s.city)
+    setSuggestions([])
+    setOpen(false)
+    if (onApartmentDetected) onApartmentDetected(s.placeType === 'apartment')
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      <input
+        value={raw}
+        onChange={e => handleInput(e.target.value)}
+        onFocus={() => suggestions.length > 0 && setOpen(true)}
+        onBlur={() => { if (!open) onChange(raw) }}  // sync on blur in case user typed without selecting
+        className="crm-input w-full pr-6"
+        placeholder={placeholder}
+        disabled={disabled}
+        autoComplete="off"
+      />
+      {fetching && (
+        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">
+          <span className="block h-3 w-3 animate-spin rounded-full border-2 border-[var(--app-accent)] border-t-transparent" />
+        </span>
+      )}
+      {open && suggestions.length > 0 && (
+        <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-full max-w-[560px] overflow-y-auto rounded-[8px] border border-[var(--app-line)] bg-white shadow-xl sm:w-max">
+          {suggestions.map((s, i) => {
+            const parts = s.label.split(', ')
+            const street = parts[0] || s.label
+            const location = parts.slice(1).join(', ')
+            return (
+              <button
+                key={i}
+                type="button"
+                onMouseDown={() => select(s)}
+                className="flex w-full items-start gap-2 px-3 py-2.5 text-left hover:bg-[var(--app-bg)]"
+              >
+                <span className="mt-0.5 text-[10px] shrink-0">
+                  {s.placeType === 'apartment' ? '🏢' : s.placeType === 'commercial' ? '🏬' : '🏠'}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-[var(--app-ink)]">{street}</div>
+                  {location ? <div className="text-xs text-[var(--app-muted)]">{location}</div> : null}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ApartmentPrompt({
+  field,
+  onApply,
+  onDismiss,
+}: {
+  field: 'origin' | 'dest'
+  onApply: (info: ApartmentInfo) => void
+  onDismiss: () => void
+}) {
+  const [floor, setFloor] = useState(1)
+  const [hasElevator, setHasElevator] = useState(true)
+
+  return (
+    <div className="rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-3">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-[11px] font-semibold text-amber-900">🏢 Apartment detected at {field === 'dest' ? 'destination' : 'origin'}</span>
+        <button type="button" onClick={onDismiss} className="text-amber-600 hover:text-amber-900 text-xs">✕</button>
+      </div>
+      <div className="flex items-center gap-2">
+        <label className="text-[10px] font-medium text-amber-800 whitespace-nowrap">Floor #</label>
+        <input
+          type="number"
+          min={1}
+          max={60}
+          value={floor}
+          onChange={e => setFloor(Math.max(1, Number(e.target.value)))}
+          className="w-16 rounded-[6px] border border-amber-300 bg-white px-2 py-1 text-sm text-center focus:outline-none"
+        />
+        <label className="flex cursor-pointer items-center gap-1.5 text-[10px] font-medium text-amber-800">
+          <input
+            type="checkbox"
+            checked={hasElevator}
+            onChange={e => setHasElevator(e.target.checked)}
+            className="h-3 w-3 accent-amber-600"
+          />
+          Elevator
+        </label>
+        <button
+          type="button"
+          onClick={() => onApply({ floor, hasElevator })}
+          className="ml-auto rounded-[6px] bg-amber-600 px-3 py-1 text-[10px] font-semibold text-white hover:bg-amber-700"
+        >
+          Apply
+        </button>
+      </div>
+      {!hasElevator && floor >= 2 && (
+        <div className="mt-1.5 text-[10px] text-amber-700">
+          +{((floor - 1) * 0.35).toFixed(2)} hrs stair penalty will be added to estimate
+        </div>
+      )}
+    </div>
+  )
 }
 
 export function LeadBasicsPanel({
@@ -50,6 +231,7 @@ export function LeadBasicsPanel({
   leadEmail,
   leadSource,
   moveDate,
+  branch,
   moveDateFlexible,
   moveDateFlexibleReason,
   moveType,
@@ -70,6 +252,7 @@ export function LeadBasicsPanel({
   onMoveDateFlexibleChange,
   onMoveDateFlexibleReasonChange,
   onMoveTypeChange,
+  onBranchChange,
   onOriginAddressChange,
   onOriginCityChange,
   onOriginAccessChange,
@@ -77,10 +260,28 @@ export function LeadBasicsPanel({
   onDestCityChange,
   onDestAccessChange,
   onParkingNotesChange,
+  onApartmentDetected,
   listingLookupBusy,
   hasListing,
   onScanListing,
+  disabled,
 }: Props) {
+  const listingPropertySummary = formatListingPropertySummary(lead.supabaseListing)
+
+  const [originAptPending, setOriginAptPending] = useState(false)
+  const [destAptPending, setDestAptPending] = useState(false)
+
+  function applyApartment(field: 'origin' | 'dest', info: ApartmentInfo) {
+    const label = `Apt — Floor ${info.floor} — ${info.hasElevator ? 'Elevator available' : 'No elevator (stairs)'}`
+    if (field === 'origin') { onOriginAccessChange(label); setOriginAptPending(false) }
+    else { onDestAccessChange(label); setDestAptPending(false) }
+    onApartmentDetected?.(field, info)
+  }
+
+  const activeContactLabel =
+    lead.leadKind === 'realtor_opportunity' && lead.primaryContactRole !== 'customer'
+      ? 'Realtor contact'
+      : 'Customer contact'
   const customerSummary = [
     leadName || lead.name || 'New contact',
     moveType ? `${moveType} move` : 'Move type pending',
@@ -104,19 +305,23 @@ export function LeadBasicsPanel({
           </div>
         </div>
         <div className="mt-5 space-y-3 text-sm text-[var(--app-ink)]">
+          <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">{activeContactLabel}</div>
           <div>{leadEmail || 'No email on file'}</div>
           <div>{leadPhone || 'No phone on file'}</div>
+          {branch ? (
+            <div className="text-xs text-[var(--app-muted)]">Branch: {getSalesBranchLabel(branch)}</div>
+          ) : null}
         </div>
         <div className="mt-5 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-3">
-          <div className="crm-label">Customer Summary</div>
+          <div className="crm-label">Contact Summary</div>
           <div className="mt-2 text-sm leading-6 text-[var(--app-ink)]">{customerSummary}</div>
         </div>
       </div>
 
       <div className="border-b border-[var(--app-line)] p-5">
         <div className="crm-label">Lead Basics</div>
-        <div className="mt-4 grid gap-3">
-          <input value={leadName} onChange={event => onLeadNameChange(event.target.value)} className="crm-input" placeholder="Add customer name" />
+        <fieldset disabled={disabled} className="mt-4 grid gap-3">
+          <input value={leadName} onChange={event => onLeadNameChange(event.target.value)} className="crm-input" placeholder={lead.leadKind === 'realtor_opportunity' ? 'Add active contact name' : 'Add customer name'} />
           <input value={leadPhone} onChange={event => onLeadPhoneChange(event.target.value)} className="crm-input" placeholder="Phone number" />
           <input value={leadEmail} onChange={event => onLeadEmailChange(event.target.value)} className="crm-input" placeholder="Email address" />
           <select value={leadSource} onChange={event => onLeadSourceChange(event.target.value)} className="crm-input">
@@ -127,16 +332,16 @@ export function LeadBasicsPanel({
             <option value="email">Email</option>
             <option value="referral">Referral</option>
             <option value="direct_mail">Direct mail</option>
+            <option value="destination_opportunity">Destination opportunity</option>
             <option value="other">Other</option>
           </select>
-        </div>
+        </fieldset>
       </div>
 
       <div className="border-b border-[var(--app-line)] p-5">
         <div className="crm-label">Move Details</div>
-        <div className="mt-4 grid gap-3">
+        <fieldset disabled={disabled} className="mt-4 grid gap-3">
           <input type="date" value={moveDate} onChange={event => onMoveDateChange(event.target.value)} className="crm-input" />
-          {/* Date TBD toggle */}
           <label className="flex cursor-pointer items-center gap-2">
             <input
               type="checkbox"
@@ -162,20 +367,40 @@ export function LeadBasicsPanel({
             <option value="labor-only">Labor-only</option>
             <option value="packing">Packing</option>
           </select>
-          <AddressAutocomplete
+          <select value={branch || ''} onChange={event => onBranchChange((event.target.value || undefined) as CRMLead['branch'])} className="crm-input">
+            <option value="">Auto-detect branch / service area</option>
+            {SALES_BRANCHES.map(option => (
+              <option key={option.id} value={option.id}>{option.label}</option>
+            ))}
+          </select>
+
+          {/* Origin address with autocomplete */}
+          <AddressInput
             value={originAddress}
-            onChange={onOriginAddressChange}
-            onPlaceSelect={(addr, city) => { onOriginAddressChange(addr); if (city) onOriginCityChange(city) }}
             placeholder="Origin address"
+            disabled={disabled}
+            onChange={onOriginAddressChange}
+            onCityChange={onOriginCityChange}
+            onApartmentDetected={isApt => { if (isApt && !disabled) setOriginAptPending(true) }}
           />
+          {originAptPending && !disabled && (
+            <ApartmentPrompt
+              field="origin"
+              onApply={info => applyApartment('origin', info)}
+              onDismiss={() => setOriginAptPending(false)}
+            />
+          )}
           <input value={originCity} onChange={event => onOriginCityChange(event.target.value)} className="crm-input" placeholder="Origin city" />
           <input value={originAccess} onChange={event => onOriginAccessChange(event.target.value)} className="crm-input" placeholder="Origin access, stairs, elevator, long carry" />
+
           {/* MLS Scan Prompt */}
           {(originAddress || originCity) && onScanListing && (
             hasListing ? (
               <div className="flex items-center gap-2 rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-2">
                 <span className="text-[11px] font-semibold text-emerald-700">📷 Listing matched</span>
-                <span className="ml-1 text-[10px] text-emerald-600">— inventory auto-loaded</span>
+                <span className="ml-1 text-[10px] text-emerald-600">
+                  — {listingPropertySummary ? `${listingPropertySummary} · ` : ''}inventory auto-loaded
+                </span>
                 <button onClick={onScanListing} disabled={listingLookupBusy} className="ml-auto text-[10px] font-semibold text-emerald-700 hover:text-emerald-900 disabled:opacity-60">
                   {listingLookupBusy ? 'Rescanning...' : 'Rescan'}
                 </button>
@@ -196,16 +421,27 @@ export function LeadBasicsPanel({
               </div>
             )
           )}
-          <AddressAutocomplete
+
+          {/* Destination address with autocomplete */}
+          <AddressInput
             value={destAddress}
-            onChange={onDestAddressChange}
-            onPlaceSelect={(addr, city) => { onDestAddressChange(addr); if (city) onDestCityChange(city) }}
             placeholder="Destination address"
+            disabled={disabled}
+            onChange={onDestAddressChange}
+            onCityChange={onDestCityChange}
+            onApartmentDetected={isApt => { if (isApt && !disabled) setDestAptPending(true) }}
           />
+          {destAptPending && !disabled && (
+            <ApartmentPrompt
+              field="dest"
+              onApply={info => applyApartment('dest', info)}
+              onDismiss={() => setDestAptPending(false)}
+            />
+          )}
           <input value={destCity} onChange={event => onDestCityChange(event.target.value)} className="crm-input" placeholder="Destination city" />
           <input value={destAccess} onChange={event => onDestAccessChange(event.target.value)} className="crm-input" placeholder="Destination access, stairs, elevator, long carry" />
           <input value={parkingNotes} onChange={event => onParkingNotesChange(event.target.value)} className="crm-input" placeholder="Parking / truck notes" />
-        </div>
+        </fieldset>
         <div className="relative mt-5 pl-4">
           <div className="absolute bottom-0 left-0 top-2 w-px bg-[rgba(228,226,220,1)]" />
           <div className="relative mb-6 pl-4">
@@ -237,6 +473,10 @@ export function LeadBasicsPanel({
           <div>
             <div className="text-xs text-[var(--app-muted)]">Est. Volume</div>
             <div className="mt-2 font-medium text-[var(--app-ink)]">{totalCubicFeet || 0} cu ft</div>
+          </div>
+          <div>
+            <div className="text-xs text-[var(--app-muted)]">MLS Context</div>
+            <div className="mt-2 font-medium text-[var(--app-ink)]">{listingPropertySummary || 'Not matched yet'}</div>
           </div>
           <div>
             <div className="text-xs text-[var(--app-muted)]">Access + Parking</div>

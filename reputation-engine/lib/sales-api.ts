@@ -5,10 +5,12 @@ import type {
   CRMWorker,
   FollowUpLog,
   InboundLead,
+  InventoryItem,
   InventoryScanDraft,
   ListingMatch,
   SalesDashboardSummary,
 } from './types'
+import type { UserRole } from './auth'
 
 async function readJson<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -46,7 +48,7 @@ export async function createSalesLead(payload: Partial<CRMLead>): Promise<CRMLea
   return readJson(response)
 }
 
-export async function updateSalesLead(id: string, updates: Partial<CRMLead>): Promise<CRMLead> {
+export async function updateSalesLead(id: string, updates: Partial<CRMLead> & { sendAppointmentSms?: boolean }): Promise<CRMLead> {
   const response = await fetch(`/api/sales/leads/${id}`, {
     method: 'PATCH',
     credentials: 'include',
@@ -56,10 +58,34 @@ export async function updateSalesLead(id: string, updates: Partial<CRMLead>): Pr
   return readJson(response)
 }
 
+export async function fetchSalesUsers(): Promise<Array<{ id: string; name: string; role: UserRole }>> {
+  const response = await fetch('/api/sales/users', { cache: 'no-store', credentials: 'include' })
+  return readJson(response)
+}
+
 export async function deleteSalesLead(id: string): Promise<{ ok: boolean }> {
   const response = await fetch(`/api/sales/leads/${id}`, {
     method: 'DELETE',
     credentials: 'include',
+  })
+  return readJson(response)
+}
+
+export async function fetchDeletedSalesLeads(): Promise<CRMLead[]> {
+  const response = await fetch('/api/sales/leads/deleted', {
+    cache: 'no-store',
+    credentials: 'include',
+  })
+  const payload = await readJson<{ leads?: CRMLead[] }>(response)
+  return payload.leads || []
+}
+
+export async function restoreDeletedSalesLead(leadId: string): Promise<{ ok: boolean }> {
+  const response = await fetch('/api/sales/leads/deleted', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ leadId }),
   })
   return readJson(response)
 }
@@ -79,6 +105,37 @@ export async function saveLeadConsultation(
   payload: { notes?: string; summary?: string; recordingUrl?: string; durationSeconds?: number }
 ): Promise<CRMLead> {
   const response = await fetch(`/api/sales/leads/${id}/consultation`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  return readJson(response)
+}
+
+export async function uploadLeadMedia(
+  id: string,
+  payload: { room: string; files: File[]; notes?: string }
+): Promise<{ ok: boolean; lead: CRMLead; uploadedCount: number; analyzedImageCount: number; skippedVideoCount: number; detectedItems: InventoryItem[] }> {
+  const form = new FormData()
+  form.append('room', payload.room)
+  if (payload.notes) form.append('notes', payload.notes)
+  payload.files.forEach(file => form.append('files', file))
+
+  const response = await fetch(`/api/sales/leads/${id}/media-upload`, {
+    method: 'POST',
+    credentials: 'include',
+    body: form,
+  })
+
+  return readJson(response)
+}
+
+export async function handoffRealtorOpportunityLead(
+  id: string,
+  payload: { name: string; phone?: string; email?: string }
+): Promise<{ lead: CRMLead; log: FollowUpLog }> {
+  const response = await fetch(`/api/sales/leads/${id}/handoff`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -135,7 +192,7 @@ export async function saveSalesFollowUp(payload: Partial<FollowUpLog> & { follow
 }
 
 export async function sendSalesMessage(payload: {
-  channel: 'email' | 'sms'
+  channel: 'email' | 'sms' | 'whatsapp'
   to: string
   subject?: string
   body: string
@@ -143,7 +200,8 @@ export async function sendSalesMessage(payload: {
   leadId?: string
   quoteId?: string
   notes?: string
-}): Promise<{ ok: boolean; log: FollowUpLog }> {
+  fromNumber?: string
+}): Promise<{ ok: boolean; log: FollowUpLog; result?: { fromNumber?: string; branchLabel?: string } }> {
   const response = await fetch('/api/sales/send', {
     method: 'POST',
     credentials: 'include',
@@ -243,6 +301,12 @@ export async function logDialerCall(payload: {
   durationSeconds?: number
   callSid?: string
   answered?: boolean
+  callOutcome?: string
+  answeredBy?: 'browser' | 'mobile' | 'sip' | 'unknown'
+  audioConnected?: boolean
+  errorCode?: number | null
+  errorMessage?: string | null
+  failureReason?: string | null
 }): Promise<CRMLead> {
   const response = await fetch('/api/sales/dialer/calls', {
     method: 'POST',

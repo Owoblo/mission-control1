@@ -1,13 +1,17 @@
-const SESSION_COOKIE = 'mc_session'
-const SESSION_TTL_MS = 1000 * 60 * 60 * 12
+import { requireEnv } from '@/lib/server/runtime'
 
-export type UserRole = 'owner' | 'manager' | 'sales_rep' | 'crew'
+const SESSION_COOKIE = 'mc_session'
+const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7
+const SESSION_REFRESH_WINDOW_MS = 1000 * 60 * 60 * 24
+
+export type UserRole = 'owner' | 'manager' | 'sales_rep' | 'operations_lead' | 'crew'
 
 export interface SessionPayload {
   exp: number
   userId?: string
   role?: UserRole
   name?: string
+  branch?: string   // for operations_lead: which branch they manage
 }
 
 function toBase64Url(input: ArrayBuffer | string) {
@@ -46,19 +50,39 @@ async function sign(value: string, secret: string) {
 }
 
 function getAuthSecret() {
-  const secret = process.env.AUTH_SECRET
-  if (!secret) throw new Error('Missing AUTH_SECRET')
-  return secret
+  return requireEnv('AUTH_SECRET')
 }
 
 export function getSessionCookieName() {
   return SESSION_COOKIE
 }
 
+export function getSessionCookieOptions(options?: { maxAge?: number }) {
+  return {
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: options?.maxAge ?? Math.floor(SESSION_TTL_MS / 1000),
+  }
+}
+
+export function getExpiredSessionCookieOptions() {
+  return {
+    ...getSessionCookieOptions({ maxAge: 0 }),
+    expires: new Date(0),
+  }
+}
+
+export function shouldRefreshSession(payload: SessionPayload, now = Date.now()) {
+  return payload.exp - now <= SESSION_REFRESH_WINDOW_MS
+}
+
 export async function createSessionToken(options?: {
   userId?: string
   role?: UserRole
   name?: string
+  branch?: string
 }) {
   const payload: SessionPayload = {
     exp: Date.now() + SESSION_TTL_MS,
