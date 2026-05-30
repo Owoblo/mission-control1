@@ -483,6 +483,28 @@ const DISASSEMBLY_EXCLUSIONS = [
   'office table',
 ]
 
+const NO_DISASSEMBLY_KEYWORDS = DISASSEMBLY_EXCLUSIONS
+
+const DISASSEMBLY_ITEM_TIMES: Record<string, { disMin: number; reMin: number }> = {
+  'bed frame': { disMin: 12, reMin: 18 },
+  'bunk bed': { disMin: 25, reMin: 35 },
+  crib: { disMin: 15, reMin: 20 },
+  'dining table': { disMin: 10, reMin: 12 },
+  'executive desk': { disMin: 18, reMin: 24 },
+  'corner desk': { disMin: 18, reMin: 24 },
+  'l-shaped desk': { disMin: 20, reMin: 25 },
+  'standing desk': { disMin: 15, reMin: 20 },
+  'desk frame': { disMin: 15, reMin: 20 },
+  'workstation desk': { disMin: 18, reMin: 24 },
+  'china cabinet': { disMin: 20, reMin: 25 },
+  hutch: { disMin: 15, reMin: 20 },
+  trampoline: { disMin: 45, reMin: 60 },
+  'mirror dresser': { disMin: 8, reMin: 10 },
+  'dresser with mirror': { disMin: 8, reMin: 10 },
+  'mirrored dresser': { disMin: 8, reMin: 10 },
+  'dresser mirror': { disMin: 8, reMin: 10 },
+}
+
 export function needsDisassembly(name: string): boolean {
   const lower = name.toLowerCase()
   if (DISASSEMBLY_EXCLUSIONS.some(ex => lower.includes(ex))) return false
@@ -635,6 +657,7 @@ export function computeJobPenalties(factors: JobFactors): {
   // Disassembly / reassembly
   const disassemblyCount = factors.disassemblyItemCount || 0
   if (disassemblyCount > 0) {
+    const detailLines = factors.disassemblyDetails || []
     const mode = factors.disassemblyMode || 'both'
     // Both = 0.33h/item (full service), single side = 0.2h/item
     const hoursPerItem = mode === 'both' ? 0.33 : 0.2

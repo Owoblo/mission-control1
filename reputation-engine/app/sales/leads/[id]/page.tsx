@@ -37,6 +37,7 @@ import type {
   JobFactors,
   LeadAutomationSettings,
   QuoteLineItem,
+  CRMWorker,
 } from '@/lib/types'
 
 interface SalesUserOption {
@@ -228,6 +229,12 @@ export default function SalesLeadDetailPage() {
   const [composerSubject, setComposerSubject] = useState('Following up — Saturn Star Moving')
   const [composerBody, setComposerBody] = useState('')
   const [composerBusy, setComposerBusy] = useState(false)
+  const [aiFollowUpBusy, setAiFollowUpBusy] = useState(false)
+  const [aiFollowUpResult, setAiFollowUpResult] = useState<{
+    suggestedDate?: string
+    suggestedNote?: string
+    message?: string
+  } | null>(null)
   const [scBusy, setScBusy] = useState(false)
   const [emailMessages, setEmailMessages] = useState<Array<{ id: string; from: string; to: string; subject: string; body: string; direction: 'inbound' | 'outbound'; sentAt: string; leadId?: string | null }>>([])
   const [emailsLoading, setEmailsLoading] = useState(false)
@@ -1340,6 +1347,16 @@ export default function SalesLeadDetailPage() {
       setStage(prevStage)
       return false
     }
+
+    const criticalChanges = isBookedLikeStage(lead.stage)
+      ? [
+          moveDate !== (lead.moveDate || '') ? `Move date: ${lead.moveDate || 'TBD'} -> ${moveDate || 'TBD'}` : '',
+          originAddress !== (lead.originAddress || '') ? `Origin address: ${lead.originAddress || 'TBD'} -> ${originAddress || 'TBD'}` : '',
+          destAddress !== (lead.destAddress || '') ? `Destination address: ${lead.destAddress || 'TBD'} -> ${destAddress || 'TBD'}` : '',
+          startTime !== (lead.startTime || '') ? `Start time: ${lead.startTime || 'TBD'} -> ${startTime || 'TBD'}` : '',
+          truckReservationNumber !== (lead.truckReservationNumber || '') ? `Truck reservation: ${lead.truckReservationNumber || 'TBD'} -> ${truckReservationNumber || 'TBD'}` : '',
+        ].filter(Boolean)
+      : []
 
     try {
       setSaving(true)

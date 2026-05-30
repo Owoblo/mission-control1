@@ -397,6 +397,8 @@ export interface JobFactors {
   hasPiano?: boolean
   hasSafe?: boolean
   disassemblyItemCount?: number
+  disassemblyHours?: number
+  disassemblyDetails?: string[]
   // Controls what dis/reassembly service is included for flagged items
   // 'both' = full service (default), 'disassemble_only' = dis at origin only, 'reassemble_only' = re at dest only
   disassemblyMode?: 'both' | 'disassemble_only' | 'reassemble_only'
@@ -601,6 +603,8 @@ export interface CRMLead {
   crewHours?: CrewHoursEntry[]
   crewPayouts?: CrewPayoutEntry[]
   truckReservationStatus?: TruckReservationStatus
+  truckReserved?: boolean
+  truckCompany?: string
   truckVendor?: TruckVendor
   truckSize?: string
   truckCountConfirmed?: number
@@ -630,11 +634,6 @@ export interface CRMLead {
   actualHoursNote?: string    // reason if over/under estimate (extra items, etc.)
   actualHoursLoggedAt?: string
   actualHoursLoggedBy?: string
-  // Truck logistics
-  truckReserved?: boolean
-  truckCompany?: string
-  truckReservationNumber?: string
-  truckPickupTime?: string
   // Post-job review lifecycle
   reviewJobId?: string
   reviewSentAt?: string
@@ -716,6 +715,7 @@ export interface CRMQuote {
   balancePaidMethod?: 'stripe' | 'etransfer' | 'cash' | 'cheque' | 'other'
   // Overridable fields
   moveDescription?: string  // shown on the quote document
+  customerNotes?: string    // shown on the quote document
   internalNotes?: string    // crew / internal only, not on quote
   priceOverrideTotal?: number  // if set, this overrides the computed total (incl. HST)
   priceOverrideReason?: string
