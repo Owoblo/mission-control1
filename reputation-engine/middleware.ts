@@ -32,6 +32,11 @@ function isPublicMarketingPath(pathname: string) {
   return pathname.startsWith('/api/marketing/qr/')
 }
 
+// Manager approval links sent via email — no login required
+function isApprovalPath(pathname: string) {
+  return pathname.endsWith('/approve-margin')
+}
+
 function hasInternalSecretBypass(request: NextRequest, pathname: string) {
   if (!INTERNAL_SECRET_API_PATHS.has(pathname)) return false
   const secret = request.headers.get('x-internal-secret')
@@ -55,6 +60,7 @@ export async function middleware(request: NextRequest) {
     PUBLIC_API_PATHS.has(pathname) ||
     isPublicDialerPath(pathname) ||
     isPublicMarketingPath(pathname) ||
+    isApprovalPath(pathname) ||
     hasInternalSecretBypass(request, pathname) ||
     hasResendPollBypass(request, pathname)
   ) {

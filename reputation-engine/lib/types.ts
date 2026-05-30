@@ -738,6 +738,13 @@ export interface CRMLead {
   mergedByUserId?: string
   mergedByName?: string
   mergedReason?: string
+  // Manager approval for below-threshold margin overrides
+  marginApprovalStatus?: 'pending' | 'approved'
+  marginApprovalToken?: string
+  marginApprovalRequestedAt?: string
+  marginApprovalRequestedBy?: string
+  marginApprovalContext?: string  // JSON: { overrideAmount, projectedMargin, note }
+  marginApprovedAt?: string
   createdAt: string
 }
 
