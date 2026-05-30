@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireSupabaseEnv, requireWorkerBaseUrl } from '@/lib/server/runtime'
+import { clientIp, consumeRateLimit } from '@/lib/server/rate-limit'
 
 const JOHN_NUMBER = '+12267241730'
 const BUSINESS_NUMBER = '+12267732993'
@@ -16,6 +17,17 @@ export async function OPTIONS() {
 
 export async function POST(request: Request) {
   try {
+    const rateLimit = consumeRateLimit(`free-quote:capture:${clientIp(request)}`, {
+      limit: 10,
+      windowMs: 60 * 60 * 1000,
+    })
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many quote submissions. Please try again later.' },
+        { status: 429, headers: { ...corsHeaders, 'Retry-After': String(rateLimit.retryAfterSeconds || 3600) } }
+      )
+    }
+
     const body = (await request.json()) as {
       name?: string
       phone?: string

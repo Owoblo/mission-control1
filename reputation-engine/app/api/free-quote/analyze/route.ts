@@ -7,6 +7,7 @@ import {
   lookupListingsByAddress,
   saveListingInventoryScan,
 } from '@/lib/server/sales-repository'
+import { clientIp, consumeRateLimit } from '@/lib/server/rate-limit'
 
 // Allow up to 60s for the AI photo analysis
 export const maxDuration = 60
@@ -30,6 +31,17 @@ export async function POST(request: Request) {
   }
 
   try {
+    const rateLimit = consumeRateLimit(`free-quote:analyze:${clientIp(request)}`, {
+      limit: 12,
+      windowMs: 60 * 60 * 1000,
+    })
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many quote analysis requests. Please try again later.' },
+        { status: 429, headers: { ...corsHeaders, 'Retry-After': String(rateLimit.retryAfterSeconds || 3600) } }
+      )
+    }
+
     const payload = (await request.json()) as { address?: string; analyze?: boolean }
 
     if (!payload.address || payload.address.trim().length < 5) {

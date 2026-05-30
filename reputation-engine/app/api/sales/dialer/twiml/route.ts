@@ -4,6 +4,7 @@ import { getAppBaseUrl } from '@/lib/server/runtime'
 import { getHealthyBrowserPresence } from '@/lib/server/telephony-monitoring'
 import { uid } from '@/lib/sales'
 import { getSaturnTrackingLabel, getSaturnTrackingSource } from '@/lib/sales-phones'
+import { verifyTwilioWebhook } from '@/lib/server/webhook-verification'
 import type { CRMLead } from '@/lib/types'
 
 const CALLER_ID = '+12267732993'
@@ -131,11 +132,16 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const formData = await request.formData()
-    const to = (formData.get('To') as string | null)?.trim()
-    const from = (formData.get('From') as string | null)?.trim()
-    const direction = (formData.get('Direction') as string | null)?.trim()
-    const callSid = (formData.get('CallSid') as string | null)?.trim()
+    const rawBody = await request.text()
+    if (!verifyTwilioWebhook(request, rawBody)) {
+      return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?><Response><Reject reason="rejected"/></Response>`)
+    }
+
+    const formData = new URLSearchParams(rawBody)
+    const to = formData.get('To')?.trim()
+    const from = formData.get('From')?.trim()
+    const direction = formData.get('Direction')?.trim()
+    const callSid = formData.get('CallSid')?.trim()
 
     // Browser SDK outbound calls have From = "client:<identity>"
     // Real inbound PSTN calls have From = a phone number like "+15195551234"

@@ -23,6 +23,7 @@ import {
   normalizeTwilioRecordingSid,
 } from '@/lib/server/twilio-recordings'
 import { uid } from '@/lib/sales'
+import { verifyTwilioWebhook } from '@/lib/server/webhook-verification'
 import type { CRMLead, InboundLead } from '@/lib/types'
 
 export async function GET() {
@@ -137,11 +138,16 @@ async function ensureInboundLeadCallMapping(callSid: string, inboundLead: Inboun
 
 export async function POST(request: Request) {
   try {
-    const formData = await request.formData()
-    const callSid = (formData.get('CallSid') as string | null)?.trim()
-    const recordingUrl = (formData.get('RecordingUrl') as string | null)?.trim()
-    const recordingSid = normalizeTwilioRecordingSid(formData.get('RecordingSid') as string | null)
-    const recordingStatus = ((formData.get('RecordingStatus') as string | null) || '').trim().toLowerCase()
+    const rawBody = await request.text()
+    if (!verifyTwilioWebhook(request, rawBody)) {
+      return new Response('Unauthorized', { status: 401 })
+    }
+
+    const formData = new URLSearchParams(rawBody)
+    const callSid = formData.get('CallSid')?.trim()
+    const recordingUrl = formData.get('RecordingUrl')?.trim()
+    const recordingSid = normalizeTwilioRecordingSid(formData.get('RecordingSid'))
+    const recordingStatus = (formData.get('RecordingStatus') || '').trim().toLowerCase()
     const recordingDuration = Number(formData.get('RecordingDuration') || 0)
 
     if (!callSid) {

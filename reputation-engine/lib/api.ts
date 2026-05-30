@@ -30,6 +30,22 @@ export async function saveJob(job: Job): Promise<Job> {
   return readJson<Job>(response)
 }
 
+export async function savePublicReviewJob(job: Job): Promise<Job> {
+  const response = await fetch(`/api/jobs/${job.id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      status: job.status,
+      feedbackRating: job.feedbackRating,
+      feedbackComment: job.feedbackComment,
+      reviews: job.reviews,
+      reviewConfirmedAt: job.reviewConfirmedAt,
+      incentiveEarned: job.incentiveEarned,
+    }),
+  })
+  return readJson<Job>(response)
+}
+
 export async function removeJob(id: string): Promise<void> {
   const response = await fetch(`/api/jobs/${id}`, { method: 'DELETE' })
   if (!response.ok) {

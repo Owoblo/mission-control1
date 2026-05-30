@@ -1,5 +1,6 @@
 import { analyzePhotoBatch } from '@/lib/server/inventory-enrichment'
 import { lookupListingsByAddress } from '@/lib/server/sales-repository'
+import { clientIp, consumeRateLimit } from '@/lib/server/rate-limit'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -29,6 +30,17 @@ export async function POST(request: Request) {
 
   if (!address || address.length < 5) {
     return new Response('Address required', { status: 400, headers: corsHeaders })
+  }
+
+  const rateLimit = consumeRateLimit(`free-quote:scan:${clientIp(request)}`, {
+    limit: 6,
+    windowMs: 60 * 60 * 1000,
+  })
+  if (!rateLimit.allowed) {
+    return new Response('Too many scan requests. Please try again later.', {
+      status: 429,
+      headers: { ...corsHeaders, 'Retry-After': String(rateLimit.retryAfterSeconds || 3600) },
+    })
   }
 
   if (!process.env.OPENAI_API_KEY) {

@@ -10,22 +10,23 @@ import { queueLeadIntelligenceRefresh } from '@/lib/server/lead-intelligence-ref
 import { processInboundAutomationEvent } from '@/lib/server/sales-automation'
 import { getWorkerSharedSecret, readEnv } from '@/lib/server/runtime'
 import { saveSalesEmail, saveFollowUpLog } from '@/lib/server/sales-repository'
+import { verifySvixWebhook } from '@/lib/server/webhook-verification'
 
 export async function POST(request: Request) {
   const workerSecret = request.headers.get('x-internal-secret')
   const expectedWorkerSecret = getWorkerSharedSecret()
   const isWorker = workerSecret && expectedWorkerSecret && workerSecret === expectedWorkerSecret
 
-  if (!isWorker) {
-    const resendSecret = readEnv('RESEND_WEBHOOK_SECRET')
-    if (resendSecret) {
-      const svixSignature = request.headers.get('svix-signature')
-      if (!svixSignature) return new Response('Unauthorized', { status: 401 })
-    }
-  }
-
   try {
-    const raw = (await request.json()) as Record<string, unknown>
+    const rawBody = await request.text()
+    if (!isWorker) {
+      const resendSecret = readEnv('RESEND_WEBHOOK_SECRET')
+      if (!resendSecret || !verifySvixWebhook(request, rawBody, resendSecret)) {
+        return new Response('Unauthorized', { status: 401 })
+      }
+    }
+
+    const raw = JSON.parse(rawBody) as Record<string, unknown>
 
     let from = ''
     let fromName: string | undefined

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { createSessionToken, getSessionCookieName, type UserRole } from '@/lib/auth'
 import { readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
+import { clientIp, consumeRateLimit } from '@/lib/server/rate-limit'
 
 interface AppUser {
   id: string
@@ -35,6 +36,17 @@ function cookieOptions() {
 
 export async function POST(request: Request) {
   try {
+    const rateLimit = consumeRateLimit(`auth:login:${clientIp(request)}`, {
+      limit: 20,
+      windowMs: 15 * 60 * 1000,
+    })
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many login attempts. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSeconds || 900) } }
+      )
+    }
+
     const payload = (await request.json()) as { email?: string; password?: string }
 
     if (!payload.password) {
@@ -60,6 +72,11 @@ export async function POST(request: Request) {
     }
 
     // --- Legacy owner path: password only (AUTH_PASSWORD env var) ---
+    // Disabled by default; set ALLOW_LEGACY_OWNER_LOGIN=true only for a temporary break-glass window.
+    if (readEnv('ALLOW_LEGACY_OWNER_LOGIN') !== 'true') {
+      return NextResponse.json({ error: 'Email is required' }, { status: 400 })
+    }
+
     const expectedPassword = readEnv('AUTH_PASSWORD')
     if (!expectedPassword || payload.password !== expectedPassword) {
       return NextResponse.json({ error: 'Invalid password' }, { status: 401 })

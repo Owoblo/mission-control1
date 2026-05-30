@@ -93,7 +93,10 @@ export async function POST(request: Request) {
   const isVercelCron = request.headers.get('x-vercel-cron') === '1'
   if (!isVercelCron) {
     const auth = request.headers.get('authorization')
-    const secret = readEnv('CRON_SECRET') || 'saturn-cron-2026'
+    const secret = readEnv('CRON_SECRET')
+    if (!secret) {
+      return NextResponse.json({ error: 'Cron secret is not configured' }, { status: 503 })
+    }
     if (auth !== `Bearer ${secret}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

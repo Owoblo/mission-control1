@@ -409,7 +409,7 @@ function QuoteAcceptPageInner() {
       const r = await fetch('/api/sales/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quoteId: id }),
+        body: JSON.stringify({ quoteId: id, token }),
       })
       const payload = await r.json() as { url?: string; error?: string }
       if (!r.ok || !payload.url) throw new Error(payload.error || 'Could not create payment session')

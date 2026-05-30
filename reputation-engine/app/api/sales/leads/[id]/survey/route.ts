@@ -9,7 +9,7 @@ import { getSessionUser } from '@/lib/server/session'
 const APP_URL = getAppBaseUrl('https://go.quote2move.com')
 
 function generateToken(): string {
-  return 'surv_' + Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 8)
+  return `surv_${crypto.randomUUID().replace(/-/g, '')}`
 }
 
 export async function POST(

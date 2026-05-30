@@ -67,7 +67,7 @@ function LoginForm() {
         <form onSubmit={submit} className="space-y-4">
           <label className="block">
             <span className="mb-1.5 block text-xs font-medium text-[var(--app-muted)] uppercase tracking-wide">
-              Email <span className="normal-case font-normal text-[var(--app-muted)]">(optional for owner)</span>
+              Email
             </span>
             <input
               type="email"
@@ -76,6 +76,7 @@ function LoginForm() {
               placeholder="name@company.com"
               className="crm-input"
               autoComplete="email"
+              required
             />
           </label>
 

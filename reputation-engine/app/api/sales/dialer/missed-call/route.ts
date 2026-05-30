@@ -2,6 +2,7 @@ import { getTwilioCredentials, requireSupabaseEnv } from '@/lib/server/runtime'
 import { outboundSmsRecentlySent, recordOutboundSmsToSupabase } from '@/lib/server/sales-messaging'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
 import { getSaturnBranchLabel } from '@/lib/sales-phones'
+import { verifyTwilioWebhook } from '@/lib/server/webhook-verification'
 
 // Twilio calls this action URL when <Dial> completes for ANY reason:
 // completed = someone answered, no-answer = nobody answered, busy/failed = other failure
@@ -63,13 +64,18 @@ function answeredBy(dialCallStatus: string, dialCallDuration: number): 'browser'
 
 export async function POST(request: Request) {
   try {
-    const formData = await request.formData()
-    const from    = (formData.get('From') as string | null)?.trim() || ''
-    const to      = (formData.get('To') as string | null)?.trim() || ''
-    const callSid = (formData.get('CallSid') as string | null)?.trim() || ''
-    const dialCallStatus   = (formData.get('DialCallStatus') as string | null)?.trim() || ''
-    const dialCallDuration = parseInt((formData.get('DialCallDuration') as string | null) || '0', 10)
-    const dialCallSid      = (formData.get('DialCallSid') as string | null)?.trim() || ''
+    const rawBody = await request.text()
+    if (!verifyTwilioWebhook(request, rawBody)) {
+      return new Response('Unauthorized', { status: 401 })
+    }
+
+    const formData = new URLSearchParams(rawBody)
+    const from    = formData.get('From')?.trim() || ''
+    const to      = formData.get('To')?.trim() || ''
+    const callSid = formData.get('CallSid')?.trim() || ''
+    const dialCallStatus   = formData.get('DialCallStatus')?.trim() || ''
+    const dialCallDuration = parseInt(formData.get('DialCallDuration') || '0', 10)
+    const dialCallSid      = formData.get('DialCallSid')?.trim() || ''
 
     if (!from || from.toLowerCase().startsWith('client:')) {
       return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?><Response></Response>`)

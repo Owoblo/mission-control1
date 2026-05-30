@@ -26,6 +26,7 @@ import {
   normalizeTwilioRecordingSid,
 } from '@/lib/server/twilio-recordings'
 import { uid } from '@/lib/sales'
+import { verifyTwilioWebhook } from '@/lib/server/webhook-verification'
 import type { CRMLead } from '@/lib/types'
 
 export async function GET() {
@@ -107,18 +108,23 @@ function extractSipDialTarget(value?: string | null) {
 export async function POST(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const formData = await request.formData()
-    const callSid        = (formData.get('CallSid') as string | null)?.trim() || ''
-    const dialCallSid    = (formData.get('DialCallSid') as string | null)?.trim() || ''
-    const dialCallStatus = (formData.get('DialCallStatus') as string | null)?.trim() || ''
-    const from           = (formData.get('From') as string | null)?.trim() || ''
-    const to             = (formData.get('To') as string | null)?.trim() || ''
-    const direction      = (formData.get('Direction') as string | null)?.trim() || ''
-    const dialedNumber   = (formData.get('DialedNumber') as string | null)?.trim() || ''
-    const duration       = parseInt((formData.get('DialCallDuration') as string | null) || '0', 10) || 0
-    const recordingSid   = normalizeTwilioRecordingSid((formData.get('RecordingSid') as string | null)?.trim() || '')
-    const recordingUrl   = normalizeTwilioRecordingMediaUrl((formData.get('RecordingUrl') as string | null)?.trim() || '')
-    const recordingDuration = parseInt((formData.get('RecordingDuration') as string | null) || '0', 10) || 0
+    const rawBody = await request.text()
+    if (!verifyTwilioWebhook(request, rawBody)) {
+      return new Response('Unauthorized', { status: 401 })
+    }
+
+    const formData = new URLSearchParams(rawBody)
+    const callSid        = formData.get('CallSid')?.trim() || ''
+    const dialCallSid    = formData.get('DialCallSid')?.trim() || ''
+    const dialCallStatus = formData.get('DialCallStatus')?.trim() || ''
+    const from           = formData.get('From')?.trim() || ''
+    const to             = formData.get('To')?.trim() || ''
+    const direction      = formData.get('Direction')?.trim() || ''
+    const dialedNumber   = formData.get('DialedNumber')?.trim() || ''
+    const duration       = parseInt(formData.get('DialCallDuration') || '0', 10) || 0
+    const recordingSid   = normalizeTwilioRecordingSid(formData.get('RecordingSid')?.trim() || '')
+    const recordingUrl   = normalizeTwilioRecordingMediaUrl(formData.get('RecordingUrl')?.trim() || '')
+    const recordingDuration = parseInt(formData.get('RecordingDuration') || '0', 10) || 0
     const browserHealthy = searchParams.get('browserHealthy') === '1'
     const browserSessionCount = parseInt(searchParams.get('browserSessionCount') || '0', 10) || 0
 

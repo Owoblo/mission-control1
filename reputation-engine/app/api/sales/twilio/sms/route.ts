@@ -8,6 +8,7 @@ import { pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inb
 import { appendSmsToInboundLead, getInboundLeadByPhone, saveInboundLead } from '@/lib/server/sales-repository'
 import { getAppBaseUrl, getWorkerSharedSecret, requireSupabaseEnv } from '@/lib/server/runtime'
 import { logEvent } from '@/lib/server/analytics'
+import { verifyTwilioWebhook } from '@/lib/server/webhook-verification'
 
 function triggerIntelligence(leadId: string) {
   const base = getAppBaseUrl()
@@ -64,11 +65,16 @@ export async function POST(request: Request) {
   let leadId: string | undefined
 
   try {
-    const formData = await request.formData()
-    const rawFrom = (formData.get('From') as string | null)?.trim() || ''
-    const rawTo = (formData.get('To') as string | null)?.trim() || MY_NUMBER
-    const body = (formData.get('Body') as string | null)?.trim() || ''
-    const messageSid = (formData.get('MessageSid') as string | null)?.trim() || ''
+    const rawBody = await request.text()
+    if (!verifyTwilioWebhook(request, rawBody)) {
+      return new Response('Unauthorized', { status: 401 })
+    }
+
+    const formData = new URLSearchParams(rawBody)
+    const rawFrom = formData.get('From')?.trim() || ''
+    const rawTo = formData.get('To')?.trim() || MY_NUMBER
+    const body = formData.get('Body')?.trim() || ''
+    const messageSid = formData.get('MessageSid')?.trim() || ''
     const receivedAt = new Date().toISOString()
 
     // Strip WhatsApp prefix for phone matching — channel is detected from SID (WA=WhatsApp, SM=SMS)

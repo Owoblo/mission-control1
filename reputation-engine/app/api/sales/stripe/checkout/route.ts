@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSalesQuote, listSalesLeads } from '@/lib/server/sales-repository'
 import { getAppBaseUrl, readEnv } from '@/lib/server/runtime'
+import { hasInternalSession } from '@/lib/server/session'
 
 export async function POST(request: Request) {
   const stripeKey = readEnv('STRIPE_SECRET_KEY')
@@ -9,8 +10,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { quoteId, successUrl, cancelUrl } = (await request.json()) as {
+    const { quoteId, token, successUrl, cancelUrl } = (await request.json()) as {
       quoteId: string
+      token?: string
       successUrl?: string
       cancelUrl?: string
     }
@@ -19,6 +21,10 @@ export async function POST(request: Request) {
 
     let quote = await getSalesQuote(quoteId)
     if (!quote) return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
+    const authed = await hasInternalSession()
+    if (!authed && (!token || token !== quote.acceptToken)) {
+      return NextResponse.json({ error: 'Quote link is invalid or expired' }, { status: 404 })
+    }
 
     // Fast Lane quotes (status='sent', internalNotes starts with 'Fast Lane') auto-accept
     // on checkout — no intermediate accept step needed for hourly rate quotes
@@ -43,6 +49,8 @@ export async function POST(request: Request) {
 
     const appUrl = getAppBaseUrl('https://mission-control1-reputation-engine.vercel.app')
     const returnBase = `${appUrl}/quote-accept?id=${encodeURIComponent(quote.id)}&token=${encodeURIComponent(quote.acceptToken || '')}`
+    const safeSuccessUrl = successUrl?.startsWith(appUrl) ? successUrl : `${returnBase}&paid=1`
+    const safeCancelUrl = cancelUrl?.startsWith(appUrl) ? cancelUrl : returnBase
 
     // Build Stripe checkout session via REST API (no SDK needed)
     const params = new URLSearchParams()
@@ -74,8 +82,8 @@ export async function POST(request: Request) {
     params.set('metadata[quoteNumber]', quote.number)
     if (lead?.id) params.set('metadata[leadId]', lead.id)
 
-    params.set('success_url', successUrl || `${returnBase}&paid=1`)
-    params.set('cancel_url', cancelUrl || returnBase)
+    params.set('success_url', safeSuccessUrl)
+    params.set('cancel_url', safeCancelUrl)
 
     const stripeResponse = await fetch('https://api.stripe.com/v1/checkout/sessions', {
       method: 'POST',

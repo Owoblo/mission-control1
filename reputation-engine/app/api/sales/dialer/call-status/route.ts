@@ -12,6 +12,7 @@ import { createSalesSystemAlert } from '@/lib/server/sales-alerts'
 import { getTwilioCredentials } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
 import { listSalesLeads } from '@/lib/server/sales-repository'
+import { verifyTwilioWebhook } from '@/lib/server/webhook-verification'
 
 export async function GET() {
   return Response.json({
@@ -24,13 +25,18 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const form = await request.formData()
-    const callStatus = (form.get('CallStatus') as string || '').toLowerCase()
-    const from = (form.get('From') as string || '').trim()
+    const rawBody = await request.text()
+    if (!verifyTwilioWebhook(request, rawBody)) {
+      return new Response('Unauthorized', { status: 401 })
+    }
+
+    const form = new URLSearchParams(rawBody)
+    const callStatus = (form.get('CallStatus') || '').toLowerCase()
+    const from = (form.get('From') || '').trim()
     const callDuration = Number(form.get('CallDuration') || 0)
     const branchNumber = pickSaturnBranchPhoneNumber(
       searchParams.get('branchNumber'),
-      normalizePhone(form.get('To') as string | null)
+      normalizePhone(form.get('To'))
     )
 
     // Only auto-SMS on missed/short calls

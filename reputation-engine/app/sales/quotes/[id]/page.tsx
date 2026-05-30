@@ -16,6 +16,15 @@ function plusDays(days: number) {
   return date.toISOString().slice(0, 10)
 }
 
+function escapeHtml(value?: string | number | null) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 function buildQuoteEmailHtml({
   customerName,
   quoteNumber,
@@ -45,10 +54,19 @@ function buildQuoteEmailHtml({
   customerNotes?: string
   isRevision?: boolean
 }) {
+  const safeCustomerName = escapeHtml(customerName)
+  const safeQuoteNumber = escapeHtml(quoteNumber)
+  const safeMoveDate = escapeHtml(moveDate)
+  const safeOriginCity = escapeHtml(originCity)
+  const safeDestCity = escapeHtml(destCity)
+  const safeAcceptUrl = escapeHtml(acceptUrl)
+  const safeValidUntilText = escapeHtml(validUntilText)
+  const safeMoveDescription = escapeHtml(moveDescription)
+  const safeCustomerNotes = escapeHtml(customerNotes)
   const heading = isRevision ? 'Your quote has been updated.' : 'Your quote is ready.'
   const intro = isRevision
-    ? `Hi ${customerName}, we updated your moving estimate and kept everything on the same quote link for easy review.`
-    : `Hi ${customerName}, we prepared your moving estimate and linked everything below for quick review.`
+    ? `Hi ${safeCustomerName}, we updated your moving estimate and kept everything on the same quote link for easy review.`
+    : `Hi ${safeCustomerName}, we prepared your moving estimate and linked everything below for quick review.`
   const summary = isRevision
     ? 'Open the same quote link to review the latest date, pricing, and job details, then accept or decline it when ready.'
     : 'Review the full quote online, accept or decline it, and print or save a PDF from the quote page if you need a document copy.'
@@ -67,13 +85,13 @@ function buildQuoteEmailHtml({
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:24px;">
           <div style="padding:16px;border:1px solid #eee7da;border-radius:14px;background:#fcfbf8;">
             <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8a8478;font-weight:700;">Quote</div>
-            <div style="margin-top:8px;font-size:18px;font-weight:700;color:#171717;">${quoteNumber}</div>
-            <div style="margin-top:4px;font-size:14px;color:#57534e;">${originCity || 'Origin TBD'} to ${destCity || 'Destination TBD'}</div>
+            <div style="margin-top:8px;font-size:18px;font-weight:700;color:#171717;">${safeQuoteNumber}</div>
+            <div style="margin-top:4px;font-size:14px;color:#57534e;">${safeOriginCity || 'Origin TBD'} to ${safeDestCity || 'Destination TBD'}</div>
           </div>
           <div style="padding:16px;border:1px solid #eee7da;border-radius:14px;background:#fcfbf8;">
             <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8a8478;font-weight:700;">Move Date</div>
-            <div style="margin-top:8px;font-size:18px;font-weight:700;color:#171717;">${moveDate || 'To be confirmed'}</div>
-            <div style="margin-top:4px;font-size:14px;color:#57534e;">Valid until ${validUntilText}</div>
+            <div style="margin-top:8px;font-size:18px;font-weight:700;color:#171717;">${safeMoveDate || 'To be confirmed'}</div>
+            <div style="margin-top:4px;font-size:14px;color:#57534e;">Valid until ${safeValidUntilText}</div>
           </div>
         </div>
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:28px;">
@@ -86,12 +104,12 @@ function buildQuoteEmailHtml({
             <div style="margin-top:8px;font-size:30px;font-weight:700;color:#171717;">${formatMoney(deposit)}</div>
           </div>
         </div>
-        ${moveDescription ? `<div style="margin-bottom:18px;padding:14px 18px;border-radius:12px;background:#f4efe4;border:1px solid #eee7da;font-size:14px;line-height:1.7;color:#374151;">${moveDescription}</div>` : ''}
-        ${scopeNotes && scopeNotes.length > 0 ? `<div style="margin-bottom:18px;padding:14px 18px;border-radius:12px;background:#fcfbf8;border:1px solid #eee7da;"><div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8a8478;font-weight:700;margin-bottom:8px;">Move-specific notes</div>${scopeNotes.map(note => `<div style="font-size:13px;line-height:1.7;color:#4b5563;">• ${note}</div>`).join('')}</div>` : ''}
-        ${customerNotes ? `<div style="margin-bottom:18px;padding:14px 18px;border-radius:12px;background:#f0f7f4;border:1px solid #c6ddd6;"><div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#0f6a53;font-weight:700;margin-bottom:8px;">Special notes from your rep</div><div style="font-size:13px;line-height:1.8;color:#374151;white-space:pre-line;">${customerNotes}</div></div>` : ''}
+        ${moveDescription ? `<div style="margin-bottom:18px;padding:14px 18px;border-radius:12px;background:#f4efe4;border:1px solid #eee7da;font-size:14px;line-height:1.7;color:#374151;">${safeMoveDescription}</div>` : ''}
+        ${scopeNotes && scopeNotes.length > 0 ? `<div style="margin-bottom:18px;padding:14px 18px;border-radius:12px;background:#fcfbf8;border:1px solid #eee7da;"><div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8a8478;font-weight:700;margin-bottom:8px;">Move-specific notes</div>${scopeNotes.map(note => `<div style="font-size:13px;line-height:1.7;color:#4b5563;">• ${escapeHtml(note)}</div>`).join('')}</div>` : ''}
+        ${customerNotes ? `<div style="margin-bottom:18px;padding:14px 18px;border-radius:12px;background:#f0f7f4;border:1px solid #c6ddd6;"><div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#0f6a53;font-weight:700;margin-bottom:8px;">Special notes from your rep</div><div style="font-size:13px;line-height:1.8;color:#374151;white-space:pre-line;">${safeCustomerNotes}</div></div>` : ''}
         <div style="margin-bottom:18px;font-size:15px;line-height:1.7;color:#374151;">${summary}</div>
         <div style="margin-bottom:28px;">
-          <a href="${acceptUrl}" style="display:inline-block;padding:14px 22px;border-radius:999px;background:#0f6a53;color:#ffffff;text-decoration:none;font-weight:700;">Open Quote</a>
+          <a href="${safeAcceptUrl}" style="display:inline-block;padding:14px 22px;border-radius:999px;background:#0f6a53;color:#ffffff;text-decoration:none;font-weight:700;">Open Quote</a>
         </div>
         <div style="padding-top:18px;border-top:1px solid #eee7da;font-size:13px;line-height:1.8;color:#6b7280;">
           ${footer}
