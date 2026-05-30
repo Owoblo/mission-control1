@@ -70,16 +70,28 @@ export interface UHaulCostResult {
   grossMarginPct: number
   // Reference
   totalOperationalKm: number
+  jobKmPerTruck: number      // origin→dest legs only (excl. depot)
+  depotKmPerTruck: number    // UHaul→origin + dest→UHaul per truck
 }
 
 function r(n: number) { return Math.round(n * 100) / 100 }
 
-// Operational km per truck based on trip strategy + U-Haul pickup leg:
-// U-Haul → Origin → Destination → U-Haul (return)
-// pickup leg (uhaul→origin + return) adds 2 × uhaulPickupKm per truck
+// Route breakdown per truck:
+//
+// 1 truck · 1 trip / 2 trucks · 1 trip (per truck):
+//   UHaul → Origin → Dest → UHaul
+//   = pickup + oneWay + (oneWay + pickup) = 2×pickup + 2×oneWay
+//
+// 1 truck · 2 trips:
+//   UHaul → Origin → Dest → Origin → Dest → UHaul
+//   = pickup + oneWay + oneWay + oneWay + (oneWay + pickup) = 2×pickup + 4×oneWay
+//
+// Dest → UHaul approximated as oneWay + pickup (UHaul is near origin)
+function jobKmForStrategy(strategy: TripStrategy, oneWayKm: number): number {
+  return strategy === 'single_truck_two_trips' ? oneWayKm * 4 : oneWayKm * 2
+}
 function kmPerTruck(strategy: TripStrategy, oneWayKm: number, uhaulPickupKm = 0): number {
-  const jobKm = strategy === 'single_truck_two_trips' ? oneWayKm * 4 : oneWayKm * 2
-  return jobKm + uhaulPickupKm * 2  // to pickup + return drop-off
+  return jobKmForStrategy(strategy, oneWayKm) + uhaulPickupKm * 2
 }
 
 export function calcUHaulCost(params: UHaulCostParams): UHaulCostResult {
@@ -89,7 +101,9 @@ export function calcUHaulCost(params: UHaulCostParams): UHaulCostResult {
     crewSize, estimatedHours, miscBuffer, revenue,
   } = params
 
-  const kmEach = kmPerTruck(tripStrategy, oneWayDistanceKm, uhaulPickupKm)
+  const jobKm = jobKmForStrategy(tripStrategy, oneWayDistanceKm)
+  const depotKm = uhaulPickupKm * 2
+  const kmEach = jobKm + depotKm
   const totalKm = kmEach * truckCount
 
   const dailyRate = UHAUL_DAILY_RATES[truckSize] ?? UHAUL_DAILY_RATES['26ft']
@@ -119,6 +133,8 @@ export function calcUHaulCost(params: UHaulCostParams): UHaulCostResult {
     laborCost, miscCost,
     totalCost, grossProfit, grossMarginPct,
     totalOperationalKm: totalKm,
+    jobKmPerTruck: jobKm,
+    depotKmPerTruck: depotKm,
   }
 }
 

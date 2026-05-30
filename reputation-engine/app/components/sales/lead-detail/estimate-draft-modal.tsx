@@ -3744,7 +3744,11 @@ export function EstimateDraftModal({
                           </div>
                           {pickupKm > 0 && (
                             <div className="flex justify-between text-xs">
-                              <span className="text-[var(--app-muted)]">UHaul → Origin → UHaul ({pickupKm} km × 2{truckCount > 1 ? ` × ${truckCount} trucks` : ''})</span>
+                              <span className="text-[var(--app-muted)]">
+                                {tripStrategy === 'single_truck_two_trips'
+                                  ? `UHaul→Org→Dest→Org→Dest→UHaul (depot legs: ${pickupKm * 2} km)`
+                                  : `UHaul→Origin→Dest→UHaul${truckCount > 1 ? ` × ${truckCount} trucks` : ''} (depot: ${pickupKm * 2 * truckCount} km)`}
+                              </span>
                               <span className="text-[var(--app-muted)]">{pickupKm * 2 * truckCount} km</span>
                             </div>
                           )}
