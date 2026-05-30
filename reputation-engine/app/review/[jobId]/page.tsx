@@ -233,7 +233,7 @@ export default function ReviewPage() {
           </span>
         </div>
         <div className="h-2 overflow-hidden rounded-full bg-[#0F1B2D]">
-          <div className="h-full rounded-full bg-gradient-to-r from-gold to-gold-2 transition-all duration-500" style={{ width: `${(count / 4) * 100}%` }} />
+          <div className="h-full rounded-full bg-[#f5a623] transition-all duration-500" style={{ width: `${(count / 4) * 100}%` }} />
         </div>
       </div>
 

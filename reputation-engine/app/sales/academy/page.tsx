@@ -45,55 +45,55 @@ const LESSON_TYPE_LABELS: Record<AcademyLesson['type'], string> = {
 const MODULE_VISUALS: Record<string, {
   icon: string
   eyebrow: string
-  gradient: string
+  solidBg: string
   accentClass: string
 }> = {
   'star-framework': {
     icon: '✦',
     eyebrow: 'Call system',
-    gradient: 'from-[#fff3cf] via-[#fef8e7] to-[#eef5ff]',
+    solidBg: 'bg-amber-50',
     accentClass: 'text-amber-700',
   },
   'estimate-builder': {
     icon: '▣',
     eyebrow: 'Quoting',
-    gradient: 'from-[#e9f7ef] via-[#f4fbf7] to-[#eef8ff]',
+    solidBg: 'bg-emerald-50',
     accentClass: 'text-emerald-700',
   },
   'closing-playbook': {
     icon: '↗',
     eyebrow: 'Closing',
-    gradient: 'from-[#fef0e8] via-[#fff7f2] to-[#fffaf5]',
+    solidBg: 'bg-orange-50',
     accentClass: 'text-orange-700',
   },
   'fast-lane-billing': {
     icon: '⚡',
     eyebrow: 'Billing',
-    gradient: 'from-[#fff0d8] via-[#fff7ea] to-[#fffdf8]',
+    solidBg: 'bg-yellow-50',
     accentClass: 'text-amber-800',
   },
   'tonality-lab': {
     icon: '◉',
     eyebrow: 'Voice lab',
-    gradient: 'from-[#eef1ff] via-[#f7f8ff] to-[#f6fbff]',
+    solidBg: 'bg-indigo-50',
     accentClass: 'text-indigo-700',
   },
   'phrase-bank': {
     icon: '❝',
     eyebrow: 'Language',
-    gradient: 'from-[#f4ecff] via-[#faf7ff] to-[#f8fbff]',
+    solidBg: 'bg-violet-50',
     accentClass: 'text-violet-700',
   },
   'crm-rhythm': {
     icon: '⌘',
     eyebrow: 'Workflow',
-    gradient: 'from-[#eaf7ff] via-[#f5fbff] to-[#f8fcff]',
+    solidBg: 'bg-sky-50',
     accentClass: 'text-sky-700',
   },
   'call-review-lab': {
     icon: '◌',
     eyebrow: 'Coaching',
-    gradient: 'from-[#eef8f4] via-[#f8fcfb] to-[#f6fbf9]',
+    solidBg: 'bg-teal-50',
     accentClass: 'text-teal-700',
   },
 }
@@ -102,7 +102,7 @@ function getModuleVisual(moduleId: string) {
   return MODULE_VISUALS[moduleId] || {
     icon: '◼',
     eyebrow: 'Course',
-    gradient: 'from-[#f3f5f7] via-[#fafbfc] to-[#f5f7fa]',
+    solidBg: 'bg-slate-50',
     accentClass: 'text-slate-700',
   }
 }
@@ -278,10 +278,7 @@ function ModuleIllustration({
 }) {
   const visual = getModuleVisual(module.id)
   return (
-    <div className={`relative overflow-hidden rounded-[22px] border border-white/60 bg-gradient-to-br ${visual.gradient} ${compact ? 'h-24' : 'h-32'}`}>
-      <div className="absolute -right-4 -top-6 h-20 w-20 rounded-full bg-white/60 blur-2xl" />
-      <div className="absolute -bottom-8 right-4 h-24 w-24 rounded-full border border-white/60" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.55),transparent_45%)]" />
+    <div className={`relative overflow-hidden rounded-[22px] border border-[var(--app-line)] ${visual.solidBg} ${compact ? 'h-24' : 'h-32'}`}>
       <div className="relative flex h-full items-end justify-between p-4">
         <div className="min-w-0">
           <div className={`text-[10px] font-semibold uppercase tracking-[0.16em] ${visual.accentClass}`}>{visual.eyebrow}</div>

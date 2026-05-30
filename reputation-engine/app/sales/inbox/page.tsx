@@ -1408,11 +1408,7 @@ function SalesInboxPageInner() {
                         const secs = status === 'needs_action' ? secondsSince(item.created_at) : Infinity
                         const tier = urgencyTier(secs)
 
-                        const urgencyBorder =
-                          !selectedState && tier === 'live' ? 'border-l-[3px] border-l-emerald-500' :
-                          !selectedState && tier === 'warning' ? 'border-l-[3px] border-l-amber-400' :
-                          !selectedState && tier === 'urgent' ? 'border-l-[3px] border-l-rose-500' :
-                          !selectedState && tier === 'overdue' ? 'border-l-[3px] border-l-rose-700' : ''
+                        const urgencyBorder = ''
 
                         const urgencyBg =
                           !selectedState && tier === 'live' ? 'bg-emerald-50/60' :
@@ -1425,7 +1421,7 @@ function SalesInboxPageInner() {
                             onClick={() => setSelectedId(item.id)}
                             className={`relative block w-full border-b border-[var(--app-line)] px-3 py-3 text-left transition ${urgencyBorder} ${urgencyBg} ${selectedState ? 'bg-[rgba(15,106,83,0.05)]' : 'hover:bg-[var(--app-bg)]'} ${lowPriority ? 'opacity-60' : ''}`}
                           >
-                            {selectedState ? <div className="absolute bottom-0 left-0 top-0 w-[3px] bg-[var(--app-accent)]" /> : null}
+                            {selectedState ? <div className="absolute inset-x-0 top-0 h-[2px] bg-[var(--app-accent)]" /> : null}
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex min-w-0 items-center gap-1.5">
                                 {tier === 'live' && !selectedState

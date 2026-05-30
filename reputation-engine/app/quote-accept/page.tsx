@@ -166,7 +166,7 @@ function PhotoGallery({ photos }: { photos: string[] }) {
           className="h-full w-full object-cover"
           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#1a2744]/50 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-[#1a2744]/30" />
         <div className="absolute bottom-3 left-4">
           <div className="text-[9px] font-bold uppercase tracking-widest text-[#f5a623]">Your Property</div>
           <div className="text-xs font-semibold text-white mt-0.5">{photos.length} photos reviewed by our team</div>

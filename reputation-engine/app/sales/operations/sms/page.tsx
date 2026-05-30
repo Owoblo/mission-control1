@@ -217,7 +217,7 @@ export default function OpsSmsPage() {
             <button
               key={thread.contactPhone}
               onClick={() => setSelected(thread.contactPhone)}
-              className={`w-full text-left px-4 py-3 border-b border-[var(--app-line)] transition ${selected === thread.contactPhone ? 'bg-[rgba(15,106,83,0.06)] border-l-[3px] border-l-[var(--app-accent)]' : 'hover:bg-[var(--app-bg)]'}`}
+              className={`w-full text-left px-4 py-3 border-b border-[var(--app-line)] transition ${selected === thread.contactPhone ? 'bg-[rgba(15,106,83,0.08)]' : 'hover:bg-[var(--app-bg)]'}`}
             >
               <div className="flex items-center justify-between gap-2">
                 <span className={`text-sm font-semibold truncate ${thread.unread ? 'text-[var(--app-ink)]' : 'text-[var(--app-muted)]'}`}>{formatPhone(thread.contactPhone)}</span>
