@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import { formatListingContextSummary, getListingDescription, getListingOperationalHighlights } from '@/lib/listing'
 import { getQuotedTruckCount } from '@/lib/operations'
-import { fetchSalesOverview } from '@/lib/sales-api'
+import { fetchSalesOverview, requestPriceOverrideApproval, verifyPriceOverrideApproval } from '@/lib/sales-api'
 import { estimateLeadQuote, deriveInventoryMetrics, formatMoney, getSalesBranchLabel, isBookedLikeStage, suggestTruckCount, detectSalesBranchFromLocation } from '@/lib/sales'
 import { INVENTORY_PRESETS } from '@/lib/item-presets'
 import { getDisassemblyServiceLabel, getIncludedDisassemblyItems } from '@/lib/move-scope'
@@ -283,6 +283,7 @@ type Props = {
   onUpdateLineItem: (index: number, field: keyof QuoteLineItem, value: string) => void
   onRemoveLineItem: (index: number) => void
   onSetLineItems: (items: QuoteLineItem[]) => void
+  onQuoteApprovalUpdated?: (quote: CRMQuote) => void
   moveDescription: string
   internalNotes: string
   moveTime?: string
@@ -389,6 +390,7 @@ export function EstimateDraftModal({
   onSetLineItems,
   onSaveDraft,
   onSaveAndPreview,
+  onQuoteApprovalUpdated,
   legs: legsProp,
   onLegsChange,
   onBranchChange,
@@ -419,6 +421,10 @@ export function EstimateDraftModal({
   const [excludedDisassemblyItems, setExcludedDisassemblyItems] = useState<Set<string>>(new Set())
   const [overrideInput, setOverrideInput] = useState('')
   const [overrideReason, setOverrideReason] = useState('relationship')
+  const [overrideApprovalCode, setOverrideApprovalCode] = useState('')
+  const [overrideApprovalBusy, setOverrideApprovalBusy] = useState(false)
+  const [overrideApprovalNotice, setOverrideApprovalNotice] = useState<string | null>(null)
+  const [approvedOverrideAmount, setApprovedOverrideAmount] = useState<number | null>(null)
   const [uhaulInputPerTruck, setUhaulInputPerTruck] = useState('')
   const [, startTransition] = useTransition()
   const [marginGateAck, setMarginGateAck] = useState(false)
@@ -745,6 +751,17 @@ export function EstimateDraftModal({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
+
+  useEffect(() => {
+    if (
+      quote?.priceOverrideApprovalStatus === 'approved' &&
+      quote.priceOverrideApprovalAmount &&
+      quote.priceOverrideApprovalAmount > 0
+    ) {
+      setApprovedOverrideAmount(Number(quote.priceOverrideApprovalAmount))
+      setOverrideApprovalNotice(`Approval verified for ${formatMoney(Number(quote.priceOverrideApprovalAmount))}.`)
+    }
+  }, [quote?.priceOverrideApprovalAmount, quote?.priceOverrideApprovalStatus])
 
   useEffect(() => {
     if (!open) return
@@ -1107,6 +1124,7 @@ export function EstimateDraftModal({
   const selectedMoveDate = quote?.moveDate || lead.moveDate
   const moveDateDaysAway = daysUntilDate(selectedMoveDate)
   const canApproveMarginException = currentUser?.role === 'owner' || currentUser?.role === 'manager'
+  const overrideRequiresApproval = currentUser?.role === 'sales_rep'
   const liveMarginSummary = useMemo(() => {
     if (!pricingBreakdown) return null
     const dealCosts: Record<string, number> = {
@@ -1156,6 +1174,17 @@ export function EstimateDraftModal({
     if (overrideAmount <= 0) return null
     return Math.round(((overrideAmount - liveMarginSummary.totalCost) / overrideAmount) * 1000) / 10
   }, [liveMarginSummary, overrideInput])
+  const overrideAmount = useMemo(() => Math.round(Number(overrideInput || 0) * 100) / 100, [overrideInput])
+  const overrideApprovalMatches = useMemo(() => {
+    if (!overrideRequiresApproval) return true
+    if (overrideAmount <= 0) return false
+    const quoteApprovedAmount =
+      quote?.priceOverrideApprovalStatus === 'approved'
+        ? Math.round(Number(quote.priceOverrideApprovalAmount || 0) * 100) / 100
+        : 0
+    const localApprovedAmount = approvedOverrideAmount ? Math.round(Number(approvedOverrideAmount) * 100) / 100 : 0
+    return quoteApprovedAmount === overrideAmount || localApprovedAmount === overrideAmount
+  }, [approvedOverrideAmount, overrideAmount, overrideRequiresApproval, quote?.priceOverrideApprovalAmount, quote?.priceOverrideApprovalStatus])
 
   // Reset margin gate acknowledgement whenever the quote pricing changes
   useEffect(() => {
@@ -1355,6 +1384,74 @@ export function EstimateDraftModal({
   function focusManualKmOverride() {
     manualKmInputRef.current?.focus()
     manualKmInputRef.current?.select()
+  }
+
+  function getOverrideReasonLabel(reason: string) {
+    const reasonLabels: Record<string, string> = {
+      price_match: 'Price match',
+      relationship: 'Relationship pricing',
+      courtesy_discount: 'Courtesy discount',
+      manager_approved: 'Manager approved rate',
+      customer_objection: 'Customer objection adjustment',
+      date_flexibility: 'Date flexibility adjustment',
+      bundle_opportunity: 'Bundle / two-move opportunity',
+      other: 'Rep-agreed rate',
+    }
+    return reasonLabels[reason] || 'Rep-agreed rate'
+  }
+
+  async function requestOverrideApproval() {
+    if (!quote || overrideAmount <= 0) return
+    setOverrideApprovalBusy(true)
+    setOverrideApprovalNotice(null)
+    try {
+      const result = await requestPriceOverrideApproval({
+        quoteId: quote.id,
+        requestedAmount: overrideAmount,
+        originalSubtotal: quoteModalTotals.subtotal,
+        projectedMargin: overrideProjectedMargin,
+        totalCost: liveMarginSummary?.totalCost,
+        reason: getOverrideReasonLabel(overrideReason),
+      })
+      onQuoteApprovalUpdated?.(result.quote)
+      setOverrideApprovalNotice(`Approval requested. Owner/manager code expires ${result.expiresAt ? new Date(result.expiresAt).toLocaleString() : 'soon'}.`)
+    } catch (err) {
+      setOverrideApprovalNotice((err as Error).message)
+    } finally {
+      setOverrideApprovalBusy(false)
+    }
+  }
+
+  async function verifyOverrideApproval() {
+    if (!quote || !overrideApprovalCode.trim()) return
+    setOverrideApprovalBusy(true)
+    setOverrideApprovalNotice(null)
+    try {
+      const result = await verifyPriceOverrideApproval({
+        quoteId: quote.id,
+        code: overrideApprovalCode,
+      })
+      onQuoteApprovalUpdated?.(result.quote)
+      setApprovedOverrideAmount(Number(result.quote.priceOverrideApprovalAmount || overrideAmount))
+      setOverrideApprovalNotice(`Approval verified. Code ${overrideApprovalCode.trim().toUpperCase()} is now attached to this quote.`)
+    } catch (err) {
+      setOverrideApprovalNotice((err as Error).message)
+    } finally {
+      setOverrideApprovalBusy(false)
+    }
+  }
+
+  function applyOverrideLineItem() {
+    const amount = overrideAmount
+    if (amount <= 0) return
+    onSetLineItems([{
+      description: 'Moving Services — Agreed Rate',
+      details: getOverrideReasonLabel(overrideReason),
+      amount,
+    }])
+    setOverrideApplied(true)
+    setBookTodayActive(false)
+    setTenPctActive(false)
   }
 
   function saveAsRouteUnresolved() {
@@ -4061,7 +4158,12 @@ export function EstimateDraftModal({
                         min={0}
                         step={50}
                         value={overrideInput}
-                        onChange={e => { setOverrideInput(e.target.value); setOverrideApplied(false) }}
+                        onChange={e => {
+                          setOverrideInput(e.target.value)
+                          setOverrideApplied(false)
+                          setApprovedOverrideAmount(null)
+                          setOverrideApprovalNotice(null)
+                        }}
                         placeholder="e.g. 6000"
                         className="crm-input pl-5 w-full text-sm font-semibold"
                       />
@@ -4092,34 +4194,52 @@ export function EstimateDraftModal({
                       {overrideProjectedMargin < 55 ? canApproveMarginException ? ' · manager approval should be documented.' : ' · manager approval required below threshold.' : ''}
                     </div>
                   )}
+                  {overrideRequiresApproval && (
+                    <div className="rounded-[8px] border border-amber-200 bg-amber-50 p-2.5">
+                      <div className="text-[10px] font-semibold text-amber-800">Sales rep overrides require owner/manager approval.</div>
+                      <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
+                        <input
+                          value={overrideApprovalCode}
+                          onChange={e => setOverrideApprovalCode(e.target.value.toUpperCase())}
+                          placeholder="Approval code"
+                          className="crm-input text-xs font-semibold tracking-[0.18em]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => void verifyOverrideApproval()}
+                          disabled={!overrideApprovalCode.trim() || overrideApprovalBusy}
+                          className="rounded-[6px] border border-amber-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-40"
+                        >
+                          Verify
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void requestOverrideApproval()}
+                        disabled={!overrideInput || overrideAmount <= 0 || overrideApprovalBusy}
+                        className="mt-2 w-full rounded-[6px] bg-amber-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-amber-700 disabled:opacity-40"
+                      >
+                        {overrideApprovalBusy ? 'Working...' : 'Request Owner/Manager Approval'}
+                      </button>
+                    </div>
+                  )}
+                  {overrideApprovalNotice && (
+                    <div className={`rounded-[6px] px-2.5 py-2 text-[10px] ${overrideApprovalNotice.toLowerCase().includes('invalid') || overrideApprovalNotice.toLowerCase().includes('expired') || overrideApprovalNotice.toLowerCase().includes('failed') ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                      {overrideApprovalNotice}
+                    </div>
+                  )}
                   <button
                     type="button"
-                    disabled={!overrideInput || Number(overrideInput) <= 0 || (overrideProjectedMargin !== null && overrideProjectedMargin < 55 && !canApproveMarginException)}
-                    onClick={() => {
-                      const amount = Math.round(Number(overrideInput) * 100) / 100
-                      if (amount <= 0) return
-                      const reasonLabels: Record<string, string> = {
-                        price_match: 'Price match',
-                        relationship: 'Relationship pricing',
-                        courtesy_discount: 'Courtesy discount',
-                        manager_approved: 'Manager approved rate',
-                        customer_objection: 'Customer objection adjustment',
-                        date_flexibility: 'Date flexibility adjustment',
-                        bundle_opportunity: 'Bundle / two-move opportunity',
-                        other: 'Rep-agreed rate',
-                      }
-                      onSetLineItems([{
-                        description: 'Moving Services — Agreed Rate',
-                        details: reasonLabels[overrideReason] || 'Rep-agreed rate',
-                        amount,
-                      }])
-                      setOverrideApplied(true)
-                      setBookTodayActive(false)
-                      setTenPctActive(false)
-                    }}
+                    disabled={
+                      !overrideInput ||
+                      overrideAmount <= 0 ||
+                      (overrideProjectedMargin !== null && overrideProjectedMargin < 55 && !canApproveMarginException && !overrideApprovalMatches) ||
+                      (overrideRequiresApproval && !overrideApprovalMatches)
+                    }
+                    onClick={applyOverrideLineItem}
                     className="w-full rounded-[6px] bg-rose-700 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-rose-800 disabled:opacity-40 transition"
                   >
-                    Apply Override
+                    {overrideRequiresApproval && !overrideApprovalMatches ? 'Apply Override After Approval' : 'Apply Override'}
                   </button>
                 </div>
 

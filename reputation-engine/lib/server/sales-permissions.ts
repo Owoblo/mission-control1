@@ -99,6 +99,20 @@ export function validateQuotePricingPermissions(
   }
 
   // Any sales workspace user can apply a price override — audit trail captures who did it
+  const overrideLineItem = Array.isArray(updates.lineItems)
+    ? updates.lineItems.find(item => item.description === 'Moving Services — Agreed Rate')
+    : null
+  if (session?.role === 'sales_rep' && overrideLineItem) {
+    const overrideAmount = Math.round(Number(overrideLineItem.amount || 0) * 100) / 100
+    const approvedAmount = Math.round(Number(current.priceOverrideApprovalAmount || 0) * 100) / 100
+    if (
+      current.priceOverrideApprovalStatus !== 'approved' ||
+      approvedAmount <= 0 ||
+      approvedAmount !== overrideAmount
+    ) {
+      return 'Sales reps need an owner/manager approval code before applying a manual price override.'
+    }
+  }
 
   if (updates.discountAmount !== undefined) {
     const subtotal = deriveSubtotal(current, updates)

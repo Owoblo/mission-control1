@@ -5024,6 +5024,7 @@ export default function SalesLeadDetailPage() {
         onUpdateLineItem={updateQuoteLineItem}
         onRemoveLineItem={removeQuoteLineItem}
         onSetLineItems={setQuoteLineItems}
+        onQuoteApprovalUpdated={setQuote}
         onSaveDraft={options => void saveQuoteDraft(options)}
         onSaveAndPreview={options => void saveAndPreviewQuote(options)}
         onBranchChange={setBranch}

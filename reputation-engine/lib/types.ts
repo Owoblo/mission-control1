@@ -860,6 +860,19 @@ export interface CRMQuote {
   internalNotes?: string    // crew / internal only, not on quote
   priceOverrideTotal?: number  // if set, this overrides the computed total (incl. HST)
   priceOverrideReason?: string
+  priceOverrideApprovalCode?: string
+  priceOverrideApprovalId?: string
+  priceOverrideApprovalStatus?: 'pending' | 'approved' | 'rejected' | 'expired'
+  priceOverrideApprovalRequestedAt?: string
+  priceOverrideApprovalRequestedBy?: string
+  priceOverrideApprovalRequestedByUserId?: string
+  priceOverrideApprovalExpiresAt?: string
+  priceOverrideApprovalApprovedAt?: string
+  priceOverrideApprovalApprovedBy?: string
+  priceOverrideApprovalAmount?: number
+  priceOverrideApprovalOriginalSubtotal?: number
+  priceOverrideApprovalProjectedMargin?: number
+  priceOverrideApprovalReason?: string
 }
 
 export interface FollowUpLog {

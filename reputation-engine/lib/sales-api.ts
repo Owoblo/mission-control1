@@ -256,6 +256,36 @@ export async function sendSalesMessage(payload: {
   return readJson(response)
 }
 
+export async function requestPriceOverrideApproval(payload: {
+  quoteId: string
+  requestedAmount: number
+  originalSubtotal: number
+  projectedMargin?: number | null
+  totalCost?: number | null
+  reason: string
+}): Promise<{ ok: boolean; quote: CRMQuote; expiresAt?: string }> {
+  const response = await fetch('/api/sales/quote-overrides/approval', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'request', ...payload }),
+  })
+  return readJson(response)
+}
+
+export async function verifyPriceOverrideApproval(payload: {
+  quoteId: string
+  code: string
+}): Promise<{ ok: boolean; quote: CRMQuote }> {
+  const response = await fetch('/api/sales/quote-overrides/approval', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'verify', ...payload }),
+  })
+  return readJson(response)
+}
+
 export async function fetchInboundLeads(): Promise<InboundInboxPayload> {
   const response = await fetch('/api/sales/inbox', { cache: 'no-store', credentials: 'include' })
   return readJson(response)
