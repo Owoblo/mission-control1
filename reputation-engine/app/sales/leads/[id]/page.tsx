@@ -1984,7 +1984,8 @@ export default function SalesLeadDetailPage() {
       const depositRate = quote.total > 0 ? quote.deposit / quote.total : 0.2
 
       // When an override is active, bypass any existing discount — the override IS the final pre-tax price
-      const hasOverride = quoteLineItems.some(li => li.description === 'Moving Services — Agreed Rate')
+      const overrideLineItem = quoteLineItems.find(li => li.description === 'Moving Services — Agreed Rate')
+      const hasOverride = Boolean(overrideLineItem)
       const effectiveDiscount = hasOverride ? 0 : quoteDiscountAmount
 
       const totals = computeQuoteTotals(quoteLineItems, depositRate, effectiveDiscount)
@@ -2015,6 +2016,8 @@ export default function SalesLeadDetailPage() {
         moveTime: quoteMoveTime || '09:00',
         moveDescription: nextMoveDescription || undefined,
         internalNotes: nextInternalNotes || undefined,
+        priceOverrideTotal: overrideLineItem ? Math.round(Number(overrideLineItem.amount || 0) * 100) / 100 : undefined,
+        priceOverrideReason: overrideLineItem?.details || undefined,
       })
       setQuote(result.quote)
       if (result.lead) setLead(result.lead)

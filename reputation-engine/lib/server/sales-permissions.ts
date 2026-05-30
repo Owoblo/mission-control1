@@ -98,18 +98,25 @@ export function validateQuotePricingPermissions(
     return 'Unauthorized'
   }
 
-  // Any sales workspace user can apply a price override — audit trail captures who did it
+  // Reps can apply healthy-margin overrides directly, but low/unknown margin needs an approval code.
   const overrideLineItem = Array.isArray(updates.lineItems)
     ? updates.lineItems.find(item => item.description === 'Moving Services — Agreed Rate')
     : null
   if (session?.role === 'sales_rep' && overrideLineItem) {
     const overrideAmount = Math.round(Number(overrideLineItem.amount || 0) * 100) / 100
     const approvedAmount = Math.round(Number(current.priceOverrideApprovalAmount || 0) * 100) / 100
-    if (
-      current.priceOverrideApprovalStatus !== 'approved' ||
-      approvedAmount <= 0 ||
-      approvedAmount !== overrideAmount
-    ) {
+    const details = String(overrideLineItem.details || updates.priceOverrideReason || '')
+    const marginMatch = details.match(/Projected margin:\s*(-?\d+(?:\.\d+)?)%/i)
+    const projectedMargin = marginMatch ? Number(marginMatch[1]) : null
+    const hasApproval =
+      current.priceOverrideApprovalStatus === 'approved' &&
+      approvedAmount > 0 &&
+      approvedAmount === overrideAmount
+    const hasMeaningfulNote = details.replace(/Projected margin:.*$/i, '').trim().length >= 12
+    if (!hasMeaningfulNote) {
+      return 'Sales reps must add a quick note explaining every manual price override.'
+    }
+    if ((projectedMargin === null || projectedMargin < 55) && !hasApproval) {
       return 'Sales reps need an owner/manager approval code before applying a manual price override.'
     }
   }

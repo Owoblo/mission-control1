@@ -421,6 +421,7 @@ export function EstimateDraftModal({
   const [excludedDisassemblyItems, setExcludedDisassemblyItems] = useState<Set<string>>(new Set())
   const [overrideInput, setOverrideInput] = useState('')
   const [overrideReason, setOverrideReason] = useState('relationship')
+  const [overrideNote, setOverrideNote] = useState('')
   const [overrideApprovalCode, setOverrideApprovalCode] = useState('')
   const [overrideApprovalBusy, setOverrideApprovalBusy] = useState(false)
   const [overrideApprovalNotice, setOverrideApprovalNotice] = useState<string | null>(null)
@@ -1124,7 +1125,6 @@ export function EstimateDraftModal({
   const selectedMoveDate = quote?.moveDate || lead.moveDate
   const moveDateDaysAway = daysUntilDate(selectedMoveDate)
   const canApproveMarginException = currentUser?.role === 'owner' || currentUser?.role === 'manager'
-  const overrideRequiresApproval = currentUser?.role === 'sales_rep'
   const liveMarginSummary = useMemo(() => {
     if (!pricingBreakdown) return null
     const dealCosts: Record<string, number> = {
@@ -1175,8 +1175,9 @@ export function EstimateDraftModal({
     return Math.round(((overrideAmount - liveMarginSummary.totalCost) / overrideAmount) * 1000) / 10
   }, [liveMarginSummary, overrideInput])
   const overrideAmount = useMemo(() => Math.round(Number(overrideInput || 0) * 100) / 100, [overrideInput])
+  const overrideNeedsApproval = currentUser?.role === 'sales_rep' && (overrideProjectedMargin === null || overrideProjectedMargin < 55)
   const overrideApprovalMatches = useMemo(() => {
-    if (!overrideRequiresApproval) return true
+    if (!overrideNeedsApproval) return true
     if (overrideAmount <= 0) return false
     const quoteApprovedAmount =
       quote?.priceOverrideApprovalStatus === 'approved'
@@ -1184,7 +1185,7 @@ export function EstimateDraftModal({
         : 0
     const localApprovedAmount = approvedOverrideAmount ? Math.round(Number(approvedOverrideAmount) * 100) / 100 : 0
     return quoteApprovedAmount === overrideAmount || localApprovedAmount === overrideAmount
-  }, [approvedOverrideAmount, overrideAmount, overrideRequiresApproval, quote?.priceOverrideApprovalAmount, quote?.priceOverrideApprovalStatus])
+  }, [approvedOverrideAmount, overrideAmount, overrideNeedsApproval, quote?.priceOverrideApprovalAmount, quote?.priceOverrideApprovalStatus])
 
   // Reset margin gate acknowledgement whenever the quote pricing changes
   useEffect(() => {
@@ -1411,7 +1412,7 @@ export function EstimateDraftModal({
         originalSubtotal: quoteModalTotals.subtotal,
         projectedMargin: overrideProjectedMargin,
         totalCost: liveMarginSummary?.totalCost,
-        reason: getOverrideReasonLabel(overrideReason),
+        reason: `${getOverrideReasonLabel(overrideReason)} — ${overrideNote.trim()}`,
       })
       onQuoteApprovalUpdated?.(result.quote)
       setOverrideApprovalNotice(`Approval requested. Owner/manager code expires ${result.expiresAt ? new Date(result.expiresAt).toLocaleString() : 'soon'}.`)
@@ -1444,9 +1445,16 @@ export function EstimateDraftModal({
   function applyOverrideLineItem() {
     const amount = overrideAmount
     if (amount <= 0) return
+    const note = overrideNote.trim()
+    if (note.length < 6) {
+      setOverrideApprovalNotice('Add a quick note explaining why this override is being used.')
+      return
+    }
+    const marginText = overrideProjectedMargin === null ? 'Projected margin: unknown' : `Projected margin: ${overrideProjectedMargin.toFixed(1)}%`
+    const approvalText = overrideNeedsApproval ? `Approval code verified: ${quote?.priceOverrideApprovalCode || overrideApprovalCode.trim().toUpperCase()}` : 'Approval not required: healthy margin'
     onSetLineItems([{
       description: 'Moving Services — Agreed Rate',
-      details: getOverrideReasonLabel(overrideReason),
+      details: `${getOverrideReasonLabel(overrideReason)} — ${note}. ${marginText}. ${approvalText}.`,
       amount,
     }])
     setOverrideApplied(true)
@@ -4148,7 +4156,7 @@ export function EstimateDraftModal({
                 <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3 space-y-2">
                   <div className="text-xs font-semibold text-[var(--app-ink)]">Price Override</div>
                   <div className="text-[10px] leading-4 text-[var(--app-muted)]">
-                    Enter the <span className="font-semibold text-[var(--app-ink)]">pre-tax base price</span>. HST (13%) is added on top — type $8,000 → customer pays $9,040. Override reason, user, and timestamp land in the audit trail.
+                    Enter the <span className="font-semibold text-[var(--app-ink)]">pre-tax base price</span>. HST (13%) is added on top. Healthy-margin overrides are allowed, but every override needs a quick note.
                   </div>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
@@ -4183,6 +4191,17 @@ export function EstimateDraftModal({
                       <option value="other">Other</option>
                     </select>
                   </div>
+                  <textarea
+                    value={overrideNote}
+                    onChange={e => {
+                      setOverrideNote(e.target.value)
+                      setOverrideApplied(false)
+                      setOverrideApprovalNotice(null)
+                    }}
+                    rows={2}
+                    placeholder="Quick note: why are we overriding this price?"
+                    className="crm-input w-full text-xs"
+                  />
                   {overrideInput && Number(overrideInput) > 0 && (
                     <div className="text-[10px] text-[var(--app-muted)]">
                       {formatMoney(Number(overrideInput))} + HST (13%) = <span className="font-semibold text-[var(--app-ink)]">{formatMoney(Math.round(Number(overrideInput) * 1.13 * 100) / 100)}</span> total
@@ -4191,12 +4210,17 @@ export function EstimateDraftModal({
                   {overrideProjectedMargin !== null && (
                     <div className={`text-[10px] ${overrideProjectedMargin < 55 ? 'text-rose-700' : 'text-[var(--app-muted)]'}`}>
                       Projected margin after override: {overrideProjectedMargin.toFixed(1)}%
-                      {overrideProjectedMargin < 55 ? canApproveMarginException ? ' · manager approval should be documented.' : ' · manager approval required below threshold.' : ''}
+                      {overrideProjectedMargin < 55 ? canApproveMarginException ? ' · manager approval should be documented.' : ' · owner/manager approval required below threshold.' : ' · healthy margin, approval code not required.'}
                     </div>
                   )}
-                  {overrideRequiresApproval && (
+                  {overrideProjectedMargin === null && currentUser?.role === 'sales_rep' && (
+                    <div className="text-[10px] text-amber-700">
+                      Margin cannot be confirmed yet, so owner/manager approval is required for this override.
+                    </div>
+                  )}
+                  {overrideNeedsApproval && (
                     <div className="rounded-[8px] border border-amber-200 bg-amber-50 p-2.5">
-                      <div className="text-[10px] font-semibold text-amber-800">Sales rep overrides require owner/manager approval.</div>
+                      <div className="text-[10px] font-semibold text-amber-800">This override needs owner/manager approval because the margin is below threshold or unknown.</div>
                       <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
                         <input
                           value={overrideApprovalCode}
@@ -4216,7 +4240,7 @@ export function EstimateDraftModal({
                       <button
                         type="button"
                         onClick={() => void requestOverrideApproval()}
-                        disabled={!overrideInput || overrideAmount <= 0 || overrideApprovalBusy}
+                        disabled={!overrideInput || overrideAmount <= 0 || overrideNote.trim().length < 6 || overrideApprovalBusy}
                         className="mt-2 w-full rounded-[6px] bg-amber-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-amber-700 disabled:opacity-40"
                       >
                         {overrideApprovalBusy ? 'Working...' : 'Request Owner/Manager Approval'}
@@ -4233,13 +4257,13 @@ export function EstimateDraftModal({
                     disabled={
                       !overrideInput ||
                       overrideAmount <= 0 ||
-                      (overrideProjectedMargin !== null && overrideProjectedMargin < 55 && !canApproveMarginException && !overrideApprovalMatches) ||
-                      (overrideRequiresApproval && !overrideApprovalMatches)
+                      overrideNote.trim().length < 6 ||
+                      (overrideNeedsApproval && !canApproveMarginException && !overrideApprovalMatches)
                     }
                     onClick={applyOverrideLineItem}
                     className="w-full rounded-[6px] bg-rose-700 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-rose-800 disabled:opacity-40 transition"
                   >
-                    {overrideRequiresApproval && !overrideApprovalMatches ? 'Apply Override After Approval' : 'Apply Override'}
+                    {overrideNeedsApproval && !overrideApprovalMatches ? 'Apply Override After Approval' : 'Apply Override'}
                   </button>
                 </div>
 
