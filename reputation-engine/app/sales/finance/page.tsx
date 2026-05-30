@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { computeCrewPayoutAmounts, CREW_PAYOUT_METHOD_LABELS, CREW_PAYOUT_STATUS_LABELS } from '@/lib/operations'
 import { updateSalesLead } from '@/lib/sales-api'
 import { formatMoney, isBookedLikeStage } from '@/lib/sales'
-import type { CRMLead, CrewPayoutEntry } from '@/lib/types'
+import type { CRMLead, CRMQuote, CrewPayoutEntry } from '@/lib/types'
 
 interface JobCost {
   id: string
@@ -20,6 +20,7 @@ interface BookedJob {
   name: string
   moveDate?: string
   revenue: number
+  quote: CRMQuote | null
   lead: CRMLead
 }
 
@@ -37,6 +38,8 @@ const CATEGORIES = [
   { value: 'truck',        label: 'Truck / Rental',   icon: '🚛' },
   { value: 'fuel',         label: 'Fuel / Gas',       icon: '⛽' },
   { value: 'supplies',     label: 'Supplies',         icon: '📦' },
+  { value: 'extra_fees',   label: 'Extra Fees',       icon: '🧾' },
+  { value: 'claims',       label: 'Claims / Damage',  icon: '⚠️' },
   { value: 'food',         label: 'Food / Crew',      icon: '🍕' },
   { value: 'equipment',    label: 'Equipment',        icon: '🔧' },
   { value: 'marketing',    label: 'Marketing',        icon: '📢' },
@@ -47,6 +50,28 @@ const CATEGORIES = [
 const CAT_META: Record<string, { label: string; icon: string }> = Object.fromEntries(
   CATEGORIES.map(c => [c.value, { label: c.label, icon: c.icon }])
 )
+
+function moneyFromCents(cents: number) {
+  return Math.round(Number(cents || 0)) / 100
+}
+
+function getPaidSoFar(job: Pick<BookedJob, 'lead' | 'quote'>) {
+  const quote = job.quote
+  const depositCollected = Math.max(
+    Number(quote?.depositPaidAmount || 0),
+    job.lead.paymentStatus && job.lead.paymentStatus !== 'pending' ? Number(job.lead.depositAmount || 0) : 0
+  )
+  const balanceCollected = Math.max(Number(quote?.balancePaidAmount || 0), 0)
+  return {
+    depositCollected,
+    balanceCollected,
+    cashCollected: Math.round((depositCollected + balanceCollected) * 100) / 100,
+  }
+}
+
+function costByCategory(costs: JobCost[], category: string) {
+  return moneyFromCents(costs.filter(c => c.category === category).reduce((sum, c) => sum + c.amount_cents, 0))
+}
 
 export default function FinancePage() {
   const [costs, setCosts] = useState<JobCost[]>([])
@@ -75,18 +100,30 @@ export default function FinancePage() {
     if (costsRes.ok) setCosts(await costsRes.json())
     if (jobsRes.ok) {
       const d = await jobsRes.json()
+      const quotes = (d.quotes || []) as CRMQuote[]
+      const quotesByLead = new Map<string, CRMQuote[]>()
+      for (const q of quotes) {
+        if (!q.leadId) continue
+        const list = quotesByLead.get(q.leadId) || []
+        list.push(q)
+        quotesByLead.set(q.leadId, list)
+      }
       // Extract booked leads + their quote totals
       const booked: BookedJob[] = (d.leads || [])
         .filter((l: { stage: string }) => isBookedLikeStage(l.stage))
-        .map((l: CRMLead & { quotes?: { status: string; total?: number }[] }) => {
-          const acceptedQuote = (l.quotes || []).find(
-            (q: { status: string; total?: number }) => ['accepted', 'invoiced'].includes(q.status)
-          )
+        .map((l: CRMLead) => {
+          const leadQuotes = quotesByLead.get(l.id) || []
+          const acceptedQuote =
+            leadQuotes.find(q => q.id === l.quoteId) ||
+            leadQuotes.find(q => ['accepted', 'invoiced'].includes(q.status)) ||
+            leadQuotes[0] ||
+            null
           return {
             id: l.id,
             name: l.name,
-            moveDate: l.moveDate,
+            moveDate: acceptedQuote?.moveDate || l.moveDate,
             revenue: acceptedQuote?.total || 0,
+            quote: acceptedQuote,
             lead: l,
           }
         })
@@ -189,9 +226,49 @@ export default function FinancePage() {
   // Compute P&L per job
   const jobPL = jobs.map(job => {
     const jobCosts = costs.filter(c => c.lead_id === job.id)
-    const totalCosts = jobCosts.reduce((s, c) => s + c.amount_cents, 0) / 100
+    const totalCosts = moneyFromCents(jobCosts.reduce((s, c) => s + c.amount_cents, 0))
     const profit = job.revenue - totalCosts
-    return { ...job, jobCosts, totalCosts, profit }
+    const quoteAmount = Number(job.quote?.total || job.revenue || 0)
+    const depositRequired = Number(job.quote?.deposit || 0)
+    const paid = getPaidSoFar(job)
+    const cashPending = Math.max(0, Math.round((quoteAmount - paid.cashCollected) * 100) / 100)
+    const margin = quoteAmount > 0 ? profit / quoteAmount : 0
+    const truckCost = costByCategory(jobCosts, 'truck')
+    const laborCost = costByCategory(jobCosts, 'labor')
+    const fuelCost = costByCategory(jobCosts, 'fuel')
+    const suppliesCost = costByCategory(jobCosts, 'supplies')
+    const extraFees = costByCategory(jobCosts, 'extra_fees') + costByCategory(jobCosts, 'equipment') + costByCategory(jobCosts, 'food')
+    const claimsReserve = costByCategory(jobCosts, 'claims') + costByCategory(jobCosts, 'insurance')
+    const estimatedLaborBudget = Number(job.quote?.crewSize || 0) * Number(job.quote?.estimatedHours || 0) * 20
+    const warnings = [
+      margin > 0 && margin < 0.35 ? 'Low margin job' : '',
+      cashPending > 0 && paid.balanceCollected <= 0 && job.lead.stage !== 'booked' ? 'Balance not collected' : '',
+      depositRequired > 0 && paid.depositCollected <= 0 ? 'Customer has not paid deposit' : '',
+      quoteAmount > 0 && truckCost / quoteAmount > 0.18 ? 'Truck cost too high' : '',
+      estimatedLaborBudget > 0 && laborCost > estimatedLaborBudget * 1.15 ? 'Labour cost exceeded estimate' : '',
+      quoteAmount > 0 && totalCosts === 0 ? 'No actual costs logged' : '',
+      profit < 0 ? 'Job profitable on quote but losing after actual costs' : '',
+    ].filter(Boolean)
+    return {
+      ...job,
+      quoteAmount,
+      depositRequired,
+      depositCollected: paid.depositCollected,
+      balanceCollected: paid.balanceCollected,
+      cashCollected: paid.cashCollected,
+      cashPending,
+      jobCosts,
+      totalCosts,
+      truckCost,
+      laborCost,
+      fuelCost,
+      suppliesCost,
+      extraFees,
+      claimsReserve,
+      profit,
+      margin,
+      warnings,
+    }
   })
 
   const overheadCosts = costs.filter(c => c.lead_id === 'overhead')
@@ -200,6 +277,9 @@ export default function FinancePage() {
   const allRevenue = jobPL.reduce((s, j) => s + j.revenue, 0)
   const allJobCosts = jobPL.reduce((s, j) => s + j.totalCosts, 0)
   const netProfit = allRevenue - allJobCosts - totalOverhead
+  const cashCollected = jobPL.reduce((s, j) => s + j.cashCollected, 0)
+  const cashPending = jobPL.reduce((s, j) => s + j.cashPending, 0)
+  const flaggedJobs = jobPL.filter(job => job.warnings.length > 0)
 
   const payoutRows: WorkerPayoutRow[] = jobs.flatMap(job =>
     (job.lead.crewPayouts || []).map(entry => ({
@@ -244,19 +324,19 @@ export default function FinancePage() {
           {/* Summary strip */}
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             <div className="crm-panel p-5">
-              <div className="text-xs font-bold uppercase tracking-wider text-[var(--app-muted)]">Total Revenue</div>
+              <div className="text-xs font-bold uppercase tracking-wider text-[var(--app-muted)]">Booked Revenue</div>
               <div className="mt-2 text-2xl font-bold text-[#1a2744]">{formatMoney(allRevenue)}</div>
-              <div className="mt-0.5 text-xs text-[var(--app-muted)]">{jobPL.length} booked jobs</div>
+              <div className="mt-0.5 text-xs text-[var(--app-muted)]">quote value, not cash</div>
             </div>
             <div className="crm-panel p-5">
-              <div className="text-xs font-bold uppercase tracking-wider text-[var(--app-muted)]">Job Costs</div>
-              <div className="mt-2 text-2xl font-bold text-rose-600">{formatMoney(allJobCosts)}</div>
-              <div className="mt-0.5 text-xs text-[var(--app-muted)]">labor, truck, fuel, etc.</div>
+              <div className="text-xs font-bold uppercase tracking-wider text-[var(--app-muted)]">Cash Collected</div>
+              <div className="mt-2 text-2xl font-bold text-emerald-600">{formatMoney(cashCollected)}</div>
+              <div className="mt-0.5 text-xs text-[var(--app-muted)]">deposits + balances paid</div>
             </div>
             <div className="crm-panel p-5">
-              <div className="text-xs font-bold uppercase tracking-wider text-[var(--app-muted)]">Overhead</div>
-              <div className="mt-2 text-2xl font-bold text-amber-600">{formatMoney(totalOverhead)}</div>
-              <div className="mt-0.5 text-xs text-[var(--app-muted)]">marketing, insurance, etc.</div>
+              <div className="text-xs font-bold uppercase tracking-wider text-[var(--app-muted)]">Cash Pending</div>
+              <div className={`mt-2 text-2xl font-bold ${cashPending > 0 ? 'text-amber-600' : 'text-[#1a2744]'}`}>{formatMoney(cashPending)}</div>
+              <div className="mt-0.5 text-xs text-[var(--app-muted)]">uncollected quoted balance</div>
             </div>
             <div className="crm-panel p-5">
               <div className="text-xs font-bold uppercase tracking-wider text-[var(--app-muted)]">Net Profit</div>
@@ -266,6 +346,20 @@ export default function FinancePage() {
               <div className="mt-0.5 text-xs text-[var(--app-muted)]">after all logged costs</div>
             </div>
           </div>
+
+          {flaggedJobs.length > 0 && (
+            <div className="crm-panel border-amber-200 bg-amber-50 p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="font-semibold text-amber-900">Finance Warnings</h2>
+                  <p className="mt-1 text-sm text-amber-800">{flaggedJobs.length} job{flaggedJobs.length === 1 ? '' : 's'} need cash, margin, or cost review.</p>
+                </div>
+                <button onClick={() => setTab('jobs')} className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100">
+                  Review Job Costs
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="crm-panel overflow-hidden">
             <div className="flex items-center justify-between border-b border-[var(--app-line)] px-6 py-4">
@@ -355,13 +449,32 @@ export default function FinancePage() {
                           {job.moveDate && <span className="text-xs text-[var(--app-muted)]">Move: {job.moveDate}</span>}
                         </div>
                         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                          <span className="text-[var(--app-muted)]">Revenue: <span className="font-semibold text-[#1a2744]">{formatMoney(job.revenue)}</span></span>
+                          <span className="text-[var(--app-muted)]">Quote: <span className="font-semibold text-[#1a2744]">{formatMoney(job.quoteAmount)}</span></span>
+                          <span className="text-[var(--app-muted)]">Deposit collected: <span className={`font-semibold ${job.depositCollected > 0 ? 'text-emerald-600' : 'text-amber-600'}`}>{formatMoney(job.depositCollected)}</span></span>
+                          <span className="text-[var(--app-muted)]">Balance pending: <span className={`font-semibold ${job.cashPending > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{formatMoney(job.cashPending)}</span></span>
                           <span className="text-[var(--app-muted)]">Costs: <span className="font-semibold text-rose-600">{formatMoney(job.totalCosts)}</span></span>
                           <span className="text-[var(--app-muted)]">Profit: <span className={`font-bold ${job.profit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatMoney(job.profit)}</span></span>
-                          {job.revenue > 0 && (
-                            <span className="text-[var(--app-muted)]">Margin: <span className={`font-semibold ${(job.profit / job.revenue) >= 0.4 ? 'text-emerald-600' : 'text-amber-600'}`}>{Math.round((job.profit / job.revenue) * 100)}%</span></span>
+                          {job.quoteAmount > 0 && (
+                            <span className="text-[var(--app-muted)]">Margin: <span className={`font-semibold ${job.margin >= 0.4 ? 'text-emerald-600' : job.margin >= 0.25 ? 'text-amber-600' : 'text-rose-600'}`}>{Math.round(job.margin * 100)}%</span></span>
                           )}
                         </div>
+                        <div className="mt-2 grid grid-cols-2 gap-2 text-xs md:grid-cols-6">
+                          <div className="rounded-lg bg-[var(--app-bg)] px-2 py-1.5"><span className="text-[var(--app-muted)]">Truck</span><div className="font-semibold text-[#1a2744]">{formatMoney(job.truckCost)}</div></div>
+                          <div className="rounded-lg bg-[var(--app-bg)] px-2 py-1.5"><span className="text-[var(--app-muted)]">Labour</span><div className="font-semibold text-[#1a2744]">{formatMoney(job.laborCost)}</div></div>
+                          <div className="rounded-lg bg-[var(--app-bg)] px-2 py-1.5"><span className="text-[var(--app-muted)]">Fuel</span><div className="font-semibold text-[#1a2744]">{formatMoney(job.fuelCost)}</div></div>
+                          <div className="rounded-lg bg-[var(--app-bg)] px-2 py-1.5"><span className="text-[var(--app-muted)]">Supplies</span><div className="font-semibold text-[#1a2744]">{formatMoney(job.suppliesCost)}</div></div>
+                          <div className="rounded-lg bg-[var(--app-bg)] px-2 py-1.5"><span className="text-[var(--app-muted)]">Extra fees</span><div className="font-semibold text-[#1a2744]">{formatMoney(job.extraFees)}</div></div>
+                          <div className="rounded-lg bg-[var(--app-bg)] px-2 py-1.5"><span className="text-[var(--app-muted)]">Claims reserve</span><div className="font-semibold text-[#1a2744]">{formatMoney(job.claimsReserve)}</div></div>
+                        </div>
+                        {job.warnings.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {job.warnings.map(warning => (
+                              <span key={warning} className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+                                {warning}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                         {/* Cost breakdown */}
                         {job.jobCosts.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-2">
