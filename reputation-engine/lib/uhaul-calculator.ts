@@ -184,6 +184,30 @@ export interface StrategyTiming {
 
 function rnd(h: number) { return Math.round(h * 4) / 4 }  // round to nearest 15 min
 
+// Thresholds (24h clock)
+const SAME_DAY_CUTOFF = 21     // 9pm — ideal same-day finish
+const LATE_CUTOFF     = 23     // 11pm — last possible same day (early start needed)
+// If finish > 23 even with 8am start → truly needs Day 2
+
+function solveTiming(totalH: number, preferredStart = 9): {
+  startHour: number; endHour: number; multiDay: boolean; warning?: string
+} {
+  const endAtPreferred = preferredStart + totalH
+  if (endAtPreferred <= SAME_DAY_CUTOFF) {
+    return { startHour: preferredStart, endHour: endAtPreferred, multiDay: false }
+  }
+  // Try 8am start
+  const endAt8 = 8 + totalH
+  if (endAt8 <= LATE_CUTOFF) {
+    return {
+      startHour: 8, endHour: endAt8, multiDay: false,
+      warning: `Start by 8:00 AM for same day — finishes ${fmtHour(endAt8)}`,
+    }
+  }
+  // Truly needs 2 days
+  return { startHour: preferredStart, endHour: preferredStart + totalH, multiDay: true }
+}
+
 export function calcStrategyTiming(
   strategy: TripStrategy,
   breakdown: {
@@ -191,7 +215,7 @@ export function calcStrategyTiming(
     driveHours: number
     unloadHours: number
     totalHours: number
-    penaltyHours: number       // disassembly/access penalties
+    penaltyHours: number
     totalCubicFeet: number
     totalWeightLbs: number
   },
@@ -207,61 +231,62 @@ export function calcStrategyTiming(
   if (strategy === 'two_trucks' || strategy === 'three_trucks') {
     const d1h = flags?.twoDayMoveEstimate?.day1Hours ?? rnd(loadHours + driveHours)
     const d2h = flags?.twoDayMoveEstimate?.day2Hours ?? rnd(unloadHours)
-    const d1End = crewStartHour + d1h
-    const d2End = crewStartHour + d2h
-    const multiDay = (d1h + d2h) > 13
+    const totalH = d1h + d2h
+    const { startHour, multiDay, warning } = solveTiming(totalH, crewStartHour)
 
     if (multiDay) {
       return {
         multiDay: true,
         phases: [
-          { label: 'D1 — loading done', end: fmtHour(d1End), note: 'trucks packed, drive to destination' },
-          { label: 'D2 — all done', end: fmtHour(d2End), note: 'unload + reassemble' },
+          { label: 'D1 — loading done', end: fmtHour(startHour + d1h), note: 'trucks packed, drive to destination' },
+          { label: 'D2 — all done', end: fmtHour(startHour + d2h), note: 'unload + reassemble' },
         ],
-        finishLabel: `~${fmtHour(d2End)} (Day 2)`,
+        finishLabel: `~${fmtHour(startHour + d2h)} (Day 2)`,
       }
     }
 
-    const singleEnd = crewStartHour + d1h + d2h
     return {
       multiDay: false,
-      phases: [{ label: 'All done', end: fmtHour(singleEnd) }],
-      finishLabel: `~${fmtHour(singleEnd)} (same day)`,
-      warning: singleEnd > 19 ? 'Late finish — consider 2-day split' : undefined,
+      phases: [
+        { label: 'Loading done', end: fmtHour(startHour + d1h), note: 'drive to destination' },
+        { label: 'All done', end: fmtHour(startHour + totalH), note: 'unload + reassemble' },
+      ],
+      finishLabel: `~${fmtHour(startHour + totalH)} (same day)`,
+      warning,
     }
   }
 
   // ── 1 TRUCK · 2 TRIPS ──────────────────────────────────────────────────────
   if (strategy === 'single_truck_two_trips') {
-    // Split cubic feet between trips: trip 1 fills the truck, trip 2 takes the rest
     const trip1CuFt = Math.min(TRUCK_CAPACITY_CF, totalCubicFeet)
     const trip2CuFt = Math.max(0, totalCubicFeet - trip1CuFt)
     const trip1Frac = totalCubicFeet > 0 ? trip1CuFt / totalCubicFeet : 0.65
     const trip2Frac = totalCubicFeet > 0 ? trip2CuFt / totalCubicFeet : 0.35
 
-    // Trip 1: heavy + bulky items, all disassembly/wrapping happens here
-    const trip1LoadH = rnd(trip1Frac * loadHours + penaltyHours + 0.25)  // +15 min walkthrough
-    const trip1UnloadH = rnd(trip1Frac * unloadHours * 0.7)              // partial unload (no reassembly yet)
-    const trip1TotalH = trip1LoadH + driveHours + trip1UnloadH + driveHours  // includes return drive
+    // Trip 1: full load, all disassembly + wrapping from scratch
+    const trip1LoadH = rnd(trip1Frac * loadHours + penaltyHours + 0.25)
+    const trip1UnloadH = rnd(trip1Frac * unloadHours * 0.7)
+    const trip1H = trip1LoadH + driveHours + trip1UnloadH + driveHours
 
-    // Trip 2: lighter remaining items — already wrapped, mostly boxes/garage (25% faster to load)
+    // Trip 2: lighter remainder, pre-wrapped — 25% faster to load, full reassembly at end
     const trip2LoadH = rnd(trip2Frac * loadHours * 0.75)
-    const trip2UnloadH = rnd(trip2Frac * unloadHours + unloadHours * 0.3)  // +30% for final reassembly
-    const trip2TotalH = trip2LoadH + driveHours + trip2UnloadH
+    const trip2UnloadH = rnd(trip2Frac * unloadHours + unloadHours * 0.3)
+    const trip2H = trip2LoadH + driveHours + trip2UnloadH
 
-    const trip1Done = crewStartHour + trip1TotalH
-    const allDone = trip1Done + trip2TotalH
-    const multiDay = allDone > 22
+    const totalH = trip1H + trip2H
+    const { startHour, multiDay, warning } = solveTiming(totalH, crewStartHour)
+    const trip1Done = startHour + trip1H
+    const allDone = trip1Done + trip2H
 
     if (multiDay) {
-      const trip2EndNextDay = crewStartHour + trip2TotalH
+      const trip2DoneD2 = startHour + trip2H
       return {
         multiDay: true,
         phases: [
           { label: 'D1 — trip 1 done', end: fmtHour(trip1Done), note: `${Math.round(trip1CuFt)} cu ft delivered` },
-          { label: 'D2 — all done', end: fmtHour(trip2EndNextDay), note: `${Math.round(trip2CuFt)} cu ft + reassemble` },
+          { label: 'D2 — all done', end: fmtHour(trip2DoneD2), note: `${Math.round(trip2CuFt)} cu ft + reassemble` },
         ],
-        finishLabel: `~${fmtHour(trip2EndNextDay)} (Day 2)`,
+        finishLabel: `~${fmtHour(trip2DoneD2)} (Day 2)`,
         warning: 'Too long for 1 day — needs Day 2',
       }
     }
@@ -269,20 +294,22 @@ export function calcStrategyTiming(
     return {
       multiDay: false,
       phases: [
-        { label: 'Trip 1 done', end: fmtHour(trip1Done), note: `${Math.round(trip1CuFt)} cu ft delivered, back for trip 2` },
+        { label: 'Trip 1 done', end: fmtHour(trip1Done), note: `${Math.round(trip1CuFt)} cu ft delivered` },
         { label: 'All done', end: fmtHour(allDone), note: `${Math.round(trip2CuFt)} cu ft + reassemble` },
       ],
       finishLabel: `~${fmtHour(allDone)} (same day)`,
-      warning: allDone > 19 ? 'Very late — consider 2-day split' : undefined,
+      warning,
     }
   }
 
   // ── 1 TRUCK · 1 TRIP ───────────────────────────────────────────────────────
-  const end = crewStartHour + rnd(loadHours + driveHours + unloadHours + penaltyHours)
+  const totalH = rnd(loadHours + driveHours + unloadHours + penaltyHours)
+  const { startHour, multiDay, warning } = solveTiming(totalH, crewStartHour)
+  const end = startHour + totalH
   return {
-    multiDay: false,
-    phases: [{ label: 'All done', end: fmtHour(end) }],
-    finishLabel: `~${fmtHour(end)} (same day)`,
-    warning: end > 19 ? 'Late finish' : undefined,
+    multiDay,
+    phases: [{ label: multiDay ? 'D1 — all loaded' : 'All done', end: fmtHour(end) }],
+    finishLabel: multiDay ? `~${fmtHour(end)} (needs Day 2)` : `~${fmtHour(end)} (same day)`,
+    warning,
   }
 }
