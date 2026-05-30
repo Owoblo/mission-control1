@@ -162,3 +162,100 @@ export function truckSizeFromCubicFeet(cubicFeet: number): string {
   if (cubicFeet <= 900) return '20ft'
   return '26ft'
 }
+
+// Format decimal hours as "h:mm AM/PM"
+function fmtHour(decimalHour: number): string {
+  const total = ((decimalHour % 24) + 24) % 24
+  const h = Math.floor(total)
+  const m = Math.round((total - h) * 60)
+  const ampm = h < 12 ? 'AM' : 'PM'
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h
+  return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`
+}
+
+export interface StrategyTiming {
+  phases: Array<{ label: string; end: string; note?: string }>
+  multiDay: boolean
+  finishLabel: string   // e.g. "Done ~3:00 PM (Day 2)"
+  warning?: string
+}
+
+export function calcStrategyTiming(
+  strategy: TripStrategy,
+  breakdown: {
+    loadHours: number
+    driveHours: number
+    unloadHours: number
+    totalHours: number
+  },
+  flags: {
+    twoTripComparison?: { totalHours: number; extraHours: number } | null
+    twoDayMoveEstimate?: { day1Hours: number; day2Hours: number } | null
+  } | null,
+  crewStartHour = 9,
+): StrategyTiming {
+  const { loadHours, driveHours, unloadHours, totalHours } = breakdown
+
+  if (strategy === 'two_trucks' || strategy === 'three_trucks') {
+    const d1h = flags?.twoDayMoveEstimate?.day1Hours ?? (loadHours + driveHours)
+    const d2h = flags?.twoDayMoveEstimate?.day2Hours ?? unloadHours
+    const d1End = crewStartHour + d1h
+    const d2End = crewStartHour + d2h
+    const multiDay = (d1h + d2h) > 13
+
+    if (multiDay) {
+      return {
+        multiDay: true,
+        phases: [
+          { label: 'D1 — loading done', end: fmtHour(d1End), note: 'trucks loaded, keys dropped' },
+          { label: 'D2 — all done', end: fmtHour(d2End), note: 'unload + reassemble' },
+        ],
+        finishLabel: `~${fmtHour(d2End)} (Day 2)`,
+      }
+    }
+
+    const singleEnd = crewStartHour + totalHours
+    return {
+      multiDay: false,
+      phases: [{ label: 'All done', end: fmtHour(singleEnd) }],
+      finishLabel: `~${fmtHour(singleEnd)} (same day)`,
+    }
+  }
+
+  if (strategy === 'single_truck_two_trips') {
+    const tripH = flags?.twoTripComparison?.totalHours ?? totalHours
+    const endH = crewStartHour + tripH
+    const multiDay = endH > 22
+
+    if (multiDay) {
+      // Split: trip 1 on day 1, trip 2 on day 2
+      const trip1H = (loadHours / 2) + driveHours + (unloadHours / 2) + driveHours
+      const trip2H = (loadHours / 2) + driveHours + (unloadHours / 2)
+      return {
+        multiDay: true,
+        phases: [
+          { label: 'D1 — trip 1 done', end: fmtHour(crewStartHour + trip1H), note: 'first load delivered' },
+          { label: 'D2 — trip 2 done', end: fmtHour(crewStartHour + trip2H), note: 'second load + reassemble' },
+        ],
+        finishLabel: `~${fmtHour(crewStartHour + trip2H)} (Day 2)`,
+        warning: 'Too long for 1 day — will need Day 2',
+      }
+    }
+
+    return {
+      multiDay: false,
+      phases: [{ label: 'All done', end: fmtHour(endH), note: `both trips + unload` }],
+      finishLabel: `~${fmtHour(endH)} (same day)`,
+      warning: endH > 19 ? 'Very late finish — consider 2 days' : undefined,
+    }
+  }
+
+  // single_truck single trip
+  const end = crewStartHour + totalHours
+  return {
+    multiDay: false,
+    phases: [{ label: 'All done', end: fmtHour(end) }],
+    finishLabel: `~${fmtHour(end)} (same day)`,
+    warning: end > 19 ? 'Late finish' : undefined,
+  }
+}

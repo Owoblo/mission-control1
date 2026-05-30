@@ -15,7 +15,7 @@ import { buildStarterInventoryPlan } from '@/lib/starter-inventory'
 import { DEFAULT_ROOM_OPTIONS } from './helpers'
 import type { EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, PricingBreakdown, QuoteLineItem, QuoteLeg, QuoteLegType } from '@/lib/types'
 import {
-  calcUHaulCost, compareStrategies, truckSizeFromCubicFeet,
+  calcUHaulCost, compareStrategies, truckSizeFromCubicFeet, calcStrategyTiming,
   DEFAULT_BLANKET_BAGS, DEFAULT_GAS_PRICE_PER_L, DEFAULT_MISC_BUFFER,
   UHAUL_DAILY_RATES, UHAUL_PER_KM_RATE, UHAUL_FUEL_L_PER_100KM, type TripStrategy,
 } from '@/lib/uhaul-calculator'
@@ -3845,6 +3845,11 @@ export function EstimateDraftModal({
                             ]).map(({ label, strategy, data }) => {
                               const isActive = activeStrategy === strategy
                               const isCheaper = data.truckTotal <= Math.min(comparison.oneTruckTwoTrips.truckTotal, comparison.twoTrucksOneTrip.truckTotal)
+                              const timing = calcStrategyTiming(
+                                strategy,
+                                { loadHours: pricingBreakdown.loadHours, driveHours: pricingBreakdown.driveHours, unloadHours: pricingBreakdown.unloadHours, totalHours: pricingBreakdown.totalHours },
+                                flags ?? null,
+                              )
                               return (
                                 <button
                                   key={label}
@@ -3858,9 +3863,20 @@ export function EstimateDraftModal({
                                 >
                                   <div className="text-[10px] font-semibold text-[var(--app-ink)]">{label}</div>
                                   <div className="text-sm font-bold text-[var(--app-ink)] mt-0.5">{formatMoney(data.truckTotal)}</div>
-                                  <div className="text-[9px] mt-0.5 space-x-1">
+                                  {/* Timing phases */}
+                                  <div className="mt-1.5 space-y-0.5">
+                                    {timing.phases.map((p, i) => (
+                                      <div key={i} className="text-[9px] text-[var(--app-muted)]">
+                                        <span className="font-semibold text-[var(--app-ink)]">{p.end}</span>{p.note ? ` · ${p.note}` : ` · ${p.label}`}
+                                      </div>
+                                    ))}
+                                    {timing.warning && (
+                                      <div className="text-[9px] text-amber-700 font-semibold mt-0.5">⚠ {timing.warning}</div>
+                                    )}
+                                  </div>
+                                  <div className="text-[9px] mt-1 space-x-1">
                                     {isActive && <span className="text-[#1a2744] font-semibold">● Active</span>}
-                                    {!isActive && isCheaper && <span className="text-emerald-700 font-semibold">★ Lower cost</span>}
+                                    {!isActive && isCheaper && <span className="text-emerald-700 font-semibold">★ Lower truck cost</span>}
                                   </div>
                                 </button>
                               )
