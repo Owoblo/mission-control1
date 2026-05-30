@@ -21,10 +21,15 @@ function isPublicMarketingPath(pathname: string) {
   return pathname.startsWith('/api/marketing/qr/')
 }
 
+// Manager approval links sent via email — no login required
+function isApprovalPath(pathname: string) {
+  return pathname.endsWith('/approve-margin')
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl
 
-  if (PUBLIC_PATHS.has(pathname) || PUBLIC_API_PATHS.has(pathname) || isPublicMarketingPath(pathname)) {
+  if (PUBLIC_PATHS.has(pathname) || PUBLIC_API_PATHS.has(pathname) || isPublicMarketingPath(pathname) || isApprovalPath(pathname)) {
     return NextResponse.next()
   }
 
