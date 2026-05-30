@@ -3909,7 +3909,8 @@ export function EstimateDraftModal({
               const blanketBags = uhaulBlankets ?? (defaultBlankets * truckCount)
               const estimatedHours = pricingBreakdown.totalHours || 3
               const crewSize = pricingBreakdown.crewSize || 3
-              const revenue = quoteModalTotals.total || 0
+              // Use pre-HST subtotal — that's the revenue we actually earned
+              const revenue = quoteModalTotals.subtotal || 0
 
               const cost = calcUHaulCost({
                 truckSize, truckCount, tripStrategy, oneWayDistanceKm: oneWayKm,
@@ -3927,105 +3928,60 @@ export function EstimateDraftModal({
 
               return (
                 <div className="border border-[var(--app-line)] rounded-[10px] overflow-hidden">
+                  {/* Header — always visible */}
                   <button
                     type="button"
                     onClick={() => setUhaulOpen(o => !o)}
                     className="w-full flex items-center justify-between px-3.5 py-2.5 bg-[var(--app-surface)] hover:bg-[var(--app-line)]/40 transition text-left"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-base">🚛</span>
+                      <span className="text-sm">🚛</span>
                       <span className="text-xs font-semibold text-[var(--app-ink)]">U-Haul Job Cost</span>
-                      <span className="text-[10px] text-[var(--app-muted)]">{truckCount}× {truckSize} · {Math.round(oneWayKm)} km</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className={`text-xs font-bold ${profitColor}`}>{cost.grossMarginPct.toFixed(1)}% margin</span>
-                      <span className="text-[var(--app-muted)] text-xs">{uhaulOpen ? '▲' : '▼'}</span>
+                      <span className={`text-xs font-bold ${profitColor}`}>{formatMoney(cost.grossProfit)} profit · {cost.grossMarginPct.toFixed(1)}%</span>
+                      <span className="text-[var(--app-muted)] text-[10px]">{uhaulOpen ? '▲' : '▼'}</span>
                     </div>
                   </button>
 
                   {uhaulOpen && (
-                    <div className="px-3.5 pb-3.5 pt-2 space-y-3 bg-white">
-                      {/* Truck bucket */}
-                      <div>
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">🚛 Truck (U-Haul)</div>
-                        <div className="space-y-1">
-                          {[
-                            [`${truckCount}× ${truckSize} rental (1 day)`, cost.dailyRental],
-                            [`Mileage (${Math.round(cost.totalOperationalKm)} km @ $${UHAUL_PER_KM_RATE}/km)`, cost.mileageCharge],
-                            [`Fuel (~${Math.round(cost.totalOperationalKm * (UHAUL_FUEL_L_PER_100KM[truckSize] ?? 23.5) / 100)}L @ $${uhaulGasPrice.toFixed(2)}/L)`, cost.fuelCost],
-                            [`SafeMove insurance (${truckCount}×)`, cost.safeMoveInsurance],
-                            [`Blankets (${blanketBags} bags)`, cost.blankets],
-                            ...(uhaulStraightDrop ? [['Straight drop fee', cost.straightDrop]] : []),
-                          ].map(([label, val]) => (
-                            <div key={String(label)} className="flex justify-between text-[11px]">
-                              <span className="text-[var(--app-muted)]">{label}</span>
-                              <span className="text-[var(--app-ink)]">${Number(val).toFixed(2)}</span>
-                            </div>
-                          ))}
-                          <div className="flex justify-between text-[11px] border-t border-[var(--app-line)] pt-1">
-                            <span className="text-[var(--app-muted)]">HST (13%)</span>
-                            <span className="text-[var(--app-ink)]">${cost.truckHST.toFixed(2)}</span>
-                          </div>
-                          <div className="flex justify-between text-xs font-semibold">
-                            <span>Truck total</span>
-                            <span>${cost.truckTotal.toFixed(2)}</span>
-                          </div>
-                        </div>
-                      </div>
+                    <div className="px-3.5 pb-3.5 pt-1 bg-white space-y-2">
 
-                      {/* Labor bucket */}
-                      <div>
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">👷 Labor</div>
-                        <div className="flex justify-between text-[11px]">
-                          <span className="text-[var(--app-muted)]">{crewSize} movers × $25/hr × {estimatedHours}h (budget rate)</span>
-                          <span className="text-[var(--app-ink)]">${cost.laborCost.toFixed(2)}</span>
+                      {/* 3-bucket summary */}
+                      <div className="space-y-1.5 pt-1">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-[var(--app-muted)]">🚛 Truck ({truckCount}× {truckSize}, {Math.round(oneWayKm)} km one-way)</span>
+                          <span className="font-medium text-[var(--app-ink)]">{formatMoney(cost.truckTotal)}</span>
                         </div>
-                      </div>
-
-                      {/* Misc bucket */}
-                      <div>
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">📦 Misc</div>
-                        <div className="flex justify-between text-[11px]">
-                          <span className="text-[var(--app-muted)]">Food + crew gas buffer</span>
-                          <span className="text-[var(--app-ink)]">${cost.miscCost.toFixed(2)}</span>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-[var(--app-muted)]">👷 Labor ({crewSize} movers × {estimatedHours}h)</span>
+                          <span className="font-medium text-[var(--app-ink)]">{formatMoney(cost.laborCost)}</span>
                         </div>
-                      </div>
-
-                      {/* P&L summary */}
-                      <div className="border-t border-[var(--app-line)] pt-2 space-y-1">
-                        <div className="flex justify-between text-[11px]">
-                          <span className="text-[var(--app-muted)]">Customer pays</span>
-                          <span className="font-medium text-[var(--app-ink)]">${revenue.toFixed(2)}</span>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-[var(--app-muted)]">📦 Misc (food + gas)</span>
+                          <span className="font-medium text-[var(--app-ink)]">{formatMoney(cost.miscCost)}</span>
                         </div>
-                        <div className="flex justify-between text-[11px]">
-                          <span className="text-[var(--app-muted)]">Total cost</span>
-                          <span className="text-[var(--app-ink)]">${cost.totalCost.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between text-sm font-bold border-t border-[var(--app-line)] pt-1">
+                        <div className="flex justify-between text-xs border-t border-[var(--app-line)] pt-1.5 font-semibold">
                           <span>Gross profit</span>
-                          <span className={profitColor}>${cost.grossProfit.toFixed(2)} ({cost.grossMarginPct.toFixed(1)}%)</span>
+                          <span className={profitColor}>{formatMoney(cost.grossProfit)} ({cost.grossMarginPct.toFixed(1)}%)</span>
                         </div>
                       </div>
 
-                      {/* Trip comparison */}
+                      {/* Trip comparison — only when relevant */}
                       {comparison && (
                         <div className="border-t border-[var(--app-line)] pt-2">
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-2">Trip Strategy</div>
-                          <div className="grid grid-cols-2 gap-2">
-                            {[
-                              { label: '1 truck · 2 trips', data: comparison.oneTruckTwoTrips, tag: 'cheaper' },
-                              { label: '2 trucks · 1 trip', data: comparison.twoTrucksOneTrip, tag: 'faster' },
-                            ].map(({ label, data, tag }) => {
-                              const isCheaper = tag === 'cheaper'
-                                ? comparison.oneTruckTwoTrips.truckTotal <= comparison.twoTrucksOneTrip.truckTotal
-                                : comparison.twoTrucksOneTrip.truckTotal < comparison.oneTruckTwoTrips.truckTotal
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">Trip Strategy (truck cost only)</div>
+                          <div className="grid grid-cols-2 gap-1.5">
+                            {([
+                              { label: '1 truck · 2 trips', data: comparison.oneTruckTwoTrips },
+                              { label: '2 trucks · 1 trip', data: comparison.twoTrucksOneTrip },
+                            ] as const).map(({ label, data }) => {
+                              const isCheaper = data.truckTotal <= Math.min(comparison.oneTruckTwoTrips.truckTotal, comparison.twoTrucksOneTrip.truckTotal)
                               return (
-                                <div key={label} className={`rounded-[6px] border p-2 ${isCheaper ? 'border-emerald-300 bg-emerald-50' : 'border-[var(--app-line)]'}`}>
-                                  <div className="text-[10px] font-semibold text-[var(--app-ink)] mb-1">{label}</div>
-                                  <div className="text-[10px] text-[var(--app-muted)]">Truck cost</div>
-                                  <div className="text-xs font-bold text-[var(--app-ink)]">${data.truckTotal.toFixed(0)}</div>
-                                  <div className="text-[10px] text-[var(--app-muted)] mt-0.5">{Math.round(data.totalOperationalKm)} km total</div>
-                                  {isCheaper && <div className="mt-1 text-[9px] font-semibold text-emerald-700">★ {tag === 'cheaper' ? 'Lower truck cost' : 'Finishes sooner'}</div>}
+                                <div key={label} className={`rounded-[6px] border px-2.5 py-2 ${isCheaper ? 'border-emerald-300 bg-emerald-50' : 'border-[var(--app-line)]'}`}>
+                                  <div className="text-[10px] font-semibold text-[var(--app-ink)]">{label}</div>
+                                  <div className="text-sm font-bold text-[var(--app-ink)] mt-0.5">{formatMoney(data.truckTotal)}</div>
+                                  {isCheaper && <div className="text-[9px] text-emerald-700 font-semibold mt-0.5">★ Lower cost</div>}
                                 </div>
                               )
                             })}
@@ -4033,10 +3989,31 @@ export function EstimateDraftModal({
                         </div>
                       )}
 
+                      {/* Truck line-item detail — collapsed by default */}
+                      <details className="border-t border-[var(--app-line)] pt-2">
+                        <summary className="text-[10px] text-[var(--app-muted)] cursor-pointer select-none">Show truck breakdown</summary>
+                        <div className="mt-1.5 space-y-1">
+                          {[
+                            [`${truckCount}× ${truckSize} daily rental`, cost.dailyRental],
+                            [`Mileage (${Math.round(cost.totalOperationalKm)} km)`, cost.mileageCharge],
+                            [`Fuel (~${Math.round(cost.totalOperationalKm * (UHAUL_FUEL_L_PER_100KM[truckSize] ?? 23.5) / 100)}L @ $${uhaulGasPrice.toFixed(2)}/L)`, cost.fuelCost],
+                            [`SafeMove insurance`, cost.safeMoveInsurance],
+                            [`Blankets (${blanketBags} bags)`, cost.blankets],
+                            ...(uhaulStraightDrop ? [['Straight drop', cost.straightDrop] as const] : []),
+                            [`HST (13%)`, cost.truckHST],
+                          ].map(([label, val]) => (
+                            <div key={String(label)} className="flex justify-between text-[10px]">
+                              <span className="text-[var(--app-muted)]">{label}</span>
+                              <span>{formatMoney(Number(val))}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+
                       {/* Adjustments */}
-                      <div className="border-t border-[var(--app-line)] pt-2 space-y-2">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Adjust</div>
-                        <div className="grid grid-cols-2 gap-2">
+                      <details className="border-t border-[var(--app-line)] pt-2">
+                        <summary className="text-[10px] text-[var(--app-muted)] cursor-pointer select-none">Adjust inputs</summary>
+                        <div className="mt-2 grid grid-cols-2 gap-2">
                           <label className="block">
                             <div className="text-[10px] text-[var(--app-muted)] mb-0.5">Gas price ($/L)</div>
                             <input type="number" step="0.05" min="1" max="3"
@@ -4066,7 +4043,7 @@ export function EstimateDraftModal({
                             <span className="text-[10px] text-[var(--app-muted)]">Straight drop ($35)</span>
                           </label>
                         </div>
-                      </div>
+                      </details>
                     </div>
                   )}
                 </div>
