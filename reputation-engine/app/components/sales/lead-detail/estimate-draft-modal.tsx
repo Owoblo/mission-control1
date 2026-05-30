@@ -3847,7 +3847,15 @@ export function EstimateDraftModal({
                               const isCheaper = data.truckTotal <= Math.min(comparison.oneTruckTwoTrips.truckTotal, comparison.twoTrucksOneTrip.truckTotal)
                               const timing = calcStrategyTiming(
                                 strategy,
-                                { loadHours: pricingBreakdown.loadHours, driveHours: pricingBreakdown.driveHours, unloadHours: pricingBreakdown.unloadHours, totalHours: pricingBreakdown.totalHours },
+                                {
+                                  loadHours: pricingBreakdown.loadHours,
+                                  driveHours: pricingBreakdown.driveHours,
+                                  unloadHours: pricingBreakdown.unloadHours,
+                                  totalHours: pricingBreakdown.totalHours,
+                                  penaltyHours: pricingBreakdown.penaltyHours,
+                                  totalCubicFeet: pricingBreakdown.totalCubicFeet,
+                                  totalWeightLbs: effectiveInventoryMetrics.totalWeightLbs,
+                                },
                                 flags ?? null,
                               )
                               return (
