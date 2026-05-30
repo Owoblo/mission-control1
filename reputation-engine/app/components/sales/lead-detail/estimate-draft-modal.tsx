@@ -444,6 +444,7 @@ export function EstimateDraftModal({
   const [uhaulDepotName, setUhaulDepotName] = useState<string | null>(null)
   const [uhaulPickupKm, setUhaulPickupKm] = useState<number | null>(null)
   const [uhaulDepotLookupDone, setUhaulDepotLookupDone] = useState(false)
+  const [uhaulSelectedStrategy, setUhaulSelectedStrategy] = useState<TripStrategy | null>(null)
   const [junkAmount, setJunkAmount] = useState('299')
   const [junkAddress, setJunkAddress] = useState('')
   const [junkVolumeTier, setJunkVolumeTier] = useState<'unknown' | 'mini' | 'small' | 'medium' | 'large' | 'xl'>('unknown')
@@ -3691,18 +3692,30 @@ export function EstimateDraftModal({
               const revenue = quoteModalTotals.subtotal || 0
 
               const pickupKm = uhaulPickupKm ?? 0
+              const blanketBagsPerTruck = uhaulBlankets != null
+                ? Math.max(1, Math.round(uhaulBlankets / truckCount))
+                : defaultBlankets
+
+              // Use selected strategy if rep toggled one, otherwise use detected strategy
+              const activeStrategy = uhaulSelectedStrategy ?? tripStrategy
+              const activeTruckCount = activeStrategy === 'two_trucks' ? 2
+                : activeStrategy === 'three_trucks' ? 3 : 1
+              const activeBlankets = blanketBagsPerTruck * activeTruckCount
 
               const cost = calcUHaulCost({
-                truckSize, truckCount, tripStrategy, oneWayDistanceKm: oneWayKm,
-                uhaulPickupKm: pickupKm,
-                gasPrice: uhaulGasPrice, blanketBags, includeStraightDrop: uhaulStraightDrop,
+                truckSize, truckCount: activeTruckCount, tripStrategy: activeStrategy,
+                oneWayDistanceKm: oneWayKm, uhaulPickupKm: pickupKm,
+                gasPrice: uhaulGasPrice, blanketBags: activeBlankets,
+                includeStraightDrop: uhaulStraightDrop,
                 crewSize, estimatedHours, miscBuffer: uhaulMisc, revenue,
               })
 
-              const showComparison = oneWayKm > 0 && oneWayKm < 120 &&
-                (tripStrategy === 'single_truck_two_trips' || tripStrategy === 'two_trucks')
+              const showComparison = oneWayKm > 0 && oneWayKm < 120
               const comparison = showComparison
-                ? compareStrategies({ truckSize, oneWayDistanceKm: oneWayKm, uhaulPickupKm: pickupKm, gasPrice: uhaulGasPrice, blanketBags, includeStraightDrop: uhaulStraightDrop, crewSize, estimatedHours, miscBuffer: uhaulMisc, revenue })
+                ? compareStrategies(
+                    { truckSize, oneWayDistanceKm: oneWayKm, uhaulPickupKm: pickupKm, gasPrice: uhaulGasPrice, includeStraightDrop: uhaulStraightDrop, crewSize, estimatedHours, miscBuffer: uhaulMisc, revenue },
+                    blanketBagsPerTruck
+                  )
                 : null
 
               return (
@@ -3815,83 +3828,40 @@ export function EstimateDraftModal({
                         </div>
                       </div>
 
-                      {/* Trip comparison — only when relevant */}
+                      {/* Trip strategy toggle — clickable cards that recalculate the whole panel */}
                       {comparison && (
                         <div className="border-t border-[var(--app-line)] pt-2">
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">Trip Strategy (truck cost only)</div>
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">Switch Strategy</div>
                           <div className="grid grid-cols-2 gap-1.5">
                             {([
-                              { label: '1 truck · 2 trips', data: comparison.oneTruckTwoTrips },
-                              { label: '2 trucks · 1 trip', data: comparison.twoTrucksOneTrip },
-                            ] as const).map(({ label, data }) => {
+                              { label: '1 truck · 2 trips', strategy: 'single_truck_two_trips' as TripStrategy, data: comparison.oneTruckTwoTrips },
+                              { label: '2 trucks · 1 trip', strategy: 'two_trucks' as TripStrategy, data: comparison.twoTrucksOneTrip },
+                            ]).map(({ label, strategy, data }) => {
+                              const isActive = activeStrategy === strategy
                               const isCheaper = data.truckTotal <= Math.min(comparison.oneTruckTwoTrips.truckTotal, comparison.twoTrucksOneTrip.truckTotal)
                               return (
-                                <div key={label} className={`rounded-[6px] border px-2.5 py-2 ${isCheaper ? 'border-emerald-300 bg-emerald-50' : 'border-[var(--app-line)]'}`}>
+                                <button
+                                  key={label}
+                                  type="button"
+                                  onClick={() => setUhaulSelectedStrategy(strategy)}
+                                  className={`rounded-[6px] border px-2.5 py-2 text-left transition ${
+                                    isActive
+                                      ? 'border-[#1a2744] bg-[#1a2744]/5 ring-1 ring-[#1a2744]/20'
+                                      : 'border-[var(--app-line)] hover:border-[var(--app-muted)]'
+                                  }`}
+                                >
                                   <div className="text-[10px] font-semibold text-[var(--app-ink)]">{label}</div>
                                   <div className="text-sm font-bold text-[var(--app-ink)] mt-0.5">{formatMoney(data.truckTotal)}</div>
-                                  {isCheaper && <div className="text-[9px] text-emerald-700 font-semibold mt-0.5">★ Lower cost</div>}
-                                </div>
+                                  <div className="text-[9px] mt-0.5 space-x-1">
+                                    {isActive && <span className="text-[#1a2744] font-semibold">● Active</span>}
+                                    {!isActive && isCheaper && <span className="text-emerald-700 font-semibold">★ Lower cost</span>}
+                                  </div>
+                                </button>
                               )
                             })}
                           </div>
                         </div>
                       )}
-
-                      {/* Truck line-item detail — collapsed by default */}
-                      <details className="border-t border-[var(--app-line)] pt-2">
-                        <summary className="text-[10px] text-[var(--app-muted)] cursor-pointer select-none">Show truck breakdown</summary>
-                        <div className="mt-1.5 space-y-1">
-                          {[
-                            [`${truckCount}× ${truckSize} daily rental`, cost.dailyRental],
-                            [`Mileage (${Math.round(cost.totalOperationalKm)} km)`, cost.mileageCharge],
-                            [`Fuel (~${Math.round(cost.totalOperationalKm * (UHAUL_FUEL_L_PER_100KM[truckSize] ?? 23.5) / 100)}L @ $${uhaulGasPrice.toFixed(2)}/L)`, cost.fuelCost],
-                            [`SafeMove insurance`, cost.safeMoveInsurance],
-                            [`Blankets (${blanketBags} bags)`, cost.blankets],
-                            ...(uhaulStraightDrop ? [['Straight drop', cost.straightDrop] as const] : []),
-                            [`HST (13%)`, cost.truckHST],
-                          ].map(([label, val]) => (
-                            <div key={String(label)} className="flex justify-between text-[10px]">
-                              <span className="text-[var(--app-muted)]">{label}</span>
-                              <span>{formatMoney(Number(val))}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </details>
-
-                      {/* Adjustments */}
-                      <details className="border-t border-[var(--app-line)] pt-2">
-                        <summary className="text-[10px] text-[var(--app-muted)] cursor-pointer select-none">Adjust inputs</summary>
-                        <div className="mt-2 grid grid-cols-2 gap-2">
-                          <label className="block">
-                            <div className="text-[10px] text-[var(--app-muted)] mb-0.5">Gas price ($/L)</div>
-                            <input type="number" step="0.05" min="1" max="3"
-                              value={uhaulGasPrice}
-                              onChange={e => setUhaulGasPrice(Number(e.target.value))}
-                              className="crm-input text-xs w-full"
-                            />
-                          </label>
-                          <label className="block">
-                            <div className="text-[10px] text-[var(--app-muted)] mb-0.5">Blanket bags</div>
-                            <input type="number" step="1" min="0" max="20"
-                              value={uhaulBlankets ?? (defaultBlankets * truckCount)}
-                              onChange={e => setUhaulBlankets(Number(e.target.value))}
-                              className="crm-input text-xs w-full"
-                            />
-                          </label>
-                          <label className="block">
-                            <div className="text-[10px] text-[var(--app-muted)] mb-0.5">Misc buffer ($)</div>
-                            <input type="number" step="5" min="0" max="200"
-                              value={uhaulMisc}
-                              onChange={e => setUhaulMisc(Number(e.target.value))}
-                              className="crm-input text-xs w-full"
-                            />
-                          </label>
-                          <label className="flex items-center gap-2 pt-4 cursor-pointer">
-                            <input type="checkbox" checked={uhaulStraightDrop} onChange={e => setUhaulStraightDrop(e.target.checked)} className="rounded" />
-                            <span className="text-[10px] text-[var(--app-muted)]">Straight drop ($35)</span>
-                          </label>
-                        </div>
-                      </details>
                     </div>
                   )}
                 </div>

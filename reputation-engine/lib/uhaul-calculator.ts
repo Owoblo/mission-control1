@@ -139,10 +139,19 @@ export function calcUHaulCost(params: UHaulCostParams): UHaulCostResult {
 }
 
 // Side-by-side comparison: 1 truck 2 trips vs 2 trucks 1 trip
-// uhaulPickupKm is included automatically via spread
-export function compareStrategies(base: Omit<UHaulCostParams, 'tripStrategy' | 'truckCount'>) {
-  const oneTruckTwoTrips = calcUHaulCost({ ...base, truckCount: 1, tripStrategy: 'single_truck_two_trips' })
-  const twoTrucksOneTrip = calcUHaulCost({ ...base, truckCount: 2, tripStrategy: 'two_trucks' })
+// blanketBagsPerTruck scales correctly per strategy's truck count
+export function compareStrategies(
+  base: Omit<UHaulCostParams, 'tripStrategy' | 'truckCount' | 'blanketBags'>,
+  blanketBagsPerTruck: number,
+) {
+  const oneTruckTwoTrips = calcUHaulCost({
+    ...base, truckCount: 1, tripStrategy: 'single_truck_two_trips',
+    blanketBags: blanketBagsPerTruck * 1,
+  })
+  const twoTrucksOneTrip = calcUHaulCost({
+    ...base, truckCount: 2, tripStrategy: 'two_trucks',
+    blanketBags: blanketBagsPerTruck * 2,
+  })
   return { oneTruckTwoTrips, twoTrucksOneTrip }
 }
 
