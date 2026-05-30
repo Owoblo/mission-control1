@@ -3890,8 +3890,7 @@ export function EstimateDraftModal({
                     className="w-full flex items-center justify-between px-3.5 py-2.5 bg-[var(--app-surface)] hover:bg-[var(--app-line)]/40 transition text-left"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-sm">🚛</span>
-                      <span className="text-xs font-semibold text-[var(--app-ink)]">U-Haul Job Cost</span>
+                      <span className="text-xs font-semibold text-[var(--app-ink)]">Live Margin</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className={`text-xs font-bold ${cost.grossMarginPct >= 55 ? 'text-emerald-700' : cost.grossMarginPct >= 40 ? 'text-amber-700' : 'text-rose-700'}`}>
@@ -3902,49 +3901,66 @@ export function EstimateDraftModal({
                   </button>
 
                   {uhaulOpen && (
-                    <div className="px-3.5 pb-3.5 pt-1 bg-white space-y-2">
+                    <div className="px-3.5 pb-3.5 pt-2 bg-white space-y-3">
 
-                      {/* Truck cost only — what you'll pay U-Haul */}
-                      <div className="space-y-1 pt-1">
-                        <div className="flex justify-between text-xs">
-                          <span className="text-[var(--app-muted)]">{truckCount}× {truckSize} rental</span>
-                          <span className="text-[var(--app-ink)]">{formatMoney(cost.dailyRental)}</span>
-                        </div>
-                        <div className="flex justify-between text-xs">
-                          <span className="text-[var(--app-muted)]">Mileage ({Math.round(cost.totalOperationalKm)} km)</span>
-                          <span className="text-[var(--app-ink)]">{formatMoney(cost.mileageCharge)}</span>
-                        </div>
-                        <div className="flex justify-between text-xs">
-                          <span className="text-[var(--app-muted)]">Fuel (~{Math.round(cost.totalOperationalKm * (UHAUL_FUEL_L_PER_100KM[truckSize] ?? 23.5) / 100)}L @ ${uhaulGasPrice.toFixed(2)}/L)</span>
-                          <span className="text-[var(--app-ink)]">{formatMoney(cost.fuelCost)}</span>
-                        </div>
-                        <div className="flex justify-between text-xs">
-                          <span className="text-[var(--app-muted)]">SafeMove + blankets + HST</span>
-                          <span className="text-[var(--app-ink)]">{formatMoney(cost.safeMoveInsurance + cost.blankets + cost.truckHST)}</span>
-                        </div>
-                        {uhaulStraightDrop && (
+                      {/* U-Haul Job Cost */}
+                      <div>
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">🚛 U-Haul Job Cost</div>
+                        <div className="space-y-1">
                           <div className="flex justify-between text-xs">
-                            <span className="text-[var(--app-muted)]">Straight drop</span>
-                            <span className="text-[var(--app-ink)]">{formatMoney(cost.straightDrop)}</span>
+                            <span className="text-[var(--app-muted)]">{truckCount}× {truckSize} rental</span>
+                            <span className="text-[var(--app-ink)]">{formatMoney(cost.dailyRental)}</span>
                           </div>
-                        )}
-                        <div className="flex justify-between text-xs font-semibold border-t border-[var(--app-line)] pt-1.5">
-                          <span>U-Haul total</span>
-                          <span className="text-[var(--app-ink)]">{formatMoney(cost.truckTotal)}</span>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-[var(--app-muted)]">Mileage ({Math.round(cost.totalOperationalKm)} km)</span>
+                            <span className="text-[var(--app-ink)]">{formatMoney(cost.mileageCharge)}</span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-[var(--app-muted)]">Fuel (~{Math.round(cost.totalOperationalKm * (UHAUL_FUEL_L_PER_100KM[truckSize] ?? 23.5) / 100)}L @ ${uhaulGasPrice.toFixed(2)}/L)</span>
+                            <span className="text-[var(--app-ink)]">{formatMoney(cost.fuelCost)}</span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-[var(--app-muted)]">SafeMove + blankets + HST</span>
+                            <span className="text-[var(--app-ink)]">{formatMoney(cost.safeMoveInsurance + cost.blankets + cost.truckHST)}</span>
+                          </div>
+                          {uhaulStraightDrop && (
+                            <div className="flex justify-between text-xs">
+                              <span className="text-[var(--app-muted)]">Straight drop</span>
+                              <span className="text-[var(--app-ink)]">{formatMoney(cost.straightDrop)}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-xs font-semibold border-t border-[var(--app-line)] pt-1.5">
+                            <span>U-Haul total</span>
+                            <span className="text-[var(--app-ink)]">{formatMoney(cost.truckTotal)}</span>
+                          </div>
                         </div>
                       </div>
 
-                      {/* Labor + Misc + P&L */}
-                      <div className="space-y-1 border-t border-[var(--app-line)] pt-2">
-                        <div className="flex justify-between text-xs">
-                          <span className="text-[var(--app-muted)]">Labor ({crewSize} movers × {estimatedHours}h @ $25/hr)</span>
-                          <span className="text-[var(--app-ink)]">{formatMoney(cost.laborCost)}</span>
+                      {/* Labour */}
+                      <div>
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">👷 Labour</div>
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-[var(--app-muted)]">{crewSize} movers × {estimatedHours}h @ $25/hr</span>
+                            <span className="text-[var(--app-ink)]">{formatMoney(cost.laborCost)}</span>
+                          </div>
                         </div>
-                        <div className="flex justify-between text-xs">
-                          <span className="text-[var(--app-muted)]">Misc (food + crew gas)</span>
-                          <span className="text-[var(--app-ink)]">{formatMoney(cost.miscCost)}</span>
+                      </div>
+
+                      {/* Miscellaneous */}
+                      <div>
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">📦 Miscellaneous</div>
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-[var(--app-muted)]">Food + crew gas buffer</span>
+                            <span className="text-[var(--app-ink)]">{formatMoney(cost.miscCost)}</span>
+                          </div>
                         </div>
-                        <div className="flex justify-between text-xs border-t border-[var(--app-line)] pt-1.5">
+                      </div>
+
+                      {/* P&L summary */}
+                      <div className="border-t border-[var(--app-line)] pt-2 space-y-1">
+                        <div className="flex justify-between text-xs">
                           <span className="text-[var(--app-muted)]">Revenue (pre-tax)</span>
                           <span className="text-[var(--app-ink)]">{formatMoney(revenue)}</span>
                         </div>
