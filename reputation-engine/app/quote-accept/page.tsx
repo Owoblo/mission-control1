@@ -65,6 +65,7 @@ type PublicQuote = {
   viewedAt?: string
   acceptedAt?: string
   respondedAt?: string
+  conditionalClause?: string
 }
 
 const REVIEWS = [
@@ -1004,6 +1005,21 @@ function QuoteAcceptPageInner() {
           />
           {error && <div className="mt-3 rounded-lg border border-[#1a2744]/15 bg-[#1a2744]/5 px-4 py-2 text-xs text-[#1a2744]/60">{error}</div>}
         </div>
+
+        {/* ── Conditional Clause ── */}
+        {quote.conditionalClause && (
+          <div className="mb-6 overflow-hidden rounded-xl border border-[#f5a623]/30 bg-white">
+            <div className="border-b border-[#f5a623]/20 px-5 py-3.5" style={{ background: 'rgba(245,166,35,0.05)' }}>
+              <div className="flex items-center gap-2">
+                <span className="text-sm">⚠️</span>
+                <div className="text-xs font-bold uppercase tracking-wider text-[#1a2744]">Important Condition</div>
+              </div>
+            </div>
+            <div className="px-5 py-4 text-sm text-[#1a2744]/70 leading-6">
+              {quote.conditionalClause}
+            </div>
+          </div>
+        )}
 
         {/* ── What's moving ── */}
         {hasInventory && (

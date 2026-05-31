@@ -880,6 +880,8 @@ export interface CRMQuote {
   priceOverrideApprovalOriginalSubtotal?: number
   priceOverrideApprovalProjectedMargin?: number
   priceOverrideApprovalReason?: string
+  // Conditional clause — shown on customer quote (e.g. "if 2nd truck needed, $X extra")
+  conditionalClause?: string
 }
 
 export interface FollowUpLog {

@@ -113,6 +113,7 @@ type PackingMaterialsFlag = NonNullable<PricingBreakdown['intelligenceFlags']['p
 type QuoteWorkspaceSaveOptions = {
   moveDescription?: string
   internalNotes?: string
+  conditionalClause?: string
 }
 
 type QuoteWorkspaceSendOptions = QuoteWorkspaceSaveOptions & {
@@ -435,6 +436,8 @@ export function EstimateDraftModal({
   const [uhaulInputIsEstimate, setUhaulInputIsEstimate] = useState(false)
   const [, startTransition] = useTransition()
   const [marginGateAck, setMarginGateAck] = useState(false)
+  const [conditionalClauseEnabled, setConditionalClauseEnabled] = useState(() => Boolean(quote?.conditionalClause))
+  const [conditionalClauseText, setConditionalClauseText] = useState(() => quote?.conditionalClause || '')
   const [overrideApplied, setOverrideApplied] = useState(false)
   // U-Haul cost panel
   const [uhaulOpen, setUhaulOpen] = useState(false)
@@ -1530,7 +1533,7 @@ export function EstimateDraftModal({
       setSendGuardOpen(true)
       return
     }
-    await onSaveAndPreview()
+    await onSaveAndPreview({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined })
   }
 
   async function handleProvisionalSend() {
@@ -3749,6 +3752,72 @@ export function EstimateDraftModal({
             })()}
 
 
+            {/* ── Multi-Leg Cost Overview (when multi-stop is on) ── */}
+            {legsEnabled && legs.length > 1 && (
+              <div className="border border-[var(--app-line)] rounded-[10px] overflow-hidden">
+                <div className="px-3.5 py-2.5 bg-[var(--app-surface)] flex items-center justify-between">
+                  <span className="text-xs font-semibold text-[var(--app-ink)]">Multi-Stop Cost Overview</span>
+                  <span className="text-[10px] text-[var(--app-muted)]">{legs.length} legs</span>
+                </div>
+                <div className="px-3.5 pb-3.5 pt-1 bg-white space-y-2">
+                  {legs.map((leg, i) => {
+                    const legKm = legRoutes[leg.id]?.distanceKm || leg.distanceKm || 0
+                    const legDriveH = legRoutes[leg.id]?.driveHours || leg.driveHours || 0
+                    const isLDLeg = legKm > 200 || legDriveH > 2.5
+                    const legLoadH = pricingBreakdown ? pricingBreakdown.loadHours / legs.length : 3
+                    const legUnloadH = pricingBreakdown ? pricingBreakdown.unloadHours / legs.length : 2
+                    const legCrewH  = isLDLeg
+                      ? Math.round((legLoadH + legDriveH + legUnloadH + legDriveH) * 4) / 4
+                      : Math.round((legLoadH + legDriveH + legUnloadH) * 4) / 4
+                    const legLabor  = Math.round((pricingBreakdown?.crewSize || 3) * legCrewH * 25 * 100) / 100
+                    const legTruckAmt = isLDLeg
+                      ? calcLongDistanceUHaul(legKm, truckSizeFromCubicFeet(pricingBreakdown?.totalCubicFeet || 0), pricingBreakdown?.truckCount || 1).internalCost
+                      : Math.round((UHAUL_DAILY_RATES[truckSizeFromCubicFeet(pricingBreakdown?.totalCubicFeet || 0)] ?? 49.99) * (pricingBreakdown?.truckCount || 1) * 100) / 100
+                    const legTotal  = Math.round((legTruckAmt + legLabor + 15) * 100) / 100
+                    const typeTag   = leg.type === 'storage' ? 'House→Storage' : leg.type === 'storage_delivery' ? 'Storage→Dest' : isLDLeg ? 'Long-distance' : 'Local'
+                    return (
+                      <div key={leg.id} className="rounded-[6px] border border-[var(--app-line)] p-2.5 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <div className="text-[10px] font-semibold text-[var(--app-ink)]">
+                            Leg {i+1}: {leg.label || typeTag}
+                          </div>
+                          <span className={`text-[9px] rounded-full px-2 py-0.5 font-semibold ${isLDLeg ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>{typeTag}</span>
+                        </div>
+                        {[
+                          [`Truck${isLDLeg ? ' (one-way est.)' : ' + mileage'}`, legTruckAmt],
+                          [`Labour (${legCrewH}h)`, legLabor],
+                          [`Misc`, 15],
+                        ].map(([label, val]) => (
+                          <div key={String(label)} className="flex justify-between text-[10px]">
+                            <span className="text-[var(--app-muted)]">{label}</span>
+                            <span className="text-[var(--app-ink)]">{formatMoney(Number(val))}</span>
+                          </div>
+                        ))}
+                        <div className="flex justify-between text-xs font-semibold border-t border-[var(--app-line)] pt-1">
+                          <span>Leg {i+1} cost</span><span>{formatMoney(legTotal)}</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  <div className="flex justify-between text-xs font-bold border-t-2 border-[var(--app-line)] pt-2">
+                    <span>Combined cost estimate</span>
+                    <span>{formatMoney(legs.reduce((sum, leg, i) => {
+                      const legKm = legRoutes[leg.id]?.distanceKm || leg.distanceKm || 0
+                      const legDriveH = legRoutes[leg.id]?.driveHours || leg.driveHours || 0
+                      const isLDLeg = legKm > 200 || legDriveH > 2.5
+                      const legLoadH = pricingBreakdown ? pricingBreakdown.loadHours / legs.length : 3
+                      const legUnloadH = pricingBreakdown ? pricingBreakdown.unloadHours / legs.length : 2
+                      const legCrewH = isLDLeg ? Math.round((legLoadH + legDriveH + legUnloadH + legDriveH) * 4) / 4 : Math.round((legLoadH + legDriveH + legUnloadH) * 4) / 4
+                      const legLabor = Math.round((pricingBreakdown?.crewSize || 3) * legCrewH * 25 * 100) / 100
+                      const legTruckAmt = isLDLeg ? calcLongDistanceUHaul(legKm, truckSizeFromCubicFeet(pricingBreakdown?.totalCubicFeet || 0), pricingBreakdown?.truckCount || 1).internalCost : Math.round((UHAUL_DAILY_RATES[truckSizeFromCubicFeet(pricingBreakdown?.totalCubicFeet || 0)] ?? 49.99) * (pricingBreakdown?.truckCount || 1) * 100) / 100
+                      return sum + legTruckAmt + legLabor + 15
+                    }, 0))}</span>
+                  </div>
+                  <div className="text-[9px] text-[var(--app-muted)]">Each leg priced independently — see Live Margin for final customer pricing.</div>
+                </div>
+              </div>
+            )}
+
             {/* U-Haul Job Cost Calculator — local/medium only; long-distance uses the panel below */}
             {pricingBreakdown && route?.category !== 'long-distance' && quoteType !== 'long_distance' && (() => {
               const oneWayKm = distanceKm || route?.distanceKm || 0
@@ -4649,9 +4718,42 @@ export function EstimateDraftModal({
                 <button onClick={() => void handlePreviewSend()} disabled={quoteModalBusy || routeBusy || !quote || (liveMarginSummary !== null && liveMarginSummary.liveMargin < 50 && liveMarginSummary.actualRevenue > 0 && !marginGateAck)} className="w-full justify-center rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
                   {routeBusy ? 'Calculating route…' : quoteModalBusy ? 'Saving...' : 'Preview & Send →'}
                 </button>
-                <button onClick={() => void onSaveDraft()} disabled={quoteModalBusy || !quote} className="crm-button-dark w-full justify-center disabled:opacity-60">
+                <button onClick={() => void onSaveDraft({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined })} disabled={quoteModalBusy || !quote} className="crm-button-dark w-full justify-center disabled:opacity-60">
                   Save Draft
                 </button>
+
+                {/* Conditional Truck Clause */}
+                <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-semibold text-[var(--app-ink)]">Conditional Clause</div>
+                    <button type="button"
+                      onClick={() => {
+                        const next = !conditionalClauseEnabled
+                        setConditionalClauseEnabled(next)
+                        if (next && !conditionalClauseText) {
+                          const truckCount = pricingBreakdown?.truckCount || 1
+                          const extraTruck = UHAUL_DAILY_RATES[truckSizeFromCubicFeet(pricingBreakdown?.totalCubicFeet || 0)] ?? 49.99
+                          setConditionalClauseText(`Estimate based on ${truckCount} × 26ft truck. If a 2nd truck is required on move day (e.g. basement or garage items exceed capacity), additional cost: ~$${Math.round((extraTruck * 1.13 + 150) / 10) * 10} (truck + mileage, +HST). You will be contacted before any 2nd truck is dispatched.`)
+                        }
+                      }}
+                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition ${conditionalClauseEnabled ? 'bg-amber-600 text-white' : 'bg-[var(--app-line)] text-[var(--app-muted)]'}`}
+                    >
+                      {conditionalClauseEnabled ? 'On' : 'Off'}
+                    </button>
+                  </div>
+                  {conditionalClauseEnabled && (
+                    <>
+                      <textarea
+                        value={conditionalClauseText}
+                        onChange={e => setConditionalClauseText(e.target.value)}
+                        rows={3}
+                        className="crm-input w-full text-xs resize-none"
+                        placeholder="Conditional clause shown on customer quote..."
+                      />
+                      <div className="text-[10px] text-[var(--app-muted)]">Shown on customer quote below the price. Save Draft to persist.</div>
+                    </>
+                  )}
+                </div>
                 {/* Inventory verification quick-link */}
                 {(() => {
                   const token = lead.surveyToken && lead.surveyToken !== 'set' ? lead.surveyToken : null

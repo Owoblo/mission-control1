@@ -2000,7 +2000,7 @@ export default function SalesLeadDetailPage() {
     setQuoteModalDirty(true)
   }
 
-  async function saveQuoteDraft(overrides?: { moveDescription?: string; internalNotes?: string }): Promise<boolean> {
+  async function saveQuoteDraft(overrides?: { moveDescription?: string; internalNotes?: string; conditionalClause?: string }): Promise<boolean> {
     if (!quote) return false
     if (!ensureLeadEditable()) return false
     try {
@@ -2042,6 +2042,7 @@ export default function SalesLeadDetailPage() {
         moveTime: quoteMoveTime || '09:00',
         moveDescription: nextMoveDescription || undefined,
         internalNotes: nextInternalNotes || undefined,
+        conditionalClause: overrides?.conditionalClause !== undefined ? (overrides.conditionalClause || undefined) : quote.conditionalClause,
         priceOverrideTotal: overrideLineItem ? Math.round(Number(overrideLineItem.amount || 0) * 100) / 100 : undefined,
         priceOverrideReason: overrideLineItem?.details || undefined,
       })
@@ -2081,12 +2082,14 @@ export default function SalesLeadDetailPage() {
     missingItems?: string[]
     moveDescription?: string
     internalNotes?: string
+    conditionalClause?: string
   }) {
     if (!quote) return
     if (!ensureLeadEditable()) return
     const saved = await saveQuoteDraft({
       moveDescription: options?.moveDescription,
       internalNotes: options?.internalNotes,
+      conditionalClause: options?.conditionalClause,
     })
     if (!saved) return
     if (options?.provisional && lead) {
