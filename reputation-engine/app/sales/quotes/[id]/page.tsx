@@ -870,6 +870,31 @@ Saturn Star Movers`
       ) : null}
 
       {/* ── PAGE HEADER ── */}
+      {/* Back navigation */}
+      <div className="mb-3 flex items-center gap-3">
+        {lead ? (
+          <button
+            onClick={() => router.push(`/sales/leads/${lead.id}`)}
+            className="flex items-center gap-1.5 rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1.5 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition"
+          >
+            ← {lead.name || 'Back to lead'}
+          </button>
+        ) : (
+          <button
+            onClick={() => router.push('/sales')}
+            className="flex items-center gap-1.5 rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1.5 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition"
+          >
+            ← Dashboard
+          </button>
+        )}
+        <button
+          onClick={() => router.push('/sales/pipeline')}
+          className="text-xs font-medium text-[var(--app-muted)] hover:text-[var(--app-ink)] transition"
+        >
+          Pipeline
+        </button>
+      </div>
+
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="font-display text-xl font-semibold text-[var(--app-ink)]">
