@@ -132,6 +132,7 @@ export default function SalesQuoteDetailPage() {
   const [logBusy, setLogBusy] = useState(false)
   const [sendBusy, setSendBusy] = useState(false)
   const [sendBothBusy, setSendBothBusy] = useState(false)
+  const [justSent, setJustSent] = useState(false)
   const [sendBothResult, setSendBothResult] = useState<{ email?: boolean; sms?: boolean } | null>(null)
   const [showPreview, setShowPreview] = useState<'both' | 'email' | null>(null)
   const [previewTab, setPreviewTab] = useState<'email' | 'sms' | 'quote'>('email')
@@ -655,8 +656,9 @@ Saturn Star Movers`
       setLead(nextLead)
       setStatus(sentResult.quote.status)
       setError(null)
-      // Navigate back to lead after sending
-      if (lead) router.push(`/sales/leads/${lead.id}`)
+      setJustSent(true)
+      setShowPreview(null)
+      setTimeout(() => { if (lead) router.push(`/sales/leads/${lead.id}`) }, 1800)
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -728,8 +730,10 @@ Saturn Star Movers`
       setQuote(sentResult.quote)
       setLead(nextLead)
       setStatus(sentResult.quote.status)
-      // Navigate back to lead after sending
-      if (lead) router.push(`/sales/leads/${lead.id}`)
+      setJustSent(true)
+      setShowPreview(null)
+      // Navigate back after a brief confirmation moment
+      setTimeout(() => { if (lead) router.push(`/sales/leads/${lead.id}`) }, 1800)
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -924,13 +928,19 @@ Saturn Star Movers`
           </div>
 
           {/* Primary CTA */}
-          <button
-            onClick={() => { setShowPreview('both'); setPreviewTab('email') }}
-            disabled={!canEditQuoteWorkspace || sendBothBusy}
-            className="rounded-[8px] bg-[var(--app-accent)] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
-          >
-            {sendBothBusy ? 'Sending…' : isRevision ? 'Preview & Send Update →' : 'Preview & Send →'}
-          </button>
+          {justSent ? (
+            <div className="rounded-[8px] bg-emerald-600 px-4 py-2 text-sm font-semibold text-white animate-pulse">
+              ✅ Quote sent! Returning to lead…
+            </div>
+          ) : (
+            <button
+              onClick={() => { setShowPreview('both'); setPreviewTab('email') }}
+              disabled={!canEditQuoteWorkspace || sendBothBusy}
+              className="rounded-[8px] bg-[var(--app-accent)] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+            >
+              {sendBothBusy ? 'Sending…' : isRevision ? 'Preview & Send Update →' : 'Preview & Send →'}
+            </button>
+          )}
         </div>
       </div>
 

@@ -4522,6 +4522,45 @@ export function EstimateDraftModal({
                 <button onClick={() => void onSaveDraft()} disabled={quoteModalBusy || !quote} className="crm-button-dark w-full justify-center disabled:opacity-60">
                   Save Draft
                 </button>
+                {/* Inventory verification quick-link */}
+                {(() => {
+                  const token = lead.surveyToken && lead.surveyToken !== 'set' ? lead.surveyToken : null
+                  const url = token ? `${typeof window !== 'undefined' ? window.location.origin : 'https://go.quote2move.com'}/survey/${token}` : null
+                  if (url) {
+                    return (
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => void navigator.clipboard.writeText(url)}
+                          className="flex-1 rounded-[8px] border border-[var(--app-line)] py-2 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition"
+                        >
+                          🔗 Copy Inventory Link
+                        </button>
+                        <a href={url} target="_blank" rel="noopener noreferrer"
+                          className="rounded-[8px] border border-[var(--app-line)] px-3 py-2 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition"
+                        >
+                          Preview
+                        </a>
+                      </div>
+                    )
+                  }
+                  return (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const res = await fetch(`/api/sales/leads/${lead.id}/survey`, {
+                          method: 'POST', headers: { 'Content-Type': 'application/json' },
+                          credentials: 'include', body: JSON.stringify({ skipSms: true }),
+                        })
+                        const d = await res.json() as { surveyUrl?: string }
+                        if (d.surveyUrl) void navigator.clipboard.writeText(d.surveyUrl)
+                      }}
+                      className="w-full rounded-[8px] border border-[var(--app-line)] py-2 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition"
+                    >
+                      🔗 Send Inventory Verification Link
+                    </button>
+                  )
+                })()}
                 <button onClick={onClose} disabled={quoteModalBusy} className="crm-button w-full justify-center">
                   Close
                 </button>
