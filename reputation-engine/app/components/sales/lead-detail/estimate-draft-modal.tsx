@@ -4227,8 +4227,7 @@ export function EstimateDraftModal({
                 const ldSubtotalHST   = Math.round((uhaulPerTruck * ldTruckCount + ldInsurance + ldBlankets + ldStretchWrap) * 0.13 * 100) / 100
                 const ldTruckTotal    = uhaulPerTruck > 0 ? Math.round((uhaulPerTruck * ldTruckCount + ldFuel + ldInsurance + ldBlankets + ldStretchWrap + ldSubtotalHST) * 100) / 100 : 0
                 const ldCrewReturnGas = Math.round(ldDistKm * 0.15 * 100) / 100
-                const ldBuffer        = uhaulPerTruck > 0 ? Math.round((ldTruckTotal + ldLabor) * 0.10 * 100) / 100 : 0
-                const ldTotalCost     = uhaulPerTruck > 0 ? Math.round((ldTruckTotal + ldCrewReturnGas + ldBuffer + ldLabor) * 100) / 100 : 0
+                const ldTotalCost     = uhaulPerTruck > 0 ? Math.round((ldTruckTotal + ldCrewReturnGas + ldLabor) * 100) / 100 : 0
                 const ldRevenue       = quoteModalTotals.subtotal || 0
                 const ldGrossProfit   = ldTotalCost > 0 ? Math.round((ldRevenue - ldTotalCost) * 100) / 100 : 0
                 const ldMarginPct     = ldRevenue > 0 && ldTotalCost > 0 ? Math.round((ldGrossProfit / ldRevenue) * 1000) / 10 : 0
@@ -4322,8 +4321,8 @@ export function EstimateDraftModal({
                                   <span className="font-medium text-[var(--app-ink)]">{formatMoney(ldCrewReturnGas)}</span>
                                 </div>
                                 <div className="flex justify-between text-xs">
-                                  <span className="text-[var(--app-muted)]">10% buffer</span>
-                                  <span className="font-medium text-[var(--app-ink)]">{formatMoney(ldBuffer)}</span>
+                                  <span className="text-[var(--app-muted)]">Crew vehicle gas return</span>
+                                  <span className="font-medium text-[var(--app-ink)]">{formatMoney(ldCrewReturnGas)}</span>
                                 </div>
                               </div>
                             </div>
