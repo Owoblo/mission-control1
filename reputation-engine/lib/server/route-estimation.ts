@@ -221,10 +221,22 @@ export async function estimateRouteContext(input: {
 }> {
   const yardAddress = (input.branch && BRANCH_YARDS[input.branch]) ? BRANCH_YARDS[input.branch] : BASE_YARD_ADDRESS
 
+  // Geocode with fallback: if full address fails, try stripping the last token
+  // (handles garbage city suffixes like ", S" appended to a valid address)
+  async function geocodeWithFallback(address: string) {
+    const result = await geocodeAddress(address)
+    if (result) return result
+    const parts = address.split(',').map(p => p.trim()).filter(Boolean)
+    if (parts.length > 2) {
+      return geocodeAddress(parts.slice(0, -1).join(', '))
+    }
+    return null
+  }
+
   const [originGeo, yardGeo, destGeo] = await Promise.all([
-    geocodeAddress(input.origin.trim()),
+    geocodeWithFallback(input.origin.trim()),
     geocodeAddress(yardAddress),
-    input.destination?.trim() ? geocodeAddress(input.destination.trim()) : Promise.resolve(null),
+    input.destination?.trim() ? geocodeWithFallback(input.destination.trim()) : Promise.resolve(null),
   ])
 
   if (!originGeo) {

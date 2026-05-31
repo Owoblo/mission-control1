@@ -721,14 +721,17 @@ export function EstimateDraftModal({
     const addr = originAddress || lead.originAddress || ''
     const city = originCity || lead.originCity || ''
     if (!addr && !city) return ''
-    if (addr && city && addr.toLowerCase().includes(city.toLowerCase())) return addr
+    // Skip city if it's garbage (< 3 chars) or already in the address
+    const cityOk = city.length >= 3 && !addr.toLowerCase().includes(city.toLowerCase())
+    if (addr && !cityOk) return addr
     return [addr, city].filter(Boolean).join(', ')
   })()
   const destFull = (() => {
     const addr = destAddress || lead.destAddress || ''
     const city = destCity || lead.destCity || ''
     if (!addr && !city) return ''
-    if (addr && city && addr.toLowerCase().includes(city.toLowerCase())) return addr
+    const cityOk = city.length >= 3 && !addr.toLowerCase().includes(city.toLowerCase())
+    if (addr && !cityOk) return addr
     return [addr, city].filter(Boolean).join(', ')
   })()
   const selectedBranch = (branch || localBranch || lead.branch || 'windsor') as 'windsor' | 'waterloo' | 'london' | 'ottawa'
