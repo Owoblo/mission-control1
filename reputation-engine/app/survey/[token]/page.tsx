@@ -409,7 +409,7 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
         </p>
         {(info?.originAddress || info?.originCity) && (
           <div className="mt-3 text-xs opacity-70">
-            <div>From: {[info?.originAddress, info?.originCity].filter(Boolean).join(', ')}</div>
+            <div>From: {info?.originAddress && info?.originCity && info.originAddress.toLowerCase().includes(info.originCity.toLowerCase()) ? info.originAddress : [info?.originAddress, info?.originCity].filter(Boolean).join(', ')}</div>
             {(info?.destAddress || info?.destCity) && <div>To: {[info?.destAddress, info?.destCity].filter(Boolean).join(', ')}</div>}
           </div>
         )}
@@ -441,7 +441,7 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Address check</p>
               <h2 className="mt-1 text-base font-semibold text-[#1a2744]">Is this the right home and unit?</h2>
               <p className="mt-1 text-sm text-gray-600">
-                We matched your move to {[info?.originAddress, info?.originCity].filter(Boolean).join(', ') || 'your origin address'}.
+                We matched your move to {info?.originAddress && info?.originCity && info.originAddress.toLowerCase().includes(info.originCity.toLowerCase()) ? info.originAddress : ([info?.originAddress, info?.originCity].filter(Boolean).join(', ') || 'your origin address')}.
               </p>
               {info?.listingAddress && info.listingAddress !== info.originAddress && (
                 <p className="mt-2 text-xs text-amber-700">

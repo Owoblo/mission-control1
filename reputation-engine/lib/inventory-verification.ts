@@ -152,7 +152,6 @@ function buildListingPhotoUrls(lead: CRMLead) {
       return null
     })
     .filter((photo): photo is string => !!photo)
-    .slice(0, 8)
 }
 
 export function buildInventoryVerificationSummary(verification?: InventoryVerification | null) {

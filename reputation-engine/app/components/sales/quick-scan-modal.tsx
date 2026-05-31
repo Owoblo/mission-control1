@@ -26,6 +26,7 @@ interface ScanProgress {
 export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
   const router = useRouter()
   const [step, setStep] = useState<Step>('form')
+  const [name, setName] = useState('')
   const [phone, setPhone] = useState(prefillPhone)
   const [originAddress, setOriginAddress] = useState('')
   const [originCity, setOriginCity] = useState('')
@@ -42,6 +43,7 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
   useEffect(() => {
     if (open) {
       setStep('form')
+      setName('')
       setPhone(prefillPhone)
       setOriginAddress('')
       setOriginCity('')
@@ -72,10 +74,10 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
 
     try {
       // 1. Create minimal lead
-      const placeholderName = originCity.trim() || originAddress.split(',')[0]?.trim() || 'New Lead'
+      const resolvedName = name.trim() || originCity.trim() || originAddress.split(',')[0]?.trim() || 'New Lead'
       const cleanPhone = phone.trim()
       const lead = await createSalesLead({
-        name: placeholderName,
+        name: resolvedName,
         phone: cleanPhone || undefined,
         email: !cleanPhone ? 'pending@update.local' : undefined,
         originAddress: originAddress.trim(),
@@ -239,6 +241,17 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
               {error && (
                 <div className="rounded-[8px] border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>
               )}
+
+              <label className="block">
+                <span className="crm-label">Customer name <span className="font-normal text-[var(--app-muted)]">(optional)</span></span>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="e.g. Sarah Johnson"
+                  className="crm-input mt-1.5 w-full"
+                />
+              </label>
 
               <label className="block">
                 <span className="crm-label">Origin address</span>
