@@ -121,6 +121,7 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
   const showInventoryReview = reviewItems.length > 0 || addedItems.length > 0
 
   const [inventoryReady, setInventoryReady] = useState(false)
+  const [showUploadSection, setShowUploadSection] = useState(false)
 
   async function loadSurvey() {
     const response = await fetch(`/api/survey/${params.token}`)
@@ -495,23 +496,27 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
 
         {info?.listingPhotos?.length ? (
           <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Listing preview</p>
-            <p className="mt-1 text-sm text-gray-600">
-              These are the photos we may be using to estimate your inventory. Flag the address above if this is not your space.
-            </p>
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Your home — {info.listingPhotos.length} listing photos</p>
+              <p className="text-[10px] text-gray-400">Swipe to browse · tap to enlarge</p>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1 snap-x snap-mandatory scroll-smooth" style={{ scrollbarWidth: 'none' }}>
               {info.listingPhotos.map((photo, index) => (
                 <a
                   key={`${photo}-${index}`}
                   href={photo}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="overflow-hidden rounded-xl border border-gray-100"
+                  className="shrink-0 snap-start overflow-hidden rounded-xl border border-gray-100"
+                  style={{ width: 'calc(50% - 4px)' }}
                 >
-                  <img src={photo} alt={`Listing preview ${index + 1}`} className="h-28 w-full object-cover" />
+                  <img src={photo} alt={`Home photo ${index + 1}`} className="h-36 w-full object-cover" loading="lazy" />
                 </a>
               ))}
             </div>
+            <p className="mt-1.5 text-[10px] text-gray-400">
+              {info.listingPhotos.length} photos · Flag the address above if this is not your home.
+            </p>
           </div>
         ) : null}
 
@@ -521,10 +526,28 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
           </div>
         )}
 
+        {/* ROOM PHOTOS — collapsed by default, expanded on demand */}
+        {!showUploadSection ? (
+          <button
+            type="button"
+            onClick={() => setShowUploadSection(true)}
+            className="w-full rounded-2xl border-2 border-dashed border-gray-200 bg-white p-4 text-left shadow-sm transition hover:border-[#1a2744]/40"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">📸</span>
+              <div>
+                <div className="text-sm font-semibold text-[#1a2744]">Add room photos</div>
+                <div className="text-xs text-gray-500">Garage, basement, closets, packed boxes — tap to upload</div>
+              </div>
+            </div>
+          </button>
+        ) : (
         <div className="rounded-2xl bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Room photos</p>
-          <h2 className="mt-1 text-base font-semibold text-[#1a2744]">Upload any rooms or blind spots we still need.</h2>
-          <p className="mt-1 text-sm text-gray-600">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Add room photos</p>
+            <button type="button" onClick={() => setShowUploadSection(false)} className="text-xs text-gray-400 hover:text-gray-600">Close</button>
+          </div>
+          <p className="text-sm text-gray-600 mb-4">
             Garage, basement, closets, storage lockers, and packed boxes are the biggest quoting blind spots. Add them here.
           </p>
 
@@ -647,6 +670,7 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
             </div>
           </div>
         </div>
+        )}
 
         {(showInventoryReview || (info?.listingPhotos?.length ?? 0) > 0) && (
           <div className="rounded-2xl bg-white p-4 shadow-sm">
@@ -656,18 +680,10 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
               We built your inventory from your home&apos;s listing. Review room by room — mark anything staying behind so we quote accurately.
             </p>
 
-            {/* MLS photo gallery for visual reference */}
-            {(info?.listingPhotos?.length ?? 0) > 0 && (
-              <div className="mt-3">
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Your home — listing photos</p>
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {(info!.listingPhotos).slice(0, 12).map((url, i) => (
-                    <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="shrink-0">
-                      <img src={url} alt={`Room ${i + 1}`} className="h-20 w-28 rounded-xl border border-gray-100 object-cover" />
-                    </a>
-                  ))}
-                </div>
-                <p className="mt-1 text-[10px] text-gray-400">Tap any photo to enlarge. Use these to verify items per room below.</p>
+            {!inventoryReady && (
+              <div className="mt-3 flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+                <div className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-blue-400 border-t-transparent" />
+                <p className="text-sm text-blue-700">Scanning your listing photos for inventory… items will appear here shortly.</p>
               </div>
             )}
 
@@ -698,10 +714,9 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
                             <div className="text-sm font-semibold text-[#1a2744]">
                               {item.qty > 1 ? `${item.qty} x ` : ''}{item.name}
                             </div>
-                            <div className="mt-1 text-[11px] text-gray-500">
-                              {item.size ? `${item.size} · ` : ''}
-                              {typeof item.confidence === 'number' ? `AI confidence ${Math.round(item.confidence * 100)}%` : 'Review and confirm'}
-                            </div>
+                            {item.size && (
+                              <div className="mt-0.5 text-[11px] text-gray-500">{item.size}</div>
+                            )}
                           </div>
                           {item.decision && (
                             <div className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
