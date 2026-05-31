@@ -18,8 +18,10 @@ export const UHAUL_FUEL_L_PER_100KM: Record<string, number> = {
 export const UHAUL_PER_KM_RATE = 0.99          // $/km in-town Ontario
 export const UHAUL_SAFEMOVE_PER_DAY = 20.00    // SafeMove insurance per truck per day
 export const UHAUL_BLANKET_BAG_COST = 6.00     // per bag of blankets
+export const UHAUL_STRETCH_WRAP_COST = 25.00   // stretch wrap per truck (rep buys, used for furniture)
 export const UHAUL_STRAIGHT_DROP_COST = 35.00  // straight drop (drop box return fee)
 export const ONTARIO_HST_RATE = 0.13
+// NOTE: Fuel is excluded from HST — rep fills gas themselves, it's not a U-Haul rental charge
 export const DEFAULT_GAS_PRICE_PER_L = 1.55    // Ontario avg
 export const CREW_BUDGET_RATE_PER_HOUR = 25    // $ per mover per hour (budget rate)
 export const DEFAULT_MISC_BUFFER = 15          // food + crew car gas
@@ -38,10 +40,11 @@ export interface UHaulCostParams {
   truckSize: string
   truckCount: number
   tripStrategy: TripStrategy
-  oneWayDistanceKm: number   // origin → destination
-  uhaulPickupKm?: number     // nearest U-Haul depot → origin (added each way)
+  oneWayDistanceKm: number
+  uhaulPickupKm?: number
   gasPrice: number
   blanketBags: number
+  includeStretchWrap?: boolean  // stretch wrap per truck ($25 each)
   includeStraightDrop: boolean
   crewSize: number
   estimatedHours: number
@@ -50,16 +53,17 @@ export interface UHaulCostParams {
 }
 
 export interface UHaulCostResult {
-  // Truck bucket (before HST)
+  // Truck bucket
   dailyRental: number
   mileageCharge: number
-  fuelCost: number
+  fuelCost: number           // excluded from HST — rep fills tank themselves
   safeMoveInsurance: number
   blankets: number
+  stretchWrap: number
   straightDrop: number
-  truckSubtotal: number
+  truckSubtotalBeforeHST: number  // excludes fuel (fuel is cash, no HST)
   truckHST: number
-  truckTotal: number         // truck bucket after HST
+  truckTotal: number
   // Labor bucket
   laborCost: number
   // Misc bucket
@@ -97,8 +101,8 @@ function kmPerTruck(strategy: TripStrategy, oneWayKm: number, uhaulPickupKm = 0)
 export function calcUHaulCost(params: UHaulCostParams): UHaulCostResult {
   const {
     truckSize, truckCount, tripStrategy, oneWayDistanceKm,
-    uhaulPickupKm = 0, gasPrice, blanketBags, includeStraightDrop,
-    crewSize, estimatedHours, miscBuffer, revenue,
+    uhaulPickupKm = 0, gasPrice, blanketBags, includeStretchWrap = true,
+    includeStraightDrop, crewSize, estimatedHours, miscBuffer, revenue,
   } = params
 
   const jobKm = jobKmForStrategy(tripStrategy, oneWayDistanceKm)
@@ -111,14 +115,17 @@ export function calcUHaulCost(params: UHaulCostParams): UHaulCostResult {
 
   const dailyRental       = r(dailyRate * truckCount)
   const mileageCharge     = r(totalKm * UHAUL_PER_KM_RATE)
-  const fuelCost          = r((kmEach / 100) * fuelPer100km * gasPrice * truckCount)
+  const fuelCost          = r((kmEach / 100) * fuelPer100km * gasPrice * truckCount) // no HST — rep fills tank
   const safeMoveInsurance = r(UHAUL_SAFEMOVE_PER_DAY * truckCount)
   const blankets          = r(blanketBags * UHAUL_BLANKET_BAG_COST)
+  const stretchWrap       = includeStretchWrap ? r(UHAUL_STRETCH_WRAP_COST * truckCount) : 0
   const straightDrop      = includeStraightDrop ? UHAUL_STRAIGHT_DROP_COST : 0
 
-  const truckSubtotal = r(dailyRental + mileageCharge + fuelCost + safeMoveInsurance + blankets + straightDrop)
-  const truckHST      = r(truckSubtotal * ONTARIO_HST_RATE)
-  const truckTotal    = r(truckSubtotal + truckHST)
+  // HST applies to rental + mileage + insurance + blankets + stretch wrap + straight drop
+  // Fuel is EXCLUDED — rep fills tank in cash, no HST on that
+  const truckSubtotalBeforeHST = r(dailyRental + mileageCharge + safeMoveInsurance + blankets + stretchWrap + straightDrop)
+  const truckHST      = r(truckSubtotalBeforeHST * ONTARIO_HST_RATE)
+  const truckTotal    = r(truckSubtotalBeforeHST + truckHST + fuelCost)
 
   const laborCost = r(crewSize * CREW_BUDGET_RATE_PER_HOUR * estimatedHours)
   const miscCost  = miscBuffer
@@ -129,7 +136,8 @@ export function calcUHaulCost(params: UHaulCostParams): UHaulCostResult {
 
   return {
     dailyRental, mileageCharge, fuelCost, safeMoveInsurance,
-    blankets, straightDrop, truckSubtotal, truckHST, truckTotal,
+    blankets, stretchWrap, straightDrop,
+    truckSubtotalBeforeHST, truckHST, truckTotal,
     laborCost, miscCost,
     totalCost, grossProfit, grossMarginPct,
     totalOperationalKm: totalKm,

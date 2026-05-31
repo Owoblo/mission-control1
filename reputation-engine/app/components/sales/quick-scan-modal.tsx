@@ -69,6 +69,10 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
       setError('Enter the origin address to scan.')
       return
     }
+    if (!phone.trim()) {
+      setError('Customer phone is required to send the inventory link.')
+      return
+    }
     setError(null)
     setStep('loading')
 
@@ -266,7 +270,7 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
               </label>
 
               <label className="block">
-                <span className="crm-label">Customer phone <span className="font-normal text-[var(--app-muted)]">(optional — to send SMS later)</span></span>
+                <span className="crm-label">Customer phone <span className="font-normal text-rose-500">*</span></span>
                 <input
                   type="tel"
                   value={phone}

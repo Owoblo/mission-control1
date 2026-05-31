@@ -3722,7 +3722,9 @@ export function EstimateDraftModal({
                 crewSize, estimatedHours, miscBuffer: uhaulMisc, revenue,
               })
 
-              const showComparison = oneWayKm > 0 && oneWayKm < 120
+              // Only show trip comparison when the system has detected a multi-truck or two-trip move
+              const showComparison = oneWayKm > 0 && oneWayKm < 120 &&
+                (tripStrategy === 'two_trucks' || tripStrategy === 'single_truck_two_trips' || tripStrategy === 'three_trucks')
               const comparison = showComparison
                 ? compareStrategies(
                     { truckSize, oneWayDistanceKm: oneWayKm, uhaulPickupKm: pickupKm, gasPrice: uhaulGasPrice, includeStraightDrop: uhaulStraightDrop, crewSize, estimatedHours, miscBuffer: uhaulMisc, revenue },
@@ -3792,8 +3794,20 @@ export function EstimateDraftModal({
                             <span className="text-[var(--app-ink)]">{formatMoney(cost.fuelCost)}</span>
                           </div>
                           <div className="flex justify-between text-xs">
-                            <span className="text-[var(--app-muted)]">SafeMove + blankets + HST</span>
-                            <span className="text-[var(--app-ink)]">{formatMoney(cost.safeMoveInsurance + cost.blankets + cost.truckHST)}</span>
+                            <span className="text-[var(--app-muted)]">SafeMove ({activeTruckCount}×)</span>
+                            <span className="text-[var(--app-ink)]">{formatMoney(cost.safeMoveInsurance)}</span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-[var(--app-muted)]">Blankets ({blanketBags} bags × $6)</span>
+                            <span className="text-[var(--app-ink)]">{formatMoney(cost.blankets)}</span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-[var(--app-muted)]">Stretch wrap ({activeTruckCount}× @ $25)</span>
+                            <span className="text-[var(--app-ink)]">{formatMoney(cost.stretchWrap)}</span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-[var(--app-muted)]">HST 13% (excl. fuel)</span>
+                            <span className="text-[var(--app-ink)]">{formatMoney(cost.truckHST)}</span>
                           </div>
                           {uhaulStraightDrop && (
                             <div className="flex justify-between text-xs">

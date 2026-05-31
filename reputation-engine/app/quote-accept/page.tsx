@@ -470,7 +470,8 @@ function QuoteAcceptPageInner() {
   const roomGroups = groupInventoryByRoom(inventory)
   const crewSize = quote.crewSize || 3
   const trucks = quote.truckCount || 1
-  const hours = quote.estimatedHours ? `${quote.estimatedHours}–${Math.ceil(quote.estimatedHours * 1.25)}` : null
+  const rawHours = Number(quote.estimatedHours || 0)
+  const hours = rawHours > 0 ? `${rawHours}–${Math.ceil(rawHours * 1.25)}` : null
   const isBindingEstimate = hasInventory && inventory.length >= 5
 
   // ── Fast Lane view — hourly rate quote, no inventory/photos, direct to Stripe ──
