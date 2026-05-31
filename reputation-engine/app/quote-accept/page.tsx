@@ -66,6 +66,8 @@ type PublicQuote = {
   acceptedAt?: string
   respondedAt?: string
   conditionalClause?: string
+  quoteType?: string
+  jobFactors?: { disassemblyItemCount?: number; [key: string]: unknown }
 }
 
 const REVIEWS = [
