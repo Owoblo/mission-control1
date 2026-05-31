@@ -3704,10 +3704,8 @@ export function EstimateDraftModal({
             })()}
 
 
-            {/* U-Haul Job Cost Calculator — show whenever we have a pricing breakdown, even without route */}
+            {/* U-Haul Job Cost Calculator — show whenever we have a pricing breakdown */}
             {pricingBreakdown && (() => {
-              // Use route distance, manual override, or 0 for moves without confirmed destination
-              const _unusedDistCheck = true
               const oneWayKm = distanceKm || route?.distanceKm || 0
               const truckCount = pricingBreakdown.truckCount || 1
               const tripStrategy = (pricingBreakdown.tripStrategy || 'single_truck') as TripStrategy
@@ -4181,7 +4179,7 @@ export function EstimateDraftModal({
                         ))}
                         <div className="flex justify-between border-t border-blue-100 pt-1.5">
                           <span className="text-blue-800">Crew return (car rental + gas back)</span>
-                          <span className="font-semibold text-blue-900">{formatMoney(ldReturnTransport)}</span>
+                          <span className="font-semibold text-blue-900">{formatMoney(ldCrewReturnGas)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-blue-700">10% buffer (extra gas, misc)</span>
