@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { SalesAddressAutocompleteInput } from '@/app/components/sales/address-autocomplete-input'
-import { createSalesLead } from '@/lib/sales-api'
+import { createSalesLead, enrichSalesAddress, updateSalesLead } from '@/lib/sales-api'
 
 interface Props {
   open: boolean
@@ -25,6 +25,7 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
   const [copied, setCopied] = useState(false)
   const [smsSending, setSmsSending] = useState(false)
   const [smsSent, setSmsSent] = useState(false)
+  const [scanStatus, setScanStatus] = useState<'idle' | 'scanning' | 'done' | 'no-listing'>('idle')
   const addressRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -92,6 +93,31 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
         setCopied(true)
         setTimeout(() => setCopied(false), 3000)
       }
+
+      // Trigger MLS enrichment in background so inventory is ready when customer opens link
+      const fullAddress = [originAddress.trim(), originCity.trim()].filter(Boolean).join(', ')
+      const savedLeadId = lead.id
+      setScanStatus('scanning')
+      void enrichSalesAddress(fullAddress, true)
+        .then(async result => {
+          if (!result.listing && !result.scan) {
+            setScanStatus('no-listing')
+            return
+          }
+          const updates: Record<string, unknown> = {}
+          if (result.listing) updates.supabaseListing = result.listing
+          if (result.scan?.inventory?.length) {
+            updates.inventory = result.scan.inventory
+            updates.totalCubicFeet = result.scan.totalCubicFeet
+            updates.totalWeightLbs = result.scan.totalWeightLbs
+            updates.totalItems = result.scan.totalItems
+            updates.listingScanSnapshot = result.scan
+          }
+          await updateSalesLead(savedLeadId, updates as Parameters<typeof updateSalesLead>[1])
+          setScanStatus('done')
+        })
+        .catch(() => setScanStatus('no-listing'))
+
     } catch (err) {
       setError((err as Error).message)
       setStep('form')
@@ -136,7 +162,7 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
         <div className="flex items-center justify-between border-b border-[var(--app-line)] px-5 py-4">
           <div>
             <div className="text-[11px] font-semibold uppercase tracking-widest text-[var(--app-muted)]">Fast Lane</div>
-            <h2 className="mt-0.5 text-lg font-semibold text-[var(--app-ink)]">Quick Inventory Scan</h2>
+            <h2 className="mt-0.5 text-lg font-semibold text-[var(--app-ink)]">MLS Quick Inventory Scan</h2>
           </div>
           <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-muted)] hover:bg-[var(--app-line)] hover:text-[var(--app-ink)] transition">✕</button>
         </div>
@@ -224,6 +250,17 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
                   {smsSent ? '✓ SMS sent!' : smsSending ? 'Sending…' : `Send via SMS to ${phone}`}
                 </button>
               )}
+
+              {/* MLS scan status */}
+              <div className={`rounded-[8px] px-3 py-2 text-[11px] ${
+                scanStatus === 'scanning' ? 'bg-blue-50 text-blue-700' :
+                scanStatus === 'done' ? 'bg-emerald-50 text-emerald-700' :
+                scanStatus === 'no-listing' ? 'bg-amber-50 text-amber-700' : 'hidden'
+              }`}>
+                {scanStatus === 'scanning' && '🔍 Scanning MLS listing for inventory… customer will see items when it\'s ready.'}
+                {scanStatus === 'done' && '✅ MLS scan complete — customer will see their inventory when they open the link.'}
+                {scanStatus === 'no-listing' && '⚠ No MLS listing found for this address. Customer will see empty rooms to fill in manually.'}
+              </div>
 
               <div className="border-t border-[var(--app-line)] pt-3 flex gap-2">
                 <button

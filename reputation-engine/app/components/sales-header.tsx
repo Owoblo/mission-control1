@@ -381,7 +381,7 @@ export function SalesHeader() {
               {(role === 'owner' || role === 'manager' || role === 'sales_rep') && (
                 <>
                   <button onClick={() => setNewLeadOpen(true)} className="crm-button-dark h-9 px-3 text-sm">New Lead</button>
-                  <button onClick={() => setQuickScanOpen(true)} className="flex h-9 items-center gap-1 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 text-sm font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition" title="Quick Inventory Scan">⚡</button>
+                  <button onClick={() => setQuickScanOpen(true)} className="flex h-9 items-center gap-1 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 text-sm font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition" title="MLS Quick Inventory Scan">⚡</button>
                 </>
               )}
               <div ref={notifRef} className="relative">
@@ -416,7 +416,7 @@ export function SalesHeader() {
               <button
                 onClick={() => setQuickScanOpen(true)}
                 className={`flex h-9 items-center justify-center rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] text-sm font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition ${sidebarCollapsed ? 'w-10' : 'px-2.5'}`}
-                title="Quick Inventory Scan"
+                title="MLS Quick Inventory Scan"
               >⚡</button>
               </>
             )}
