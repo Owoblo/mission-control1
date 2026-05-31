@@ -274,6 +274,8 @@ export function getQuoteFieldDiffs(previous: CRMQuote, next: CRMQuote): QuoteFie
     }))
 }
 
+export const ACCEPTED_QUOTE_LOCKED_KEYS = ACCEPTED_QUOTE_LOCKED_FIELDS.map(f => f.key)
+
 export function getAcceptedQuoteLockedFieldChanges(current: CRMQuote, updates: Partial<CRMQuote>, lead?: CRMLead | null) {
   if (!isAcceptedOrBookedQuote(current, lead)) {
     return []

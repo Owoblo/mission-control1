@@ -171,6 +171,45 @@ export function truckSizeFromCubicFeet(cubicFeet: number): string {
   return '26ft'
 }
 
+/**
+ * Long-distance U-Haul one-way estimate (Canada).
+ * Based on observed Canadian U-Haul pricing patterns — no public API available.
+ *
+ * Formula: base + (distanceKm × ratePerKm)
+ * Internal cost  = one_way × 1.5  (covers insurance, taxes, fuel)
+ * Customer range = one_way × 1.5 to × 2.0  (gives ~33–50% gross margin on truck alone)
+ */
+export interface LongDistanceUHaulEstimate {
+  distanceKm: number
+  truckCount: number
+  truckSize: string
+  oneWayEstimate: number      // estimated U-Haul one-way rental cost
+  internalCost: number        // one_way × 1.5
+  customerRangeLow: number    // one_way × 1.5
+  customerRangeHigh: number   // one_way × 2.0
+}
+
+const LONG_DISTANCE_BASE: Record<string, number> = {
+  '10ft': 150, '15ft': 175, '20ft': 200, '26ft': 225,
+}
+const LONG_DISTANCE_RATE_PER_KM: Record<string, number> = {
+  '10ft': 0.75, '15ft': 0.85, '20ft': 0.95, '26ft': 1.10,
+}
+
+export function calcLongDistanceUHaul(
+  distanceKm: number,
+  truckSize: string,
+  truckCount = 1,
+): LongDistanceUHaulEstimate {
+  const base = (LONG_DISTANCE_BASE[truckSize] ?? 225) * truckCount
+  const ratePerKm = LONG_DISTANCE_RATE_PER_KM[truckSize] ?? 1.10
+  const oneWayEstimate = Math.round((base + distanceKm * ratePerKm * truckCount) / 5) * 5
+  const internalCost   = Math.round(oneWayEstimate * 1.5 / 5) * 5
+  const customerRangeLow  = internalCost
+  const customerRangeHigh = Math.round(oneWayEstimate * 2.0 / 5) * 5
+  return { distanceKm, truckCount, truckSize, oneWayEstimate, internalCost, customerRangeLow, customerRangeHigh }
+}
+
 // Format decimal hours as "h:mm AM/PM"
 function fmtHour(decimalHour: number): string {
   const total = ((decimalHour % 24) + 24) % 24

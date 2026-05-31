@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { dateStamp, normalizeQuote, syncLeadFromQuoteStatus, uid } from '@/lib/sales'
-import { getAcceptedQuoteLockedFieldChanges, recordQuoteUpdatedAudit } from '@/lib/server/sales-audit'
+import { getAcceptedQuoteLockedFieldChanges, ACCEPTED_QUOTE_LOCKED_KEYS, recordQuoteUpdatedAudit } from '@/lib/server/sales-audit'
 import { canAccessSalesWorkspace, canReviseExistingQuote, validateQuotePricingPermissions } from '@/lib/server/sales-permissions'
 import { scheduleQuoteExpiryFollowup, scheduleQuoteFollowup, scheduleQuoteViewedFollowup } from '@/lib/server/sales-automation'
 import { getSessionUser } from '@/lib/server/session'
@@ -79,12 +79,19 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
     const lockedFields = getAcceptedQuoteLockedFieldChanges(current, updates, currentLead)
     if (lockedFields.length > 0) {
-      return NextResponse.json(
-        {
-          error: `This quote is already accepted/booked. Locked fields cannot be revised here: ${lockedFields.join(', ')}.`,
-        },
-        { status: 409 }
-      )
+      // Strip locked price/status fields but allow internal ops fields (notes, logistics) to save
+      const nonPriceUpdates = Object.fromEntries(
+        Object.entries(updates).filter(([k]) => !ACCEPTED_QUOTE_LOCKED_KEYS.includes(k as keyof typeof current))
+      ) as Partial<typeof current>
+      if (Object.keys(nonPriceUpdates).length === 0) {
+        return NextResponse.json(
+          { error: `This quote is already accepted/booked. Locked fields cannot be revised: ${lockedFields.join(', ')}.` },
+          { status: 409 }
+        )
+      }
+      // Save only the non-locked fields (internal notes, move description, etc.)
+      const saved = await saveSalesQuote({ ...current, ...nonPriceUpdates })
+      return NextResponse.json({ quote: saved, lockedFieldsSkipped: lockedFields })
     }
 
     const nextStatus = updates.status || current.status

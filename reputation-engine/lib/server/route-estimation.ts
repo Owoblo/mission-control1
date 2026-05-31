@@ -37,7 +37,8 @@ function extractAddressLocality(address?: Record<string, string | undefined>) {
 }
 
 export function classifyRouteCategory(distanceKm: number, driveHours: number): EstimateRouteContext['routeCategory'] {
-  if (driveHours >= 4 || distanceKm >= 400) return 'long-distance'
+  // Long distance: > 200km or > 2.5h — one-way U-Haul makes more sense than returning the truck
+  if (driveHours >= 2.5 || distanceKm >= 200) return 'long-distance'
   if (driveHours >= 1.25 || distanceKm >= 80) return 'medium'
   return 'local'
 }

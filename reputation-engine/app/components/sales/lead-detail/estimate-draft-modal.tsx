@@ -15,7 +15,7 @@ import { buildStarterInventoryPlan } from '@/lib/starter-inventory'
 import { DEFAULT_ROOM_OPTIONS } from './helpers'
 import type { EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, PricingBreakdown, QuoteLineItem, QuoteLeg, QuoteLegType } from '@/lib/types'
 import {
-  calcUHaulCost, compareStrategies, truckSizeFromCubicFeet, calcStrategyTiming,
+  calcUHaulCost, compareStrategies, truckSizeFromCubicFeet, calcStrategyTiming, calcLongDistanceUHaul,
   DEFAULT_BLANKET_BAGS, DEFAULT_GAS_PRICE_PER_L, DEFAULT_MISC_BUFFER,
   UHAUL_DAILY_RATES, UHAUL_PER_KM_RATE, UHAUL_FUEL_L_PER_100KM, type TripStrategy,
 } from '@/lib/uhaul-calculator'
@@ -432,6 +432,7 @@ export function EstimateDraftModal({
   const [overrideApprovalNotice, setOverrideApprovalNotice] = useState<string | null>(null)
   const [approvedOverrideAmount, setApprovedOverrideAmount] = useState<number | null>(null)
   const [uhaulInputPerTruck, setUhaulInputPerTruck] = useState('')
+  const [uhaulInputIsEstimate, setUhaulInputIsEstimate] = useState(false)
   const [, startTransition] = useTransition()
   const [marginGateAck, setMarginGateAck] = useState(false)
   const [overrideApplied, setOverrideApplied] = useState(false)
@@ -945,6 +946,19 @@ export function EstimateDraftModal({
     const newCount = Math.max(0, totalItems - next.size)
     onJobFactorsChange({ ...jobFactors, disassemblyItemCount: newCount === 0 && next.size > 0 ? 0 : newCount })
   }
+
+  // Auto-populate long-distance U-Haul estimate — runs after pricingBreakdown is available
+  useEffect(() => {
+    if (!route || route.category !== 'long-distance') return
+    if (uhaulInputPerTruck && !uhaulInputIsEstimate) return
+    const distKm = route.distanceKm || 0
+    if (!distKm) return
+    const size = truckSizeFromCubicFeet(pricingBreakdown?.totalCubicFeet || 0)
+    const est = calcLongDistanceUHaul(distKm, size, 1)
+    setUhaulInputPerTruck(String(est.oneWayEstimate))
+    setUhaulInputIsEstimate(true)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route?.category, route?.distanceKm, pricingBreakdown?.totalCubicFeet])
 
   const effectiveInventoryMetrics = useMemo(() => deriveInventoryMetrics(inventory), [inventory])
   const inventoryPolicySummary = useMemo(() => summarizeMovePolicy(inventory, { moveType: lead.moveType }), [inventory, lead.moveType])
@@ -4109,7 +4123,10 @@ export function EstimateDraftModal({
                     </div>
 
                     <div className="space-y-1.5">
-                      <div className="text-[10px] font-semibold text-blue-800 uppercase tracking-wide">U-Haul quote (per truck)</div>
+                      <div className="flex items-center justify-between">
+                        <div className="text-[10px] font-semibold text-blue-800 uppercase tracking-wide">U-Haul one-way quote (per truck)</div>
+                        {uhaulInputIsEstimate && <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-semibold">Auto-estimated · verify on uhaul.com</span>}
+                      </div>
                       <div className="relative">
                         <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--app-muted)]">$</span>
                         <input
@@ -4117,8 +4134,8 @@ export function EstimateDraftModal({
                           min={0}
                           step={50}
                           value={uhaulInputPerTruck}
-                          onChange={e => setUhaulInputPerTruck(e.target.value)}
-                          placeholder="e.g. 2000"
+                          onChange={e => { setUhaulInputPerTruck(e.target.value); setUhaulInputIsEstimate(false) }}
+                          placeholder="e.g. 800"
                           className="crm-input pl-5 w-full text-sm font-semibold"
                         />
                       </div>
