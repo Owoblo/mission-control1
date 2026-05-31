@@ -3547,15 +3547,18 @@ export function EstimateDraftModal({
                     </div>
                   </div>
 
-                  {/* TOTAL */}
+                  {/* TOTAL — only show final price when route is settled */}
                   <div className="px-3 py-3 bg-[#1a2744] text-white space-y-1">
                     <div className="flex justify-between font-semibold">
                       <span>{pricingBreakdown.crewSize} movers · {pricingBreakdown.truckCount} truck{pricingBreakdown.truckCount > 1 ? 's' : ''} · ${pricingBreakdown.crewRatePerHour}/hr</span>
-                      <span>{pricingBreakdown.totalHours}h</span>
+                      <span>{routeBusy ? '…' : `${pricingBreakdown.totalHours}h`}</span>
                     </div>
                     <div className="flex justify-between text-sm font-bold text-[#f5a623]">
                       <span>Estimate</span>
-                      <span>{formatMoney(pricingBreakdown.totalHours * pricingBreakdown.crewRatePerHour)}</span>
+                      {routeBusy
+                        ? <span className="text-xs font-normal text-white/60 animate-pulse">Calculating route…</span>
+                        : <span>{formatMoney(pricingBreakdown.totalHours * pricingBreakdown.crewRatePerHour)}</span>
+                      }
                     </div>
                   </div>
                 </div>
@@ -3955,8 +3958,25 @@ export function EstimateDraftModal({
                     </div>
                   )}
                   {warningReadiness.length > 0 && (
-                    <div className="mt-2 rounded-[6px] border border-amber-200 bg-amber-50 px-2.5 py-2 text-[10px] text-amber-800">
-                      Confirm before sending: {warningReadiness.map(item => item.detail).join(' · ')}
+                    <div className="mt-2 rounded-[6px] border border-amber-200 bg-amber-50 px-2.5 py-2 space-y-2">
+                      <div className="text-[10px] text-amber-800">
+                        Confirm before sending: {warningReadiness.map(item => item.detail).join(' · ')}
+                      </div>
+                      {!jobFactors.packingStatus && (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-amber-700 font-medium">Packing?</span>
+                          {(['not-started', 'partial', 'packed'] as const).map(s => (
+                            <button
+                              key={s}
+                              type="button"
+                              onClick={() => setFactor('packingStatus', s)}
+                              className="rounded-[4px] border border-amber-300 bg-white px-2 py-0.5 text-[10px] font-medium text-amber-800 hover:bg-amber-100 transition"
+                            >
+                              {s === 'not-started' ? 'Not started' : s === 'partial' ? 'Partial' : 'Fully packed'}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -4496,8 +4516,8 @@ export function EstimateDraftModal({
                     </button>
                   </div>
                 )}
-                <button onClick={() => void handlePreviewSend()} disabled={quoteModalBusy || !quote || (liveMarginSummary !== null && liveMarginSummary.liveMargin < 50 && liveMarginSummary.actualRevenue > 0 && !marginGateAck)} className="w-full justify-center rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
-                  {quoteModalBusy ? 'Saving...' : 'Preview & Send →'}
+                <button onClick={() => void handlePreviewSend()} disabled={quoteModalBusy || routeBusy || !quote || (liveMarginSummary !== null && liveMarginSummary.liveMargin < 50 && liveMarginSummary.actualRevenue > 0 && !marginGateAck)} className="w-full justify-center rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
+                  {routeBusy ? 'Calculating route…' : quoteModalBusy ? 'Saving...' : 'Preview & Send →'}
                 </button>
                 <button onClick={() => void onSaveDraft()} disabled={quoteModalBusy || !quote} className="crm-button-dark w-full justify-center disabled:opacity-60">
                   Save Draft
