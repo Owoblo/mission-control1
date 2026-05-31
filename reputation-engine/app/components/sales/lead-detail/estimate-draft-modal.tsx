@@ -815,6 +815,13 @@ export function EstimateDraftModal({
     onQuoteDiscountLabelChange(nextLabel)
   }, [tenPctActive, tenPctDiscountAmount, quoteDiscountAmount, quoteDiscountLabel, onQuoteDiscountAmountChange, onQuoteDiscountLabelChange])
 
+  // Auto-open Live Margin when long-distance is detected
+  useEffect(() => {
+    if (route?.category === 'long-distance' || quoteType === 'long_distance') {
+      setUhaulOpen(true)
+    }
+  }, [route?.category, quoteType])
+
   // Auto-find nearest U-Haul to origin when origin address is known
   useEffect(() => {
     const addr = originFull || lead.originAddress
@@ -1296,6 +1303,10 @@ export function EstimateDraftModal({
       { label: 'Destination geocoded', ready: Boolean(destFull.trim() && !routeError && route?.destResolved), critical: true, detail: destFull.trim() ? 'Destination address could not be located.' : 'Destination address is missing.' },
       { label: 'Move date', ready: Boolean(selectedMoveDate), critical: true, detail: 'Move date is missing.' },
       { label: 'Inventory', ready: effectiveInventoryMetrics.totalItems > 0, critical: true, detail: 'Inventory is still empty.' },
+      // Long-distance: customer should verify inventory before we lock in a flat rate
+      ...(route?.category === 'long-distance' || quoteType === 'long_distance'
+        ? [{ label: 'Inventory verified by customer', ready: Boolean(lead.surveyCompletedAt), detail: 'Long-distance: ask customer to confirm inventory on the verification link before pricing.' }]
+        : []),
       { label: 'Access / parking', ready: accessConfirmed, detail: 'Access or parking is still unknown.' },
       { label: 'Packing status', ready: Boolean(jobFactors.packingStatus), detail: 'Packing status is not confirmed.' },
       { label: 'Boxes asked', ready: boxesAsked, detail: 'Boxes were not confirmed.' },
@@ -1305,7 +1316,7 @@ export function EstimateDraftModal({
       { label: 'Quote explanation available', ready: Boolean(quoteExplanation.detailed.trim()), detail: 'Customer-facing price explanation is not ready.' },
     ]
     return items
-  }, [accessConfirmed, boxesAsked, destFull, effectiveInventoryMetrics.totalItems, jobFactors.packingStatus, lead.email, lead.name, lead.phone, originFull, pricingBreakdown, quoteExplanation.detailed, quoteModalTotals.deposit, quoteModalTotals.total, route?.destResolved, route?.originResolved, routeError, selectedMoveDate])
+  }, [accessConfirmed, boxesAsked, destFull, effectiveInventoryMetrics.totalItems, jobFactors.packingStatus, lead.email, lead.name, lead.phone, lead.surveyCompletedAt, originFull, pricingBreakdown, quoteExplanation.detailed, quoteModalTotals.deposit, quoteModalTotals.total, route?.category, route?.destResolved, route?.originResolved, routeError, selectedMoveDate, quoteType])
   const blockingReadiness = useMemo(
     () => readinessItems.filter(item => !item.ready && item.critical),
     [readinessItems]
@@ -3589,19 +3600,34 @@ export function EstimateDraftModal({
                     </div>
                   </div>
 
-                  {/* TOTAL — only show final price when route is settled */}
+                  {/* TOTAL — hourly for local, flat-rate guidance for long-distance */}
                   <div className="px-3 py-3 bg-[#1a2744] text-white space-y-1">
-                    <div className="flex justify-between font-semibold">
-                      <span>{pricingBreakdown.crewSize} movers · {pricingBreakdown.truckCount} truck{pricingBreakdown.truckCount > 1 ? 's' : ''} · ${pricingBreakdown.crewRatePerHour}/hr</span>
-                      <span>{routeBusy ? '…' : `${pricingBreakdown.totalHours}h`}</span>
-                    </div>
-                    <div className="flex justify-between text-sm font-bold text-[#f5a623]">
-                      <span>Estimate</span>
-                      {routeBusy
-                        ? <span className="text-xs font-normal text-white/60 animate-pulse">Calculating route…</span>
-                        : <span>{formatMoney(pricingBreakdown.totalHours * pricingBreakdown.crewRatePerHour)}</span>
-                      }
-                    </div>
+                    {(route?.category === 'long-distance' || quoteType === 'long_distance') ? (
+                      <>
+                        <div className="flex justify-between font-semibold">
+                          <span>{pricingBreakdown.crewSize} movers · {pricingBreakdown.truckCount} truck{pricingBreakdown.truckCount > 1 ? 's' : ''} · U-Haul one-way</span>
+                          <span>{pricingBreakdown.loadHours + (pricingBreakdown.unloadHours || 0)}h labour</span>
+                        </div>
+                        <div className="flex justify-between text-sm font-bold text-[#f5a623]">
+                          <span>Estimate</span>
+                          <span className="text-xs font-normal text-white/70">Use Live Margin below ↓</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex justify-between font-semibold">
+                          <span>{pricingBreakdown.crewSize} movers · {pricingBreakdown.truckCount} truck{pricingBreakdown.truckCount > 1 ? 's' : ''} · ${pricingBreakdown.crewRatePerHour}/hr</span>
+                          <span>{routeBusy ? '…' : `${pricingBreakdown.totalHours}h`}</span>
+                        </div>
+                        <div className="flex justify-between text-sm font-bold text-[#f5a623]">
+                          <span>Estimate</span>
+                          {routeBusy
+                            ? <span className="text-xs font-normal text-white/60 animate-pulse">Calculating route…</span>
+                            : <span>{formatMoney(pricingBreakdown.totalHours * pricingBreakdown.crewRatePerHour)}</span>
+                          }
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
