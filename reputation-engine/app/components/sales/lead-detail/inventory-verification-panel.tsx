@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { buildInventoryVerificationActivity, buildInventoryVerificationSummary } from '@/lib/inventory-verification'
 import type { CRMLead, LeadMediaAsset } from '@/lib/types'
 
@@ -10,6 +11,7 @@ type Props = {
   surveyUrl: string | null
   onRequestVerification: () => void
   onScanCustomerMedia: () => void
+  onGenerateLinkOnly?: () => void  // generate without SMS dialog
 }
 
 export function InventoryVerificationPanel({
@@ -19,7 +21,17 @@ export function InventoryVerificationPanel({
   surveyUrl,
   onRequestVerification,
   onScanCustomerMedia,
+  onGenerateLinkOnly,
 }: Props) {
+  const [copied, setCopied] = useState(false)
+
+  function copyLink() {
+    if (!surveyUrl) return
+    void navigator.clipboard.writeText(surveyUrl).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
   const customerImageAssets = (lead.mediaAssets || []).filter(
     (asset: LeadMediaAsset) => ['survey', 'rep_upload', 'mms'].includes(asset.source) && asset.kind === 'image'
   )
@@ -34,17 +46,69 @@ export function InventoryVerificationPanel({
 
   return (
     <>
-      <button
-        onClick={onRequestVerification}
-        disabled={!canEditCurrentLead || surveyBusy}
-        className="crm-button w-full justify-center disabled:opacity-60"
-        title="Sends customer a link to upload room photos and verify their inventory"
-      >
-        {surveyBusy ? '⏳ Generating link…'
-          : lead.surveyCompletedAt ? '📷 Resend Photo Request'
-          : lead.surveyRequestedAt ? '📷 Resend Photo Request'
-          : '📷 Send Photo Request'}
-      </button>
+      {/* Primary action: if link exists — show it prominently with copy + open */}
+      {surveyUrl ? (
+        <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-semibold text-[var(--app-ink)]">
+              {lead.surveyCompletedAt ? '✅ Inventory Verified' : lead.surveyRequestedAt ? '🔗 Verification Link Active' : '🔗 Inventory Link'}
+            </div>
+            {lead.surveyCompletedAt && (
+              <span className="text-[10px] font-semibold text-emerald-700">Customer submitted</span>
+            )}
+          </div>
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              onClick={copyLink}
+              className={`flex-1 rounded-[6px] py-2 text-xs font-semibold transition ${copied ? 'bg-emerald-600 text-white' : 'bg-[#1a2744] text-white hover:bg-[#1a2744]/90'}`}
+            >
+              {copied ? '✓ Copied!' : 'Copy Link'}
+            </button>
+            <a
+              href={surveyUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-[6px] border border-[var(--app-line)] px-3 py-2 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition"
+            >
+              Preview
+            </a>
+            <button
+              onClick={onRequestVerification}
+              disabled={!canEditCurrentLead || surveyBusy}
+              className="rounded-[6px] border border-[var(--app-line)] px-3 py-2 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition disabled:opacity-60"
+              title="Resend via SMS"
+            >
+              {surveyBusy ? '…' : 'Send SMS'}
+            </button>
+          </div>
+          <div className="text-[10px] text-[var(--app-muted)] break-all truncate">{surveyUrl}</div>
+        </div>
+      ) : (
+        /* No link yet — show generate buttons */
+        <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3 space-y-1.5">
+          <div className="text-xs font-semibold text-[var(--app-ink)] mb-1">Inventory Verification</div>
+          <button
+            onClick={onRequestVerification}
+            disabled={!canEditCurrentLead || surveyBusy}
+            className="crm-button w-full justify-center disabled:opacity-60"
+          >
+            {surveyBusy ? '⏳ Generating…' : '📤 Send Link via SMS'}
+          </button>
+          {onGenerateLinkOnly && (
+            <button
+              onClick={onGenerateLinkOnly}
+              disabled={!canEditCurrentLead || surveyBusy}
+              className="w-full rounded-[6px] border border-[var(--app-line)] py-2 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition disabled:opacity-60"
+            >
+              {surveyBusy ? '⏳ Generating…' : '🔗 Get Link Only (no SMS)'}
+            </button>
+          )}
+          <p className="text-[10px] text-[var(--app-muted)]">
+            Customer gets a link to confirm their inventory, flag items staying behind, and upload photos — all before you finalize the price.
+          </p>
+        </div>
+      )}
 
       {totalCustomerMedia > 0 ? (
         <div className={`rounded-[8px] border px-3 py-3 space-y-2 ${surveyCompleted && !surveyScanned ? 'border-emerald-300 bg-emerald-50' : 'border-[var(--app-line)] bg-[var(--app-bg)]'}`}>
@@ -197,24 +261,6 @@ export function InventoryVerificationPanel({
         </div>
       ) : null}
 
-      {surveyUrl ? (
-        <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-2.5 text-[10px] text-[var(--app-muted)]">
-          <div className="font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">Photo request link</div>
-          <div className="mt-1 break-all">{surveyUrl}</div>
-          <div className="mt-2 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => { void navigator.clipboard.writeText(surveyUrl) }}
-              className="font-semibold text-[var(--app-accent)]"
-            >
-              Copy
-            </button>
-            <a href={surveyUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-[var(--app-accent)]">
-              Open
-            </a>
-          </div>
-        </div>
-      ) : null}
     </>
   )
 }

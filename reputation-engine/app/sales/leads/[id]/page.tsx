@@ -1813,6 +1813,31 @@ export default function SalesLeadDetailPage() {
     }
   }
 
+  async function generateSurveyLinkOnly() {
+    if (!lead) return
+    if (!ensureLeadEditable()) return
+    setSurveyBusy(true)
+    try {
+      const res = await fetch(`/api/sales/leads/${lead.id}/survey`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skipSms: true }),
+      })
+      const data = await res.json() as { surveyUrl?: string; token?: string; error?: string }
+      if (!res.ok || data.error) throw new Error(data.error || 'Failed to generate link')
+      const url = data.surveyUrl || null
+      setSurveyUrl(url)
+      setLead(prev => prev ? { ...prev, surveyToken: 'set', surveyRequestedAt: new Date().toISOString() } as typeof prev : prev)
+      // Auto-copy to clipboard
+      if (url) void navigator.clipboard.writeText(url).catch(() => {})
+    } catch (err) {
+      setError('Could not generate survey link. Please try again.')
+      console.error(err)
+    } finally {
+      setSurveyBusy(false)
+    }
+  }
+
   async function sendPhotoRequestSms() {
     if (!lead || !photoRequestData) return
     setPhotoRequestSending(true)
@@ -4144,6 +4169,7 @@ export default function SalesLeadDetailPage() {
                 surveyUrl={surveyUrl}
                 onRequestVerification={() => void requestPhotoSurvey()}
                 onScanCustomerMedia={() => void handleScanSurveyMedia()}
+                onGenerateLinkOnly={() => void generateSurveyLinkOnly()}
               />
               <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
                 <div className="flex items-center justify-between gap-3">
