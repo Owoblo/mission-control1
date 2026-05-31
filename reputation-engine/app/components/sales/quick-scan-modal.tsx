@@ -3,15 +3,24 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { SalesAddressAutocompleteInput } from '@/app/components/sales/address-autocomplete-input'
-import { createSalesLead, enrichSalesAddress, updateSalesLead } from '@/lib/sales-api'
+import { createSalesLead, updateSalesLead } from '@/lib/sales-api'
+import type { InventoryItem } from '@/lib/types'
 
 interface Props {
   open: boolean
   onClose: () => void
-  prefillPhone?: string  // from inbound call detection
+  prefillPhone?: string
 }
 
 type Step = 'form' | 'loading' | 'done'
+
+interface ScanProgress {
+  status: string
+  batch: number
+  totalBatches: number
+  totalPhotos: number
+  itemsFound: number
+}
 
 export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
   const router = useRouter()
@@ -25,7 +34,8 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
   const [copied, setCopied] = useState(false)
   const [smsSending, setSmsSending] = useState(false)
   const [smsSent, setSmsSent] = useState(false)
-  const [scanStatus, setScanStatus] = useState<'idle' | 'scanning' | 'done' | 'no-listing'>('idle')
+  const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null)
+  const [scanDone, setScanDone] = useState<'done' | 'no-listing' | null>(null)
   const addressRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -38,6 +48,8 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
       setSurveyUrl(null)
       setLeadId(null)
       setCopied(false)
+      setScanProgress(null)
+      setScanDone(null)
       setTimeout(() => addressRef.current?.focus(), 80)
     }
   }, [open, prefillPhone])
@@ -58,12 +70,11 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
     setStep('loading')
 
     try {
-      // 1. Create minimal lead — name + (phone or email) required by API
+      // 1. Create minimal lead
       const placeholderName = originCity.trim() || originAddress.split(',')[0]?.trim() || 'New Lead'
       const cleanPhone = phone.trim()
       const lead = await createSalesLead({
         name: placeholderName,
-        // phone or email must be present — use a placeholder email if no phone
         phone: cleanPhone || undefined,
         email: !cleanPhone ? 'pending@update.local' : undefined,
         originAddress: originAddress.trim(),
@@ -71,11 +82,11 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
         source: 'inbound_call',
         stage: 'new',
       })
+      const savedLeadId = lead.id
+      setLeadId(savedLeadId)
 
-      setLeadId(lead.id)
-
-      // 2. Generate survey token (no SMS)
-      const surveyRes = await fetch(`/api/sales/leads/${lead.id}/survey`, {
+      // 2. Generate survey token immediately — show link to rep right away
+      const surveyRes = await fetch(`/api/sales/leads/${savedLeadId}/survey`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -84,40 +95,90 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
       const surveyData = await surveyRes.json() as { surveyUrl?: string; error?: string }
       if (!surveyRes.ok || surveyData.error) throw new Error(surveyData.error || 'Could not generate link')
 
-      setSurveyUrl(surveyData.surveyUrl || null)
+      const url = surveyData.surveyUrl || null
+      setSurveyUrl(url)
       setStep('done')
+      if (url) void navigator.clipboard.writeText(url).catch(() => {})
+      setCopied(true)
+      setTimeout(() => setCopied(false), 3000)
 
-      // Auto-copy
-      if (surveyData.surveyUrl) {
-        void navigator.clipboard.writeText(surveyData.surveyUrl).catch(() => {})
-        setCopied(true)
-        setTimeout(() => setCopied(false), 3000)
+      // 3. Get MLS listing for this address (fast, no AI)
+      setScanProgress({ status: 'Looking up MLS listing…', batch: 0, totalBatches: 0, totalPhotos: 0, itemsFound: 0 })
+      const fullAddress = [originAddress.trim(), originCity.trim()].filter(Boolean).join(', ')
+      const enrichRes = await fetch('/api/sales/enrich/address', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ address: fullAddress, analyze: false }),
+      })
+      const enrichData = await enrichRes.json() as { listing?: unknown; scan?: unknown }
+      if (!enrichData.listing) {
+        setScanProgress(null)
+        setScanDone('no-listing')
+        return
       }
 
-      // Trigger MLS enrichment in background so inventory is ready when customer opens link
-      const fullAddress = [originAddress.trim(), originCity.trim()].filter(Boolean).join(', ')
-      const savedLeadId = lead.id
-      setScanStatus('scanning')
-      void enrichSalesAddress(fullAddress, true)
-        .then(async result => {
-          if (!result.listing && !result.scan) {
-            setScanStatus('no-listing')
-            return
-          }
-          const updates: Record<string, unknown> = {}
-          if (result.listing) updates.supabaseListing = result.listing
-          if (result.scan?.inventory?.length) {
-            updates.inventory = result.scan.inventory
-            updates.totalCubicFeet = result.scan.totalCubicFeet
-            updates.totalWeightLbs = result.scan.totalWeightLbs
-            updates.totalItems = result.scan.totalItems
-            updates.listingScanSnapshot = result.scan
-          }
-          await updateSalesLead(savedLeadId, updates as Parameters<typeof updateSalesLead>[1])
-          setScanStatus('done')
-        })
-        .catch(() => setScanStatus('no-listing'))
+      // Save listing to lead so scan-stream can read it
+      await updateSalesLead(savedLeadId, { supabaseListing: enrichData.listing as Parameters<typeof updateSalesLead>[1]['supabaseListing'] })
 
+      // 4. Stream the AI scan — shows photo progress in real time
+      const streamRes = await fetch(`/api/sales/leads/${savedLeadId}/scan-stream`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      if (!streamRes.ok || !streamRes.body) {
+        setScanDone('no-listing')
+        setScanProgress(null)
+        return
+      }
+
+      const reader = streamRes.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let allItems: InventoryItem[] = []
+      let totalPhotos = 0
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          try {
+            const event = JSON.parse(line.slice(6)) as {
+              type: string; batch?: number; totalBatches?: number; totalPhotos?: number
+              status?: string; items?: InventoryItem[]; allItems?: InventoryItem[]
+              scan?: { inventory?: InventoryItem[]; totalCubicFeet?: number; totalWeightLbs?: number; totalItems?: number }
+            }
+
+            if (event.type === 'start') {
+              totalPhotos = event.totalPhotos ?? 0
+              setScanProgress({ status: `Scanning ${totalPhotos} listing photos…`, batch: 0, totalBatches: event.totalBatches ?? 0, totalPhotos, itemsFound: 0 })
+            } else if (event.type === 'progress') {
+              setScanProgress(p => p ? { ...p, batch: event.batch ?? p.batch, totalBatches: event.totalBatches ?? p.totalBatches, status: event.status ?? p.status } : null)
+            } else if (event.type === 'batch') {
+              allItems = [...allItems, ...(event.items ?? [])]
+              setScanProgress(p => p ? { ...p, batch: event.batch ?? p.batch, totalBatches: event.totalBatches ?? p.totalBatches, status: `Photo ${event.batch}/${event.totalBatches} — ${allItems.length} items found`, itemsFound: allItems.length } : null)
+              // Save intermediate results so customer sees items appear in real time
+              void updateSalesLead(savedLeadId, { inventory: allItems, totalItems: allItems.length }).catch(() => {})
+            } else if (event.type === 'done') {
+              const finalInventory = event.scan?.inventory || allItems
+              await updateSalesLead(savedLeadId, {
+                inventory: finalInventory,
+                totalItems: event.scan?.totalItems ?? finalInventory.length,
+                totalCubicFeet: event.scan?.totalCubicFeet ?? 0,
+                totalWeightLbs: event.scan?.totalWeightLbs ?? 0,
+                listingScanSnapshot: event.scan as Parameters<typeof updateSalesLead>[1]['listingScanSnapshot'],
+              })
+              setScanProgress(null)
+              setScanDone('done')
+            }
+          } catch { /* skip malformed event */ }
+        }
+      }
     } catch (err) {
       setError((err as Error).message)
       setStep('form')
@@ -251,16 +312,40 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
                 </button>
               )}
 
-              {/* MLS scan status */}
-              <div className={`rounded-[8px] px-3 py-2 text-[11px] ${
-                scanStatus === 'scanning' ? 'bg-blue-50 text-blue-700' :
-                scanStatus === 'done' ? 'bg-emerald-50 text-emerald-700' :
-                scanStatus === 'no-listing' ? 'bg-amber-50 text-amber-700' : 'hidden'
-              }`}>
-                {scanStatus === 'scanning' && '🔍 Scanning MLS listing for inventory… customer will see items when it\'s ready.'}
-                {scanStatus === 'done' && '✅ MLS scan complete — customer will see their inventory when they open the link.'}
-                {scanStatus === 'no-listing' && '⚠ No MLS listing found for this address. Customer will see empty rooms to fill in manually.'}
-              </div>
+              {/* Live scan progress */}
+              {scanProgress && (
+                <div className="rounded-[8px] border border-blue-200 bg-blue-50 px-3 py-2.5 space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-blue-500 border-t-transparent shrink-0" />
+                    <span className="text-[11px] font-medium text-blue-700">{scanProgress.status}</span>
+                  </div>
+                  {scanProgress.totalBatches > 0 && (
+                    <>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-blue-100">
+                        <div
+                          className="h-full rounded-full bg-blue-500 transition-all duration-500"
+                          style={{ width: `${Math.round((scanProgress.batch / scanProgress.totalBatches) * 100)}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-[10px] text-blue-600">
+                        <span>{scanProgress.batch}/{scanProgress.totalBatches} photos</span>
+                        {scanProgress.itemsFound > 0 && <span>{scanProgress.itemsFound} items found so far</span>}
+                      </div>
+                    </>
+                  )}
+                  <p className="text-[10px] text-blue-600">Items appear on the customer link as each photo is scanned.</p>
+                </div>
+              )}
+              {scanDone === 'done' && (
+                <div className="rounded-[8px] bg-emerald-50 border border-emerald-200 px-3 py-2 text-[11px] text-emerald-700">
+                  ✅ Scan complete — customer sees their full inventory on the link.
+                </div>
+              )}
+              {scanDone === 'no-listing' && (
+                <div className="rounded-[8px] bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-700">
+                  ⚠ No MLS listing found. Customer sees empty rooms — they can add items manually.
+                </div>
+              )}
 
               <div className="border-t border-[var(--app-line)] pt-3 flex gap-2">
                 <button

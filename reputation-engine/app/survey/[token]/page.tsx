@@ -120,11 +120,18 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
   const hasAnyActivity = totalPhotos > 0 || reviewStats.reviewed > 0 || addedItems.length > 0 || addressConfirmed !== null || !!addressMismatchNote.trim()
   const showInventoryReview = reviewItems.length > 0 || addedItems.length > 0
 
+  const [inventoryReady, setInventoryReady] = useState(false)
+
+  async function loadSurvey() {
+    const response = await fetch(`/api/survey/${params.token}`)
+    const data = await response.json() as SurveyVerificationPayload & { error?: string }
+    if (!response.ok || data.error) throw new Error(data.error || 'Could not load survey.')
+    return data
+  }
+
   useEffect(() => {
-    fetch(`/api/survey/${params.token}`)
-      .then(async response => {
-        const data = await response.json() as SurveyVerificationPayload & { error?: string }
-        if (!response.ok || data.error) throw new Error(data.error || 'Could not load survey.')
+    loadSurvey()
+      .then(data => {
         setInfo(data)
         setRooms(buildDefaultRooms(data.rooms))
         setReviewItems(data.rooms.flatMap(room => room.items))
@@ -133,10 +140,33 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
         setAddressMismatchNote(data.verification?.addressMismatchNote || '')
         setMissingItemRoom(data.rooms.find(room => room.items.length > 0)?.label || 'Living Room')
         if (data.surveyCompletedAt) setAllDone(true)
+        const hasItems = data.rooms.some(r => r.items.length > 0)
+        setInventoryReady(hasItems)
       })
       .catch(error => setLoadError(error instanceof Error ? error.message : 'Could not load survey.'))
       .finally(() => setLoading(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.token])
+
+  // Poll every 4s while inventory is still loading — items appear as MLS scan runs
+  useEffect(() => {
+    if (inventoryReady || loading || allDone) return
+    const interval = window.setInterval(() => {
+      loadSurvey()
+        .then(data => {
+          const newItems = data.rooms.flatMap(r => r.items)
+          if (newItems.length > 0) {
+            setRooms(buildDefaultRooms(data.rooms))
+            setReviewItems(newItems)
+            setInfo(prev => prev ? { ...prev, existingInventoryCount: data.existingInventoryCount } : data)
+            setInventoryReady(true)
+          }
+        })
+        .catch(() => {})
+    }, 4000)
+    return () => window.clearInterval(interval)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inventoryReady, loading, allDone])
 
   const persistVerification = useCallback(async (markCompleted = false) => {
     const payload = {
