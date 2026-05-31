@@ -23,6 +23,8 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
   const [surveyUrl, setSurveyUrl] = useState<string | null>(null)
   const [leadId, setLeadId] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [smsSending, setSmsSending] = useState(false)
+  const [smsSent, setSmsSent] = useState(false)
   const addressRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -102,12 +104,25 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
     router.push(`/sales/leads/${leadId}`)
   }
 
-  function sendSms() {
-    if (!surveyUrl || !phone.trim()) return
+  async function sendSms() {
+    if (!surveyUrl || !phone.trim() || !leadId) return
     const digits = phone.replace(/\D/g, '')
     const e164 = digits.startsWith('1') ? `+${digits}` : `+1${digits}`
-    const msg = encodeURIComponent(`Hi! Saturn Star Moving here. To get you an accurate estimate, please review your inventory here: ${surveyUrl}`)
-    window.open(`sms:${e164}?body=${msg}`, '_blank')
+    const body = `Hi! Saturn Star Moving here. To get you an accurate estimate, please review your inventory here: ${surveyUrl}`
+    setSmsSending(true)
+    try {
+      await fetch('/api/sales/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ channel: 'sms', to: e164, body, leadId, notes: 'Inventory verification link sent via Quick Scan' }),
+      })
+      setSmsSent(true)
+    } catch {
+      // fail silently — link is already copied
+    } finally {
+      setSmsSending(false)
+    }
   }
 
   if (!open) return null
@@ -198,10 +213,15 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
 
               {phone.trim() && (
                 <button
-                  onClick={sendSms}
-                  className="w-full rounded-[8px] border border-[var(--app-line)] py-2.5 text-sm font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition"
+                  onClick={() => void sendSms()}
+                  disabled={smsSending || smsSent}
+                  className={`w-full rounded-[8px] py-2.5 text-sm font-medium transition disabled:opacity-70 ${
+                    smsSent
+                      ? 'border border-emerald-300 bg-emerald-50 text-emerald-700'
+                      : 'border border-[var(--app-line)] text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)]'
+                  }`}
                 >
-                  Send via SMS to {phone}
+                  {smsSent ? '✓ SMS sent!' : smsSending ? 'Sending…' : `Send via SMS to ${phone}`}
                 </button>
               )}
 
