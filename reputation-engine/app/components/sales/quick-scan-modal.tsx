@@ -55,10 +55,14 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
     setStep('loading')
 
     try {
-      // 1. Create minimal lead
+      // 1. Create minimal lead — name + (phone or email) required by API
+      const placeholderName = originCity.trim() || originAddress.split(',')[0]?.trim() || 'New Lead'
+      const cleanPhone = phone.trim()
       const lead = await createSalesLead({
-        name: '',
-        phone: phone.trim() || undefined,
+        name: placeholderName,
+        // phone or email must be present — use a placeholder email if no phone
+        phone: cleanPhone || undefined,
+        email: !cleanPhone ? 'pending@update.local' : undefined,
         originAddress: originAddress.trim(),
         originCity: originCity.trim(),
         source: 'inbound_call',
