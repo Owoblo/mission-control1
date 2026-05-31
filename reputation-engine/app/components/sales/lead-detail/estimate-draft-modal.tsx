@@ -24,7 +24,7 @@ import {
 function AddressAutocompleteInput({ value, placeholder, onSelect }: {
   value: string
   placeholder: string
-  onSelect: (address: string, city?: string) => void
+  onSelect: (address: string, city?: string, placeType?: string) => void
 }) {
   const [raw, setRaw] = useState(value)
   const [suggestions, setSuggestions] = useState<Array<{ label: string; city?: string; placeType?: string }>>([])
@@ -54,8 +54,8 @@ function AddressAutocompleteInput({ value, placeholder, onSelect }: {
       } catch { /* ignore */ } finally { setFetching(false) }
     }, 350)
   }
-  function select(s: { label: string; city?: string }) {
-    setRaw(s.label); setSuggestions([]); setOpen(false); onSelect(s.label, s.city)
+  function select(s: { label: string; city?: string; placeType?: string }) {
+    setRaw(s.label); setSuggestions([]); setOpen(false); onSelect(s.label, s.city, s.placeType)
   }
   return (
     <div ref={containerRef} className="relative">
@@ -1690,20 +1690,36 @@ export function EstimateDraftModal({
                     <AddressAutocompleteInput
                       value={originAddress || lead.originAddress || ''}
                       placeholder="Origin address"
-                      onSelect={(address, city) => {
+                      onSelect={(address, city, placeType) => {
                         onOriginAddressChange?.(address)
                         if (city) onOriginCityChange?.(city)
+                        // Auto-set job factors from place type
+                        if (placeType === 'apartment') {
+                          onJobFactorsChange({ ...jobFactors, originFloors: 2, originHasElevator: true, originParkingOk: false })
+                        } else if (placeType === 'house') {
+                          onJobFactorsChange({ ...jobFactors, originFloors: 1, originHasElevator: false, originParkingOk: true })
+                        }
                       }}
                     />
+                    {jobFactors.originFloors && (
+                      <div className="mt-1 text-[10px] text-[var(--app-muted)]">
+                        {jobFactors.originFloors >= 2 ? '🏢 Apartment detected' : '🏠 House detected'} — adjust in Job Factors if wrong
+                      </div>
+                    )}
                   </div>
                   <div>
                     <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Destination</div>
                     <AddressAutocompleteInput
                       value={destAddress || lead.destAddress || destCity || lead.destCity || ''}
                       placeholder="Destination address or city"
-                      onSelect={(address, city) => {
+                      onSelect={(address, city, placeType) => {
                         onDestAddressChange?.(address)
                         if (city) onDestCityChange?.(city)
+                        if (placeType === 'apartment') {
+                          onJobFactorsChange({ ...jobFactors, destFloors: 2, destHasElevator: true, destParkingOk: false })
+                        } else if (placeType === 'house') {
+                          onJobFactorsChange({ ...jobFactors, destFloors: 1, destHasElevator: false, destParkingOk: true })
+                        }
                       }}
                     />
                   </div>
