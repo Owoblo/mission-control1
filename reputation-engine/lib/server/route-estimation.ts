@@ -48,7 +48,7 @@ export async function geocodeAddress(address: string): Promise<GeocodeResult | n
   if (apiKey) {
     try {
       const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`
-      const res = await fetch(url, { cache: 'no-store' })
+      const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(5000) })
       if (res.ok) {
         const data = (await res.json()) as {
           status: string
@@ -186,6 +186,7 @@ export async function getDrivingRoute(
   const response = await fetch(url, {
     headers: { 'User-Agent': 'SaturnStarMissionControl/1.0 (business@starmovers.ca)' },
     cache: 'no-store',
+    signal: AbortSignal.timeout(5000),
   })
   if (!response.ok) return null
 
