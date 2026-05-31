@@ -4096,27 +4096,36 @@ export function EstimateDraftModal({
                 const ldTruckSize = truckSizeFromCubicFeet(pricingBreakdown?.totalCubicFeet || 0)
                 const fuelPer100km = UHAUL_FUEL_L_PER_100KM[ldTruckSize] ?? 23.5
 
-                // Itemized truck costs — same logic as local, NO 1.5× shortcut
+                // Correct long-distance labor: crew is on the clock for the FULL day including drives
+                // Load + drive there + unload + drive back = total crew hours
+                const ldDriveOneWay   = pricingBreakdown?.driveHours || Math.round(ldDistKm / 110)  // ~100km/h
+                const ldLoadHours     = pricingBreakdown?.loadHours || 3
+                const ldUnloadHours   = pricingBreakdown?.unloadHours || 2.5
+                const ldCrewSize      = pricingBreakdown?.crewSize || 3
+                const ldTotalLaborH   = Math.round((ldLoadHours + ldDriveOneWay + ldUnloadHours + ldDriveOneWay) * 4) / 4
+                const ldLabor         = Math.round(ldCrewSize * ldTotalLaborH * 25 * 100) / 100
+
+                // Itemized truck costs — same logic as local, no blunt multipliers
                 const ldFuel          = Math.round((ldDistKm / 100) * fuelPer100km * uhaulGasPrice * ldTruckCount * 100) / 100
-                const ldInsurance     = Math.round(20 * 3 * ldTruckCount * 100) / 100  // 3-day rental
+                const ldInsurance     = Math.round(20 * 3 * ldTruckCount * 100) / 100  // SafeMove 3-day
                 const ldBlankets      = Math.round((DEFAULT_BLANKET_BAGS[ldTruckSize] ?? 6) * ldTruckCount * UHAUL_BLANKET_BAG_COST * 100) / 100
                 const ldStretchWrap   = 25 * ldTruckCount
                 const ldSubtotalHST   = Math.round((uhaulPerTruck * ldTruckCount + ldInsurance + ldBlankets + ldStretchWrap) * 0.13 * 100) / 100
                 const ldTruckTotal    = uhaulPerTruck > 0 ? Math.round((uhaulPerTruck * ldTruckCount + ldFuel + ldInsurance + ldBlankets + ldStretchWrap + ldSubtotalHST) * 100) / 100 : 0
-                const ldReturnTransport = Math.round((80 + ldDistKm * 0.18) * 100) / 100  // car rental + gas back
-                const ldBuffer        = uhaulPerTruck > 0 ? Math.round(ldTruckTotal * 0.10 * 100) / 100 : 0
-                const ldLaborHours    = pricingBreakdown?.totalHours || 8
-                const ldLabor         = Math.round((pricingBreakdown?.crewSize || 3) * ldLaborHours * 25 * 100) / 100
-                const ldTotalCost     = uhaulPerTruck > 0 ? Math.round((ldTruckTotal + ldReturnTransport + ldBuffer + ldLabor) * 100) / 100 : 0
+                // Crew return: gas for driving their vehicle(s) back (not crew time — already in labor)
+                const ldCrewReturnGas = Math.round(ldDistKm * 0.15 * 100) / 100  // ~$0.15/km for car gas back
+                const ldBuffer        = uhaulPerTruck > 0 ? Math.round((ldTruckTotal + ldLabor) * 0.10 * 100) / 100 : 0
+                const ldTotalCost     = uhaulPerTruck > 0 ? Math.round((ldTruckTotal + ldCrewReturnGas + ldBuffer + ldLabor) * 100) / 100 : 0
 
                 const ldFloor  = ldTotalCost > 0 ? Math.round(ldTotalCost / 0.60 * 100) / 100 : 0
                 const ldTarget = ldTotalCost > 0 ? Math.round(ldTotalCost / 0.50 * 100) / 100 : 0
 
                 const originCityForUrl = originCity || originAddress || ''
                 const destCityForUrl   = destCity || destAddress || ''
-                // Pre-filled Google search — lets rep quickly find U-Haul pricing for this route
+                // Deep-link into U-Haul reservation with pre-filled cities and date
+                const moveDate = selectedMoveDate || new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)
                 const uhaulUrl = originCityForUrl && destCityForUrl
-                  ? `https://www.google.com/search?q=uhaul+one+way+26ft+truck+rental+${encodeURIComponent(originCityForUrl)}+to+${encodeURIComponent(destCityForUrl)}`
+                  ? `https://www.uhaul.com/Reservations/?type=truck&size=26ft&go=movingequipment&OneWay=true&pickupCity=${encodeURIComponent(originCityForUrl)}&dropoffCity=${encodeURIComponent(destCityForUrl)}&moveDate=${moveDate}`
                   : 'https://www.uhaul.com/Truck-Rentals/One-Way-Truck-Rentals.aspx'
                 return (
                   <div className="mt-4 rounded-[10px] border border-blue-200 bg-blue-50 p-3 space-y-3">
@@ -4177,10 +4186,20 @@ export function EstimateDraftModal({
                           <span className="font-semibold text-blue-900">{formatMoney(ldBuffer)}</span>
                         </div>
 
-                        <div className="text-[9px] font-bold uppercase tracking-wide text-blue-700 mt-2 mb-1">👷 Labour</div>
                         <div className="flex justify-between">
-                          <span className="text-blue-700">{pricingBreakdown?.crewSize || 3} movers × {ldLaborHours}h @ $25/hr</span>
-                          <span className="font-semibold text-blue-900">{formatMoney(ldLabor)}</span>
+                          <span className="text-blue-700">Crew vehicle gas return (~{ldDistKm} km)</span>
+                          <span className="font-semibold text-blue-900">{formatMoney(ldCrewReturnGas)}</span>
+                        </div>
+                        <div className="text-[9px] font-bold uppercase tracking-wide text-blue-700 mt-2 mb-1">👷 Labour (full day on clock)</div>
+                        <div className="space-y-0.5">
+                          <div className="flex justify-between text-blue-700">
+                            <span>Load ({ldLoadHours}h) + Drive ({ldDriveOneWay}h) + Unload ({ldUnloadHours}h) + Return ({ldDriveOneWay}h)</span>
+                            <span>{ldTotalLaborH}h</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-blue-700">{ldCrewSize} movers × {ldTotalLaborH}h @ $25/hr</span>
+                            <span className="font-semibold text-blue-900">{formatMoney(ldLabor)}</span>
+                          </div>
                         </div>
 
                         <div className="flex justify-between border-t-2 border-blue-200 pt-1.5 font-bold text-xs">
