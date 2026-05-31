@@ -2291,7 +2291,7 @@ export function EstimateDraftModal({
                     {inventoryCopyNotice || 'Copy list'}
                   </button>
                 </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="mt-4 grid gap-3 sm:grid-cols-4">
                   <div className="crm-kpi">
                     <div className="crm-label">Items</div>
                     <div className="crm-value">{effectiveInventoryMetrics.totalItems}</div>
@@ -2304,6 +2304,15 @@ export function EstimateDraftModal({
                     <div className="crm-label">Weight</div>
                     <div className="crm-value">{effectiveInventoryMetrics.totalWeightLbs}</div>
                   </div>
+                  {(lead.supabaseListing?.beds || lead.supabaseListing?.bedrooms) ? (
+                    <div className="crm-kpi">
+                      <div className="crm-label">MLS Beds / Baths</div>
+                      <div className="crm-value text-sm">
+                        {lead.supabaseListing?.beds || lead.supabaseListing?.bedrooms}bd
+                        {(lead.supabaseListing?.baths || lead.supabaseListing?.bathrooms) ? ` · ${lead.supabaseListing?.baths || lead.supabaseListing?.bathrooms}ba` : ''}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
                 {listingContextSummary ? (
                   <div className="mt-3 rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">

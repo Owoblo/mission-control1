@@ -693,88 +693,45 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
               </div>
             )}
 
-            <div className="mt-4 grid gap-4">
+            <div className="mt-4 space-y-4">
               {Array.from(groupedReviewItems.entries()).map(([room, items]) => (
-                <div key={room} className="rounded-2xl border border-gray-100 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-semibold text-[#1a2744]">{room}</div>
-                      <div className="text-xs text-gray-500">{formatRoomCount(items.length, 'detected item')}</div>
-                    </div>
-                    <div className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
-                      {rooms.find(entry => entry.label === room)?.photoCount || 0} photos
-                    </div>
+                <div key={room}>
+                  {/* Room header */}
+                  <div className="mb-1.5 flex items-center gap-2">
+                    <span className="text-sm font-bold text-[#1a2744]">{room}</span>
+                    <span className="text-xs text-gray-400">· {items.length} item{items.length !== 1 ? 's' : ''}</span>
                   </div>
-
-                  <div className="mt-3 space-y-3">
+                  {/* Compact list */}
+                  <div className="divide-y divide-gray-100 rounded-2xl border border-gray-100 bg-white overflow-hidden">
                     {items.map(item => (
-                      <div key={item.key} className="rounded-xl border border-gray-100 bg-[#faf8f4] p-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="text-sm font-semibold text-[#1a2744]">
-                              {item.qty > 1 ? `${item.qty} x ` : ''}{item.name}
-                            </div>
-                            {item.size && (
-                              <div className="mt-0.5 text-[11px] text-gray-500">{item.size}</div>
-                            )}
+                      <div key={item.key} className={`px-3 py-2.5 ${item.decision === 'not_going' ? 'opacity-50' : ''}`}>
+                        <div className="flex items-center gap-2">
+                          {/* Bullet */}
+                          <span className="text-gray-300 text-xs shrink-0">•</span>
+                          {/* Name */}
+                          <span className="flex-1 text-sm text-[#1a2744] font-medium truncate">
+                            {item.qty > 1 ? `${item.qty}× ` : ''}{item.name}
+                            {item.size ? <span className="text-xs font-normal text-gray-400 ml-1">({item.size})</span> : null}
+                          </span>
+                          {/* Quick action buttons */}
+                          <div className="flex shrink-0 gap-1">
+                            <button type="button" onClick={() => updateDecision(item.key, 'going')}
+                              className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition ${item.decision === 'going' ? 'bg-emerald-600 text-white' : 'border border-gray-200 text-gray-500 hover:border-emerald-300'}`}
+                            >✓ Going</button>
+                            <button type="button" onClick={() => updateDecision(item.key, 'not_going')}
+                              className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition ${item.decision === 'not_going' ? 'bg-rose-500 text-white' : 'border border-gray-200 text-gray-500 hover:border-rose-300'}`}
+                            >✕ Staying</button>
                           </div>
-                          {item.decision && (
-                            <div className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                              item.decision === 'going'
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : item.decision === 'not_going'
-                                  ? 'bg-rose-100 text-rose-700'
-                                  : 'bg-amber-100 text-amber-700'
-                            }`}>
-                              {item.decision === 'going' ? 'Moving' : item.decision === 'not_going' ? 'Staying' : 'Unsure'}
-                            </div>
-                          )}
                         </div>
-
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => updateDecision(item.key, 'going')}
-                            className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${
-                              item.decision === 'going'
-                                ? 'bg-emerald-600 text-white'
-                                : 'border border-gray-200 bg-white text-gray-600 hover:border-emerald-300'
-                            }`}
-                          >
-                            Going
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => updateDecision(item.key, 'not_going')}
-                            className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${
-                              item.decision === 'not_going'
-                                ? 'bg-rose-600 text-white'
-                                : 'border border-gray-200 bg-white text-gray-600 hover:border-rose-300'
-                            }`}
-                          >
-                            Staying behind
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => updateDecision(item.key, 'unsure')}
-                            className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${
-                              item.decision === 'unsure'
-                                ? 'bg-amber-500 text-white'
-                                : 'border border-gray-200 bg-white text-gray-600 hover:border-amber-300'
-                            }`}
-                          >
-                            Unsure
-                          </button>
-                        </div>
-
-                        {item.decision === 'not_going' || item.decision === 'unsure' ? (
+                        {/* Expanded note for edge cases */}
+                        {(item.decision === 'not_going' || item.decision === 'unsure') && (
                           <textarea
                             value={item.note || ''}
                             onChange={event => updateDecisionNote(item.key, event.target.value)}
-                            className="mt-3 min-h-[68px] w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#1a2744]"
-                            placeholder={item.decision === 'not_going' ? 'Optional note: staying behind, sold, landlord appliance, etc.' : 'Optional note: tell us what still needs review.'}
+                            className="mt-2 min-h-[52px] w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-[#1a2744]"
+                            placeholder={item.decision === 'not_going' ? 'Why staying? (optional)' : 'What needs review?'}
                           />
-                        ) : null}
+                        )}
                       </div>
                     ))}
                   </div>

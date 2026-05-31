@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { SalesAddressAutocompleteInput } from '@/app/components/sales/address-autocomplete-input'
 import { createSalesLead, updateSalesLead } from '@/lib/sales-api'
+import { sanitizeInventoryRooms } from '@/lib/inventory-sanitizer'
 import type { InventoryItem } from '@/lib/types'
 
 interface Props {
@@ -165,7 +166,7 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
               // Save intermediate results so customer sees items appear in real time
               void updateSalesLead(savedLeadId, { inventory: allItems, totalItems: allItems.length }).catch(() => {})
             } else if (event.type === 'done') {
-              const finalInventory = event.scan?.inventory || allItems
+              const finalInventory = sanitizeInventoryRooms(event.scan?.inventory || allItems)
               await updateSalesLead(savedLeadId, {
                 inventory: finalInventory,
                 totalItems: event.scan?.totalItems ?? finalInventory.length,
