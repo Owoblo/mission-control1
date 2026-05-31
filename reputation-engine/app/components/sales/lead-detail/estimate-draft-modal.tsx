@@ -4092,113 +4092,134 @@ export function EstimateDraftModal({
               {(route?.category === 'long-distance' || quoteType === 'long_distance') && (() => {
                 const uhaulPerTruck = Math.round(Number(uhaulInputPerTruck || 0) * 100) / 100
                 const ldTruckCount = pricingBreakdown?.truckCount || 1
-                const ldTruckOperational = Math.round(uhaulPerTruck * 1.5 * 100) / 100
-                const ldLaborCost = ldTruckCount >= 2 ? 3000 : 2000
-                const ldTotalCost = uhaulPerTruck > 0 ? Math.round((ldTruckOperational * ldTruckCount + ldLaborCost) * 100) / 100 : 0
-                const ldFloor = ldTotalCost > 0 ? Math.round(ldTotalCost / 0.60 * 100) / 100 : 0
+                const ldDistKm = route?.distanceKm || 0
+                const ldTruckSize = truckSizeFromCubicFeet(pricingBreakdown?.totalCubicFeet || 0)
+                const fuelPer100km = UHAUL_FUEL_L_PER_100KM[ldTruckSize] ?? 23.5
+
+                // Itemized truck costs — same logic as local, NO 1.5× shortcut
+                const ldFuel          = Math.round((ldDistKm / 100) * fuelPer100km * uhaulGasPrice * ldTruckCount * 100) / 100
+                const ldInsurance     = Math.round(20 * 3 * ldTruckCount * 100) / 100  // 3-day rental
+                const ldBlankets      = Math.round((DEFAULT_BLANKET_BAGS[ldTruckSize] ?? 6) * ldTruckCount * UHAUL_BLANKET_BAG_COST * 100) / 100
+                const ldStretchWrap   = 25 * ldTruckCount
+                const ldSubtotalHST   = Math.round((uhaulPerTruck * ldTruckCount + ldInsurance + ldBlankets + ldStretchWrap) * 0.13 * 100) / 100
+                const ldTruckTotal    = uhaulPerTruck > 0 ? Math.round((uhaulPerTruck * ldTruckCount + ldFuel + ldInsurance + ldBlankets + ldStretchWrap + ldSubtotalHST) * 100) / 100 : 0
+                const ldReturnTransport = Math.round((80 + ldDistKm * 0.18) * 100) / 100  // car rental + gas back
+                const ldBuffer        = uhaulPerTruck > 0 ? Math.round(ldTruckTotal * 0.10 * 100) / 100 : 0
+                const ldLaborHours    = pricingBreakdown?.totalHours || 8
+                const ldLabor         = Math.round((pricingBreakdown?.crewSize || 3) * ldLaborHours * 25 * 100) / 100
+                const ldTotalCost     = uhaulPerTruck > 0 ? Math.round((ldTruckTotal + ldReturnTransport + ldBuffer + ldLabor) * 100) / 100 : 0
+
+                const ldFloor  = ldTotalCost > 0 ? Math.round(ldTotalCost / 0.60 * 100) / 100 : 0
                 const ldTarget = ldTotalCost > 0 ? Math.round(ldTotalCost / 0.50 * 100) / 100 : 0
-                const ldCeiling = ldTotalCost > 0 ? Math.round(ldTotalCost / 0.44 * 100) / 100 : 0
+
                 const originCityForUrl = originCity || originAddress || ''
-                const destCityForUrl = destCity || destAddress || ''
+                const destCityForUrl   = destCity || destAddress || ''
+                // Pre-filled Google search — lets rep quickly find U-Haul pricing for this route
                 const uhaulUrl = originCityForUrl && destCityForUrl
-                  ? `https://www.uhaul.com/Truck-Rentals/?go=movingequipment&size=26ft&OneWay=true`
+                  ? `https://www.google.com/search?q=uhaul+one+way+26ft+truck+rental+${encodeURIComponent(originCityForUrl)}+to+${encodeURIComponent(destCityForUrl)}`
                   : 'https://www.uhaul.com/Truck-Rentals/One-Way-Truck-Rentals.aspx'
                 return (
                   <div className="mt-4 rounded-[10px] border border-blue-200 bg-blue-50 p-3 space-y-3">
+
+                    {/* Header */}
                     <div className="flex items-center justify-between gap-2">
                       <div>
-                        <div className="text-xs font-semibold text-blue-900">Long-Distance Pricing</div>
+                        <div className="text-xs font-semibold text-blue-900">Long-Distance Job Cost</div>
                         <div className="text-[10px] text-blue-700 mt-0.5">
-                          {route?.distanceKm ? `${route.distanceKm} km · ` : ''}{ldTruckCount} truck{ldTruckCount === 1 ? '' : 's'} detected — U-Haul one-way
+                          {ldDistKm > 0 ? `${ldDistKm} km · ` : ''}{ldTruckCount} truck{ldTruckCount === 1 ? '' : 's'} — U-Haul one-way
                         </div>
                       </div>
-                      <a
-                        href={uhaulUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <a href={uhaulUrl} target="_blank" rel="noopener noreferrer"
                         className="shrink-0 rounded-[6px] bg-blue-700 px-2.5 py-1.5 text-[10px] font-semibold text-white hover:bg-blue-800 transition"
                       >
-                        Check U-Haul →
+                        Search U-Haul pricing →
                       </a>
                     </div>
 
-                    <div className="space-y-1.5">
+                    {/* U-Haul one-way quote input */}
+                    <div className="space-y-1">
                       <div className="flex items-center justify-between">
-                        <div className="text-[10px] font-semibold text-blue-800 uppercase tracking-wide">U-Haul one-way quote (per truck)</div>
-                        {uhaulInputIsEstimate && <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-semibold">Auto-estimated · verify on uhaul.com</span>}
+                        <div className="text-[10px] font-semibold text-blue-800 uppercase tracking-wide">U-Haul quote (per truck, one-way)</div>
+                        {uhaulInputIsEstimate && <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-semibold">Estimated · verify before quoting</span>}
                       </div>
                       <div className="relative">
                         <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--app-muted)]">$</span>
-                        <input
-                          type="number"
-                          min={0}
-                          step={50}
-                          value={uhaulInputPerTruck}
+                        <input type="number" min={0} step={50} value={uhaulInputPerTruck}
                           onChange={e => { setUhaulInputPerTruck(e.target.value); setUhaulInputIsEstimate(false) }}
-                          placeholder="e.g. 800"
-                          className="crm-input pl-5 w-full text-sm font-semibold"
+                          placeholder="e.g. 800" className="crm-input pl-5 w-full text-sm font-semibold"
                         />
                       </div>
-                      {ldTruckCount >= 2 && uhaulPerTruck > 0 && (
-                        <div className="text-[10px] text-blue-700">{ldTruckCount} trucks × {formatMoney(uhaulPerTruck)} = {formatMoney(uhaulPerTruck * ldTruckCount)} total U-Haul</div>
-                      )}
+                      <div className="text-[9px] text-blue-600">⚠ U-Haul prices vary 2× between weekdays and weekends. Check before locking in.</div>
                     </div>
 
-                    {uhaulPerTruck > 0 && ldTotalCost > 0 && (
-                      <div className="rounded-[8px] bg-white border border-blue-200 p-2.5 space-y-1.5 text-[10px]">
-                        <div className="flex justify-between text-blue-800">
-                          <span>Truck cost × 1.5 (gas + insurance)</span>
-                          <span className="font-semibold">{formatMoney(ldTruckOperational * ldTruckCount)}</span>
-                        </div>
-                        <div className="flex justify-between text-blue-800">
-                          <span>Labor (load + unload, baked in)</span>
-                          <span className="font-semibold">{formatMoney(ldLaborCost)}</span>
-                        </div>
-                        <div className="flex justify-between text-blue-900 font-semibold border-t border-blue-100 pt-1.5">
-                          <span>Our total cost</span>
-                          <span>{formatMoney(ldTotalCost)}</span>
-                        </div>
-                        <div className="border-t border-blue-100 pt-1.5 space-y-1">
-                          <div className="flex justify-between text-blue-700">
-                            <span>Floor — 40% margin</span>
-                            <span className="font-semibold">{formatMoney(ldFloor)}</span>
+                    {/* Full itemized breakdown — only shown once a price is entered */}
+                    {uhaulPerTruck > 0 && (
+                      <div className="rounded-[8px] bg-white border border-blue-200 p-2.5 space-y-1 text-[10px]">
+                        <div className="text-[9px] font-bold uppercase tracking-wide text-blue-700 mb-1.5">🚛 Truck</div>
+                        {[
+                          [`U-Haul rental (${ldTruckCount}× one-way)`, uhaulPerTruck * ldTruckCount],
+                          [`Fuel (~${Math.round(ldDistKm * fuelPer100km / 100)}L @ $${uhaulGasPrice.toFixed(2)}/L — no HST)`, ldFuel],
+                          [`SafeMove insurance (3 days × ${ldTruckCount}×)`, ldInsurance],
+                          [`Blankets + stretch wrap`, ldBlankets + ldStretchWrap],
+                          [`HST 13% (excl. fuel)`, ldSubtotalHST],
+                        ].map(([label, val]) => (
+                          <div key={String(label)} className="flex justify-between">
+                            <span className="text-blue-700">{label}</span>
+                            <span className="font-semibold text-blue-900">{formatMoney(Number(val))}</span>
                           </div>
-                          <div className="flex justify-between text-blue-900 font-bold">
-                            <span>Target — 50% margin</span>
-                            <span>{formatMoney(ldTarget)}</span>
-                          </div>
-                          <div className="flex justify-between text-blue-700">
-                            <span>Ceiling — 56% margin</span>
-                            <span className="font-semibold">{formatMoney(ldCeiling)}</span>
-                          </div>
-                          <div className="text-blue-600 text-[9px] pt-0.5">All pre-tax · customer pays +HST on top</div>
+                        ))}
+                        <div className="flex justify-between border-t border-blue-100 pt-1.5">
+                          <span className="text-blue-800">Crew return (car rental + gas back)</span>
+                          <span className="font-semibold text-blue-900">{formatMoney(ldReturnTransport)}</span>
                         </div>
+                        <div className="flex justify-between">
+                          <span className="text-blue-700">10% buffer (extra gas, misc)</span>
+                          <span className="font-semibold text-blue-900">{formatMoney(ldBuffer)}</span>
+                        </div>
+
+                        <div className="text-[9px] font-bold uppercase tracking-wide text-blue-700 mt-2 mb-1">👷 Labour</div>
+                        <div className="flex justify-between">
+                          <span className="text-blue-700">{pricingBreakdown?.crewSize || 3} movers × {ldLaborHours}h @ $25/hr</span>
+                          <span className="font-semibold text-blue-900">{formatMoney(ldLabor)}</span>
+                        </div>
+
+                        <div className="flex justify-between border-t-2 border-blue-200 pt-1.5 font-bold text-xs">
+                          <span className="text-blue-900">Our total cost</span>
+                          <span className="text-blue-900">{formatMoney(ldTotalCost)}</span>
+                        </div>
+
+                        {ldTarget > 0 && (
+                          <div className="mt-2 space-y-1 pt-1.5 border-t border-blue-100">
+                            <div className="flex justify-between text-blue-700">
+                              <span>Floor — 40% margin</span>
+                              <span className="font-semibold">{formatMoney(ldFloor)}</span>
+                            </div>
+                            <div className="flex justify-between text-blue-900 font-bold">
+                              <span>Target — 50% margin</span>
+                              <span>{formatMoney(ldTarget)} + HST = {formatMoney(Math.round(ldTarget * 1.13 * 100) / 100)}</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
                     {uhaulPerTruck > 0 && ldTarget > 0 && (
-                      <div className="space-y-1.5">
-                        <div className="text-[10px] text-blue-700 font-medium">
-                          Range: {formatMoney(ldFloor)} – {formatMoney(ldCeiling)} · Sweet spot: {formatMoney(ldTarget)} + HST = {formatMoney(Math.round(ldTarget * 1.13 * 100) / 100)}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onSetLineItems([{
-                              description: 'Long-Distance Moving Service — All Inclusive',
-                              details: `U-Haul one-way · ${ldTruckCount} truck${ldTruckCount === 1 ? '' : 's'} · packing, loading, transport, unloading`,
-                              amount: ldTarget,
-                            }])
-                            setOverrideInput(String(ldTarget))
-                            setOverrideApplied(true)
-                            setBookTodayActive(false)
-                            setTenPctActive(false)
-                          }}
-                          className="w-full rounded-[6px] bg-blue-700 px-3 py-2 text-[11px] font-semibold text-white hover:bg-blue-800 transition"
-                        >
-                          Lock in flat rate — {formatMoney(ldTarget)} + HST
-                        </button>
-                      </div>
+                      <button type="button"
+                        onClick={() => {
+                          onSetLineItems([{
+                            description: 'Long-Distance Moving Service — All Inclusive',
+                            details: `U-Haul one-way · ${ldTruckCount} truck${ldTruckCount === 1 ? '' : 's'} · ${ldDistKm} km · loading, transport, unloading`,
+                            amount: ldTarget,
+                          }])
+                          setOverrideInput(String(ldTarget))
+                          setOverrideApplied(true)
+                          setBookTodayActive(false)
+                          setTenPctActive(false)
+                        }}
+                        className="w-full rounded-[6px] bg-blue-700 px-3 py-2 text-[11px] font-semibold text-white hover:bg-blue-800 transition"
+                      >
+                        Apply flat rate — {formatMoney(ldTarget)} + HST
+                      </button>
                     )}
                   </div>
                 )
