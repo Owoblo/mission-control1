@@ -17,7 +17,7 @@ import type { EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem
 import {
   calcUHaulCost, compareStrategies, truckSizeFromCubicFeet, calcStrategyTiming, calcLongDistanceUHaul,
   DEFAULT_BLANKET_BAGS, DEFAULT_GAS_PRICE_PER_L, DEFAULT_MISC_BUFFER,
-  UHAUL_DAILY_RATES, UHAUL_PER_KM_RATE, UHAUL_FUEL_L_PER_100KM, type TripStrategy,
+  UHAUL_DAILY_RATES, UHAUL_PER_KM_RATE, UHAUL_FUEL_L_PER_100KM, UHAUL_BLANKET_BAG_COST, type TripStrategy,
 } from '@/lib/uhaul-calculator'
 
 // Inline address autocomplete — shares the same API as lead-basics-panel
@@ -3704,8 +3704,10 @@ export function EstimateDraftModal({
             })()}
 
 
-            {/* U-Haul Job Cost Calculator */}
-            {pricingBreakdown && (distanceKm > 0 || (route?.distanceKm ?? 0) > 0) && (() => {
+            {/* U-Haul Job Cost Calculator — show whenever we have a pricing breakdown, even without route */}
+            {pricingBreakdown && (() => {
+              // Use route distance, manual override, or 0 for moves without confirmed destination
+              const _unusedDistCheck = true
               const oneWayKm = distanceKm || route?.distanceKm || 0
               const truckCount = pricingBreakdown.truckCount || 1
               const tripStrategy = (pricingBreakdown.tripStrategy || 'single_truck') as TripStrategy
