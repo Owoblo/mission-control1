@@ -125,6 +125,84 @@ function moveTypeLabel(type?: string) {
   return 'Residential Move'
 }
 
+interface TimelinePhase {
+  emoji: string
+  time: string
+  title: string
+  detail: string
+}
+
+function buildMoveTimeline(params: {
+  startTime?: string   // "09:00"
+  crewSize: number
+  trucks: number
+  estimatedHours: number
+  quoteType?: string
+  moveType?: string
+  disassemblyItems: string[]
+  originCity?: string
+  destCity?: string
+  isTwoDay?: boolean
+}): TimelinePhase[] {
+  const { startTime = '09:00', crewSize, trucks, estimatedHours, quoteType, disassemblyItems, originCity, destCity, isTwoDay } = params
+  const [startH, startM = 0] = startTime.split(':').map(Number)
+  const startDecimal = startH + startM / 60
+
+  function fmtH(decimal: number) {
+    const total = ((decimal % 24) + 24) % 24
+    const h = Math.floor(total)
+    const m = Math.round((total - h) * 60)
+    const ampm = h >= 12 ? 'PM' : 'AM'
+    return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${ampm}`
+  }
+
+  const isLongDistance = quoteType === 'long_distance' || params.moveType === 'long-distance'
+
+  if (isLongDistance) {
+    // Long distance: load → long drive → unload (may be 2 days)
+    const loadH   = Math.min(estimatedHours * 0.4, 6)
+    const driveH  = Math.max(estimatedHours - loadH * 2, 4) // remaining minus unload
+    const unloadH = loadH * 0.9
+    const depart = startDecimal + loadH
+    const arrive = depart + driveH
+    const done   = arrive + unloadH
+    const phases: TimelinePhase[] = [
+      { emoji: '🚚', time: fmtH(startDecimal), title: `Crew arrives${originCity ? ` in ${originCity}` : ''}`, detail: `${crewSize} movers · ${trucks} truck${trucks > 1 ? 's' : ''}${disassemblyItems.length > 0 ? ` · Disassemble: ${disassemblyItems.slice(0, 2).join(', ')}${disassemblyItems.length > 2 ? ' +more' : ''}` : ''}` },
+      { emoji: '📦', time: fmtH(depart), title: 'Loading complete — depart', detail: `All items wrapped, protected, loaded · ${trucks === 2 ? 'Both trucks' : 'Truck'} heading to ${destCity || 'destination'}` },
+      { emoji: '🛣️', time: `~${Math.round(driveH)}h drive`, title: `In transit${destCity ? ` → ${destCity}` : ''}`, detail: 'Items secured for long-distance transport' },
+      { emoji: '🏠', time: fmtH(arrive), title: `Arrive at ${destCity || 'destination'}`, detail: 'Begin unloading · place furniture · reassemble' },
+      { emoji: '✅', time: fmtH(done), title: 'Move complete', detail: done > 22 ? 'May continue next morning depending on arrival time' : 'Final walkthrough with customer' },
+    ]
+    return phases
+  }
+
+  if (isTwoDay) {
+    return [
+      { emoji: '🚚', time: fmtH(startDecimal), title: 'Day 1 — Crew arrives', detail: `${crewSize} movers · ${trucks} truck${trucks > 1 ? 's' : ''} · Start loading` },
+      { emoji: '📦', time: fmtH(startDecimal + estimatedHours * 0.55), title: 'Loading complete', detail: `All furniture wrapped, trucks packed · Drive to ${destCity || 'destination'}` },
+      { emoji: '🛑', time: fmtH(startDecimal + estimatedHours * 0.65), title: 'End of Day 1', detail: 'Items secure in truck — crew returns, fresh start tomorrow' },
+      { emoji: '🚚', time: '9:00 AM', title: 'Day 2 — Fresh crew arrives', detail: `Unload · unwrap · place furniture${disassemblyItems.length > 0 ? ` · Reassemble: ${disassemblyItems.slice(0, 2).join(', ')}` : ''}` },
+      { emoji: '✅', time: fmtH(9 + estimatedHours * 0.4), title: 'Move complete', detail: 'Final walkthrough · all items in place' },
+    ]
+  }
+
+  // Standard local/medium move
+  const loadH   = estimatedHours * 0.52
+  const driveH  = Math.max(estimatedHours * 0.08, 0.25)
+  const unloadH = estimatedHours * 0.4
+  const loadDone = startDecimal + loadH
+  const arrive   = loadDone + driveH
+  const done     = arrive + unloadH
+
+  return [
+    { emoji: '🚚', time: fmtH(startDecimal), title: 'Crew arrives at origin', detail: `${crewSize} movers · ${trucks} truck${trucks > 1 ? 's' : ''}${disassemblyItems.length > 0 ? ` · Disassemble: ${disassemblyItems.slice(0, 2).join(', ')}${disassemblyItems.length > 2 ? ' +more' : ''}` : ''} · wrap all furniture` },
+    { emoji: '📦', time: fmtH(loadDone), title: 'Loading complete', detail: `All items wrapped and secured · truck${trucks > 1 ? 's' : ''} ready to go` },
+    { emoji: '🚛', time: fmtH(loadDone), title: `Driving to ${destCity || 'destination'}`, detail: 'Travel time included in your estimate' },
+    { emoji: '🏠', time: fmtH(arrive), title: 'Arrive at new home', detail: `Unload · place furniture${disassemblyItems.length > 0 ? ` · Reassemble: ${disassemblyItems.slice(0, 2).join(', ')}` : ''}` },
+    { emoji: '✅', time: fmtH(done), title: 'Move complete', detail: 'Final walkthrough · keys handed over' },
+  ]
+}
+
 function groupInventoryByRoom(items: InventoryItem[]): Map<string, InventoryItem[]> {
   const map = new Map<string, InventoryItem[]>()
   for (const item of items) {
@@ -776,6 +854,54 @@ function QuoteAcceptPageInner() {
             </div>
           </div>
         )}
+
+        {/* ── Move Day Timeline ── */}
+        {rawHours > 0 && (() => {
+          const disItems = (quote.jobFactors?.disassemblyItemCount ?? 0) > 0
+            ? inventory.filter(i => /\bbed\b|\btable\b|\bdesk\b|\bdresser\b|\bwardrobe\b/i.test(i.name || i.item || '')).slice(0, 4).map(i => i.name || i.item || '')
+            : []
+          const isTwoDay = rawHours > 13
+          const timeline = buildMoveTimeline({
+            startTime: quote.moveTime || '09:00',
+            crewSize, trucks, estimatedHours: rawHours,
+            quoteType: quote.quoteType,
+            moveType: quote.moveType,
+            disassemblyItems: disItems,
+            originCity: quote.originCity,
+            destCity: quote.destCity,
+            isTwoDay,
+          })
+          return (
+            <div className="mb-6 overflow-hidden rounded-xl border border-[#1a2744]/10 bg-white">
+              <div className="border-b border-[#1a2744]/8 px-5 py-4">
+                <div className="text-xs font-bold uppercase tracking-wider text-[#1a2744]">Your Move Day</div>
+                <div className="text-[10px] text-[#1a2744]/40 mt-0.5">How your move unfolds from start to finish</div>
+              </div>
+              <div className="px-5 py-4">
+                <div className="relative">
+                  {/* Vertical line */}
+                  <div className="absolute left-3.5 top-4 bottom-4 w-px bg-[#1a2744]/10" />
+                  <div className="space-y-5">
+                    {timeline.map((phase, i) => (
+                      <div key={i} className="flex gap-4">
+                        <div className="relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white border border-[#1a2744]/15 text-sm">
+                          {phase.emoji}
+                        </div>
+                        <div className="flex-1 min-w-0 pt-0.5">
+                          <div className="flex items-baseline gap-2 flex-wrap">
+                            <span className="text-xs font-bold text-[#1a2744]">{phase.time}</span>
+                            <span className="text-xs font-semibold text-[#1a2744]/70">{phase.title}</span>
+                          </div>
+                          <div className="mt-0.5 text-[11px] text-[#1a2744]/40 leading-4">{phase.detail}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
 
         {/* ── Pricing ── */}
         <div className="mb-6 overflow-hidden rounded-xl border border-[#1a2744]/10 bg-white">

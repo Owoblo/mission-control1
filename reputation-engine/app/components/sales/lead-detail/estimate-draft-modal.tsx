@@ -3782,7 +3782,9 @@ export function EstimateDraftModal({
               })
 
               // Only show trip comparison when the system has detected a multi-truck or two-trip move
+              // No trip comparison for long-distance — 2 trucks always go together, no return trips possible
               const showComparison = oneWayKm > 0 && oneWayKm < 120 &&
+                route?.category !== 'long-distance' && quoteType !== 'long_distance' &&
                 (tripStrategy === 'two_trucks' || tripStrategy === 'single_truck_two_trips' || tripStrategy === 'three_trucks')
               const comparison = showComparison
                 ? compareStrategies(
