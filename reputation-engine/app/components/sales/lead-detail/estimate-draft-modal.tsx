@@ -3701,174 +3701,6 @@ export function EstimateDraftModal({
               </div>
             ) : null}
 
-            {/* ── JOB PLAN (Logistics + Scope merged) ── */}
-            {pricingBreakdown && (() => {
-              const totalH = pricingBreakdown.totalHours
-              const trucks = pricingBreakdown.truckCount
-              const needsPacking = jobFactors.packingStatus === 'not-started' || jobFactors.packingStatus === 'partial'
-              const hasStorage = legsEnabled && legs.some(l => l.type === 'storage' || l.type === 'storage_delivery')
-              // Only split into D1/D2 when move genuinely can't finish same day
-              // 9am start: 9 + totalH > 21 (10pm cutoff) = needs Day 2
-              // Storage moves always split by definition
-              const genuinelyTwoDay = (9 + totalH) > 21 || hasStorage
-              const isBigMove = genuinelyTwoDay
-
-              const days: Array<{ label: string; who: string; hours: string; color: string; note?: string }> = []
-
-              if (needsPacking) {
-                days.push({
-                  label: 'Packing Day',
-                  who: `${flags?.packingDayEstimate?.crewSize ?? 2} packers`,
-                  hours: flags?.packingDayEstimate?.hours ? `~${flags.packingDayEstimate.hours}h` : '~4-6h',
-                  color: 'emerald',
-                  note: 'Day before move — crew packs and labels everything',
-                })
-              }
-
-              days.push({
-                label: hasStorage ? 'Loading + Move to Storage' : 'Loading Day',
-                who: `${pricingBreakdown.crewSize} movers · ${trucks} truck${trucks > 1 ? 's' : ''}`,
-                hours: `~${pricingBreakdown.loadHours + pricingBreakdown.driveHours}h`,
-                color: 'blue',
-                note: hasStorage ? 'Load, transit to storage, unload — no reassembly' : trucks >= 2 ? 'Both trucks load simultaneously — faster' : 'Load, transit, offload',
-              })
-
-              if (hasStorage) {
-                days.push({
-                  label: 'Storage → New Home',
-                  who: `${pricingBreakdown.crewSize} movers`,
-                  hours: `~${pricingBreakdown.unloadHours + 1}h`,
-                  color: 'purple',
-                  note: 'Pickup from storage, deliver + reassemble — no rewrap charge',
-                })
-              } else if (isBigMove && flags?.twoDayMoveEstimate) {
-                days.push({
-                  label: 'Unloading Day',
-                  who: `${pricingBreakdown.crewSize} movers`,
-                  hours: `~${flags.twoDayMoveEstimate.day2Hours}h`,
-                  color: 'purple',
-                  note: 'Fresh crew — unwrap, place, reassemble',
-                })
-              }
-
-              // Scope items
-              const scopeLines: string[] = [
-                `${effectiveInventoryMetrics.totalItems} items · ${effectiveInventoryMetrics.totalCubicFeet} cu ft · wrap + pad all furniture`,
-              ]
-              if (includedDisassemblyItems.length > 0) {
-                scopeLines.push(`${disassemblyScopeLabel}: ${includedDisassemblyItems.join(', ')}`)
-              }
-              pricingBreakdown.specialtyItemFlags.forEach(item => scopeLines.push(`Specialty handling: ${item}`))
-              if (jobFactors.specialtyNotes?.trim()) scopeLines.push(jobFactors.specialtyNotes.trim())
-
-              const colorMap: Record<string, string> = {
-                emerald: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-                blue: 'border-blue-200 bg-blue-50 text-blue-800',
-                purple: 'border-purple-200 bg-purple-50 text-purple-800',
-              }
-
-              return (
-                <div>
-                  <div className="crm-label mb-3">Job Plan</div>
-                  <div className="rounded-[8px] border border-[var(--app-line)] overflow-hidden">
-                    {/* Day cards */}
-                    {days.length > 0 && (
-                      <div className={`divide-y divide-[var(--app-line)] ${days.length === 0 ? '' : ''}`}>
-                        {days.map((day, i) => (
-                          <div key={i} className={`px-3 py-2.5 ${colorMap[day.color]}`}>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/60 text-[9px] font-bold">D{i + 1}</span>
-                                <span className="text-xs font-semibold">{day.label}</span>
-                              </div>
-                              <span className="text-[10px] font-semibold">{day.hours}</span>
-                            </div>
-                            <div className="mt-0.5 text-[10px] opacity-80">{day.who}{day.note ? ` · ${day.note}` : ''}</div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {/* Scope lines */}
-                    <div className="px-3 py-2.5 bg-white space-y-1">
-                      {scopeLines.map((line, i) => (
-                        <div key={i} className="text-[11px] text-[var(--app-muted)]">✓ {line}</div>
-                      ))}
-                      {pricingBreakdown.pricingStatus === 'provisional' && (
-                        <div className="text-[11px] text-amber-700">⚠ Travel time provisional — add destination address</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )
-            })()}
-
-
-            {/* ── Multi-Leg Cost Overview (when multi-stop is on) ── */}
-            {legsEnabled && legs.length > 1 && (
-              <div className="border border-[var(--app-line)] rounded-[10px] overflow-hidden">
-                <div className="px-3.5 py-2.5 bg-[var(--app-surface)] flex items-center justify-between">
-                  <span className="text-xs font-semibold text-[var(--app-ink)]">Multi-Stop Cost Overview</span>
-                  <span className="text-[10px] text-[var(--app-muted)]">{legs.length} legs</span>
-                </div>
-                <div className="px-3.5 pb-3.5 pt-1 bg-white space-y-2">
-                  {legs.map((leg, i) => {
-                    const legKm = legRoutes[leg.id]?.distanceKm || leg.distanceKm || 0
-                    const legDriveH = legRoutes[leg.id]?.driveHours || leg.driveHours || 0
-                    const isLDLeg = legKm > 200 || legDriveH > 2.5
-                    const legLoadH = pricingBreakdown ? pricingBreakdown.loadHours / legs.length : 3
-                    const legUnloadH = pricingBreakdown ? pricingBreakdown.unloadHours / legs.length : 2
-                    const legCrewH  = isLDLeg
-                      ? Math.round((legLoadH + legDriveH + legUnloadH + legDriveH) * 4) / 4
-                      : Math.round((legLoadH + legDriveH + legUnloadH) * 4) / 4
-                    const legLabor  = Math.round((pricingBreakdown?.crewSize || 3) * legCrewH * 25 * 100) / 100
-                    const legTruckAmt = isLDLeg
-                      ? calcLongDistanceUHaul(legKm, truckSizeFromCubicFeet(pricingBreakdown?.totalCubicFeet || 0), pricingBreakdown?.truckCount || 1).internalCost
-                      : Math.round((UHAUL_DAILY_RATES[truckSizeFromCubicFeet(pricingBreakdown?.totalCubicFeet || 0)] ?? 49.99) * (pricingBreakdown?.truckCount || 1) * 100) / 100
-                    const legTotal  = Math.round((legTruckAmt + legLabor + 15) * 100) / 100
-                    const typeTag   = leg.type === 'storage' ? 'House→Storage' : leg.type === 'storage_delivery' ? 'Storage→Dest' : isLDLeg ? 'Long-distance' : 'Local'
-                    return (
-                      <div key={leg.id} className="rounded-[6px] border border-[var(--app-line)] p-2.5 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <div className="text-[10px] font-semibold text-[var(--app-ink)]">
-                            Leg {i+1}: {leg.label || typeTag}
-                          </div>
-                          <span className={`text-[9px] rounded-full px-2 py-0.5 font-semibold ${isLDLeg ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>{typeTag}</span>
-                        </div>
-                        {[
-                          [`Truck${isLDLeg ? ' (one-way est.)' : ' + mileage'}`, legTruckAmt],
-                          [`Labour (${legCrewH}h)`, legLabor],
-                          [`Misc`, 15],
-                        ].map(([label, val]) => (
-                          <div key={String(label)} className="flex justify-between text-[10px]">
-                            <span className="text-[var(--app-muted)]">{label}</span>
-                            <span className="text-[var(--app-ink)]">{formatMoney(Number(val))}</span>
-                          </div>
-                        ))}
-                        <div className="flex justify-between text-xs font-semibold border-t border-[var(--app-line)] pt-1">
-                          <span>Leg {i+1} cost</span><span>{formatMoney(legTotal)}</span>
-                        </div>
-                      </div>
-                    )
-                  })}
-                  <div className="flex justify-between text-xs font-bold border-t-2 border-[var(--app-line)] pt-2">
-                    <span>Combined cost estimate</span>
-                    <span>{formatMoney(legs.reduce((sum, leg, i) => {
-                      const legKm = legRoutes[leg.id]?.distanceKm || leg.distanceKm || 0
-                      const legDriveH = legRoutes[leg.id]?.driveHours || leg.driveHours || 0
-                      const isLDLeg = legKm > 200 || legDriveH > 2.5
-                      const legLoadH = pricingBreakdown ? pricingBreakdown.loadHours / legs.length : 3
-                      const legUnloadH = pricingBreakdown ? pricingBreakdown.unloadHours / legs.length : 2
-                      const legCrewH = isLDLeg ? Math.round((legLoadH + legDriveH + legUnloadH + legDriveH) * 4) / 4 : Math.round((legLoadH + legDriveH + legUnloadH) * 4) / 4
-                      const legLabor = Math.round((pricingBreakdown?.crewSize || 3) * legCrewH * 25 * 100) / 100
-                      const legTruckAmt = isLDLeg ? calcLongDistanceUHaul(legKm, truckSizeFromCubicFeet(pricingBreakdown?.totalCubicFeet || 0), pricingBreakdown?.truckCount || 1).internalCost : Math.round((UHAUL_DAILY_RATES[truckSizeFromCubicFeet(pricingBreakdown?.totalCubicFeet || 0)] ?? 49.99) * (pricingBreakdown?.truckCount || 1) * 100) / 100
-                      return sum + legTruckAmt + legLabor + 15
-                    }, 0))}</span>
-                  </div>
-                  <div className="text-[9px] text-[var(--app-muted)]">Each leg priced independently — see Live Margin for final customer pricing.</div>
-                </div>
-              </div>
-            )}
-
             {/* U-Haul Job Cost Calculator — local/medium only; long-distance uses the panel below */}
             {pricingBreakdown && route?.category !== 'long-distance' && quoteType !== 'long_distance' && (() => {
               const oneWayKm = distanceKm || route?.distanceKm || 0
@@ -4109,6 +3941,175 @@ export function EstimateDraftModal({
                 </div>
               )
             })()}
+
+
+            {/* ── JOB PLAN (Logistics + Scope merged) ── */}
+            {pricingBreakdown && (() => {
+              const totalH = pricingBreakdown.totalHours
+              const trucks = pricingBreakdown.truckCount
+              const needsPacking = jobFactors.packingStatus === 'not-started' || jobFactors.packingStatus === 'partial'
+              const hasStorage = legsEnabled && legs.some(l => l.type === 'storage' || l.type === 'storage_delivery')
+              // Only split into D1/D2 when move genuinely can't finish same day
+              // 9am start: 9 + totalH > 21 (10pm cutoff) = needs Day 2
+              // Storage moves always split by definition
+              const genuinelyTwoDay = (9 + totalH) > 21 || hasStorage
+              const isBigMove = genuinelyTwoDay
+
+              const days: Array<{ label: string; who: string; hours: string; color: string; note?: string }> = []
+
+              if (needsPacking) {
+                days.push({
+                  label: 'Packing Day',
+                  who: `${flags?.packingDayEstimate?.crewSize ?? 2} packers`,
+                  hours: flags?.packingDayEstimate?.hours ? `~${flags.packingDayEstimate.hours}h` : '~4-6h',
+                  color: 'emerald',
+                  note: 'Day before move — crew packs and labels everything',
+                })
+              }
+
+              days.push({
+                label: hasStorage ? 'Loading + Move to Storage' : 'Loading Day',
+                who: `${pricingBreakdown.crewSize} movers · ${trucks} truck${trucks > 1 ? 's' : ''}`,
+                hours: `~${pricingBreakdown.loadHours + pricingBreakdown.driveHours}h`,
+                color: 'blue',
+                note: hasStorage ? 'Load, transit to storage, unload — no reassembly' : trucks >= 2 ? 'Both trucks load simultaneously — faster' : 'Load, transit, offload',
+              })
+
+              if (hasStorage) {
+                days.push({
+                  label: 'Storage → New Home',
+                  who: `${pricingBreakdown.crewSize} movers`,
+                  hours: `~${pricingBreakdown.unloadHours + 1}h`,
+                  color: 'purple',
+                  note: 'Pickup from storage, deliver + reassemble — no rewrap charge',
+                })
+              } else if (isBigMove && flags?.twoDayMoveEstimate) {
+                days.push({
+                  label: 'Unloading Day',
+                  who: `${pricingBreakdown.crewSize} movers`,
+                  hours: `~${flags.twoDayMoveEstimate.day2Hours}h`,
+                  color: 'purple',
+                  note: 'Fresh crew — unwrap, place, reassemble',
+                })
+              }
+
+              // Scope items
+              const scopeLines: string[] = [
+                `${effectiveInventoryMetrics.totalItems} items · ${effectiveInventoryMetrics.totalCubicFeet} cu ft · wrap + pad all furniture`,
+              ]
+              if (includedDisassemblyItems.length > 0) {
+                scopeLines.push(`${disassemblyScopeLabel}: ${includedDisassemblyItems.join(', ')}`)
+              }
+              pricingBreakdown.specialtyItemFlags.forEach(item => scopeLines.push(`Specialty handling: ${item}`))
+              if (jobFactors.specialtyNotes?.trim()) scopeLines.push(jobFactors.specialtyNotes.trim())
+
+              const colorMap: Record<string, string> = {
+                emerald: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+                blue: 'border-blue-200 bg-blue-50 text-blue-800',
+                purple: 'border-purple-200 bg-purple-50 text-purple-800',
+              }
+
+              return (
+                <div>
+                  <div className="crm-label mb-3">Job Plan</div>
+                  <div className="rounded-[8px] border border-[var(--app-line)] overflow-hidden">
+                    {/* Day cards */}
+                    {days.length > 0 && (
+                      <div className={`divide-y divide-[var(--app-line)] ${days.length === 0 ? '' : ''}`}>
+                        {days.map((day, i) => (
+                          <div key={i} className={`px-3 py-2.5 ${colorMap[day.color]}`}>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/60 text-[9px] font-bold">D{i + 1}</span>
+                                <span className="text-xs font-semibold">{day.label}</span>
+                              </div>
+                              <span className="text-[10px] font-semibold">{day.hours}</span>
+                            </div>
+                            <div className="mt-0.5 text-[10px] opacity-80">{day.who}{day.note ? ` · ${day.note}` : ''}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {/* Scope lines */}
+                    <div className="px-3 py-2.5 bg-white space-y-1">
+                      {scopeLines.map((line, i) => (
+                        <div key={i} className="text-[11px] text-[var(--app-muted)]">✓ {line}</div>
+                      ))}
+                      {pricingBreakdown.pricingStatus === 'provisional' && (
+                        <div className="text-[11px] text-amber-700">⚠ Travel time provisional — add destination address</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+
+
+            {/* ── Multi-Leg Cost Overview (when multi-stop is on) ── */}
+            {legsEnabled && legs.length > 1 && (
+              <div className="border border-[var(--app-line)] rounded-[10px] overflow-hidden">
+                <div className="px-3.5 py-2.5 bg-[var(--app-surface)] flex items-center justify-between">
+                  <span className="text-xs font-semibold text-[var(--app-ink)]">Multi-Stop Cost Overview</span>
+                  <span className="text-[10px] text-[var(--app-muted)]">{legs.length} legs</span>
+                </div>
+                <div className="px-3.5 pb-3.5 pt-1 bg-white space-y-2">
+                  {legs.map((leg, i) => {
+                    const legKm = legRoutes[leg.id]?.distanceKm || leg.distanceKm || 0
+                    const legDriveH = legRoutes[leg.id]?.driveHours || leg.driveHours || 0
+                    const isLDLeg = legKm > 200 || legDriveH > 2.5
+                    const legLoadH = pricingBreakdown ? pricingBreakdown.loadHours / legs.length : 3
+                    const legUnloadH = pricingBreakdown ? pricingBreakdown.unloadHours / legs.length : 2
+                    const legCrewH  = isLDLeg
+                      ? Math.round((legLoadH + legDriveH + legUnloadH + legDriveH) * 4) / 4
+                      : Math.round((legLoadH + legDriveH + legUnloadH) * 4) / 4
+                    const legLabor  = Math.round((pricingBreakdown?.crewSize || 3) * legCrewH * 25 * 100) / 100
+                    const legTruckAmt = isLDLeg
+                      ? calcLongDistanceUHaul(legKm, truckSizeFromCubicFeet(pricingBreakdown?.totalCubicFeet || 0), pricingBreakdown?.truckCount || 1).internalCost
+                      : Math.round((UHAUL_DAILY_RATES[truckSizeFromCubicFeet(pricingBreakdown?.totalCubicFeet || 0)] ?? 49.99) * (pricingBreakdown?.truckCount || 1) * 100) / 100
+                    const legTotal  = Math.round((legTruckAmt + legLabor + 15) * 100) / 100
+                    const typeTag   = leg.type === 'storage' ? 'House→Storage' : leg.type === 'storage_delivery' ? 'Storage→Dest' : isLDLeg ? 'Long-distance' : 'Local'
+                    return (
+                      <div key={leg.id} className="rounded-[6px] border border-[var(--app-line)] p-2.5 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <div className="text-[10px] font-semibold text-[var(--app-ink)]">
+                            Leg {i+1}: {leg.label || typeTag}
+                          </div>
+                          <span className={`text-[9px] rounded-full px-2 py-0.5 font-semibold ${isLDLeg ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>{typeTag}</span>
+                        </div>
+                        {[
+                          [`Truck${isLDLeg ? ' (one-way est.)' : ' + mileage'}`, legTruckAmt],
+                          [`Labour (${legCrewH}h)`, legLabor],
+                          [`Misc`, 15],
+                        ].map(([label, val]) => (
+                          <div key={String(label)} className="flex justify-between text-[10px]">
+                            <span className="text-[var(--app-muted)]">{label}</span>
+                            <span className="text-[var(--app-ink)]">{formatMoney(Number(val))}</span>
+                          </div>
+                        ))}
+                        <div className="flex justify-between text-xs font-semibold border-t border-[var(--app-line)] pt-1">
+                          <span>Leg {i+1} cost</span><span>{formatMoney(legTotal)}</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  <div className="flex justify-between text-xs font-bold border-t-2 border-[var(--app-line)] pt-2">
+                    <span>Combined cost estimate</span>
+                    <span>{formatMoney(legs.reduce((sum, leg, i) => {
+                      const legKm = legRoutes[leg.id]?.distanceKm || leg.distanceKm || 0
+                      const legDriveH = legRoutes[leg.id]?.driveHours || leg.driveHours || 0
+                      const isLDLeg = legKm > 200 || legDriveH > 2.5
+                      const legLoadH = pricingBreakdown ? pricingBreakdown.loadHours / legs.length : 3
+                      const legUnloadH = pricingBreakdown ? pricingBreakdown.unloadHours / legs.length : 2
+                      const legCrewH = isLDLeg ? Math.round((legLoadH + legDriveH + legUnloadH + legDriveH) * 4) / 4 : Math.round((legLoadH + legDriveH + legUnloadH) * 4) / 4
+                      const legLabor = Math.round((pricingBreakdown?.crewSize || 3) * legCrewH * 25 * 100) / 100
+                      const legTruckAmt = isLDLeg ? calcLongDistanceUHaul(legKm, truckSizeFromCubicFeet(pricingBreakdown?.totalCubicFeet || 0), pricingBreakdown?.truckCount || 1).internalCost : Math.round((UHAUL_DAILY_RATES[truckSizeFromCubicFeet(pricingBreakdown?.totalCubicFeet || 0)] ?? 49.99) * (pricingBreakdown?.truckCount || 1) * 100) / 100
+                      return sum + legTruckAmt + legLabor + 15
+                    }, 0))}</span>
+                  </div>
+                  <div className="text-[9px] text-[var(--app-muted)]">Each leg priced independently — see Live Margin for final customer pricing.</div>
+                </div>
+              </div>
+            )}
 
             {/* Draft Summary */}
             <div>
