@@ -455,6 +455,41 @@ function buildEstimateDateTime(lead: CRMLead) {
   return new Date(`${lead.estimateDate}T${time}:00`)
 }
 
+export async function scheduleConsultationReminder(leadId: string) {
+  const lead = await getSalesLead(leadId)
+  if (!lead?.estimateDate || !lead.phone) return null
+
+  const apptTime = buildEstimateDateTime(lead)
+  if (!apptTime || apptTime.getTime() < Date.now()) return null
+
+  // Fire 2 hours before the appointment
+  const reminderTime = new Date(apptTime.getTime() - 2 * 60 * 60 * 1000)
+  const dueAt = clampAutomationDueAt(reminderTime.getTime() < Date.now() ? new Date(Date.now() + 5 * 60 * 1000) : reminderTime)
+
+  const displayTime = apptTime.toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit', hour12: true })
+  const displayDate = apptTime.toLocaleDateString('en-CA', { weekday: 'long', month: 'short', day: 'numeric' })
+  const firstName = (lead.name || 'there').split(' ')[0]
+
+  // SMS reminder to customer
+  await sendSalesMessage({
+    channel: 'sms',
+    to: lead.phone,
+    body: `Hi ${firstName}! Just a reminder — Saturn Star Moving in-person visit today at ${displayTime}. See you then! 📦`,
+    leadId: lead.id,
+    notes: `Auto-reminder for in-person appointment on ${displayDate} at ${displayTime}`,
+    actor: 'automation',
+  }).catch(() => {})
+
+  // Log it
+  await saveFollowUpLog({
+    id: uid('fu'), leadId: lead.id, type: 'sms',
+    date: dueAt, createdAt: new Date().toISOString(),
+    notes: `📅 Appointment reminder sent — in-person visit ${displayDate} at ${displayTime}`,
+  }).catch(() => {})
+
+  return { scheduled: true, dueAt, displayTime }
+}
+
 function latestHumanFieldTouch(lead: CRMLead) {
   const manualTouchDates = (lead.callLogs || [])
     .filter(entry => entry.source === 'consultation' || entry.source === 'manual' || entry.type === 'visit' || entry.type === 'consultation')
@@ -2319,36 +2354,46 @@ export async function scheduleMoveReminder(leadId: string) {
   const lead = await getSalesLead(leadId)
   if (!lead?.moveDate || lead.stage !== 'booked') return null
 
-  // Fire 7 days before the move (was 48h — changed to give rep time to call and confirm)
-  const dueDate = new Date(`${lead.moveDate}T10:00:00`)
-  dueDate.setDate(dueDate.getDate() - 7)
-  const dueAt = clampAutomationDueAt(
-    dueDate.getTime() < Date.now()
-      ? new Date(Date.now() + 5 * 60 * 1000)
-      : dueDate
-  )
+  const moveDay = new Date(`${lead.moveDate}T10:00:00`)
+  const firstName = (lead.name || 'there').split(' ')[0]
+  const moveDateFormatted = moveDay.toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' })
+  const channel = lead.phone ? 'sms' : lead.email ? 'email' : null
 
-  // SMS/email to customer
+  // ── TOUCHPOINT 1: 21 days before — inventory check-in
+  const t1 = new Date(moveDay); t1.setDate(t1.getDate() - 21)
+  const t1At = clampAutomationDueAt(t1.getTime() < Date.now() ? new Date(Date.now() + 5 * 60 * 1000) : t1)
+  await queueAutomationJob({
+    leadId: lead.id, kind: 'move_reminder', channel,
+    dueAt: t1At,
+    dedupeKey: `move_reminder:t1:${lead.id}:${lead.moveDate}`,
+    payload: { moveDate: lead.moveDate, touchpoint: 1, hint: 'Anything changed? Any new items? Still good for the date?' },
+  }).catch(() => {})
+
+  // ── TOUCHPOINT 2: 7 days before — logistics confirm
+  const t2 = new Date(moveDay); t2.setDate(t2.getDate() - 7)
+  const t2At = clampAutomationDueAt(t2.getTime() < Date.now() ? new Date(Date.now() + 10 * 60 * 1000) : t2)
   const customerJob = await queueAutomationJob({
-    leadId: lead.id,
-    kind: 'move_reminder',
-    channel: lead.phone ? 'sms' : lead.email ? 'email' : null,
-    dueAt,
-    dedupeKey: `move_reminder:${lead.id}:${lead.moveDate}`,
-    payload: { moveDate: lead.moveDate },
+    leadId: lead.id, kind: 'move_reminder', channel,
+    dueAt: t2At,
+    dedupeKey: `move_reminder:t2:${lead.id}:${lead.moveDate}`,
+    payload: { moveDate: lead.moveDate, touchpoint: 2, hint: 'Confirm crew start time, parking, access, any special items.' },
   })
 
-  // Call nudge for rep — fires same day as the SMS so it shows in their briefing
-  const moveDateFormatted = new Date(`${lead.moveDate}T12:00:00`).toLocaleDateString('en-CA', {
-    weekday: 'long', month: 'long', day: 'numeric',
-  })
+  // ── TOUCHPOINT 3: 1 day before — final reminder
+  const t3 = new Date(moveDay); t3.setDate(t3.getDate() - 1); t3.setHours(16, 0, 0, 0)
+  const t3At = clampAutomationDueAt(t3.getTime() < Date.now() ? new Date(Date.now() + 15 * 60 * 1000) : t3)
+  await queueAutomationJob({
+    leadId: lead.id, kind: 'move_reminder', channel,
+    dueAt: t3At,
+    dedupeKey: `move_reminder:t3:${lead.id}:${lead.moveDate}`,
+    payload: { moveDate: lead.moveDate, touchpoint: 3, hint: 'Tomorrow is the move! Crew will be there at [startTime]. Any last questions?' },
+  }).catch(() => {})
+
+  // Rep call nudge — 7 days before
   await saveFollowUpLog({
-    id: uid('fu'),
-    leadId: lead.id,
-    type: 'call',
-    date: dueAt,
-    createdAt: new Date().toISOString(),
-    notes: `📞 Call to confirm move — remind ${lead.name || 'customer'} of their ${moveDateFormatted} move, go over inventory, binding terms, and access details.`,
+    id: uid('fu'), leadId: lead.id, type: 'call',
+    date: t2At, createdAt: new Date().toISOString(),
+    notes: `📞 Pre-move call — confirm ${firstName}'s ${moveDateFormatted} move: inventory final, start time, parking, binding terms.`,
   }).catch(() => {})
 
   return customerJob

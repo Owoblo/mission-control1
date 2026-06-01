@@ -3,7 +3,7 @@ import { deriveOpsChecklist, getQuotedTruckCount, isTruckReservationComplete, no
 import { calculateLeadScore, getLeadAssignedRepName, normalizeLead, syncLeadFromQuoteStatus } from '@/lib/sales'
 import { logEvent, daysBetween } from '@/lib/server/analytics'
 import { queueLeadIntelligenceRefresh } from '@/lib/server/lead-intelligence-refresh'
-import { scheduleMoveReminder } from '@/lib/server/sales-automation'
+import { scheduleMoveReminder, scheduleConsultationReminder } from '@/lib/server/sales-automation'
 import { getBookedJobFieldDiffs, recordLeadArchivedAudit, recordLeadUpdateAudit, sendBookedJobChangeNotice } from '@/lib/server/sales-audit'
 import { applyDetectedBranch, maybeCreateDestinationOpportunityLead } from '@/lib/server/sales-opportunities'
 import { canAccessOperationsWorkspace, canAccessSalesWorkspace, canDeleteLead, canReassignLead, isLeadOwnedBySession } from '@/lib/server/sales-permissions'
@@ -447,6 +447,11 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     // Send appointment confirmation SMS only when explicitly requested by the rep
     if (sendApptSmsFlag === true && syncedOpportunityLead.stage === 'estimate_scheduled' && syncedOpportunityLead.phone) {
       void sendAppointmentSms(syncedOpportunityLead)
+    }
+    // Auto-schedule 2h-before reminder whenever an in-person estimate date is set/changed
+    const estimateDateChanged = syncedOpportunityLead.estimateDate && syncedOpportunityLead.estimateDate !== current.estimateDate
+    if (estimateDateChanged && syncedOpportunityLead.phone) {
+      void scheduleConsultationReminder(syncedOpportunityLead.id)
     }
 
     if (syncedOpportunityLead.stage === 'booked' && current.stage !== 'booked') {

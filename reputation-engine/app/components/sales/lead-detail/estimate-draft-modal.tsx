@@ -2414,15 +2414,31 @@ export function EstimateDraftModal({
                     <div className="crm-label">Weight</div>
                     <div className="crm-value">{effectiveInventoryMetrics.totalWeightLbs}</div>
                   </div>
-                  {(lead.supabaseListing?.beds || lead.supabaseListing?.bedrooms) ? (
-                    <div className="crm-kpi">
-                      <div className="crm-label">MLS Beds / Baths</div>
-                      <div className="crm-value text-sm">
-                        {lead.supabaseListing?.beds || lead.supabaseListing?.bedrooms}bd
-                        {(lead.supabaseListing?.baths || lead.supabaseListing?.bathrooms) ? ` · ${lead.supabaseListing?.baths || lead.supabaseListing?.bathrooms}ba` : ''}
+                  {(() => {
+                    const mlsBeds = lead.supabaseListing?.beds || lead.supabaseListing?.bedrooms
+                    const mlsBaths = lead.supabaseListing?.baths || lead.supabaseListing?.bathrooms
+                    if (mlsBeds) {
+                      return (
+                        <div className="crm-kpi">
+                          <div className="crm-label">Beds / Baths</div>
+                          <div className="crm-value text-sm">{mlsBeds}bd{mlsBaths ? ` · ${mlsBaths}ba` : ''}</div>
+                          <div className="text-[9px] text-emerald-700 mt-0.5">MLS</div>
+                        </div>
+                      )
+                    }
+                    // Infer from inventory if no MLS
+                    const bedsInInventory = effectiveInventoryMetrics.inventory.filter(i =>
+                      /\b(bed|queen|king|twin|double|single)\s*(frame|mattress|size)?\b/i.test(i.name || i.item || '')
+                      && !/sofa\s*bed/i.test(i.name || i.item || '')
+                    ).length
+                    return (
+                      <div className="crm-kpi">
+                        <div className="crm-label">Bedrooms est.</div>
+                        <div className="crm-value text-sm">{bedsInInventory > 0 ? `~${bedsInInventory}bd` : '—'}</div>
+                        <div className="text-[9px] text-[var(--app-muted)] mt-0.5">{bedsInInventory > 0 ? 'from inventory' : 'no MLS'}</div>
                       </div>
-                    </div>
-                  ) : null}
+                    )
+                  })()}
                 </div>
                 {listingContextSummary ? (
                   <div className="mt-3 rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">
