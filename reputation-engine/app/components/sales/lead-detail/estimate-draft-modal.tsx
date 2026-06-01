@@ -4263,16 +4263,28 @@ export function EstimateDraftModal({
                 const ldLoadHours     = pricingBreakdown?.loadHours || 3
                 const ldUnloadHours   = pricingBreakdown?.unloadHours || 2.5
                 const ldCrewSize      = pricingBreakdown?.crewSize || 3
-                const ldTotalLaborH   = Math.round((ldLoadHours + ldDriveOneWay + ldUnloadHours + ldDriveOneWay) * 4) / 4
+
+                // For very long distance (>1000km) crew flies back — don't charge return drive hours
+                // Flight cost estimate per person: scales with distance
+                const crewFliesBack = ldDistKm > 1000
+                const flightCostPerPerson = ldDistKm > 3500 ? 500 : ldDistKm > 2000 ? 400 : ldDistKm > 1500 ? 350 : 280
+                const ldCrewReturnCost = crewFliesBack
+                  ? Math.round(ldCrewSize * flightCostPerPerson * 100) / 100   // flights home
+                  : Math.round(ldDistKm * 0.15 * 100) / 100                    // gas if driving back
+
+                // Labour: load + drive there + unload + return drive ONLY if crew drives back
+                const ldTotalLaborH   = crewFliesBack
+                  ? Math.round((ldLoadHours + ldDriveOneWay + ldUnloadHours) * 4) / 4   // no return drive
+                  : Math.round((ldLoadHours + ldDriveOneWay + ldUnloadHours + ldDriveOneWay) * 4) / 4
                 const ldLabor         = Math.round(ldCrewSize * ldTotalLaborH * 25 * 100) / 100
+
                 const ldFuel          = Math.round((ldDistKm / 100) * fuelPer100km * uhaulGasPrice * ldTruckCount * 100) / 100
                 const ldInsurance     = Math.round(20 * 3 * ldTruckCount * 100) / 100
                 const ldBlankets      = Math.round((DEFAULT_BLANKET_BAGS[ldTruckSize] ?? 6) * ldTruckCount * UHAUL_BLANKET_BAG_COST * 100) / 100
                 const ldStretchWrap   = 25 * ldTruckCount
                 const ldSubtotalHST   = Math.round((uhaulPerTruck * ldTruckCount + ldInsurance + ldBlankets + ldStretchWrap) * 0.13 * 100) / 100
                 const ldTruckTotal    = uhaulPerTruck > 0 ? Math.round((uhaulPerTruck * ldTruckCount + ldFuel + ldInsurance + ldBlankets + ldStretchWrap + ldSubtotalHST) * 100) / 100 : 0
-                const ldCrewReturnGas = Math.round(ldDistKm * 0.15 * 100) / 100
-                const ldTotalCost     = uhaulPerTruck > 0 ? Math.round((ldTruckTotal + ldCrewReturnGas + ldLabor) * 100) / 100 : 0
+                const ldTotalCost     = uhaulPerTruck > 0 ? Math.round((ldTruckTotal + ldCrewReturnCost + ldLabor) * 100) / 100 : 0
                 const ldRevenue       = quoteModalTotals.subtotal || 0
                 const ldGrossProfit   = ldTotalCost > 0 ? Math.round((ldRevenue - ldTotalCost) * 100) / 100 : 0
                 const ldMarginPct     = ldRevenue > 0 && ldTotalCost > 0 ? Math.round((ldGrossProfit / ldRevenue) * 1000) / 10 : 0
@@ -4350,8 +4362,13 @@ export function EstimateDraftModal({
                             </div>
 
                             <div>
-                              <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">👷 Labour (full day on clock)</div>
-                              <div className="text-[10px] text-[var(--app-muted)]">Load {ldLoadHours}h + Drive {ldDriveOneWay}h + Unload {ldUnloadHours}h + Return drive {ldDriveOneWay}h = {ldTotalLaborH}h</div>
+                              <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">
+                                👷 Labour {crewFliesBack ? '(load + drive + unload only — crew flies back)' : '(full day on clock)'}
+                              </div>
+                              <div className="text-[10px] text-[var(--app-muted)]">
+                                Load {ldLoadHours}h + Drive {ldDriveOneWay}h + Unload {ldUnloadHours}h
+                                {crewFliesBack ? ` = ${ldTotalLaborH}h (no return drive — crew flies)` : ` + Return ${ldDriveOneWay}h = ${ldTotalLaborH}h`}
+                              </div>
                               <div className="flex justify-between text-xs mt-1 font-semibold">
                                 <span>{ldCrewSize} movers × {ldTotalLaborH}h @ $25/hr</span>
                                 <span>{formatMoney(ldLabor)}</span>
@@ -4362,12 +4379,12 @@ export function EstimateDraftModal({
                               <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">📦 Miscellaneous</div>
                               <div className="space-y-1">
                                 <div className="flex justify-between text-xs">
-                                  <span className="text-[var(--app-muted)]">Crew vehicle gas return</span>
-                                  <span className="font-medium text-[var(--app-ink)]">{formatMoney(ldCrewReturnGas)}</span>
-                                </div>
-                                <div className="flex justify-between text-xs">
-                                  <span className="text-[var(--app-muted)]">Crew vehicle gas return</span>
-                                  <span className="font-medium text-[var(--app-ink)]">{formatMoney(ldCrewReturnGas)}</span>
+                                  <span className="text-[var(--app-muted)]">
+                                    {crewFliesBack
+                                      ? `Crew flights home (${ldCrewSize} × ~$${flightCostPerPerson})`
+                                      : `Crew vehicle gas return (~${ldDistKm} km)`}
+                                  </span>
+                                  <span className="font-medium text-[var(--app-ink)]">{formatMoney(ldCrewReturnCost)}</span>
                                 </div>
                               </div>
                             </div>
