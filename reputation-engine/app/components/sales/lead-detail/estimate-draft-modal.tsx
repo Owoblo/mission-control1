@@ -24,10 +24,10 @@ import {
 function AddressAutocompleteInput({ value, placeholder, onSelect }: {
   value: string
   placeholder: string
-  onSelect: (address: string, city?: string, placeType?: string) => void
+  onSelect: (address: string, city?: string, placeType?: string, placeId?: string) => void
 }) {
   const [raw, setRaw] = useState(value)
-  const [suggestions, setSuggestions] = useState<Array<{ label: string; city?: string; placeType?: string }>>([])
+  const [suggestions, setSuggestions] = useState<Array<{ label: string; city?: string; placeType?: string; placeId?: string }>>([])
   const [open, setOpen] = useState(false)
   const [fetching, setFetching] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -47,15 +47,15 @@ function AddressAutocompleteInput({ value, placeholder, onSelect }: {
       setFetching(true)
       try {
         const res = await fetch(`/api/sales/address-suggest?q=${encodeURIComponent(val)}`, { credentials: 'include' })
-        const data = (await res.json()) as { suggestions?: Array<{ label: string; city?: string; placeType?: string }> }
+        const data = (await res.json()) as { suggestions?: Array<{ label: string; city?: string; placeType?: string; placeId?: string }> }
         const list = data.suggestions || []
         setSuggestions(list)
         if (list.length > 0) setOpen(true)
       } catch { /* ignore */ } finally { setFetching(false) }
     }, 350)
   }
-  function select(s: { label: string; city?: string; placeType?: string }) {
-    setRaw(s.label); setSuggestions([]); setOpen(false); onSelect(s.label, s.city, s.placeType)
+  function select(s: { label: string; city?: string; placeType?: string; placeId?: string }) {
+    setRaw(s.label); setSuggestions([]); setOpen(false); onSelect(s.label, s.city, s.placeType, s.placeId)
   }
   return (
     <div ref={containerRef} className="relative">
@@ -452,6 +452,8 @@ export function EstimateDraftModal({
   const [uhaulMisc, setUhaulMisc] = useState(DEFAULT_MISC_BUFFER)
   const [uhaulStraightDrop, setUhaulStraightDrop] = useState(false)
   const [uhaulBlankets, setUhaulBlankets] = useState<number | null>(null)  // null = auto
+  const [originPlaceId, setOriginPlaceId] = useState<string | undefined>(undefined)
+  const [destPlaceId, setDestPlaceId] = useState<string | undefined>(undefined)
   const [uhaulDepotName, setUhaulDepotName] = useState<string | null>(null)
   const [uhaulPickupKm, setUhaulPickupKm] = useState<number | null>(null)
   const [uhaulDepotLookupDone, setUhaulDepotLookupDone] = useState(false)
@@ -732,7 +734,9 @@ export function EstimateDraftModal({
     const city = originCity || lead.originCity || ''
     if (!addr && !city) return ''
     // Skip city if it's garbage (< 3 chars) or already in the address
-    const cityOk = city.length >= 3 && !addr.toLowerCase().includes(city.toLowerCase())
+    // Don't append city if address is already fully qualified (contains province code or "Canada")
+    const alreadyQualified = /,\s*[A-Z]{2}[,\s]|Canada|United States/i.test(addr)
+    const cityOk = !alreadyQualified && city.length >= 3 && !addr.toLowerCase().includes(city.toLowerCase())
     if (addr && !cityOk) return addr
     return [addr, city].filter(Boolean).join(', ')
   })()
@@ -740,7 +744,8 @@ export function EstimateDraftModal({
     const addr = destAddress || lead.destAddress || ''
     const city = destCity || lead.destCity || ''
     if (!addr && !city) return ''
-    const cityOk = city.length >= 3 && !addr.toLowerCase().includes(city.toLowerCase())
+    const alreadyQualified = /,\s*[A-Z]{2}[,\s]|Canada|United States/i.test(addr)
+    const cityOk = !alreadyQualified && city.length >= 3 && !addr.toLowerCase().includes(city.toLowerCase())
     if (addr && !cityOk) return addr
     return [addr, city].filter(Boolean).join(', ')
   })()
@@ -887,7 +892,7 @@ export function EstimateDraftModal({
     fetch('/api/sales/route-estimate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ origin: originFull, destination: destFull || undefined, branch: selectedBranch }),
+      body: JSON.stringify({ origin: originFull, destination: destFull || undefined, branch: selectedBranch, originPlaceId, destPlaceId }),
       credentials: 'include',
     })
       .then(r => r.json())
@@ -1723,10 +1728,10 @@ export function EstimateDraftModal({
                     <AddressAutocompleteInput
                       value={originAddress || lead.originAddress || ''}
                       placeholder="Origin address"
-                      onSelect={(address, city, placeType) => {
+                      onSelect={(address, city, placeType, placeId) => {
                         onOriginAddressChange?.(address)
                         if (city) onOriginCityChange?.(city)
-                        // Auto-set job factors from place type
+                        if (placeId) setOriginPlaceId(placeId)
                         if (placeType === 'apartment') {
                           onJobFactorsChange({ ...jobFactors, originFloors: 2, originHasElevator: true, originParkingOk: false })
                         } else if (placeType === 'house') {
@@ -1745,9 +1750,10 @@ export function EstimateDraftModal({
                     <AddressAutocompleteInput
                       value={destAddress || lead.destAddress || destCity || lead.destCity || ''}
                       placeholder="Destination address or city"
-                      onSelect={(address, city, placeType) => {
+                      onSelect={(address, city, placeType, placeId) => {
                         onDestAddressChange?.(address)
                         if (city) onDestCityChange?.(city)
+                        if (placeId) setDestPlaceId(placeId)
                         if (placeType === 'apartment') {
                           onJobFactorsChange({ ...jobFactors, destFloors: 2, destHasElevator: true, destParkingOk: false })
                         } else if (placeType === 'house') {

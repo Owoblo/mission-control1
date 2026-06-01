@@ -43,6 +43,29 @@ export function classifyRouteCategory(distanceKm: number, driveHours: number): E
   return 'local'
 }
 
+// Resolve a place_id directly — most accurate, no re-geocoding needed
+export async function geocodeByPlaceId(placeId: string): Promise<GeocodeResult | null> {
+  const apiKey = getGoogleMapsApiKey()
+  if (!apiKey) return null
+  try {
+    const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=geometry,formatted_address&key=${apiKey}`
+    const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(5000) })
+    if (!res.ok) return null
+    const data = (await res.json()) as {
+      status: string
+      result?: { geometry: { location: { lat: number; lng: number } }; formatted_address: string }
+    }
+    if (data.status === 'OK' && data.result) {
+      return {
+        lat: data.result.geometry.location.lat,
+        lng: data.result.geometry.location.lng,
+        displayName: data.result.formatted_address,
+      }
+    }
+  } catch { /* ignore */ }
+  return null
+}
+
 export async function geocodeAddress(address: string): Promise<GeocodeResult | null> {
   // Try Google Geocoding first — more reliable for addresses from Google Places autocomplete
   const apiKey = getGoogleMapsApiKey()
@@ -207,6 +230,8 @@ export async function estimateRouteContext(input: {
   origin: string
   destination?: string
   branch?: string
+  originDisplayName?: string  // pre-resolved display name from Places Details
+  destDisplayName?: string
 }): Promise<EstimateRouteContext & {
   category?: 'local' | 'medium' | 'long-distance'
   distanceKm?: number
@@ -222,8 +247,13 @@ export async function estimateRouteContext(input: {
   const yardAddress = (input.branch && BRANCH_YARDS[input.branch]) ? BRANCH_YARDS[input.branch] : BASE_YARD_ADDRESS
 
   // Geocode with fallback: if full address fails, try stripping the last token
-  // (handles garbage city suffixes like ", S" appended to a valid address)
+  // Also handles pre-resolved "lat,lng" format passed from place_id resolution
   async function geocodeWithFallback(address: string) {
+    // If already a lat,lng coordinate (from place_id resolution), parse directly
+    const latLngMatch = address.match(/^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/)
+    if (latLngMatch) {
+      return { lat: parseFloat(latLngMatch[1]), lng: parseFloat(latLngMatch[2]), displayName: address }
+    }
     const result = await geocodeAddress(address)
     if (result) return result
     const parts = address.split(',').map(p => p.trim()).filter(Boolean)
