@@ -1496,7 +1496,10 @@ export default function SalesLeadDetailPage() {
   }) {
     if (!lead) return
     // Never auto-recalculate when an override is active — it would stack old + new price
-    if (quoteLineItemsRef.current.some(li => li.description === 'Moving Services — Agreed Rate')) return
+    if (quoteLineItemsRef.current.some(li =>
+      li.description === 'Moving Services — Agreed Rate' ||
+      li.description === 'Long-Distance Moving Service — All Inclusive'
+    )) return
     setRecalculateBusy(true)
     try {
       const snapshot: CRMLead = {
@@ -1551,7 +1554,10 @@ export default function SalesLeadDetailPage() {
   useEffect(() => {
     if (!quoteModalOpen || !lead) return
     // Use ref (not state) to avoid stale closure — always reads the latest line items
-    if (quoteLineItemsRef.current.some(li => li.description === 'Moving Services — Agreed Rate')) return
+    if (quoteLineItemsRef.current.some(li =>
+      li.description === 'Moving Services — Agreed Rate' ||
+      li.description === 'Long-Distance Moving Service — All Inclusive'
+    )) return
     recalculateEstimate()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inventoryMetrics.totalCubicFeet, inventoryMetrics.totalWeightLbs, quoteModalOpen, jobFactors, quoteLegs])
