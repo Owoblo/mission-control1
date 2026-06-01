@@ -3773,12 +3773,34 @@ export function EstimateDraftModal({
                       <div>
                         <div className="flex items-center justify-between mb-1">
                           <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">🚛 U-Haul Job Cost</div>
-                          {uhaulDepotName && (
+                          {uhaulDepotName ? (
                             <div className="text-[10px] text-[var(--app-muted)] truncate max-w-[180px]" title={uhaulDepotName}>
-                              📍 {uhaulDepotName}{pickupKm > 0 ? ` · ${pickupKm} km away` : ''}
+                              📍 {uhaulDepotName} · {pickupKm > 0 ? `${pickupKm}km` : '?km'}
                             </div>
+                          ) : (
+                            <button type="button"
+                              onClick={() => {
+                                setUhaulDepotLookupDone(false)  // allow retry
+                              }}
+                              className="text-[10px] text-[var(--app-accent)] hover:underline"
+                            >
+                              {uhaulDepotLookupDone ? '🔄 Retry depot lookup' : '⏳ Finding nearest U-Haul…'}
+                            </button>
                           )}
                         </div>
+                        {/* Manual pickup distance when auto-lookup fails */}
+                        {uhaulDepotLookupDone && !uhaulDepotName && (
+                          <div className="flex items-center gap-2 mb-1.5 rounded bg-amber-50 border border-amber-200 px-2 py-1.5">
+                            <span className="text-[10px] text-amber-700 shrink-0">U-Haul depot not auto-found. Enter km from depot to origin:</span>
+                            <input
+                              type="number" min={0} step={1}
+                              value={uhaulPickupKm ?? ''}
+                              onChange={e => setUhaulPickupKm(e.target.value ? Number(e.target.value) : null)}
+                              placeholder="e.g. 5"
+                              className="crm-input text-xs w-16 py-0.5"
+                            />
+                          </div>
+                        )}
                         {/* Route summary */}
                         <div className="text-[10px] text-[var(--app-muted)] mb-1.5 font-mono bg-slate-50 rounded px-2 py-1">
                           {activeStrategy === 'single_truck_two_trips'
