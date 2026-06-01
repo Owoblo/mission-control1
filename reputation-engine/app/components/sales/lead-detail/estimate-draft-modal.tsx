@@ -1037,6 +1037,14 @@ export function EstimateDraftModal({
   const valuationLineDescription = 'Declared Value Protection'
   const junkAdded = quoteLineItems.some(li => li.description === junkLineDescription)
   const valuationAdded = quoteLineItems.some(li => li.description === valuationLineDescription)
+  const tvDismountLineDescription = 'TV Dismount & Remount Service'
+  const tvDismountAdded = quoteLineItems.some(li => li.description === tvDismountLineDescription)
+  // Detect wall-mounted or large TVs from inventory
+  const wallMountedTvs = effectiveInventoryMetrics.inventory.filter(item => {
+    const label = (item.name || item.item || '').toLowerCase()
+    return (label.includes('tv') || label.includes('television')) && !label.includes('tv box') && !label.includes('stand')
+  })
+  const tvDismountPrice = Math.min(150, 75 + wallMountedTvs.length * 50)  // $75 base + $50/TV, max $150
 
   // Junk removal pricing tiers (2 movers + cube truck, Windsor/KW area)
   const JUNK_TIERS: Record<string, { label: string; cubicFeet: string; price: number; detail: string }> = {
@@ -1921,6 +1929,34 @@ export function EstimateDraftModal({
                 >
                   {valuationAdded ? '✓' : '+'} Valuation
                 </button>
+
+                {/* TV Dismount — auto-surfaces when TVs detected in inventory */}
+                {wallMountedTvs.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (tvDismountAdded) {
+                        onSetLineItems(quoteLineItems.filter(li => li.description !== tvDismountLineDescription))
+                      } else {
+                        onAddLineItem()
+                        setTimeout(() => {
+                          const idx = quoteLineItems.length
+                          onUpdateLineItem(idx, 'description', tvDismountLineDescription)
+                          onUpdateLineItem(idx, 'details', `${wallMountedTvs.length} TV${wallMountedTvs.length > 1 ? 's' : ''} — dismount at origin, remount at destination`)
+                          onUpdateLineItem(idx, 'amount', String(tvDismountPrice))
+                        }, 50)
+                      }
+                    }}
+                    className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      tvDismountAdded
+                        ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                        : 'border-amber-300 bg-amber-50 text-amber-800 hover:border-amber-500'
+                    }`}
+                    title={`${wallMountedTvs.length} TV${wallMountedTvs.length > 1 ? 's' : ''} detected — $${tvDismountPrice}`}
+                  >
+                    {tvDismountAdded ? '✓' : '📺'} TV Dismount${wallMountedTvs.length > 1 ? ` (${wallMountedTvs.length})` : ''} · ${tvDismountPrice > 0 ? `$${tvDismountPrice}` : ''}
+                  </button>
+                )}
               </div>
 
               {/* ── Junk Removal Workflow ── */}
@@ -3660,7 +3696,11 @@ export function EstimateDraftModal({
               const trucks = pricingBreakdown.truckCount
               const needsPacking = jobFactors.packingStatus === 'not-started' || jobFactors.packingStatus === 'partial'
               const hasStorage = legsEnabled && legs.some(l => l.type === 'storage' || l.type === 'storage_delivery')
-              const isBigMove = trucks >= 2 || totalH >= 10
+              // Only split into D1/D2 when move genuinely can't finish same day
+              // 9am start: 9 + totalH > 21 (10pm cutoff) = needs Day 2
+              // Storage moves always split by definition
+              const genuinelyTwoDay = (9 + totalH) > 21 || hasStorage
+              const isBigMove = genuinelyTwoDay
 
               const days: Array<{ label: string; who: string; hours: string; color: string; note?: string }> = []
 
@@ -3962,7 +4002,7 @@ export function EstimateDraftModal({
                         </div>
                       </div>
 
-                      {/* Miscellaneous */}
+                      {/* Miscellaneous + packing cost when added */}
                       <div>
                         <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">📦 Miscellaneous</div>
                         <div className="space-y-1">
@@ -3970,6 +4010,12 @@ export function EstimateDraftModal({
                             <span className="text-[var(--app-muted)]">Food + crew gas buffer</span>
                             <span className="text-[var(--app-ink)]">{formatMoney(cost.miscCost)}</span>
                           </div>
+                          {packingLaborAdded && flags?.packingDayEstimate && (
+                            <div className="flex justify-between text-xs">
+                              <span className="text-[var(--app-muted)]">Packing day cost ({flags.packingDayEstimate.crewSize} packers · {flags.packingDayEstimate.hours}h)</span>
+                              <span className="text-[var(--app-ink)]">{formatMoney(flags.packingDayEstimate.amountBeforeHst)}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
 
