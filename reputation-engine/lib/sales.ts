@@ -61,6 +61,7 @@ export const LOST_REASONS: Array<{ id: string; label: string }> = [
   { id: 'no_response', label: 'No Response / Ghost' },
   { id: 'not_a_fit', label: 'Not a Fit' },
   { id: 'cancelled_move', label: 'Cancelled Move' },
+  { id: 'diy', label: 'Moving Themselves — DIY' },
 ]
 
 export const LEAD_CONTEXT_FLAGS: Array<{ id: string; label: string }> = [

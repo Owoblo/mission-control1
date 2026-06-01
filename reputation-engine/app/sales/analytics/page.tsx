@@ -51,6 +51,14 @@ type AnalyticsSnapshot = {
     type: string
     count: number
   }>
+  branchBreakdown: Array<{
+    branch: string
+    label: string
+    received: number
+    booked: number
+    lost: number
+    conversionRate: number
+  }>
   truckUtilizationDays: Array<{
     date: string
     branch: string
@@ -301,6 +309,37 @@ export default function AnalyticsPage() {
           </div>
         </div>
       </div>
+
+      {data.branchBreakdown.length > 0 && (
+        <div className="crm-panel p-6">
+          <h2 className="font-semibold text-[#1a2744]">Leads by City / Branch</h2>
+          <p className="mt-1 text-xs text-[var(--app-muted)]">Received, booked, and lost in the selected window.</p>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--app-line)]">
+                  <th className="pb-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Branch</th>
+                  <th className="pb-2 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Leads</th>
+                  <th className="pb-2 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Booked</th>
+                  <th className="pb-2 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Lost</th>
+                  <th className="pb-2 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Conv.</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--app-line)]">
+                {data.branchBreakdown.map(row => (
+                  <tr key={row.branch}>
+                    <td className="py-2.5 font-medium text-[var(--app-ink)]">{row.label}</td>
+                    <td className="py-2.5 text-right text-[var(--app-ink)]">{row.received}</td>
+                    <td className="py-2.5 text-right text-emerald-700 font-medium">{row.booked}</td>
+                    <td className="py-2.5 text-right text-rose-600">{row.lost}</td>
+                    <td className={`py-2.5 text-right font-semibold ${row.conversionRate >= 30 ? 'text-emerald-700' : row.conversionRate >= 15 ? 'text-amber-700' : 'text-rose-600'}`}>{row.conversionRate}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="crm-panel p-6">

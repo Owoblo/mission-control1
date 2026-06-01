@@ -45,7 +45,9 @@ export type DashboardDrilldownResponse = {
 async function readJson<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const payload = await response.json().catch(() => null)
-    throw new Error(payload?.error || `Request failed: ${response.status}`)
+    const raw = payload?.error
+    const msg = typeof raw === 'string' ? raw : (raw ? JSON.stringify(raw) : `Request failed: ${response.status}`)
+    throw new Error(msg)
   }
 
   return response.json() as Promise<T>

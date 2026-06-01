@@ -1,6 +1,7 @@
 import {
   LOST_REASONS,
   CRM_LEAD_SOURCES,
+  SALES_BRANCHES,
   formatDate,
   getLeadAssignedRepKey,
   getLeadAssignedRepName,
@@ -301,6 +302,13 @@ export function buildCRMAnalyticsSnapshot(
       .sort(([, a], [, b]) => b - a)
       .map(([type, count]) => ({ type, count })),
     truckUtilizationDays,
+    branchBreakdown: SALES_BRANCHES.map(b => {
+      const branchLeads = scopedLeads.filter(l => l.branch === b.id)
+      const received = branchLeads.filter(l => isWithinRange(l.createdAt, filters.dateFrom, filters.dateTo)).length
+      const booked = branchLeads.filter(l => isBookedLikeStage(l.stage) && isWithinRange(l.bookedAt || getQuoteForLead(quotesByLead, l.id)?.acceptedAt, filters.dateFrom, filters.dateTo)).length
+      const lost = branchLeads.filter(l => l.stage === 'lost' && isWithinRange(l.lostAt || l.createdAt, filters.dateFrom, filters.dateTo)).length
+      return { branch: b.id, label: b.label, received, booked, lost, conversionRate: received > 0 ? Math.round((booked / received) * 100) : 0 }
+    }).filter(b => b.received > 0 || b.booked > 0).sort((a, b) => b.received - a.received),
     filters: {
       repOptions,
       sourceOptions,
