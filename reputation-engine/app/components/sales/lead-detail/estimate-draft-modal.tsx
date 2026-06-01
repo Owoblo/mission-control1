@@ -3735,11 +3735,14 @@ export function EstimateDraftModal({
 
               // Only show trip comparison when the system has detected a multi-truck or two-trip move
               // No trip comparison for long-distance — 2 trucks always go together, no return trips possible
-              const showComparison = oneWayKm > 0 && oneWayKm < 120 &&
+              // Show comparison whenever system detected 2+ trucks or 2 trips — even if route is 0km
+              // Use a fallback distance of 15km when route hasn't resolved yet
+              const comparisonKm = oneWayKm > 0 ? oneWayKm : 15
+              const showComparison = oneWayKm < 200 &&
                 (tripStrategy === 'two_trucks' || tripStrategy === 'single_truck_two_trips' || tripStrategy === 'three_trucks')
               const comparison = showComparison
                 ? compareStrategies(
-                    { truckSize, oneWayDistanceKm: oneWayKm, uhaulPickupKm: pickupKm, gasPrice: uhaulGasPrice, includeStraightDrop: uhaulStraightDrop, crewSize, estimatedHours, miscBuffer: uhaulMisc, revenue },
+                    { truckSize, oneWayDistanceKm: comparisonKm, uhaulPickupKm: pickupKm, gasPrice: uhaulGasPrice, includeStraightDrop: uhaulStraightDrop, crewSize, estimatedHours, miscBuffer: uhaulMisc, revenue },
                     blanketBagsPerTruck
                   )
                 : null
@@ -3915,8 +3918,19 @@ export function EstimateDraftModal({
                                 >
                                   <div className="text-[10px] font-semibold text-[var(--app-ink)]">{label}</div>
                                   <div className="text-sm font-bold text-[var(--app-ink)] mt-0.5">{formatMoney(data.truckTotal)}</div>
-                                  {/* Timing phases */}
-                                  <div className="mt-1.5 space-y-0.5">
+                                  {/* Gross profit for this strategy */}
+                                  {revenue > 0 && (() => {
+                                    const stratLabour = Math.round(crewSize * (strategy === 'single_truck_two_trips'
+                                      ? (pricingBreakdown.loadHours + pricingBreakdown.driveHours + pricingBreakdown.unloadHours + pricingBreakdown.driveHours)
+                                      : pricingBreakdown.totalHours) * 25 * 100) / 100
+                                    const stratCost = Math.round((data.truckTotal + stratLabour + uhaulMisc) * 100) / 100
+                                    const stratProfit = Math.round((revenue - stratCost) * 100) / 100
+                                    const stratMargin = revenue > 0 ? Math.round(stratProfit / revenue * 1000) / 10 : 0
+                                    const mColor = stratMargin >= 55 ? 'text-emerald-700' : stratMargin >= 40 ? 'text-amber-700' : 'text-rose-700'
+                                    return <div className={`text-[10px] font-semibold mt-0.5 ${mColor}`}>{formatMoney(stratProfit)} · {stratMargin.toFixed(1)}% margin</div>
+                                  })()}
+                                  {/* Timing */}
+                                  <div className="mt-1 space-y-0.5">
                                     {timing.phases.map((p, i) => (
                                       <div key={i} className="text-[9px] text-[var(--app-muted)]">
                                         <span className="font-semibold text-[var(--app-ink)]">{p.end}</span>{p.note ? ` · ${p.note}` : ` · ${p.label}`}
