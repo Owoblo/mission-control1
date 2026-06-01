@@ -3962,9 +3962,13 @@ export function EstimateDraftModal({
                                   <div className="text-sm font-bold text-[var(--app-ink)] mt-0.5">{formatMoney(data.truckTotal)}</div>
                                   {/* Gross profit for this strategy */}
                                   {revenue > 0 && (() => {
+                                    // Use origin→dest drive only (not total billable which includes yard travel)
+                                    const oneWayDriveH = route?.originToDestination?.driveHours || (pricingBreakdown.driveHours / 2)
+                                    const baseLabourH = pricingBreakdown.loadHours + pricingBreakdown.unloadHours + pricingBreakdown.penaltyHours
                                     const stratLabour = Math.round(crewSize * (strategy === 'single_truck_two_trips'
-                                      ? (pricingBreakdown.loadHours + pricingBreakdown.driveHours + pricingBreakdown.unloadHours + pricingBreakdown.driveHours)
-                                      : pricingBreakdown.totalHours) * 25 * 100) / 100
+                                      ? (baseLabourH + oneWayDriveH * 2 + pricingBreakdown.bufferHours)  // two trips = two one-way drives + labor
+                                      : (baseLabourH + oneWayDriveH + pricingBreakdown.bufferHours)       // one trip = one drive
+                                    ) * 25 * 100) / 100
                                     const stratCost = Math.round((data.truckTotal + stratLabour + uhaulMisc) * 100) / 100
                                     const stratProfit = Math.round((revenue - stratCost) * 100) / 100
                                     const stratMargin = revenue > 0 ? Math.round(stratProfit / revenue * 1000) / 10 : 0
