@@ -100,7 +100,25 @@ export async function geocodeAddress(address: string): Promise<GeocodeResult | n
     } catch { /* fall through to Nominatim */ }
   }
 
-  // Fallback: Nominatim (OpenStreetMap)
+  // Fallback 2: Mapbox Geocoding — better rural Canadian coverage than Nominatim
+  const mapboxToken = process.env.MAPBOX_ACCESS_TOKEN
+  if (mapboxToken) {
+    try {
+      const mbUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${mapboxToken}&country=ca,us&limit=1`
+      const mbRes = await fetch(mbUrl, { cache: 'no-store', signal: AbortSignal.timeout(5000) })
+      if (mbRes.ok) {
+        const mbData = (await mbRes.json()) as {
+          features?: Array<{ center: [number, number]; place_name: string }>
+        }
+        if (mbData.features?.length) {
+          const [lng, lat] = mbData.features[0].center
+          return { lat, lng, displayName: mbData.features[0].place_name }
+        }
+      }
+    } catch { /* fall through to Nominatim */ }
+  }
+
+  // Fallback 3: Nominatim (OpenStreetMap)
   const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&countrycodes=ca,us`
   const response = await fetch(url, {
     headers: { 'User-Agent': 'SaturnStarMissionControl/1.0 (business@starmovers.ca)' },
