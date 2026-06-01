@@ -214,6 +214,29 @@ export async function getDrivingRoute(
   origin: { lat: number; lng: number },
   dest: { lat: number; lng: number }
 ): Promise<{ distanceKm: number; driveHours: number } | null> {
+  const mapboxToken = process.env.MAPBOX_ACCESS_TOKEN
+  if (mapboxToken) {
+    try {
+      // Mapbox Directions API — production-grade, reliable, fast
+      const coords = `${origin.lng},${origin.lat};${dest.lng},${dest.lat}`
+      const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${coords}?access_token=${mapboxToken}&overview=false`
+      const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(5000) })
+      if (res.ok) {
+        const data = (await res.json()) as {
+          code: string
+          routes?: Array<{ distance: number; duration: number }>
+        }
+        if (data.code === 'Ok' && data.routes?.length) {
+          return {
+            distanceKm: Math.round(data.routes[0].distance / 1000),
+            driveHours: Math.round((data.routes[0].duration / 3600) * 4) / 4,
+          }
+        }
+      }
+    } catch { /* fall through to OSRM */ }
+  }
+
+  // Fallback: OSRM (free, no key needed)
   const url = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${dest.lng},${dest.lat}?overview=false`
   const response = await fetch(url, {
     headers: { 'User-Agent': 'SaturnStarMissionControl/1.0 (business@starmovers.ca)' },
@@ -221,13 +244,11 @@ export async function getDrivingRoute(
     signal: AbortSignal.timeout(5000),
   })
   if (!response.ok) return null
-
   const data = (await response.json()) as {
     code: string
     routes?: Array<{ distance: number; duration: number }>
   }
   if (data.code !== 'Ok' || !data.routes?.length) return null
-
   return {
     distanceKm: Math.round(data.routes[0].distance / 1000),
     driveHours: Math.round((data.routes[0].duration / 3600) * 4) / 4,
