@@ -1114,8 +1114,14 @@ function estimateSingleLeadQuote(
   if (!missingDestination && !isLongDistance && !isPacking && !isLaborOnly && (truckCount >= 2 || totalCubicFeet >= TWO_TRIP_ZONE_CF)) {
     const tripCrewSize = Math.max(3, Math.min(crewSize, 4))
     const oneTruckRate = roundCurrency(getCrewRate(tripCrewSize, lead.moveType))
-    const reloadFactor = totalCubicFeet > TRUCK_CAPACITY_CF ? 0.5 : 0.35
-    const secondTripHandlingHours = roundQuarterHour(loadHours * reloadFactor + unloadHours * reloadFactor * 0.85)
+    // Proportion that actually goes on the second trip — proportional to real overflow, not flat 50%
+    const trip2Frac = totalCubicFeet > TRUCK_CAPACITY_CF
+      ? (totalCubicFeet - TRUCK_CAPACITY_CF) / totalCubicFeet  // e.g. 93/1693 = 5.5%
+      : 0.35  // twoTripZone (<1600 cu ft): rough estimate ~35% goes on 2nd trip
+    // Overflow items (garage boxes, light items) load ~45% faster — no wrapping needed
+    const secondTripHandlingHours = roundQuarterHour(
+      loadHours * trip2Frac * 0.55 + unloadHours * trip2Frac * 0.55 * 0.85
+    )
     const extraTripDriveHours = roundQuarterHour(originToDestHours * 2)
     const twoTripBaseHours = roundQuarterHour(rawLaborHours + billableDriveHours + secondTripHandlingHours + extraTripDriveHours + extraHours)
     const twoTripDriveBuffer = roundQuarterHour(extraTripDriveHours * 0.1)
