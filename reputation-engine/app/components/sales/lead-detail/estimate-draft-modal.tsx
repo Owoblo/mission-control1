@@ -300,6 +300,7 @@ type Props = {
   onSaveAndPreview: (options?: QuoteWorkspaceSendOptions) => Promise<void> | void
   legs?: QuoteLeg[]
   onLegsChange?: (legs: QuoteLeg[]) => void
+  onUhaulPriceChange?: (pricePerTruck: number) => void
   onBranchChange?: (value: NonNullable<CRMLead['branch']>) => void
   onJobFactorsChange: (factors: JobFactors) => void
   onAddInventoryItems: (items: InventoryItem[]) => void
@@ -399,6 +400,7 @@ export function EstimateDraftModal({
   onQuoteApprovalUpdated,
   legs: legsProp,
   onLegsChange,
+  onUhaulPriceChange,
   onBranchChange,
   onJobFactorsChange,
   onAddInventoryItems,
@@ -432,8 +434,13 @@ export function EstimateDraftModal({
   const [overrideApprovalBusy, setOverrideApprovalBusy] = useState(false)
   const [overrideApprovalNotice, setOverrideApprovalNotice] = useState<string | null>(null)
   const [approvedOverrideAmount, setApprovedOverrideAmount] = useState<number | null>(null)
-  const [uhaulInputPerTruck, setUhaulInputPerTruck] = useState('')
-  const [uhaulInputIsEstimate, setUhaulInputIsEstimate] = useState(false)
+  // Persist manual U-Haul price — initialize from saved quote value if set
+  const [uhaulInputPerTruck, setUhaulInputPerTruck] = useState(
+    () => quote?.longDistanceTruckCost ? String(quote.longDistanceTruckCost) : ''
+  )
+  const [uhaulInputIsEstimate, setUhaulInputIsEstimate] = useState(
+    () => !quote?.longDistanceTruckCost  // treat as estimate if nothing saved yet
+  )
   const [, startTransition] = useTransition()
   const [marginGateAck, setMarginGateAck] = useState(false)
   const [conditionalClauseEnabled, setConditionalClauseEnabled] = useState(() => Boolean(quote?.conditionalClause))
@@ -769,8 +776,12 @@ export function EstimateDraftModal({
       setOverrideApplied(true)
       setOverrideInput(String(overrideItem.amount))
     } else if (!overrideItem) {
-      // No override present — reset so a fresh override can be applied
       setOverrideApplied(false)
+    }
+    // Restore saved U-Haul price — if rep manually entered a price before, reload it
+    if (quote?.longDistanceTruckCost) {
+      setUhaulInputPerTruck(String(quote.longDistanceTruckCost))
+      setUhaulInputIsEstimate(false)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
@@ -4329,7 +4340,13 @@ export function EstimateDraftModal({
                           <div className="relative">
                             <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--app-muted)]">$</span>
                             <input type="number" min={0} step={50} value={uhaulInputPerTruck}
-                              onChange={e => { setUhaulInputPerTruck(e.target.value); setUhaulInputIsEstimate(false) }}
+                              onChange={e => {
+                            const v = e.target.value
+                            setUhaulInputPerTruck(v)
+                            setUhaulInputIsEstimate(false)
+                            const num = Number(v)
+                            if (num > 0) onUhaulPriceChange?.(num)
+                          }}
                               placeholder="Enter from uhaul.com" className="crm-input pl-5 w-full text-sm font-semibold"
                             />
                           </div>

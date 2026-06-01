@@ -5028,6 +5028,7 @@ export default function SalesLeadDetailPage() {
         recalculateBusy={recalculateBusy}
         legs={quoteLegs}
         onLegsChange={setQuoteLegs}
+        onUhaulPriceChange={price => { pricingMetaRef.current.longDistanceTruckCost = price }}
         listingPhotos={listingPhotos}
         customerPhotos={(lead.mediaAssets || [])
           .filter((a: import('@/lib/types').LeadMediaAsset) => a.kind === 'image')
