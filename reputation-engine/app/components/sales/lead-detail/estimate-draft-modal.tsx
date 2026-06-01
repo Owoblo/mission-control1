@@ -3726,7 +3726,17 @@ export function EstimateDraftModal({
               const truckSize = truckSizeFromCubicFeet(totalCubicFeet)
               const defaultBlankets = DEFAULT_BLANKET_BAGS[truckSize] ?? 6
               const blanketBags = uhaulBlankets ?? (defaultBlankets * truckCount)
-              const estimatedHours = pricingBreakdown.totalHours || 3
+              // Hours depend on strategy — 1 truck 2 trips takes longer than 2 trucks 1 trip
+              const estimatedHoursForStrategy = (() => {
+                const activeS = uhaulSelectedStrategy ?? tripStrategy
+                if (activeS === 'single_truck_two_trips') {
+                  // Use twoTripComparison hours if available (pricing engine already calculates this correctly)
+                  return flags?.twoTripComparison?.totalHours || pricingBreakdown.totalHours || 3
+                }
+                // For 2 trucks: the standard totalHours is already calculated for this strategy
+                return pricingBreakdown.totalHours || 3
+              })()
+              const estimatedHours = estimatedHoursForStrategy
               const crewSize = pricingBreakdown.crewSize || 3
               const revenue = quoteModalTotals.subtotal || 0
 
