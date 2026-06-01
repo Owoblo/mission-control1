@@ -238,8 +238,9 @@ export async function estimateRouteContext(input: {
   origin: string
   destination?: string
   branch?: string
-  originDisplayName?: string  // pre-resolved display name from Places Details
+  originDisplayName?: string
   destDisplayName?: string
+  yardOverride?: GeocodeResult  // nearest U-Haul depot coords — use as yard base
 }): Promise<EstimateRouteContext & {
   category?: 'local' | 'medium' | 'long-distance'
   distanceKm?: number
@@ -278,8 +279,8 @@ export async function estimateRouteContext(input: {
     input.destination?.trim() ? geocodeWithFallback(input.destination.trim()) : Promise.resolve(null),
   ])
 
-  // Yard always resolves — hardcoded coords for known branches, no API call needed
-  const yardGeo = yardGeoHardcoded
+  // Yard: use nearest U-Haul when provided (most accurate), else hardcoded branch coords
+  const yardGeo = input.yardOverride ?? yardGeoHardcoded
 
   if (!originGeo) {
     throw new Error(`Could not locate: "${input.origin}"`)

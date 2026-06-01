@@ -68,6 +68,8 @@ export async function GET(request: Request) {
       name: best.place.name,
       address: best.place.formatted_address,
       distanceKm: best.route.distanceKm,
+      lat: best.place.geometry.location.lat,
+      lng: best.place.geometry.location.lng,
     })
   } catch (error) {
     return NextResponse.json(

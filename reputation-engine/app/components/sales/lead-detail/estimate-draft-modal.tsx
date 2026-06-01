@@ -455,6 +455,8 @@ export function EstimateDraftModal({
   const [originPlaceId, setOriginPlaceId] = useState<string | undefined>(undefined)
   const [destPlaceId, setDestPlaceId] = useState<string | undefined>(undefined)
   const [uhaulDepotName, setUhaulDepotName] = useState<string | null>(null)
+  const [uhaulDepotLat, setUhaulDepotLat] = useState<number | null>(null)
+  const [uhaulDepotLng, setUhaulDepotLng] = useState<number | null>(null)
   const [uhaulPickupKm, setUhaulPickupKm] = useState<number | null>(null)
   const [uhaulDepotLookupDone, setUhaulDepotLookupDone] = useState(false)
   const [uhaulSelectedStrategy, setUhaulSelectedStrategy] = useState<TripStrategy | null>(null)
@@ -848,10 +850,12 @@ export function EstimateDraftModal({
     setUhaulDepotLookupDone(true)
     void fetch(`/api/sales/uhaul-nearest?address=${encodeURIComponent(addr)}`)
       .then(r => r.ok ? r.json() : null)
-      .then((data: { name?: string; distanceKm?: number | null } | null) => {
+      .then((data: { name?: string; distanceKm?: number | null; lat?: number; lng?: number } | null) => {
         if (data?.distanceKm != null) {
           setUhaulPickupKm(data.distanceKm)
           setUhaulDepotName(data.name ?? null)
+          if (data.lat != null) setUhaulDepotLat(data.lat)
+          if (data.lng != null) setUhaulDepotLng(data.lng)
         }
       })
       .catch(() => {})
@@ -892,7 +896,17 @@ export function EstimateDraftModal({
     fetch('/api/sales/route-estimate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ origin: originFull, destination: destFull || undefined, branch: selectedBranch, originPlaceId, destPlaceId }),
+      body: JSON.stringify({
+        origin: originFull,
+        destination: destFull || undefined,
+        branch: selectedBranch,
+        originPlaceId,
+        destPlaceId,
+        // Use nearest U-Haul as the yard base when available — more accurate than fixed branch coords
+        yardLat: uhaulDepotLat ?? undefined,
+        yardLng: uhaulDepotLng ?? undefined,
+        yardName: uhaulDepotName ?? undefined,
+      }),
       credentials: 'include',
     })
       .then(r => r.json())

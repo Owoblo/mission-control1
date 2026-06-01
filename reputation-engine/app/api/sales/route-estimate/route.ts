@@ -7,12 +7,15 @@ const CACHE_TTL_MS = 30 * 60 * 1000
 
 export async function POST(request: Request) {
   try {
-    const { origin, destination, branch, originPlaceId, destPlaceId } = (await request.json()) as {
+    const { origin, destination, branch, originPlaceId, destPlaceId, yardLat, yardLng, yardName } = (await request.json()) as {
       origin?: string
       destination?: string
       branch?: string
       originPlaceId?: string
       destPlaceId?: string
+      yardLat?: number
+      yardLng?: number
+      yardName?: string
     }
 
     if (!origin?.trim()) {
@@ -34,7 +37,7 @@ export async function POST(request: Request) {
 
     const result = await estimateRouteContext({
       origin: originGeoOverride
-        ? `${originGeoOverride.lat},${originGeoOverride.lng}`  // pass as lat,lng to skip re-geocoding
+        ? `${originGeoOverride.lat},${originGeoOverride.lng}`
         : origin.trim(),
       destination: destGeoOverride
         ? `${destGeoOverride.lat},${destGeoOverride.lng}`
@@ -42,6 +45,10 @@ export async function POST(request: Request) {
       branch,
       originDisplayName: originGeoOverride?.displayName,
       destDisplayName: destGeoOverride?.displayName,
+      // Use nearest U-Haul as yard when provided — most accurate operational base
+      yardOverride: yardLat != null && yardLng != null
+        ? { lat: yardLat, lng: yardLng, displayName: yardName || 'Nearest U-Haul depot' }
+        : undefined,
     })
 
     routeCache.set(cacheKey, { result, expiresAt: Date.now() + CACHE_TTL_MS })
