@@ -318,8 +318,9 @@ export async function estimateRouteContext(input: {
     input.destination?.trim() ? geocodeWithFallback(input.destination.trim()) : Promise.resolve(null),
   ])
 
-  // Yard: use nearest U-Haul when provided (most accurate), else hardcoded branch coords
-  const yardGeo = input.yardOverride ?? yardGeoHardcoded
+  // Yard: always use hardcoded branch coords for routing
+  // U-Haul pickup distance is handled separately in the Live Margin — keeps pricing engine clean
+  const yardGeo = yardGeoHardcoded
 
   if (!originGeo) {
     throw new Error(`Could not locate: "${input.origin}"`)

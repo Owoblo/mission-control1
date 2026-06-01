@@ -902,10 +902,6 @@ export function EstimateDraftModal({
         branch: selectedBranch,
         originPlaceId,
         destPlaceId,
-        // Use nearest U-Haul as the yard base when available — more accurate than fixed branch coords
-        yardLat: uhaulDepotLat ?? undefined,
-        yardLng: uhaulDepotLng ?? undefined,
-        yardName: uhaulDepotName ?? undefined,
       }),
       credentials: 'include',
     })
