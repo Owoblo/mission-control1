@@ -8,6 +8,14 @@ const BRANCH_YARDS: Record<string, string> = {
   ottawa: 'Ottawa, ON, Canada',
 }
 
+// Hardcoded yard coordinates — never fails, no geocoding needed for known branches
+const BRANCH_YARD_COORDS: Record<string, GeocodeResult> = {
+  windsor:  { lat: 42.3149, lng: -83.0364, displayName: 'Windsor, ON (Saturn Star base)' },
+  waterloo: { lat: 43.4516, lng: -80.4925, displayName: 'Kitchener, ON (Saturn Star base)' },
+  london:   { lat: 42.9849, lng: -81.2453, displayName: 'London, ON (Saturn Star base)' },
+  ottawa:   { lat: 45.4215, lng: -75.6972, displayName: 'Ottawa, ON (Saturn Star base)' },
+}
+
 const BASE_YARD_ADDRESS = BRANCH_YARDS.windsor
 
 type GeocodeResult = {
@@ -245,6 +253,8 @@ export async function estimateRouteContext(input: {
   yardResolved?: string
 }> {
   const yardAddress = (input.branch && BRANCH_YARDS[input.branch]) ? BRANCH_YARDS[input.branch] : BASE_YARD_ADDRESS
+  // Use hardcoded coords for known branches — no geocoding needed, never fails
+  const yardGeoHardcoded = input.branch ? BRANCH_YARD_COORDS[input.branch] : BRANCH_YARD_COORDS.windsor
 
   // Geocode with fallback: if full address fails, try stripping the last token
   // Also handles pre-resolved "lat,lng" format passed from place_id resolution
@@ -263,17 +273,16 @@ export async function estimateRouteContext(input: {
     return null
   }
 
-  const [originGeo, yardGeo, destGeo] = await Promise.all([
+  const [originGeo, destGeo] = await Promise.all([
     geocodeWithFallback(input.origin.trim()),
-    geocodeAddress(yardAddress),
     input.destination?.trim() ? geocodeWithFallback(input.destination.trim()) : Promise.resolve(null),
   ])
 
+  // Yard always resolves — hardcoded coords for known branches, no API call needed
+  const yardGeo = yardGeoHardcoded
+
   if (!originGeo) {
     throw new Error(`Could not locate: "${input.origin}"`)
-  }
-  if (!yardGeo) {
-    throw new Error('Could not locate Saturn Star yard/base')
   }
 
   const yardToOrigin = await getDrivingRoute(yardGeo, originGeo)
