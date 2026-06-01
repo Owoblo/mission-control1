@@ -450,6 +450,7 @@ export function EstimateDraftModal({
   const [uhaulOpen, setUhaulOpen] = useState(false)
   const [uhaulGasPrice, setUhaulGasPrice] = useState(DEFAULT_GAS_PRICE_PER_L)
   const [uhaulMisc, setUhaulMisc] = useState(DEFAULT_MISC_BUFFER)
+  const [ldMarginTarget, setLdMarginTarget] = useState(50)  // 40–60% slider
   const [uhaulStraightDrop, setUhaulStraightDrop] = useState(false)
   const [uhaulBlankets, setUhaulBlankets] = useState<number | null>(null)  // null = auto
   const [originPlaceId, setOriginPlaceId] = useState<string | undefined>(undefined)
@@ -4498,24 +4499,46 @@ export function EstimateDraftModal({
                               </div>
                             </div>
 
-                            {ldTarget > 0 && (
-                              <div className="border-t border-[var(--app-line)] pt-2 space-y-1.5">
-                                <div className="flex justify-between text-xs text-[var(--app-muted)]">
-                                  <span>Floor (40% margin)</span><span>{formatMoney(ldFloor)}</span>
+                            {ldTotalCost > 0 && (() => {
+                              const ldCeiling   = Math.round(ldTotalCost / 0.40 * 100) / 100  // 60% margin
+                              const ldFloorPx   = Math.round(ldTotalCost / 0.60 * 100) / 100  // 40% margin
+                              const ldSelected  = Math.round(ldTotalCost / (1 - ldMarginTarget / 100) * 100) / 100
+                              const ldSelectedHST = Math.round(ldSelected * 1.13 * 100) / 100
+                              const selMargin   = ldMarginTarget
+                              const marginColor = selMargin >= 55 ? 'text-emerald-700' : selMargin >= 40 ? 'text-amber-700' : 'text-rose-600'
+                              return (
+                                <div className="border-t border-[var(--app-line)] pt-3 space-y-3">
+                                  <div className="flex items-center justify-between text-[10px] text-[var(--app-muted)]">
+                                    <span>40% · {formatMoney(ldFloorPx)}</span>
+                                    <span className="font-semibold text-[var(--app-ink)] text-xs">Price range</span>
+                                    <span>60% · {formatMoney(ldCeiling)}</span>
+                                  </div>
+                                  <input
+                                    type="range"
+                                    min={40} max={60} step={1}
+                                    value={ldMarginTarget}
+                                    onChange={e => setLdMarginTarget(Number(e.target.value))}
+                                    className="w-full accent-[#1a2744] h-1.5 cursor-pointer"
+                                  />
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <div className={`text-base font-bold ${marginColor}`}>{formatMoney(ldSelected)} + HST</div>
+                                      <div className="text-[10px] text-[var(--app-muted)]">{formatMoney(ldSelectedHST)} total to customer · <span className={`font-semibold ${marginColor}`}>{selMargin}% margin</span></div>
+                                    </div>
+                                    <div className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${selMargin >= 55 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : selMargin >= 40 ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-rose-50 text-rose-600 border border-rose-200'}`}>
+                                      {selMargin}%
+                                    </div>
+                                  </div>
+                                  <button type="button"
+                                    onClick={() => {
+                                      onSetLineItems([{ description: 'Long-Distance Moving Service — All Inclusive', details: `U-Haul one-way · ${ldTruckCount} truck${ldTruckCount === 1 ? '' : 's'} · ${ldDistKm} km · loading, transport, unloading · packing assistance + free boxes included`, amount: ldSelected }])
+                                      setOverrideInput(String(ldSelected)); setOverrideApplied(true); setBookTodayActive(false); setTenPctActive(false)
+                                    }}
+                                    className={`w-full rounded-[6px] px-3 py-2.5 text-[11px] font-semibold text-white transition ${selMargin >= 40 ? 'bg-[#1a2744] hover:bg-[#1a2744]/90' : 'bg-rose-500 hover:bg-rose-600'}`}
+                                  >Apply — {formatMoney(ldSelected)} + HST ({selMargin}% margin)</button>
                                 </div>
-                                <div className="flex justify-between text-xs font-semibold">
-                                  <span>Target (50% margin)</span>
-                                  <span>{formatMoney(ldTarget)} + HST = {formatMoney(Math.round(ldTarget * 1.13 * 100) / 100)}</span>
-                                </div>
-                                <button type="button"
-                                  onClick={() => {
-                                    onSetLineItems([{ description: 'Long-Distance Moving Service — All Inclusive', details: `U-Haul one-way · ${ldTruckCount} truck${ldTruckCount === 1 ? '' : 's'} · ${ldDistKm} km · loading, transport, unloading`, amount: ldTarget }])
-                                    setOverrideInput(String(ldTarget)); setOverrideApplied(true); setBookTodayActive(false); setTenPctActive(false)
-                                  }}
-                                  className="w-full rounded-[6px] bg-[#1a2744] px-3 py-2 text-[11px] font-semibold text-white hover:bg-[#1a2744]/90 transition"
-                                >Apply target rate — {formatMoney(ldTarget)} + HST</button>
-                              </div>
-                            )}
+                              )
+                            })()}
                           </>
                         )}
                       </div>
@@ -4788,6 +4811,9 @@ export function EstimateDraftModal({
                     {[
                       { label: '20 Boxes free', desc: '20 Complimentary Moving Boxes', details: 'Small & medium boxes — keep or recycle after your move' },
                       { label: '40 Boxes free', desc: '40 Complimentary Moving Boxes', details: 'Full box kit — small, medium & large' },
+                      ...(route?.category === 'long-distance' || quoteType === 'long_distance' ? [
+                        { label: 'Packing assist + free boxes', desc: 'Packing Assistance + Free Boxes (Long Distance)', details: 'Full packing assistance included — all boxes provided at no extra charge. Baked into the all-inclusive rate.' },
+                      ] : []),
                       { label: '5 Wardrobe boxes', desc: '5 Wardrobe Boxes (Complimentary)', details: 'Hanging clothes stay on hangers — no folding needed' },
                       { label: 'TV box', desc: 'TV Box (Complimentary)', details: 'Custom TV box for safe transport' },
                       { label: 'Mattress covers', desc: 'Mattress Covers (Complimentary)', details: 'All mattresses wrapped and protected at no charge' },
