@@ -3,7 +3,7 @@ import { estimateRouteContext, geocodeByPlaceId } from '@/lib/server/route-estim
 
 // In-memory cache — same origin+dest+branch returns instantly for 30 minutes
 const routeCache = new Map<string, { result: unknown; expiresAt: number }>()
-const CACHE_TTL_MS = 30 * 60 * 1000
+const CACHE_TTL_MS = 10 * 60 * 1000  // 10 min — keeps it fresh without hammering the API
 
 export async function POST(request: Request) {
   try {
@@ -22,7 +22,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'origin is required' }, { status: 400 })
     }
 
-    const cacheKey = `${originPlaceId || origin.trim()}|${destPlaceId || destination?.trim() || ''}|${branch || ''}`
+    // Include yard coords in cache key — different U-Haul depots = different routes
+    const yardKey = yardLat != null ? `${Math.round(yardLat * 1000)},${Math.round(yardLng! * 1000)}` : branch || ''
+    const cacheKey = `${originPlaceId || origin.trim()}|${destPlaceId || destination?.trim() || ''}|${yardKey}`
     const cached = routeCache.get(cacheKey)
     if (cached && Date.now() < cached.expiresAt) {
       return NextResponse.json(cached.result)
