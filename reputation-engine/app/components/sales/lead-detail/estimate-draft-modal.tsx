@@ -12,6 +12,7 @@ import { getDisassemblyServiceLabel, getIncludedDisassemblyItems } from '@/lib/m
 import { formatMovePolicyCategoryLabel, getMovePolicyFinding, summarizeMovePolicy } from '@/lib/move-policy'
 import { getTvBoxMaterialPresetForSize } from '@/lib/packing-materials'
 import { buildStarterInventoryPlan } from '@/lib/starter-inventory'
+import { PhotoLightbox } from '@/app/components/sales/photo-lightbox'
 import { DEFAULT_ROOM_OPTIONS } from './helpers'
 import type { EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, PricingBreakdown, QuoteLineItem, QuoteLeg, QuoteLegType } from '@/lib/types'
 import {
@@ -451,6 +452,7 @@ export function EstimateDraftModal({
   const [uhaulGasPrice, setUhaulGasPrice] = useState(DEFAULT_GAS_PRICE_PER_L)
   const [uhaulMisc, setUhaulMisc] = useState(DEFAULT_MISC_BUFFER)
   const [ldMarginTarget, setLdMarginTarget] = useState(50)  // 40–60% slider
+  const [lightbox, setLightbox] = useState<{ photos: string[]; index: number } | null>(null)
   const [uhaulStraightDrop, setUhaulStraightDrop] = useState(false)
   const [uhaulBlankets, setUhaulBlankets] = useState<number | null>(null)  // null = auto
   const [originPlaceId, setOriginPlaceId] = useState<string | undefined>(undefined)
@@ -2857,12 +2859,17 @@ export function EstimateDraftModal({
                 <div className="crm-label">Listing Photos</div>
                 {listingPhotos.length > 0 ? (
                   <>
-                    <div className="mt-3 overflow-hidden rounded-[8px] border border-[var(--app-line)]">
+                    <button type="button" onClick={() => setLightbox({ photos: listingPhotos, index: activePhotoIndex })}
+                      className="mt-3 w-full overflow-hidden rounded-[8px] border border-[var(--app-line)] cursor-zoom-in"
+                    >
                       <img src={listingPhotos[activePhotoIndex]} alt="MLS reference" className="h-40 w-full object-cover" />
-                    </div>
+                    </button>
                     <div className="mt-3 grid grid-cols-4 gap-1.5 max-h-64 overflow-y-auto pr-0.5">
                       {listingPhotos.map((photo, index) => (
-                        <button key={`${photo}-${index}`} onClick={() => onSetActivePhotoIndex(index)} className={`overflow-hidden rounded-[6px] border ${activePhotoIndex === index ? 'border-[var(--app-ink)]' : 'border-[var(--app-line)]'}`}>
+                        <button key={`${photo}-${index}`}
+                          onClick={() => { onSetActivePhotoIndex(index); setLightbox({ photos: listingPhotos, index }) }}
+                          className={`overflow-hidden rounded-[6px] border cursor-zoom-in ${activePhotoIndex === index ? 'border-[var(--app-ink)]' : 'border-[var(--app-line)]'}`}
+                        >
                           <img src={photo} alt={`MLS thumb ${index + 1}`} className="h-14 w-full object-cover" />
                         </button>
                       ))}
@@ -2885,18 +2892,17 @@ export function EstimateDraftModal({
                   <div className="mt-2 text-[10px] text-emerald-700">Photos uploaded by the customer — use these to verify the AI inventory is correct.</div>
                   <div className="mt-3 grid grid-cols-4 gap-1.5 max-h-64 overflow-y-auto pr-0.5">
                     {customerPhotos!.map((photo, index) => (
-                      <a
+                      <button
                         key={`customer-${index}`}
-                        href={photo}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="overflow-hidden rounded-[6px] border border-emerald-200 hover:border-emerald-400 transition-colors"
+                        type="button"
+                        onClick={() => setLightbox({ photos: customerPhotos!, index })}
+                        className="overflow-hidden rounded-[6px] border border-emerald-200 hover:border-emerald-400 transition-colors cursor-zoom-in"
                       >
                         <img src={photo} alt={`Customer photo ${index + 1}`} className="h-14 w-full object-cover" />
-                      </a>
+                      </button>
                     ))}
                   </div>
-                  <div className="mt-1.5 text-[10px] text-emerald-600">Click any photo to open full size.</div>
+                  <div className="mt-1.5 text-[10px] text-emerald-600">Click any photo to enlarge — use arrow keys to browse.</div>
                 </div>
               )}
             </div>
@@ -4978,6 +4984,14 @@ export function EstimateDraftModal({
           </aside>
         </div>
       </div>
+      {lightbox && (
+        <PhotoLightbox
+          photos={lightbox.photos}
+          index={lightbox.index}
+          onNavigate={index => setLightbox(lb => lb ? { ...lb, index } : null)}
+          onClose={() => setLightbox(null)}
+        />
+      )}
     </div>
   )
 }

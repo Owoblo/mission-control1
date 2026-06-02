@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { buildInventoryVerificationActivity, buildInventoryVerificationSummary } from '@/lib/inventory-verification'
+import { PhotoLightbox } from '@/app/components/sales/photo-lightbox'
 import type { CRMLead, LeadMediaAsset } from '@/lib/types'
 
 type Props = {
@@ -24,6 +25,7 @@ export function InventoryVerificationPanel({
   onGenerateLinkOnly,
 }: Props) {
   const [copied, setCopied] = useState(false)
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
 
   function copyLink() {
     if (!surveyUrl) return
@@ -170,17 +172,26 @@ export function InventoryVerificationPanel({
                   const sourceLabel = asset.source === 'mms' ? 'MMS' : asset.source === 'survey' ? 'Survey' : 'Rep'
                   const sourceTone = asset.source === 'mms' ? 'bg-sky-100 text-sky-700' : asset.source === 'survey' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'
                   return (
-                    <a key={asset.id || index} href={asset.url} target="_blank" rel="noopener noreferrer"
-                      className="group relative aspect-square overflow-hidden rounded-[6px] border border-[var(--app-line)]"
-                      title={asset.room || `Photo ${index + 1}`}
+                    <button key={asset.id || index} type="button" onClick={() => setLightboxIndex(index)}
+                      className="group relative aspect-square overflow-hidden rounded-[6px] border border-[var(--app-line)] cursor-zoom-in"
+                      title={asset.room || `Photo ${index + 1} — click to enlarge`}
                     >
                       <img src={asset.url} alt={`Customer photo ${index + 1}`} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
                       <div className={`absolute left-1 top-1 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${sourceTone}`}>{sourceLabel}</div>
                       {asset.room && <div className="absolute bottom-0 left-0 right-0 truncate bg-black/50 px-1 py-0.5 text-[9px] text-white">{asset.room}</div>}
-                    </a>
+                    </button>
                   )
                 })}
               </div>
+              {lightboxIndex !== null && (
+                <PhotoLightbox
+                  photos={customerImageAssets.map(a => a.url)}
+                  labels={customerImageAssets.map(a => [a.room, a.source === 'mms' ? 'MMS' : a.source === 'survey' ? 'Survey' : 'Rep upload'].filter(Boolean).join(' · '))}
+                  index={lightboxIndex}
+                  onNavigate={setLightboxIndex}
+                  onClose={() => setLightboxIndex(null)}
+                />
+              )}
 
               {customerVideoAssets.length > 0 && (
                 <div className="rounded-[8px] bg-white/70 p-2 text-[11px] text-[var(--app-muted)]">
