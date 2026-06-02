@@ -58,16 +58,21 @@ export async function POST(request: Request) {
         const stripe = new Stripe(stripeKey, { apiVersion: '2026-02-25.clover', httpClient: Stripe.createNodeHttpClient() })
         const now = new Date().toISOString()
 
-        // Retrieve payment intent to get payment method ID for future balance charge
+        // Retrieve payment intent — source of truth for actual amount charged
         let paymentMethodId: string | undefined
         let customerId: string | undefined
+        let piAmountPaid: number | undefined
         if (session.payment_intent) {
           const pi = await stripe.paymentIntents.retrieve(
             typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent.id
           )
           paymentMethodId = typeof pi.payment_method === 'string' ? pi.payment_method : pi.payment_method?.id
           customerId = typeof pi.customer === 'string' ? pi.customer : pi.customer?.id
+          // amount_received is in cents — this is what was actually charged, not the quote deposit
+          if (pi.amount_received) piAmountPaid = pi.amount_received / 100
         }
+        // Priority: PI amount_received > session amount_total > quote deposit
+        const actualDepositPaid = piAmountPaid ?? (session.amount_total ? session.amount_total / 100 : undefined)
 
         // Update the quote with deposit payment info
         const quote = await getSalesQuote(quoteId)
@@ -76,7 +81,7 @@ export async function POST(request: Request) {
           await saveSalesQuote({
             ...quote,
             depositPaidAt: now,
-            depositPaidAmount: session.amount_total ? session.amount_total / 100 : quote.deposit,
+            depositPaidAmount: actualDepositPaid ?? quote.deposit,
             depositPaidMethod: 'stripe',
             depositStripeSessionId: session.id,
             depositStripePaymentIntentId: typeof session.payment_intent === 'string' ? session.payment_intent : undefined,
@@ -91,7 +96,7 @@ export async function POST(request: Request) {
           const lead = await getSalesLead(targetLeadId)
           if (lead) {
             const alreadyBooked = lead.stage === 'booked' || lead.stage === 'completed'
-            const depositAmt = session.amount_total ? session.amount_total / 100 : quote?.deposit
+            const depositAmt = actualDepositPaid ?? quote?.deposit
             const branch = deriveLeadBranch(lead)
             const autoAssignedCrew = (lead.assignedCrew?.length ?? 0) > 0 ? lead.assignedCrew! : await pickAutoAssignedCrewIds(branch).catch(() => [] as string[])
             const autoCrewBrief = await generateCrewBrief({ lead: { ...lead, branch }, quote: quote ?? null }).catch(() => '')
@@ -141,7 +146,7 @@ export async function POST(request: Request) {
             // Notify the team — deposit paid
             if (!receiptAlreadyRecorded) {
               const customerName = lead.name || 'Customer'
-              const depositAmt = session.amount_total ? session.amount_total / 100 : quote?.deposit || 0
+              const depositAmt = (actualDepositPaid ?? quote?.deposit) || 0
               const quoteNum = quote?.number || ''
               const crmUrl = `${readEnv('NEXT_PUBLIC_APP_URL') || 'https://go.quote2move.com'}/sales/leads/${lead.id}`
               void sendRepAlertEmail(
@@ -167,10 +172,10 @@ export async function POST(request: Request) {
                 moveDate: quote.moveDate,
                 originCity: quote.originCity,
                 destCity: quote.destCity,
-                depositAmount: session.amount_total ? session.amount_total / 100 : quote.deposit,
+                depositAmount: actualDepositPaid ?? quote.deposit,
                 balanceAmount: Math.max(
                   0,
-                  Math.round(((quote.total || 0) - (session.amount_total ? session.amount_total / 100 : quote.deposit)) * 100) / 100
+                  Math.round(((quote.total || 0) - (actualDepositPaid ?? quote.deposit)) * 100) / 100
                 ),
                 totalAmount: quote.total,
                 paymentMethod: 'Credit Card',
