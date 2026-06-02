@@ -35,18 +35,25 @@ export const SATURN_BRANCH_PHONE_DIRECTORY = {
     trackingLabel: 'Woodstock / Cambridge Area',
     trackingSource: 'google_online_search',
   },
-  // 226-780-6649 — Twilio locates as Guelph, ON ✓
-  '+12267806649': {
-    branchLabel: 'Guelph',
+  // 226-780-3158 — Twilio: Guelph, ON → Kitchener GBP
+  '+12267803158': {
+    branchLabel: 'Kitchener',
     salesBranch: 'waterloo',
-    trackingLabel: 'Guelph GMB',
+    trackingLabel: 'Kitchener GBP',
     trackingSource: 'google_online_search',
   },
-  // 226-780-7014 — Twilio locates as Guelph, ON ✓
+  // 226-780-6649 — Twilio: Guelph, ON → Waterloo GBP
+  '+12267806649': {
+    branchLabel: 'Waterloo',
+    salesBranch: 'waterloo',
+    trackingLabel: 'Waterloo GBP',
+    trackingSource: 'google_online_search',
+  },
+  // 226-780-7014 — Twilio: Guelph, ON → Guelph GBP
   '+12267807014': {
     branchLabel: 'Guelph',
     salesBranch: 'waterloo',
-    trackingLabel: 'Guelph GMB #2',
+    trackingLabel: 'Guelph GBP',
     trackingSource: 'google_online_search',
   },
   // ── Ottawa ─────────────────────────────────────────────────────────────────
