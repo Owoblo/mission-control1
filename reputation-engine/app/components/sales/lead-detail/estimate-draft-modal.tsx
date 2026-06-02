@@ -1068,12 +1068,41 @@ export function EstimateDraftModal({
   const valuationAdded = quoteLineItems.some(li => li.description === valuationLineDescription)
   const tvDismountLineDescription = 'TV Dismount & Remount Service'
   const tvDismountAdded = quoteLineItems.some(li => li.description === tvDismountLineDescription)
-  // Detect wall-mounted or large TVs from inventory
-  const wallMountedTvs = effectiveInventoryMetrics.inventory.filter(item => {
+  // All TVs in inventory (for boxes) — wall-mounted subset for dismount service
+  const allTvsInInventory = effectiveInventoryMetrics.inventory.filter(item => {
     const label = (item.name || item.item || '').toLowerCase()
-    return (label.includes('tv') || label.includes('television')) && !label.includes('tv box') && !label.includes('stand')
+    return (label.includes('tv') || label.includes('television') || label.includes('flat screen') || label.includes('flatscreen')) && !label.includes('tv box') && !label.includes('tv stand') && !label.includes('tv unit') && !label.includes('tv cabinet')
+  })
+  const wallMountedTvs = allTvsInInventory.filter(item => {
+    const label = (item.name || item.item || '').toLowerCase()
+    return label.includes('wall') || label.includes('mount') || label.includes('bracket')
   })
   const tvDismountPrice = Math.min(150, 75 + wallMountedTvs.length * 50)  // $75 base + $50/TV, max $150
+
+  // TV boxes — $20 each, NOT included in the free box deal, auto-detected from inventory
+  // U-Haul TV box pricing (CAD, as of 2026) — our cost = U-Haul retail, customer pays cost + 10%
+  const TV_BOX_TIERS = [
+    { maxInches: 40,  label: 'Medium (up to 40")',  uHaulCost: 21, ourPrice: Math.round(21 * 1.10) },
+    { maxInches: 70,  label: 'Large (32"–70")',      uHaulCost: 29, ourPrice: Math.round(29 * 1.10) },
+    { maxInches: 999, label: 'XL (55"–86")',         uHaulCost: 38, ourPrice: Math.round(38 * 1.10) },
+  ]
+  function getTvBoxTier(itemLabel: string) {
+    const match = itemLabel.match(/(\d{2,3})\s*(?:inch|in|")/i)
+    const inches = match ? parseInt(match[1]) : 55  // default to large if size unknown
+    return TV_BOX_TIERS.find(t => inches <= t.maxInches) || TV_BOX_TIERS[TV_BOX_TIERS.length - 1]
+  }
+  const tvBoxLineDescription = 'TV Box (Protective Packaging)'
+  const tvBoxesAdded = quoteLineItems.some(li => li.description === tvBoxLineDescription)
+  const tvBoxItems = allTvsInInventory.map(item => ({
+    item,
+    qty: Math.max(1, item.qty || 1),
+    tier: getTvBoxTier(item.name || item.item || ''),
+  }))
+  const tvBoxCount   = tvBoxItems.reduce((s, t) => s + t.qty, 0)
+  const tvBoxRevenue = tvBoxItems.reduce((s, t) => s + t.qty * t.tier.ourPrice, 0)
+  const tvBoxCost    = tvBoxItems.reduce((s, t) => s + t.qty * t.tier.uHaulCost, 0)
+  // Price shown on chip: use most common tier or average
+  const tvBoxChipPrice = tvBoxCount > 0 ? Math.round(tvBoxRevenue / tvBoxCount) : 32
 
   // Junk removal pricing tiers (2 movers + cube truck, Windsor/KW area)
   const JUNK_TIERS: Record<string, { label: string; cubicFeet: string; price: number; detail: string }> = {
@@ -1960,7 +1989,35 @@ export function EstimateDraftModal({
                   {valuationAdded ? '✓' : '+'} Valuation
                 </button>
 
-                {/* TV Dismount — auto-surfaces when TVs detected in inventory */}
+                {/* TV Box — auto-surfaces when ANY TV detected, $20/box, not in free boxes */}
+                {tvBoxCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (tvBoxesAdded) {
+                        onSetLineItems(quoteLineItems.filter(li => li.description !== tvBoxLineDescription))
+                      } else {
+                        onAddLineItem()
+                        setTimeout(() => {
+                          const idx = quoteLineItems.length
+                          onUpdateLineItem(idx, 'description', tvBoxLineDescription)
+                          onUpdateLineItem(idx, 'details', `${tvBoxCount} TV box${tvBoxCount > 1 ? 'es' : ''} — size-matched U-Haul boxes, not included in free boxes`)
+                          onUpdateLineItem(idx, 'amount', String(tvBoxRevenue))
+                        }, 50)
+                      }
+                    }}
+                    className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      tvBoxesAdded
+                        ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                        : 'border-amber-300 bg-amber-50 text-amber-800 hover:border-amber-500'
+                    }`}
+                    title={`${tvBoxCount} TV detected — ${formatMoney(tvBoxRevenue)} (U-Haul cost ${formatMoney(tvBoxCost)} + 10%)`}
+                  >
+                    {tvBoxesAdded ? '✓' : '📦'} TV Box{tvBoxCount > 1 ? `es (${tvBoxCount})` : ''} · {formatMoney(tvBoxRevenue)}
+                  </button>
+                )}
+
+                {/* TV Dismount — only for wall-mounted TVs */}
                 {wallMountedTvs.length > 0 && (
                   <button
                     type="button"
@@ -1982,7 +2039,7 @@ export function EstimateDraftModal({
                         ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
                         : 'border-amber-300 bg-amber-50 text-amber-800 hover:border-amber-500'
                     }`}
-                    title={`${wallMountedTvs.length} TV${wallMountedTvs.length > 1 ? 's' : ''} detected — $${tvDismountPrice}`}
+                    title={`${wallMountedTvs.length} wall-mounted TV${wallMountedTvs.length > 1 ? 's' : ''} detected — $${tvDismountPrice}`}
                   >
                     {tvDismountAdded ? '✓' : '📺'} TV Dismount${wallMountedTvs.length > 1 ? ` (${wallMountedTvs.length})` : ''} · ${tvDismountPrice > 0 ? `$${tvDismountPrice}` : ''}
                   </button>
@@ -3749,6 +3806,8 @@ export function EstimateDraftModal({
               const estimatedHours = estimatedHoursForStrategy
               const crewSize = pricingBreakdown.crewSize || 3
               const revenue = quoteModalTotals.subtotal || 0
+              // TV box cost added to miscBuffer so it reduces gross profit correctly
+              const effectiveMiscBuffer = uhaulMisc + tvBoxCost
 
               const pickupKm = uhaulPickupKm ?? 0
               const blanketBagsPerTruck = uhaulBlankets != null
@@ -3766,7 +3825,7 @@ export function EstimateDraftModal({
                 oneWayDistanceKm: oneWayKm, uhaulPickupKm: pickupKm,
                 gasPrice: uhaulGasPrice, blanketBags: activeBlankets,
                 includeStraightDrop: uhaulStraightDrop,
-                crewSize, estimatedHours, miscBuffer: uhaulMisc, revenue,
+                crewSize, estimatedHours, miscBuffer: effectiveMiscBuffer, revenue,
               })
 
               // Only show trip comparison when the system has detected a multi-truck or two-trip move
@@ -3918,6 +3977,12 @@ export function EstimateDraftModal({
                             <div className="flex justify-between text-xs">
                               <span className="text-[var(--app-muted)]">Packing day cost ({flags.packingDayEstimate.crewSize} packers · {flags.packingDayEstimate.hours}h)</span>
                               <span className="text-[var(--app-ink)]">{formatMoney(flags.packingDayEstimate.amountBeforeHst)}</span>
+                            </div>
+                          )}
+                          {tvBoxesAdded && tvBoxCost > 0 && (
+                            <div className="flex justify-between text-xs">
+                              <span className="text-[var(--app-muted)]">TV box cost ({tvBoxCount}× U-Haul · {formatMoney(tvBoxCost)} cost · charge {formatMoney(tvBoxRevenue)})</span>
+                              <span className="text-[var(--app-ink)]">{formatMoney(tvBoxCost)}</span>
                             </div>
                           )}
                         </div>

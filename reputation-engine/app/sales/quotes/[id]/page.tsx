@@ -1254,7 +1254,17 @@ Saturn Star Movers`
               <div className="border-b border-amber-200 bg-amber-50 px-6 py-3 text-sm text-amber-800">
                 {!(client?.email || lead?.email) && <div>⚠ No email on file — email send will be skipped.</div>}
                 {!(client?.phone || lead?.phone) && <div>⚠ No phone on file — SMS send will be skipped.</div>}
-                <div className="mt-1 text-xs text-amber-600">Go back to the lead and add contact details to enable full delivery.</div>
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <span className="text-xs text-amber-600">Add contact details on the lead to enable full delivery.</span>
+                  {lead && (
+                    <button
+                      onClick={() => router.push(`/sales/leads/${lead.id}`)}
+                      className="shrink-0 rounded-[6px] bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-800 transition"
+                    >
+                      ← Add Email / Phone
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 

@@ -707,25 +707,23 @@ const COMMISSION_RATE = 0.05          // 5% of revenue — rep commission
 const PACKING_SUPPLIES_COST_PER_BOX = 3.50  // avg cost per box (box + tape + paper)
 
 // Items that almost always require disassembly/reassembly — auto-detected from inventory scan
-// NOTE: wardrobes are excluded — they are typically built-in and stay with the property
 const DISASSEMBLY_KEYWORDS = [
-  'bed frame',
-  'bunk bed',
-  'crib',
-  'dining table',
-  'executive desk',
-  'corner desk',
-  'l-shaped desk',
-  'standing desk',
-  'desk frame',
-  'workstation desk',
-  'china cabinet',
-  'hutch',
+  // Beds — match any bed frame/base, not just ones labeled "bed frame"
+  'bed frame', 'bunk bed', 'crib', 'daybed',
+  'platform bed', 'sleigh bed', 'canopy bed', 'murphy bed',
+  'queen bed', 'king bed', 'twin bed', 'double bed', 'full bed',
+  'queen size bed', 'king size bed', 'twin size bed',
+  'queen platform', 'king platform',
+  // Tables
+  'dining table', 'kitchen table', 'office table', 'conference table',
+  // Desks
+  'executive desk', 'corner desk', 'l-shaped desk', 'standing desk',
+  'desk frame', 'workstation desk', 'computer desk', 'office desk',
+  // Storage / shelving with assembly
+  'china cabinet', 'hutch', 'bookcase', 'bookshelf',
+  // Other
   'trampoline',
-  'mirror dresser',
-  'dresser with mirror',
-  'mirrored dresser',
-  'dresser mirror',
+  'mirror dresser', 'dresser with mirror', 'mirrored dresser', 'dresser mirror',
 ]
 
 // Names that contain a keyword but should NOT be flagged for disassembly
@@ -733,7 +731,12 @@ const DISASSEMBLY_EXCLUSIONS = [
   'desk chair',   // "office desk chair", "ergonomic desk chair" — chairs, not desks
   'patio set',
   'patio table',
-  'office table',
+  'bar stool',    // bar stools don't disassemble
+  'coffee table', // coffee tables rarely need disassembly
+  'end table',
+  'side table',
+  'night table',
+  'nightstand',
 ]
 
 export function needsDisassembly(name: string): boolean {
