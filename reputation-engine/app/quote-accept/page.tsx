@@ -952,14 +952,15 @@ function QuoteAcceptPageInner() {
                 <span className="text-xs font-semibold">−{formatMoney(quote.discountAmount!)}</span>
               </div>
             )}
-            <div className="flex justify-between text-[#1a2744]/40 text-xs">
-              <span>Subtotal</span><span>{formatMoney(quote.subtotal)}</span>
-            </div>
-            <div className="flex justify-between text-[#1a2744]/40 text-xs">
-              <span>HST (13%)</span><span>{formatMoney(quote.hst)}</span>
-            </div>
+            {/* Subtotal is the hero — anchors customer on pre-tax price */}
             <div className="flex justify-between border-t border-[#1a2744]/10 pt-2.5 text-base font-black text-[#1a2744]">
-              <span>Total</span><span>{formatMoney(quote.total)}</span>
+              <span>Estimated Total</span><span>{formatMoney(quote.subtotal)}</span>
+            </div>
+            <div className="flex justify-between text-[#1a2744]/35 text-xs mt-1">
+              <span>HST (13%)</span><span>+{formatMoney(quote.hst)}</span>
+            </div>
+            <div className="flex justify-between text-[#1a2744]/35 text-xs border-t border-[#1a2744]/8 pt-1.5 mt-1.5">
+              <span>Total incl. HST</span><span>{formatMoney(quote.total)}</span>
             </div>
           </div>
         </div>

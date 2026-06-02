@@ -76,8 +76,9 @@ function buildQuoteEmailHtml({
         </div>
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:28px;">
           <div style="padding:18px;border-radius:14px;background:#0f6a53;color:#ffffff;">
-            <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;opacity:.74;font-weight:700;">Estimated Total</div>
+            <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;opacity:.74;font-weight:700;">Estimated (excl. HST)</div>
             <div style="margin-top:8px;font-size:30px;font-weight:700;">${formatMoney(total)}</div>
+            <div style="margin-top:4px;font-size:11px;opacity:.65;">+ 13% HST — full breakdown on quote</div>
           </div>
           <div style="padding:18px;border-radius:14px;background:#f4efe4;border:1px solid #eee7da;">
             <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8a8478;font-weight:700;">Deposit To Book</div>
@@ -271,6 +272,7 @@ export default function SalesQuoteDetailPage() {
     const firstName = (client?.name || lead?.name || 'there').split(' ')[0]
     const subject = isRevision ? `Updated moving quote from Saturn Star (${quote.number})` : `Your moving quote from Saturn Star (${quote.number})`
     const total = quoteTotals.total || quote.total
+    const subtotalForEmail = quoteTotals.subtotal || quote.subtotal
     const deposit = quoteTotals.deposit || quote.deposit
     const introLine = isRevision ? 'We updated your binding hourly estimate.' : 'Your binding hourly estimate is ready.'
     const actionLine = isRevision ? 'Open your same quote link below to review the latest details:' : 'Review and confirm here:'
@@ -306,7 +308,7 @@ Saturn Star Movers`
         moveDate: formatDate(quote.moveDate),
         originCity: quote.originCity,
         destCity: quote.destCity,
-        total,
+        total: subtotalForEmail,  // show pre-tax as hero; HST shown on quote page
         deposit,
         acceptUrl,
         validUntilText: validUntil(quote),
@@ -321,11 +323,12 @@ Saturn Star Movers`
   const smsDraft = useMemo(() => {
     if (!quote) return ''
     const firstName = (client?.name || lead?.name || 'there').split(' ')[0]
-    const total = quoteTotals.total || quote.total
+    const subtotal = quoteTotals.subtotal || quote.subtotal
     const deposit = quoteTotals.deposit || quote.deposit
+    // Show pre-tax price first — customer anchors on the lower number, HST shown on the quote page
     return isRevision
-      ? `Hi ${firstName}, we updated your Saturn Star estimate ${quote.number}. Total ${formatMoney(total)}. Deposit to book ${formatMoney(deposit)}. Review the latest version here: ${acceptUrl}`
-      : `Hi ${firstName}, your Saturn Star binding hourly estimate ${quote.number} is ready. Total ${formatMoney(total)}. Deposit to book ${formatMoney(deposit)}. Review here: ${acceptUrl}`
+      ? `Hi ${firstName}, we updated your Saturn Star estimate ${quote.number}. Starting at ${formatMoney(subtotal)} + HST. Deposit to book ${formatMoney(deposit)}. Review here: ${acceptUrl}`
+      : `Hi ${firstName}, your Saturn Star estimate ${quote.number} is ready. Starting at ${formatMoney(subtotal)} + HST. Deposit to confirm ${formatMoney(deposit)}. Review here: ${acceptUrl}`
   }, [acceptUrl, client?.name, isRevision, lead?.name, quote, quoteTotals])
 
   useEffect(() => {
