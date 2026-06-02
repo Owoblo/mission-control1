@@ -2418,25 +2418,12 @@ export function EstimateDraftModal({
                   {(() => {
                     const mlsBeds = lead.supabaseListing?.beds || lead.supabaseListing?.bedrooms
                     const mlsBaths = lead.supabaseListing?.baths || lead.supabaseListing?.bathrooms
-                    if (mlsBeds) {
-                      return (
-                        <div className="crm-kpi">
-                          <div className="crm-label">Beds / Baths</div>
-                          <div className="crm-value text-sm">{mlsBeds}bd{mlsBaths ? ` · ${mlsBaths}ba` : ''}</div>
-                          <div className="text-[9px] text-emerald-700 mt-0.5">MLS</div>
-                        </div>
-                      )
-                    }
-                    // Infer from inventory if no MLS
-                    const bedsInInventory = effectiveInventoryMetrics.inventory.filter(i =>
-                      /\b(bed|queen|king|twin|double|single)\s*(frame|mattress|size)?\b/i.test(i.name || i.item || '')
-                      && !/sofa\s*bed/i.test(i.name || i.item || '')
-                    ).length
+                    if (!mlsBeds && !mlsBaths) return null
                     return (
                       <div className="crm-kpi">
-                        <div className="crm-label">Bedrooms est.</div>
-                        <div className="crm-value text-sm">{bedsInInventory > 0 ? `~${bedsInInventory}bd` : '—'}</div>
-                        <div className="text-[9px] text-[var(--app-muted)] mt-0.5">{bedsInInventory > 0 ? 'from inventory' : 'no MLS'}</div>
+                        <div className="crm-label">Beds / Baths</div>
+                        <div className="crm-value">{mlsBeds ?? '—'}bd · {mlsBaths ?? '—'}ba</div>
+                        <div className="text-[9px] text-emerald-700 mt-0.5">from MLS</div>
                       </div>
                     )
                   })()}
