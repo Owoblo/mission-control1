@@ -433,7 +433,9 @@ export function FloatingDialer() {
   }) {
     const nextPhone = input?.phone || phone.trim()
     const nextLeadId = input?.leadId ?? activeLeadIdRef.current
-    const preferredFromNumber = input?.preferredFromNumber || callerProfileRef.current?.fromNumber || currentBusinessNumberRef.current || ''
+    // Only carry forward preferredFromNumber when explicitly passed or when there's an active lead
+    // — don't let a previous call's number bleed into a fresh unrelated dial
+    const preferredFromNumber = input?.preferredFromNumber || (nextLeadId ? callerProfileRef.current?.fromNumber || currentBusinessNumberRef.current : '') || ''
     const digits = nextPhone.replace(/\D/g, '')
 
     if (!nextLeadId && digits.length < 10) {

@@ -121,11 +121,13 @@ const SATURN_BRANCH_CITY_ALIASES: Array<{ branch: SalesBranch; patterns: RegExp[
   },
 ]
 
+// Area code → branch ONLY for codes that unambiguously belong to one city/region.
+// 226 and 519 cover ALL of SW Ontario (Windsor, KW, Guelph, London, Woodstock...)
+// — too broad to use for branch detection. Leave them out.
 const AREA_CODE_BRANCH_MAP: Partial<Record<string, SalesBranch>> = {
   '343': 'ottawa',
-  '519': 'waterloo',  // Guelph, Kitchener, Waterloo, Cambridge
-  '548': 'london',
-  '613': 'ottawa',
+  '548': 'london',   // London-specific
+  '613': 'ottawa',   // Ottawa-specific
 }
 
 export interface SmsMessageLike {
