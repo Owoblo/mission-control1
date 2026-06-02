@@ -10,24 +10,48 @@ type SaturnPhoneMetadata = {
 }
 
 export const SATURN_BRANCH_PHONE_DIRECTORY = {
+  // ── Windsor ────────────────────────────────────────────────────────────────
   '+12267732993': {
     branchLabel: 'Windsor',
     salesBranch: 'windsor',
     trackingLabel: 'Direct Mail',
     trackingSource: 'direct_mail',
   },
+  '+12267746581': {
+    branchLabel: 'Windsor',
+    salesBranch: 'windsor',
+  },
+  // ── Waterloo / KW / Guelph ────────────────────────────────────────────────
   '+12262423319': {
     branchLabel: 'Kitchener',
     salesBranch: 'waterloo',
+    trackingLabel: 'Kitchener GMB',
+    trackingSource: 'google_online_search',
   },
   '+12266055767': {
-    branchLabel: 'Kitchener',
+    branchLabel: 'Waterloo',
     salesBranch: 'waterloo',
+    trackingLabel: 'Waterloo GMB',
+    trackingSource: 'google_online_search',
   },
+  '+12267806649': {
+    branchLabel: 'Guelph',
+    salesBranch: 'waterloo',
+    trackingLabel: 'Guelph GMB',
+    trackingSource: 'google_online_search',
+  },
+  '+12267807014': {
+    branchLabel: 'Guelph',
+    salesBranch: 'waterloo',
+    trackingLabel: 'Guelph GMB #2',
+    trackingSource: 'google_online_search',
+  },
+  // ── Ottawa ─────────────────────────────────────────────────────────────────
   '+16135193236': {
     branchLabel: 'Ottawa',
     salesBranch: 'ottawa',
   },
+  // ── London ─────────────────────────────────────────────────────────────────
   '+15484883245': {
     branchLabel: 'London',
     salesBranch: 'london',
@@ -92,6 +116,7 @@ const SATURN_BRANCH_CITY_ALIASES: Array<{ branch: SalesBranch; patterns: RegExp[
 
 const AREA_CODE_BRANCH_MAP: Partial<Record<string, SalesBranch>> = {
   '343': 'ottawa',
+  '519': 'waterloo',  // Guelph, Kitchener, Waterloo, Cambridge
   '548': 'london',
   '613': 'ottawa',
 }
