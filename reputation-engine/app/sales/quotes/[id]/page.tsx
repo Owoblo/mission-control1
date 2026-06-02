@@ -214,10 +214,13 @@ export default function SalesQuoteDetailPage() {
   }, [params])
 
   // Auto-open preview when navigated from "Preview & Send" on estimate modal
+  // Strip ?send=1 from URL immediately after opening so it doesn't re-trigger
+  // on quote refresh and trap the rep on this page
   useEffect(() => {
     if (searchParams?.get('send') === '1' && quote) {
       setShowPreview('both')
       setPreviewTab('email')
+      router.replace(`/sales/quotes/${quote.id}`, { scroll: false })
     }
   }, [searchParams, quote?.id])
 
