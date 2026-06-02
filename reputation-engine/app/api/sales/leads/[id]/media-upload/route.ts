@@ -40,29 +40,48 @@ export async function POST(
       notes,
     })
 
-    const shouldAnalyzeInventory = purpose !== 'receipt'
-    const imageUrls = shouldAnalyzeInventory ? assets.filter(asset => asset.kind === 'image').map(asset => asset.url) : []
-    const detectedItems = imageUrls.length > 0 ? await analyzeLeadPhotosWithVision(room, imageUrls) : []
-    const nextLead = applyLeadMediaAnalysis(lead, {
+    // Step 1: Save assets to the lead immediately — photos land regardless of AI outcome
+    const leadWithAssets = applyLeadMediaAnalysis(lead, {
       assets,
-      detectedItems,
+      detectedItems: [],
       source: purpose === 'receipt' ? 'receipt_upload' : 'rep_upload',
     })
-
-    const savedLead = await saveSalesLead({
-      ...nextLead,
+    await saveSalesLead({
+      ...leadWithAssets,
       lastTouchedAt: new Date().toISOString(),
-      lastTouchedByUserId: session?.userId || nextLead.lastTouchedByUserId,
-      lastTouchedByName: session?.name || nextLead.lastTouchedByName,
+      lastTouchedByUserId: session?.userId || leadWithAssets.lastTouchedByUserId,
+      lastTouchedByName: session?.name || leadWithAssets.lastTouchedByName,
     })
+
+    // Step 2: Attempt AI analysis — failure here doesn't undo the upload
+    const shouldAnalyzeInventory = purpose !== 'receipt'
+    const imageUrls = shouldAnalyzeInventory ? assets.filter(asset => asset.kind === 'image').map(asset => asset.url) : []
+    let detectedItems: Awaited<ReturnType<typeof analyzeLeadPhotosWithVision>> = []
+    let analyzeError: string | null = null
+
+    if (imageUrls.length > 0) {
+      try {
+        detectedItems = await analyzeLeadPhotosWithVision(room, imageUrls)
+        if (detectedItems.length > 0) {
+          const nextLead = applyLeadMediaAnalysis(leadWithAssets, {
+            assets: [],
+            detectedItems,
+            source: purpose === 'receipt' ? 'receipt_upload' : 'rep_upload',
+          })
+          await saveSalesLead(nextLead)
+        }
+      } catch (err) {
+        analyzeError = err instanceof Error ? err.message : 'AI scan failed'
+      }
+    }
 
     return NextResponse.json({
       ok: true,
-      lead: savedLead,
       uploadedCount: assets.length,
       analyzedImageCount: imageUrls.length,
       skippedVideoCount: assets.filter(asset => asset.kind === 'video' || asset.kind === 'document').length,
       detectedItems,
+      ...(analyzeError ? { analyzeWarning: `Photos saved but AI scan failed: ${analyzeError}. Use the Scan button to retry.` } : {}),
     })
   } catch (error) {
     return NextResponse.json(

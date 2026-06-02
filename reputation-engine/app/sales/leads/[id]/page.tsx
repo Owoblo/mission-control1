@@ -1969,7 +1969,7 @@ export default function SalesLeadDetailPage() {
         files: mediaUploadFiles,
         purpose: mediaUploadPurpose,
       })
-      applyLeadSnapshot(result.lead, { hydrateForm: true })
+      await refresh(lead.id)
       setMediaUploadFiles([])
       if (mediaUploadInputRef.current) {
         mediaUploadInputRef.current.value = ''
@@ -1978,9 +1978,11 @@ export default function SalesLeadDetailPage() {
         setMediaUploadNotice(
           `Uploaded ${result.uploadedCount} receipt file${result.uploadedCount === 1 ? '' : 's'} to this lead.`
         )
+      } else if (result.analyzeWarning) {
+        setMediaUploadNotice(result.analyzeWarning)
       } else {
         setMediaUploadNotice(
-          `Uploaded ${result.uploadedCount} file${result.uploadedCount === 1 ? '' : 's'} · scanned ${result.analyzedImageCount} image${result.analyzedImageCount === 1 ? '' : 's'} · detected ${result.detectedItems.length} inventory item${result.detectedItems.length === 1 ? '' : 's'}${result.skippedVideoCount ? ` · stored ${result.skippedVideoCount} file${result.skippedVideoCount === 1 ? '' : 's'} for manual review` : ''}.`
+          `Uploaded ${result.uploadedCount} file${result.uploadedCount === 1 ? '' : 's'} · scanned ${result.analyzedImageCount} image${result.analyzedImageCount === 1 ? '' : 's'} · detected ${result.detectedItems?.length ?? 0} inventory item${(result.detectedItems?.length ?? 0) === 1 ? '' : 's'}${result.skippedVideoCount ? ` · stored ${result.skippedVideoCount} file${result.skippedVideoCount === 1 ? '' : 's'} for manual review` : ''}.`
         )
       }
     } catch (err) {
