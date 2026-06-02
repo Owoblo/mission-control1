@@ -11,35 +11,38 @@ type SaturnPhoneMetadata = {
 
 export const SATURN_BRANCH_PHONE_DIRECTORY = {
   // ── Windsor ────────────────────────────────────────────────────────────────
+  // 226-773-2993 — Windsor front number, used on GMB Windsor
   '+12267732993': {
     branchLabel: 'Windsor',
     salesBranch: 'windsor',
-    trackingLabel: 'Direct Mail',
+    trackingLabel: 'Windsor GMB',
+    trackingSource: 'google_online_search',
+  },
+  // 226-605-5767 — Twilio locates this as Essex, ON (Windsor/Chatham area)
+  // NOT a KW number — use for Essex/Windsor-area GMB or direct mail
+  '+12266055767': {
+    branchLabel: 'Essex',
+    salesBranch: 'windsor',
+    trackingLabel: 'Essex / Windsor Area',
     trackingSource: 'direct_mail',
   },
-  '+12267746581': {
-    branchLabel: 'Windsor',
-    salesBranch: 'windsor',
-  },
-  // ── Waterloo / KW / Guelph ────────────────────────────────────────────────
+  // ── Guelph / KW ───────────────────────────────────────────────────────────
+  // 226-242-3319 — Twilio locates as Woodstock, ON (London/KW border)
+  // Use for Woodstock/Cambridge area coverage under waterloo branch
   '+12262423319': {
-    branchLabel: 'Kitchener',
+    branchLabel: 'Woodstock / Cambridge',
     salesBranch: 'waterloo',
-    trackingLabel: 'Kitchener GMB',
+    trackingLabel: 'Woodstock / Cambridge Area',
     trackingSource: 'google_online_search',
   },
-  '+12266055767': {
-    branchLabel: 'Waterloo',
-    salesBranch: 'waterloo',
-    trackingLabel: 'Waterloo GMB',
-    trackingSource: 'google_online_search',
-  },
+  // 226-780-6649 — Twilio locates as Guelph, ON ✓
   '+12267806649': {
     branchLabel: 'Guelph',
     salesBranch: 'waterloo',
     trackingLabel: 'Guelph GMB',
     trackingSource: 'google_online_search',
   },
+  // 226-780-7014 — Twilio locates as Guelph, ON ✓
   '+12267807014': {
     branchLabel: 'Guelph',
     salesBranch: 'waterloo',
@@ -50,11 +53,15 @@ export const SATURN_BRANCH_PHONE_DIRECTORY = {
   '+16135193236': {
     branchLabel: 'Ottawa',
     salesBranch: 'ottawa',
+    trackingLabel: 'Ottawa GMB',
+    trackingSource: 'google_online_search',
   },
   // ── London ─────────────────────────────────────────────────────────────────
   '+15484883245': {
     branchLabel: 'London',
     salesBranch: 'london',
+    trackingLabel: 'London GMB',
+    trackingSource: 'google_online_search',
   },
 } as const satisfies Record<string, SaturnPhoneMetadata>
 
@@ -62,7 +69,7 @@ export type SaturnBranchPhoneNumber = keyof typeof SATURN_BRANCH_PHONE_DIRECTORY
 
 const SATURN_PRIMARY_BRANCH_NUMBERS: Record<SalesBranch, SaturnBranchPhoneNumber> = {
   windsor: '+12267732993',
-  waterloo: '+12262423319',
+  waterloo: '+12267806649',  // Guelph number — actual KW/Guelph local number
   ottawa: '+16135193236',
   london: '+15484883245',
 }
