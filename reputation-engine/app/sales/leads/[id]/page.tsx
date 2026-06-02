@@ -3669,13 +3669,24 @@ export default function SalesLeadDetailPage() {
                           if (data.realtorBrokerage && !lead.realtorBrokerage) updates.realtorBrokerage = data.realtorBrokerage
 
                           if (data.autoApplySafe) {
+                            // High-confidence individual agent — auto-apply
                             if (data.realtorName && !lead.realtorName) updates.realtorName = data.realtorName
                             if (data.realtorPhone && !lead.realtorPhone) updates.realtorPhone = data.realtorPhone
                             if (data.realtorEmail && !lead.realtorEmail) updates.realtorEmail = data.realtorEmail
-                          } else if (data.realtorEmail && isPersonalEmailDomain(data.realtorEmail)) {
-                            setOpportunityNotice('Lookup found a personal-contact match. It was not auto-applied because that is too easy to misidentify.')
+                            updates.realtorLookupStatus = 'matched'
                           } else {
-                            setOpportunityNotice(`Lookup classified this as ${data.contactKind?.replaceAll('_', ' ') || 'an unclear contact'}, but it was not strong enough to auto-apply.`)
+                            // Not auto-applied — but still store what we found and let rep confirm
+                            const found: string[] = []
+                            if (data.realtorName) { updates.realtorName = data.realtorName; found.push(data.realtorName) }
+                            if (data.realtorPhone) { updates.realtorPhone = data.realtorPhone; found.push(data.realtorPhone) }
+                            if (data.realtorEmail) { updates.realtorEmail = data.realtorEmail; found.push(data.realtorEmail) }
+                            if (data.realtorBrokerage) updates.realtorBrokerage = data.realtorBrokerage
+                            updates.realtorLookupStatus = found.length > 0 ? 'partial' : 'missing'
+                            if (found.length > 0) {
+                              setOpportunityNotice(`Lookup found: ${found.join(' · ')} (${data.contactKind?.replaceAll('_', ' ') || 'contact'} · ${data.confidence || 'low'} confidence). Applied — verify before reaching out.`)
+                            } else {
+                              setOpportunityNotice(`No individual contact found for this listing. Try searching the brokerage directly.`)
+                            }
                           }
                           if (Object.keys(updates).length > 0) {
                             const saved = await updateSalesLead(lead.id, updates as Parameters<typeof updateSalesLead>[1])

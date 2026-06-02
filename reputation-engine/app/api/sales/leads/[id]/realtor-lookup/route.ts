@@ -40,7 +40,10 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
     if (!apiKey) return NextResponse.json({ error: 'Missing OPENAI_API_KEY' }, { status: 500 })
 
     // Use OpenAI Responses API with web_search_preview — same as Claude.ai web search
-    const query = `Who is the listing agent/realtor for ${address}${brokerage ? ` listed by ${brokerage}` : ''}? Find their name, phone number, and email address.`
+    // Search for both the listing agent AND the brokerage contact if no individual found
+    const query = brokerage
+      ? `Who is the specific listing agent or sales rep at "${brokerage}" for the property at ${address}? Find their full name, direct phone number, and email. If not found, find the main contact phone and email for ${brokerage}.`
+      : `Who is the listing agent/realtor for the property at ${address}? Find their full name, direct phone number, and email address.`
 
     const searchRes = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
