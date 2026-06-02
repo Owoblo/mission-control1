@@ -45,8 +45,8 @@ export function InventoryVerificationPanel({
   const verificationSummary = buildInventoryVerificationSummary(lead.inventoryVerification)
   const recentActivity = buildInventoryVerificationActivity(lead).slice(0, 4)
 
-  // Inventory verification is only relevant when there's an MLS listing or a prior scan
-  const hasMlsOrScan = !!(lead.supabaseListing || lead.listingScanSnapshot || surveyScanned || verificationSummary.goingCount > 0 || verificationSummary.notGoingCount > 0)
+  // Show inventory verification section when: MLS/scan exists, OR customer has already sent photos
+  const hasMlsOrScan = !!(lead.supabaseListing || lead.listingScanSnapshot || surveyScanned || totalCustomerMedia > 0 || verificationSummary.goingCount > 0 || verificationSummary.notGoingCount > 0)
 
   return (
     <>
