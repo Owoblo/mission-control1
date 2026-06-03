@@ -57,11 +57,88 @@ import type {
   LeadAttribution,
   CRMLead,
   CRMClient,
+  CRMQuote,
   LeadQualificationState,
   QuoteLineItem,
 } from '@/lib/types'
 
 const OPENAI_MODEL = readEnv('OPENAI_AUTOMATION_MODEL') || 'gpt-4o-mini'
+
+// ─── Phase 2: SMS quoting + booking acceptance ────────────────────────────────
+
+function detectBookingIntent(message?: string): boolean {
+  if (!message) return false
+  const text = message.trim().toLowerCase()
+  return /\b(yes|yep|yeah|yup|book|confirm|confirmed|let'?s? do it|go ahead|lock it in|sounds good|deal|i'?m in|perfect|i'?ll take it|ill take it|reserve|i accept|accepted|ok let'?s go|booked|send the deposit|deposit link|pay the deposit|book me|book it|proceed|proceed with|let'?s? go|im in|i want to book|i want to proceed|take it|i'?ll book|lock me in|lock in|i'?d like to book|ready to book|ready to go)\b/.test(text)
+}
+
+function buildSmsQuoteSummary(
+  lead: CRMLead,
+  quoteId: string,
+  acceptToken: string,
+  estimate: { subtotal: number; total: number; deposit: number; balance: number; crewSize: number; estimatedHours: number; truckCount: number }
+): string {
+  const appUrl = getAppBaseUrl('https://mission-control1-reputation-engine.vercel.app')
+  const acceptUrl = `${appUrl}/quote-accept?id=${encodeURIComponent(quoteId)}&token=${encodeURIComponent(acceptToken)}`
+  const firstName = (lead.name || 'there').split(' ')[0]
+  const route = [lead.originCity || lead.originAddress, lead.destCity || lead.destAddress].filter(Boolean).join(' → ') || 'your move'
+  const moveLine = lead.moveDate
+    ? new Date(lead.moveDate + 'T12:00').toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' })
+    : lead.moveDateFlexible ? 'Date: Flexible' : ''
+  const crews = `${estimate.crewSize} movers · ${estimate.truckCount} truck${estimate.truckCount > 1 ? 's' : ''}`
+  const hrs = `~${Math.round(estimate.estimatedHours)}-${Math.round(estimate.estimatedHours + 2)}hrs`
+
+  return [
+    `Hi ${firstName}! Your Saturn Star moving estimate is ready 📦`,
+    ``,
+    route + (moveLine ? ` · ${moveLine}` : ''),
+    `${crews} · ${hrs}`,
+    ``,
+    `Total: $${Math.round(estimate.total).toLocaleString()} (HST incl.)`,
+    `Deposit to book: $${Math.round(estimate.deposit).toLocaleString()}`,
+    ``,
+    `Review + confirm:`,
+    acceptUrl,
+    ``,
+    `Reply YES to book, or text any questions anytime.`,
+  ].join('\n')
+}
+
+async function createDepositCheckoutUrl(lead: CRMLead, quote: CRMQuote): Promise<string | null> {
+  const stripeKey = readEnv('STRIPE_SECRET_KEY')
+  if (!stripeKey) return null
+  const appUrl = getAppBaseUrl('https://mission-control1-reputation-engine.vercel.app')
+  const returnBase = `${appUrl}/quote-accept?id=${encodeURIComponent(quote.id)}&token=${encodeURIComponent(quote.acceptToken || '')}`
+  const params = new URLSearchParams()
+  params.set('mode', 'payment')
+  params.set('payment_method_types[0]', 'card')
+  params.set('payment_intent_data[setup_future_usage]', 'off_session')
+  params.set('payment_intent_data[description]', `Deposit – ${quote.number} – ${lead.name || 'Customer'}`)
+  params.set('payment_intent_data[metadata][quoteId]', quote.id)
+  params.set('payment_intent_data[metadata][leadId]', lead.id)
+  params.set('line_items[0][price_data][currency]', 'cad')
+  params.set('line_items[0][price_data][product_data][name]', `Saturn Star Moving — ${quote.number} Deposit`)
+  params.set('line_items[0][price_data][product_data][description]',
+    `Booking deposit (${quote.originCity || 'Origin'} → ${quote.destCity || 'Destination'}). Card saved for balance after move.`)
+  params.set('line_items[0][price_data][unit_amount]', String(Math.round((quote.deposit || 0) * 100)))
+  params.set('line_items[0][quantity]', '1')
+  params.set('metadata[quoteId]', quote.id)
+  if (lead.id) params.set('metadata[leadId]', lead.id)
+  params.set('success_url', `${returnBase}&paid=1`)
+  params.set('cancel_url', returnBase)
+  try {
+    const res = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${stripeKey}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString(),
+    })
+    if (!res.ok) return null
+    const session = await res.json() as { url?: string }
+    return session.url ?? null
+  } catch {
+    return null
+  }
+}
 
 const MOVE_TYPE_SIGNAL_MAP: Record<string, string> = {
   'long distance': 'long-distance', 'long-distance move': 'long-distance', 'long distance move': 'long-distance',
@@ -789,7 +866,8 @@ async function hydrateLeadFromAddressAndInventory(lead: CRMLead) {
 
 function buildEstimateMissingReasons(lead: CRMLead) {
   const reasons: string[] = []
-  if (!lead.email) reasons.push('customer_email')
+  // Need email OR phone — SMS delivery covers the email gap
+  if (!lead.email && !lead.phone) reasons.push('customer_email')
   if (!lead.moveDate && !lead.moveDateFlexible) reasons.push('move_date')
   if (!(lead.originAddress || lead.originCity)) reasons.push('origin')
   if (!(lead.destAddress || lead.destCity)) reasons.push('destination')
@@ -937,11 +1015,13 @@ async function maybeCreateAutomatedQuote(lead: CRMLead, preferredChannel?: Conve
     return { sent: false, lead }
   }
 
-  if (!readEnv('RESEND_API_KEY')) {
+  const canEmail = !!(lead.email && readEnv('RESEND_API_KEY'))
+  const canSms = !!lead.phone
+  if (!canEmail && !canSms) {
     return {
       sent: false,
       lead,
-      blockedReason: 'Automated quote delivery is unavailable because email sending is not configured.',
+      blockedReason: 'No delivery channel available — lead has no email or phone.',
     }
   }
 
@@ -1006,43 +1086,64 @@ async function maybeCreateAutomatedQuote(lead: CRMLead, preferredChannel?: Conve
         })
       )
 
-  const email = buildAutomatedQuoteEmail(lead, draftQuote.id, draftQuote.acceptToken || '', estimate.lineItems, estimate.total, estimate.deposit)
-  if (!lead.email) {
-    return { sent: false, lead, quoteId: draftQuote.id }
+  const nowIso = new Date().toISOString()
+  let emailSendResult: Awaited<ReturnType<typeof sendSalesMessage>> | null = null
+  let smsSent = false
+
+  // ── Email delivery ────────────────────────────────────────────────────────
+  if (canEmail) {
+    const emailPayload = buildAutomatedQuoteEmail(lead, draftQuote.id, draftQuote.acceptToken || ‘’, estimate.lineItems, estimate.total, estimate.deposit)
+    try {
+      emailSendResult = await sendSalesMessage({
+        channel: ‘email’,
+        to: lead.email!,
+        subject: emailPayload.subject,
+        body: emailPayload.text,
+        htmlBody: emailPayload.html,
+        leadId: lead.id,
+        quoteId: draftQuote.id,
+        actor: ‘automation’,
+        notes: `Automation quote email sent to ${lead.email}`,
+      })
+    } catch {
+      // fall through to SMS only
+    }
   }
 
-  let sendResult
-  try {
-    sendResult = await sendSalesMessage({
-      channel: 'email',
-      to: lead.email,
-      subject: email.subject,
-      body: email.text,
-      htmlBody: email.html,
-      leadId: lead.id,
-      quoteId: draftQuote.id,
-      actor: 'automation',
-      notes: `Automation quote email sent to ${lead.email}`,
-    })
-  } catch (error) {
+  // ── SMS delivery (always send when phone available — primary or alongside email) ──
+  if (canSms) {
+    const smsBody = buildSmsQuoteSummary(lead, draftQuote.id, draftQuote.acceptToken || ‘’, estimate)
+    try {
+      await sendSalesMessage({
+        channel: ‘sms’,
+        to: lead.phone!,
+        body: smsBody,
+        leadId: lead.id,
+        quoteId: draftQuote.id,
+        actor: ‘automation’,
+        notes: `Automation quote SMS sent to ${lead.phone}`,
+      })
+      smsSent = true
+    } catch {
+      // non-fatal if email already sent
+    }
+  }
+
+  const anySent = !!(emailSendResult || smsSent)
+  if (!anySent) {
     return {
       sent: false,
       lead,
       quoteId: draftQuote.id,
-      blockedReason: error instanceof Error ? error.message : 'Automated quote delivery failed.',
+      blockedReason: ‘Automated quote delivery failed on all channels.’,
     }
   }
 
-  const nowIso = new Date().toISOString()
-  const quote = await saveSalesQuote(
-    normalizeQuote({
-      ...draftQuote,
-      status: 'sent',
-      sentAt: nowIso,
-    })
-  )
+  const quote = await saveSalesQuote(normalizeQuote({ ...draftQuote, status: ‘sent’, sentAt: nowIso }))
 
-  const leadAfterSend = sendResult.lead || lead
+  const leadAfterSend = emailSendResult?.lead || lead
+  const deliveredChannels = [canEmail && emailSendResult ? ‘email’ : null, smsSent ? ‘sms’ : null].filter(Boolean).join(‘+’)
+
   let syncedLead = await saveSalesLead({
     ...syncLeadFromQuoteStatus(
       {
@@ -1054,33 +1155,35 @@ async function maybeCreateAutomatedQuote(lead: CRMLead, preferredChannel?: Conve
     ),
     automatedQuoteSentAt: nowIso,
     automatedQuoteId: quote.id,
-    automatedQuoteChannel: 'email',
+    automatedQuoteChannel: deliveredChannels as CRMLead[‘automatedQuoteChannel’],
     automationLastJobAt: nowIso,
     automationPauseReason: undefined,
   })
 
   await saveFollowUpLog({
-    id: uid('fu'),
+    id: uid(‘fu’),
     leadId: syncedLead.id,
     quoteId: quote.id,
-    type: 'note',
+    type: ‘note’,
     date: nowIso,
     createdAt: nowIso,
-    notes: `Automation generated and sent quote ${quote.number}.`,
+    notes: `Automation generated and sent quote ${quote.number} via ${deliveredChannels}.`,
   })
 
   await scheduleQuoteFollowup(syncedLead.id, quote.id).catch(() => {})
 
-  const confirmationMessage = syncedLead.email
-    ? `Perfect — I’ve emailed your estimate. If the inventory, access, or route needs tweaking, reply here and I’ll update it.`
-    : undefined
+  const confirmationMessage = smsSent
+    ? `Perfect — I’ve just texted you your moving estimate${canEmail && emailSendResult ? ‘ and emailed it’ : ‘’}. Review the details and reply YES to book, or ask any questions here.`
+    : canEmail && emailSendResult
+      ? `Perfect — I’ve emailed your estimate. Reply here if anything about the inventory, access, or route needs tweaking.`
+      : undefined
 
   return {
-    sent: !!syncedLead.email,
+    sent: true,
     lead: syncedLead,
     quoteId: quote.id,
-    quoteEmailSent: !!syncedLead.email,
-    channel: syncedLead.email ? 'email' : preferredChannel,
+    quoteEmailSent: !!(canEmail && emailSendResult),
+    channel: (smsSent ? ‘sms’ : ‘email’) as ConversationChannel,
     confirmationMessage,
   }
 }
@@ -1472,9 +1575,11 @@ ALWAYS DO THESE
 
 SPECIAL CASES
 - If inventory already exists, confirm it rather than asking from scratch.
-- If email is missing but move is qualified, ask for it so the estimate can be sent.
+- If email is missing but move is qualified AND lead has no phone, ask for email so the estimate can be sent. If they have a phone, the SMS estimate was already sent or will be sent.
 - If the person explicitly wants a human or phone call, set shouldHandoff=true.
 - If the person opts out, set doNotContact=true and leave reply empty.
+- If a quote was already sent (automatedQuoteSentAt is set) and customer is asking about price, reference the exact total and deposit from the quote context — don't ask them to wait.
+- If the customer says yes/book/confirm and a quote is pending, that is handled automatically — do not write a confirmation reply yourself.
 
 Return JSON only:
 {
@@ -1504,6 +1609,8 @@ Return JSON only:
       missingForAutomatedEstimate: estimateMissingFields,
       automatedQuoteSentAt: input.lead.automatedQuoteSentAt,
       automatedQuoteId: input.lead.automatedQuoteId,
+      quoteSentViaSms: !!(input.lead.automatedQuoteChannel && String(input.lead.automatedQuoteChannel).includes('sms')),
+      quoteSentViaEmail: !!(input.lead.automatedQuoteChannel && String(input.lead.automatedQuoteChannel).includes('email')),
     })}`,
     `QUALIFICATION: ${JSON.stringify(qualification)}`,
     input.inboundSubject ? `INBOUND SUBJECT: ${input.inboundSubject}` : '',
@@ -1838,6 +1945,68 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
       lead: handedLead,
       thread,
       reason: channelUnavailableReason,
+    }
+  }
+
+  // ── Phase 2: Booking acceptance — detect YES/book before trying to generate a new quote ──
+  if (job.kind === 'lead_response' && inboundMessage && detectBookingIntent(inboundMessage)) {
+    const pendingQuote = lead.automatedQuoteId
+      ? await getLatestSalesQuoteByLeadId(lead.id).catch(() => null)
+      : null
+
+    if (pendingQuote && ['sent', 'viewed'].includes(pendingQuote.status || '')) {
+      const nowIso = new Date().toISOString()
+      const firstName = (lead.name || 'there').split(' ')[0]
+
+      // Mark quote accepted
+      const acceptedQuote = await saveSalesQuote(normalizeQuote({
+        ...pendingQuote,
+        status: 'accepted',
+        acceptedAt: nowIso.slice(0, 10),
+        respondedAt: nowIso,
+      })).catch(() => pendingQuote)
+
+      // Generate Stripe deposit link
+      const depositUrl = await createDepositCheckoutUrl(lead, acceptedQuote).catch(() => null)
+
+      const smsBody = depositUrl
+        ? [
+            `You're in, ${firstName}! 🎉 To lock in your crew and truck, pay the deposit here:`,
+            depositUrl,
+            `Amount: $${Math.round(acceptedQuote.deposit || 0).toLocaleString()} CAD`,
+            [lead.originCity, lead.destCity].filter(Boolean).join(' → '),
+            lead.moveDate ? new Date(lead.moveDate + 'T12:00').toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' }) : '',
+            `Your spot is held for 24hrs. Any questions? Just text here.`,
+          ].filter(Boolean).join('\n')
+        : `You're in, ${firstName}! Let me get someone from Saturn Star to confirm your deposit and lock in the crew. Expect a follow-up shortly.`
+
+      const sendResult = await sendSalesMessage({
+        actor: 'automation',
+        channel: contact.channel,
+        to: contact.to,
+        body: smsBody,
+        leadId: lead.id,
+        quoteId: acceptedQuote.id,
+        notes: `Automation sent deposit link after customer confirmed booking via ${contact.channel}.`,
+      }).catch(() => null)
+
+      const syncedLead = await saveSalesLead({
+        ...syncLeadFromQuoteStatus({ ...lead, quoteId: acceptedQuote.id }, acceptedQuote),
+        automationLastJobAt: nowIso,
+      }).catch(() => lead)
+
+      await saveFollowUpLog({
+        id: uid('fu'), leadId: syncedLead.id, quoteId: acceptedQuote.id,
+        type: 'note', date: nowIso, createdAt: nowIso,
+        notes: `Customer confirmed booking via ${contact.channel}. Deposit link ${depositUrl ? 'sent' : 'unavailable — handed to rep'}.`,
+      }).catch(() => {})
+
+      const thread = await saveAutomationThreadAfterOutbound({
+        lead: syncedLead, existingThread, channel: contact.channel, contactValue: contact.to,
+        preview: smsBody, jobKind: job.kind, intent: 'lead_response', inboundMessage,
+      }).catch(() => null)
+
+      return { status: 'completed' as const, sent: true, lead: sendResult?.lead || syncedLead, thread, quoteId: acceptedQuote.id, message: 'Customer accepted. Deposit link sent.' }
     }
   }
 

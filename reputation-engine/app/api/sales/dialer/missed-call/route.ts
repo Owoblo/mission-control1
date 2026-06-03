@@ -3,6 +3,7 @@ import { outboundSmsRecentlySent, recordOutboundSmsToSupabase } from '@/lib/serv
 import { twilioAuth } from '@/lib/server/twilio-recordings'
 import { getSaturnBranchLabel } from '@/lib/sales-phones'
 import { sendRepAlertEmail, missedCallNotificationEmail } from '@/lib/server/internal-notifications'
+import { processInboundAutomationEvent } from '@/lib/server/sales-automation'
 
 // Twilio calls this action URL when <Dial> completes for ANY reason:
 // completed = someone answered, no-answer = nobody answered, busy/failed = other failure
@@ -114,11 +115,26 @@ export async function POST(request: Request) {
 
       if (!withinCooldown && !recentlySent) {
         recentMissedSmsSent.set(from, Date.now())
-        const { accountSid, authToken } = getTwilioCredentials()
-        const callerSms = `Hi! You missed us at ${branchLabel} (${BUSINESS_NAME}). We'll call you right back — or reply here to chat. 🌟`
-        void sendSms(accountSid, authToken, from, businessNumber, callerSms)
-          .then(sid => recordOutboundSmsToSupabase(businessNumber, from, callerSms, undefined, sid))
-          .catch(() => {})
+
+        // Fire automation — it picks up context from any existing lead and sends a
+        // proper response (quote, info collection, etc.) instead of a generic text.
+        const automationHandled = await processInboundAutomationEvent({
+          source: 'missed_call',
+          channel: 'sms',
+          phone: from,
+          message: '',
+          receivedAt: now,
+          raw: { callSid, from, to, dialCallStatus, missedCall: true },
+        }).then(() => true).catch(() => false)
+
+        // Fallback only if automation fails entirely
+        if (!automationHandled) {
+          const { accountSid, authToken } = getTwilioCredentials()
+          const callerSms = `Hi! You just called Saturn Star Moving. We missed you — reply here to get a moving estimate or we'll call you right back.`
+          void sendSms(accountSid, authToken, from, businessNumber, callerSms)
+            .then(sid => recordOutboundSmsToSupabase(businessNumber, from, callerSms, undefined, sid))
+            .catch(() => {})
+        }
       }
 
       void sendRepAlertEmail(
