@@ -711,6 +711,8 @@ export function EstimateDraftModal({
   const [quickItem, setQuickItem] = useState('')
   const [quickQty, setQuickQty] = useState(1)
   const [quickCuFt, setQuickCuFt] = useState('')
+  const [quickLookupLoading, setQuickLookupLoading] = useState(false)
+  const [quickLookupNote, setQuickLookupNote] = useState<string | null>(null)
   // Preset search
   const [presetSearch, setPresetSearch] = useState('')
   const [inventoryCopyNotice, setInventoryCopyNotice] = useState<string | null>(null)
@@ -1207,6 +1209,23 @@ export function EstimateDraftModal({
     if (idx >= 0) onUpdateLineItem(idx, 'amount', val)
   }
 
+  async function lookupItemDimensions(name: string) {
+    if (!name.trim() || quickCuFt) return
+    setQuickLookupLoading(true)
+    setQuickLookupNote(null)
+    try {
+      const res = await fetch(`/api/sales/items/lookup?item=${encodeURIComponent(name.trim())}`, { credentials: 'include' })
+      if (!res.ok) return
+      const data = await res.json() as { cubicFeet?: number; weightLbs?: number; notes?: string; confidence?: string; source?: string }
+      if (data.cubicFeet && !quickCuFt) {
+        setQuickCuFt(String(data.cubicFeet))
+        const src = data.source === 'preset' ? 'preset' : `AI · ${data.confidence || 'medium'} confidence`
+        setQuickLookupNote(`${data.cubicFeet} cu ft · ${data.weightLbs ? `${data.weightLbs} lbs` : ''} (${src})${data.notes ? ` — ${data.notes}` : ''}`)
+      }
+    } catch { /* non-fatal */ }
+    finally { setQuickLookupLoading(false) }
+  }
+
   function addQuickItem() {
     if (!quickItem.trim()) return
     const cf = Number(quickCuFt) || 0
@@ -1223,6 +1242,7 @@ export function EstimateDraftModal({
     setQuickItem('')
     setQuickQty(1)
     setQuickCuFt('')
+    setQuickLookupNote(null)
   }
 
   async function copyInventorySnapshot() {
@@ -2884,10 +2904,11 @@ export function EstimateDraftModal({
                         <div className="grid grid-cols-[1fr_80px_auto] gap-2">
                           <input
                             value={quickItem}
-                            onChange={e => setQuickItem(e.target.value)}
+                            onChange={e => { setQuickItem(e.target.value); setQuickLookupNote(null) }}
+                            onBlur={e => void lookupItemDimensions(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && addQuickItem()}
                             className="crm-input py-1 text-xs"
-                            placeholder="Item name (e.g. Sofa)"
+                            placeholder="Item name (e.g. Pet Étagère)"
                           />
                           <input
                             type="number"
@@ -2895,7 +2916,7 @@ export function EstimateDraftModal({
                             value={quickCuFt}
                             onChange={e => setQuickCuFt(e.target.value)}
                             className="crm-input py-1 text-right text-xs"
-                            placeholder="cu ft"
+                            placeholder={quickLookupLoading ? '…' : 'cu ft'}
                           />
                           <button
                             type="button"
@@ -2906,7 +2927,11 @@ export function EstimateDraftModal({
                             Add
                           </button>
                         </div>
-                        <p className="text-[10px] text-[var(--app-muted)]">Leave cu ft blank for common items — weight inferred at 7 lbs/cu ft.</p>
+                        {quickLookupNote ? (
+                          <p className="text-[10px] text-emerald-700">✓ {quickLookupNote}</p>
+                        ) : (
+                          <p className="text-[10px] text-[var(--app-muted)]">{quickLookupLoading ? '🔍 Looking up dimensions…' : 'Type any item — AI will estimate cu ft if not in our library.'}</p>
+                        )}
                       </div>
                     </div>
                 </div>

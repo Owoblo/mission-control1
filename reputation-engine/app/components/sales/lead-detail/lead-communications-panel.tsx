@@ -301,7 +301,7 @@ export function LeadCommunicationsPanel({
                   return (
                     <div key={message.id} className={`flex flex-col ${isOutbound ? 'items-end' : 'items-start'}`}>
                       <div
-                        className="max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed"
+                        className="max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words"
                         style={isOutbound
                           ? { background: isWhatsApp ? '#25D366' : '#1a2744', color: 'white', borderBottomRightRadius: '4px' }
                           : { background: 'white', color: '#1a2744', border: '1px solid #e5e7eb', borderBottomLeftRadius: '4px' }}

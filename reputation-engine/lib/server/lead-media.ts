@@ -1,6 +1,7 @@
 import { normalizeLead, uid } from '@/lib/sales'
 import { applyMovePolicyToInventory } from '@/lib/move-policy'
 import { dedupePhotosBeforeVision, detectFurnitureInRoom, getOpenAIConfig } from '@/lib/server/inventory-enrichment'
+import { analyzeVideoForInventory, isVideoMimeType, isVideoScannable } from '@/lib/server/gemini-vision'
 import { saveSalesLead } from '@/lib/server/sales-repository'
 import { getTwilioCredentials, requireSupabaseEnv } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
@@ -159,12 +160,60 @@ export async function persistInboundMmsToLead(input: {
     return input.lead
   }
 
-  const updatedLead = normalizeLead({
+  let leadWithAssets = normalizeLead({
     ...input.lead,
     mediaAssets: [...existingAssets, ...nextAssets],
   })
 
-  return saveSalesLead(updatedLead)
+  // ── Video scanning: if any asset is a video and Gemini is configured, extract inventory ──
+  const videoAssets = nextAssets.filter(a => isVideoMimeType(a.mimeType) && a.url)
+  if (videoAssets.length > 0) {
+    const { accountSid, authToken } = getTwilioCredentials()
+
+    for (const asset of videoAssets) {
+      if (!isVideoScannable(asset.mimeType)) continue
+
+      try {
+        // Find the original MMS URL to download with auth (stored URL won't have Twilio auth)
+        const originalMedia = input.media.find(m => {
+          const ext = (asset.filename || '').split('.').pop()
+          return m.contentType?.startsWith('video/') || ext === 'mp4' || ext === 'mov'
+        })
+        if (!originalMedia) continue
+
+        const videoRes = await fetch(originalMedia.url, {
+          headers: { Authorization: twilioAuth(accountSid, authToken) },
+          signal: AbortSignal.timeout(30000),
+        })
+        if (!videoRes.ok) continue
+
+        const buffer = await videoRes.arrayBuffer()
+        const mimeType = originalMedia.contentType || asset.mimeType || 'video/mp4'
+        const scanResult = await analyzeVideoForInventory(buffer, mimeType)
+        if (!scanResult || scanResult.items.length === 0) continue
+
+        const existingInventory = Array.isArray(leadWithAssets.inventory) ? leadWithAssets.inventory : []
+        const newInventory = applyMovePolicyToInventory(
+          [...existingInventory, ...scanResult.items.map(item => ({
+            ...item,
+            id: item.id || uid('inv_vid'),
+          }))],
+          { enforceExclusion: true }
+        )
+
+        leadWithAssets = normalizeLead({
+          ...leadWithAssets,
+          inventory: newInventory,
+          lastAutoEnrichmentAt: new Date().toISOString(),
+          autoEnrichmentSource: 'video_scan',
+        })
+      } catch {
+        // non-fatal — video scan failure doesn't block asset persistence
+      }
+    }
+  }
+
+  return saveSalesLead(leadWithAssets)
 }
 
 export async function analyzeLeadPhotosWithVision(room: string, photoUrls: string[]): Promise<InventoryItem[]> {
