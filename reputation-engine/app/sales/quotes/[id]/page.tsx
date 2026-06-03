@@ -381,35 +381,50 @@ Saturn Star Movers`
     return false
   }
 
+  function buildQuotePricingUpdates(extra: Partial<CRMQuote> = {}): Partial<CRMQuote> {
+    return {
+      lineItems: quoteTotals.lineItems,
+      subtotal: quoteTotals.subtotal,
+      hst: quoteTotals.hst,
+      total: quoteTotals.total,
+      deposit: quoteTotals.deposit,
+      balance: quoteTotals.balance,
+      discountAmount,
+      discountLabel,
+      crewSize,
+      estimatedHours,
+      truckCount,
+      estimatedWeightLbs,
+      longDistanceDistanceKm,
+      longDistanceTruckCost,
+      longDistanceGasCost,
+      longDistanceInsuranceCost,
+      longDistanceMiscCost,
+      longDistanceMarkupRate,
+      validDays,
+      ...extra,
+    }
+  }
+
+  async function persistQuotePricingBeforeDelivery() {
+    if (!quote) return null
+    const result = await updateSalesQuote(quote.id, buildQuotePricingUpdates({ status: quote.status }))
+    setQuote(result.quote)
+    if (result.lead) setLead(result.lead)
+    setStatus(result.quote.status)
+    return result
+  }
+
   async function saveStatus() {
     if (!quote) return
     if (!ensureQuoteEditable()) return
     try {
       setSaveBusy(true)
-      const result = await updateSalesQuote(quote.id, {
+      const result = await updateSalesQuote(quote.id, buildQuotePricingUpdates({
         status,
-        lineItems: quoteTotals.lineItems,
-        subtotal: quoteTotals.subtotal,
-        hst: quoteTotals.hst,
-        total: quoteTotals.total,
-        deposit: quoteTotals.deposit,
-        balance: quoteTotals.balance,
-        discountAmount,
-        discountLabel,
-        crewSize,
-        estimatedHours,
-        truckCount,
-        estimatedWeightLbs,
-        longDistanceDistanceKm,
-        longDistanceTruckCost,
-        longDistanceGasCost,
-        longDistanceInsuranceCost,
-        longDistanceMiscCost,
-        longDistanceMarkupRate,
-        validDays,
         acceptedAt: status === 'accepted' ? dateStamp() : quote.acceptedAt,
         respondedAt: ['accepted', 'declined'].includes(status) ? new Date().toISOString() : quote.respondedAt,
-      })
+      }))
       setQuote(result.quote)
       setLead(result.lead)
       setStatus(result.quote.status)
@@ -427,29 +442,10 @@ Saturn Star Movers`
     const sendLabel = isRevision ? 'Updated quote' : 'Quote'
     try {
       setLogBusy(true)
-      const sentResult = await updateSalesQuote(quote.id, {
+      const sentResult = await updateSalesQuote(quote.id, buildQuotePricingUpdates({
         status: 'sent',
-        lineItems: quoteTotals.lineItems,
-        subtotal: quoteTotals.subtotal,
-        hst: quoteTotals.hst,
-        total: quoteTotals.total,
-        deposit: quoteTotals.deposit,
-        balance: quoteTotals.balance,
-        discountAmount,
-        discountLabel,
-        crewSize,
-        estimatedHours,
-        truckCount,
-        estimatedWeightLbs,
-        longDistanceDistanceKm,
-        longDistanceTruckCost,
-        longDistanceGasCost,
-        longDistanceInsuranceCost,
-        longDistanceMiscCost,
-        longDistanceMarkupRate,
-        validDays,
         sentAt: new Date().toISOString(),
-      })
+      }))
 
       let nextLead = sentResult.lead
       if (lead) {
@@ -480,29 +476,10 @@ Saturn Star Movers`
     if (!ensureQuoteEditable()) return
     try {
       setLogBusy(true)
-      const result = await updateSalesQuote(quote.id, {
+      const result = await updateSalesQuote(quote.id, buildQuotePricingUpdates({
         status: 'sent',
-        lineItems: quoteTotals.lineItems,
-        subtotal: quoteTotals.subtotal,
-        hst: quoteTotals.hst,
-        total: quoteTotals.total,
-        deposit: quoteTotals.deposit,
-        balance: quoteTotals.balance,
-        discountAmount,
-        discountLabel,
-        crewSize,
-        estimatedHours,
-        truckCount,
-        estimatedWeightLbs,
-        longDistanceDistanceKm,
-        longDistanceTruckCost,
-        longDistanceGasCost,
-        longDistanceInsuranceCost,
-        longDistanceMiscCost,
-        longDistanceMarkupRate,
-        validDays,
         sentAt: new Date().toISOString(),
-      })
+      }))
       if (lead) {
         await updateSalesLead(lead.id, { followUpDate })
       }
@@ -521,31 +498,12 @@ Saturn Star Movers`
     if (!ensureQuoteEditable()) return
     try {
       setSaveBusy(true)
-      const result = await updateSalesQuote(quote.id, {
+      const result = await updateSalesQuote(quote.id, buildQuotePricingUpdates({
         status: 'accepted',
-        lineItems: quoteTotals.lineItems,
-        subtotal: quoteTotals.subtotal,
-        hst: quoteTotals.hst,
-        total: quoteTotals.total,
-        deposit: quoteTotals.deposit,
-        balance: quoteTotals.balance,
-        discountAmount,
-        discountLabel,
-        crewSize,
-        estimatedHours,
-        truckCount,
-        estimatedWeightLbs,
-        longDistanceDistanceKm,
-        longDistanceTruckCost,
-        longDistanceGasCost,
-        longDistanceInsuranceCost,
-        longDistanceMiscCost,
-        longDistanceMarkupRate,
-        validDays,
         sentAt: quote.sentAt || new Date().toISOString(),
         acceptedAt: new Date().toISOString(),
         respondedAt: new Date().toISOString(),
-      })
+      }))
       if (lead) {
         await updateSalesLead(lead.id, { followUpDate: undefined })
       }
@@ -575,6 +533,8 @@ Saturn Star Movers`
     try {
       setSendBothBusy(true)
       setSendBothResult(null)
+      const pricingResult = await persistQuotePricingBeforeDelivery()
+      const activeQuote = pricingResult?.quote || quote
 
       const tasks: Promise<{ ok: boolean; channel: 'email' | 'sms' }>[] = []
 
@@ -587,7 +547,7 @@ Saturn Star Movers`
             body: emailBody,
             htmlBody: emailDraft.htmlBody,
             leadId: lead?.id,
-            quoteId: quote.id,
+            quoteId: activeQuote.id,
             notes: `${sendLabel} email sent (send-both).`,
           }).then(result => {
             mergeFollowUpLog(result.log)
@@ -603,7 +563,7 @@ Saturn Star Movers`
             to: phoneTo!,
             body: smsBody,
             leadId: lead?.id,
-            quoteId: quote.id,
+            quoteId: activeQuote.id,
             notes: `${sendLabel} SMS sent (send-both).`,
           }).then(result => {
             mergeFollowUpLog(result.log)
@@ -620,35 +580,16 @@ Saturn Star Movers`
       setSendBothResult(resultMap)
 
       // Save quote as sent + log follow-up
-      const sentResult = await updateSalesQuote(quote.id, {
+      const sentResult = await updateSalesQuote(activeQuote.id, buildQuotePricingUpdates({
         status: 'sent',
-        lineItems: quoteTotals.lineItems,
-        subtotal: quoteTotals.subtotal,
-        hst: quoteTotals.hst,
-        total: quoteTotals.total,
-        deposit: quoteTotals.deposit,
-        balance: quoteTotals.balance,
-        discountAmount,
-        discountLabel,
-        crewSize,
-        estimatedHours,
-        truckCount,
-        estimatedWeightLbs,
-        longDistanceDistanceKm,
-        longDistanceTruckCost,
-        longDistanceGasCost,
-        longDistanceInsuranceCost,
-        longDistanceMiscCost,
-        longDistanceMarkupRate,
-        validDays,
         sentAt: new Date().toISOString(),
-      })
+      }))
 
       let nextLead = sentResult.lead
       if (lead) {
         const followUpResult = await saveSalesFollowUp({
           leadId: lead.id,
-          quoteId: quote.id,
+          quoteId: activeQuote.id,
           type: 'email',
           followUpDate,
           notes: `${sendLabel} sent via email + SMS simultaneously.`,
@@ -685,6 +626,8 @@ Saturn Star Movers`
 
     try {
       setSendBusy(true)
+      const pricingResult = await persistQuotePricingBeforeDelivery()
+      const activeQuote = pricingResult?.quote || quote
       const messageResult = await sendSalesMessage({
         channel: sendChannel,
         to,
@@ -692,40 +635,21 @@ Saturn Star Movers`
         body,
         htmlBody: sendChannel === 'email' ? emailDraft.htmlBody : undefined,
         leadId: lead?.id,
-        quoteId: quote.id,
+        quoteId: activeQuote.id,
         notes: `${sendChannel === 'email' ? `${sendLabel} email sent` : `${sendLabel} SMS sent`} from sales quote page.`,
       })
       mergeFollowUpLog(messageResult.log)
 
-      const sentResult = await updateSalesQuote(quote.id, {
+      const sentResult = await updateSalesQuote(activeQuote.id, buildQuotePricingUpdates({
         status: 'sent',
-        lineItems: quoteTotals.lineItems,
-        subtotal: quoteTotals.subtotal,
-        hst: quoteTotals.hst,
-        total: quoteTotals.total,
-        deposit: quoteTotals.deposit,
-        balance: quoteTotals.balance,
-        discountAmount,
-        discountLabel,
-        crewSize,
-        estimatedHours,
-        truckCount,
-        estimatedWeightLbs,
-        longDistanceDistanceKm,
-        longDistanceTruckCost,
-        longDistanceGasCost,
-        longDistanceInsuranceCost,
-        longDistanceMiscCost,
-        longDistanceMarkupRate,
-        validDays,
         sentAt: new Date().toISOString(),
-      })
+      }))
 
       let nextLead = sentResult.lead
       if (lead) {
         const followUpResult = await saveSalesFollowUp({
           leadId: lead.id,
-          quoteId: quote.id,
+          quoteId: activeQuote.id,
           type: sendChannel,
           followUpDate,
           notes: `${sendChannel === 'email' ? `${sendLabel} emailed` : `${sendLabel} texted`} with acceptance link.`,

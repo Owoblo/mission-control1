@@ -280,6 +280,8 @@ export interface LeadMediaAsset {
   uploadedByUserId?: string
   uploadedByName?: string
   notes?: string
+  analysisStatus?: 'pending' | 'scanned' | 'skipped' | 'failed'
+  analysisNotes?: string
   linkedCostId?: string
   linkedCostCategory?: string
   linkedCostAmountCents?: number

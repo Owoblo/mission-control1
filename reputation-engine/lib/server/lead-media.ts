@@ -35,6 +35,22 @@ function inferMediaKindFromMimeType(mimeType?: string) {
   return 'document'
 }
 
+function updateMediaAnalysisStatus(
+  lead: CRMLead,
+  assetId: string,
+  status: LeadMediaAsset['analysisStatus'],
+  analysisNotes?: string
+) {
+  return normalizeLead({
+    ...lead,
+    mediaAssets: (lead.mediaAssets || []).map(asset =>
+      asset.id === assetId
+        ? { ...asset, analysisStatus: status, analysisNotes }
+        : asset
+    ),
+  })
+}
+
 function extensionFromMimeType(mimeType?: string) {
   const normalized = (mimeType || '').toLowerCase().split(';')[0].trim()
   if (!normalized) return 'bin'
@@ -153,6 +169,9 @@ export async function persistInboundMmsToLead(input: {
       uploadedAt: new Date().toISOString(),
       uploadedByName: 'Twilio MMS',
       notes: dedupeKey,
+      ...(inferMediaKindFromMimeType(mimeType) === 'video'
+        ? { analysisStatus: 'pending' as const, analysisNotes: 'Video saved. Inventory scan pending.' }
+        : {}),
     })
   }
 
@@ -171,7 +190,15 @@ export async function persistInboundMmsToLead(input: {
     const { accountSid, authToken } = getTwilioCredentials()
 
     for (const asset of videoAssets) {
-      if (!isVideoScannable(asset.mimeType)) continue
+      if (!isVideoScannable(asset.mimeType)) {
+        leadWithAssets = updateMediaAnalysisStatus(
+          leadWithAssets,
+          asset.id,
+          'skipped',
+          'Video scanning skipped because Gemini is not configured or the file type is unsupported.'
+        )
+        continue
+      }
 
       try {
         // Find the original MMS URL to download with auth (stored URL won't have Twilio auth)
@@ -179,18 +206,27 @@ export async function persistInboundMmsToLead(input: {
           const ext = (asset.filename || '').split('.').pop()
           return m.contentType?.startsWith('video/') || ext === 'mp4' || ext === 'mov'
         })
-        if (!originalMedia) continue
+        if (!originalMedia) {
+          leadWithAssets = updateMediaAnalysisStatus(leadWithAssets, asset.id, 'failed', 'Could not locate original Twilio video for scanning.')
+          continue
+        }
 
         const videoRes = await fetch(originalMedia.url, {
           headers: { Authorization: twilioAuth(accountSid, authToken) },
           signal: AbortSignal.timeout(30000),
         })
-        if (!videoRes.ok) continue
+        if (!videoRes.ok) {
+          leadWithAssets = updateMediaAnalysisStatus(leadWithAssets, asset.id, 'failed', `Could not download video for scanning (${videoRes.status}).`)
+          continue
+        }
 
         const buffer = await videoRes.arrayBuffer()
         const mimeType = originalMedia.contentType || asset.mimeType || 'video/mp4'
         const scanResult = await analyzeVideoForInventory(buffer, mimeType)
-        if (!scanResult || scanResult.items.length === 0) continue
+        if (!scanResult || scanResult.items.length === 0) {
+          leadWithAssets = updateMediaAnalysisStatus(leadWithAssets, asset.id, 'failed', 'Gemini did not return inventory items from this video.')
+          continue
+        }
 
         const existingInventory = Array.isArray(leadWithAssets.inventory) ? leadWithAssets.inventory : []
         const newInventory = applyMovePolicyToInventory(
@@ -206,8 +242,14 @@ export async function persistInboundMmsToLead(input: {
           inventory: newInventory,
           lastAutoEnrichmentAt: new Date().toISOString(),
         })
+        leadWithAssets = updateMediaAnalysisStatus(
+          leadWithAssets,
+          asset.id,
+          'scanned',
+          `${scanResult.items.length} item${scanResult.items.length === 1 ? '' : 's'} extracted. ${scanResult.summary || ''}`.trim()
+        )
       } catch {
-        // non-fatal — video scan failure doesn't block asset persistence
+        leadWithAssets = updateMediaAnalysisStatus(leadWithAssets, asset.id, 'failed', 'Video scan failed before inventory could be extracted.')
       }
     }
   }

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { dateStamp, normalizeQuote, syncLeadFromQuoteStatus, uid } from '@/lib/sales'
+import { dateStamp, isClosedLeadStage, normalizeQuote, syncLeadFromQuoteStatus, uid } from '@/lib/sales'
 import { getAcceptedQuoteLockedFieldChanges, ACCEPTED_QUOTE_LOCKED_KEYS, recordQuoteUpdatedAudit } from '@/lib/server/sales-audit'
 import { canAccessSalesWorkspace, canReviseExistingQuote, validateQuotePricingPermissions } from '@/lib/server/sales-permissions'
 import { scheduleQuoteExpiryFollowup, scheduleQuoteFollowup, scheduleQuoteViewedFollowup } from '@/lib/server/sales-automation'
@@ -133,16 +133,22 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     let lead = null
     if (savedQuote.leadId) {
       if (currentLead) {
-        const nextLead = syncLeadFromQuoteStatus(
-          {
-            ...currentLead,
-            moveDate: Object.prototype.hasOwnProperty.call(updates, 'moveDate') ? updates.moveDate || undefined : currentLead.moveDate,
-            originAddress: Object.prototype.hasOwnProperty.call(updates, 'originAddress') ? updates.originAddress || undefined : currentLead.originAddress,
-            originCity: Object.prototype.hasOwnProperty.call(updates, 'originCity') ? updates.originCity || undefined : currentLead.originCity,
-            destCity: Object.prototype.hasOwnProperty.call(updates, 'destCity') ? updates.destCity || undefined : currentLead.destCity,
-          },
-          savedQuote
-        )
+        const leadWithQuoteFields = {
+          ...currentLead,
+          quoteId: savedQuote.id,
+          moveDate: Object.prototype.hasOwnProperty.call(updates, 'moveDate') ? updates.moveDate || undefined : currentLead.moveDate,
+          originAddress: Object.prototype.hasOwnProperty.call(updates, 'originAddress') ? updates.originAddress || undefined : currentLead.originAddress,
+          originCity: Object.prototype.hasOwnProperty.call(updates, 'originCity') ? updates.originCity || undefined : currentLead.originCity,
+          destCity: Object.prototype.hasOwnProperty.call(updates, 'destCity') ? updates.destCity || undefined : currentLead.destCity,
+        }
+        const shouldSyncLeadStage =
+          !isClosedLeadStage(currentLead.stage) ||
+          savedQuote.status === 'accepted' ||
+          savedQuote.status === 'invoiced' ||
+          savedQuote.status === 'declined'
+        const nextLead = shouldSyncLeadStage
+          ? syncLeadFromQuoteStatus(leadWithQuoteFields, savedQuote)
+          : leadWithQuoteFields
         lead = await saveSalesLead(nextLead)
       }
     }

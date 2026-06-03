@@ -42,6 +42,11 @@ export function InventoryVerificationPanel({
     (asset: LeadMediaAsset) => ['survey', 'rep_upload', 'mms'].includes(asset.source) && asset.kind === 'video'
   )
   const totalCustomerMedia = customerImageAssets.length + customerVideoAssets.length
+  const videoScanSummary = customerVideoAssets.reduce<Record<string, number>>((summary, asset) => {
+    const key = asset.analysisStatus || 'untracked'
+    summary[key] = (summary[key] || 0) + 1
+    return summary
+  }, {})
   const surveyCompleted = !!lead.surveyCompletedAt
   const surveyScanned = !!lead.surveyScannedAt
   const verificationSummary = buildInventoryVerificationSummary(lead.inventoryVerification)
@@ -120,7 +125,10 @@ export function InventoryVerificationPanel({
                 </div>
                 {customerVideoAssets.length > 0 && (
                   <div className="text-[10px] text-emerald-700">
-                    {customerVideoAssets.length} video{customerVideoAssets.length !== 1 ? 's' : ''} — click Scan button to extract inventory
+                    {customerVideoAssets.length} video{customerVideoAssets.length !== 1 ? 's' : ''}
+                    {videoScanSummary.scanned ? ` · ${videoScanSummary.scanned} scanned` : ''}
+                    {videoScanSummary.failed ? ` · ${videoScanSummary.failed} failed` : ''}
+                    {videoScanSummary.skipped ? ` · ${videoScanSummary.skipped} skipped` : ''}
                   </div>
                 )}
                 {onScanCustomerMedia && (
@@ -130,7 +138,7 @@ export function InventoryVerificationPanel({
                     disabled={!canEditCurrentLead}
                     className="w-full rounded-[6px] bg-emerald-700 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800 transition disabled:opacity-60"
                   >
-                    Scan Photos for Inventory
+                    Scan Media for Inventory
                   </button>
                 )}
                 {lightboxIndex !== null && (
@@ -251,9 +259,27 @@ export function InventoryVerificationPanel({
                       <a key={asset.id || `video-${index}`} href={asset.url} target="_blank" rel="noopener noreferrer"
                         className="flex items-center justify-between rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 hover:border-[var(--app-ink)]"
                       >
-                        <span className="truncate pr-3 font-medium text-[var(--app-ink)]">{asset.filename || asset.room || `Video ${index + 1}`}</span>
-                        <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
-                          {asset.source === 'mms' ? 'MMS' : asset.source === 'survey' ? 'Survey' : 'Rep'}
+                        <span className="min-w-0 pr-3">
+                          <span className="block truncate font-medium text-[var(--app-ink)]">{asset.filename || asset.room || `Video ${index + 1}`}</span>
+                          {asset.analysisNotes && <span className="mt-0.5 block truncate text-[10px] text-[var(--app-muted)]">{asset.analysisNotes}</span>}
+                        </span>
+                        <span className="flex shrink-0 flex-col items-end gap-0.5">
+                          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
+                            {asset.source === 'mms' ? 'MMS' : asset.source === 'survey' ? 'Survey' : 'Rep'}
+                          </span>
+                          {asset.analysisStatus && (
+                            <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase ${
+                              asset.analysisStatus === 'scanned'
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : asset.analysisStatus === 'failed'
+                                  ? 'bg-rose-100 text-rose-700'
+                                  : asset.analysisStatus === 'skipped'
+                                    ? 'bg-amber-100 text-amber-700'
+                                    : 'bg-sky-100 text-sky-700'
+                            }`}>
+                              {asset.analysisStatus}
+                            </span>
+                          )}
                         </span>
                       </a>
                     ))}
@@ -261,13 +287,13 @@ export function InventoryVerificationPanel({
                 </div>
               )}
 
-              {customerImageAssets.length > 0 && (
+              {totalCustomerMedia > 0 && (
                 <button
                   onClick={onScanCustomerMedia}
                   disabled={surveyBusy}
                   className={`w-full rounded-[6px] py-2 text-xs font-semibold transition disabled:opacity-60 ${surveyScanned ? 'border border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-muted)]' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
                 >
-                  {surveyBusy ? '⏳ Scanning…' : surveyScanned ? '✓ Re-scan customer media' : '🔍 Scan into inventory'}
+                  {surveyBusy ? '⏳ Scanning…' : surveyScanned ? '✓ Re-scan customer media' : '🔍 Scan media into inventory'}
                 </button>
               )}
 

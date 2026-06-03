@@ -1,4 +1,5 @@
 import { createSalesSystemAlert } from '@/lib/server/sales-alerts'
+import { processInboundAutomationEvent } from '@/lib/server/sales-automation'
 import { sendSalesMessage } from '@/lib/server/sales-messaging'
 import { logTelephonyCallOutcome } from '@/lib/server/telephony-monitoring'
 import {
@@ -399,16 +400,40 @@ export async function POST(request: Request) {
       }
 
       if (sendFallbackReply && fallbackPhone) {
-        const branchText = branchLabel ? ` on the ${branchLabel} line` : ''
-        void sendSalesMessage({
-          channel: 'sms',
-          to: fallbackPhone,
-          body: `Sorry we missed your call${branchText}. Reply here and Saturn Star will text or call you right back.`,
-          leadId: mapping?.leadId,
-          fromNumber: branchNumber || undefined,
-          actor: 'automation',
-          notes: `Automation missed-call SMS sent to ${fallbackPhone}`,
-        }).catch(() => {})
+        void (async () => {
+          const automationResult = await processInboundAutomationEvent({
+            leadId: mapping?.leadId,
+            inboundLeadId: inboundLead?.id,
+            source: 'missed_call',
+            channel: 'sms',
+            phone: fallbackPhone,
+            message: `Missed inbound call from ${fallbackPhone}${branchLabel ? ` on the ${branchLabel} line` : ''}.`,
+            receivedAt: now,
+            raw: {
+              callSid,
+              dialCallSid,
+              dialCallStatus,
+              branchNumber,
+              branchLabel: branchLabel || undefined,
+              trackingLabel: trackingLabel || undefined,
+              trackingSource: trackingSource || undefined,
+              missedReason,
+            },
+          }).catch(() => null)
+
+          if (automationResult?.job?.status === 'completed') return
+
+          const branchText = branchLabel ? ` on the ${branchLabel} line` : ''
+          await sendSalesMessage({
+            channel: 'sms',
+            to: fallbackPhone,
+            body: `Sorry we missed your call${branchText}. Reply here and Saturn Star will text or call you right back.`,
+            leadId: mapping?.leadId,
+            fromNumber: branchNumber || undefined,
+            actor: 'automation',
+            notes: `Automation missed-call SMS sent to ${fallbackPhone}`,
+          }).catch(() => {})
+        })()
       }
 
       void logTelephonyCallOutcome({

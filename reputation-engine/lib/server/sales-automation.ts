@@ -69,7 +69,10 @@ const OPENAI_MODEL = readEnv('OPENAI_AUTOMATION_MODEL') || 'gpt-4o-mini'
 function detectBookingIntent(message?: string): boolean {
   if (!message) return false
   const text = message.trim().toLowerCase()
-  return /\b(yes|yep|yeah|yup|book|confirm|confirmed|let'?s? do it|go ahead|lock it in|sounds good|deal|i'?m in|perfect|i'?ll take it|ill take it|reserve|i accept|accepted|ok let'?s go|booked|send the deposit|deposit link|pay the deposit|book me|book it|proceed|proceed with|let'?s? go|im in|i want to book|i want to proceed|take it|i'?ll book|lock me in|lock in|i'?d like to book|ready to book|ready to go)\b/.test(text)
+  const compact = text.replace(/[.!?]+$/g, '').trim()
+  const shortConfirmation = /^(yes|yep|yeah|yup|ok|okay|perfect|sounds good|deal)$/i.test(compact)
+  if (shortConfirmation) return true
+  return /\b(book|confirm(?: the)? (?:quote|move|booking|job)|let'?s? do it|go ahead|lock it in|i'?m in|i'?ll take it|ill take it|reserve|i accept|accepted|ok let'?s go|booked|send the deposit|deposit link|pay the deposit|book me|book it|proceed|proceed with|let'?s? go|im in|i want to book|i want to proceed|take it|i'?ll book|lock me in|lock in|i'?d like to book|ready to book|ready to go)\b/.test(text)
 }
 
 function buildSmsQuoteSummary(

@@ -977,10 +977,10 @@ export function EstimateDraftModal({
   function setFactor<K extends keyof JobFactors>(key: K, value: JobFactors[K]) {
     const next = { ...jobFactors, [key]: value }
     onJobFactorsChange(next)
-    // Crew/truck overrides must immediately recalculate so quote reflects the new count
-    if (key === 'crewSizeOverride' || key === 'truckCountOverride') {
-      onRecalculate({ quoteType, distanceKm: distanceKm || route?.distanceKm || undefined, routeContext })
-    }
+  }
+
+  function setFactors(next: JobFactors) {
+    onJobFactorsChange(next)
   }
 
   function toggleDisassemblyItem(itemName: string) {
@@ -3117,8 +3117,7 @@ export function EstimateDraftModal({
                     <button
                       type="button"
                       onClick={() => {
-                        setFactor('truckCountOverride', 2)
-                        setFactor('crewSizeOverride', 4)
+                        setFactors({ ...jobFactors, truckCountOverride: 2, crewSizeOverride: 4 })
                       }}
                       className="rounded-[6px] border-2 border-sky-300 bg-white p-2.5 text-left hover:border-sky-500 transition"
                     >
@@ -3134,8 +3133,7 @@ export function EstimateDraftModal({
                     <button
                       type="button"
                       onClick={() => {
-                        setFactor('truckCountOverride', 1)
-                        setFactor('crewSizeOverride', 3)
+                        setFactors({ ...jobFactors, truckCountOverride: 1, crewSizeOverride: 3 })
                         if (!conditionalClauseEnabled) {
                           setConditionalClauseEnabled(true)
                           const savings = flags.twoTripComparison!.oneTripSavingsVsTwoTrip
@@ -3163,8 +3161,7 @@ export function EstimateDraftModal({
                     <button
                       type="button"
                       onClick={() => {
-                        setFactor('truckCountOverride', 1)
-                        setFactor('crewSizeOverride', 3)
+                        setFactors({ ...jobFactors, truckCountOverride: 1, crewSizeOverride: 3 })
                         if (!conditionalClauseEnabled) {
                           setConditionalClauseEnabled(true)
                           setConditionalClauseText(
