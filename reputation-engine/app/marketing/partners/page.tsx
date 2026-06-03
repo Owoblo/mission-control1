@@ -1637,15 +1637,359 @@ function PartnersTab({ contacts, onSelect }: { contacts: Contact[]; onSelect: (c
   )
 }
 
+// ─── Bulk SMS Modal ───────────────────────────────────────────────────────────
+
+function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () => void }) {
+  const [template, setTemplate] = useState(`Hi {{firstName}}, this is John from Saturn Star Movers. We work with {{industry}} professionals in {{city}} who refer clients our way — want to hop on a quick call this week?`)
+  const [fromNumber, setFromNumber] = useState('+12268870667')
+  const [preview, setPreview] = useState<Array<{ name: string; phone: string; message: string }> | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [result, setResult] = useState<{ sent: number; failed: number; no_phone: number } | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(contacts.map(c => c.id)))
+
+  const withPhone = contacts.filter(c => c.phone)
+  const selected = contacts.filter(c => selectedIds.has(c.id))
+
+  async function loadPreview() {
+    setLoading(true)
+    const res = await fetch('/api/marketing/contacts/bulk-sms', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ contact_ids: Array.from(selectedIds), template, from_number: fromNumber, preview_only: true }),
+    })
+    const data = await res.json() as { preview?: Array<{ name: string; phone: string; message: string }>; will_send?: number }
+    setPreview(data.preview || [])
+    setLoading(false)
+  }
+
+  async function send() {
+    if (!confirm(`Send SMS to ${selected.filter(c => c.phone).length} contacts?`)) return
+    setSending(true)
+    const res = await fetch('/api/marketing/contacts/bulk-sms', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ contact_ids: Array.from(selectedIds), template, from_number: fromNumber }),
+    })
+    const data = await res.json() as { sent: number; failed: number; no_phone: number }
+    setResult(data)
+    setSending(false)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-2xl rounded-[16px] bg-white shadow-2xl flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between border-b border-[var(--app-line)] px-5 py-4">
+          <div>
+            <div className="text-sm font-semibold text-[var(--app-ink)]">Bulk SMS</div>
+            <div className="text-[11px] text-[var(--app-muted)] mt-0.5">{selected.filter(c => c.phone).length} contacts with phone · from {fromNumber}</div>
+          </div>
+          <button onClick={onClose} className="rounded-full p-2 text-[var(--app-muted)] hover:bg-[var(--app-bg)]">✕</button>
+        </div>
+
+        {result ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8 text-center">
+            <div className="text-4xl">✅</div>
+            <div className="text-lg font-semibold text-[var(--app-ink)]">{result.sent} messages sent</div>
+            <div className="text-sm text-[var(--app-muted)]">{result.failed > 0 && `${result.failed} failed · `}{result.no_phone > 0 && `${result.no_phone} had no phone`}</div>
+            <button onClick={onClose} className="crm-button-dark px-6">Done</button>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto p-5 space-y-4">
+            {/* Template */}
+            <div>
+              <label className="crm-label">Message template</label>
+              <textarea value={template} onChange={e => { setTemplate(e.target.value); setPreview(null) }} rows={4}
+                className="crm-input mt-1 resize-none text-sm" />
+              <div className="mt-1 flex flex-wrap gap-2">
+                {['{{firstName}}', '{{company}}', '{{city}}', '{{industry}}'].map(tag => (
+                  <button key={tag} onClick={() => setTemplate(t => t + tag)}
+                    className="rounded-full border border-[var(--app-line)] px-2 py-0.5 text-[10px] font-mono text-[var(--app-muted)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)]">
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* From number */}
+            <div>
+              <label className="crm-label">Send from</label>
+              <select value={fromNumber} onChange={e => setFromNumber(e.target.value)} className="crm-input mt-1 text-sm">
+                <option value="+12268870667">+1 (226) 887-0667 — Windsor Partnership</option>
+                <option value="+12267746581">+1 (226) 774-6581 — Operations</option>
+              </select>
+            </div>
+
+            {/* Preview */}
+            {preview && (
+              <div>
+                <div className="crm-label mb-2">Preview (first 3)</div>
+                <div className="space-y-2">
+                  {preview.map((p, i) => (
+                    <div key={i} className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
+                      <div className="text-[10px] font-semibold text-[var(--app-muted)]">{p.name} · {p.phone}</div>
+                      <div className="mt-1 text-sm text-[var(--app-ink)] whitespace-pre-wrap">{p.message}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Segment selector */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="crm-label">Recipients ({selected.filter(c => c.phone).length} with phone)</label>
+                <div className="flex gap-2">
+                  <button onClick={() => setSelectedIds(new Set(withPhone.map(c => c.id)))} className="text-[10px] text-[var(--app-accent)] hover:underline">All with phone</button>
+                  <button onClick={() => setSelectedIds(new Set())} className="text-[10px] text-[var(--app-muted)] hover:underline">None</button>
+                </div>
+              </div>
+              <div className="max-h-32 overflow-y-auto rounded-[8px] border border-[var(--app-line)] divide-y divide-[var(--app-line)]">
+                {withPhone.slice(0, 20).map(c => (
+                  <label key={c.id} className="flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-[var(--app-bg)]">
+                    <input type="checkbox" checked={selectedIds.has(c.id)}
+                      onChange={e => { const next = new Set(selectedIds); e.target.checked ? next.add(c.id) : next.delete(c.id); setSelectedIds(next) }}
+                      className="rounded" />
+                    <span className="text-sm text-[var(--app-ink)] truncate">{c.name}</span>
+                    <span className="text-[10px] text-[var(--app-muted)] ml-auto">{c.company || c.city || ''}</span>
+                  </label>
+                ))}
+                {withPhone.length > 20 && <div className="px-3 py-1.5 text-[10px] text-[var(--app-muted)]">+ {withPhone.length - 20} more</div>}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!result && (
+          <div className="border-t border-[var(--app-line)] p-4 flex gap-2">
+            <button onClick={onClose} className="crm-button flex-1">Cancel</button>
+            {!preview ? (
+              <button onClick={loadPreview} disabled={loading || !template.trim() || selectedIds.size === 0} className="crm-button-dark flex-1 disabled:opacity-50">
+                {loading ? 'Previewing…' : 'Preview'}
+              </button>
+            ) : (
+              <button onClick={send} disabled={sending} className="crm-button-dark flex-1 disabled:opacity-50">
+                {sending ? 'Sending…' : `Send to ${selected.filter(c => c.phone).length}`}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Queue Tab — mirrors sales Follow-Up Wall ─────────────────────────────────
+
+function urgencyBar(contact: Contact): string {
+  const daysSince = contact.last_touch_at
+    ? Math.floor((Date.now() - new Date(contact.last_touch_at).getTime()) / 86400000)
+    : 999
+  if (contact.sequence_paused && !contact.decision) return 'bg-[var(--app-accent)]'   // responded — act now
+  if (daysSince >= 7) return 'bg-[#c9754e]'                                             // overdue
+  if (daysSince >= 3) return 'bg-[#d0a24d]'                                             // due soon
+  return 'bg-[var(--app-line)]'                                                          // fresh
+}
+
+function urgencyCardBorder(contact: Contact): string {
+  const daysSince = contact.last_touch_at
+    ? Math.floor((Date.now() - new Date(contact.last_touch_at).getTime()) / 86400000)
+    : 999
+  if (contact.sequence_paused && !contact.decision) return 'border-[rgba(15,106,83,0.25)] bg-[linear-gradient(180deg,#ffffff_0%,#f7fbf9_100%)]'
+  if (daysSince >= 7) return 'border-[#e6d1ca] bg-[linear-gradient(180deg,#ffffff_0%,#fff8f6_100%)]'
+  if (daysSince >= 3) return 'border-[#eadfcb] bg-[linear-gradient(180deg,#ffffff_0%,#fffcf6_100%)]'
+  return 'border-[var(--app-line)] bg-white'
+}
+
+function QueueContactCard({ contact, onSelect, onCall }: {
+  contact: Contact
+  onSelect: (c: Contact) => void
+  onCall: (c: Contact) => void
+}) {
+  const daysSince = contact.last_touch_at
+    ? Math.floor((Date.now() - new Date(contact.last_touch_at).getTime()) / 86400000)
+    : null
+
+  return (
+    <div className={`rounded-[14px] border p-4 shadow-sm transition hover:shadow-md ${urgencyCardBorder(contact)}`}>
+      <div className={`mb-3 h-1 rounded-full ${urgencyBar(contact)}`} />
+
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button onClick={() => onSelect(contact)} className="text-sm font-semibold text-[var(--app-ink)] hover:text-[var(--app-accent)] transition truncate max-w-[160px]">
+              {contact.name}
+            </button>
+            {contact.outreach_tier && (
+              <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${contact.outreach_tier === 1 ? 'border border-amber-200 bg-amber-50 text-amber-700' : contact.outreach_tier === 2 ? 'border border-sky-200 bg-sky-50 text-sky-700' : 'border border-[var(--app-line)] bg-[var(--app-wash)] text-[var(--app-muted)]'}`}>
+                T{contact.outreach_tier}
+              </span>
+            )}
+            {contact.instantly_status && (
+              <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${contact.instantly_status === 'replied' ? 'border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]' : contact.instantly_status === 'opened' ? 'border border-sky-200 bg-sky-50 text-sky-700' : 'border border-[var(--app-line)] bg-[var(--app-wash)] text-[var(--app-muted)]'}`}>
+                ✉ {contact.instantly_status}
+              </span>
+            )}
+          </div>
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0 text-[11px] text-[var(--app-muted)]">
+            {contact.company && <span>{contact.company}</span>}
+            {contact.city && <span>· {contact.city}</span>}
+            {contact.industry && <span>· {contact.industry}</span>}
+          </div>
+        </div>
+        <div className="shrink-0 text-right">
+          {daysSince !== null && (
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${daysSince === 0 ? 'border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]' : daysSince <= 3 ? 'border border-amber-200 bg-amber-50 text-amber-700' : 'border border-[var(--app-line)] bg-[var(--app-wash)] text-[var(--app-muted)]'}`}>
+              {daysSince === 0 ? 'Today' : `${daysSince}d ago`}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {contact.latest_touch_note && (
+        <div className="mt-2 rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2 text-[11px] text-[var(--app-muted)] line-clamp-2">
+          {contact.latest_touch_note.slice(0, 120)}
+        </div>
+      )}
+
+      <div className="mt-3 grid grid-cols-4 gap-1.5">
+        {contact.phone && (
+          <button onClick={() => onCall(contact)}
+            className="flex-1 rounded-[8px] border border-[var(--app-line)] py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] transition">
+            📞 Call
+          </button>
+        )}
+        {contact.phone && (
+          <button onClick={() => window.open(`sms:${contact.phone}`)}
+            className="flex-1 rounded-[8px] border border-[var(--app-line)] py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] transition">
+            💬 SMS
+          </button>
+        )}
+        <button onClick={() => onSelect(contact)}
+          className={`${contact.phone ? '' : 'col-span-2'} flex-1 rounded-[8px] border border-[var(--app-line)] py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] transition`}>
+          Open
+        </button>
+        <button onClick={() => onSelect(contact)}
+          className="flex-1 rounded-[8px] bg-[var(--app-accent)] py-1.5 text-xs font-semibold text-white hover:opacity-90 transition">
+          Log
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function QueueTab({ contacts, onSelect, onBulkSms }: {
+  contacts: Contact[]
+  onSelect: (c: Contact) => void
+  onBulkSms: (contacts: Contact[]) => void
+}) {
+  const dialer = useDialer()
+  const [search, setSearch] = useState('')
+
+  function handleCall(c: Contact) {
+    if (!c.phone) return
+    void dialer.call(c.phone)
+  }
+
+  const filtered = search
+    ? contacts.filter(c => `${c.name} ${c.company} ${c.city} ${c.industry}`.toLowerCase().includes(search.toLowerCase()))
+    : contacts
+
+  // Three buckets
+  const responded = filtered.filter(c => c.sequence_paused && !c.decision)
+  const overdue = filtered.filter(c => !c.sequence_paused && c.last_touch_at &&
+    Math.floor((Date.now() - new Date(c.last_touch_at).getTime()) / 86400000) >= 5)
+  const callFirst = filtered.filter(c => !c.sequence_paused && c.phone &&
+    (!c.last_touch_at || Math.floor((Date.now() - new Date(c.last_touch_at).getTime()) / 86400000) < 5) &&
+    (c.normalized_stage === 'target' || c.normalized_stage === 'mail_sent' || c.normalized_stage === 'attempting_contact'))
+    .sort((a, b) => (b.outreach_tier ?? 3) < (a.outreach_tier ?? 3) ? 1 : -1)
+
+  const urgentCount = responded.length + overdue.length
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-xl font-semibold text-[var(--app-ink)]">Outbound Queue</h2>
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium ${urgentCount > 0 ? 'border border-[rgba(201,117,78,0.12)] bg-[#f6ece7] text-[#955941]' : 'border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]'}`}>
+              <span className={`h-2 w-2 rounded-full ${urgentCount > 0 ? 'bg-[#c9754e]' : 'bg-[var(--app-accent)]'}`} />
+              {urgentCount > 0 ? `${urgentCount} need attention` : 'Queue clear'}
+            </span>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => onBulkSms(filtered.filter(c => c.phone))}
+            className="crm-button text-sm">
+            📱 Bulk SMS
+          </button>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search queue…"
+            className="crm-input w-48 text-sm" />
+        </div>
+      </div>
+
+      {/* Responded — act now */}
+      {responded.length > 0 && (
+        <div>
+          <div className="mb-3 flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-[var(--app-accent)]" />
+            <span className="text-sm font-semibold text-[var(--app-ink)]">Responded — Act Now</span>
+            <span className="rounded-full border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--app-accent)]">{responded.length}</span>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {responded.map(c => <QueueContactCard key={c.id} contact={c} onSelect={onSelect} onCall={handleCall} />)}
+          </div>
+        </div>
+      )}
+
+      {/* Overdue — gone silent */}
+      {overdue.length > 0 && (
+        <div>
+          <div className="mb-3 flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-[#c9754e]" />
+            <span className="text-sm font-semibold text-[var(--app-ink)]">Gone Silent 5d+</span>
+            <span className="rounded-full border border-[rgba(201,117,78,0.12)] bg-[#f5ece7] px-2 py-0.5 text-[10px] font-bold text-[#955941]">{overdue.length}</span>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {overdue.slice(0, 10).map(c => <QueueContactCard key={c.id} contact={c} onSelect={onSelect} onCall={handleCall} />)}
+          </div>
+        </div>
+      )}
+
+      {/* Call first — fresh targets */}
+      {callFirst.length > 0 && (
+        <div>
+          <div className="mb-3 flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-slate-400" />
+            <span className="text-sm font-semibold text-[var(--app-ink)]">Call First — Tier 1 Priority</span>
+            <span className="rounded-full border border-[var(--app-line)] bg-[var(--app-wash)] px-2 py-0.5 text-[10px] font-bold text-[var(--app-muted)]">{callFirst.length}</span>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {callFirst.slice(0, 20).map(c => <QueueContactCard key={c.id} contact={c} onSelect={onSelect} onCall={handleCall} />)}
+          </div>
+        </div>
+      )}
+
+      {responded.length === 0 && overdue.length === 0 && callFirst.length === 0 && (
+        <div className="rounded-[16px] border border-dashed border-[var(--app-line)] bg-white p-16 text-center">
+          <div className="text-3xl">✅</div>
+          <div className="mt-4 text-sm font-semibold text-[var(--app-ink)]">Queue is clear</div>
+          <div className="mt-1 text-xs text-[var(--app-muted)]">Import a batch to start working contacts</div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-type Tab = 'overview' | 'lists' | 'pipeline' | 'phone' | 'partners'
+type Tab = 'queue' | 'overview' | 'lists' | 'pipeline' | 'phone' | 'partners'
 
 const TABS: { key: Tab; label: string; icon: string }[] = [
+  { key: 'queue',    label: 'Queue',    icon: '⚡' },
   { key: 'overview', label: 'Overview', icon: '📊' },
-  { key: 'lists', label: 'Lists', icon: '📋' },
+  { key: 'lists',    label: 'Lists',    icon: '📋' },
   { key: 'pipeline', label: 'Pipeline', icon: '🎯' },
-  { key: 'phone', label: 'Phone', icon: '📱' },
+  { key: 'phone',    label: 'Phone',    icon: '📱' },
   { key: 'partners', label: 'Partners', icon: '🤝' },
 ]
 
@@ -1702,34 +2046,42 @@ function PartnershipEngineInner() {
     }
   }
 
+  const [bulkSmsContacts, setBulkSmsContacts] = useState<Contact[] | null>(null)
   const needsReplyCount = contacts.filter(c => c.sequence_paused && !c.decision).length
+  const queueCount = needsReplyCount + contacts.filter(c =>
+    c.last_touch_at && Math.floor((Date.now() - new Date(c.last_touch_at).getTime()) / 86400000) >= 5
+  ).length
 
   return (
-    <div className="min-h-screen bg-[#f0f2f5]">
+    <div className="min-h-screen bg-[var(--app-bg,#f0f2f5)]">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-[#1a2744]">Partnership Engine</h1>
-            <p className="mt-0.5 text-sm text-slate-500">
+            <h1 className="text-2xl font-semibold text-[var(--app-ink)]">Partnership Engine</h1>
+            <p className="mt-0.5 text-sm text-[var(--app-muted)]">
               {batchesLoading ? '—' : batches.length} batch{batches.length !== 1 ? 'es' : ''} · {contactsLoading ? '—' : contacts.length} contacts
-              {needsReplyCount > 0 && <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">{needsReplyCount} need reply</span>}
+              {needsReplyCount > 0 && <span className="ml-2 rounded-full bg-[var(--app-accent-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--app-accent)]">{needsReplyCount} responded</span>}
             </p>
           </div>
         </div>
 
-        <div className="mb-6 flex gap-1 rounded-[16px] border border-slate-200 bg-white p-1.5">
+        <div className="mb-6 flex gap-1 rounded-[16px] border border-[var(--app-line)] bg-[var(--app-panel,white)] p-1.5">
           {TABS.map(t => (
             <button key={t.key} onClick={() => handleTabChange(t.key)}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-[12px] py-2.5 text-sm font-semibold transition ${tab === t.key ? 'bg-[#1a2744] text-white shadow-sm' : 'text-slate-500 hover:text-[#1a2744]'}`}>
+              className={`flex flex-1 items-center justify-center gap-2 rounded-[12px] py-2.5 text-sm font-semibold transition ${tab === t.key ? 'bg-[var(--app-ink)] text-white shadow-sm' : 'text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}>
               <span>{t.icon}</span>
               <span className="hidden sm:inline">{t.label}</span>
-              {t.key === 'pipeline' && needsReplyCount > 0 && (
-                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${tab === t.key ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'}`}>{needsReplyCount}</span>
+              {t.key === 'queue' && queueCount > 0 && (
+                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${tab === t.key ? 'bg-white/20 text-white' : 'border border-[rgba(201,117,78,0.12)] bg-[#f5ece7] text-[#955941]'}`}>{queueCount}</span>
               )}
             </button>
           ))}
         </div>
 
+        {tab === 'queue' && (
+          <QueueTab contacts={contacts} onSelect={setSelectedContact}
+            onBulkSms={cs => setBulkSmsContacts(cs)} />
+        )}
         {tab === 'overview' && (
           <OverviewTab batches={batches} contacts={contacts} loading={batchesLoading || contactsLoading}
             onRefresh={() => { void loadBatches(); void loadContacts() }} onTabChange={handleTabChange} />
@@ -1754,6 +2106,10 @@ function PartnershipEngineInner() {
             onClose={() => setSelectedContact(null)}
             onRefresh={() => { void loadContacts(); void loadBatches() }}
           />
+        )}
+
+        {bulkSmsContacts && (
+          <BulkSmsModal contacts={bulkSmsContacts} onClose={() => setBulkSmsContacts(null)} />
         )}
       </div>
     </div>
