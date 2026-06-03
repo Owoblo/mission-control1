@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { deriveOpsChecklist, getQuotedTruckCount, isTruckReservationComplete, normalizeCrewHours, normalizeCrewPayouts } from '@/lib/operations'
-import { calculateLeadScore, getLeadAssignedRepName, normalizeLead, syncLeadFromQuoteStatus } from '@/lib/sales'
+import { calculateLeadScore, getLeadAssignedRepName, isClosedLeadStage, normalizeLead, syncLeadFromQuoteStatus } from '@/lib/sales'
 import { logEvent, daysBetween } from '@/lib/server/analytics'
 import { queueLeadIntelligenceRefresh } from '@/lib/server/lead-intelligence-refresh'
 import { scheduleMoveReminder, scheduleConsultationReminder } from '@/lib/server/sales-automation'
@@ -361,7 +361,10 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
     const quote = nextLead.quoteId ? await getSalesQuote(nextLead.quoteId).catch(() => null) : null
 
-    if (nextLead.quoteId && updates.stage === undefined && quote) {
+    // Don't let quote status override a closed stage (lost/booked/completed).
+    // A rep who marked a lead lost should not have it flip back to 'quoted' just because
+    // a previously-sent quote still exists on the lead.
+    if (nextLead.quoteId && updates.stage === undefined && quote && !isClosedLeadStage(nextLead.stage)) {
       nextLead = syncLeadFromQuoteStatus(nextLead, quote)
     }
 
