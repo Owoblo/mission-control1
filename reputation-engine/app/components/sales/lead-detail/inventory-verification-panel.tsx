@@ -94,6 +94,56 @@ export function InventoryVerificationPanel({
               </button>
             </div>
             <div className="text-[10px] text-[var(--app-muted)] truncate">{surveyUrl}</div>
+
+            {/* Customer photos — show here directly when submitted, even with no MLS/scan */}
+            {surveyCompleted && totalCustomerMedia > 0 && (
+              <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 p-2 space-y-2">
+                <div className="text-[10px] font-semibold text-emerald-800">
+                  {totalCustomerMedia} photo{totalCustomerMedia !== 1 ? 's' : ''} submitted
+                  {customerVideoAssets.length > 0 && ` · ${customerVideoAssets.length} video${customerVideoAssets.length !== 1 ? 's' : ''}`}
+                </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {customerImageAssets.map((asset, index) => (
+                    <button
+                      key={asset.id || index}
+                      type="button"
+                      onClick={() => setLightboxIndex(index)}
+                      className="group relative aspect-square overflow-hidden rounded-[6px] border border-emerald-200 cursor-zoom-in"
+                      title={asset.room || `Photo ${index + 1}`}
+                    >
+                      <img src={asset.url} alt={`Customer photo ${index + 1}`} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                      {asset.room && (
+                        <div className="absolute bottom-0 left-0 right-0 truncate bg-black/50 px-1 py-0.5 text-[9px] text-white">{asset.room}</div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+                {customerVideoAssets.length > 0 && (
+                  <div className="text-[10px] text-emerald-700">
+                    {customerVideoAssets.length} video{customerVideoAssets.length !== 1 ? 's' : ''} — click Scan button to extract inventory
+                  </div>
+                )}
+                {onScanCustomerMedia && (
+                  <button
+                    type="button"
+                    onClick={onScanCustomerMedia}
+                    disabled={!canEditCurrentLead}
+                    className="w-full rounded-[6px] bg-emerald-700 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800 transition disabled:opacity-60"
+                  >
+                    Scan Photos for Inventory
+                  </button>
+                )}
+                {lightboxIndex !== null && (
+                  <PhotoLightbox
+                    photos={customerImageAssets.map(a => a.url)}
+                    labels={customerImageAssets.map(a => [a.room, 'Survey'].filter(Boolean).join(' · '))}
+                    index={lightboxIndex}
+                    onNavigate={setLightboxIndex}
+                    onClose={() => setLightboxIndex(null)}
+                  />
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex gap-1.5">
