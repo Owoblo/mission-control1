@@ -1395,7 +1395,7 @@ function PipelineTab({ contacts, onSelect, onStageChange }: {
 
 // ─── Tab: Phone ───────────────────────────────────────────────────────────────
 
-const PARTNERSHIP_FROM_NUMBER = '+12267746581'
+const PARTNERSHIP_FROM_NUMBER = '+12268870667'  // Windsor dedicated outbound number
 
 function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; lists: List[]; onSelectContact: (c: Contact) => void }) {
   const router = useRouter()
