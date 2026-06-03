@@ -410,6 +410,10 @@ export interface PricingBreakdown {
       savings: number
       extraHours: number
       note: string
+      // Option C: 1 truck, 3 movers, 1 trip (optimistic — fits in one run)
+      oneTripHours: number
+      oneTripAmount: number
+      oneTripSavingsVsTwoTrip: number
     } | null
     multiTruckOption?: {
       totalHours: number

@@ -3105,35 +3105,89 @@ export function EstimateDraftModal({
 
               {/* Intelligence banners */}
 
-              {/* 2-truck vs 2-trip comparison — shows real dollar difference */}
+              {/* Multi-option quote builder — shows all viable options, click to configure */}
               {(needsTwoTrucks || flags?.twoTripZone) && flags?.twoTripComparison && (
                 <div className="mb-3 rounded-[8px] border border-sky-200 bg-sky-50 px-4 py-3">
                   <div className="text-sm font-semibold text-sky-800">
-                    🚚 {needsTwoTrucks ? '2 trucks required — or 1 truck + 2 trips?' : '2-trip zone — compare your options'}
+                    🚚 {needsTwoTrucks ? 'Volume needs 2 trucks — pick an option to quote' : '2-trip zone — 3 options available'}
                   </div>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    <div className="rounded-[6px] border-2 border-sky-300 bg-white p-2.5">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-sky-700">Option A — 2 Trucks</div>
-                      <div className="mt-1 text-lg font-bold text-[var(--app-ink)]">{formatMoney(flags.multiTruckOption?.totalAmount ?? quoteModalTotals.subtotal)}</div>
+                  <p className="mt-0.5 text-[10px] text-sky-700">Click any option to set the quote configuration automatically.</p>
+                  <div className="mt-2 grid grid-cols-3 gap-2">
+
+                    {/* Option A — 2 trucks, 4 movers */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFactor('truckCountOverride', 2)
+                        setFactor('crewSizeOverride', 4)
+                      }}
+                      className="rounded-[6px] border-2 border-sky-300 bg-white p-2.5 text-left hover:border-sky-500 transition"
+                    >
+                      <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-sky-700">Option A — 2 Trucks</div>
+                      <div className="mt-0.5 text-base font-bold text-[var(--app-ink)]">{formatMoney(flags.multiTruckOption?.totalAmount ?? quoteModalTotals.subtotal)}</div>
                       <div className="mt-0.5 text-[10px] text-sky-700">
-                        {pricingBreakdown?.crewSize} movers · {flags.multiTruckOption?.totalHours ?? pricingBreakdown?.totalHours}h · both trucks load in parallel — faster
+                        4 movers · {flags.multiTruckOption?.totalHours ?? pricingBreakdown?.totalHours}h
                       </div>
-                    </div>
-                    <div className="rounded-[6px] border border-sky-200 bg-white p-2.5">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Option B — 1 Truck, 2 Trips</div>
-                      <div className="mt-1 text-lg font-bold text-[var(--app-ink)]">{formatMoney(flags.twoTripComparison.totalAmount)}</div>
-                      <div className="mt-0.5 text-[10px] text-slate-500">
-                        {flags.twoTripComparison.crewSize} movers · {flags.twoTripComparison.totalHours}h · adds ~{flags.twoTripComparison.extraHours}h return drive
+                      <div className="mt-1 text-[9px] text-slate-400">Both trucks load in parallel — fastest</div>
+                    </button>
+
+                    {/* Option B — 1 truck, 3 movers, 2 trips (RECOMMENDED for local) */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFactor('truckCountOverride', 1)
+                        setFactor('crewSizeOverride', 3)
+                        if (!conditionalClauseEnabled) {
+                          setConditionalClauseEnabled(true)
+                          const savings = flags.twoTripComparison!.oneTripSavingsVsTwoTrip
+                          setConditionalClauseText(
+                            `This quote is based on 1 truck, 3 movers, 2 trips. If all items fit in a single trip, your total adjusts to approximately ${formatMoney(flags.twoTripComparison!.oneTripAmount)} — saving you ${formatMoney(savings > 0 ? savings : 0)}. You will only be charged for trips actually made.`
+                          )
+                        }
+                      }}
+                      className="rounded-[6px] border-2 border-emerald-300 bg-white p-2.5 text-left hover:border-emerald-500 transition"
+                    >
+                      <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-700">Option B ★ Recommended</div>
+                      <div className="mt-0.5 text-base font-bold text-[var(--app-ink)]">{formatMoney(flags.twoTripComparison.totalAmount)}</div>
+                      <div className="mt-0.5 text-[10px] text-emerald-700">
+                        3 movers · {flags.twoTripComparison.totalHours}h · 1 truck, 2 trips
+                      </div>
+                      <div className="mt-1 text-[9px] text-slate-400">
                         {flags.twoTripComparison.savings > 0
-                          ? ` · saves client ${formatMoney(flags.twoTripComparison.savings)}`
-                          : ' · 2 trucks is more efficient'}
+                          ? `Saves client ${formatMoney(flags.twoTripComparison.savings)} vs 2 trucks`
+                          : 'More time but lower hourly rate'}
+                        {' · auto-fills conditional clause'}
                       </div>
-                    </div>
+                    </button>
+
+                    {/* Option C — 1 truck, 3 movers, 1 trip (optimistic) */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFactor('truckCountOverride', 1)
+                        setFactor('crewSizeOverride', 3)
+                        if (!conditionalClauseEnabled) {
+                          setConditionalClauseEnabled(true)
+                          setConditionalClauseText(
+                            `This quote assumes all items fit in a single trip with 1 truck (26ft). If a second trip is required, the additional charge will be approximately ${formatMoney(flags.twoTripComparison!.totalAmount - flags.twoTripComparison!.oneTripAmount)} — based on our hourly rate for the extra drive and load time. This will be confirmed on-site before proceeding.`
+                          )
+                        }
+                      }}
+                      className="rounded-[6px] border border-slate-200 bg-white p-2.5 text-left hover:border-slate-400 transition"
+                    >
+                      <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500">Option C — 1 Trip</div>
+                      <div className="mt-0.5 text-base font-bold text-[var(--app-ink)]">{formatMoney(flags.twoTripComparison.oneTripAmount)}</div>
+                      <div className="mt-0.5 text-[10px] text-slate-500">
+                        3 movers · {flags.twoTripComparison.oneTripHours}h · 1 truck, 1 trip
+                      </div>
+                      <div className="mt-1 text-[9px] text-slate-400">Optimistic — conditional clause added if 2nd trip needed</div>
+                    </button>
+
                   </div>
                   <div className="mt-1.5 text-[10px] text-sky-700">
                     {needsTwoTrucks
-                      ? 'Inventory exceeds 1 truck (1,400 cu ft safe-load limit). For local moves only — 2 trips is a real option. Long distance must use 2 trucks.'
-                      : 'Local move: both options are viable. Discuss with client — time vs. savings.'}
+                      ? 'Volume exceeds 1 truck safe-load limit. Option B is recommended for local moves — 2nd trip is often cheaper than 2 trucks.'
+                      : 'Local move: all 3 options are viable. Option B is the balanced pick.'}
                   </div>
                 </div>
               )}

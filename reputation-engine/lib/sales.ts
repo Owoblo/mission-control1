@@ -1010,10 +1010,12 @@ function estimateSingleLeadQuote(
 
   const threeTruckReview = truckCount >= 3
   const crewMinimum = truckCount >= 3 ? 6 : truckCount === 2 ? 4 : 1
+  // Business rule: 1 truck local = max 3 movers by default (4th not productive on single truck)
+  const crewSuggestionCap = (!isLongDistance && !isLaborOnly && !isPacking && truckCount === 1) ? 3 : Infinity
   const crewSizeOverride = activeFactors?.crewSizeOverride
   const crewSize = crewSizeOverride
     ? Math.max(crewSizeOverride, crewMinimum)  // honour override but never below truck minimum
-    : overrides?.crewSize ? suggestedCrew : Math.max(suggestedCrew, crewMinimum)
+    : overrides?.crewSize ? suggestedCrew : Math.max(Math.min(suggestedCrew, crewSuggestionCap), crewMinimum)
   // Truck-aware rate: 2-truck jobs use LOCAL_CREW_RATES_TRUCK_AWARE which builds in
   // the efficiency discount (e.g. 4 movers + 2 trucks = $350/hr, not $270 × 1.5 = $405)
   const crewRate = getCrewRate(crewSize, lead.moveType, truckCount)
@@ -1112,29 +1114,46 @@ function estimateSingleLeadQuote(
     savings: number
     extraHours: number
     note: string
+    oneTripHours: number
+    oneTripAmount: number
+    oneTripSavingsVsTwoTrip: number
   } | null = null
 
   let multiTruckOption: PricingBreakdown['intelligenceFlags']['multiTruckOption'] = null
 
   if (!missingDestination && !isLongDistance && !isPacking && !isLaborOnly && (truckCount >= 2 || totalCubicFeet >= TWO_TRIP_ZONE_CF)) {
-    const tripCrewSize = Math.max(3, Math.min(crewSize, 4))
+    // Business rule: 1 truck always = 3 movers (4th mover not productive on single truck)
+    const tripCrewSize = 3
     const oneTruckRate = roundCurrency(getCrewRate(tripCrewSize, lead.moveType))
+    // Recompute labor hours at 3-mover pace (may differ from current crewSize)
+    const threeMoverLoadHours = totalWeightLbs > 0
+      ? totalWeightLbs / LOAD_RATE_LBS_PER_MAN_HOUR / 3
+      : totalCubicFeet > 0 ? totalCubicFeet / (LOAD_RATE_CF_PER_MAN_HOUR * 3) : 2.5
+    const threeMoverUnloadHours = totalWeightLbs > 0
+      ? totalWeightLbs / UNLOAD_RATE_LBS_PER_MAN_HOUR / 3
+      : totalCubicFeet > 0 ? totalCubicFeet / (UNLOAD_RATE_CF_PER_MAN_HOUR * 3) : threeMoverLoadHours * 0.65
+    const threeMoverRawLabor = threeMoverLoadHours + threeMoverUnloadHours
     // Proportion that actually goes on the second trip — proportional to real overflow, not flat 50%
     const trip2Frac = totalCubicFeet > TRUCK_CAPACITY_CF
-      ? (totalCubicFeet - TRUCK_CAPACITY_CF) / totalCubicFeet  // e.g. 93/1693 = 5.5%
-      : 0.35  // twoTripZone (<1600 cu ft): rough estimate ~35% goes on 2nd trip
+      ? (totalCubicFeet - TRUCK_CAPACITY_CF) / totalCubicFeet
+      : 0.35
     // Overflow items (garage boxes, light items) load ~45% faster — no wrapping needed
     const secondTripHandlingHours = roundQuarterHour(
-      loadHours * trip2Frac * 0.55 + unloadHours * trip2Frac * 0.55 * 0.85
+      threeMoverLoadHours * trip2Frac * 0.55 + threeMoverUnloadHours * trip2Frac * 0.55 * 0.85
     )
     const extraTripDriveHours = roundQuarterHour(originToDestHours * 2)
-    const twoTripBaseHours = roundQuarterHour(rawLaborHours + billableDriveHours + secondTripHandlingHours + extraTripDriveHours + extraHours)
+    const twoTripBaseHours = roundQuarterHour(threeMoverRawLabor + billableDriveHours + secondTripHandlingHours + extraTripDriveHours + extraHours)
     const twoTripDriveBuffer = roundQuarterHour(extraTripDriveHours * 0.1)
-    const twoTripLoadBuffer = roundQuarterHour((rawLaborHours + secondTripHandlingHours + extraHours) * 0.1)
+    const twoTripLoadBuffer = roundQuarterHour((threeMoverRawLabor + secondTripHandlingHours + extraHours) * 0.1)
     const twoTripHours = Math.max(3, roundQuarterHour(twoTripBaseHours + twoTripDriveBuffer + twoTripLoadBuffer))
     const twoTripAmount = roundCurrency(twoTripHours * oneTruckRate)
     const multiTruckAmount = laborAmount + longDistanceOperationalBase + longDistanceMarkupAmount
     const savings = roundCurrency(multiTruckAmount - twoTripAmount)
+    // Option C: 1 truck, 3 movers, 1 trip (optimistic — everything fits in one run)
+    const oneTripBaseHours = roundQuarterHour(threeMoverRawLabor + billableDriveHours + extraHours)
+    const oneTripBuffer = roundQuarterHour((threeMoverRawLabor + extraHours) * 0.06 + billableDriveHours * 0.06)
+    const oneTripHours = Math.max(3, roundQuarterHour(oneTripBaseHours + oneTripBuffer))
+    const oneTripAmount = roundCurrency(oneTripHours * oneTruckRate)
     twoTripComparison = {
       crewSize: tripCrewSize,
       totalHours: twoTripHours,
@@ -1144,6 +1163,9 @@ function estimateSingleLeadQuote(
       note: savings > 0
         ? `1 truck, 2 trips saves ~${formatMoney(savings)} but adds ~${roundQuarterHour(extraTripDriveHours + secondTripHandlingHours)}h`
         : '2 trucks is more cost-effective for this load',
+      oneTripHours,
+      oneTripAmount,
+      oneTripSavingsVsTwoTrip: roundCurrency(twoTripAmount - oneTripAmount),
     }
 
     multiTruckOption = {
