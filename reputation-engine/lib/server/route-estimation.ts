@@ -51,6 +51,14 @@ export function classifyRouteCategory(distanceKm: number, driveHours: number): E
   return 'local'
 }
 
+function extractRouteCity(value?: string) {
+  const parts = (value || '')
+    .split(',')
+    .map(part => part.trim().toLowerCase())
+    .filter(Boolean)
+  return parts.find(part => !/^\d/.test(part) && !/^(on|ontario|canada|united states|usa)$/.test(part))
+}
+
 // Resolve a place_id directly — most accurate, no re-geocoding needed
 export async function geocodeByPlaceId(placeId: string): Promise<GeocodeResult | null> {
   const apiKey = getGoogleMapsApiKey()
@@ -357,16 +365,29 @@ export async function estimateRouteContext(input: {
     throw new Error(`Could not locate: "${input.destination}"`)
   }
 
-  const [originToDestination, returnToOrigin] = await Promise.all([
-    getDrivingRoute(originGeo, destGeo),
-    getDrivingRoute(destGeo, originGeo),
-  ])
+	  const [originToDestination, returnToOrigin] = await Promise.all([
+	    getDrivingRoute(originGeo, destGeo),
+	    getDrivingRoute(destGeo, originGeo),
+	  ])
 
-  if (!originToDestination || !returnToOrigin) {
-    throw new Error('Could not calculate driving route between these addresses')
+	  if (!originToDestination || !returnToOrigin) {
+	    throw new Error('Could not calculate driving route between these addresses')
+	  }
+
+  const originCity = extractRouteCity(input.origin)
+  const destCity = extractRouteCity(input.destination)
+  if (
+    originCity &&
+    destCity &&
+    originCity === destCity &&
+    originToDestination.distanceKm > 120
+  ) {
+    throw new Error(
+      `Route estimate looks wrong for a local ${originCity} move. Please select the destination from autocomplete or include city/province.`
+    )
   }
 
-  const routeCategory = classifyRouteCategory(originToDestination.distanceKm, originToDestination.driveHours)
+	  const routeCategory = classifyRouteCategory(originToDestination.distanceKm, originToDestination.driveHours)
 
   const billableDistanceKm =
     routeCategory === 'long-distance'

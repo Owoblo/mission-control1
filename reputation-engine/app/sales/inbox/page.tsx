@@ -18,6 +18,7 @@ import {
 } from '@/lib/inbound-inbox'
 import { getSaturnBranchLabel, getSaturnBranchNumberFromRawData, getSaturnTrackingLabel } from '@/lib/sales-phones'
 import { claimInboundLead, fetchInboundLeads, markInboxRead, markInboundLeadDisposition, markInboundLeadHandled, restoreInboundLead, sendSalesMessage } from '@/lib/sales-api'
+import { displayEmailSubject, replyEmailSubject } from '@/lib/email-display'
 import type { CRMEmail, InboundClosedFilter, InboundInboxPayload, InboundLead, InboundLeadFocusFilter } from '@/lib/types'
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -1277,7 +1278,7 @@ function SalesInboxPageInner() {
                       key={em.id}
                       onClick={() => {
                         setSelectedEmailId(em.id)
-                        setEmailReply({ subject: `Re: ${em.subject}`, body: '' })
+                        setEmailReply({ subject: replyEmailSubject(em.subject), body: '' })
                       }}
                       className={`relative block w-full border-b border-[var(--app-line)] p-4 text-left transition ${selectedEmailId === em.id ? 'bg-[rgba(15,106,83,0.05)]' : 'bg-[var(--app-panel)] hover:bg-[var(--app-bg)]'}`}
                     >
@@ -1295,7 +1296,7 @@ function SalesInboxPageInner() {
                         </div>
                         <span className="shrink-0 text-xs text-[var(--app-muted)]">{timeAgo(em.sentAt)}</span>
                       </div>
-                      <p className="text-sm font-medium text-[var(--app-ink)] line-clamp-1">{em.subject || '(no subject)'}</p>
+                      <p className="text-sm font-medium text-[var(--app-ink)] line-clamp-1">{displayEmailSubject(em.subject)}</p>
                       <p className="mt-0.5 text-xs text-[var(--app-muted)] line-clamp-1">{em.body?.slice(0, 120)}</p>
                       <div className="mt-2 flex gap-2">
                         <span className={`rounded-[4px] border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${em.direction === 'inbound' ? 'border-[var(--app-warm)] bg-[rgba(245,166,35,0.1)] text-[var(--app-warm)]' : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-muted)]'}`}>
@@ -1499,7 +1500,7 @@ function SalesInboxPageInner() {
                         <div className="flex items-start justify-between gap-4">
                           <div className="min-w-0">
                             <h2 className="text-base font-semibold text-[var(--app-ink)] line-clamp-1">
-                              {em.subject?.replace(/^Re:\s*/i, '')}
+                              {displayEmailSubject(em.subject).replace(/^Re:\s*/i, '')}
                             </h2>
                             <div className="mt-0.5 flex items-center gap-3 text-xs text-[var(--app-muted)]">
                               <span>{replyTo}</span>
@@ -2069,7 +2070,7 @@ function SalesInboxPageInner() {
                             {selected.source === 'email' && selectedRaw?.subject ? (
                               <div>
                                 <div className="crm-label">Subject</div>
-                                <div className="mt-2 text-sm font-medium text-[var(--app-ink)]">{selectedRaw.subject as string}</div>
+                                <div className="mt-2 text-sm font-medium text-[var(--app-ink)]">{displayEmailSubject(selectedRaw.subject as string)}</div>
                               </div>
                             ) : (
                               <div>

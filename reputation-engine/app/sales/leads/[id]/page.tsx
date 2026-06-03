@@ -54,6 +54,7 @@ import { DEPOSIT_METHODS, FOLLOW_UP_STATUSES, LEAD_CONTEXT_FLAGS, LOST_REASONS, 
 import { confirmJob, createLeadQuote, deleteSalesLead, enrichSalesAddress, fetchSalesLead, fetchSalesOverview, fetchSalesQuote, fetchSalesUsers, handoffRealtorOpportunityLead, saveLeadConsultation, saveSalesFollowUp, sendSalesMessage, updateSalesLead, updateSalesQuote, uploadLeadMedia } from '@/lib/sales-api'
 import { sanitizeInventoryRooms } from '@/lib/inventory-sanitizer'
 import { detectSpamLead } from '@/lib/spam-detector'
+import { displayEmailSubject } from '@/lib/email-display'
 import { ConfirmDialog } from '@/app/components/sales/confirm-dialog'
 import type { UserRole } from '@/lib/auth'
 import type {
@@ -958,8 +959,8 @@ export default function SalesLeadDetailPage() {
       .map(m => ({
         id: m.id,
         kind: 'email' as const,
-        text: m.body || m.subject || '(no body)',
-        emailSubject: m.subject || undefined,
+        text: m.body || displayEmailSubject(m.subject),
+        emailSubject: displayEmailSubject(m.subject),
         date: m.sentAt,
         actor: 'customer' as const,
       }))

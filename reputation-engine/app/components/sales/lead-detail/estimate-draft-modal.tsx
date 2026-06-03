@@ -740,27 +740,26 @@ export function EstimateDraftModal({
     [propertyBedrooms, propertyType]
   )
 
-  // Auto-calculate route when both origin and destination are present
-  // Don't double-append city if it's already in the address (Google Places includes city in the label)
+  function buildRouteAddress(address?: string, city?: string) {
+    const addr = (address || '').trim()
+    const cityText = (city || '').trim()
+    if (!addr && !cityText) return ''
+    const alreadyQualified = /,\s*(ON|Ontario|[A-Z]{2})\b|Canada|United States/i.test(addr)
+    const hasCity = cityText.length >= 3 && addr.toLowerCase().includes(cityText.toLowerCase())
+    const parts = [addr]
+    if (cityText && !hasCity) parts.push(cityText)
+    if (!alreadyQualified) parts.push('Ontario', 'Canada')
+    return parts.filter(Boolean).join(', ')
+  }
+
+  // Auto-calculate route when both origin and destination are present.
+  // Always include province/country context for partial street addresses; otherwise
+  // Google can resolve common street names to the wrong city.
   const originFull = (() => {
-    const addr = originAddress || lead.originAddress || ''
-    const city = originCity || lead.originCity || ''
-    if (!addr && !city) return ''
-    // Skip city if it's garbage (< 3 chars) or already in the address
-    // Don't append city if address is already fully qualified (contains province code or "Canada")
-    const alreadyQualified = /,\s*[A-Z]{2}[,\s]|Canada|United States/i.test(addr)
-    const cityOk = !alreadyQualified && city.length >= 3 && !addr.toLowerCase().includes(city.toLowerCase())
-    if (addr && !cityOk) return addr
-    return [addr, city].filter(Boolean).join(', ')
+    return buildRouteAddress(originAddress || lead.originAddress, originCity || lead.originCity)
   })()
   const destFull = (() => {
-    const addr = destAddress || lead.destAddress || ''
-    const city = destCity || lead.destCity || ''
-    if (!addr && !city) return ''
-    const alreadyQualified = /,\s*[A-Z]{2}[,\s]|Canada|United States/i.test(addr)
-    const cityOk = !alreadyQualified && city.length >= 3 && !addr.toLowerCase().includes(city.toLowerCase())
-    if (addr && !cityOk) return addr
-    return [addr, city].filter(Boolean).join(', ')
+    return buildRouteAddress(destAddress || lead.destAddress, destCity || lead.destCity)
   })()
   const selectedBranch = (branch || localBranch || lead.branch || 'windsor') as 'windsor' | 'waterloo' | 'london' | 'ottawa'
   const baseQuoteSubtotal = useMemo(
@@ -925,7 +924,7 @@ export function EstimateDraftModal({
       .catch(() => { if (!cancelled) setRouteError('Could not calculate route') })
       .finally(() => { if (!cancelled) setRouteBusy(false) })
     return () => { cancelled = true }
-  }, [open, originFull, destFull, selectedBranch])
+  }, [open, originFull, destFull, selectedBranch, originPlaceId, destPlaceId])
 
   useEffect(() => {
     if (!open) return

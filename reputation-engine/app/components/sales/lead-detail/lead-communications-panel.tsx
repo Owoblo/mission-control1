@@ -5,6 +5,7 @@ import {
   getSaturnBranchLabel,
   getSaturnBusinessNumberFromSmsMessage,
 } from '@/lib/sales-phones'
+import { displayEmailSubject, replyEmailSubject } from '@/lib/email-display'
 import type { CRMLead } from '@/lib/types'
 
 export interface LeadEmailMessage {
@@ -96,7 +97,7 @@ export function LeadCommunicationsPanel({
   const inboundSmsCount = smsThread.messages.filter(message => message.direction === 'inbound').length
   const lastInboundEmail = emailThread.messages.find(message => message.direction === 'inbound')
   const defaultEmailSubject = lastInboundEmail
-    ? `Re: ${lastInboundEmail.subject}`
+    ? replyEmailSubject(lastInboundEmail.subject)
     : 'Following up — Saturn Star Moving'
 
   return (
@@ -184,7 +185,7 @@ export function LeadCommunicationsPanel({
                           {new Date(message.sentAt).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                         </span>
                       </div>
-                      <div className="mt-0.5 truncate text-xs text-[var(--app-muted)]">{message.subject}</div>
+                      <div className="mt-0.5 truncate text-xs text-[var(--app-muted)]">{displayEmailSubject(message.subject)}</div>
                       <div className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[var(--app-ink)]">{message.body}</div>
                     </div>
                   </div>
