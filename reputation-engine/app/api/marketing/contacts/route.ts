@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { defaultFollowUpDate, getPipelineBucket, isDateDue, normalizePartnershipStage } from '@/lib/marketing'
+import { activateAffiliatePartner } from '@/lib/server/affiliate-bridge'
 
 interface MarketContact {
   id: string
@@ -242,5 +243,13 @@ export async function PATCH(request: Request) {
 
   if (!res.ok) return NextResponse.json({ error: 'Update failed' }, { status: 500 })
   const [updated] = await res.json()
+
+  // Bridge: if this update activated a partnership, create their affiliate account
+  const isActivated = body.quick_action === 'mark_partnership_active' ||
+    body.stage === 'partnership_active'
+  if (isActivated) {
+    void activateAffiliatePartner(body.id).catch(() => {})
+  }
+
   return NextResponse.json({ ok: true, contact: updated })
 }

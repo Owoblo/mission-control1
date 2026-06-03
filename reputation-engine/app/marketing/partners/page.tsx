@@ -59,6 +59,7 @@ interface Contact {
   outreach_tier?: number | null
   instantly_status?: string | null
   instantly_campaign_id?: string | null
+  affiliate_partner_id?: string | null
 }
 
 interface Touch {
@@ -509,6 +510,46 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
   const [showAppointment, setShowAppointment] = useState(false)
   const [showInstantly, setShowInstantly] = useState(false)
   const [showAddToList, setShowAddToList] = useState(false)
+  const [affiliateInfo, setAffiliateInfo] = useState<{ portalUrl: string; isNew: boolean } | null>(null)
+  const [activatingAffiliate, setActivatingAffiliate] = useState(false)
+  const [copiedPortal, setCopiedPortal] = useState(false)
+
+  async function activateAffiliate() {
+    setActivatingAffiliate(true)
+    try {
+      const res = await fetch(`/api/marketing/contacts/${contact.id}/decide`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ decision: 'agreed', notes: 'Activated via contact drawer' }),
+      })
+      const data = await res.json() as { ok?: boolean }
+      if (data.ok) {
+        // Poll briefly for affiliate info
+        await new Promise(r => setTimeout(r, 1200))
+        const contactRes = await fetch(`/api/marketing/contacts?q=${encodeURIComponent(contact.name)}&limit=1`, { credentials: 'include' })
+        const cData = await contactRes.json() as { contacts?: Array<{ affiliate_partner_id?: string }> }
+        const partnerId = cData.contacts?.[0]?.affiliate_partner_id
+        if (partnerId) {
+          const appUrl = window.location.origin
+          setAffiliateInfo({ portalUrl: `${appUrl}/affiliate?token=`, isNew: true })
+        }
+        onRefresh()
+      }
+    } finally {
+      setActivatingAffiliate(false)
+    }
+  }
+
+  // Load affiliate info if contact is already active
+  useEffect(() => {
+    if (contact.affiliate_partner_id) {
+      fetch(`/api/sales/affiliate-partners`, { credentials: 'include' })
+        .then(r => r.ok ? r.json() : [])
+        .then((partners: Array<{ id: string; portalUrl: string | null }>) => {
+          const p = partners.find(x => x.id === contact.affiliate_partner_id)
+          if (p?.portalUrl) setAffiliateInfo({ portalUrl: p.portalUrl, isNew: false })
+        }).catch(() => {})
+    }
+  }, [contact.affiliate_partner_id])
 
   useEffect(() => {
     setLoading(true)
@@ -591,6 +632,20 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
                 className="rounded-xl bg-[#1a2744] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#243560] transition">
                 Log Decision
               </button>
+            )}
+            {(contact.normalized_stage === 'partnership_active' || contact.decision === 'agreed') && (
+              affiliateInfo?.portalUrl ? (
+                <button
+                  onClick={() => { navigator.clipboard.writeText(affiliateInfo.portalUrl); setCopiedPortal(true); setTimeout(() => setCopiedPortal(false), 2000) }}
+                  className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition">
+                  {copiedPortal ? '✓ Copied!' : '🔗 Copy Portal Link'}
+                </button>
+              ) : !contact.affiliate_partner_id ? (
+                <button onClick={() => void activateAffiliate()} disabled={activatingAffiliate}
+                  className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition disabled:opacity-50">
+                  {activatingAffiliate ? '⏳ Creating portal…' : '🤝 Create Affiliate Portal'}
+                </button>
+              ) : null
             )}
           </div>
         </div>
@@ -1621,6 +1676,11 @@ function PartnersTab({ contacts, onSelect }: { contacts: Contact[]; onSelect: (c
                   <div className="text-xs text-slate-500 truncate">{c.company ?? c.industry ?? ''}</div>
                 </div>
               </div>
+              {c.affiliate_partner_id && (
+                <div className="mt-2 flex items-center gap-1.5 rounded-[8px] border border-emerald-200 bg-emerald-50 px-2.5 py-1.5">
+                  <span className="text-[10px] font-semibold text-emerald-700">🔗 Has affiliate portal</span>
+                </div>
+              )}
               <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
                 {c.phone && <div className="rounded-[10px] bg-slate-50 p-2"><div className="text-[9px] font-semibold uppercase text-slate-400">Phone</div><div className="mt-0.5 font-medium text-[#1a2744]">{c.phone}</div></div>}
                 {c.email && <div className="rounded-[10px] bg-slate-50 p-2 col-span-2 truncate"><div className="text-[9px] font-semibold uppercase text-slate-400">Email</div><div className="mt-0.5 font-medium text-[#1a2744] truncate">{c.email}</div></div>}

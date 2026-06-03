@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
 import { defaultFollowUpDate } from '@/lib/marketing'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
+import { activateAffiliatePartner } from '@/lib/server/affiliate-bridge'
 
 export async function POST(
   request: Request,
@@ -79,6 +80,11 @@ export async function POST(
       }),
     }) : Promise.resolve(),
   ])
+
+  // Bridge: when a partner agrees, create their affiliate account + send portal link
+  if (decision === 'agreed') {
+    void activateAffiliatePartner(id).catch(() => {})
+  }
 
   return NextResponse.json({ ok: true, decision, stage: stageMap[decision], phase: phaseMap[decision] })
 }
