@@ -978,7 +978,7 @@ function buildAutomatedQuoteEmail(lead: CRMLead, quoteId: string, acceptToken: s
           <div style="padding:16px;border-radius:12px;background:#f5f1e8;color:#111827;"><div style="font-size:12px;opacity:.75;">Deposit to book</div><div style="font-size:28px;font-weight:700;">${formatMoney(deposit)}</div></div>
         </div>
         <p><a href="${acceptUrl}" style="display:inline-block;background:#0f6a53;color:#fff;text-decoration:none;padding:14px 22px;border-radius:999px;font-weight:700;">Open Quote</a></p>
-        <p>If anything about the inventory, access, or route needs to be adjusted, reply to this email and we’ll revise it.</p>
+        <p>If anything about the inventory, access, or route needs to be adjusted, reply to this email and we'll revise it.</p>
       </div>
     `.trim(),
   }
@@ -1025,6 +1025,15 @@ async function maybeCreateAutomatedQuote(lead: CRMLead, preferredChannel?: Conve
     }
   }
 
+  // Auto-detect long-distance from route: if driving distance >= 200km or drive >= 2.5hrs,
+  // override moveType regardless of what the customer or AI said.
+  const autoMoveType: CRMLead['moveType'] = routeContext.routeCategory === 'long-distance'
+    ? 'long-distance'
+    : lead.moveType || 'residential'
+  if (autoMoveType !== lead.moveType) {
+    lead = { ...lead, moveType: autoMoveType }
+  }
+
   const estimate = estimateLeadQuote(lead, {
     routeContext,
     quoteType: lead.quoteType,
@@ -1037,7 +1046,7 @@ async function maybeCreateAutomatedQuote(lead: CRMLead, preferredChannel?: Conve
           clientId: client.id,
           leadId: lead.id,
           moveDate: lead.moveDate,
-          moveType: lead.moveType || latestQuote.moveType || 'residential',
+          moveType: autoMoveType,
           originAddress: lead.originAddress,
           originCity: lead.originCity,
           destCity: lead.destCity,
@@ -1063,7 +1072,7 @@ async function maybeCreateAutomatedQuote(lead: CRMLead, preferredChannel?: Conve
           clientId: client.id,
           leadId: lead.id,
           moveDate: lead.moveDate,
-          moveType: lead.moveType || 'residential',
+          moveType: autoMoveType,
           originAddress: lead.originAddress,
           originCity: lead.originCity,
           destCity: lead.destCity,
@@ -1092,17 +1101,17 @@ async function maybeCreateAutomatedQuote(lead: CRMLead, preferredChannel?: Conve
 
   // ── Email delivery ────────────────────────────────────────────────────────
   if (canEmail) {
-    const emailPayload = buildAutomatedQuoteEmail(lead, draftQuote.id, draftQuote.acceptToken || ‘’, estimate.lineItems, estimate.total, estimate.deposit)
+    const emailPayload = buildAutomatedQuoteEmail(lead, draftQuote.id, draftQuote.acceptToken || '', estimate.lineItems, estimate.total, estimate.deposit)
     try {
       emailSendResult = await sendSalesMessage({
-        channel: ‘email’,
+        channel: 'email',
         to: lead.email!,
         subject: emailPayload.subject,
         body: emailPayload.text,
         htmlBody: emailPayload.html,
         leadId: lead.id,
         quoteId: draftQuote.id,
-        actor: ‘automation’,
+        actor: 'automation',
         notes: `Automation quote email sent to ${lead.email}`,
       })
     } catch {
@@ -1112,15 +1121,15 @@ async function maybeCreateAutomatedQuote(lead: CRMLead, preferredChannel?: Conve
 
   // ── SMS delivery (always send when phone available — primary or alongside email) ──
   if (canSms) {
-    const smsBody = buildSmsQuoteSummary(lead, draftQuote.id, draftQuote.acceptToken || ‘’, estimate)
+    const smsBody = buildSmsQuoteSummary(lead, draftQuote.id, draftQuote.acceptToken || '', estimate)
     try {
       await sendSalesMessage({
-        channel: ‘sms’,
+        channel: 'sms',
         to: lead.phone!,
         body: smsBody,
         leadId: lead.id,
         quoteId: draftQuote.id,
-        actor: ‘automation’,
+        actor: 'automation',
         notes: `Automation quote SMS sent to ${lead.phone}`,
       })
       smsSent = true
@@ -1135,14 +1144,14 @@ async function maybeCreateAutomatedQuote(lead: CRMLead, preferredChannel?: Conve
       sent: false,
       lead,
       quoteId: draftQuote.id,
-      blockedReason: ‘Automated quote delivery failed on all channels.’,
+      blockedReason: 'Automated quote delivery failed on all channels.',
     }
   }
 
-  const quote = await saveSalesQuote(normalizeQuote({ ...draftQuote, status: ‘sent’, sentAt: nowIso }))
+  const quote = await saveSalesQuote(normalizeQuote({ ...draftQuote, status: 'sent', sentAt: nowIso }))
 
   const leadAfterSend = emailSendResult?.lead || lead
-  const deliveredChannels = [canEmail && emailSendResult ? ‘email’ : null, smsSent ? ‘sms’ : null].filter(Boolean).join(‘+’)
+  const deliveredChannels = [canEmail && emailSendResult ? 'email' : null, smsSent ? 'sms' : null].filter(Boolean).join('+')
 
   let syncedLead = await saveSalesLead({
     ...syncLeadFromQuoteStatus(
@@ -1155,16 +1164,16 @@ async function maybeCreateAutomatedQuote(lead: CRMLead, preferredChannel?: Conve
     ),
     automatedQuoteSentAt: nowIso,
     automatedQuoteId: quote.id,
-    automatedQuoteChannel: deliveredChannels as CRMLead[‘automatedQuoteChannel’],
+    automatedQuoteChannel: deliveredChannels as CRMLead['automatedQuoteChannel'],
     automationLastJobAt: nowIso,
     automationPauseReason: undefined,
   })
 
   await saveFollowUpLog({
-    id: uid(‘fu’),
+    id: uid('fu'),
     leadId: syncedLead.id,
     quoteId: quote.id,
-    type: ‘note’,
+    type: 'note',
     date: nowIso,
     createdAt: nowIso,
     notes: `Automation generated and sent quote ${quote.number} via ${deliveredChannels}.`,
@@ -1173,9 +1182,9 @@ async function maybeCreateAutomatedQuote(lead: CRMLead, preferredChannel?: Conve
   await scheduleQuoteFollowup(syncedLead.id, quote.id).catch(() => {})
 
   const confirmationMessage = smsSent
-    ? `Perfect — I’ve just texted you your moving estimate${canEmail && emailSendResult ? ‘ and emailed it’ : ‘’}. Review the details and reply YES to book, or ask any questions here.`
+    ? `Perfect — I've just texted you your moving estimate${canEmail && emailSendResult ? ' and emailed it' : ''}. Review the details and reply YES to book, or ask any questions here.`
     : canEmail && emailSendResult
-      ? `Perfect — I’ve emailed your estimate. Reply here if anything about the inventory, access, or route needs tweaking.`
+      ? `Perfect — I've emailed your estimate. Reply here if anything about the inventory, access, or route needs tweaking.`
       : undefined
 
   return {
@@ -1183,7 +1192,7 @@ async function maybeCreateAutomatedQuote(lead: CRMLead, preferredChannel?: Conve
     lead: syncedLead,
     quoteId: quote.id,
     quoteEmailSent: !!(canEmail && emailSendResult),
-    channel: (smsSent ? ‘sms’ : ‘email’) as ConversationChannel,
+    channel: (smsSent ? 'sms' : 'email') as ConversationChannel,
     confirmationMessage,
   }
 }
@@ -1681,8 +1690,8 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
     return {
       reply:
         channel === 'sms'
-          ? `Hi ${firstName}, just checking that you received your Saturn Star moving estimate. Here’s the link again if you need it, and I can walk you through anything that’s unclear.`
-          : `Hi ${firstName},\n\nJust checking that you received your Saturn Star moving estimate. If you want me to walk through pricing, timing, or the move plan, reply here and I’ll help.\n\nJohn\nSaturn Star Moving`,
+          ? `Hi ${firstName}, just checking that you received your Saturn Star moving estimate. Here's the link again if you need it, and I can walk you through anything that's unclear.`
+          : `Hi ${firstName},\n\nJust checking that you received your Saturn Star moving estimate. If you want me to walk through pricing, timing, or the move plan, reply here and I'll help.\n\nJohn\nSaturn Star Moving`,
       subject: channel === 'email' ? 'Checking In on Your Moving Quote' : undefined,
       capturedSummary: 'Sent a quote not-opened follow-up.',
       intent: 'quote_followup',
@@ -1696,7 +1705,7 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
       reply:
         channel === 'sms'
           ? `Hi ${firstName}, I saw you had a chance to review the estimate. If you want us to hold the crew and rate, I can help you lock it in with the deposit.`
-          : `Hi ${firstName},\n\nI saw you had a chance to review the estimate. If you’d like us to hold the crew and rate, reply here and I can help you lock it in with the deposit.\n\nJohn\nSaturn Star Moving`,
+          : `Hi ${firstName},\n\nI saw you had a chance to review the estimate. If you'd like us to hold the crew and rate, reply here and I can help you lock it in with the deposit.\n\nJohn\nSaturn Star Moving`,
       subject: channel === 'email' ? 'Ready To Hold Your Move Date?' : undefined,
       capturedSummary: 'Sent a quote-viewed follow-up.',
       intent: 'quote_viewed_followup',
@@ -1710,7 +1719,7 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
       reply:
         channel === 'sms'
           ? `Hi ${firstName}, your Saturn Star estimate is still available, but the rate and crew availability may change soon. If you want us to reserve the spot, reply here.`
-          : `Hi ${firstName},\n\nYour Saturn Star estimate is still available, but the rate and crew availability may change soon. If you want us to reserve the spot, reply here and I’ll help you lock it in.\n\nJohn\nSaturn Star Moving`,
+          : `Hi ${firstName},\n\nYour Saturn Star estimate is still available, but the rate and crew availability may change soon. If you want us to reserve the spot, reply here and I'll help you lock it in.\n\nJohn\nSaturn Star Moving`,
       subject: channel === 'email' ? 'Your Estimate Is Still Available' : undefined,
       capturedSummary: 'Sent a quote-expiry follow-up.',
       intent: 'quote_expiry_followup',
@@ -1737,8 +1746,8 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
     return {
       reply:
         channel === 'sms'
-          ? `Hi ${firstName}, John from Saturn Star Moving here. Still planning your ${route || 'move'}? If the timing changed, text me back and I’ll pick things up from where we left off.`
-          : `Hi ${firstName},\n\nJohn here from Saturn Star Moving. I wanted to check whether you’re still planning your ${route || 'move'}. If the timing or scope changed, reply here and I’ll update everything for you.\n\nJohn\nSaturn Star Moving`,
+          ? `Hi ${firstName}, John from Saturn Star Moving here. Still planning your ${route || 'move'}? If the timing changed, text me back and I'll pick things up from where we left off.`
+          : `Hi ${firstName},\n\nJohn here from Saturn Star Moving. I wanted to check whether you're still planning your ${route || 'move'}. If the timing or scope changed, reply here and I'll update everything for you.\n\nJohn\nSaturn Star Moving`,
       subject: channel === 'email' ? 'Still Planning Your Move?' : undefined,
       capturedSummary: 'Sent a stale-lead reactivation message.',
       intent: 'stale_reactivation',
@@ -1751,8 +1760,8 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
     return {
       reply:
         channel === 'sms'
-          ? `Absolutely. I’ll have someone from Saturn Star Moving reach out shortly. If there’s a best time to call, text it here.`
-          : `Absolutely — someone from Saturn Star Moving will reach out shortly. If there’s a best time to call, reply here and let us know.`,
+          ? `Absolutely. I'll have someone from Saturn Star Moving reach out shortly. If there's a best time to call, text it here.`
+          : `Absolutely — someone from Saturn Star Moving will reach out shortly. If there's a best time to call, reply here and let us know.`,
       shouldHandoff: true,
       capturedSummary: 'Lead asked for a human callback.',
       intent: 'handoff',
@@ -1769,13 +1778,13 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
   } else if (missing[0] === 'inventory') {
     reply =
       channel === 'sms'
-        ? `Hi ${firstName}, thanks for reaching out. Is this closer to a studio, 2-bedroom, or full house move? That’ll help me line up the right crew and quote.`
-        : `Hi ${firstName},\n\nThanks for reaching out. Is this closer to a studio, 2-bedroom, or full house move? That’ll help us line up the right crew and quote.\n\nJohn\nSaturn Star Moving`
+        ? `Hi ${firstName}, thanks for reaching out. Is this closer to a studio, 2-bedroom, or full house move? That'll help me line up the right crew and quote.`
+        : `Hi ${firstName},\n\nThanks for reaching out. Is this closer to a studio, 2-bedroom, or full house move? That'll help us line up the right crew and quote.\n\nJohn\nSaturn Star Moving`
   } else if (missing[0] === 'customer_email') {
     reply =
       channel === 'sms'
-        ? `I can tighten this up into a proper estimate. What’s the best email address to send the quote to?`
-        : `Hi ${firstName},\n\nI can turn this into a proper estimate now. What’s the best email address to send the quote to?\n\nJohn\nSaturn Star Moving`
+        ? `I can tighten this up into a proper estimate. What's the best email address to send the quote to?`
+        : `Hi ${firstName},\n\nI can turn this into a proper estimate now. What's the best email address to send the quote to?\n\nJohn\nSaturn Star Moving`
   } else if (missing[0] === 'access') {
     reply =
       channel === 'sms'
@@ -1784,8 +1793,8 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
   } else {
     reply =
       channel === 'sms'
-        ? `Hi ${firstName}, thanks for reaching out to Saturn Star Moving. I’ve got your message. What’s the best move date and route so I can point you in the right direction?`
-        : `Hi ${firstName},\n\nThanks for reaching out to Saturn Star Moving. I’ve got your message. What’s the best move date and route so I can point you in the right direction?\n\nJohn\nSaturn Star Moving`
+        ? `Hi ${firstName}, thanks for reaching out to Saturn Star Moving. I've got your message. What's the best move date and route so I can point you in the right direction?`
+        : `Hi ${firstName},\n\nThanks for reaching out to Saturn Star Moving. I've got your message. What's the best move date and route so I can point you in the right direction?\n\nJohn\nSaturn Star Moving`
   }
 
   return {
@@ -2025,7 +2034,7 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
     )
 
     if (contact.channel === 'sms') {
-      const handoffMessage = `I’ve got the details for your move. I’m handing this to a coordinator now so your written estimate goes out correctly. If anything changed with access or inventory, text it here.`
+      const handoffMessage = `I've got the details for your move. I'm handing this to a coordinator now so your written estimate goes out correctly. If anything changed with access or inventory, text it here.`
 
       const sendResult = await sendSalesMessage({
         actor: 'automation',

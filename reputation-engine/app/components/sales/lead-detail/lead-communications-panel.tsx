@@ -345,30 +345,37 @@ export function LeadCommunicationsPanel({
               </div>
             </div>
             <div className="flex items-end gap-2">
-              <textarea
-                value={smsThread.input}
-                onChange={event => onSmsInputChange(event.target.value)}
-                onKeyDown={event => {
-                  if (event.key === 'Enter' && !event.shiftKey) {
-                    event.preventDefault()
-                    if (!smsThread.sending && smsThread.input.trim() && lead.phone) {
-                      onSmsSend()
+              <div className="flex-1 flex flex-col gap-1">
+                <textarea
+                  value={smsThread.input}
+                  onChange={event => onSmsInputChange(event.target.value.slice(0, 1600))}
+                  onKeyDown={event => {
+                    if (event.key === 'Enter' && !event.shiftKey) {
+                      event.preventDefault()
+                      if (!smsThread.sending && smsThread.input.trim() && lead.phone && smsThread.input.length <= 1600) {
+                        onSmsSend()
+                      }
                     }
-                  }
-                }}
-                placeholder={`Message ${lead.name?.split(' ')[0] || lead.phone}…`}
-                rows={1}
-                disabled={!canHandleCommunication || smsThread.sending}
-                className="flex-1 resize-none rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2.5 text-sm text-[var(--app-ink)] placeholder:text-[var(--app-muted)] focus:outline-none focus:ring-1"
-                style={{ maxHeight: '120px', overflowY: 'auto', ['--tw-ring-color' as string]: '#f5a623' }}
-                onInput={event => {
-                  const field = event.currentTarget
-                  field.style.height = 'auto'
-                  field.style.height = `${field.scrollHeight}px`
-                }}
-              />
+                  }}
+                  placeholder={`Message ${lead.name?.split(' ')[0] || lead.phone}…`}
+                  rows={1}
+                  disabled={!canHandleCommunication || smsThread.sending}
+                  className="flex-1 resize-none rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2.5 text-sm text-[var(--app-ink)] placeholder:text-[var(--app-muted)] focus:outline-none focus:ring-1"
+                  style={{ maxHeight: '120px', overflowY: 'auto', ['--tw-ring-color' as string]: '#f5a623' }}
+                  onInput={event => {
+                    const field = event.currentTarget
+                    field.style.height = 'auto'
+                    field.style.height = `${field.scrollHeight}px`
+                  }}
+                />
+                {smsThread.input.length > 1200 && (
+                  <div className={`text-right text-[10px] font-semibold ${smsThread.input.length > 1550 ? 'text-rose-600' : 'text-amber-600'}`}>
+                    {smsThread.input.length}/1600 chars{smsThread.input.length > 1550 ? ' — near limit' : ''}
+                  </div>
+                )}
+              </div>
               <button
-                disabled={!canHandleCommunication || smsThread.sending || !smsThread.input.trim()}
+                disabled={!canHandleCommunication || smsThread.sending || !smsThread.input.trim() || smsThread.input.length > 1600}
                 onClick={onSmsSend}
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white transition-opacity disabled:opacity-40"
                 style={{ background: smsThread.sending ? '#ccc' : '#f5a623' }}

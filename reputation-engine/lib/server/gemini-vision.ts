@@ -7,8 +7,8 @@ import { readEnv } from '@/lib/server/runtime'
 import type { InventoryItem } from '@/lib/types'
 import { uid } from '@/lib/sales'
 
-const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta'
-const GEMINI_MODEL = 'gemini-1.5-flash'
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1'
+const GEMINI_MODEL = 'gemini-2.5-flash'
 const MAX_VIDEO_BYTES = 20 * 1024 * 1024 // 20MB Gemini inline limit
 
 function getGeminiApiKey() {
