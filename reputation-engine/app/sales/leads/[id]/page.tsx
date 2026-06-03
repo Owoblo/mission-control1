@@ -659,7 +659,11 @@ export default function SalesLeadDetailPage() {
         })
       )
       if (nextLead) {
-        applyLeadSnapshot(nextLead, { hydrateForm: true })
+        // Only reset form fields if the rep has no unsaved edits — prevents background
+        // automation refreshes from overwriting addresses or other in-progress changes.
+        const hasInFlightEdits = draftLeadSignatureRef.current !== null &&
+          autoSaveBlockedSignatureRef.current === null
+        applyLeadSnapshot(nextLead, { hydrateForm: !hasInFlightEdits })
         setAutomationSettings(resolveAutomationSettings(nextLead.automationSettings))
         // Fetch inbound emails from Zoho (stored in email_messages table) for this lead's email
         if (nextLead.email) {

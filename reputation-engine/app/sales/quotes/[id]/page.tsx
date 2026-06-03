@@ -1238,14 +1238,12 @@ Saturn Star Movers`
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                {lead && (
-                  <button
-                    onClick={() => router.push(`/sales/leads/${lead.id}`)}
-                    className="rounded-[6px] border border-[var(--app-line)] px-3 py-1.5 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition"
-                  >
-                    ← Fix Estimate
-                  </button>
-                )}
+                <button
+                  onClick={() => setShowPreview(null)}
+                  className="rounded-[6px] border border-[var(--app-line)] px-3 py-1.5 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition"
+                >
+                  ← Fix Estimate
+                </button>
                 <button onClick={() => setShowPreview(null)} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-muted)] hover:bg-stone-100 hover:text-[var(--app-ink)]">✕</button>
               </div>
             </div>
@@ -1375,7 +1373,6 @@ Saturn Star Movers`
                 </button>
                 <button
                   onClick={async () => {
-                    setShowPreview(null)
                     if (showPreview === 'both') await sendBothNow()
                     else await sendNow()
                   }}
