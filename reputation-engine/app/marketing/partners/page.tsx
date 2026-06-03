@@ -237,7 +237,7 @@ function useDialer() {
     if (deviceRef.current) return true
     setStatus('loading')
     await new Promise<void>(resolve => {
-      if ((window as Record<string, unknown>).Twilio) { resolve(); return }
+      if ((window as unknown as Record<string, unknown>).Twilio) { resolve(); return }
       const s = document.createElement('script')
       s.src = 'https://media.twiliocdn.com/sdk/js/voice/v2.0/twilio.min.js'
       s.onload = () => resolve()
@@ -246,7 +246,7 @@ function useDialer() {
     const res = await fetch('/api/marketing/dialer/token', { credentials: 'include' })
     if (!res.ok) { setStatus('idle'); return false }
     const { token } = await res.json() as { token: string }
-    const TwilioSDK = (window as Record<string, unknown>).Twilio as { Device: new (token: string) => unknown }
+    const TwilioSDK = (window as unknown as Record<string, unknown>).Twilio as { Device: new (token: string) => unknown }
     deviceRef.current = new TwilioSDK.Device(token)
     setStatus('ready')
     return true
@@ -256,8 +256,8 @@ function useDialer() {
     const ready = await ensureReady()
     if (!ready || !deviceRef.current) return
     setStatus('connecting')
-    const device = deviceRef.current as { connect: (opts: unknown) => Promise<unknown> }
-    const conn = await device.connect({ params: { To: phoneNumber } }) as Record<string, (cb: () => void) => void>
+    const device = deviceRef.current as { connect: (opts?: unknown) => Promise<unknown> }
+    const conn = await device.connect({ params: { To: phoneNumber } } as unknown) as { on: (event: string, cb: () => void) => void; disconnect?: () => void }
     callRef.current = conn
     conn.on('accept', () => setStatus('connected'))
     conn.on('disconnect', () => { setStatus('ready'); callRef.current = null })

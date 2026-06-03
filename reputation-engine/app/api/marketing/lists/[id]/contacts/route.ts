@@ -28,11 +28,14 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const contacts = (contactsRes.ok ? await contactsRes.json() : []) as Record<string, unknown>[]
 
   const contactMap = new Map(contacts.map(c => [c.id as string, c]))
-  return NextResponse.json(members.map(m => ({
-    ...contactMap.get(m.contact_id),
-    _added_at: m.added_at,
-    _added_by: m.added_by,
-  })).filter(c => c.id))
+  const enriched = members
+    .map(m => {
+      const contact = contactMap.get(m.contact_id)
+      if (!contact) return null
+      return { ...contact, _added_at: m.added_at, _added_by: m.added_by }
+    })
+    .filter((c): c is NonNullable<typeof c> => c !== null)
+  return NextResponse.json(enriched)
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {

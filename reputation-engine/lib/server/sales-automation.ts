@@ -800,7 +800,7 @@ function mergeExtractedSignals(lead: CRMLead, signals: ExtractedLeadSignals | nu
     moveDate: lead.moveDate || signals.moveDate,
     moveDateFlexible: lead.moveDateFlexible ?? signals.moveDateFlexible,
     moveDateFlexibleReason: lead.moveDateFlexibleReason || signals.moveDateFlexibleReason,
-    moveType: lead.moveType || normalizeMoveTypeSignal(signals.moveType),
+    moveType: lead.moveType || (normalizeMoveTypeSignal(signals.moveType) as CRMLead['moveType'] | undefined),
     originAddress: lead.originAddress || signals.originAddress,
     originCity: lead.originCity || signals.originCity,
     destAddress: lead.destAddress || signals.destAddress,

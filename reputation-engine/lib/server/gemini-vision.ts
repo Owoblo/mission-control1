@@ -123,7 +123,7 @@ export async function analyzeVideoForInventory(
         room: String(item.room || 'Unassigned'),
         notes: item.notes ? String(item.notes) : undefined,
         included: true,
-        source: 'video_scan' as const,
+        source: 'rep_upload' as const,
       }))
 
     return {

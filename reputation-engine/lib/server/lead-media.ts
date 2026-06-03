@@ -205,7 +205,6 @@ export async function persistInboundMmsToLead(input: {
           ...leadWithAssets,
           inventory: newInventory,
           lastAutoEnrichmentAt: new Date().toISOString(),
-          autoEnrichmentSource: 'video_scan',
         })
       } catch {
         // non-fatal — video scan failure doesn't block asset persistence

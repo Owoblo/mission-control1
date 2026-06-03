@@ -19,8 +19,8 @@ export async function GET(request: Request) {
     return NextResponse.json({
       source: 'preset',
       item,
-      cubicFeet: preset.cubicFeet,
-      weightLbs: preset.lbs,
+      cubicFeet: preset.item.cubicFeet,
+      weightLbs: preset.item.weightLbs,
       notes: `From Saturn Star inventory presets`,
       confidence: 'high',
     })
