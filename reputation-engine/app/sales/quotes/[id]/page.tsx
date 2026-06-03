@@ -665,7 +665,8 @@ Saturn Star Movers`
       setError(null)
       setJustSent(true)
       setShowPreview(null)
-      setTimeout(() => { router.push(leadId ? `/sales/leads/${leadId}` : '/sales') }, 1800)
+      // Use window.location.href — cannot be blocked by React/Next.js router guards
+      setTimeout(() => { window.location.href = leadId ? `/sales/leads/${leadId}` : '/sales' }, 1800)
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -740,7 +741,7 @@ Saturn Star Movers`
       setStatus(sentResult.quote.status)
       setJustSent(true)
       setShowPreview(null)
-      setTimeout(() => { router.push(leadId ? `/sales/leads/${leadId}` : '/sales') }, 1800)
+      setTimeout(() => { window.location.href = leadId ? `/sales/leads/${leadId}` : '/sales' }, 1800)
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -961,8 +962,16 @@ Saturn Star Movers`
 
           {/* Primary CTA */}
           {justSent ? (
-            <div className="rounded-[8px] bg-emerald-600 px-4 py-2 text-sm font-semibold text-white animate-pulse">
-              ✅ Quote sent! Returning to lead…
+            <div className="flex items-center gap-2">
+              <div className="rounded-[8px] bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">
+                ✅ Quote sent!
+              </div>
+              <button
+                onClick={() => { window.location.href = lead ? `/sales/leads/${lead.id}` : '/sales' }}
+                className="rounded-[8px] border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 transition"
+              >
+                ← {lead ? `Back to ${lead.name}` : 'Back'}
+              </button>
             </div>
           ) : (
             <button

@@ -664,6 +664,11 @@ export default function SalesLeadDetailPage() {
         const hasInFlightEdits = draftLeadSignatureRef.current !== null &&
           autoSaveBlockedSignatureRef.current === null
         applyLeadSnapshot(nextLead, { hydrateForm: !hasInFlightEdits })
+        // Always sync inventory from DB — scan results must reach the estimate modal
+        // regardless of whether the rep has in-flight edits on other fields.
+        if (hasInFlightEdits && Array.isArray(nextLead.inventory)) {
+          setInventory(nextLead.inventory)
+        }
         setAutomationSettings(resolveAutomationSettings(nextLead.automationSettings))
         // Fetch inbound emails from Zoho (stored in email_messages table) for this lead's email
         if (nextLead.email) {
@@ -825,7 +830,10 @@ export default function SalesLeadDetailPage() {
         if (result.scan) {
           updates.listingScanSnapshot = result.scan
           const nextInventory = result.scan.inventory || []
-          if (!hasInventory) {
+          // Always apply scan results — this is an address/MLS scan that the rep triggered.
+          // The !hasInventory guard was too conservative and caused scans to silently do nothing
+          // when any existing inventory was present. The estimate modal needs to see scan results.
+          if (nextInventory.length > 0) {
             const nextMetrics = deriveInventoryMetrics(nextInventory)
             setInventory(nextInventory)
             updates.inventory = nextMetrics.inventory
