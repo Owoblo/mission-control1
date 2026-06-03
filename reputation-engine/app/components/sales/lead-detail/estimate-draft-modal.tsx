@@ -713,6 +713,12 @@ export function EstimateDraftModal({
   const [quickCuFt, setQuickCuFt] = useState('')
   const [quickLookupLoading, setQuickLookupLoading] = useState(false)
   const [quickLookupNote, setQuickLookupNote] = useState<string | null>(null)
+  // Paste-list import
+  const [inventoryTab, setInventoryTab] = useState<'quick' | 'paste'>('quick')
+  const [pasteText, setPasteText] = useState('')
+  const [pasteLoading, setPasteLoading] = useState(false)
+  const [pastePreview, setPastePreview] = useState<Array<InventoryItem & { _source?: string }> | null>(null)
+  const [pasteError, setPasteError] = useState<string | null>(null)
   // Preset search
   const [presetSearch, setPresetSearch] = useState('')
   const [inventoryCopyNotice, setInventoryCopyNotice] = useState<string | null>(null)
@@ -1207,6 +1213,37 @@ export function EstimateDraftModal({
     setValuationAmount(val)
     const idx = quoteLineItems.findIndex(li => li.description === valuationLineDescription)
     if (idx >= 0) onUpdateLineItem(idx, 'amount', val)
+  }
+
+  async function parseInventoryFromText() {
+    if (!pasteText.trim() || !lead?.id) return
+    setPasteLoading(true)
+    setPasteError(null)
+    setPastePreview(null)
+    try {
+      const res = await fetch(`/api/sales/leads/${lead.id}/parse-inventory`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ text: pasteText }),
+      })
+      const data = await res.json() as { items?: Array<InventoryItem & { _source?: string }>; total?: number; error?: string }
+      if (!res.ok || data.error) { setPasteError(data.error || 'Parse failed'); return }
+      if (!data.items?.length) { setPasteError('No items found in that text. Try being more specific.'); return }
+      setPastePreview(data.items)
+    } catch {
+      setPasteError('Something went wrong. Try again.')
+    } finally {
+      setPasteLoading(false)
+    }
+  }
+
+  function addAllParsed() {
+    if (!pastePreview?.length) return
+    onAddInventoryItems(pastePreview)
+    setPastePreview(null)
+    setPasteText('')
+    setInventoryTab('quick')
   }
 
   async function lookupItemDimensions(name: string) {
@@ -2933,6 +2970,63 @@ export function EstimateDraftModal({
                           <p className="text-[10px] text-[var(--app-muted)]">{quickLookupLoading ? '🔍 Looking up dimensions…' : 'Type any item — AI will estimate cu ft if not in our library.'}</p>
                         )}
                       </div>
+                    </div>
+
+                    {/* ✨ Paste inventory list — AI bulk import */}
+                    <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">✨ Paste Inventory List</div>
+                        {pastePreview && (
+                          <button type="button" onClick={() => { setPastePreview(null); setPasteText(''); setPasteError(null) }}
+                            className="text-[10px] text-[var(--app-muted)] hover:text-[var(--app-ink)]">Clear</button>
+                        )}
+                      </div>
+                      {!pastePreview ? (
+                        <>
+                          <textarea
+                            value={pasteText}
+                            onChange={e => { setPasteText(e.target.value); setPasteError(null) }}
+                            placeholder={'Paste a customer message, transcript, or list — e.g. "King bed, 2 nightstands, dresser, 65\" TV, sectional, dining table with 6 chairs, 20 boxes"'}
+                            rows={3}
+                            className="crm-input resize-none text-xs"
+                          />
+                          {pasteError && <p className="text-[10px] text-rose-600">{pasteError}</p>}
+                          <button type="button" onClick={() => void parseInventoryFromText()}
+                            disabled={pasteLoading || !pasteText.trim()}
+                            className="crm-button-dark w-full text-xs disabled:opacity-50">
+                            {pasteLoading ? '✨ Analyzing…' : '✨ Parse & Pre-fill Inventory'}
+                          </button>
+                          <p className="text-[10px] text-[var(--app-muted)]">AI matches items to our library, estimates cu ft for unknowns, pre-fills everything automatically.</p>
+                        </>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="max-h-44 overflow-y-auto space-y-1 rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] p-2">
+                            {pastePreview.map((item, i) => (
+                              <div key={i} className="flex items-center justify-between text-[11px]">
+                                <span className="font-medium text-[var(--app-ink)]">
+                                  {(item.qty ?? 1) > 1 ? `${item.qty}× ` : ''}{item.name}
+                                  {item.room && item.room !== 'Unassigned' && (
+                                    <span className="ml-1 font-normal text-[var(--app-muted)]">· {item.room}</span>
+                                  )}
+                                </span>
+                                <span className={`text-[10px] font-semibold ${(item.cubicFeet ?? 0) === 0 ? 'text-amber-600' : 'text-emerald-700'}`}>
+                                  {(item.cubicFeet ?? 0) > 0 ? `${item.cubicFeet} cu ft` : '⚠ set manually'}
+                                  {(item as InventoryItem & { _source?: string })._source === 'preset' ? ' ✓' : (item as InventoryItem & { _source?: string })._source === 'ai_lookup' ? ' ~AI' : ''}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          <p className="text-[10px] text-[var(--app-muted)]">
+                            {pastePreview.filter(i => (i as InventoryItem & { _source?: string })._source === 'preset').length} from library ·{' '}
+                            {pastePreview.filter(i => (i as InventoryItem & { _source?: string })._source === 'ai_lookup').length} AI estimated
+                            {pastePreview.filter(i => i.cubicFeet === 0).length > 0 && ` · ${pastePreview.filter(i => i.cubicFeet === 0).length} need manual cu ft`}
+                          </p>
+                          <button type="button" onClick={addAllParsed}
+                            className="crm-button-dark w-full text-xs">
+                            Add All {pastePreview.length} Items to Inventory →
+                          </button>
+                        </div>
+                      )}
                     </div>
                 </div>
               </div>
