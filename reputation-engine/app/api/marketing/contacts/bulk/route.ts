@@ -14,6 +14,7 @@ interface BulkContact {
   industry?: string
   website?: string
   notes?: string
+  category?: string
 }
 
 export async function POST(request: Request) {
@@ -53,6 +54,8 @@ export async function POST(request: Request) {
       industry: c.industry?.trim() || (batch.industry as string) || null,
       website: c.website?.trim() || null,
       notes: c.notes?.trim() || null,
+      category: c.category?.trim() || (batch.category as string) || null,
+      outreach_tier: c.category ? (batch.tier as number ?? null) : null,
       stage: 'target',
       pipeline_phase: 'outreach',
       sequence_step: 0,

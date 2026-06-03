@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { PARTNERSHIP_STAGE_META } from '@/lib/marketing'
 import { sendSalesMessage } from '@/lib/sales-api'
+import { PARTNER_CATEGORIES, CATEGORY_LIST, SERVICE_AREAS, suggestBatchName, getCategoryMeta } from '@/lib/partner-categories'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -60,6 +61,7 @@ interface Contact {
   instantly_status?: string | null
   instantly_campaign_id?: string | null
   affiliate_partner_id?: string | null
+  category?: string | null
 }
 
 interface Touch {
@@ -198,6 +200,16 @@ function TierBadge({ tier }: { tier?: number | null }) {
     3: 'bg-slate-100 text-slate-600',
   }
   return <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${styles[tier] ?? 'bg-slate-100 text-slate-500'}`}>T{tier}</span>
+}
+
+function CategoryBadge({ categoryId }: { categoryId?: string | null }) {
+  const meta = getCategoryMeta(categoryId)
+  if (!meta) return null
+  return (
+    <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold ${meta.color}`}>
+      {meta.icon} {meta.label}
+    </span>
+  )
 }
 
 function InstantlyBadge({ status }: { status?: string | null }) {
@@ -747,9 +759,28 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
 // ─── New Batch Modal ──────────────────────────────────────────────────────────
 
 function NewBatchModal({ onClose, onDone }: { onClose: () => void; onDone: (batch: Batch) => void }) {
-  const [form, setForm] = useState({ name: '', industry: '', city: '', email_delay_days: 10, sms_delay_days: 5, rep_name: 'Eric' })
+  const [category, setCategory] = useState('')
+  const [city, setCity] = useState('windsor')
+  const [form, setForm] = useState({ name: '', industry: '', city: 'windsor', email_delay_days: 10, sms_delay_days: 5, rep_name: 'Hunter' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Auto-suggest batch name when category + city are selected
+  function handleCategoryChange(catId: string) {
+    setCategory(catId)
+    const suggested = suggestBatchName(city, catId)
+    if (suggested) setForm(f => ({ ...f, name: suggested, industry: PARTNER_CATEGORIES[catId]?.label || f.industry }))
+  }
+
+  function handleCityChange(cityId: string) {
+    setCity(cityId)
+    if (category) {
+      const suggested = suggestBatchName(cityId, category)
+      if (suggested) setForm(f => ({ ...f, name: suggested, city: cityId }))
+    } else {
+      setForm(f => ({ ...f, city: cityId }))
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -757,7 +788,7 @@ function NewBatchModal({ onClose, onDone }: { onClose: () => void; onDone: (batc
     setSaving(true)
     const res = await fetch('/api/marketing/batches', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-      body: JSON.stringify({ ...form, sequence_type: 'standard' }),
+      body: JSON.stringify({ ...form, city, category, sequence_type: getCategoryMeta(category)?.tier === 2 ? 'corporate' : 'standard' }),
     })
     const data = await res.json() as { ok?: boolean; batch?: Batch; error?: string }
     if (!res.ok || !data.ok) { setError(data.error ?? 'Failed'); setSaving(false); return }
@@ -772,23 +803,49 @@ function NewBatchModal({ onClose, onDone }: { onClose: () => void; onDone: (batc
           <button onClick={onClose} className="rounded-full p-2 text-slate-400 hover:bg-slate-100">✕</button>
         </div>
         <form onSubmit={submit} className="mt-4 space-y-3">
-          <div>
-            <label className="text-xs font-semibold text-slate-500">Batch Name *</label>
-            <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Windsor Realtors – Batch 1" required
-              className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]" />
-          </div>
+
+          {/* City + Category — the two most important fields */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-slate-500">Industry</label>
-              <input value={form.industry} onChange={e => setForm(f => ({ ...f, industry: e.target.value }))} placeholder="Realtors"
-                className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]" />
+              <label className="text-xs font-semibold text-slate-500">City *</label>
+              <select value={city} onChange={e => handleCityChange(e.target.value)}
+                className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]">
+                {SERVICE_AREAS.map(a => <option key={a.id} value={a.id}>{a.label}</option>)}
+              </select>
             </div>
             <div>
-              <label className="text-xs font-semibold text-slate-500">City</label>
-              <input value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} placeholder="Windsor"
-                className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]" />
+              <label className="text-xs font-semibold text-slate-500">Category *</label>
+              <select value={category} onChange={e => handleCategoryChange(e.target.value)}
+                className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]">
+                <option value="">— select —</option>
+                <optgroup label="Tier 1 — High Frequency">
+                  {CATEGORY_LIST.filter(c => c.tier === 1).map(c => <option key={c.id} value={c.id}>{c.icon} {c.label}</option>)}
+                </optgroup>
+                <optgroup label="Tier 2 — Commercial">
+                  {CATEGORY_LIST.filter(c => c.tier === 2).map(c => <option key={c.id} value={c.id}>{c.icon} {c.label}</option>)}
+                </optgroup>
+                <optgroup label="Tier 3 — Community">
+                  {CATEGORY_LIST.filter(c => c.tier === 3).map(c => <option key={c.id} value={c.id}>{c.icon} {c.label}</option>)}
+                </optgroup>
+              </select>
             </div>
           </div>
+
+          {/* Suggested cold call script */}
+          {category && PARTNER_CATEGORIES[category] && (
+            <div className="rounded-[10px] border border-[#1a2744]/10 bg-[#f8f9fc] px-3 py-2">
+              <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1">Opening line</div>
+              <div className="text-xs text-slate-600 italic">"{PARTNER_CATEGORIES[category].suggestedScript}"</div>
+            </div>
+          )}
+
+          <div>
+            <label className="text-xs font-semibold text-slate-500">Batch Name *</label>
+            <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              placeholder={category && city ? suggestBatchName(city, category) || 'e.g. Windsor Realtors — Q2 2026' : 'e.g. Windsor Realtors — Q2 2026'}
+              required className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]" />
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-slate-500">Email delay (days)</label>
@@ -878,7 +935,7 @@ function CsvImportModal({ batch, onClose, onDone }: { batch: Batch; onClose: () 
   const [importing, setImporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
-  const FIELDS = ['name', 'company', 'title', 'email', 'phone', 'address', 'city', 'industry', 'website']
+  const FIELDS = ['name', 'company', 'title', 'email', 'phone', 'address', 'city', 'industry', 'website', 'category']
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -1878,7 +1935,8 @@ function QueueContactCard({ contact, onSelect, onCall }: {
             <button onClick={() => onSelect(contact)} className="text-sm font-semibold text-[var(--app-ink)] hover:text-[var(--app-accent)] transition truncate max-w-[160px]">
               {contact.name}
             </button>
-            {contact.outreach_tier && (
+            {contact.category && <CategoryBadge categoryId={contact.category} />}
+            {!contact.category && contact.outreach_tier && (
               <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${contact.outreach_tier === 1 ? 'border border-amber-200 bg-amber-50 text-amber-700' : contact.outreach_tier === 2 ? 'border border-sky-200 bg-sky-50 text-sky-700' : 'border border-[var(--app-line)] bg-[var(--app-wash)] text-[var(--app-muted)]'}`}>
                 T{contact.outreach_tier}
               </span>
@@ -1943,15 +2001,24 @@ function QueueTab({ contacts, onSelect, onBulkSms }: {
 }) {
   const dialer = useDialer()
   const [search, setSearch] = useState('')
+  const [filterCategory, setFilterCategory] = useState('')
+  const [filterCity, setFilterCity] = useState('')
 
   function handleCall(c: Contact) {
     if (!c.phone) return
     void dialer.call(c.phone)
   }
 
-  const filtered = search
-    ? contacts.filter(c => `${c.name} ${c.company} ${c.city} ${c.industry}`.toLowerCase().includes(search.toLowerCase()))
-    : contacts
+  const filtered = contacts.filter(c => {
+    if (search && !`${c.name} ${c.company} ${c.city} ${c.industry} ${c.category}`.toLowerCase().includes(search.toLowerCase())) return false
+    if (filterCategory && c.category !== filterCategory) return false
+    if (filterCity && (c.city || '').toLowerCase() !== filterCity.toLowerCase()) return false
+    return true
+  })
+
+  // Available categories and cities in the current contact list
+  const availableCategories = Array.from(new Set(contacts.map(c => c.category).filter(Boolean))) as string[]
+  const availableCities = Array.from(new Set(contacts.map(c => c.city).filter(Boolean))) as string[]
 
   // Three buckets
   const responded = filtered.filter(c => c.sequence_paused && !c.decision)
@@ -1975,16 +2042,39 @@ function QueueTab({ contacts, onSelect, onBulkSms }: {
               <span className={`h-2 w-2 rounded-full ${urgentCount > 0 ? 'bg-[#c9754e]' : 'bg-[var(--app-accent)]'}`} />
               {urgentCount > 0 ? `${urgentCount} need attention` : 'Queue clear'}
             </span>
+            {filtered.length !== contacts.length && (
+              <span className="text-xs text-[var(--app-muted)]">Showing {filtered.length} of {contacts.length}</span>
+            )}
           </div>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => onBulkSms(filtered.filter(c => c.phone))}
-            className="crm-button text-sm">
-            📱 Bulk SMS
-          </button>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search queue…"
-            className="crm-input w-48 text-sm" />
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={() => onBulkSms(filtered.filter(c => c.phone))} className="crm-button text-sm">📱 Bulk SMS</button>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…" className="crm-input w-36 text-sm" />
         </div>
+      </div>
+
+      {/* Category + city filters */}
+      <div className="flex flex-wrap gap-2">
+        <button onClick={() => { setFilterCategory(''); setFilterCity('') }}
+          className={`rounded-full px-3 py-1 text-xs font-semibold transition ${!filterCategory && !filterCity ? 'bg-[var(--app-ink)] text-white' : 'border border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}>
+          All
+        </button>
+        {SERVICE_AREAS.filter(a => availableCities.some(c => c.toLowerCase() === a.id)).map(a => (
+          <button key={a.id} onClick={() => setFilterCity(filterCity === a.id ? '' : a.id)}
+            className={`rounded-full px-3 py-1 text-xs font-semibold transition ${filterCity === a.id ? 'bg-[var(--app-ink)] text-white' : 'border border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}>
+            📍 {a.label}
+          </button>
+        ))}
+        {availableCategories.map(catId => {
+          const meta = getCategoryMeta(catId)
+          if (!meta) return null
+          return (
+            <button key={catId} onClick={() => setFilterCategory(filterCategory === catId ? '' : catId)}
+              className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${filterCategory === catId ? `${meta.color} ring-1 ring-current` : 'border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}>
+              {meta.icon} {meta.label}
+            </button>
+          )
+        })}
       </div>
 
       {/* Responded — act now */}
