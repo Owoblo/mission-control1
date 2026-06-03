@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getSessionCookieName, getSessionPayload } from '@/lib/auth'
+import { isAuthorizedCronRequest, isCronApiPath } from '@/lib/server/cron-auth'
 import { getWorkerSharedSecret } from '@/lib/server/runtime'
 
 const PUBLIC_PATHS = new Set(['/login'])
@@ -46,10 +47,13 @@ function hasInternalSecretBypass(request: NextRequest, pathname: string) {
 
 function hasResendPollBypass(request: NextRequest, pathname: string) {
   if (pathname !== '/api/sales/inbox/resend-poll') return false
-  if (request.headers.get('x-vercel-cron') === '1') return true
   const secret = request.headers.get('x-internal-secret')
   const workerSecret = getWorkerSharedSecret()
   return !!secret && !!workerSecret && secret === workerSecret
+}
+
+function hasCronBypass(request: NextRequest, pathname: string) {
+  return isCronApiPath(pathname) && isAuthorizedCronRequest(request)
 }
 
 export async function middleware(request: NextRequest) {
@@ -61,6 +65,7 @@ export async function middleware(request: NextRequest) {
     isPublicDialerPath(pathname) ||
     isPublicMarketingPath(pathname) ||
     isApprovalPath(pathname) ||
+    hasCronBypass(request, pathname) ||
     hasInternalSecretBypass(request, pathname) ||
     hasResendPollBypass(request, pathname)
   ) {

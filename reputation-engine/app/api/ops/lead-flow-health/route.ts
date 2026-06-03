@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
+import { isAuthorizedCronRequest } from '@/lib/server/cron-auth'
 import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { getSessionUser } from '@/lib/server/session'
 import { sendRepAlertEmail } from '@/lib/server/internal-notifications'
 import { renderLeadFlowHealthEmail, runLeadFlowHealthCheck } from '@/lib/server/lead-flow-health'
-import { getAppBaseUrl, readEnv } from '@/lib/server/runtime'
+import { getAppBaseUrl } from '@/lib/server/runtime'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -14,9 +15,7 @@ async function hasSessionAccess() {
 }
 
 async function isAuthorized(request: Request) {
-  const auth = request.headers.get('authorization')
-  const cronSecret = readEnv('CRON_SECRET')
-  if (cronSecret && auth === `Bearer ${cronSecret}`) {
+  if (isAuthorizedCronRequest(request)) {
     return true
   }
 

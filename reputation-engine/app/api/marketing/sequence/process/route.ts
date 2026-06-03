@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { defaultFollowUpDate } from '@/lib/marketing'
+import { isAuthorizedCronRequest } from '@/lib/server/cron-auth'
 import { requireSupabaseEnv, readEnv } from '@/lib/server/runtime'
 import { Resend } from 'resend'
 
@@ -91,9 +92,7 @@ function buildLinkedInDraft(contact: Record<string, unknown>, batch: Record<stri
 }
 
 export async function POST(request: Request) {
-  const auth = request.headers.get('authorization')
-  const secret = readEnv('CRON_SECRET')
-  if (!secret || auth !== `Bearer ${secret}`) {
+  if (!isAuthorizedCronRequest(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -319,4 +318,8 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ ok: true, processed, skipped, total: jobs.length })
+}
+
+export async function GET(request: Request) {
+  return POST(request)
 }

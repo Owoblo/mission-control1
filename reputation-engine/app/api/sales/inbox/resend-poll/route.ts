@@ -5,6 +5,7 @@
  * Triggered by Vercel cron every 2 minutes + manually anytime.
  */
 import { NextResponse } from 'next/server'
+import { isAuthorizedCronRequest } from '@/lib/server/cron-auth'
 import { getWorkerSharedSecret, readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
 import { processInboundAutomationEvent } from '@/lib/server/sales-automation'
 import { pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
@@ -157,8 +158,7 @@ export async function POST(request: Request) {
   const internalSecret = request.headers.get('x-internal-secret')
   const expectedSecret = getWorkerSharedSecret()
   const isWorker = internalSecret && expectedSecret && internalSecret === expectedSecret
-  const isVercelCron = request.headers.get('x-vercel-cron') === '1' ||
-    request.headers.get('user-agent')?.includes('vercel-cron')
+  const isVercelCron = isAuthorizedCronRequest(request)
   if (!isWorker && !isVercelCron) {
     const session = await getSessionUser()
     if (!canAccessSalesWorkspace(session)) {
