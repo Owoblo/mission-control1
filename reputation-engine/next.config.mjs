@@ -8,5 +8,7 @@ export default withSentryConfig(nextConfig, {
   project: "saturn-os",
   silent: !process.env.CI,
   widenClientFileUpload: true,
-  automaticVercelMonitors: true,
+  webpack: {
+    automaticVercelMonitors: true,
+  },
 });

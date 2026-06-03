@@ -17,6 +17,7 @@ import {
 import { applyPhoneCallSummaryToLead, transcribeFromUrl, summarizePhoneCall } from '@/lib/server/call-intelligence'
 import { logEvent } from '@/lib/server/analytics'
 import { getTwilioCredentials } from '@/lib/server/runtime'
+import { verifyTwilioSignature } from '@/lib/server/security'
 import {
   buildTwilioRecordingMediaUrl,
   normalizeTwilioRecordingMediaUrl,
@@ -186,11 +187,16 @@ async function ensureInboundLeadCallMapping(callSid: string, inboundLead: Inboun
 
 export async function POST(request: Request) {
   try {
-    const formData = await request.formData()
-    const callSid = (formData.get('CallSid') as string | null)?.trim()
-    const recordingUrl = (formData.get('RecordingUrl') as string | null)?.trim()
-    const recordingSid = normalizeTwilioRecordingSid(formData.get('RecordingSid') as string | null)
-    const recordingStatus = ((formData.get('RecordingStatus') as string | null) || '').trim().toLowerCase()
+    const rawBody = await request.text()
+    if (!(await verifyTwilioSignature(request, rawBody))) {
+      return new Response('Forbidden', { status: 403 })
+    }
+
+    const formData = new URLSearchParams(rawBody)
+    const callSid = formData.get('CallSid')?.trim()
+    const recordingUrl = formData.get('RecordingUrl')?.trim()
+    const recordingSid = normalizeTwilioRecordingSid(formData.get('RecordingSid'))
+    const recordingStatus = (formData.get('RecordingStatus') || '').trim().toLowerCase()
     const recordingDuration = Number(formData.get('RecordingDuration') || 0)
 
     if (!callSid) {

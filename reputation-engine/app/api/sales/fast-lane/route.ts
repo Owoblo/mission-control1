@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { getSessionUser } from '@/lib/server/session'
+import { randomToken } from '@/lib/server/security'
 import {
   getLatestSalesQuoteByLeadId,
   getSalesLead,
@@ -149,7 +150,7 @@ export async function POST(request: Request) {
     }
 
     // Create quote
-    const acceptToken = uid('accept') + Date.now().toString(36)
+    const acceptToken = randomToken('accept')
     const quoteId = uid('qt')
 
     const quote = await saveSalesQuote(normalizeQuote({

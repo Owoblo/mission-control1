@@ -5,11 +5,12 @@ import { sendSalesMessage } from '@/lib/server/sales-messaging'
 import { getAppBaseUrl } from '@/lib/server/runtime'
 import { getSalesLead, saveSalesLead } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
+import { randomToken } from '@/lib/server/security'
 
 const APP_URL = getAppBaseUrl('https://go.quote2move.com')
 
 function generateToken(): string {
-  return 'surv_' + Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 8)
+  return randomToken('surv')
 }
 
 export async function POST(

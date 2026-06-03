@@ -17,15 +17,6 @@ const DIAL_RECORDING_MODE = 'record-from-answer'
 const DIAL_RECORDING_TRIM = 'do-not-trim'
 const DIAL_RECORDING_EVENTS = 'completed absent'
 
-// All Saturn Star branch numbers — inbound calls to any of these are routed to the sales tower
-const BRANCH_NUMBERS: Record<string, string> = {
-  '+12267732993': 'Windsor',
-  '+12262423319': 'Kitchener',
-  '+12266055767': 'Kitchener',
-  '+16135193236': 'Ottawa',
-  '+15484883245': 'London',
-}
-
 function getAppUrl() {
   return getAppBaseUrl()
 }
@@ -165,9 +156,9 @@ export async function POST(request: Request) {
     const fromSip = (from || '').toLowerCase().startsWith('sip:')
     const sipDialTarget = extractSipDialTarget(to)
     const normalizedTo = sipDialTarget || to || ''
-    const isOurNumber = !!normalizedTo && !!BRANCH_NUMBERS[normalizedTo]
+    const isOurNumber = !!normalizedTo && !!getSaturnBranchLabel(normalizedTo)
     const isInbound = !fromBrowser && !fromSip && (isOurNumber || direction === 'inbound')
-    const branchCity = (normalizedTo && BRANCH_NUMBERS[normalizedTo]) || 'Windsor'
+    const branchCity = getSaturnBranchLabel(normalizedTo) || 'Windsor'
 
     if (isInbound) {
       // Reject spam calls with impossible phone numbers (E.164 max is 15 digits).

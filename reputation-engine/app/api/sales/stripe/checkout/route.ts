@@ -10,16 +10,21 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { quoteId, successUrl, cancelUrl } = (await request.json()) as {
+    const { quoteId, token, successUrl, cancelUrl } = (await request.json()) as {
       quoteId: string
+      token?: string
       successUrl?: string
       cancelUrl?: string
     }
 
     if (!quoteId) return NextResponse.json({ error: 'quoteId is required' }, { status: 400 })
+    if (!token) return NextResponse.json({ error: 'Quote token is required' }, { status: 401 })
 
     let quote = await getSalesQuote(quoteId)
     if (!quote) return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
+    if (!quote.acceptToken || token !== quote.acceptToken) {
+      return NextResponse.json({ error: 'Quote link is invalid or expired' }, { status: 404 })
+    }
 
     // Auto-accept any quote in sent/viewed status when customer initiates checkout
     if (quote.status === 'sent' || quote.status === 'viewed') {
@@ -41,6 +46,15 @@ export async function POST(request: Request) {
 
     const appUrl = getAppBaseUrl('https://mission-control1-reputation-engine.vercel.app')
     const returnBase = `${appUrl}/quote-accept?id=${encodeURIComponent(quote.id)}&token=${encodeURIComponent(quote.acceptToken || '')}`
+    const safeRedirectUrl = (value: string | undefined, fallback: string) => {
+      if (!value) return fallback
+      try {
+        const parsed = new URL(value)
+        return parsed.origin === appUrl ? parsed.toString() : fallback
+      } catch {
+        return fallback
+      }
+    }
 
     // Build Stripe checkout session via REST API (no SDK needed)
     const params = new URLSearchParams()
@@ -75,8 +89,8 @@ export async function POST(request: Request) {
     params.set('metadata[quoteNumber]', quote.number)
     if (lead?.id) params.set('metadata[leadId]', lead.id)
 
-    params.set('success_url', successUrl || `${returnBase}&paid=1`)
-    params.set('cancel_url', cancelUrl || returnBase)
+    params.set('success_url', safeRedirectUrl(successUrl, `${returnBase}&paid=1`))
+    params.set('cancel_url', safeRedirectUrl(cancelUrl, returnBase))
 
     const stripeResponse = await fetch('https://api.stripe.com/v1/checkout/sessions', {
       method: 'POST',

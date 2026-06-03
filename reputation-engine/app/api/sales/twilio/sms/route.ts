@@ -11,29 +11,7 @@ import { twilioAuth } from '@/lib/server/twilio-recordings'
 import { logEvent } from '@/lib/server/analytics'
 import { sendRepAlertEmail, smsNotificationEmail } from '@/lib/server/internal-notifications'
 import { persistInboundMmsToLead } from '@/lib/server/lead-media'
-
-async function verifyTwilioSignature(request: Request, rawBody: string): Promise<boolean> {
-  const authToken = readEnv('TWILIO_AUTH_TOKEN')
-  if (!authToken) return true // can't verify without the token — allow
-
-  const signature = request.headers.get('x-twilio-signature') || ''
-  if (!signature) return false
-
-  const url = request.url
-  const params: Record<string, string> = {}
-  new URLSearchParams(rawBody).forEach((v, k) => { params[k] = v })
-
-  const sortedKeys = Object.keys(params).sort()
-  const valueString = sortedKeys.reduce((acc, key) => acc + key + params[key], url)
-
-  const encoder = new TextEncoder()
-  const key = await crypto.subtle.importKey(
-    'raw', encoder.encode(authToken), { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']
-  )
-  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(valueString))
-  const expected = btoa(Array.from(new Uint8Array(sig)).map(b => String.fromCharCode(b)).join(''))
-  return signature === expected
-}
+import { verifyTwilioSignature } from '@/lib/server/security'
 
 type TwilioMessageLookup = {
   sid?: string

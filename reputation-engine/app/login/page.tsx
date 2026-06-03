@@ -11,6 +11,16 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
+  function safeNextPath(value: string | null) {
+    if (!value || !value.startsWith('/') || value.startsWith('//')) return null
+    try {
+      const parsed = new URL(value, window.location.origin)
+      return parsed.origin === window.location.origin ? `${parsed.pathname}${parsed.search}${parsed.hash}` : null
+    } catch {
+      return null
+    }
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     try {
@@ -31,7 +41,7 @@ function LoginForm() {
       }
 
       const role = payload?.role as string | undefined
-      const next = searchParams.get('next')
+      const next = safeNextPath(searchParams.get('next'))
       if (next) {
         window.location.href = next
       } else if (role === 'crew') {

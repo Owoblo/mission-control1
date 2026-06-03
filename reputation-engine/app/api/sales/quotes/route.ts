@@ -4,6 +4,7 @@ import { recordQuoteCreatedAudit } from '@/lib/server/sales-audit'
 import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { getSessionUser } from '@/lib/server/session'
 import { getLatestSalesQuoteByLeadId, getSalesLead, listSalesClients, saveSalesClient, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
+import { randomToken } from '@/lib/server/security'
 import type { CRMClient, CRMQuote } from '@/lib/types'
 
 export async function POST(request: Request) {
@@ -75,7 +76,7 @@ export async function POST(request: Request) {
       longDistanceMarkupRate: estimate.longDistanceMarkupRate,
       status: 'draft',
       validDays: 30,
-      acceptToken: uid('accept') + Date.now().toString(36),
+      acceptToken: randomToken('accept'),
       lineItems: estimate.lineItems,
       discountAmount: 0,
       discountLabel: '',

@@ -6,33 +6,9 @@
  */
 import { readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
+import { verifyTwilioSignature } from '@/lib/server/security'
 
 const OPS_NUMBER = '+12267746581'
-
-async function verifyTwilioSignature(request: Request, rawBody: string): Promise<boolean> {
-  const authToken = readEnv('TWILIO_AUTH_TOKEN')
-  if (!authToken) return true
-
-  const signature = request.headers.get('x-twilio-signature') || ''
-  if (!signature) return false
-
-  const params: Record<string, string> = {}
-  new URLSearchParams(rawBody).forEach((value, key) => { params[key] = value })
-  const sortedKeys = Object.keys(params).sort()
-  const valueString = sortedKeys.reduce((acc, key) => acc + key + params[key], request.url)
-
-  const encoder = new TextEncoder()
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(authToken),
-    { name: 'HMAC', hash: 'SHA-1' },
-    false,
-    ['sign']
-  )
-  const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(valueString))
-  const expected = btoa(Array.from(new Uint8Array(signatureBuffer)).map(byte => String.fromCharCode(byte)).join(''))
-  return signature === expected
-}
 
 type TwilioMessageLookup = {
   sid?: string

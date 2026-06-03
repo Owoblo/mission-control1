@@ -6,12 +6,12 @@
 import { NextResponse } from 'next/server'
 import { hasInternalSession } from '@/lib/server/session'
 import { requireSupabaseEnv, getAppBaseUrl } from '@/lib/server/runtime'
+import { randomToken } from '@/lib/server/security'
 
 export const dynamic = 'force-dynamic'
 
 function generateToken() {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
-  return Array.from({ length: 32 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+  return randomToken('aff')
 }
 
 interface PartnerRecord {

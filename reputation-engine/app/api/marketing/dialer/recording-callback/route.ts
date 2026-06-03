@@ -5,6 +5,7 @@
  */
 import { NextResponse } from 'next/server'
 import { requireSupabaseEnv, readEnv } from '@/lib/server/runtime'
+import { verifyTwilioSignature } from '@/lib/server/security'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -84,13 +85,18 @@ Keep each bullet to one sentence. Be direct.`,
 
 export async function POST(request: Request) {
   try {
-    const formData = await request.formData()
-    const callSid = (formData.get('CallSid') as string | null) || ''
-    const recordingSid = (formData.get('RecordingSid') as string | null) || ''
-    const recordingUrl = (formData.get('RecordingUrl') as string | null) || ''
-    const recordingDuration = parseInt((formData.get('RecordingDuration') as string | null) || '0', 10)
-    const from = (formData.get('From') as string | null) || ''
-    const to = (formData.get('To') as string | null) || ''
+    const rawBody = await request.text()
+    if (!(await verifyTwilioSignature(request, rawBody))) {
+      return new Response('Forbidden', { status: 403 })
+    }
+
+    const formData = new URLSearchParams(rawBody)
+    const callSid = formData.get('CallSid') || ''
+    const recordingSid = formData.get('RecordingSid') || ''
+    const recordingUrl = formData.get('RecordingUrl') || ''
+    const recordingDuration = parseInt(formData.get('RecordingDuration') || '0', 10)
+    const from = formData.get('From') || ''
+    const to = formData.get('To') || ''
 
     if (!recordingUrl || recordingDuration < 5) {
       return new Response('', { status: 204 })

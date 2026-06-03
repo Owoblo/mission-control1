@@ -76,7 +76,7 @@ export type SaturnBranchPhoneNumber = keyof typeof SATURN_BRANCH_PHONE_DIRECTORY
 
 const SATURN_PRIMARY_BRANCH_NUMBERS: Record<SalesBranch, SaturnBranchPhoneNumber> = {
   windsor: '+12267732993',
-  waterloo: '+12267806649',  // Guelph number — actual KW/Guelph local number
+  waterloo: '+12262423319',
   ottawa: '+16135193236',
   london: '+15484883245',
 }

@@ -13,6 +13,7 @@ import {
   updateLeadCallLogEntry,
 } from '@/lib/server/sales-repository'
 import { getTwilioCredentials } from '@/lib/server/runtime'
+import { hasInternalSession } from '@/lib/server/session'
 import {
   findTwilioRecordingForCall,
   normalizeTwilioRecordingSid,
@@ -21,6 +22,10 @@ import { uid } from '@/lib/sales'
 
 export async function POST(request: Request) {
   try {
+    if (!(await hasInternalSession())) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { callSid, leadId, recordingSid } = (await request.json()) as {
       callSid?: string
       leadId?: string

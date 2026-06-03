@@ -6,6 +6,9 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
   try {
+    if (!(await hasInternalSession())) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const job = await getJob(params.id)
     if (!job) return NextResponse.json({ error: 'Job not found' }, { status: 404 })
     return NextResponse.json(job)
