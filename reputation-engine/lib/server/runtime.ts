@@ -65,6 +65,10 @@ export function getTwilioCredentials() {
   return { accountSid, authToken }
 }
 
+export function getInstantlyApiKey() {
+  return readEnv('INSTANTLY_API_KEY')
+}
+
 export function getGoogleMapsApiKey() {
   return (
     readEnv('GOOGLE_MAPS_API_KEY') ||

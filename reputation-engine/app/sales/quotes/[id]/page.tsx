@@ -658,13 +658,14 @@ Saturn Star Movers`
         nextLead = updatedLead
       }
 
+      const leadId = lead?.id ?? nextLead?.id
       setQuote(sentResult.quote)
       setLead(nextLead)
       setStatus(sentResult.quote.status)
       setError(null)
       setJustSent(true)
       setShowPreview(null)
-      setTimeout(() => { if (lead) router.push(`/sales/leads/${lead.id}`) }, 1800)
+      setTimeout(() => { router.push(leadId ? `/sales/leads/${leadId}` : '/sales') }, 1800)
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -733,13 +734,13 @@ Saturn Star Movers`
         nextLead = updatedLead
       }
 
+      const leadId = lead?.id ?? nextLead?.id
       setQuote(sentResult.quote)
       setLead(nextLead)
       setStatus(sentResult.quote.status)
       setJustSent(true)
       setShowPreview(null)
-      // Navigate back after a brief confirmation moment
-      setTimeout(() => { if (lead) router.push(`/sales/leads/${lead.id}`) }, 1800)
+      setTimeout(() => { router.push(leadId ? `/sales/leads/${leadId}` : '/sales') }, 1800)
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -1297,14 +1298,21 @@ Saturn Star Movers`
             {/* Preview content */}
             <div className="flex-1 overflow-y-auto">
               {previewTab === ('quote') ? (
-                <iframe
-                  key={`${quote?.id}-${quote?.total}-${lineItems.length}`}
-                  src={acceptUrl ? `${acceptUrl}&preview=1&_t=${encodeURIComponent(String(quote?.total ?? ''))}` : ''}
-                  className="w-full border-0"
-                  style={{ height: '520px' }}
-                  title="Customer Quote View"
-                />
-              ) : previewTab === 'email' ? (
+                <>
+                  {Math.abs(quoteTotals.subtotal - (quote?.subtotal ?? 0)) > 0.01 && (
+                    <div className="mx-4 mt-3 rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                      ⚠️ The customer view below shows the <strong>previously saved price</strong> (${(quote?.subtotal ?? 0).toFixed(2)}). The prices in the confirm section below are what will actually be sent (${quoteTotals.subtotal.toFixed(2)}).
+                    </div>
+                  )}
+                  <iframe
+                    key={`${quote?.id}-${quoteTotals.subtotal}`}
+                    src={acceptUrl ? `${acceptUrl}&preview=1&_t=${encodeURIComponent(String(quote?.total ?? ''))}` : ''}
+                    className="w-full border-0"
+                    style={{ height: '520px' }}
+                    title="Customer Quote View"
+                  />
+                </>
+              ) : previewTab === ('email') ? (
                 <div className="p-6">
                   <div className="mb-4 rounded-[8px] border border-[var(--app-line)] bg-stone-50 px-4 py-3 text-sm">
                     <div className="flex flex-wrap gap-4">

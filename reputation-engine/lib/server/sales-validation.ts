@@ -355,9 +355,27 @@ function validateEnum<T extends string>(value: unknown, field: string, values: S
   return value as T
 }
 
+const MOVE_TYPE_ALIASES: Record<string, NonNullable<CRMLead['moveType']>> = {
+  'long distance':      'long-distance',
+  'long-distance move': 'long-distance',
+  'long distance move': 'long-distance',
+  'longdistance':       'long-distance',
+  'labor only':         'labor-only',
+  'labour-only':        'labor-only',
+  'labour only':        'labor-only',
+  'packing only':       'packing',
+  'pack only':          'packing',
+  'senior move':        'senior',
+  'senior living':      'senior',
+  'residential move':   'residential',
+  'commercial move':    'commercial',
+}
+
 export function validateMoveType(value?: string): CRMLead['moveType'] | undefined {
   if (!value) return undefined
-  return validateEnum(value, 'move type', MOVE_TYPES)
+  const normalized = value.trim().toLowerCase()
+  if (MOVE_TYPE_ALIASES[normalized]) return MOVE_TYPE_ALIASES[normalized]
+  return validateEnum(normalized, 'move type', MOVE_TYPES)
 }
 
 export function validateLeadPayload(payload: Partial<CRMLead>) {

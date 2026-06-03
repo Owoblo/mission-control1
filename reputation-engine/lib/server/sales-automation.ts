@@ -62,6 +62,20 @@ import type {
 } from '@/lib/types'
 
 const OPENAI_MODEL = readEnv('OPENAI_AUTOMATION_MODEL') || 'gpt-4o-mini'
+
+const MOVE_TYPE_SIGNAL_MAP: Record<string, string> = {
+  'long distance': 'long-distance', 'long-distance move': 'long-distance', 'long distance move': 'long-distance',
+  'residential move': 'residential', 'commercial move': 'commercial', 'senior move': 'senior',
+  'labor only': 'labor-only', 'labour-only': 'labor-only', 'labour only': 'labor-only',
+  'packing only': 'packing', 'junk removal': 'labor-only', 'junk-removal': 'labor-only',
+}
+const VALID_MOVE_TYPES = new Set(['residential', 'long-distance', 'commercial', 'senior', 'labor-only', 'packing'])
+function normalizeMoveTypeSignal(value?: string): string | undefined {
+  if (!value) return undefined
+  const key = value.trim().toLowerCase()
+  if (VALID_MOVE_TYPES.has(key)) return key
+  return MOVE_TYPE_SIGNAL_MAP[key] ?? undefined
+}
 const SALES_PHONE = '226-773-2993'
 const AUTOMATION_LOCAL_TIMEZONE = 'America/Toronto'
 const QUOTE_NOT_OPENED_DELAY_MS = 3 * 60 * 60 * 1000
@@ -646,6 +660,7 @@ async function extractLeadSignals(lead: CRMLead, event: InboundAutomationEvent):
             'Use ISO date YYYY-MM-DD only when explicit enough. Never invent missing details. ' +
             'Set shouldHandoff or wantsHuman only when the customer explicitly asks to speak to a person or requests a callback. ' +
             'Do not set shouldHandoff or wantsHuman for quote, estimate, pricing, scheduling, or general service requests. ' +
+            'moveType must be exactly one of: residential, long-distance, commercial, senior, labor-only, packing. No other values allowed. ' +
             'Fields: name, email, phone, moveDate, moveDateFlexible, moveDateFlexibleReason, moveType, originAddress, originCity, destAddress, destCity, originAccess, destAccess, parkingNotes, estimatedBoxes, packingStatus, originFloors, originHasElevator, destFloors, destHasElevator, hasPiano, hasSafe, moveReason, depositConfirmed, depositAmount, depositMethod, summary, shouldHandoff, wantsHuman.',
         },
         {
@@ -708,7 +723,7 @@ function mergeExtractedSignals(lead: CRMLead, signals: ExtractedLeadSignals | nu
     moveDate: lead.moveDate || signals.moveDate,
     moveDateFlexible: lead.moveDateFlexible ?? signals.moveDateFlexible,
     moveDateFlexibleReason: lead.moveDateFlexibleReason || signals.moveDateFlexibleReason,
-    moveType: lead.moveType || signals.moveType,
+    moveType: lead.moveType || normalizeMoveTypeSignal(signals.moveType),
     originAddress: lead.originAddress || signals.originAddress,
     originCity: lead.originCity || signals.originCity,
     destAddress: lead.destAddress || signals.destAddress,
