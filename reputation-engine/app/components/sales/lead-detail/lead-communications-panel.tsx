@@ -45,6 +45,7 @@ type Props = {
     messages: LeadSmsMessage[]
     loading: boolean
     sending: boolean
+    sendError?: string | null
     input: string
     channel: 'sms' | 'whatsapp'
     preferredBranchLabel: string
@@ -392,6 +393,11 @@ export function LeadCommunicationsPanel({
                 )}
               </button>
             </div>
+            {smsThread.sendError && (
+              <div className="mt-1.5 rounded-[6px] border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[11px] font-semibold text-rose-700">
+                {smsThread.sendError}
+              </div>
+            )}
             <div className="mt-1.5 text-[10px] text-[var(--app-muted)]">Enter to send · Shift+Enter for new line · ✨ AI Draft for a smart opener</div>
           </div>
         </div>

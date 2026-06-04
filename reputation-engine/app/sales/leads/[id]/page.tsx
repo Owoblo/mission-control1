@@ -324,6 +324,7 @@ export default function SalesLeadDetailPage() {
   const [smsMessages, setSmsMessages] = useState<LeadSmsMessage[]>([])
   const [smsLoading, setSmsLoading] = useState(false)
   const [smsSending, setSmsSending] = useState(false)
+  const [smsSendError, setSmsSendError] = useState<string | null>(null)
   const [smsInput, setSmsInput] = useState('')
   const [smsChannel, setSmsChannel] = useState<'sms' | 'whatsapp'>('sms')
   const smsAreaRef = useRef<HTMLDivElement>(null)
@@ -3001,7 +3002,9 @@ export default function SalesLeadDetailPage() {
     if (!lead?.phone || smsSending || !smsInput.trim()) return
     const body = smsInput.trim()
     setSmsInput('')
+    setSmsSendError(null)
     setSmsSending(true)
+    const optimisticId = `local_${Date.now()}`
     try {
       const result = await sendSalesMessage({
         channel: smsChannel,
@@ -3010,7 +3013,25 @@ export default function SalesLeadDetailPage() {
         leadId: lead.id,
         fromNumber: leadPreferredBranchNumber,
       })
-      appendOptimisticSmsMessage(body, result.result?.fromNumber || getDefaultSaturnBranchNumber())
+      setSmsMessages(current => [
+        ...current,
+        {
+          id: optimisticId,
+          from_number: result.result?.fromNumber || getDefaultSaturnBranchNumber(),
+          to_number: lead.phone!,
+          body,
+          direction: 'outbound' as const,
+          lead_id: lead.id ?? null,
+          created_at: new Date().toISOString(),
+        },
+      ])
+      setTimeout(() => {
+        if (smsAreaRef.current) smsAreaRef.current.scrollTop = smsAreaRef.current.scrollHeight
+      }, 40)
+    } catch {
+      // Restore the message so the rep can retry — common on iOS when network drops
+      setSmsInput(body)
+      setSmsSendError('Message failed to send — check your connection and try again.')
     } finally {
       setSmsSending(false)
     }
@@ -4788,6 +4809,7 @@ export default function SalesLeadDetailPage() {
                 messages: smsMessages,
                 loading: smsLoading,
                 sending: smsSending,
+                sendError: smsSendError,
                 input: smsInput,
                 channel: smsChannel,
                 preferredBranchLabel: leadPreferredBranchLabel,
