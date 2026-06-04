@@ -495,10 +495,18 @@ export function LeadBasicsPanel({
     setOriginIntelligence(null)
     originAutoAppliedKey.current = null
     if (originAddress.length >= 8) {
-      originIntelTimer.current = setTimeout(() => void fetchIntelligence(originAddress, 'origin'), 1500)
+      // If the matched listing has a unit-prefixed address (e.g. "601-203 Catherine St"),
+      // use that for property-intelligence — autocomplete strips unit numbers so the bare
+      // address would be misclassified as a house.
+      const listingAddr = lead.supabaseListing?.address
+      const addressForIntel =
+        listingAddr && /^[a-z]?\d+[a-z]?-\d+/i.test(listingAddr.trim())
+          ? listingAddr
+          : originAddress
+      originIntelTimer.current = setTimeout(() => void fetchIntelligence(addressForIntel, 'origin'), 1500)
     }
     return () => { if (originIntelTimer.current) clearTimeout(originIntelTimer.current) }
-  }, [originAddress, fetchIntelligence])
+  }, [originAddress, lead.supabaseListing?.address, fetchIntelligence])
 
   useEffect(() => {
     if (destIntelTimer.current) clearTimeout(destIntelTimer.current)

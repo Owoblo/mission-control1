@@ -145,6 +145,8 @@ export async function geocodeAddress(address: string): Promise<GeocodeResult | n
 
 function detectApartmentFromText(label: string): AddressSuggestion['placeType'] {
   const lower = label.toLowerCase()
+  // Canadian unit-prefix format: "601-203 Catherine St"
+  if (/^[a-z]?\d+[a-z]?-\d+\s/.test(label.trim())) return 'apartment'
   if (/\b(apt|unit|suite|#\s*\d|floor\s+\d|fl\.\s*\d|ph\b|penthouse|condo)\b/.test(lower)) return 'apartment'
   if (/\b(tower|towers|plaza|centre|center|heights|terrace|court|park|estates|gardens)\b/.test(lower)) return 'apartment'
   return 'unknown'

@@ -42,6 +42,15 @@ export interface PropertyAccess {
 function extractUnitInfo(address: string): { unitNumber: string | null; unitFloor: number | null } {
   const raw = address.trim()
 
+  // Canadian prefix format: "601-203 Catherine St" — unit is before the dash
+  const canadianPrefixMatch = raw.match(/^([a-z]?\d+[a-z]?)-(?=\d)/i)
+  if (canadianPrefixMatch?.[1]) {
+    const token = canadianPrefixMatch[1]
+    const num = parseInt(token.replace(/\D/g, ''), 10)
+    const unitFloor = !isNaN(num) && token.length >= 3 ? Math.floor(num / 100) : null
+    return { unitNumber: token, unitFloor: unitFloor && unitFloor > 0 ? unitFloor : null }
+  }
+
   // Match patterns: "Unit 4", "#802", "Apt 3B", "Suite 200", "Ph", "PH1"
   const patterns = [
     /\b(?:unit|apt|apartment|suite|ste|#)\s*([a-z]?\d+[a-z]?)\b/i,

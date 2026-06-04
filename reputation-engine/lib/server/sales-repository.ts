@@ -1199,6 +1199,14 @@ function buildAddressLookupVariants(address: string) {
 
   variants.add(normalized)
 
+  // Canadian unit-prefix: "601-203 Catherine St" → also try "203 Catherine St"
+  const canadianPrefixMatch = normalized.match(/^([a-z]?\d+[a-z]?)-(\d+\s.+)$/i)
+  if (canadianPrefixMatch) {
+    const baseAddress = canadianPrefixMatch[2].trim()
+    variants.add(baseAddress)
+    variants.add(`${baseAddress} unit ${canadianPrefixMatch[1]}`)
+  }
+
   if (tokens.length > 1 && provincePattern.test(tokens[tokens.length - 1])) {
     variants.add(tokens.slice(0, -1).join(' '))
   }
@@ -1339,6 +1347,9 @@ function stripTrailingLocation(value: string) {
 
 function extractAddressUnit(value: string) {
   const normalized = stripTrailingLocation(value)
+  // Canadian prefix format: "601-203 Catherine St" — unit is the part before the dash
+  const canadianPrefixMatch = normalized.match(/^([a-z]?\d+[a-z]?)-(?=\d)/i)
+  if (canadianPrefixMatch?.[1]) return canadianPrefixMatch[1].toLowerCase()
   const hashMatch = normalized.match(/#\s*([a-z0-9-]+)/i)
   if (hashMatch?.[1]) return hashMatch[1].toLowerCase()
   const namedUnitMatch = normalized.match(/\b(?:unit|apt|apartment|suite|ste)\s*([a-z0-9-]+)/i)
@@ -1348,6 +1359,8 @@ function extractAddressUnit(value: string) {
 
 function stripAddressUnit(value: string) {
   return stripTrailingLocation(value)
+    // Canadian prefix format: "601-203 Catherine St" → "203 Catherine St"
+    .replace(/^[a-z]?\d+[a-z]?-(?=\d)/i, '')
     .replace(/#\s*[a-z0-9-]+\b/ig, ' ')
     .replace(/\b(?:unit|apt|apartment|suite|ste)\s*[a-z0-9-]+\b/ig, ' ')
     .replace(/\s+/g, ' ')
