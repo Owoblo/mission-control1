@@ -295,7 +295,7 @@ function getLeadActionMeta(item: InboundLead, rawInput?: Record<string, any> | n
 function getLeadHeadline(item: InboundLead, rawInput?: Record<string, any> | null) {
   const raw = rawInput ?? parseRawData(item.raw_data)
   if (typeof raw?.routeText === 'string' && raw.routeText.trim()) return raw.routeText
-  if (item.source === 'email' && typeof raw?.subject === 'string' && raw.subject.trim()) return raw.subject
+  if (item.source === 'email' && typeof raw?.subject === 'string' && raw.subject.trim()) return displayEmailSubject(raw.subject)
   if (item.source === 'twilio_call') {
     return 'Inbound call'
   }

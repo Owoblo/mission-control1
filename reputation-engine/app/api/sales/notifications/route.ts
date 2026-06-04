@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { displayEmailSubject } from '@/lib/email-display'
 import { decorateInboundLead, getInboundStatus, parseInboundRawData } from '@/lib/inbound-inbox'
 import {
   getSaturnBranchLabel,
@@ -173,7 +174,7 @@ export async function GET() {
       type: 'email' as const,
       source: 'email',
       title: em.from,
-      preview: em.subject || '(no subject)',
+      preview: displayEmailSubject(em.subject),
       time: em.sentAt,
       leadId: em.leadId || null,
       phone: null,
