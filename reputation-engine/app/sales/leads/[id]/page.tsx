@@ -2524,6 +2524,62 @@ export default function SalesLeadDetailPage() {
     }
   }
 
+  async function overrideListingAddress(newAddress: string) {
+    if (!lead || !ensureLeadEditable()) return
+    try {
+      setListingLookupBusy(true)
+      const result = await enrichSalesAddress(newAddress, false)
+      if (!result.listing) throw new Error('No listing found for that address — try a different unit or street format.')
+      const updates: Partial<CRMLead> = {
+        originAddress: newAddress,
+        originCity: originCity || result.listing.city || undefined,
+        supabaseListing: result.listing,
+        listingScanSnapshot: null,
+        inventory: [],
+        totalItems: 0,
+        totalCubicFeet: 0,
+        totalWeightLbs: 0,
+      }
+      const saved = await updateSalesLead(lead.id, updates)
+      setLead(saved)
+      setInventory([])
+      if (saved.originCity) setOriginCity(saved.originCity)
+      setError(null)
+      void streamScanForLead(lead.id)
+    } catch (err) {
+      setError((err as Error).message)
+      setListingLookupBusy(false)
+    }
+  }
+
+  async function clearListing() {
+    if (!lead || !ensureLeadEditable()) return
+    const confirmed = await showConfirm(
+      'Clear MLS listing?',
+      'This removes the matched listing, photos, and AI-generated inventory. Contact info and quotes are kept. You can rebuild the inventory manually.',
+      { confirmLabel: 'Clear listing', destructive: true }
+    )
+    if (!confirmed) return
+    try {
+      setListingLookupBusy(true)
+      const saved = await updateSalesLead(lead.id, {
+        supabaseListing: null,
+        listingScanSnapshot: null,
+        inventory: [],
+        totalItems: 0,
+        totalCubicFeet: 0,
+        totalWeightLbs: 0,
+      })
+      setLead(saved)
+      setInventory([])
+      setError(null)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setListingLookupBusy(false)
+    }
+  }
+
   async function streamScanForLead(leadId: string) {
     if (!ensureLeadEditable()) return
     // Warn before wiping manually-edited inventory
@@ -3650,6 +3706,8 @@ export default function SalesLeadDetailPage() {
               // then stream the photo scan. Needed because stored carouselphotos may be stale.
               void lookupListingForLead()
             }}
+            onOverrideListing={addr => void overrideListingAddress(addr)}
+            onClearListing={() => void clearListing()}
           />
 
           <aside className="order-2 border-t border-[var(--app-line)] bg-[var(--app-panel)] lg:order-3 lg:border-l lg:border-t-0 xl:order-3">

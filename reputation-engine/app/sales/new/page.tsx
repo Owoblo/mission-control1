@@ -46,6 +46,7 @@ export default function NewSalesLeadPage() {
   const [lookupBusy, setLookupBusy] = useState(false)
   const [analysisBusy, setAnalysisBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [duplicateWarning, setDuplicateWarning] = useState<{ id: string; name: string; stage: string } | null>(null)
   const [listingMatch, setListingMatch] = useState<CRMLead['supabaseListing']>(null)
   const [inventoryDraft, setInventoryDraft] = useState<{
     inventory: NonNullable<CRMLead['inventory']>
@@ -62,6 +63,20 @@ export default function NewSalesLeadPage() {
 
   function setField<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm(current => ({ ...current, [key]: value }))
+  }
+
+  async function checkForDuplicate(phone: string, email: string) {
+    const hasPhone = phone.replace(/\D/g, '').length >= 10
+    const hasEmail = email.includes('@') && email.length >= 5
+    if (!hasPhone && !hasEmail) { setDuplicateWarning(null); return }
+    try {
+      const params = new URLSearchParams()
+      if (hasPhone) params.set('phone', phone)
+      if (hasEmail) params.set('email', email)
+      const res = await fetch(`/api/sales/leads/match-phone?${params}`, { credentials: 'include' })
+      const data = await res.json() as { lead: { id: string; name: string; stage: string } | null }
+      setDuplicateWarning(data.lead || null)
+    } catch { /* non-critical */ }
   }
 
   async function buildPayload() {
@@ -153,6 +168,23 @@ export default function NewSalesLeadPage() {
 
       {error && <div className="rounded-3xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div>}
 
+      {duplicateWarning && (
+        <div className="rounded-[10px] border border-amber-200 bg-amber-50 px-5 py-4 flex items-center gap-3">
+          <div className="flex-1">
+            <div className="text-sm font-semibold text-amber-900">Existing lead found for this contact</div>
+            <div className="mt-0.5 text-xs text-amber-700">
+              {duplicateWarning.name} · Stage: {duplicateWarning.stage.replace(/_/g, ' ')} — creating a new lead won't fix mismatched listing data, it will just duplicate the contact.
+            </div>
+          </div>
+          <Link
+            href={`/sales/leads/${duplicateWarning.id}`}
+            className="shrink-0 rounded-[8px] bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700"
+          >
+            Open existing lead
+          </Link>
+        </div>
+      )}
+
       <div className="crm-panel">
         <div className="mb-6 grid gap-3 md:grid-cols-3">
           <div className="crm-surface">
@@ -192,11 +224,21 @@ export default function NewSalesLeadPage() {
           ) : null}
           <label>
             <span className="crm-label">Phone</span>
-            <input className="crm-input mt-2" value={form.phone} onChange={e => setField('phone', e.target.value)} />
+            <input
+              className="crm-input mt-2"
+              value={form.phone}
+              onChange={e => setField('phone', e.target.value)}
+              onBlur={e => void checkForDuplicate(e.target.value, form.email)}
+            />
           </label>
           <label>
             <span className="crm-label">Email</span>
-            <input className="crm-input mt-2" value={form.email} onChange={e => setField('email', e.target.value)} />
+            <input
+              className="crm-input mt-2"
+              value={form.email}
+              onChange={e => setField('email', e.target.value)}
+              onBlur={e => void checkForDuplicate(form.phone, e.target.value)}
+            />
           </label>
           <label>
             <span className="crm-label">Move Date</span>

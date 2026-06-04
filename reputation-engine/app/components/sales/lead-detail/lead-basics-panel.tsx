@@ -81,6 +81,8 @@ type Props = {
   listingLookupBusy?: boolean
   hasListing?: boolean
   onScanListing?: () => void
+  onOverrideListing?: (address: string) => void
+  onClearListing?: () => void
   disabled?: boolean
 }
 
@@ -455,6 +457,8 @@ export function LeadBasicsPanel({
   listingLookupBusy,
   hasListing,
   onScanListing,
+  onOverrideListing,
+  onClearListing,
   disabled,
 }: Props) {
   const listingPropertySummary = formatListingPropertySummary(lead.supabaseListing)
@@ -468,6 +472,8 @@ export function LeadBasicsPanel({
 
   const [originAptPending, setOriginAptPending] = useState(false)
   const [destAptPending, setDestAptPending] = useState(false)
+  const [listingOverrideOpen, setListingOverrideOpen] = useState(false)
+  const [listingOverrideAddress, setListingOverrideAddress] = useState('')
   const [originIntelligence, setOriginIntelligence] = useState<PropertyAccess | null>(null)
   const [destIntelligence, setDestIntelligence] = useState<PropertyAccess | null>(null)
   const originIntelTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -751,14 +757,55 @@ export function LeadBasicsPanel({
           {/* MLS Scan Prompt */}
           {(originAddress || originCity) && onScanListing && (
             hasListing ? (
-              <div className="flex items-center gap-2 rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-2">
-                <span className="text-[11px] font-semibold text-emerald-700">📷 Listing matched</span>
-                <span className="ml-1 text-[10px] text-emerald-600">
-                  — {listingPropertySummary ? `${listingPropertySummary} · ` : ''}inventory auto-loaded
-                </span>
-                <button onClick={onScanListing} disabled={listingLookupBusy} className="ml-auto text-[10px] font-semibold text-emerald-700 hover:text-emerald-900 disabled:opacity-60">
-                  {listingLookupBusy ? 'Rescanning...' : 'Rescan'}
-                </button>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2 rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-2">
+                  <span className="text-[11px] font-semibold text-emerald-700">📷 Listing matched</span>
+                  <span className="ml-1 text-[10px] text-emerald-600">
+                    — {listingPropertySummary ? `${listingPropertySummary} · ` : ''}inventory auto-loaded
+                  </span>
+                  <div className="ml-auto flex items-center gap-2">
+                    <button
+                      onClick={() => { setListingOverrideOpen(o => !o); setListingOverrideAddress('') }}
+                      className="text-[10px] font-semibold text-amber-600 hover:text-amber-800"
+                    >
+                      Wrong listing?
+                    </button>
+                    <button onClick={onScanListing} disabled={listingLookupBusy} className="text-[10px] font-semibold text-emerald-700 hover:text-emerald-900 disabled:opacity-60">
+                      {listingLookupBusy ? 'Rescanning...' : 'Rescan'}
+                    </button>
+                  </div>
+                </div>
+                {listingOverrideOpen && (
+                  <div className="rounded-[8px] border border-amber-200 bg-amber-50 p-3 space-y-2">
+                    <div className="text-[10px] font-semibold text-amber-800">Re-scan with a different address (e.g. correct unit number)</div>
+                    <div className="flex gap-2">
+                      <input
+                        value={listingOverrideAddress}
+                        onChange={e => setListingOverrideAddress(e.target.value)}
+                        placeholder="e.g. 601-203 Catherine St W, Windsor"
+                        className="flex-1 rounded-[6px] border border-amber-200 bg-white px-2.5 py-1.5 text-[11px] text-[var(--app-ink)] outline-none focus:border-amber-400"
+                      />
+                      <button
+                        disabled={listingLookupBusy || listingOverrideAddress.trim().length < 5}
+                        onClick={() => {
+                          if (listingOverrideAddress.trim().length >= 5) {
+                            onOverrideListing?.(listingOverrideAddress.trim())
+                            setListingOverrideOpen(false)
+                          }
+                        }}
+                        className="shrink-0 rounded-[6px] bg-amber-600 px-2.5 py-1.5 text-[10px] font-semibold text-white disabled:opacity-50 hover:bg-amber-700"
+                      >
+                        {listingLookupBusy ? 'Scanning…' : 'Re-scan'}
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => { onClearListing?.(); setListingOverrideOpen(false) }}
+                      className="text-[10px] font-semibold text-rose-600 hover:text-rose-800"
+                    >
+                      Clear MLS data + inventory — start fresh manually
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex items-center gap-2 rounded-[8px] border border-dashed border-[var(--app-accent)] bg-[rgba(34,72,56,0.04)] px-3 py-2.5">
