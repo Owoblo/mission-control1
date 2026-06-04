@@ -118,7 +118,9 @@ function toE164(phone: string) {
   return phone.startsWith('+') ? phone : `+${digits}`
 }
 
-// Write to sms_messages table so the HTML CRM inbox can show the thread
+// Write to sms_messages table so the HTML CRM inbox can show the thread.
+// Await this in the webhook; Vercel may freeze fire-and-forget work after
+// returning TwiML.
 async function writeSmsMessage(from: string, toNumber: string, body: string, messageSid: string, leadId?: string) {
   try {
     const { url, headers } = requireSupabaseEnv()
@@ -133,7 +135,7 @@ async function writeSmsMessage(from: string, toNumber: string, body: string, mes
       }
     }
 
-    await fetch(`${url}/rest/v1/sms_messages`, {
+    const response = await fetch(`${url}/rest/v1/sms_messages`, {
       method: 'POST',
       headers: { ...headers, Prefer: 'return=minimal' },
       body: JSON.stringify({
@@ -147,8 +149,13 @@ async function writeSmsMessage(from: string, toNumber: string, body: string, mes
         created_at: new Date().toISOString(),
       }),
     })
-  } catch {
-    // non-fatal — inbox still works from inbound_leads
+    if (!response.ok) {
+      const detail = await response.text().catch(() => '')
+      throw new Error(`sms_messages insert failed: ${detail || response.status}`)
+    }
+  } catch (error) {
+    console.error('Failed to write inbound SMS to CRM thread', error)
+    throw error
   }
 }
 
@@ -253,7 +260,7 @@ export async function POST(request: Request) {
             messageSid,
           }).catch(() => {})
         }
-        void writeSmsMessage(normalized || from, toField, messageText, messageSid, resolvedLeadId)
+        await writeSmsMessage(normalized || from, toField, messageText, messageSid, resolvedLeadId)
         if (resolvedLeadId) triggerIntelligence(resolvedLeadId)
         void sendRepAlertEmail(
           `New SMS from ${from}`,
