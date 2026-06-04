@@ -35,7 +35,7 @@ export async function sendCallerIdSms(
 }
 
 const NOTIFY_FROM = 'Saturn Star OS <notifications@starmovers.ca>'
-const NOTIFY_TO = 'business@starmovers.ca'
+const NOTIFY_TO = ['business@starmovers.ca', 'thelma.ufot@starmovers.ca']
 
 function escapeHtml(value: string) {
   return value
@@ -72,7 +72,7 @@ export async function sendRepAlertEmail(subject: string, htmlBody: string) {
     headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       from: NOTIFY_FROM,
-      to: [NOTIFY_TO],
+      to: NOTIFY_TO,
       subject,
       html: htmlBody,
     }),
