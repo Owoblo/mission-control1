@@ -237,6 +237,7 @@ export interface InventoryItem {
   policyOverride?: 'include'
   source?: 'mls' | 'survey_ai' | 'rep_upload' | 'customer_verification' | 'manual'
   icon?: string
+  owner?: 'person_a' | 'person_b'
 }
 
 export interface InventoryVerificationItemChoice {
@@ -496,6 +497,15 @@ export interface JobFactors {
 
   // Free notes from rep
   specialtyNotes?: string
+
+  // Conjoint / combined move (two origins → one destination)
+  conjointMove?: boolean
+  personALabel?: string
+  personBLabel?: string
+  personBOriginFloors?: number
+  personBOriginHasElevator?: boolean
+  personBOriginElevatorReserved?: boolean
+  personBOriginParkingOk?: boolean
 }
 
 export interface LeadAttribution {

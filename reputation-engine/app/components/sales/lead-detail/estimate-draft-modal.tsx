@@ -485,6 +485,8 @@ export function EstimateDraftModal({
   const [legRoutes, setLegRoutes] = useState<Record<string, { distanceKm: number; driveHours: number } | null>>({})
   const legRouteFetchRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
+  const conjointMode = !!jobFactors.conjointMove
+
   const LEG_TYPE_LABELS: Record<QuoteLegType, string> = {
     move: '🚚 House → House',
     storage: '🏢 House → Storage',
@@ -501,6 +503,42 @@ export function EstimateDraftModal({
     if (type === 'junk') return `${num} — Junk Removal`
     if (type === 'delivery') return `${num} — Delivery`
     return num
+  }
+
+  function applyConjointTemplate() {
+    const personAAddr = lead.originAddress || originAddress || ''
+    const personACity = lead.originCity || originCity || ''
+    const finalDest = lead.destAddress || ''
+    const finalDestCity = lead.destCity || destCity || ''
+    const now = Date.now()
+    const newLegs: QuoteLeg[] = [
+      {
+        id: `leg-cj-a-${now}`,
+        label: 'Leg 1 — Person A pickup',
+        type: 'move',
+        originAddress: personAAddr,
+        originCity: personACity,
+        destAddress: '',
+        destCity: '',
+        inventorySharePct: 50,
+        notes: 'Load items from first pickup location, drive to second pickup',
+      },
+      {
+        id: `leg-cj-b-${now + 1}`,
+        label: 'Leg 2 — Person B pickup + delivery',
+        type: 'move',
+        originAddress: '',
+        originCity: '',
+        destAddress: finalDest,
+        destCity: finalDestCity,
+        inventorySharePct: 100,
+        notes: 'Load items from second pickup, deliver everything to final destination',
+      },
+    ]
+    setLegsEnabled(true)
+    setLegs(newLegs)
+    onLegsChange?.(newLegs)
+    onJobFactorsChange({ ...jobFactors, conjointMove: true })
   }
 
   async function runSmartIntake() {
@@ -2257,13 +2295,69 @@ export function EstimateDraftModal({
                     const next = !legsEnabled
                     setLegsEnabled(next)
                     if (next && legs.length === 0) addLeg()
-                    if (!next) { setLegs([]); onLegsChange?.([]) }
+                    if (!next) {
+                      setLegs([])
+                      onLegsChange?.([])
+                      if (conjointMode) onJobFactorsChange({ ...jobFactors, conjointMove: false })
+                    }
                   }}
                   className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${legsEnabled ? 'bg-[#1a2744] text-white' : 'bg-[var(--app-line)] text-[var(--app-muted)]'}`}
                 >
                   {legsEnabled ? 'On' : 'Off'}
                 </button>
               </div>
+
+              {/* Conjoint Move quick-start */}
+              {!legsEnabled && (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={applyConjointTemplate}
+                    className="rounded-full bg-purple-100 px-3 py-1 text-[11px] font-semibold text-purple-800 hover:bg-purple-200 transition-colors"
+                  >
+                    + Conjoint Move
+                  </button>
+                  <span className="text-[10px] text-[var(--app-muted)]">Two pickups, one destination — couples moving in together</span>
+                </div>
+              )}
+
+              {legsEnabled && conjointMode && (
+                <div className="rounded-[8px] border border-purple-200 bg-purple-50 p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-purple-700">Conjoint Move</span>
+                    <button
+                      type="button"
+                      onClick={() => onJobFactorsChange({ ...jobFactors, conjointMove: false })}
+                      className="ml-auto text-[10px] text-purple-500 hover:text-purple-800"
+                    >
+                      Remove template
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <div className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-purple-600">Person A name</div>
+                      <input
+                        value={jobFactors.personALabel || ''}
+                        onChange={e => setFactor('personALabel', e.target.value || undefined)}
+                        placeholder="e.g. Sam"
+                        className="w-full rounded-[6px] border border-purple-200 bg-white px-2 py-1.5 text-[11px] text-[var(--app-ink)] outline-none focus:border-purple-400"
+                      />
+                    </div>
+                    <div>
+                      <div className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-purple-600">Person B name</div>
+                      <input
+                        value={jobFactors.personBLabel || ''}
+                        onChange={e => setFactor('personBLabel', e.target.value || undefined)}
+                        placeholder="e.g. Michelle"
+                        className="w-full rounded-[6px] border border-purple-200 bg-white px-2 py-1.5 text-[11px] text-[var(--app-ink)] outline-none focus:border-purple-400"
+                      />
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-purple-600">
+                    Leg 1 picks up {jobFactors.personALabel || 'Person A'} · Leg 2 picks up {jobFactors.personBLabel || 'Person B'} then delivers everything. Tag inventory items below with A or B.
+                  </div>
+                </div>
+              )}
 
               {legsEnabled && (
                 <div className="space-y-3">
@@ -2543,6 +2637,44 @@ export function EstimateDraftModal({
                     )
                   })()}
                 </div>
+                {conjointMode && (() => {
+                  const personAItems = inventory.filter(i => i.included !== false && i.owner !== 'person_b')
+                  const personBItems = inventory.filter(i => i.included !== false && i.owner === 'person_b')
+                  const aCuFt = Math.round(personAItems.reduce((s, i) => s + (i.cubicFeet || 0) * (i.qty || 1), 0))
+                  const bCuFt = Math.round(personBItems.reduce((s, i) => s + (i.cubicFeet || 0) * (i.qty || 1), 0))
+                  const totalCuFt = aCuFt + bCuFt
+                  const TRUCK_CAP = 1600
+                  const truckNeeded = totalCuFt > TRUCK_CAP ? 2 : 1
+                  const pctA = totalCuFt > 0 ? Math.round((aCuFt / totalCuFt) * 100) : 50
+                  const pctB = 100 - pctA
+                  return (
+                    <div className="mt-3 rounded-[8px] border border-purple-200 bg-purple-50 p-3 space-y-2">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-purple-700">Conjoint Volume Split</div>
+                      <div className="flex items-center gap-2 text-[11px]">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 font-semibold text-blue-800">
+                          {jobFactors.personALabel || 'Person A'} · {aCuFt} cu ft ({pctA}%)
+                        </span>
+                        <span className="text-[var(--app-muted)]">+</span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 font-semibold text-purple-800">
+                          {jobFactors.personBLabel || 'Person B'} · {bCuFt} cu ft ({pctB}%)
+                        </span>
+                        <span className="ml-auto font-semibold text-[var(--app-ink)]">= {totalCuFt} cu ft</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-blue-200 overflow-hidden">
+                        <div className="h-full bg-purple-500 float-right" style={{ width: `${pctB}%` }} />
+                      </div>
+                      <div className={`rounded-[6px] px-2.5 py-1.5 text-[11px] font-semibold ${truckNeeded === 2 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                        {truckNeeded === 2
+                          ? `Two 26ft trucks needed — combined ${totalCuFt} cu ft exceeds single-truck capacity (${TRUCK_CAP} cu ft)`
+                          : `One 26ft truck fits both loads — ${totalCuFt} cu ft of ${TRUCK_CAP} cu ft capacity used (${Math.round(totalCuFt / TRUCK_CAP * 100)}%)`
+                        }
+                      </div>
+                      {personBItems.length === 0 && inventory.length > 0 && (
+                        <div className="text-[10px] text-purple-600">Tag inventory items with A or B using the button on each item to see the volume split.</div>
+                      )}
+                    </div>
+                  )
+                })()}
                 {listingContextSummary ? (
                   <div className="mt-3 rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">
                     MLS property context: {listingContextSummary}
@@ -2691,6 +2823,23 @@ export function EstimateDraftModal({
                                 />
                               </div>
                               <div className="mt-2 flex flex-wrap items-center gap-2">
+                                {conjointMode && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onUpdateInventoryItem(el.index, 'owner', el.item.owner === 'person_b' ? 'person_a' : 'person_b')}
+                                    className={`rounded-[6px] px-2.5 py-1 text-[10px] font-semibold transition-colors ${
+                                      el.item.owner === 'person_b'
+                                        ? 'bg-purple-100 text-purple-800'
+                                        : 'bg-blue-100 text-blue-800'
+                                    }`}
+                                    title="Toggle which person this item belongs to"
+                                  >
+                                    {el.item.owner === 'person_b'
+                                      ? (jobFactors.personBLabel ? jobFactors.personBLabel[0].toUpperCase() : 'B')
+                                      : (jobFactors.personALabel ? jobFactors.personALabel[0].toUpperCase() : 'A')}
+                                    {' '}— {el.item.owner === 'person_b' ? (jobFactors.personBLabel || 'Person B') : (jobFactors.personALabel || 'Person A')}
+                                  </button>
+                                )}
                                 <button
                                   type="button"
                                   disabled={policyFinding?.category === 'blocked' || policyFinding?.category === 'hazardous' || policyFinding?.category === 'manual_review'}
@@ -3364,7 +3513,9 @@ export function EstimateDraftModal({
 
                 {/* Origin Access */}
                 <div className="space-y-3">
-                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-ink)]">Origin Access</div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-ink)]">
+                    {conjointMode ? `${jobFactors.personALabel || 'Person A'} — Origin Access` : 'Origin Access'}
+                  </div>
                   <FloorSelect label="Floors at origin" value={jobFactors.originFloors} onChange={v => setFactor('originFloors', v)} />
                   <Toggle label="Has elevator?" value={jobFactors.originHasElevator} onChange={v => setFactor('originHasElevator', v)} />
                   {jobFactors.originHasElevator && (
@@ -3372,6 +3523,21 @@ export function EstimateDraftModal({
                   )}
                   <Toggle label="Direct truck access?" value={jobFactors.originParkingOk} onChange={v => setFactor('originParkingOk', v)} />
                 </div>
+
+                {/* Person B Origin Access (conjoint only) */}
+                {conjointMode && (
+                  <div className="space-y-3">
+                    <div className="text-xs font-semibold uppercase tracking-[0.12em] text-purple-700">
+                      {jobFactors.personBLabel || 'Person B'} — Origin Access
+                    </div>
+                    <FloorSelect label="Floors at origin" value={jobFactors.personBOriginFloors} onChange={v => setFactor('personBOriginFloors', v)} />
+                    <Toggle label="Has elevator?" value={jobFactors.personBOriginHasElevator} onChange={v => setFactor('personBOriginHasElevator', v)} />
+                    {jobFactors.personBOriginHasElevator && (
+                      <Toggle label="Elevator reserved?" value={jobFactors.personBOriginElevatorReserved} onChange={v => setFactor('personBOriginElevatorReserved', v)} />
+                    )}
+                    <Toggle label="Direct truck access?" value={jobFactors.personBOriginParkingOk} onChange={v => setFactor('personBOriginParkingOk', v)} />
+                  </div>
+                )}
 
                 {/* Destination Access */}
                 <div className="space-y-3">
@@ -4420,6 +4586,113 @@ export function EstimateDraftModal({
                 </div>
               </div>
             )}
+
+            {/* ── Conjoint Move Logistics Panel ── */}
+            {conjointMode && legsEnabled && legs.length >= 2 && (() => {
+              const TRUCK_CAP = 1600
+              const personAItems = inventory.filter(i => i.included !== false && i.owner !== 'person_b')
+              const personBItems = inventory.filter(i => i.included !== false && i.owner === 'person_b')
+              const aCuFt = Math.round(personAItems.reduce((s, i) => s + (i.cubicFeet || 0) * (i.qty || 1), 0))
+              const bCuFt = Math.round(personBItems.reduce((s, i) => s + (i.cubicFeet || 0) * (i.qty || 1), 0))
+              const totalCuFt = aCuFt + bCuFt || effectiveInventoryMetrics.totalCubicFeet
+              const truckNeeded = totalCuFt > TRUCK_CAP ? 2 : 1
+              const crewSize = pricingBreakdown?.crewSize || 3
+              const loadHours = pricingBreakdown?.loadHours || 3
+              const unloadHours = pricingBreakdown?.unloadHours || 2
+              const loadAHours = totalCuFt > 0 ? Math.round((loadHours * (aCuFt / totalCuFt || 0.5)) * 4) / 4 : Math.round(loadHours * 0.5 * 4) / 4
+              const loadBHours = Math.round((loadHours - loadAHours) * 4) / 4
+              const leg1 = legs[0]
+              const leg2 = legs[1]
+              const leg1DriveH = legRoutes[leg1.id]?.driveHours || leg1.driveHours || 0
+              const leg2DriveH = legRoutes[leg2.id]?.driveHours || leg2.driveHours || 0
+              const leg1Km = legRoutes[leg1.id]?.distanceKm || leg1.distanceKm || 0
+              const leg2Km = legRoutes[leg2.id]?.distanceKm || leg2.distanceKm || 0
+              const totalKm = leg1Km + leg2Km
+
+              // Build timeline from crew start
+              const startParse = (quote?.moveTime || '09:00').split(':')
+              const startH = Number(startParse[0]) + Number(startParse[1] || '0') / 60
+              function fmtT(h: number) {
+                const total = ((h % 24) + 24) % 24
+                const hr = Math.floor(total)
+                const mn = Math.round((total - hr) * 60)
+                const ampm = hr < 12 ? 'AM' : 'PM'
+                const hr12 = hr === 0 ? 12 : hr > 12 ? hr - 12 : hr
+                return `${hr12}:${mn.toString().padStart(2, '0')} ${ampm}`
+              }
+              const t0 = startH
+              const t1 = t0 + leg1DriveH              // arrive Person A
+              const t2 = t1 + loadAHours              // done loading A
+              const t3 = t2 + leg2DriveH              // drive leg 1 (A→B): arrive Person B
+              const t4 = t3 + loadBHours              // done loading B
+              const t5 = t4 + (leg2DriveH || 0.5)    // drive to destination (use leg2 drive for A→dest; approximation)
+              const t6 = t5 + unloadHours             // all done
+
+              const phases = [
+                { label: 'Crew departs yard', time: fmtT(t0), note: '' },
+                { label: `Arrive at ${jobFactors.personALabel || 'Person A'}'s`, time: fmtT(t1), note: `${leg1Km > 0 ? `${leg1Km} km · ` : ''}load ~${loadAHours}h` },
+                { label: `Loading ${jobFactors.personALabel || 'Person A'} done`, time: fmtT(t2), note: `${aCuFt > 0 ? `${aCuFt} cu ft` : ''}` },
+                { label: `Arrive at ${jobFactors.personBLabel || 'Person B'}'s`, time: fmtT(t3), note: `${leg1Km > 0 ? `drive · ` : ''}load ~${loadBHours}h` },
+                { label: `Loading ${jobFactors.personBLabel || 'Person B'} done`, time: fmtT(t4), note: `${bCuFt > 0 ? `${bCuFt} cu ft` : ''}` },
+                { label: 'Arrive at destination', time: fmtT(t5), note: `${leg2Km > 0 ? `${leg2Km} km · ` : ''}unload ~${unloadHours}h` },
+                { label: 'All done', time: fmtT(t6), note: `~${Math.round((t6 - t0) * 4) / 4}h total` },
+              ]
+
+              return (
+                <div className="border border-purple-200 rounded-[10px] overflow-hidden">
+                  <div className="px-3.5 py-2.5 bg-purple-50 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-purple-800">Conjoint Move Logistics</span>
+                    <span className="text-[10px] text-purple-600">{crewSize} movers · {truckNeeded} truck{truckNeeded > 1 ? 's' : ''} · {totalKm > 0 ? `${totalKm} km total` : 'add addresses for distance'}</span>
+                  </div>
+                  <div className="bg-white px-3.5 py-3 space-y-3">
+                    {/* Truck decision */}
+                    <div className={`rounded-[8px] px-3 py-2.5 text-[11px] font-semibold ${truckNeeded === 2 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                      {truckNeeded === 2
+                        ? `Two 26ft trucks — ${totalCuFt} cu ft total exceeds single-truck limit (${TRUCK_CAP} cu ft). Run trucks in parallel for same-day finish.`
+                        : `One 26ft truck fits both pickups — ${totalCuFt} cu ft of ${TRUCK_CAP} cu ft (${Math.round(totalCuFt / TRUCK_CAP * 100)}% full). Single crew does both stops in sequence.`
+                      }
+                    </div>
+                    {/* Day timeline */}
+                    <div>
+                      <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Day-of-Move Timeline</div>
+                      <div className="space-y-1.5">
+                        {phases.map((phase, i) => (
+                          <div key={i} className="flex items-start gap-2.5 text-[11px]">
+                            <div className="flex items-center gap-1.5 shrink-0 w-[72px]">
+                              <div className={`h-2 w-2 rounded-full shrink-0 ${i === 0 ? 'bg-slate-400' : i === phases.length - 1 ? 'bg-emerald-500' : 'bg-purple-400'}`} />
+                              <span className="font-mono font-semibold text-[var(--app-ink)]">{phase.time}</span>
+                            </div>
+                            <div className="min-w-0">
+                              <span className="font-medium text-[var(--app-ink)]">{phase.label}</span>
+                              {phase.note && <span className="ml-1.5 text-[10px] text-[var(--app-muted)]">{phase.note}</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Load split */}
+                    {(aCuFt > 0 || bCuFt > 0) && (
+                      <div className="rounded-[6px] border border-[var(--app-line)] p-2 space-y-1 text-[10px]">
+                        <div className="font-semibold text-[var(--app-muted)] uppercase tracking-wide">Volume by person</div>
+                        <div className="flex justify-between">
+                          <span className="text-blue-700">{jobFactors.personALabel || 'Person A'}</span>
+                          <span className="font-semibold">{aCuFt} cu ft · {personAItems.length} items</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-purple-700">{jobFactors.personBLabel || 'Person B'}</span>
+                          <span className="font-semibold">{bCuFt} cu ft · {personBItems.length} items</span>
+                        </div>
+                        <div className="flex justify-between border-t border-[var(--app-line)] pt-1 font-semibold">
+                          <span>Combined</span>
+                          <span>{totalCuFt} cu ft</span>
+                        </div>
+                      </div>
+                    )}
+                    <div className="text-[9px] text-[var(--app-muted)]">Timeline uses saved start time from quote. Driving times update when leg addresses are set.</div>
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* Draft Summary */}
             <div>
