@@ -5,6 +5,7 @@ import { canAccessSalesWorkspace, canReviseExistingQuote, validateQuotePricingPe
 import { scheduleQuoteExpiryFollowup, scheduleQuoteFollowup, scheduleQuoteViewedFollowup } from '@/lib/server/sales-automation'
 import { getSessionUser } from '@/lib/server/session'
 import { getSalesClient, getSalesLead, getSalesQuote, listFollowUpLogs, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
+import { sendRepAlertEmail, quoteViewedEmail, quoteAcceptedEmail } from '@/lib/server/internal-notifications'
 import type { QuoteChangeEntry } from '@/lib/types'
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
@@ -161,6 +162,21 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     if (savedQuote.leadId && savedQuote.viewedAt && !current.viewedAt) {
       void scheduleQuoteViewedFollowup(savedQuote.leadId, savedQuote.id)
       void scheduleQuoteExpiryFollowup(savedQuote.leadId, savedQuote.id)
+      // Notify team — customer opened quote
+      if (lead?.name) {
+        void sendRepAlertEmail(
+          `👀 ${lead.name} opened their quote`,
+          quoteViewedEmail(lead.name, savedQuote.leadId, savedQuote.number)
+        ).catch(() => {})
+      }
+    }
+
+    // Notify team — customer accepted quote
+    if (savedQuote.acceptedAt && !current.acceptedAt && lead?.name) {
+      void sendRepAlertEmail(
+        `✅ ${lead.name} accepted their quote — collect deposit`,
+        quoteAcceptedEmail(lead.name, savedQuote.leadId!, savedQuote.number, savedQuote.total)
+      ).catch(() => {})
     }
 
     return NextResponse.json({ quote: savedQuote, lead })

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { applyLeadMediaAnalysis, uploadLeadMediaAssets } from '@/lib/server/lead-media'
 import { getSalesLead, saveSalesLead } from '@/lib/server/sales-repository'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
+import { sendRepAlertEmail, surveyPhotosUploadedEmail } from '@/lib/server/internal-notifications'
 
 async function getLeadByToken(token: string) {
   const { url, headers } = requireSupabaseEnv()
@@ -52,6 +53,14 @@ export async function POST(
       source: 'survey',
     })
     await saveSalesLead(updatedLead)
+
+    // Notify team — customer uploaded photos
+    if (lead.name && assets.length > 0) {
+      void sendRepAlertEmail(
+        `📸 ${lead.name} uploaded ${assets.length} photo${assets.length !== 1 ? 's' : ''} — ${room}`,
+        surveyPhotosUploadedEmail(lead.name, lead.id, assets.length, room)
+      ).catch(() => {})
+    }
 
     return NextResponse.json({
       ok: true,

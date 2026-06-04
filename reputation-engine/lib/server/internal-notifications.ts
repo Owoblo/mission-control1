@@ -201,3 +201,113 @@ export function missedCallNotificationEmail(from: string, branchLabel: string, l
   </div>
 </div>`
 }
+
+// ─── Customer activity notifications ─────────────────────────────────────────
+
+const CRM_BASE = 'https://go.quote2move.com'
+
+function customerEventEmail(options: {
+  emoji: string
+  headline: string
+  leadName: string
+  leadId: string
+  detail: string
+  ctaLabel: string
+  ctaPath: string
+  extraRows?: Array<{ label: string; value: string }>
+  accentColor?: string
+}) {
+  const { emoji, headline, leadName, leadId, detail, ctaLabel, ctaPath, extraRows = [], accentColor = '#0f6a53' } = options
+  const crmLink = `${CRM_BASE}${ctaPath}`
+  return `
+<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#1a2744;">
+  <div style="background:${accentColor};padding:14px 20px;border-radius:8px 8px 0 0;">
+    <div style="color:white;font-weight:700;font-size:15px;">${emoji} ${escapeHtml(headline)}</div>
+    <div style="color:rgba(255,255,255,0.75);font-size:12px;margin-top:2px;">Lead: ${escapeHtml(leadName)}</div>
+  </div>
+  <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:20px;">
+    <div style="font-size:14px;color:#374151;line-height:1.7;margin-bottom:12px;">${escapeHtml(detail)}</div>
+    ${extraRows.map(r => `<div style="font-size:13px;color:#1a2744;margin-bottom:4px;"><strong>${escapeHtml(r.label)}:</strong> ${escapeHtml(r.value)}</div>`).join('')}
+    <div style="margin-top:16px;">
+      <a href="${crmLink}" style="background:${accentColor};color:white;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600;">${escapeHtml(ctaLabel)}</a>
+    </div>
+    <div style="margin-top:14px;font-size:11px;color:#94a3b8;">Saturn Star OS · ${new Date().toLocaleString('en-CA', { dateStyle: 'medium', timeStyle: 'short' })}</div>
+  </div>
+</div>`
+}
+
+export function quoteViewedEmail(leadName: string, leadId: string, quoteNumber: string) {
+  return customerEventEmail({
+    emoji: '👀',
+    headline: `${leadName} opened their quote`,
+    leadName,
+    leadId,
+    detail: `${leadName} just opened quote ${quoteNumber}. They're looking — now is the best time to follow up while it's fresh.`,
+    ctaLabel: 'Open Lead',
+    ctaPath: `/sales/leads/${leadId}`,
+    extraRows: [{ label: 'Quote', value: quoteNumber }],
+    accentColor: '#1a2744',
+  })
+}
+
+export function quoteAcceptedEmail(leadName: string, leadId: string, quoteNumber: string, total: number) {
+  return customerEventEmail({
+    emoji: '✅',
+    headline: `${leadName} accepted their quote!`,
+    leadName,
+    leadId,
+    detail: `${leadName} has accepted quote ${quoteNumber}. Collect the deposit to confirm the booking.`,
+    ctaLabel: 'Collect Deposit →',
+    ctaPath: `/sales/leads/${leadId}`,
+    extraRows: [
+      { label: 'Quote', value: quoteNumber },
+      { label: 'Total', value: `$${total.toFixed(2)}` },
+    ],
+    accentColor: '#0f6a53',
+  })
+}
+
+export function surveyPhotosUploadedEmail(leadName: string, leadId: string, photoCount: number, room: string) {
+  return customerEventEmail({
+    emoji: '📸',
+    headline: `${leadName} uploaded ${photoCount} photo${photoCount !== 1 ? 's' : ''}`,
+    leadName,
+    leadId,
+    detail: `${leadName} just uploaded ${photoCount} photo${photoCount !== 1 ? 's' : ''} from their survey link (room: ${room}). You can now scan these for inventory or use them to refine the estimate.`,
+    ctaLabel: 'View Photos',
+    ctaPath: `/sales/leads/${leadId}`,
+    extraRows: [{ label: 'Room', value: room }],
+    accentColor: '#7c3aed',
+  })
+}
+
+export function surveyCompletedEmail(leadName: string, leadId: string, photoCount: number) {
+  return customerEventEmail({
+    emoji: '📋',
+    headline: `${leadName} completed their photo survey`,
+    leadName,
+    leadId,
+    detail: `${leadName} submitted their survey${photoCount > 0 ? ` with ${photoCount} photo${photoCount !== 1 ? 's' : ''}` : ' (no photos uploaded)'}. You can now scan the photos for inventory and build their estimate.`,
+    ctaLabel: 'Scan & Build Estimate',
+    ctaPath: `/sales/leads/${leadId}`,
+    extraRows: photoCount > 0 ? [{ label: 'Photos', value: String(photoCount) }] : [],
+    accentColor: '#0f6a53',
+  })
+}
+
+export function depositReceivedEmail(leadName: string, leadId: string, amount: number, quoteNumber: string) {
+  return customerEventEmail({
+    emoji: '💰',
+    headline: `Deposit received from ${leadName}`,
+    leadName,
+    leadId,
+    detail: `${leadName} paid their deposit of $${amount.toFixed(2)} for quote ${quoteNumber}. The job is now booked — update the CRM and schedule the crew.`,
+    ctaLabel: 'View Booking',
+    ctaPath: `/sales/leads/${leadId}`,
+    extraRows: [
+      { label: 'Amount', value: `$${amount.toFixed(2)}` },
+      { label: 'Quote', value: quoteNumber },
+    ],
+    accentColor: '#0f6a53',
+  })
+}

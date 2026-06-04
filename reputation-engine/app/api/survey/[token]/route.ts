@@ -8,6 +8,7 @@ import {
 import { uid } from '@/lib/sales'
 import { getSalesLead, saveSalesLead } from '@/lib/server/sales-repository'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
+import { sendRepAlertEmail, surveyCompletedEmail } from '@/lib/server/internal-notifications'
 import type {
   CRMLead,
   InventoryVerification,
@@ -196,6 +197,15 @@ export async function POST(
     if (result.expired) return NextResponse.json({ error: 'This survey link has expired' }, { status: 410 })
 
     const updatedLead = await saveVerificationUpdate(result.lead, { markCompleted: true })
+
+    // Notify team — customer completed their survey
+    if (updatedLead.name && !result.lead.surveyCompletedAt) {
+      void sendRepAlertEmail(
+        `📋 ${updatedLead.name} completed their photo survey`,
+        surveyCompletedEmail(updatedLead.name, updatedLead.id, updatedLead.surveyPhotoCount || 0)
+      ).catch(() => {})
+    }
+
     return NextResponse.json({
       ok: true,
       verification: updatedLead.inventoryVerification,
