@@ -134,9 +134,10 @@ export function partnershipInboundNotificationEmail(options: {
 }
 
 export function smsNotificationEmail(from: string, body: string, leadId?: string | null) {
+  // Link directly to the SMS tab so clicking the email notification opens the thread immediately
   const crmLink = leadId
-    ? `https://mission-control1-reputation-engine.vercel.app/sales/leads/${leadId}`
-    : `https://mission-control1-reputation-engine.vercel.app/sales/leads`
+    ? `https://go.quote2move.com/sales/leads/${leadId}?tab=sms`
+    : `https://go.quote2move.com/sales/inbox`
   return `
 <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:24px">
   <div style="background:#1a2744;color:#f5a623;padding:12px 20px;border-radius:8px 8px 0 0;font-weight:700;font-size:15px">

@@ -2671,13 +2671,36 @@ export default function SalesLeadDetailPage() {
     }
   }, [])
 
-  // Poll SMS every 8 s while SMS tab is active
+  // Poll SMS every 8 s while SMS tab is active (fast refresh for live conversation)
   useEffect(() => {
     if (activeTab !== 'sms' || !lead?.phone) return
     void fetchLeadSms(lead.phone, true, lead.id)
     const interval = window.setInterval(() => void fetchLeadSms(lead!.phone!, false, lead!.id), 8_000)
     return () => clearInterval(interval)
   }, [activeTab, lead?.phone, fetchLeadSms])
+
+  // Background SMS poll every 30s regardless of active tab — catches inbound SMS while rep is on Timeline/Emails
+  const lastSeenSmsCount = useRef(0)
+  const [hasNewSms, setHasNewSms] = useState(false)
+  useEffect(() => {
+    if (activeTab === 'sms') { setHasNewSms(false); lastSeenSmsCount.current = smsMessages.filter(m => m.direction === 'inbound').length; return }
+    if (!lead?.phone) return
+    const interval = window.setInterval(async () => {
+      try {
+        const params = new URLSearchParams({ phone: lead.phone! })
+        if (lead.id) params.set('leadId', lead.id)
+        const res = await fetch(`/api/sales/sms-threads?${params.toString()}`)
+        if (!res.ok) return
+        const data = await res.json() as typeof smsMessages
+        const inboundCount = data.filter(m => m.direction === 'inbound').length
+        if (inboundCount > lastSeenSmsCount.current) {
+          setHasNewSms(true)
+          setSmsMessages(data)
+        }
+      } catch { /* non-fatal */ }
+    }, 30_000)
+    return () => clearInterval(interval)
+  }, [activeTab, lead?.phone, lead?.id, smsMessages])
 
   const leadPreferredBranchNumber = useMemo(() => {
     for (let index = smsMessages.length - 1; index >= 0; index -= 1) {
@@ -4711,6 +4734,7 @@ export default function SalesLeadDetailPage() {
                 channel: smsChannel,
                 preferredBranchLabel: leadPreferredBranchLabel,
                 areaRef: smsAreaRef,
+                hasNewMessage: hasNewSms,
               }}
               composer={{
                 open: composerOpen,

@@ -49,6 +49,7 @@ type Props = {
     channel: 'sms' | 'whatsapp'
     preferredBranchLabel: string
     areaRef: RefObject<HTMLDivElement>
+    hasNewMessage?: boolean
   }
   composer: {
     open: boolean
@@ -132,6 +133,9 @@ export function LeadCommunicationsPanel({
               <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold text-white" style={{ background: '#f5a623' }}>
                 {inboundSmsCount}
               </span>
+            ) : null}
+            {smsThread.hasNewMessage && activeTab !== 'sms' ? (
+              <span className="animate-pulse rounded-full bg-rose-500 px-1.5 py-0.5 text-[9px] font-bold text-white">New!</span>
             ) : null}
           </button>
         ) : null}
