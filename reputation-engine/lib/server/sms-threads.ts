@@ -1,4 +1,5 @@
 import {
+  DEFAULT_SATURN_BRANCH_NUMBER,
   getSaturnBranchLabel,
   getSaturnBusinessNumberFromSmsMessage,
   getSaturnTrackingLabel,
@@ -45,6 +46,13 @@ export interface SalesSmsThread {
 }
 
 const HEALTH_PROBE_SMS_DIGITS = '15550001111'
+
+type InboundLeadSmsThreadEntry = {
+  direction?: unknown
+  body?: unknown
+  messageSid?: unknown
+  at?: unknown
+}
 
 function digitsOnly(value?: string | null) {
   return (value || '').replace(/\D/g, '')
@@ -155,7 +163,71 @@ function getLatestInboundAt(messages: SmsMessageRecord[]) {
     .pop()
 }
 
+function readInboundLeadSmsThread(inbound: InboundLead) {
+  const raw = typeof inbound.raw_data === 'object' && inbound.raw_data ? inbound.raw_data as Record<string, unknown> : {}
+  return {
+    branchNumber: typeof raw.to === 'string' ? normalizePhone(raw.to) : '',
+    entries: Array.isArray(raw.smsThread) ? raw.smsThread as InboundLeadSmsThreadEntry[] : [],
+  }
+}
+
+export function mergeInboundLeadSmsThreadMessages(
+  messages: SmsMessageRecord[],
+  inboundLeads: InboundLead[] = [],
+  filterPhone?: string
+) {
+  const merged = [...messages]
+  const seenSids = new Set(
+    messages
+      .map(message => (message.twilio_sid || '').trim())
+      .filter(Boolean)
+  )
+  const seenFallbackIds = new Set(messages.map(message => message.id))
+  const filterDigits = digitsOnly(normalizePhone(filterPhone))
+
+  for (const inbound of inboundLeads) {
+    if (inbound.source !== 'twilio_sms') continue
+    const inboundPhone = normalizePhone(inbound.phone)
+    if (!inboundPhone) continue
+    if (filterDigits && digitsOnly(inboundPhone) !== filterDigits) continue
+
+    const { branchNumber, entries } = readInboundLeadSmsThread(inbound)
+    for (let index = 0; index < entries.length; index += 1) {
+      const entry = entries[index]
+      const body = typeof entry.body === 'string' ? entry.body.trim() : ''
+      if (!body) continue
+      const twilioSid = typeof entry.messageSid === 'string' ? entry.messageSid.trim() : ''
+      if (twilioSid && seenSids.has(twilioSid)) continue
+
+      const createdAt = typeof entry.at === 'string' && entry.at
+        ? entry.at
+        : inbound.created_at
+      const fallbackId = `inbound-lead-${inbound.id}-${twilioSid || index}`
+      if (seenFallbackIds.has(fallbackId)) continue
+
+      if (twilioSid) seenSids.add(twilioSid)
+      seenFallbackIds.add(fallbackId)
+      const direction: SmsMessageRecord['direction'] = entry.direction === 'outbound' ? 'outbound' : 'inbound'
+      const businessNumber = branchNumber || DEFAULT_SATURN_BRANCH_NUMBER
+      merged.push({
+        id: fallbackId,
+        from_number: direction === 'inbound' ? inboundPhone : businessNumber,
+        to_number: direction === 'inbound' ? businessNumber : inboundPhone,
+        body,
+        direction,
+        lead_id: null,
+        twilio_sid: twilioSid || null,
+        created_at: createdAt,
+      })
+    }
+  }
+
+  merged.sort((left, right) => left.created_at.localeCompare(right.created_at))
+  return merged
+}
+
 export function buildSmsThreads(messages: SmsMessageRecord[], leads: CRMLead[], inboundLeads: InboundLead[] = []) {
+  messages = mergeInboundLeadSmsThreadMessages(messages, inboundLeads)
   const leadsById = new Map(leads.map(lead => [lead.id, lead]))
   const leadsByPhone = buildLeadPhoneIndex(leads)
   const inboundByPhone = new Map<string, InboundLead>()
