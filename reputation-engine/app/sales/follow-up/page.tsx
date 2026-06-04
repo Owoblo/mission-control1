@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { fetchSalesOverview, saveSalesFollowUp, updateSalesLead } from '@/lib/sales-api'
+import { deleteSalesLead, fetchSalesOverview, saveSalesFollowUp, updateSalesLead } from '@/lib/sales-api'
 import { FOLLOW_UP_STATUSES, formatDate, formatMoney, isClosedLeadStage } from '@/lib/sales'
 import type { CRMLead, CRMQuote, LeadFollowUpStatus } from '@/lib/types'
 
@@ -456,6 +456,54 @@ export default function FollowUpWallPage() {
   const [noteTarget, setNoteTarget] = useState<CRMLead | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | LeadFollowUpStatus>('all')
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkBusy, setBulkBusy] = useState(false)
+
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(filtered.map(l => l.id)))
+    }
+  }
+
+  async function bulkDelete() {
+    if (!confirm(`Delete ${selectedIds.size} lead${selectedIds.size !== 1 ? 's' : ''}? This cannot be undone.`)) return
+    setBulkBusy(true)
+    const ids = Array.from(selectedIds)
+    await Promise.all(ids.map(id => deleteSalesLead(id).catch(() => {})))
+    setLeads(prev => prev.filter(l => !selectedIds.has(l.id)))
+    setSelectedIds(new Set())
+    setBulkBusy(false)
+  }
+
+  async function bulkMarkLost() {
+    if (!confirm(`Mark ${selectedIds.size} lead${selectedIds.size !== 1 ? 's' : ''} as lost?`)) return
+    setBulkBusy(true)
+    const ids = Array.from(selectedIds)
+    await Promise.all(ids.map(id => updateSalesLead(id, { stage: 'lost' }).catch(() => {})))
+    setLeads(prev => prev.map(l => selectedIds.has(l.id) ? { ...l, stage: 'lost' as const } : l))
+    setSelectedIds(new Set())
+    setBulkBusy(false)
+  }
+
+  async function bulkSnooze() {
+    setBulkBusy(true)
+    const snoozeDate = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10)
+    const ids = Array.from(selectedIds)
+    await Promise.all(ids.map(id => updateSalesLead(id, { followUpDate: snoozeDate }).catch(() => {})))
+    setLeads(prev => prev.map(l => selectedIds.has(l.id) ? { ...l, followUpDate: snoozeDate } : l))
+    setSelectedIds(new Set())
+    setBulkBusy(false)
+  }
 
   async function load() {
     try {
@@ -642,6 +690,44 @@ export default function FollowUpWallPage() {
         })}
       </div>
 
+      {/* Bulk select toolbar */}
+      {filtered.length > 0 && !loading && (
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={selectedIds.size === filtered.length && filtered.length > 0}
+              ref={el => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < filtered.length }}
+              onChange={toggleSelectAll}
+              className="h-4 w-4 rounded accent-[var(--app-accent)]"
+            />
+            <span className="text-xs text-[var(--app-muted)]">
+              {selectedIds.size === 0 ? 'Select all' : `${selectedIds.size} selected`}
+            </span>
+          </label>
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-2 ml-2">
+              <button onClick={() => void bulkSnooze()} disabled={bulkBusy}
+                className="rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:bg-[var(--app-bg)] transition disabled:opacity-50">
+                ⏰ Snooze 7 days
+              </button>
+              <button onClick={() => void bulkMarkLost()} disabled={bulkBusy}
+                className="rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--app-muted)] hover:text-[var(--app-ink)] transition disabled:opacity-50">
+                Mark Lost
+              </button>
+              <button onClick={() => void bulkDelete()} disabled={bulkBusy}
+                className="rounded-[6px] border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition disabled:opacity-50">
+                {bulkBusy ? 'Working…' : `🗑 Delete ${selectedIds.size}`}
+              </button>
+              <button onClick={() => setSelectedIds(new Set())}
+                className="text-xs text-[var(--app-muted)] hover:text-[var(--app-ink)] transition">
+                Clear
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Lead grid */}
       {loading ? (
         <div className="text-center py-16 text-sm text-[var(--app-muted)]">Loading leads...</div>
@@ -654,7 +740,20 @@ export default function FollowUpWallPage() {
         <div className="grid gap-3 md:grid-cols-2">
           {filtered.map(lead => {
             const leadQuote = quotes.find(q => q.leadId === lead.id) || null
-            return <LeadCard key={lead.id} lead={lead} quote={leadQuote} onNote={setNoteTarget} />
+            const isSelected = selectedIds.has(lead.id)
+            return (
+              <div key={lead.id} className="relative">
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => toggleSelect(lead.id)}
+                  className="absolute left-3 top-3 z-10 h-4 w-4 cursor-pointer rounded accent-[var(--app-accent)]"
+                />
+                <div className={`transition ${isSelected ? 'ring-2 ring-[var(--app-accent)] ring-offset-1 rounded-[14px]' : ''}`}>
+                  <LeadCard lead={lead} quote={leadQuote} onNote={setNoteTarget} />
+                </div>
+              </div>
+            )
           })}
         </div>
       )}

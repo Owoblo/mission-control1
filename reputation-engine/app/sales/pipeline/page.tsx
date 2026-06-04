@@ -132,6 +132,8 @@ function SalesPipelineContent() {
   const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ lead: CRMLead; typed: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkBusy, setBulkBusy] = useState(false)
 
   // ── View & filters ──
   const [viewMode, setViewMode] = useState<'board' | 'list'>('list')
@@ -627,13 +629,63 @@ function SalesPipelineContent() {
 
       {error ? <div className="rounded-[8px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
 
+      {/* Bulk action toolbar */}
+      {!loading && visibleLeads.length > 0 && (
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={selectedIds.size === visibleLeads.length && visibleLeads.length > 0}
+              ref={el => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < visibleLeads.length }}
+              onChange={() => setSelectedIds(selectedIds.size === visibleLeads.length ? new Set() : new Set(visibleLeads.map(l => l.id)))}
+              className="h-4 w-4 rounded accent-[var(--app-accent)]"
+            />
+            <span className="text-xs text-[var(--app-muted)]">
+              {selectedIds.size === 0 ? 'Select all' : `${selectedIds.size} selected`}
+            </span>
+          </label>
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-2 ml-2">
+              <button
+                disabled={bulkBusy}
+                onClick={async () => {
+                  if (!confirm(`Delete ${selectedIds.size} lead${selectedIds.size !== 1 ? 's' : ''}? This cannot be undone.`)) return
+                  setBulkBusy(true)
+                  await Promise.all(Array.from(selectedIds).map(id => deleteSalesLead(id).catch(() => {})))
+                  setLeads(prev => prev.filter(l => !selectedIds.has(l.id)))
+                  setSelectedIds(new Set())
+                  setBulkBusy(false)
+                }}
+                className="rounded-[6px] border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition disabled:opacity-50">
+                {bulkBusy ? 'Working…' : `🗑 Delete ${selectedIds.size}`}
+              </button>
+              <button
+                disabled={bulkBusy}
+                onClick={async () => {
+                  if (!confirm(`Mark ${selectedIds.size} lead${selectedIds.size !== 1 ? 's' : ''} as lost?`)) return
+                  setBulkBusy(true)
+                  await Promise.all(Array.from(selectedIds).map(id => updateSalesLead(id, { stage: 'lost' }).catch(() => {})))
+                  setLeads(prev => prev.map(l => selectedIds.has(l.id) ? { ...l, stage: 'lost' as const } : l))
+                  setSelectedIds(new Set())
+                  setBulkBusy(false)
+                }}
+                className="rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--app-muted)] hover:text-[var(--app-ink)] transition disabled:opacity-50">
+                Mark Lost
+              </button>
+              <button onClick={() => setSelectedIds(new Set())} className="text-xs text-[var(--app-muted)] hover:text-[var(--app-ink)] transition">Clear</button>
+            </div>
+          )}
+        </div>
+      )}
+
       {loading ? (
         <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] px-5 py-16 text-center text-sm text-[var(--app-muted)]">Loading pipeline…</div>
       ) : viewMode === 'list' ? (
         <>
           {/* ── DESKTOP LIST TABLE ── */}
           <div className="hidden rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] md:block overflow-hidden">
-            <div className="grid grid-cols-[minmax(180px,1.8fr)_130px_200px_100px_180px_110px_110px_90px] gap-0 border-b border-[var(--app-line)] bg-[var(--app-wash)] px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">
+            <div className="grid grid-cols-[28px_minmax(180px,1.8fr)_130px_200px_100px_180px_110px_110px_90px] gap-0 border-b border-[var(--app-line)] bg-[var(--app-wash)] px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">
+              <div />
               <div>Lead</div>
               <div>Stage</div>
               <div>Next Action</div>
@@ -650,14 +702,18 @@ function SalesPipelineContent() {
               const urgency = getUrgency(lead)
               const stageColor = STAGE_COLORS[lead.stage] || 'bg-gray-50 text-gray-600'
               const lastActivity = lead.lastTouchedAt || lead.createdAt
+              const isSelected = selectedIds.has(lead.id)
 
               return (
                 <div
                   key={lead.id}
-                  className={`group relative grid grid-cols-[minmax(180px,1.8fr)_130px_200px_100px_180px_110px_110px_90px] gap-0 border-b border-[var(--app-line)] px-5 py-3.5 text-sm transition cursor-pointer
-                    ${guidance?.action.goldenMoment ? 'bg-orange-50/80 shadow-[inset_0_0_0_1px_rgba(249,115,22,0.2)] hover:bg-orange-50' : urgency === 'overdue' ? 'bg-red-50/40 hover:bg-red-50' : urgency === 'cold' ? 'bg-amber-50/30 hover:bg-amber-50/60' : 'hover:bg-[var(--app-bg)]'}`}
+                  className={`group relative grid grid-cols-[28px_minmax(180px,1.8fr)_130px_200px_100px_180px_110px_110px_90px] gap-0 border-b border-[var(--app-line)] px-5 py-3.5 text-sm transition cursor-pointer
+                    ${isSelected ? 'bg-[var(--app-accent-soft)]' : guidance?.action.goldenMoment ? 'bg-orange-50/80 shadow-[inset_0_0_0_1px_rgba(249,115,22,0.2)] hover:bg-orange-50' : urgency === 'overdue' ? 'bg-red-50/40 hover:bg-red-50' : urgency === 'cold' ? 'bg-amber-50/30 hover:bg-amber-50/60' : 'hover:bg-[var(--app-bg)]'}`}
                   onClick={() => router.push(`/sales/leads/${lead.id}`)}
                 >
+                  <div className="flex items-center" onClick={e => { e.stopPropagation(); setSelectedIds(prev => { const n = new Set(prev); n.has(lead.id) ? n.delete(lead.id) : n.add(lead.id); return n }) }}>
+                    <input type="checkbox" checked={isSelected} onChange={() => {}} className="h-4 w-4 rounded accent-[var(--app-accent)] cursor-pointer" />
+                  </div>
                   {/* Urgency stripe */}
                   {(urgency !== 'ok' || guidance?.action.goldenMoment) && (
                     <div className={`absolute left-0 top-0 bottom-0 w-1 ${guidance?.action.goldenMoment ? 'bg-orange-500' : urgency === 'overdue' ? 'bg-red-400' : 'bg-amber-400'}`} />
