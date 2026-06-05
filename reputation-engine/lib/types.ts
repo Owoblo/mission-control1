@@ -506,6 +506,14 @@ export interface JobFactors {
   personBOriginHasElevator?: boolean
   personBOriginElevatorReserved?: boolean
   personBOriginParkingOk?: boolean
+
+  // Planning constraints used by move logistics intelligence
+  destinationKeysTime?: string
+  earliestLoadTime?: string
+  latestFinishTime?: string
+  planningScenario?: 'standard' | 'conjoint' | 'multi_stop' | 'storage_staged' | 'labor_only' | 'long_distance' | 'commercial' | 'junk_addon'
+  preferredOperatingPlan?: 'one_truck_sequence' | 'one_truck_shuttle' | 'two_trucks_parallel' | 'split_day_storage' | 'needs_review'
+  moveConstraintNotes?: string
 }
 
 export interface LeadAttribution {

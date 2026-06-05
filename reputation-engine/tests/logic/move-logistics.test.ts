@@ -71,3 +71,35 @@ test('move logistics blocks final confidence until leg routes are calculated', (
   assert.equal(plan.recommendation, 'needs_route_data')
   assert.equal(plan.missingRouteCount, 1)
 })
+
+test('move logistics recommends a later start when destination keys are late', () => {
+  const plan = deriveMoveLogisticsPlan({
+    legs: conjointLegs,
+    inventory: [item('Sofa', 200), item('Bedroom set', 250, 'person_b')],
+    loadHours: 3,
+    unloadHours: 2,
+    totalHours: 6.5,
+    startTime: '09:00',
+    destinationKeysTime: '16:00',
+  })
+
+  assert.equal(plan.constraintFit.status, 'adjust_start')
+  assert.equal(plan.constraintFit.recommendedStartTime, '11:30')
+  assert.match(plan.constraintFit.note, /Start around 11:30/)
+})
+
+test('move logistics escalates when timing constraints make the current plan late', () => {
+  const plan = deriveMoveLogisticsPlan({
+    legs: conjointLegs,
+    inventory: [item('House A load', 700), item('House B load', 650, 'person_b')],
+    loadHours: 4,
+    unloadHours: 2.5,
+    totalHours: 8,
+    startTime: '09:00',
+    latestFinishTime: '15:00',
+  })
+
+  assert.equal(plan.constraintFit.status, 'runs_late')
+  assert.equal(plan.recommendation, 'two_truck_parallel')
+  assert.match(plan.riskNotes.join(' '), /time constraint/)
+})

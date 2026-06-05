@@ -694,6 +694,20 @@ export function EstimateDraftModal({
       if (jf.personBOriginHasElevator !== undefined) next.personBOriginHasElevator = jf.personBOriginHasElevator
       if (jf.personBOriginElevatorReserved !== undefined) next.personBOriginElevatorReserved = jf.personBOriginElevatorReserved
       if (jf.personBOriginParkingOk !== undefined) next.personBOriginParkingOk = jf.personBOriginParkingOk
+      if (r.scenarioType) next.planningScenario = r.scenarioType
+      if (r.recommendations?.setup) next.preferredOperatingPlan = r.recommendations.setup
+      const keysConstraint = r.constraints?.find(c => c.type === 'keys' || /key/i.test(c.label))
+      const latestConstraint = r.constraints?.find(c => c.type === 'closing' || c.type === 'time_window' || /finish|closing|out by/i.test(`${c.label} ${c.impact || ''}`))
+      const earliestConstraint = r.constraints?.find(c => /start|load|elevator/i.test(`${c.label} ${c.impact || ''}`) && c.time)
+      if (keysConstraint?.time) next.destinationKeysTime = keysConstraint.time
+      if (latestConstraint?.time) next.latestFinishTime = latestConstraint.time
+      if (earliestConstraint?.time) next.earliestLoadTime = earliestConstraint.time
+      if (r.constraints?.length) {
+        next.moveConstraintNotes = r.constraints
+          .map(c => [c.label, c.appliesTo, c.date, c.time, c.impact].filter(Boolean).join(' · '))
+          .filter(Boolean)
+          .join('\n')
+      }
       onJobFactorsChange(next)
     }
 
@@ -5062,6 +5076,12 @@ export function EstimateDraftModal({
                 distanceKm: legRoutes[leg.id]?.distanceKm || leg.distanceKm,
                 driveHours: legRoutes[leg.id]?.driveHours || leg.driveHours,
               }))
+              const personAItems = inventory.filter(item => item.included !== false && item.owner !== 'person_b')
+              const personBItems = inventory.filter(item => item.included !== false && item.owner === 'person_b')
+              const personAVolume = Math.round(personAItems.reduce((sum, item) => sum + Number(item.cubicFeet || 0) * Math.max(1, Number(item.qty || 1)), 0))
+              const personBVolume = Math.round(personBItems.reduce((sum, item) => sum + Number(item.cubicFeet || 0) * Math.max(1, Number(item.qty || 1)), 0))
+              const personALabel = jobFactors.personALabel || 'Person A'
+              const personBLabel = jobFactors.personBLabel || 'Person B'
               const plan = deriveMoveLogisticsPlan({
                 legs: plannedLegs,
                 inventory,
@@ -5071,10 +5091,34 @@ export function EstimateDraftModal({
                 totalHours: pricingBreakdown?.totalHours,
                 crewSize: pricingBreakdown?.crewSize || 3,
                 startTime: quote?.moveTime || '09:00',
+                destinationKeysTime: jobFactors.destinationKeysTime,
+                earliestLoadTime: jobFactors.earliestLoadTime,
+                latestFinishTime: jobFactors.latestFinishTime,
+                pickupContexts: [
+                  {
+                    id: 'person_a',
+                    label: personALabel,
+                    cubicFeet: personAVolume,
+                    itemCount: personAItems.length,
+                    address: plannedLegs[0]?.originAddress || originAddress || lead.originAddress,
+                    inventoryPending: personAVolume <= 0,
+                  },
+                  {
+                    id: 'person_b',
+                    label: personBLabel,
+                    cubicFeet: personBVolume,
+                    itemCount: personBItems.length,
+                    address: plannedLegs[1]?.originAddress || plannedLegs[0]?.destAddress,
+                    accessNotes: [
+                      jobFactors.personBOriginFloors ? `${jobFactors.personBOriginFloors} floors` : '',
+                      jobFactors.personBOriginHasElevator ? 'elevator' : '',
+                      jobFactors.personBOriginParkingOk === false ? 'parking risk' : '',
+                    ].filter(Boolean).join(' · '),
+                    inventoryPending: personBVolume <= 0,
+                  },
+                ],
               })
               const totalKm = plannedLegs.reduce((sum, leg) => sum + Math.round(Number(leg.distanceKm || leg.billableDistanceKm || 0)), 0)
-              const personALabel = jobFactors.personALabel || 'Person A'
-              const personBLabel = jobFactors.personBLabel || 'Person B'
 
               return (
                 <div className="border border-purple-200 rounded-[10px] overflow-hidden">
@@ -5106,6 +5150,29 @@ export function EstimateDraftModal({
                         ))}
                       </div>
                     )}
+                    {(plan.constraintFit.destinationReadyTime || plan.constraintFit.latestFinishTime || plan.constraintFit.status !== 'clear') && (
+                      <div className={`rounded-[8px] border px-3 py-2 text-[10px] ${
+                        plan.constraintFit.status === 'runs_late' || plan.constraintFit.status === 'needs_review'
+                          ? 'border-rose-200 bg-rose-50 text-rose-800'
+                          : plan.constraintFit.status === 'adjust_start'
+                            ? 'border-amber-200 bg-amber-50 text-amber-800'
+                            : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                      }`}>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold">Timing intelligence</span>
+                          {plan.constraintFit.recommendedStartTime && (
+                            <span className="rounded-full bg-white/70 px-2 py-0.5 font-semibold">Start {plan.constraintFit.recommendedStartTime}</span>
+                          )}
+                        </div>
+                        <div className="mt-1">{plan.constraintFit.note}</div>
+                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[9px] opacity-80">
+                          {plan.constraintFit.destinationReadyTime && <span>Keys: {plan.constraintFit.destinationReadyTime}</span>}
+                          {plan.constraintFit.finalArrivalTime && <span>Arrive destination: {plan.constraintFit.finalArrivalTime}</span>}
+                          {plan.constraintFit.finishTime && <span>Finish: {plan.constraintFit.finishTime}</span>}
+                          {plan.constraintFit.latestFinishTime && <span>Latest finish: {plan.constraintFit.latestFinishTime}</span>}
+                        </div>
+                      </div>
+                    )}
                     <div>
                       <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Operating options</div>
                       <div className="grid gap-2">
@@ -5114,7 +5181,7 @@ export function EstimateDraftModal({
                             key={option.id}
                             className={`rounded-[8px] border px-3 py-2 ${
                               option.viable
-                                ? option.id === plan.recommendation
+                                ? option.id === (plan.recommendation === 'two_truck_parallel' ? 'two_truck_parallel' : plan.recommendation)
                                   ? 'border-emerald-300 bg-emerald-50'
                                   : 'border-[var(--app-line)] bg-white'
                                 : 'border-slate-200 bg-slate-50 opacity-75'

@@ -1,6 +1,26 @@
 import type { InventoryItem, QuoteLeg } from './types'
 
-export type LogisticsPlanRecommendation = 'one_truck_sequence' | 'two_truck_parallel' | 'split_day' | 'needs_route_data'
+export type LogisticsPlanRecommendation = 'one_truck_sequence' | 'one_truck_shuttle' | 'two_truck_parallel' | 'split_day' | 'needs_route_data'
+
+export interface LogisticsPickupContext {
+  id: string
+  label: string
+  cubicFeet: number
+  itemCount: number
+  address?: string
+  accessNotes?: string
+  inventoryPending?: boolean
+  timingConstraint?: string
+}
+
+export interface LogisticsTimeConstraint {
+  type: 'keys' | 'closing' | 'elevator' | 'parking' | 'date' | 'time_window' | 'building_access' | 'storage' | 'other'
+  label: string
+  time?: string
+  date?: string
+  appliesTo?: string
+  impact?: string
+}
 
 export interface LogisticsPlanInput {
   legs: QuoteLeg[]
@@ -13,6 +33,11 @@ export interface LogisticsPlanInput {
   startTime?: string
   singleTruckCapacity?: number
   maxSameDayHours?: number
+  pickupContexts?: LogisticsPickupContext[]
+  timeConstraints?: LogisticsTimeConstraint[]
+  destinationKeysTime?: string
+  earliestLoadTime?: string
+  latestFinishTime?: string
 }
 
 export interface LogisticsPhase {
@@ -36,6 +61,16 @@ export interface LogisticsPlan {
   salesTalkingPoints: string[]
   options: LogisticsOption[]
   phases: LogisticsPhase[]
+  pickupContexts: LogisticsPickupContext[]
+  constraintFit: {
+    destinationReadyTime?: string
+    finalArrivalTime?: string
+    recommendedStartTime?: string
+    latestFinishTime?: string
+    finishTime?: string
+    status: 'clear' | 'adjust_start' | 'wait_expected' | 'runs_late' | 'needs_review'
+    note: string
+  }
   volumeSplit: {
     personA: { cubicFeet: number; itemCount: number }
     personB: { cubicFeet: number; itemCount: number }
@@ -68,6 +103,27 @@ function itemVolume(item: InventoryItem) {
 function parseStartHour(startTime?: string) {
   const [hour, minute] = (startTime || '09:00').split(':')
   return Number(hour || 9) + Number(minute || 0) / 60
+}
+
+function parseClockHour(value?: string) {
+  if (!value) return null
+  const match = value.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i)
+  if (!match) return null
+  let hour = Number(match[1])
+  const minute = Number(match[2] || 0)
+  const ampm = match[3]?.toLowerCase()
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null
+  if (ampm === 'pm' && hour < 12) hour += 12
+  if (ampm === 'am' && hour === 12) hour = 0
+  if (hour > 23 || minute > 59) return null
+  return hour + minute / 60
+}
+
+function formatHourAsTime(hourValue: number) {
+  const normalized = ((hourValue % 24) + 24) % 24
+  const hour = Math.floor(normalized)
+  const minute = Math.round((normalized - hour) * 60)
+  return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
 }
 
 function formatClock(startHour: number, offsetHours: number) {
@@ -110,16 +166,71 @@ export function deriveMoveLogisticsPlan(input: LogisticsPlanInput): LogisticsPla
   const totalHours = roundQuarterHour(input.totalHours || loadHours + unloadHours + legs.reduce((sum, leg) => sum + routeDriveHours(leg), 0))
   const truckCount = totalCubicFeet > singleTruckCapacity ? Math.ceil(totalCubicFeet / singleTruckCapacity) : 1
   const startHour = parseStartHour(input.startTime)
+  const pickupContexts = input.pickupContexts?.length
+    ? input.pickupContexts
+    : [
+        { id: 'person_a', label: 'Person A', cubicFeet: personACubicFeet, itemCount: personAItems.length, inventoryPending: personACubicFeet === 0 },
+        ...(personBItems.length > 0 || legs.length >= 2
+          ? [{ id: 'person_b', label: 'Person B', cubicFeet: personBCubicFeet, itemCount: personBItems.length, inventoryPending: personBCubicFeet === 0 }]
+          : []),
+      ]
+  const pendingContextCount = pickupContexts.filter(context => context.inventoryPending || context.cubicFeet <= 0).length
 
   let recommendation: LogisticsPlanRecommendation = 'one_truck_sequence'
   if (missingRouteCount > 0) recommendation = 'needs_route_data'
-  else if (totalHours > maxSameDayHours || truckCount > 1) recommendation = totalHours >= 12 ? 'split_day' : 'two_truck_parallel'
+  else if (totalHours > maxSameDayHours) recommendation = totalHours >= 12 ? 'split_day' : 'two_truck_parallel'
+  else if (truckCount > 1) recommendation = totalHours + 1.5 <= maxSameDayHours ? 'one_truck_shuttle' : 'two_truck_parallel'
+
+  const destinationReadyHour = parseClockHour(input.destinationKeysTime)
+  const latestFinishHour = parseClockHour(input.latestFinishTime)
+  const finalArrivalOffset = Math.max(0, totalHours - unloadHours)
+  const finalArrivalHour = startHour + finalArrivalOffset
+  const finishHour = startHour + totalHours
+  const recommendedStartHour = destinationReadyHour !== null
+    ? Math.max(parseClockHour(input.earliestLoadTime) ?? 8, destinationReadyHour - finalArrivalOffset)
+    : startHour
+  const startsTooEarlyForKeys = destinationReadyHour !== null && finalArrivalHour < destinationReadyHour - 0.5
+  const missesKeys = destinationReadyHour !== null && finalArrivalHour > destinationReadyHour + 0.5
+  const missesLatestFinish = latestFinishHour !== null && finishHour > latestFinishHour
+  const constraintFit: LogisticsPlan['constraintFit'] = {
+    destinationReadyTime: input.destinationKeysTime,
+    finalArrivalTime: formatClock(0, finalArrivalHour),
+    recommendedStartTime: destinationReadyHour !== null ? formatHourAsTime(recommendedStartHour) : undefined,
+    latestFinishTime: input.latestFinishTime,
+    finishTime: formatClock(0, finishHour),
+    status: missingRouteCount > 0
+      ? 'needs_review'
+      : missesLatestFinish
+        ? 'runs_late'
+        : startsTooEarlyForKeys
+          ? 'adjust_start'
+          : missesKeys
+            ? 'runs_late'
+            : destinationReadyHour !== null
+              ? 'clear'
+              : 'clear',
+    note: '',
+  }
+  constraintFit.note =
+    constraintFit.status === 'needs_review'
+      ? 'Add route data before trusting key-time alignment.'
+      : constraintFit.status === 'runs_late'
+        ? 'Current operating window conflicts with the stated time constraint; compare parallel trucks or split-day options.'
+        : constraintFit.status === 'adjust_start'
+          ? `Start around ${constraintFit.recommendedStartTime} so the crew reaches the destination closer to key time.`
+          : destinationReadyHour !== null
+            ? 'Current timing lines up with the destination key window.'
+            : 'No key-time constraint captured yet.'
+
+  if (constraintFit.status === 'runs_late') recommendation = pickupContexts.length >= 2 ? 'two_truck_parallel' : 'split_day'
 
   const label =
     recommendation === 'needs_route_data'
       ? 'Route details needed'
       : recommendation === 'split_day'
         ? 'Split-day recommended'
+        : recommendation === 'one_truck_shuttle'
+          ? 'One-truck shuttle'
         : recommendation === 'two_truck_parallel'
           ? 'Two-truck / parallel plan'
           : 'One-truck sequence'
@@ -129,11 +240,14 @@ export function deriveMoveLogisticsPlan(input: LogisticsPlanInput): LogisticsPla
   if (truckCount > 1) riskNotes.push(`Combined volume needs ${truckCount} trucks at ${singleTruckCapacity.toLocaleString()} cu ft capacity each.`)
   if (totalHours > maxSameDayHours) riskNotes.push(`Projected ${totalHours}h day may finish late; discuss a split-day plan.`)
   if (missingRouteCount > 0) riskNotes.push(`${missingRouteCount} leg${missingRouteCount === 1 ? '' : 's'} still need route calculation.`)
-  if (personBCubicFeet === 0 && personAItems.length > 0 && legs.length >= 2) riskNotes.push('Second pickup has no tagged inventory yet; volume split may be wrong.')
+  if (pendingContextCount > 0) riskNotes.push(`${pendingContextCount} pickup context${pendingContextCount === 1 ? '' : 's'} still need inventory confirmation; pricing and margin are provisional.`)
+  if (constraintFit.status === 'adjust_start' || constraintFit.status === 'runs_late') riskNotes.push(constraintFit.note)
 
   const salesTalkingPoints = [
     recommendation === 'split_day'
       ? 'Preferred plan is to split the move so the crew is not finishing too late.'
+      : recommendation === 'one_truck_shuttle'
+        ? 'Preferred plan is one truck with an unload-and-return shuttle because the combined shipment may exceed one truck.'
       : recommendation === 'two_truck_parallel'
         ? 'Preferred plan is to use enough truck capacity so both households fit without forcing a late finish.'
         : recommendation === 'needs_route_data'
@@ -176,8 +290,8 @@ export function deriveMoveLogisticsPlan(input: LogisticsPlanInput): LogisticsPla
       capacityUsedPct,
       costLevel: 'base',
       summary: 'One crew loads each pickup in order, then delivers everything together.',
-      tradeoff: capacityUsedPct > 100 ? 'Not viable unless inventory is reduced or the truck makes an extra unload trip.' : 'Lowest operating cost when both loads fit.',
-      viable: missingRouteCount === 0 && capacityUsedPct <= 100 && totalHours <= maxSameDayHours,
+      tradeoff: capacityUsedPct > 100 ? 'Not viable unless inventory is reduced or the truck makes an extra unload trip.' : constraintFit.status === 'adjust_start' ? `Best if crew starts around ${constraintFit.recommendedStartTime}.` : 'Lowest operating cost when both loads fit.',
+      viable: missingRouteCount === 0 && capacityUsedPct <= 100 && totalHours <= maxSameDayHours && constraintFit.status !== 'runs_late',
     },
     {
       id: 'one_truck_shuttle',
@@ -191,7 +305,7 @@ export function deriveMoveLogisticsPlan(input: LogisticsPlanInput): LogisticsPla
       costLevel: 'higher',
       summary: 'Crew fills the truck, unloads at the final destination, then returns for the remaining household.',
       tradeoff: 'Protects against over-capacity, but adds extra drive/unload time and can run late.',
-      viable: missingRouteCount === 0 && totalCubicFeet > singleTruckCapacity && shuttleHours <= maxSameDayHours + 2,
+      viable: missingRouteCount === 0 && totalCubicFeet > singleTruckCapacity && shuttleHours <= maxSameDayHours + 2 && constraintFit.status !== 'runs_late',
     },
     {
       id: 'two_truck_parallel',
@@ -205,7 +319,7 @@ export function deriveMoveLogisticsPlan(input: LogisticsPlanInput): LogisticsPla
       costLevel: 'highest',
       summary: 'Separate crews/trucks load each pickup at the same time and meet at the destination.',
       tradeoff: 'Fastest same-day option, with higher labor and truck cost.',
-      viable: missingRouteCount === 0 && personACubicFeet > 0 && personBCubicFeet > 0,
+      viable: missingRouteCount === 0 && pickupContexts.filter(context => context.cubicFeet > 0).length >= 2,
     },
     {
       id: 'split_day',
@@ -246,6 +360,8 @@ export function deriveMoveLogisticsPlan(input: LogisticsPlanInput): LogisticsPla
     riskNotes,
     salesTalkingPoints,
     options,
+    pickupContexts,
+    constraintFit,
     phases: phaseSpecs.map(phase => ({
       label: phase.label,
       offsetHours: roundQuarterHour(phase.offset),
