@@ -34,11 +34,27 @@ export interface LogisticsPlan {
   missingRouteCount: number
   riskNotes: string[]
   salesTalkingPoints: string[]
+  options: LogisticsOption[]
   phases: LogisticsPhase[]
   volumeSplit: {
     personA: { cubicFeet: number; itemCount: number }
     personB: { cubicFeet: number; itemCount: number }
   }
+}
+
+export interface LogisticsOption {
+  id: 'one_truck_sequence' | 'one_truck_shuttle' | 'two_truck_parallel' | 'split_day'
+  label: string
+  truckCount: number
+  crewCount: number
+  dayCount: number
+  estimatedHours: number
+  finishTime: string
+  capacityUsedPct: number
+  costLevel: 'base' | 'higher' | 'highest'
+  summary: string
+  tradeoff: string
+  viable: boolean
 }
 
 function roundQuarterHour(hours: number) {
@@ -137,6 +153,75 @@ export function deriveMoveLogisticsPlan(input: LogisticsPlanInput): LogisticsPla
   const secondDrive = routeDriveHours(secondLeg)
   const firstKm = routeDistanceKm(firstLeg)
   const secondKm = routeDistanceKm(secondLeg)
+  const unloadAHours = totalCubicFeet > 0
+    ? roundQuarterHour(unloadHours * (personACubicFeet > 0 ? personACubicFeet / totalCubicFeet : 0.5))
+    : roundQuarterHour(unloadHours * 0.5)
+  const unloadBHours = Math.max(0, roundQuarterHour(unloadHours - unloadAHours))
+  const shuttleTrips = Math.max(1, Math.ceil(totalCubicFeet / singleTruckCapacity))
+  const shuttleHours = roundQuarterHour(totalHours + Math.max(0, shuttleTrips - 1) * Math.max(1, secondDrive + unloadHours * 0.65))
+  const parallelHours = roundQuarterHour(Math.max(
+    loadAHours + firstDrive + unloadAHours,
+    loadBHours + secondDrive + unloadBHours
+  ) + Math.max(0.5, Math.min(firstDrive + secondDrive, 1)))
+  const splitDayHours = roundQuarterHour(Math.max(loadHours + firstDrive, unloadHours + secondDrive))
+  const options: LogisticsOption[] = [
+    {
+      id: 'one_truck_sequence',
+      label: 'One truck sequence',
+      truckCount: 1,
+      crewCount: 1,
+      dayCount: 1,
+      estimatedHours: totalHours,
+      finishTime: formatClock(startHour, totalHours),
+      capacityUsedPct,
+      costLevel: 'base',
+      summary: 'One crew loads each pickup in order, then delivers everything together.',
+      tradeoff: capacityUsedPct > 100 ? 'Not viable unless inventory is reduced or the truck makes an extra unload trip.' : 'Lowest operating cost when both loads fit.',
+      viable: missingRouteCount === 0 && capacityUsedPct <= 100 && totalHours <= maxSameDayHours,
+    },
+    {
+      id: 'one_truck_shuttle',
+      label: 'One truck shuttle',
+      truckCount: 1,
+      crewCount: 1,
+      dayCount: 1,
+      estimatedHours: shuttleHours,
+      finishTime: formatClock(startHour, shuttleHours),
+      capacityUsedPct: Math.min(100, capacityUsedPct),
+      costLevel: 'higher',
+      summary: 'Crew fills the truck, unloads at the final destination, then returns for the remaining household.',
+      tradeoff: 'Protects against over-capacity, but adds extra drive/unload time and can run late.',
+      viable: missingRouteCount === 0 && totalCubicFeet > singleTruckCapacity && shuttleHours <= maxSameDayHours + 2,
+    },
+    {
+      id: 'two_truck_parallel',
+      label: 'Two trucks parallel',
+      truckCount: Math.max(2, truckCount),
+      crewCount: 2,
+      dayCount: 1,
+      estimatedHours: parallelHours,
+      finishTime: formatClock(startHour, parallelHours),
+      capacityUsedPct: Math.round((Math.max(personACubicFeet, personBCubicFeet) / singleTruckCapacity) * 100),
+      costLevel: 'highest',
+      summary: 'Separate crews/trucks load each pickup at the same time and meet at the destination.',
+      tradeoff: 'Fastest same-day option, with higher labor and truck cost.',
+      viable: missingRouteCount === 0 && personACubicFeet > 0 && personBCubicFeet > 0,
+    },
+    {
+      id: 'split_day',
+      label: 'Split day / storage style',
+      truckCount: 1,
+      crewCount: 1,
+      dayCount: 2,
+      estimatedHours: splitDayHours,
+      finishTime: formatClock(startHour, splitDayHours),
+      capacityUsedPct: Math.min(100, capacityUsedPct),
+      costLevel: 'higher',
+      summary: 'Break the work into separate booked days, storage, or staged pickup/delivery.',
+      tradeoff: 'More protected for large or time-constrained moves, but adds another booking window.',
+      viable: missingRouteCount === 0 && (totalHours > maxSameDayHours || capacityUsedPct > 100 || shuttleHours > maxSameDayHours),
+    },
+  ]
 
   const phaseSpecs = [
     { label: 'Crew departs yard', offset: 0, note: '' },
@@ -160,6 +245,7 @@ export function deriveMoveLogisticsPlan(input: LogisticsPlanInput): LogisticsPla
     missingRouteCount,
     riskNotes,
     salesTalkingPoints,
+    options,
     phases: phaseSpecs.map(phase => ({
       label: phase.label,
       offsetHours: roundQuarterHour(phase.offset),

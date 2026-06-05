@@ -490,6 +490,25 @@ export function EstimateDraftModal({
   const legRouteFetchRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
   const conjointMode = !!jobFactors.conjointMove
+  const conjointMetrics = useMemo(() => {
+    const included = inventory.filter(item => item.included !== false)
+    const personAItems = included.filter(item => item.owner !== 'person_b')
+    const personBItems = included.filter(item => item.owner === 'person_b')
+    const volume = (items: InventoryItem[]) => Math.round(items.reduce((sum, item) => sum + Number(item.cubicFeet || 0) * Math.max(1, Number(item.qty || 1)), 0))
+    const personACubicFeet = volume(personAItems)
+    const personBCubicFeet = volume(personBItems)
+    const totalCubicFeet = personACubicFeet + personBCubicFeet
+    const personASharePct = totalCubicFeet > 0 ? Math.round((personACubicFeet / totalCubicFeet) * 100) : 50
+    return {
+      personAItems,
+      personBItems,
+      personACubicFeet,
+      personBCubicFeet,
+      totalCubicFeet,
+      personASharePct,
+      personBSharePct: Math.max(0, 100 - personASharePct),
+    }
+  }, [inventory])
 
   const LEG_TYPE_LABELS: Record<QuoteLegType, string> = {
     move: '🚚 House → House',
@@ -543,6 +562,39 @@ export function EstimateDraftModal({
     setLegs(newLegs)
     onLegsChange?.(newLegs)
     onJobFactorsChange({ ...jobFactors, conjointMove: true })
+  }
+
+  function applyStorageTemplate() {
+    const now = Date.now()
+    const newLegs: QuoteLeg[] = [
+      {
+        id: `leg-storage-out-${now}`,
+        label: 'Leg 1 — Home to storage',
+        type: 'storage',
+        originAddress: originAddress || lead.originAddress || '',
+        originCity: originCity || lead.originCity || '',
+        destAddress: '',
+        destCity: '',
+        inventorySharePct: 100,
+        notes: 'Load and wrap items for storage; disassembly only at pickup',
+      },
+      {
+        id: `leg-storage-in-${now + 1}`,
+        label: 'Leg 2 — Storage to new home',
+        type: 'storage_delivery',
+        originAddress: '',
+        originCity: '',
+        destAddress: destAddress || lead.destAddress || '',
+        destCity: destCity || lead.destCity || '',
+        inventorySharePct: 100,
+        notes: 'Pickup same stored inventory, deliver and reassemble at destination',
+      },
+    ]
+    setLegsEnabled(true)
+    setLegs(newLegs)
+    onLegsChange?.(newLegs)
+    setQuoteType('storage')
+    setTimeout(() => onRecalculate({ quoteType: 'storage', distanceKm: distanceKm || route?.distanceKm || undefined, routeContext }), 100)
   }
 
   async function runSmartIntake() {
@@ -747,6 +799,20 @@ export function EstimateDraftModal({
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, legsEnabled, legs.length])
+
+  useEffect(() => {
+    if (!open || !legsEnabled || !conjointMode || legs.length < 2 || conjointMetrics.totalCubicFeet <= 0) return
+    const firstShare = Math.max(1, conjointMetrics.personASharePct)
+    const next = legs.map((leg, index) => {
+      if (index === 0) return leg.inventorySharePct === firstShare ? leg : { ...leg, inventorySharePct: firstShare }
+      if (index === 1) return leg.inventorySharePct === 100 ? leg : { ...leg, inventorySharePct: 100 }
+      return leg
+    })
+    if (next.some((leg, index) => leg.inventorySharePct !== legs[index]?.inventorySharePct)) {
+      setLegs(next)
+      onLegsChange?.(next)
+    }
+  }, [conjointMetrics.personASharePct, conjointMetrics.totalCubicFeet, conjointMode, legs, legsEnabled, onLegsChange, open])
 
   // Manual inventory quick-add state
   const [quickRoom, setQuickRoom] = useState('Living Room')
@@ -2358,7 +2424,7 @@ export function EstimateDraftModal({
 
               {/* Conjoint Move quick-start */}
               {!legsEnabled && (
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
                     onClick={applyConjointTemplate}
@@ -2366,7 +2432,14 @@ export function EstimateDraftModal({
                   >
                     + Conjoint Move
                   </button>
-                  <span className="text-[10px] text-[var(--app-muted)]">Two pickups, one destination — couples moving in together</span>
+                  <button
+                    type="button"
+                    onClick={applyStorageTemplate}
+                    className="rounded-full bg-blue-100 px-3 py-1 text-[11px] font-semibold text-blue-800 hover:bg-blue-200 transition-colors"
+                  >
+                    + Storage / Staged Move
+                  </button>
+                  <span className="text-[10px] text-[var(--app-muted)]">Conjoint = separate households. Storage = same inventory across dates.</span>
                 </div>
               )}
 
@@ -2504,26 +2577,46 @@ export function EstimateDraftModal({
                         />
                       </div>
 
-                      <div className="flex items-center gap-2 rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2 py-1.5">
-                        <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Shipment Share</div>
-                        <input
-                          type="number"
-                          min={5}
-                          max={100}
-                          value={leg.inventorySharePct ?? ''}
-                          onChange={e => updateLeg(leg.id, { inventorySharePct: e.target.value ? Number(e.target.value) : undefined })}
-                          className="ml-auto w-16 rounded-[4px] border border-[var(--app-line)] bg-white px-2 py-1 text-right text-[11px] text-[var(--app-ink)] outline-none focus:border-[var(--app-accent)]"
-                          placeholder={leg.type === 'delivery' ? '20' : '100'}
-                        />
-                        <span className="text-[10px] text-[var(--app-muted)]">%</span>
-                      </div>
-                      <div className="text-[10px] text-[var(--app-muted)]">
-                        {leg.type === 'delivery'
-                          ? 'For extra stops, set roughly how much of the shipment gets dropped here. The main stop uses the remaining share.'
-                          : leg.type === 'junk'
-                            ? 'Optional. Use this only if the junk run is a small portion of the overall job.'
-                            : 'Optional. Leave blank for full-shipment handling on this leg, or enter a share for partial pickups / split jobs.'}
-                      </div>
+                      {conjointMode && idx < 2 ? (
+                        <div className="rounded-[6px] border border-purple-200 bg-purple-50 px-2 py-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="text-[10px] font-semibold uppercase tracking-wide text-purple-700">Auto load share</div>
+                            <div className="text-[11px] font-semibold text-purple-900">
+                              {idx === 0
+                                ? `${conjointMetrics.personASharePct}% · ${conjointMetrics.personACubicFeet} cu ft`
+                                : `100% delivery · ${conjointMetrics.totalCubicFeet} cu ft`}
+                            </div>
+                          </div>
+                          <div className="mt-1 text-[10px] text-purple-700">
+                            {idx === 0
+                              ? `Calculated from ${jobFactors.personALabel || 'Person A'}'s tagged inventory. No manual percentage needed.`
+                              : `Second pickup adds ${jobFactors.personBLabel || 'Person B'}'s ${conjointMetrics.personBCubicFeet} cu ft, then delivers the combined load.`}
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-2 rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2 py-1.5">
+                            <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Shipment Share</div>
+                            <input
+                              type="number"
+                              min={5}
+                              max={100}
+                              value={leg.inventorySharePct ?? ''}
+                              onChange={e => updateLeg(leg.id, { inventorySharePct: e.target.value ? Number(e.target.value) : undefined })}
+                              className="ml-auto w-16 rounded-[4px] border border-[var(--app-line)] bg-white px-2 py-1 text-right text-[11px] text-[var(--app-ink)] outline-none focus:border-[var(--app-accent)]"
+                              placeholder={leg.type === 'delivery' ? '20' : '100'}
+                            />
+                            <span className="text-[10px] text-[var(--app-muted)]">%</span>
+                          </div>
+                          <div className="text-[10px] text-[var(--app-muted)]">
+                            {leg.type === 'delivery'
+                              ? 'For extra stops, set roughly how much of the shipment gets dropped here. The main stop uses the remaining share.'
+                              : leg.type === 'junk'
+                                ? 'Optional. Use this only if the junk run is a small portion of the overall job.'
+                                : 'Optional. Leave blank for full-shipment handling on this leg, or enter a share for partial pickups / split jobs.'}
+                          </div>
+                        </>
+                      )}
 
                       {/* Notes */}
                       <input
@@ -2544,7 +2637,7 @@ export function EstimateDraftModal({
                   </button>
 
                   <div className="rounded-[6px] bg-sky-50 border border-sky-200 px-3 py-2 text-[10px] text-sky-800">
-                    Each leg now prices automatically from its own route plus the shipment share you assign. Packing, valuation, junk, and other extras still layer in below.
+                    Conjoint load shares are calculated from tagged inventory. Manual shares are only for custom extra stops, storage splits, or delivery drops.
                   </div>
                 </div>
               )}
@@ -2735,6 +2828,9 @@ export function EstimateDraftModal({
                         const scopedCuFt = Math.round(scopedItems.reduce((sum, item) => sum + (item.cubicFeet || 0) * (item.qty || 1), 0))
                         const selectedOwner = activeConjointOwner === 'person_b' ? 'person_b' : 'person_a'
                         const selectedLabel = selectedOwner === 'person_b' ? personBLabel : personALabel
+                        const selectedAddress = selectedOwner === 'person_b'
+                          ? legs[1]?.originAddress || 'Add Person B pickup address in Leg 2'
+                          : legs[0]?.originAddress || originAddress || lead.originAddress || 'Add Person A pickup address in Leg 1'
                         const untaggedCount = inventory.filter(item => item.included !== false && !item.owner).length
                         const commonPresets = INVENTORY_PRESETS.filter(preset =>
                           ['sofa-standard', 'queen-bed', 'dresser-med', 'desk-standard', 'dining-table-4', 'dining-chair', 'box-medium'].includes(preset.id)
@@ -2766,6 +2862,42 @@ export function EstimateDraftModal({
                             </div>
                             {activeConjointOwner !== 'combined' ? (
                               <div className="mt-3 grid gap-2">
+                                <div className="rounded-[6px] border border-slate-200 bg-slate-50 px-2.5 py-2">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Intake for {selectedLabel}</span>
+                                    <span className="min-w-0 flex-1 truncate text-[10px] text-slate-600">{selectedAddress}</span>
+                                  </div>
+                                  <div className="mt-2 flex flex-wrap gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => appendConjointScopeNote(selectedOwner, `MLS/listing scan requested for ${selectedAddress}`)}
+                                      className="rounded-[6px] bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-200"
+                                    >
+                                      MLS / listing
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => appendConjointScopeNote(selectedOwner, 'send customer photo upload link for this pickup')}
+                                      className="rounded-[6px] bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-200"
+                                    >
+                                      Customer photos
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => appendConjointScopeNote(selectedOwner, 'rep upload / walkthrough photos should be tagged to this pickup')}
+                                      className="rounded-[6px] bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-200"
+                                    >
+                                      Rep upload
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => appendConjointScopeNote(selectedOwner, 'manual room-by-room inventory required for this pickup')}
+                                      className="rounded-[6px] bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-200"
+                                    >
+                                      Manual list
+                                    </button>
+                                  </div>
+                                </div>
                                 <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
                                   <input
                                     value={conjointCustomItem}
@@ -4818,6 +4950,42 @@ export function EstimateDraftModal({
                         ))}
                       </div>
                     )}
+                    <div>
+                      <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Operating options</div>
+                      <div className="grid gap-2">
+                        {plan.options.map(option => (
+                          <div
+                            key={option.id}
+                            className={`rounded-[8px] border px-3 py-2 ${
+                              option.viable
+                                ? option.id === plan.recommendation
+                                  ? 'border-emerald-300 bg-emerald-50'
+                                  : 'border-[var(--app-line)] bg-white'
+                                : 'border-slate-200 bg-slate-50 opacity-75'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <div className="text-[11px] font-semibold text-[var(--app-ink)]">{option.label}</div>
+                                <div className="mt-0.5 text-[10px] text-[var(--app-muted)]">
+                                  {option.truckCount} truck{option.truckCount === 1 ? '' : 's'} · {option.crewCount} crew{option.crewCount === 1 ? '' : 's'} · {option.dayCount} day{option.dayCount === 1 ? '' : 's'}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-[11px] font-bold text-[var(--app-ink)]">~{option.estimatedHours}h</div>
+                                <div className="text-[9px] text-[var(--app-muted)]">{option.finishTime}</div>
+                              </div>
+                            </div>
+                            <div className="mt-1.5 text-[10px] leading-4 text-[var(--app-muted)]">{option.summary}</div>
+                            <div className={`mt-1 text-[10px] font-semibold ${
+                              option.viable ? 'text-emerald-700' : 'text-slate-500'
+                            }`}>
+                              {option.viable ? option.tradeoff : `Not ideal: ${option.tradeoff}`}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                     {/* Day timeline */}
                     <div>
                       <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Day-of-Move Timeline</div>
