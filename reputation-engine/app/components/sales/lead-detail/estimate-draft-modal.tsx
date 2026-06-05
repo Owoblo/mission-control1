@@ -12,6 +12,7 @@ import { getDisassemblyServiceLabel, getIncludedDisassemblyItems } from '@/lib/m
 import { formatMovePolicyCategoryLabel, getMovePolicyFinding, summarizeMovePolicy } from '@/lib/move-policy'
 import { getTvBoxMaterialPresetForSize } from '@/lib/packing-materials'
 import { buildStarterInventoryPlan } from '@/lib/starter-inventory'
+import { deriveAccessComplexityAssessment } from '@/lib/access-intelligence'
 import { PhotoLightbox } from '@/app/components/sales/photo-lightbox'
 import { DEFAULT_ROOM_OPTIONS } from './helpers'
 import type { EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, PricingBreakdown, QuoteLineItem, QuoteLeg, QuoteLegType } from '@/lib/types'
@@ -1419,6 +1420,14 @@ export function EstimateDraftModal({
     jobFactors.originHasElevator !== undefined ||
     jobFactors.destHasElevator !== undefined
   )
+  const accessAssessment = useMemo(() => deriveAccessComplexityAssessment({
+    jobFactors,
+    parkingNotes,
+    originAccess,
+    destAccess,
+    propertyType: lead.propertyType,
+    supabaseListing: lead.supabaseListing,
+  }), [destAccess, jobFactors, lead.propertyType, lead.supabaseListing, originAccess, parkingNotes])
   const boxesAsked = Boolean(
     Number(jobFactors.estimatedBoxes || 0) > 0 ||
     packingMaterialsEstimate?.plannedBoxes ||
@@ -3550,6 +3559,20 @@ export function EstimateDraftModal({
                   <Toggle label="Direct truck access?" value={jobFactors.destParkingOk} onChange={v => setFactor('destParkingOk', v)} />
                 </div>
 
+                <div className={`space-y-2 rounded-[8px] border px-4 py-3 lg:col-span-1 ${
+                  accessAssessment.status === 'clear'
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                    : accessAssessment.status === 'high_risk'
+                      ? 'border-rose-200 bg-rose-50 text-rose-800'
+                      : 'border-amber-200 bg-amber-50 text-amber-800'
+                }`}>
+                  <div className="text-xs font-semibold uppercase tracking-[0.12em]">Access Intelligence</div>
+                  <div className="text-sm font-semibold">
+                    {accessAssessment.label}{accessAssessment.extraMinutes > 0 ? ` · +${accessAssessment.extraMinutes} min` : ''}
+                  </div>
+                  <div className="text-xs leading-relaxed">{accessAssessment.summary}</div>
+                </div>
+
                 {/* Packing Status */}
                 <div className="space-y-3">
                   <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-ink)]">Packing Status</div>
@@ -3995,7 +4018,7 @@ export function EstimateDraftModal({
                     {pricingBreakdown.adjustmentBreakdown.filter(a => a.category === 'access').map((a, i) => (
                       <div key={i} className="flex justify-between text-sky-600">
                         <span>{a.label}</span>
-                        <span>{a.hours > 0 ? `+${a.hours}h` : 'flagged'}</span>
+                        <span>{a.hours > 0 ? `+${a.hours}h / +${Math.round(a.hours * 60)} min` : 'flagged'}</span>
                       </div>
                     ))}
                   </div>

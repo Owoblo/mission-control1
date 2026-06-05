@@ -18,6 +18,7 @@ import {
   TRUCK_RESERVATION_STATUS_LABELS,
   TRUCK_VENDOR_LABELS,
 } from '@/lib/operations'
+import { deriveAccessComplexityAssessment } from '@/lib/access-intelligence'
 import { updateSalesLead } from '@/lib/sales-api'
 import { formatDate, formatDateTime, formatMoney, uid } from '@/lib/sales'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
@@ -143,7 +144,10 @@ function hasTruckAssigned(job: Job) {
 
 function hasCustomerConfirmation(job: Job) {
   const checklist = deriveOpsChecklist(job.lead)
-  return !!(checklist.accessConfirmed && checklist.parkingConfirmed)
+  const accessAssessment = deriveAccessComplexityAssessment(job.lead)
+  const accessReady = checklist.accessConfirmed || accessAssessment.accessAutoClear
+  const parkingReady = checklist.parkingConfirmed || accessAssessment.parkingAutoClear
+  return !!(accessReady && parkingReady)
 }
 
 function readinessBadgeClasses(level: DispatchReadinessLevel) {
@@ -167,8 +171,16 @@ function deriveDispatchReadiness(job: Job): { level: DispatchReadinessLevel; lab
   }
   if (hasCrewRolePlan(job) && !hasCrewConfirmed(job)) reasons.push('Crew confirmations pending')
   if (requiresTruck(job) && !hasTruckAssigned(job)) reasons.push('Truck reservation missing')
-  if (!checklist.accessConfirmed) reasons.push('Access not confirmed')
-  if (!checklist.parkingConfirmed) reasons.push('Parking not confirmed')
+  const accessAssessment = deriveAccessComplexityAssessment(job.lead)
+  const accessReady = checklist.accessConfirmed || accessAssessment.accessAutoClear
+  const parkingReady = checklist.parkingConfirmed || accessAssessment.parkingAutoClear
+  if (!accessReady || !parkingReady) {
+    reasons.push(
+      accessAssessment.status === 'unknown'
+        ? 'Access intelligence missing'
+        : `${accessAssessment.label}: ${accessAssessment.extraMinutes} min setup risk`
+    )
+  }
   if (!checklist.toolsReady) reasons.push('Equipment not confirmed')
   if (!checklist.jobPacketReady) reasons.push('Crew briefing not ready')
 
@@ -912,6 +924,7 @@ function JobsCalendar({
   const selectedRoute = selectedJob ? getJobRoute(selectedJob) : null
   const selectedChecklist = selectedJob ? deriveOpsChecklist(selectedJob.lead) : null
   const selectedReadiness = selectedJob ? deriveDispatchReadiness(selectedJob) : null
+  const selectedAccessAssessment = selectedJob ? deriveAccessComplexityAssessment(selectedJob.lead) : null
 
   // Build 6-row grid
   const cells: Array<{ date: string | null; day: number | null }> = []
@@ -1105,11 +1118,23 @@ function JobsCalendar({
               <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
                 <span className={selectedChecklist?.crewAssigned ? 'font-semibold text-emerald-700' : ''}>Crew assigned</span>
                 <span className={selectedChecklist?.truckReserved ? 'font-semibold text-emerald-700' : ''}>Truck reserved</span>
-                <span className={selectedChecklist?.accessConfirmed ? 'font-semibold text-emerald-700' : ''}>Access confirmed</span>
-                <span className={selectedChecklist?.parkingConfirmed ? 'font-semibold text-emerald-700' : ''}>Parking confirmed</span>
+                <span className={(selectedChecklist?.accessConfirmed || selectedAccessAssessment?.accessAutoClear) ? 'font-semibold text-emerald-700' : ''}>Access clear</span>
+                <span className={(selectedChecklist?.parkingConfirmed || selectedAccessAssessment?.parkingAutoClear) ? 'font-semibold text-emerald-700' : ''}>Parking clear</span>
                 <span className={selectedChecklist?.toolsReady ? 'font-semibold text-emerald-700' : ''}>Equipment ready</span>
                 <span className={selectedChecklist?.jobPacketReady ? 'font-semibold text-emerald-700' : ''}>Crew briefing ready</span>
               </div>
+              {selectedAccessAssessment ? (
+                <div className={`mt-3 rounded-lg border px-3 py-2 text-xs ${
+                  selectedAccessAssessment.status === 'clear'
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                    : selectedAccessAssessment.status === 'high_risk'
+                      ? 'border-rose-200 bg-rose-50 text-rose-800'
+                      : 'border-amber-200 bg-amber-50 text-amber-800'
+                }`}>
+                  <div className="font-semibold">{selectedAccessAssessment.label}{selectedAccessAssessment.extraMinutes > 0 ? ` · +${selectedAccessAssessment.extraMinutes} min` : ''}</div>
+                  <div className="mt-1">{selectedAccessAssessment.summary}</div>
+                </div>
+              ) : null}
               {selectedReadiness ? (
                 <div className="mt-3 text-xs text-slate-500">
                   {selectedReadiness.reasons.join(' · ')}
@@ -1288,6 +1313,7 @@ function CrewAssignModal({
   const [reservationNumber, setReservationNumber] = useState(job.lead.truckReservationNumber || '')
   const [reservationNotes, setReservationNotes] = useState(job.lead.truckReservationNotes || '')
   const initialChecklist = deriveOpsChecklist(job.lead)
+  const accessAssessment = deriveAccessComplexityAssessment(job.lead)
   const [accessConfirmed, setAccessConfirmed] = useState(initialChecklist.accessConfirmed ?? false)
   const [parkingConfirmed, setParkingConfirmed] = useState(initialChecklist.parkingConfirmed ?? false)
   const [toolsReady, setToolsReady] = useState(initialChecklist.toolsReady ?? false)
@@ -1462,8 +1488,8 @@ function CrewAssignModal({
         truckReservationNumber: truckRequired ? reservationNumber || undefined : undefined,
         truckReservationNotes: truckRequired ? reservationNotes || undefined : undefined,
         opsChecklist: {
-          accessConfirmed,
-          parkingConfirmed,
+          accessConfirmed: accessConfirmed || accessAssessment.accessAutoClear,
+          parkingConfirmed: parkingConfirmed || accessAssessment.parkingAutoClear,
           toolsReady,
           jobPacketReady,
           finalWalkthroughComplete,
@@ -1847,6 +1873,19 @@ function CrewAssignModal({
 
               <div>
                 <div className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Pre-move dispatch checklist</div>
+                <div className={`mb-3 rounded-xl border px-4 py-3 text-sm ${
+                  accessAssessment.status === 'clear'
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                    : accessAssessment.status === 'high_risk'
+                      ? 'border-rose-200 bg-rose-50 text-rose-800'
+                      : 'border-amber-200 bg-amber-50 text-amber-800'
+                }`}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-semibold">{accessAssessment.label}</span>
+                    <span className="text-xs font-semibold">{accessAssessment.extraMinutes > 0 ? `+${accessAssessment.extraMinutes} min` : 'No added access time'}</span>
+                  </div>
+                  <div className="mt-1 text-xs">{accessAssessment.summary}</div>
+                </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700">
                     <input type="checkbox" checked={crewRolePlanReady} readOnly className="h-4 w-4 accent-emerald-600" />
@@ -1857,12 +1896,12 @@ function CrewAssignModal({
                     Truck reserved
                   </label>
                   <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700">
-                    <input type="checkbox" checked={accessConfirmed} onChange={e => setAccessConfirmed(e.target.checked)} className="h-4 w-4 accent-[#1a2744]" />
-                    Access confirmed
+                    <input type="checkbox" checked={accessConfirmed || accessAssessment.accessAutoClear} onChange={e => setAccessConfirmed(e.target.checked)} disabled={accessAssessment.accessAutoClear} className="h-4 w-4 accent-[#1a2744] disabled:opacity-70" />
+                    {accessAssessment.accessAutoClear ? 'Access auto-clear' : 'Access reviewed'}
                   </label>
                   <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700">
-                    <input type="checkbox" checked={parkingConfirmed} onChange={e => setParkingConfirmed(e.target.checked)} className="h-4 w-4 accent-[#1a2744]" />
-                    Parking confirmed
+                    <input type="checkbox" checked={parkingConfirmed || accessAssessment.parkingAutoClear} onChange={e => setParkingConfirmed(e.target.checked)} disabled={accessAssessment.parkingAutoClear} className="h-4 w-4 accent-[#1a2744] disabled:opacity-70" />
+                    {accessAssessment.parkingAutoClear ? 'Parking auto-clear' : 'Parking reviewed'}
                   </label>
                   <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700">
                     <input type="checkbox" checked={toolsReady} onChange={e => setToolsReady(e.target.checked)} className="h-4 w-4 accent-[#1a2744]" />
