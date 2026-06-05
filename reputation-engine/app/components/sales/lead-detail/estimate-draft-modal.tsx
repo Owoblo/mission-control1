@@ -13,7 +13,7 @@ import { formatMovePolicyCategoryLabel, getMovePolicyFinding, summarizeMovePolic
 import { getTvBoxMaterialPresetForSize } from '@/lib/packing-materials'
 import { buildStarterInventoryPlan } from '@/lib/starter-inventory'
 import { deriveAccessComplexityAssessment } from '@/lib/access-intelligence'
-import { deriveMoveLogisticsPlan } from '@/lib/move-logistics'
+import { deriveMoveLogisticsPlan, type LogisticsOption } from '@/lib/move-logistics'
 import { PhotoLightbox } from '@/app/components/sales/photo-lightbox'
 import { DEFAULT_ROOM_OPTIONS } from './helpers'
 import type { EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, PricingBreakdown, QuoteLineItem, QuoteLeg, QuoteLegType } from '@/lib/types'
@@ -1178,6 +1178,44 @@ export function EstimateDraftModal({
 
   function setFactors(next: JobFactors) {
     onJobFactorsChange(next)
+  }
+
+  function applyTimelineStartTime(startTime?: string, note?: string) {
+    if (!startTime) return
+    onMoveTimeChange?.(startTime)
+    if (note) onInternalNotesChange(prependUniqueLine(internalNotes, note))
+    window.setTimeout(() => onRecalculate({ quoteType, distanceKm: distanceKm || route?.distanceKm || undefined, routeContext }), 100)
+  }
+
+  function applyLogisticsOption(option: LogisticsOption) {
+    const preferredOperatingPlan =
+      option.id === 'two_truck_parallel'
+        ? 'two_trucks_parallel'
+        : option.id === 'split_day'
+          ? 'split_day_storage'
+          : option.id
+    const next: JobFactors = {
+      ...jobFactors,
+      preferredOperatingPlan,
+      truckCountOverride: option.truckCount,
+    }
+    if (option.id === 'two_truck_parallel') {
+      next.crewSizeOverride = Math.max(jobFactors.crewSizeOverride || pricingBreakdown?.crewSize || 3, 4)
+    }
+    if (option.id === 'one_truck_sequence' || option.id === 'one_truck_shuttle') {
+      next.crewSizeOverride = jobFactors.crewSizeOverride
+    }
+    const note = [
+      `Operating plan selected: ${option.label}`,
+      `${option.truckCount} truck${option.truckCount === 1 ? '' : 's'}, ${option.crewCount} crew${option.crewCount === 1 ? '' : 's'}, ${option.dayCount} day${option.dayCount === 1 ? '' : 's'}`,
+      `Estimated window ~${option.estimatedHours}h, finish around ${option.finishTime}.`,
+      option.summary,
+      option.tradeoff,
+    ].filter(Boolean).join(' ')
+    next.moveConstraintNotes = prependUniqueLine(jobFactors.moveConstraintNotes || '', note)
+    onJobFactorsChange(next)
+    onInternalNotesChange(prependUniqueLine(internalNotes, note))
+    window.setTimeout(() => onRecalculate({ quoteType, distanceKm: distanceKm || route?.distanceKm || undefined, routeContext }), 100)
   }
 
   function toggleDisassemblyItem(itemName: string) {
@@ -5119,6 +5157,11 @@ export function EstimateDraftModal({
                 ],
               })
               const totalKm = plannedLegs.reduce((sum, leg) => sum + Math.round(Number(leg.distanceKm || leg.billableDistanceKm || 0)), 0)
+              const selectedOperatingPlan = jobFactors.preferredOperatingPlan === 'two_trucks_parallel'
+                ? 'two_truck_parallel'
+                : jobFactors.preferredOperatingPlan === 'split_day_storage'
+                  ? 'split_day'
+                  : jobFactors.preferredOperatingPlan
 
               return (
                 <div className="border border-purple-200 rounded-[10px] overflow-hidden">
@@ -5161,7 +5204,16 @@ export function EstimateDraftModal({
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-semibold">Timing intelligence</span>
                           {plan.constraintFit.recommendedStartTime && (
-                            <span className="rounded-full bg-white/70 px-2 py-0.5 font-semibold">Start {plan.constraintFit.recommendedStartTime}</span>
+                            <button
+                              type="button"
+                              onClick={() => applyTimelineStartTime(
+                                plan.constraintFit.recommendedStartTime,
+                                `Timeline start adjusted: ${plan.constraintFit.note}`
+                              )}
+                              className="rounded-full bg-white/80 px-2 py-0.5 font-semibold hover:bg-white"
+                            >
+                              Apply {plan.constraintFit.recommendedStartTime}
+                            </button>
                           )}
                         </div>
                         <div className="mt-1">{plan.constraintFit.note}</div>
@@ -5181,7 +5233,7 @@ export function EstimateDraftModal({
                             key={option.id}
                             className={`rounded-[8px] border px-3 py-2 ${
                               option.viable
-                                ? option.id === (plan.recommendation === 'two_truck_parallel' ? 'two_truck_parallel' : plan.recommendation)
+                                ? option.id === (selectedOperatingPlan || (plan.recommendation === 'two_truck_parallel' ? 'two_truck_parallel' : plan.recommendation))
                                   ? 'border-emerald-300 bg-emerald-50'
                                   : 'border-[var(--app-line)] bg-white'
                                 : 'border-slate-200 bg-slate-50 opacity-75'
@@ -5204,6 +5256,25 @@ export function EstimateDraftModal({
                               option.viable ? 'text-emerald-700' : 'text-slate-500'
                             }`}>
                               {option.viable ? option.tradeoff : `Not ideal: ${option.tradeoff}`}
+                            </div>
+                            <div className="mt-2 flex items-center justify-between gap-2">
+                              <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
+                                {selectedOperatingPlan === option.id ? 'Applied' : option.viable ? 'Available' : 'Review first'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => applyLogisticsOption(option)}
+                                disabled={!option.viable}
+                                className={`rounded-[6px] px-2.5 py-1 text-[10px] font-semibold transition-colors ${
+                                  selectedOperatingPlan === option.id
+                                    ? 'bg-emerald-600 text-white'
+                                    : option.viable
+                                      ? 'bg-[#1a2744] text-white hover:opacity-90'
+                                      : 'bg-slate-200 text-slate-500'
+                                } disabled:cursor-not-allowed`}
+                              >
+                                {selectedOperatingPlan === option.id ? 'Applied' : 'Use plan'}
+                              </button>
                             </div>
                           </div>
                         ))}
