@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { computeBranchCapacitySnapshot } from '@/lib/operations-capacity'
 import {
   computeCrewPayoutAmounts,
   countCompletedOpsChecklist,
@@ -59,28 +58,18 @@ type Job = {
   quote: CRMQuote | null
 }
 
-type OperationsConflict = {
-  date: string
-  branch: string
-  jobsBooked: number
-  crewUsed: number
-  crewCapacity: number
-  trucksUsed: number
-  truckCapacity: number
-  crewOverage: number
-  truckOverage: number
-}
-
-type OperationsRiskLevel = 'Low' | 'Medium' | 'High'
-type OperationsFilterKey = 'no_crew' | 'no_truck' | 'deposit_unpaid' | 'tomorrow' | 'high_risk' | 'needs_confirmation'
+type DispatchReadinessLevel = 'ready' | 'attention' | 'urgent'
+type OperationsFilterKey = 'ready' | 'no_crew' | 'no_truck' | 'deposit_unpaid' | 'tomorrow' | 'needs_confirmation' | 'needs_equipment' | 'needs_briefing'
 
 const OPERATIONS_FILTERS: Array<{ key: OperationsFilterKey; label: string }> = [
+  { key: 'ready', label: 'Ready' },
   { key: 'no_crew', label: 'No crew' },
   { key: 'no_truck', label: 'No truck' },
   { key: 'deposit_unpaid', label: 'Deposit unpaid' },
   { key: 'tomorrow', label: 'Tomorrow’s jobs' },
-  { key: 'high_risk', label: 'High-risk' },
   { key: 'needs_confirmation', label: 'Needs confirmation' },
+  { key: 'needs_equipment', label: 'Needs equipment' },
+  { key: 'needs_briefing', label: 'Needs briefing' },
 ]
 
 function todayISO() {
@@ -94,7 +83,7 @@ function tomorrowISO() {
 }
 
 function getJobMoveDate(job: Job) {
-  return job.quote?.moveDate || job.lead.moveDate
+  return job.lead.moveDate || job.quote?.moveDate
 }
 
 function isDepositPaid(job: Job) {
@@ -122,63 +111,42 @@ function hasCustomerConfirmation(job: Job) {
   return !!(checklist.accessConfirmed && checklist.parkingConfirmed)
 }
 
-function riskBadgeClasses(level: OperationsRiskLevel) {
-  if (level === 'High') return 'bg-rose-100 text-rose-700'
-  if (level === 'Medium') return 'bg-amber-100 text-amber-800'
+function readinessBadgeClasses(level: DispatchReadinessLevel) {
+  if (level === 'urgent') return 'bg-rose-100 text-rose-700'
+  if (level === 'attention') return 'bg-amber-100 text-amber-800'
   return 'bg-emerald-100 text-emerald-700'
 }
 
-function deriveJobRisk(job: Job): { level: OperationsRiskLevel; reasons: string[] } {
+function deriveDispatchReadiness(job: Job): { level: DispatchReadinessLevel; label: string; reasons: string[] } {
   const checklist = deriveOpsChecklist(job.lead)
   const moveDate = getJobMoveDate(job)
   const days = daysUntilMove(moveDate)
   const reasons: string[] = []
-  let score = 0
 
-  if (days !== null && days <= 1 && !hasAssignedCrew(job)) {
-    reasons.push('Crew still missing close to move day')
-    score += 3
-  }
+  if (!moveDate) reasons.push('Move date missing')
+  if (!isDepositPaid(job)) reasons.push('Deposit unpaid')
+  if (!hasAssignedCrew(job)) reasons.push('Crew not assigned')
+  if (requiresTruck(job) && !hasTruckAssigned(job)) reasons.push('Truck reservation missing')
+  if (!checklist.accessConfirmed) reasons.push('Access not confirmed')
+  if (!checklist.parkingConfirmed) reasons.push('Parking not confirmed')
+  if (!checklist.toolsReady) reasons.push('Equipment not confirmed')
+  if (!checklist.jobPacketReady) reasons.push('Crew briefing not ready')
 
-  if (days !== null && days <= 1 && requiresTruck(job) && !hasTruckAssigned(job)) {
-    reasons.push('Truck is not reserved yet')
-    score += 3
-  }
-
-  if (days !== null && days <= 2 && !isDepositPaid(job)) {
-    reasons.push('Deposit is still unpaid')
-    score += 2
-  }
-
-  if (days !== null && days <= 1 && !hasCustomerConfirmation(job)) {
-    reasons.push('Customer access and parking are not confirmed')
-    score += 2
-  }
-
-  if (days !== null && days <= 1 && (!checklist.jobPacketReady || !checklist.toolsReady)) {
-    reasons.push('Dispatch packet or tools are not ready')
-    score += 1
-  }
-
-  if (!moveDate) {
-    reasons.push('Move date is still missing')
-    score += 2
-  }
-
-  const level: OperationsRiskLevel = score >= 5 ? 'High' : score >= 2 ? 'Medium' : 'Low'
-  return {
-    level,
-    reasons: reasons.length > 0 ? reasons : ['Crew, truck, deposit, and customer confirmation look covered'],
-  }
+  if (reasons.length === 0) return { level: 'ready', label: 'Ready', reasons: ['Dispatch checklist is ready'] }
+  const level: DispatchReadinessLevel = days !== null && days <= 1 ? 'urgent' : 'attention'
+  return { level, label: level === 'urgent' ? 'Urgent setup' : 'Needs setup', reasons }
 }
 
 function matchesOperationsFilter(job: Job, filter: OperationsFilterKey) {
+  const checklist = deriveOpsChecklist(job.lead)
+  if (filter === 'ready') return deriveDispatchReadiness(job).level === 'ready'
   if (filter === 'no_crew') return !hasAssignedCrew(job)
   if (filter === 'no_truck') return requiresTruck(job) && !hasTruckAssigned(job)
   if (filter === 'deposit_unpaid') return !isDepositPaid(job)
   if (filter === 'tomorrow') return getJobMoveDate(job) === tomorrowISO()
-  if (filter === 'high_risk') return deriveJobRisk(job).level === 'High'
   if (filter === 'needs_confirmation') return !hasCustomerConfirmation(job)
+  if (filter === 'needs_equipment') return !checklist.toolsReady
+  if (filter === 'needs_briefing') return !checklist.jobPacketReady
   return true
 }
 
@@ -341,7 +309,6 @@ function sumCrewPayoutTotal(entries?: CrewPayoutEntry[]) {
 export default function OperationsPage() {
   const currentUser = useCurrentUser()
   const [jobs, setJobs] = useState<Job[]>([])
-  const [conflicts, setConflicts] = useState<OperationsConflict[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [completingId, setCompletingId] = useState<string | null>(null)
@@ -362,9 +329,8 @@ export default function OperationsPage() {
       const params = branch ? `?branch=${encodeURIComponent(branch)}` : ''
       const r = await fetch(`/api/sales/operations/jobs${params}`, { credentials: 'include' })
       if (!r.ok) throw new Error(await r.text())
-      const data = await r.json() as { jobs: Job[]; conflicts?: OperationsConflict[] }
+      const data = await r.json() as { jobs: Job[] }
       setJobs(data.jobs)
-      setConflicts(data.conflicts || [])
       setError(null)
     } catch (err) {
       setError((err as Error).message)
@@ -440,26 +406,10 @@ export default function OperationsPage() {
     const d = getJobMoveDate(j)
     return (!d || d < today) && !completedIds.has(j.lead.id)
   })
-  const scopedConflicts = useMemo(() => (
-    conflicts
-      .filter(conflict => !branchFilter || conflict.branch === branchFilter)
-      .filter(conflict => conflict.date >= today)
-  ), [branchFilter, conflicts, today])
-  const nearCapacityDays = useMemo(() => {
-    const days = new Set<string>()
-    for (const job of upcomingJobs) {
-      const moveDate = getJobMoveDate(job)
-      const branch = job.lead.branch
-      if (!moveDate || !branch) continue
-      const snapshot = computeBranchCapacitySnapshot(upcomingJobs, branch, moveDate)
-      if (snapshot.status === 'ready' && snapshot.risk === 'medium') {
-        days.add(`${branch}:${moveDate}`)
-      }
-    }
-    return Array.from(days)
-  }, [upcomingJobs])
+  const readyCount = upcomingJobs.filter(job => deriveDispatchReadiness(job).level === 'ready').length
   const missingTruckCount = upcomingJobs.filter(job => requiresTruck(job) && !hasTruckAssigned(job)).length
   const missingCrewCount = upcomingJobs.filter(job => !hasAssignedCrew(job)).length
+  const missingBriefingCount = upcomingJobs.filter(job => !deriveOpsChecklist(job.lead).jobPacketReady).length
 
   function toggleFilter(filter: OperationsFilterKey) {
     setActiveFilters(current =>
@@ -478,7 +428,7 @@ export default function OperationsPage() {
     const truckCount = getQuotedTruckCount(lead, quote)
     const estHours = quote?.estimatedHours
     const isCompleting = completingId === lead.id
-    const risk = deriveJobRisk(job)
+    const readiness = deriveDispatchReadiness(job)
     const customerConfirmed = hasCustomerConfirmation(job)
     const depositPaid = isDepositPaid(job)
     const crewAssigned = hasAssignedCrew(job)
@@ -503,8 +453,8 @@ export default function OperationsPage() {
             <PaymentBadge lead={lead} />
             <TruckReservationBadge lead={lead} quote={quote} />
             <OpsProgressBadge lead={lead} />
-            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${riskBadgeClasses(risk.level)}`}>
-              Risk: {risk.level}
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${readinessBadgeClasses(readiness.level)}`}>
+              {readiness.label}
             </span>
           </div>
         </div>
@@ -558,7 +508,7 @@ export default function OperationsPage() {
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
-          <span className="font-semibold text-[#1a2744]">Risk notes:</span> {risk.reasons.join(' · ')}
+          <span className="font-semibold text-[#1a2744]">Dispatch notes:</span> {readiness.reasons.join(' · ')}
         </div>
 
         {/* Assigned crew */}
@@ -594,7 +544,7 @@ export default function OperationsPage() {
                 onClick={() => setAssigningJob(job)}
                 className="rounded-lg border border-[#1a2744]/30 px-3 py-1.5 text-xs font-medium text-[#1a2744] hover:bg-[#1a2744]/5 transition"
               >
-                Ops Setup
+                Pre-Move Checklist
               </button>
             )}
             <Link
@@ -623,6 +573,7 @@ export default function OperationsPage() {
         <div>
           <h1 className="font-display text-2xl font-bold text-[#1a2744]">Operations</h1>
           <p className="mt-1 text-sm text-slate-500">
+            Dispatch Readiness ·{' '}
             {new Date().toLocaleDateString('en-CA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             {isOpsLead && currentUser?.name ? ` · ${currentUser.name}` : ''}
           </p>
@@ -696,14 +647,14 @@ export default function OperationsPage() {
 
       <div className="grid gap-4 md:grid-cols-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Red conflicts</div>
-          <div className={`mt-2 text-2xl font-bold ${scopedConflicts.length > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{scopedConflicts.length}</div>
-          <div className="mt-1 text-xs text-slate-500">Truck or crew over capacity in the next 30 days</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Ready to dispatch</div>
+          <div className={`mt-2 text-2xl font-bold ${readyCount > 0 ? 'text-emerald-600' : 'text-slate-500'}`}>{readyCount}</div>
+          <div className="mt-1 text-xs text-slate-500">Booked upcoming moves with checklist complete</div>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Near capacity</div>
-          <div className={`mt-2 text-2xl font-bold ${nearCapacityDays.length > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{nearCapacityDays.length}</div>
-          <div className="mt-1 text-xs text-slate-500">Dates that need a manager check before more bookings</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Needs briefing</div>
+          <div className={`mt-2 text-2xl font-bold ${missingBriefingCount > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{missingBriefingCount}</div>
+          <div className="mt-1 text-xs text-slate-500">Crew packet still needs to be generated or checked</div>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Missing trucks</div>
@@ -716,22 +667,6 @@ export default function OperationsPage() {
           <div className="mt-1 text-xs text-slate-500">Booked moves without an assigned team</div>
         </div>
       </div>
-
-      {scopedConflicts.length > 0 && (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 shadow-sm">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-rose-700">Manager alerts</div>
-          <div className="mt-3 grid gap-3 lg:grid-cols-2">
-            {scopedConflicts.slice(0, 6).map(conflict => (
-              <div key={`${conflict.branch}-${conflict.date}`} className="rounded-xl border border-rose-200 bg-white px-3 py-3 text-sm text-[#1a2744]">
-                <div className="font-semibold">{BRANCH_LABELS[conflict.branch] || conflict.branch} · {formatDate(conflict.date)}</div>
-                <div className="mt-1 text-xs text-slate-500">
-                  {conflict.jobsBooked} jobs · trucks {conflict.trucksUsed}/{conflict.truckCapacity} · crew {conflict.crewUsed}/{conflict.crewCapacity}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {error && (
         <div className="rounded-xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div>
@@ -750,7 +685,6 @@ export default function OperationsPage() {
       ) : viewMode === 'calendar' ? (
         <JobsCalendar
           jobs={filteredJobs}
-          conflicts={scopedConflicts}
           crewPool={crewPool}
           calMonth={calMonth}
           onMonthChange={setCalMonth}
@@ -822,7 +756,6 @@ export default function OperationsPage() {
 
 function JobsCalendar({
   jobs,
-  conflicts,
   crewPool,
   calMonth,
   onMonthChange,
@@ -831,7 +764,6 @@ function JobsCalendar({
   canManageCrew,
 }: {
   jobs: Job[]
-  conflicts: OperationsConflict[]
   crewPool: CrewMember[]
   calMonth: string
   onMonthChange: (m: string) => void
@@ -905,7 +837,7 @@ function JobsCalendar({
   const jobsByDate = useMemo(() => {
     const map = new Map<string, Job[]>()
     for (const job of jobs) {
-      const d = job.quote?.moveDate || job.lead.moveDate
+      const d = getJobMoveDate(job)
       if (!d) continue
       const list = map.get(d) || []
       list.push(job)
@@ -913,16 +845,6 @@ function JobsCalendar({
     }
     return map
   }, [jobs])
-  const conflictsByDay = useMemo(() => {
-    const map = new Map<string, OperationsConflict[]>()
-    for (const conflict of conflicts) {
-      const key = conflict.date
-      const list = map.get(key) || []
-      list.push(conflict)
-      map.set(key, list)
-    }
-    return map
-  }, [conflicts])
 
   function prevMonth() {
     const d = new Date(year, month - 2, 1)
@@ -938,7 +860,7 @@ function JobsCalendar({
   const today = new Date().toISOString().slice(0, 10)
   const selectedRoute = selectedJob ? getJobRoute(selectedJob) : null
   const selectedChecklist = selectedJob ? deriveOpsChecklist(selectedJob.lead) : null
-  const selectedRisk = selectedJob ? deriveJobRisk(selectedJob) : null
+  const selectedReadiness = selectedJob ? deriveDispatchReadiness(selectedJob) : null
 
   // Build 6-row grid
   const cells: Array<{ date: string | null; day: number | null }> = []
@@ -960,9 +882,12 @@ function JobsCalendar({
       </div>
 
       <div className="flex flex-wrap gap-2 text-[11px] font-semibold">
-        <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">Green · ready</span>
-        <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-800">Yellow · missing truck / crew / confirmation</span>
-        <span className="rounded-full bg-rose-100 px-3 py-1 text-rose-700">Red · over branch capacity</span>
+        <span className="rounded-full bg-blue-100 px-3 py-1 text-blue-800">Windsor</span>
+        <span className="rounded-full bg-purple-100 px-3 py-1 text-purple-800">Waterloo / KW</span>
+        <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-800">London</span>
+        <span className="rounded-full bg-red-100 px-3 py-1 text-red-800">Ottawa</span>
+        <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-800">Needs setup</span>
+        <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">Ready</span>
         <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">Grey · past date</span>
       </div>
 
@@ -980,16 +905,12 @@ function JobsCalendar({
         {cells.map((cell, i) => {
           const dayJobs = cell.date ? (jobsByDate.get(cell.date) || []) : []
           const isToday = cell.date === today
-          const dayConflicts = cell.date ? (conflictsByDay.get(cell.date) || []) : []
           const hasReadinessGap = dayJobs.some(job =>
-            !hasAssignedCrew(job) ||
-            (requiresTruck(job) && !hasTruckAssigned(job)) ||
-            !hasCustomerConfirmation(job)
+            deriveDispatchReadiness(job).level !== 'ready'
           )
           const dayTone =
             !cell.date ? 'bg-slate-50' :
             cell.date < today ? 'bg-slate-100' :
-            dayConflicts.length > 0 ? 'bg-rose-50' :
             hasReadinessGap ? 'bg-amber-50' :
             dayJobs.length > 0 ? 'bg-emerald-50' :
             'bg-white'
@@ -1005,7 +926,6 @@ function JobsCalendar({
                   </div>
                   {dayJobs.length > 0 && (
                     <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] ${
-                      dayConflicts.length > 0 ? 'bg-rose-100 text-rose-700' :
                       hasReadinessGap ? 'bg-amber-100 text-amber-800' :
                       'bg-emerald-100 text-emerald-700'
                     }`}>
@@ -1014,14 +934,10 @@ function JobsCalendar({
                   )}
                 </div>
               )}
-              {dayConflicts.length > 0 && (
-                <div className="mb-1 rounded bg-rose-100 px-1.5 py-1 text-[9px] font-semibold text-rose-700">
-                  Over capacity
-                </div>
-              )}
               <div className="space-y-1">
                 {dayJobs.map(job => {
                   const branchColor = job.lead.branch ? BRANCH_COLORS[job.lead.branch] : 'bg-[#1a2744]/10 text-[#1a2744]'
+                  const readiness = deriveDispatchReadiness(job)
                   const crewNames = (job.lead.assignedCrew?.length ?? 0) > 0
                     ? `${job.lead.assignedCrew!.length} crew`
                     : 'No crew'
@@ -1031,7 +947,12 @@ function JobsCalendar({
                       onClick={() => setSelectedJob(selectedJob?.lead.id === job.lead.id ? null : job)}
                       className={`w-full rounded-md px-1.5 py-1 text-left text-[10px] font-semibold leading-tight transition hover:opacity-80 ${branchColor}`}
                     >
-                      <div className="truncate">{job.lead.name}</div>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="truncate">{job.lead.name}</span>
+                        <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase ${readinessBadgeClasses(readiness.level)}`}>
+                          {readiness.level === 'ready' ? 'Ready' : 'Setup'}
+                        </span>
+                      </div>
                       <div className="truncate font-normal opacity-75">{crewNames} · {job.quote?.estimatedHours ? `~${job.quote.estimatedHours}h` : 'TBD'}</div>
                     </button>
                   )
@@ -1057,9 +978,9 @@ function JobsCalendar({
                 <PaymentBadge lead={selectedJob.lead} />
                 <TruckReservationBadge lead={selectedJob.lead} quote={selectedJob.quote} />
                 <OpsProgressBadge lead={selectedJob.lead} />
-                {selectedRisk ? (
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${riskBadgeClasses(selectedRisk.level)}`}>
-                    Risk: {selectedRisk.level}
+                {selectedReadiness ? (
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${readinessBadgeClasses(selectedReadiness.level)}`}>
+                    {selectedReadiness.label}
                   </span>
                 ) : null}
               </div>
@@ -1074,7 +995,7 @@ function JobsCalendar({
             <div className="rounded-xl bg-slate-50 p-3">
               <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Move date</div>
               <div className="mt-1 text-sm font-semibold text-[#1a2744]">
-                {selectedJob.quote?.moveDate || selectedJob.lead.moveDate ? formatDate(selectedJob.quote?.moveDate || selectedJob.lead.moveDate || '') : 'TBD'}
+                {getJobMoveDate(selectedJob) ? formatDate(getJobMoveDate(selectedJob) || '') : 'TBD'}
               </div>
             </div>
             {selectedJob.quote?.crewSize && (
@@ -1131,12 +1052,12 @@ function JobsCalendar({
                 <span className={selectedChecklist?.truckReserved ? 'font-semibold text-emerald-700' : ''}>Truck reserved</span>
                 <span className={selectedChecklist?.accessConfirmed ? 'font-semibold text-emerald-700' : ''}>Access confirmed</span>
                 <span className={selectedChecklist?.parkingConfirmed ? 'font-semibold text-emerald-700' : ''}>Parking confirmed</span>
-                <span className={selectedChecklist?.toolsReady ? 'font-semibold text-emerald-700' : ''}>Tools ready</span>
-                <span className={selectedChecklist?.jobPacketReady ? 'font-semibold text-emerald-700' : ''}>Job packet ready</span>
+                <span className={selectedChecklist?.toolsReady ? 'font-semibold text-emerald-700' : ''}>Equipment ready</span>
+                <span className={selectedChecklist?.jobPacketReady ? 'font-semibold text-emerald-700' : ''}>Crew briefing ready</span>
               </div>
-              {selectedRisk ? (
+              {selectedReadiness ? (
                 <div className="mt-3 text-xs text-slate-500">
-                  {selectedRisk.reasons.join(' · ')}
+                  {selectedReadiness.reasons.join(' · ')}
                 </div>
               ) : null}
             </div>
@@ -1269,7 +1190,7 @@ function JobsCalendar({
                 onClick={() => { onSelectJob(selectedJob); setSelectedJob(null) }}
                 className="rounded-lg border border-[#1a2744]/30 px-3 py-1.5 text-xs font-medium text-[#1a2744] hover:bg-[#1a2744]/5 transition"
               >
-                Dispatch Setup
+                Pre-Move Checklist
               </button>
             )}
             <Link href={`/sales/leads/${selectedJob.lead.id}`} className="ml-auto rounded-lg bg-[#1a2744] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 transition">
@@ -1484,8 +1405,8 @@ function CrewAssignModal({
     >
       <div className="w-full max-w-3xl rounded-2xl bg-white shadow-2xl overflow-hidden">
         <div className="bg-[#1a2744] px-6 py-5" style={{ borderBottom: '2px solid #f5a623' }}>
-          <h2 className="text-base font-bold text-white">Dispatch Setup</h2>
-          <p className="mt-0.5 text-xs text-white/60">{job.lead.name} — {job.quote?.moveDate || job.lead.moveDate || 'Date TBD'}</p>
+          <h2 className="text-base font-bold text-white">Pre-Move Checklist</h2>
+          <p className="mt-0.5 text-xs text-white/60">{job.lead.name} — {getJobMoveDate(job) || 'Date TBD'}</p>
         </div>
         <div className="p-6 space-y-4">
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
@@ -1783,7 +1704,7 @@ function CrewAssignModal({
               )}
 
               <div>
-                <div className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Readiness checklist</div>
+                <div className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Pre-move dispatch checklist</div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700">
                     <input type="checkbox" checked={selected.length > 0} readOnly className="h-4 w-4 accent-emerald-600" />
@@ -1803,11 +1724,11 @@ function CrewAssignModal({
                   </label>
                   <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700">
                     <input type="checkbox" checked={toolsReady} onChange={e => setToolsReady(e.target.checked)} className="h-4 w-4 accent-[#1a2744]" />
-                    Tools ready
+                    Equipment / materials ready
                   </label>
                   <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700">
                     <input type="checkbox" checked={jobPacketReady} onChange={e => setJobPacketReady(e.target.checked)} className="h-4 w-4 accent-[#1a2744]" />
-                    Job packet ready
+                    Crew briefing ready
                   </label>
                   <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 sm:col-span-2">
                     <input type="checkbox" checked={finalWalkthroughComplete} onChange={e => setFinalWalkthroughComplete(e.target.checked)} className="h-4 w-4 accent-[#1a2744]" />
@@ -1831,7 +1752,7 @@ function CrewAssignModal({
               disabled={busy}
               className="flex-1 rounded-xl bg-[#1a2744] px-4 py-2.5 text-sm font-bold text-white hover:opacity-90 transition disabled:opacity-60"
             >
-              {busy ? 'Saving...' : 'Save Dispatch Setup'}
+              {busy ? 'Saving...' : 'Save Pre-Move Checklist'}
             </button>
           </div>
         </div>

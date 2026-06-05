@@ -151,7 +151,7 @@ export default function CrewCalendarPage() {
 
 function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLead) => void }) {
   const { lead, quote } = job
-  const moveDate = quote?.moveDate || lead.moveDate
+  const moveDate = lead.moveDate || quote?.moveDate
   const origin = quote?.originAddress
     ? `${quote.originAddress}${quote.originCity ? ', ' + quote.originCity : ''}`
     : lead.originAddress || lead.originCity || '—'

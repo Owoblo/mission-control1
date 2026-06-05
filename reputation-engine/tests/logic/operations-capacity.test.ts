@@ -52,3 +52,13 @@ assert.equal(snapshot.risk, 'high')
 const conflicts = listCapacityConflicts(jobs)
 assert.equal(conflicts.length, 1)
 assert.equal(conflicts[0]?.truckOverage, 1)
+
+const changedMoveDateJob = makeJob(4, 1)
+changedMoveDateJob.lead.moveDate = '2026-05-25'
+changedMoveDateJob.quote!.moveDate = '2026-05-24'
+
+const changedDateSnapshot = computeBranchCapacitySnapshot([changedMoveDateJob], 'windsor', '2026-05-25')
+assert.equal(changedDateSnapshot.jobsBooked, 1)
+
+const staleQuoteDateSnapshot = computeBranchCapacitySnapshot([changedMoveDateJob], 'windsor', '2026-05-24')
+assert.equal(staleQuoteDateSnapshot.jobsBooked, 0)

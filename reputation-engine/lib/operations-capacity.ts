@@ -55,7 +55,7 @@ function getJobCrewSize(job: CapacityJob) {
 }
 
 function getJobMoveDate(job: CapacityJob) {
-  return job.quote?.moveDate || job.lead.moveDate
+  return job.lead.moveDate || job.quote?.moveDate
 }
 
 function getJobBranch(job: CapacityJob) {
