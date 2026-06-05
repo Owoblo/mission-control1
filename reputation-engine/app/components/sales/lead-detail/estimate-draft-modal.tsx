@@ -615,6 +615,14 @@ export function EstimateDraftModal({
             destAddress: lead.destAddress,
             destCity: lead.destCity,
             moveDate: lead.moveDate,
+            moveTime,
+            inventory: {
+              itemCount: inventoryMetrics.totalItems,
+              cubicFeet: inventoryMetrics.totalCubicFeet,
+              weightLbs: inventoryMetrics.totalWeightLbs,
+            },
+            jobFactors,
+            quoteLegs: legs,
           },
         }),
       })
@@ -629,17 +637,40 @@ export function EstimateDraftModal({
   function applyIntakeResult(r: import('@/app/api/sales/smart-intake/route').SmartIntakeResult) {
     if (r.quoteType) setQuoteType(r.quoteType)
     if (r.branch) { setLocalBranch(r.branch); onBranchChange?.(r.branch) }
-    if (r.moveTime) onMoveTimeChange?.(r.moveTime)
+    const recommendedMoveTime = r.recommendations?.startTime || r.moveTime
+    if (recommendedMoveTime) onMoveTimeChange?.(recommendedMoveTime)
     if (r.originAddress) onOriginAddressChange?.(r.originAddress)
     if (r.originCity) onOriginCityChange?.(r.originCity)
     if (r.destAddress) onDestAddressChange?.(r.destAddress)
     if (r.destCity) onDestCityChange?.(r.destCity)
     if (r.moveDescription) onMoveDescriptionChange(r.moveDescription)
-    if (r.internalNotes) onInternalNotesChange(r.internalNotes)
+
+    const opsNotes: string[] = []
+    if (r.internalNotes) opsNotes.push(r.internalNotes)
+    if (r.scenarioType) opsNotes.push(`AI move scenario: ${r.scenarioType.replace(/_/g, ' ')}`)
+    if (r.recommendations?.setup) {
+      const reason = r.recommendations.rationale ? ` — ${r.recommendations.rationale}` : ''
+      opsNotes.push(`AI recommended setup: ${r.recommendations.setup.replace(/_/g, ' ')}${reason}`)
+    }
+    if (r.recommendations?.truckPlan) opsNotes.push(`AI truck plan: ${r.recommendations.truckPlan}`)
+    if (r.recommendations?.pricingNote) opsNotes.push(`AI pricing note: ${r.recommendations.pricingNote}`)
+    if (r.recommendations?.marginNote) opsNotes.push(`AI margin note: ${r.recommendations.marginNote}`)
+    r.constraints?.forEach(c => {
+      const details = [c.appliesTo, c.date, c.time, c.impact].filter(Boolean).join(' · ')
+      opsNotes.push(`Constraint - ${c.label}${details ? `: ${details}` : ''}`)
+    })
+    r.parties?.forEach(p => {
+      const sources = p.inventorySources?.filter(Boolean).join(', ')
+      const missing = p.missingInventory ? 'inventory pending' : 'inventory partly known'
+      const pieces = [p.pickupAddress || p.pickupCity, sources ? `intake: ${sources}` : '', p.knownInventory, p.accessNotes, p.timingConstraint, missing].filter(Boolean)
+      opsNotes.push(`${p.label}: ${pieces.join(' · ')}`)
+    })
+    const nextInternalNotes = opsNotes.reduce((notes, note) => prependUniqueLine(notes, note), internalNotes)
+    if (opsNotes.length > 0) onInternalNotesChange(nextInternalNotes)
 
     // Apply job factors (map AI field names to actual JobFactors type)
-    if (r.jobFactors) {
-      const jf = r.jobFactors
+    if (r.jobFactors || r.scenarioType === 'conjoint' || (r.parties?.length ?? 0) > 1) {
+      const jf = r.jobFactors || {}
       const next: typeof jobFactors = { ...jobFactors }
       if (jf.packingStatus) next.packingStatus = jf.packingStatus === 'fully-packed' ? 'packed' : jf.packingStatus
       if (jf.floorsAtOrigin) next.originFloors = jf.floorsAtOrigin
@@ -654,13 +685,57 @@ export function EstimateDraftModal({
       if (jf.specialtyItems?.heavySafe) next.hasSafe = true
       if (jf.crewSizeOverride) next.crewSizeOverride = jf.crewSizeOverride
       if (jf.specialtyNotes) next.specialtyNotes = jf.specialtyNotes
+      if (jf.conjointMove || r.scenarioType === 'conjoint' || (r.parties?.length ?? 0) > 1) next.conjointMove = true
+      const personA = r.parties?.[0]
+      const personB = r.parties?.[1]
+      if (jf.personALabel || personA?.label) next.personALabel = jf.personALabel || personA?.label
+      if (jf.personBLabel || personB?.label) next.personBLabel = jf.personBLabel || personB?.label
+      if (jf.personBOriginFloors) next.personBOriginFloors = jf.personBOriginFloors
+      if (jf.personBOriginHasElevator !== undefined) next.personBOriginHasElevator = jf.personBOriginHasElevator
+      if (jf.personBOriginElevatorReserved !== undefined) next.personBOriginElevatorReserved = jf.personBOriginElevatorReserved
+      if (jf.personBOriginParkingOk !== undefined) next.personBOriginParkingOk = jf.personBOriginParkingOk
       onJobFactorsChange(next)
     }
 
     // Apply legs
-    if (r.legsEnabled && r.legs?.length) {
-      const newLegs = r.legs.map((l, i) => ({
-        id: `leg-${Date.now()}-${i}`,
+    const hasAiLegs = r.legsEnabled && r.legs?.length
+    const conjointParties = r.scenarioType === 'conjoint' && (r.parties?.length ?? 0) >= 2
+    if (hasAiLegs || conjointParties) {
+      const now = Date.now()
+      const inferredConjointLegs: Array<{
+        label: string
+        type: QuoteLegType
+        originAddress?: string
+        originCity?: string
+        destAddress?: string
+        destCity?: string
+        scheduledDate?: string
+        notes?: string
+      }> = conjointParties
+        ? [
+            {
+              label: `Leg 1 — ${r.parties![0].label} pickup`,
+              type: 'move' as QuoteLegType,
+              originAddress: r.parties![0].pickupAddress || r.originAddress || originAddress || lead.originAddress || '',
+              originCity: r.parties![0].pickupCity || r.originCity || originCity || lead.originCity || '',
+              destAddress: r.parties![1].pickupAddress || '',
+              destCity: r.parties![1].pickupCity || '',
+              notes: `Load ${r.parties![0].label}; then continue to ${r.parties![1].label}.`,
+            },
+            {
+              label: `Leg 2 — ${r.parties![1].label} pickup + delivery`,
+              type: 'delivery' as QuoteLegType,
+              originAddress: r.parties![1].pickupAddress || '',
+              originCity: r.parties![1].pickupCity || '',
+              destAddress: r.destAddress || destAddress || lead.destAddress || '',
+              destCity: r.destCity || destCity || lead.destCity || '',
+              notes: `Load ${r.parties![1].label}; deliver combined shipment to final destination.`,
+            },
+          ]
+        : []
+      const legSource = hasAiLegs ? r.legs! : inferredConjointLegs
+      const newLegs = legSource.map((l, i) => ({
+        id: `leg-${now}-${i}`,
         label: l.label || getLegDefaultLabel(l.type, i),
         type: l.type,
         originAddress: l.originAddress || '',
@@ -1936,13 +2011,80 @@ export function EstimateDraftModal({
                         </div>
                       )}
 
+                      {(intakeResult.scenarioType || intakeResult.recommendations) && (
+                        <div className="rounded-[6px] border border-violet-200 bg-violet-50 px-3 py-2.5 space-y-2">
+                          <div className="flex flex-wrap items-center gap-2 text-[11px] text-violet-900">
+                            {intakeResult.scenarioType && (
+                              <span className="rounded-full bg-white px-2 py-1 font-semibold">
+                                Scenario: {intakeResult.scenarioType.replace(/_/g, ' ')}
+                              </span>
+                            )}
+                            {intakeResult.recommendations?.setup && (
+                              <span className="rounded-full bg-white px-2 py-1 font-semibold">
+                                Setup: {intakeResult.recommendations.setup.replace(/_/g, ' ')}
+                              </span>
+                            )}
+                            {(intakeResult.recommendations?.startTime || intakeResult.moveTime) && (
+                              <span className="rounded-full bg-white px-2 py-1 font-semibold">
+                                Start: {intakeResult.recommendations?.startTime || intakeResult.moveTime}
+                              </span>
+                            )}
+                          </div>
+                          {intakeResult.recommendations?.truckPlan && (
+                            <div className="text-[11px] font-semibold text-violet-900">{intakeResult.recommendations.truckPlan}</div>
+                          )}
+                          {intakeResult.recommendations?.rationale && (
+                            <div className="text-[11px] text-violet-800">{intakeResult.recommendations.rationale}</div>
+                          )}
+                          {(intakeResult.recommendations?.nextBestActions?.length ?? 0) > 0 && (
+                            <div className="space-y-0.5">
+                              <div className="text-[10px] font-bold uppercase tracking-wider text-violet-700">Next best actions</div>
+                              {intakeResult.recommendations!.nextBestActions!.map((action, i) => (
+                                <div key={i} className="text-[11px] text-violet-800">• {action}</div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {(intakeResult.parties?.length ?? 0) > 0 && (
+                        <div className="rounded-[6px] border border-slate-200 bg-white px-3 py-2.5 space-y-2">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Pickup contexts</div>
+                          {intakeResult.parties!.map((party, i) => (
+                            <div key={`${party.label}-${i}`} className="rounded-[6px] border border-slate-100 bg-slate-50 px-2.5 py-2">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <div className="truncate text-[12px] font-semibold text-[#1a2744]">{party.label}</div>
+                                  <div className="truncate text-[11px] text-slate-500">{party.pickupAddress || party.pickupCity || 'Address pending'}</div>
+                                </div>
+                                <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ${party.missingInventory ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                                  {party.missingInventory ? 'Inventory pending' : 'Inventory known'}
+                                </span>
+                              </div>
+                              {(party.inventorySources?.length ?? 0) > 0 && (
+                                <div className="mt-1 flex flex-wrap gap-1">
+                                  {party.inventorySources!.map(source => (
+                                    <span key={source} className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                                      {source.replace(/_/g, ' ')}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
                       {/* What will be filled */}
                       <div className="rounded-[6px] border border-sky-200 bg-sky-50 px-3 py-2.5 space-y-1.5">
                         <div className="text-[10px] font-bold uppercase tracking-wider text-sky-700">Will fill in:</div>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[11px] text-sky-800">
+                          {intakeResult.scenarioType && <span>✓ Scenario: {intakeResult.scenarioType.replace(/_/g, ' ')}</span>}
+                          {(intakeResult.parties?.length ?? 0) > 0 && <span>✓ Pickup contexts: {intakeResult.parties?.length}</span>}
+                          {(intakeResult.constraints?.length ?? 0) > 0 && <span>✓ Constraints: {intakeResult.constraints?.length}</span>}
                           {intakeResult.quoteType && <span>✓ Quote type: {intakeResult.quoteType.replace('_', ' ')}</span>}
                           {intakeResult.branch && <span>✓ Branch: {intakeResult.branch}</span>}
-                          {intakeResult.moveTime && <span>✓ Start time: {intakeResult.moveTime}</span>}
+                          {(intakeResult.recommendations?.startTime || intakeResult.moveTime) && <span>✓ Start time: {intakeResult.recommendations?.startTime || intakeResult.moveTime}</span>}
                           {intakeResult.legsEnabled && <span>✓ Multi-stop: {intakeResult.legs?.length} legs</span>}
                           {intakeResult.addOns?.packing && <span>✓ Packing service</span>}
                           {intakeResult.addOns?.junk && <span>✓ Junk removal</span>}
