@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   computeCrewPayoutAmounts,
   countCompletedOpsChecklist,
+  CREW_DISPATCH_STATUS_LABELS,
   CREW_PAYOUT_METHOD_LABELS,
   CREW_PAYOUT_ROLE_LABELS,
   CREW_PAYOUT_STATUS_LABELS,
@@ -18,13 +19,14 @@ import {
   TRUCK_VENDOR_LABELS,
 } from '@/lib/operations'
 import { updateSalesLead } from '@/lib/sales-api'
-import { formatDate, formatDateTime, formatMoney } from '@/lib/sales'
+import { formatDate, formatDateTime, formatMoney, uid } from '@/lib/sales'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import type {
   CRMLead,
   CRMQuote,
   CrewHoursEntry,
   CrewPayoutEntry,
+  CrewDispatchStatus,
   CrewPayoutMethod,
   CrewPayoutRole,
   TruckReservationStatus,
@@ -98,6 +100,39 @@ function hasAssignedCrew(job: Job) {
   return (job.lead.assignedCrew?.length ?? 0) > 0
 }
 
+function getRequiredDriverCount(job: Job) {
+  return Number(getQuotedTruckCount(job.lead, job.quote) || 0)
+}
+
+function getRequiredCrewCount(job: Job) {
+  return Number(job.quote?.crewSize || job.lead.assignedCrew?.length || 0)
+}
+
+function getCrewRoster(job: Job) {
+  return (job.lead.crewPayouts || []).filter(entry => entry.workerName)
+}
+
+function getAssignedDriverCount(job: Job) {
+  return getCrewRoster(job).filter(entry => entry.role === 'driver' || entry.role === 'crew_lead').length
+}
+
+function getAssignedMoverCount(job: Job) {
+  return getCrewRoster(job).filter(entry => entry.role === 'mover' || entry.role === 'crew_lead' || entry.role === 'driver').length
+}
+
+function hasCrewRolePlan(job: Job) {
+  const requiredCrew = getRequiredCrewCount(job)
+  const requiredDrivers = getRequiredDriverCount(job)
+  if (requiredCrew <= 0) return hasAssignedCrew(job) || getCrewRoster(job).length > 0
+  return getAssignedMoverCount(job) >= requiredCrew && getAssignedDriverCount(job) >= requiredDrivers
+}
+
+function hasCrewConfirmed(job: Job) {
+  const roster = getCrewRoster(job)
+  if (roster.length === 0) return false
+  return roster.every(entry => entry.dispatchStatus === 'confirmed')
+}
+
 function requiresTruck(job: Job) {
   return !!getQuotedTruckCount(job.lead, job.quote)
 }
@@ -125,7 +160,12 @@ function deriveDispatchReadiness(job: Job): { level: DispatchReadinessLevel; lab
 
   if (!moveDate) reasons.push('Move date missing')
   if (!isDepositPaid(job)) reasons.push('Deposit unpaid')
-  if (!hasAssignedCrew(job)) reasons.push('Crew not assigned')
+  if (!hasCrewRolePlan(job)) {
+    const requiredDrivers = getRequiredDriverCount(job)
+    const requiredCrew = getRequiredCrewCount(job)
+    reasons.push(requiredDrivers > 0 ? `${requiredDrivers} driver${requiredDrivers === 1 ? '' : 's'} / ${requiredCrew || '?'} crew not fully assigned` : 'Crew not fully assigned')
+  }
+  if (hasCrewRolePlan(job) && !hasCrewConfirmed(job)) reasons.push('Crew confirmations pending')
   if (requiresTruck(job) && !hasTruckAssigned(job)) reasons.push('Truck reservation missing')
   if (!checklist.accessConfirmed) reasons.push('Access not confirmed')
   if (!checklist.parkingConfirmed) reasons.push('Parking not confirmed')
@@ -140,7 +180,7 @@ function deriveDispatchReadiness(job: Job): { level: DispatchReadinessLevel; lab
 function matchesOperationsFilter(job: Job, filter: OperationsFilterKey) {
   const checklist = deriveOpsChecklist(job.lead)
   if (filter === 'ready') return deriveDispatchReadiness(job).level === 'ready'
-  if (filter === 'no_crew') return !hasAssignedCrew(job)
+  if (filter === 'no_crew') return !hasCrewRolePlan(job)
   if (filter === 'no_truck') return requiresTruck(job) && !hasTruckAssigned(job)
   if (filter === 'deposit_unpaid') return !isDepositPaid(job)
   if (filter === 'tomorrow') return getJobMoveDate(job) === tomorrowISO()
@@ -288,6 +328,11 @@ function buildCrewPayoutDraft(member?: CrewMember, existing?: Partial<CrewPayout
     paymentMethod: existing?.paymentMethod || 'interac',
     payoutDestination: existing?.payoutDestination || member?.email || '',
     payoutStatus: existing?.payoutStatus || 'submitted',
+    dispatchStatus: existing?.dispatchStatus || 'pending',
+    dispatchToken: existing?.dispatchToken || uid('crew'),
+    dispatchSentAt: existing?.dispatchSentAt,
+    dispatchConfirmedAt: existing?.dispatchConfirmedAt,
+    dispatchDeclinedAt: existing?.dispatchDeclinedAt,
     submittedAt: existing?.submittedAt,
     approvedAt: existing?.approvedAt,
     approvedBy: existing?.approvedBy,
@@ -304,6 +349,12 @@ function sumCrewPayoutTotal(entries?: CrewPayoutEntry[]) {
     const { totalPay } = computeCrewPayoutAmounts(entry)
     return sum + totalPay
   }, 0)
+}
+
+function getCrewDispatchUrl(entry: Pick<CrewPayoutEntry, 'dispatchToken'>) {
+  if (!entry.dispatchToken) return ''
+  if (typeof window === 'undefined') return `/crew/dispatch/${entry.dispatchToken}`
+  return `${window.location.origin}/crew/dispatch/${entry.dispatchToken}`
 }
 
 export default function OperationsPage() {
@@ -408,7 +459,7 @@ export default function OperationsPage() {
   })
   const readyCount = upcomingJobs.filter(job => deriveDispatchReadiness(job).level === 'ready').length
   const missingTruckCount = upcomingJobs.filter(job => requiresTruck(job) && !hasTruckAssigned(job)).length
-  const missingCrewCount = upcomingJobs.filter(job => !hasAssignedCrew(job)).length
+  const missingCrewCount = upcomingJobs.filter(job => !hasCrewRolePlan(job)).length
   const missingBriefingCount = upcomingJobs.filter(job => !deriveOpsChecklist(job.lead).jobPacketReady).length
 
   function toggleFilter(filter: OperationsFilterKey) {
@@ -431,7 +482,7 @@ export default function OperationsPage() {
     const readiness = deriveDispatchReadiness(job)
     const customerConfirmed = hasCustomerConfirmation(job)
     const depositPaid = isDepositPaid(job)
-    const crewAssigned = hasAssignedCrew(job)
+    const crewAssigned = hasCrewRolePlan(job)
     const truckAssigned = hasTruckAssigned(job)
 
     return (
@@ -1260,6 +1311,13 @@ function CrewAssignModal({
     })
   })
   const [busy, setBusy] = useState(false)
+  const requiredCrewCount = Number(job.quote?.crewSize || selected.length || 0)
+  const requiredDriverCount = Number(quotedTruckCount || 0)
+  const assignedCrewCount = payoutEntries.filter(entry => entry.workerName.trim()).length
+  const assignedDriverCount = payoutEntries.filter(entry => entry.role === 'driver' || entry.role === 'crew_lead').length
+  const crewRolePlanReady = requiredCrewCount > 0
+    ? assignedCrewCount >= requiredCrewCount && assignedDriverCount >= requiredDriverCount
+    : selected.length > 0 || assignedCrewCount > 0
 
   function toggle(id: string) {
     setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
@@ -1323,6 +1381,18 @@ function CrewAssignModal({
     setPayoutEntries(current => current.filter((_, entryIndex) => entryIndex !== index))
   }
 
+  async function copyCrewDispatchLink(index: number) {
+    const entry = payoutEntries[index]
+    const url = getCrewDispatchUrl(entry)
+    if (!url) return
+    await navigator.clipboard?.writeText(url)
+    updatePayoutEntry(index, {
+      dispatchStatus: entry.dispatchStatus === 'confirmed' ? 'confirmed' : 'sent',
+      dispatchSentAt: entry.dispatchSentAt || new Date().toISOString(),
+    })
+    setMessage(`Dispatch link copied for ${entry.workerName || 'worker'}.`)
+  }
+
   async function save() {
     setBusy(true)
     setMessage(null)
@@ -1369,6 +1439,11 @@ function CrewAssignModal({
             payoutStatus: entry.payoutStatus === 'approved' || entry.payoutStatus === 'paid'
               ? entry.payoutStatus
               : 'submitted',
+            dispatchStatus: entry.dispatchStatus || 'pending',
+            dispatchToken: entry.dispatchToken || uid('crew'),
+            dispatchSentAt: entry.dispatchSentAt,
+            dispatchConfirmedAt: entry.dispatchConfirmedAt,
+            dispatchDeclinedAt: entry.dispatchDeclinedAt,
           } satisfies CrewPayoutEntry)
           return list
         }, [])
@@ -1502,6 +1577,20 @@ function CrewAssignModal({
                   </div>
                 </div>
 
+                <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                  <div className="rounded-lg bg-white px-3 py-2 text-xs text-slate-600">
+                    Required crew: <span className="font-semibold text-[#1a2744]">{requiredCrewCount || 'TBD'}</span>
+                  </div>
+                  <div className="rounded-lg bg-white px-3 py-2 text-xs text-slate-600">
+                    Required drivers: <span className="font-semibold text-[#1a2744]">{requiredDriverCount}</span>
+                  </div>
+                  <div className="rounded-lg bg-white px-3 py-2 text-xs text-slate-600">
+                    Assigned drivers: <span className={`font-semibold ${assignedDriverCount >= requiredDriverCount ? 'text-emerald-700' : 'text-rose-600'}`}>
+                      {assignedDriverCount}
+                    </span>
+                  </div>
+                </div>
+
                 <div className="mt-3 space-y-3">
                   {payoutEntries.length === 0 && (
                     <div className="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-4 text-sm text-slate-400">
@@ -1515,6 +1604,14 @@ function CrewAssignModal({
                         <div className="flex items-center justify-between gap-3">
                           <div className="text-xs font-semibold text-[#1a2744]">{entry.workerName || `Worker ${index + 1}`}</div>
                           <div className="flex items-center gap-2">
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                              entry.dispatchStatus === 'confirmed' ? 'bg-emerald-100 text-emerald-700' :
+                              entry.dispatchStatus === 'declined' ? 'bg-rose-100 text-rose-700' :
+                              entry.dispatchStatus === 'sent' ? 'bg-sky-100 text-sky-700' :
+                              'bg-amber-100 text-amber-800'
+                            }`}>
+                              {CREW_DISPATCH_STATUS_LABELS[entry.dispatchStatus || 'pending']}
+                            </span>
                             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
                               {CREW_PAYOUT_STATUS_LABELS[entry.payoutStatus || 'submitted']}
                             </span>
@@ -1545,6 +1642,15 @@ function CrewAssignModal({
                             />
                           </label>
                           <label className="block">
+                            <span className="crm-label">Phone</span>
+                            <input
+                              className="crm-input mt-1"
+                              value={entry.workerPhone || ''}
+                              onChange={e => updatePayoutEntry(index, { workerPhone: e.target.value })}
+                              placeholder="226-555-0100"
+                            />
+                          </label>
+                          <label className="block">
                             <span className="crm-label">Role</span>
                             <select
                               className="crm-input mt-1"
@@ -1553,6 +1659,18 @@ function CrewAssignModal({
                             >
                               {(Object.keys(CREW_PAYOUT_ROLE_LABELS) as CrewPayoutRole[]).map(role => (
                                 <option key={role} value={role}>{CREW_PAYOUT_ROLE_LABELS[role]} · {formatMoney(CREW_ROLE_DEFAULT_RATES[role])}/hr</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="block">
+                            <span className="crm-label">Dispatch status</span>
+                            <select
+                              className="crm-input mt-1"
+                              value={entry.dispatchStatus || 'pending'}
+                              onChange={e => updatePayoutEntry(index, { dispatchStatus: e.target.value as CrewDispatchStatus })}
+                            >
+                              {(Object.keys(CREW_DISPATCH_STATUS_LABELS) as CrewDispatchStatus[]).map(status => (
+                                <option key={status} value={status}>{CREW_DISPATCH_STATUS_LABELS[status]}</option>
                               ))}
                             </select>
                           </label>
@@ -1621,6 +1739,21 @@ function CrewAssignModal({
                               placeholder="Interac email, Stripe account note, or payout instructions"
                             />
                           </label>
+                          <div className="md:col-span-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="min-w-0">
+                                <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Crew dispatch link</div>
+                                <div className="truncate text-xs text-slate-500">{getCrewDispatchUrl(entry) || 'Save to generate link'}</div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => void copyCrewDispatchLink(index)}
+                                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-[#1a2744] hover:bg-slate-50"
+                              >
+                                Copy link
+                              </button>
+                            </div>
+                          </div>
                           <label className="block md:col-span-2">
                             <span className="crm-label">Reimbursement note</span>
                             <input
@@ -1712,8 +1845,8 @@ function CrewAssignModal({
                 <div className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Pre-move dispatch checklist</div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700">
-                    <input type="checkbox" checked={selected.length > 0} readOnly className="h-4 w-4 accent-emerald-600" />
-                    Crew assigned
+                    <input type="checkbox" checked={crewRolePlanReady} readOnly className="h-4 w-4 accent-emerald-600" />
+                    Crew roles assigned
                   </label>
                   <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700">
                     <input type="checkbox" checked={truckRequired ? truckStatus === 'reserved' : true} readOnly className="h-4 w-4 accent-emerald-600" />

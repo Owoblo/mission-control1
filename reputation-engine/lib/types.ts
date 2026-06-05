@@ -558,6 +558,7 @@ export interface CrewHoursEntry {
 export type CrewPayoutRole = 'crew_lead' | 'driver' | 'mover' | 'other'
 export type CrewPayoutMethod = 'interac' | 'stripe_connect' | 'cash' | 'manual'
 export type CrewPayoutStatus = 'draft' | 'submitted' | 'approved' | 'paid'
+export type CrewDispatchStatus = 'pending' | 'sent' | 'confirmed' | 'declined'
 
 export interface CrewPayoutEntry {
   id: string
@@ -575,6 +576,11 @@ export interface CrewPayoutEntry {
   paymentMethod?: CrewPayoutMethod
   payoutDestination?: string
   payoutStatus?: CrewPayoutStatus
+  dispatchStatus?: CrewDispatchStatus
+  dispatchToken?: string
+  dispatchSentAt?: string
+  dispatchConfirmedAt?: string
+  dispatchDeclinedAt?: string
   submittedAt?: string
   approvedAt?: string
   approvedBy?: string

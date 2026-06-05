@@ -1,4 +1,4 @@
-import { detectSalesBranchFromLocation, formatDate, formatMoney } from '@/lib/sales'
+import { detectSalesBranchFromLocation, formatDate } from '@/lib/sales'
 import { readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
 import type { CRMLead, CRMQuote, FollowUpLog, SalesBranch } from '@/lib/types'
 
@@ -31,12 +31,12 @@ function allExcludedInventory(lead: CRMLead) {
 function buildBillingLine(quote: CRMQuote | null): string {
   if (!quote) return 'Quote details not available'
   if (quote.billingModel === 'binding') {
-    return `BINDING QUOTE — Customer pays exactly ${formatMoney(quote.subtotal)} + HST regardless of hours. Do NOT discuss hourly rates on move day.`
+    return 'BINDING QUOTE — customer price is already set. Do NOT discuss rates, margin, or price changes on move day.'
   }
   if (quote.billingModel === 'hourly_minimum') {
-    return `HOURLY — Min ${quote.minimumBillableHours || quote.estimatedHours}h${quote.maximumEstimatedHours ? `, max ~${quote.maximumEstimatedHours}h` : ''}. Rate: $${quote.hourlyRateOverride || '?'}/hr. Actual hours billed.`
+    return `HOURLY — target ${quote.estimatedHours || '?'}h${quote.minimumBillableHours ? `, minimum ${quote.minimumBillableHours}h` : ''}${quote.maximumEstimatedHours ? `, max ~${quote.maximumEstimatedHours}h` : ''}. Track actual hours carefully.`
   }
-  return `HOURLY — Est ${quote.estimatedHours || '?'}h @ $${quote.hourlyRateOverride || '?'}/hr. Actual hours billed at end of move.`
+  return `HOURLY — target ${quote.estimatedHours || '?'}h. Track actual hours carefully.`
 }
 
 function extractCallHighlights(lead: CRMLead): string[] {
@@ -145,7 +145,7 @@ export async function generateCrewBrief(input: { lead: CRMLead; quote: CRMQuote 
   try {
     const inventory = allIncludedInventory(lead)
     const excluded = allExcludedInventory(lead)
-    const quoteLines = (quote?.lineItems || []).map(l => `- ${l.description}${l.details ? ` (${l.details})` : ''}${l.amount ? ` — ${formatMoney(l.amount)}` : ''}`)
+    const quoteLines = (quote?.lineItems || []).map(l => `- ${l.description}${l.details ? ` (${l.details})` : ''}`)
     const callHighlights = extractCallHighlights(lead)
     const repNotes = extractFollowUpNotes(followUps)
     const jf = lead.jobFactors
@@ -189,9 +189,7 @@ PARKING: ${lead.parkingNotes || 'No special notes'}
 
 ━━━ BILLING — CRITICAL ━━━
 ${buildBillingLine(quote)}
-Total quoted: ${quote ? `${formatMoney(quote.subtotal)} + HST = ${formatMoney(quote.total)}` : 'N/A'}
-Deposit paid: ${lead.depositAmount ? formatMoney(lead.depositAmount) : 'Unknown'} via ${lead.depositMethod || 'unknown'}
-Balance due: ${quote ? formatMoney(quote.balance) : 'Unknown'}
+Payment/margin details are intentionally hidden from the crew brief. Office handles all payment questions.
 
 CREW PLAN:
   ${quote?.crewSize || '?'} movers | ${quote?.truckCount || '?'} truck${(quote?.truckCount || 1) > 1 ? 's' : ''} | ${quote?.estimatedHours || '?'}h estimated${quote?.minimumBillableHours ? ` (min ${quote.minimumBillableHours}h)` : ''}${quote?.maximumEstimatedHours ? ` (max ~${quote.maximumEstimatedHours}h)` : ''}
@@ -221,8 +219,8 @@ Write the crew brief in these 8 sections:
 1. MOVE OVERVIEW
    One or two sentences: who, what, when, where.
 
-2. BILLING & PAYMENT
-   Binding or hourly — what this means on move day. What crew should and shouldn't say about cost.
+2. BILLING / HOURS RULE
+   Binding or hourly — what this means operationally. Include expected hours, but do not include customer price, crew pay, or margin.
 
 3. ⚠ SPECIAL ALERTS
    Anything crew MUST know before unloading the truck. Piano, safe, difficult access, partial packing, elevator booking, key pickup time, etc. If nothing special, write "None."

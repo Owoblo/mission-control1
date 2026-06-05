@@ -48,6 +48,13 @@ export const CREW_PAYOUT_STATUS_LABELS: Record<CrewPayoutStatus, string> = {
   paid: 'Paid',
 }
 
+export const CREW_DISPATCH_STATUS_LABELS: Record<NonNullable<CrewPayoutEntry['dispatchStatus']>, string> = {
+  pending: 'Pending',
+  sent: 'Sent',
+  confirmed: 'Confirmed',
+  declined: 'Declined',
+}
+
 export const CREW_ROLE_DEFAULT_RATES: Record<CrewPayoutRole, number> = {
   crew_lead: 25,
   driver: 22,
@@ -171,6 +178,11 @@ export function normalizeCrewPayouts(entries?: CrewPayoutEntry[]) {
       paymentMethod: entry.paymentMethod || 'interac',
       payoutDestination: normalizeOptionalText(entry.payoutDestination),
       payoutStatus: entry.payoutStatus || 'submitted',
+      dispatchStatus: entry.dispatchStatus || 'pending',
+      dispatchToken: normalizeOptionalText(entry.dispatchToken),
+      dispatchSentAt: normalizeOptionalText(entry.dispatchSentAt),
+      dispatchConfirmedAt: normalizeOptionalText(entry.dispatchConfirmedAt),
+      dispatchDeclinedAt: normalizeOptionalText(entry.dispatchDeclinedAt),
       submittedAt: normalizeOptionalText(entry.submittedAt) || new Date().toISOString(),
       approvedAt: normalizeOptionalText(entry.approvedAt),
       approvedBy: normalizeOptionalText(entry.approvedBy),
@@ -192,11 +204,11 @@ export function normalizeCrewPayouts(entries?: CrewPayoutEntry[]) {
 }
 
 export function deriveOpsChecklist(
-  lead: Pick<CRMLead, 'assignedCrew' | 'originAccess' | 'destAccess' | 'parkingNotes' | 'opsChecklist' | 'truckReservationStatus'>
+  lead: Pick<CRMLead, 'assignedCrew' | 'crewPayouts' | 'originAccess' | 'destAccess' | 'parkingNotes' | 'opsChecklist' | 'truckReservationStatus'>
 ): OpsChecklist {
   const existing = lead.opsChecklist || {}
   return {
-    crewAssigned: (lead.assignedCrew?.length ?? 0) > 0,
+    crewAssigned: (lead.assignedCrew?.length ?? 0) > 0 || (lead.crewPayouts?.some(entry => !!entry.workerName) ?? false),
     truckReserved: isTruckReservationComplete(lead.truckReservationStatus),
     accessConfirmed: existing.accessConfirmed ?? Boolean(lead.originAccess || lead.destAccess),
     parkingConfirmed: existing.parkingConfirmed ?? Boolean(lead.parkingNotes),
