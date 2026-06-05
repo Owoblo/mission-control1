@@ -496,6 +496,7 @@ export function EstimateDraftModal({
   const [conjointMlsBusy, setConjointMlsBusy] = useState<'person_a' | 'person_b' | null>(null)
   const [conjointMlsNotice, setConjointMlsNotice] = useState<string | null>(null)
   const conjointUploadInputRef = useRef<HTMLInputElement | null>(null)
+  const conjointUploadOwnerRef = useRef<'person_a' | 'person_b' | null>(null)
 
   async function handleConjointRepUpload(owner: 'person_a' | 'person_b', files: File[]) {
     if (!files.length) return
@@ -517,6 +518,7 @@ export function EstimateDraftModal({
     } finally {
       setConjointUploadBusy(false)
       setConjointUploadOwner(null)
+      conjointUploadOwnerRef.current = null
     }
   }
 
@@ -1618,6 +1620,7 @@ export function EstimateDraftModal({
       ? jobFactors.personBLabel || 'Person B'
       : jobFactors.personALabel || 'Person A'
     onInternalNotesChange(prependUniqueLine(internalNotes, `${label}: ${note}`))
+    setConjointMlsNotice(`${label} note added.`)
   }
 
   async function copyInventorySnapshot() {
@@ -3156,7 +3159,11 @@ export function EstimateDraftModal({
                                     </button>
                                     <button
                                       type="button"
-                                      onClick={() => { setConjointUploadOwner(selectedOwner); conjointUploadInputRef.current?.click() }}
+                                      onClick={() => {
+                                        conjointUploadOwnerRef.current = selectedOwner
+                                        setConjointUploadOwner(selectedOwner)
+                                        conjointUploadInputRef.current?.click()
+                                      }}
                                       disabled={conjointUploadBusy}
                                       className="rounded-[6px] bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-200 disabled:opacity-60"
                                     >
@@ -3170,7 +3177,9 @@ export function EstimateDraftModal({
                                       className="hidden"
                                       onChange={e => {
                                         const files = Array.from(e.target.files || [])
-                                        if (files.length && conjointUploadOwner) void handleConjointRepUpload(conjointUploadOwner, files)
+                                        const owner = conjointUploadOwnerRef.current || conjointUploadOwner
+                                        if (files.length && owner) void handleConjointRepUpload(owner, files)
+                                        if (files.length && !owner) setConjointUploadNotice('Choose Sam or Sam’s Girlfriend first, then upload again.')
                                         e.target.value = ''
                                       }}
                                     />
