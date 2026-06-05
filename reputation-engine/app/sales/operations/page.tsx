@@ -963,9 +963,13 @@ function JobsCalendar({
         })}
       </div>
 
-      {/* Selected job detail panel */}
+      {/* Selected job detail modal */}
       {selectedJob && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/45 p-4 pt-10 backdrop-blur-sm"
+          onClick={event => { if (event.target === event.currentTarget) setSelectedJob(null) }}
+        >
+        <div className="max-h-[calc(100vh-5rem)] w-full max-w-5xl space-y-4 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -1197,6 +1201,7 @@ function JobsCalendar({
               View Full Lead →
             </Link>
           </div>
+        </div>
         </div>
       )}
     </div>
