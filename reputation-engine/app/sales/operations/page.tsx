@@ -1479,14 +1479,18 @@ function CrewAssignModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 overflow-y-auto p-4 py-8"
       style={{ background: 'rgba(15,27,56,0.55)', backdropFilter: 'blur(2px)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="w-full max-w-3xl rounded-2xl bg-white shadow-2xl overflow-hidden">
-        <div className="bg-[#1a2744] px-6 py-5" style={{ borderBottom: '2px solid #f5a623' }}>
-          <h2 className="text-base font-bold text-white">Pre-Move Checklist</h2>
-          <p className="mt-0.5 text-xs text-white/60">{job.lead.name} — {getJobMoveDate(job) || 'Date TBD'}</p>
+      <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-6xl items-start">
+      <div className="w-full overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 bg-[#1a2744] px-6 py-5" style={{ borderBottom: '2px solid #f5a623' }}>
+          <div>
+            <h2 className="text-base font-bold text-white">Pre-Move Checklist</h2>
+            <p className="mt-0.5 text-xs text-white/60">{job.lead.name} — {getJobMoveDate(job) || 'Date TBD'}</p>
+          </div>
+          <button onClick={onClose} className="rounded-full bg-white/10 px-3 py-1 text-sm font-semibold text-white hover:bg-white/20">Close</button>
         </div>
         <div className="p-6 space-y-4">
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
@@ -1883,7 +1887,7 @@ function CrewAssignModal({
             </div>
           )}
 
-          <div className="flex gap-3">
+          <div className="sticky bottom-0 -mx-6 -mb-6 flex gap-3 border-t border-slate-200 bg-white/95 px-6 py-4 backdrop-blur">
             <button onClick={onClose} className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition">Cancel</button>
             <button
               onClick={() => void save()}
@@ -1894,6 +1898,7 @@ function CrewAssignModal({
             </button>
           </div>
         </div>
+      </div>
       </div>
     </div>
   )
