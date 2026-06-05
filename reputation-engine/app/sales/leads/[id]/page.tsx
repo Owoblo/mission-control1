@@ -228,6 +228,7 @@ export default function SalesLeadDetailPage() {
   const [photoRequestData, setPhotoRequestData] = useState<{ surveyUrl: string; draftSms: string; token: string } | null>(null)
   const [photoRequestSmsBody, setPhotoRequestSmsBody] = useState('')
   const [photoRequestSending, setPhotoRequestSending] = useState(false)
+  const [removedMediaUndo, setRemovedMediaUndo] = useState<{ assetId: string; label: string; timer: ReturnType<typeof setTimeout> } | null>(null)
   const [dispatchBriefOpen, setDispatchBriefOpen] = useState(false)
   const [dispatchBriefText, setDispatchBriefText] = useState('')
   const [dispatchBriefBusy, setDispatchBriefBusy] = useState(false)
@@ -1943,6 +1944,106 @@ export default function SalesLeadDetailPage() {
       setShowPhotoRequestDialog(false)
       setTimeout(() => { if (smsAreaRef.current) smsAreaRef.current.scrollTop = smsAreaRef.current.scrollHeight }, 60)
     } catch { /* ignore */ } finally { setPhotoRequestSending(false) }
+  }
+
+  async function handleSendToPartyB(phone: string, body: string) {
+    if (!lead) return
+    setPhotoRequestSending(true)
+    try {
+      // Generate Party B survey token
+      const partyBLabel = lead.jobFactors?.personBLabel || 'Party B'
+      const surveyRes = await fetch(`/api/sales/leads/${lead.id}/survey`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skipSms: true, partyB: true, partyBLabel }),
+      })
+      const surveyData = await surveyRes.json() as { surveyUrl?: string; token?: string; error?: string }
+      if (!surveyRes.ok || surveyData.error) throw new Error(surveyData.error || 'Failed to generate Party B link')
+      const partyBUrl = surveyData.surveyUrl || ''
+      setLead(prev => prev ? { ...prev, surveyTokenPartyB: 'set' } as typeof prev : prev)
+
+      // Replace placeholder URL in body with the real Party B link
+      const smsBody = body.includes(photoRequestData?.surveyUrl || '__none__')
+        ? body.replace(photoRequestData?.surveyUrl || '', partyBUrl)
+        : `${body}\n${partyBUrl}`
+
+      const digits = phone.replace(/\D/g, '')
+      const e164 = digits.startsWith('1') ? `+${digits}` : `+1${digits}`
+      await fetch('/api/sales/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ channel: 'sms', to: e164, body: smsBody, leadId: lead.id, notes: `Party B photo survey — ${partyBLabel}` }),
+      })
+      setSmsMessages(prev => [...prev, {
+        id: `survey_b_${Date.now()}`,
+        from_number: getDefaultSaturnBranchNumber(),
+        to_number: e164,
+        body: smsBody,
+        direction: 'outbound' as const,
+        lead_id: lead.id ?? null,
+        created_at: new Date().toISOString(),
+      }])
+      setShowPhotoRequestDialog(false)
+      setActiveTab('sms')
+      setTimeout(() => { if (smsAreaRef.current) smsAreaRef.current.scrollTop = smsAreaRef.current.scrollHeight }, 60)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setPhotoRequestSending(false)
+    }
+  }
+
+  function handleRemoveMedia(assetId: string) {
+    if (!lead) return
+    const asset = (lead.mediaAssets || []).find(a => a.id === assetId)
+    const label = asset?.filename || asset?.room || 'file'
+    setLead(prev => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        mediaAssets: (prev.mediaAssets || []).map(a =>
+          a.id === assetId ? { ...a, removed: true, removedAt: new Date().toISOString() } : a
+        ),
+      }
+    })
+    if (removedMediaUndo) {
+      clearTimeout(removedMediaUndo.timer)
+    }
+    const timer = setTimeout(() => {
+      void persistMediaRemoval(assetId)
+      setRemovedMediaUndo(null)
+    }, 5000)
+    setRemovedMediaUndo({ assetId, label, timer })
+  }
+
+  function handleUndoRemoveMedia() {
+    if (!removedMediaUndo) return
+    clearTimeout(removedMediaUndo.timer)
+    const { assetId } = removedMediaUndo
+    setRemovedMediaUndo(null)
+    setLead(prev => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        mediaAssets: (prev.mediaAssets || []).map(a =>
+          a.id === assetId ? { ...a, removed: undefined, removedAt: undefined } : a
+        ),
+      }
+    })
+  }
+
+  async function persistMediaRemoval(assetId: string) {
+    if (!lead) return
+    try {
+      await fetch(`/api/sales/leads/${lead.id}/media/${assetId}/remove`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      await refresh(lead.id)
+    } catch (err) {
+      console.error('[media/remove] failed:', err)
+    }
   }
 
   async function handleScanSurveyMedia() {
@@ -4436,6 +4537,7 @@ export default function SalesLeadDetailPage() {
                 onRequestVerification={() => void requestPhotoSurvey()}
                 onScanCustomerMedia={() => void handleScanSurveyMedia()}
                 onGenerateLinkOnly={() => void generateSurveyLinkOnly()}
+                onRemoveMedia={handleRemoveMedia}
               />
               <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
                 <div className="flex items-center justify-between gap-3">
@@ -5032,6 +5134,20 @@ export default function SalesLeadDetailPage() {
         onCancel={() => dismissConfirm(false)}
       />
 
+      {/* ── Undo toast for media removal ─────────────────────────── */}
+      {removedMediaUndo && (
+        <div className="fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 flex items-center gap-3 rounded-[10px] bg-[#1a2744] px-4 py-3 text-sm text-white shadow-2xl">
+          <span>Removed <span className="font-semibold">{removedMediaUndo.label}</span></span>
+          <button
+            type="button"
+            onClick={handleUndoRemoveMedia}
+            className="rounded-[6px] border border-white/30 px-2.5 py-1 text-xs font-semibold hover:bg-white/10 transition"
+          >
+            Undo
+          </button>
+        </div>
+      )}
+
       <PhotoRequestDialog
         open={!!showPhotoRequestDialog && !!photoRequestData}
         surveyUrl={photoRequestData?.surveyUrl || ''}
@@ -5041,6 +5157,9 @@ export default function SalesLeadDetailPage() {
         onSmsBodyChange={setPhotoRequestSmsBody}
         onSkip={() => setShowPhotoRequestDialog(false)}
         onSend={() => void sendPhotoRequestSms()}
+        conjointMode={!!(lead?.jobFactors?.conjointMove)}
+        partyB={lead?.jobFactors?.personBLabel ? { label: lead.jobFactors.personBLabel, phone: lead.jobFactors.personBPhone } : undefined}
+        onSendToPartyB={(phone, body) => void handleSendToPartyB(phone, body)}
       />
 
       {/* ── Dispatch Brief Modal ───────────────────────────────────── */}

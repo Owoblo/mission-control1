@@ -4,16 +4,30 @@ import { getSalesLead, saveSalesLead } from '@/lib/server/sales-repository'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { sendRepAlertEmail, surveyPhotosUploadedEmail } from '@/lib/server/internal-notifications'
 
-async function getLeadByToken(token: string) {
+async function getLeadByToken(token: string): Promise<{ id: string; data: Record<string, unknown>; partyLabel?: string } | null> {
   const { url, headers } = requireSupabaseEnv()
-  // Query directly by surveyToken field — never fetch all leads
-  const response = await fetch(
+  // Check primary survey token
+  const r1 = await fetch(
     `${url}/rest/v1/crm_leads?select=id,data&data->>surveyToken=eq.${encodeURIComponent(token)}&deleted=not.is.true&limit=1`,
     { headers, cache: 'no-store' }
   )
-  if (!response.ok) return null
-  const rows = await response.json() as Array<{ id: string; data: Record<string, unknown> }>
-  return rows[0] || null
+  if (r1.ok) {
+    const rows = await r1.json() as Array<{ id: string; data: Record<string, unknown> }>
+    if (rows[0]) return rows[0]
+  }
+  // Check Party B survey token
+  const r2 = await fetch(
+    `${url}/rest/v1/crm_leads?select=id,data&data->>surveyTokenPartyB=eq.${encodeURIComponent(token)}&deleted=not.is.true&limit=1`,
+    { headers, cache: 'no-store' }
+  )
+  if (r2.ok) {
+    const rows = await r2.json() as Array<{ id: string; data: Record<string, unknown> }>
+    if (rows[0]) {
+      const partyLabel = (rows[0].data.surveyTokenPartyBLabel as string | undefined) || 'Party B'
+      return { ...rows[0], partyLabel }
+    }
+  }
+  return null
 }
 
 export async function POST(
@@ -27,7 +41,8 @@ export async function POST(
     const lead = await getSalesLead(row.id)
     if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
 
-    const expiresAt = row.data.surveyTokenExpiresAt as string | undefined
+    const isPartyB = !!row.partyLabel
+    const expiresAt = (isPartyB ? row.data.surveyTokenPartyBExpiresAt : row.data.surveyTokenExpiresAt) as string | undefined
     if (expiresAt && new Date(expiresAt) < new Date()) {
       return NextResponse.json({ error: 'Survey link has expired' }, { status: 410 })
     }
@@ -44,6 +59,7 @@ export async function POST(
       files,
       room,
       source: 'survey',
+      partyLabel: row.partyLabel,
     })
 
     // Save assets to lead (no inventory changes yet — scan happens later)

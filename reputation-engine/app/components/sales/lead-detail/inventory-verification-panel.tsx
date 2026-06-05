@@ -13,6 +13,7 @@ type Props = {
   onRequestVerification: () => void
   onScanCustomerMedia: () => void
   onGenerateLinkOnly?: () => void
+  onRemoveMedia?: (assetId: string) => void
 }
 
 export function InventoryVerificationPanel({
@@ -23,6 +24,7 @@ export function InventoryVerificationPanel({
   onRequestVerification,
   onScanCustomerMedia,
   onGenerateLinkOnly,
+  onRemoveMedia,
 }: Props) {
   const [copied, setCopied] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
@@ -36,10 +38,10 @@ export function InventoryVerificationPanel({
   }
 
   const customerImageAssets = (lead.mediaAssets || []).filter(
-    (asset: LeadMediaAsset) => ['survey', 'rep_upload', 'mms'].includes(asset.source) && asset.kind === 'image'
+    (asset: LeadMediaAsset) => ['survey', 'rep_upload', 'mms'].includes(asset.source) && asset.kind === 'image' && !asset.removed
   )
   const customerVideoAssets = (lead.mediaAssets || []).filter(
-    (asset: LeadMediaAsset) => ['survey', 'rep_upload', 'mms'].includes(asset.source) && asset.kind === 'video'
+    (asset: LeadMediaAsset) => ['survey', 'rep_upload', 'mms'].includes(asset.source) && asset.kind === 'video' && !asset.removed
   )
   const totalCustomerMedia = customerImageAssets.length + customerVideoAssets.length
   const videoScanSummary = customerVideoAssets.reduce<Record<string, number>>((summary, asset) => {
@@ -229,15 +231,25 @@ export function InventoryVerificationPanel({
                 {customerImageAssets.map((asset, index) => {
                   const sourceLabel = asset.source === 'mms' ? 'MMS' : asset.source === 'survey' ? 'Survey' : 'Rep'
                   const sourceTone = asset.source === 'mms' ? 'bg-sky-100 text-sky-700' : asset.source === 'survey' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'
+                  const canRemove = asset.source === 'rep_upload' && canEditCurrentLead && !!onRemoveMedia
                   return (
-                    <button key={asset.id || index} type="button" onClick={() => setLightboxIndex(index)}
-                      className="group relative aspect-square overflow-hidden rounded-[6px] border border-[var(--app-line)] cursor-zoom-in"
-                      title={asset.room || `Photo ${index + 1} — click to enlarge`}
-                    >
-                      <img src={asset.url} alt={`Customer photo ${index + 1}`} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                    <div key={asset.id || index} className="group relative aspect-square overflow-hidden rounded-[6px] border border-[var(--app-line)]">
+                      <button type="button" onClick={() => setLightboxIndex(index)} className="absolute inset-0 cursor-zoom-in">
+                        <img src={asset.url} alt={`Customer photo ${index + 1}`} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                      </button>
                       <div className={`absolute left-1 top-1 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${sourceTone}`}>{sourceLabel}</div>
                       {asset.room && <div className="absolute bottom-0 left-0 right-0 truncate bg-black/50 px-1 py-0.5 text-[9px] text-white">{asset.room}</div>}
-                    </button>
+                      {canRemove && (
+                        <button
+                          type="button"
+                          onClick={e => { e.stopPropagation(); onRemoveMedia!(asset.id) }}
+                          className="absolute right-1 top-1 hidden group-hover:flex items-center justify-center rounded-full bg-rose-600 text-white w-5 h-5 text-[10px] font-bold shadow"
+                          title="Remove this photo"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
                   )
                 })}
               </div>

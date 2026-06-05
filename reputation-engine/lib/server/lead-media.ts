@@ -98,6 +98,7 @@ export async function uploadLeadMediaAssets(input: {
   uploadedByUserId?: string
   uploadedByName?: string
   notes?: string
+  partyLabel?: string
 }) {
   const assets: LeadMediaAsset[] = []
 
@@ -117,6 +118,7 @@ export async function uploadLeadMediaAssets(input: {
       uploadedByUserId: input.uploadedByUserId,
       uploadedByName: input.uploadedByName,
       notes: input.notes,
+      partyLabel: input.partyLabel || undefined,
     })
   }
 

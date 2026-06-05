@@ -281,6 +281,9 @@ export interface LeadMediaAsset {
   uploadedByUserId?: string
   uploadedByName?: string
   notes?: string
+  partyLabel?: string
+  removed?: boolean
+  removedAt?: string
   analysisStatus?: 'pending' | 'scanned' | 'skipped' | 'failed'
   analysisNotes?: string
   linkedCostId?: string
@@ -502,6 +505,7 @@ export interface JobFactors {
   conjointMove?: boolean
   personALabel?: string
   personBLabel?: string
+  personBPhone?: string
   personBOriginFloors?: number
   personBOriginHasElevator?: boolean
   personBOriginElevatorReserved?: boolean
@@ -700,6 +704,9 @@ export interface CRMLead {
   followUpStatus?: LeadFollowUpStatus
   surveyToken?: string
   surveyTokenExpiresAt?: string
+  surveyTokenPartyB?: string
+  surveyTokenPartyBExpiresAt?: string
+  surveyTokenPartyBLabel?: string
   surveyRequestedAt?: string
   surveyCompletedAt?: string
   surveyPhotoCount?: number

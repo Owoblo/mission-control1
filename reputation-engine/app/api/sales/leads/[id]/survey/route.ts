@@ -25,21 +25,37 @@ export async function POST(
 
     const lead = await getSalesLead(params.id)
     if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
-    const body = (await request.json().catch(() => ({}))) as { skipSms?: boolean; customMessage?: string }
+    const body = (await request.json().catch(() => ({}))) as {
+      skipSms?: boolean
+      customMessage?: string
+      partyB?: boolean
+      partyBLabel?: string
+    }
     const skipSms = body.skipSms === true
+    const isPartyB = body.partyB === true
+    const partyBLabel = body.partyBLabel?.trim() || 'Party B'
 
     const token = generateToken()
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
     const surveyUrl = `${APP_URL}/survey/${token}`
 
-    await saveSalesLead({
-      ...lead,
-      surveyToken: token,
-      surveyTokenExpiresAt: expiresAt,
-      surveyRequestedAt: new Date().toISOString(),
-      surveyCompletedAt: undefined,
-      surveyPhotoCount: 0,
-    } as typeof lead & Record<string, unknown>)
+    if (isPartyB) {
+      await saveSalesLead({
+        ...lead,
+        surveyTokenPartyB: token,
+        surveyTokenPartyBExpiresAt: expiresAt,
+        surveyTokenPartyBLabel: partyBLabel,
+      } as typeof lead & Record<string, unknown>)
+    } else {
+      await saveSalesLead({
+        ...lead,
+        surveyToken: token,
+        surveyTokenExpiresAt: expiresAt,
+        surveyRequestedAt: new Date().toISOString(),
+        surveyCompletedAt: undefined,
+        surveyPhotoCount: 0,
+      } as typeof lead & Record<string, unknown>)
+    }
 
     // Only send SMS if not explicitly skipped (client shows dialog first)
     if (!skipSms && lead.phone) {
