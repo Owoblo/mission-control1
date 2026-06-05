@@ -671,6 +671,10 @@ export async function saveSalesQuote(quote: CRMQuote) {
   return normalizeQuote(await upsert<CRMQuote>('crm_quotes', normalizeQuote(quote)))
 }
 
+export async function deleteSalesQuote(id: string) {
+  await markDeleted('crm_quotes', id)
+}
+
 export async function listSalesClients() {
   const clients = await selectAll<CRMClient>('crm_clients')
   return clients.map(client => normalizeClient(client))

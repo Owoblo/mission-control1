@@ -7,7 +7,7 @@ import { formatListingContextSummary, getListingDescription, getListingOperation
 import { getQuotedTruckCount } from '@/lib/operations'
 import { fetchSalesOverview, requestPriceOverrideApproval, verifyPriceOverrideApproval } from '@/lib/sales-api'
 import { estimateLeadQuote, deriveInventoryMetrics, formatMoney, getSalesBranchLabel, isBookedLikeStage, suggestTruckCount, detectSalesBranchFromLocation } from '@/lib/sales'
-import { INVENTORY_PRESETS } from '@/lib/item-presets'
+import { INVENTORY_PRESETS, createInventoryItemFromPreset } from '@/lib/item-presets'
 import { getDisassemblyServiceLabel, getIncludedDisassemblyItems } from '@/lib/move-scope'
 import { formatMovePolicyCategoryLabel, getMovePolicyFinding, summarizeMovePolicy } from '@/lib/move-policy'
 import { getTvBoxMaterialPresetForSize } from '@/lib/packing-materials'
@@ -473,6 +473,8 @@ export function EstimateDraftModal({
   const [junkSmsDialogOpen, setJunkSmsDialogOpen] = useState(false)
   const [junkSmsDraft, setJunkSmsDraft] = useState('')
   const [junkSmsSending, setJunkSmsSending] = useState(false)
+  const [activeConjointOwner, setActiveConjointOwner] = useState<'person_a' | 'person_b' | 'combined'>('person_a')
+  const [conjointCustomItem, setConjointCustomItem] = useState('')
   const [valuationAmount, setValuationAmount] = useState('149')
   const [intakeOpen, setIntakeOpen] = useState(false)
   const [intakeText, setIntakeText] = useState('')
@@ -1319,6 +1321,43 @@ export function EstimateDraftModal({
     setQuickQty(1)
     setQuickCuFt('')
     setQuickLookupNote(null)
+  }
+
+  function addConjointPresetItem(presetId: string, owner: 'person_a' | 'person_b') {
+    const preset = INVENTORY_PRESETS.find(item => item.id === presetId)
+    if (!preset) return
+    onAddInventoryItems([{ ...createInventoryItemFromPreset(preset), owner }])
+  }
+
+  function addConjointCustomItem(owner: 'person_a' | 'person_b') {
+    const label = conjointCustomItem.trim()
+    if (!label) return
+    onAddInventoryItems([{
+      id: `conjoint-${owner}-${Date.now()}`,
+      room: 'Custom Items',
+      name: label,
+      item: label,
+      qty: 1,
+      cubicFeet: 0,
+      weightLbs: 0,
+      included: true,
+      source: 'manual',
+      owner,
+    }])
+    setConjointCustomItem('')
+  }
+
+  function assignUntaggedConjointItems(owner: 'person_a' | 'person_b') {
+    inventory.forEach((item, index) => {
+      if (!item.owner) onUpdateInventoryItem(index, 'owner', owner)
+    })
+  }
+
+  function appendConjointScopeNote(owner: 'person_a' | 'person_b', note: string) {
+    const label = owner === 'person_b'
+      ? jobFactors.personBLabel || 'Person B'
+      : jobFactors.personALabel || 'Person A'
+    onInternalNotesChange(prependUniqueLine(internalNotes, `${label}: ${note}`))
   }
 
   async function copyInventorySnapshot() {
@@ -2682,6 +2721,123 @@ export function EstimateDraftModal({
                       {personBItems.length === 0 && inventory.length > 0 && (
                         <div className="text-[10px] text-purple-600">Tag inventory items with A or B using the button on each item to see the volume split.</div>
                       )}
+                      {(() => {
+                        const personALabel = jobFactors.personALabel || 'Person A'
+                        const personBLabel = jobFactors.personBLabel || 'Person B'
+                        const ownerTabs: Array<{ id: 'person_a' | 'person_b' | 'combined'; label: string; tone: string }> = [
+                          { id: 'person_a', label: personALabel, tone: 'blue' },
+                          { id: 'person_b', label: personBLabel, tone: 'purple' },
+                          { id: 'combined', label: 'Combined', tone: 'slate' },
+                        ]
+                        const scopedItems = activeConjointOwner === 'combined'
+                          ? inventory.filter(item => item.included !== false)
+                          : inventory.filter(item => item.included !== false && (activeConjointOwner === 'person_b' ? item.owner === 'person_b' : item.owner !== 'person_b'))
+                        const scopedCuFt = Math.round(scopedItems.reduce((sum, item) => sum + (item.cubicFeet || 0) * (item.qty || 1), 0))
+                        const selectedOwner = activeConjointOwner === 'person_b' ? 'person_b' : 'person_a'
+                        const selectedLabel = selectedOwner === 'person_b' ? personBLabel : personALabel
+                        const untaggedCount = inventory.filter(item => item.included !== false && !item.owner).length
+                        const commonPresets = INVENTORY_PRESETS.filter(preset =>
+                          ['sofa-standard', 'queen-bed', 'dresser-med', 'desk-standard', 'dining-table-4', 'dining-chair', 'box-medium'].includes(preset.id)
+                        )
+                        return (
+                          <div className="rounded-[8px] border border-purple-200 bg-white p-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                              {ownerTabs.map(tab => (
+                                <button
+                                  key={tab.id}
+                                  type="button"
+                                  onClick={() => setActiveConjointOwner(tab.id)}
+                                  className={`rounded-full px-3 py-1 text-[10px] font-semibold transition-colors ${
+                                    activeConjointOwner === tab.id
+                                      ? tab.tone === 'blue'
+                                        ? 'bg-blue-700 text-white'
+                                        : tab.tone === 'purple'
+                                          ? 'bg-purple-700 text-white'
+                                          : 'bg-slate-700 text-white'
+                                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                  }`}
+                                >
+                                  {tab.label}
+                                </button>
+                              ))}
+                              <span className="ml-auto text-[10px] font-semibold text-slate-500">
+                                {scopedItems.length} item{scopedItems.length === 1 ? '' : 's'} · {scopedCuFt} cu ft
+                              </span>
+                            </div>
+                            {activeConjointOwner !== 'combined' ? (
+                              <div className="mt-3 grid gap-2">
+                                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                                  <input
+                                    value={conjointCustomItem}
+                                    onChange={event => setConjointCustomItem(event.target.value)}
+                                    className="crm-input h-9 py-1 text-xs"
+                                    placeholder={`Add custom item for ${selectedLabel}`}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => addConjointCustomItem(selectedOwner)}
+                                    className="rounded-[6px] bg-[#1a2744] px-3 py-1.5 text-[10px] font-semibold text-white"
+                                  >
+                                    Add item
+                                  </button>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {commonPresets.map(preset => (
+                                    <button
+                                      key={preset.id}
+                                      type="button"
+                                      onClick={() => addConjointPresetItem(preset.id, selectedOwner)}
+                                      className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[10px] font-semibold text-[var(--app-muted)] hover:text-[var(--app-ink)]"
+                                    >
+                                      + {preset.label}
+                                    </button>
+                                  ))}
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => assignUntaggedConjointItems(selectedOwner)}
+                                    disabled={untaggedCount === 0}
+                                    className="rounded-[6px] bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-700 disabled:opacity-40"
+                                  >
+                                    Assign {untaggedCount} untagged to {selectedLabel}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => appendConjointScopeNote(selectedOwner, 'customer photos / MLS scan still need review before final quote')}
+                                    className="rounded-[6px] bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-800"
+                                  >
+                                    Mark photos needed
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => appendConjointScopeNote(selectedOwner, 'possible add-on scope: junk removal / donation / extra disposal')}
+                                    className="rounded-[6px] bg-rose-50 px-2.5 py-1 text-[10px] font-semibold text-rose-700"
+                                  >
+                                    Add junk scope note
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => appendConjointScopeNote(selectedOwner, 'packing / wrapping scope needs custom confirmation')}
+                                    className="rounded-[6px] bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-800"
+                                  >
+                                    Add packing note
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="mt-3 grid gap-2 text-[10px] text-slate-600 sm:grid-cols-2">
+                                <div className="rounded-[6px] border border-slate-200 bg-slate-50 px-2.5 py-2">
+                                  Use one combined quote when both pickups are part of one move day and one destination.
+                                </div>
+                                <div className="rounded-[6px] border border-slate-200 bg-slate-50 px-2.5 py-2">
+                                  Use “another job” only for a separate move, commercial job, standalone junk run, or different booking date.
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })()}
                     </div>
                   )
                 })()}

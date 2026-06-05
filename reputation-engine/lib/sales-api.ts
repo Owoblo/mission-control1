@@ -111,6 +111,14 @@ export async function deleteSalesLead(id: string): Promise<{ ok: boolean }> {
   return readJson(response)
 }
 
+export async function deleteSalesQuote(id: string): Promise<{ ok: boolean; lead?: CRMLead | null }> {
+  const response = await fetch(`/api/sales/quotes/${id}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  return readJson(response)
+}
+
 export async function fetchDeletedSalesLeads(): Promise<CRMLead[]> {
   const response = await fetch('/api/sales/leads/deleted', {
     cache: 'no-store',

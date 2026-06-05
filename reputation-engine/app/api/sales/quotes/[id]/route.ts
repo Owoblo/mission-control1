@@ -4,7 +4,7 @@ import { getAcceptedQuoteLockedFieldChanges, ACCEPTED_QUOTE_LOCKED_KEYS, recordQ
 import { canAccessSalesWorkspace, canReviseExistingQuote, validateQuotePricingPermissions } from '@/lib/server/sales-permissions'
 import { scheduleQuoteExpiryFollowup, scheduleQuoteFollowup, scheduleQuoteViewedFollowup } from '@/lib/server/sales-automation'
 import { getSessionUser } from '@/lib/server/session'
-import { getSalesClient, getSalesLead, getSalesQuote, listFollowUpLogs, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
+import { deleteSalesQuote, getSalesClient, getSalesLead, getSalesQuote, listFollowUpLogs, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
 import { sendRepAlertEmail, quoteViewedEmail, quoteAcceptedEmail } from '@/lib/server/internal-notifications'
 import type { QuoteChangeEntry } from '@/lib/types'
 
@@ -183,6 +183,49 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to update quote' },
+      { status: 400 }
+    )
+  }
+}
+
+export async function DELETE(_: Request, { params }: { params: { id: string } }) {
+  try {
+    const session = await getSessionUser()
+    if (!canAccessSalesWorkspace(session)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const quote = await getSalesQuote(params.id)
+    if (!quote) {
+      return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
+    }
+
+    const protectedStatuses = new Set(['sent', 'viewed', 'accepted', 'invoiced', 'paid', 'declined'])
+    if (protectedStatuses.has(quote.status) || quote.acceptedAt || quote.depositPaidAmount || quote.depositPaidAt) {
+      return NextResponse.json(
+        { error: 'Only unused draft quotes can be removed. Sent, accepted, invoiced, or paid jobs are protected.' },
+        { status: 409 }
+      )
+    }
+
+    const lead = quote.leadId ? await getSalesLead(quote.leadId) : null
+    await deleteSalesQuote(quote.id)
+
+    let savedLead = lead
+    if (lead) {
+      const remainingQuoteIds = (lead.quoteIds || []).filter(id => id !== quote.id)
+      const nextQuoteId = lead.quoteId === quote.id ? remainingQuoteIds[0] : lead.quoteId
+      savedLead = await saveSalesLead({
+        ...lead,
+        quoteId: nextQuoteId,
+        quoteIds: remainingQuoteIds,
+      })
+    }
+
+    return NextResponse.json({ ok: true, lead: savedLead })
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to delete quote' },
       { status: 400 }
     )
   }
