@@ -33,6 +33,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
   const [crew, setCrew] = useState<2 | 3 | 4>(2)
   const [rangeIdx, setRangeIdx] = useState(1) // default 3–5 hrs
   const [specialtyItems, setSpecialtyItems] = useState<string[]>([])
+  const [surcharge, setSurcharge] = useState(0)
   const [sending, setSending] = useState(false)
   const [result, setResult] = useState<{
     bookingLink: string
@@ -49,8 +50,8 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
 
   const rate = RATES[moveType]?.[crew] ?? 225
   const range = HOUR_RANGES[rangeIdx]
-  const minTotal = Math.round(rate * range.min * 1.13)
-  const maxTotal = Math.round(rate * range.max * 1.13)
+  const minTotal = Math.round(rate * range.min * 1.13) + surcharge
+  const maxTotal = Math.round(rate * range.max * 1.13) + surcharge
 
   function toggleSpecialty(id: string) {
     setSpecialtyItems(prev =>
@@ -72,6 +73,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
           minHours: range.min,
           maxHours: range.max,
           specialtyItems,
+          surchargeAmount: surcharge > 0 ? surcharge : undefined,
         }),
       })
       const data = await res.json() as {
@@ -229,6 +231,32 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
               </div>
             </div>
 
+            {/* Emergency surcharge */}
+            <div>
+              <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Emergency Surcharge</div>
+              <div className="grid grid-cols-4 gap-2">
+                {([0, 100, 150, 200] as const).map(amt => (
+                  <button
+                    key={amt}
+                    type="button"
+                    onClick={() => setSurcharge(amt)}
+                    className={`rounded-[10px] border py-2.5 text-sm font-semibold transition ${
+                      surcharge === amt
+                        ? 'border-rose-500 bg-rose-500 text-white'
+                        : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-muted)] hover:border-rose-400'
+                    }`}
+                  >
+                    {amt === 0 ? 'None' : `+$${amt}`}
+                  </button>
+                ))}
+              </div>
+              {surcharge > 0 && (
+                <p className="mt-1.5 text-[10px] text-rose-600">
+                  Emergency fee of ${surcharge} added — customer sees it as a fixed surcharge on the quote.
+                </p>
+              )}
+            </div>
+
             {/* Rate preview */}
             <div className="rounded-[10px] bg-[#1a2744]/5 px-4 py-3">
               <div className="flex items-baseline justify-between">
@@ -236,7 +264,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
                 <span className="text-xs text-[var(--app-muted)]">{range.min}-hour minimum</span>
               </div>
               <div className="mt-1 text-xs text-[var(--app-muted)]">
-                Minimum charge <span className="font-semibold text-[var(--app-ink)]">${minTotal.toLocaleString()}</span> (incl. HST)
+                Minimum charge <span className="font-semibold text-[var(--app-ink)]">${minTotal.toLocaleString()}</span> (incl. HST{surcharge > 0 ? ` + $${surcharge} surcharge` : ''})
                 {range.max > range.min ? ` · most jobs in this lane take about ${range.label}` : ''}
               </div>
               <div className="mt-1 text-[10px] text-[var(--app-muted)]">$100 deposit to book · time after the minimum bills in 15-minute increments</div>

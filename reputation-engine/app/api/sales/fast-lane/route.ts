@@ -61,10 +61,12 @@ export async function POST(request: Request) {
       crew: 2 | 3 | 4
       minHours: number
       maxHours: number
-      specialtyItems?: string[]  // ['piano', 'safe', 'pool_table', 'hot_tub']
+      specialtyItems?: string[]
+      surchargeAmount?: number
     }
 
-    const { leadId, moveType = 'truck', crew = 2, minHours = 3, maxHours = 5, specialtyItems = [] } = body
+    const { leadId, moveType = 'truck', crew = 2, minHours = 3, maxHours = 5, specialtyItems = [], surchargeAmount } = body
+    const surcharge = Math.max(0, Math.round(Number(surchargeAmount || 0) * 100) / 100)
 
     if (!leadId) return NextResponse.json({ error: 'leadId required' }, { status: 400 })
 
@@ -78,7 +80,7 @@ export async function POST(request: Request) {
     const quotedHours = minHours
     const subtotal = Math.round(rate * quotedHours * 100) / 100
     const hst = Math.round(subtotal * HST * 100) / 100
-    const total = Math.round((subtotal + hst) * 100) / 100
+    const total = Math.round((subtotal + hst + surcharge) * 100) / 100
     const balance = Math.round((total - DEPOSIT) * 100) / 100
 
     const crewLabel = moveType === 'truck'
@@ -87,7 +89,7 @@ export async function POST(request: Request) {
 
     const fastLaneTerms = buildFastLaneTerms(minHours, maxHours)
     const rangeLabel = fastLaneTerms.rangeLabel
-    const fastLaneSignature = `Fast Lane quote · ${crewLabel} · $${rate}/hr · ${rangeLabel}`
+    const fastLaneSignature = `Fast Lane quote · ${crewLabel} · $${rate}/hr · ${rangeLabel}${surcharge > 0 ? ` · +$${surcharge} surcharge` : ''}`
 
     // Specialty notes
     const specialtyMap: Record<string, string> = {
@@ -141,8 +143,8 @@ export async function POST(request: Request) {
         rangeLabel,
         minimumHours: minHours,
         maximumHours: maxHours,
-        minTotal: Math.round(rate * minHours * (1 + HST)),
-        maxTotal: Math.round(rate * maxHours * (1 + HST)),
+        minTotal: Math.round(rate * minHours * (1 + HST)) + surcharge,
+        maxTotal: Math.round(rate * maxHours * (1 + HST)) + surcharge,
         channel: lead.phone ? 'sms' : 'email',
         recipient: lead.phone || lead.email,
         deduped: true,
@@ -173,14 +175,21 @@ export async function POST(request: Request) {
       status: 'sent',
       validDays: 7,
       acceptToken,
-      lineItems: [{
-        description: `${crewLabel} — $${rate}/hr`,
-        details: fastLaneTerms.lineItemDetails,
-        amount: subtotal,
-      }],
+      lineItems: [
+        {
+          description: `${crewLabel} — $${rate}/hr`,
+          details: fastLaneTerms.lineItemDetails,
+          amount: subtotal,
+        },
+        ...(surcharge > 0 ? [{
+          description: 'Emergency / Short-Notice Surcharge',
+          details: 'Applied for same-day or short-notice booking',
+          amount: surcharge,
+        }] : []),
+      ],
       discountAmount: 0,
       discountLabel: '',
-      subtotal,
+      subtotal: Math.round((subtotal + surcharge) * 100) / 100,
       hst,
       total,
       deposit: DEPOSIT,
@@ -208,8 +217,8 @@ export async function POST(request: Request) {
 
     // Build and send SMS
     const firstName = lead.name?.split(' ')[0] || 'there'
-    const minTotal = Math.round(rate * minHours * (1 + HST))
-    const maxTotal = Math.round(rate * maxHours * (1 + HST))
+    const minTotal = Math.round(rate * minHours * (1 + HST)) + surcharge
+    const maxTotal = Math.round(rate * maxHours * (1 + HST)) + surcharge
 
     const smsBody = [
       `Hi ${firstName}! Here's your moving quote from Saturn Star. ⭐`,
@@ -217,6 +226,7 @@ export async function POST(request: Request) {
       `${crewLabel}`,
       `$${rate}/hr · ${fastLaneTerms.smsSummary}`,
       `Minimum charge: ${minHours} hour${minHours === 1 ? '' : 's'} · ${formatMoney(minTotal)} incl. HST`,
+      surcharge > 0 ? `⚡ Emergency/short-notice surcharge: $${surcharge} (applied to this booking)` : '',
       maxHours > minHours ? `If the move runs longer, the same hourly rate continues up to about ${maxHours} hours in this lane.` : '',
       specialtyNote ? `📋 Note: ${specialtyItems.includes('piano') ? 'Piano/Safe' : ''}${specialtyItems.includes('pool_table') ? ' Pool Table' : ''}${specialtyItems.includes('hot_tub') ? ' Hot Tub' : ''} — see booking page for details.` : '',
       ``,

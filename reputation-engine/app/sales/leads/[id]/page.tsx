@@ -256,6 +256,7 @@ export default function SalesLeadDetailPage() {
   const [logDepositBusy, setLogDepositBusy] = useState(false)
   const [chargeDepositBusy, setChargeDepositBusy] = useState(false)
   const [chargeBalanceBusy, setChargeBalanceBusy] = useState(false)
+  const [chargeBalanceFlash, setChargeBalanceFlash] = useState<{ amount: number; remaining: number } | null>(null)
   const [sendInvoiceBusy, setSendInvoiceBusy] = useState(false)
   const [balanceOverrideAmount, setBalanceOverrideAmount] = useState('')
   const [balanceOverrideNote, setBalanceOverrideNote] = useState('')
@@ -2408,6 +2409,10 @@ export default function SalesLeadDetailPage() {
       if (!r.ok || !payload.ok || !payload.lead || !payload.quote) throw new Error(payload.error || 'Charge failed')
       setLead(payload.lead)
       setQuote(payload.quote)
+      setBalanceOverrideAmount('')
+      setBalanceOverrideNote('')
+      setChargeBalanceFlash({ amount: chargeAmt, remaining: payload.balance ?? 0 })
+      setTimeout(() => setChargeBalanceFlash(null), 6000)
       setError(null)
     } catch (err) {
       setError((err as Error).message)
@@ -4161,6 +4166,49 @@ export default function SalesLeadDetailPage() {
                         {/* Balance override input */}
                         <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3 space-y-2">
                           <div className="text-xs font-semibold text-[var(--app-ink)]">Adjust &amp; charge balance</div>
+
+                          {/* Charged-so-far summary */}
+                          {(() => {
+                            const { depositPaid, balancePaid, totalPaid } = (() => {
+                              const dep = Math.max(Number(quote.depositPaidAmount || 0), Number(lead.depositAmount || 0))
+                              const bal = Math.max(Number(quote.balancePaidAmount || 0), 0)
+                              return { depositPaid: dep, balancePaid: bal, totalPaid: dep + bal }
+                            })()
+                            if (totalPaid <= 0) return null
+                            return (
+                              <div className="rounded-[6px] bg-slate-50 border border-slate-200 px-3 py-2 text-[10px] space-y-0.5">
+                                <div className="flex justify-between text-[var(--app-muted)]">
+                                  <span>Deposit charged</span>
+                                  <span className="font-semibold text-[var(--app-ink)]">{formatMoney(depositPaid)}</span>
+                                </div>
+                                {balancePaid > 0 && (
+                                  <div className="flex justify-between text-[var(--app-muted)]">
+                                    <span>Balance charged</span>
+                                    <span className="font-semibold text-[var(--app-ink)]">{formatMoney(balancePaid)}</span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between border-t border-slate-200 pt-0.5 mt-0.5">
+                                  <span className="font-semibold text-[var(--app-ink)]">Total collected</span>
+                                  <span className="font-bold text-emerald-700">{formatMoney(totalPaid)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-[var(--app-muted)]">Still owing</span>
+                                  <span className="font-bold text-[var(--app-ink)]">{formatMoney(Math.max(0, quote.total - totalPaid))}</span>
+                                </div>
+                              </div>
+                            )
+                          })()}
+
+                          {/* Success flash */}
+                          {chargeBalanceFlash && (
+                            <div className="rounded-[6px] bg-emerald-50 border border-emerald-300 px-3 py-2 text-xs font-semibold text-emerald-800">
+                              ✓ Charged {formatMoney(chargeBalanceFlash.amount)}.{' '}
+                              {chargeBalanceFlash.remaining > 0
+                                ? `Remaining balance: ${formatMoney(chargeBalanceFlash.remaining)}`
+                                : 'Paid in full!'}
+                            </div>
+                          )}
+
                           <div className="flex items-center gap-2">
                             <span className="text-xs text-[var(--app-muted)]">$</span>
                             <input
@@ -4182,7 +4230,7 @@ export default function SalesLeadDetailPage() {
                           <div className="flex gap-2">
                             <button
                               onClick={() => void chargeBalance(Number(balanceOverrideAmount) || quote.balance)}
-                              disabled={!canHandleCurrentLeadPayments || chargeBalanceBusy || !hasStoredPaymentCard}
+                              disabled={!canHandleCurrentLeadPayments || chargeBalanceBusy || !hasStoredPaymentCard || !!chargeBalanceFlash}
                               className="flex-1 rounded-[8px] bg-[var(--app-accent)] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
                             >
                               {chargeBalanceBusy ? 'Charging...' : `Charge Card — ${formatMoney(Number(balanceOverrideAmount) || quote.balance)}`}
