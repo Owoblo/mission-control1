@@ -19,6 +19,7 @@ import {
   TRUCK_VENDOR_LABELS,
 } from '@/lib/operations'
 import { deriveAccessComplexityAssessment } from '@/lib/access-intelligence'
+import { buildDefaultMoveExecutionEntries, MOVE_EXECUTION_PHASES } from '@/lib/move-execution'
 import { updateSalesLead } from '@/lib/sales-api'
 import { formatDate, formatDateTime, formatMoney, uid } from '@/lib/sales'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
@@ -30,6 +31,8 @@ import type {
   CrewDispatchStatus,
   CrewPayoutMethod,
   CrewPayoutRole,
+  MoveExecutionIssue,
+  MoveExecutionPhase,
   TruckReservationStatus,
   TruckVendor,
 } from '@/lib/types'
@@ -840,12 +843,32 @@ function JobsCalendar({
   const [actualNotes, setActualNotes] = useState('')
   const [savingActuals, setSavingActuals] = useState(false)
   const [actualsMessage, setActualsMessage] = useState<string | null>(null)
+  const [executionTimes, setExecutionTimes] = useState<Record<MoveExecutionPhase, string>>({} as Record<MoveExecutionPhase, string>)
+  const [executionNotes, setExecutionNotes] = useState<Record<MoveExecutionPhase, string>>({} as Record<MoveExecutionPhase, string>)
+  const [varianceReason, setVarianceReason] = useState('')
+  const [issueCategory, setIssueCategory] = useState<MoveExecutionIssue['category']>('access')
+  const [issueSeverity, setIssueSeverity] = useState<MoveExecutionIssue['severity']>('medium')
+  const [issueNote, setIssueNote] = useState('')
+  const [receiptsNote, setReceiptsNote] = useState('')
+  const [customerFeedbackNote, setCustomerFeedbackNote] = useState('')
+  const [savingExecutionLog, setSavingExecutionLog] = useState(false)
+  const [executionLogMessage, setExecutionLogMessage] = useState<string | null>(null)
 
   useEffect(() => {
     setActualHours('')
     setActualCrew(selectedJob?.quote?.crewSize ? String(selectedJob.quote.crewSize) : '')
     setActualNotes('')
     setActualsMessage(null)
+    const entries = buildDefaultMoveExecutionEntries(selectedJob?.lead.moveExecutionLog?.entries)
+    setExecutionTimes(Object.fromEntries(entries.map(entry => [entry.phase, toDateTimeLocalInput(entry.timestamp)])) as Record<MoveExecutionPhase, string>)
+    setExecutionNotes(Object.fromEntries(entries.map(entry => [entry.phase, entry.note || ''])) as Record<MoveExecutionPhase, string>)
+    setVarianceReason(selectedJob?.lead.moveExecutionLog?.varianceReason || '')
+    setIssueCategory('access')
+    setIssueSeverity('medium')
+    setIssueNote('')
+    setReceiptsNote(selectedJob?.lead.moveExecutionLog?.receiptsNote || '')
+    setCustomerFeedbackNote(selectedJob?.lead.moveExecutionLog?.customerFeedbackNote || '')
+    setExecutionLogMessage(null)
   }, [selectedJob?.lead.id, selectedJob?.quote?.crewSize])
 
   useEffect(() => {
@@ -888,6 +911,54 @@ function JobsCalendar({
       setActualsMessage((error as Error).message)
     } finally {
       setSavingActuals(false)
+    }
+  }
+
+  async function saveExecutionLog() {
+    if (!selectedJob) return
+    setSavingExecutionLog(true)
+    setExecutionLogMessage(null)
+    try {
+      const existingIssues = selectedJob.lead.moveExecutionLog?.issues || []
+      const nextIssues = issueNote.trim()
+        ? [
+            ...existingIssues,
+            {
+              id: uid('issue'),
+              category: issueCategory,
+              severity: issueSeverity,
+              note: issueNote.trim(),
+              createdAt: new Date().toISOString(),
+            },
+          ]
+        : existingIssues
+      const entries = MOVE_EXECUTION_PHASES.map(({ phase, label }) => ({
+        id: `move_${phase}`,
+        phase,
+        label,
+        timestamp: executionTimes[phase] || undefined,
+        note: executionNotes[phase]?.trim() || undefined,
+      }))
+      const updated = await updateSalesLead(selectedJob.lead.id, {
+        moveExecutionLog: {
+          ...(selectedJob.lead.moveExecutionLog || {}),
+          predictedHours: selectedJob.quote?.estimatedHours,
+          actualHours: actualHours ? Number(actualHours) : selectedJob.lead.moveExecutionLog?.actualHours,
+          varianceReason: varianceReason.trim() || undefined,
+          entries,
+          issues: nextIssues,
+          receiptsNote: receiptsNote.trim() || undefined,
+          customerFeedbackNote: customerFeedbackNote.trim() || undefined,
+        },
+      })
+      onJobUpdate(updated, selectedJob.quote)
+      setSelectedJob({ lead: updated, quote: selectedJob.quote })
+      setIssueNote('')
+      setExecutionLogMessage('Move log saved.')
+    } catch (error) {
+      setExecutionLogMessage((error as Error).message || 'Failed to save move log.')
+    } finally {
+      setSavingExecutionLog(false)
     }
   }
 
@@ -1255,6 +1326,137 @@ function JobsCalendar({
                 className="rounded-lg bg-[#1a2744] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
               >
                 {savingActuals ? 'Saving...' : 'Save Actuals'}
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Move Execution Log</div>
+                <div className="mt-1 text-xs text-slate-500">
+                  Capture actual timing so the estimator learns where the move ran tight or loose.
+                </div>
+              </div>
+              {selectedJob.lead.moveExecutionLog?.varianceHours !== undefined && (
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                  selectedJob.lead.moveExecutionLog.varianceHours > 0.5
+                    ? 'bg-rose-100 text-rose-700'
+                    : selectedJob.lead.moveExecutionLog.varianceHours < -0.5
+                      ? 'bg-sky-100 text-sky-700'
+                      : 'bg-emerald-100 text-emerald-700'
+                }`}>
+                  {selectedJob.lead.moveExecutionLog.varianceHours > 0 ? '+' : ''}{selectedJob.lead.moveExecutionLog.varianceHours}h vs estimate
+                </span>
+              )}
+            </div>
+
+            <div className="mt-3 grid gap-2 md:grid-cols-2">
+              {MOVE_EXECUTION_PHASES.map(({ phase, label }) => (
+                <div key={phase} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <div className="min-w-0 flex-1 text-xs font-semibold text-[#1a2744]">{label}</div>
+                    <input
+                      type="datetime-local"
+                      value={executionTimes[phase] || ''}
+                      onChange={event => setExecutionTimes(prev => ({ ...prev, [phase]: event.target.value }))}
+                      className="w-40 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700 outline-none focus:border-[#1a2744]"
+                    />
+                  </div>
+                  <input
+                    value={executionNotes[phase] || ''}
+                    onChange={event => setExecutionNotes(prev => ({ ...prev, [phase]: event.target.value }))}
+                    className="mt-2 w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700 outline-none focus:border-[#1a2744]"
+                    placeholder="Phase note"
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <label className="block">
+                <span className="text-[11px] font-semibold text-slate-500">Variance reason</span>
+                <textarea
+                  rows={3}
+                  value={varianceReason}
+                  onChange={event => setVarianceReason(event.target.value)}
+                  className="crm-input mt-1 w-full resize-none"
+                  placeholder="Why did actual timing differ from the estimate?"
+                />
+              </label>
+              <label className="block">
+                <span className="text-[11px] font-semibold text-slate-500">Receipts / cost notes</span>
+                <textarea
+                  rows={3}
+                  value={receiptsNote}
+                  onChange={event => setReceiptsNote(event.target.value)}
+                  className="crm-input mt-1 w-full resize-none"
+                  placeholder="Gas, parking, materials, tolls, receipt links, reimbursement notes"
+                />
+              </label>
+              <label className="block md:col-span-2">
+                <span className="text-[11px] font-semibold text-slate-500">Customer feedback / completion note</span>
+                <textarea
+                  rows={2}
+                  value={customerFeedbackNote}
+                  onChange={event => setCustomerFeedbackNote(event.target.value)}
+                  className="crm-input mt-1 w-full resize-none"
+                  placeholder="Customer happy, complaint, damage note, referral/review opportunity"
+                />
+              </label>
+            </div>
+
+            <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <div className="text-[11px] font-semibold text-slate-500">Add issue / learning signal</div>
+              <div className="mt-2 grid gap-2 md:grid-cols-[160px_140px_1fr]">
+                <select value={issueCategory} onChange={event => setIssueCategory(event.target.value as MoveExecutionIssue['category'])} className="crm-input">
+                  <option value="access">Access</option>
+                  <option value="inventory">Inventory</option>
+                  <option value="customer_delay">Customer delay</option>
+                  <option value="crew">Crew</option>
+                  <option value="truck">Truck</option>
+                  <option value="damage">Damage</option>
+                  <option value="weather">Weather</option>
+                  <option value="traffic">Traffic</option>
+                  <option value="other">Other</option>
+                </select>
+                <select value={issueSeverity} onChange={event => setIssueSeverity(event.target.value as MoveExecutionIssue['severity'])} className="crm-input">
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+                <input
+                  value={issueNote}
+                  onChange={event => setIssueNote(event.target.value)}
+                  className="crm-input"
+                  placeholder="What happened?"
+                />
+              </div>
+              {(selectedJob.lead.moveExecutionLog?.issues?.length ?? 0) > 0 && (
+                <div className="mt-3 space-y-1 text-xs text-slate-600">
+                  {selectedJob.lead.moveExecutionLog!.issues!.map(issue => (
+                    <div key={issue.id} className="rounded-md bg-white px-2 py-1">
+                      <span className="font-semibold capitalize">{issue.category.replace(/_/g, ' ')}</span>
+                      <span className="text-slate-400"> · {issue.severity}</span>
+                      <span> — {issue.note}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {executionLogMessage && (
+              <div className={`mt-3 text-xs ${executionLogMessage.toLowerCase().includes('failed') ? 'text-rose-600' : 'text-emerald-700'}`}>
+                {executionLogMessage}
+              </div>
+            )}
+            <div className="mt-3 flex justify-end">
+              <button
+                onClick={() => void saveExecutionLog()}
+                disabled={savingExecutionLog}
+                className="rounded-lg bg-[#1a2744] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
+              >
+                {savingExecutionLog ? 'Saving...' : 'Save Move Log'}
               </button>
             </div>
           </div>

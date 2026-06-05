@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { deriveOpsChecklist, getQuotedTruckCount, isTruckReservationComplete, normalizeCrewHours, normalizeCrewPayouts } from '@/lib/operations'
 import { calculateLeadScore, getLeadAssignedRepName, isClosedLeadStage, normalizeLead, syncLeadFromQuoteStatus } from '@/lib/sales'
+import { normalizeMoveExecutionLog } from '@/lib/move-execution'
 import { logEvent, daysBetween } from '@/lib/server/analytics'
 import { queueLeadIntelligenceRefresh } from '@/lib/server/lead-intelligence-refresh'
 import { scheduleMoveReminder, scheduleConsultationReminder } from '@/lib/server/sales-automation'
@@ -34,6 +35,7 @@ const OPERATIONS_EDITABLE_FIELDS = new Set([
   'crewNote',
   'crewHours',
   'crewPayouts',
+  'moveExecutionLog',
   'truckReservationStatus',
   'truckVendor',
   'truckSize',
@@ -117,6 +119,10 @@ function applyOperationalDefaults(
     assignedCrew: assignedCrew.length > 0 ? assignedCrew : undefined,
     crewHours: normalizeCrewHours(nextLead.crewHours, assignedCrew),
     crewPayouts: normalizeCrewPayouts(stagedCrewPayouts),
+    moveExecutionLog: normalizeMoveExecutionLog(nextLead.moveExecutionLog, {
+      predictedHours: quote?.estimatedHours,
+      actorName,
+    }),
     truckCountConfirmed: quotedTruckCount,
     truckSize: quotedTruckCount ? normalizeOptional(nextLead.truckSize) || current.truckSize || '26ft' : undefined,
     truckReservationStatus,

@@ -563,6 +563,47 @@ export interface CrewHoursEntry {
   hours?: number
 }
 
+export type MoveExecutionPhase =
+  | 'crew_depart_yard'
+  | 'arrive_origin'
+  | 'load_complete'
+  | 'depart_origin'
+  | 'arrive_destination'
+  | 'unload_complete'
+  | 'return_yard'
+
+export interface MoveExecutionLogEntry {
+  id: string
+  phase: MoveExecutionPhase
+  label: string
+  timestamp?: string
+  note?: string
+  loggedAt?: string
+  loggedBy?: string
+}
+
+export interface MoveExecutionIssue {
+  id: string
+  category: 'access' | 'inventory' | 'customer_delay' | 'crew' | 'truck' | 'damage' | 'weather' | 'traffic' | 'other'
+  severity: 'low' | 'medium' | 'high'
+  note: string
+  createdAt: string
+  createdBy?: string
+}
+
+export interface MoveExecutionLog {
+  predictedHours?: number
+  actualHours?: number
+  varianceHours?: number
+  varianceReason?: string
+  entries?: MoveExecutionLogEntry[]
+  issues?: MoveExecutionIssue[]
+  receiptsNote?: string
+  customerFeedbackNote?: string
+  updatedAt?: string
+  updatedBy?: string
+}
+
 export type CrewPayoutRole = 'crew_lead' | 'driver' | 'mover' | 'other'
 export type CrewPayoutMethod = 'interac' | 'stripe_connect' | 'cash' | 'manual'
 export type CrewPayoutStatus = 'draft' | 'submitted' | 'approved' | 'paid'
@@ -726,6 +767,7 @@ export interface CRMLead {
   crewNote?: string
   crewHours?: CrewHoursEntry[]
   crewPayouts?: CrewPayoutEntry[]
+  moveExecutionLog?: MoveExecutionLog
   truckReservationStatus?: TruckReservationStatus
   truckVendor?: TruckVendor
   truckSize?: string
