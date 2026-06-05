@@ -1450,6 +1450,8 @@ export function EstimateDraftModal({
   const selectedMoveDate = quote?.moveDate || lead.moveDate
   const moveDateDaysAway = daysUntilDate(selectedMoveDate)
   const canApproveMarginException = currentUser?.role === 'owner' || currentUser?.role === 'manager'
+  const conjointInventoryPending = conjointMode && legsEnabled && legs.length >= 2 && conjointMetrics.personBCubicFeet <= 0
+  const conjointPendingLabel = jobFactors.personBLabel || 'Person B'
   const liveMarginSummary = useMemo(() => {
     if (!pricingBreakdown) return null
     const dealCosts: Record<string, number> = {
@@ -1581,6 +1583,13 @@ export function EstimateDraftModal({
       { label: 'Destination geocoded', ready: Boolean(destFull.trim() && !routeError && route?.destResolved), critical: true, detail: destFull.trim() ? 'Destination address could not be located.' : 'Destination address is missing.' },
       { label: 'Move date', ready: Boolean(selectedMoveDate), critical: true, detail: 'Move date is missing.' },
       { label: 'Inventory', ready: effectiveInventoryMetrics.totalItems > 0, critical: true, detail: 'Inventory is still empty.' },
+      ...(conjointMode
+        ? [{
+            label: `${conjointPendingLabel} inventory`,
+            ready: !conjointInventoryPending,
+            detail: `${conjointPendingLabel} has no tagged inventory yet. Pricing and margin are based on known inventory only until MLS/photos/manual intake is added.`,
+          }]
+        : []),
       // Long-distance: customer should verify inventory before we lock in a flat rate
       ...(route?.category === 'long-distance' || quoteType === 'long_distance'
         ? [{ label: 'Inventory verified by customer', ready: Boolean(lead.surveyCompletedAt), detail: 'Long-distance: ask customer to confirm inventory on the verification link before pricing.' }]
@@ -1594,7 +1603,7 @@ export function EstimateDraftModal({
       { label: 'Quote explanation available', ready: Boolean(quoteExplanation.detailed.trim()), detail: 'Customer-facing price explanation is not ready.' },
     ]
     return items
-  }, [accessConfirmed, boxesAsked, destFull, effectiveInventoryMetrics.totalItems, jobFactors.packingStatus, lead.email, lead.name, lead.phone, lead.surveyCompletedAt, originFull, pricingBreakdown, quoteExplanation.detailed, quoteModalTotals.deposit, quoteModalTotals.total, route?.category, route?.destResolved, route?.originResolved, routeError, selectedMoveDate, quoteType])
+  }, [accessConfirmed, boxesAsked, conjointInventoryPending, conjointMode, conjointPendingLabel, destFull, effectiveInventoryMetrics.totalItems, jobFactors.packingStatus, lead.email, lead.name, lead.phone, lead.surveyCompletedAt, originFull, pricingBreakdown, quoteExplanation.detailed, quoteModalTotals.deposit, quoteModalTotals.total, route?.category, route?.destResolved, route?.originResolved, routeError, selectedMoveDate, quoteType])
   const blockingReadiness = useMemo(
     () => readinessItems.filter(item => !item.ready && item.critical),
     [readinessItems]
@@ -4499,6 +4508,11 @@ export function EstimateDraftModal({
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-semibold text-[var(--app-ink)]">Live Margin</span>
+                      {conjointInventoryPending ? (
+                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-semibold text-amber-700 ring-1 ring-amber-200">
+                          Pending {conjointPendingLabel} inventory
+                        </span>
+                      ) : null}
                     </div>
                     <div className="flex items-center gap-2">
                       <span className={`text-xs font-bold ${cost.grossMarginPct >= 55 ? 'text-emerald-700' : cost.grossMarginPct >= 40 ? 'text-amber-700' : 'text-rose-700'}`}>
@@ -5241,6 +5255,11 @@ export function EstimateDraftModal({
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-semibold text-[var(--app-ink)]">Live Margin</span>
                         <span className="text-[10px] text-[var(--app-muted)]">Long distance · {ldDistKm}km one-way</span>
+                        {conjointInventoryPending ? (
+                          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-semibold text-amber-700 ring-1 ring-amber-200">
+                            Pending {conjointPendingLabel} inventory
+                          </span>
+                        ) : null}
                       </div>
                       <div className="flex items-center gap-2">
                         {ldTotalCost > 0
@@ -5726,24 +5745,43 @@ export function EstimateDraftModal({
                   </div>
                 )}
                 {liveMarginSummary && liveMarginSummary.liveMargin < 50 && liveMarginSummary.actualRevenue > 0 && !marginGateAck && (
-                  <div className={`rounded-[8px] border px-3 py-3 ${liveMarginSummary.liveMargin < 40 ? 'border-rose-300 bg-rose-50' : 'border-amber-200 bg-amber-50'}`}>
-                    <div className={`text-xs font-bold ${liveMarginSummary.liveMargin < 40 ? 'text-rose-800' : 'text-amber-800'}`}>
-                      {liveMarginSummary.liveMargin < 40 ? '⛔ Low margin — manager review required' : '⚠ Below target margin'}
+                  <div className={`rounded-[8px] border px-3 py-3 ${
+                    conjointInventoryPending
+                      ? 'border-amber-200 bg-amber-50'
+                      : liveMarginSummary.liveMargin < 40 ? 'border-rose-300 bg-rose-50' : 'border-amber-200 bg-amber-50'
+                  }`}>
+                    <div className={`text-xs font-bold ${
+                      conjointInventoryPending
+                        ? 'text-amber-800'
+                        : liveMarginSummary.liveMargin < 40 ? 'text-rose-800' : 'text-amber-800'
+                    }`}>
+                      {conjointInventoryPending
+                        ? `Pricing provisional — waiting on ${conjointPendingLabel} inventory`
+                        : liveMarginSummary.liveMargin < 40 ? 'Low margin — manager review required' : 'Below target margin'}
                     </div>
-                    <div className={`mt-1 text-[11px] ${liveMarginSummary.liveMargin < 40 ? 'text-rose-700' : 'text-amber-700'}`}>
-                      This quote is at {liveMarginSummary.liveMargin.toFixed(1)}% margin. Target is 65%+.
-                      Revenue {formatMoney(liveMarginSummary.actualRevenue)} — Costs {formatMoney(liveMarginSummary.totalCost)} — Profit {formatMoney(liveMarginSummary.liveProfit)}.
+                    <div className={`mt-1 text-[11px] ${
+                      conjointInventoryPending
+                        ? 'text-amber-700'
+                        : liveMarginSummary.liveMargin < 40 ? 'text-rose-700' : 'text-amber-700'
+                    }`}>
+                      {conjointInventoryPending
+                        ? `Current margin is ${liveMarginSummary.liveMargin.toFixed(1)}% from known inventory only. Add MLS/photos/manual list for ${conjointPendingLabel}; price, trucks, timing, and margin will recalculate automatically.`
+                        : `This quote is at ${liveMarginSummary.liveMargin.toFixed(1)}% margin. Target is 65%+. Revenue ${formatMoney(liveMarginSummary.actualRevenue)} — Costs ${formatMoney(liveMarginSummary.totalCost)} — Profit ${formatMoney(liveMarginSummary.liveProfit)}.`}
                     </div>
                     <button
                       type="button"
                       onClick={() => setMarginGateAck(true)}
-                      className={`mt-2 w-full rounded-[6px] px-3 py-1.5 text-[11px] font-semibold ${liveMarginSummary.liveMargin < 40 ? 'bg-rose-700 text-white hover:bg-rose-800' : 'bg-amber-700 text-white hover:bg-amber-800'}`}
+                      className={`mt-2 w-full rounded-[6px] px-3 py-1.5 text-[11px] font-semibold ${
+                        conjointInventoryPending
+                          ? 'bg-amber-700 text-white hover:bg-amber-800'
+                          : liveMarginSummary.liveMargin < 40 ? 'bg-rose-700 text-white hover:bg-rose-800' : 'bg-amber-700 text-white hover:bg-amber-800'
+                      }`}
                     >
-                      I understand — send anyway
+                      {conjointInventoryPending ? 'Continue with current inventory' : 'I understand — send anyway'}
                     </button>
                   </div>
                 )}
-                <button onClick={() => void handlePreviewSend()} disabled={quoteModalBusy || routeBusy || !quote || (liveMarginSummary !== null && liveMarginSummary.liveMargin < 50 && liveMarginSummary.actualRevenue > 0 && !marginGateAck)} className="w-full justify-center rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
+                <button onClick={() => void handlePreviewSend()} disabled={quoteModalBusy || routeBusy || !quote || (!conjointInventoryPending && liveMarginSummary !== null && liveMarginSummary.liveMargin < 50 && liveMarginSummary.actualRevenue > 0 && !marginGateAck)} className="w-full justify-center rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
                   {routeBusy ? 'Calculating route…' : quoteModalBusy ? 'Saving...' : 'Preview & Send →'}
                 </button>
                 <button onClick={() => void onSaveDraft({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined })} disabled={quoteModalBusy || !quote} className="crm-button-dark w-full justify-center disabled:opacity-60">
