@@ -1009,7 +1009,7 @@ function estimateSingleLeadQuote(
   }
 
   const threeTruckReview = truckCount >= 3
-  const crewMinimum = truckCount >= 3 ? 6 : truckCount === 2 ? 4 : 1
+  const crewMinimum = isPacking ? 1 : truckCount >= 3 ? 6 : truckCount === 2 ? 4 : 2
   // Business rule: 1 truck local = max 3 movers by default (4th not productive on single truck)
   const crewSuggestionCap = (!isLongDistance && !isLaborOnly && !isPacking && truckCount === 1) ? 3 : Infinity
   const crewSizeOverride = activeFactors?.crewSizeOverride

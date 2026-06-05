@@ -904,7 +904,12 @@ export function EstimateDraftModal({
     // Build the most complete address string available
     const originParts = [leg.originAddress, leg.originCity].filter(Boolean)
     const destParts   = [leg.destAddress,   leg.destCity  ].filter(Boolean)
-    if (originParts.length === 0 || destParts.length === 0) return
+    if (originParts.length === 0 || destParts.length === 0) {
+      // Clear stale saved distance so incomplete legs don't pollute pricing
+      setLegRoutes(prev => ({ ...prev, [id]: null }))
+      setLegs(prev => prev.map(l => l.id === id ? { ...l, distanceKm: undefined, driveHours: undefined } : l))
+      return
+    }
     const origin = originParts.join(', ')
     const dest   = destParts.join(', ')
     try {
@@ -1647,8 +1652,12 @@ export function EstimateDraftModal({
   const selectedMoveDate = quote?.moveDate || lead.moveDate
   const moveDateDaysAway = daysUntilDate(selectedMoveDate)
   const canApproveMarginException = currentUser?.role === 'owner' || currentUser?.role === 'manager'
-  const conjointInventoryPending = conjointMode && legsEnabled && legs.length >= 2 && conjointMetrics.personBCubicFeet <= 0
-  const conjointPendingLabel = jobFactors.personBLabel || 'Person B'
+  const conjointMissingInventoryLabels = [
+    conjointMode && conjointMetrics.personACubicFeet <= 0 ? (jobFactors.personALabel || 'Person A') : null,
+    conjointMode && legsEnabled && legs.length >= 2 && conjointMetrics.personBCubicFeet <= 0 ? (jobFactors.personBLabel || 'Person B') : null,
+  ].filter(Boolean) as string[]
+  const conjointInventoryPending = conjointMode && legsEnabled && legs.length >= 2 && conjointMissingInventoryLabels.length > 0
+  const conjointPendingLabel = conjointMissingInventoryLabels.join(' / ') || (jobFactors.personBLabel || 'Person B')
   const liveMarginSummary = useMemo(() => {
     if (!pricingBreakdown) return null
     const dealCosts: Record<string, number> = {
@@ -1782,10 +1791,11 @@ export function EstimateDraftModal({
       { label: 'Inventory', ready: effectiveInventoryMetrics.totalItems > 0, critical: true, detail: 'Inventory is still empty.' },
       ...(conjointMode
         ? [{
-            label: `${conjointPendingLabel} inventory`,
-            ready: !conjointInventoryPending,
-            detail: `${conjointPendingLabel} has no tagged inventory yet. Pricing and margin are based on known inventory only until MLS/photos/manual intake is added.`,
-          }]
+          label: `${conjointPendingLabel} inventory`,
+          ready: !conjointInventoryPending,
+          critical: true,
+          detail: `${conjointPendingLabel} has no tagged inventory yet. Pricing, timing, truck plan, and margin are provisional until MLS/photos/manual intake is added.`,
+        }]
         : []),
       // Long-distance: customer should verify inventory before we lock in a flat rate
       ...(route?.category === 'long-distance' || quoteType === 'long_distance'
@@ -1795,7 +1805,14 @@ export function EstimateDraftModal({
       { label: 'Packing status', ready: Boolean(jobFactors.packingStatus), detail: 'Packing status is not confirmed.' },
       { label: 'Boxes asked', ready: boxesAsked, detail: 'Boxes were not confirmed.' },
       { label: 'Crew / truck recommendation', ready: Boolean(pricingBreakdown?.crewSize && pricingBreakdown?.truckCount), critical: true, detail: 'Crew or truck recommendation is missing.' },
-      { label: 'Price generated', ready: Boolean(pricingBreakdown && quoteModalTotals.total > 0), critical: true, detail: 'Price has not been generated yet.' },
+      {
+        label: 'Final price confidence',
+        ready: Boolean(pricingBreakdown && quoteModalTotals.total > 0 && !conjointInventoryPending),
+        critical: true,
+        detail: conjointInventoryPending
+          ? `Price is only provisional until ${conjointPendingLabel} inventory is added.`
+          : 'Price has not been generated yet.',
+      },
       { label: 'Deposit amount', ready: quoteModalTotals.deposit > 0, critical: true, detail: 'Deposit amount is missing.' },
       { label: 'Quote explanation available', ready: Boolean(quoteExplanation.detailed.trim()), detail: 'Customer-facing price explanation is not ready.' },
     ]
@@ -4537,7 +4554,11 @@ export function EstimateDraftModal({
                               <span className="truncate">{fromShort} → {toShort}</span>
                             </div>
                             <span className="shrink-0 tabular-nums">
-                              {r ? `${r.distanceKm} km · ${r.driveHours}h` : leg.distanceKm ? `${leg.distanceKm} km · ${leg.driveHours}h` : '—'}
+                              {r
+                                ? `${r.distanceKm} km · ${r.driveHours}h`
+                                : (leg.distanceKm && leg.originAddress && leg.destAddress)
+                                  ? `${leg.distanceKm} km · ${leg.driveHours}h`
+                                  : '—'}
                             </span>
                           </div>
                         )
@@ -4545,8 +4566,8 @@ export function EstimateDraftModal({
                       <div className="flex justify-between text-[10px] font-semibold text-purple-700 border-t border-purple-100 pt-1 mt-1">
                         <span>Total route</span>
                         <span>
-                          {legs.reduce((s, l) => s + (legRoutes[l.id]?.distanceKm || l.distanceKm || 0), 0)} km ·{' '}
-                          {legs.reduce((s, l) => s + (legRoutes[l.id]?.driveHours || l.driveHours || 0), 0)}h drive
+                          {legs.reduce((s, l) => s + (legRoutes[l.id]?.distanceKm || ((l.originAddress && l.destAddress) ? l.distanceKm : 0) || 0), 0)} km ·{' '}
+                          {legs.reduce((s, l) => s + (legRoutes[l.id]?.driveHours || ((l.originAddress && l.destAddress) ? l.driveHours : 0) || 0), 0)}h drive
                         </span>
                       </div>
                     </div>
@@ -5134,13 +5155,14 @@ export function EstimateDraftModal({
             {legsEnabled && legs.length > 1 && (
               <div className="border border-[var(--app-line)] rounded-[10px] overflow-hidden">
                 <div className="px-3.5 py-2.5 bg-[var(--app-surface)] flex items-center justify-between">
-                  <span className="text-xs font-semibold text-[var(--app-ink)]">Multi-Stop Cost Overview</span>
+                  <span className="text-xs font-semibold text-[var(--app-ink)]">Internal Multi-Stop Cost</span>
                   <span className="text-[10px] text-[var(--app-muted)]">{legs.length} legs</span>
                 </div>
                 <div className="px-3.5 pb-3.5 pt-1 bg-white space-y-2">
                   {legs.map((leg, i) => {
-                    const legKm = legRoutes[leg.id]?.distanceKm || leg.distanceKm || 0
-                    const legDriveH = legRoutes[leg.id]?.driveHours || leg.driveHours || 0
+                    const legHasAddresses = !!(leg.originAddress && leg.destAddress)
+                    const legKm = legRoutes[leg.id]?.distanceKm || (legHasAddresses ? leg.distanceKm : 0) || 0
+                    const legDriveH = legRoutes[leg.id]?.driveHours || (legHasAddresses ? leg.driveHours : 0) || 0
                     const isLDLeg = legKm > 200 || legDriveH > 2.5
                     const legLoadH = pricingBreakdown ? pricingBreakdown.loadHours / legs.length : 3
                     const legUnloadH = pricingBreakdown ? pricingBreakdown.unloadHours / legs.length : 2
@@ -5178,10 +5200,11 @@ export function EstimateDraftModal({
                     )
                   })}
                   <div className="flex justify-between text-xs font-bold border-t-2 border-[var(--app-line)] pt-2">
-                    <span>Combined cost estimate</span>
+                    <span>Internal ops cost estimate</span>
                     <span>{formatMoney(legs.reduce((sum, leg, i) => {
-                      const legKm = legRoutes[leg.id]?.distanceKm || leg.distanceKm || 0
-                      const legDriveH = legRoutes[leg.id]?.driveHours || leg.driveHours || 0
+                      const _legHasAddresses = !!(leg.originAddress && leg.destAddress)
+                      const legKm = legRoutes[leg.id]?.distanceKm || (_legHasAddresses ? leg.distanceKm : 0) || 0
+                      const legDriveH = legRoutes[leg.id]?.driveHours || (_legHasAddresses ? leg.driveHours : 0) || 0
                       const isLDLeg = legKm > 200 || legDriveH > 2.5
                       const legLoadH = pricingBreakdown ? pricingBreakdown.loadHours / legs.length : 3
                       const legUnloadH = pricingBreakdown ? pricingBreakdown.unloadHours / legs.length : 2
@@ -5191,18 +5214,21 @@ export function EstimateDraftModal({
                       return sum + legTruckAmt + legLabor + 15
                     }, 0))}</span>
                   </div>
-                  <div className="text-[9px] text-[var(--app-muted)]">Each leg priced independently — see Live Margin for final customer pricing.</div>
+                  <div className="text-[9px] text-[var(--app-muted)]">Internal truck, labor, and misc cost only. Customer subtotal remains the main quote total above.</div>
                 </div>
               </div>
             )}
 
             {/* ── Conjoint Move Logistics Panel ── */}
             {conjointMode && legsEnabled && legs.length >= 2 && (() => {
-              const plannedLegs = legs.map(leg => ({
-                ...leg,
-                distanceKm: legRoutes[leg.id]?.distanceKm || leg.distanceKm,
-                driveHours: legRoutes[leg.id]?.driveHours || leg.driveHours,
-              }))
+              const plannedLegs = legs.map(leg => {
+                const hasAddresses = !!(leg.originAddress && leg.destAddress)
+                return {
+                  ...leg,
+                  distanceKm: legRoutes[leg.id]?.distanceKm ?? (hasAddresses ? leg.distanceKm : undefined),
+                  driveHours: legRoutes[leg.id]?.driveHours ?? (hasAddresses ? leg.driveHours : undefined),
+                }
+              })
               const personAItems = inventory.filter(item => item.included !== false && item.owner !== 'person_b')
               const personBItems = inventory.filter(item => item.included !== false && item.owner === 'person_b')
               const personAVolume = Math.round(personAItems.reduce((sum, item) => sum + Number(item.cubicFeet || 0) * Math.max(1, Number(item.qty || 1)), 0))
@@ -5317,17 +5343,22 @@ export function EstimateDraftModal({
                     <div>
                       <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Operating options</div>
                       <div className="grid gap-2">
-                        {plan.options.map(option => (
-                          <div
-                            key={option.id}
-                            className={`rounded-[8px] border px-3 py-2 ${
-                              option.viable
-                                ? option.id === (selectedOperatingPlan || (plan.recommendation === 'two_truck_parallel' ? 'two_truck_parallel' : plan.recommendation))
-                                  ? 'border-emerald-300 bg-emerald-50'
-                                  : 'border-[var(--app-line)] bg-white'
-                                : 'border-slate-200 bg-slate-50 opacity-75'
-                            }`}
-                          >
+                        {plan.options.map(option => {
+                          const optionNeedsInventory = conjointInventoryPending
+                          const optionCanBeApplied = option.viable && !optionNeedsInventory
+                          return (
+                            <div
+                              key={option.id}
+                              className={`rounded-[8px] border px-3 py-2 ${
+                                optionCanBeApplied
+                                  ? option.id === (selectedOperatingPlan || (plan.recommendation === 'two_truck_parallel' ? 'two_truck_parallel' : plan.recommendation))
+                                    ? 'border-emerald-300 bg-emerald-50'
+                                    : 'border-[var(--app-line)] bg-white'
+                                  : optionNeedsInventory
+                                    ? 'border-amber-200 bg-amber-50 opacity-90'
+                                    : 'border-slate-200 bg-slate-50 opacity-75'
+                              }`}
+                            >
                             <div className="flex items-start justify-between gap-2">
                               <div>
                                 <div className="text-[11px] font-semibold text-[var(--app-ink)]">{option.label}</div>
@@ -5342,22 +5373,24 @@ export function EstimateDraftModal({
                             </div>
                             <div className="mt-1.5 text-[10px] leading-4 text-[var(--app-muted)]">{option.summary}</div>
                             <div className={`mt-1 text-[10px] font-semibold ${
-                              option.viable ? 'text-emerald-700' : 'text-slate-500'
+                              optionNeedsInventory ? 'text-amber-700' : option.viable ? 'text-emerald-700' : 'text-slate-500'
                             }`}>
-                              {option.viable ? option.tradeoff : `Not ideal: ${option.tradeoff}`}
+                              {optionNeedsInventory
+                                ? `Inventory needed before this plan can be locked. ${option.tradeoff}`
+                                : option.viable ? option.tradeoff : `Not ideal: ${option.tradeoff}`}
                             </div>
                             <div className="mt-2 flex items-center justify-between gap-2">
                               <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
-                                {selectedOperatingPlan === option.id ? 'Applied' : option.viable ? 'Available' : 'Review first'}
+                                {selectedOperatingPlan === option.id ? 'Applied' : optionNeedsInventory ? 'Inventory needed' : option.viable ? 'Available' : 'Review first'}
                               </span>
                               <button
                                 type="button"
                                 onClick={() => applyLogisticsOption(option)}
-                                disabled={!option.viable}
+                                disabled={!optionCanBeApplied}
                                 className={`rounded-[6px] px-2.5 py-1 text-[10px] font-semibold transition-colors ${
                                   selectedOperatingPlan === option.id
                                     ? 'bg-emerald-600 text-white'
-                                    : option.viable
+                                    : optionCanBeApplied
                                       ? 'bg-[#1a2744] text-white hover:opacity-90'
                                       : 'bg-slate-200 text-slate-500'
                                 } disabled:cursor-not-allowed`}
@@ -5366,7 +5399,8 @@ export function EstimateDraftModal({
                               </button>
                             </div>
                           </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     </div>
                     {/* Day timeline */}
@@ -6150,7 +6184,7 @@ export function EstimateDraftModal({
                     </button>
                   </div>
                 )}
-                <button onClick={() => void handlePreviewSend()} disabled={quoteModalBusy || routeBusy || !quote || (!conjointInventoryPending && liveMarginSummary !== null && liveMarginSummary.liveMargin < 50 && liveMarginSummary.actualRevenue > 0 && !marginGateAck)} className="w-full justify-center rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
+                <button onClick={() => void handlePreviewSend()} disabled={quoteModalBusy || routeBusy || !quote || (conjointInventoryPending && !marginGateAck) || (!conjointInventoryPending && liveMarginSummary !== null && liveMarginSummary.liveMargin < 50 && liveMarginSummary.actualRevenue > 0 && !marginGateAck)} className="w-full justify-center rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
                   {routeBusy ? 'Calculating route…' : quoteModalBusy ? 'Saving...' : 'Preview & Send →'}
                 </button>
                 <button onClick={() => void onSaveDraft({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined })} disabled={quoteModalBusy || !quote} className="crm-button-dark w-full justify-center disabled:opacity-60">

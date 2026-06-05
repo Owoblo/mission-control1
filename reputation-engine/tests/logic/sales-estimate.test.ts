@@ -134,3 +134,33 @@ test('estimateLeadQuote prices storage, storage delivery, and secondary stop leg
   assert.match(estimate.lineItems[2].details || '', /same load, extra stop on route/i)
   assert.match(estimate.lineItems[2].details || '', /30% of the overall shipment/i)
 })
+
+test('estimateLeadQuote keeps standard moving jobs at a two-mover minimum', () => {
+  const lead = makeLead({
+    inventory: [],
+    totalItems: 0,
+    totalCubicFeet: 0,
+    totalWeightLbs: 0,
+  })
+
+  const estimate = estimateLeadQuote(lead, {
+    quoteType: 'standard',
+    routeContext: {
+      routeCategory: 'local',
+      pricingStatus: 'ready',
+      originToDestinationHours: 0.25,
+      yardToOriginHours: 0.25,
+      returnTripHours: 0.25,
+      billableDriveHours: 0.25,
+      operationalDriveHours: 0.75,
+      originToDestinationDistanceKm: 4,
+      yardToOriginDistanceKm: 3,
+      returnTripDistanceKm: 5,
+      billableDistanceKm: 7,
+      operationalDistanceKm: 12,
+    },
+  })
+
+  assert.equal(estimate.crewSize, 2)
+  assert.match(estimate.lineItems[0].details || '', /2 professional movers/)
+})

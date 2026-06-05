@@ -278,12 +278,14 @@ export function deriveMoveLogisticsPlan(input: LogisticsPlanInput): LogisticsPla
     loadBHours + secondDrive + unloadBHours
   ) + Math.max(0.5, Math.min(firstDrive + secondDrive, 1)))
   const splitDayHours = roundQuarterHour(Math.max(loadHours + firstDrive, unloadHours + secondDrive))
+  const baseCrewCount = Math.max(2, Math.round(Number(input.crewSize || 2)))
+  const parallelCrewCount = Math.max(2, baseCrewCount)
   const options: LogisticsOption[] = [
     {
       id: 'one_truck_sequence',
       label: 'One truck sequence',
       truckCount: 1,
-      crewCount: 1,
+      crewCount: baseCrewCount,
       dayCount: 1,
       estimatedHours: totalHours,
       finishTime: formatClock(startHour, totalHours),
@@ -297,7 +299,7 @@ export function deriveMoveLogisticsPlan(input: LogisticsPlanInput): LogisticsPla
       id: 'one_truck_shuttle',
       label: 'One truck shuttle',
       truckCount: 1,
-      crewCount: 1,
+      crewCount: baseCrewCount,
       dayCount: 1,
       estimatedHours: shuttleHours,
       finishTime: formatClock(startHour, shuttleHours),
@@ -311,7 +313,7 @@ export function deriveMoveLogisticsPlan(input: LogisticsPlanInput): LogisticsPla
       id: 'two_truck_parallel',
       label: 'Two trucks parallel',
       truckCount: Math.max(2, truckCount),
-      crewCount: 2,
+      crewCount: Math.max(4, parallelCrewCount),
       dayCount: 1,
       estimatedHours: parallelHours,
       finishTime: formatClock(startHour, parallelHours),
@@ -325,7 +327,7 @@ export function deriveMoveLogisticsPlan(input: LogisticsPlanInput): LogisticsPla
       id: 'split_day',
       label: 'Split day / storage style',
       truckCount: 1,
-      crewCount: 1,
+      crewCount: baseCrewCount,
       dayCount: 2,
       estimatedHours: splitDayHours,
       finishTime: formatClock(startHour, splitDayHours),

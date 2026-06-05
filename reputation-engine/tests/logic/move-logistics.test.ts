@@ -40,6 +40,7 @@ test('move logistics recommends one-truck sequence when combined volume and hour
 
   assert.equal(plan.recommendation, 'one_truck_sequence')
   assert.equal(plan.truckCount, 1)
+  assert.equal(plan.options.find(option => option.id === 'one_truck_sequence')?.crewCount, 2)
   assert.equal(plan.capacityUsedPct, 28)
   assert.equal(plan.finishTime, '3:30 PM')
 })
@@ -101,5 +102,6 @@ test('move logistics escalates when timing constraints make the current plan lat
 
   assert.equal(plan.constraintFit.status, 'runs_late')
   assert.equal(plan.recommendation, 'two_truck_parallel')
+  assert.equal(plan.options.find(option => option.id === 'two_truck_parallel')?.crewCount, 4)
   assert.match(plan.riskNotes.join(' '), /time constraint/)
 })
