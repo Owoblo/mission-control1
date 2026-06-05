@@ -488,6 +488,73 @@ export function EstimateDraftModal({
   const [legs, setLegs] = useState<QuoteLeg[]>(() => legsProp?.length ? legsProp : [])
   const [legRoutes, setLegRoutes] = useState<Record<string, { distanceKm: number; driveHours: number } | null>>({})
   const legRouteFetchRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+  const [conjointUploadOwner, setConjointUploadOwner] = useState<'person_a' | 'person_b' | null>(null)
+  const [conjointUploadBusy, setConjointUploadBusy] = useState(false)
+  const [conjointUploadNotice, setConjointUploadNotice] = useState<string | null>(null)
+  const [conjointSurveyBusy, setConjointSurveyBusy] = useState<'person_a' | 'person_b' | null>(null)
+  const [conjointSurveyNotice, setConjointSurveyNotice] = useState<string | null>(null)
+  const [conjointMlsBusy, setConjointMlsBusy] = useState<'person_a' | 'person_b' | null>(null)
+  const [conjointMlsNotice, setConjointMlsNotice] = useState<string | null>(null)
+  const conjointUploadInputRef = useRef<HTMLInputElement | null>(null)
+
+  async function handleConjointRepUpload(owner: 'person_a' | 'person_b', files: File[]) {
+    if (!files.length) return
+    setConjointUploadBusy(true)
+    setConjointUploadNotice(null)
+    const partyLabel = owner === 'person_b' ? (jobFactors.personBLabel || 'Party B') : (jobFactors.personALabel || 'Party A')
+    try {
+      const form = new FormData()
+      form.set('purpose', 'customer_media')
+      form.set('room', 'Living Room')
+      form.set('notes', `Conjoint upload — ${partyLabel}`)
+      files.forEach(f => form.append('files', f))
+      const res = await fetch(`/api/sales/leads/${lead.id}/media-upload`, { method: 'POST', body: form, credentials: 'include' })
+      const data = await res.json() as { ok?: boolean; uploadedCount?: number; analyzeWarning?: string; error?: string }
+      if (!res.ok || data.error) throw new Error(data.error || 'Upload failed')
+      setConjointUploadNotice(`Uploaded ${data.uploadedCount ?? files.length} file${(data.uploadedCount ?? files.length) !== 1 ? 's' : ''} for ${partyLabel}`)
+    } catch (err) {
+      setConjointUploadNotice((err as Error).message)
+    } finally {
+      setConjointUploadBusy(false)
+      setConjointUploadOwner(null)
+    }
+  }
+
+  async function handleConjointSurveyRequest(owner: 'person_a' | 'person_b', address: string) {
+    setConjointSurveyBusy(owner)
+    setConjointSurveyNotice(null)
+    const partyLabel = owner === 'person_b' ? (jobFactors.personBLabel || 'Party B') : (jobFactors.personALabel || 'Party A')
+    const isPartyB = owner === 'person_b'
+    try {
+      const res = await fetch(`/api/sales/leads/${lead.id}/survey`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ skipSms: true, ...(isPartyB ? { partyB: true, partyBLabel: partyLabel } : {}) }),
+      })
+      const data = await res.json() as { surveyUrl?: string; error?: string }
+      if (!res.ok || data.error) throw new Error(data.error || 'Failed to generate link')
+      if (data.surveyUrl) void navigator.clipboard.writeText(data.surveyUrl)
+      setConjointSurveyNotice(`Link for ${partyLabel} copied — paste into SMS`)
+    } catch (err) {
+      setConjointSurveyNotice((err as Error).message)
+    } finally {
+      setConjointSurveyBusy(null)
+      void address
+    }
+  }
+
+  function handleConjointMlsScan(owner: 'person_a' | 'person_b', address: string) {
+    void owner
+    if (!address || address.includes('Add ')) {
+      setConjointMlsNotice('Add the pickup address in Legs first, then close this modal and use Scan from MLS on the lead page.')
+      return
+    }
+    const mlsPhotoCount = (lead.supabaseListing?.carouselphotos || []).length
+    if (mlsPhotoCount > 0) {
+      setConjointMlsNotice(`MLS listing already loaded (${mlsPhotoCount} photos). Close this modal and hit Scan from MLS to run inventory detection.`)
+    } else {
+      setConjointMlsNotice(`No MLS listing attached yet. Close this modal → use the MLS search on the lead page for: ${address}`)
+    }
+  }
 
   const conjointMode = !!jobFactors.conjointMove
   const conjointMetrics = useMemo(() => {
@@ -3073,33 +3140,46 @@ export function EstimateDraftModal({
                                   <div className="mt-2 flex flex-wrap gap-1.5">
                                     <button
                                       type="button"
-                                      onClick={() => appendConjointScopeNote(selectedOwner, `MLS/listing scan requested for ${selectedAddress}`)}
-                                      className="rounded-[6px] bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-200"
+                                      onClick={() => handleConjointMlsScan(selectedOwner, selectedAddress)}
+                                      disabled={conjointMlsBusy === selectedOwner}
+                                      className="rounded-[6px] bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-200 disabled:opacity-60"
                                     >
-                                      MLS / listing
+                                      {conjointMlsBusy === selectedOwner ? '…' : 'MLS / listing'}
                                     </button>
                                     <button
                                       type="button"
-                                      onClick={() => appendConjointScopeNote(selectedOwner, 'send customer photo upload link for this pickup')}
-                                      className="rounded-[6px] bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-200"
+                                      onClick={() => void handleConjointSurveyRequest(selectedOwner, selectedAddress)}
+                                      disabled={conjointSurveyBusy === selectedOwner}
+                                      className="rounded-[6px] bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-200 disabled:opacity-60"
                                     >
-                                      Customer photos
+                                      {conjointSurveyBusy === selectedOwner ? '…' : 'Customer photos'}
                                     </button>
                                     <button
                                       type="button"
-                                      onClick={() => appendConjointScopeNote(selectedOwner, 'rep upload / walkthrough photos should be tagged to this pickup')}
-                                      className="rounded-[6px] bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-200"
+                                      onClick={() => { setConjointUploadOwner(selectedOwner); conjointUploadInputRef.current?.click() }}
+                                      disabled={conjointUploadBusy}
+                                      className="rounded-[6px] bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-200 disabled:opacity-60"
                                     >
-                                      Rep upload
+                                      {conjointUploadBusy && conjointUploadOwner === selectedOwner ? 'Uploading…' : 'Rep upload'}
                                     </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => appendConjointScopeNote(selectedOwner, 'manual room-by-room inventory required for this pickup')}
-                                      className="rounded-[6px] bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-200"
-                                    >
-                                      Manual list
-                                    </button>
+                                    <input
+                                      ref={conjointUploadInputRef}
+                                      type="file"
+                                      accept="image/*,video/*"
+                                      multiple
+                                      className="hidden"
+                                      onChange={e => {
+                                        const files = Array.from(e.target.files || [])
+                                        if (files.length && conjointUploadOwner) void handleConjointRepUpload(conjointUploadOwner, files)
+                                        e.target.value = ''
+                                      }}
+                                    />
                                   </div>
+                                  {(conjointMlsNotice || conjointSurveyNotice || conjointUploadNotice) && (
+                                    <div className="mt-1.5 rounded-[6px] border border-slate-200 bg-white px-2.5 py-2 text-[10px] text-slate-600">
+                                      {conjointMlsNotice || conjointSurveyNotice || conjointUploadNotice}
+                                    </div>
+                                  )}
                                 </div>
                                 <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
                                   <input
