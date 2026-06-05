@@ -13,6 +13,7 @@ import { formatMovePolicyCategoryLabel, getMovePolicyFinding, summarizeMovePolic
 import { getTvBoxMaterialPresetForSize } from '@/lib/packing-materials'
 import { buildStarterInventoryPlan } from '@/lib/starter-inventory'
 import { deriveAccessComplexityAssessment } from '@/lib/access-intelligence'
+import { deriveMoveLogisticsPlan } from '@/lib/move-logistics'
 import { PhotoLightbox } from '@/app/components/sales/photo-lightbox'
 import { DEFAULT_ROOM_OPTIONS } from './helpers'
 import type { EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, PricingBreakdown, QuoteLineItem, QuoteLeg, QuoteLegType } from '@/lib/types'
@@ -4612,102 +4613,95 @@ export function EstimateDraftModal({
 
             {/* ── Conjoint Move Logistics Panel ── */}
             {conjointMode && legsEnabled && legs.length >= 2 && (() => {
-              const TRUCK_CAP = 1600
-              const personAItems = inventory.filter(i => i.included !== false && i.owner !== 'person_b')
-              const personBItems = inventory.filter(i => i.included !== false && i.owner === 'person_b')
-              const aCuFt = Math.round(personAItems.reduce((s, i) => s + (i.cubicFeet || 0) * (i.qty || 1), 0))
-              const bCuFt = Math.round(personBItems.reduce((s, i) => s + (i.cubicFeet || 0) * (i.qty || 1), 0))
-              const totalCuFt = aCuFt + bCuFt || effectiveInventoryMetrics.totalCubicFeet
-              const truckNeeded = totalCuFt > TRUCK_CAP ? 2 : 1
-              const crewSize = pricingBreakdown?.crewSize || 3
-              const loadHours = pricingBreakdown?.loadHours || 3
-              const unloadHours = pricingBreakdown?.unloadHours || 2
-              const loadAHours = totalCuFt > 0 ? Math.round((loadHours * (aCuFt / totalCuFt || 0.5)) * 4) / 4 : Math.round(loadHours * 0.5 * 4) / 4
-              const loadBHours = Math.round((loadHours - loadAHours) * 4) / 4
-              const leg1 = legs[0]
-              const leg2 = legs[1]
-              const leg1DriveH = legRoutes[leg1.id]?.driveHours || leg1.driveHours || 0
-              const leg2DriveH = legRoutes[leg2.id]?.driveHours || leg2.driveHours || 0
-              const leg1Km = legRoutes[leg1.id]?.distanceKm || leg1.distanceKm || 0
-              const leg2Km = legRoutes[leg2.id]?.distanceKm || leg2.distanceKm || 0
-              const totalKm = leg1Km + leg2Km
-
-              // Build timeline from crew start
-              const startParse = (quote?.moveTime || '09:00').split(':')
-              const startH = Number(startParse[0]) + Number(startParse[1] || '0') / 60
-              function fmtT(h: number) {
-                const total = ((h % 24) + 24) % 24
-                const hr = Math.floor(total)
-                const mn = Math.round((total - hr) * 60)
-                const ampm = hr < 12 ? 'AM' : 'PM'
-                const hr12 = hr === 0 ? 12 : hr > 12 ? hr - 12 : hr
-                return `${hr12}:${mn.toString().padStart(2, '0')} ${ampm}`
-              }
-              const t0 = startH
-              const t1 = t0 + leg1DriveH              // arrive Person A
-              const t2 = t1 + loadAHours              // done loading A
-              const t3 = t2 + leg2DriveH              // drive leg 1 (A→B): arrive Person B
-              const t4 = t3 + loadBHours              // done loading B
-              const t5 = t4 + (leg2DriveH || 0.5)    // drive to destination (use leg2 drive for A→dest; approximation)
-              const t6 = t5 + unloadHours             // all done
-
-              const phases = [
-                { label: 'Crew departs yard', time: fmtT(t0), note: '' },
-                { label: `Arrive at ${jobFactors.personALabel || 'Person A'}'s`, time: fmtT(t1), note: `${leg1Km > 0 ? `${leg1Km} km · ` : ''}load ~${loadAHours}h` },
-                { label: `Loading ${jobFactors.personALabel || 'Person A'} done`, time: fmtT(t2), note: `${aCuFt > 0 ? `${aCuFt} cu ft` : ''}` },
-                { label: `Arrive at ${jobFactors.personBLabel || 'Person B'}'s`, time: fmtT(t3), note: `${leg1Km > 0 ? `drive · ` : ''}load ~${loadBHours}h` },
-                { label: `Loading ${jobFactors.personBLabel || 'Person B'} done`, time: fmtT(t4), note: `${bCuFt > 0 ? `${bCuFt} cu ft` : ''}` },
-                { label: 'Arrive at destination', time: fmtT(t5), note: `${leg2Km > 0 ? `${leg2Km} km · ` : ''}unload ~${unloadHours}h` },
-                { label: 'All done', time: fmtT(t6), note: `~${Math.round((t6 - t0) * 4) / 4}h total` },
-              ]
+              const plannedLegs = legs.map(leg => ({
+                ...leg,
+                distanceKm: legRoutes[leg.id]?.distanceKm || leg.distanceKm,
+                driveHours: legRoutes[leg.id]?.driveHours || leg.driveHours,
+              }))
+              const plan = deriveMoveLogisticsPlan({
+                legs: plannedLegs,
+                inventory,
+                totalCubicFeet: effectiveInventoryMetrics.totalCubicFeet,
+                loadHours: pricingBreakdown?.loadHours,
+                unloadHours: pricingBreakdown?.unloadHours,
+                totalHours: pricingBreakdown?.totalHours,
+                crewSize: pricingBreakdown?.crewSize || 3,
+                startTime: quote?.moveTime || '09:00',
+              })
+              const totalKm = plannedLegs.reduce((sum, leg) => sum + Math.round(Number(leg.distanceKm || leg.billableDistanceKm || 0)), 0)
+              const personALabel = jobFactors.personALabel || 'Person A'
+              const personBLabel = jobFactors.personBLabel || 'Person B'
 
               return (
                 <div className="border border-purple-200 rounded-[10px] overflow-hidden">
                   <div className="px-3.5 py-2.5 bg-purple-50 flex items-center justify-between">
                     <span className="text-xs font-semibold text-purple-800">Conjoint Move Logistics</span>
-                    <span className="text-[10px] text-purple-600">{crewSize} movers · {truckNeeded} truck{truckNeeded > 1 ? 's' : ''} · {totalKm > 0 ? `${totalKm} km total` : 'add addresses for distance'}</span>
+                    <span className="text-[10px] text-purple-600">{pricingBreakdown?.crewSize || 3} movers · {plan.truckCount} truck{plan.truckCount > 1 ? 's' : ''} · {totalKm > 0 ? `${totalKm} km total` : 'add addresses for distance'}</span>
                   </div>
                   <div className="bg-white px-3.5 py-3 space-y-3">
-                    {/* Truck decision */}
-                    <div className={`rounded-[8px] px-3 py-2.5 text-[11px] font-semibold ${truckNeeded === 2 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
-                      {truckNeeded === 2
-                        ? `Two 26ft trucks — ${totalCuFt} cu ft total exceeds single-truck limit (${TRUCK_CAP} cu ft). Run trucks in parallel for same-day finish.`
-                        : `One 26ft truck fits both pickups — ${totalCuFt} cu ft of ${TRUCK_CAP} cu ft (${Math.round(totalCuFt / TRUCK_CAP * 100)}% full). Single crew does both stops in sequence.`
-                      }
+                    <div className={`rounded-[8px] px-3 py-2.5 text-[11px] font-semibold ${
+                      plan.recommendation === 'split_day'
+                        ? 'bg-rose-100 text-rose-800'
+                        : plan.recommendation === 'two_truck_parallel' || plan.recommendation === 'needs_route_data'
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-emerald-100 text-emerald-800'
+                    }`}>
+                      {plan.label} — {plan.totalCubicFeet.toLocaleString()} cu ft, {plan.capacityUsedPct}% of one 26ft truck, ~{plan.estimatedHours}h window, finish around {plan.finishTime}.
                     </div>
+                    {plan.salesTalkingPoints.length > 0 && (
+                      <div className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2 text-[10px] text-[var(--app-muted)] space-y-1">
+                        {plan.salesTalkingPoints.map((point, i) => (
+                          <div key={i}>• {point}</div>
+                        ))}
+                      </div>
+                    )}
+                    {plan.riskNotes.length > 0 && (
+                      <div className="rounded-[6px] border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] text-amber-800 space-y-1">
+                        {plan.riskNotes.map((note, i) => (
+                          <div key={i}>• {note}</div>
+                        ))}
+                      </div>
+                    )}
                     {/* Day timeline */}
                     <div>
                       <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Day-of-Move Timeline</div>
                       <div className="space-y-1.5">
-                        {phases.map((phase, i) => (
-                          <div key={i} className="flex items-start gap-2.5 text-[11px]">
-                            <div className="flex items-center gap-1.5 shrink-0 w-[72px]">
-                              <div className={`h-2 w-2 rounded-full shrink-0 ${i === 0 ? 'bg-slate-400' : i === phases.length - 1 ? 'bg-emerald-500' : 'bg-purple-400'}`} />
-                              <span className="font-mono font-semibold text-[var(--app-ink)]">{phase.time}</span>
+                        {plan.phases.map((phase, i) => {
+                          const label = phase.label
+                            .replace('first pickup', `${personALabel}'s`)
+                            .replace('First pickup', `${personALabel}`)
+                            .replace('second pickup', `${personBLabel}'s`)
+                            .replace('Second pickup', `${personBLabel}`)
+                          return (
+                            <div key={i} className="flex items-start gap-2.5 text-[11px]">
+                              <div className="flex items-center gap-1.5 shrink-0 w-[72px]">
+                                <div className={`h-2 w-2 rounded-full shrink-0 ${i === 0 ? 'bg-slate-400' : i === plan.phases.length - 1 ? 'bg-emerald-500' : 'bg-purple-400'}`} />
+                                <span className="font-mono font-semibold text-[var(--app-ink)]">{phase.time}</span>
+                              </div>
+                              <div className="min-w-0">
+                                <span className="font-medium text-[var(--app-ink)]">{label}</span>
+                                {phase.note && <span className="ml-1.5 text-[10px] text-[var(--app-muted)]">{phase.note}</span>}
+                              </div>
                             </div>
-                            <div className="min-w-0">
-                              <span className="font-medium text-[var(--app-ink)]">{phase.label}</span>
-                              {phase.note && <span className="ml-1.5 text-[10px] text-[var(--app-muted)]">{phase.note}</span>}
-                            </div>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     </div>
                     {/* Load split */}
-                    {(aCuFt > 0 || bCuFt > 0) && (
+                    {(plan.volumeSplit.personA.cubicFeet > 0 || plan.volumeSplit.personB.cubicFeet > 0) && (
                       <div className="rounded-[6px] border border-[var(--app-line)] p-2 space-y-1 text-[10px]">
                         <div className="font-semibold text-[var(--app-muted)] uppercase tracking-wide">Volume by person</div>
                         <div className="flex justify-between">
-                          <span className="text-blue-700">{jobFactors.personALabel || 'Person A'}</span>
-                          <span className="font-semibold">{aCuFt} cu ft · {personAItems.length} items</span>
+                          <span className="text-blue-700">{personALabel}</span>
+                          <span className="font-semibold">{plan.volumeSplit.personA.cubicFeet} cu ft · {plan.volumeSplit.personA.itemCount} items</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-purple-700">{jobFactors.personBLabel || 'Person B'}</span>
-                          <span className="font-semibold">{bCuFt} cu ft · {personBItems.length} items</span>
+                          <span className="text-purple-700">{personBLabel}</span>
+                          <span className="font-semibold">{plan.volumeSplit.personB.cubicFeet} cu ft · {plan.volumeSplit.personB.itemCount} items</span>
                         </div>
                         <div className="flex justify-between border-t border-[var(--app-line)] pt-1 font-semibold">
                           <span>Combined</span>
-                          <span>{totalCuFt} cu ft</span>
+                          <span>{plan.totalCubicFeet} cu ft</span>
                         </div>
                       </div>
                     )}
