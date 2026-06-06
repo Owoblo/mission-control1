@@ -16,7 +16,7 @@ import { deriveAccessComplexityAssessment } from '@/lib/access-intelligence'
 import { deriveMoveLogisticsPlan, type LogisticsOption } from '@/lib/move-logistics'
 import { PhotoLightbox } from '@/app/components/sales/photo-lightbox'
 import { DEFAULT_ROOM_OPTIONS } from './helpers'
-import type { EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, PricingBreakdown, QuoteLineItem, QuoteLeg, QuoteLegType } from '@/lib/types'
+import type { EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, LeadMediaAsset, PricingBreakdown, QuoteLineItem, QuoteLeg, QuoteLegType } from '@/lib/types'
 import {
   calcUHaulCost, compareStrategies, truckSizeFromCubicFeet, calcStrategyTiming, calcLongDistanceUHaul,
   DEFAULT_BLANKET_BAGS, DEFAULT_GAS_PRICE_PER_L, DEFAULT_MISC_BUFFER,
@@ -255,6 +255,7 @@ type Props = {
   recalculateBusy: boolean
   listingPhotos: string[]
   customerPhotos?: string[]
+  mediaAssets?: LeadMediaAsset[]
   activePhotoIndex: number
   inventoryMetrics: {
     totalItems: number
@@ -301,6 +302,7 @@ type Props = {
   onInternalNotesChange: (v: string) => void
   onSaveDraft: (options?: QuoteWorkspaceSaveOptions) => Promise<void> | void
   onSaveAndPreview: (options?: QuoteWorkspaceSendOptions) => Promise<void> | void
+  onLeadMediaSynced?: (lead: CRMLead) => void
   legs?: QuoteLeg[]
   onLegsChange?: (legs: QuoteLeg[]) => void
   onUhaulPriceChange?: (pricePerTruck: number) => void
@@ -372,6 +374,7 @@ export function EstimateDraftModal({
   recalculateBusy,
   listingPhotos,
   customerPhotos,
+  mediaAssets = [],
   activePhotoIndex,
   inventoryMetrics,
   groupedInventory,
@@ -400,6 +403,7 @@ export function EstimateDraftModal({
   onSetLineItems,
   onSaveDraft,
   onSaveAndPreview,
+  onLeadMediaSynced,
   onQuoteApprovalUpdated,
   legs: legsProp,
   onLegsChange,
@@ -506,13 +510,22 @@ export function EstimateDraftModal({
     try {
       const form = new FormData()
       form.set('purpose', 'customer_media')
-      form.set('room', 'Living Room')
+      form.set('room', partyLabel)
       form.set('notes', `Conjoint upload — ${partyLabel}`)
+      form.set('partyLabel', partyLabel)
+      form.set('partyOwner', owner)
       files.forEach(f => form.append('files', f))
       const res = await fetch(`/api/sales/leads/${lead.id}/media-upload`, { method: 'POST', body: form, credentials: 'include' })
-      const data = await res.json() as { ok?: boolean; uploadedCount?: number; analyzeWarning?: string; error?: string }
+      const data = await res.json() as { ok?: boolean; uploadedCount?: number; analyzedImageCount?: number; detectedItems?: InventoryItem[]; lead?: CRMLead; analyzeWarning?: string; error?: string }
       if (!res.ok || data.error) throw new Error(data.error || 'Upload failed')
-      setConjointUploadNotice(`Uploaded ${data.uploadedCount ?? files.length} file${(data.uploadedCount ?? files.length) !== 1 ? 's' : ''} for ${partyLabel}`)
+      if (data.lead) onLeadMediaSynced?.(data.lead)
+      const detectedCount = data.detectedItems?.length || 0
+      const scanText = detectedCount > 0
+        ? ` Scan added ${detectedCount} inventory item${detectedCount === 1 ? '' : 's'} to ${partyLabel}.`
+        : data.analyzedImageCount
+          ? ' Photos saved; no inventory items were detected automatically.'
+          : ''
+      setConjointUploadNotice(`Uploaded ${data.uploadedCount ?? files.length} file${(data.uploadedCount ?? files.length) !== 1 ? 's' : ''} for ${partyLabel}.${scanText}${data.analyzeWarning ? ` ${data.analyzeWarning}` : ''}`)
     } catch (err) {
       setConjointUploadNotice((err as Error).message)
     } finally {
@@ -3135,12 +3148,29 @@ export function EstimateDraftModal({
                         const scopedItems = activeConjointOwner === 'combined'
                           ? inventory.filter(item => item.included !== false)
                           : inventory.filter(item => item.included !== false && (activeConjointOwner === 'person_b' ? item.owner === 'person_b' : item.owner !== 'person_b'))
+                        const scopedElements = inventory
+                          .map((item, index) => ({ item, index }))
+                          .filter(el => el.item.included !== false && (
+                            activeConjointOwner === 'combined'
+                              ? true
+                              : activeConjointOwner === 'person_b'
+                                ? el.item.owner === 'person_b'
+                                : el.item.owner !== 'person_b'
+                          ))
                         const scopedCuFt = Math.round(scopedItems.reduce((sum, item) => sum + (item.cubicFeet || 0) * (item.qty || 1), 0))
                         const selectedOwner = activeConjointOwner === 'person_b' ? 'person_b' : 'person_a'
                         const selectedLabel = selectedOwner === 'person_b' ? personBLabel : personALabel
                         const selectedAddress = selectedOwner === 'person_b'
                           ? legs[1]?.originAddress || 'Add Person B pickup address in Leg 2'
                           : legs[0]?.originAddress || originAddress || lead.originAddress || 'Add Person A pickup address in Leg 1'
+                        const selectedMedia = mediaAssets.filter(asset => {
+                          if (asset.removed || asset.kind !== 'image') return false
+                          const label = (asset.partyLabel || '').trim().toLowerCase()
+                          const notes = (asset.notes || '').toLowerCase()
+                          const target = selectedLabel.toLowerCase()
+                          return label === target || notes.includes(`conjoint upload — ${target}`) || notes.includes(`party b`) && selectedOwner === 'person_b'
+                        })
+                        const selectedReferencePhotos = selectedOwner === 'person_a' ? listingPhotos : []
                         const untaggedCount = inventory.filter(item => item.included !== false && !item.owner).length
                         const commonPresets = INVENTORY_PRESETS.filter(preset =>
                           ['sofa-standard', 'queen-bed', 'dresser-med', 'desk-standard', 'dining-table-4', 'dining-chair', 'box-medium'].includes(preset.id)
@@ -3224,6 +3254,102 @@ export function EstimateDraftModal({
                                   {(conjointMlsNotice || conjointSurveyNotice || conjointUploadNotice) && (
                                     <div className="mt-1.5 rounded-[6px] border border-slate-200 bg-white px-2.5 py-2 text-[10px] text-slate-600">
                                       {conjointMlsNotice || conjointSurveyNotice || conjointUploadNotice}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="rounded-[6px] border border-slate-200 bg-white px-2.5 py-2">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Photos for {selectedLabel}</div>
+                                    <div className="text-[10px] text-slate-500">{selectedMedia.length + selectedReferencePhotos.length} photo{selectedMedia.length + selectedReferencePhotos.length === 1 ? '' : 's'}</div>
+                                  </div>
+                                  {selectedMedia.length + selectedReferencePhotos.length > 0 ? (
+                                    <div className="mt-2 grid grid-cols-5 gap-1.5">
+                                      {[...selectedReferencePhotos.slice(0, 10), ...selectedMedia.map(asset => asset.url)].slice(0, 15).map((photo, index, photos) => (
+                                        <button
+                                          key={`${selectedOwner}-photo-${photo}-${index}`}
+                                          type="button"
+                                          onClick={() => setLightbox({ photos, index })}
+                                          className="overflow-hidden rounded-[6px] border border-slate-200 bg-slate-50"
+                                        >
+                                          <img src={photo} alt={`${selectedLabel} photo ${index + 1}`} className="h-14 w-full object-cover" />
+                                        </button>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <div className="mt-2 rounded-[6px] border border-dashed border-slate-200 bg-slate-50 px-2.5 py-3 text-[10px] text-slate-500">
+                                      No photos tied to {selectedLabel} yet. Use Customer photos or Rep upload on this tab.
+                                    </div>
+                                  )}
+                                  {selectedOwner === 'person_a' && selectedReferencePhotos.length > 0 ? (
+                                    <div className="mt-1.5 text-[10px] text-blue-700">MLS listing photos are treated as {selectedLabel}'s pickup reference.</div>
+                                  ) : null}
+                                </div>
+                                <div className="rounded-[6px] border border-slate-200 bg-white px-2.5 py-2">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Inventory for {selectedLabel}</div>
+                                    <div className="text-[10px] font-semibold text-slate-600">{scopedElements.length} item{scopedElements.length === 1 ? '' : 's'} · {scopedCuFt} cu ft</div>
+                                  </div>
+                                  {scopedElements.length > 0 ? (
+                                    <div className="mt-2 space-y-1.5">
+                                      {scopedElements.slice(0, 18).map(({ item, index }) => (
+                                        <div key={`${selectedOwner}-item-${index}`} className="rounded-[6px] border border-slate-100 bg-slate-50 px-2 py-2">
+                                          <div className="flex items-center gap-2">
+                                            <input
+                                              value={item.name || item.item || ''}
+                                              onChange={event => onUpdateInventoryItem(index, 'name', event.target.value)}
+                                              className="crm-input h-8 min-w-0 flex-1 py-1 text-xs"
+                                              placeholder="Item name"
+                                            />
+                                            <input
+                                              type="number"
+                                              min={1}
+                                              value={item.qty || 1}
+                                              onChange={event => onUpdateInventoryItem(index, 'qty', event.target.value)}
+                                              className="crm-input h-8 w-14 py-1 text-right text-xs"
+                                            />
+                                            <input
+                                              type="number"
+                                              min={0}
+                                              value={item.cubicFeet || 0}
+                                              onChange={event => onUpdateInventoryItem(index, 'cubicFeet', event.target.value)}
+                                              className="crm-input h-8 w-20 py-1 text-right text-xs"
+                                              title="Cubic feet"
+                                            />
+                                          </div>
+                                          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                            <select
+                                              value={item.room || selectedLabel}
+                                              onChange={event => onUpdateInventoryItem(index, 'room', event.target.value)}
+                                              className="crm-input h-7 py-0 text-[10px]"
+                                            >
+                                              {[selectedLabel, ...DEFAULT_ROOM_OPTIONS].filter((room, i, arr) => room && arr.indexOf(room) === i).map(room => (
+                                                <option key={room} value={room}>{room}</option>
+                                              ))}
+                                            </select>
+                                            <button
+                                              type="button"
+                                              onClick={() => onUpdateInventoryItem(index, 'owner', selectedOwner === 'person_b' ? 'person_a' : 'person_b')}
+                                              className="rounded-[6px] bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-200"
+                                            >
+                                              Move to {selectedOwner === 'person_b' ? personALabel : personBLabel}
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => onRemoveInventoryItem(index)}
+                                              className="rounded-[6px] bg-rose-50 px-2 py-1 text-[10px] font-semibold text-rose-700"
+                                            >
+                                              Remove
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ))}
+                                      {scopedElements.length > 18 ? (
+                                        <div className="text-[10px] text-slate-500">Showing first 18. Use the full inventory editor below for the rest.</div>
+                                      ) : null}
+                                    </div>
+                                  ) : (
+                                    <div className="mt-2 rounded-[6px] border border-dashed border-slate-200 bg-slate-50 px-2.5 py-3 text-[10px] text-slate-500">
+                                      No items assigned to {selectedLabel} yet. Add items here, upload photos, or assign untagged items.
                                     </div>
                                   )}
                                 </div>
@@ -3807,7 +3933,10 @@ export function EstimateDraftModal({
               </div>
 
               <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
-                <div className="crm-label">Listing Photos</div>
+                <div className="crm-label">{conjointMode ? `${jobFactors.personALabel || 'Primary pickup'} MLS Listing Photos` : 'Listing Photos'}</div>
+                {conjointMode ? (
+                  <div className="mt-1 text-[10px] text-[var(--app-muted)]">These listing photos are tied to the primary pickup. Use each party tab for separate uploaded photos and inventory.</div>
+                ) : null}
                 {listingPhotos.length > 0 ? (
                   <>
                     <button type="button" onClick={() => setLightbox({ photos: listingPhotos, index: activePhotoIndex })}
@@ -3837,7 +3966,7 @@ export function EstimateDraftModal({
               </div>
 
               {/* Customer-uploaded / survey photos */}
-              {(customerPhotos?.length ?? 0) > 0 && (
+              {!conjointMode && (customerPhotos?.length ?? 0) > 0 && (
                 <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 p-4">
                   <div className="crm-label text-emerald-800">Customer Photos <span className="ml-1 font-normal normal-case text-emerald-600">({customerPhotos!.length})</span></div>
                   <div className="mt-2 text-[10px] text-emerald-700">Photos uploaded by the customer — use these to verify the AI inventory is correct.</div>

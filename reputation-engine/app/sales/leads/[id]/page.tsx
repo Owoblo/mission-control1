@@ -5416,6 +5416,7 @@ export default function SalesLeadDetailPage() {
         onLegsChange={setQuoteLegs}
         onUhaulPriceChange={price => { pricingMetaRef.current.longDistanceTruckCost = price }}
         listingPhotos={listingPhotos}
+        mediaAssets={lead.mediaAssets || []}
         customerPhotos={(lead.mediaAssets || [])
           .filter((a: import('@/lib/types').LeadMediaAsset) => a.kind === 'image')
           .map((a: import('@/lib/types').LeadMediaAsset) => a.url)}
@@ -5448,6 +5449,10 @@ export default function SalesLeadDetailPage() {
         onQuoteApprovalUpdated={setQuote}
         onSaveDraft={options => void saveQuoteDraft(options)}
         onSaveAndPreview={options => void saveAndPreviewQuote(options)}
+        onLeadMediaSynced={updatedLead => {
+          setLead(updatedLead)
+          setInventory(updatedLead.inventory || [])
+        }}
         onBranchChange={setBranch}
         onJobFactorsChange={setJobFactors}
         onOriginAddressChange={setOriginAddress}

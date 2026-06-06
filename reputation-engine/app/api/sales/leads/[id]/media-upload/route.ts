@@ -23,6 +23,9 @@ export async function POST(
     const purpose = String(formData.get('purpose') || 'customer_media')
     const room = String(formData.get('room') || 'other')
     const notes = String(formData.get('notes') || '').trim() || undefined
+    const partyLabel = String(formData.get('partyLabel') || '').trim() || undefined
+    const partyOwnerRaw = String(formData.get('partyOwner') || '').trim()
+    const partyOwner = partyOwnerRaw === 'person_a' || partyOwnerRaw === 'person_b' ? partyOwnerRaw : undefined
     const files = (formData.getAll('files') as File[]).filter(Boolean)
     if (!files.length) {
       return NextResponse.json({ error: 'No media files provided' }, { status: 400 })
@@ -38,6 +41,7 @@ export async function POST(
       uploadedByUserId: session?.userId,
       uploadedByName: session?.name,
       notes,
+      partyLabel,
     })
 
     // Step 1: Save assets to the lead immediately — photos land regardless of AI outcome
@@ -46,7 +50,7 @@ export async function POST(
       detectedItems: [],
       source: purpose === 'receipt' ? 'receipt_upload' : 'rep_upload',
     })
-    await saveSalesLead({
+    let savedLead = await saveSalesLead({
       ...leadWithAssets,
       lastTouchedAt: new Date().toISOString(),
       lastTouchedByUserId: session?.userId || leadWithAssets.lastTouchedByUserId,
@@ -61,14 +65,17 @@ export async function POST(
 
     if (imageUrls.length > 0) {
       try {
-        detectedItems = await analyzeLeadPhotosWithVision(room, imageUrls)
+        detectedItems = (await analyzeLeadPhotosWithVision(room, imageUrls)).map(item => ({
+          ...item,
+          ...(partyOwner ? { owner: partyOwner } : {}),
+        }))
         if (detectedItems.length > 0) {
           const nextLead = applyLeadMediaAnalysis(leadWithAssets, {
             assets: [],
             detectedItems,
             source: purpose === 'receipt' ? 'receipt_upload' : 'rep_upload',
           })
-          await saveSalesLead(nextLead)
+          savedLead = await saveSalesLead(nextLead)
         }
       } catch (err) {
         analyzeError = err instanceof Error ? err.message : 'AI scan failed'
@@ -81,6 +88,7 @@ export async function POST(
       analyzedImageCount: imageUrls.length,
       skippedVideoCount: assets.filter(asset => asset.kind === 'video' || asset.kind === 'document').length,
       detectedItems,
+      lead: savedLead,
       ...(analyzeError ? { analyzeWarning: `Photos saved but AI scan failed: ${analyzeError}. Use the Scan button to retry.` } : {}),
     })
   } catch (error) {
