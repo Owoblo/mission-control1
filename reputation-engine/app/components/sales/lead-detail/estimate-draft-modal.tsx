@@ -602,8 +602,14 @@ export function EstimateDraftModal({
           totalCubicFeet: mergedMetrics.totalCubicFeet,
           totalWeightLbs: mergedMetrics.totalWeightLbs,
         })
+        if (detectedItems.length > 0) {
+          const syncedKeys = new Set(detectedItems.map(item => conjointInventoryKey(item)))
+          setConjointPendingScanItems(current => current.filter(item => !syncedKeys.has(conjointInventoryKey(item))))
+        }
       } else if (detectedItems.length > 0) {
         onAddInventoryItems(detectedItems)
+        const syncedKeys = new Set(detectedItems.map(item => conjointInventoryKey(item)))
+        setConjointPendingScanItems(current => current.filter(item => !syncedKeys.has(conjointInventoryKey(item))))
       }
       const detectedCount = data.detectedItems?.length || 0
       const scanText = detectedCount > 0
@@ -670,6 +676,52 @@ export function EstimateDraftModal({
     })
     return merged
   }, [conjointPendingScanItems, inventory])
+
+  function conjointInventoryKey(item: InventoryItem) {
+    return String(item.id || `${item.owner || 'person_a'}:${item.room || ''}:${item.name || item.item || ''}`).toLowerCase()
+  }
+
+  function findSourceInventoryIndex(item: InventoryItem, effectiveIndex: number) {
+    if (item.id) {
+      const idIndex = inventory.findIndex(candidate => candidate.id === item.id)
+      if (idIndex >= 0) return idIndex
+    }
+    const key = conjointInventoryKey(item)
+    const keyIndex = inventory.findIndex(candidate => conjointInventoryKey(candidate) === key)
+    if (keyIndex >= 0) return keyIndex
+    if (effectiveIndex >= 0 && effectiveIndex < inventory.length && conjointInventoryKey(inventory[effectiveIndex]) === key) {
+      return effectiveIndex
+    }
+    return -1
+  }
+
+  function normalizeInventoryFieldValue(field: keyof InventoryItem, value: string) {
+    return field === 'qty' || field === 'cubicFeet' || field === 'weightLbs'
+      ? Number(value || 0)
+      : value
+  }
+
+  function updateConjointInventoryItem(item: InventoryItem, effectiveIndex: number, field: keyof InventoryItem, value: string) {
+    const sourceIndex = findSourceInventoryIndex(item, effectiveIndex)
+    if (sourceIndex >= 0) {
+      onUpdateInventoryItem(sourceIndex, field, value)
+    }
+    const key = conjointInventoryKey(item)
+    setConjointPendingScanItems(current => current.map(candidate =>
+      conjointInventoryKey(candidate) === key
+        ? { ...candidate, [field]: normalizeInventoryFieldValue(field, value) }
+        : candidate
+    ))
+  }
+
+  function removeConjointInventoryItem(item: InventoryItem, effectiveIndex: number) {
+    const key = conjointInventoryKey(item)
+    setConjointPendingScanItems(current => current.filter(candidate => conjointInventoryKey(candidate) !== key))
+    const sourceIndex = findSourceInventoryIndex(item, effectiveIndex)
+    if (sourceIndex >= 0) {
+      onRemoveInventoryItem(sourceIndex)
+    }
+  }
 
   const conjointMode = !!jobFactors.conjointMove
   const conjointMetrics = useMemo(() => {
@@ -3398,7 +3450,7 @@ export function EstimateDraftModal({
                                           <div className="flex items-center gap-2">
                                             <input
                                               value={item.name || item.item || ''}
-                                              onChange={event => onUpdateInventoryItem(index, 'name', event.target.value)}
+                                              onChange={event => updateConjointInventoryItem(item, index, 'name', event.target.value)}
                                               className="crm-input h-8 min-w-0 flex-1 py-1 text-xs"
                                               placeholder="Item name"
                                             />
@@ -3406,14 +3458,14 @@ export function EstimateDraftModal({
                                               type="number"
                                               min={1}
                                               value={item.qty || 1}
-                                              onChange={event => onUpdateInventoryItem(index, 'qty', event.target.value)}
+                                              onChange={event => updateConjointInventoryItem(item, index, 'qty', event.target.value)}
                                               className="crm-input h-8 w-14 py-1 text-right text-xs"
                                             />
                                             <input
                                               type="number"
                                               min={0}
                                               value={item.cubicFeet || 0}
-                                              onChange={event => onUpdateInventoryItem(index, 'cubicFeet', event.target.value)}
+                                              onChange={event => updateConjointInventoryItem(item, index, 'cubicFeet', event.target.value)}
                                               className="crm-input h-8 w-20 py-1 text-right text-xs"
                                               title="Cubic feet"
                                             />
@@ -3421,7 +3473,7 @@ export function EstimateDraftModal({
                                           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                                             <select
                                               value={item.room || selectedLabel}
-                                              onChange={event => onUpdateInventoryItem(index, 'room', event.target.value)}
+                                              onChange={event => updateConjointInventoryItem(item, index, 'room', event.target.value)}
                                               className="crm-input h-7 py-0 text-[10px]"
                                             >
                                               {[selectedLabel, ...DEFAULT_ROOM_OPTIONS].filter((room, i, arr) => room && arr.indexOf(room) === i).map(room => (
@@ -3430,14 +3482,14 @@ export function EstimateDraftModal({
                                             </select>
                                             <button
                                               type="button"
-                                              onClick={() => onUpdateInventoryItem(index, 'owner', selectedOwner === 'person_b' ? 'person_a' : 'person_b')}
+                                              onClick={() => updateConjointInventoryItem(item, index, 'owner', selectedOwner === 'person_b' ? 'person_a' : 'person_b')}
                                               className="rounded-[6px] bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-200"
                                             >
                                               Move to {selectedOwner === 'person_b' ? personALabel : personBLabel}
                                             </button>
                                             <button
                                               type="button"
-                                              onClick={() => onRemoveInventoryItem(index)}
+                                              onClick={() => removeConjointInventoryItem(item, index)}
                                               className="rounded-[6px] bg-rose-50 px-2 py-1 text-[10px] font-semibold text-rose-700"
                                             >
                                               Remove
