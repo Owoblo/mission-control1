@@ -439,13 +439,27 @@ export default function SalesLeadDetailPage() {
   }, [quote?.depositStripeCardBrand, quote?.depositStripeCardLast4])
 
   function applyLeadSnapshot(nextLead: CRMLead, options?: { hydrateForm?: boolean }) {
-    setLead(nextLead)
+    const incomingRemovedKeys = new Set(nextLead.removedInventoryItemKeys || [])
+    removedInventoryKeysRef.current.forEach(key => incomingRemovedKeys.add(key))
+    removedInventoryKeysRef.current = incomingRemovedKeys
+    const filteredInventory = filterRemovedInventoryItems(nextLead.inventory || [])
+    const filteredMetrics = deriveInventoryMetrics(filteredInventory)
+    const normalizedLead = {
+      ...nextLead,
+      inventory: filteredMetrics.inventory,
+      totalItems: filteredMetrics.totalItems,
+      totalCubicFeet: filteredMetrics.totalCubicFeet,
+      totalWeightLbs: filteredMetrics.totalWeightLbs,
+      roomBreakdown: buildRoomBreakdown(filteredMetrics.inventory),
+      removedInventoryItemKeys: Array.from(incomingRemovedKeys),
+    }
+    setLead(normalizedLead)
 
     if (!options?.hydrateForm) {
       return
     }
 
-    const draftState = createLeadDraftState(nextLead)
+    const draftState = createLeadDraftState(normalizedLead)
     setStage(draftState.stage)
     setFollowUpDate(draftState.followUpDate)
     setFollowUpStatus(draftState.followUpStatus)
@@ -476,7 +490,7 @@ export default function SalesLeadDetailPage() {
     setCustomerPriority(draftState.customerPriority)
     setNotes(draftState.notes)
     setRealtorBrokerage(draftState.realtorBrokerage)
-    setInventory(draftState.inventory)
+    setInventory(filterRemovedInventoryItems(draftState.inventory))
     setJobFactors(draftState.jobFactors)
     setContextFlag(draftState.contextFlag)
     setAssignedRep(draftState.assignedRep)
@@ -673,7 +687,7 @@ export default function SalesLeadDetailPage() {
         // Always sync inventory from DB — scan results must reach the estimate modal
         // regardless of whether the rep has in-flight edits on other fields.
         if (hasInFlightEdits && Array.isArray(nextLead.inventory)) {
-          setInventory(nextLead.inventory)
+          setInventory(filterRemovedInventoryItems(nextLead.inventory))
         }
         setAutomationSettings(resolveAutomationSettings(nextLead.automationSettings))
         // Fetch inbound emails from Zoho (stored in email_messages table) for this lead's email
@@ -816,6 +830,7 @@ export default function SalesLeadDetailPage() {
     let cancelled = false
 
     const hasInventory = (lead.inventory || []).length > 0
+    const hasInventoryDecisions = hasInventory || (lead.removedInventoryItemKeys || []).length > 0 || removedInventoryKeysRef.current.size > 0
     const hasListingScanSnapshot = !!lead.listingScanSnapshot
     const needsHydration = !hasInventory || !hasListingScanSnapshot || !hasRichListingContext(lead.supabaseListing)
 
@@ -836,12 +851,12 @@ export default function SalesLeadDetailPage() {
         if (result.scan) {
           updates.listingScanSnapshot = result.scan
           const nextInventory = result.scan.inventory || []
-          // Always apply scan results — this is an address/MLS scan that the rep triggered.
-          // The !hasInventory guard was too conservative and caused scans to silently do nothing
-          // when any existing inventory was present. The estimate modal needs to see scan results.
-          if (nextInventory.length > 0) {
-            const nextMetrics = deriveInventoryMetrics(nextInventory)
-            setInventory(nextInventory)
+          // Background listing hydration should not overwrite rep-curated inventory.
+          // Explicit Scan from MLS still replaces inventory in generateInventoryFromPhotos().
+          if (!hasInventoryDecisions && nextInventory.length > 0) {
+            const filteredScanInventory = filterRemovedInventoryItems(nextInventory)
+            const nextMetrics = deriveInventoryMetrics(filteredScanInventory)
+            setInventory(nextMetrics.inventory)
             updates.inventory = nextMetrics.inventory
             updates.totalItems = nextMetrics.totalItems
             updates.totalCubicFeet = nextMetrics.totalCubicFeet
@@ -2259,12 +2274,15 @@ export default function SalesLeadDetailPage() {
       // Must await so inventory is in DB before any navigation happens
       if (lead) {
         try {
+          const filteredQuoteInventory = filterRemovedInventoryItems(inventoryMetrics.inventory)
+          const filteredQuoteMetrics = deriveInventoryMetrics(filteredQuoteInventory)
           await updateSalesLead(lead.id, {
-            inventory: inventoryMetrics.inventory,
-            totalItems: inventoryMetrics.totalItems,
-            totalCubicFeet: inventoryMetrics.totalCubicFeet,
-            totalWeightLbs: inventoryMetrics.totalWeightLbs,
-            roomBreakdown: buildRoomBreakdown(inventoryMetrics.inventory),
+            inventory: filteredQuoteMetrics.inventory,
+            totalItems: filteredQuoteMetrics.totalItems,
+            totalCubicFeet: filteredQuoteMetrics.totalCubicFeet,
+            totalWeightLbs: filteredQuoteMetrics.totalWeightLbs,
+            roomBreakdown: buildRoomBreakdown(filteredQuoteMetrics.inventory),
+            removedInventoryItemKeys: Array.from(removedInventoryKeysRef.current),
             ...(Object.keys(jobFactors).length > 0 ? { jobFactors } : {}),
           })
         } catch { /* non-critical — quote is already saved */ }
@@ -2695,11 +2713,13 @@ export default function SalesLeadDetailPage() {
         supabaseListing: result.listing,
         listingScanSnapshot: null,
         inventory: [],
+        removedInventoryItemKeys: [],
         totalItems: 0,
         totalCubicFeet: 0,
         totalWeightLbs: 0,
       }
       const saved = await updateSalesLead(lead.id, updates)
+      removedInventoryKeysRef.current = new Set()
       setLead(saved)
       setInventory([])
       if (saved.originCity) setOriginCity(saved.originCity)
@@ -2725,10 +2745,12 @@ export default function SalesLeadDetailPage() {
         supabaseListing: null,
         listingScanSnapshot: null,
         inventory: [],
+        removedInventoryItemKeys: [],
         totalItems: 0,
         totalCubicFeet: 0,
         totalWeightLbs: 0,
       })
+      removedInventoryKeysRef.current = new Set()
       setLead(saved)
       setInventory([])
       setError(null)
@@ -2802,7 +2824,7 @@ export default function SalesLeadDetailPage() {
               setScanProgress({ batch: event.batch ?? 0, totalBatches: event.totalBatches ?? 0, status: event.status ?? '' })
             } else if (event.type === 'batch') {
               allItems = [...allItems, ...(event.items ?? [])]
-              setInventory([...allItems])
+              setInventory(filterRemovedInventoryItems(allItems))
               setScanProgress({
                 batch: event.batch ?? 0,
                 totalBatches: event.totalBatches ?? 0,
@@ -2810,9 +2832,9 @@ export default function SalesLeadDetailPage() {
               })
             } else if (event.type === 'done') {
               const rawInventory = event.scan?.inventory || allItems
-              const nextInventory = sanitizeInventoryRooms(rawInventory)
+              const nextInventory = filterRemovedInventoryItems(sanitizeInventoryRooms(rawInventory))
               const metrics = deriveInventoryMetrics(nextInventory)
-              setInventory(nextInventory)
+              setInventory(metrics.inventory)
               const finalSaved = await updateSalesLead(leadId, {
                 inventory: metrics.inventory,
                 totalItems: metrics.totalItems,
@@ -2820,8 +2842,9 @@ export default function SalesLeadDetailPage() {
                 totalWeightLbs: metrics.totalWeightLbs,
                 roomBreakdown: buildRoomBreakdown(metrics.inventory),
                 listingScanSnapshot: event.scan || undefined,
+                removedInventoryItemKeys: Array.from(removedInventoryKeysRef.current),
               })
-              setLead(finalSaved)
+              applyLeadSnapshot(finalSaved, { hydrateForm: false })
               setScanProgress(null)
               if (event.truckRecommendation) {
                 setScanResult({
@@ -3203,6 +3226,7 @@ export default function SalesLeadDetailPage() {
       totalCubicFeet: metrics.totalCubicFeet,
       totalWeightLbs: metrics.totalWeightLbs,
       roomBreakdown: buildRoomBreakdown(metrics.inventory),
+      removedInventoryItemKeys: Array.from(removedInventoryKeysRef.current),
     }
     setLead(prev => prev ? { ...prev, ...leadPatch } : prev)
     if (!lead?.id) return
@@ -3236,11 +3260,42 @@ export default function SalesLeadDetailPage() {
   }
 
   function inventoryItemKey(item: InventoryItem) {
-    return String(item.id || `${item.owner || 'person_a'}:${item.room || ''}:${item.name || item.item || ''}`).toLowerCase()
+    return inventoryItemKeys(item)[0]
+  }
+
+  function normalizeInventoryKeyPart(value: unknown) {
+    return String(value || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+      .replace(/\s+/g, ' ')
+  }
+
+  function inventoryItemKeys(item: InventoryItem) {
+    const owner = item.owner || 'person_a'
+    const name = normalizeInventoryKeyPart(item.name || item.item)
+    const room = normalizeInventoryKeyPart(item.room)
+    const cubicFeet = Math.round(Number(item.cubicFeet || 0))
+    const qty = Math.max(1, Number(item.qty || 1))
+    const keys = [`stable:${owner}:${room}:${name}:${qty}:${cubicFeet}`]
+    if (item.id) keys.push(`id:${String(item.id).toLowerCase()}`)
+    return keys
   }
 
   function isRemovedInventoryItem(item: InventoryItem) {
-    return removedInventoryKeysRef.current.has(inventoryItemKey(item))
+    return inventoryItemKeys(item).some(key => removedInventoryKeysRef.current.has(key))
+  }
+
+  function rememberRemovedInventoryItem(item: InventoryItem) {
+    inventoryItemKeys(item).forEach(key => removedInventoryKeysRef.current.add(key))
+  }
+
+  function forgetRemovedInventoryItem(item: InventoryItem) {
+    inventoryItemKeys(item).forEach(key => removedInventoryKeysRef.current.delete(key))
+  }
+
+  function filterRemovedInventoryItems(items: InventoryItem[]) {
+    return items.filter(item => !isRemovedInventoryItem(item))
   }
 
   function toggleInventoryItem(index: number) {
@@ -3265,7 +3320,7 @@ export default function SalesLeadDetailPage() {
     setInventory(current => {
       const removedItem = current[index]
       if (!removedItem) return current
-      removedInventoryKeysRef.current.add(inventoryItemKey(removedItem))
+      rememberRemovedInventoryItem(removedItem)
       const next = current.filter((_, i) => i !== index)
       persistInventorySnapshot(next, { immediate: true })
       return next
@@ -3464,9 +3519,9 @@ export default function SalesLeadDetailPage() {
         throw new Error('No inventory draft was returned from MLS photo analysis.')
       }
 
-      const nextInventory = result.scan.inventory || []
+      const nextInventory = filterRemovedInventoryItems(result.scan.inventory || [])
       const nextMetrics = deriveInventoryMetrics(nextInventory)
-      setInventory(nextInventory)
+      setInventory(nextMetrics.inventory)
 
       const saved = await updateSalesLead(lead.id, {
         inventory: nextMetrics.inventory,
@@ -3474,9 +3529,10 @@ export default function SalesLeadDetailPage() {
         totalCubicFeet: nextMetrics.totalCubicFeet,
         totalWeightLbs: nextMetrics.totalWeightLbs,
         roomBreakdown: buildRoomBreakdown(nextMetrics.inventory),
+        removedInventoryItemKeys: Array.from(removedInventoryKeysRef.current),
       })
 
-      setLead(saved)
+      applyLeadSnapshot(saved, { hydrateForm: false })
       setError(null)
     } catch (err) {
       setError((err as Error).message)
@@ -5502,6 +5558,7 @@ export default function SalesLeadDetailPage() {
         onSaveDraft={options => void saveQuoteDraft(options)}
         onSaveAndPreview={options => void saveAndPreviewQuote(options)}
         onLeadMediaSynced={updatedLead => {
+          ;(updatedLead.removedInventoryItemKeys || []).forEach(key => removedInventoryKeysRef.current.add(key))
           setInventory(current => {
             const incoming = (updatedLead.inventory || []).filter(item => !isRemovedInventoryItem(item))
             const merged = [...incoming]
@@ -5522,6 +5579,7 @@ export default function SalesLeadDetailPage() {
               totalCubicFeet: metrics.totalCubicFeet,
               totalWeightLbs: metrics.totalWeightLbs,
               roomBreakdown: buildRoomBreakdown(metrics.inventory),
+              removedInventoryItemKeys: Array.from(removedInventoryKeysRef.current),
             })
             return metrics.inventory
           })
@@ -5537,7 +5595,7 @@ export default function SalesLeadDetailPage() {
           const keys = new Set(merged.map(item => inventoryItemKey(item)))
           items.forEach(item => {
             const key = inventoryItemKey(item)
-            removedInventoryKeysRef.current.delete(key)
+            forgetRemovedInventoryItem(item)
             if (!keys.has(key)) {
               keys.add(key)
               merged.push(item)

@@ -255,6 +255,7 @@ const NUMERIC_FIELDS = [
 const STRING_ARRAY_FIELDS = [
   'quoteIds',
   'assignedCrew',
+  'removedInventoryItemKeys',
 ] satisfies Array<keyof CRMLead>
 
 const ARRAY_FIELDS = [

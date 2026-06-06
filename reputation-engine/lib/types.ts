@@ -748,6 +748,7 @@ export interface CRMLead {
   inboxState?: LeadInboxState
   directMailAttributed?: boolean
   inventory?: InventoryItem[]
+  removedInventoryItemKeys?: string[]
   mediaAssets?: LeadMediaAsset[]
   totalItems?: number
   totalCubicFeet?: number
