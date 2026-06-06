@@ -5,6 +5,7 @@ import {
   formatDate,
   formatMoney,
   genQuoteNumber,
+  isBookedLikeStage,
   normalizeClient,
   normalizeLead,
   normalizeQuote,
@@ -163,7 +164,7 @@ function normalizeMoveTypeSignal(value?: string): string | undefined {
 }
 const SALES_PHONE = '226-773-2993'
 const AUTOMATION_LOCAL_TIMEZONE = 'America/Toronto'
-const INBOUND_RESPONSE_DELAY_MS = 60 * 1000
+const INBOUND_RESPONSE_DELAY_MS = 0
 const QUOTE_NOT_OPENED_DELAY_MS = 3 * 60 * 60 * 1000
 const QUOTE_VIEWED_DELAY_MS = 30 * 60 * 1000
 const QUOTE_EXPIRY_REMINDER_MS = 48 * 60 * 60 * 1000
@@ -550,7 +551,11 @@ function hoursUntil(isoDate: string) {
 }
 
 function isBookedOrPaidLead(lead: Pick<CRMLead, 'stage' | 'paymentStatus' | 'bookedAt'>) {
-  return lead.stage === 'booked' || lead.paymentStatus === 'deposit_received' || lead.paymentStatus === 'paid_in_full' || !!lead.bookedAt
+  return isBookedLikeStage(lead.stage) || lead.paymentStatus === 'deposit_received' || lead.paymentStatus === 'paid_in_full' || !!lead.bookedAt
+}
+
+function isCompletedCustomerLead(lead: Pick<CRMLead, 'stage'>) {
+  return lead.stage === 'completed' || lead.stage === 'customer_success'
 }
 
 function buildEstimateDateTime(lead: CRMLead) {
@@ -1251,7 +1256,7 @@ function buildQualificationState(lead: CRMLead, overrides: Partial<LeadQualifica
     surveyRequested: !!lead.surveyRequestedAt,
     surveyCompleted: !!lead.surveyCompletedAt,
     quoteReady: missingFields.length === 0 || (missingFields.length === 1 && missingFields[0] === 'access'),
-    activeCustomer: lead.stage === 'booked',
+    activeCustomer: isBookedLikeStage(lead.stage),
     missingFields,
     nextBestAction:
       overrides.nextBestAction ||
@@ -1308,16 +1313,16 @@ async function findLeadByContact(phone?: string, email?: string) {
   return getSalesLeadByContact(phone, email, undefined)
 }
 
+async function findLeadByInboundIdentity(phone?: string, email?: string, inboundId?: string) {
+  return getSalesLeadByContact(phone, email, inboundId, { includeClosed: true })
+}
+
 async function ensureLeadForInbound(event: InboundAutomationEvent): Promise<CRMLead> {
   if (event.leadId) {
     const lead = await getSalesLead(event.leadId)
     if (!lead) throw new Error(`Lead ${event.leadId} not found`)
     return lead
   }
-
-  let lead =
-    (event.inboundLeadId ? await getSalesLeadByInboundId(event.inboundLeadId) : null) ||
-    (await findLeadByContact(event.phone, event.email))
 
   const now = event.receivedAt || new Date().toISOString()
   const inbound = event.inboundLeadId ? await getInboundLead(event.inboundLeadId).catch(() => null) : null
@@ -1327,6 +1332,9 @@ async function ensureLeadForInbound(event: InboundAutomationEvent): Promise<CRML
   const message = previewText(event.message || inbound?.message, 500)
   const attribution = extractEventAttribution(event, inbound)
   const source = deriveLeadSource(event, inbound, attribution)
+  const identityLead = await findLeadByInboundIdentity(phone || event.phone, email || event.email, event.inboundLeadId)
+  const inboundLead = event.inboundLeadId ? await getSalesLeadByInboundId(event.inboundLeadId) : null
+  let lead = identityLead || inboundLead
 
   if (!lead) {
     const createdLead = normalizeLead({
@@ -1370,6 +1378,20 @@ async function ensureLeadForInbound(event: InboundAutomationEvent): Promise<CRML
       ...updatedLead,
       qualificationState: buildQualificationState(updatedLead, updatedLead.qualificationState || {}),
     })
+  }
+
+  if (isBookedOrPaidLead(lead)) {
+    if (event.inboundLeadId) {
+      await markInboundLeadClaimed(event.inboundLeadId).catch(() => {})
+      await updateInboundLeadRawData(event.inboundLeadId, {
+        linkedLeadId: lead.id,
+        automationClaimedAt: new Date().toISOString(),
+      }).catch(() => {})
+    }
+    if (phone) {
+      await linkSmsMessagesToLead(lead.id, phone).catch(() => {})
+    }
+    return lead
   }
 
   const extractedSignals = await extractLeadSignals(lead, {
@@ -1717,15 +1739,35 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
   }
 
   if (isBookedOrPaidLead(lead) && kind === 'lead_response') {
+    if (isCompletedCustomerLead(lead)) {
+      return {
+        reply:
+          channel === 'sms'
+            ? `Thanks ${firstName}. I found your completed Saturn Star customer file and saved this message there. If this is for a new move, send the new date and route and we'll start a fresh estimate.`
+            : `Hi ${firstName},\n\nThanks. I found your completed Saturn Star customer file and saved this message there. If this is for a new move, send the new date and route and we'll start a fresh estimate.\n\nJohn\nSaturn Star Moving`,
+        subject: channel === 'email' ? 'Re: Saturn Star Moving' : undefined,
+        capturedSummary: 'Completed customer replied. Automation acknowledged the existing customer file instead of restarting sales intake.',
+        intent: 'lead_response',
+        missingFields: [],
+        moveReadiness: 'warm',
+        nextBestAction: 'customer_success_review',
+      }
+    }
+
     const moveDate = lead.moveDate
       ? new Date(`${lead.moveDate}T12:00:00`).toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' })
       : 'your move day'
     const route = [lead.originCity || lead.originAddress, lead.destCity || lead.destAddress].filter(Boolean).join(' to ')
+    const hasLogisticsDetail = /\b(park|parking|truck|entrance|door|elevator|stairs|loading|access|hall|unit|apartment|furniture|wrap|blanket|box|packing|pack)\b/i.test(inboundMessage || '')
     return {
       reply:
         channel === 'sms'
-          ? `Hi ${firstName}, I see your move${route ? ` from ${route}` : ''} is booked for ${moveDate}. I've added this note for operations, and a coordinator will confirm the exact parking/access plan before move day.`
-          : `Hi ${firstName},\n\nI see your move${route ? ` from ${route}` : ''} is booked for ${moveDate}. I've added this note for operations, and a coordinator will confirm the exact parking/access plan before move day.\n\nJohn\nSaturn Star Moving`,
+          ? hasLogisticsDetail
+            ? `Thanks ${firstName}. Your move${route ? ` from ${route}` : ''} is already booked for ${moveDate}, and I saved this logistics note for the crew briefing.`
+            : `Thanks ${firstName}. Your move${route ? ` from ${route}` : ''} is already booked for ${moveDate}. I saved your message on the job file.`
+          : hasLogisticsDetail
+            ? `Hi ${firstName},\n\nThanks. Your move${route ? ` from ${route}` : ''} is already booked for ${moveDate}, and I saved this logistics note for the crew briefing.\n\nJohn\nSaturn Star Moving`
+            : `Hi ${firstName},\n\nThanks. Your move${route ? ` from ${route}` : ''} is already booked for ${moveDate}. I saved your message on the job file.\n\nJohn\nSaturn Star Moving`,
       subject: channel === 'email' ? 'Re: Your Booked Move' : undefined,
       capturedSummary: 'Booked customer sent a post-booking question. Automation acknowledged and routed the note to operations.',
       intent: 'lead_response',
@@ -1756,8 +1798,8 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
     return {
       reply:
         channel === 'sms'
-          ? `Hi ${firstName}, Saturn Star Moving here. Quick reminder about your move on ${moveDate}. If building access or timing changed, text us here or call ${SALES_PHONE}.`
-          : `Hi ${firstName},\n\nQuick reminder about your upcoming move on ${moveDate}. If anything changed with access, elevators, parking, or timing, reply here or call us at ${SALES_PHONE}.\n\nJohn\nSaturn Star Moving`,
+          ? `Hi ${firstName}, quick reminder from Saturn Star Moving: your move is booked for ${moveDate}. Reply only if timing, parking, access, or inventory changed.`
+          : `Hi ${firstName},\n\nQuick reminder from Saturn Star Moving: your move is booked for ${moveDate}. Reply only if timing, parking, access, or inventory changed.\n\nJohn\nSaturn Star Moving`,
       subject: channel === 'email' ? 'Your Upcoming Move with Saturn Star Moving' : undefined,
       capturedSummary: 'Sent a pre-move reminder.',
       intent: 'move_reminder',
@@ -1891,6 +1933,16 @@ async function buildCopyForJob(job: CRMAutomationJob, lead: CRMLead, channel: Co
     return fallbackCopy(job.kind, lead, channel, inboundMessage)
   }
 
+  if (
+    job.kind === 'consultation_reminder' ||
+    job.kind === 'move_reminder' ||
+    detectMovedOnIntent(inboundMessage) ||
+    lead.stage === 'lost' ||
+    (job.kind === 'lead_response' && isBookedOrPaidLead(lead))
+  ) {
+    return fallbackCopy(job.kind, lead, channel, inboundMessage)
+  }
+
   const ai = await generateAutomationCopy({
     kind: job.kind,
     lead,
@@ -1900,6 +1952,16 @@ async function buildCopyForJob(job: CRMAutomationJob, lead: CRMLead, channel: Co
   }).catch(() => null)
 
   return ai && ai.reply ? ai : fallbackCopy(job.kind, lead, channel, inboundMessage)
+}
+
+async function resolveCanonicalLeadForAutomationJob(job: CRMAutomationJob, lead: CRMLead) {
+  if (job.kind !== 'lead_response') return lead
+
+  const payloadContact = typeof job.payload?.contactValue === 'string' ? job.payload.contactValue.trim() : ''
+  const phone = payloadContact && !payloadContact.includes('@') ? payloadContact : lead.phone
+  const email = payloadContact.includes('@') ? payloadContact : lead.email
+  const canonical = await findLeadByInboundIdentity(phone || undefined, email || undefined, lead.inboundId).catch(() => null)
+  return canonical || lead
 }
 
 function shouldSkipAutomation(lead: CRMLead, job: CRMAutomationJob) {
@@ -2143,7 +2205,7 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
   }
 
   if (job.kind === 'lead_response' && isBookedOrPaidLead(lead)) {
-    const copy = await buildCopyForJob(job, lead, contact.channel, inboundMessage, inboundSubject)
+    const copy = fallbackCopy(job.kind, lead, contact.channel, inboundMessage)
     const sendResult = await sendSalesMessage({
       actor: 'automation',
       channel: contact.channel,
@@ -2515,15 +2577,24 @@ export async function processAutomationJob(job: CRMAutomationJob) {
   })) || { ...job, status: 'running' as const, lockedAt: now, attempts: (job.attempts || 0) + 1, updatedAt: now }
 
   try {
-    const lead = await getSalesLead(job.leadId)
+    let lead = await getSalesLead(job.leadId)
     if (!lead) {
       throw new Error(`Lead ${job.leadId} not found`)
     }
+    lead = await resolveCanonicalLeadForAutomationJob(running, lead)
+    const activeJob =
+      lead.id === running.leadId
+        ? running
+        : (await saveAutomationJob({
+            ...running,
+            leadId: lead.id,
+            updatedAt: new Date().toISOString(),
+          })) || { ...running, leadId: lead.id }
 
-    if (isNudgeJob(running.kind) && !isWithinAutomationBusinessHours(new Date())) {
+    if (isNudgeJob(activeJob.kind) && !isWithinAutomationBusinessHours(new Date())) {
       const deferredAt = getNextAutomationBusinessTime(new Date()).toISOString()
       const deferred = await saveAutomationJob({
-        ...running,
+        ...activeJob,
         status: 'pending',
         dueAt: deferredAt,
         lockedAt: null,
@@ -2531,42 +2602,42 @@ export async function processAutomationJob(job: CRMAutomationJob) {
         lastError: null,
         updatedAt: new Date().toISOString(),
       })
-      return deferred || running
+      return deferred || activeJob
     }
 
-    const skipReason = shouldSkipAutomation(lead, running)
+    const skipReason = shouldSkipAutomation(lead, activeJob)
     if (skipReason) {
       const cancelled = await saveAutomationJob({
-        ...running,
+        ...activeJob,
         status: 'cancelled',
         result: { reason: skipReason },
         lastError: null,
         updatedAt: new Date().toISOString(),
         completedAt: new Date().toISOString(),
       })
-      return cancelled || running
+      return cancelled || activeJob
     }
 
     const outcome =
-      running.kind === 'quote_followup'
-        ? await handleQuoteFollowupJob(running, lead)
-        : running.kind === 'quote_viewed_followup'
-          ? await handleQuoteViewedFollowupJob(running, lead)
-          : running.kind === 'quote_expiry_followup'
-            ? await handleQuoteExpiryFollowupJob(running, lead)
-        : running.kind === 'survey_followup'
-          ? await handleSurveyFollowupJob(running, lead)
-          : running.kind === 'consultation_reminder'
-            ? await handleConsultationReminderJob(running, lead)
-            : running.kind === 'move_reminder'
-              ? await handleMoveReminderJob(running, lead)
-              : running.kind === 'stale_reactivation'
-                ? await handleStaleReactivationJob(running, lead)
-                : await handleLeadResponseJob(running, lead)
+      activeJob.kind === 'quote_followup'
+        ? await handleQuoteFollowupJob(activeJob, lead)
+        : activeJob.kind === 'quote_viewed_followup'
+          ? await handleQuoteViewedFollowupJob(activeJob, lead)
+          : activeJob.kind === 'quote_expiry_followup'
+            ? await handleQuoteExpiryFollowupJob(activeJob, lead)
+        : activeJob.kind === 'survey_followup'
+          ? await handleSurveyFollowupJob(activeJob, lead)
+          : activeJob.kind === 'consultation_reminder'
+            ? await handleConsultationReminderJob(activeJob, lead)
+            : activeJob.kind === 'move_reminder'
+              ? await handleMoveReminderJob(activeJob, lead)
+              : activeJob.kind === 'stale_reactivation'
+                ? await handleStaleReactivationJob(activeJob, lead)
+                : await handleLeadResponseJob(activeJob, lead)
 
     const status = outcome.status === 'cancelled' ? 'cancelled' : 'completed'
     const saved = await saveAutomationJob({
-      ...running,
+      ...activeJob,
       status,
       result: outcome as Record<string, unknown>,
       lastError: null,
@@ -2574,7 +2645,7 @@ export async function processAutomationJob(job: CRMAutomationJob) {
       completedAt: new Date().toISOString(),
     })
 
-    return saved || running
+    return saved || activeJob
   } catch (error) {
     const saved = await saveAutomationJob({
       ...running,

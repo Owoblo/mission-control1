@@ -555,12 +555,17 @@ async function mergeSalesLeadIntoCanonical(
   return savedSurvivor
 }
 
-export async function getSalesLeadByContact(phone?: string | null, email?: string | null, inboundId?: string | null) {
+export async function getSalesLeadByContact(
+  phone?: string | null,
+  email?: string | null,
+  inboundId?: string | null,
+  options?: { includeClosed?: boolean },
+) {
   const matches = findLeadIdentityMatches(await listSalesLeadIdentitySnapshots(), {
     phone,
     email,
     inboundId,
-    includeClosed: false,
+    includeClosed: options?.includeClosed || false,
   })
   if (matches.length === 0) {
     return null

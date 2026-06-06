@@ -72,6 +72,41 @@ test('canonical lead selection prefers richer active records over placeholders',
   assert.equal(canonical?.id, 'quoted')
 })
 
+test('closed customer matches are opt-in and beat new SMS placeholders', () => {
+  const leads: CRMLead[] = [
+    makeLead({
+      id: 'sms_placeholder',
+      name: '+15199990000',
+      stage: 'new',
+      phone: '+1 519 999 0000',
+      inboundId: 'inb_new_sms',
+      createdAt: '2026-06-06',
+    }),
+    makeLead({
+      id: 'completed_customer',
+      name: 'Rosemary Customer',
+      stage: 'completed',
+      phone: '519-999-0000',
+      email: 'rosemary@example.com',
+      moveDate: '2026-05-30',
+      bookedAt: '2026-05-20T14:00:00.000Z',
+      createdAt: '2026-05-01',
+    }),
+  ]
+
+  const activeOnly = findLeadIdentityMatches(leads, {
+    phone: '5199990000',
+    includeClosed: false,
+  })
+  assert.equal(activeOnly[0]?.id, 'sms_placeholder')
+
+  const withClosed = findLeadIdentityMatches(leads, {
+    phone: '5199990000',
+    includeClosed: true,
+  })
+  assert.equal(withClosed[0]?.id, 'completed_customer')
+})
+
 test('merging duplicate leads keeps one timeline and preserves richer details', () => {
   const primary = makeLead({
     id: 'lead_primary',

@@ -157,6 +157,20 @@ export function sortLeadIdentityMatches<T extends LeadIdentityShape>(leads: T[])
   return [...leads].sort(compareLeadIdentityPriority)
 }
 
+function isBookedLikeIdentityStage(stage?: string | null) {
+  return stage === 'booked' || stage === 'completed' || stage === 'customer_success'
+}
+
+function compareLeadIdentityPriorityIncludingClosed(left: LeadIdentityShape, right: LeadIdentityShape) {
+  const leftBookedLike = isBookedLikeIdentityStage(left.stage)
+  const rightBookedLike = isBookedLikeIdentityStage(right.stage)
+  if (leftBookedLike !== rightBookedLike) {
+    return leftBookedLike ? -1 : 1
+  }
+
+  return compareLeadIdentityPriority(left, right)
+}
+
 export function leadSharesIdentity(
   lead: LeadIdentityShape,
   input: { phone?: string | null; email?: string | null; inboundId?: string | null }
@@ -183,7 +197,9 @@ export function findLeadIdentityMatches<T extends LeadIdentityShape>(
     return leadSharesIdentity(lead, input)
   })
 
-  return sortLeadIdentityMatches(matches)
+  return input.includeClosed
+    ? [...matches].sort(compareLeadIdentityPriorityIncludingClosed)
+    : sortLeadIdentityMatches(matches)
 }
 
 export function findMatchingActiveLead<T extends LeadIdentityShape>(
