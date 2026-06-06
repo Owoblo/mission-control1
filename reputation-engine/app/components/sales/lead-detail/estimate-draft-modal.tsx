@@ -544,12 +544,27 @@ export function EstimateDraftModal({
       }))
       if (data.lead) {
         const leadInventory = Array.isArray(data.lead.inventory) ? data.lead.inventory : []
-        const existingKeys = new Set(leadInventory.map(item => {
+        const detectedIds = new Set(detectedItems.map(item => item.id).filter(Boolean))
+        const detectedNames = new Set(detectedItems.map(item => String(item.name || item.item || '').trim().toLowerCase()).filter(Boolean))
+        const ownedLeadInventory = leadInventory.map(item => {
+          const itemName = String(item.name || item.item || '').trim().toLowerCase()
+          const matchesDetected = (item.id && detectedIds.has(item.id)) || (itemName && detectedNames.has(itemName))
+          return matchesDetected
+            ? {
+              ...item,
+              owner,
+              room: item.room || partyLabel,
+              included: item.included !== false,
+              source: item.source || 'rep_upload',
+            }
+            : item
+        })
+        const existingKeys = new Set(ownedLeadInventory.map(item => {
           const label = String(item.id || `${item.owner || 'person_a'}:${item.room || ''}:${item.name || item.item || ''}`).toLowerCase()
           return label
         }))
         const mergedInventory = [
-          ...leadInventory,
+          ...ownedLeadInventory,
           ...detectedItems.filter(item => {
             const key = String(item.id || `${item.owner || 'person_a'}:${item.room || ''}:${item.name || item.item || ''}`).toLowerCase()
             if (existingKeys.has(key)) return false
