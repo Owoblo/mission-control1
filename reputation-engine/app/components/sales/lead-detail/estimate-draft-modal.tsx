@@ -496,6 +496,7 @@ export function EstimateDraftModal({
   const [conjointUploadBusy, setConjointUploadBusy] = useState(false)
   const [conjointUploadNotice, setConjointUploadNotice] = useState<string | null>(null)
   const [conjointLocalPhotoUrls, setConjointLocalPhotoUrls] = useState<Record<'person_a' | 'person_b', string[]>>({ person_a: [], person_b: [] })
+  const [conjointPendingScanItems, setConjointPendingScanItems] = useState<InventoryItem[]>([])
   const [conjointSurveyBusy, setConjointSurveyBusy] = useState<'person_a' | 'person_b' | null>(null)
   const [conjointSurveyNotice, setConjointSurveyNotice] = useState<string | null>(null)
   const [conjointMlsBusy, setConjointMlsBusy] = useState<'person_a' | 'person_b' | null>(null)
@@ -542,6 +543,26 @@ export function EstimateDraftModal({
         included: item.included !== false,
         source: item.source || 'rep_upload',
       }))
+      if (detectedItems.length > 0) {
+        setConjointPendingScanItems(current => {
+          const merged = [...current]
+          const keys = new Set(merged.map(item => String(item.id || `${item.owner || 'person_a'}:${item.room || ''}:${item.name || item.item || ''}`).toLowerCase()))
+          detectedItems.forEach(item => {
+            const key = String(item.id || `${item.owner || 'person_a'}:${item.room || ''}:${item.name || item.item || ''}`).toLowerCase()
+            if (!keys.has(key)) {
+              keys.add(key)
+              merged.push(item)
+            }
+          })
+          return merged
+        })
+        console.info('[conjoint-upload]', {
+          party: partyLabel,
+          owner,
+          detected: detectedItems.length,
+          returnedLeadInventory: data.lead?.inventory?.length || 0,
+        })
+      }
       if (data.lead) {
         if (detectedItems.length > 0) onAddInventoryItems(detectedItems)
         const leadInventory = Array.isArray(data.lead.inventory) ? data.lead.inventory : []
@@ -636,9 +657,23 @@ export function EstimateDraftModal({
     }
   }
 
+  const effectiveConjointInventory = useMemo(() => {
+    if (conjointPendingScanItems.length === 0) return inventory
+    const merged = [...inventory]
+    const keys = new Set(merged.map(item => String(item.id || `${item.owner || 'person_a'}:${item.room || ''}:${item.name || item.item || ''}`).toLowerCase()))
+    conjointPendingScanItems.forEach(item => {
+      const key = String(item.id || `${item.owner || 'person_a'}:${item.room || ''}:${item.name || item.item || ''}`).toLowerCase()
+      if (!keys.has(key)) {
+        keys.add(key)
+        merged.push(item)
+      }
+    })
+    return merged
+  }, [conjointPendingScanItems, inventory])
+
   const conjointMode = !!jobFactors.conjointMove
   const conjointMetrics = useMemo(() => {
-    const included = inventory.filter(item => item.included !== false)
+    const included = effectiveConjointInventory.filter(item => item.included !== false)
     const personAItems = included.filter(item => item.owner !== 'person_b')
     const personBItems = included.filter(item => item.owner === 'person_b')
     const volume = (items: InventoryItem[]) => Math.round(items.reduce((sum, item) => sum + Number(item.cubicFeet || 0) * Math.max(1, Number(item.qty || 1)), 0))
@@ -659,7 +694,7 @@ export function EstimateDraftModal({
       personASharePct,
       personBSharePct: Math.max(0, 100 - personASharePct),
     }
-  }, [inventory])
+  }, [effectiveConjointInventory])
 
   const LEG_TYPE_LABELS: Record<QuoteLegType, string> = {
     move: '🚚 House → House',
@@ -3168,8 +3203,8 @@ export function EstimateDraftModal({
                   })()}
                 </div>
                 {conjointMode && (() => {
-                  const personAItems = inventory.filter(i => i.included !== false && i.owner !== 'person_b')
-                  const personBItems = inventory.filter(i => i.included !== false && i.owner === 'person_b')
+                  const personAItems = effectiveConjointInventory.filter(i => i.included !== false && i.owner !== 'person_b')
+                  const personBItems = effectiveConjointInventory.filter(i => i.included !== false && i.owner === 'person_b')
                   const aCuFt = Math.round(personAItems.reduce((s, i) => s + (i.cubicFeet || 0) * (i.qty || 1), 0))
                   const bCuFt = Math.round(personBItems.reduce((s, i) => s + (i.cubicFeet || 0) * (i.qty || 1), 0))
                   const totalCuFt = aCuFt + bCuFt
@@ -3211,9 +3246,9 @@ export function EstimateDraftModal({
                           { id: 'combined', label: 'Combined', tone: 'slate' },
                         ]
                         const scopedItems = activeConjointOwner === 'combined'
-                          ? inventory.filter(item => item.included !== false)
-                          : inventory.filter(item => item.included !== false && (activeConjointOwner === 'person_b' ? item.owner === 'person_b' : item.owner !== 'person_b'))
-                        const scopedElements = inventory
+                          ? effectiveConjointInventory.filter(item => item.included !== false)
+                          : effectiveConjointInventory.filter(item => item.included !== false && (activeConjointOwner === 'person_b' ? item.owner === 'person_b' : item.owner !== 'person_b'))
+                        const scopedElements = effectiveConjointInventory
                           .map((item, index) => ({ item, index }))
                           .filter(el => el.item.included !== false && (
                             activeConjointOwner === 'combined'
@@ -3238,7 +3273,7 @@ export function EstimateDraftModal({
                         const selectedReferencePhotos = selectedOwner === 'person_a' ? listingPhotos : []
                         const selectedLocalPhotos = conjointLocalPhotoUrls[selectedOwner] || []
                         const selectedPhotoUrls = [...selectedReferencePhotos.slice(0, 10), ...selectedMedia.map(asset => asset.url), ...selectedLocalPhotos].slice(0, 15)
-                        const untaggedCount = inventory.filter(item => item.included !== false && !item.owner).length
+                        const untaggedCount = effectiveConjointInventory.filter(item => item.included !== false && !item.owner).length
                         const commonPresets = INVENTORY_PRESETS.filter(preset =>
                           ['sofa-standard', 'queen-bed', 'dresser-med', 'desk-standard', 'dining-table-4', 'dining-chair', 'box-medium'].includes(preset.id)
                         )
@@ -5445,16 +5480,16 @@ export function EstimateDraftModal({
                   driveHours: legRoutes[leg.id]?.driveHours ?? (hasAddresses ? leg.driveHours : undefined),
                 }
               })
-              const personAItems = inventory.filter(item => item.included !== false && item.owner !== 'person_b')
-              const personBItems = inventory.filter(item => item.included !== false && item.owner === 'person_b')
+              const personAItems = effectiveConjointInventory.filter(item => item.included !== false && item.owner !== 'person_b')
+              const personBItems = effectiveConjointInventory.filter(item => item.included !== false && item.owner === 'person_b')
               const personAVolume = Math.round(personAItems.reduce((sum, item) => sum + Number(item.cubicFeet || 0) * Math.max(1, Number(item.qty || 1)), 0))
               const personBVolume = Math.round(personBItems.reduce((sum, item) => sum + Number(item.cubicFeet || 0) * Math.max(1, Number(item.qty || 1)), 0))
               const personALabel = jobFactors.personALabel || 'Person A'
               const personBLabel = jobFactors.personBLabel || 'Person B'
               const plan = deriveMoveLogisticsPlan({
                 legs: plannedLegs,
-                inventory,
-                totalCubicFeet: effectiveInventoryMetrics.totalCubicFeet,
+                inventory: effectiveConjointInventory,
+                totalCubicFeet: conjointMetrics.totalCubicFeet || effectiveInventoryMetrics.totalCubicFeet,
                 loadHours: pricingBreakdown?.loadHours,
                 unloadHours: pricingBreakdown?.unloadHours,
                 totalHours: pricingBreakdown?.totalHours,
