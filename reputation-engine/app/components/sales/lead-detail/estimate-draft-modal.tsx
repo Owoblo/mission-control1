@@ -536,12 +536,35 @@ export function EstimateDraftModal({
       if (!res.ok || data.error) throw new Error(data.error || 'Upload failed')
       const detectedItems = (data.detectedItems || []).map(item => ({
         ...item,
+        id: item.id || `conjoint-${owner}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         owner: owner,
         room: item.room || partyLabel,
         included: item.included !== false,
+        source: item.source || 'rep_upload',
       }))
       if (data.lead) {
-        onLeadMediaSynced?.(data.lead)
+        const leadInventory = Array.isArray(data.lead.inventory) ? data.lead.inventory : []
+        const existingKeys = new Set(leadInventory.map(item => {
+          const label = String(item.id || `${item.owner || 'person_a'}:${item.room || ''}:${item.name || item.item || ''}`).toLowerCase()
+          return label
+        }))
+        const mergedInventory = [
+          ...leadInventory,
+          ...detectedItems.filter(item => {
+            const key = String(item.id || `${item.owner || 'person_a'}:${item.room || ''}:${item.name || item.item || ''}`).toLowerCase()
+            if (existingKeys.has(key)) return false
+            existingKeys.add(key)
+            return true
+          }),
+        ]
+        const mergedMetrics = deriveInventoryMetrics(mergedInventory)
+        onLeadMediaSynced?.({
+          ...data.lead,
+          inventory: mergedInventory,
+          totalItems: mergedMetrics.totalItems,
+          totalCubicFeet: mergedMetrics.totalCubicFeet,
+          totalWeightLbs: mergedMetrics.totalWeightLbs,
+        })
       } else if (detectedItems.length > 0) {
         onAddInventoryItems(detectedItems)
       }
