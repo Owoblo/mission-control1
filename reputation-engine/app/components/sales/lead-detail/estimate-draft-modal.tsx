@@ -566,11 +566,15 @@ export function EstimateDraftModal({
     const volume = (items: InventoryItem[]) => Math.round(items.reduce((sum, item) => sum + Number(item.cubicFeet || 0) * Math.max(1, Number(item.qty || 1)), 0))
     const personACubicFeet = volume(personAItems)
     const personBCubicFeet = volume(personBItems)
+    const personAItemCount = personAItems.reduce((sum, item) => sum + Math.max(1, Number(item.qty || 1)), 0)
+    const personBItemCount = personBItems.reduce((sum, item) => sum + Math.max(1, Number(item.qty || 1)), 0)
     const totalCubicFeet = personACubicFeet + personBCubicFeet
     const personASharePct = totalCubicFeet > 0 ? Math.round((personACubicFeet / totalCubicFeet) * 100) : 50
     return {
       personAItems,
       personBItems,
+      personAItemCount,
+      personBItemCount,
       personACubicFeet,
       personBCubicFeet,
       totalCubicFeet,
@@ -1653,11 +1657,17 @@ export function EstimateDraftModal({
   const moveDateDaysAway = daysUntilDate(selectedMoveDate)
   const canApproveMarginException = currentUser?.role === 'owner' || currentUser?.role === 'manager'
   const conjointMissingInventoryLabels = [
-    conjointMode && conjointMetrics.personACubicFeet <= 0 ? (jobFactors.personALabel || 'Person A') : null,
-    conjointMode && legsEnabled && legs.length >= 2 && conjointMetrics.personBCubicFeet <= 0 ? (jobFactors.personBLabel || 'Person B') : null,
+    conjointMode && conjointMetrics.personAItemCount <= 0 ? (jobFactors.personALabel || 'Person A') : null,
+    conjointMode && legsEnabled && legs.length >= 2 && conjointMetrics.personBItemCount <= 0 ? (jobFactors.personBLabel || 'Person B') : null,
+  ].filter(Boolean) as string[]
+  const conjointUnmeasuredInventoryLabels = [
+    conjointMode && conjointMetrics.personAItemCount > 0 && conjointMetrics.personACubicFeet <= 0 ? (jobFactors.personALabel || 'Person A') : null,
+    conjointMode && legsEnabled && legs.length >= 2 && conjointMetrics.personBItemCount > 0 && conjointMetrics.personBCubicFeet <= 0 ? (jobFactors.personBLabel || 'Person B') : null,
   ].filter(Boolean) as string[]
   const conjointInventoryPending = conjointMode && legsEnabled && legs.length >= 2 && conjointMissingInventoryLabels.length > 0
   const conjointPendingLabel = conjointMissingInventoryLabels.join(' / ') || (jobFactors.personBLabel || 'Person B')
+  const conjointVolumePending = conjointMode && legsEnabled && legs.length >= 2 && !conjointInventoryPending && conjointUnmeasuredInventoryLabels.length > 0
+  const conjointVolumePendingLabel = conjointUnmeasuredInventoryLabels.join(' / ')
   const liveMarginSummary = useMemo(() => {
     if (!pricingBreakdown) return null
     const dealCosts: Record<string, number> = {
@@ -1794,7 +1804,15 @@ export function EstimateDraftModal({
           label: `${conjointPendingLabel} inventory`,
           ready: !conjointInventoryPending,
           critical: true,
-          detail: `${conjointPendingLabel} has no tagged inventory yet. Pricing, timing, truck plan, and margin are provisional until MLS/photos/manual intake is added.`,
+          detail: `${conjointPendingLabel} has no tagged inventory items yet. Add MLS/photos/manual intake before sending a final quote.`,
+        }]
+        : []),
+      ...(conjointVolumePending
+        ? [{
+          label: `${conjointVolumePendingLabel} volume`,
+          ready: false,
+          critical: false,
+          detail: `${conjointVolumePendingLabel} has tagged inventory, but cubic feet are still unknown. Timing, truck plan, and margin are provisional until the items are measured.`,
         }]
         : []),
       // Long-distance: customer should verify inventory before we lock in a flat rate
@@ -1808,16 +1826,18 @@ export function EstimateDraftModal({
       {
         label: 'Final price confidence',
         ready: Boolean(pricingBreakdown && quoteModalTotals.total > 0 && !conjointInventoryPending),
-        critical: true,
+        critical: conjointInventoryPending,
         detail: conjointInventoryPending
           ? `Price is only provisional until ${conjointPendingLabel} inventory is added.`
+          : conjointVolumePending
+            ? `Price is provisional because ${conjointVolumePendingLabel} has inventory items with unknown cubic feet.`
           : 'Price has not been generated yet.',
       },
       { label: 'Deposit amount', ready: quoteModalTotals.deposit > 0, critical: true, detail: 'Deposit amount is missing.' },
       { label: 'Quote explanation available', ready: Boolean(quoteExplanation.detailed.trim()), detail: 'Customer-facing price explanation is not ready.' },
     ]
     return items
-  }, [accessConfirmed, boxesAsked, conjointInventoryPending, conjointMode, conjointPendingLabel, destFull, effectiveInventoryMetrics.totalItems, jobFactors.packingStatus, lead.email, lead.name, lead.phone, lead.surveyCompletedAt, originFull, pricingBreakdown, quoteExplanation.detailed, quoteModalTotals.deposit, quoteModalTotals.total, route?.category, route?.destResolved, route?.originResolved, routeError, selectedMoveDate, quoteType])
+  }, [accessConfirmed, boxesAsked, conjointInventoryPending, conjointMode, conjointPendingLabel, conjointVolumePending, conjointVolumePendingLabel, destFull, effectiveInventoryMetrics.totalItems, jobFactors.packingStatus, lead.email, lead.name, lead.phone, lead.surveyCompletedAt, originFull, pricingBreakdown, quoteExplanation.detailed, quoteModalTotals.deposit, quoteModalTotals.total, route?.category, route?.destResolved, route?.originResolved, routeError, selectedMoveDate, quoteType])
   const blockingReadiness = useMemo(
     () => readinessItems.filter(item => !item.ready && item.critical),
     [readinessItems]
