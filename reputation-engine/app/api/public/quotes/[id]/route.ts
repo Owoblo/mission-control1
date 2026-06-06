@@ -144,6 +144,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
         moveDate: quote.moveDate,
         moveTime: quote.moveTime,
         moveType: quote.moveType,
+        branch: lead?.branch,
         quoteType: quote.quoteType,
         originCity: quote.originCity,
         originAddress: quote.originAddress,

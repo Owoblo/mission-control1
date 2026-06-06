@@ -5,8 +5,8 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { deriveMoveLogisticsPlan } from '@/lib/move-logistics'
 import { buildMoveSpecificNotes } from '@/lib/move-scope'
-import { formatDate, formatMoney } from '@/lib/sales'
-import type { InventoryItem, JobFactors, MoveType, QuoteLeg } from '@/lib/types'
+import { detectSalesBranchFromLocation, formatDate, formatMoney, getSalesBranchLabel } from '@/lib/sales'
+import type { CRMLead, InventoryItem, JobFactors, MoveType, QuoteLeg } from '@/lib/types'
 
 type PublicQuote = {
   id: string
@@ -14,6 +14,7 @@ type PublicQuote = {
   moveDate?: string
   moveTime?: string
   moveType?: MoveType
+  branch?: CRMLead['branch']
   originCity?: string
   originAddress?: string
   destCity?: string
@@ -112,6 +113,32 @@ function quoteServiceLabel(quote: PublicQuote) {
   if (quote.jobFactors?.conjointMove) return 'Conjoint Residential Move'
   if ((quote.legs?.length ?? 0) > 1) return 'Multi-Stop Residential Move'
   return moveTypeLabel(quote.moveType)
+}
+
+const PUBLIC_BRANCH_MARKETS: Record<NonNullable<CRMLead['branch']>, string> = {
+  windsor: 'Windsor, Ontario',
+  waterloo: 'Waterloo Region, Ontario',
+  london: 'London, Ontario',
+  ottawa: 'Ottawa, Ontario',
+}
+
+function quoteMarketLabel(quote: PublicQuote) {
+  const routeParts = [
+    quote.originCity,
+    quote.originAddress,
+    quote.destCity,
+    quote.destAddress,
+    ...(quote.legs || []).flatMap(leg => [
+      leg.originCity,
+      leg.originAddress,
+      leg.destCity,
+      leg.destAddress,
+    ]),
+  ]
+  const detectedBranch = quote.branch || detectSalesBranchFromLocation(...routeParts)
+  if (detectedBranch && PUBLIC_BRANCH_MARKETS[detectedBranch]) return PUBLIC_BRANCH_MARKETS[detectedBranch]
+  const city = quote.originCity || quote.destCity || getSalesBranchLabel(detectedBranch)
+  return city && city !== 'Unassigned' ? `${city}, Ontario` : 'Ontario'
 }
 
 interface TimelinePhase {
@@ -603,6 +630,7 @@ function QuoteAcceptPageInner() {
   const hours = rawHours > 0 ? `${rawHours}–${Math.ceil(rawHours * 1.25)}` : null
   const isBindingEstimate = hasInventory && inventory.length >= 5
   const serviceLabel = quoteServiceLabel(quote)
+  const marketLabel = quoteMarketLabel(quote)
 
   // ── Fast Lane view — hourly rate quote, no inventory/photos, direct to Stripe ──
   const DEPOSIT = 100
@@ -774,7 +802,7 @@ function QuoteAcceptPageInner() {
               <LogoMark size={52} dark />
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#f5a623]">Saturn Star Moving</div>
-                <div className="text-[9px] text-white/30 tracking-wider uppercase mt-0.5">Windsor, Ontario</div>
+                <div className="text-[9px] text-white/30 tracking-wider uppercase mt-0.5">{marketLabel}</div>
               </div>
             </div>
 
@@ -1270,7 +1298,7 @@ function QuoteAcceptPageInner() {
             <div className="mt-2 text-base font-black tracking-tight text-white">SATURN STAR MOVING</div>
             <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#f5a623]/70">Professional Moving Services</div>
             <div className="mt-3 text-[10px] text-white/30 leading-6">
-              Windsor, Ontario<br />
+              {marketLabel}<br />
               <a href="tel:+12267732993" className="text-white/50 hover:text-white">226-773-2993</a>
               {' · '}
               <a href="mailto:business@starmovers.ca" className="text-white/50 hover:text-white">business@starmovers.ca</a>
