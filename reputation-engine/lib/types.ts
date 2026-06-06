@@ -76,6 +76,7 @@ export type AutomationJobKind =
   | 'quote_viewed_followup'
   | 'quote_expiry_followup'
   | 'survey_followup'
+  | 'consultation_reminder'
   | 'move_reminder'
   | 'stale_reactivation'
 export type AutomationJobStatus = 'pending' | 'running' | 'completed' | 'cancelled' | 'failed'
