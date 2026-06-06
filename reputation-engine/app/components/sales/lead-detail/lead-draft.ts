@@ -1,6 +1,6 @@
-import { buildRoomBreakdown, buildLeadSignature } from '@/app/components/sales/lead-detail/helpers'
-import { getLeadAssignedRepName } from '@/lib/sales'
-import type { CRMLead, InventoryItem, JobFactors } from '@/lib/types'
+import { buildLeadSignature } from './helpers'
+import { getLeadAssignedRepName } from '../../../../lib/sales'
+import type { CRMLead, InventoryItem, JobFactors } from '../../../../lib/types'
 
 export type LeadDraftState = {
   stage: CRMLead['stage']
@@ -33,7 +33,7 @@ export type LeadDraftState = {
   customerPriority: string
   notes: string
   realtorBrokerage: string
-  inventory: InventoryItem[]
+  inventory?: InventoryItem[]
   jobFactors: JobFactors
   contextFlag: string
   assignedRep: string
@@ -42,13 +42,6 @@ export type LeadDraftState = {
   estimateTime: string
   lostReason: string
   lostNotes: string
-}
-
-type LeadInventoryMetrics = {
-  inventory: InventoryItem[]
-  totalItems: number
-  totalCubicFeet: number
-  totalWeightLbs: number
 }
 
 function getDraftLeadName(lead: CRMLead) {
@@ -155,7 +148,7 @@ export function buildSavedLeadSignature(lead: CRMLead) {
     lostReason: lead.lostReason || '',
     lostNotes: lead.lostNotes || '',
     jobFactors: lead.jobFactors || {},
-    inventory: lead.inventory || [],
+    inventory: [],
   })
 }
 
@@ -198,14 +191,13 @@ export function buildDraftLeadSignature(draft: LeadDraftState) {
     lostReason: draft.lostReason,
     lostNotes: draft.lostNotes,
     jobFactors: draft.jobFactors,
-    inventory: draft.inventory,
+    inventory: [],
   })
 }
 
 export function buildLeadDraftPayload(
   lead: CRMLead,
   draft: LeadDraftState,
-  inventoryMetrics: LeadInventoryMetrics,
 ) {
   const preserveOpportunityIdentity =
     lead.leadKind === 'realtor_opportunity' &&
@@ -245,11 +237,6 @@ export function buildLeadDraftPayload(
     moveReason: draft.moveReason,
     customerPriority: draft.customerPriority || undefined,
     notes: draft.notes,
-    inventory: inventoryMetrics.inventory,
-    totalItems: inventoryMetrics.totalItems,
-    totalCubicFeet: inventoryMetrics.totalCubicFeet,
-    totalWeightLbs: inventoryMetrics.totalWeightLbs,
-    roomBreakdown: buildRoomBreakdown(inventoryMetrics.inventory),
     jobFactors: Object.keys(draft.jobFactors).length > 0 ? draft.jobFactors : undefined,
     contextFlag: draft.contextFlag || undefined,
     ...(draft.assignedRep ? { assignedRep: draft.assignedRep, assignedRepName: draft.assignedRep } : {}),

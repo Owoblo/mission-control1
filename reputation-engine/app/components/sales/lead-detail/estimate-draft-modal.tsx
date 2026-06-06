@@ -681,48 +681,6 @@ export function EstimateDraftModal({
     return String(item.id || `${item.owner || 'person_a'}:${item.room || ''}:${item.name || item.item || ''}`).toLowerCase()
   }
 
-  function findSourceInventoryIndex(item: InventoryItem, effectiveIndex: number) {
-    if (item.id) {
-      const idIndex = inventory.findIndex(candidate => candidate.id === item.id)
-      if (idIndex >= 0) return idIndex
-    }
-    const key = conjointInventoryKey(item)
-    const keyIndex = inventory.findIndex(candidate => conjointInventoryKey(candidate) === key)
-    if (keyIndex >= 0) return keyIndex
-    if (effectiveIndex >= 0 && effectiveIndex < inventory.length && conjointInventoryKey(inventory[effectiveIndex]) === key) {
-      return effectiveIndex
-    }
-    return -1
-  }
-
-  function normalizeInventoryFieldValue(field: keyof InventoryItem, value: string) {
-    return field === 'qty' || field === 'cubicFeet' || field === 'weightLbs'
-      ? Number(value || 0)
-      : value
-  }
-
-  function updateConjointInventoryItem(item: InventoryItem, effectiveIndex: number, field: keyof InventoryItem, value: string) {
-    const sourceIndex = findSourceInventoryIndex(item, effectiveIndex)
-    if (sourceIndex >= 0) {
-      onUpdateInventoryItem(sourceIndex, field, value)
-    }
-    const key = conjointInventoryKey(item)
-    setConjointPendingScanItems(current => current.map(candidate =>
-      conjointInventoryKey(candidate) === key
-        ? { ...candidate, [field]: normalizeInventoryFieldValue(field, value) }
-        : candidate
-    ))
-  }
-
-  function removeConjointInventoryItem(item: InventoryItem, effectiveIndex: number) {
-    const key = conjointInventoryKey(item)
-    setConjointPendingScanItems(current => current.filter(candidate => conjointInventoryKey(candidate) !== key))
-    const sourceIndex = findSourceInventoryIndex(item, effectiveIndex)
-    if (sourceIndex >= 0) {
-      onRemoveInventoryItem(sourceIndex)
-    }
-  }
-
   const conjointMode = !!jobFactors.conjointMove
   const conjointMetrics = useMemo(() => {
     const included = effectiveConjointInventory.filter(item => item.included !== false)
@@ -3300,15 +3258,6 @@ export function EstimateDraftModal({
                         const scopedItems = activeConjointOwner === 'combined'
                           ? effectiveConjointInventory.filter(item => item.included !== false)
                           : effectiveConjointInventory.filter(item => item.included !== false && (activeConjointOwner === 'person_b' ? item.owner === 'person_b' : item.owner !== 'person_b'))
-                        const scopedElements = effectiveConjointInventory
-                          .map((item, index) => ({ item, index }))
-                          .filter(el => el.item.included !== false && (
-                            activeConjointOwner === 'combined'
-                              ? true
-                              : activeConjointOwner === 'person_b'
-                                ? el.item.owner === 'person_b'
-                                : el.item.owner !== 'person_b'
-                          ))
                         const scopedCuFt = Math.round(scopedItems.reduce((sum, item) => sum + (item.cubicFeet || 0) * (item.qty || 1), 0))
                         const selectedOwner = activeConjointOwner === 'person_b' ? 'person_b' : 'person_a'
                         const selectedLabel = selectedOwner === 'person_b' ? personBLabel : personALabel
@@ -3438,74 +3387,14 @@ export function EstimateDraftModal({
                                     <div className="mt-1.5 text-[10px] text-blue-700">MLS listing photos are treated as {selectedLabel}'s pickup reference.</div>
                                   ) : null}
                                 </div>
-                                <div className="rounded-[6px] border border-slate-200 bg-white px-2.5 py-2">
+                                <div className="rounded-[6px] border border-blue-100 bg-blue-50 px-2.5 py-2">
                                   <div className="flex items-center justify-between gap-2">
-                                    <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Inventory for {selectedLabel}</div>
-                                    <div className="text-[10px] font-semibold text-slate-600">{scopedElements.length} item{scopedElements.length === 1 ? '' : 's'} · {scopedCuFt} cu ft</div>
+                                    <div className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">Inventory for {selectedLabel}</div>
+                                    <div className="text-[10px] font-semibold text-blue-700">{scopedItems.length} item{scopedItems.length === 1 ? '' : 's'} · {scopedCuFt} cu ft</div>
                                   </div>
-                                  {scopedElements.length > 0 ? (
-                                    <div className="mt-2 space-y-1.5">
-                                      {scopedElements.slice(0, 18).map(({ item, index }) => (
-                                        <div key={`${selectedOwner}-item-${index}`} className="rounded-[6px] border border-slate-100 bg-slate-50 px-2 py-2">
-                                          <div className="flex items-center gap-2">
-                                            <input
-                                              value={item.name || item.item || ''}
-                                              onChange={event => updateConjointInventoryItem(item, index, 'name', event.target.value)}
-                                              className="crm-input h-8 min-w-0 flex-1 py-1 text-xs"
-                                              placeholder="Item name"
-                                            />
-                                            <input
-                                              type="number"
-                                              min={1}
-                                              value={item.qty || 1}
-                                              onChange={event => updateConjointInventoryItem(item, index, 'qty', event.target.value)}
-                                              className="crm-input h-8 w-14 py-1 text-right text-xs"
-                                            />
-                                            <input
-                                              type="number"
-                                              min={0}
-                                              value={item.cubicFeet || 0}
-                                              onChange={event => updateConjointInventoryItem(item, index, 'cubicFeet', event.target.value)}
-                                              className="crm-input h-8 w-20 py-1 text-right text-xs"
-                                              title="Cubic feet"
-                                            />
-                                          </div>
-                                          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                                            <select
-                                              value={item.room || selectedLabel}
-                                              onChange={event => updateConjointInventoryItem(item, index, 'room', event.target.value)}
-                                              className="crm-input h-7 py-0 text-[10px]"
-                                            >
-                                              {[selectedLabel, ...DEFAULT_ROOM_OPTIONS].filter((room, i, arr) => room && arr.indexOf(room) === i).map(room => (
-                                                <option key={room} value={room}>{room}</option>
-                                              ))}
-                                            </select>
-                                            <button
-                                              type="button"
-                                              onClick={() => updateConjointInventoryItem(item, index, 'owner', selectedOwner === 'person_b' ? 'person_a' : 'person_b')}
-                                              className="rounded-[6px] bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-200"
-                                            >
-                                              Move to {selectedOwner === 'person_b' ? personALabel : personBLabel}
-                                            </button>
-                                            <button
-                                              type="button"
-                                              onClick={() => removeConjointInventoryItem(item, index)}
-                                              className="rounded-[6px] bg-rose-50 px-2 py-1 text-[10px] font-semibold text-rose-700"
-                                            >
-                                              Remove
-                                            </button>
-                                          </div>
-                                        </div>
-                                      ))}
-                                      {scopedElements.length > 18 ? (
-                                        <div className="text-[10px] text-slate-500">Showing first 18. Use the full inventory editor below for the rest.</div>
-                                      ) : null}
-                                    </div>
-                                  ) : (
-                                    <div className="mt-2 rounded-[6px] border border-dashed border-slate-200 bg-slate-50 px-2.5 py-3 text-[10px] text-slate-500">
-                                      No items assigned to {selectedLabel} yet. Add items here, upload photos, or assign untagged items.
-                                    </div>
-                                  )}
+                                  <div className="mt-1.5 text-[10px] leading-4 text-blue-800">
+                                    Add quick items here, then use the source-of-truth inventory list below to remove items, move rooms, mark stays-behind, or switch owners.
+                                  </div>
                                 </div>
                                 <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
                                   <input

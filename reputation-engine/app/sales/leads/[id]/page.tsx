@@ -490,7 +490,7 @@ export default function SalesLeadDetailPage() {
     setCustomerPriority(draftState.customerPriority)
     setNotes(draftState.notes)
     setRealtorBrokerage(draftState.realtorBrokerage)
-    setInventory(filterRemovedInventoryItems(draftState.inventory))
+    setInventory(filterRemovedInventoryItems(draftState.inventory || []))
     setJobFactors(draftState.jobFactors)
     setContextFlag(draftState.contextFlag)
     setAssignedRep(draftState.assignedRep)
@@ -1117,7 +1117,6 @@ export default function SalesLeadDetailPage() {
     customerPriority,
     notes,
     realtorBrokerage,
-    inventory: inventoryMetrics.inventory,
     jobFactors,
     contextFlag,
     assignedRep,
@@ -1139,7 +1138,6 @@ export default function SalesLeadDetailPage() {
     estimateTime,
     followUpDate,
     followUpStatus,
-    inventoryMetrics.inventory,
     jobFactors,
     leadEmail,
     leadName,
@@ -1169,8 +1167,8 @@ export default function SalesLeadDetailPage() {
   ])
   const leadDraftPayload = useMemo(() => {
     if (!lead) return null
-    return buildLeadDraftPayload(lead, leadDraftState, inventoryMetrics)
-  }, [lead, leadDraftState, inventoryMetrics])
+    return buildLeadDraftPayload(lead, leadDraftState)
+  }, [lead, leadDraftState])
   const savedLeadSignature = useMemo(() => {
     if (!lead) return null
     return buildSavedLeadSignature(lead)
