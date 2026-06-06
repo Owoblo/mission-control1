@@ -45,6 +45,26 @@ test('move logistics recommends one-truck sequence when combined volume and hour
   assert.equal(plan.finishTime, '3:30 PM')
 })
 
+test('move logistics keeps near-capacity conjoint moves available with a clear caution', () => {
+  const plan = deriveMoveLogisticsPlan({
+    legs: conjointLegs,
+    inventory: [item('Sam load', 1102), item('Girlfriend load', 411, 'person_b')],
+    loadHours: 6.5,
+    unloadHours: 1.75,
+    totalHours: 9.5,
+    crewSize: 3,
+    startTime: '08:00',
+  })
+
+  assert.equal(plan.recommendation, 'one_truck_sequence')
+  assert.equal(plan.truckCount, 1)
+  assert.equal(plan.capacityUsedPct, 95)
+  assert.equal(plan.options.find(option => option.id === 'one_truck_sequence')?.viable, true)
+  assert.equal(plan.options.find(option => option.id === 'one_truck_shuttle')?.viable, false)
+  assert.match(plan.riskNotes.join(' '), /near capacity/)
+  assert.match(plan.salesTalkingPoints.join(' '), /confirm boxes and hidden inventory/)
+})
+
 test('move logistics recommends split day for oversized long complex moves', () => {
   const plan = deriveMoveLogisticsPlan({
     legs: conjointLegs,

@@ -3,35 +3,10 @@
 import Image from 'next/image'
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { deriveMoveLogisticsPlan } from '@/lib/move-logistics'
 import { buildMoveSpecificNotes } from '@/lib/move-scope'
 import { formatDate, formatMoney } from '@/lib/sales'
-import type { MoveType } from '@/lib/types'
-
-type InventoryItem = {
-  name?: string
-  item?: string
-  qty?: number
-  room?: string
-  notes?: string
-  size?: string
-}
-
-type JobFactors = {
-  originFloors?: number
-  destFloors?: number
-  originHasElevator?: boolean
-  destHasElevator?: boolean
-  hasPiano?: boolean
-  hasSafe?: boolean
-  packingStatus?: 'packed' | 'partial' | 'not-started'
-  disassemblyItemCount?: number
-  disassemblyMode?: 'both' | 'disassemble_only' | 'reassemble_only'
-  garageCubicFeet?: number
-  basementCubicFeet?: number
-  shedCubicFeet?: number
-  estimatedBoxes?: number
-  specialtyNotes?: string
-}
+import type { InventoryItem, JobFactors, MoveType, QuoteLeg } from '@/lib/types'
 
 type PublicQuote = {
   id: string
@@ -52,7 +27,7 @@ type PublicQuote = {
   minimumBillableHours?: number
   maximumEstimatedHours?: number
   hourlyRateOverride?: number
-  legs?: Array<{ id: string; label: string; type: string; originAddress?: string; originCity?: string; destAddress?: string; destCity?: string; distanceKm?: number; driveHours?: number; scheduledDate?: string; notes?: string }>
+  legs?: QuoteLeg[]
   lineItems: Array<{ description: string; details?: string; amount: number }>
   subtotal: number
   hst: number
@@ -67,7 +42,7 @@ type PublicQuote = {
   respondedAt?: string
   conditionalClause?: string
   quoteType?: string
-  jobFactors?: { disassemblyItemCount?: number; [key: string]: unknown }
+  jobFactors?: JobFactors
 }
 
 const REVIEWS = [
@@ -126,6 +101,17 @@ function moveTypeLabel(type?: string) {
   if (type === 'packing') return 'Packing Service'
   if (type === 'senior') return 'Senior Move'
   return 'Residential Move'
+}
+
+function quoteServiceLabel(quote: PublicQuote) {
+  const hasMovingLine = quote.lineItems.some(item => /moving service|full-service moving|moving labor/i.test(item.description || item.details || ''))
+  const isConjointOrMultiStop = Boolean(quote.jobFactors?.conjointMove || (quote.legs?.length ?? 0) > 1)
+  if (quote.moveType === 'labor-only' && (hasMovingLine || isConjointOrMultiStop)) {
+    return isConjointOrMultiStop ? 'Multi-Stop Residential Move' : 'Residential Move'
+  }
+  if (quote.jobFactors?.conjointMove) return 'Conjoint Residential Move'
+  if ((quote.legs?.length ?? 0) > 1) return 'Multi-Stop Residential Move'
+  return moveTypeLabel(quote.moveType)
 }
 
 interface TimelinePhase {
@@ -204,6 +190,68 @@ function buildMoveTimeline(params: {
     { emoji: '🏠', time: fmtH(arrive), title: 'Arrive at new home', detail: `Unload · place furniture${disassemblyItems.length > 0 ? ` · Reassemble: ${disassemblyItems.slice(0, 2).join(', ')}` : ''}` },
     { emoji: '✅', time: fmtH(done), title: 'Move complete', detail: 'Final walkthrough · keys handed over' },
   ]
+}
+
+function buildConjointMoveTimeline(params: {
+  quote: PublicQuote
+  inventory: InventoryItem[]
+  crewSize: number
+  trucks: number
+  estimatedHours: number
+}): TimelinePhase[] | null {
+  const { quote, inventory, crewSize, trucks, estimatedHours } = params
+  if (!quote.jobFactors?.conjointMove || (quote.legs?.length ?? 0) < 2) return null
+  const personALabel = quote.jobFactors.personALabel || 'First pickup'
+  const personBLabel = quote.jobFactors.personBLabel || 'Second pickup'
+  const included = inventory.filter(item => item.included !== false)
+  const personAItems = included.filter(item => item.owner !== 'person_b')
+  const personBItems = included.filter(item => item.owner === 'person_b')
+  const totalCubicFeet = Math.round(included.reduce((sum, item) => sum + Number(item.cubicFeet || 0) * Math.max(1, Number(item.qty || 1)), 0))
+  const plan = deriveMoveLogisticsPlan({
+    legs: quote.legs || [],
+    inventory: included,
+    totalCubicFeet,
+    totalHours: estimatedHours || quote.estimatedHours || undefined,
+    crewSize,
+    startTime: quote.moveTime || '09:00',
+    pickupContexts: [
+      {
+        id: 'person_a',
+        label: personALabel,
+        address: quote.legs?.[0]?.originAddress || quote.originAddress,
+        cubicFeet: Math.round(personAItems.reduce((sum, item) => sum + Number(item.cubicFeet || 0) * Math.max(1, Number(item.qty || 1)), 0)),
+        itemCount: personAItems.length,
+      },
+      {
+        id: 'person_b',
+        label: personBLabel,
+        address: quote.legs?.[1]?.originAddress,
+        cubicFeet: Math.round(personBItems.reduce((sum, item) => sum + Number(item.cubicFeet || 0) * Math.max(1, Number(item.qty || 1)), 0)),
+        itemCount: personBItems.length,
+      },
+    ],
+    destinationKeysTime: quote.jobFactors.destinationKeysTime,
+    earliestLoadTime: quote.jobFactors.earliestLoadTime,
+    latestFinishTime: quote.jobFactors.latestFinishTime,
+  })
+  return plan.phases.map((phase, index) => {
+    const title = phase.label
+      .replace('Crew departs yard', 'Crew starts the route')
+      .replace('Arrive first pickup', `Arrive at ${personALabel}`)
+      .replace('First pickup loaded', `${personALabel} loaded`)
+      .replace('Arrive second pickup', `Arrive at ${personBLabel}`)
+      .replace('Second pickup loaded', `${personBLabel} loaded`)
+      .replace('Arrive final destination', 'Arrive at final destination')
+    const detail = index === 0
+      ? `${crewSize} movers · ${trucks} truck${trucks > 1 ? 's' : ''} · sequential pickup plan`
+      : phase.note || 'Timing included in your estimate'
+    return {
+      emoji: index === 0 ? '🚚' : index === plan.phases.length - 1 ? '✅' : title.includes('loaded') ? '📦' : title.includes('destination') ? '🏠' : '🚛',
+      time: phase.time,
+      title,
+      detail,
+    }
+  })
 }
 
 function groupInventoryByRoom(items: InventoryItem[]): Map<string, InventoryItem[]> {
@@ -554,6 +602,7 @@ function QuoteAcceptPageInner() {
   const rawHours = Number(quote.estimatedHours || 0)
   const hours = rawHours > 0 ? `${rawHours}–${Math.ceil(rawHours * 1.25)}` : null
   const isBindingEstimate = hasInventory && inventory.length >= 5
+  const serviceLabel = quoteServiceLabel(quote)
 
   // ── Fast Lane view — hourly rate quote, no inventory/photos, direct to Stripe ──
   const DEPOSIT = 100
@@ -732,7 +781,7 @@ function QuoteAcceptPageInner() {
             <h1 className="text-2xl font-black text-white leading-tight mb-2">
               Hi {firstName} — your moving estimate is ready.
             </h1>
-            <p className="text-sm text-white/50 mb-5">Quote {quote.number} · {moveTypeLabel(quote.moveType)}</p>
+            <p className="text-sm text-white/50 mb-5">Quote {quote.number} · {serviceLabel}</p>
 
             {/* Move countdown */}
             {daysOut !== null && daysOut > 0 && (
@@ -864,7 +913,13 @@ function QuoteAcceptPageInner() {
             ? inventory.filter(i => /\bbed\b|\btable\b|\bdesk\b|\bdresser\b|\bwardrobe\b/i.test(i.name || i.item || '')).slice(0, 4).map(i => i.name || i.item || '')
             : []
           const isTwoDay = rawHours > 13
-          const timeline = buildMoveTimeline({
+          const timeline = buildConjointMoveTimeline({
+            quote,
+            inventory,
+            crewSize,
+            trucks,
+            estimatedHours: rawHours,
+          }) || buildMoveTimeline({
             startTime: quote.moveTime || '09:00',
             crewSize, trucks, estimatedHours: rawHours,
             quoteType: quote.quoteType,
@@ -921,7 +976,7 @@ function QuoteAcceptPageInner() {
           {/* Summary row */}
           <div className="grid grid-cols-[1fr_auto] gap-4 border-b border-[#1a2744]/8 px-5 py-4 text-sm">
             <div>
-              <div className="font-semibold text-[#1a2744]">{moveTypeLabel(quote.moveType)}</div>
+              <div className="font-semibold text-[#1a2744]">{serviceLabel}</div>
               <div className="text-xs text-[#1a2744]/40 mt-0.5">
                 {crewSize}-person crew · {trucks} truck{trucks > 1 ? 's' : ''}{hours ? ` · ~${hours} hrs` : ''}
               </div>

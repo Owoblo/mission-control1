@@ -240,6 +240,20 @@ export default function SalesQuoteDetailPage() {
     return `${window.location.origin}/quote-accept?id=${encodeURIComponent(quote.id)}&token=${encodeURIComponent(quote.acceptToken)}`
   }, [quote])
 
+  function closePreviewModal() {
+    setShowPreview(null)
+    setPreviewTab('email')
+  }
+
+  useEffect(() => {
+    if (!showPreview) return
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') closePreviewModal()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [showPreview])
+
   const quoteTotals = useMemo(
     () => computeQuoteTotals(lineItems, Math.max(0, Math.min(100, depositRate)) / 100, Math.max(0, discountAmount)),
     [depositRate, discountAmount, lineItems]
@@ -1160,8 +1174,17 @@ Saturn Star Movers`
 
       {/* ── PREVIEW MODAL ── */}
       {showPreview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="flex w-full max-w-3xl flex-col overflow-hidden rounded-[12px] bg-white shadow-2xl" style={{ maxHeight: '92vh' }}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onMouseDown={event => {
+            if (event.target === event.currentTarget) closePreviewModal()
+          }}
+        >
+          <div
+            className="flex w-full max-w-3xl flex-col overflow-hidden rounded-[12px] bg-white shadow-2xl"
+            style={{ maxHeight: '92vh' }}
+            onMouseDown={event => event.stopPropagation()}
+          >
             {/* Modal header */}
             <div className="flex items-center justify-between border-b border-[var(--app-line)] px-6 py-4">
               <div>
@@ -1172,12 +1195,12 @@ Saturn Star Movers`
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setShowPreview(null)}
+                  onClick={closePreviewModal}
                   className="rounded-[6px] border border-[var(--app-line)] px-3 py-1.5 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition"
                 >
                   ← Fix Estimate
                 </button>
-                <button onClick={() => setShowPreview(null)} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-muted)] hover:bg-stone-100 hover:text-[var(--app-ink)]">✕</button>
+                <button onClick={closePreviewModal} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-muted)] hover:bg-stone-100 hover:text-[var(--app-ink)]">✕</button>
               </div>
             </div>
 
@@ -1301,7 +1324,7 @@ Saturn Star Movers`
                 </div>
               </div>
               <div className="flex items-center justify-between">
-                <button onClick={() => setShowPreview(null)} className="crm-button">
+                <button onClick={closePreviewModal} className="crm-button">
                   Cancel
                 </button>
                 <button

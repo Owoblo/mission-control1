@@ -53,16 +53,21 @@ export async function POST(request: Request) {
       client = await saveSalesClient(newClient)
     }
 
-    const estimate = estimateLeadQuote(lead)
+    const isConjointMovingScope = Boolean(lead.jobFactors?.conjointMove)
+    const quoteMoveType = isConjointMovingScope && lead.moveType === 'labor-only' ? 'residential' : lead.moveType || 'residential'
+    const quoteType = isConjointMovingScope && lead.quoteType === 'labor_only' ? 'standard' : lead.quoteType
+    const estimate = estimateLeadQuote({ ...lead, moveType: quoteMoveType, quoteType })
     const quote: CRMQuote = normalizeQuote({
       id: uid('qt'),
       number: genQuoteNumber(lead.name),
       clientId: client.id,
       leadId: lead.id,
       moveDate: lead.moveDate,
-      moveType: lead.moveType || 'residential',
+      moveType: quoteMoveType,
+      quoteType,
       originAddress: lead.originAddress,
       originCity: lead.originCity,
+      destAddress: lead.destAddress,
       destCity: lead.destCity,
       crewSize: estimate.crewSize,
       estimatedHours: estimate.estimatedHours,

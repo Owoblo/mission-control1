@@ -5421,9 +5421,12 @@ export function EstimateDraftModal({
                       ? Math.round((legLoadH + legDriveH + legUnloadH + legDriveH) * 4) / 4
                       : Math.round((legLoadH + legDriveH + legUnloadH) * 4) / 4
                     const legLabor  = Math.round((pricingBreakdown?.crewSize || 3) * legCrewH * 25 * 100) / 100
+                    const effectiveCostCubicFeet = conjointMode
+                      ? (conjointMetrics.totalCubicFeet || pricingBreakdown?.totalCubicFeet || 0)
+                      : (pricingBreakdown?.totalCubicFeet || 0)
                     const legTruckAmt = isLDLeg
-                      ? calcLongDistanceUHaul(legKm, truckSizeFromCubicFeet(pricingBreakdown?.totalCubicFeet || 0), pricingBreakdown?.truckCount || 1).internalCost
-                      : Math.round((UHAUL_DAILY_RATES[truckSizeFromCubicFeet(pricingBreakdown?.totalCubicFeet || 0)] ?? 49.99) * (pricingBreakdown?.truckCount || 1) * 100) / 100
+                      ? calcLongDistanceUHaul(legKm, truckSizeFromCubicFeet(effectiveCostCubicFeet), pricingBreakdown?.truckCount || 1).internalCost
+                      : Math.round((UHAUL_DAILY_RATES[truckSizeFromCubicFeet(effectiveCostCubicFeet)] ?? 49.99) * (pricingBreakdown?.truckCount || 1) * 100) / 100
                     const legTotal  = Math.round((legTruckAmt + legLabor + 15) * 100) / 100
                     const typeTag   = leg.type === 'storage' ? 'House→Storage' : leg.type === 'storage_delivery' ? 'Storage→Dest' : isLDLeg ? 'Long-distance' : 'Local'
                     return (
@@ -5461,7 +5464,10 @@ export function EstimateDraftModal({
                       const legUnloadH = pricingBreakdown ? pricingBreakdown.unloadHours / legs.length : 2
                       const legCrewH = isLDLeg ? Math.round((legLoadH + legDriveH + legUnloadH + legDriveH) * 4) / 4 : Math.round((legLoadH + legDriveH + legUnloadH) * 4) / 4
                       const legLabor = Math.round((pricingBreakdown?.crewSize || 3) * legCrewH * 25 * 100) / 100
-                      const legTruckAmt = isLDLeg ? calcLongDistanceUHaul(legKm, truckSizeFromCubicFeet(pricingBreakdown?.totalCubicFeet || 0), pricingBreakdown?.truckCount || 1).internalCost : Math.round((UHAUL_DAILY_RATES[truckSizeFromCubicFeet(pricingBreakdown?.totalCubicFeet || 0)] ?? 49.99) * (pricingBreakdown?.truckCount || 1) * 100) / 100
+                      const effectiveCostCubicFeet = conjointMode
+                        ? (conjointMetrics.totalCubicFeet || pricingBreakdown?.totalCubicFeet || 0)
+                        : (pricingBreakdown?.totalCubicFeet || 0)
+                      const legTruckAmt = isLDLeg ? calcLongDistanceUHaul(legKm, truckSizeFromCubicFeet(effectiveCostCubicFeet), pricingBreakdown?.truckCount || 1).internalCost : Math.round((UHAUL_DAILY_RATES[truckSizeFromCubicFeet(effectiveCostCubicFeet)] ?? 49.99) * (pricingBreakdown?.truckCount || 1) * 100) / 100
                       return sum + legTruckAmt + legLabor + 15
                     }, 0))}</span>
                   </div>
@@ -5486,13 +5492,18 @@ export function EstimateDraftModal({
               const personBVolume = Math.round(personBItems.reduce((sum, item) => sum + Number(item.cubicFeet || 0) * Math.max(1, Number(item.qty || 1)), 0))
               const personALabel = jobFactors.personALabel || 'Person A'
               const personBLabel = jobFactors.personBLabel || 'Person B'
+              const routeDriveHours = plannedLegs.reduce((sum, leg) => sum + Number(leg.driveHours || leg.billableDriveHours || leg.operationalDriveHours || 0), 0)
+              const routeAwareTotalHours = Math.round(Math.max(
+                Number(pricingBreakdown?.totalHours || 0),
+                Number(pricingBreakdown?.loadHours || 0) + Number(pricingBreakdown?.unloadHours || 0) + routeDriveHours
+              ) * 4) / 4
               const plan = deriveMoveLogisticsPlan({
                 legs: plannedLegs,
                 inventory: effectiveConjointInventory,
                 totalCubicFeet: conjointMetrics.totalCubicFeet || effectiveInventoryMetrics.totalCubicFeet,
                 loadHours: pricingBreakdown?.loadHours,
                 unloadHours: pricingBreakdown?.unloadHours,
-                totalHours: pricingBreakdown?.totalHours,
+                totalHours: routeAwareTotalHours,
                 crewSize: pricingBreakdown?.crewSize || 3,
                 startTime: quote?.moveTime || '09:00',
                 destinationKeysTime: jobFactors.destinationKeysTime,
@@ -5523,6 +5534,13 @@ export function EstimateDraftModal({
                 ],
               })
               const totalKm = plannedLegs.reduce((sum, leg) => sum + Math.round(Number(leg.distanceKm || leg.billableDistanceKm || 0)), 0)
+              const routeSegments = plannedLegs.map((leg, index) => {
+                const fromLabel = index === 0 ? personALabel : index === 1 ? personBLabel : (leg.label || `Stop ${index + 1}`)
+                const toLabel = index === plannedLegs.length - 1 ? 'Final destination' : index === 0 ? personBLabel : (plannedLegs[index + 1]?.label || `Stop ${index + 2}`)
+                const km = Math.round(Number(leg.distanceKm || leg.billableDistanceKm || leg.operationalDistanceKm || 0))
+                const hours = Math.round(Number(leg.driveHours || leg.billableDriveHours || leg.operationalDriveHours || 0) * 4) / 4
+                return { id: leg.id || String(index), fromLabel, toLabel, km, hours }
+              }).filter(segment => segment.km > 0 || segment.hours > 0)
               const selectedOperatingPlan = jobFactors.preferredOperatingPlan === 'two_trucks_parallel'
                 ? 'two_truck_parallel'
                 : jobFactors.preferredOperatingPlan === 'split_day_storage'
@@ -5545,6 +5563,19 @@ export function EstimateDraftModal({
                     }`}>
                       {plan.label} — {plan.totalCubicFeet.toLocaleString()} cu ft, {plan.capacityUsedPct}% of one 26ft truck, ~{plan.estimatedHours}h window, finish around {plan.finishTime}.
                     </div>
+                    {routeSegments.length > 0 && (
+                      <div className="rounded-[6px] border border-[var(--app-line)] px-3 py-2 text-[10px]">
+                        <div className="mb-1.5 font-semibold uppercase tracking-wide text-[var(--app-muted)]">Route legs</div>
+                        <div className="space-y-1">
+                          {routeSegments.map(segment => (
+                            <div key={segment.id} className="flex items-center justify-between gap-3">
+                              <span className="min-w-0 truncate text-[var(--app-ink)]">{segment.fromLabel} → {segment.toLabel}</span>
+                              <span className="shrink-0 text-[var(--app-muted)]">{segment.km > 0 ? `${segment.km} km` : 'km TBD'} · {segment.hours > 0 ? `${segment.hours}h drive` : 'drive TBD'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     {plan.salesTalkingPoints.length > 0 && (
                       <div className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2 text-[10px] text-[var(--app-muted)] space-y-1">
                         {plan.salesTalkingPoints.map((point, i) => (
@@ -6452,7 +6483,10 @@ export function EstimateDraftModal({
                         setConditionalClauseEnabled(next)
                         if (next && !conditionalClauseText) {
                           const truckCount = pricingBreakdown?.truckCount || 1
-                          const extraTruck = UHAUL_DAILY_RATES[truckSizeFromCubicFeet(pricingBreakdown?.totalCubicFeet || 0)] ?? 49.99
+                          const clauseCubicFeet = conjointMode
+                            ? (conjointMetrics.totalCubicFeet || pricingBreakdown?.totalCubicFeet || 0)
+                            : (pricingBreakdown?.totalCubicFeet || 0)
+                          const extraTruck = UHAUL_DAILY_RATES[truckSizeFromCubicFeet(clauseCubicFeet)] ?? 49.99
                           setConditionalClauseText(`Estimate based on ${truckCount} × 26ft truck. If a 2nd truck is required on move day (e.g. basement or garage items exceed capacity), additional cost: ~$${Math.round((extraTruck * 1.13 + 150) / 10) * 10} (truck + mileage, +HST). You will be contacted before any 2nd truck is dispatched.`)
                         }
                       }}

@@ -2197,7 +2197,18 @@ export default function SalesLeadDetailPage() {
       const effectiveDiscount = hasOverride ? 0 : quoteDiscountAmount
 
       const totals = computeQuoteTotals(quoteLineItems, depositRate, effectiveDiscount)
+      const quoteHasMovingScope = quoteLineItems.some(item => /moving service|full-service moving|moving labor|\[leg\s+\d+\]/i.test(`${item.description} ${item.details || ''}`))
+      const effectiveQuoteMoveType: CRMLead['moveType'] =
+        (jobFactors.conjointMove || quoteLegs.length > 1 || quoteHasMovingScope) && moveType === 'labor-only'
+          ? 'residential'
+          : moveType
+      const effectiveQuoteType =
+        (jobFactors.conjointMove || quoteLegs.length > 1 || quoteHasMovingScope) && quote.quoteType === 'labor_only'
+          ? 'standard'
+          : quote.quoteType
       const result = await updateSalesQuote(quote.id, {
+        moveType: effectiveQuoteMoveType,
+        quoteType: effectiveQuoteType,
         lineItems: totals.lineItems,
         discountAmount: effectiveDiscount,
         discountLabel: hasOverride ? '' : (quoteDiscountLabel || undefined),

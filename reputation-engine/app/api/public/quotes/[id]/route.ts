@@ -186,7 +186,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
           : null,
       lead: lead ? {
         name: lead.name,
-        inventory: (lead.inventory || []).filter((item: { included?: boolean }) => item.included !== false).slice(0, 60),
+        inventory: (lead.inventory || []).filter((item: { included?: boolean }) => item.included !== false),
         listingPhotos: ((lead.supabaseListing as { carouselphotos?: Array<{ url: string } | string> } | null)?.carouselphotos || [])
           .slice(0, 12)
           .map((p: { url: string } | string) => typeof p === 'string' ? p : p.url)

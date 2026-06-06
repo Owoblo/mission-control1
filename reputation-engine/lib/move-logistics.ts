@@ -154,6 +154,7 @@ export function deriveMoveLogisticsPlan(input: LogisticsPlanInput): LogisticsPla
   const inventoryCubicFeet = personACubicFeet + personBCubicFeet
   const totalCubicFeet = Math.max(0, Math.round(input.totalCubicFeet || inventoryCubicFeet || 0))
   const capacityUsedPct = singleTruckCapacity > 0 ? Math.round((totalCubicFeet / singleTruckCapacity) * 100) : 0
+  const nearSingleTruckCapacity = capacityUsedPct >= 95 && capacityUsedPct <= 100
   const legs = input.legs || []
   const missingRouteCount = legs.filter(leg => {
     const hasAnyAddress = Boolean(leg.originAddress || leg.originCity || leg.destAddress || leg.destCity)
@@ -252,7 +253,9 @@ export function deriveMoveLogisticsPlan(input: LogisticsPlanInput): LogisticsPla
         ? 'Preferred plan is to use enough truck capacity so both households fit without forcing a late finish.'
         : recommendation === 'needs_route_data'
           ? 'Confirm all pickup and destination addresses before standing behind the final timing.'
-          : 'Preferred plan is one crew and one truck, picking up each location in sequence.',
+          : nearSingleTruckCapacity
+            ? 'Preferred plan is one crew and one truck in sequence, but confirm boxes and hidden inventory because the truck is near capacity.'
+            : 'Preferred plan is one crew and one truck, picking up each location in sequence.',
     totalCubicFeet > 0 ? `Current inventory is about ${totalCubicFeet.toLocaleString()} cu ft, using ${capacityUsedPct}% of one 26ft truck.` : 'Inventory volume still needs confirmation.',
     `Estimated operating window is about ${totalHours}h from crew start to finish.`,
   ]
@@ -292,7 +295,13 @@ export function deriveMoveLogisticsPlan(input: LogisticsPlanInput): LogisticsPla
       capacityUsedPct,
       costLevel: 'base',
       summary: 'One crew loads each pickup in order, then delivers everything together.',
-      tradeoff: capacityUsedPct > 100 ? 'Not viable unless inventory is reduced or the truck makes an extra unload trip.' : constraintFit.status === 'adjust_start' ? `Best if crew starts around ${constraintFit.recommendedStartTime}.` : 'Lowest operating cost when both loads fit.',
+      tradeoff: capacityUsedPct > 100
+        ? 'Not viable unless inventory is reduced or the truck makes an extra unload trip.'
+        : constraintFit.status === 'adjust_start'
+          ? `Best if crew starts around ${constraintFit.recommendedStartTime}.`
+          : nearSingleTruckCapacity
+            ? 'Lowest operating cost, but confirm boxes and hidden inventory before dispatch.'
+            : 'Lowest operating cost when both loads fit.',
       viable: missingRouteCount === 0 && capacityUsedPct <= 100 && totalHours <= maxSameDayHours && constraintFit.status !== 'runs_late',
     },
     {
