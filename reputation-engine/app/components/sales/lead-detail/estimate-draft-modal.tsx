@@ -495,18 +495,34 @@ export function EstimateDraftModal({
   const [conjointUploadOwner, setConjointUploadOwner] = useState<'person_a' | 'person_b' | null>(null)
   const [conjointUploadBusy, setConjointUploadBusy] = useState(false)
   const [conjointUploadNotice, setConjointUploadNotice] = useState<string | null>(null)
+  const [conjointLocalPhotoUrls, setConjointLocalPhotoUrls] = useState<Record<'person_a' | 'person_b', string[]>>({ person_a: [], person_b: [] })
   const [conjointSurveyBusy, setConjointSurveyBusy] = useState<'person_a' | 'person_b' | null>(null)
   const [conjointSurveyNotice, setConjointSurveyNotice] = useState<string | null>(null)
   const [conjointMlsBusy, setConjointMlsBusy] = useState<'person_a' | 'person_b' | null>(null)
   const [conjointMlsNotice, setConjointMlsNotice] = useState<string | null>(null)
   const conjointUploadInputRef = useRef<HTMLInputElement | null>(null)
   const conjointUploadOwnerRef = useRef<'person_a' | 'person_b' | null>(null)
+  const conjointLocalPhotoUrlsRef = useRef<string[]>([])
+
+  useEffect(() => {
+    return () => {
+      conjointLocalPhotoUrlsRef.current.forEach(url => URL.revokeObjectURL(url))
+    }
+  }, [])
 
   async function handleConjointRepUpload(owner: 'person_a' | 'person_b', files: File[]) {
     if (!files.length) return
     setConjointUploadBusy(true)
     setConjointUploadNotice(null)
     const partyLabel = owner === 'person_b' ? (jobFactors.personBLabel || 'Party B') : (jobFactors.personALabel || 'Party A')
+    const localUrls = files.filter(file => file.type.startsWith('image/')).map(file => URL.createObjectURL(file))
+    if (localUrls.length > 0) {
+      conjointLocalPhotoUrlsRef.current = [...conjointLocalPhotoUrlsRef.current, ...localUrls]
+      setConjointLocalPhotoUrls(current => ({
+        ...current,
+        [owner]: [...current[owner], ...localUrls],
+      }))
+    }
     try {
       const form = new FormData()
       form.set('purpose', 'customer_media')
@@ -518,7 +534,17 @@ export function EstimateDraftModal({
       const res = await fetch(`/api/sales/leads/${lead.id}/media-upload`, { method: 'POST', body: form, credentials: 'include' })
       const data = await res.json() as { ok?: boolean; uploadedCount?: number; analyzedImageCount?: number; detectedItems?: InventoryItem[]; lead?: CRMLead; analyzeWarning?: string; error?: string }
       if (!res.ok || data.error) throw new Error(data.error || 'Upload failed')
-      if (data.lead) onLeadMediaSynced?.(data.lead)
+      const detectedItems = (data.detectedItems || []).map(item => ({
+        ...item,
+        owner: owner,
+        room: item.room || partyLabel,
+        included: item.included !== false,
+      }))
+      if (data.lead) {
+        onLeadMediaSynced?.(data.lead)
+      } else if (detectedItems.length > 0) {
+        onAddInventoryItems(detectedItems)
+      }
       const detectedCount = data.detectedItems?.length || 0
       const scanText = detectedCount > 0
         ? ` Scan added ${detectedCount} inventory item${detectedCount === 1 ? '' : 's'} to ${partyLabel}.`
@@ -3171,6 +3197,8 @@ export function EstimateDraftModal({
                           return label === target || notes.includes(`conjoint upload — ${target}`) || notes.includes(`party b`) && selectedOwner === 'person_b'
                         })
                         const selectedReferencePhotos = selectedOwner === 'person_a' ? listingPhotos : []
+                        const selectedLocalPhotos = conjointLocalPhotoUrls[selectedOwner] || []
+                        const selectedPhotoUrls = [...selectedReferencePhotos.slice(0, 10), ...selectedMedia.map(asset => asset.url), ...selectedLocalPhotos].slice(0, 15)
                         const untaggedCount = inventory.filter(item => item.included !== false && !item.owner).length
                         const commonPresets = INVENTORY_PRESETS.filter(preset =>
                           ['sofa-standard', 'queen-bed', 'dresser-med', 'desk-standard', 'dining-table-4', 'dining-chair', 'box-medium'].includes(preset.id)
@@ -3260,15 +3288,15 @@ export function EstimateDraftModal({
                                 <div className="rounded-[6px] border border-slate-200 bg-white px-2.5 py-2">
                                   <div className="flex items-center justify-between gap-2">
                                     <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Photos for {selectedLabel}</div>
-                                    <div className="text-[10px] text-slate-500">{selectedMedia.length + selectedReferencePhotos.length} photo{selectedMedia.length + selectedReferencePhotos.length === 1 ? '' : 's'}</div>
+                                    <div className="text-[10px] text-slate-500">{selectedPhotoUrls.length} photo{selectedPhotoUrls.length === 1 ? '' : 's'}</div>
                                   </div>
-                                  {selectedMedia.length + selectedReferencePhotos.length > 0 ? (
+                                  {selectedPhotoUrls.length > 0 ? (
                                     <div className="mt-2 grid grid-cols-5 gap-1.5">
-                                      {[...selectedReferencePhotos.slice(0, 10), ...selectedMedia.map(asset => asset.url)].slice(0, 15).map((photo, index, photos) => (
+                                      {selectedPhotoUrls.map((photo, index) => (
                                         <button
                                           key={`${selectedOwner}-photo-${photo}-${index}`}
                                           type="button"
-                                          onClick={() => setLightbox({ photos, index })}
+                                          onClick={() => setLightbox({ photos: selectedPhotoUrls, index })}
                                           className="overflow-hidden rounded-[6px] border border-slate-200 bg-slate-50"
                                         >
                                           <img src={photo} alt={`${selectedLabel} photo ${index + 1}`} className="h-14 w-full object-cover" />
