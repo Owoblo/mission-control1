@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { estimateLeadQuote } from '../../lib/sales'
+import { computeJobPenalties, estimateLeadQuote } from '../../lib/sales'
 import type { CRMLead, JobFactors, QuoteLeg } from '../../lib/types'
 
 function makeLead(overrides: Partial<CRMLead> = {}): CRMLead {
@@ -163,4 +163,25 @@ test('estimateLeadQuote keeps standard moving jobs at a two-mover minimum', () =
 
   assert.equal(estimate.crewSize, 2)
   assert.match(estimate.lineItems[0].details || '', /2 professional movers/)
+})
+
+test('computeJobPenalties prices conjoint second pickup apartment access', () => {
+  const result = computeJobPenalties({
+    conjointMove: true,
+    originFloors: 6,
+    originHasElevator: true,
+    originElevatorReserved: true,
+    originParkingOk: true,
+    personBOriginFloors: 15,
+    personBOriginHasElevator: true,
+    personBOriginElevatorReserved: false,
+    personBOriginParkingOk: false,
+    destFloors: 1,
+    destHasElevator: false,
+    destParkingOk: true,
+  })
+
+  assert.equal(result.extraHours, 1.5)
+  assert.ok(result.penalties.some(item => item.label === 'Second pickup – elevator not reserved (shared, wait time)' && item.hours === 0.75))
+  assert.ok(result.penalties.some(item => item.label === 'Second pickup – limited truck access' && item.hours === 0.75))
 })

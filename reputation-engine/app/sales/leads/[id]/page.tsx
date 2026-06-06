@@ -109,6 +109,8 @@ export default function SalesLeadDetailPage() {
   const estimateIntent = searchParams?.get('estimate') === '1'
   const [lead, setLead] = useState<CRMLead | null>(null)
   const [quote, setQuote] = useState<CRMQuote | null>(null)
+  const removedInventoryKeysRef = useRef<Set<string>>(new Set())
+  const inventoryPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [followUps, setFollowUps] = useState<FollowUpLog[]>([])
   const [automationSettings, setAutomationSettings] = useState<Required<LeadAutomationSettings>>(DEFAULT_AUTOMATION_SETTINGS)
   const [automationJobs, setAutomationJobs] = useState<CRMAutomationJob[]>([])
@@ -1053,6 +1055,12 @@ export default function SalesLeadDetailPage() {
   }, [followUps, lead, quote])
 
   const spamSignal = useMemo(() => lead ? detectSpamLead(lead) : { isSpam: false }, [lead])
+
+  useEffect(() => {
+    return () => {
+      if (inventoryPersistTimerRef.current) clearTimeout(inventoryPersistTimerRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     if (!consultationActive) return
@@ -3187,9 +3195,34 @@ export default function SalesLeadDetailPage() {
     }
   }
 
+  function persistInventorySnapshot(next: InventoryItem[], options: { immediate?: boolean } = {}) {
+    const metrics = deriveInventoryMetrics(next)
+    const leadPatch = {
+      inventory: metrics.inventory,
+      totalItems: metrics.totalItems,
+      totalCubicFeet: metrics.totalCubicFeet,
+      totalWeightLbs: metrics.totalWeightLbs,
+      roomBreakdown: buildRoomBreakdown(metrics.inventory),
+    }
+    setLead(prev => prev ? { ...prev, ...leadPatch } : prev)
+    if (!lead?.id) return
+    if (inventoryPersistTimerRef.current) {
+      clearTimeout(inventoryPersistTimerRef.current)
+      inventoryPersistTimerRef.current = null
+    }
+    const save = () => {
+      void updateSalesLead(lead.id, leadPatch).catch(() => {})
+    }
+    if (options.immediate) {
+      save()
+    } else {
+      inventoryPersistTimerRef.current = setTimeout(save, 500)
+    }
+  }
+
   function updateInventoryItem(index: number, field: keyof InventoryItem, value: string) {
-    setInventory(current =>
-      current.map((item, itemIndex) =>
+    setInventory(current => {
+      const next = current.map((item, itemIndex) =>
         itemIndex === index
           ? {
               ...item,
@@ -3197,7 +3230,17 @@ export default function SalesLeadDetailPage() {
             }
           : item
       )
-    )
+      persistInventorySnapshot(next)
+      return next
+    })
+  }
+
+  function inventoryItemKey(item: InventoryItem) {
+    return String(item.id || `${item.owner || 'person_a'}:${item.room || ''}:${item.name || item.item || ''}`).toLowerCase()
+  }
+
+  function isRemovedInventoryItem(item: InventoryItem) {
+    return removedInventoryKeysRef.current.has(inventoryItemKey(item))
   }
 
   function toggleInventoryItem(index: number) {
@@ -3212,23 +3255,21 @@ export default function SalesLeadDetailPage() {
           policyOverride: nowIncluded && (item.policyCategory === 'default_exclude' || getMovePolicyFinding(item)?.category === 'default_exclude') ? 'include' as const : undefined,
         }
       })
-      // Immediately persist inventory to server so Include Back survives page reloads
-      if (lead?.id) {
-        const metrics = deriveInventoryMetrics(next)
-        void updateSalesLead(lead.id, {
-          inventory: metrics.inventory,
-          totalItems: metrics.totalItems,
-          totalCubicFeet: metrics.totalCubicFeet,
-          totalWeightLbs: metrics.totalWeightLbs,
-          roomBreakdown: buildRoomBreakdown(metrics.inventory),
-        }).catch(() => {})
-      }
+      // Immediately persist inventory to server so Include Back survives page reloads.
+      persistInventorySnapshot(next, { immediate: true })
       return next
     })
   }
 
   function removeInventoryItem(index: number) {
-    setInventory(current => current.filter((_, i) => i !== index))
+    setInventory(current => {
+      const removedItem = current[index]
+      if (!removedItem) return current
+      removedInventoryKeysRef.current.add(inventoryItemKey(removedItem))
+      const next = current.filter((_, i) => i !== index)
+      persistInventorySnapshot(next, { immediate: true })
+      return next
+    })
   }
 
   function addPresetItem(presetId: string) {
@@ -5461,19 +5502,28 @@ export default function SalesLeadDetailPage() {
         onSaveDraft={options => void saveQuoteDraft(options)}
         onSaveAndPreview={options => void saveAndPreviewQuote(options)}
         onLeadMediaSynced={updatedLead => {
-          setLead(updatedLead)
           setInventory(current => {
-            const incoming = updatedLead.inventory || []
+            const incoming = (updatedLead.inventory || []).filter(item => !isRemovedInventoryItem(item))
             const merged = [...incoming]
             const keys = new Set(merged.map(item => String(item.id || `${item.owner || 'person_a'}:${item.room || ''}:${item.name || item.item || ''}`).toLowerCase()))
             current.forEach(item => {
+              if (isRemovedInventoryItem(item)) return
               const key = String(item.id || `${item.owner || 'person_a'}:${item.room || ''}:${item.name || item.item || ''}`).toLowerCase()
               if (!keys.has(key)) {
                 keys.add(key)
                 merged.push(item)
               }
             })
-            return merged
+            const metrics = deriveInventoryMetrics(merged)
+            setLead({
+              ...updatedLead,
+              inventory: metrics.inventory,
+              totalItems: metrics.totalItems,
+              totalCubicFeet: metrics.totalCubicFeet,
+              totalWeightLbs: metrics.totalWeightLbs,
+              roomBreakdown: buildRoomBreakdown(metrics.inventory),
+            })
+            return metrics.inventory
           })
         }}
         onBranchChange={setBranch}
@@ -5484,15 +5534,17 @@ export default function SalesLeadDetailPage() {
         onDestCityChange={setDestCity}
         onAddInventoryItems={items => setInventory(current => {
           const merged = [...current]
-          const keys = new Set(merged.map(item => String(item.id || `${item.owner || 'person_a'}:${item.room || ''}:${item.name || item.item || ''}`).toLowerCase()))
+          const keys = new Set(merged.map(item => inventoryItemKey(item)))
           items.forEach(item => {
-            const key = String(item.id || `${item.owner || 'person_a'}:${item.room || ''}:${item.name || item.item || ''}`).toLowerCase()
+            const key = inventoryItemKey(item)
+            removedInventoryKeysRef.current.delete(key)
             if (!keys.has(key)) {
               keys.add(key)
               merged.push(item)
             }
           })
-          return merged
+          persistInventorySnapshot(merged, { immediate: true })
+          return deriveInventoryMetrics(merged).inventory
         })}
         onApplyStarterInventory={applyStarterInventory}
         onUpdateInventoryItem={updateInventoryItem}

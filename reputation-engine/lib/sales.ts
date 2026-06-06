@@ -815,6 +815,26 @@ export function computeJobPenalties(factors: JobFactors): {
     penalties.push({ label: 'Destination – limited truck access', hours: 0.75, category: 'access' })
   }
 
+  // Conjoint / two-household moves have a second pickup that can carry its own
+  // elevator, floor, and parking constraints. Price it separately so Person B's
+  // apartment access does not disappear inside the route summary.
+  if (factors.conjointMove) {
+    const personBOriginFloors = factors.personBOriginFloors || 1
+    if (personBOriginFloors >= 2 && !factors.personBOriginHasElevator) {
+      penalties.push({
+        label: `Second pickup – ${personBOriginFloors}-storey, stairs (no elevator)`,
+        hours: (personBOriginFloors - 1) * 0.35,
+        category: 'access',
+      })
+    }
+    if (factors.personBOriginHasElevator && !factors.personBOriginElevatorReserved) {
+      penalties.push({ label: 'Second pickup – elevator not reserved (shared, wait time)', hours: 0.75, category: 'access' })
+    }
+    if (factors.personBOriginParkingOk === false) {
+      penalties.push({ label: 'Second pickup – limited truck access', hours: 0.75, category: 'access' })
+    }
+  }
+
   // Packing status
   if (factors.packingStatus === 'partial') {
     penalties.push({ label: 'Partial packing – crew packing assist needed', hours: 1.5, category: 'packing' })

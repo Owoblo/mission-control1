@@ -39,6 +39,31 @@ test('access intelligence flags elevator and truck access as operational setup t
   assert.match(assessment.summary, /no direct truck access/)
 })
 
+test('access intelligence includes conjoint second pickup apartment setup time', () => {
+    const assessment = deriveAccessComplexityAssessment({
+      jobFactors: {
+        conjointMove: true,
+        originFloors: 6,
+        originHasElevator: true,
+        originElevatorReserved: true,
+        originParkingOk: true,
+        personBOriginFloors: 15,
+        personBOriginHasElevator: true,
+        personBOriginElevatorReserved: false,
+        personBOriginParkingOk: false,
+        destFloors: 1,
+        destHasElevator: false,
+        destParkingOk: true,
+      },
+    })
+
+  assert.equal(assessment.status, 'high_risk')
+  assert.equal(assessment.extraMinutes, 90)
+  assert.match(assessment.summary, /Second pickup: elevator likely needs reservation/)
+  assert.match(assessment.summary, /Second pickup: no direct truck access/)
+  assert.equal(assessment.parkingAutoClear, false)
+})
+
 test('access intelligence keeps unknown access from being treated as ready', () => {
     const assessment = deriveAccessComplexityAssessment({})
 

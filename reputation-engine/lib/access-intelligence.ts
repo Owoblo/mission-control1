@@ -36,18 +36,23 @@ function hasKnownAccessSignals(factors?: JobFactors) {
     factors.destHasElevator,
     factors.destElevatorReserved,
     factors.destParkingOk,
+    factors.personBOriginFloors,
+    factors.personBOriginHasElevator,
+    factors.personBOriginElevatorReserved,
+    factors.personBOriginParkingOk,
   ].some(value => value !== undefined && value !== null)
 }
 
 function sideSignals(
-  side: 'origin' | 'destination',
+  side: 'origin' | 'destination' | 'route',
   floors?: number,
   hasElevator?: boolean,
   elevatorReserved?: boolean,
-  parkingOk?: boolean
+  parkingOk?: boolean,
+  customLabel?: string
 ) {
   const signals: AccessComplexitySignal[] = []
-  const labelPrefix = side === 'origin' ? 'Origin' : 'Destination'
+  const labelPrefix = customLabel || (side === 'origin' ? 'Origin' : side === 'destination' ? 'Destination' : 'Route')
   const normalizedFloors = Number(floors || 1)
 
   if (normalizedFloors >= 2 && !hasElevator) {
@@ -96,6 +101,16 @@ export function deriveAccessComplexityAssessment(
   const signals = [
     ...sideSignals('origin', factors.originFloors, factors.originHasElevator, factors.originElevatorReserved, factors.originParkingOk),
     ...sideSignals('destination', factors.destFloors, factors.destHasElevator, factors.destElevatorReserved, factors.destParkingOk),
+    ...(factors.conjointMove
+      ? sideSignals(
+        'route',
+        factors.personBOriginFloors,
+        factors.personBOriginHasElevator,
+        factors.personBOriginElevatorReserved,
+        factors.personBOriginParkingOk,
+        'Second pickup'
+      )
+      : []),
   ]
 
   const knownSignals = hasKnownAccessSignals(factors)
@@ -162,7 +177,7 @@ export function deriveAccessComplexityAssessment(
     extraMinutes,
     extraHours: roundQuarterHour(extraMinutes / 60),
     accessAutoClear: status === 'clear',
-    parkingAutoClear: status === 'clear' || (knownSignals && factors.originParkingOk !== false && factors.destParkingOk !== false),
+    parkingAutoClear: status === 'clear' || (knownSignals && factors.originParkingOk !== false && factors.destParkingOk !== false && factors.personBOriginParkingOk !== false),
     signals,
     summary,
   }

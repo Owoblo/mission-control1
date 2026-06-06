@@ -715,6 +715,7 @@ export async function analyzePhotoBatch(
                 'EXCLUDED BY DEFAULT (set included:false): washer, dryer, vanity cabinets, bathroom vanities, stove, gas cooker, range, oven, dishwasher, kitchen islands, kitchen countertops, built-in wardrobes/closets, wall-mounted items, hardwired appliances. Add note "Excluded by default — add manually if customer is taking it." ' +
                 'Fridges and freezers: included:false, notes "Standard fridge / freezer — excluded by default; add manually if customer is taking it." ' +
                 'DO NOT MOVE (set included:false): hot tubs, pool tables, built-in items. Note "We do not move this item — special arrangement required." ' +
+                'APARTMENT / CONDO AMENITIES (set included:false): building lobby, shared lounge, gym, pool, party room, rooftop, mail room, corridors, or other common-area furniture/equipment. Note "Apartment amenity/common area — not customer unit inventory." ' +
                 'HAZARDOUS / NON-TRANSPORT (set included:false): propane tanks, gas cans, gasoline, fireworks, oxygen tanks, chemical containers, pool chemicals. Note "Hazardous / non-transport item — customer must move separately." ' +
                 'COMMERCIAL / MANUAL REVIEW (set included:false): server racks, copiers, restaurant equipment, pallet racking, vending machines. Note "Commercial equipment — management review required." ' +
                 'Freestanding wardrobes only (not built-in). Flag specialty items (piano, safe) in specialtyFlags. Safes should note "Specialty fee + photo confirmation required." ' +
@@ -849,6 +850,7 @@ export async function analyzeListingPhotos(
                 'MIRROR DRESSERS: If a dresser has an attached mirror, name it "Mirror Dresser" — notes "Requires mirror disassembly/reassembly". ' +
                 'WALL-MOUNTED TVs: If a TV appears to be mounted on wall, notes "Wall-mounted — dismount/remount service may be needed". ' +
                 'DO NOT MOVE (set included:false): hot tubs, pool tables. Note "We do not move this item — special arrangement required." ' +
+                'APARTMENT / CONDO AMENITIES (set included:false): building lobby, shared lounge, gym, pool, party room, rooftop, mail room, corridors, or other common-area furniture/equipment. Note "Apartment amenity/common area — not customer unit inventory." ' +
                 'HAZARDOUS / NON-TRANSPORT (set included:false): propane tanks, gas cans, gasoline, fireworks, oxygen tanks, chemical containers, pool chemicals. Note "Hazardous / non-transport item — customer must move separately." ' +
                 'COMMERCIAL / MANUAL REVIEW (set included:false): server racks, copiers, restaurant equipment, pallet racking, vending machines. Note "Commercial equipment — management review required." ' +
                 'DUPLICATES: If same item appears from multiple angles in different photos, list it ONCE with accurate qty. ' +

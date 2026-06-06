@@ -57,6 +57,44 @@ const ROOM_ANCHORS: Array<{ patterns: RegExp[]; correctRoom: string; allowedRoom
   },
 ]
 
+const APARTMENT_AMENITY_ROOM_PATTERNS = [
+  /\bamenit(y|ies)\b/i,
+  /\bcommon\b/i,
+  /\bshared\b/i,
+  /\blobby\b/i,
+  /\blounge\b/i,
+  /\bconcierge\b/i,
+  /\bmail\s*room\b/i,
+  /\bparty\s*room\b/i,
+  /\bgame\s*room\b/i,
+  /\bbilliards?\b/i,
+  /\bfitness\b/i,
+  /\bgym\b/i,
+  /\bpool\b/i,
+  /\brooftop\b/i,
+  /\bterrace\b/i,
+  /\bcourtyard\b/i,
+  /\bco[-\s]?working\b/i,
+]
+
+const APARTMENT_AMENITY_ITEM_PATTERNS = [
+  /\bpool\s*table\b/i,
+  /\bbilliards?\b/i,
+  /\btreadmill\b/i,
+  /\belliptical\b/i,
+  /\bexercise\s*bike\b/i,
+  /\bstationary\s*bike\b/i,
+  /\bweight\s*(bench|rack|machine)\b/i,
+  /\bgym\s*equipment\b/i,
+  /\blobby\s*sofa\b/i,
+  /\blounge\s*chair\b/i,
+  /\bmailbox\b/i,
+  /\bfront\s*desk\b/i,
+]
+
+const APARTMENT_AMENITY_NOTE =
+  'Likely apartment building amenity/common area from listing photos - not customer unit inventory.'
+
 function normalizeRoom(room: string) {
   return room.toLowerCase().trim()
 }
@@ -68,6 +106,26 @@ function isAllowedRoom(itemRoom: string, allowedRooms: string[]) {
 
 function matchesPattern(itemName: string, patterns: RegExp[]) {
   return patterns.some(p => p.test(itemName))
+}
+
+function appendNote(existing: string | undefined, note: string) {
+  if (!existing) return note
+  return existing.toLowerCase().includes(note.toLowerCase()) ? existing : `${existing} ${note}`
+}
+
+function isApartmentAmenityNoise(item: InventoryItem) {
+  if (item.policyOverride === 'include') return false
+  const name = item.name || item.item || ''
+  const context = [
+    item.room,
+    item.sourcePhotoRoom,
+    item.notes,
+    item.confirmReason,
+  ].filter(Boolean).join(' ')
+
+  const amenityRoom = APARTMENT_AMENITY_ROOM_PATTERNS.some(pattern => pattern.test(context))
+  if (amenityRoom) return true
+  return APARTMENT_AMENITY_ITEM_PATTERNS.some(pattern => pattern.test(name)) && /\b(apartment|condo|building|common|shared|amenity|lobby|lounge|gym|fitness|pool|billiard|party|rooftop)\b/i.test(context)
 }
 
 /**
@@ -88,14 +146,25 @@ function correctRoom(item: InventoryItem): string | null {
 }
 
 /**
- * Runs a sanity pass over the full inventory and corrects obvious room misclassifications.
- * Does not deduplicate, does not add/remove items — only moves items to the right room.
+ * Runs a sanity pass over the full inventory:
+ * - corrects obvious room misclassifications
+ * - excludes apartment amenity/common-area scan noise that should not count as customer inventory
  */
 export function sanitizeInventoryRooms(inventory: InventoryItem[]): InventoryItem[] {
   return inventory.map(item => {
+    if (isApartmentAmenityNoise(item)) {
+      return {
+        ...item,
+        included: false,
+        status: 'excluded',
+        exclusionReason: item.exclusionReason || APARTMENT_AMENITY_NOTE,
+        notes: appendNote(item.notes, APARTMENT_AMENITY_NOTE),
+      }
+    }
+
     const correction = correctRoom(item)
-    if (!correction) return item
-    return { ...item, room: correction }
+    const correctedItem = correction ? { ...item, room: correction } : item
+    return correctedItem
   })
 }
 
