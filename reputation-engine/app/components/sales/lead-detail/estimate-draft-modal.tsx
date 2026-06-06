@@ -543,6 +543,7 @@ export function EstimateDraftModal({
         source: item.source || 'rep_upload',
       }))
       if (data.lead) {
+        if (detectedItems.length > 0) onAddInventoryItems(detectedItems)
         const leadInventory = Array.isArray(data.lead.inventory) ? data.lead.inventory : []
         const detectedIds = new Set(detectedItems.map(item => item.id).filter(Boolean))
         const detectedNames = new Set(detectedItems.map(item => String(item.name || item.item || '').trim().toLowerCase()).filter(Boolean))

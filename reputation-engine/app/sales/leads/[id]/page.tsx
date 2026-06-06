@@ -5451,7 +5451,19 @@ export default function SalesLeadDetailPage() {
         onSaveAndPreview={options => void saveAndPreviewQuote(options)}
         onLeadMediaSynced={updatedLead => {
           setLead(updatedLead)
-          setInventory(updatedLead.inventory || [])
+          setInventory(current => {
+            const incoming = updatedLead.inventory || []
+            const merged = [...incoming]
+            const keys = new Set(merged.map(item => String(item.id || `${item.owner || 'person_a'}:${item.room || ''}:${item.name || item.item || ''}`).toLowerCase()))
+            current.forEach(item => {
+              const key = String(item.id || `${item.owner || 'person_a'}:${item.room || ''}:${item.name || item.item || ''}`).toLowerCase()
+              if (!keys.has(key)) {
+                keys.add(key)
+                merged.push(item)
+              }
+            })
+            return merged
+          })
         }}
         onBranchChange={setBranch}
         onJobFactorsChange={setJobFactors}
@@ -5459,7 +5471,18 @@ export default function SalesLeadDetailPage() {
         onOriginCityChange={setOriginCity}
         onDestAddressChange={setDestAddress}
         onDestCityChange={setDestCity}
-        onAddInventoryItems={items => setInventory(current => [...current, ...items])}
+        onAddInventoryItems={items => setInventory(current => {
+          const merged = [...current]
+          const keys = new Set(merged.map(item => String(item.id || `${item.owner || 'person_a'}:${item.room || ''}:${item.name || item.item || ''}`).toLowerCase()))
+          items.forEach(item => {
+            const key = String(item.id || `${item.owner || 'person_a'}:${item.room || ''}:${item.name || item.item || ''}`).toLowerCase()
+            if (!keys.has(key)) {
+              keys.add(key)
+              merged.push(item)
+            }
+          })
+          return merged
+        })}
         onApplyStarterInventory={applyStarterInventory}
         onUpdateInventoryItem={updateInventoryItem}
         onToggleInventoryItem={toggleInventoryItem}
