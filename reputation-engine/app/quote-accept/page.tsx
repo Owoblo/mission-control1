@@ -41,6 +41,8 @@ type PublicQuote = {
   viewedAt?: string
   acceptedAt?: string
   respondedAt?: string
+  termsAcceptedAt?: string
+  termsAcceptedVersion?: string
   conditionalClause?: string
   quoteType?: string
   jobFactors?: JobFactors
@@ -50,6 +52,46 @@ const REVIEWS = [
   { name: 'Wendy Nantais', text: 'Team was prompt, professional and hard working — we were very satisfied.', stars: 5 },
   { name: 'Dan LaPain', text: 'Arrived on time and were very professional. All furniture was wrapped. Very detailed — would definitely recommend.', stars: 5 },
   { name: 'Lazlo', text: 'You guys did a great job, definitely recommended.', stars: 5 },
+]
+
+const QUOTE_TERMS_VERSION = '2026-06-07-basic-moving-terms'
+
+const QUOTE_TERMS_SECTIONS = [
+  {
+    title: 'Binding estimates and inventory accuracy',
+    items: [
+      'A binding estimate is locked only for the inventory, addresses, access conditions, crew plan, and services included in the estimate.',
+      'Before work starts, the crew may complete a walkthrough and compare the on-site items against the estimate inventory.',
+      'If extra items, undisclosed rooms, storage areas, access issues, specialty items, or major scope changes are found, the office must be contacted before the crew proceeds.',
+      'When the scope changes, the estimate may become non-binding and final charges may be based on actual time, labour, materials, truck usage, and work required.',
+      'If the inventory and access match the accepted binding estimate, Saturn Star absorbs normal internal estimating variance.',
+    ],
+  },
+  {
+    title: 'Hourly or non-binding jobs',
+    items: [
+      'Hourly and non-binding jobs are charged based on actual time worked at the agreed rate and billing terms.',
+      'Billable time may start when the crew leaves the company dispatch point, office, storage, or assigned starting location and continues until the job is completed or the crew returns as agreed.',
+      'Lunches, waiting time, elevators, long carries, parking delays, customer-caused delays, extra packing, and added stops may increase the final time when applicable.',
+    ],
+  },
+  {
+    title: 'Safety, restricted items, and liability releases',
+    items: [
+      'Chemicals, hazardous materials, illegal items, unsafe items, and items restricted by insurance or safety rules cannot be moved.',
+      'Delicate, fragile, damaged, unstable, unusually heavy, high-risk, or hard-to-handle items may require a release of liability before the crew moves them.',
+      'A release of liability means the crew will handle the item carefully, but Saturn Star is not responsible for damage caused by the item condition, fragility, risk level, or handling difficulty.',
+    ],
+  },
+  {
+    title: 'Protection standard, payment, and claims',
+    items: [
+      'Saturn Star protects furniture and items using reasonable blankets, wrapping, equipment, and handling standards for the move.',
+      'The company will not skip necessary protection just because a client wants the job completed faster or cheaper.',
+      'Payment cannot be withheld because of a damage claim, complaint, or disagreement. Claims and concerns go through the normal resolution process after payment is made.',
+      'The client is responsible for accurate inventory, access details, payment as agreed, and signing any required releases. Saturn Star is responsible for professional planning, protection, communication, and move execution.',
+    ],
+  },
 ]
 
 function LogoMark({ size = 32, dark = false }: { size?: number; dark?: boolean }) {
@@ -368,9 +410,11 @@ function AcceptBlock({
   declined,
   justPaid,
   stripeLoading,
+  termsAccepted,
   onAccept,
   onDecline,
   onPayStripe,
+  onRequireTerms,
   variant = 'main',
 }: {
   quote: PublicQuote
@@ -380,11 +424,29 @@ function AcceptBlock({
   declined: boolean
   justPaid: boolean
   stripeLoading: boolean
+  termsAccepted: boolean
   onAccept: () => void
   onDecline: () => void
   onPayStripe: () => void
+  onRequireTerms: () => void
   variant?: 'main' | 'sticky'
 }) {
+  const needsTerms = !quote.termsAcceptedAt && !termsAccepted
+  const acceptOrRequestTerms = () => {
+    if (needsTerms) {
+      onRequireTerms()
+      return
+    }
+    onAccept()
+  }
+  const payOrRequestTerms = () => {
+    if (needsTerms) {
+      onRequireTerms()
+      return
+    }
+    onPayStripe()
+  }
+
   if (declined) {
     return variant === 'sticky' ? (
       <div className="rounded-lg border border-[#1a2744]/20 bg-[#1a2744]/5 px-4 py-2 text-xs font-semibold text-[#1a2744]/50">Quote Declined</div>
@@ -416,7 +478,7 @@ function AcceptBlock({
   if (accepted) {
     return variant === 'sticky' ? (
       <button
-        onClick={onPayStripe}
+        onClick={payOrRequestTerms}
         disabled={stripeLoading}
         className="rounded-lg bg-[#f5a623] px-5 py-2 text-xs font-bold text-[#1a2744] hover:opacity-90 disabled:opacity-50"
       >
@@ -429,7 +491,7 @@ function AcceptBlock({
           <div className="text-xs text-[#1a2744]/50">Pay your deposit to lock in your move.</div>
         </div>
         <button
-          onClick={onPayStripe}
+          onClick={payOrRequestTerms}
           disabled={stripeLoading}
           className="w-full rounded-xl bg-[#1a2744] py-4 text-base font-bold text-white hover:bg-[#243460] disabled:opacity-50 shadow-md"
         >
@@ -449,7 +511,7 @@ function AcceptBlock({
         <button onClick={onDecline} disabled={declining} className="rounded-lg border border-[#1a2744]/20 px-3 py-2 text-xs font-medium text-[#1a2744]/40 hover:border-[#1a2744]/40 disabled:opacity-40">
           {declining ? '...' : 'Decline'}
         </button>
-        <button onClick={onPayStripe} disabled={stripeLoading} className="rounded-lg bg-[#1a2744] px-5 py-2 text-xs font-bold text-white hover:bg-[#243460] disabled:opacity-50">
+        <button onClick={payOrRequestTerms} disabled={stripeLoading} className="rounded-lg bg-[#1a2744] px-5 py-2 text-xs font-bold text-white hover:bg-[#243460] disabled:opacity-50">
           {stripeLoading ? 'Redirecting...' : 'Accept & Pay Deposit'}
         </button>
       </div>
@@ -463,14 +525,14 @@ function AcceptBlock({
         Pay your deposit now to confirm your booking. Your card is saved on file — balance is due after the move.
       </p>
       <button
-        onClick={onPayStripe}
+        onClick={payOrRequestTerms}
         disabled={stripeLoading}
         className="w-full rounded-xl bg-[#f5a623] py-4 text-base font-bold text-[#1a2744] hover:opacity-90 disabled:opacity-50 shadow-lg transition"
       >
         {stripeLoading ? 'Redirecting to payment...' : 'Accept Quote & Pay Deposit'}
       </button>
       <button
-        onClick={onAccept}
+        onClick={acceptOrRequestTerms}
         disabled={accepting}
         className="mt-4 text-xs text-white/30 hover:text-white/60 disabled:opacity-40"
       >
@@ -483,6 +545,80 @@ function AcceptBlock({
       >
         {declining ? 'Updating...' : 'Decline this quote'}
       </button>
+    </div>
+  )
+}
+
+function CustomerTermsAgreement({
+  isBindingEstimate,
+  termsAccepted,
+  termsPrompt,
+  onChange,
+}: {
+  isBindingEstimate: boolean
+  termsAccepted: boolean
+  termsPrompt: boolean
+  onChange: (accepted: boolean) => void
+}) {
+  return (
+    <div className={`rounded-2xl border-2 bg-white p-5 transition ${termsPrompt && !termsAccepted ? 'border-[#f5a623] shadow-lg shadow-[#f5a623]/10' : 'border-[#1a2744]/12'}`}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <SectionLabel>Booking Terms & Conditions</SectionLabel>
+          <h2 className="text-lg font-black text-[#1a2744]">Please review before paying your deposit.</h2>
+          <p className="mt-2 max-w-xl text-xs leading-5 text-[#1a2744]/55">
+            This protects both sides: Saturn Star is agreeing to the price and plan shown here, and you are confirming that the inventory, access, addresses, and services are accurate.
+          </p>
+        </div>
+        <div className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${isBindingEstimate ? 'bg-emerald-50 text-emerald-700' : 'bg-[#f5a623]/12 text-[#9b5b00]'}`}>
+          {isBindingEstimate ? 'Inventory-based estimate' : 'Hourly / non-binding estimate'}
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-xl border border-[#1a2744]/10 bg-[#f8f9fb] p-4">
+        <div className="text-xs font-bold text-[#1a2744]">
+          {isBindingEstimate ? 'If the inventory matches, your agreed estimate is protected.' : 'Final price follows the actual time and work required.'}
+        </div>
+        <div className="mt-1 text-xs leading-5 text-[#1a2744]/55">
+          {isBindingEstimate
+            ? 'If the crew finds extra items, undisclosed areas, special handling, or access conditions that were not included, the office will confirm the change before work starts and the quote may become non-binding.'
+            : 'Hourly or non-binding moves are based on the real work performed, including time, labour, materials, truck usage, waiting, access, and approved added scope.'}
+        </div>
+      </div>
+
+      <div className="mt-4 max-h-80 overflow-y-auto rounded-xl border border-[#1a2744]/10 bg-white">
+        {QUOTE_TERMS_SECTIONS.map((section, sectionIndex) => (
+          <div key={section.title} className={`p-4 ${sectionIndex > 0 ? 'border-t border-[#1a2744]/8' : ''}`}>
+            <div className="text-xs font-black uppercase tracking-wider text-[#1a2744]/70">{section.title}</div>
+            <ul className="mt-3 space-y-2">
+              {section.items.map(item => (
+                <li key={item} className="flex gap-2 text-xs leading-5 text-[#1a2744]/58">
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#f5a623]" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+
+      <label className={`mt-4 flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${termsAccepted ? 'border-emerald-200 bg-emerald-50' : termsPrompt ? 'border-[#f5a623] bg-[#fff8e8]' : 'border-[#1a2744]/10 bg-[#f8f9fb]'}`}>
+        <input
+          type="checkbox"
+          checked={termsAccepted}
+          onChange={event => onChange(event.target.checked)}
+          className="mt-1 h-5 w-5 accent-[#1a2744]"
+        />
+        <span>
+          <span className="block text-sm font-bold text-[#1a2744]">I have read and agree to the booking terms and conditions.</span>
+          <span className="mt-1 block text-xs leading-5 text-[#1a2744]/55">
+            I understand the binding/non-binding estimate rules, inventory accuracy requirements, payment terms, claim process, restricted items, and liability release requirements.
+          </span>
+        </span>
+      </label>
+      {termsPrompt && !termsAccepted ? (
+        <div className="mt-2 text-xs font-semibold text-[#9b5b00]">Please check this box before accepting or paying the deposit.</div>
+      ) : null}
     </div>
   )
 }
@@ -504,6 +640,9 @@ function QuoteAcceptPageInner() {
   const [error, setError] = useState<string | null>(null)
   const [stripeLoading, setStripeLoading] = useState(false)
   const [lineItemsOpen, setLineItemsOpen] = useState(false)
+  const [termsAccepted, setTermsAccepted] = useState(false)
+  const [termsPrompt, setTermsPrompt] = useState(false)
+  const termsRef = useRef<HTMLDivElement | null>(null)
 
   const id = searchParams.get('id')
   const token = searchParams.get('token')
@@ -525,6 +664,7 @@ function QuoteAcceptPageInner() {
         setListingPhotos(payload.lead?.listingPhotos || [])
         setJobFactors(payload.lead?.jobFactors || null)
         setAccepted(payload.quote.status === 'accepted' || payload.quote.status === 'invoiced')
+        setTermsAccepted(Boolean(payload.quote.termsAcceptedAt))
         setDeclined(payload.quote.status === 'declined')
       } catch (err) {
         setError((err as Error).message)
@@ -543,12 +683,13 @@ function QuoteAcceptPageInner() {
 
   async function confirmAccept() {
     if (!id || !token) return
+    if (!ensureTermsAccepted()) return
     try {
       setAccepting(true)
       const r = await fetch(`/api/public/quotes/${encodeURIComponent(id)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ token, termsAccepted: true, termsVersion: QUOTE_TERMS_VERSION }),
       })
       const payload = await r.json()
       if (!r.ok) throw new Error(payload?.error || 'Failed to accept quote')
@@ -585,12 +726,13 @@ function QuoteAcceptPageInner() {
 
   async function payDepositStripe() {
     if (!id) return
+    if (!ensureTermsAccepted()) return
     try {
       setStripeLoading(true)
       const r = await fetch('/api/sales/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quoteId: id, token }),
+        body: JSON.stringify({ quoteId: id, token, termsAccepted: true, termsVersion: QUOTE_TERMS_VERSION }),
       })
       const payload = await r.json() as { url?: string; error?: string }
       if (!r.ok || !payload.url) throw new Error(payload.error || 'Could not create payment session')
@@ -600,6 +742,14 @@ function QuoteAcceptPageInner() {
     } finally {
       setStripeLoading(false)
     }
+  }
+
+  function ensureTermsAccepted() {
+    if (termsAccepted || quote?.termsAcceptedAt) return true
+    setTermsPrompt(true)
+    setError(null)
+    window.setTimeout(() => termsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 40)
+    return false
   }
 
   if (loading) return (
@@ -722,6 +872,20 @@ function QuoteAcceptPageInner() {
                 )}
               </div>
 
+              {!alreadyPaid && (
+                <div ref={termsRef} className="mb-4">
+                  <CustomerTermsAgreement
+                    isBindingEstimate={false}
+                    termsAccepted={termsAccepted}
+                    termsPrompt={termsPrompt}
+                    onChange={(accepted) => {
+                      setTermsAccepted(accepted)
+                      if (accepted) setTermsPrompt(false)
+                    }}
+                  />
+                </div>
+              )}
+
               {/* Deposit + book */}
               <div className="rounded-2xl border-2 border-[#1a2744] bg-[#1a2744] p-6 text-center mb-4">
                 <div className="text-lg font-black text-white mb-1">Reserve your move date</div>
@@ -782,9 +946,11 @@ function QuoteAcceptPageInner() {
             declined={declined}
             justPaid={justPaid}
             stripeLoading={stripeLoading}
+            termsAccepted={termsAccepted}
             onAccept={() => void confirmAccept()}
             onDecline={() => void confirmDecline()}
             onPayStripe={() => void payDepositStripe()}
+            onRequireTerms={ensureTermsAccepted}
             variant="sticky"
           />
         </div>
@@ -1085,9 +1251,11 @@ function QuoteAcceptPageInner() {
             declined={declined}
             justPaid={justPaid}
             stripeLoading={stripeLoading}
+            termsAccepted={termsAccepted}
             onAccept={() => void confirmAccept()}
             onDecline={() => void confirmDecline()}
             onPayStripe={() => void payDepositStripe()}
+            onRequireTerms={ensureTermsAccepted}
           />
           {error && <div className="mt-3 rounded-lg border border-[#1a2744]/15 bg-[#1a2744]/5 px-4 py-2 text-xs text-[#1a2744]/60">{error}</div>}
         </div>
@@ -1185,60 +1353,17 @@ function QuoteAcceptPageInner() {
         </div>
 
         {/* ── Terms ── */}
-        <div className="mb-8">
-          <SectionLabel>Terms — Plain Language</SectionLabel>
-          <div className="rounded-xl border border-[#1a2744]/10 bg-white divide-y divide-[#1a2744]/5">
-            {[
-              {
-                title: 'Hourly Billing',
-                body: isFastLane
-                  ? `This lane bills hourly with a ${quote.minimumBillableHours || 3}-hour minimum. If the crew finishes sooner, the minimum still applies. After the minimum, the same hourly rate continues in 15-minute increments.`
-                  : 'Your estimate is based on an hourly rate. If the move takes less time — you pay less. If it runs longer due to extra items or access issues, the same hourly rate applies. No surprises.'
-              },
-              {
-                title: 'Cancellation',
-                body: 'Cancellations within 48 hours of the move are subject to a $150 fee. Deposits are non-refundable within 72 hours of the move date unless rescheduled.'
-              },
-              {
-                title: 'Damage Coverage',
-                body: 'Standard coverage: $0.60/lb per item. Notify the foreman before the job ends if there\'s an issue. Claims must be filed before payment is complete. Exclusions: particle board, customer-packed boxes, jewelry, collectibles.'
-              },
-              {
-                title: isBindingEstimate ? 'Inventory-Based Estimate' : 'Hourly Estimate',
-                body: isBindingEstimate
-                  ? 'By accepting, you confirm the inventory above is reasonably complete. Adding items on move day may affect final time.'
-                  : isFastLane
-                    ? `This is an hourly quote with a ${quote.minimumBillableHours || 3}-hour minimum. Final cost is the minimum or the actual time worked above that minimum, at the agreed rate.`
-                    : 'This is an hourly estimate — final cost is based on actual hours worked at the agreed rate.'
-              },
-            ].map((term) => (
-              <div key={term.title} className="px-5 py-4">
-                <div className="text-xs font-bold text-[#1a2744] mb-1">{term.title}</div>
-                <div className="text-xs leading-5 text-[#1a2744]/50">{term.body}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── Agreement summary (pre-accept) ── */}
-        {!accepted && !declined && (
-          <div className="mb-6 rounded-xl border border-[#1a2744]/10 bg-white p-5">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-[#1a2744]/40 mb-3">By accepting this quote, you confirm:</div>
-            <ul className="space-y-2">
-              {[
-                isFastLane
-                  ? `This quote has a ${quote.minimumBillableHours || 3}-hour minimum and the same hourly rate applies after that.`
-                  : 'This is an hourly estimate — final cost may vary based on actual time.',
-                'The inventory list above is reasonably complete.',
-                'You have read and understand the damage policy and exclusions.',
-                'You agree to pay the deposit to confirm your move date.',
-              ].map((line, i) => (
-                <li key={i} className="flex items-start gap-2.5 text-xs text-[#1a2744]/60 leading-5">
-                  <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#1a2744]/20 flex-shrink-0" />
-                  {line}
-                </li>
-              ))}
-            </ul>
+        {!declined && !justPaid && (
+          <div ref={termsRef} className="mb-8">
+            <CustomerTermsAgreement
+              isBindingEstimate={isBindingEstimate}
+              termsAccepted={termsAccepted}
+              termsPrompt={termsPrompt}
+              onChange={(accepted) => {
+                setTermsAccepted(accepted)
+                if (accepted) setTermsPrompt(false)
+              }}
+            />
           </div>
         )}
 
@@ -1252,9 +1377,11 @@ function QuoteAcceptPageInner() {
             declined={declined}
             justPaid={justPaid}
             stripeLoading={stripeLoading}
+            termsAccepted={termsAccepted}
             onAccept={() => void confirmAccept()}
             onDecline={() => void confirmDecline()}
             onPayStripe={() => void payDepositStripe()}
+            onRequireTerms={ensureTermsAccepted}
           />
         </div>
 

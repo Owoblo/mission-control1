@@ -3,6 +3,8 @@ import { ensureStripeCustomerForLead } from '@/lib/server/stripe-payments'
 import { getSalesLead, getSalesQuote } from '@/lib/server/sales-repository'
 import { getAppBaseUrl, readEnv } from '@/lib/server/runtime'
 
+const CURRENT_QUOTE_TERMS_VERSION = '2026-06-07-basic-moving-terms'
+
 export async function POST(request: Request) {
   const stripeKey = readEnv('STRIPE_SECRET_KEY')
   if (!stripeKey) {
@@ -10,11 +12,13 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { quoteId, token, successUrl, cancelUrl } = (await request.json()) as {
+    const { quoteId, token, successUrl, cancelUrl, termsAccepted, termsVersion } = (await request.json()) as {
       quoteId: string
       token?: string
       successUrl?: string
       cancelUrl?: string
+      termsAccepted?: boolean
+      termsVersion?: string
     }
 
     if (!quoteId) return NextResponse.json({ error: 'quoteId is required' }, { status: 400 })
@@ -26,14 +30,35 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Quote link is invalid or expired' }, { status: 404 })
     }
 
+    if (!quote.termsAcceptedAt && termsAccepted !== true) {
+      return NextResponse.json({ error: 'Terms must be accepted before paying the deposit.' }, { status: 400 })
+    }
+
     // Auto-accept any quote in sent/viewed status when customer initiates checkout
     if (quote.status === 'sent' || quote.status === 'viewed') {
       const { saveSalesQuote: saveQ } = await import('@/lib/server/sales-repository')
+      const headers = request.headers
       quote = await saveQ({
         ...quote,
         status: 'accepted',
         acceptedAt: new Date().toISOString().slice(0, 10),
         respondedAt: new Date().toISOString(),
+        termsAcceptedAt: quote.termsAcceptedAt || new Date().toISOString(),
+        termsAcceptedVersion: quote.termsAcceptedVersion || termsVersion || CURRENT_QUOTE_TERMS_VERSION,
+        termsAcceptedIp: quote.termsAcceptedIp || headers.get('x-forwarded-for')?.split(',')[0]?.trim() || headers.get('x-real-ip') || undefined,
+        termsAcceptedUserAgent: quote.termsAcceptedUserAgent || headers.get('user-agent') || undefined,
+      })
+    }
+
+    if (quote.status === 'accepted' && !quote.termsAcceptedAt && termsAccepted === true) {
+      const { saveSalesQuote: saveQ } = await import('@/lib/server/sales-repository')
+      const headers = request.headers
+      quote = await saveQ({
+        ...quote,
+        termsAcceptedAt: new Date().toISOString(),
+        termsAcceptedVersion: termsVersion || CURRENT_QUOTE_TERMS_VERSION,
+        termsAcceptedIp: headers.get('x-forwarded-for')?.split(',')[0]?.trim() || headers.get('x-real-ip') || undefined,
+        termsAcceptedUserAgent: headers.get('user-agent') || undefined,
       })
     }
 

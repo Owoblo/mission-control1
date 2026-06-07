@@ -16,6 +16,8 @@ import { saveJobRecord } from '@/lib/server/repository'
 import { readEnv, getAppBaseUrl } from '@/lib/server/runtime'
 import type { CRMLead, CRMQuote } from '@/lib/types'
 
+const CURRENT_QUOTE_TERMS_VERSION = '2026-06-07-basic-moving-terms'
+
 async function sendQuoteNotification(event: 'viewed' | 'viewed_again' | 'accepted' | 'declined', quote: CRMQuote, lead: CRMLead | null) {
   const resendKey = readEnv('RESEND_API_KEY')
   if (!resendKey) return
@@ -175,6 +177,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
         createdAt: quote.createdAt,
         viewedAt: quote.viewedAt,
         acceptedAt: quote.acceptedAt,
+        termsAcceptedAt: quote.termsAcceptedAt,
+        termsAcceptedVersion: quote.termsAcceptedVersion,
       },
       client: lead
         ? {
@@ -205,7 +209,12 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   try {
-    const body = (await request.json()) as { token?: string; action?: 'accept' | 'decline' }
+    const body = (await request.json()) as {
+      token?: string
+      action?: 'accept' | 'decline'
+      termsAccepted?: boolean
+      termsVersion?: string
+    }
     const quote = await getSalesQuote(params.id)
 
     if (!quote || !isTokenValid(body.token || null, quote.acceptToken)) {
@@ -224,12 +233,24 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     const now = new Date()
     const eventDate = now.toISOString().slice(0, 10)
+    if (action === 'accept' && !quote.termsAcceptedAt && body.termsAccepted !== true) {
+      return NextResponse.json({ error: 'Terms must be accepted before booking.' }, { status: 400 })
+    }
+
+    const acceptedTermsVersion = body.termsVersion || CURRENT_QUOTE_TERMS_VERSION
+    const headers = request.headers
     const nextQuote = await saveSalesQuote({
       ...quote,
       status: action === 'decline' ? 'declined' : 'accepted',
       viewedAt: quote.viewedAt || eventDate,
       acceptedAt: action === 'accept' ? quote.acceptedAt || eventDate : quote.acceptedAt,
       respondedAt: quote.respondedAt || now.toISOString(),
+      termsAcceptedAt: action === 'accept' ? quote.termsAcceptedAt || now.toISOString() : quote.termsAcceptedAt,
+      termsAcceptedVersion: action === 'accept' ? quote.termsAcceptedVersion || acceptedTermsVersion : quote.termsAcceptedVersion,
+      termsAcceptedIp: action === 'accept'
+        ? quote.termsAcceptedIp || headers.get('x-forwarded-for')?.split(',')[0]?.trim() || headers.get('x-real-ip') || undefined
+        : quote.termsAcceptedIp,
+      termsAcceptedUserAgent: action === 'accept' ? quote.termsAcceptedUserAgent || headers.get('user-agent') || undefined : quote.termsAcceptedUserAgent,
     })
 
     let savedLead = null

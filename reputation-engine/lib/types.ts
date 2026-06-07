@@ -929,6 +929,10 @@ export interface CRMQuote {
   viewedAt?: string
   acceptedAt?: string
   respondedAt?: string
+  termsAcceptedAt?: string
+  termsAcceptedVersion?: string
+  termsAcceptedIp?: string
+  termsAcceptedUserAgent?: string
   // Deposit payment tracking
   depositPaidAt?: string
   depositPaidAmount?: number
