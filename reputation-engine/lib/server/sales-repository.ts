@@ -52,6 +52,7 @@ type LeadIdentityRow = {
   phone?: string | null
   email?: string | null
   inboundId?: string | null
+  mergedIntoLeadId?: string | null
 }
 type LeadInboxRow = LeadIdentityRow & {
   branch?: string | null
@@ -64,7 +65,7 @@ type LeadInboxRow = LeadIdentityRow & {
   callLogs?: CallLogEntry[] | string | null
 }
 
-export type SalesLeadIdentitySnapshot = Pick<CRMLead, 'id' | 'name' | 'stage' | 'phone' | 'email' | 'inboundId'>
+export type SalesLeadIdentitySnapshot = Pick<CRMLead, 'id' | 'name' | 'stage' | 'phone' | 'email' | 'inboundId' | 'mergedIntoLeadId'>
 export type SalesLeadInboxSnapshot =
   SalesLeadIdentitySnapshot &
   Pick<CRMLead, 'branch' | 'originAddress' | 'originCity' | 'destAddress' | 'destCity' | 'moveType' | 'totalCubicFeet' | 'callLogs'>
@@ -108,6 +109,7 @@ function normalizeLeadIdentitySnapshot(row: LeadIdentityRow): SalesLeadIdentityS
     phone: normalizeProjectedText(row.phone),
     email: normalizeProjectedText(row.email),
     inboundId: normalizeProjectedText(row.inboundId),
+    mergedIntoLeadId: normalizeProjectedText(row.mergedIntoLeadId),
   }
 }
 
@@ -150,6 +152,37 @@ function getArchivedLeadIds(logs: LeadLifecycleSnapshot[]) {
   )
 }
 
+function isVisibleSalesLead(lead: Pick<CRMLead, 'id' | 'mergedIntoLeadId'>, archivedLeadIds: Set<string>) {
+  return !archivedLeadIds.has(lead.id) && !lead.mergedIntoLeadId
+}
+
+function filterDisplayDuplicateSalesLeads(leads: CRMLead[]) {
+  const keepIds = new Set<string>()
+  const seenIds = new Set<string>()
+
+  for (const lead of leads) {
+    if (seenIds.has(lead.id)) continue
+
+    const matches = findLeadIdentityMatches(leads, {
+      phone: lead.identityPhone || lead.phone,
+      email: lead.identityEmail || lead.email,
+      inboundId: lead.inboundId,
+      includeClosed: true,
+    })
+
+    if (matches.length === 0) {
+      keepIds.add(lead.id)
+      seenIds.add(lead.id)
+      continue
+    }
+
+    keepIds.add(matches[0].id)
+    matches.forEach(match => seenIds.add(match.id))
+  }
+
+  return leads.filter(lead => keepIds.has(lead.id))
+}
+
 const LEAD_IDENTITY_SELECT = [
   'id',
   'name:data->>name',
@@ -157,6 +190,7 @@ const LEAD_IDENTITY_SELECT = [
   'phone:data->>phone',
   'email:data->>email',
   'inboundId:data->>inboundId',
+  'mergedIntoLeadId:data->>mergedIntoLeadId',
 ].join(',')
 
 const LEAD_INBOX_SELECT = [
@@ -166,6 +200,7 @@ const LEAD_INBOX_SELECT = [
   'phone:data->>phone',
   'email:data->>email',
   'inboundId:data->>inboundId',
+  'mergedIntoLeadId:data->>mergedIntoLeadId',
   'branch:data->>branch',
   'originAddress:data->>originAddress',
   'originCity:data->>originCity',
@@ -327,9 +362,9 @@ export async function listSalesLeads() {
     selectLeadLifecycleSnapshots(),
   ])
   const archivedLeadIds = getArchivedLeadIds(lifecycle)
-  return leads
+  return filterDisplayDuplicateSalesLeads(leads
     .map(lead => normalizeLead(lead))
-    .filter(lead => !archivedLeadIds.has(lead.id))
+    .filter(lead => isVisibleSalesLead(lead, archivedLeadIds)))
 }
 
 export async function listSalesLeadIdentitySnapshots() {
@@ -340,7 +375,7 @@ export async function listSalesLeadIdentitySnapshots() {
   const archivedLeadIds = getArchivedLeadIds(lifecycle)
   return rows
     .map(normalizeLeadIdentitySnapshot)
-    .filter(lead => !archivedLeadIds.has(lead.id))
+    .filter(lead => isVisibleSalesLead(lead, archivedLeadIds))
 }
 
 export async function listSalesLeadInboxSnapshots() {
@@ -351,7 +386,7 @@ export async function listSalesLeadInboxSnapshots() {
   const archivedLeadIds = getArchivedLeadIds(lifecycle)
   return rows
     .map(normalizeLeadInboxSnapshot)
-    .filter(lead => !archivedLeadIds.has(lead.id))
+    .filter(lead => isVisibleSalesLead(lead, archivedLeadIds))
 }
 
 export async function listSalesLeadsPaginated(page: number, limit: number) {
@@ -381,7 +416,7 @@ export async function listSalesLeadsPaginated(page: number, limit: number) {
   const records = (await response.json()) as PersistedRecord<CRMLead>[]
 
   return {
-    leads: records.map(r => normalizeLead(r.data)),
+    leads: records.map(r => normalizeLead(r.data)).filter(lead => !lead.mergedIntoLeadId),
     total,
     page,
     limit,
@@ -576,12 +611,13 @@ export async function getSalesLeadByContact(
 export async function collapseDuplicateSalesLeadsByIdentity(
   input: LeadIdentityInput,
   actor?: LeadMergeActor,
+  options?: { includeClosed?: boolean },
 ) {
   const matches = findLeadIdentityMatches(await listSalesLeadIdentitySnapshots(), {
     phone: input.phone,
     email: input.email,
     inboundId: input.inboundId,
-    includeClosed: false,
+    includeClosed: options?.includeClosed || false,
   })
 
   if (matches.length === 0) {
@@ -593,7 +629,9 @@ export async function collapseDuplicateSalesLeadsByIdentity(
   }
 
   const loaded = (await Promise.all(matches.map(match => getSalesLead(match.id)))).filter(Boolean) as CRMLead[]
-  let canonical = chooseCanonicalLead(loaded)
+  let canonical = options?.includeClosed
+    ? loaded.find(lead => lead.id === matches[0].id) || null
+    : chooseCanonicalLead(loaded)
   if (!canonical) {
     return null
   }

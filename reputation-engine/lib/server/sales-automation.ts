@@ -43,6 +43,7 @@ import {
   listSalesLeads,
   lookupListingsByAddress,
   markInboundLeadClaimed,
+  collapseDuplicateSalesLeadsByIdentity,
   saveListingInventoryScan,
   saveSalesClient,
   saveFollowUpLog,
@@ -1332,7 +1333,16 @@ async function ensureLeadForInbound(event: InboundAutomationEvent): Promise<CRML
   const message = previewText(event.message || inbound?.message, 500)
   const attribution = extractEventAttribution(event, inbound)
   const source = deriveLeadSource(event, inbound, attribution)
-  const identityLead = await findLeadByInboundIdentity(phone || event.phone, email || event.email, event.inboundLeadId)
+  const collapsedLead = await collapseDuplicateSalesLeadsByIdentity(
+    {
+      phone: phone || event.phone,
+      email: email || event.email,
+      inboundId: event.inboundLeadId,
+    },
+    { name: 'Automation' },
+    { includeClosed: true },
+  ).catch(() => null)
+  const identityLead = collapsedLead || await findLeadByInboundIdentity(phone || event.phone, email || event.email, event.inboundLeadId)
   const inboundLead = event.inboundLeadId ? await getSalesLeadByInboundId(event.inboundLeadId) : null
   let lead = identityLead || inboundLead
 
@@ -1710,6 +1720,20 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
     return { doNotContact: true, intent: 'opt_out', capturedSummary: 'Lead opted out of automation.' }
   }
 
+  if (kind === 'lost_feedback') {
+    return {
+      reply:
+        channel === 'sms'
+          ? `Hi ${firstName}, John from Saturn Star Moving here. No worries at all that you didn't move forward with us. So we can improve, what was the main reason: price, timing, availability, another company, or something about our process? If you're comfortable sharing, which company or deal did you choose?`
+          : `Hi ${firstName},\n\nJohn from Saturn Star Moving here. No worries at all that you didn't move forward with us.\n\nSo we can improve, what was the main reason: price, timing, availability, another company, or something about our process?\n\nIf you're comfortable sharing, which company or deal did you choose?\n\nJohn\nSaturn Star Moving`,
+      subject: channel === 'email' ? 'Quick Feedback Question' : undefined,
+      capturedSummary: 'Asked lost lead why they did not move forward so sales data can improve.',
+      intent: 'lost_feedback_requested',
+      missingFields: [],
+      moveReadiness: 'cold',
+    }
+  }
+
   if (detectMovedOnIntent(inboundMessage)) {
     return {
       reply:
@@ -1936,6 +1960,7 @@ async function buildCopyForJob(job: CRMAutomationJob, lead: CRMLead, channel: Co
   if (
     job.kind === 'consultation_reminder' ||
     job.kind === 'move_reminder' ||
+    job.kind === 'lost_feedback' ||
     detectMovedOnIntent(inboundMessage) ||
     lead.stage === 'lost' ||
     (job.kind === 'lead_response' && isBookedOrPaidLead(lead))
@@ -1972,7 +1997,7 @@ function shouldSkipAutomation(lead: CRMLead, job: CRMAutomationJob) {
   if (repWorkflowReason && job.kind !== 'consultation_reminder' && job.kind !== 'move_reminder') return repWorkflowReason
   if (lead.automationPausedUntil && new Date(lead.automationPausedUntil).getTime() > Date.now()) return 'Automation is paused by recent human follow-up.'
   if (lead.automationStatus === 'handoff' && job.kind !== 'consultation_reminder' && job.kind !== 'move_reminder') return 'Lead is in human handoff mode.'
-  if (lead.stage === 'lost' && job.kind !== 'lead_response') return 'Lead is already lost.'
+  if (lead.stage === 'lost' && job.kind !== 'lead_response' && job.kind !== 'lost_feedback') return 'Lead is already lost.'
   if (isBookedOrPaidLead(lead) && job.kind !== 'lead_response' && job.kind !== 'move_reminder') return 'Lead is already booked.'
   if (isNudgeJob(job.kind) && job.kind !== 'consultation_reminder' && hasRecentRepTouch(lead)) return 'Rep contacted this lead within the last 2 hours.'
   if (isNudgeJob(job.kind) && sameZonedDay(lead.lastAutomationOutboundAt, new Date().toISOString())) return 'An automated nudge already ran for this lead today.'
@@ -2566,6 +2591,19 @@ async function handleStaleReactivationJob(job: CRMAutomationJob, lead: CRMLead) 
   return handleLeadResponseJob(job, lead)
 }
 
+async function handleLostFeedbackJob(job: CRMAutomationJob, lead: CRMLead) {
+  if (lead.stage !== 'lost') {
+    return { status: 'cancelled' as const, reason: 'Lead is not marked lost.' }
+  }
+  return handleLeadResponseJob({
+    ...job,
+    payload: {
+      ...job.payload,
+      message: job.payload?.message || 'Ask why the lead did not move forward.',
+    },
+  }, lead)
+}
+
 export async function processAutomationJob(job: CRMAutomationJob) {
   const now = new Date().toISOString()
   const running = (await saveAutomationJob({
@@ -2633,7 +2671,9 @@ export async function processAutomationJob(job: CRMAutomationJob) {
               ? await handleMoveReminderJob(activeJob, lead)
               : activeJob.kind === 'stale_reactivation'
                 ? await handleStaleReactivationJob(activeJob, lead)
-                : await handleLeadResponseJob(activeJob, lead)
+                : activeJob.kind === 'lost_feedback'
+                  ? await handleLostFeedbackJob(activeJob, lead)
+                  : await handleLeadResponseJob(activeJob, lead)
 
     const status = outcome.status === 'cancelled' ? 'cancelled' : 'completed'
     const saved = await saveAutomationJob({
@@ -2766,6 +2806,27 @@ export async function scheduleQuoteFollowup(leadId: string, quoteId?: string) {
     dueAt,
     dedupeKey: `quote_followup:${quote.id}:${quote.sentAt}`,
     payload: { quoteId: quote.id, quoteNumber: quote.number, sentAt: quote.sentAt },
+  })
+}
+
+export async function scheduleLostFeedback(leadId: string) {
+  const lead = await getSalesLead(leadId)
+  if (!lead || lead.stage !== 'lost') return null
+  if (lead.automationStatus === 'do_not_contact') return null
+
+  const channel = lead.phone ? 'sms' : lead.email ? 'email' : null
+  if (!channel) return null
+
+  return queueAutomationJob({
+    leadId: lead.id,
+    kind: 'lost_feedback',
+    channel,
+    dueAt: new Date().toISOString(),
+    dedupeKey: `lost_feedback:${lead.id}`,
+    payload: {
+      lostAt: lead.lostAt || new Date().toISOString(),
+      lostReason: lead.lostReason || null,
+    },
   })
 }
 

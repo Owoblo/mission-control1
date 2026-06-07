@@ -98,6 +98,7 @@ function automationJobLabel(job: CRMAutomationJob) {
   if (job.kind === 'survey_followup') return 'Survey incomplete'
   if (job.kind === 'move_reminder') return 'Booked move reminder'
   if (job.kind === 'stale_reactivation') return 'Stale lead reactivation'
+  if (job.kind === 'lost_feedback') return 'Lost lead feedback'
   return 'Scheduled automation'
 }
 

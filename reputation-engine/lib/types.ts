@@ -72,6 +72,7 @@ export type InventoryVerificationDecision = 'going' | 'not_going' | 'unsure'
 export type LeadInboxChannel = 'sms' | 'email' | 'calls' | 'webforms'
 export type AutomationJobKind =
   | 'lead_response'
+  | 'lost_feedback'
   | 'quote_followup'
   | 'quote_viewed_followup'
   | 'quote_expiry_followup'

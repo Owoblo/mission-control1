@@ -37,6 +37,7 @@ const LISTABLE_AUTOMATION_KINDS: AutomationJobKind[] = [
   'survey_followup',
   'move_reminder',
   'stale_reactivation',
+  'lost_feedback',
 ]
 
 function automationJobLabel(kind: AutomationJobKind) {
@@ -46,6 +47,7 @@ function automationJobLabel(kind: AutomationJobKind) {
   if (kind === 'survey_followup') return 'survey'
   if (kind === 'move_reminder') return 'move reminder'
   if (kind === 'stale_reactivation') return 'stale reactivation'
+  if (kind === 'lost_feedback') return 'lost feedback'
   return 'automation'
 }
 

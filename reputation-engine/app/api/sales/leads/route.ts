@@ -52,7 +52,7 @@ export async function POST(request: Request) {
         phone: validated.phone,
         email: validated.email,
         inboundId: payload.inboundId,
-      }, actor)
+      }, actor, { includeClosed: true })
 
     if (existingLead) {
       // Placeholder names created by auto-routing should be overwritten by real names

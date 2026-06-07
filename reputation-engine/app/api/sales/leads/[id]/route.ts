@@ -4,7 +4,7 @@ import { calculateLeadScore, getLeadAssignedRepName, isClosedLeadStage, normaliz
 import { normalizeMoveExecutionLog } from '@/lib/move-execution'
 import { logEvent, daysBetween } from '@/lib/server/analytics'
 import { queueLeadIntelligenceRefresh } from '@/lib/server/lead-intelligence-refresh'
-import { scheduleMoveReminder, scheduleConsultationReminder } from '@/lib/server/sales-automation'
+import { scheduleMoveReminder, scheduleConsultationReminder, scheduleLostFeedback } from '@/lib/server/sales-automation'
 import { getBookedJobFieldDiffs, recordLeadArchivedAudit, recordLeadUpdateAudit, sendBookedJobChangeNotice } from '@/lib/server/sales-audit'
 import { applyDetectedBranch, maybeCreateDestinationOpportunityLead } from '@/lib/server/sales-opportunities'
 import { canAccessOperationsWorkspace, canAccessSalesWorkspace, canDeleteLead, canReassignLead, isLeadOwnedBySession } from '@/lib/server/sales-permissions'
@@ -452,6 +452,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
           touchpoint_count: (syncedOpportunityLead.callLogs || []).length,
         },
       })
+      void scheduleLostFeedback(syncedOpportunityLead.id)
     }
     // Send appointment confirmation SMS only when explicitly requested by the rep
     if (sendApptSmsFlag === true && syncedOpportunityLead.stage === 'estimate_scheduled' && syncedOpportunityLead.phone) {

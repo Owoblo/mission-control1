@@ -30,6 +30,7 @@ import {
 } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
 import { validateLeadPayload } from '@/lib/server/sales-validation'
+import { scheduleLostFeedback } from '@/lib/server/sales-automation'
 import type { CallLogEntry, CRMLead, InboundLead } from '@/lib/types'
 
 type InboxLeadContext = Pick<
@@ -318,7 +319,7 @@ export async function POST(request: Request) {
       phone: validated.phone || inbound.phone,
       email: validated.email || inbound.email,
       inboundId: payload.inboundId,
-    }, actor)
+    }, actor, { includeClosed: true })
 
     if (duplicateLead) {
       const inboundCallLog = buildInboundCallLog(inbound)
@@ -451,6 +452,19 @@ export async function PATCH(request: Request) {
       await setInboundLeadDisposition(payload.inboundId, 'junk', actor)
     } else if (payload.action === 'lost') {
       await setInboundLeadDisposition(payload.inboundId, 'lost', actor)
+      if (linkedLead && linkedLead.stage !== 'lost') {
+        const now = new Date().toISOString()
+        const lostLead = await saveSalesLead({
+          ...linkedLead,
+          stage: 'lost',
+          lostAt: now,
+          lostReason: linkedLead.lostReason || 'inbox_disposition',
+          lastTouchedAt: now,
+          lastTouchedByUserId: actor.userId || linkedLead.lastTouchedByUserId,
+          lastTouchedByName: actor.name || linkedLead.lastTouchedByName,
+        })
+        void scheduleLostFeedback(lostLead.id)
+      }
     } else if (payload.action === 'not_interested') {
       await setInboundLeadDisposition(payload.inboundId, 'not_interested', actor)
     } else if (payload.action === 'restore') {
