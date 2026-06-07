@@ -82,6 +82,22 @@ function detectMovedOnIntent(message?: string): boolean {
   return /\b(already (booked|hired|found|went with)|booked (with|someone else|another)|hired (someone|another)|found (someone|another mover|another company)|went with (someone|another|a different)|chose (someone|another|a different)|got a better (deal|price|quote)|not moving with you|we moved on|i moved on|no longer need|don'?t need (movers|moving)|do not need (movers|moving))\b/i.test(message)
 }
 
+function detectLostFeedbackDetail(message?: string): boolean {
+  if (!message) return false
+  const text = message.trim()
+  if (text.length < 8) return false
+  if (/\b(price|expensive|cheaper|cheap|cost|quote|deal|discount|timing|availability|available|date|schedule|trust|review|referral|friend|family|company|mover|movers|service|response|follow[- ]?up|deposit|insurance|licensed|cash|ancient|u-?haul|two men|amj|metropolitan|atlas|allied|northstar|better)\b/i.test(text)) {
+    return true
+  }
+  return /\b(went with|booked with|hired|chose|picked|decided|too high|lower rate|better rate|someone else|another one|another company)\b/i.test(text)
+}
+
+function detectRenewedMoveInterest(message?: string): boolean {
+  if (!message) return false
+  if (detectBookingIntent(message)) return true
+  return /\b(still need|need movers|need moving|can you still|are you available|availability|changed my mind|change my mind|want to book|ready to book|book with you|move with you|go ahead|same move|still moving|still interested|can we proceed|can we continue|need help moving)\b/i.test(message)
+}
+
 function buildSmsQuoteSummary(
   lead: CRMLead,
   quoteId: string,
@@ -1724,8 +1740,8 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
     return {
       reply:
         channel === 'sms'
-          ? `Hi ${firstName}, John from Saturn Star Moving here. No worries at all that you didn't move forward with us. So we can improve, what was the main reason: price, timing, availability, another company, or something about our process? If you're comfortable sharing, which company or deal did you choose?`
-          : `Hi ${firstName},\n\nJohn from Saturn Star Moving here. No worries at all that you didn't move forward with us.\n\nSo we can improve, what was the main reason: price, timing, availability, another company, or something about our process?\n\nIf you're comfortable sharing, which company or deal did you choose?\n\nJohn\nSaturn Star Moving`,
+          ? `Hi ${firstName}, no worries that you didn't move forward with us. Quick question so we can improve: was it mainly price, timing, another company, or something about our process?`
+          : `Hi ${firstName},\n\nNo worries that you didn't move forward with us. Quick question so we can improve: was it mainly price, timing, another company, or something about our process?\n\nJohn\nSaturn Star Moving`,
       subject: channel === 'email' ? 'Quick Feedback Question' : undefined,
       capturedSummary: 'Asked lost lead why they did not move forward so sales data can improve.',
       intent: 'lost_feedback_requested',
@@ -1738,8 +1754,8 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
     return {
       reply:
         channel === 'sms'
-          ? `Thanks for letting us know, ${firstName}. No worries at all. So we can improve, was it mainly price, timing, availability, or did another company feel like a better fit?`
-          : `Hi ${firstName},\n\nThanks for letting us know. No worries at all.\n\nSo we can improve, was it mainly price, timing, availability, or did another company feel like a better fit?\n\nJohn\nSaturn Star Moving`,
+          ? `Thanks for letting us know, ${firstName}. No worries. What made the difference: price, timing, another company, or something else?`
+          : `Hi ${firstName},\n\nThanks for letting us know. No worries.\n\nWhat made the difference: price, timing, another company, or something else?\n\nJohn\nSaturn Star Moving`,
       subject: channel === 'email' ? 'Quick Feedback Question' : undefined,
       capturedSummary: 'Lead said they moved on or booked another mover. Asked for lost-lead feedback.',
       intent: 'lead_response',
@@ -1749,6 +1765,20 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
   }
 
   if (lead.stage === 'lost' && kind === 'lead_response') {
+    if (!detectLostFeedbackDetail(inboundMessage)) {
+      return {
+        reply:
+          channel === 'sms'
+            ? `Hi ${firstName}, I had this file marked as not moving forward with us. If that changed, I can help. If you booked elsewhere, what made the difference: price, timing, or another company?`
+            : `Hi ${firstName},\n\nI had this file marked as not moving forward with us. If that changed, I can help.\n\nIf you booked elsewhere, what made the difference: price, timing, or another company?\n\nJohn\nSaturn Star Moving`,
+        subject: channel === 'email' ? 'Re: Saturn Star Moving' : undefined,
+        capturedSummary: 'Lost lead replied without clear feedback. Asked whether they still need help or what made the difference.',
+        intent: 'lost_feedback_requested',
+        missingFields: [],
+        moveReadiness: 'cold',
+      }
+    }
+
     return {
       reply:
         channel === 'sms'
@@ -2123,7 +2153,83 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
     }
   }
 
-  if (job.kind === 'lead_response' && lead.stage === 'lost' && inboundMessage && !detectMovedOnIntent(inboundMessage)) {
+  if (job.kind === 'lead_response' && lead.stage === 'lost' && inboundMessage && detectRenewedMoveInterest(inboundMessage)) {
+    const nowIso = new Date().toISOString()
+    const reopenedLead = await saveSalesLead({
+      ...lead,
+      stage: 'contacted',
+      followUpStatus: 'following_up',
+      automationStatus: 'handoff',
+      automationPausedUntil: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
+      automationPauseReason: 'lost_lead_reopened',
+      automationHandoffAt: nowIso,
+      automationHandoffReason: 'Lost lead replied with renewed moving or booking interest.',
+      lastTouchedAt: nowIso,
+      qualificationState: buildQualificationState(lead, {
+        ...withoutMissingFields(lead.qualificationState),
+        capturedSummary: `Lost lead reopened conversation: ${inboundMessage}`,
+        lastIntent: 'renewed_move_interest',
+        nextBestAction: 'rep_confirm_reopened_move',
+        missingFields: [],
+      }),
+      notes: [
+        lead.notes,
+        `Lost lead reopened ${nowIso}: ${inboundMessage}`,
+      ].filter(Boolean).join('\n\n'),
+    }).catch(() => lead)
+
+    await saveFollowUpLog({
+      id: uid('fu'),
+      leadId: reopenedLead.id,
+      type: 'note',
+      date: nowIso,
+      createdAt: nowIso,
+      notes: `Lost lead replied with renewed interest. Rep should confirm whether this is the same move or new details: ${inboundMessage}`,
+    }).catch(() => {})
+
+    const firstName = (reopenedLead.name || 'there').split(' ')[0]
+    const moveDate = reopenedLead.moveDate
+      ? new Date(`${reopenedLead.moveDate}T12:00:00`).toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' })
+      : ''
+    const route = [reopenedLead.originCity || reopenedLead.originAddress, reopenedLead.destCity || reopenedLead.destAddress].filter(Boolean).join(' to ')
+    const body = contact.channel === 'email'
+      ? `Hi ${firstName},\n\nYes, I can help. I reopened your file. Are we working with the same move${moveDate ? ` for ${moveDate}` : ''}${route ? ` from ${route}` : ''}, or did the date, route, or inventory change?\n\nJohn\nSaturn Star Moving`
+      : `Yes ${firstName}, I can help. I reopened your file. Is this the same move${moveDate ? ` for ${moveDate}` : ''}${route ? ` from ${route}` : ''}, or did the date, route, or inventory change?`
+
+    const sendResult = await sendSalesMessage({
+      actor: 'automation',
+      channel: contact.channel,
+      to: contact.to,
+      subject: contact.channel === 'email' ? inboundSubject || 'Re: Saturn Star Moving' : undefined,
+      body,
+      leadId: reopenedLead.id,
+      notes: `Automation reopened lost lead and asked for current move details at ${contact.to}`,
+    })
+
+    const updatedLead = await updateLeadAfterAutomation(sendResult.lead || reopenedLead, {
+      reply: body,
+      capturedSummary: `Lost lead reopened conversation: ${inboundMessage}`,
+      intent: 'renewed_move_interest',
+      missingFields: [],
+      moveReadiness: 'hot',
+      nextBestAction: 'rep_confirm_reopened_move',
+      shouldHandoff: true,
+    })
+    const thread = await saveAutomationThreadAfterOutbound({
+      lead: updatedLead,
+      existingThread,
+      channel: contact.channel,
+      contactValue: contact.to,
+      preview: body,
+      jobKind: job.kind,
+      intent: 'renewed_move_interest',
+      inboundMessage,
+    })
+
+    return { status: 'completed' as const, sent: true, lead: updatedLead, thread, message: body }
+  }
+
+  if (job.kind === 'lead_response' && lead.stage === 'lost' && inboundMessage && detectLostFeedbackDetail(inboundMessage)) {
     const nowIso = new Date().toISOString()
     const feedbackLead = await saveSalesLead({
       ...lead,
