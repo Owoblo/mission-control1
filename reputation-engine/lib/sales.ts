@@ -632,6 +632,27 @@ export function paymentTermsLabel(paymentTerms?: CRMQuote['paymentTerms']) {
   return 'Deposit required'
 }
 
+export function computeCommercialCostLayer(factors?: JobFactors, revenue = 0) {
+  const protectionCost = roundCurrency(Number(factors?.commercialProtectionCost || 0))
+  const liabilityCost = roundCurrency(Number(factors?.commercialLiabilityCost || 0))
+  const adminCost = roundCurrency(Number(factors?.commercialAdminCost || 0))
+  const otherDirectCost = roundCurrency(Number(factors?.commercialOtherDirectCost || 0))
+  const directCost = roundCurrency(protectionCost + liabilityCost + adminCost + otherDirectCost)
+  const markupRate = Math.max(0, Number(factors?.commercialMarkupRate || 0))
+  const markupAmount = roundCurrency(revenue > 0 ? revenue * (markupRate / 100) : 0)
+
+  return {
+    protectionCost,
+    liabilityCost,
+    adminCost,
+    otherDirectCost,
+    directCost,
+    markupRate,
+    markupAmount,
+    totalCost: directCost,
+  }
+}
+
 export function suggestCrewSize(totalWeightLbs: number, totalCubicFeet: number, includedInventory: InventoryItem[]) {
   const heavyKeywords = [
     'sectional',
@@ -1177,6 +1198,10 @@ function estimateSingleLeadQuote(
   const laborAmount = roundCurrency(estimatedHours * crewRate)
   const longDistanceOperationalBase = longDistanceTruckCost + longDistanceGasCost + longDistanceInsuranceCost + longDistanceMiscCost
   const longDistanceMarkupAmount = isLongDistance ? roundCurrency(longDistanceOperationalBase * (longDistanceMarkupRate / 100)) : 0
+  const commercialRevenueBase = roundCurrency(laborAmount + longDistanceOperationalBase + longDistanceMarkupAmount)
+  const commercialCostLayer = lead.moveType === 'commercial'
+    ? computeCommercialCostLayer(activeFactors, commercialRevenueBase)
+    : computeCommercialCostLayer(undefined, 0)
   const extraTruckAmount = 0
   const tripStrategy: PricingBreakdown['tripStrategy'] =
     truckCount >= 3 ? 'three_trucks' : forcedSingleTruckTwoTrips ? 'single_truck_two_trips' : truckCount === 2 ? 'two_trucks' : 'single_truck'
@@ -1297,9 +1322,14 @@ function estimateSingleLeadQuote(
   const truckOpsCost = roundCurrency(truckDailyCost + truckFuelMileageCost)
   const commissionCost = roundCurrency(laborAmount * COMMISSION_RATE)
   const suppliesCost = roundCurrency((factors?.estimatedBoxes || 0) * PACKING_SUPPLIES_COST_PER_BOX)
-  const directCost = roundCurrency(laborCost + truckOpsCost + commissionCost + suppliesCost)
-  const grossProfit = roundCurrency(laborAmount - directCost)
-  const grossMarginPct = laborAmount > 0 ? Math.round((grossProfit / laborAmount) * 1000) / 10 : 0
+  const directCost = roundCurrency(laborCost + truckOpsCost + commissionCost + suppliesCost + commercialCostLayer.totalCost)
+  const computedRevenue = roundCurrency(
+    lead.moveType === 'commercial'
+      ? commercialRevenueBase + commercialCostLayer.markupAmount
+      : laborAmount
+  )
+  const grossProfit = roundCurrency(computedRevenue - directCost)
+  const grossMarginPct = computedRevenue > 0 ? Math.round((grossProfit / computedRevenue) * 1000) / 10 : 0
 
   const intelligenceFlags = {
     twoTruckRequired: truckCount >= 2,
@@ -1364,6 +1394,14 @@ function estimateSingleLeadQuote(
     },
   ]
 
+  if (lead.moveType === 'commercial' && commercialCostLayer.markupAmount > 0) {
+    lineItems.push({
+      description: 'Commercial logistics markup',
+      details: `${commercialCostLayer.markupRate}% commercial coordination, risk, and scope management allowance`,
+      amount: commercialCostLayer.markupAmount,
+    })
+  }
+
   if (missingDestination) {
     lineItems.push({
       description: 'Travel & destination handling pending',
@@ -1411,10 +1449,16 @@ function estimateSingleLeadQuote(
       truckOpsCost,
       commissionCost,
       suppliesCost,
+      commercialProtectionCost: commercialCostLayer.protectionCost,
+      commercialLiabilityCost: commercialCostLayer.liabilityCost,
+      commercialAdminCost: commercialCostLayer.adminCost,
+      commercialOtherDirectCost: commercialCostLayer.otherDirectCost,
+      commercialDirectCost: commercialCostLayer.directCost,
+      commercialMarkupAmount: commercialCostLayer.markupAmount,
       totalCost: directCost,
       grossProfit,
       grossMarginPct,
-      computedRevenue: laborAmount,
+      computedRevenue,
     },
     intelligenceFlags,
   }

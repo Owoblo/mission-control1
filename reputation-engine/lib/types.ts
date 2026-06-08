@@ -404,6 +404,12 @@ export interface PricingBreakdown {
     truckOpsCost: number
     commissionCost?: number
     suppliesCost?: number
+    commercialProtectionCost?: number
+    commercialLiabilityCost?: number
+    commercialAdminCost?: number
+    commercialOtherDirectCost?: number
+    commercialDirectCost?: number
+    commercialMarkupAmount?: number
     totalCost: number
     grossProfit: number
     grossMarginPct: number
@@ -542,6 +548,11 @@ export interface JobFactors {
   commercialLabelingRequired?: boolean
   commercialITEquipment?: boolean
   commercialDisposalRequired?: boolean
+  commercialProtectionCost?: number
+  commercialLiabilityCost?: number
+  commercialAdminCost?: number
+  commercialOtherDirectCost?: number
+  commercialMarkupRate?: number
   commercialScopeNotes?: string
 }
 

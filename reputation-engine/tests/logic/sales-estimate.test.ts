@@ -165,6 +165,46 @@ test('estimateLeadQuote keeps standard moving jobs at a two-mover minimum', () =
   assert.match(estimate.lineItems[0].details || '', /2 professional movers/)
 })
 
+test('estimateLeadQuote applies commercial direct costs and markup to margin math', () => {
+  const estimate = estimateLeadQuote(
+    makeLead({
+      moveType: 'commercial',
+      totalCubicFeet: 900,
+      totalWeightLbs: 2600,
+    }),
+    {
+      quoteType: 'standard',
+      routeContext: {
+        routeCategory: 'local',
+        pricingStatus: 'ready',
+        originToDestinationHours: 0.5,
+        yardToOriginHours: 0.25,
+        returnTripHours: 0.25,
+        billableDriveHours: 0.75,
+        operationalDriveHours: 1,
+        billableDistanceKm: 18,
+        operationalDistanceKm: 28,
+      },
+    },
+    {
+      commercialProtectionCost: 120,
+      commercialLiabilityCost: 80,
+      commercialAdminCost: 50,
+      commercialOtherDirectCost: 25,
+      commercialMarkupRate: 10,
+    }
+  )
+
+  const cost = estimate.pricingBreakdown.internalCostEstimate
+  assert.equal(cost.commercialDirectCost, 275)
+  assert.ok((cost.commercialMarkupAmount || 0) > 0)
+  assert.ok(estimate.lineItems.some(item => item.description === 'Commercial logistics markup'))
+  assert.equal(estimate.deposit, 0)
+  assert.equal(estimate.balance, estimate.total)
+  assert.equal(cost.totalCost, cost.laborCost + cost.truckOpsCost + (cost.commissionCost || 0) + (cost.suppliesCost || 0) + 275)
+  assert.equal(cost.computedRevenue, estimate.subtotal)
+})
+
 test('computeJobPenalties prices conjoint second pickup apartment access', () => {
   const result = computeJobPenalties({
     conjointMove: true,

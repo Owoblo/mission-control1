@@ -1809,6 +1809,7 @@ export function EstimateDraftModal({
       pricingBreakdown.internalCostEstimate.truckOpsCost +
       (pricingBreakdown.internalCostEstimate.commissionCost || 0) +
       (pricingBreakdown.internalCostEstimate.suppliesCost || 0) +
+      (pricingBreakdown.internalCostEstimate.commercialDirectCost || 0) +
       dealCost
     ) * 100) / 100
     const liveProfit = Math.round((actualRevenue - totalCost) * 100) / 100
@@ -2607,6 +2608,28 @@ export function EstimateDraftModal({
                         className="h-3.5 w-3.5"
                       />
                       {label}
+                    </label>
+                  ))}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-5">
+                  {[
+                    ['commercialProtectionCost', 'Protection / materials', 'Blankets, floor cover, cartons'],
+                    ['commercialLiabilityCost', 'Safety / liability / COI', 'COI, high-risk handling'],
+                    ['commercialAdminCost', 'Admin / permit / security', 'Building desk, permits, escorts'],
+                    ['commercialOtherDirectCost', 'Other direct cost', 'Custom vendor or disposal'],
+                    ['commercialMarkupRate', 'Commercial markup %', 'Risk/coordination markup'],
+                  ].map(([key, label, placeholder]) => (
+                    <label key={key} className="block">
+                      <span className="mb-1 block text-xs font-medium text-sky-900">{label}</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={key === 'commercialMarkupRate' ? 1 : 5}
+                        value={Number(jobFactors[key as keyof JobFactors] || 0) || ''}
+                        onChange={e => setFactor(key as keyof JobFactors, (e.target.value ? Number(e.target.value) : undefined) as never)}
+                        className="crm-input bg-white"
+                        placeholder={placeholder}
+                      />
                     </label>
                   ))}
                 </div>
@@ -5062,6 +5085,12 @@ export function EstimateDraftModal({
                 includeStraightDrop: uhaulStraightDrop,
                 crewSize, estimatedHours, miscBuffer: effectiveMiscBuffer, revenue,
               })
+              const commercialDirectCost = lead.moveType === 'commercial'
+                ? Number(pricingBreakdown.internalCostEstimate.commercialDirectCost || 0)
+                : 0
+              const adjustedTotalCost = Math.round((cost.totalCost + commercialDirectCost) * 100) / 100
+              const adjustedGrossProfit = Math.round((revenue - adjustedTotalCost) * 100) / 100
+              const adjustedGrossMarginPct = revenue > 0 ? Math.round((adjustedGrossProfit / revenue) * 1000) / 10 : 0
 
               // Only show trip comparison when the system has detected a multi-truck or two-trip move
               // No trip comparison for long-distance — 2 trucks always go together, no return trips possible
@@ -5094,8 +5123,8 @@ export function EstimateDraftModal({
                       ) : null}
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className={`text-xs font-bold ${cost.grossMarginPct >= 55 ? 'text-emerald-700' : cost.grossMarginPct >= 40 ? 'text-amber-700' : 'text-rose-700'}`}>
-                        {formatMoney(cost.grossProfit)} · {cost.grossMarginPct.toFixed(1)}%
+                      <span className={`text-xs font-bold ${adjustedGrossMarginPct >= 55 ? 'text-emerald-700' : adjustedGrossMarginPct >= 40 ? 'text-amber-700' : 'text-rose-700'}`}>
+                        {formatMoney(adjustedGrossProfit)} · {adjustedGrossMarginPct.toFixed(1)}%
                       </span>
                       <span className="text-[var(--app-muted)] text-[10px]">{uhaulOpen ? '▲' : '▼'}</span>
                     </div>
@@ -5225,6 +5254,12 @@ export function EstimateDraftModal({
                               <span className="text-[var(--app-ink)]">{formatMoney(tvBoxCost)}</span>
                             </div>
                           )}
+                          {commercialDirectCost > 0 && (
+                            <div className="flex justify-between text-xs">
+                              <span className="text-[var(--app-muted)]">Commercial direct costs</span>
+                              <span className="text-[var(--app-ink)]">{formatMoney(commercialDirectCost)}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -5236,11 +5271,11 @@ export function EstimateDraftModal({
                         </div>
                         <div className="flex justify-between text-xs">
                           <span className="text-[var(--app-muted)]">Total cost</span>
-                          <span className="text-[var(--app-ink)]">{formatMoney(cost.totalCost)}</span>
+                          <span className="text-[var(--app-ink)]">{formatMoney(adjustedTotalCost)}</span>
                         </div>
-                        <div className={`flex justify-between text-sm font-bold pt-0.5 ${cost.grossMarginPct >= 55 ? 'text-emerald-700' : cost.grossMarginPct >= 40 ? 'text-amber-700' : 'text-rose-700'}`}>
+                        <div className={`flex justify-between text-sm font-bold pt-0.5 ${adjustedGrossMarginPct >= 55 ? 'text-emerald-700' : adjustedGrossMarginPct >= 40 ? 'text-amber-700' : 'text-rose-700'}`}>
                           <span>Gross profit</span>
-                          <span>{formatMoney(cost.grossProfit)} ({cost.grossMarginPct.toFixed(1)}%)</span>
+                          <span>{formatMoney(adjustedGrossProfit)} ({adjustedGrossMarginPct.toFixed(1)}%)</span>
                         </div>
                       </div>
 
