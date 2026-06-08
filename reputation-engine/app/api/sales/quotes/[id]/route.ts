@@ -155,13 +155,13 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     }
 
     if (savedQuote.leadId && savedQuote.status === 'sent' && current.status !== 'sent') {
-      void scheduleQuoteFollowup(savedQuote.leadId, savedQuote.id)
-      void scheduleQuoteExpiryFollowup(savedQuote.leadId, savedQuote.id)
+      void scheduleQuoteFollowup(savedQuote.leadId, savedQuote.id).catch(() => null)
+      void scheduleQuoteExpiryFollowup(savedQuote.leadId, savedQuote.id).catch(() => null)
     }
 
     if (savedQuote.leadId && savedQuote.viewedAt && !current.viewedAt) {
-      void scheduleQuoteViewedFollowup(savedQuote.leadId, savedQuote.id)
-      void scheduleQuoteExpiryFollowup(savedQuote.leadId, savedQuote.id)
+      void scheduleQuoteViewedFollowup(savedQuote.leadId, savedQuote.id).catch(() => null)
+      void scheduleQuoteExpiryFollowup(savedQuote.leadId, savedQuote.id).catch(() => null)
       // Notify team — customer opened quote
       if (lead?.name) {
         void sendRepAlertEmail(

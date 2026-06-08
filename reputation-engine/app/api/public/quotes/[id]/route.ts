@@ -119,8 +119,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
       }
 
       if (quote.leadId) {
-        void scheduleQuoteViewedFollowup(quote.leadId, quote.id)
-        void scheduleQuoteExpiryFollowup(quote.leadId, quote.id)
+        void scheduleQuoteViewedFollowup(quote.leadId, quote.id).catch(() => null)
+        void scheduleQuoteExpiryFollowup(quote.leadId, quote.id).catch(() => null)
         queueLeadIntelligenceRefresh(quote.leadId, new URL(request.url).origin)
       }
 

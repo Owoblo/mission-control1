@@ -2937,7 +2937,7 @@ export async function scheduleLostFeedback(leadId: string) {
 }
 
 export async function scheduleQuoteViewedFollowup(leadId: string, quoteId?: string) {
-  const lead = await getSalesLead(leadId)
+  const lead = await getSalesLead(leadId).catch(() => null)
   if (!lead) return null
   if (!getLeadAutomationSettings(lead).nudgeIfQuoteViewedNoResponse) return null
 
@@ -2961,7 +2961,7 @@ export async function scheduleQuoteViewedFollowup(leadId: string, quoteId?: stri
 }
 
 export async function scheduleQuoteExpiryFollowup(leadId: string, quoteId?: string) {
-  const lead = await getSalesLead(leadId)
+  const lead = await getSalesLead(leadId).catch(() => null)
   if (!lead) return null
   if (!getLeadAutomationSettings(lead).nudgeBeforeQuoteExpires) return null
 
