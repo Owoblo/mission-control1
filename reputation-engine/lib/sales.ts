@@ -436,6 +436,7 @@ export function normalizeQuote(quote: CRMQuote): CRMQuote {
     longDistanceMiscCost: Number(quote.longDistanceMiscCost || 0) || undefined,
     longDistanceMarkupRate: Number(quote.longDistanceMarkupRate || 0) || undefined,
     billingModel: quote.billingModel || undefined,
+    paymentTerms: quote.paymentTerms || getDefaultPaymentTerms(quote.moveType),
     minimumBillableHours: Number(quote.minimumBillableHours || 0) || undefined,
     maximumEstimatedHours: Number(quote.maximumEstimatedHours || 0) || undefined,
     hourlyRateOverride: Number(quote.hourlyRateOverride || 0) || undefined,
@@ -606,7 +607,29 @@ export function getCrewRate(
 }
 
 export function getDefaultDepositRate(moveType?: CRMLead['moveType'] | CRMQuote['moveType']) {
+  if (moveType === 'commercial') return 0
   return moveType === 'long-distance' ? 0.4 : 0.2
+}
+
+export function getDefaultPaymentTerms(moveType?: CRMLead['moveType'] | CRMQuote['moveType']): CRMQuote['paymentTerms'] {
+  return moveType === 'commercial' ? 'approval_invoice' : 'deposit_required'
+}
+
+export function isInvoiceStylePaymentTerms(paymentTerms?: CRMQuote['paymentTerms']) {
+  return paymentTerms === 'approval_invoice' ||
+    paymentTerms === 'invoice_net_7' ||
+    paymentTerms === 'invoice_net_15' ||
+    paymentTerms === 'invoice_net_30' ||
+    paymentTerms === 'po_required'
+}
+
+export function paymentTermsLabel(paymentTerms?: CRMQuote['paymentTerms']) {
+  if (paymentTerms === 'approval_invoice') return 'Approval + invoice'
+  if (paymentTerms === 'invoice_net_7') return 'Invoice Net 7'
+  if (paymentTerms === 'invoice_net_15') return 'Invoice Net 15'
+  if (paymentTerms === 'invoice_net_30') return 'Invoice Net 30'
+  if (paymentTerms === 'po_required') return 'PO required'
+  return 'Deposit required'
 }
 
 export function suggestCrewSize(totalWeightLbs: number, totalCubicFeet: number, includedInventory: InventoryItem[]) {
@@ -1007,6 +1030,37 @@ function estimateSingleLeadQuote(
     ? computeJobPenalties(activeFactors)
     : { penalties: [], extraHours: 0, extraCubicFeet: 0 }
   let extraHours = penaltyHoursFromFactors
+
+  if (lead.moveType === 'commercial' && activeFactors) {
+    const commercialAdjustments: JobPenalty[] = []
+    if (activeFactors.commercialLabelingRequired) {
+      commercialAdjustments.push({ label: 'Commercial labeling / department placement plan', hours: 0.5, category: 'access' })
+    }
+    if (activeFactors.commercialITEquipment) {
+      commercialAdjustments.push({ label: 'IT/electronics handling — monitors, towers, cables, and peripherals', hours: 0.5, category: 'specialty' })
+    }
+    if (activeFactors.commercialDisposalRequired) {
+      commercialAdjustments.push({ label: 'Commercial disposal / cleanout coordination', hours: 0.5, category: 'hidden_inventory' })
+    }
+    if (activeFactors.commercialAfterHours) {
+      commercialAdjustments.push({ label: 'After-hours building coordination window', hours: 0.25, category: 'access' })
+    }
+    if (activeFactors.commercialFreightElevator) {
+      commercialAdjustments.push({ label: 'Freight elevator staging and reservation coordination', hours: 0.25, category: 'access' })
+    } else if (!activeFactors.commercialLoadingDock) {
+      commercialAdjustments.push({ label: 'Commercial access review — loading dock/freight elevator not confirmed', hours: 0.25, category: 'access' })
+    }
+    if (activeFactors.commercialCOIRequired) {
+      commercialAdjustments.push({ label: 'Certificate of insurance required before dispatch', hours: 0, isFlagOnly: true, category: 'warning' })
+    }
+    if (activeFactors.commercialPoNumber) {
+      commercialAdjustments.push({ label: `Commercial billing reference / PO: ${activeFactors.commercialPoNumber}`, hours: 0, isFlagOnly: true, category: 'warning' })
+    }
+    commercialAdjustments.forEach(adjustment => {
+      penalties.push(adjustment)
+      if (!adjustment.isFlagOnly) extraHours += adjustment.hours
+    })
+  }
 
   const baseCubicFeet = lead.totalCubicFeet || metrics.totalCubicFeet
   const totalCubicFeet = baseCubicFeet + extraCubicFeet

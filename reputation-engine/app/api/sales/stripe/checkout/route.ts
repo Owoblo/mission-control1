@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { ensureStripeCustomerForLead } from '@/lib/server/stripe-payments'
 import { getSalesLead, getSalesQuote } from '@/lib/server/sales-repository'
 import { getAppBaseUrl, readEnv } from '@/lib/server/runtime'
+import { isInvoiceStylePaymentTerms } from '@/lib/sales'
 
 const CURRENT_QUOTE_TERMS_VERSION = '2026-06-07-basic-moving-terms'
 
@@ -64,6 +65,10 @@ export async function POST(request: Request) {
 
     if (quote.status !== 'accepted') {
       return NextResponse.json({ error: 'Quote must be accepted before paying deposit' }, { status: 400 })
+    }
+
+    if (isInvoiceStylePaymentTerms(quote.paymentTerms) || Number(quote.deposit || 0) <= 0) {
+      return NextResponse.json({ error: 'This quote is set for approval/invoice billing and does not require an online deposit.' }, { status: 400 })
     }
 
     // Find the linked lead for customer info + leadId in metadata

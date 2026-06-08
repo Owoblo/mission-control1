@@ -50,6 +50,13 @@ export type SalesLeadStage = 'new' | 'contacted' | 'estimate_scheduled' | 'estim
 export type MoveType = 'residential' | 'long-distance' | 'commercial' | 'senior' | 'labor-only' | 'packing'
 export type QuoteStatus = 'draft' | 'sent' | 'viewed' | 'accepted' | 'declined' | 'invoiced'
 export type PaymentStatus = 'pending' | 'deposit_received' | 'paid_in_full'
+export type QuotePaymentTerms =
+  | 'deposit_required'
+  | 'approval_invoice'
+  | 'invoice_net_7'
+  | 'invoice_net_15'
+  | 'invoice_net_30'
+  | 'po_required'
 export type LeadFollowUpStatus = 'pending' | 'following_up' | 'followed_up' | 'no_response'
 export type FollowUpType = 'note' | 'call' | 'sms' | 'email' | 'visit' | 'view' | 'accept' | 'decline' | 'consultation' | 'status_change'
 export type SalesBranch = 'windsor' | 'waterloo' | 'london' | 'ottawa'
@@ -520,6 +527,22 @@ export interface JobFactors {
   planningScenario?: 'standard' | 'conjoint' | 'multi_stop' | 'storage_staged' | 'labor_only' | 'long_distance' | 'commercial' | 'junk_addon'
   preferredOperatingPlan?: 'one_truck_sequence' | 'one_truck_shuttle' | 'two_trucks_parallel' | 'split_day_storage' | 'needs_review'
   moveConstraintNotes?: string
+
+  // Commercial scope controls
+  commercialJobCategory?: 'office' | 'retail' | 'warehouse' | 'government' | 'building_internal' | 'commercial_labor_only' | 'commercial_junk'
+  commercialCompanyName?: string
+  commercialSiteContact?: string
+  commercialBillingContact?: string
+  commercialPoNumber?: string
+  commercialAfterHours?: boolean
+  commercialAccessWindow?: string
+  commercialLoadingDock?: boolean
+  commercialFreightElevator?: boolean
+  commercialCOIRequired?: boolean
+  commercialLabelingRequired?: boolean
+  commercialITEquipment?: boolean
+  commercialDisposalRequired?: boolean
+  commercialScopeNotes?: string
 }
 
 export interface LeadAttribution {
@@ -908,6 +931,7 @@ export interface CRMQuote {
   longDistanceMiscCost?: number
   longDistanceMarkupRate?: number
   billingModel?: 'binding' | 'hourly_actuals' | 'hourly_minimum'
+  paymentTerms?: QuotePaymentTerms
   minimumBillableHours?: number
   maximumEstimatedHours?: number
   hourlyRateOverride?: number

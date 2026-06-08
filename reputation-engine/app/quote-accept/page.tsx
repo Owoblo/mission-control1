@@ -5,8 +5,8 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { deriveMoveLogisticsPlan } from '@/lib/move-logistics'
 import { buildMoveSpecificNotes } from '@/lib/move-scope'
-import { detectSalesBranchFromLocation, formatDate, formatMoney, getSalesBranchLabel } from '@/lib/sales'
-import type { CRMLead, InventoryItem, JobFactors, MoveType, QuoteLeg } from '@/lib/types'
+import { detectSalesBranchFromLocation, formatDate, formatMoney, getSalesBranchLabel, isInvoiceStylePaymentTerms, paymentTermsLabel } from '@/lib/sales'
+import type { CRMLead, InventoryItem, JobFactors, MoveType, QuoteLeg, QuotePaymentTerms } from '@/lib/types'
 
 type PublicQuote = {
   id: string
@@ -25,6 +25,7 @@ type PublicQuote = {
   estimatedHours?: number
   truckCount?: number
   billingModel?: 'binding' | 'hourly_actuals' | 'hourly_minimum'
+  paymentTerms?: QuotePaymentTerms
   minimumBillableHours?: number
   maximumEstimatedHours?: number
   hourlyRateOverride?: number
@@ -432,6 +433,7 @@ function AcceptBlock({
   variant?: 'main' | 'sticky'
 }) {
   const needsTerms = !quote.termsAcceptedAt && !termsAccepted
+  const invoiceStyleTerms = isInvoiceStylePaymentTerms(quote.paymentTerms)
   const acceptOrRequestTerms = () => {
     if (needsTerms) {
       onRequireTerms()
@@ -476,6 +478,16 @@ function AcceptBlock({
   }
 
   if (accepted) {
+    if (invoiceStyleTerms) {
+      return variant === 'sticky' ? (
+        <div className="rounded-lg bg-[#1a2744] px-4 py-2 text-xs font-bold text-[#f5a623]">Estimate Approved</div>
+      ) : (
+        <div className="rounded-xl border-2 border-[#1a2744] bg-white p-6 text-center">
+          <div className="text-sm font-bold text-[#1a2744] mb-1">Estimate Approved</div>
+          <div className="text-xs text-[#1a2744]/50">We&apos;ll coordinate billing using {paymentTermsLabel(quote.paymentTerms).toLowerCase()}.</div>
+        </div>
+      )
+    }
     return variant === 'sticky' ? (
       <button
         onClick={payOrRequestTerms}
@@ -511,8 +523,8 @@ function AcceptBlock({
         <button onClick={onDecline} disabled={declining} className="rounded-lg border border-[#1a2744]/20 px-3 py-2 text-xs font-medium text-[#1a2744]/40 hover:border-[#1a2744]/40 disabled:opacity-40">
           {declining ? '...' : 'Decline'}
         </button>
-        <button onClick={payOrRequestTerms} disabled={stripeLoading} className="rounded-lg bg-[#1a2744] px-5 py-2 text-xs font-bold text-white hover:bg-[#243460] disabled:opacity-50">
-          {stripeLoading ? 'Redirecting...' : 'Accept & Pay Deposit'}
+        <button onClick={invoiceStyleTerms ? acceptOrRequestTerms : payOrRequestTerms} disabled={invoiceStyleTerms ? accepting : stripeLoading} className="rounded-lg bg-[#1a2744] px-5 py-2 text-xs font-bold text-white hover:bg-[#243460] disabled:opacity-50">
+          {invoiceStyleTerms ? (accepting ? 'Approving...' : 'Approve Estimate') : (stripeLoading ? 'Redirecting...' : 'Accept & Pay Deposit')}
         </button>
       </div>
     )
@@ -520,24 +532,28 @@ function AcceptBlock({
 
   return (
     <div className="rounded-xl border-2 border-[#1a2744] bg-[#1a2744] p-8 text-center">
-      <div className="text-lg font-black text-white mb-2">Ready to lock in your move?</div>
+      <div className="text-lg font-black text-white mb-2">{invoiceStyleTerms ? 'Ready to approve this scope?' : 'Ready to lock in your move?'}</div>
       <p className="text-sm text-white/60 mb-6 max-w-sm mx-auto leading-6">
-        Pay your deposit now to confirm your booking. Your card is saved on file — balance is due after the move.
+        {invoiceStyleTerms
+          ? `Approve the estimate and terms now. Billing will be handled by ${paymentTermsLabel(quote.paymentTerms).toLowerCase()} after office confirmation.`
+          : 'Pay your deposit now to confirm your booking. Your card is saved on file — balance is due after the move.'}
       </p>
       <button
-        onClick={payOrRequestTerms}
-        disabled={stripeLoading}
+        onClick={invoiceStyleTerms ? acceptOrRequestTerms : payOrRequestTerms}
+        disabled={invoiceStyleTerms ? accepting : stripeLoading}
         className="w-full rounded-xl bg-[#f5a623] py-4 text-base font-bold text-[#1a2744] hover:opacity-90 disabled:opacity-50 shadow-lg transition"
       >
-        {stripeLoading ? 'Redirecting to payment...' : 'Accept Quote & Pay Deposit'}
+        {invoiceStyleTerms ? (accepting ? 'Approving...' : 'Approve Estimate') : (stripeLoading ? 'Redirecting to payment...' : 'Accept Quote & Pay Deposit')}
       </button>
-      <button
-        onClick={acceptOrRequestTerms}
-        disabled={accepting}
-        className="mt-4 text-xs text-white/30 hover:text-white/60 disabled:opacity-40"
-      >
-        {accepting ? 'Confirming...' : 'Accept without card (E-Transfer/Cash)'}
-      </button>
+      {!invoiceStyleTerms ? (
+        <button
+          onClick={acceptOrRequestTerms}
+          disabled={accepting}
+          className="mt-4 text-xs text-white/30 hover:text-white/60 disabled:opacity-40"
+        >
+          {accepting ? 'Confirming...' : 'Accept without card (E-Transfer/Cash)'}
+        </button>
+      ) : null}
       <button
         onClick={onDecline}
         disabled={declining}
@@ -772,6 +788,7 @@ function QuoteAcceptPageInner() {
   const firstName = clientName.split(' ')[0] || 'there'
   const daysOut = daysUntilMove(quote.moveDate)
   const depPct = depositPct(quote)
+  const invoiceStyleTerms = isInvoiceStylePaymentTerms(quote.paymentTerms)
   const hasInventory = inventory.length > 0
   const roomGroups = groupInventoryByRoom(inventory)
   const crewSize = quote.crewSize || 3
@@ -888,20 +905,24 @@ function QuoteAcceptPageInner() {
 
               {/* Deposit + book */}
               <div className="rounded-2xl border-2 border-[#1a2744] bg-[#1a2744] p-6 text-center mb-4">
-                <div className="text-lg font-black text-white mb-1">Reserve your move date</div>
+                <div className="text-lg font-black text-white mb-1">{invoiceStyleTerms ? 'Approve this estimate' : 'Reserve your move date'}</div>
                 <div className="text-sm text-white/60 mb-5 leading-5">
-                  ${DEPOSIT} deposit holds your spot. Card saved on file — balance due on move day.
+                  {invoiceStyleTerms
+                    ? `Confirm the scope and terms. Billing will be handled by ${paymentTermsLabel(quote.paymentTerms).toLowerCase()}.`
+                    : `$${DEPOSIT} deposit holds your spot. Card saved on file — balance due on move day.`}
                 </div>
                 <button
-                  onClick={() => void payDepositStripe()}
-                  disabled={stripeLoading}
+                  onClick={() => invoiceStyleTerms ? void confirmAccept() : void payDepositStripe()}
+                  disabled={invoiceStyleTerms ? accepting : stripeLoading}
                   className="w-full rounded-xl bg-[#f5a623] py-4 text-base font-black text-[#1a2744] hover:opacity-90 disabled:opacity-50 shadow-lg transition"
                 >
-                  {stripeLoading ? 'Redirecting...' : `Book Now — Pay $${DEPOSIT} Deposit`}
+                  {invoiceStyleTerms ? (accepting ? 'Approving...' : 'Approve Estimate') : (stripeLoading ? 'Redirecting...' : `Book Now — Pay $${DEPOSIT} Deposit`)}
                 </button>
-                <div className="mt-3 text-[10px] text-white/30">
-                  Prefer e-Transfer? Send to business@starmovers.ca and reply to confirm.
-                </div>
+                {!invoiceStyleTerms ? (
+                  <div className="mt-3 text-[10px] text-white/30">
+                    Prefer e-Transfer? Send to business@starmovers.ca and reply to confirm.
+                  </div>
+                ) : null}
               </div>
 
               {/* Social proof */}
@@ -1217,20 +1238,30 @@ function QuoteAcceptPageInner() {
         {/* ── Payment schedule ── */}
         <div className="mb-6 overflow-hidden rounded-xl border border-[#1a2744]/10 bg-white">
           <div className="border-b border-[#1a2744]/8 px-5 py-4">
-            <div className="text-xs font-bold uppercase tracking-wider text-[#1a2744]">Payment Schedule</div>
+            <div className="text-xs font-bold uppercase tracking-wider text-[#1a2744]">{invoiceStyleTerms ? 'Approval & Billing' : 'Payment Schedule'}</div>
           </div>
-          <div className="grid grid-cols-2 divide-x divide-[#1a2744]/8">
+          {invoiceStyleTerms ? (
             <div className="px-5 py-4">
-              <div className="text-[9px] font-bold uppercase tracking-widest text-[#f5a623] mb-1">Deposit ({depPct}%)</div>
-              <div className="text-2xl font-black text-[#1a2744]">{formatMoney(quote.deposit)}</div>
-              <div className="text-[10px] text-[#1a2744]/35 mt-1">Required to confirm booking</div>
+              <div className="text-[9px] font-bold uppercase tracking-widest text-[#f5a623] mb-1">Terms</div>
+              <div className="text-2xl font-black text-[#1a2744]">{paymentTermsLabel(quote.paymentTerms)}</div>
+              <div className="mt-2 text-xs leading-5 text-[#1a2744]/45">
+                Approving this estimate confirms the scope and terms. Saturn Star will coordinate billing, invoice details, or purchase-order requirements with your office contact.
+              </div>
             </div>
-            <div className="px-5 py-4">
-              <div className="text-[9px] font-bold uppercase tracking-widest text-[#1a2744]/30 mb-1">Balance ({100 - depPct}%)</div>
-              <div className="text-2xl font-black text-[#1a2744]">{formatMoney(quote.balance)}</div>
-              <div className="text-[10px] text-[#1a2744]/35 mt-1">Due upon move completion</div>
+          ) : (
+            <div className="grid grid-cols-2 divide-x divide-[#1a2744]/8">
+              <div className="px-5 py-4">
+                <div className="text-[9px] font-bold uppercase tracking-widest text-[#f5a623] mb-1">Deposit ({depPct}%)</div>
+                <div className="text-2xl font-black text-[#1a2744]">{formatMoney(quote.deposit)}</div>
+                <div className="text-[10px] text-[#1a2744]/35 mt-1">Required to confirm booking</div>
+              </div>
+              <div className="px-5 py-4">
+                <div className="text-[9px] font-bold uppercase tracking-widest text-[#1a2744]/30 mb-1">Balance ({100 - depPct}%)</div>
+                <div className="text-2xl font-black text-[#1a2744]">{formatMoney(quote.balance)}</div>
+                <div className="text-[10px] text-[#1a2744]/35 mt-1">Due upon move completion</div>
+              </div>
             </div>
-          </div>
+          )}
           <div className="border-t border-[#1a2744]/8 bg-[#1a2744]/3 px-5 py-3" style={{ background: 'rgba(26,39,68,0.025)' }}>
             <div className="flex flex-wrap gap-1.5">
               {['Cash', 'e-Transfer', 'Credit Card', 'Debit'].map(m => (
@@ -1391,8 +1422,14 @@ function QuoteAcceptPageInner() {
             <div className="text-sm font-bold text-[#1a2744] mb-3">Payment Summary</div>
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between text-[#1a2744]/60"><span>Total</span><span className="font-bold">{formatMoney(quote.total)}</span></div>
-              <div className="flex justify-between text-[#1a2744]/60"><span>Deposit Required</span><span className="font-bold">{formatMoney(quote.deposit)}</span></div>
-              <div className="flex justify-between text-[#1a2744]/60"><span>Balance Due</span><span className="font-bold">{formatMoney(quote.balance)}</span></div>
+              {invoiceStyleTerms ? (
+                <div className="flex justify-between text-[#1a2744]/60"><span>Payment Terms</span><span className="font-bold">{paymentTermsLabel(quote.paymentTerms)}</span></div>
+              ) : (
+                <>
+                  <div className="flex justify-between text-[#1a2744]/60"><span>Deposit Required</span><span className="font-bold">{formatMoney(quote.deposit)}</span></div>
+                  <div className="flex justify-between text-[#1a2744]/60"><span>Balance Due</span><span className="font-bold">{formatMoney(quote.balance)}</span></div>
+                </>
+              )}
             </div>
           </div>
         </div>

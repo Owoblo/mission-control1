@@ -160,14 +160,23 @@ function residentialPresetSpecs(bedrooms: NonNullable<CRMLead['propertyBedrooms'
 
 function commercialPresetSpecs() {
   return [
-    { id: 'desk-standard', qty: 4 },
-    { id: 'office-chair', qty: 6 },
-    { id: 'file-cab-4v', qty: 2 },
-    { id: 'bookshelf-med', qty: 2 },
+    { id: 'desk-standard', qty: 6 },
+    { id: 'desk-return', qty: 2 },
+    { id: 'office-chair', qty: 10 },
+    { id: 'conference-chair', qty: 8 },
+    { id: 'conf-table-8ft' },
+    { id: 'file-cab-4v', qty: 4 },
+    { id: 'file-cab-2l', qty: 2 },
+    { id: 'bookshelf-med', qty: 3 },
+    { id: 'cubicle', qty: 4 },
     { id: 'printer-med' },
-    { id: 'monitor-lg', qty: 4 },
-    { id: 'box-medium', qty: 18 },
-    { id: 'box-large', qty: 8 },
+    { id: 'printer-lg' },
+    { id: 'computer-desktop-sm', qty: 6 },
+    { id: 'monitor-lg', qty: 8 },
+    { id: 'drawer-unit', qty: 6 },
+    { id: 'box-medium', qty: 30 },
+    { id: 'box-large', qty: 12 },
+    { id: 'commercial-bin' },
   ]
 }
 
@@ -208,6 +217,10 @@ export function buildStarterInventoryPlan(input: {
 
   if (propertyType === 'apartment' || propertyType === 'condo') {
     warnings.push('Confirm elevator access and reservation at origin and destination.')
+  }
+  if (propertyType === 'commercial') {
+    warnings.push('Confirm business/site contact, billing contact, PO or invoice terms, loading dock, freight elevator, after-hours window, and certificate of insurance requirements.')
+    warnings.push('Review oversized or unusual commercial equipment manually before sending a binding quote.')
   }
 
   return {

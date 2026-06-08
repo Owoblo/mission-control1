@@ -55,6 +55,32 @@ export function buildMoveSpecificNotes(
   if (jobFactors?.specialtyNotes?.trim()) {
     notes.push(jobFactors.specialtyNotes.trim())
   }
+  if (moveType === 'commercial') {
+    const commercialParts = [
+      jobFactors?.commercialCompanyName ? `company/department: ${jobFactors.commercialCompanyName}` : '',
+      jobFactors?.commercialPoNumber ? `PO/billing reference: ${jobFactors.commercialPoNumber}` : '',
+      jobFactors?.commercialSiteContact ? `site contact: ${jobFactors.commercialSiteContact}` : '',
+      jobFactors?.commercialAccessWindow ? `access window: ${jobFactors.commercialAccessWindow}` : '',
+    ].filter(Boolean)
+    if (commercialParts.length > 0) {
+      notes.push(`Commercial scope details — ${commercialParts.join('; ')}`)
+    }
+    const commercialFlags = [
+      jobFactors?.commercialLoadingDock ? 'loading dock' : '',
+      jobFactors?.commercialFreightElevator ? 'freight elevator' : '',
+      jobFactors?.commercialAfterHours ? 'after-hours access' : '',
+      jobFactors?.commercialCOIRequired ? 'certificate of insurance required' : '',
+      jobFactors?.commercialLabelingRequired ? 'labeling / placement plan' : '',
+      jobFactors?.commercialITEquipment ? 'IT/electronics handling' : '',
+      jobFactors?.commercialDisposalRequired ? 'disposal / cleanout coordination' : '',
+    ].filter(Boolean)
+    if (commercialFlags.length > 0) {
+      notes.push(`Commercial logistics included: ${commercialFlags.join(', ')}`)
+    }
+    if (jobFactors?.commercialScopeNotes?.trim()) {
+      notes.push(jobFactors.commercialScopeNotes.trim())
+    }
+  }
 
   const policySummary = summarizeMovePolicy(inventory, { moveType })
   const blockedLabels = joinUniqueLabels(policySummary.blocked)

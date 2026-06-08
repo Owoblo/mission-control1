@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { dateStamp, estimateLeadQuote, genQuoteNumber, normalizeClient, normalizeQuote, syncLeadFromQuoteStatus, uid } from '@/lib/sales'
+import { dateStamp, estimateLeadQuote, genQuoteNumber, getDefaultPaymentTerms, normalizeClient, normalizeQuote, syncLeadFromQuoteStatus, uid } from '@/lib/sales'
 import { recordQuoteCreatedAudit } from '@/lib/server/sales-audit'
 import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { getSessionUser } from '@/lib/server/session'
@@ -57,6 +57,7 @@ export async function POST(request: Request) {
     const quoteMoveType = isConjointMovingScope && lead.moveType === 'labor-only' ? 'residential' : lead.moveType || 'residential'
     const quoteType = isConjointMovingScope && lead.quoteType === 'labor_only' ? 'standard' : lead.quoteType
     const estimate = estimateLeadQuote({ ...lead, moveType: quoteMoveType, quoteType })
+    const paymentTerms = getDefaultPaymentTerms(quoteMoveType)
     const quote: CRMQuote = normalizeQuote({
       id: uid('qt'),
       number: genQuoteNumber(lead.name),
@@ -79,6 +80,7 @@ export async function POST(request: Request) {
       longDistanceInsuranceCost: estimate.longDistanceInsuranceCost,
       longDistanceMiscCost: estimate.longDistanceMiscCost,
       longDistanceMarkupRate: estimate.longDistanceMarkupRate,
+      paymentTerms,
       status: 'draft',
       validDays: 30,
       acceptToken: randomToken('accept'),

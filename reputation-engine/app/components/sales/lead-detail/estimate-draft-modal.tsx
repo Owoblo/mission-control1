@@ -2540,6 +2540,89 @@ export function EstimateDraftModal({
               </div>
             </div>
 
+            {lead.moveType === 'commercial' && (
+              <div className="rounded-[8px] border border-sky-200 bg-sky-50/70 p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="crm-label">Commercial Scope</div>
+                    <div className="mt-0.5 text-[11px] leading-5 text-sky-800/75">
+                      Keep the quote tied to business logistics: site contact, invoice/PO, access window, dock/elevator, COI, labeling, IT, and disposal.
+                    </div>
+                  </div>
+                  <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-sky-700">Commercial</span>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-medium text-sky-900">Company / Department</span>
+                    <input
+                      value={jobFactors.commercialCompanyName || ''}
+                      onChange={e => setFactor('commercialCompanyName', e.target.value || undefined)}
+                      className="crm-input bg-white"
+                      placeholder="e.g. City office, clinic, retail store"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-medium text-sky-900">PO / Billing Ref</span>
+                    <input
+                      value={jobFactors.commercialPoNumber || ''}
+                      onChange={e => setFactor('commercialPoNumber', e.target.value || undefined)}
+                      className="crm-input bg-white"
+                      placeholder="PO number or invoice contact"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-medium text-sky-900">Site Contact</span>
+                    <input
+                      value={jobFactors.commercialSiteContact || ''}
+                      onChange={e => setFactor('commercialSiteContact', e.target.value || undefined)}
+                      className="crm-input bg-white"
+                      placeholder="Name + phone for move day"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-medium text-sky-900">Access Window</span>
+                    <input
+                      value={jobFactors.commercialAccessWindow || ''}
+                      onChange={e => setFactor('commercialAccessWindow', e.target.value || undefined)}
+                      className="crm-input bg-white"
+                      placeholder="e.g. after 5 PM, dock 9-12"
+                    />
+                  </label>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {[
+                    ['commercialLoadingDock', 'Loading dock'],
+                    ['commercialFreightElevator', 'Freight elevator'],
+                    ['commercialAfterHours', 'After-hours'],
+                    ['commercialCOIRequired', 'COI required'],
+                    ['commercialLabelingRequired', 'Label/placement plan'],
+                    ['commercialITEquipment', 'IT/electronics'],
+                    ['commercialDisposalRequired', 'Disposal/cleanout'],
+                  ].map(([key, label]) => (
+                    <label key={key} className="flex items-center gap-2 rounded-[6px] border border-sky-200 bg-white px-3 py-2 text-xs font-medium text-sky-900">
+                      <input
+                        type="checkbox"
+                        checked={!!jobFactors[key as keyof JobFactors]}
+                        onChange={e => setFactors({ ...jobFactors, [key]: e.target.checked || undefined })}
+                        className="h-3.5 w-3.5"
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+                <label className="block">
+                  <span className="mb-1 block text-xs font-medium text-sky-900">Commercial Notes</span>
+                  <textarea
+                    rows={2}
+                    value={jobFactors.commercialScopeNotes || ''}
+                    onChange={e => setFactor('commercialScopeNotes', e.target.value || undefined)}
+                    className="crm-input resize-none bg-white"
+                    placeholder="Departments, workstations, server room, security desk, building rules, invoice contact, or unusual equipment."
+                  />
+                </label>
+              </div>
+            )}
+
             {/* ── ADD-ON SERVICES ── */}
             <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 space-y-3">
               <div>

@@ -11,7 +11,7 @@ import {
   saveSalesLead,
   saveSalesQuote,
 } from '@/lib/server/sales-repository'
-import { uid, formatMoney } from '@/lib/sales'
+import { uid, formatMoney, getDefaultPaymentTerms } from '@/lib/sales'
 import { saveJobRecord } from '@/lib/server/repository'
 import { readEnv, getAppBaseUrl } from '@/lib/server/runtime'
 import type { CRMLead, CRMQuote } from '@/lib/types'
@@ -157,6 +157,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
         truckCount: quote.truckCount,
         estimatedWeightLbs: quote.estimatedWeightLbs,
         billingModel: quote.billingModel,
+        paymentTerms: quote.paymentTerms || getDefaultPaymentTerms(quote.moveType),
         minimumBillableHours: quote.minimumBillableHours,
         maximumEstimatedHours: quote.maximumEstimatedHours,
         hourlyRateOverride: quote.hourlyRateOverride,
