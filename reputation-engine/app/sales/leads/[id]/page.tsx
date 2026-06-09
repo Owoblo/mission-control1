@@ -112,6 +112,11 @@ export default function SalesLeadDetailPage() {
   const [quote, setQuote] = useState<CRMQuote | null>(null)
   const removedInventoryKeysRef = useRef<Set<string>>(new Set())
   const inventoryPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const leadPollInFlightRef = useRef(false)
+  const smsFetchInFlightRef = useRef(false)
+  const emailFetchInFlightRef = useRef(false)
+  const syncCallsInFlightRef = useRef(false)
+  const transcribeCallsInFlightRef = useRef(false)
   const [followUps, setFollowUps] = useState<FollowUpLog[]>([])
   const [automationSettings, setAutomationSettings] = useState<Required<LeadAutomationSettings>>(DEFAULT_AUTOMATION_SETTINGS)
   const [automationJobs, setAutomationJobs] = useState<CRMAutomationJob[]>([])
@@ -751,13 +756,19 @@ export default function SalesLeadDetailPage() {
   useEffect(() => {
     if (!params?.id) return
     const interval = window.setInterval(async () => {
-      const nextLead = await fetchSalesLead(params.id!).catch(() => null)
-      if (nextLead) {
-        setLead(prev => {
-          if (!prev) return nextLead
-          // Merge live fields without overwriting active form edits
-          return { ...prev, callLogs: nextLead.callLogs }
-        })
+      if (document.hidden || leadPollInFlightRef.current) return
+      leadPollInFlightRef.current = true
+      try {
+        const nextLead = await fetchSalesLead(params.id!).catch(() => null)
+        if (nextLead) {
+          setLead(prev => {
+            if (!prev) return nextLead
+            // Merge live fields without overwriting active form edits
+            return { ...prev, callLogs: nextLead.callLogs }
+          })
+        }
+      } finally {
+        leadPollInFlightRef.current = false
       }
     }, 10_000)
     return () => clearInterval(interval)
@@ -794,7 +805,8 @@ export default function SalesLeadDetailPage() {
     const needsTranscription = (lead.callLogs || []).some(
       c => c.recordingUrl?.startsWith('https://api.twilio.com/') && !c.transcript
     )
-    if (!needsTranscription) return
+    if (!needsTranscription || transcribeCallsInFlightRef.current) return
+    transcribeCallsInFlightRef.current = true
     // Fire and forget — updates will appear on next poll
     void fetch(`/api/sales/leads/${lead.id}/transcribe-calls`, { method: 'POST', credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
@@ -804,12 +816,15 @@ export default function SalesLeadDetailPage() {
         }
       })
       .catch(() => null)
+      .finally(() => { transcribeCallsInFlightRef.current = false })
   // Count calls that have a recording but no transcript — changes when sync-calls patches a recording in
   }, [lead?.id, (lead?.callLogs || []).filter((c: any) => c.recordingUrl?.startsWith('https://api.twilio.com/') && !c.transcript).length])
 
   // ── Auto-sync calls: pull any unmapped Twilio calls for this lead's number ──
   useEffect(() => {
     if (!lead?.id || !lead?.phone) return
+    if (syncCallsInFlightRef.current) return
+    syncCallsInFlightRef.current = true
     void fetch(`/api/sales/leads/${lead.id}/sync-calls`, { method: 'POST', credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then((data: { ok?: boolean; synced?: number; lead?: typeof lead } | null) => {
@@ -818,6 +833,7 @@ export default function SalesLeadDetailPage() {
         }
       })
       .catch(() => null)
+      .finally(() => { syncCallsInFlightRef.current = false })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lead?.id])
 
@@ -2910,6 +2926,8 @@ export default function SalesLeadDetailPage() {
   }
 
   async function fetchLeadEmails(leadId: string) {
+    if (emailFetchInFlightRef.current) return
+    emailFetchInFlightRef.current = true
     try {
       setEmailsLoading(true)
       const res = await fetch(`/api/sales/emails?leadId=${leadId}`)
@@ -2918,11 +2936,14 @@ export default function SalesLeadDetailPage() {
         setEmailMessages(data)
       }
     } catch { /* non-fatal */ } finally {
+      emailFetchInFlightRef.current = false
       setEmailsLoading(false)
     }
   }
 
   const fetchLeadSms = useCallback(async (phone: string, showSpinner = false, leadId?: string) => {
+    if (smsFetchInFlightRef.current) return
+    smsFetchInFlightRef.current = true
     try {
       if (showSpinner) setSmsLoading(true)
       // Fetch by phone + lead_id together so messages with mismatched phone formats still appear
@@ -2937,6 +2958,7 @@ export default function SalesLeadDetailPage() {
         }, 40)
       }
     } catch { /* non-fatal */ } finally {
+      smsFetchInFlightRef.current = false
       if (showSpinner) setSmsLoading(false)
     }
   }, [])
@@ -2945,7 +2967,10 @@ export default function SalesLeadDetailPage() {
   useEffect(() => {
     if (activeTab !== 'sms' || !lead?.phone) return
     void fetchLeadSms(lead.phone, true, lead.id)
-    const interval = window.setInterval(() => void fetchLeadSms(lead!.phone!, false, lead!.id), 8_000)
+    const interval = window.setInterval(() => {
+      if (document.hidden) return
+      void fetchLeadSms(lead!.phone!, false, lead!.id)
+    }, 8_000)
     return () => clearInterval(interval)
   }, [activeTab, lead?.phone, fetchLeadSms])
 
@@ -2956,6 +2981,8 @@ export default function SalesLeadDetailPage() {
     if (activeTab === 'sms') { setHasNewSms(false); lastSeenSmsCount.current = smsMessages.filter(m => m.direction === 'inbound').length; return }
     if (!lead?.phone) return
     const interval = window.setInterval(async () => {
+      if (document.hidden || smsFetchInFlightRef.current) return
+      smsFetchInFlightRef.current = true
       try {
         const params = new URLSearchParams({ phone: lead.phone! })
         if (lead.id) params.set('leadId', lead.id)
@@ -2967,10 +2994,12 @@ export default function SalesLeadDetailPage() {
           setHasNewSms(true)
           setSmsMessages(data)
         }
-      } catch { /* non-fatal */ }
+      } catch { /* non-fatal */ } finally {
+        smsFetchInFlightRef.current = false
+      }
     }, 30_000)
     return () => clearInterval(interval)
-  }, [activeTab, lead?.phone, lead?.id, smsMessages])
+  }, [activeTab, lead?.phone, lead?.id])
 
   const leadPreferredBranchNumber = useMemo(() => {
     for (let index = smsMessages.length - 1; index >= 0; index -= 1) {

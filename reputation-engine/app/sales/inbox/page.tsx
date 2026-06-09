@@ -355,11 +355,17 @@ function SalesInboxPageInner() {
   const [emailReply, setEmailReply] = useState({ subject: '', body: '' })
   const [emailReplyBusy, setEmailReplyBusy] = useState(false)
   const readStateRef = React.useRef(new Set<string>())
+  const inboxRefreshInFlightRef = React.useRef(false)
+  const smsThreadsInFlightRef = React.useRef(false)
+  const emailsInFlightRef = React.useRef(false)
 
-  // Live urgency ticker — re-renders every second so timers stay accurate
+  // Keep urgency badges fresh without forcing the full inbox to repaint every second.
   const [tick, setTick] = useState(0)
   useEffect(() => {
-    const t = window.setInterval(() => setTick(n => n + 1), 1000)
+    const t = window.setInterval(() => {
+      if (document.hidden) return
+      setTick(n => n + 1)
+    }, 15_000)
     return () => window.clearInterval(t)
   }, [])
 
@@ -461,6 +467,8 @@ function SalesInboxPageInner() {
   }
 
   async function refresh(silent = false) {
+    if (inboxRefreshInFlightRef.current) return
+    inboxRefreshInFlightRef.current = true
     try {
       if (!silent) setLoading(true)
       const data = await fetchInboundLeads()
@@ -472,6 +480,7 @@ function SalesInboxPageInner() {
     } catch (err) {
       setError((err as Error).message)
     } finally {
+      inboxRefreshInFlightRef.current = false
       setLoading(false)
     }
   }
@@ -588,12 +597,19 @@ function SalesInboxPageInner() {
 
   useEffect(() => {
     const interval = window.setInterval(() => {
+      if (document.hidden) return
+      if (viewMode === 'messages') {
+        void fetchSmsThreads(true)
+        return
+      }
+      if (viewMode === 'email') {
+        void fetchEmails(true)
+        return
+      }
       void refresh(true)
-      void fetchSmsThreads(true)
-      void fetchEmails(true)
     }, 30000)
     return () => window.clearInterval(interval)
-  }, [])
+  }, [viewMode])
 
   const filteredItems = useMemo(() => {
     const query = deferredSearch.trim().toLowerCase()
@@ -996,6 +1012,8 @@ function SalesInboxPageInner() {
   }
 
   async function fetchSmsThreads(silent = false) {
+    if (smsThreadsInFlightRef.current) return
+    smsThreadsInFlightRef.current = true
     try {
       if (!silent) setThreadsLoading(true)
       const res = await fetch('/api/sales/sms-threads', { cache: 'no-store' })
@@ -1005,6 +1023,7 @@ function SalesInboxPageInner() {
         // Do not auto-open any thread — rep must click explicitly
       }
     } catch { /* non-fatal */ } finally {
+      smsThreadsInFlightRef.current = false
       if (!silent) setThreadsLoading(false)
     }
   }
@@ -1050,6 +1069,8 @@ function SalesInboxPageInner() {
   }
 
   async function fetchEmails(silent = false) {
+    if (emailsInFlightRef.current) return
+    emailsInFlightRef.current = true
     try {
       if (!silent) setEmailLoading(true)
       const res = await fetch('/api/sales/emails', { cache: 'no-store' })
@@ -1059,6 +1080,7 @@ function SalesInboxPageInner() {
         if (!selectedEmailId && data.length > 0) setSelectedEmailId(data[0].id)
       }
     } catch { /* non-fatal */ } finally {
+      emailsInFlightRef.current = false
       if (!silent) setEmailLoading(false)
     }
   }
