@@ -928,6 +928,7 @@ export interface CRMQuote {
   moveTime?: string   // e.g. "09:00" — crew start time shown on customer quote
   moveType?: string
   quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'
+  jobLabel?: string
   originAddress?: string
   originCity?: string
   destAddress?: string

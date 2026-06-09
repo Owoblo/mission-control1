@@ -148,6 +148,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
         moveType: quote.moveType,
         branch: lead?.branch,
         quoteType: quote.quoteType,
+        jobLabel: quote.jobLabel,
         originCity: quote.originCity,
         originAddress: quote.originAddress,
         destCity: quote.destCity,

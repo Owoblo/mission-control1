@@ -193,12 +193,15 @@ export async function handoffRealtorOpportunityLead(
   return readJson(response)
 }
 
-export async function createLeadQuote(leadId: string): Promise<{ quote: CRMQuote; lead: CRMLead }> {
+export async function createLeadQuote(
+  leadId: string,
+  options?: { separateJob?: boolean; jobLabel?: string }
+): Promise<{ quote: CRMQuote; lead: CRMLead }> {
   const response = await fetch('/api/sales/quotes', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ leadId }),
+    body: JSON.stringify({ leadId, ...options }),
   })
   return readJson(response)
 }

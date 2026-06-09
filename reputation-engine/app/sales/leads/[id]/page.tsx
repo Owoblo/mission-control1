@@ -1823,16 +1823,34 @@ export default function SalesLeadDetailPage() {
     setStage(lead?.stage || 'new')
   }
 
+  function getQuoteOptionLabel(targetQuote: CRMQuote) {
+    return targetQuote.jobLabel || targetQuote.moveDescription?.replace(/^Quote option:\s*/i, '').trim() || targetQuote.number
+  }
+
   async function createQuote(asAdditionalJob = false) {
     if (!lead) return
     if (!ensureLeadEditable()) return
+    const jobLabel = asAdditionalJob && typeof window !== 'undefined'
+      ? window.prompt('Name this separate quote option', 'Separate moving option')?.trim()
+      : ''
+    if (asAdditionalJob && jobLabel === undefined) return
     try {
       setCreatingQuote(true)
-      const result = await createLeadQuote(lead.id)
+      const currentQuote = quote
+      const result = await createLeadQuote(lead.id, {
+        separateJob: asAdditionalJob,
+        ...(jobLabel ? { jobLabel } : {}),
+      })
       setLead(result.lead)
       if (asAdditionalJob) {
-        // Adding a new job to an existing lead — track it in additionalQuotes and open it in the builder
-        setAdditionalQuotes(prev => [result.quote, ...prev.filter(q => q.id !== result.quote.id)])
+        // Open the new job while keeping the previous quote reachable from the linked jobs list.
+        setAdditionalQuotes(prev => {
+          const linked = [
+            ...(currentQuote ? [currentQuote] : []),
+            ...prev,
+          ].filter(item => item.id !== result.quote.id)
+          return Array.from(new Map(linked.map(item => [item.id, item])).values())
+        })
       }
       // Open the new quote in the builder regardless
       setQuote(result.quote)
@@ -4624,15 +4642,18 @@ export default function SalesLeadDetailPage() {
                   <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">All Linked Jobs</div>
                   {quote && (
                     <Link href={`/sales/quotes/${quote.id}`} className="flex items-center justify-between rounded-[6px] bg-white px-3 py-2 text-xs hover:bg-[var(--app-panel)]">
-                      <span className="font-medium text-[var(--app-ink)]">{quote.number}</span>
+                      <span className="min-w-0 font-medium text-[var(--app-ink)]">
+                        <span className="block truncate">{getQuoteOptionLabel(quote)}</span>
+                        <span className="block text-[10px] text-[var(--app-muted)]">{quote.number}</span>
+                      </span>
                       <span className="text-[var(--app-muted)] capitalize">{quote.moveType || 'residential'} · {quote.status}</span>
                     </Link>
                   )}
                   {additionalQuotes.map(aq => (
                     <div key={aq.id} className="flex items-center gap-2 rounded-[6px] bg-white px-3 py-2 text-xs">
                       <Link href={`/sales/quotes/${aq.id}`} className="min-w-0 flex-1 hover:underline">
-                        <span className="font-medium text-[var(--app-ink)]">{aq.number}</span>
-                        <span className="ml-2 text-[var(--app-muted)] capitalize">{aq.moveType || 'residential'} · {aq.status}</span>
+                        <span className="block truncate font-medium text-[var(--app-ink)]">{getQuoteOptionLabel(aq)}</span>
+                        <span className="block text-[10px] text-[var(--app-muted)] capitalize">{aq.number} · {aq.moveType || 'residential'} · {aq.status}</span>
                       </Link>
                       {aq.status === 'draft' && !aq.acceptedAt && !aq.depositPaidAt ? (
                         <button

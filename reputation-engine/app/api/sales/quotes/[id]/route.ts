@@ -134,9 +134,18 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     let lead = null
     if (savedQuote.leadId) {
       if (currentLead) {
+        const existingQuoteIds = currentLead.quoteIds || (currentLead.quoteId ? [currentLead.quoteId] : [])
+        const allQuoteIds = Array.from(new Set([...existingQuoteIds, savedQuote.id]))
+        const shouldPromoteQuote =
+          savedQuote.status === 'accepted' ||
+          savedQuote.status === 'declined' ||
+          savedQuote.status === 'invoiced' ||
+          Boolean(savedQuote.acceptedAt || savedQuote.depositPaidAt)
+        const nextPrimaryQuoteId = shouldPromoteQuote || !currentLead.quoteId ? savedQuote.id : currentLead.quoteId
         const leadWithQuoteFields = {
           ...currentLead,
-          quoteId: savedQuote.id,
+          quoteId: nextPrimaryQuoteId,
+          quoteIds: allQuoteIds,
           moveDate: Object.prototype.hasOwnProperty.call(updates, 'moveDate') ? updates.moveDate || undefined : currentLead.moveDate,
           originAddress: Object.prototype.hasOwnProperty.call(updates, 'originAddress') ? updates.originAddress || undefined : currentLead.originAddress,
           originCity: Object.prototype.hasOwnProperty.call(updates, 'originCity') ? updates.originCity || undefined : currentLead.originCity,
@@ -147,9 +156,14 @@ export async function PATCH(request: Request, { params }: { params: { id: string
           savedQuote.status === 'accepted' ||
           savedQuote.status === 'invoiced' ||
           savedQuote.status === 'declined'
-        const nextLead = shouldSyncLeadStage
+        const syncedLead = shouldSyncLeadStage
           ? syncLeadFromQuoteStatus(leadWithQuoteFields, savedQuote)
           : leadWithQuoteFields
+        const nextLead = {
+          ...syncedLead,
+          quoteId: nextPrimaryQuoteId,
+          quoteIds: allQuoteIds,
+        }
         lead = await saveSalesLead(nextLead)
       }
     }

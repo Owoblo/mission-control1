@@ -19,6 +19,7 @@ type PublicQuote = {
   originAddress?: string
   destCity?: string
   destAddress?: string
+  jobLabel?: string
   status: string
   validDays?: number
   crewSize?: number
@@ -44,6 +45,7 @@ type PublicQuote = {
   respondedAt?: string
   termsAcceptedAt?: string
   termsAcceptedVersion?: string
+  moveDescription?: string
   conditionalClause?: string
   quoteType?: string
   jobFactors?: JobFactors
@@ -798,6 +800,7 @@ function QuoteAcceptPageInner() {
   const isBindingEstimate = hasInventory && inventory.length >= 5
   const serviceLabel = quoteServiceLabel(quote)
   const marketLabel = quoteMarketLabel(quote)
+  const quoteOptionLabel = quote.jobLabel || quote.moveDescription?.replace(/^Quote option:\s*/i, '').trim()
 
   // ── Fast Lane view — hourly rate quote, no inventory/photos, direct to Stripe ──
   const DEPOSIT = 100
@@ -996,7 +999,12 @@ function QuoteAcceptPageInner() {
             <h1 className="text-2xl font-black text-white leading-tight mb-2">
               Hi {firstName} — your moving estimate is ready.
             </h1>
-            <p className="text-sm text-white/50 mb-5">Quote {quote.number} · {serviceLabel}</p>
+            <p className={`text-sm text-white/50 ${quoteOptionLabel ? 'mb-2' : 'mb-5'}`}>Quote {quote.number} · {serviceLabel}</p>
+            {quoteOptionLabel && (
+              <div className="mb-5 inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80">
+                {quoteOptionLabel}
+              </div>
+            )}
 
             {/* Move countdown */}
             {daysOut !== null && daysOut > 0 && (

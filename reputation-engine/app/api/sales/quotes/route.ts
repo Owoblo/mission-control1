@@ -14,7 +14,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const payload = (await request.json()) as { leadId?: string; moveType?: string }
+    const payload = (await request.json()) as { leadId?: string; moveType?: string; separateJob?: boolean; jobLabel?: string }
     if (!payload.leadId) {
       return NextResponse.json({ error: 'leadId is required' }, { status: 400 })
     }
@@ -56,6 +56,16 @@ export async function POST(request: Request) {
     const isConjointMovingScope = Boolean(lead.jobFactors?.conjointMove)
     const quoteMoveType = isConjointMovingScope && lead.moveType === 'labor-only' ? 'residential' : lead.moveType || 'residential'
     const quoteType = isConjointMovingScope && lead.quoteType === 'labor_only' ? 'standard' : lead.quoteType
+    const trimmedJobLabel = typeof payload.jobLabel === 'string' ? payload.jobLabel.trim().slice(0, 80) : ''
+    const defaultJobLabel =
+      payload.separateJob
+        ? 'Separate moving option'
+        : isConjointMovingScope
+          ? 'Conjoint residential move'
+          : quoteType === 'storage'
+            ? 'Storage / staged move'
+            : ''
+    const jobLabel = trimmedJobLabel || defaultJobLabel || undefined
     const estimate = estimateLeadQuote({ ...lead, moveType: quoteMoveType, quoteType })
     const paymentTerms = getDefaultPaymentTerms(quoteMoveType)
     const quote: CRMQuote = normalizeQuote({
@@ -66,6 +76,7 @@ export async function POST(request: Request) {
       moveDate: lead.moveDate,
       moveType: quoteMoveType,
       quoteType,
+      jobLabel,
       originAddress: lead.originAddress,
       originCity: lead.originCity,
       destAddress: lead.destAddress,
@@ -85,6 +96,7 @@ export async function POST(request: Request) {
       validDays: 30,
       acceptToken: randomToken('accept'),
       lineItems: estimate.lineItems,
+      moveDescription: jobLabel ? `Quote option: ${jobLabel}` : undefined,
       discountAmount: 0,
       discountLabel: '',
       subtotal: estimate.subtotal,
