@@ -2418,7 +2418,7 @@ export function EstimateDraftModal({
                         if (city) onOriginCityChange?.(city)
                         if (placeId) setOriginPlaceId(placeId)
                         if (placeType === 'apartment') {
-                          onJobFactorsChange({ ...jobFactors, originFloors: 2, originHasElevator: true, originParkingOk: false })
+                          onJobFactorsChange({ ...jobFactors, originFloors: 2, originHasElevator: true, originParkingOk: undefined })
                         } else if (placeType === 'house') {
                           onJobFactorsChange({ ...jobFactors, originFloors: 1, originHasElevator: false, originParkingOk: true })
                         }
@@ -2440,7 +2440,7 @@ export function EstimateDraftModal({
                         if (city) onDestCityChange?.(city)
                         if (placeId) setDestPlaceId(placeId)
                         if (placeType === 'apartment') {
-                          onJobFactorsChange({ ...jobFactors, destFloors: 2, destHasElevator: true, destParkingOk: false })
+                          onJobFactorsChange({ ...jobFactors, destFloors: 2, destHasElevator: true, destParkingOk: undefined })
                         } else if (placeType === 'house') {
                           onJobFactorsChange({ ...jobFactors, destFloors: 1, destHasElevator: false, destParkingOk: true })
                         }

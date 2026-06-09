@@ -653,6 +653,50 @@ export function computeCommercialCostLayer(factors?: JobFactors, revenue = 0) {
   }
 }
 
+function addressLooksLikeHouse(address?: string, propertyType?: CRMLead['propertyType']) {
+  if (propertyType === 'detached_house' || propertyType === 'townhouse') return true
+  if (propertyType === 'apartment' || propertyType === 'condo' || propertyType === 'commercial' || propertyType === 'storage_unit') return false
+  const text = (address || '').toLowerCase()
+  if (!text.trim()) return false
+  const unitPattern = /(?:\b(?:apt|apartment|unit|suite|ste|floor|fl|room|rm)\b|#\s*\w+|\b\d+\s*-\s*\d+)/
+  if (unitPattern.test(text)) return false
+  return /\b\d{1,6}\s+[a-z0-9]/.test(text)
+}
+
+function accessTextSaysLimited(...values: Array<string | undefined>) {
+  const text = values.filter(Boolean).join(' ').toLowerCase()
+  if (!text.trim()) return false
+  return /\b(no|limited|tight|hard|difficult|street|permit|far|long carry|walk|blocked|underground|loading dock|dock|cannot|can't|cant)\b/.test(text)
+}
+
+function normalizeHouseParkingAssumptions(lead: CRMLead, factors?: JobFactors): JobFactors | undefined {
+  if (!factors) return factors
+  const next = { ...factors }
+  const limitedAccessNotes = accessTextSaysLimited(lead.originAccess, lead.destAccess, lead.parkingNotes, lead.notes)
+
+  if (
+    next.originParkingOk === false &&
+    addressLooksLikeHouse(lead.originAddress, lead.propertyType) &&
+    (next.originFloors || 1) <= 1 &&
+    !next.originHasElevator &&
+    !limitedAccessNotes
+  ) {
+    next.originParkingOk = true
+  }
+
+  if (
+    next.destParkingOk === false &&
+    addressLooksLikeHouse(lead.destAddress, lead.propertyType) &&
+    (next.destFloors || 1) <= 1 &&
+    !next.destHasElevator &&
+    !limitedAccessNotes
+  ) {
+    next.destParkingOk = true
+  }
+
+  return next
+}
+
 export function suggestCrewSize(totalWeightLbs: number, totalCubicFeet: number, includedInventory: InventoryItem[]) {
   const heavyKeywords = [
     'sectional',
@@ -1038,7 +1082,7 @@ function estimateSingleLeadQuote(
   if (factors?.hasSafe ?? lead.jobFactors?.hasSafe) specialtyItemFlags.push('Heavy Safe')
 
   const rawFactors = factors ?? lead.jobFactors
-  const activeFactors: JobFactors | undefined = rawFactors
+  const activeFactors: JobFactors | undefined = normalizeHouseParkingAssumptions(lead, rawFactors
     ? {
         ...rawFactors,
         // Only auto-fill disassemblyItemCount if rep hasn't set it explicitly
@@ -1046,7 +1090,7 @@ function estimateSingleLeadQuote(
       }
     : autoDisassemblyCount > 0
       ? { disassemblyItemCount: autoDisassemblyCount }
-      : undefined
+      : undefined)
   const { penalties, extraHours: penaltyHoursFromFactors, extraCubicFeet } = activeFactors
     ? computeJobPenalties(activeFactors)
     : { penalties: [], extraHours: 0, extraCubicFeet: 0 }

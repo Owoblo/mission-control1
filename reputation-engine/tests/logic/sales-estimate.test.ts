@@ -205,6 +205,44 @@ test('estimateLeadQuote applies commercial direct costs and markup to margin mat
   assert.equal(cost.computedRevenue, estimate.subtotal)
 })
 
+test('estimateLeadQuote clears stale parking penalties for obvious house-to-house moves', () => {
+  const estimate = estimateLeadQuote(
+    makeLead({
+      originAddress: '70 Peachtree Crescent, Cambridge, ON, Canada',
+      destAddress: '106 Highland Park, Cambridge, ON, Canada',
+      propertyType: 'detached_house',
+      jobFactors: {
+        originFloors: 1,
+        originHasElevator: false,
+        originParkingOk: false,
+        destFloors: 1,
+        destHasElevator: false,
+        destParkingOk: false,
+      },
+    }),
+    {
+      quoteType: 'standard',
+      routeContext: {
+        routeCategory: 'local',
+        pricingStatus: 'ready',
+        originToDestinationHours: 0.25,
+        yardToOriginHours: 0.5,
+        returnTripHours: 0.25,
+        billableDriveHours: 0.75,
+        operationalDriveHours: 1,
+        billableDistanceKm: 33,
+        operationalDistanceKm: 40,
+      },
+    }
+  )
+
+  assert.equal(
+    estimate.pricingBreakdown.adjustmentBreakdown.find(item => item.category === 'access')?.hours || 0,
+    0
+  )
+  assert.ok(!estimate.pricingBreakdown.penalties.some(item => /limited truck access/i.test(item.label)))
+})
+
 test('computeJobPenalties prices conjoint second pickup apartment access', () => {
   const result = computeJobPenalties({
     conjointMove: true,
