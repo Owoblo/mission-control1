@@ -243,6 +243,75 @@ test('estimateLeadQuote clears stale parking penalties for obvious house-to-hous
   assert.ok(!estimate.pricingBreakdown.penalties.some(item => /limited truck access/i.test(item.label)))
 })
 
+test('estimateLeadQuote clears stale elevator flags for obvious house-to-house moves', () => {
+  const estimate = estimateLeadQuote(
+    makeLead({
+      originAddress: '70 Peachtree Crescent, Cambridge, ON, Canada',
+      destAddress: '106 Highland Park, Cambridge, ON, Canada',
+      propertyType: 'detached_house',
+      jobFactors: {
+        originFloors: 1,
+        originHasElevator: true,
+        originElevatorReserved: false,
+        originParkingOk: true,
+        destFloors: 1,
+        destHasElevator: true,
+        destElevatorReserved: false,
+        destParkingOk: true,
+      },
+    }),
+    {
+      quoteType: 'standard',
+      routeContext: {
+        routeCategory: 'local',
+        pricingStatus: 'ready',
+        originToDestinationHours: 0.25,
+        yardToOriginHours: 0.5,
+        returnTripHours: 0.25,
+        billableDriveHours: 0.75,
+        operationalDriveHours: 1,
+        billableDistanceKm: 33,
+        operationalDistanceKm: 40,
+      },
+    }
+  )
+
+  assert.equal(
+    estimate.pricingBreakdown.adjustmentBreakdown.find(item => item.category === 'access')?.hours || 0,
+    0
+  )
+  assert.ok(!estimate.pricingBreakdown.penalties.some(item => /elevator not reserved/i.test(item.label)))
+})
+
+test('estimateLeadQuote treats storage quote type as trucked storage service, not labor-only', () => {
+  const estimate = estimateLeadQuote(
+    makeLead({
+      quoteType: 'storage',
+      originAddress: '123 Main St, Ottawa, ON, Canada',
+      destAddress: '77 Storage Way, Ottawa, ON, Canada',
+    }),
+    {
+      quoteType: 'storage',
+      routeContext: {
+        routeCategory: 'local',
+        pricingStatus: 'ready',
+        originToDestinationHours: 0.25,
+        yardToOriginHours: 0.5,
+        returnTripHours: 0.25,
+        billableDriveHours: 0.75,
+        operationalDriveHours: 1,
+        billableDistanceKm: 22,
+        operationalDistanceKm: 36,
+      },
+    }
+  )
+
+  assert.equal(estimate.lineItems[0].description, 'Storage Load/Unload Service')
+  assert.match(estimate.lineItems[0].details || '', /furniture wrapping & padding/)
+  assert.match(estimate.lineItems[0].details || '', /yard-to-home travel covered/)
+  assert.equal(estimate.pricingBreakdown.driveHours, 0.75)
+})
+
 test('computeJobPenalties prices conjoint second pickup apartment access', () => {
   const result = computeJobPenalties({
     conjointMove: true,

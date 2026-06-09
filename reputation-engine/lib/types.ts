@@ -295,6 +295,7 @@ export interface LeadMediaAsset {
   removedAt?: string
   analysisStatus?: 'pending' | 'scanned' | 'skipped' | 'failed'
   analysisNotes?: string
+  detectedItemCount?: number
   linkedCostId?: string
   linkedCostCategory?: string
   linkedCostAmountCents?: number

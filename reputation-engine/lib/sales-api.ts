@@ -164,7 +164,7 @@ export async function saveLeadConsultation(
 export async function uploadLeadMedia(
   id: string,
   payload: { room: string; files: File[]; notes?: string; purpose?: 'customer_media' | 'receipt' }
-): Promise<{ ok: boolean; uploadedCount: number; analyzedImageCount: number; skippedVideoCount: number; detectedItems: InventoryItem[]; analyzeWarning?: string }> {
+): Promise<{ ok: boolean; uploadedCount: number; analyzedImageCount: number; scanBatchCount?: number; skippedVideoCount: number; detectedItems: InventoryItem[]; lead?: CRMLead; analyzeWarning?: string }> {
   const form = new FormData()
   form.append('room', payload.room)
   if (payload.notes) form.append('notes', payload.notes)

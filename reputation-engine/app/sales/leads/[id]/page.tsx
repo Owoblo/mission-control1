@@ -2132,7 +2132,12 @@ export default function SalesLeadDetailPage() {
   async function handleRepMediaUpload() {
     if (!lead || mediaUploadFiles.length === 0) return
     if (!ensureLeadEditable()) return
+    if (autoSaveTimerRef.current) {
+      window.clearTimeout(autoSaveTimerRef.current)
+      autoSaveTimerRef.current = null
+    }
     setMediaUploadBusy(true)
+    setAutoSaveState('saving')
     setMediaUploadNotice(null)
     try {
       const result = await uploadLeadMedia(lead.id, {
@@ -2140,7 +2145,12 @@ export default function SalesLeadDetailPage() {
         files: mediaUploadFiles,
         purpose: mediaUploadPurpose,
       })
-      await refresh(lead.id)
+      if (result.lead) {
+        applyLeadSnapshot(result.lead, { hydrateForm: true })
+        markLeadPersisted()
+      } else {
+        await refresh(lead.id)
+      }
       setMediaUploadFiles([])
       if (mediaUploadInputRef.current) {
         mediaUploadInputRef.current.value = ''
@@ -2153,13 +2163,14 @@ export default function SalesLeadDetailPage() {
         setMediaUploadNotice(result.analyzeWarning)
       } else {
         setMediaUploadNotice(
-          `Uploaded ${result.uploadedCount} file${result.uploadedCount === 1 ? '' : 's'} · scanned ${result.analyzedImageCount} image${result.analyzedImageCount === 1 ? '' : 's'} · detected ${result.detectedItems?.length ?? 0} inventory item${(result.detectedItems?.length ?? 0) === 1 ? '' : 's'}${result.skippedVideoCount ? ` · stored ${result.skippedVideoCount} file${result.skippedVideoCount === 1 ? '' : 's'} for manual review` : ''}.`
+          `Uploaded ${result.uploadedCount} file${result.uploadedCount === 1 ? '' : 's'} · processed ${result.analyzedImageCount} image${result.analyzedImageCount === 1 ? '' : 's'} across ${result.scanBatchCount || 0} scan batch${(result.scanBatchCount || 0) === 1 ? '' : 'es'} · detected ${result.detectedItems?.length ?? 0} inventory item${(result.detectedItems?.length ?? 0) === 1 ? '' : 's'}${result.skippedVideoCount ? ` · stored ${result.skippedVideoCount} file${result.skippedVideoCount === 1 ? '' : 's'} for manual review` : ''}.`
         )
       }
     } catch (err) {
       setMediaUploadNotice((err as Error).message)
     } finally {
       setMediaUploadBusy(false)
+      setAutoSaveState('saved')
     }
   }
 

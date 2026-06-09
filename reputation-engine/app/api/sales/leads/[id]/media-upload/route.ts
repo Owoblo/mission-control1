@@ -62,9 +62,11 @@ export async function POST(
     const imageUrls = shouldAnalyzeInventory ? assets.filter(asset => asset.kind === 'image').map(asset => asset.url) : []
     let detectedItems: Awaited<ReturnType<typeof analyzeLeadPhotosWithVision>> = []
     let analyzeError: string | null = null
+    let analyzedImageCount = 0
 
     if (imageUrls.length > 0) {
       try {
+        analyzedImageCount = imageUrls.length
         detectedItems = (await analyzeLeadPhotosWithVision(room, imageUrls)).map(item => ({
           ...item,
           ...(partyOwner ? { owner: partyOwner } : {}),
@@ -77,15 +79,46 @@ export async function POST(
           })
           savedLead = await saveSalesLead(nextLead)
         }
+        const imageAssetIds = assets.filter(asset => asset.kind === 'image').map(asset => asset.id)
+        for (const assetId of imageAssetIds) {
+          savedLead = {
+            ...savedLead,
+            mediaAssets: (savedLead.mediaAssets || []).map(asset =>
+              asset.id === assetId
+                ? {
+                    ...asset,
+                    analysisStatus: 'scanned' as const,
+                    analysisNotes: `Scanned as part of ${imageUrls.length} uploaded image${imageUrls.length === 1 ? '' : 's'} for ${room}.`,
+                    detectedItemCount: detectedItems.length,
+                  }
+                : asset
+            ),
+          }
+        }
+        savedLead = await saveSalesLead(savedLead)
       } catch (err) {
         analyzeError = err instanceof Error ? err.message : 'AI scan failed'
+        savedLead = {
+          ...savedLead,
+          mediaAssets: (savedLead.mediaAssets || []).map(asset =>
+            assets.some(upload => upload.id === asset.id && upload.kind === 'image')
+              ? {
+                  ...asset,
+                  analysisStatus: 'failed' as const,
+                  analysisNotes: analyzeError || 'AI scan failed. Retry the scan from this lead.',
+                }
+              : asset
+          ),
+        }
+        savedLead = await saveSalesLead(savedLead)
       }
     }
 
     return NextResponse.json({
       ok: true,
       uploadedCount: assets.length,
-      analyzedImageCount: imageUrls.length,
+      analyzedImageCount,
+      scanBatchCount: imageUrls.length > 0 ? Math.ceil(imageUrls.length / 4) : 0,
       skippedVideoCount: assets.filter(asset => asset.kind === 'video' || asset.kind === 'document').length,
       detectedItems,
       lead: savedLead,

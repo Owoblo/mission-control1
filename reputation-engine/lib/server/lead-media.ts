@@ -8,7 +8,8 @@ import { twilioAuth } from '@/lib/server/twilio-recordings'
 import type { CRMLead, InventoryItem, LeadMediaAsset } from '@/lib/types'
 
 const BUCKET = 'survey-photos'
-const MAX_MEDIA_UPLOAD_FILES = 10
+const MAX_MEDIA_UPLOAD_FILES = 30
+const PHOTO_SCAN_BATCH_SIZE = 4
 
 function sanitizeFilename(filename: string) {
   return filename.replace(/[^a-zA-Z0-9._-]/g, '_')
@@ -39,13 +40,14 @@ function updateMediaAnalysisStatus(
   lead: CRMLead,
   assetId: string,
   status: LeadMediaAsset['analysisStatus'],
-  analysisNotes?: string
+  analysisNotes?: string,
+  detectedItemCount?: number
 ) {
   return normalizeLead({
     ...lead,
     mediaAssets: (lead.mediaAssets || []).map(asset =>
       asset.id === assetId
-        ? { ...asset, analysisStatus: status, analysisNotes }
+        ? { ...asset, analysisStatus: status, analysisNotes, detectedItemCount }
         : asset
     ),
   })
@@ -119,10 +121,48 @@ export async function uploadLeadMediaAssets(input: {
       uploadedByName: input.uploadedByName,
       notes: input.notes,
       partyLabel: input.partyLabel || undefined,
+      ...(inferMediaKind(file) === 'image' ? { analysisStatus: 'pending' as const } : {}),
     })
   }
 
   return assets
+}
+
+function chunkArray<T>(items: T[], size: number) {
+  const chunks: T[][] = []
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size))
+  }
+  return chunks
+}
+
+function inventoryDedupeKey(item: InventoryItem) {
+  const name = (item.name || item.item || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+  const room = (item.room || 'other').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+  const size = (item.size || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+  return `${room}:${name}:${size}`
+}
+
+function mergeDetectedInventory(items: InventoryItem[]) {
+  const byKey = new Map<string, InventoryItem>()
+  for (const item of items) {
+    const key = inventoryDedupeKey(item)
+    const existing = byKey.get(key)
+    if (!existing) {
+      byKey.set(key, item)
+      continue
+    }
+
+    byKey.set(key, {
+      ...existing,
+      qty: Math.max(Number(existing.qty || 1), Number(item.qty || 1)),
+      cubicFeet: Math.max(Number(existing.cubicFeet || 0), Number(item.cubicFeet || 0)),
+      weightLbs: Math.max(Number(existing.weightLbs || 0), Number(item.weightLbs || 0)),
+      confidence: Math.max(Number(existing.confidence || 0), Number(item.confidence || 0)),
+      notes: [existing.notes, item.notes].filter(Boolean).join(' · ') || undefined,
+    })
+  }
+  return Array.from(byKey.values())
 }
 
 export async function persistInboundMmsToLead(input: {
@@ -263,8 +303,21 @@ export async function analyzeLeadPhotosWithVision(room: string, photoUrls: strin
   const config = getOpenAIConfig()
   if (!config) throw new Error('No OpenAI API key')
   const dedupedPhotoUrls = await dedupePhotosBeforeVision(photoUrls)
-  const detected = await detectFurnitureInRoom(room, dedupedPhotoUrls, config)
-  return applyMovePolicyToInventory(detected.map(item => ({
+  const batches = chunkArray(dedupedPhotoUrls, PHOTO_SCAN_BATCH_SIZE)
+  const detected: InventoryItem[] = []
+
+  for (let index = 0; index < batches.length; index += 1) {
+    const batch = batches[index]
+    if (!batch.length) continue
+    const batchItems = await detectFurnitureInRoom(
+      batches.length === 1 ? room : `${room} photo set ${index + 1}`,
+      batch,
+      config
+    )
+    detected.push(...batchItems.map(item => ({ ...item, room: item.room || room })))
+  }
+
+  return applyMovePolicyToInventory(mergeDetectedInventory(detected).map(item => ({
     ...item,
     id: item.id || uid('inv_media'),
     room: item.room || room,

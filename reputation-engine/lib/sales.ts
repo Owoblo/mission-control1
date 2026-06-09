@@ -669,29 +669,33 @@ function accessTextSaysLimited(...values: Array<string | undefined>) {
   return /\b(no|limited|tight|hard|difficult|street|permit|far|long carry|walk|blocked|underground|loading dock|dock|cannot|can't|cant)\b/.test(text)
 }
 
-function normalizeHouseParkingAssumptions(lead: CRMLead, factors?: JobFactors): JobFactors | undefined {
+function normalizeHouseAccessAssumptions(lead: CRMLead, factors?: JobFactors): JobFactors | undefined {
   if (!factors) return factors
   const next = { ...factors }
   const limitedAccessNotes = accessTextSaysLimited(lead.originAccess, lead.destAccess, lead.parkingNotes, lead.notes)
 
   if (
-    next.originParkingOk === false &&
     addressLooksLikeHouse(lead.originAddress, lead.propertyType) &&
-    (next.originFloors || 1) <= 1 &&
-    !next.originHasElevator &&
+    (next.originFloors || 1) <= 2 &&
     !limitedAccessNotes
   ) {
-    next.originParkingOk = true
+    if (next.originParkingOk === false) next.originParkingOk = true
+    if (next.originHasElevator) {
+      next.originHasElevator = false
+      next.originElevatorReserved = undefined
+    }
   }
 
   if (
-    next.destParkingOk === false &&
     addressLooksLikeHouse(lead.destAddress, lead.propertyType) &&
-    (next.destFloors || 1) <= 1 &&
-    !next.destHasElevator &&
+    (next.destFloors || 1) <= 2 &&
     !limitedAccessNotes
   ) {
-    next.destParkingOk = true
+    if (next.destParkingOk === false) next.destParkingOk = true
+    if (next.destHasElevator) {
+      next.destHasElevator = false
+      next.destElevatorReserved = undefined
+    }
   }
 
   return next
@@ -1054,7 +1058,7 @@ function estimateSingleLeadQuote(
 ): EstimateQuoteResult {
   const resolvedQuoteType = overrides?.quoteType || lead.quoteType
   const isLongDistance = resolvedQuoteType === 'long_distance' || lead.moveType === 'long-distance'
-  const isLaborOnly = resolvedQuoteType === 'labor_only' || resolvedQuoteType === 'storage' || lead.moveType === 'labor-only'
+  const isLaborOnly = resolvedQuoteType === 'labor_only' || lead.moveType === 'labor-only'
   const isPacking = resolvedQuoteType === 'packing_only' || lead.moveType === 'packing'
   const metrics = deriveInventoryMetrics(lead.inventory || [])
   const routeContext = overrides?.routeContext
@@ -1082,7 +1086,7 @@ function estimateSingleLeadQuote(
   if (factors?.hasSafe ?? lead.jobFactors?.hasSafe) specialtyItemFlags.push('Heavy Safe')
 
   const rawFactors = factors ?? lead.jobFactors
-  const activeFactors: JobFactors | undefined = normalizeHouseParkingAssumptions(lead, rawFactors
+  const activeFactors: JobFactors | undefined = normalizeHouseAccessAssumptions(lead, rawFactors
     ? {
         ...rawFactors,
         // Only auto-fill disassemblyItemCount if rep hasn't set it explicitly
