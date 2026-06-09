@@ -161,9 +161,10 @@ const MOVE_POLICY_RULES: MovePolicyRule[] = [
     id: 'safe',
     category: 'specialty_fee',
     label: 'Safe',
-    keywords: ['gun safe', 'safe'],
-    customerNote: 'Safe handling requires photo/weight confirmation and a specialty handling fee.',
-    repNote: 'Safe detected. Confirm photo, weight, access, and add the specialty fee before sending the final quote.',
+    keywords: ['gun safe', 'fire safe', 'fireproof safe', 'floor safe', 'small safe', 'large safe', 'safe'],
+    customerNote: 'Safe handling is included only after photo, weight, and access are confirmed; a specialty handling fee may apply.',
+    repNote: 'Safe detected. We can move safes, but confirm size/weight/access and price the correct specialty handling before sending the final quote.',
+    forceExclude: false,
   },
   {
     id: 'piano',
@@ -172,6 +173,7 @@ const MOVE_POLICY_RULES: MovePolicyRule[] = [
     keywords: ['upright piano', 'baby grand piano', 'grand piano', 'piano'],
     customerNote: 'Piano handling requires specialty confirmation and the right crew/equipment.',
     repNote: 'Piano detected. Confirm the type and route before finalizing pricing.',
+    forceExclude: false,
   },
 ]
 

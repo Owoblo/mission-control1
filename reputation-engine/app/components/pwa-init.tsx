@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>
@@ -8,10 +9,22 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export function PWAInit() {
+  const pathname = usePathname()
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showBanner, setShowBanner] = useState(false)
+  const isCustomerFacingRoute =
+    pathname?.startsWith('/survey') ||
+    pathname?.startsWith('/quote-accept') ||
+    pathname?.startsWith('/review') ||
+    pathname?.startsWith('/affiliate')
 
   useEffect(() => {
+    if (isCustomerFacingRoute) {
+      setInstallPrompt(null)
+      setShowBanner(false)
+      return
+    }
+
     // Register service worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker
@@ -20,16 +33,21 @@ export function PWAInit() {
         .catch(() => null)
     }
 
+    let bannerTimer: number | undefined
+
     // Capture install prompt
     const handler = (e: Event) => {
       e.preventDefault()
       setInstallPrompt(e as BeforeInstallPromptEvent)
       // Show banner after 30s — don't interrupt immediately
-      setTimeout(() => setShowBanner(true), 30_000)
+      bannerTimer = window.setTimeout(() => setShowBanner(true), 30_000)
     }
     window.addEventListener('beforeinstallprompt', handler)
-    return () => window.removeEventListener('beforeinstallprompt', handler)
-  }, [])
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler)
+      if (bannerTimer) window.clearTimeout(bannerTimer)
+    }
+  }, [isCustomerFacingRoute])
 
   async function install() {
     if (!installPrompt) return
@@ -38,7 +56,7 @@ export function PWAInit() {
     if (outcome === 'accepted') setShowBanner(false)
   }
 
-  if (!showBanner || !installPrompt) return null
+  if (isCustomerFacingRoute || !showBanner || !installPrompt) return null
 
   return (
     <div className="fixed bottom-4 left-1/2 z-[9999] -translate-x-1/2 w-[calc(100%-32px)] max-w-sm">

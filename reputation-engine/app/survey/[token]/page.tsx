@@ -94,6 +94,8 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
   const cameraInputsRef = useRef<Map<string, HTMLInputElement>>(new Map())
   const galleryInputsRef = useRef<Map<string, HTMLInputElement>>(new Map())
   const hydratedRef = useRef(false)
+  const mountedRef = useRef(false)
+  const customRoomTimerRef = useRef<number | null>(null)
 
   const totalPhotos = rooms.reduce((sum, room) => sum + room.photoCount, 0)
   const completedRooms = rooms.filter(room => room.photoCount > 0)
@@ -123,16 +125,26 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
   const [inventoryReady, setInventoryReady] = useState(false)
   const [showUploadSection, setShowUploadSection] = useState(false)
 
-  async function loadSurvey() {
-    const response = await fetch(`/api/survey/${params.token}`)
+  async function loadSurvey(signal?: AbortSignal) {
+    const response = await fetch(`/api/survey/${params.token}`, { signal })
     const data = await response.json() as SurveyVerificationPayload & { error?: string }
     if (!response.ok || data.error) throw new Error(data.error || 'Could not load survey.')
     return data
   }
 
   useEffect(() => {
-    loadSurvey()
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      if (customRoomTimerRef.current) window.clearTimeout(customRoomTimerRef.current)
+    }
+  }, [])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    loadSurvey(controller.signal)
       .then(data => {
+        if (!mountedRef.current) return
         setInfo(data)
         setRooms(buildDefaultRooms(data.rooms))
         setReviewItems(data.rooms.flatMap(room => room.items))
@@ -144,17 +156,25 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
         const hasItems = data.rooms.some(r => r.items.length > 0)
         setInventoryReady(hasItems)
       })
-      .catch(error => setLoadError(error instanceof Error ? error.message : 'Could not load survey.'))
-      .finally(() => setLoading(false))
+      .catch(error => {
+        if (!mountedRef.current || (error instanceof DOMException && error.name === 'AbortError')) return
+        setLoadError(error instanceof Error ? error.message : 'Could not load survey.')
+      })
+      .finally(() => {
+        if (mountedRef.current) setLoading(false)
+      })
+    return () => controller.abort()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.token])
 
   // Poll every 4s while inventory is still loading — items appear as MLS scan runs
   useEffect(() => {
     if (inventoryReady || loading || allDone) return
+    let cancelled = false
     const interval = window.setInterval(() => {
       loadSurvey()
         .then(data => {
+          if (cancelled || !mountedRef.current) return
           const newItems = data.rooms.flatMap(r => r.items)
           if (newItems.length > 0) {
             setRooms(buildDefaultRooms(data.rooms))
@@ -165,7 +185,10 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
         })
         .catch(() => {})
     }, 4000)
-    return () => window.clearInterval(interval)
+    return () => {
+      cancelled = true
+      window.clearInterval(interval)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inventoryReady, loading, allDone])
 
@@ -200,11 +223,13 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
     })
     const data = await response.json() as { ok?: boolean; error?: string; surveyCompletedAt?: string | null }
     if (!response.ok || data.error) {
+      if (!mountedRef.current) return data
       setSaveState('error')
       setSaveError(data.error || 'Could not save your progress.')
       throw new Error(data.error || 'Could not save your progress.')
     }
 
+    if (!mountedRef.current) return data
     setSaveState('saved')
     if (markCompleted) {
       setInfo(prev => prev ? { ...prev, surveyCompletedAt: data.surveyCompletedAt || new Date().toISOString() } : prev)
@@ -270,6 +295,7 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
       const data = await response.json() as { ok?: boolean; uploadedCount?: number; error?: string; detail?: string }
       if (!response.ok || data.error) throw new Error(data.error || data.detail || 'Upload failed')
 
+      if (!mountedRef.current) return
       setRooms(prev => prev.map(entry =>
         entry.id === roomId
           ? { ...entry, uploading: false, photoCount: entry.photoCount + (data.uploadedCount || fileArr.length) }
@@ -277,6 +303,7 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
       ))
     } catch (error) {
       console.error(error)
+      if (!mountedRef.current) return
       setUploadError(error instanceof Error ? error.message : 'Upload failed')
       setRooms(prev => prev.map(entry => entry.id === roomId ? { ...entry, uploading: false } : entry))
     }
@@ -289,9 +316,11 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
     setCustomRoomInput('')
     setShowCustomInput(false)
     setMissingItemRoom(label)
-    window.setTimeout(() => {
+    if (customRoomTimerRef.current) window.clearTimeout(customRoomTimerRef.current)
+    customRoomTimerRef.current = window.setTimeout(() => {
       const roomId = buildSurveyRoomId(label)
       triggerCamera(roomId)
+      customRoomTimerRef.current = null
     }, 150)
   }
 

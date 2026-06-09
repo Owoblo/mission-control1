@@ -1,5 +1,5 @@
 import type { EstimateRouteContext } from '@/lib/types'
-import { getGoogleMapsApiKey } from '@/lib/server/runtime'
+import { getGoogleMapsApiKey } from './runtime'
 
 const BRANCH_YARDS: Record<string, string> = {
   windsor: 'Windsor, ON, Canada',
@@ -17,6 +17,26 @@ const BRANCH_YARD_COORDS: Record<string, GeocodeResult> = {
 }
 
 const BASE_YARD_ADDRESS = BRANCH_YARDS.windsor
+const ROUTE_BRANCH_ALIASES: Record<string, string[]> = {
+  waterloo: [
+    'waterloo',
+    'kitchener',
+    'cambridge',
+    'guelph',
+    'elmira',
+    'st jacobs',
+    'st. jacobs',
+    'baden',
+    'preston',
+    'hespeler',
+    'doon',
+    'kw',
+    'k w',
+  ],
+  london: ['london', 'st thomas', 'st. thomas', 'woodstock', 'stratford', 'ingersoll', 'tillsonburg'],
+  ottawa: ['ottawa', 'kanata', 'orleans', 'nepean', 'barrhaven', 'gatineau', 'gloucester', 'stittsville'],
+  windsor: ['windsor', 'tecumseh', 'lasalle', 'la salle', 'amherstburg', 'lakeshore', 'essex', 'leamington', 'kingsville'],
+}
 
 type GeocodeResult = {
   lat: number
@@ -57,6 +77,53 @@ function extractRouteCity(value?: string) {
     .map(part => part.trim().toLowerCase())
     .filter(Boolean)
   return parts.find(part => !/^\d/.test(part) && !/^(on|ontario|canada|united states|usa)$/.test(part))
+}
+
+function normalizeRouteBranch(value?: string): keyof typeof BRANCH_YARDS | undefined {
+  return value && BRANCH_YARDS[value] ? value : undefined
+}
+
+function normalizeRouteLocationText(value?: string) {
+  return (value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+export function resolveRouteBranchForEstimate(input: {
+  branch?: string
+  origin?: string
+  destination?: string
+  originDisplayName?: string
+  destDisplayName?: string
+}): keyof typeof BRANCH_YARDS {
+  const explicitBranch = normalizeRouteBranch(input.branch)
+  if (explicitBranch) return explicitBranch
+
+  const haystack = normalizeRouteLocationText([
+    input.origin,
+    input.destination,
+    input.originDisplayName,
+    input.destDisplayName,
+  ].filter(Boolean).join(' '))
+
+  for (const branch of ['waterloo', 'london', 'ottawa', 'windsor'] as Array<keyof typeof BRANCH_YARDS>) {
+    if (ROUTE_BRANCH_ALIASES[branch].some(alias => haystack.includes(normalizeRouteLocationText(alias)))) {
+      return branch
+    }
+  }
+
+  return 'windsor'
+}
+
+export function normalizeDrivingRoute(distanceMeters: number, durationSeconds: number) {
+  const rawDistanceKm = Math.max(0, distanceMeters / 1000)
+  const rawDriveHours = Math.max(0, durationSeconds / 3600)
+  return {
+    distanceKm: rawDistanceKm > 0 ? Math.max(1, Math.round(rawDistanceKm)) : 0,
+    driveHours: rawDriveHours > 0 ? Math.max(0.25, Math.round(rawDriveHours * 4) / 4) : 0,
+  }
 }
 
 // Resolve a place_id directly — most accurate, no re-geocoding needed
@@ -255,10 +322,7 @@ export async function getDrivingRoute(
           routes?: Array<{ distance: number; duration: number }>
         }
         if (data.code === 'Ok' && data.routes?.length) {
-          return {
-            distanceKm: Math.round(data.routes[0].distance / 1000),
-            driveHours: Math.round((data.routes[0].duration / 3600) * 4) / 4,
-          }
+          return normalizeDrivingRoute(data.routes[0].distance, data.routes[0].duration)
         }
       }
     } catch { /* fall through to OSRM */ }
@@ -277,10 +341,7 @@ export async function getDrivingRoute(
     routes?: Array<{ distance: number; duration: number }>
   }
   if (data.code !== 'Ok' || !data.routes?.length) return null
-  return {
-    distanceKm: Math.round(data.routes[0].distance / 1000),
-    driveHours: Math.round((data.routes[0].duration / 3600) * 4) / 4,
-  }
+  return normalizeDrivingRoute(data.routes[0].distance, data.routes[0].duration)
 }
 
 export async function estimateRouteContext(input: {
@@ -302,9 +363,10 @@ export async function estimateRouteContext(input: {
   destResolved?: string
   yardResolved?: string
 }> {
-  const yardAddress = (input.branch && BRANCH_YARDS[input.branch]) ? BRANCH_YARDS[input.branch] : BASE_YARD_ADDRESS
+  const routeBranch = resolveRouteBranchForEstimate(input)
+  const yardAddress = BRANCH_YARDS[routeBranch] || BASE_YARD_ADDRESS
   // Use hardcoded coords for known branches — no geocoding needed, never fails
-  const yardGeoHardcoded = input.branch ? BRANCH_YARD_COORDS[input.branch] : BRANCH_YARD_COORDS.windsor
+  const yardGeoHardcoded = BRANCH_YARD_COORDS[routeBranch] || BRANCH_YARD_COORDS.windsor
 
   // Geocode with fallback: if full address fails, try stripping the last token
   // Also handles pre-resolved "lat,lng" format passed from place_id resolution
