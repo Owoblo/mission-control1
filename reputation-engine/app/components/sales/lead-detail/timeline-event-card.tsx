@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { RecordingPlayer } from '@/app/components/sales/recording-player'
+import { CallInsightPanel } from '@/app/components/sales/call-insight-panel'
 import { formatDateTime, formatMoney } from '@/lib/sales'
 import { retranscribeConsultation } from '@/lib/sales-api'
 import type { CRMQuote, CRMLead } from '@/lib/types'
@@ -542,81 +542,22 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
             </div>
           )}
           {expanded && (hasRecording || item.transcript || item.aiSummary) ? (
-            <div className="mt-4 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
-              <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="crm-label">{item.kind === 'consultation' ? 'Consultation Intelligence' : 'Call Intelligence'}</div>
-                    {item.aiSummary?.moveReadiness === 'hot' ? (
-                      <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700">🔥 Hot Lead</span>
-                    ) : item.aiSummary?.moveReadiness === 'warm' ? (
-                      <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">⚡ Warm</span>
-                    ) : item.aiSummary?.moveReadiness === 'cold' ? (
-                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-600">❄ Cold</span>
-                    ) : null}
-                  </div>
-                  {item.duration ? <div className={`text-xs font-medium ${tone.accent}`}>{item.duration}</div> : null}
-                </div>
-                <div className="mt-2 text-sm leading-6 text-stone-800">
-                  {item.aiSummary?.summary || item.transcript || (
-                    needsTranscription ? (
-                      <span className="text-[var(--app-muted)] italic">Transcribing recording… check back in a moment.</span>
-                    ) : 'No transcript available for this call.'
-                  )}
-                </div>
-                {hasRecording ? (
-                  <div className="mt-4 rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
-                    <div className="mb-2 flex items-center justify-between text-xs font-medium text-[var(--app-muted)]">
-                      <span>Recording</span>
-                      <span>{item.phone || 'Attached audio'}</span>
-                    </div>
-                    <RecordingPlayer recordingUrl={item.recordingUrl} recordingSid={item.recordingSid} />
-                  </div>
-                ) : null}
-                {item.transcript ? (
-                  <details className="mt-3 rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
-                    <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">
-                      Transcript
-                    </summary>
-                    <div className="mt-3 max-h-48 overflow-y-auto whitespace-pre-wrap text-sm leading-6 text-stone-700">
-                      {item.transcript}
-                    </div>
-                  </details>
-                ) : null}
-              </div>
-              <div className="space-y-3">
-                {item.aiSummary?.leadConcern ? (
-                  <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-4">
-                    <div className="crm-label">Concern</div>
-                    <div className="mt-2 text-sm leading-6 text-stone-800">{item.aiSummary.leadConcern}</div>
-                  </div>
-                ) : null}
-                {item.aiSummary?.decisionMaker ? (
-                  <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-4">
-                    <div className="crm-label">Decision Maker</div>
-                    <div className="mt-2 text-sm leading-6 text-stone-800">{item.aiSummary.decisionMaker}</div>
-                  </div>
-                ) : null}
-                {item.aiSummary?.nextAction ? (
-                  <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-4">
-                    <div className="crm-label">Next Action</div>
-                    <div className="mt-2 text-sm leading-6 text-stone-800">{item.aiSummary.nextAction}</div>
-                  </div>
-                ) : null}
-                {item.aiSummary?.coachingTip ? (
-                  <div className="rounded-[8px] border border-[var(--app-line)] bg-[#1a2744] p-4">
-                    <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Rep Coaching</div>
-                    <div className="mt-2 text-sm leading-6 text-white">{item.aiSummary.coachingTip}</div>
-                  </div>
-                ) : null}
-                {item.aiSummary?.followUpReason ? (
-                  <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-4">
-                    <div className="crm-label">Follow-up Timing</div>
-                    <div className="mt-2 text-sm leading-6 text-stone-800">{item.aiSummary.followUpReason}</div>
-                  </div>
-                ) : null}
-              </div>
-            </div>
+            <CallInsightPanel
+              className="mt-4"
+              title={item.kind === 'consultation' ? 'Consultation Intelligence' : 'Call Intelligence'}
+              callLabel={item.kind === 'consultation' ? 'Consultation ended' : failedOrMissedCall ? 'Missed call' : 'Call ended'}
+              callerName={item.actor || item.phone || 'Customer'}
+              timestamp={formatDateTime(item.date)}
+              duration={item.duration}
+              recordingUrl={item.recordingUrl}
+              recordingSid={item.recordingSid}
+              recordingUnavailable={recordingUnavailable}
+              recordingUnavailableReason={item.recordingUnavailableReason}
+              transcript={item.transcript}
+              summary={item.aiSummary?.summary}
+              moveReadiness={item.aiSummary?.moveReadiness}
+              processingMessage={needsTranscription ? 'Transcribing recording... check back in a moment.' : undefined}
+            />
           ) : null}
 
           {expanded && quote && item.id === `quote-created-${quote.id}` ? (

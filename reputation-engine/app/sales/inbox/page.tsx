@@ -2,7 +2,7 @@
 
 import React, { Suspense, useEffect, useDeferredValue, useMemo, useState, useTransition, type ReactNode } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { RecordingPlayer } from '@/app/components/sales/recording-player'
+import { CallInsightPanel } from '@/app/components/sales/call-insight-panel'
 import type { SmsThread } from '@/app/api/sales/sms-threads/route'
 import {
   getInboundActionTimestamp,
@@ -747,7 +747,9 @@ function SalesInboxPageInner() {
         nextAction?: string
         moveReadiness?: 'hot' | 'warm' | 'cold'
         leadConcern?: string
+        decisionMaker?: string
         followUpReason?: string
+        coachingTip?: string
       }
     | undefined
   const transcript = selectedRaw?.transcript as string | undefined
@@ -755,6 +757,9 @@ function SalesInboxPageInner() {
   const recordingSid = selectedRaw?.recordingSid as string | undefined
   const recordingUnavailable = selectedRaw?.recordingUnavailable === true
   const recordingUnavailableReason = selectedRaw?.recordingUnavailableReason as string | undefined
+  const selectedCallDuration = typeof selectedRaw?.callDuration === 'number'
+    ? `${Math.floor(selectedRaw.callDuration / 60)}m ${selectedRaw.callDuration % 60}s`
+    : undefined
   const shownCount = viewMode === 'messages' ? filteredSmsThreads.length : viewMode === 'email' ? emailList.length : filteredItems.length
   const sectionCounts = useMemo(() => {
     const probeFiltered = items.filter(item => {
@@ -1841,67 +1846,27 @@ function SalesInboxPageInner() {
                     {/* ── CALL VIEW: compact, recording-first ── */}
                     {(selected.source === 'twilio_call' || selected.source === 'missed_call') ? (
                       <div className="space-y-3">
-                        {/* Call meta row */}
-                        <div className="flex items-center gap-3 rounded-[8px] border border-[var(--app-line)] bg-white px-4 py-3 text-sm">
-                          <div className={`h-8 w-8 shrink-0 flex items-center justify-center rounded-full text-xs font-bold ${selected.source === 'missed_call' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
-                            {selected.source === 'missed_call' ? '↗' : '↙'}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-[var(--app-ink)]">
-                              {selected.source === 'missed_call' ? 'Missed call' : 'Inbound call'}
-                              {selectedRaw?.callDuration ? ` · ${Math.floor((selectedRaw.callDuration as number) / 60)}m ${(selectedRaw.callDuration as number) % 60}s` : ''}
-                            </div>
-                            <div className="text-xs text-[var(--app-muted)]">
-                              {formatAbsoluteTime(selected.created_at)}
-                              {selectedBranch.branchLabel ? ` · ${selectedBranch.branchLabel} line` : ''}
-                              {selectedIsQrLead ? ' · QR / Direct Mail' : selectedBranch.trackingLabel ? ` · ${selectedBranch.trackingLabel}` : ''}
-                            </div>
-                          </div>
-                          {selected.phone && (
+                        <CallInsightPanel
+                          title="Call Intelligence"
+                          callLabel={selected.source === 'missed_call' ? 'Missed call' : 'Call ended'}
+                          callerName={displayLeadName(selected)}
+                          timestamp={formatAbsoluteTime(selected.created_at)}
+                          duration={selectedCallDuration}
+                          branchLabel={selectedBranch.branchLabel ? `${selectedBranch.branchLabel} line` : selectedBranch.trackingLabel}
+                          recordingUrl={recordingUrl}
+                          recordingSid={recordingSid}
+                          recordingUnavailable={recordingUnavailable}
+                          recordingUnavailableReason={recordingUnavailableReason}
+                          transcript={transcript}
+                          summary={aiSummary?.summary}
+                          moveReadiness={aiSummary?.moveReadiness}
+                          processingMessage={!recordingUnavailable && !transcript && !aiSummary?.summary && (recordingUrl || recordingSid) ? 'Transcript and summary are still processing.' : undefined}
+                          actions={selected.phone ? (
                             <button onClick={() => openDialer(selected.phone, displayLeadName(selected), selected.linkedLeadId || selected.matchedLeadId)} className="crm-button shrink-0 text-xs">
                               Call back
                             </button>
-                          )}
-                        </div>
-
-                        {/* Recording */}
-                        {(recordingUrl || recordingSid) && (
-                          <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3">
-                            <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Recording</div>
-                            <RecordingPlayer recordingUrl={recordingUrl} recordingSid={recordingSid} />
-                          </div>
-                        )}
-                        {recordingUnavailable && (
-                          <div className="rounded-[8px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                            {recordingUnavailableReason || 'No recording available for this call.'}
-                          </div>
-                        )}
-
-                        {/* AI summary */}
-                        {aiSummary?.summary && (
-                          <div className="rounded-[8px] border border-[var(--app-line)] bg-white px-4 py-3">
-                            <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">What we know</div>
-                            <p className="text-sm leading-6 text-[var(--app-ink)]">{aiSummary.summary}</p>
-                            {aiSummary.leadConcern && (
-                              <p className="mt-2 text-xs text-amber-700">Concern: {aiSummary.leadConcern}</p>
-                            )}
-                            {aiSummary.nextAction && (
-                              <p className="mt-1 text-xs font-semibold text-[var(--app-accent)]">→ {aiSummary.nextAction}</p>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Transcript (collapsed) */}
-                        {transcript && (
-                          <details className="rounded-[8px] border border-[var(--app-line)] bg-white">
-                            <summary className="cursor-pointer px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">
-                              Transcript
-                            </summary>
-                            <div className="max-h-48 overflow-y-auto px-4 pb-4 pt-1 whitespace-pre-wrap text-xs leading-6 text-[var(--app-muted)]">
-                              {transcript}
-                            </div>
-                          </details>
-                        )}
+                          ) : null}
+                        />
 
                         {/* Quick SMS reply */}
                         {selected.phone && (
@@ -2126,28 +2091,22 @@ function SalesInboxPageInner() {
                         </div>
 
                         {recordingUrl || recordingSid || transcript || recordingUnavailable ? (
-                          <div className="space-y-6">
-                            <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
-                              <div className="crm-label">Call Recording</div>
-                              {recordingUrl || recordingSid ? (
-                                <div className="mt-4">
-                                  <RecordingPlayer recordingUrl={recordingUrl} recordingSid={recordingSid} />
-                                </div>
-                              ) : recordingUnavailable ? (
-                                <div className="mt-4 rounded-[8px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
-                                  {recordingUnavailableReason || 'Twilio did not retain a playable recording for this call.'}
-                                </div>
-                              ) : (
-                                <div className="mt-4 text-sm text-[var(--app-muted)]">Recording still processing.</div>
-                              )}
-                            </div>
-                            <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
-                              <div className="crm-label">Transcript</div>
-                              <div className="mt-4 max-h-72 overflow-y-auto whitespace-pre-wrap text-sm leading-7 text-[var(--app-muted)]">
-                                {transcript || 'Transcript still processing.'}
-                              </div>
-                            </div>
-                          </div>
+                          <CallInsightPanel
+                            title="Call Intelligence"
+                            callLabel="Call ended"
+                            callerName={displayLeadName(selected)}
+                            timestamp={formatAbsoluteTime(selected.created_at)}
+                            duration={selectedCallDuration}
+                            branchLabel={selectedBranch.branchLabel ? `${selectedBranch.branchLabel} line` : selectedBranch.trackingLabel}
+                            recordingUrl={recordingUrl}
+                            recordingSid={recordingSid}
+                            recordingUnavailable={recordingUnavailable}
+                            recordingUnavailableReason={recordingUnavailableReason}
+                            transcript={transcript}
+                            summary={aiSummary?.summary}
+                            moveReadiness={aiSummary?.moveReadiness}
+                            processingMessage={!recordingUnavailable && !transcript && (recordingUrl || recordingSid) ? 'Transcript and summary are still processing.' : undefined}
+                          />
                         ) : null}
 
                         {(selected.email || selected.phone) ? (
