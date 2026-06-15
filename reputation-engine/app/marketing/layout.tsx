@@ -1,25 +1,27 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 
 const MARKET_NAV = [
-  { href: '/marketing',           label: 'Overview',      match: (p: string) => p === '/marketing' },
-  { href: '/marketing/partners',  label: 'Partnerships',  match: (p: string) => p.startsWith('/marketing/partners') },
-  { href: '/marketing/queue',     label: 'Daily Queue',   match: (p: string) => p.startsWith('/marketing/queue') },
-  { href: '/marketing/campaigns', label: 'Campaigns', match: (p: string) => p.startsWith('/marketing/campaigns') },
-  { href: '/marketing/signals',   label: 'Signals',       match: (p: string) => p.startsWith('/marketing/signals') },
+  { href: '/marketing/partners?tab=queue',    label: 'SMS Queue', match: (p: string, tab: string | null) => p.startsWith('/marketing/partners') && (!tab || tab === 'queue') },
+  { href: '/marketing/partners?tab=replies',  label: 'Replies',   match: (p: string, tab: string | null) => p.startsWith('/marketing/partners') && tab === 'replies' },
+  { href: '/marketing/partners?tab=phone',    label: 'Inbox',     match: (p: string, tab: string | null) => p.startsWith('/marketing/partners') && tab === 'phone' },
+  { href: '/marketing/partners?tab=pipeline', label: 'Pipeline',  match: (p: string, tab: string | null) => p.startsWith('/marketing/partners') && tab === 'pipeline' },
+  { href: '/marketing/signals',               label: 'Signals',   match: (p: string) => p.startsWith('/marketing/signals') },
 ]
 
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const tab = searchParams.get('tab')
 
   return (
     <div className="space-y-0">
       {/* Sub-nav */}
       <div className="mb-6 flex items-center gap-1 overflow-x-auto rounded-2xl border border-[var(--app-line)] bg-[var(--app-panel)] p-1">
         {MARKET_NAV.map(item => {
-          const active = item.match(pathname)
+          const active = item.match(pathname, tab)
           return (
             <Link
               key={item.href}

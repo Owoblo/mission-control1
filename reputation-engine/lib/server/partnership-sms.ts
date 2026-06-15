@@ -31,8 +31,6 @@ export type PartnershipSmsContactInput = {
   photo_url?: string | null
 }
 
-const STOP_LINE = 'If this is not relevant, reply STOP and I will not follow up.'
-
 export const DEFAULT_PARTNERSHIP_SMS_TEMPLATE =
   [
     'Hey {{firstName}}, my name is John. I own Saturn Star Movers, a local moving company serving {{city}}.',
@@ -42,8 +40,6 @@ export const DEFAULT_PARTNERSHIP_SMS_TEMPLATE =
     'We are licensed and insured, and I would love to be a reliable local option if any of your buyers or sellers ever need help after closing.',
     '',
     'Would it be okay if I stopped by your office next week to drop off a few cards?',
-    '',
-    STOP_LINE,
   ].join('\n')
 
 export const DEFAULT_PARTNERSHIP_SENDER_NUMBERS = [
@@ -160,8 +156,7 @@ export function mergePartnershipSmsTemplate(
 }
 
 export function ensureSmsOptOutLine(message: string) {
-  if (/\bstop\b/i.test(message) && /\bopt\s*out\b/i.test(message)) return message.trim()
-  return `${message.trim()} ${STOP_LINE}`
+  return message.trim()
 }
 
 export function isOptOutText(value?: string | null) {

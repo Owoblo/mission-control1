@@ -2039,8 +2039,6 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
     'We are licensed and insured, and I would love to be a reliable local option if any of your buyers or sellers ever need help after closing.',
     '',
     'Would it be okay if I stopped by your office next week to drop off a few cards?',
-    '',
-    'If this is not relevant, reply STOP and I will not follow up.',
   ].join('\n'))
   const [fromNumber, setFromNumber] = useState('+12268870667')
   const [preview, setPreview] = useState<Array<{ name: string; phone: string; message: string }> | null>(null)
