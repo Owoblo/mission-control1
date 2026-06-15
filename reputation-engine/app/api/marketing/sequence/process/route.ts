@@ -3,6 +3,13 @@ import { defaultFollowUpDate } from '@/lib/marketing'
 import { isAuthorizedCronRequest } from '@/lib/server/cron-auth'
 import { requireSupabaseEnv, readEnv } from '@/lib/server/runtime'
 import { Resend } from 'resend'
+import {
+  decodeSenderFromTemplateKey,
+  ensureSmsOptOutLine,
+  isOptOutText,
+  mergePartnershipSmsTemplate,
+  parseSmsCampaignConfig,
+} from '@/lib/server/partnership-sms'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -89,6 +96,72 @@ function buildLinkedInDraft(contact: Record<string, unknown>, batch: Record<stri
   const firstName = ((contact.name as string) ?? '').split(' ')[0] || 'there'
   const repName = (batch.rep_name as string) ?? 'Eric'
   return `Connect with ${firstName} at ${company}. Mention the letter Saturn Star Movers mailed last week and offer a short call with ${repName} about a referral or relocation partnership.`
+}
+
+function isPermanentSmsFailure(status: number, errorText: string) {
+  const text = errorText.toLowerCase()
+  const permanentCodes = [
+    '21211', // invalid To phone number
+    '21610', // recipient opted out
+    '21614', // number is not a valid mobile number
+    '30003', // unreachable destination handset
+    '30004', // message blocked
+    '30005', // unknown destination handset
+    '30006', // landline or unreachable carrier
+    '30007', // carrier violation/filtering
+  ]
+  return status === 400 ||
+    status === 404 ||
+    permanentCodes.some(code => text.includes(code)) ||
+    /invalid|not a valid|landline|unreachable|unknown destination|blocked|opted out/.test(text)
+}
+
+async function suppressSmsContact(params: {
+  url: string
+  headers: HeadersInit
+  contact: Record<string, unknown>
+  job: Record<string, unknown>
+  errorText: string
+  now: string
+}) {
+  const { url, headers, contact, job, errorText, now } = params
+  const message = `Permanent SMS failure. Suppressed future partnership SMS: ${errorText.slice(0, 500)}`
+  await Promise.all([
+    fetch(`${url}/rest/v1/sequence_jobs?id=eq.${job.id}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ status: 'cancelled', error: message }),
+    }),
+    fetch(`${url}/rest/v1/sequence_jobs?contact_id=eq.${contact.id}&channel=eq.sms&status=eq.pending`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ status: 'cancelled', error: 'Suppressed after permanent SMS send failure' }),
+    }),
+    fetch(`${url}/rest/v1/market_contacts?id=eq.${contact.id}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({
+        stage: 'dnc',
+        decision: 'bad_number',
+        sequence_paused: true,
+        sequence_paused_reason: 'sms_send_failed',
+        last_touch_at: now,
+      }),
+    }),
+    fetch(`${url}/rest/v1/market_touches`, {
+      method: 'POST',
+      headers: { ...headers, Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        contact_id: contact.id,
+        channel: 'sms',
+        direction: 'system',
+        notes: message,
+        created_by: 'System',
+        created_at: now,
+        metadata: { suppressed: true, reason: 'permanent_sms_failure' },
+      }),
+    }),
+  ])
 }
 
 export async function POST(request: Request) {
@@ -221,7 +294,31 @@ export async function POST(request: Request) {
           continue
         }
 
-        const smsBody = buildSms(contact, batch)
+        const campaignConfig = parseSmsCampaignConfig(batch.notes)
+        const smsBody = campaignConfig
+          ? ensureSmsOptOutLine(mergePartnershipSmsTemplate(campaignConfig.template, contact))
+          : buildSms(contact, batch)
+        const fromNumber =
+          (campaignConfig ? decodeSenderFromTemplateKey(job.template_key) : '') ||
+          campaignConfig?.senderNumbers[0] ||
+          PARTNERSHIP_PHONE
+
+        const contactStage = String(contact.stage || '').toLowerCase()
+        const contactDecision = String(contact.decision || '').toLowerCase()
+        if (
+          contactStage === 'dnc' ||
+          contactStage === 'closed_lost' ||
+          contactDecision === 'opted_out' ||
+          isOptOutText(contact.notes as string | null)
+        ) {
+          await fetch(`${url}/rest/v1/sequence_jobs?id=eq.${job.id}`, {
+            method: 'PATCH', headers,
+            body: JSON.stringify({ status: 'cancelled', error: 'Contact is opted out or closed' }),
+          })
+          skipped++
+          continue
+        }
+
         const twilioRes = await fetch(
           `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
           {
@@ -231,7 +328,7 @@ export async function POST(request: Request) {
               'Content-Type': 'application/x-www-form-urlencoded',
             },
             body: new URLSearchParams({
-              From: PARTNERSHIP_PHONE,
+              From: fromNumber,
               To: contact.phone as string,
               Body: smsBody,
             }),
@@ -240,6 +337,11 @@ export async function POST(request: Request) {
 
         if (!twilioRes.ok) {
           const errText = await twilioRes.text()
+          if (isPermanentSmsFailure(twilioRes.status, errText)) {
+            await suppressSmsContact({ url, headers, contact, job, errorText: errText, now })
+            skipped++
+            continue
+          }
           throw new Error(`Twilio: ${errText}`)
         }
 
@@ -268,6 +370,7 @@ export async function POST(request: Request) {
               notes: `Auto-SMS sent: "${smsBody}"`,
               created_by: 'System',
               created_at: now,
+              metadata: campaignConfig ? { campaign: 'partnership_sms', from: fromNumber } : {},
             }),
           }),
         ])

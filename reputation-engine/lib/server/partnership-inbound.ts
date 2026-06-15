@@ -1,6 +1,7 @@
 import { defaultFollowUpDate, normalizePartnershipStage } from '@/lib/marketing'
 import { digitsOnly, normalizePhone } from '@/lib/sales-phones'
 import { partnershipInboundNotificationEmail, sendRepAlertEmail } from '@/lib/server/internal-notifications'
+import { isOptOutText } from '@/lib/server/partnership-sms'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 
 type InboundChannel = 'email' | 'phone' | 'sms'
@@ -40,11 +41,37 @@ function phoneMatches(left?: string | null, right?: string | null) {
 async function findPartnershipContactMatch(input: PausePartnershipSequenceInput) {
   const normalizedEmail = normalizeEmail(input.email)
   const normalizedPhone = normalizePhone(input.phone)
+  const phoneDigits = digitsOnly(normalizedPhone)
+  const lastTen = phoneDigits.length > 10 ? phoneDigits.slice(-10) : phoneDigits
   if (!normalizedEmail && !normalizedPhone) return null
 
   const { url, headers } = requireSupabaseEnv()
+
+  if (normalizedEmail) {
+    const emailRes = await fetch(
+      `${url}/rest/v1/market_contacts?email=eq.${encodeURIComponent(normalizedEmail)}&select=id,name,company,email,phone,stage,decision,sequence_paused,pipeline_phase&order=created_at.desc&limit=20`,
+      { headers, cache: 'no-store' }
+    )
+    if (emailRes.ok) {
+      const emailMatches = (await emailRes.json()) as MarketContactMatch[]
+      if (emailMatches.length > 0) return chooseBestMatch(emailMatches)
+    }
+  }
+
+  if (lastTen) {
+    const phoneRes = await fetch(
+      `${url}/rest/v1/market_contacts?phone=ilike.*${encodeURIComponent(lastTen)}*&select=id,name,company,email,phone,stage,decision,sequence_paused,pipeline_phase&order=created_at.desc&limit=50`,
+      { headers, cache: 'no-store' }
+    )
+    if (phoneRes.ok) {
+      const phoneRows = ((await phoneRes.json()) as MarketContactMatch[])
+        .filter(contact => phoneMatches(contact.phone, normalizedPhone))
+      if (phoneRows.length > 0) return chooseBestMatch(phoneRows)
+    }
+  }
+
   const response = await fetch(
-    `${url}/rest/v1/market_contacts?select=id,name,company,email,phone,stage,decision,sequence_paused,pipeline_phase&batch_id=not.is.null&order=created_at.desc&limit=2000`,
+    `${url}/rest/v1/market_contacts?select=id,name,company,email,phone,stage,decision,sequence_paused,pipeline_phase&batch_id=not.is.null&order=created_at.desc&limit=10000`,
     { headers, cache: 'no-store' }
   )
 
@@ -56,8 +83,11 @@ async function findPartnershipContactMatch(input: PausePartnershipSequenceInput)
     (normalizedPhone && phoneMatches(contact.phone, normalizedPhone))
   ))
 
-  if (matches.length === 0) return null
+  return chooseBestMatch(matches)
+}
 
+function chooseBestMatch(matches: MarketContactMatch[]) {
+  if (matches.length === 0) return null
   matches.sort((left, right) => {
     const leftStage = normalizePartnershipStage(left.stage)
     const rightStage = normalizePartnershipStage(right.stage)
@@ -83,9 +113,12 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
   const occurredAt = input.occurredAt || new Date().toISOString()
   const { url, headers } = requireSupabaseEnv()
   const currentStage = normalizePartnershipStage(contact.stage)
+  const optedOut = isOptOutText(input.notes)
   const shouldAdvanceToConnected = ['target', 'mail_sent', 'follow_up_due', 'attempting_contact'].includes(currentStage)
   const nextFollowUp =
-    contact.decision === 'indifferent'
+    optedOut
+      ? null
+      : contact.decision === 'indifferent'
       ? defaultFollowUpDate(occurredAt, 30)
       : contact.decision
         ? null
@@ -97,9 +130,10 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
       headers,
       body: JSON.stringify({
         sequence_paused: true,
-        sequence_paused_reason: `${input.channel}_reply`,
-        pipeline_phase: contact.decision ? contact.pipeline_phase : 'engaged',
-        stage: shouldAdvanceToConnected ? 'connected' : contact.stage,
+        sequence_paused_reason: optedOut ? 'opt_out' : `${input.channel}_reply`,
+        pipeline_phase: optedOut ? 'closed' : contact.decision ? contact.pipeline_phase : 'engaged',
+        stage: optedOut ? 'dnc' : shouldAdvanceToConnected ? 'connected' : contact.stage,
+        decision: optedOut ? 'opted_out' : contact.decision,
         last_inbound_at: occurredAt,
         last_touch_at: occurredAt,
         next_follow_up: nextFollowUp,
@@ -120,10 +154,11 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
         contact_id: contact.id,
         channel: input.channel,
         direction: 'inbound',
-        notes: input.notes?.trim() || `Inbound ${input.channel} reply received`,
+        notes: input.notes?.trim() || (optedOut ? 'Inbound opt-out received' : `Inbound ${input.channel} reply received`),
         created_by: 'System',
         created_at: occurredAt,
-        metadata: input.metadata ?? {},
+        outcome_code: optedOut ? 'opt_out' : null,
+        metadata: { ...(input.metadata ?? {}), optedOut },
       }),
     }),
   ])

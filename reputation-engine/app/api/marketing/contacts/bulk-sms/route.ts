@@ -8,11 +8,18 @@ import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
 import { requireSupabaseEnv, readEnv } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
+import {
+  DEFAULT_PARTNERSHIP_SENDER_NUMBERS,
+  ensureSmsOptOutLine,
+  normalizeMarketingPhone,
+  normalizeOutboundNumber,
+  smsRecipientIssue,
+} from '@/lib/server/partnership-sms'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-const DEFAULT_FROM = '+12268870667'  // Windsor partnership outbound number
+const DEFAULT_FROM = DEFAULT_PARTNERSHIP_SENDER_NUMBERS[0]  // Windsor partnership outbound number
 
 function mergeSms(template: string, contact: Record<string, string>) {
   return template
@@ -44,7 +51,11 @@ export async function POST(request: Request) {
   }
 
   const { url, headers } = requireSupabaseEnv()
-  const fromNumber = body.from_number || DEFAULT_FROM
+  const fromNumber = normalizeOutboundNumber(body.from_number) || DEFAULT_FROM
+  if (!DEFAULT_PARTNERSHIP_SENDER_NUMBERS.includes(fromNumber)) {
+    return NextResponse.json({ error: 'Bulk partnership SMS must use a partnership sender number' }, { status: 400 })
+  }
+  const template = ensureSmsOptOutLine(body.template)
 
   // Fetch contacts
   const ids = body.contact_ids.map(id => `"${id}"`).join(',')
@@ -56,8 +67,13 @@ export async function POST(request: Request) {
     id: string; name: string; company: string | null; phone: string | null; city: string | null; industry: string | null
   }>
 
-  const withPhone = contacts.filter(c => c.phone?.trim())
-  const withoutPhone = contacts.filter(c => !c.phone?.trim())
+  const normalizedContacts = contacts.map(contact => ({
+    ...contact,
+    normalized_phone: normalizeMarketingPhone(contact.phone),
+    phone_issue: smsRecipientIssue(contact.phone),
+  }))
+  const withPhone = normalizedContacts.filter(c => c.normalized_phone)
+  const withoutPhone = normalizedContacts.filter(c => !c.normalized_phone)
 
   // Preview mode — return what would be sent without actually sending
   if (body.preview_only) {
@@ -65,10 +81,16 @@ export async function POST(request: Request) {
       total: contacts.length,
       will_send: withPhone.length,
       no_phone: withoutPhone.length,
-      preview: withPhone.slice(0, 3).map(c => ({
+      invalid_phone: withoutPhone.filter(c => c.phone?.trim()).length,
+      invalid_phone_samples: withoutPhone.filter(c => c.phone?.trim()).slice(0, 10).map(c => ({
         name: c.name,
         phone: c.phone,
-        message: mergeSms(body.template, {
+        issue: c.phone_issue,
+      })),
+      preview: withPhone.slice(0, 3).map(c => ({
+        name: c.name,
+        phone: c.normalized_phone,
+        message: mergeSms(template, {
           name: c.name || '',
           firstName: (c.name || '').split(' ')[0],
           company: c.company || '',
@@ -89,10 +111,11 @@ export async function POST(request: Request) {
   let sent = 0
   let failed = 0
   const touches = []
+  const failedContactIds: string[] = []
 
   // Send in sequence to avoid rate limits (Twilio allows ~1/sec)
   for (const contact of withPhone) {
-    const messageBody = mergeSms(body.template, {
+    const messageBody = mergeSms(template, {
       name: contact.name || '',
       firstName: (contact.name || '').split(' ')[0],
       company: contact.company || '',
@@ -111,7 +134,7 @@ export async function POST(request: Request) {
           },
           body: new URLSearchParams({
             From: fromNumber,
-            To: contact.phone!,
+            To: contact.normalized_phone,
             Body: messageBody,
           }),
         }
@@ -131,6 +154,18 @@ export async function POST(request: Request) {
         })
       } else {
         failed++
+        failedContactIds.push(contact.id)
+        const errorText = await res.text().catch(() => '')
+        touches.push({
+          contact_id: contact.id,
+          channel: 'sms',
+          direction: 'system',
+          notes: `SMS failed and was not retried: ${errorText.slice(0, 500) || res.statusText}`,
+          outcome_code: 'sms_failed',
+          created_by: 'System',
+          created_at: now,
+          metadata: { bulk: true, from: fromNumber, status: res.status },
+        })
       }
     } catch {
       failed++
@@ -157,6 +192,23 @@ export async function POST(request: Request) {
         method: 'PATCH',
         headers,
         body: JSON.stringify({ last_touch_at: now }),
+      }).catch(() => {})
+    }
+  }
+
+  if (failedContactIds.length > 0) {
+    for (let i = 0; i < failedContactIds.length; i += 25) {
+      const ids = failedContactIds.slice(i, i + 25).map(id => `"${id}"`).join(',')
+      await fetch(`${url}/rest/v1/market_contacts?id=in.(${ids})`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          stage: 'dnc',
+          decision: 'bad_number',
+          sequence_paused: true,
+          sequence_paused_reason: 'sms_send_failed',
+          last_touch_at: now,
+        }),
       }).catch(() => {})
     }
   }

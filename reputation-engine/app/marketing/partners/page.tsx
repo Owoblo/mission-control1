@@ -66,13 +66,22 @@ interface Contact {
 
 interface Touch {
   id: string
+  contact_id?: string
   channel: string
   direction: string
   notes: string | null
+  created_by?: string | null
   created_at: string
   outcome_code: string | null
   next_step: string | null
   metadata: Record<string, unknown> | null
+}
+
+interface ReplyItem {
+  contact: Contact
+  latest_touch: Touch
+  bucket: 'needs_reply' | 'postcard' | 'appointment' | 'opt_out' | 'closed' | 'review'
+  needs_response: boolean
 }
 
 interface List {
@@ -1450,6 +1459,266 @@ function PipelineTab({ contacts, onSelect, onStageChange }: {
   )
 }
 
+// ─── Tab: Partnership Replies ────────────────────────────────────────────────
+
+const REPLY_BUCKETS: Array<{ key: ReplyItem['bucket'] | 'all'; label: string }> = [
+  { key: 'needs_reply', label: 'Needs reply' },
+  { key: 'postcard', label: 'Postcard' },
+  { key: 'appointment', label: 'Appointment' },
+  { key: 'review', label: 'Review' },
+  { key: 'opt_out', label: 'Opt-out' },
+  { key: 'all', label: 'All' },
+]
+
+function replyBucketLabel(bucket: ReplyItem['bucket']) {
+  if (bucket === 'postcard') return 'Postcard request'
+  if (bucket === 'appointment') return 'Meeting / call'
+  if (bucket === 'opt_out') return 'Opt-out'
+  if (bucket === 'closed') return 'Closed'
+  if (bucket === 'review') return 'Review'
+  return 'Needs reply'
+}
+
+function replyBucketClass(bucket: ReplyItem['bucket']) {
+  if (bucket === 'postcard') return 'border-amber-200 bg-amber-50 text-amber-700'
+  if (bucket === 'appointment') return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+  if (bucket === 'opt_out' || bucket === 'closed') return 'border-rose-200 bg-rose-50 text-rose-700'
+  if (bucket === 'review') return 'border-slate-200 bg-slate-50 text-slate-600'
+  return 'border-[rgba(15,106,83,0.16)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]'
+}
+
+function RepliesTab({ onSelectContact, onOpenThread }: {
+  onSelectContact: (c: Contact) => void
+  onOpenThread: (c: Contact) => void
+}) {
+  const [items, setItems] = useState<ReplyItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState<ReplyItem['bucket'] | 'all'>('needs_reply')
+  const [search, setSearch] = useState('')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [saving, setSaving] = useState<string | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+
+  const loadReplies = useCallback(async () => {
+    setLoading(true)
+    const r = await fetch('/api/marketing/sms/replies?limit=300', { credentials: 'include' })
+    if (r.ok) {
+      const d = await r.json() as { responses?: ReplyItem[] }
+      const responses = d.responses ?? []
+      setItems(responses)
+      setSelectedId(curr => curr && responses.some(item => item.contact.id === curr) ? curr : responses[0]?.contact.id ?? null)
+    }
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { void loadReplies() }, [loadReplies])
+
+  function showToast(message: string) {
+    setToast(message)
+    setTimeout(() => setToast(null), 2500)
+  }
+
+  const filtered = items.filter(item => {
+    if (filter !== 'all' && item.bucket !== filter) return false
+    if (!search.trim()) return true
+    const haystack = `${item.contact.name} ${item.contact.company ?? ''} ${item.contact.city ?? ''} ${item.contact.phone ?? ''} ${item.latest_touch.notes ?? ''}`.toLowerCase()
+    return haystack.includes(search.toLowerCase())
+  })
+
+  const selected = items.find(item => item.contact.id === selectedId) ?? filtered[0] ?? null
+  const counts = REPLY_BUCKETS.reduce<Record<string, number>>((acc, bucket) => {
+    acc[bucket.key] = bucket.key === 'all' ? items.length : items.filter(item => item.bucket === bucket.key).length
+    return acc
+  }, {})
+
+  async function logReplyAction(item: ReplyItem, action: 'postcard' | 'handled' | 'not_interested') {
+    setSaving(action)
+    const contactId = item.contact.id
+    const baseNote = item.latest_touch.notes ? `Latest reply: ${item.latest_touch.notes}` : 'Latest reply handled.'
+    const actionConfig = {
+      postcard: {
+        touch: {
+          contact_id: contactId,
+          channel: 'direct_mail',
+          direction: 'internal',
+          notes: `Postcard requested. ${baseNote}`,
+          outcome_code: 'postcard_requested',
+          next_step: 'Drop or send postcard, then follow up.',
+          new_stage: 'qualified',
+          schedule_follow_up_days: 3,
+          metadata: { source: 'partnership_reply_desk' },
+        },
+        contact: { id: contactId, sequence_paused: false, sequence_paused_reason: null, stage: 'qualified' },
+        toast: 'Postcard request logged',
+      },
+      handled: {
+        touch: {
+          contact_id: contactId,
+          channel: item.latest_touch.channel || 'sms',
+          direction: 'internal',
+          notes: `Reply handled by rep. ${baseNote}`,
+          outcome_code: 'replied_positive',
+          next_step: 'Continue manual relationship follow-up.',
+          new_stage: 'connected',
+          schedule_follow_up_days: 7,
+          metadata: { source: 'partnership_reply_desk' },
+        },
+        contact: { id: contactId, sequence_paused: false, sequence_paused_reason: null, stage: 'connected' },
+        toast: 'Reply marked handled',
+      },
+      not_interested: {
+        touch: {
+          contact_id: contactId,
+          channel: item.latest_touch.channel || 'sms',
+          direction: 'internal',
+          notes: `Marked not interested. ${baseNote}`,
+          outcome_code: 'replied_negative',
+          next_step: 'Do not continue outreach unless they re-engage.',
+          new_stage: 'closed_lost',
+          next_follow_up: null,
+          metadata: { source: 'partnership_reply_desk' },
+        },
+        contact: { id: contactId, sequence_paused: false, sequence_paused_reason: null, stage: 'closed_lost', decision: 'rejected' },
+        toast: 'Marked not interested',
+      },
+    }[action]
+
+    try {
+      await fetch('/api/marketing/touches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(actionConfig.touch),
+      })
+      await fetch('/api/marketing/contacts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(actionConfig.contact),
+      })
+      showToast(actionConfig.toast)
+      await loadReplies()
+    } catch {
+      showToast('Could not save action')
+    }
+    setSaving(null)
+  }
+
+  return (
+    <div className="space-y-4">
+      {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-[14px] bg-[#1a2744] px-5 py-3 text-sm font-medium text-white shadow-xl">{toast}</div>}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-semibold text-[var(--app-ink)]">Reply Desk</h2>
+          <p className="mt-1 text-sm text-[var(--app-muted)]">Inbound SMS and email replies from partnership outreach.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search replies…" className="crm-input h-10 w-48 text-sm" />
+          <button onClick={() => void loadReplies()} className="crm-button h-10 text-sm">Refresh</button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {REPLY_BUCKETS.map(bucket => (
+          <button key={bucket.key} onClick={() => setFilter(bucket.key)}
+            className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${filter === bucket.key ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white' : 'border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}>
+            {bucket.label}
+            {counts[bucket.key] > 0 && <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] ${filter === bucket.key ? 'bg-white/20 text-white' : 'bg-[var(--app-wash)] text-[var(--app-muted)]'}`}>{counts[bucket.key]}</span>}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid min-h-[560px] gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
+        <div className="overflow-hidden rounded-[18px] border border-[var(--app-line)] bg-white">
+          <div className="border-b border-[var(--app-line)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--app-muted)]">
+            {loading ? 'Loading replies' : `${filtered.length} visible replies`}
+          </div>
+          <div className="max-h-[620px] overflow-y-auto">
+            {!loading && filtered.length === 0 && (
+              <div className="p-8 text-center text-sm text-[var(--app-muted)]">No replies in this bucket.</div>
+            )}
+            {filtered.map(item => (
+              <button key={`${item.contact.id}-${item.latest_touch.id}`} onClick={() => setSelectedId(item.contact.id)}
+                className={`w-full border-b border-[var(--app-line)] px-4 py-3 text-left transition hover:bg-[var(--app-wash)] ${selected?.contact.id === item.contact.id ? 'bg-[var(--app-accent-soft)]' : 'bg-white'}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold text-[var(--app-ink)]">{item.contact.name}</div>
+                    <div className="mt-0.5 truncate text-xs text-[var(--app-muted)]">{item.contact.company || item.contact.city || item.contact.phone || 'No company'}</div>
+                  </div>
+                  <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${replyBucketClass(item.bucket)}`}>{replyBucketLabel(item.bucket)}</span>
+                </div>
+                <div className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">{item.latest_touch.notes || 'No message body saved.'}</div>
+                <div className="mt-2 flex items-center justify-between text-[10px] text-[var(--app-muted)]">
+                  <span>{String(item.latest_touch.channel || 'reply').toUpperCase()}</span>
+                  <span>{timeAgo(item.latest_touch.created_at)}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-[18px] border border-[var(--app-line)] bg-white p-5">
+          {!selected ? (
+            <div className="flex h-full min-h-[420px] items-center justify-center text-center text-sm text-[var(--app-muted)]">Select a reply.</div>
+          ) : (
+            <div className="space-y-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-xl font-semibold text-[var(--app-ink)]">{selected.contact.name}</h3>
+                    <StageBadge stage={selected.contact.normalized_stage} />
+                    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${replyBucketClass(selected.bucket)}`}>{replyBucketLabel(selected.bucket)}</span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm text-[var(--app-muted)]">
+                    {selected.contact.company && <span>{selected.contact.company}</span>}
+                    {selected.contact.city && <span>{selected.contact.city}</span>}
+                    {selected.contact.phone && <span>{selected.contact.phone}</span>}
+                    {selected.contact.email && <span>{selected.contact.email}</span>}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => onOpenThread(selected.contact)} className="crm-button text-sm">Open thread</button>
+                  <button onClick={() => onSelectContact(selected.contact)} className="crm-button text-sm">Profile</button>
+                </div>
+              </div>
+
+              <div className="rounded-[14px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
+                <div className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--app-muted)]">
+                  <span>Latest inbound {selected.latest_touch.channel}</span>
+                  <span>{fmtDateTime(selected.latest_touch.created_at)}</span>
+                </div>
+                <div className="whitespace-pre-wrap text-base leading-7 text-[var(--app-ink)]">{selected.latest_touch.notes || 'No message body saved.'}</div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <button disabled={!!saving} onClick={() => void logReplyAction(selected, 'postcard')}
+                  className="rounded-[12px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50">
+                  Mark postcard requested
+                </button>
+                <button disabled={!!saving} onClick={() => void logReplyAction(selected, 'handled')}
+                  className="rounded-[12px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 disabled:opacity-50">
+                  Mark handled
+                </button>
+                <button disabled={!!saving} onClick={() => void logReplyAction(selected, 'not_interested')}
+                  className="rounded-[12px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-50">
+                  Not interested
+                </button>
+              </div>
+
+              <div className="rounded-[14px] border border-[var(--app-line)] p-4">
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--app-muted)]">Recommended handling</div>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Keep the first response human. If they ask for a postcard, log it here, send or drop the card, then use the profile to schedule a follow-up. If they ask to stop, mark not interested so future campaign jobs stay off this contact.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Tab: Phone ───────────────────────────────────────────────────────────────
 
 const PARTNERSHIP_FROM_NUMBER = '+12268870667'  // Windsor dedicated outbound number
@@ -1472,7 +1741,12 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
   const dialer = useDialer()
 
   const sorted = [...contacts]
-    .sort((a, b) => (b.last_touch_at ?? '').localeCompare(a.last_touch_at ?? ''))
+    .sort((a, b) => {
+      const aNeeds = a.sequence_paused && !a.decision ? 1 : 0
+      const bNeeds = b.sequence_paused && !b.decision ? 1 : 0
+      if (aNeeds !== bNeeds) return bNeeds - aNeeds
+      return (b.latest_inbound_at || b.last_touch_at || '').localeCompare(a.latest_inbound_at || a.last_touch_at || '')
+    })
     .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()) || (c.company ?? '').toLowerCase().includes(search.toLowerCase()))
 
   const selected = contacts.find(c => c.id === selectedId) ?? null
@@ -1757,9 +2031,20 @@ function PartnersTab({ contacts, onSelect }: { contacts: Contact[]; onSelect: (c
 // ─── Bulk SMS Modal ───────────────────────────────────────────────────────────
 
 function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () => void }) {
-  const [template, setTemplate] = useState(`Hi {{firstName}}, this is John from Saturn Star Movers. We work with {{industry}} professionals in {{city}} who refer clients our way — want to hop on a quick call this week?`)
+  const [template, setTemplate] = useState([
+    'Hey {{firstName}}, my name is John. I own Saturn Star Movers, a local moving company serving {{city}}.',
+    '',
+    'I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myself instead of just sending a random email.',
+    '',
+    'We are licensed and insured, and I would love to be a reliable local option if any of your buyers or sellers ever need help after closing.',
+    '',
+    'Would it be okay if I stopped by your office next week to drop off a few cards?',
+    '',
+    'If this is not relevant, reply STOP and I will not follow up.',
+  ].join('\n'))
   const [fromNumber, setFromNumber] = useState('+12268870667')
   const [preview, setPreview] = useState<Array<{ name: string; phone: string; message: string }> | null>(null)
+  const [invalidPhoneSamples, setInvalidPhoneSamples] = useState<Array<{ name: string; phone: string; issue: string }>>([])
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
   const [result, setResult] = useState<{ sent: number; failed: number; no_phone: number } | null>(null)
@@ -1774,8 +2059,13 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
       method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
       body: JSON.stringify({ contact_ids: Array.from(selectedIds), template, from_number: fromNumber, preview_only: true }),
     })
-    const data = await res.json() as { preview?: Array<{ name: string; phone: string; message: string }>; will_send?: number }
+    const data = await res.json() as {
+      preview?: Array<{ name: string; phone: string; message: string }>
+      will_send?: number
+      invalid_phone_samples?: Array<{ name: string; phone: string; issue: string }>
+    }
     setPreview(data.preview || [])
+    setInvalidPhoneSamples(data.invalid_phone_samples || [])
     setLoading(false)
   }
 
@@ -1814,10 +2104,13 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
             {/* Template */}
             <div>
               <label className="crm-label">Message template</label>
-              <textarea value={template} onChange={e => { setTemplate(e.target.value); setPreview(null) }} rows={4}
+              <textarea value={template} onChange={e => { setTemplate(e.target.value); setPreview(null); setInvalidPhoneSamples([]) }} rows={9}
                 className="crm-input mt-1 resize-none text-sm" />
+              <div className="mt-1 text-[11px] text-[var(--app-muted)]">
+                This is the final review step. Edit here, preview real merged examples, then approve.
+              </div>
               <div className="mt-1 flex flex-wrap gap-2">
-                {['{{firstName}}', '{{company}}', '{{city}}', '{{industry}}'].map(tag => (
+                {['{{firstName}}', '{{name}}', '{{company}}', '{{brokerage}}', '{{city}}', '{{zone}}', '{{industry}}'].map(tag => (
                   <button key={tag} onClick={() => setTemplate(t => t + tag)}
                     className="rounded-full border border-[var(--app-line)] px-2 py-0.5 text-[10px] font-mono text-[var(--app-muted)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)]">
                     {tag}
@@ -1831,8 +2124,8 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
               <label className="crm-label">Send from</label>
               <select value={fromNumber} onChange={e => setFromNumber(e.target.value)} className="crm-input mt-1 text-sm">
                 <option value="+12268870667">+1 (226) 887-0667 — Windsor Partnership</option>
-                <option value="+12267746581">+1 (226) 774-6581 — Operations</option>
               </select>
+              <div className="mt-1 text-[11px] text-[var(--app-muted)]">Sales and operations numbers are intentionally hidden here.</div>
             </div>
 
             {/* Preview */}
@@ -1844,6 +2137,19 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
                     <div key={i} className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
                       <div className="text-[10px] font-semibold text-[var(--app-muted)]">{p.name} · {p.phone}</div>
                       <div className="mt-1 text-sm text-[var(--app-ink)] whitespace-pre-wrap">{p.message}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {invalidPhoneSamples.length > 0 && (
+              <div className="rounded-[10px] border border-amber-200 bg-amber-50 p-3">
+                <div className="text-xs font-semibold text-amber-800">Skipped invalid numbers before sending</div>
+                <div className="mt-2 space-y-1">
+                  {invalidPhoneSamples.map((sample, index) => (
+                    <div key={`${sample.phone}-${index}`} className="text-[11px] text-amber-700">
+                      {sample.name}: {sample.phone} — {sample.issue}
                     </div>
                   ))}
                 </div>
@@ -1880,11 +2186,11 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
             <button onClick={onClose} className="crm-button flex-1">Cancel</button>
             {!preview ? (
               <button onClick={loadPreview} disabled={loading || !template.trim() || selectedIds.size === 0} className="crm-button-dark flex-1 disabled:opacity-50">
-                {loading ? 'Previewing…' : 'Preview'}
+                {loading ? 'Previewing…' : 'Preview Merged Texts'}
               </button>
             ) : (
               <button onClick={send} disabled={sending} className="crm-button-dark flex-1 disabled:opacity-50">
-                {sending ? 'Sending…' : `Send to ${selected.filter(c => c.phone).length}`}
+                {sending ? 'Sending…' : `Approve & Send to ${selected.filter(c => c.phone).length}`}
               </button>
             )}
           </div>
@@ -2132,10 +2438,11 @@ function QueueTab({ contacts, onSelect, onBulkSms }: {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-type Tab = 'queue' | 'overview' | 'lists' | 'pipeline' | 'phone' | 'partners'
+type Tab = 'queue' | 'replies' | 'overview' | 'lists' | 'pipeline' | 'phone' | 'partners'
 
 const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'queue',    label: 'Queue',    icon: '⚡' },
+  { key: 'replies',  label: 'Replies',  icon: '💬' },
   { key: 'overview', label: 'Overview', icon: '📊' },
   { key: 'lists',    label: 'Lists',    icon: '📋' },
   { key: 'pipeline', label: 'Pipeline', icon: '🎯' },
@@ -2146,7 +2453,7 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
 function PartnershipEngineInner() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const [tab, setTab] = useState<Tab>((searchParams.get('tab') as Tab) ?? 'overview')
+  const [tab, setTab] = useState<Tab>((searchParams.get('tab') as Tab) ?? 'replies')
   const [contacts, setContacts] = useState<Contact[]>([])
   const [batches, setBatches] = useState<Batch[]>([])
   const [lists, setLists] = useState<List[]>([])
@@ -2180,6 +2487,11 @@ function PartnershipEngineInner() {
   function handleTabChange(t: Tab) {
     setTab(t)
     router.replace(`/marketing/partners?tab=${t}`, { scroll: false })
+  }
+
+  function handleOpenThread(contact: Contact) {
+    setTab('phone')
+    router.replace(`/marketing/partners?tab=phone&contact=${contact.id}`, { scroll: false })
   }
 
   async function handlePipelineStageChange(contactId: string, stage: string) {
@@ -2224,6 +2536,9 @@ function PartnershipEngineInner() {
               {t.key === 'queue' && queueCount > 0 && (
                 <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${tab === t.key ? 'bg-white/20 text-white' : 'border border-[rgba(201,117,78,0.12)] bg-[#f5ece7] text-[#955941]'}`}>{queueCount}</span>
               )}
+              {t.key === 'replies' && needsReplyCount > 0 && (
+                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${tab === t.key ? 'bg-white/20 text-white' : 'border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]'}`}>{needsReplyCount}</span>
+              )}
             </button>
           ))}
         </div>
@@ -2231,6 +2546,9 @@ function PartnershipEngineInner() {
         {tab === 'queue' && (
           <QueueTab contacts={contacts} onSelect={setSelectedContact}
             onBulkSms={cs => setBulkSmsContacts(cs)} />
+        )}
+        {tab === 'replies' && (
+          <RepliesTab onSelectContact={setSelectedContact} onOpenThread={handleOpenThread} />
         )}
         {tab === 'overview' && (
           <OverviewTab batches={batches} contacts={contacts} loading={batchesLoading || contactsLoading}

@@ -91,22 +91,22 @@ export default function MarketingPage() {
         <div className="grid gap-8 px-6 py-7 md:grid-cols-[1.55fr,1fr] md:px-8">
           <div className="space-y-4">
             <div className="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/75">
-              Outreach Campaigns
+              Partnership SMS
             </div>
             <div>
               <h1 className="max-w-3xl text-3xl font-semibold tracking-tight text-white md:text-4xl">
-                Batch tracker for mailed partnerships, live replies, and stage movement.
+                Partnership outreach, replies, and follow-up in one workspace.
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-white/70">
-                Track each batch from target list to active partnership. The workspace keeps mail volume, response flow, and rep handoff visible in one place.
+                Upload realtor lists, send one respectful local SMS touch, stop automatically when someone replies, and work every inbound response from the reply desk.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <Link href="/marketing/partners?tab=batches" className="rounded-xl bg-[#f5a623] px-4 py-2.5 text-sm font-semibold text-[#142849] transition hover:brightness-95">
-                Open Batch Manager
+              <Link href="/marketing/partners?tab=replies" className="rounded-xl bg-[#f5a623] px-4 py-2.5 text-sm font-semibold text-[#142849] transition hover:brightness-95">
+                Open Reply Desk
               </Link>
-              <Link href="/marketing/partners?focus=due" className="rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/15">
-                Work Due Follow-Ups
+              <Link href="/marketing/partners?tab=phone" className="rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/15">
+                Open SMS Inbox
               </Link>
               <Link href="/marketing/partners?tab=pipeline" className="rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/15">
                 Review Pipeline

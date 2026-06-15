@@ -170,6 +170,9 @@ export async function PATCH(request: Request) {
     meeting_booked_at?: string | null
     partnership_outcome?: string | null
     referred_lead_count?: number | null
+    sequence_paused?: boolean
+    sequence_paused_reason?: string | null
+    decision?: string | null
     quick_action?: 'mark_mail_sent' | 'mark_follow_up_due' | 'mark_partnership_active' | 'snooze_21_days'
     touch_note?: string
     touch_channel?: string
@@ -193,6 +196,9 @@ export async function PATCH(request: Request) {
     updates.partnership_outcome_at = body.partnership_outcome ? new Date().toISOString() : null
   }
   if (body.referred_lead_count !== undefined) updates.referred_lead_count = Math.max(0, body.referred_lead_count ?? 0)
+  if (body.sequence_paused !== undefined) updates.sequence_paused = body.sequence_paused
+  if (body.sequence_paused_reason !== undefined) updates.sequence_paused_reason = body.sequence_paused_reason || null
+  if (body.decision !== undefined) updates.decision = body.decision || null
   if (body.stage) updates.last_touch_at = new Date().toISOString()
 
   const { url, headers } = requireSupabaseEnv()
