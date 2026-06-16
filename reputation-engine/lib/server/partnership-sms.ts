@@ -44,6 +44,7 @@ export const DEFAULT_PARTNERSHIP_SMS_TEMPLATE =
 
 export const DEFAULT_PARTNERSHIP_SENDER_NUMBERS = [
   '+12268870667',
+  '+12266055008',
 ]
 
 export function normalizeOutboundNumber(value?: string | null) {

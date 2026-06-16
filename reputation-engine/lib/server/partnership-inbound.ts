@@ -1,6 +1,6 @@
 import { defaultFollowUpDate, normalizePartnershipStage } from '@/lib/marketing'
 import { digitsOnly, normalizePhone } from '@/lib/sales-phones'
-import { partnershipInboundNotificationEmail, sendRepAlertEmail } from '@/lib/server/internal-notifications'
+import { getPartnershipAlertRecipients, partnershipInboundNotificationEmail, sendRepAlertEmail } from '@/lib/server/internal-notifications'
 import { isOptOutText } from '@/lib/server/partnership-sms'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 
@@ -174,7 +174,8 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
       notes: input.notes,
       phone: contact.phone || input.phone || null,
       email: contact.email || input.email || null,
-    })
+    }),
+    getPartnershipAlertRecipients()
   )
 
   return {

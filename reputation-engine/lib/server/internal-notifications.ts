@@ -36,6 +36,30 @@ export async function sendCallerIdSms(
 
 const NOTIFY_FROM = 'Saturn Star OS <notifications@starmovers.ca>'
 const NOTIFY_TO = ['business@starmovers.ca', 'thelma.ufot@starmovers.ca']
+const PARTNERSHIP_DEFAULT_NOTIFY_TO = ['business@starmovers.ca', 'hunter@starmovers.ca']
+
+function uniqueEmails(values: Array<string | null | undefined>) {
+  const seen = new Set<string>()
+  const emails: string[] = []
+
+  for (const value of values) {
+    for (const part of String(value || '').split(/[,\s;]+/)) {
+      const email = part.trim().toLowerCase()
+      if (!email || !email.includes('@') || seen.has(email)) continue
+      seen.add(email)
+      emails.push(email)
+    }
+  }
+
+  return emails
+}
+
+export function getPartnershipAlertRecipients() {
+  return uniqueEmails([
+    ...PARTNERSHIP_DEFAULT_NOTIFY_TO,
+    readEnv('PARTNERSHIP_NOTIFY_TO'),
+  ])
+}
 
 function escapeHtml(value: string) {
   return value
@@ -63,16 +87,17 @@ export async function sendInternalAlertSms(to: string, body: string, from: strin
   }).catch(() => {})
 }
 
-export async function sendRepAlertEmail(subject: string, htmlBody: string) {
+export async function sendRepAlertEmail(subject: string, htmlBody: string, recipients = NOTIFY_TO) {
   const resendKey = readEnv('RESEND_API_KEY')
-  if (!resendKey) return
+  const to = uniqueEmails(recipients)
+  if (!resendKey || !to.length) return
 
   await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       from: NOTIFY_FROM,
-      to: NOTIFY_TO,
+      to,
       subject,
       html: htmlBody,
     }),

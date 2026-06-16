@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 const STALE_JOB_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7
 
-const PARTNERSHIP_PHONE = '+12267746581'
+const PARTNERSHIP_PHONE = '+12268870667'
 const PARTNERSHIP_EMAIL = 'eric@starmovers.ca'
 
 function cleanCompanyName(value: string) {
