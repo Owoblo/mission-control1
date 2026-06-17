@@ -2731,10 +2731,11 @@ function urgencyCardBorder(contact: Contact): string {
   return 'border-[var(--app-line)] bg-white'
 }
 
-function QueueContactCard({ contact, onSelect, onCall }: {
+function QueueContactCard({ contact, onSelect, onCall, batchLabel }: {
   contact: Contact
   onSelect: (c: Contact) => void
   onCall: (c: Contact) => void
+  batchLabel?: string
 }) {
   const daysSince = contact.last_touch_at
     ? Math.floor((Date.now() - new Date(contact.last_touch_at).getTime()) / 86400000)
@@ -2750,6 +2751,11 @@ function QueueContactCard({ contact, onSelect, onCall }: {
             <button onClick={() => onSelect(contact)} className="text-sm font-semibold text-[var(--app-ink)] hover:text-[var(--app-accent)] transition truncate max-w-[160px]">
               {contact.name}
             </button>
+            {batchLabel && (
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-500">
+                {batchLabel}
+              </span>
+            )}
             {contact.category && <CategoryBadge categoryId={contact.category} />}
             {!contact.category && contact.outreach_tier && (
               <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${contact.outreach_tier === 1 ? 'border border-amber-200 bg-amber-50 text-amber-700' : contact.outreach_tier === 2 ? 'border border-sky-200 bg-sky-50 text-sky-700' : 'border border-[var(--app-line)] bg-[var(--app-wash)] text-[var(--app-muted)]'}`}>
@@ -2809,8 +2815,9 @@ function QueueContactCard({ contact, onSelect, onCall }: {
   )
 }
 
-function QueueTab({ contacts, onSelect, onScheduleCampaign }: {
+function QueueTab({ contacts, batches, onSelect, onScheduleCampaign }: {
   contacts: Contact[]
+  batches: Batch[]
   onSelect: (c: Contact) => void
   onScheduleCampaign: () => void
 }) {
@@ -2818,16 +2825,32 @@ function QueueTab({ contacts, onSelect, onScheduleCampaign }: {
   const [search, setSearch] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
   const [filterCity, setFilterCity] = useState('')
+  const [filterBatch, setFilterBatch] = useState('')
 
   function handleCall(c: Contact) {
     if (!c.phone) return
     void dialer.call(c.phone)
   }
 
+  const batchMeta = useMemo(() => {
+    const sortedBatches = [...batches].sort((a, b) => a.created_at.localeCompare(b.created_at))
+    return new Map(sortedBatches.map((batch, index) => [
+      batch.id,
+      {
+        label: `Batch ${index + 1}`,
+        name: batch.name,
+        contacts: batch.total_contacts || contacts.filter(contact => contact.batch_id === batch.id).length,
+      },
+    ]))
+  }, [batches, contacts])
+
+  const batchOptions = useMemo(() => Array.from(batchMeta.entries()).map(([id, meta]) => ({ id, ...meta })), [batchMeta])
+
   const filtered = contacts.filter(c => {
     if (search && !`${c.name} ${c.company} ${c.city} ${c.industry} ${c.category}`.toLowerCase().includes(search.toLowerCase())) return false
     if (filterCategory && c.category !== filterCategory) return false
     if (filterCity && (c.city || '').toLowerCase() !== filterCity.toLowerCase()) return false
+    if (filterBatch && c.batch_id !== filterBatch) return false
     return true
   })
 
@@ -2864,12 +2887,32 @@ function QueueTab({ contacts, onSelect, onScheduleCampaign }: {
         </div>
         <div className="flex gap-2 flex-wrap">
           <button onClick={onScheduleCampaign} className="crm-button-dark text-sm">Schedule campaign</button>
+          <select value={filterBatch} onChange={e => setFilterBatch(e.target.value)} className="crm-input w-52 text-sm">
+            <option value="">All batches</option>
+            {batchOptions.map(batch => (
+              <option key={batch.id} value={batch.id}>{batch.label} · {batch.name}</option>
+            ))}
+          </select>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…" className="crm-input w-36 text-sm" />
         </div>
       </div>
 
       {/* Category + city filters */}
       <div className="flex flex-wrap gap-2">
+        {batchOptions.length > 0 && (
+          <>
+            <button onClick={() => setFilterBatch('')}
+              className={`rounded-full px-3 py-1 text-xs font-semibold transition ${!filterBatch ? 'bg-[var(--app-ink)] text-white' : 'border border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}>
+              All batches
+            </button>
+            {batchOptions.map(batch => (
+              <button key={batch.id} onClick={() => setFilterBatch(filterBatch === batch.id ? '' : batch.id)}
+                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${filterBatch === batch.id ? 'bg-[var(--app-ink)] text-white' : 'border border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}>
+                {batch.label} <span className="font-medium opacity-70">{batch.contacts}</span>
+              </button>
+            ))}
+          </>
+        )}
         <button onClick={() => { setFilterCategory(''); setFilterCity('') }}
           className={`rounded-full px-3 py-1 text-xs font-semibold transition ${!filterCategory && !filterCity ? 'bg-[var(--app-ink)] text-white' : 'border border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}>
           All
@@ -2901,7 +2944,7 @@ function QueueTab({ contacts, onSelect, onScheduleCampaign }: {
             <span className="rounded-full border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--app-accent)]">{responded.length}</span>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
-            {responded.map(c => <QueueContactCard key={c.id} contact={c} onSelect={onSelect} onCall={handleCall} />)}
+            {responded.map(c => <QueueContactCard key={c.id} contact={c} batchLabel={c.batch_id ? batchMeta.get(c.batch_id)?.label : undefined} onSelect={onSelect} onCall={handleCall} />)}
           </div>
         </div>
       )}
@@ -2915,7 +2958,7 @@ function QueueTab({ contacts, onSelect, onScheduleCampaign }: {
             <span className="rounded-full border border-[rgba(201,117,78,0.12)] bg-[#f5ece7] px-2 py-0.5 text-[10px] font-bold text-[#955941]">{overdue.length}</span>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
-            {overdue.slice(0, 10).map(c => <QueueContactCard key={c.id} contact={c} onSelect={onSelect} onCall={handleCall} />)}
+            {overdue.slice(0, 10).map(c => <QueueContactCard key={c.id} contact={c} batchLabel={c.batch_id ? batchMeta.get(c.batch_id)?.label : undefined} onSelect={onSelect} onCall={handleCall} />)}
           </div>
         </div>
       )}
@@ -2929,7 +2972,7 @@ function QueueTab({ contacts, onSelect, onScheduleCampaign }: {
             <span className="rounded-full border border-[var(--app-line)] bg-[var(--app-wash)] px-2 py-0.5 text-[10px] font-bold text-[var(--app-muted)]">{callFirst.length}</span>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
-            {callFirst.slice(0, 20).map(c => <QueueContactCard key={c.id} contact={c} onSelect={onSelect} onCall={handleCall} />)}
+            {callFirst.slice(0, 20).map(c => <QueueContactCard key={c.id} contact={c} batchLabel={c.batch_id ? batchMeta.get(c.batch_id)?.label : undefined} onSelect={onSelect} onCall={handleCall} />)}
           </div>
         </div>
       )}
@@ -2972,7 +3015,7 @@ function PartnershipEngineInner() {
 
   const loadContacts = useCallback(async () => {
     setContactsLoading(true)
-    const r = await fetch('/api/marketing/contacts?limit=500&offset=0', { credentials: 'include' })
+    const r = await fetch('/api/marketing/contacts?limit=2000&offset=0', { credentials: 'include' })
     if (r.ok) { const d = await r.json() as { contacts?: Contact[] }; setContacts(d.contacts ?? []) }
     setContactsLoading(false)
   }, [])
@@ -3055,7 +3098,7 @@ function PartnershipEngineInner() {
         </div>
 
         {tab === 'queue' && (
-          <QueueTab contacts={contacts} onSelect={setSelectedContact}
+          <QueueTab contacts={contacts} batches={batches} onSelect={setSelectedContact}
             onScheduleCampaign={() => setScheduledSmsOpen(true)} />
         )}
         {tab === 'overview' && (
