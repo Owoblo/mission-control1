@@ -22,6 +22,9 @@ export type PartnershipSheetSyncPayload = {
   relationship_summary?: string | null
   ai_status?: string | null
   ai_next_step?: string | null
+  sheet_note?: string | null
+  sheet_target?: string | null
+  routing_instruction?: string | null
   app_contact_url: string | null
   contact: {
     id: string

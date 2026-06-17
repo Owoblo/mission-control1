@@ -35,6 +35,8 @@ interface AiSheetUpdate {
   status: string
   relationshipSummary: string
   nextStep: string
+  sheetNote: string
+  sheetTarget: string
 }
 
 const ACTION_LABELS: Record<SheetUpdateAction, string> = {
@@ -92,6 +94,8 @@ function normalizeAiResult(parsed: Partial<AiSheetUpdate>, instruction: string, 
     status: parsed.status?.trim() || ACTION_LABELS[action],
     relationshipSummary: parsed.relationshipSummary?.trim() || fallbackSummary,
     nextStep: parsed.nextStep?.trim() || 'Review this partner and follow up manually from the partnership inbox.',
+    sheetNote: parsed.sheetNote?.trim() || parsed.nextStep?.trim() || 'Review this partner and follow up manually from the partnership inbox.',
+    sheetTarget: parsed.sheetTarget?.trim() || 'Use the rep instruction and action to choose the closest partnership sheet section.',
   }
 }
 
@@ -122,9 +126,14 @@ async function analyzeSheetUpdate(input: {
           content: [
             'You update a Saturn Star Movers partnership Google Sheet from a manual rep instruction.',
             'Use only the supplied contact and conversation history.',
-            'Return JSON only with keys: action, actionLabel, status, relationshipSummary, nextStep.',
+            'Return JSON only with keys: action, actionLabel, status, relationshipSummary, nextStep, sheetNote, sheetTarget.',
             'action must be one of: active_partner, drop_cards, meeting_requested, needs_follow_up, not_interested, wrong_number.',
             'relationshipSummary should be concise, specific, and explain where the relationship currently stands.',
+            'nextStep should be an internal task for the CRM.',
+            'sheetNote is the exact concise note that should be written into the Google Sheet Notes cell.',
+            'sheetNote must summarize what to do next with this partner based on the conversation, not recap the whole conversation.',
+            'Use plain task language such as "Drop by their office to meet them and bring cards/flyers."',
+            'sheetTarget should describe where the rep wants this placed in the sheet when the instruction names a page, tab, list, section, or future destination.',
           ].join(' '),
         },
         {
@@ -182,13 +191,14 @@ export async function POST(
   if (!contact) return NextResponse.json({ error: 'Partner not found' }, { status: 404 })
 
   const touches = await touchesRes.json() as MarketTouch[]
-  const latestInbound = [...touches].reverse().find(touch => touch.direction === 'inbound')
   const now = new Date().toISOString()
   const ai = await analyzeSheetUpdate({ instruction, contact, touches })
-  const summaryNote = [
+  const sheetNote = ai.sheetNote
+  const internalNote = [
     `Manual instruction: ${instruction}`,
-    `AI relationship summary: ${ai.relationshipSummary}`,
-    `AI next step: ${ai.nextStep}`,
+    `Sheet target: ${ai.sheetTarget}`,
+    `Relationship summary: ${ai.relationshipSummary}`,
+    `Next sheet note: ${sheetNote}`,
   ].join('\n')
 
   const syncResult = await syncPartnershipActionToSheet({
@@ -196,14 +206,13 @@ export async function POST(
     action: ai.action,
     action_label: ai.actionLabel,
     status: ai.status,
-    next_step: summaryNote,
+    next_step: sheetNote,
     rep: session.name ?? 'Rep',
-    latest_message: latestInbound?.notes ?? null,
-    latest_message_at: latestInbound?.created_at ?? null,
-    manual_instruction: instruction,
-    relationship_summary: ai.relationshipSummary,
-    ai_status: ai.status,
-    ai_next_step: ai.nextStep,
+    latest_message: null,
+    latest_message_at: null,
+    sheet_note: sheetNote,
+    sheet_target: ai.sheetTarget,
+    routing_instruction: instruction,
     app_contact_url: getAppBaseUrl()
       ? `${getAppBaseUrl()}/marketing/partners?tab=phone&contact=${encodeURIComponent(id)}`
       : null,
@@ -233,7 +242,7 @@ export async function POST(
       contact_id: id,
       channel: 'note',
       direction: 'internal',
-      notes: `Manual sheet update completed.\n${summaryNote}`,
+      notes: `Manual sheet update completed.\n${internalNote}`,
       outcome_code: `sheet_update:${ai.action}`,
       next_step: ai.nextStep,
       metadata: {
@@ -241,6 +250,8 @@ export async function POST(
         action: ai.action,
         instruction,
         relationshipSummary: ai.relationshipSummary,
+        sheetNote,
+        sheetTarget: ai.sheetTarget,
       },
       created_by: session.name ?? 'Rep',
       created_at: now,
@@ -254,5 +265,7 @@ export async function POST(
     status: ai.status,
     summary: ai.relationshipSummary,
     nextStep: ai.nextStep,
+    sheetNote,
+    sheetTarget: ai.sheetTarget,
   })
 }

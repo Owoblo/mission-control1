@@ -2217,17 +2217,17 @@ function PhoneTab({
               </button>
             </div>
             <div className="mt-4">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">Instruction for AI</label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">Where should this go, and what is next?</label>
               <textarea
                 value={sheetInstruction}
                 onChange={e => setSheetInstruction(e.target.value)}
                 rows={7}
-                placeholder="Put this partner in the sheet under active partners, scan the text messages and create a summary of where we currently stand."
+                placeholder="Example: Move this to Active Partners. They want us to drop by the office to meet them, so the sheet note should say to bring cards/flyers and stop by their office next week."
                 className="mt-2 w-full resize-none rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-3 text-sm leading-6 text-[#1a2744] outline-none focus:border-[#1a2744]"
               />
             </div>
             <div className="mt-3 rounded-[14px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
-              Nothing updates until you submit this instruction for this partner.
+              The sheet Notes cell will be a concise next-step summary for this partner.
             </div>
             <div className="mt-4 flex gap-2">
               <button

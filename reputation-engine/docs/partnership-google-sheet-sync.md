@@ -55,11 +55,13 @@ function doPost(e) {
 
     appendActionLog(ss, payload);
 
-    if (payload.action === 'active_partner') {
+    const wroteCustomTarget = upsertDescribedSheetTarget(ss, payload);
+
+    if (!wroteCustomTarget && payload.action === 'active_partner') {
       upsertActivePartner(ss, payload);
     }
 
-    if (['drop_cards', 'meeting_requested', 'needs_follow_up'].includes(payload.action)) {
+    if (!wroteCustomTarget && ['drop_cards', 'meeting_requested', 'needs_follow_up'].includes(payload.action)) {
       upsertReferralTodo(ss, payload);
     }
 
@@ -99,7 +101,7 @@ function appendActionLog(ss, payload) {
     payload.latest_message || '',
     payload.action_label || payload.action || '',
     payload.status || '',
-    payload.next_step || '',
+    payload.sheet_note || payload.next_step || '',
     payload.rep || '',
     payload.app_contact_url || ''
   ]);
@@ -149,6 +151,134 @@ function upsertReferralTodo(ss, payload) {
     'No',
     buildNote(payload)
   ]]);
+}
+
+function upsertDescribedSheetTarget(ss, payload) {
+  const target = String(payload.sheet_target || '').trim();
+  if (!target) return false;
+
+  const normalizedTarget = normalizeText(target);
+  if (!normalizedTarget || normalizedTarget.includes('closest partnership sheet section')) return false;
+  if (normalizedTarget.includes(normalizeText(ACTIVE_PARTNERS_SHEET))) return false;
+  if (normalizedTarget.includes(normalizeText(TODO_SHEET))) return false;
+  if (normalizedTarget.includes(normalizeText(ACTION_LOG_SHEET))) return false;
+
+  const sheet = findSheetByDescription(ss, target);
+  if (!sheet) return false;
+
+  upsertFlexibleSheetRow(sheet, payload);
+  return true;
+}
+
+function findSheetByDescription(ss, target) {
+  const normalizedTarget = normalizeText(target);
+  const sheets = ss.getSheets();
+
+  for (let i = 0; i < sheets.length; i++) {
+    if (normalizeText(sheets[i].getName()) === normalizedTarget) return sheets[i];
+  }
+
+  for (let i = 0; i < sheets.length; i++) {
+    const name = normalizeText(sheets[i].getName());
+    if (normalizedTarget.includes(name) || name.includes(normalizedTarget)) return sheets[i];
+  }
+
+  return null;
+}
+
+function upsertFlexibleSheetRow(sheet, payload) {
+  const contact = payload.contact || {};
+  const headerInfo = findHeaderRow(sheet);
+
+  if (!headerInfo) {
+    sheet.appendRow([
+      payload.timestamp || new Date().toISOString(),
+      contact.name || '',
+      contact.company || '',
+      contact.city || '',
+      contact.phone || '',
+      contact.email || '',
+      payload.action_label || payload.action || '',
+      payload.status || '',
+      payload.sheet_note || payload.next_step || '',
+      payload.rep || '',
+      payload.app_contact_url || ''
+    ]);
+    return;
+  }
+
+  const row = findFlexibleContactRow(sheet, headerInfo, contact) || Math.max(sheet.getLastRow() + 1, headerInfo.row + 1);
+  const width = Math.max(headerInfo.headers.length, sheet.getLastColumn());
+  const values = sheet.getRange(row, 1, 1, width).getValues()[0];
+
+  setByHeader(values, headerInfo.map, ['timestamp', 'date', 'updated'], payload.timestamp || new Date().toISOString());
+  setByHeader(values, headerInfo.map, ['name', 'contact', 'partner'], contact.name || '');
+  setByHeader(values, headerInfo.map, ['company', 'brokerage', 'office'], contact.company || '');
+  setByHeader(values, headerInfo.map, ['city', 'area'], contact.city || '');
+  setByHeader(values, headerInfo.map, ['phone', 'mobile', 'cell'], contact.phone || '');
+  setByHeader(values, headerInfo.map, ['email'], contact.email || '');
+  setByHeader(values, headerInfo.map, ['action', 'type'], payload.action_label || payload.action || '');
+  setByHeader(values, headerInfo.map, ['status', 'stage'], payload.status || '');
+  setByHeader(values, headerInfo.map, ['notes', 'note', 'next step', 'next action'], buildNote(payload));
+  setByHeader(values, headerInfo.map, ['rep', 'owner'], payload.rep || '');
+  setByHeader(values, headerInfo.map, ['app link', 'link', 'crm'], payload.app_contact_url || '');
+
+  sheet.getRange(row, 1, 1, width).setValues([values]);
+}
+
+function findHeaderRow(sheet) {
+  const rowsToScan = Math.min(10, Math.max(1, sheet.getLastRow()));
+  const colsToScan = Math.min(20, Math.max(1, sheet.getLastColumn()));
+  const values = sheet.getRange(1, 1, rowsToScan, colsToScan).getValues();
+
+  for (let r = 0; r < values.length; r++) {
+    const normalized = values[r].map(normalizeText);
+    const hasName = normalized.some(value => ['name', 'contact', 'partner'].includes(value));
+    const hasNotes = normalized.some(value => ['notes', 'note', 'next step', 'next action'].includes(value));
+    if (hasName && hasNotes) {
+      const map = {};
+      normalized.forEach((header, index) => {
+        if (header) map[header] = index;
+      });
+      return { row: r + 1, headers: normalized, map };
+    }
+  }
+
+  return null;
+}
+
+function findFlexibleContactRow(sheet, headerInfo, contact) {
+  const startRow = headerInfo.row + 1;
+  const lastRow = sheet.getLastRow();
+  if (lastRow < startRow) return null;
+
+  const width = Math.max(headerInfo.headers.length, sheet.getLastColumn());
+  const values = sheet.getRange(startRow, 1, lastRow - startRow + 1, width).getValues();
+  const phone = normalizePhone(contact.phone);
+  const name = normalizeText(contact.name);
+
+  const phoneIndex = firstHeaderIndex(headerInfo.map, ['phone', 'mobile', 'cell']);
+  const nameIndex = firstHeaderIndex(headerInfo.map, ['name', 'contact', 'partner']);
+
+  for (let i = 0; i < values.length; i++) {
+    if (phone && phoneIndex >= 0 && normalizePhone(values[i][phoneIndex]) === phone) return startRow + i;
+    if (name && nameIndex >= 0 && normalizeText(values[i][nameIndex]) === name) return startRow + i;
+  }
+
+  return null;
+}
+
+function setByHeader(rowValues, headerMap, aliases, value) {
+  const index = firstHeaderIndex(headerMap, aliases);
+  if (index >= 0) rowValues[index] = value;
+}
+
+function firstHeaderIndex(headerMap, aliases) {
+  for (let i = 0; i < aliases.length; i++) {
+    const index = headerMap[normalizeText(aliases[i])];
+    if (typeof index === 'number') return index;
+  }
+  return -1;
 }
 
 function findPartnerRow(sheet, contact) {
@@ -225,6 +355,13 @@ function taskForAction(action) {
 }
 
 function buildNote(payload) {
+  if (payload.sheet_note) {
+    const parts = [payload.sheet_note];
+    if (payload.sheet_target) parts.push('Sheet target: ' + payload.sheet_target);
+    if (payload.app_contact_url) parts.push('App: ' + payload.app_contact_url);
+    return parts.join('\n');
+  }
+
   const parts = [];
   if (payload.manual_instruction) parts.push('Rep instruction: ' + payload.manual_instruction);
   if (payload.relationship_summary) parts.push('AI summary: ' + payload.relationship_summary);
