@@ -165,13 +165,62 @@ export function isOptOutText(value?: string | null) {
   return /^(stop|unsubscribe|remove|remove me|do not text|don't text|dont text|opt out|cancel)\b/.test(text)
 }
 
-function nextBusinessDay(date: Date) {
-  const next = new Date(date)
-  next.setDate(next.getDate() + 1)
-  while (next.getDay() === 0 || next.getDay() === 6) {
-    next.setDate(next.getDate() + 1)
+type PlainDate = { year: number; month: number; day: number }
+
+function zonedParts(date: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date)
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]))
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+    hour: Number(values.hour),
+    minute: Number(values.minute),
+  }
+}
+
+function zonedDateToUtc(date: PlainDate, hour: number, minute: number, timeZone: string) {
+  const guess = Date.UTC(date.year, date.month - 1, date.day, hour, minute, 0, 0)
+  const parts = zonedParts(new Date(guess), timeZone)
+  const asUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, 0, 0)
+  return new Date(guess - (asUtc - guess))
+}
+
+function addDays(date: PlainDate, days: number): PlainDate {
+  const next = new Date(Date.UTC(date.year, date.month - 1, date.day + days, 12, 0, 0, 0))
+  return { year: next.getUTCFullYear(), month: next.getUTCMonth() + 1, day: next.getUTCDate() }
+}
+
+function dayOfWeek(date: PlainDate) {
+  return new Date(Date.UTC(date.year, date.month - 1, date.day, 12, 0, 0, 0)).getUTCDay()
+}
+
+function nextBusinessDay(date: PlainDate) {
+  let next = addDays(date, 1)
+  while (dayOfWeek(next) === 0 || dayOfWeek(next) === 6) {
+    next = addDays(next, 1)
   }
   return next
+}
+
+function advanceBusinessDays(date: PlainDate, days: number) {
+  let next = date
+  for (let i = 0; i < days; i++) next = nextBusinessDay(next)
+  return next
+}
+
+function parsePlainDate(value?: string | null): PlainDate | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || '')
+  if (!match) return null
+  return { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) }
 }
 
 export function buildPartnershipSmsSchedule(options: {
@@ -181,40 +230,50 @@ export function buildPartnershipSmsSchedule(options: {
   startDate?: string | null
   startHour?: number
   endHour?: number
+  timezone?: string
 }) {
   const count = Math.max(0, options.count)
   const dailyCap = Math.max(1, options.dailyCap)
   const senders = options.senderNumbers.length ? options.senderNumbers : DEFAULT_PARTNERSHIP_SENDER_NUMBERS
   const startHour = options.startHour ?? 10
   const endHour = Math.max(startHour + 1, options.endHour ?? 17)
+  const timezone = options.timezone || 'America/Toronto'
   const now = new Date()
-  let day = options.startDate ? new Date(`${options.startDate}T${String(startHour).padStart(2, '0')}:00:00`) : new Date(now)
-  if (!options.startDate) {
-    if (day.getHours() < startHour) {
-      day.setHours(startHour, 0, 0, 0)
-    } else if (day.getHours() >= endHour) {
+  const nowParts = zonedParts(now, timezone)
+  let day = parsePlainDate(options.startDate) || { year: nowParts.year, month: nowParts.month, day: nowParts.day }
+  let firstHour = startHour
+  let firstMinute = 0
+
+  if (!options.startDate && nowParts.hour >= startHour && nowParts.hour < endHour) {
+    const nextMinute = nowParts.minute + 10
+    firstHour = nowParts.hour + Math.floor(nextMinute / 60)
+    firstMinute = nextMinute % 60
+    if (firstHour >= endHour) {
       day = nextBusinessDay(day)
-      day.setHours(startHour, 0, 0, 0)
-    } else {
-      day.setMinutes(day.getMinutes() + 10, 0, 0)
+      firstHour = startHour
+      firstMinute = 0
     }
+  } else if (!options.startDate && nowParts.hour >= endHour) {
+    day = nextBusinessDay(day)
   } else {
-    day.setHours(startHour, 0, 0, 0)
+    firstHour = startHour
+    firstMinute = 0
   }
-  while (day.getDay() === 0 || day.getDay() === 6) day = nextBusinessDay(day)
+  while (dayOfWeek(day) === 0 || dayOfWeek(day) === 6) day = nextBusinessDay(day)
 
   const schedule: Array<{ scheduledAt: string; fromNumber: string }> = []
   const minutesInWindow = Math.max(60, (endHour - startHour) * 60)
   for (let index = 0; index < count; index++) {
     const dayIndex = Math.floor(index / dailyCap)
     const positionInDay = index % dailyCap
-    let scheduledDay = new Date(day)
-    for (let i = 0; i < dayIndex; i++) scheduledDay = nextBusinessDay(scheduledDay)
+    const scheduledDay = advanceBusinessDays(day, dayIndex)
     const spacing = minutesInWindow / Math.max(1, dailyCap)
-    const minuteOffset = Math.floor(positionInDay * spacing) + (positionInDay % 4)
-    scheduledDay.setHours(startHour, minuteOffset, 0, 0)
+    const initialOffset = dayIndex === 0 ? Math.max(0, (firstHour - startHour) * 60 + firstMinute) : 0
+    const minuteOffset = initialOffset + Math.floor(positionInDay * spacing) + (positionInDay % 4)
+    const hour = startHour + Math.floor(minuteOffset / 60)
+    const minute = minuteOffset % 60
     schedule.push({
-      scheduledAt: scheduledDay.toISOString(),
+      scheduledAt: zonedDateToUtc(scheduledDay, Math.min(hour, endHour - 1), minute, timezone).toISOString(),
       fromNumber: senders[index % senders.length],
     })
   }

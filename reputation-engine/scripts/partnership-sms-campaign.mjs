@@ -15,7 +15,11 @@ function parseArgs(argv) {
     zone: '',
     senderNumbers: [],
     template: '',
+    templateFile: '',
     startDate: '',
+    startHour: 10,
+    endHour: 17,
+    timezone: 'America/Toronto',
     allowExistingReschedule: false,
   }
   for (let i = 2; i < argv.length; i++) {
@@ -31,7 +35,11 @@ function parseArgs(argv) {
     else if (arg === '--zone') args.zone = next, i++
     else if (arg === '--from') args.senderNumbers = String(next || '').split(',').map(s => s.trim()).filter(Boolean), i++
     else if (arg === '--template') args.template = next, i++
+    else if (arg === '--template-file') args.templateFile = next, i++
     else if (arg === '--start-date') args.startDate = next, i++
+    else if (arg === '--start-hour') args.startHour = Number(next || 10), i++
+    else if (arg === '--end-hour') args.endHour = Number(next || 17), i++
+    else if (arg === '--timezone') args.timezone = next, i++
     else if (arg === '--allow-existing') args.allowExistingReschedule = true
     else if (arg === '--dry-run') args.dryRun = true
   }
@@ -101,7 +109,7 @@ function mapRealtor(row) {
 async function main() {
   const args = parseArgs(process.argv)
   if (!args.csv || !args.name) {
-    console.error('Usage: node scripts/partnership-sms-campaign.mjs --csv /path/file.csv --name "Realtor SMS Campaign 1" --from +1226... --dry-run')
+    console.error('Usage: node scripts/partnership-sms-campaign.mjs --csv /path/file.csv --name "Realtor SMS Campaign 1" --from +1226...,+1226... --daily-cap 400 --template-file message.txt --dry-run')
     process.exit(1)
   }
   if (!args.secret) {
@@ -114,16 +122,22 @@ async function main() {
   if (args.city) contacts = contacts.filter(contact => String(contact.city || '').toLowerCase() === args.city.toLowerCase())
   if (args.zone) contacts = contacts.filter(contact => String(contact.zone || '').toLowerCase() === args.zone.toLowerCase())
   if (args.limit > 0) contacts = contacts.slice(0, args.limit)
+  const template = args.templateFile
+    ? fs.readFileSync(args.templateFile, 'utf8')
+    : args.template
 
   const payload = {
     name: args.name,
     city: args.city,
     zone: args.zone,
     contacts,
-    template: args.template || undefined,
+    template: template || undefined,
     sender_numbers: args.senderNumbers.length ? args.senderNumbers : undefined,
     daily_cap: args.dailyCap,
     start_date: args.startDate || undefined,
+    start_hour: args.startHour,
+    end_hour: args.endHour,
+    timezone: args.timezone,
     dry_run: args.dryRun,
     allow_existing_reschedule: args.allowExistingReschedule || undefined,
   }

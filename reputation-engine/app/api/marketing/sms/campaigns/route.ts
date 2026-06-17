@@ -102,6 +102,9 @@ export async function POST(request: Request) {
     sender_numbers?: string[]
     daily_cap?: number
     start_date?: string
+    start_hour?: number
+    end_hour?: number
+    timezone?: string
     dry_run?: boolean
     allow_existing_reschedule?: boolean
   }
@@ -119,6 +122,9 @@ export async function POST(request: Request) {
 
   const template = ensureSmsOptOutLine(body.template || DEFAULT_PARTNERSHIP_SMS_TEMPLATE)
   const dailyCap = Math.max(1, Math.min(500, Number(body.daily_cap || 100)))
+  const startHour = Math.max(7, Math.min(20, Number(body.start_hour || 10)))
+  const endHour = Math.max(startHour + 1, Math.min(21, Number(body.end_hour || 17)))
+  const timezone = String(body.timezone || 'America/Toronto')
   const invalidPhoneRows = contactsInput.filter(contact => {
     const phones = phoneInputs(contact)
     return phones.length > 0 && !firstFilledPhone(contact)
@@ -172,6 +178,9 @@ export async function POST(request: Request) {
       would_schedule: toInsert.length + schedulableExistingKeys.size,
       sender_numbers: senderNumbers,
       template,
+      timezone,
+      start_hour: startHour,
+      end_hour: endHour,
       days_to_finish: Math.ceil((toInsert.length + schedulableExistingKeys.size) / dailyCap),
     })
   }
@@ -195,9 +204,9 @@ export async function POST(request: Request) {
         template,
         dailyCap,
         senderNumbers,
-        timezone: 'America/Toronto',
-        startHour: 10,
-        endHour: 17,
+        timezone,
+        startHour,
+        endHour,
         source: body.zone || body.city || 'partnership_sms',
       }),
     }),
@@ -252,8 +261,9 @@ export async function POST(request: Request) {
     dailyCap,
     senderNumbers,
     startDate: body.start_date || now.slice(0, 10),
-    startHour: 10,
-    endHour: 17,
+    startHour,
+    endHour,
+    timezone,
   })
 
   const jobs = scheduledContacts.map((contact, index) => ({
