@@ -2405,11 +2405,21 @@ function mapCsvRealtor(row: Record<string, string>) {
   }
 }
 
+function labelFromZone(zone: string) {
+  return zone
+    .replace(/^zone\d+_/, '')
+    .split('_')
+    .filter(Boolean)
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
 function ScheduledSmsCampaignModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const [rows, setRows] = useState<Record<string, string>[]>([])
   const [fileName, setFileName] = useState('')
-  const [city, setCity] = useState('Windsor')
-  const [name, setName] = useState('Windsor Realtor Partnership SMS')
+  const [segmentMode, setSegmentMode] = useState<'zone' | 'city'>('zone')
+  const [segment, setSegment] = useState('zone1_windsor_essex')
+  const [name, setName] = useState('Windsor Essex Realtor Partnership SMS')
   const [template, setTemplate] = useState(PARTNERSHIP_SMS_TEMPLATE)
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10))
   const [dailyCap, setDailyCap] = useState(400)
@@ -2421,9 +2431,16 @@ function ScheduledSmsCampaignModal({ onClose, onDone }: { onClose: () => void; o
   const [result, setResult] = useState<{ campaign_id?: string; scheduled?: number; days_to_finish?: number } | null>(null)
   const [error, setError] = useState('')
 
-  const availableCities = Array.from(new Set(rows.map(row => row.city_scraped || row.city || row.zone).filter(Boolean))).sort((a, b) => a.localeCompare(b))
-  const selectedRows = rows.filter(row => !city || (row.city_scraped || row.city || row.zone || '').toLowerCase() === city.toLowerCase())
+  const availableZones = Array.from(new Set(rows.map(row => row.zone).filter(Boolean))).sort((a, b) => a.localeCompare(b))
+  const availableCities = Array.from(new Set(rows.map(row => row.city_scraped || row.city).filter(Boolean))).sort((a, b) => a.localeCompare(b))
+  const selectedRows = rows.filter(row => {
+    if (!segment) return true
+    const value = segmentMode === 'zone' ? row.zone : (row.city_scraped || row.city)
+    return (value || '').toLowerCase() === segment.toLowerCase()
+  })
   const contacts = selectedRows.map(mapCsvRealtor)
+  const selectedCities = Array.from(new Set(selectedRows.map(row => row.city_scraped || row.city).filter(Boolean))).sort((a, b) => a.localeCompare(b))
+  const segmentLabel = segmentMode === 'zone' ? labelFromZone(segment) : segment
 
   async function handleFile(file: File | null) {
     if (!file) return
@@ -2431,10 +2448,12 @@ function ScheduledSmsCampaignModal({ onClose, onDone }: { onClose: () => void; o
     const parsed = parseCSV(text)
     setRows(parsed)
     setFileName(file.name)
-    const firstCity = parsed.find(row => row.city_scraped || row.city || row.zone)
-    const nextCity = firstCity ? (firstCity.city_scraped || firstCity.city || firstCity.zone) : city
-    setCity(nextCity)
-    setName(`${nextCity} Realtor Partnership SMS`)
+    const firstZone = parsed.find(row => row.zone)?.zone
+    const nextSegment = firstZone || parsed.find(row => row.city_scraped || row.city)?.city_scraped || parsed.find(row => row.city)?.city || segment
+    const nextMode = firstZone ? 'zone' : 'city'
+    setSegmentMode(nextMode)
+    setSegment(nextSegment)
+    setName(`${nextMode === 'zone' ? labelFromZone(nextSegment) : nextSegment} Realtor Partnership SMS`)
     setPreview(null)
     setResult(null)
     setError('')
@@ -2453,7 +2472,8 @@ function ScheduledSmsCampaignModal({ onClose, onDone }: { onClose: () => void; o
       credentials: 'include',
       body: JSON.stringify({
         name,
-        city,
+        city: segmentMode === 'city' ? segment : undefined,
+        zone: segmentMode === 'zone' ? segment : undefined,
         contacts,
         template,
         sender_numbers: ['+12268870667', '+12266055008'],
@@ -2509,16 +2529,45 @@ function ScheduledSmsCampaignModal({ onClose, onDone }: { onClose: () => void; o
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="crm-label">City</label>
-                    <select value={city} onChange={e => { const next = e.target.value; setCity(next); setName(`${next || 'All'} Realtor Partnership SMS`); setPreview(null) }} className="crm-input mt-1 text-sm">
-                      {availableCities.length === 0 && <option value={city}>{city}</option>}
-                      {availableCities.map(c => <option key={c} value={c}>{c}</option>)}
+                    <label className="crm-label">Group by</label>
+                    <select value={segmentMode} onChange={e => {
+                      const nextMode = e.target.value as 'zone' | 'city'
+                      const nextSegment = nextMode === 'zone' ? (availableZones[0] || segment) : (availableCities[0] || segment)
+                      setSegmentMode(nextMode)
+                      setSegment(nextSegment)
+                      setName(`${nextMode === 'zone' ? labelFromZone(nextSegment) : nextSegment} Realtor Partnership SMS`)
+                      setPreview(null)
+                    }} className="crm-input mt-1 text-sm">
+                      <option value="zone">Area / zone</option>
+                      <option value="city">Exact city</option>
                     </select>
                   </div>
                   <div>
-                    <label className="crm-label">Daily cap</label>
-                    <input type="number" min={1} max={500} value={dailyCap} onChange={e => { setDailyCap(Number(e.target.value)); setPreview(null) }} className="crm-input mt-1 text-sm" />
+                    <label className="crm-label">{segmentMode === 'zone' ? 'Area' : 'City'}</label>
+                    <select value={segment} onChange={e => {
+                      const next = e.target.value
+                      setSegment(next)
+                      setName(`${segmentMode === 'zone' ? labelFromZone(next) : next} Realtor Partnership SMS`)
+                      setPreview(null)
+                    }} className="crm-input mt-1 text-sm">
+                      {segmentMode === 'zone' ? (
+                        <>
+                          {availableZones.length === 0 && <option value={segment}>{labelFromZone(segment)}</option>}
+                          {availableZones.map(z => <option key={z} value={z}>{labelFromZone(z)} ({z})</option>)}
+                        </>
+                      ) : (
+                        <>
+                          {availableCities.length === 0 && <option value={segment}>{segment}</option>}
+                          {availableCities.map(c => <option key={c} value={c}>{c}</option>)}
+                        </>
+                      )}
+                    </select>
                   </div>
+                </div>
+
+                <div>
+                  <label className="crm-label">Daily cap</label>
+                  <input type="number" min={1} max={500} value={dailyCap} onChange={e => { setDailyCap(Number(e.target.value)); setPreview(null) }} className="crm-input mt-1 text-sm" />
                 </div>
 
                 <div>
@@ -2544,6 +2593,18 @@ function ScheduledSmsCampaignModal({ onClose, onDone }: { onClose: () => void; o
                 <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3 text-xs leading-5 text-[var(--app-muted)]">
                   Uses both partnership numbers, primary phone only, exact-name/phone duplicate checks, and Toronto/Windsor working hours.
                 </div>
+
+                {selectedCities.length > 0 && (
+                  <div className="rounded-[10px] border border-[var(--app-line)] bg-white p-3">
+                    <div className="text-xs font-semibold text-[var(--app-ink)]">{segmentLabel || 'Selected segment'} includes {selectedCities.length} cit{selectedCities.length === 1 ? 'y' : 'ies'}</div>
+                    <div className="mt-2 flex max-h-24 flex-wrap gap-1 overflow-y-auto">
+                      {selectedCities.slice(0, 24).map(c => (
+                        <span key={c} className="rounded-full border border-[var(--app-line)] bg-[var(--app-bg)] px-2 py-0.5 text-[10px] font-semibold text-[var(--app-muted)]">{c}</span>
+                      ))}
+                      {selectedCities.length > 24 && <span className="px-1 py-0.5 text-[10px] text-[var(--app-muted)]">+{selectedCities.length - 24}</span>}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-4 p-4 sm:p-5">
@@ -2551,7 +2612,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone }: { onClose: () => void; o
                   <label className="crm-label">Message</label>
                   <textarea value={template} onChange={e => { setTemplate(e.target.value); setPreview(null) }} rows={9}
                     className="crm-input mt-1 resize-none text-sm leading-5" />
-                  <div className="mt-1 text-[11px] text-[var(--app-muted)]">City comes from each CSV row: London rows say London, Guelph rows say Guelph.</div>
+                  <div className="mt-1 text-[11px] text-[var(--app-muted)]">City comes from each CSV row, even when scheduling a whole area. Tecumseh rows say Tecumseh; Windsor rows say Windsor.</div>
                 </div>
 
                 {error && <div className="rounded-[10px] border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
@@ -2595,7 +2656,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone }: { onClose: () => void; o
                         {(preview.preview || []).map((item, index) => (
                           <div key={`${item.phone}-${index}`} className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
                             <div className="flex flex-wrap justify-between gap-2 text-[11px] font-semibold text-[var(--app-muted)]">
-                              <span>{item.name} · {item.city || city} · {item.phone}</span>
+                              <span>{item.name} · {item.city || segmentLabel} · {item.phone}</span>
                               <span>{item.from_number} · {fmtDateTime(item.scheduled_at)}</span>
                             </div>
                             <div className="mt-2 whitespace-pre-wrap text-sm leading-5 text-[var(--app-ink)]">{item.message}</div>
