@@ -15,9 +15,10 @@ function MarketingNav() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const tab = searchParams.get('tab')
+  const partnershipInbox = pathname.startsWith('/marketing/partners') && (!tab || tab === 'phone' || tab === 'replies')
 
   return (
-    <div className="mb-6 flex items-center gap-1 overflow-x-auto rounded-2xl border border-[var(--app-line)] bg-[var(--app-panel)] p-1">
+    <div className={`${partnershipInbox ? 'hidden md:flex' : 'flex'} mb-6 items-center gap-1 overflow-x-auto rounded-2xl border border-[var(--app-line)] bg-[var(--app-panel)] p-1`}>
       {MARKET_NAV.map(item => {
         const active = item.match(pathname, tab)
         return (
@@ -40,7 +41,7 @@ function MarketingNav() {
 
 function MarketingNavFallback() {
   return (
-    <div className="mb-6 flex items-center gap-1 overflow-x-auto rounded-2xl border border-[var(--app-line)] bg-[var(--app-panel)] p-1">
+    <div className="mb-6 hidden items-center gap-1 overflow-x-auto rounded-2xl border border-[var(--app-line)] bg-[var(--app-panel)] p-1 md:flex">
       {MARKET_NAV.map(item => (
         <Link
           key={item.href}

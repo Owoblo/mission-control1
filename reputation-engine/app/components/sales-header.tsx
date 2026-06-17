@@ -108,6 +108,13 @@ export function SalesHeader() {
   const router = useRouter()
   const user = useCurrentUser()
   const role = user?.role ?? 'owner'
+  const [tab, setTab] = useState<string | null | undefined>(undefined)
+
+  useEffect(() => {
+    setTab(new URLSearchParams(window.location.search).get('tab'))
+  }, [pathname])
+
+  const partnershipInbox = tab !== undefined && pathname.startsWith('/marketing/partners') && (!tab || tab === 'phone' || tab === 'replies')
 
   const [query, setQuery] = useState('')
   const [newLeadOpen, setNewLeadOpen] = useState(false)
@@ -335,7 +342,7 @@ export function SalesHeader() {
         </div>
       )}
 
-      <header className={`sticky top-0 z-40 border-b border-[var(--app-line)] bg-[var(--app-panel-strong)] lg:h-screen lg:shrink-0 lg:border-b-0 lg:border-r ${sidebarCollapsed ? 'lg:w-[64px]' : 'lg:w-[260px]'}`}>
+      <header className={`sticky top-0 z-40 border-b border-[var(--app-line)] bg-[var(--app-panel-strong)] lg:h-screen lg:shrink-0 lg:border-b-0 lg:border-r ${partnershipInbox ? 'hidden lg:block' : ''} ${sidebarCollapsed ? 'lg:w-[64px]' : 'lg:w-[260px]'}`}>
         <div className="mx-auto flex max-w-[1400px] flex-col gap-4 px-4 py-4 md:px-8 lg:h-full lg:max-w-none lg:px-0">
 
           {/* ── Brand strip — slim full-width horizontal ───────────────── */}

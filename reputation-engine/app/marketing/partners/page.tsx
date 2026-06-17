@@ -1770,11 +1770,8 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
   const [emailSubject, setEmailSubject] = useState('')
   const [emailBody, setEmailBody] = useState('')
   const [mediaUrls, setMediaUrls] = useState<string[]>([])
-  const [noteText, setNoteText] = useState('')
-  const [savingNote, setSavingNote] = useState(false)
   const [sending, setSending] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
-  const [showDecision, setShowDecision] = useState(false)
   const threadRef = useRef<HTMLDivElement>(null)
   const dialer = useDialer()
 
@@ -1813,7 +1810,6 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
     setEmailSubject('')
     setEmailBody('')
     setMediaUrls([])
-    setNoteText('')
   }, [selected?.id])
 
   useEffect(() => { if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight }, [touches])
@@ -1872,31 +1868,16 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
     })
   }
 
-  async function saveNote() {
-    if (!selected || !noteText.trim()) return
-    setSavingNote(true)
-    await fetch('/api/marketing/touches', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-      body: JSON.stringify({ contact_id: selected.id, channel: 'note', direction: 'internal', notes: noteText.trim() }),
-    })
-    setNoteText('')
-    fetch(`/api/marketing/touches?contact_id=${selected.id}`, { credentials: 'include' })
-      .then(r => r.ok ? r.json() : [])
-      .then(d => setTouches(Array.isArray(d) ? d : []))
-      .finally(() => setSavingNote(false))
-  }
-
-  const preview = selected ? getContactPreview(selected) : null
-
   return (
-    <div className="flex h-[calc(100dvh-210px)] min-h-[560px] overflow-hidden rounded-[18px] border border-slate-200 bg-white lg:h-[calc(100vh-180px)] lg:min-h-[520px] lg:rounded-[24px]">
+    <div className="flex h-[100dvh] min-h-0 overflow-hidden bg-white md:h-[calc(100dvh-210px)] md:min-h-[560px] md:rounded-[18px] md:border md:border-slate-200 lg:h-[calc(100vh-180px)] lg:min-h-[520px] lg:rounded-[24px]">
       {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-[14px] bg-[#1a2744] px-5 py-3 text-sm font-medium text-white shadow-xl">{toast}</div>}
 
       {/* Contact list */}
       <div className={`${selected && !mobileListOpen ? 'hidden lg:flex' : 'flex'} w-full shrink-0 flex-col border-r-0 border-slate-200 lg:w-72 lg:border-r`}>
-        <div className="p-3 border-b border-slate-100">
+        <div className="border-b border-slate-100 px-4 py-3">
+          <div className="mb-3 text-[22px] font-semibold tracking-tight text-[#1a2744] lg:hidden">Inbox</div>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search contacts…"
-            className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]" />
+            className="h-10 w-full rounded-full border border-slate-200 bg-slate-50 px-4 text-base text-[#1a2744] outline-none focus:border-[#1a2744] lg:h-9 lg:text-sm" />
         </div>
         <div className="flex-1 overflow-y-auto">
           {sorted.map(c => {
@@ -1935,15 +1916,13 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
       ) : (
         <div className={`${mobileListOpen ? 'hidden lg:flex' : 'flex'} flex-1 flex-col min-w-0`}>
           {/* Header */}
-          <div className="border-b border-slate-200 px-3 py-3 sm:px-5 sm:py-4">
-            <div className="mb-3 lg:hidden">
-              <button onClick={() => setMobileListOpen(true)} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600">
-                ← Inbox
-              </button>
-            </div>
+          <div className="border-b border-slate-200 bg-white px-3 py-2.5 sm:px-5 sm:py-4">
             <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#1a2744] text-sm font-bold text-white">{selected.name.charAt(0)}</div>
+            <div className="flex min-w-0 items-center gap-2.5">
+              <button onClick={() => setMobileListOpen(true)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-2xl leading-none text-[#1a2744] lg:hidden">
+                ‹
+              </button>
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#1a2744] text-sm font-bold text-white sm:h-10 sm:w-10">{selected.name.charAt(0)}</div>
               <div className="min-w-0">
                 <div className="truncate font-semibold text-[#1a2744]">{selected.name}</div>
                 <div className="mt-0.5 truncate text-xs text-slate-400">{selected.company || selected.phone || selected.city || 'Partner contact'}</div>
@@ -1966,7 +1945,7 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
           </div>
 
           {/* Thread */}
-          <div ref={threadRef} className="flex-1 space-y-3 overflow-y-auto bg-slate-50 px-3 py-4 sm:px-5">
+          <div ref={threadRef} className="flex-1 space-y-2.5 overflow-y-auto bg-slate-50 px-3 py-4 sm:px-5">
             {touchLoading && <div className="text-center text-xs text-slate-400 py-8">Loading…</div>}
             {!touchLoading && touches.length === 0 && <div className="text-center text-xs text-slate-400 py-8">No history yet.</div>}
             {[...touches].reverse().map(touch => {
@@ -1978,7 +1957,7 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
                   <div className={`hidden h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm sm:flex ${touch.direction === 'outbound' ? 'bg-[#1a2744]' : 'bg-white border border-slate-200'}`}>
                     <ChannelIcon channel={touch.channel} direction={touch.direction} />
                   </div>
-                  <div className={`max-w-[88%] rounded-[16px] px-4 py-2.5 text-[15px] sm:max-w-[72%] sm:text-sm ${touch.direction === 'outbound' ? 'bg-[#1a2744] text-white rounded-tr-sm' : 'bg-white border border-slate-200 text-[#1a2744] rounded-tl-sm'}`}>
+                  <div className={`max-w-[88%] rounded-[18px] px-4 py-2.5 text-[15px] sm:max-w-[72%] sm:text-sm ${touch.direction === 'outbound' ? 'rounded-br-[4px] bg-[#1a2744] text-white' : 'rounded-bl-[4px] bg-white text-[#1a2744]'}`}>
                     <div className={`mb-1 flex items-center gap-2 text-[10px] font-semibold ${touch.direction === 'outbound' ? 'text-white/70' : 'text-slate-400'}`}>
                       {s.label}
                       {s.auto && <span className={`rounded-full px-1.5 py-0.5 text-[9px] ${touch.direction === 'outbound' ? 'bg-white/15 text-white/90' : 'bg-slate-100 text-slate-500'}`}>Auto</span>}
@@ -2005,12 +1984,12 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
           </div>
 
           {/* Compose */}
-          <div className="border-t border-slate-200 bg-white px-3 py-3 sm:px-5 sm:py-4">
-            <div className="mb-3 grid grid-cols-2 gap-2">
-              <button onClick={() => setComposeChannel('sms')} className={`min-h-10 rounded-xl px-3 py-2 text-xs font-semibold transition ${composeChannel === 'sms' ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+          <div className="border-t border-slate-200 bg-white px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] sm:px-5 sm:py-4">
+            <div className="mb-2 hidden grid-cols-2 gap-2 md:grid">
+              <button onClick={() => setComposeChannel('sms')} className={`min-h-9 rounded-xl px-3 py-2 text-xs font-semibold transition ${composeChannel === 'sms' ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
                 SMS {!selected.phone && <span className="ml-1 text-red-400">no #</span>}
               </button>
-              <button onClick={() => setComposeChannel('email')} className={`min-h-10 rounded-xl px-3 py-2 text-xs font-semibold transition ${composeChannel === 'email' ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+              <button onClick={() => setComposeChannel('email')} className={`min-h-9 rounded-xl px-3 py-2 text-xs font-semibold transition ${composeChannel === 'email' ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
                 Email {!selected.email && <span className="ml-1 text-red-400">no email</span>}
               </button>
             </div>
@@ -2026,11 +2005,11 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
             )}
             {composeChannel === 'sms' ? (
               <div className="flex items-end gap-2">
-                <button onClick={addMediaUrl} className="mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-xl text-slate-500">+</button>
+                <button onClick={addMediaUrl} className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-xl text-slate-500 sm:h-11 sm:w-11">+</button>
                 <textarea value={smsBody} onChange={e => setSmsBody(e.target.value)} rows={2} placeholder={selected.phone ? 'Type SMS…' : 'No phone'} disabled={!selected.phone}
-                  className="max-h-28 flex-1 resize-none rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-2.5 text-base text-[#1a2744] outline-none focus:border-[#1a2744] disabled:opacity-40 sm:text-sm" />
+                  className="max-h-24 flex-1 resize-none rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-2.5 text-base text-[#1a2744] outline-none focus:border-[#1a2744] disabled:opacity-40 sm:max-h-28 sm:text-sm" />
                 <button onClick={handleSend} disabled={sending || !selected.phone || (!smsBody.trim() && mediaUrls.length === 0)}
-                  className="mb-0.5 h-11 rounded-full bg-[#1a2744] px-4 text-sm font-semibold text-white disabled:opacity-40">{sending ? '…' : 'Send'}</button>
+                  className="mb-0.5 h-10 rounded-full bg-[#1a2744] px-4 text-sm font-semibold text-white disabled:opacity-40 sm:h-11">{sending ? '…' : 'Send'}</button>
               </div>
             ) : (
               <div className="space-y-2">
@@ -2044,21 +2023,8 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
                 </div>
               </div>
             )}
-            <div className="mt-3 flex gap-2 border-t border-slate-100 pt-3">
-              <textarea value={noteText} onChange={e => setNoteText(e.target.value)} rows={1} placeholder="Internal note about this partner…"
-                className="flex-1 resize-none rounded-[14px] border border-slate-200 bg-white px-3 py-2.5 text-base text-[#1a2744] outline-none focus:border-[#1a2744] sm:text-sm" />
-              <button onClick={saveNote} disabled={savingNote || !noteText.trim()}
-                className="self-end rounded-[14px] border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600 disabled:opacity-40">
-                {savingNote ? '…' : 'Note'}
-              </button>
-            </div>
           </div>
         </div>
-      )}
-
-      {showDecision && selected && (
-        <DecisionModal contact={selected} onClose={() => setShowDecision(false)}
-          onDone={() => { setShowDecision(false); fetch(`/api/marketing/touches?contact_id=${selected.id}`, { credentials: 'include' }).then(r => r.ok ? r.json() : []).then(d => setTouches(Array.isArray(d) ? d : [])) }} />
       )}
     </div>
   )
@@ -2606,11 +2572,12 @@ function PartnershipEngineInner() {
   const queueCount = needsReplyCount + contacts.filter(c =>
     c.last_touch_at && Math.floor((Date.now() - new Date(c.last_touch_at).getTime()) / 86400000) >= 5
   ).length
+  const inboxActive = tab === 'phone' || tab === 'replies'
 
   return (
-    <div className="min-h-screen bg-[var(--app-bg,#f0f2f5)]">
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        <div className="mb-6 flex items-center justify-between">
+    <div className={inboxActive ? 'min-h-screen bg-white md:bg-[var(--app-bg,#f0f2f5)]' : 'min-h-screen bg-[var(--app-bg,#f0f2f5)]'}>
+      <div className={inboxActive ? 'mx-0 max-w-none px-0 py-0 md:mx-auto md:max-w-6xl md:px-6 md:py-8' : 'mx-auto max-w-6xl px-4 py-8 sm:px-6'}>
+        <div className={`${inboxActive ? 'hidden md:flex' : 'flex'} mb-6 items-center justify-between`}>
           <div>
             <h1 className="text-2xl font-semibold text-[var(--app-ink)]">Partnership Engine</h1>
             <p className="mt-0.5 text-sm text-[var(--app-muted)]">
@@ -2620,7 +2587,7 @@ function PartnershipEngineInner() {
           </div>
         </div>
 
-        <div className="mb-6 flex gap-1 rounded-[16px] border border-[var(--app-line)] bg-[var(--app-panel,white)] p-1.5">
+        <div className={`${inboxActive ? 'hidden md:flex' : 'flex'} mb-6 gap-1 rounded-[16px] border border-[var(--app-line)] bg-[var(--app-panel,white)] p-1.5`}>
           {TABS.map(t => (
             <button key={t.key} onClick={() => handleTabChange(t.key)}
               className={`flex flex-1 items-center justify-center gap-2 rounded-[12px] py-2.5 text-sm font-semibold transition ${tab === t.key ? 'bg-[var(--app-ink)] text-white shadow-sm' : 'text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}>
