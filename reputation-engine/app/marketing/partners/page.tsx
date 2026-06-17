@@ -1723,6 +1723,40 @@ function RepliesTab({ onSelectContact, onOpenThread }: {
 
 const PARTNERSHIP_FROM_NUMBER = '+12268870667'  // Windsor dedicated outbound number
 
+function getTouchMediaUrls(touch: Touch) {
+  const urls = new Set<string>()
+  const metadata = touch.metadata || {}
+  const candidates = [
+    metadata.mediaUrls,
+    metadata.media_urls,
+    metadata.media,
+    metadata.attachments,
+  ]
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      candidate.forEach(item => {
+        if (typeof item === 'string') urls.add(item)
+        else if (item && typeof item === 'object') {
+          const value = (item as Record<string, unknown>).url
+          if (typeof value === 'string') urls.add(value)
+        }
+      })
+    }
+  }
+
+  const mmsMatch = touch.notes?.match(/\[MMS:\s*([^\]]+)\]/i)
+  if (mmsMatch) {
+    mmsMatch[1].split(',').map(url => url.trim()).filter(Boolean).forEach(url => urls.add(url))
+  }
+
+  return Array.from(urls)
+}
+
+function isVideoUrl(url: string) {
+  return /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url)
+}
+
 function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; lists: List[]; onSelectContact: (c: Contact) => void }) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -1735,6 +1769,7 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
   const [smsBody, setSmsBody] = useState('')
   const [emailSubject, setEmailSubject] = useState('')
   const [emailBody, setEmailBody] = useState('')
+  const [mediaUrls, setMediaUrls] = useState<string[]>([])
   const [noteText, setNoteText] = useState('')
   const [savingNote, setSavingNote] = useState(false)
   const [sending, setSending] = useState(false)
@@ -1777,6 +1812,7 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
     setSmsBody('')
     setEmailSubject('')
     setEmailBody('')
+    setMediaUrls([])
     setNoteText('')
   }, [selected?.id])
 
@@ -1790,24 +1826,37 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
     router.replace(`/marketing/partners?tab=phone&contact=${id}`, { scroll: false })
   }
 
+  function addMediaUrl() {
+    const url = window.prompt('Paste image or video URL')
+    if (!url?.trim()) return
+    setMediaUrls(current => [...current, url.trim()])
+    setComposeChannel('sms')
+  }
+
   async function handleSend() {
     if (!selected) return
     setSending(true)
     try {
       await sendSalesMessage(
         composeChannel === 'sms'
-          ? { channel: 'sms', to: selected.phone!, body: smsBody, fromNumber: PARTNERSHIP_FROM_NUMBER }
+          ? { channel: 'sms', to: selected.phone!, body: smsBody || ' ', fromNumber: PARTNERSHIP_FROM_NUMBER, mediaUrls: mediaUrls.length ? mediaUrls : undefined }
           : { channel: 'email', to: selected.email!, subject: emailSubject, body: emailBody }
       )
+      const mediaNote = composeChannel === 'sms' && mediaUrls.length ? `\n[MMS: ${mediaUrls.join(', ')}]` : ''
       await fetch('/api/marketing/touches', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
         body: JSON.stringify({
           contact_id: selected.id, channel: composeChannel, direction: 'outbound',
-          notes: composeChannel === 'sms' ? smsBody : `Subject: ${emailSubject}\n\n${emailBody}`,
+          notes: composeChannel === 'sms' ? `${smsBody}${mediaNote}`.trim() : `Subject: ${emailSubject}\n\n${emailBody}`,
+          metadata: composeChannel === 'sms' && mediaUrls.length ? { mediaUrls } : {},
           schedule_follow_up_days: 3,
         }),
       })
       showToast(composeChannel === 'sms' ? '💬 SMS sent' : '✉️ Email sent')
+      setSmsBody('')
+      setEmailSubject('')
+      setEmailBody('')
+      setMediaUrls([])
       fetch(`/api/marketing/touches?contact_id=${selected.id}`, { credentials: 'include' })
         .then(r => r.ok ? r.json() : []).then(d => setTouches(Array.isArray(d) ? d : []))
     } catch { showToast('Send failed') }
@@ -1892,39 +1941,26 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
                 ← Inbox
               </button>
             </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#1a2744] text-sm font-bold text-white">{selected.name.charAt(0)}</div>
               <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="truncate font-semibold text-[#1a2744]">{selected.name}</span>
-                  <TierBadge tier={selected.outreach_tier} />
-                  <StageBadge stage={selected.normalized_stage} />
-                  {selected.sequence_paused && !selected.decision && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Responded</span>}
-                </div>
-                <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-slate-400">
-                  {selected.company && <span>{selected.company}</span>}
-                  {selected.city && <span>{selected.city}</span>}
-                  {selected.phone && <span>{selected.phone}</span>}
-                </div>
-                {preview && <div className="mt-1 text-xs text-slate-500">{truncateText(preview.body ?? '', 100)}</div>}
+                <div className="truncate font-semibold text-[#1a2744]">{selected.name}</div>
+                <div className="mt-0.5 truncate text-xs text-slate-400">{selected.company || selected.phone || selected.city || 'Partner contact'}</div>
               </div>
             </div>
-            <div className="grid shrink-0 grid-cols-3 gap-2 sm:flex sm:items-center">
-              <button onClick={() => onSelectContact(selected)} className="min-h-10 whitespace-nowrap rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">Profile</button>
+            <div className="flex shrink-0 items-center gap-2">
               {selected.phone && (
                 dialer.status === 'connected' ? (
-                  <button onClick={dialer.hangup} className="min-h-10 whitespace-nowrap rounded-xl bg-rose-500 px-3 py-2 text-sm font-semibold text-white">End Call</button>
+                  <button onClick={dialer.hangup} className="h-10 rounded-full bg-rose-500 px-4 text-sm font-semibold text-white">End</button>
                 ) : (
                   <button onClick={handleCall} disabled={dialer.status === 'connecting' || dialer.status === 'loading'}
-                    className="min-h-10 whitespace-nowrap rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50">
-                    {dialer.status === 'connecting' || dialer.status === 'loading' ? 'Calling…' : 'Dial'}
+                    className="h-10 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50 disabled:opacity-50">
+                    {dialer.status === 'connecting' || dialer.status === 'loading' ? 'Calling' : 'Call'}
                   </button>
                 )
               )}
-              {selected.sequence_paused && !selected.decision && (
-                <button onClick={() => setShowDecision(true)} className="min-h-10 whitespace-nowrap rounded-xl bg-[#1a2744] px-3 py-2 text-sm font-semibold text-white hover:bg-[#243560]">Decision</button>
-              )}
+              <button onClick={() => onSelectContact(selected)} className="h-10 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50">Info</button>
             </div>
             </div>
           </div>
@@ -1935,6 +1971,8 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
             {!touchLoading && touches.length === 0 && <div className="text-center text-xs text-slate-400 py-8">No history yet.</div>}
             {[...touches].reverse().map(touch => {
               const s = summarizeTouch(touch.channel, touch.direction, touch.notes)
+              const touchMedia = getTouchMediaUrls(touch)
+              const bubbleText = (s.body || '').replace(/\n?\[MMS:\s*[^\]]+\]/ig, '').trim()
               return (
                 <div key={touch.id} className={`flex gap-3 ${touch.direction === 'outbound' ? 'flex-row-reverse' : ''}`}>
                   <div className={`hidden h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm sm:flex ${touch.direction === 'outbound' ? 'bg-[#1a2744]' : 'bg-white border border-slate-200'}`}>
@@ -1945,7 +1983,20 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
                       {s.label}
                       {s.auto && <span className={`rounded-full px-1.5 py-0.5 text-[9px] ${touch.direction === 'outbound' ? 'bg-white/15 text-white/90' : 'bg-slate-100 text-slate-500'}`}>Auto</span>}
                     </div>
-                    {s.body && <div className="whitespace-pre-wrap break-words leading-relaxed">{s.body}</div>}
+                    {bubbleText && <div className="whitespace-pre-wrap break-words leading-relaxed">{bubbleText}</div>}
+                    {touchMedia.length > 0 && (
+                      <div className="mt-2 grid gap-2">
+                        {touchMedia.map(url => (
+                          isVideoUrl(url) ? (
+                            <video key={url} src={url} controls className="max-h-64 rounded-[12px] bg-black" />
+                          ) : (
+                            <a key={url} href={url} target="_blank" rel="noreferrer">
+                              <img src={url} alt="" className="max-h-64 rounded-[12px] object-cover" />
+                            </a>
+                          )
+                        ))}
+                      </div>
+                    )}
                     <div className={`mt-1 text-[10px] ${touch.direction === 'outbound' ? 'text-white/50' : 'text-slate-400'}`}>{fmtDate(touch.created_at)} {fmtTime(touch.created_at)}</div>
                   </div>
                 </div>
@@ -1963,12 +2014,23 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
                 Email {!selected.email && <span className="ml-1 text-red-400">no email</span>}
               </button>
             </div>
+            {mediaUrls.length > 0 && (
+              <div className="mb-2 flex gap-2 overflow-x-auto">
+                {mediaUrls.map(url => (
+                  <div key={url} className="relative h-16 w-16 shrink-0 overflow-hidden rounded-[12px] border border-slate-200 bg-slate-50">
+                    {isVideoUrl(url) ? <div className="flex h-full items-center justify-center text-xs font-semibold text-slate-500">Video</div> : <img src={url} alt="" className="h-full w-full object-cover" />}
+                    <button onClick={() => setMediaUrls(current => current.filter(item => item !== url))} className="absolute right-1 top-1 rounded-full bg-black/60 px-1.5 text-[10px] text-white">x</button>
+                  </div>
+                ))}
+              </div>
+            )}
             {composeChannel === 'sms' ? (
-              <div className="flex gap-2">
+              <div className="flex items-end gap-2">
+                <button onClick={addMediaUrl} className="mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-xl text-slate-500">+</button>
                 <textarea value={smsBody} onChange={e => setSmsBody(e.target.value)} rows={2} placeholder={selected.phone ? 'Type SMS…' : 'No phone'} disabled={!selected.phone}
-                  className="flex-1 resize-none rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-2.5 text-base text-[#1a2744] outline-none focus:border-[#1a2744] disabled:opacity-40 sm:text-sm" />
-                <button onClick={handleSend} disabled={sending || !selected.phone || !smsBody.trim()}
-                  className="self-end rounded-[14px] bg-[#1a2744] px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">{sending ? '…' : 'Send'}</button>
+                  className="max-h-28 flex-1 resize-none rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-2.5 text-base text-[#1a2744] outline-none focus:border-[#1a2744] disabled:opacity-40 sm:text-sm" />
+                <button onClick={handleSend} disabled={sending || !selected.phone || (!smsBody.trim() && mediaUrls.length === 0)}
+                  className="mb-0.5 h-11 rounded-full bg-[#1a2744] px-4 text-sm font-semibold text-white disabled:opacity-40">{sending ? '…' : 'Send'}</button>
               </div>
             ) : (
               <div className="space-y-2">
@@ -2473,18 +2535,18 @@ type Tab = 'queue' | 'replies' | 'overview' | 'lists' | 'pipeline' | 'phone' | '
 
 const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'queue',    label: 'Queue',    icon: '⚡' },
-  { key: 'replies',  label: 'Replies',  icon: '💬' },
+  { key: 'phone',    label: 'Inbox',    icon: '💬' },
   { key: 'overview', label: 'Overview', icon: '📊' },
   { key: 'lists',    label: 'Lists',    icon: '📋' },
   { key: 'pipeline', label: 'Pipeline', icon: '🎯' },
-  { key: 'phone',    label: 'Phone',    icon: '📱' },
   { key: 'partners', label: 'Partners', icon: '🤝' },
 ]
 
 function PartnershipEngineInner() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const [tab, setTab] = useState<Tab>((searchParams.get('tab') as Tab) ?? 'replies')
+  const initialTab = (searchParams.get('tab') as Tab) || 'phone'
+  const [tab, setTab] = useState<Tab>(initialTab === 'replies' ? 'phone' : initialTab)
   const [contacts, setContacts] = useState<Contact[]>([])
   const [batches, setBatches] = useState<Batch[]>([])
   const [lists, setLists] = useState<List[]>([])
@@ -2567,7 +2629,7 @@ function PartnershipEngineInner() {
               {t.key === 'queue' && queueCount > 0 && (
                 <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${tab === t.key ? 'bg-white/20 text-white' : 'border border-[rgba(201,117,78,0.12)] bg-[#f5ece7] text-[#955941]'}`}>{queueCount}</span>
               )}
-              {t.key === 'replies' && needsReplyCount > 0 && (
+              {t.key === 'phone' && needsReplyCount > 0 && (
                 <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${tab === t.key ? 'bg-white/20 text-white' : 'border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]'}`}>{needsReplyCount}</span>
               )}
             </button>
@@ -2577,9 +2639,6 @@ function PartnershipEngineInner() {
         {tab === 'queue' && (
           <QueueTab contacts={contacts} onSelect={setSelectedContact}
             onBulkSms={cs => setBulkSmsContacts(cs)} />
-        )}
-        {tab === 'replies' && (
-          <RepliesTab onSelectContact={setSelectedContact} onOpenThread={handleOpenThread} />
         )}
         {tab === 'overview' && (
           <OverviewTab batches={batches} contacts={contacts} loading={batchesLoading || contactsLoading}
@@ -2591,7 +2650,7 @@ function PartnershipEngineInner() {
         {tab === 'pipeline' && (
           <PipelineTab contacts={contacts} onSelect={setSelectedContact} onStageChange={handlePipelineStageChange} />
         )}
-        {tab === 'phone' && (
+        {(tab === 'phone' || tab === 'replies') && (
           <PhoneTab contacts={contacts} lists={lists} onSelectContact={setSelectedContact} />
         )}
         {tab === 'partners' && (

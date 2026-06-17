@@ -6,8 +6,7 @@ import { usePathname, useSearchParams } from 'next/navigation'
 
 const MARKET_NAV = [
   { href: '/marketing/partners?tab=queue',    label: 'SMS Queue', match: (p: string, tab: string | null) => p.startsWith('/marketing/partners') && (!tab || tab === 'queue') },
-  { href: '/marketing/partners?tab=replies',  label: 'Replies',   match: (p: string, tab: string | null) => p.startsWith('/marketing/partners') && tab === 'replies' },
-  { href: '/marketing/partners?tab=phone',    label: 'Inbox',     match: (p: string, tab: string | null) => p.startsWith('/marketing/partners') && tab === 'phone' },
+  { href: '/marketing/partners?tab=phone',    label: 'Inbox',     match: (p: string, tab: string | null) => p.startsWith('/marketing/partners') && (tab === 'phone' || tab === 'replies') },
   { href: '/marketing/partners?tab=pipeline', label: 'Pipeline',  match: (p: string, tab: string | null) => p.startsWith('/marketing/partners') && tab === 'pipeline' },
   { href: '/marketing/signals',               label: 'Signals',   match: (p: string) => p.startsWith('/marketing/signals') },
 ]
