@@ -1,0 +1,258 @@
+import { NextResponse } from 'next/server'
+import { getSessionUser } from '@/lib/server/session'
+import { getAppBaseUrl, readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
+import { syncPartnershipActionToSheet, type PartnershipSheetAction } from '@/lib/server/partnership-sheet-sync'
+
+type SheetUpdateAction = PartnershipSheetAction
+
+interface MarketContact {
+  id: string
+  name: string | null
+  company: string | null
+  title: string | null
+  email: string | null
+  phone: string | null
+  city: string | null
+  industry: string | null
+  stage: string | null
+  decision: string | null
+  batch_id: string | null
+  next_follow_up: string | null
+}
+
+interface MarketTouch {
+  id: string
+  channel: string | null
+  direction: string | null
+  notes: string | null
+  created_by: string | null
+  created_at: string
+}
+
+interface AiSheetUpdate {
+  action: SheetUpdateAction
+  actionLabel: string
+  status: string
+  relationshipSummary: string
+  nextStep: string
+}
+
+const ACTION_LABELS: Record<SheetUpdateAction, string> = {
+  active_partner: 'Active partner',
+  drop_cards: 'Drop cards',
+  meeting_requested: 'Meeting requested',
+  needs_follow_up: 'Needs follow-up',
+  not_interested: 'Not interested',
+  wrong_number: 'Wrong number',
+}
+
+function fallbackActionFromInstruction(instruction: string): SheetUpdateAction {
+  const text = instruction.toLowerCase()
+  if (/\b(active partner|active partners|partner secured|partnership active|agreed|won)\b/.test(text)) return 'active_partner'
+  if (/\b(drop|bring|deliver).{0,24}\b(card|cards|flyer|flyers|brochure|brochures)\b/.test(text)) return 'drop_cards'
+  if (/\b(meeting|appointment|book|schedule|come by|drop by)\b/.test(text)) return 'meeting_requested'
+  if (/\b(not interested|declined|rejected|pass|closed lost)\b/.test(text)) return 'not_interested'
+  if (/\b(wrong number|bad number|not the right number)\b/.test(text)) return 'wrong_number'
+  return 'needs_follow_up'
+}
+
+function compactTouches(touches: MarketTouch[]) {
+  return touches
+    .slice(-80)
+    .map(touch => {
+      const when = new Date(touch.created_at).toISOString()
+      const direction = touch.direction || 'unknown'
+      const channel = touch.channel || 'note'
+      const author = touch.created_by ? ` by ${touch.created_by}` : ''
+      const note = (touch.notes || '').replace(/\s+/g, ' ').trim()
+      return `[${when}] ${channel} ${direction}${author}: ${note || '(no body)'}`
+    })
+    .join('\n')
+}
+
+function extractJsonObject(value: string) {
+  const trimmed = value.trim()
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) return trimmed
+  const match = trimmed.match(/\{[\s\S]*\}/)
+  return match?.[0] || '{}'
+}
+
+function normalizeAiResult(parsed: Partial<AiSheetUpdate>, instruction: string, touches: MarketTouch[]): AiSheetUpdate {
+  const action = parsed.action && ACTION_LABELS[parsed.action] ? parsed.action : fallbackActionFromInstruction(instruction)
+  const latestInbound = [...touches].reverse().find(touch => touch.direction === 'inbound')
+  const fallbackSummary = latestInbound?.notes
+    ? `Latest inbound reply: ${latestInbound.notes}`
+    : touches.length > 0
+      ? `Conversation has ${touches.length} logged touch${touches.length === 1 ? '' : 'es'}.`
+      : 'No conversation history is logged yet.'
+
+  return {
+    action,
+    actionLabel: parsed.actionLabel?.trim() || ACTION_LABELS[action],
+    status: parsed.status?.trim() || ACTION_LABELS[action],
+    relationshipSummary: parsed.relationshipSummary?.trim() || fallbackSummary,
+    nextStep: parsed.nextStep?.trim() || 'Review this partner and follow up manually from the partnership inbox.',
+  }
+}
+
+async function analyzeSheetUpdate(input: {
+  instruction: string
+  contact: MarketContact
+  touches: MarketTouch[]
+}): Promise<AiSheetUpdate> {
+  const apiKey = readEnv('OPENAI_API_KEY')
+  if (!apiKey) {
+    throw new Error('OpenAI is not configured, so the sheet was not updated.')
+  }
+
+  const model = readEnv('OPENAI_AUTOMATION_MODEL') || 'gpt-4o-mini'
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0.2,
+      response_format: { type: 'json_object' },
+      messages: [
+        {
+          role: 'system',
+          content: [
+            'You update a Saturn Star Movers partnership Google Sheet from a manual rep instruction.',
+            'Use only the supplied contact and conversation history.',
+            'Return JSON only with keys: action, actionLabel, status, relationshipSummary, nextStep.',
+            'action must be one of: active_partner, drop_cards, meeting_requested, needs_follow_up, not_interested, wrong_number.',
+            'relationshipSummary should be concise, specific, and explain where the relationship currently stands.',
+          ].join(' '),
+        },
+        {
+          role: 'user',
+          content: [
+            `Rep instruction:\n${input.instruction}`,
+            `Contact:\n${JSON.stringify(input.contact, null, 2)}`,
+            `Conversation history, oldest to newest:\n${compactTouches(input.touches) || '(none)'}`,
+          ].join('\n\n'),
+        },
+      ],
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`OpenAI sheet update analysis failed: ${response.status}`)
+  }
+
+  const payload = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> }
+  const content = payload.choices?.[0]?.message?.content || '{}'
+  const parsed = JSON.parse(extractJsonObject(content)) as Partial<AiSheetUpdate>
+  return normalizeAiResult(parsed, input.instruction, input.touches)
+}
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getSessionUser()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { id } = await params
+  const body = await request.json().catch(() => ({})) as { instruction?: string }
+  const instruction = body.instruction?.trim()
+  if (!instruction) {
+    return NextResponse.json({ error: 'Tell the AI what to update for this partner.' }, { status: 400 })
+  }
+
+  const { url, headers } = requireSupabaseEnv()
+  const [contactRes, touchesRes] = await Promise.all([
+    fetch(
+      `${url}/rest/v1/market_contacts?id=eq.${encodeURIComponent(id)}&select=id,name,company,title,email,phone,city,industry,stage,decision,batch_id,next_follow_up&limit=1`,
+      { headers, cache: 'no-store' }
+    ),
+    fetch(
+      `${url}/rest/v1/market_touches?contact_id=eq.${encodeURIComponent(id)}&select=id,channel,direction,notes,created_by,created_at&order=created_at.asc&limit=200`,
+      { headers, cache: 'no-store' }
+    ),
+  ])
+
+  if (!contactRes.ok) return NextResponse.json({ error: 'Could not load partner' }, { status: 500 })
+  if (!touchesRes.ok) return NextResponse.json({ error: 'Could not load conversation' }, { status: 500 })
+
+  const [contact] = await contactRes.json() as MarketContact[]
+  if (!contact) return NextResponse.json({ error: 'Partner not found' }, { status: 404 })
+
+  const touches = await touchesRes.json() as MarketTouch[]
+  const latestInbound = [...touches].reverse().find(touch => touch.direction === 'inbound')
+  const now = new Date().toISOString()
+  const ai = await analyzeSheetUpdate({ instruction, contact, touches })
+  const summaryNote = [
+    `Manual instruction: ${instruction}`,
+    `AI relationship summary: ${ai.relationshipSummary}`,
+    `AI next step: ${ai.nextStep}`,
+  ].join('\n')
+
+  const syncResult = await syncPartnershipActionToSheet({
+    timestamp: now,
+    action: ai.action,
+    action_label: ai.actionLabel,
+    status: ai.status,
+    next_step: summaryNote,
+    rep: session.name ?? 'Rep',
+    latest_message: latestInbound?.notes ?? null,
+    latest_message_at: latestInbound?.created_at ?? null,
+    manual_instruction: instruction,
+    relationship_summary: ai.relationshipSummary,
+    ai_status: ai.status,
+    ai_next_step: ai.nextStep,
+    app_contact_url: getAppBaseUrl()
+      ? `${getAppBaseUrl()}/marketing/partners?tab=phone&contact=${encodeURIComponent(id)}`
+      : null,
+    contact: {
+      id,
+      name: contact.name ?? null,
+      company: contact.company ?? null,
+      city: contact.city ?? null,
+      phone: contact.phone ?? null,
+      email: contact.email ?? null,
+      industry: contact.industry ?? null,
+      stage: contact.stage ?? null,
+      decision: contact.decision ?? null,
+      batch_id: contact.batch_id ?? null,
+      next_follow_up: contact.next_follow_up ?? null,
+    },
+  })
+
+  if (!syncResult.configured || !syncResult.ok) {
+    return NextResponse.json({ error: 'Partnership sheet sync is not configured.' }, { status: 500 })
+  }
+
+  await fetch(`${url}/rest/v1/market_touches`, {
+    method: 'POST',
+    headers: { ...headers, Prefer: 'return=minimal' },
+    body: JSON.stringify({
+      contact_id: id,
+      channel: 'note',
+      direction: 'internal',
+      notes: `Manual sheet update completed.\n${summaryNote}`,
+      outcome_code: `sheet_update:${ai.action}`,
+      next_step: ai.nextStep,
+      metadata: {
+        source: 'manual_partnership_sheet_update',
+        action: ai.action,
+        instruction,
+        relationshipSummary: ai.relationshipSummary,
+      },
+      created_by: session.name ?? 'Rep',
+      created_at: now,
+    }),
+  })
+
+  return NextResponse.json({
+    ok: true,
+    action: ai.action,
+    label: ai.actionLabel,
+    status: ai.status,
+    summary: ai.relationshipSummary,
+    nextStep: ai.nextStep,
+  })
+}

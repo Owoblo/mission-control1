@@ -18,6 +18,10 @@ export type PartnershipSheetSyncPayload = {
   rep: string
   latest_message: string | null
   latest_message_at: string | null
+  manual_instruction?: string | null
+  relationship_summary?: string | null
+  ai_status?: string | null
+  ai_next_step?: string | null
   app_contact_url: string | null
   contact: {
     id: string

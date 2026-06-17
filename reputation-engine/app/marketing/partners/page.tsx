@@ -1981,6 +1981,9 @@ function PhoneTab({
   const [scheduledAt, setScheduledAt] = useState(defaultScheduledReplyTime)
   const [sending, setSending] = useState(false)
   const [quickActionSaving, setQuickActionSaving] = useState<InboxQuickAction | null>(null)
+  const [sheetUpdateOpen, setSheetUpdateOpen] = useState(false)
+  const [sheetInstruction, setSheetInstruction] = useState('')
+  const [sheetUpdating, setSheetUpdating] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const threadRef = useRef<HTMLDivElement>(null)
   const dialer = useDialer()
@@ -2158,6 +2161,32 @@ function PhoneTab({
     }
   }
 
+  async function handleSheetUpdate() {
+    if (!selected || sheetUpdating || !sheetInstruction.trim()) return
+    setSheetUpdating(true)
+    try {
+      const res = await fetch(`/api/marketing/contacts/${selected.id}/sheet-update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ instruction: sheetInstruction.trim() }),
+      })
+      const data = await res.json().catch(() => null) as { error?: string; summary?: string; label?: string } | null
+      if (!res.ok) {
+        showToast(data?.error || 'Could not update sheet')
+        return
+      }
+      setSheetUpdateOpen(false)
+      setSheetInstruction('')
+      reloadTouches(selected.id)
+      showToast(`Sheet updated for ${selected.name}`)
+    } catch {
+      showToast('Could not update sheet')
+    } finally {
+      setSheetUpdating(false)
+    }
+  }
+
   async function handleCall() {
     if (!selected?.phone) return
     await dialer.call(selected.phone)
@@ -2170,6 +2199,55 @@ function PhoneTab({
   return (
     <div className="flex h-[100dvh] min-h-0 overflow-hidden bg-white md:h-[calc(100dvh-210px)] md:min-h-[560px] md:rounded-[18px] md:border md:border-slate-200 lg:h-[calc(100vh-180px)] lg:min-h-[520px] lg:rounded-[24px]">
       {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-[14px] bg-[#1a2744] px-5 py-3 text-sm font-medium text-white shadow-xl">{toast}</div>}
+      {sheetUpdateOpen && selected && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-[20px] border border-slate-200 bg-white p-5 shadow-xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-base font-semibold text-[#1a2744]">Update Sheet</h3>
+                <p className="mt-0.5 text-sm text-slate-500">
+                  {selected.name}{selected.company ? ` · ${selected.company}` : ''}
+                </p>
+              </div>
+              <button
+                onClick={() => { if (!sheetUpdating) setSheetUpdateOpen(false) }}
+                className="rounded-full p-2 text-slate-400 hover:bg-slate-100"
+              >
+                x
+              </button>
+            </div>
+            <div className="mt-4">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">Instruction for AI</label>
+              <textarea
+                value={sheetInstruction}
+                onChange={e => setSheetInstruction(e.target.value)}
+                rows={7}
+                placeholder="Put this partner in the sheet under active partners, scan the text messages and create a summary of where we currently stand."
+                className="mt-2 w-full resize-none rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-3 text-sm leading-6 text-[#1a2744] outline-none focus:border-[#1a2744]"
+              />
+            </div>
+            <div className="mt-3 rounded-[14px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+              Nothing updates until you submit this instruction for this partner.
+            </div>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setSheetUpdateOpen(false)}
+                disabled={sheetUpdating}
+                className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void handleSheetUpdate()}
+                disabled={sheetUpdating || !sheetInstruction.trim()}
+                className="flex-1 rounded-xl bg-[#1a2744] py-2.5 text-sm font-semibold text-white disabled:opacity-40"
+              >
+                {sheetUpdating ? 'Updating...' : 'Submit Update'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Contact list */}
       <div className={`${selected && !mobileListOpen ? 'hidden lg:flex' : 'flex'} w-full shrink-0 flex-col border-r-0 border-slate-200 lg:w-72 lg:border-r`}>
@@ -2246,6 +2324,16 @@ function PhoneTab({
 
           <div className="border-b border-slate-100 bg-white px-3 py-2 sm:px-5">
             <div className="flex gap-2 overflow-x-auto pb-0.5">
+              <button
+                onClick={() => {
+                  setSheetInstruction('')
+                  setSheetUpdateOpen(true)
+                }}
+                disabled={sheetUpdating}
+                className="min-h-9 shrink-0 rounded-full border border-[#1a2744] bg-[#1a2744] px-3.5 text-xs font-semibold text-white transition hover:bg-[#243560] disabled:opacity-50 sm:text-sm"
+              >
+                UPDATE SHEET
+              </button>
               {INBOX_QUICK_ACTIONS.map(action => (
                 <button
                   key={action.key}

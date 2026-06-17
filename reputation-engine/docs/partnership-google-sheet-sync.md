@@ -15,7 +15,7 @@ This Apps Script belongs inside the `SSM Growth Operations Hub` Google Sheet.
 9. Who has access: `Anyone`.
 10. Copy the `/exec` web app URL into `PARTNERSHIP_SHEET_SYNC_URL`.
 
-The app writes to the sheet only after a partnership inbox quick action is clicked.
+The app writes to the sheet only after a rep clicks `UPDATE SHEET` for one selected partner, enters an instruction, and submits it.
 
 ## Script
 
@@ -226,6 +226,10 @@ function taskForAction(action) {
 
 function buildNote(payload) {
   const parts = [];
+  if (payload.manual_instruction) parts.push('Rep instruction: ' + payload.manual_instruction);
+  if (payload.relationship_summary) parts.push('AI summary: ' + payload.relationship_summary);
+  if (payload.ai_status) parts.push('AI status: ' + payload.ai_status);
+  if (payload.ai_next_step) parts.push('AI next step: ' + payload.ai_next_step);
   if (payload.latest_message) parts.push('Latest reply: ' + payload.latest_message);
   if (payload.next_step) parts.push('Next step: ' + payload.next_step);
   if (payload.app_contact_url) parts.push('App: ' + payload.app_contact_url);
