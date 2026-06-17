@@ -9,7 +9,8 @@ import {
   contactPhoneKey,
   encodeSenderTemplateKey,
   ensureSmsOptOutLine,
-  firstFilledPhone,
+  mergePartnershipSmsTemplate,
+  normalizeMarketingPhone,
   normalizeOutboundNumber,
   smsRecipientIssue,
 } from '@/lib/server/partnership-sms'
@@ -22,10 +23,12 @@ function cleanText(value?: string | null) {
 }
 
 function normalizeContact(input: PartnershipSmsContactInput, fallbackCity?: string | null) {
-  const phone = firstFilledPhone(input)
+  const phone = normalizeMarketingPhone(input.phone)
   const city = cleanText(input.city) || cleanText(fallbackCity)
   const notes = [
     cleanText(input.notes),
+    input.phone2 ? `phone2=${input.phone2}` : null,
+    input.phone3 ? `phone3=${input.phone3}` : null,
     input.zone ? `zone=${input.zone}` : null,
     input.external_id ? `external_id=${input.external_id}` : null,
     input.profile_url ? `profile=${input.profile_url}` : null,
@@ -47,22 +50,33 @@ function normalizeContact(input: PartnershipSmsContactInput, fallbackCity?: stri
   }
 }
 
+function normalizeName(value?: string | null) {
+  return (value || '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ')
+}
+
 function phoneInputs(contact: PartnershipSmsContactInput) {
   return [contact.phone, contact.phone2, contact.phone3]
     .map(value => cleanText(value))
     .filter(Boolean) as string[]
 }
 
-async function fetchExistingByPhone(phoneKeys: string[]) {
+async function fetchExistingKeys(phoneKeys: string[], nameKeys: string[]) {
   const { url, headers } = requireSupabaseEnv()
   const unique = Array.from(new Set(phoneKeys.filter(Boolean)))
-  const existing = new Map<string, Record<string, unknown>>()
-  if (unique.length === 0) return existing
+  const wantedNames = new Set(nameKeys.filter(Boolean))
   const wanted = new Set(unique)
+  const byPhone = new Map<string, Record<string, unknown>>()
+  const byName = new Map<string, Record<string, unknown>>()
 
   for (let offset = 0; ; offset += 1000) {
     const res = await fetch(
-      `${url}/rest/v1/market_contacts?phone=not.is.null&select=id,name,phone,sequence_paused,stage,decision&limit=1000&offset=${offset}`,
+      `${url}/rest/v1/market_contacts?select=id,name,phone,sequence_paused,stage,decision&limit=1000&offset=${offset}`,
       { headers, cache: 'no-store' }
     )
     if (!res.ok) break
@@ -70,12 +84,14 @@ async function fetchExistingByPhone(phoneKeys: string[]) {
     if (rows.length === 0) break
     for (const row of rows) {
       const rowKey = contactPhoneKey(String(row.phone || ''))
-      if (rowKey && wanted.has(rowKey)) existing.set(rowKey, row)
+      const rowNameKey = normalizeName(String(row.name || ''))
+      if (rowKey && wanted.has(rowKey)) byPhone.set(rowKey, row)
+      if (rowNameKey && wantedNames.has(rowNameKey)) byName.set(rowNameKey, row)
     }
-    if (existing.size === wanted.size || rows.length < 1000) break
+    if ((byPhone.size === wanted.size && byName.size === wantedNames.size) || rows.length < 1000) break
   }
 
-  return existing
+  return { byPhone, byName }
 }
 
 function canScheduleExistingContact(contact?: Record<string, unknown>) {
@@ -126,35 +142,50 @@ export async function POST(request: Request) {
   const endHour = Math.max(startHour + 1, Math.min(21, Number(body.end_hour || 17)))
   const timezone = String(body.timezone || 'America/Toronto')
   const invalidPhoneRows = contactsInput.filter(contact => {
-    const phones = phoneInputs(contact)
-    return phones.length > 0 && !firstFilledPhone(contact)
+    const primary = cleanText(contact.phone)
+    return primary && !normalizeMarketingPhone(primary)
   })
   const invalidPhoneSamples = invalidPhoneRows.slice(0, 10).map(contact => ({
     name: cleanText(contact.name) || cleanText(contact.company) || 'Unknown contact',
     phones: phoneInputs(contact),
-    issue: smsRecipientIssue(phoneInputs(contact)[0]),
+    issue: smsRecipientIssue(contact.phone),
   }))
-  const normalized = contactsInput
-    .map(contact => normalizeContact(contact, body.city))
-    .filter(contact => contact.phone)
+  const candidates = contactsInput
+    .map(input => ({ input, contact: normalizeContact(input, body.city) }))
+    .filter(candidate => candidate.contact.phone)
+  const normalized = candidates.map(candidate => candidate.contact)
 
-  const inputPhoneKeys = normalized.map(contact => contactPhoneKey(contact.phone))
-  const existingByPhone = await fetchExistingByPhone(inputPhoneKeys)
+  const inputPhoneKeys = contactsInput.flatMap(phoneInputs).map(contactPhoneKey)
+  const inputPrimaryPhoneKeys = normalized.map(contact => contactPhoneKey(contact.phone))
+  const inputNameKeys = normalized.map(contact => normalizeName(contact.name))
+  const existingKeys = await fetchExistingKeys(inputPhoneKeys, inputNameKeys)
   const allowExistingReschedule = Boolean(body.allow_existing_reschedule)
   const schedulableExistingKeys = allowExistingReschedule
     ? new Set(
-        Array.from(existingByPhone.entries())
+        Array.from(existingKeys.byPhone.entries())
           .filter(([, contact]) => canScheduleExistingContact(contact))
           .map(([key]) => key)
       )
     : new Set<string>()
 
   const seen = new Set<string>()
-  const toInsert = normalized.filter(contact => {
+  const toInsert = candidates.filter(({ input, contact }) => {
     const key = contactPhoneKey(contact.phone)
-    if (!key || seen.has(key) || existingByPhone.has(key)) return false
+    const allKeys = phoneInputs(input).map(contactPhoneKey).filter(Boolean)
+    const nameKey = normalizeName(contact.name)
+    if (!key || seen.has(key) || allKeys.some(phoneKey => existingKeys.byPhone.has(phoneKey)) || existingKeys.byName.has(nameKey)) return false
     seen.add(key)
     return true
+  }).map(candidate => candidate.contact)
+
+  const schedulePreview = buildPartnershipSmsSchedule({
+    count: Math.min(5, toInsert.length + schedulableExistingKeys.size),
+    dailyCap,
+    senderNumbers,
+    startDate: body.start_date || new Date().toISOString().slice(0, 10),
+    startHour,
+    endHour,
+    timezone,
   })
 
   if (body.dry_run) {
@@ -163,17 +194,22 @@ export async function POST(request: Request) {
       dry_run: true,
       total_input: contactsInput.length,
       usable_with_phone: normalized.length,
+      no_primary_phone: contactsInput.length - normalized.length - invalidPhoneRows.length,
       invalid_phone: invalidPhoneRows.length,
       invalid_phone_samples: invalidPhoneSamples,
-      existing_matches: normalized.filter(contact => existingByPhone.has(contactPhoneKey(contact.phone))).length,
+      existing_phone_matches: candidates.filter(({ input }) => phoneInputs(input).some(phone => existingKeys.byPhone.has(contactPhoneKey(phone)))).length,
+      existing_exact_name_matches: normalized.filter(contact => existingKeys.byName.has(normalizeName(contact.name))).length,
       existing_skipped_no_repeat: allowExistingReschedule
         ? 0
-        : normalized.filter(contact => existingByPhone.has(contactPhoneKey(contact.phone))).length,
+        : candidates.filter(({ input, contact }) => {
+            const nameKey = normalizeName(contact.name)
+            return phoneInputs(input).some(phone => existingKeys.byPhone.has(contactPhoneKey(phone))) || existingKeys.byName.has(nameKey)
+          }).length,
       existing_not_schedulable: normalized.filter(contact => {
-        const existing = existingByPhone.get(contactPhoneKey(contact.phone))
+        const existing = existingKeys.byPhone.get(contactPhoneKey(contact.phone)) || existingKeys.byName.get(normalizeName(contact.name))
         return existing && !canScheduleExistingContact(existing)
       }).length,
-      duplicate_in_file: normalized.length - new Set(inputPhoneKeys.filter(Boolean)).size,
+      duplicate_in_file: normalized.length - new Set(inputPrimaryPhoneKeys.filter(Boolean)).size,
       would_insert: toInsert.length,
       would_schedule: toInsert.length + schedulableExistingKeys.size,
       sender_numbers: senderNumbers,
@@ -182,6 +218,14 @@ export async function POST(request: Request) {
       start_hour: startHour,
       end_hour: endHour,
       days_to_finish: Math.ceil((toInsert.length + schedulableExistingKeys.size) / dailyCap),
+      preview: toInsert.slice(0, 5).map((contact, index) => ({
+        name: contact.name,
+        phone: contact.phone,
+        city: contact.city,
+        scheduled_at: schedulePreview[index]?.scheduledAt ?? null,
+        from_number: schedulePreview[index]?.fromNumber ?? null,
+        message: mergePartnershipSmsTemplate(template, contact),
+      })),
     })
   }
 
@@ -247,7 +291,7 @@ export async function POST(request: Request) {
   for (const contact of normalized) {
     const key = contactPhoneKey(contact.phone)
     if (!key || scheduledByPhone.has(key)) continue
-    const savedContact = insertedByPhone.get(key) || existingByPhone.get(key)
+    const savedContact = insertedByPhone.get(key) || existingKeys.byPhone.get(key)
     if (savedContact && insertedByPhone.has(key)) {
       scheduledByPhone.set(key, savedContact)
     } else if (savedContact && allowExistingReschedule && canScheduleExistingContact(savedContact)) {
