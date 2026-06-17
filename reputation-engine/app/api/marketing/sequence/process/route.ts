@@ -116,6 +116,152 @@ function isPermanentSmsFailure(status: number, errorText: string) {
     /invalid|not a valid|landline|unreachable|unknown destination|blocked|opted out/.test(text)
 }
 
+function parseScheduledReplyTemplateKey(value: unknown) {
+  const text = String(value || '')
+  if (!text.startsWith('scheduled_reply:')) return null
+  const [, touchId, ...senderParts] = text.split(':')
+  if (!touchId) return null
+  return {
+    touchId,
+    fromNumber: decodeSenderFromTemplateKey(senderParts.join(':')) || PARTNERSHIP_PHONE,
+  }
+}
+
+function scheduledReplyPayload(touch: Record<string, unknown>) {
+  const metadata = touch.metadata as { scheduled_reply?: Record<string, unknown> } | null
+  const payload = metadata?.scheduled_reply
+  if (!payload) return null
+  const body = String(payload.body || '').trim()
+  const mediaUrls = Array.isArray(payload.mediaUrls)
+    ? payload.mediaUrls.map(url => String(url || '').trim()).filter(Boolean).slice(0, 10)
+    : []
+  const fromNumber = String(payload.fromNumber || PARTNERSHIP_PHONE).trim()
+  if (!body && mediaUrls.length === 0) return null
+  return { body, mediaUrls, fromNumber }
+}
+
+async function processScheduledReply(params: {
+  url: string
+  headers: HeadersInit
+  contact: Record<string, unknown> | undefined
+  job: Record<string, unknown>
+  now: string
+  accountSid: string
+  authToken: string
+  scheduled: { touchId: string; fromNumber: string }
+}) {
+  const { url, headers, contact, job, now, accountSid, authToken, scheduled } = params
+
+  if (!contact?.phone) {
+    await fetch(`${url}/rest/v1/sequence_jobs?id=eq.${job.id}`, {
+      method: 'PATCH', headers,
+      body: JSON.stringify({ status: 'cancelled', error: 'Scheduled reply contact missing phone' }),
+    })
+    return 'skipped'
+  }
+
+  const contactStage = String(contact.stage || '').toLowerCase()
+  const contactDecision = String(contact.decision || '').toLowerCase()
+  if (
+    contactStage === 'dnc' ||
+    contactStage === 'closed_lost' ||
+    contactDecision === 'opted_out' ||
+    isOptOutText(contact.notes as string | null)
+  ) {
+    await fetch(`${url}/rest/v1/sequence_jobs?id=eq.${job.id}`, {
+      method: 'PATCH', headers,
+      body: JSON.stringify({ status: 'cancelled', error: 'Contact is opted out or closed' }),
+    })
+    return 'skipped'
+  }
+
+  const touchRes = await fetch(
+    `${url}/rest/v1/market_touches?id=eq.${encodeURIComponent(scheduled.touchId)}&select=*`,
+    { headers, cache: 'no-store' }
+  )
+  const [touch] = (touchRes.ok ? await touchRes.json() : []) as Array<Record<string, unknown>>
+  const payload = touch ? scheduledReplyPayload(touch) : null
+  if (!payload) {
+    await fetch(`${url}/rest/v1/sequence_jobs?id=eq.${job.id}`, {
+      method: 'PATCH', headers,
+      body: JSON.stringify({ status: 'cancelled', error: 'Scheduled reply payload missing' }),
+    })
+    return 'skipped'
+  }
+
+  const paramsBody = new URLSearchParams({
+    From: payload.fromNumber || scheduled.fromNumber,
+    To: contact.phone as string,
+    Body: payload.body || ' ',
+  })
+  payload.mediaUrls.forEach(mediaUrl => paramsBody.append('MediaUrl', mediaUrl))
+
+  const twilioRes = await fetch(
+    `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: paramsBody,
+    }
+  )
+
+  if (!twilioRes.ok) {
+    const errText = await twilioRes.text()
+    if (isPermanentSmsFailure(twilioRes.status, errText)) {
+      await suppressSmsContact({ url, headers, contact, job, errorText: errText, now })
+      return 'skipped'
+    }
+    throw new Error(`Twilio scheduled reply: ${errText}`)
+  }
+
+  const mediaNote = payload.mediaUrls.length ? `\n[MMS: ${payload.mediaUrls.join(', ')}]` : ''
+  await Promise.all([
+    fetch(`${url}/rest/v1/sequence_jobs?id=eq.${job.id}`, {
+      method: 'PATCH', headers,
+      body: JSON.stringify({ status: 'sent', sent_at: now }),
+    }),
+    fetch(`${url}/rest/v1/market_touches?id=eq.${scheduled.touchId}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({
+        outcome_code: 'scheduled_reply_sent',
+        next_step: 'Scheduled SMS sent',
+      }),
+    }),
+    fetch(`${url}/rest/v1/market_contacts?id=eq.${contact.id}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({
+        last_touch_at: now,
+        next_follow_up: defaultFollowUpDate(now, 3),
+      }),
+    }),
+    fetch(`${url}/rest/v1/market_touches`, {
+      method: 'POST',
+      headers: { ...headers, Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        contact_id: contact.id,
+        channel: 'sms',
+        direction: 'outbound',
+        notes: `${payload.body}${mediaNote}`.trim(),
+        created_by: 'Scheduled Reply',
+        created_at: now,
+        metadata: {
+          scheduled_reply: true,
+          from: payload.fromNumber || scheduled.fromNumber,
+          scheduled_touch_id: scheduled.touchId,
+          mediaUrls: payload.mediaUrls,
+        },
+      }),
+    }),
+  ])
+
+  return 'processed'
+}
+
 async function suppressSmsContact(params: {
   url: string
   headers: HeadersInit
@@ -210,6 +356,31 @@ export async function POST(request: Request) {
     const batch = batchMap.get(job.batch_id as string) ?? {}
     const scheduledAt = typeof job.scheduled_at === 'string' ? job.scheduled_at : now
     const scheduledTime = new Date(scheduledAt).getTime()
+    const scheduledReply = parseScheduledReplyTemplateKey(job.template_key)
+
+    if (scheduledReply) {
+      try {
+        if (!accountSid || !authToken) throw new Error('Missing Twilio credentials')
+        const result = await processScheduledReply({
+          url,
+          headers,
+          contact,
+          job,
+          now,
+          accountSid,
+          authToken,
+          scheduled: scheduledReply,
+        })
+        if (result === 'processed') processed++
+        else skipped++
+      } catch (err) {
+        await fetch(`${url}/rest/v1/sequence_jobs?id=eq.${job.id}`, {
+          method: 'PATCH', headers,
+          body: JSON.stringify({ status: 'failed', error: (err as Error).message }),
+        })
+      }
+      continue
+    }
 
     // Cancel if contact responded (sequence paused)
     if (!contact || contact.sequence_paused) {

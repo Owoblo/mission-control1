@@ -1912,6 +1912,26 @@ function isVideoUrl(url: string) {
   return /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url)
 }
 
+function datetimeLocalValue(date: Date) {
+  const offsetMs = date.getTimezoneOffset() * 60000
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16)
+}
+
+function defaultScheduledReplyTime() {
+  const date = new Date()
+  date.setSeconds(0, 0)
+  if (date.getHours() < 8) {
+    date.setHours(8, 0, 0, 0)
+  } else {
+    date.setDate(date.getDate() + 1)
+    date.setHours(8, 0, 0, 0)
+  }
+  while (date.getDay() === 0 || date.getDay() === 6) {
+    date.setDate(date.getDate() + 1)
+  }
+  return datetimeLocalValue(date)
+}
+
 type InboxQuickAction = 'active_partner' | 'drop_cards' | 'meeting_requested' | 'needs_follow_up' | 'not_interested' | 'wrong_number'
 
 const INBOX_QUICK_ACTIONS: Array<{ key: InboxQuickAction; label: string; tone: 'green' | 'blue' | 'amber' | 'slate' | 'red' }> = [
@@ -1957,6 +1977,8 @@ function PhoneTab({
   const [emailSubject, setEmailSubject] = useState('')
   const [emailBody, setEmailBody] = useState('')
   const [mediaUrls, setMediaUrls] = useState<string[]>([])
+  const [scheduleMode, setScheduleMode] = useState(false)
+  const [scheduledAt, setScheduledAt] = useState(defaultScheduledReplyTime)
   const [sending, setSending] = useState(false)
   const [quickActionSaving, setQuickActionSaving] = useState<InboxQuickAction | null>(null)
   const [toast, setToast] = useState<string | null>(null)
@@ -2025,6 +2047,8 @@ function PhoneTab({
     setEmailSubject('')
     setEmailBody('')
     setMediaUrls([])
+    setScheduleMode(false)
+    setScheduledAt(defaultScheduledReplyTime())
   }, [selected?.id])
 
   useEffect(() => { if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight }, [touches])
@@ -2048,6 +2072,32 @@ function PhoneTab({
     if (!selected) return
     setSending(true)
     try {
+      if (composeChannel === 'sms' && scheduleMode) {
+        const res = await fetch(`/api/marketing/contacts/${selected.id}/schedule-reply`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            body: smsBody,
+            scheduled_at: new Date(scheduledAt).toISOString(),
+            from_number: PARTNERSHIP_FROM_NUMBER,
+            media_urls: mediaUrls,
+          }),
+        })
+        const data = await res.json().catch(() => null) as { error?: string; scheduled_at?: string } | null
+        if (!res.ok) {
+          showToast(data?.error || 'Could not schedule SMS')
+          return
+        }
+        showToast('SMS scheduled')
+        setSmsBody('')
+        setMediaUrls([])
+        setScheduleMode(false)
+        setScheduledAt(defaultScheduledReplyTime())
+        reloadTouches(selected.id)
+        return
+      }
+
       await sendSalesMessage(
         composeChannel === 'sms'
           ? { channel: 'sms', to: selected.phone!, body: smsBody || ' ', fromNumber: PARTNERSHIP_FROM_NUMBER, mediaUrls: mediaUrls.length ? mediaUrls : undefined }
@@ -2070,7 +2120,7 @@ function PhoneTab({
       setMediaUrls([])
       reloadTouches(selected.id)
     } catch { showToast('Send failed') }
-    setSending(false)
+    finally { setSending(false) }
   }
 
   async function handleQuickAction(action: InboxQuickAction) {
@@ -2269,12 +2319,30 @@ function PhoneTab({
               </div>
             )}
             {composeChannel === 'sms' ? (
-              <div className="flex items-end gap-2">
-                <button onClick={addMediaUrl} className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-xl text-slate-500 sm:h-11 sm:w-11">+</button>
-                <textarea value={smsBody} onChange={e => setSmsBody(e.target.value)} rows={2} placeholder={selected.phone ? 'Type SMS…' : 'No phone'} disabled={!selected.phone}
-                  className="max-h-24 flex-1 resize-none rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-2.5 text-base text-[#1a2744] outline-none focus:border-[#1a2744] disabled:opacity-40 sm:max-h-28 sm:text-sm" />
-                <button onClick={handleSend} disabled={sending || !selected.phone || (!smsBody.trim() && mediaUrls.length === 0)}
-                  className="mb-0.5 h-10 rounded-full bg-[#1a2744] px-4 text-sm font-semibold text-white disabled:opacity-40 sm:h-11">{sending ? '…' : 'Send'}</button>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    onClick={() => setScheduleMode(current => !current)}
+                    className={`h-8 rounded-full border px-3 text-xs font-semibold transition ${scheduleMode ? 'border-[#1a2744] bg-[#1a2744] text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    {scheduleMode ? 'Scheduled' : 'Schedule'}
+                  </button>
+                  {scheduleMode && (
+                    <input
+                      type="datetime-local"
+                      value={scheduledAt}
+                      onChange={e => setScheduledAt(e.target.value)}
+                      className="h-8 min-w-0 flex-1 rounded-full border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-[#1a2744] outline-none focus:border-[#1a2744]"
+                    />
+                  )}
+                </div>
+                <div className="flex items-end gap-2">
+                  <button onClick={addMediaUrl} className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-xl text-slate-500 sm:h-11 sm:w-11">+</button>
+                  <textarea value={smsBody} onChange={e => setSmsBody(e.target.value)} rows={2} placeholder={selected.phone ? 'Type SMS…' : 'No phone'} disabled={!selected.phone}
+                    className="max-h-24 flex-1 resize-none rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-2.5 text-base text-[#1a2744] outline-none focus:border-[#1a2744] disabled:opacity-40 sm:max-h-28 sm:text-sm" />
+                  <button onClick={handleSend} disabled={sending || !selected.phone || (!smsBody.trim() && mediaUrls.length === 0) || (scheduleMode && !scheduledAt)}
+                    className="mb-0.5 h-10 rounded-full bg-[#1a2744] px-4 text-sm font-semibold text-white disabled:opacity-40 sm:h-11">{sending ? '…' : scheduleMode ? 'Schedule' : 'Send'}</button>
+                </div>
               </div>
             ) : (
               <div className="space-y-2">
