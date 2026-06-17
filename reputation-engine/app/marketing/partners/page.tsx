@@ -1912,6 +1912,19 @@ function isVideoUrl(url: string) {
   return /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url)
 }
 
+function isImageUrl(url: string) {
+  return /\.(png|jpe?g|gif|webp|heic|heif)(\?|$)/i.test(url)
+}
+
+function mediaFileName(url: string) {
+  try {
+    const pathname = new URL(url).pathname
+    return decodeURIComponent(pathname.split('/').pop() || 'Attachment')
+  } catch {
+    return url.split('/').pop() || 'Attachment'
+  }
+}
+
 function datetimeLocalValue(date: Date) {
   const offsetMs = date.getTimezoneOffset() * 60000
   return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16)
@@ -1933,6 +1946,7 @@ function defaultScheduledReplyTime() {
 }
 
 type InboxQuickAction = 'active_partner' | 'drop_cards' | 'meeting_requested' | 'needs_follow_up' | 'not_interested' | 'wrong_number'
+type InboxFilter = 'all' | 'unread' | 'open' | 'follow_up' | 'booked' | 'archived'
 
 const INBOX_QUICK_ACTIONS: Array<{ key: InboxQuickAction; label: string; tone: 'green' | 'blue' | 'amber' | 'slate' | 'red' }> = [
   { key: 'active_partner', label: 'Active partner', tone: 'green' },
@@ -1952,6 +1966,33 @@ function quickActionClass(tone: 'green' | 'blue' | 'amber' | 'slate' | 'red', ac
   return 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
 }
 
+const INBOX_FILTERS: Array<{ key: InboxFilter; label: string }> = [
+  { key: 'all', label: 'All' },
+  { key: 'unread', label: 'Unread' },
+  { key: 'open', label: 'Open' },
+  { key: 'follow_up', label: 'Follow-up' },
+  { key: 'booked', label: 'Booked' },
+  { key: 'archived', label: 'Archived' },
+]
+
+function sourceBadge(contact: Contact) {
+  const channel = contact.latest_touch_channel || (contact.phone ? 'sms' : contact.email ? 'email' : 'realtor')
+  if (channel === 'email') return 'Email'
+  if (channel === 'sms') return 'SMS'
+  if (channel === 'phone' || channel === 'call') return 'Call'
+  return contact.category || contact.industry || 'Realtor'
+}
+
+function matchesInboxFilter(contact: Contact, filter: InboxFilter) {
+  if (filter === 'all') return true
+  if (filter === 'unread') return contact.sequence_paused && !contact.decision
+  if (filter === 'open') return !contact.decision && contact.normalized_stage !== 'not_interested'
+  if (filter === 'follow_up') return contact.needs_follow_up || Boolean(contact.next_follow_up)
+  if (filter === 'booked') return contact.decision === 'agreed' || contact.normalized_stage === 'partnership_active'
+  if (filter === 'archived') return contact.decision === 'not_interested' || contact.normalized_stage === 'not_interested'
+  return true
+}
+
 function PhoneTab({
   contacts,
   lists,
@@ -1966,6 +2007,7 @@ function PhoneTab({
   const router = useRouter()
   const searchParams = useSearchParams()
   const [search, setSearch] = useState('')
+  const [inboxFilter, setInboxFilter] = useState<InboxFilter>('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [replyContacts, setReplyContacts] = useState<Contact[]>([])
   const [replyLoading, setReplyLoading] = useState(false)
@@ -1977,6 +2019,7 @@ function PhoneTab({
   const [emailSubject, setEmailSubject] = useState('')
   const [emailBody, setEmailBody] = useState('')
   const [mediaUrls, setMediaUrls] = useState<string[]>([])
+  const [mediaUploading, setMediaUploading] = useState(false)
   const [scheduleMode, setScheduleMode] = useState(false)
   const [scheduledAt, setScheduledAt] = useState(defaultScheduledReplyTime)
   const [sending, setSending] = useState(false)
@@ -1987,6 +2030,7 @@ function PhoneTab({
   const [sheetUpdating, setSheetUpdating] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const threadRef = useRef<HTMLDivElement>(null)
+  const mediaInputRef = useRef<HTMLInputElement>(null)
   const dialer = useDialer()
 
   const inboxContacts = useMemo(() => {
@@ -1997,13 +2041,21 @@ function PhoneTab({
   }, [contacts, replyContacts])
 
   const sorted = useMemo(() => [...inboxContacts]
+    .filter(c => matchesInboxFilter(c, inboxFilter))
     .sort((a, b) => {
       const aNeeds = a.sequence_paused && !a.decision ? 1 : 0
       const bNeeds = b.sequence_paused && !b.decision ? 1 : 0
       if (aNeeds !== bNeeds) return bNeeds - aNeeds
       return (b.latest_inbound_at || b.last_touch_at || '').localeCompare(a.latest_inbound_at || a.last_touch_at || '')
     })
-    .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()) || (c.company ?? '').toLowerCase().includes(search.toLowerCase())), [inboxContacts, search])
+    .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()) || (c.company ?? '').toLowerCase().includes(search.toLowerCase()) || (c.phone ?? '').includes(search)), [inboxContacts, inboxFilter, search])
+
+  const filterCounts = useMemo(() => {
+    return INBOX_FILTERS.reduce((acc, filter) => {
+      acc[filter.key] = inboxContacts.filter(contact => matchesInboxFilter(contact, filter.key)).length
+      return acc
+    }, {} as Record<InboxFilter, number>)
+  }, [inboxContacts])
 
   const selected = inboxContacts.find(c => c.id === selectedId) ?? null
   const selectedFromQuery = searchParams.get('contact')
@@ -2066,11 +2118,40 @@ function PhoneTab({
     router.replace(`/marketing/partners?tab=phone&contact=${id}`, { scroll: false })
   }
 
-  function addMediaUrl() {
-    const url = window.prompt('Paste image or video URL')
-    if (!url?.trim()) return
-    setMediaUrls(current => [...current, url.trim()])
+  async function uploadMedia(file: File): Promise<string | null> {
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/sales/operations/upload-media', { method: 'POST', body: fd, credentials: 'include' })
+      if (!res.ok) return null
+      const data = await res.json() as { url?: string }
+      return data.url || null
+    } catch {
+      return null
+    }
+  }
+
+  async function handleMediaFiles(files: FileList | null) {
+    const selectedFiles = Array.from(files || []).slice(0, 10)
+    if (selectedFiles.length === 0) return
     setComposeChannel('sms')
+    setMediaUploading(true)
+    try {
+      const uploaded: string[] = []
+      for (const file of selectedFiles) {
+        const url = await uploadMedia(file)
+        if (url) uploaded.push(url)
+      }
+      if (uploaded.length > 0) {
+        setMediaUrls(current => [...current, ...uploaded].slice(0, 10))
+        showToast(uploaded.length === 1 ? 'Attachment added' : `${uploaded.length} attachments added`)
+      } else {
+        showToast('Upload failed')
+      }
+    } finally {
+      setMediaUploading(false)
+      if (mediaInputRef.current) mediaInputRef.current.value = ''
+    }
   }
 
   async function handleSend() {
@@ -2199,7 +2280,7 @@ function PhoneTab({
   }
 
   return (
-    <div className="flex h-[100dvh] min-h-0 overflow-hidden bg-white md:h-[calc(100dvh-210px)] md:min-h-[560px] md:rounded-[18px] md:border md:border-slate-200 lg:h-[calc(100vh-180px)] lg:min-h-[520px] lg:rounded-[24px]">
+    <div className="flex h-[100dvh] min-h-0 overflow-hidden bg-white md:h-[calc(100dvh-112px)] md:min-h-[700px] md:rounded-[16px] md:border md:border-slate-200 lg:h-[calc(100vh-108px)] lg:min-h-[700px]">
       {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-[14px] bg-[#1a2744] px-5 py-3 text-sm font-medium text-white shadow-xl">{toast}</div>}
       {sheetUpdateOpen && selected && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
@@ -2252,11 +2333,28 @@ function PhoneTab({
       )}
 
       {/* Contact list */}
-      <div className={`${selected && !mobileListOpen ? 'hidden lg:flex' : 'flex'} w-full shrink-0 flex-col border-r-0 border-slate-200 lg:w-72 lg:border-r`}>
-        <div className="border-b border-slate-100 px-4 py-3">
-          <div className="mb-3 text-[22px] font-semibold tracking-tight text-[#1a2744] lg:hidden">Inbox</div>
+      <div className={`${selected && !mobileListOpen ? 'hidden lg:flex' : 'flex'} w-full shrink-0 flex-col border-r-0 border-slate-200 bg-white lg:w-[320px] lg:border-r xl:w-[340px]`}>
+        <div className="shrink-0 border-b border-slate-100 px-4 py-3">
+          <div className="mb-3 flex items-center justify-between lg:mb-2">
+            <div>
+              <div className="text-[22px] font-semibold tracking-tight text-[#1a2744] lg:text-lg">Inbox</div>
+              <div className="text-xs font-medium text-slate-400">{filterCounts.unread} unread · {filterCounts.follow_up} follow-up</div>
+            </div>
+            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">{filterCounts.all}</span>
+          </div>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search contacts…"
             className="h-10 w-full rounded-full border border-slate-200 bg-slate-50 px-4 text-base text-[#1a2744] outline-none focus:border-[#1a2744] lg:h-9 lg:text-sm" />
+          <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5">
+            {INBOX_FILTERS.map(filter => (
+              <button
+                key={filter.key}
+                onClick={() => setInboxFilter(filter.key)}
+                className={`h-7 shrink-0 rounded-full px-3 text-[11px] font-semibold transition ${inboxFilter === filter.key ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
           {replyLoading && <div className="mt-2 text-[11px] text-slate-400">Loading replies...</div>}
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -2265,23 +2363,24 @@ function PhoneTab({
             const p = getContactPreview(c)
             return (
               <button key={c.id} onClick={() => handleSelect(c.id)}
-                className={`w-full px-4 py-3 text-left border-b border-slate-100 transition hover:bg-slate-50 ${selectedId === c.id ? 'bg-[#1a2744]' : ''}`}>
+                className={`w-full border-b border-slate-100 px-4 py-3.5 text-left transition hover:bg-slate-50 ${selectedId === c.id ? 'bg-[#1a2744]' : ''}`}>
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <span className={`font-semibold text-sm truncate ${selectedId === c.id ? 'text-white' : 'text-[#1a2744]'}`}>{c.name}</span>
+                    <span className={`truncate text-[15px] font-semibold ${selectedId === c.id ? 'text-white' : 'text-[#1a2744]'}`}>{c.name}</span>
                     <TierBadge tier={c.outreach_tier} />
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {unread && selectedId !== c.id && <span className="h-2 w-2 rounded-full bg-amber-500" />}
-                    <span className={`text-[10px] ${selectedId === c.id ? 'text-white/60' : 'text-slate-400'}`}>{timeAgo(c.last_touch_at)}</span>
+                    {unread && selectedId !== c.id && <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />}
+                    <span className={`text-[11px] ${selectedId === c.id ? 'text-white/60' : 'text-slate-400'}`}>{timeAgo(c.latest_inbound_at || c.last_touch_at)}</span>
                   </div>
                 </div>
-                <div className={`mt-0.5 text-xs truncate ${selectedId === c.id ? 'text-white/70' : 'text-slate-400'}`}>{c.company ?? c.industry ?? c.city ?? '—'}</div>
-                <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                <div className={`mt-0.5 truncate text-xs ${selectedId === c.id ? 'text-white/70' : 'text-slate-400'}`}>{c.company ?? c.industry ?? c.city ?? '—'}</div>
+                {p?.body && <div className={`mt-1.5 line-clamp-2 text-[13px] leading-5 ${selectedId === c.id ? 'text-white/80' : 'text-slate-600'}`}>{truncateText(p.body, 150)}</div>}
+                <div className="mt-2 flex items-center gap-1.5 overflow-hidden">
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${selectedId === c.id ? 'bg-white/15 text-white/80' : 'bg-slate-100 text-slate-500'}`}>{sourceBadge(c)}</span>
                   <StageBadge stage={c.normalized_stage} />
                   {c.instantly_status && <InstantlyBadge status={c.instantly_status} />}
                 </div>
-                {p?.body && <div className={`mt-1.5 text-[12px] leading-5 ${selectedId === c.id ? 'text-white/75' : 'text-slate-600'}`}>{truncateText(p.body, 120)}</div>}
               </button>
             )
           })}
@@ -2294,18 +2393,22 @@ function PhoneTab({
           <div className="text-center"><div className="text-4xl">📱</div><div className="mt-3 text-sm font-medium">Select a contact</div></div>
         </div>
       ) : (
+        <>
         <div className={`${mobileListOpen ? 'hidden lg:flex' : 'flex'} min-w-0 flex-1 flex-col bg-white`}>
           {/* Header */}
-          <div className="shrink-0 border-b border-slate-200 bg-white px-3 py-2.5 sm:px-5 sm:py-3">
+          <div className="shrink-0 border-b border-slate-200 bg-white px-3 py-2 sm:px-5">
             <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2.5">
               <button onClick={() => setMobileListOpen(true)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-2xl leading-none text-[#1a2744] lg:hidden">
                 ‹
               </button>
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#1a2744] text-sm font-bold text-white sm:h-10 sm:w-10">{selected.name.charAt(0)}</div>
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#1a2744] text-sm font-bold text-white">{selected.name.charAt(0)}</div>
               <div className="min-w-0">
-                <div className="truncate font-semibold text-[#1a2744]">{selected.name}</div>
-                <div className="mt-0.5 truncate text-xs text-slate-400">{selected.company || selected.phone || selected.city || 'Partner contact'}</div>
+                <div className="flex min-w-0 items-center gap-2">
+                  <div className="truncate font-semibold text-[#1a2744]">{selected.name}</div>
+                  <StageBadge stage={selected.normalized_stage} />
+                </div>
+                <div className="mt-0.5 truncate text-xs text-slate-400">{selected.phone || selected.company || selected.city || 'Partner contact'} · Hunter</div>
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -2314,30 +2417,39 @@ function PhoneTab({
                   <button onClick={dialer.hangup} className="h-10 rounded-full bg-rose-500 px-4 text-sm font-semibold text-white">End</button>
                 ) : (
                   <button onClick={handleCall} disabled={dialer.status === 'connecting' || dialer.status === 'loading'}
-                    className="h-10 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50 disabled:opacity-50">
+                    className="h-9 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50 disabled:opacity-50">
                     {dialer.status === 'connecting' || dialer.status === 'loading' ? 'Calling' : 'Call'}
                   </button>
                 )
               )}
-              <button onClick={() => onSelectContact(selected)} className="h-10 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50">Info</button>
+              <button onClick={() => onSelectContact(selected)} className="h-9 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50 xl:hidden">Info</button>
             </div>
             </div>
           </div>
 
           {/* Thread */}
-          <div ref={threadRef} className="min-h-0 flex-1 space-y-2.5 overflow-y-auto bg-slate-50 px-3 py-4 sm:px-5">
+          <div ref={threadRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-slate-50 px-3 py-5 sm:px-6">
             {touchLoading && <div className="text-center text-xs text-slate-400 py-8">Loading…</div>}
             {!touchLoading && touches.length === 0 && <div className="text-center text-xs text-slate-400 py-8">No history yet.</div>}
             {[...touches].reverse().map(touch => {
               const s = summarizeTouch(touch.channel, touch.direction, touch.notes)
               const touchMedia = getTouchMediaUrls(touch)
               const bubbleText = (s.body || '').replace(/\n?\[MMS:\s*[^\]]+\]/ig, '').trim()
+              if (touch.channel === 'note' || touch.channel === 'appointment') {
+                return (
+                  <div key={touch.id} className="flex justify-center">
+                    <div className="max-w-[82%] rounded-full bg-white/80 px-3 py-1.5 text-center text-[11px] font-medium text-slate-500 shadow-sm ring-1 ring-slate-200">
+                      {s.label}: {truncateText(bubbleText || 'Updated', 120)}
+                    </div>
+                  </div>
+                )
+              }
               return (
                 <div key={touch.id} className={`flex gap-3 ${touch.direction === 'outbound' ? 'flex-row-reverse' : ''}`}>
                   <div className={`hidden h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm sm:flex ${touch.direction === 'outbound' ? 'bg-[#1a2744]' : 'bg-white border border-slate-200'}`}>
                     <ChannelIcon channel={touch.channel} direction={touch.direction} />
                   </div>
-                  <div className={`max-w-[88%] rounded-[18px] px-4 py-2.5 text-[15px] sm:max-w-[72%] sm:text-sm ${touch.direction === 'outbound' ? 'rounded-br-[4px] bg-[#1a2744] text-white' : 'rounded-bl-[4px] bg-white text-[#1a2744]'}`}>
+                  <div className={`max-w-[88%] rounded-[20px] px-4 py-3 text-[15px] shadow-sm sm:max-w-[72%] sm:text-[15px] ${touch.direction === 'outbound' ? 'rounded-br-[5px] bg-[#1a2744] text-white' : 'rounded-bl-[5px] bg-white text-[#1a2744]'}`}>
                     <div className={`mb-1 flex items-center gap-2 text-[10px] font-semibold ${touch.direction === 'outbound' ? 'text-white/70' : 'text-slate-400'}`}>
                       {s.label}
                       {s.auto && <span className={`rounded-full px-1.5 py-0.5 text-[9px] ${touch.direction === 'outbound' ? 'bg-white/15 text-white/90' : 'bg-slate-100 text-slate-500'}`}>Auto</span>}
@@ -2364,9 +2476,9 @@ function PhoneTab({
           </div>
 
           {/* Compose */}
-          <div className="shrink-0 border-t border-slate-200 bg-white px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] sm:px-5 sm:py-3">
+          <div className="shrink-0 border-t border-slate-200 bg-white px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-5">
             {actionPanelOpen && (
-              <div className="mb-2 rounded-[18px] border border-slate-200 bg-slate-50 p-2">
+              <div className="mb-2 rounded-[18px] border border-slate-200 bg-slate-50 p-2 xl:hidden">
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   <button
                     onClick={() => {
@@ -2391,36 +2503,48 @@ function PhoneTab({
                 </div>
               </div>
             )}
-            <div className="mb-2 grid grid-cols-[1fr_1fr_auto] gap-2">
-              <button onClick={() => setComposeChannel('sms')} className={`min-h-9 rounded-full px-3 py-2 text-xs font-semibold transition ${composeChannel === 'sms' ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+            <div className="mb-1.5 flex items-center gap-1.5 overflow-x-auto">
+              <button onClick={() => setComposeChannel('sms')} className={`h-7 shrink-0 rounded-full px-3 text-[11px] font-semibold transition ${composeChannel === 'sms' ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
                 SMS {!selected.phone && <span className="ml-1 text-red-400">no #</span>}
               </button>
-              <button onClick={() => setComposeChannel('email')} className={`min-h-9 rounded-full px-3 py-2 text-xs font-semibold transition ${composeChannel === 'email' ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+              <button onClick={() => setComposeChannel('email')} className={`h-7 shrink-0 rounded-full px-3 text-[11px] font-semibold transition ${composeChannel === 'email' ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
                 Email {!selected.email && <span className="ml-1 text-red-400">no email</span>}
               </button>
               <button
                 onClick={() => setActionPanelOpen(open => !open)}
-                className={`min-h-9 rounded-full px-3 text-xs font-semibold transition ${actionPanelOpen ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                className={`h-7 shrink-0 rounded-full px-3 text-[11px] font-semibold transition xl:hidden ${actionPanelOpen ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
               >
                 Log
+              </button>
+              <button onClick={() => onSelectContact(selected)} className="h-7 shrink-0 rounded-full bg-slate-100 px-3 text-[11px] font-semibold text-slate-600 hover:bg-slate-200 xl:hidden">
+                Details
               </button>
             </div>
             {mediaUrls.length > 0 && (
               <div className="mb-2 flex gap-2 overflow-x-auto">
                 {mediaUrls.map(url => (
                   <div key={url} className="relative h-16 w-16 shrink-0 overflow-hidden rounded-[12px] border border-slate-200 bg-slate-50">
-                    {isVideoUrl(url) ? <div className="flex h-full items-center justify-center text-xs font-semibold text-slate-500">Video</div> : <img src={url} alt="" className="h-full w-full object-cover" />}
+                    {isVideoUrl(url) ? (
+                      <div className="flex h-full items-center justify-center text-xs font-semibold text-slate-500">Video</div>
+                    ) : isImageUrl(url) ? (
+                      <img src={url} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <a href={url} target="_blank" rel="noreferrer" className="flex h-full flex-col items-center justify-center px-1 text-center">
+                        <span className="text-lg">📎</span>
+                        <span className="mt-0.5 line-clamp-2 text-[9px] font-semibold leading-3 text-slate-500">{mediaFileName(url)}</span>
+                      </a>
+                    )}
                     <button onClick={() => setMediaUrls(current => current.filter(item => item !== url))} className="absolute right-1 top-1 rounded-full bg-black/60 px-1.5 text-[10px] text-white">x</button>
                   </div>
                 ))}
               </div>
             )}
             {composeChannel === 'sms' ? (
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <div className="flex items-center justify-between gap-2">
                   <button
                     onClick={() => setScheduleMode(current => !current)}
-                    className={`h-8 rounded-full border px-3 text-xs font-semibold transition ${scheduleMode ? 'border-[#1a2744] bg-[#1a2744] text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+                    className={`h-7 rounded-full border px-3 text-[11px] font-semibold transition ${scheduleMode ? 'border-[#1a2744] bg-[#1a2744] text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
                   >
                     {scheduleMode ? 'Scheduled' : 'Schedule'}
                   </button>
@@ -2429,15 +2553,30 @@ function PhoneTab({
                       type="datetime-local"
                       value={scheduledAt}
                       onChange={e => setScheduledAt(e.target.value)}
-                      className="h-8 min-w-0 flex-1 rounded-full border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-[#1a2744] outline-none focus:border-[#1a2744]"
+                      className="h-7 min-w-0 flex-1 rounded-full border border-slate-200 bg-slate-50 px-3 text-[11px] font-semibold text-[#1a2744] outline-none focus:border-[#1a2744]"
                     />
                   )}
                 </div>
                 <div className="flex items-end gap-2">
-                  <button onClick={addMediaUrl} className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-xl text-slate-500 sm:h-11 sm:w-11">+</button>
-                  <textarea value={smsBody} onChange={e => setSmsBody(e.target.value)} rows={2} placeholder={selected.phone ? 'Type SMS…' : 'No phone'} disabled={!selected.phone}
-                    className="max-h-24 flex-1 resize-none rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-2.5 text-base text-[#1a2744] outline-none focus:border-[#1a2744] disabled:opacity-40 sm:max-h-28 sm:text-sm" />
-                  <button onClick={handleSend} disabled={sending || !selected.phone || (!smsBody.trim() && mediaUrls.length === 0) || (scheduleMode && !scheduledAt)}
+                  <input
+                    ref={mediaInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*,video/*,.pdf,.doc,.docx,.txt"
+                    onChange={e => void handleMediaFiles(e.target.files)}
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => mediaInputRef.current?.click()}
+                    disabled={mediaUploading}
+                    className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-xl text-slate-500 disabled:opacity-50 sm:h-11 sm:w-11"
+                    title="Attach file"
+                  >
+                    {mediaUploading ? '…' : '+'}
+                  </button>
+                  <textarea value={smsBody} onChange={e => setSmsBody(e.target.value)} rows={1} placeholder={selected.phone ? 'Type SMS…' : 'No phone'} disabled={!selected.phone}
+                    className="max-h-20 min-h-10 flex-1 resize-none rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-2.5 text-base text-[#1a2744] outline-none focus:border-[#1a2744] disabled:opacity-40 sm:text-sm" />
+                  <button onClick={handleSend} disabled={sending || mediaUploading || !selected.phone || (!smsBody.trim() && mediaUrls.length === 0) || (scheduleMode && !scheduledAt)}
                     className="mb-0.5 h-10 rounded-full bg-[#1a2744] px-4 text-sm font-semibold text-white disabled:opacity-40 sm:h-11">{sending ? '…' : scheduleMode ? 'Schedule' : 'Send'}</button>
                 </div>
               </div>
@@ -2455,6 +2594,83 @@ function PhoneTab({
             )}
           </div>
         </div>
+        <aside className="hidden w-[300px] shrink-0 flex-col border-l border-slate-200 bg-white xl:flex">
+          <div className="border-b border-slate-100 px-4 py-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#1a2744] text-base font-bold text-white">{selected.name.charAt(0)}</div>
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-[#1a2744]">{selected.name}</div>
+                <div className="truncate text-xs text-slate-400">{selected.company || selected.industry || 'Partner contact'}</div>
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              <StageBadge stage={selected.normalized_stage} />
+              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-semibold text-slate-600">{sourceBadge(selected)}</span>
+            </div>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={handleCall} disabled={!selected.phone} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#1a2744] disabled:opacity-40">Call</button>
+              <button onClick={() => setComposeChannel('sms')} disabled={!selected.phone} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#1a2744] disabled:opacity-40">Text</button>
+              <button onClick={() => setComposeChannel('email')} disabled={!selected.email} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#1a2744] disabled:opacity-40">Email</button>
+              <button onClick={() => onSelectContact(selected)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#1a2744]">Details</button>
+            </div>
+            <button
+              onClick={() => {
+                setSheetInstruction('')
+                setSheetUpdateOpen(true)
+              }}
+              disabled={sheetUpdating}
+              className="mt-2 w-full rounded-xl bg-[#1a2744] px-3 py-2.5 text-xs font-semibold text-white disabled:opacity-50"
+            >
+              Update sheet
+            </button>
+
+            <div className="mt-5 space-y-3">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Partner details</div>
+              {[
+                ['Name', selected.name],
+                ['Phone', selected.phone || '—'],
+                ['Email', selected.email || '—'],
+                ['City', selected.city || '—'],
+                ['Company', selected.company || '—'],
+                ['Service type', selected.industry || 'Realtor'],
+                ['Lead stage', PARTNERSHIP_STAGE_META[selected.normalized_stage as keyof typeof PARTNERSHIP_STAGE_META]?.label || selected.normalized_stage || '—'],
+                ['Assigned rep', 'Hunter'],
+                ['Next follow-up', selected.next_follow_up ? fmtDate(selected.next_follow_up) : '—'],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-xl bg-slate-50 px-3 py-2">
+                  <div className="text-[10px] font-semibold uppercase text-slate-400">{label}</div>
+                  <div className="mt-0.5 break-words text-sm font-medium text-[#1a2744]">{value}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-5 space-y-2">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Log action</div>
+              <div className="grid grid-cols-2 gap-2">
+                {INBOX_QUICK_ACTIONS.map(action => (
+                  <button
+                    key={action.key}
+                    onClick={() => handleQuickAction(action.key)}
+                    disabled={quickActionSaving !== null}
+                    className={`min-h-9 rounded-xl border px-2 text-[11px] font-semibold transition disabled:opacity-50 ${quickActionClass(action.tone, quickActionSaving === action.key)}`}
+                  >
+                    {quickActionSaving === action.key ? 'Saving...' : action.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-xl bg-slate-50 p-3">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Notes</div>
+              <div className="mt-2 text-sm leading-5 text-slate-600">
+                {selected.latest_inbound_note ? truncateText(selected.latest_inbound_note, 180) : 'No partner notes yet.'}
+              </div>
+            </div>
+          </div>
+        </aside>
+        </>
       )}
     </div>
   )
@@ -3429,8 +3645,8 @@ function PartnershipEngineInner() {
 
   return (
     <div className={inboxActive ? 'min-h-screen bg-white md:bg-[var(--app-bg,#f0f2f5)]' : 'min-h-screen bg-[var(--app-bg,#f0f2f5)]'}>
-      <div className={inboxActive ? 'mx-0 max-w-none px-0 py-0 md:mx-auto md:max-w-6xl md:px-6 md:py-8' : 'mx-auto max-w-6xl px-4 py-8 sm:px-6'}>
-        <div className={`${inboxActive ? 'hidden md:flex' : 'flex'} mb-6 items-center justify-between`}>
+      <div className={inboxActive ? 'mx-0 max-w-none px-0 py-0 md:mx-auto md:max-w-[1280px] md:px-4 md:py-2' : 'mx-auto max-w-6xl px-4 py-8 sm:px-6'}>
+        <div className={`${inboxActive ? 'hidden' : 'flex'} mb-6 items-center justify-between`}>
           <div>
             <h1 className="text-2xl font-semibold text-[var(--app-ink)]">Partnership Engine</h1>
             <p className="mt-0.5 text-sm text-[var(--app-muted)]">
@@ -3440,10 +3656,10 @@ function PartnershipEngineInner() {
           </div>
         </div>
 
-        <div className={`${inboxActive ? 'hidden md:flex' : 'flex'} mb-6 gap-1 rounded-[16px] border border-[var(--app-line)] bg-[var(--app-panel,white)] p-1.5`}>
+        <div className={`${inboxActive ? 'hidden md:flex' : 'flex'} ${inboxActive ? 'mb-2 gap-1 rounded-[14px] p-1' : 'mb-6 gap-1 rounded-[16px] p-1.5'} border border-[var(--app-line)] bg-[var(--app-panel,white)]`}>
           {TABS.map(t => (
             <button key={t.key} onClick={() => handleTabChange(t.key)}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-[12px] py-2.5 text-sm font-semibold transition ${tab === t.key ? 'bg-[var(--app-ink)] text-white shadow-sm' : 'text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}>
+              className={`flex flex-1 items-center justify-center gap-2 rounded-[11px] ${inboxActive ? 'py-1.5 text-xs' : 'py-2.5 text-sm'} font-semibold transition ${tab === t.key ? 'bg-[var(--app-ink)] text-white shadow-sm' : 'text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}>
               <span>{t.icon}</span>
               <span className="hidden sm:inline">{t.label}</span>
               {t.key === 'queue' && queueCount > 0 && (
