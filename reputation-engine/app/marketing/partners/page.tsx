@@ -1981,6 +1981,7 @@ function PhoneTab({
   const [scheduledAt, setScheduledAt] = useState(defaultScheduledReplyTime)
   const [sending, setSending] = useState(false)
   const [quickActionSaving, setQuickActionSaving] = useState<InboxQuickAction | null>(null)
+  const [actionPanelOpen, setActionPanelOpen] = useState(false)
   const [sheetUpdateOpen, setSheetUpdateOpen] = useState(false)
   const [sheetInstruction, setSheetInstruction] = useState('')
   const [sheetUpdating, setSheetUpdating] = useState(false)
@@ -2051,6 +2052,7 @@ function PhoneTab({
     setEmailBody('')
     setMediaUrls([])
     setScheduleMode(false)
+    setActionPanelOpen(false)
     setScheduledAt(defaultScheduledReplyTime())
   }, [selected?.id])
 
@@ -2292,9 +2294,9 @@ function PhoneTab({
           <div className="text-center"><div className="text-4xl">📱</div><div className="mt-3 text-sm font-medium">Select a contact</div></div>
         </div>
       ) : (
-        <div className={`${mobileListOpen ? 'hidden lg:flex' : 'flex'} flex-1 flex-col min-w-0`}>
+        <div className={`${mobileListOpen ? 'hidden lg:flex' : 'flex'} min-w-0 flex-1 flex-col bg-white`}>
           {/* Header */}
-          <div className="border-b border-slate-200 bg-white px-3 py-2.5 sm:px-5 sm:py-4">
+          <div className="shrink-0 border-b border-slate-200 bg-white px-3 py-2.5 sm:px-5 sm:py-3">
             <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2.5">
               <button onClick={() => setMobileListOpen(true)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-2xl leading-none text-[#1a2744] lg:hidden">
@@ -2322,33 +2324,8 @@ function PhoneTab({
             </div>
           </div>
 
-          <div className="border-b border-slate-100 bg-white px-3 py-2 sm:px-5">
-            <div className="flex gap-2 overflow-x-auto pb-0.5">
-              <button
-                onClick={() => {
-                  setSheetInstruction('')
-                  setSheetUpdateOpen(true)
-                }}
-                disabled={sheetUpdating}
-                className="min-h-9 shrink-0 rounded-full border border-[#1a2744] bg-[#1a2744] px-3.5 text-xs font-semibold text-white transition hover:bg-[#243560] disabled:opacity-50 sm:text-sm"
-              >
-                UPDATE SHEET
-              </button>
-              {INBOX_QUICK_ACTIONS.map(action => (
-                <button
-                  key={action.key}
-                  onClick={() => handleQuickAction(action.key)}
-                  disabled={quickActionSaving !== null}
-                  className={`min-h-9 shrink-0 rounded-full border px-3.5 text-xs font-semibold transition disabled:opacity-50 sm:text-sm ${quickActionClass(action.tone, quickActionSaving === action.key)}`}
-                >
-                  {quickActionSaving === action.key ? 'Saving...' : action.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Thread */}
-          <div ref={threadRef} className="flex-1 space-y-2.5 overflow-y-auto bg-slate-50 px-3 py-4 sm:px-5">
+          <div ref={threadRef} className="min-h-0 flex-1 space-y-2.5 overflow-y-auto bg-slate-50 px-3 py-4 sm:px-5">
             {touchLoading && <div className="text-center text-xs text-slate-400 py-8">Loading…</div>}
             {!touchLoading && touches.length === 0 && <div className="text-center text-xs text-slate-400 py-8">No history yet.</div>}
             {[...touches].reverse().map(touch => {
@@ -2387,13 +2364,45 @@ function PhoneTab({
           </div>
 
           {/* Compose */}
-          <div className="border-t border-slate-200 bg-white px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] sm:px-5 sm:py-4">
-            <div className="mb-2 hidden grid-cols-2 gap-2 md:grid">
-              <button onClick={() => setComposeChannel('sms')} className={`min-h-9 rounded-xl px-3 py-2 text-xs font-semibold transition ${composeChannel === 'sms' ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+          <div className="shrink-0 border-t border-slate-200 bg-white px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] sm:px-5 sm:py-3">
+            {actionPanelOpen && (
+              <div className="mb-2 rounded-[18px] border border-slate-200 bg-slate-50 p-2">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <button
+                    onClick={() => {
+                      setSheetInstruction('')
+                      setSheetUpdateOpen(true)
+                    }}
+                    disabled={sheetUpdating}
+                    className="min-h-10 rounded-full border border-[#1a2744] bg-[#1a2744] px-3 text-xs font-semibold text-white transition hover:bg-[#243560] disabled:opacity-50"
+                  >
+                    Update sheet
+                  </button>
+                  {INBOX_QUICK_ACTIONS.map(action => (
+                    <button
+                      key={action.key}
+                      onClick={() => handleQuickAction(action.key)}
+                      disabled={quickActionSaving !== null}
+                      className={`min-h-10 rounded-full border px-3 text-xs font-semibold transition disabled:opacity-50 ${quickActionClass(action.tone, quickActionSaving === action.key)}`}
+                    >
+                      {quickActionSaving === action.key ? 'Saving...' : action.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="mb-2 grid grid-cols-[1fr_1fr_auto] gap-2">
+              <button onClick={() => setComposeChannel('sms')} className={`min-h-9 rounded-full px-3 py-2 text-xs font-semibold transition ${composeChannel === 'sms' ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
                 SMS {!selected.phone && <span className="ml-1 text-red-400">no #</span>}
               </button>
-              <button onClick={() => setComposeChannel('email')} className={`min-h-9 rounded-xl px-3 py-2 text-xs font-semibold transition ${composeChannel === 'email' ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+              <button onClick={() => setComposeChannel('email')} className={`min-h-9 rounded-full px-3 py-2 text-xs font-semibold transition ${composeChannel === 'email' ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
                 Email {!selected.email && <span className="ml-1 text-red-400">no email</span>}
+              </button>
+              <button
+                onClick={() => setActionPanelOpen(open => !open)}
+                className={`min-h-9 rounded-full px-3 text-xs font-semibold transition ${actionPanelOpen ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+              >
+                Log
               </button>
             </div>
             {mediaUrls.length > 0 && (
