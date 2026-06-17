@@ -9,12 +9,23 @@ interface BulkContact {
   title?: string
   email?: string
   phone?: string
+  phone2?: string
+  phone3?: string
   address?: string
   city?: string
+  zone?: string
   industry?: string
   website?: string
   notes?: string
   category?: string
+  external_id?: string
+  profile_url?: string
+  photo_url?: string
+  metadata?: Record<string, unknown>
+}
+
+function cleanText(value?: string | null) {
+  return value?.trim() || null
 }
 
 export async function POST(request: Request) {
@@ -35,7 +46,7 @@ export async function POST(request: Request) {
   const { url, headers } = requireSupabaseEnv()
 
   const batchRes = await fetch(
-    `${url}/rest/v1/market_campaigns?id=eq.${body.batch_id}&select=id,name,industry,city`,
+    `${url}/rest/v1/market_campaigns?id=eq.${body.batch_id}&select=id,name,industry,city,category,tier`,
     { headers, cache: 'no-store' }
   )
   const [batch] = batchRes.ok ? await batchRes.json() : []
@@ -43,26 +54,38 @@ export async function POST(request: Request) {
 
   const rows = body.contacts
     .filter(c => c.name?.trim())
-    .map(c => ({
-      name: c.name.trim(),
-      company: c.company?.trim() || null,
-      title: c.title?.trim() || null,
-      email: c.email?.trim() || null,
-      phone: c.phone?.trim() || null,
-      address: c.address?.trim() || null,
-      city: c.city?.trim() || (batch.city as string) || null,
-      industry: c.industry?.trim() || (batch.industry as string) || null,
-      website: c.website?.trim() || null,
-      notes: c.notes?.trim() || null,
-      category: c.category?.trim() || (batch.category as string) || null,
-      outreach_tier: c.category ? (batch.tier as number ?? null) : null,
-      stage: 'target',
-      pipeline_phase: 'outreach',
-      sequence_step: 0,
-      sequence_paused: false,
-      batch_id: body.batch_id,
-      created_at: new Date().toISOString(),
-    }))
+    .map(c => {
+      const sourceNotes = [
+        cleanText(c.notes),
+        cleanText(c.phone2) ? `phone2=${cleanText(c.phone2)}` : null,
+        cleanText(c.phone3) ? `phone3=${cleanText(c.phone3)}` : null,
+        cleanText(c.zone) ? `zone=${cleanText(c.zone)}` : null,
+        cleanText(c.external_id) ? `external_id=${cleanText(c.external_id)}` : null,
+        cleanText(c.profile_url) ? `profile=${cleanText(c.profile_url)}` : null,
+        cleanText(c.photo_url) ? `photo=${cleanText(c.photo_url)}` : null,
+      ].filter(Boolean).join('\n')
+
+      return {
+        name: c.name.trim(),
+        company: cleanText(c.company),
+        title: cleanText(c.title),
+        email: cleanText(c.email)?.toLowerCase() || null,
+        phone: cleanText(c.phone),
+        address: cleanText(c.address),
+        city: cleanText(c.city) || (batch.city as string) || null,
+        industry: cleanText(c.industry) || (batch.industry as string) || null,
+        website: cleanText(c.website),
+        notes: sourceNotes || null,
+        category: cleanText(c.category) || (batch.category as string) || null,
+        outreach_tier: (batch.tier as number) ?? null,
+        stage: 'target',
+        pipeline_phase: 'outreach',
+        sequence_step: 0,
+        sequence_paused: false,
+        batch_id: body.batch_id,
+        created_at: new Date().toISOString(),
+      }
+    })
 
   if (rows.length === 0) {
     return NextResponse.json({ error: 'No valid contacts (name required)' }, { status: 400 })
