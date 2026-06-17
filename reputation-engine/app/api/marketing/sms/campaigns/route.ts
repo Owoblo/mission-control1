@@ -9,6 +9,7 @@ import {
   contactPhoneKey,
   encodeSenderTemplateKey,
   ensureSmsOptOutLine,
+  formatPersonName,
   mergePartnershipSmsTemplate,
   normalizeMarketingPhone,
   normalizeOutboundNumber,
@@ -36,7 +37,7 @@ function normalizeContact(input: PartnershipSmsContactInput, fallbackCity?: stri
   ].filter(Boolean).join('\n')
 
   return {
-    name: cleanText(input.name) || cleanText(input.company) || phone || 'Unknown contact',
+    name: formatPersonName(input.name) || cleanText(input.company) || phone || 'Unknown contact',
     company: cleanText(input.company),
     title: cleanText(input.title),
     email: cleanText(input.email)?.toLowerCase() || null,

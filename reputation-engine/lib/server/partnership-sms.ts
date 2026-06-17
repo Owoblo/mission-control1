@@ -92,8 +92,27 @@ export function firstFilledPhone(contact: PartnershipSmsContactInput) {
     normalizeMarketingPhone(contact.phone3)
 }
 
+function titleCaseNamePart(value: string) {
+  if (!value) return value
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()
+}
+
+export function formatPersonName(value?: string | null) {
+  return (value || '')
+    .trim()
+    .split(/\s+/)
+    .map(part => part
+      .split('-')
+      .map(piece => piece
+        .split("'")
+        .map(titleCaseNamePart)
+        .join("'"))
+      .join('-'))
+    .join(' ')
+}
+
 export function firstNameFromName(name?: string | null) {
-  return (name || '').trim().split(/\s+/)[0] || 'there'
+  return formatPersonName(name).split(/\s+/)[0] || 'there'
 }
 
 export function parseSmsCampaignConfig(notes?: unknown): PartnershipSmsCampaignConfig | null {
