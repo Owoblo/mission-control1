@@ -111,6 +111,35 @@ interface InstantlyCampaign {
   status: number
 }
 
+interface PartnershipSmsPreview {
+  ok?: boolean
+  dry_run?: boolean
+  total_input: number
+  usable_with_phone: number
+  no_primary_phone: number
+  invalid_phone: number
+  existing_phone_matches: number
+  existing_exact_name_matches: number
+  existing_skipped_no_repeat: number
+  duplicate_in_file: number
+  would_insert: number
+  would_schedule: number
+  days_to_finish: number
+  sender_numbers: string[]
+  timezone: string
+  start_hour: number
+  end_hour: number
+  preview?: Array<{
+    name: string
+    phone: string
+    city: string | null
+    scheduled_at: string | null
+    from_number: string | null
+    message: string
+  }>
+  error?: string
+}
+
 // ─── Utils ────────────────────────────────────────────────────────────────────
 
 function fmtDate(d?: string | null) {
@@ -149,15 +178,46 @@ function addDays(dateStr: string, days: number) {
 }
 
 function parseCSV(text: string): Record<string, string>[] {
-  const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim())
-  if (lines.length < 2) return []
-  const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim())
-  return lines.slice(1).map(line => {
-    const vals = line.split(',').map(v => v.replace(/^"|"$/g, '').trim())
-    const row: Record<string, string> = {}
-    headers.forEach((h, i) => { row[h] = vals[i] ?? '' })
-    return row
-  })
+  const rows: string[][] = []
+  let row: string[] = []
+  let field = ''
+  let quoted = false
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i]
+    const next = text[i + 1]
+    if (quoted) {
+      if (char === '"' && next === '"') {
+        field += '"'
+        i++
+      } else if (char === '"') {
+        quoted = false
+      } else {
+        field += char
+      }
+    } else if (char === '"') {
+      quoted = true
+    } else if (char === ',') {
+      row.push(field)
+      field = ''
+    } else if (char === '\n') {
+      row.push(field)
+      rows.push(row)
+      row = []
+      field = ''
+    } else if (char !== '\r') {
+      field += char
+    }
+  }
+  if (field || row.length) {
+    row.push(field)
+    rows.push(row)
+  }
+
+  const [header, ...data] = rows.filter(r => r.some(cell => cell.trim()))
+  if (!header) return []
+  const headers = header.map(h => h.trim())
+  return data.map(values => Object.fromEntries(headers.map((key, index) => [key, (values[index] || '').trim()])))
 }
 
 function truncateText(value: string, max = 120) {
@@ -2307,6 +2367,264 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
   )
 }
 
+// ─── Scheduled Partnership SMS Modal ─────────────────────────────────────────
+
+const PARTNERSHIP_SMS_TEMPLATE = [
+  'Hey {{firstName}}, my name is John. I run a local moving company serving the {{city}} area....It\'s called SSM | Saturn Star Movers.',
+  '',
+  'I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myself instead of just sending a random email.',
+  '',
+  'We are licensed and insured, and I would love to be a reliable local option if any of your buyers or sellers ever need help after closing.',
+  '',
+  'Would it be okay if I stopped by your office next week to drop off a few cards?',
+].join('\n')
+
+function mapCsvRealtor(row: Record<string, string>) {
+  return {
+    name: row.name || '',
+    company: row.brokerage || row.company || '',
+    title: row.position || row.title || 'Realtor',
+    email: row.email || '',
+    phone: row.phone || '',
+    phone2: row.phone2 || '',
+    phone3: row.phone3 || '',
+    address: row.brokerage_address || row.address || '',
+    city: row.city_scraped || row.city || row.zone || '',
+    zone: row.zone || row.city_scraped || row.city || '',
+    industry: 'real estate',
+    website: row.website || '',
+    category: 'realtor',
+    external_id: row.individual_id || '',
+    profile_url: row.profile_url || '',
+    photo_url: row.photo_url || '',
+    notes: [
+      row.facebook ? `Facebook: ${row.facebook}` : '',
+      row.instagram ? `Instagram: ${row.instagram}` : '',
+      row.linkedin ? `LinkedIn: ${row.linkedin}` : '',
+    ].filter(Boolean).join('\n'),
+  }
+}
+
+function ScheduledSmsCampaignModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+  const [rows, setRows] = useState<Record<string, string>[]>([])
+  const [fileName, setFileName] = useState('')
+  const [city, setCity] = useState('Windsor')
+  const [name, setName] = useState('Windsor Realtor Partnership SMS')
+  const [template, setTemplate] = useState(PARTNERSHIP_SMS_TEMPLATE)
+  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10))
+  const [dailyCap, setDailyCap] = useState(400)
+  const [startHour, setStartHour] = useState(10)
+  const [endHour, setEndHour] = useState(17)
+  const [preview, setPreview] = useState<PartnershipSmsPreview | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [scheduling, setScheduling] = useState(false)
+  const [result, setResult] = useState<{ campaign_id?: string; scheduled?: number; days_to_finish?: number } | null>(null)
+  const [error, setError] = useState('')
+
+  const availableCities = Array.from(new Set(rows.map(row => row.city_scraped || row.city || row.zone).filter(Boolean))).sort((a, b) => a.localeCompare(b))
+  const selectedRows = rows.filter(row => !city || (row.city_scraped || row.city || row.zone || '').toLowerCase() === city.toLowerCase())
+  const contacts = selectedRows.map(mapCsvRealtor)
+
+  async function handleFile(file: File | null) {
+    if (!file) return
+    const text = await file.text()
+    const parsed = parseCSV(text)
+    setRows(parsed)
+    setFileName(file.name)
+    const firstCity = parsed.find(row => row.city_scraped || row.city || row.zone)
+    const nextCity = firstCity ? (firstCity.city_scraped || firstCity.city || firstCity.zone) : city
+    setCity(nextCity)
+    setName(`${nextCity} Realtor Partnership SMS`)
+    setPreview(null)
+    setResult(null)
+    setError('')
+  }
+
+  async function submit(dryRun: boolean) {
+    if (!contacts.length) {
+      setError('Upload a CSV and choose a city first.')
+      return
+    }
+    setError('')
+    dryRun ? setLoading(true) : setScheduling(true)
+    const res = await fetch('/api/marketing/sms/campaigns', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        name,
+        city,
+        contacts,
+        template,
+        sender_numbers: ['+12268870667', '+12266055008'],
+        daily_cap: dailyCap,
+        start_date: startDate,
+        start_hour: startHour,
+        end_hour: endHour,
+        timezone: 'America/Toronto',
+        dry_run: dryRun,
+      }),
+    })
+    const data = await res.json().catch(() => ({})) as PartnershipSmsPreview & { campaign_id?: string; scheduled?: number; days_to_finish?: number }
+    if (!res.ok) {
+      setError(data.error || 'Campaign request failed.')
+    } else if (dryRun) {
+      setPreview(data)
+    } else {
+      setResult({ campaign_id: data.campaign_id, scheduled: data.scheduled, days_to_finish: data.days_to_finish })
+      onDone()
+    }
+    setLoading(false)
+    setScheduling(false)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4">
+      <div className="flex max-h-[96vh] w-full max-w-5xl flex-col rounded-t-[18px] bg-white shadow-2xl sm:rounded-[18px]">
+        <div className="flex items-center justify-between border-b border-[var(--app-line)] px-4 py-3 sm:px-5">
+          <div>
+            <div className="text-sm font-semibold text-[var(--app-ink)]">Schedule partnership SMS</div>
+            <div className="mt-0.5 text-[11px] text-[var(--app-muted)]">Preview first. Nothing sends until you approve scheduling.</div>
+          </div>
+          <button onClick={onClose} className="rounded-full p-2 text-[var(--app-muted)] hover:bg-[var(--app-bg)]">x</button>
+        </div>
+
+        {result ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+            <div className="text-3xl">Scheduled</div>
+            <div className="text-base font-semibold text-[var(--app-ink)]">{result.scheduled ?? 0} SMS jobs created</div>
+            <div className="text-sm text-[var(--app-muted)]">Estimated {result.days_to_finish ?? 0} business day{result.days_to_finish === 1 ? '' : 's'} at {dailyCap}/day.</div>
+            <button onClick={onClose} className="crm-button-dark px-6">Done</button>
+          </div>
+        ) : (
+          <>
+            <div className="grid flex-1 gap-0 overflow-y-auto md:grid-cols-[360px_1fr]">
+              <div className="space-y-4 border-b border-[var(--app-line)] p-4 md:border-b-0 md:border-r sm:p-5">
+                <div>
+                  <label className="crm-label">CSV file</label>
+                  <input type="file" accept=".csv,text/csv" onChange={e => { void handleFile(e.target.files?.[0] || null) }}
+                    className="mt-1 block w-full text-sm text-[var(--app-muted)] file:mr-3 file:rounded-[10px] file:border-0 file:bg-[var(--app-ink)] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white" />
+                  <div className="mt-1 text-[11px] text-[var(--app-muted)]">{fileName || 'Upload the realtor CSV.'}</div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="crm-label">City</label>
+                    <select value={city} onChange={e => { const next = e.target.value; setCity(next); setName(`${next || 'All'} Realtor Partnership SMS`); setPreview(null) }} className="crm-input mt-1 text-sm">
+                      {availableCities.length === 0 && <option value={city}>{city}</option>}
+                      {availableCities.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="crm-label">Daily cap</label>
+                    <input type="number" min={1} max={500} value={dailyCap} onChange={e => { setDailyCap(Number(e.target.value)); setPreview(null) }} className="crm-input mt-1 text-sm" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="crm-label">Campaign name</label>
+                  <input value={name} onChange={e => setName(e.target.value)} className="crm-input mt-1 text-sm" />
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="crm-label">Start date</label>
+                    <input type="date" value={startDate} onChange={e => { setStartDate(e.target.value); setPreview(null) }} className="crm-input mt-1 text-sm" />
+                  </div>
+                  <div>
+                    <label className="crm-label">From</label>
+                    <input type="number" min={7} max={20} value={startHour} onChange={e => { setStartHour(Number(e.target.value)); setPreview(null) }} className="crm-input mt-1 text-sm" />
+                  </div>
+                  <div>
+                    <label className="crm-label">To</label>
+                    <input type="number" min={8} max={21} value={endHour} onChange={e => { setEndHour(Number(e.target.value)); setPreview(null) }} className="crm-input mt-1 text-sm" />
+                  </div>
+                </div>
+
+                <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3 text-xs leading-5 text-[var(--app-muted)]">
+                  Uses both partnership numbers, primary phone only, exact-name/phone duplicate checks, and Toronto/Windsor working hours.
+                </div>
+              </div>
+
+              <div className="space-y-4 p-4 sm:p-5">
+                <div>
+                  <label className="crm-label">Message</label>
+                  <textarea value={template} onChange={e => { setTemplate(e.target.value); setPreview(null) }} rows={9}
+                    className="crm-input mt-1 resize-none text-sm leading-5" />
+                  <div className="mt-1 text-[11px] text-[var(--app-muted)]">City comes from each CSV row: London rows say London, Guelph rows say Guelph.</div>
+                </div>
+
+                {error && <div className="rounded-[10px] border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+
+                {preview && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      <div className="rounded-[10px] border border-emerald-200 bg-emerald-50 p-3 text-center">
+                        <div className="text-xl font-semibold text-emerald-800">{preview.would_schedule}</div>
+                        <div className="text-[10px] font-bold uppercase text-emerald-700">Will schedule</div>
+                      </div>
+                      <div className="rounded-[10px] border border-slate-200 bg-slate-50 p-3 text-center">
+                        <div className="text-xl font-semibold text-slate-800">{preview.existing_skipped_no_repeat}</div>
+                        <div className="text-[10px] font-bold uppercase text-slate-500">Existing skipped</div>
+                      </div>
+                      <div className="rounded-[10px] border border-amber-200 bg-amber-50 p-3 text-center">
+                        <div className="text-xl font-semibold text-amber-800">{preview.no_primary_phone + preview.invalid_phone}</div>
+                        <div className="text-[10px] font-bold uppercase text-amber-700">No usable primary</div>
+                      </div>
+                      <div className="rounded-[10px] border border-sky-200 bg-sky-50 p-3 text-center">
+                        <div className="text-xl font-semibold text-sky-800">{preview.days_to_finish}</div>
+                        <div className="text-[10px] font-bold uppercase text-sky-700">Business days</div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-[10px] border border-[var(--app-line)] bg-white p-3">
+                      <div className="text-xs font-semibold text-[var(--app-ink)]">Dry-run details</div>
+                      <div className="mt-2 grid gap-1 text-xs text-[var(--app-muted)] sm:grid-cols-2">
+                        <div>Total selected rows: {preview.total_input}</div>
+                        <div>Primary phones: {preview.usable_with_phone}</div>
+                        <div>Phone matches: {preview.existing_phone_matches}</div>
+                        <div>Exact name matches: {preview.existing_exact_name_matches}</div>
+                        <div>Duplicate primary phones in file: {preview.duplicate_in_file}</div>
+                        <div>Window: {preview.start_hour}:00-{preview.end_hour}:00 {preview.timezone}</div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="crm-label mb-2">Sample scheduled messages</div>
+                      <div className="space-y-2">
+                        {(preview.preview || []).map((item, index) => (
+                          <div key={`${item.phone}-${index}`} className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
+                            <div className="flex flex-wrap justify-between gap-2 text-[11px] font-semibold text-[var(--app-muted)]">
+                              <span>{item.name} · {item.city || city} · {item.phone}</span>
+                              <span>{item.from_number} · {fmtDateTime(item.scheduled_at)}</span>
+                            </div>
+                            <div className="mt-2 whitespace-pre-wrap text-sm leading-5 text-[var(--app-ink)]">{item.message}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-2 border-t border-[var(--app-line)] p-4">
+              <button onClick={onClose} className="crm-button flex-1">Cancel</button>
+              <button onClick={() => void submit(true)} disabled={loading || contacts.length === 0 || !template.trim()} className="crm-button flex-1 disabled:opacity-50">
+                {loading ? 'Previewing...' : `Preview ${contacts.length || ''}`}
+              </button>
+              <button onClick={() => { if (preview && confirm(`Schedule ${preview.would_schedule} SMS jobs?`)) void submit(false) }} disabled={scheduling || !preview || preview.would_schedule === 0}
+                className="crm-button-dark flex-1 disabled:opacity-50">
+                {scheduling ? 'Scheduling...' : 'Approve schedule'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Queue Tab — mirrors sales Follow-Up Wall ─────────────────────────────────
 
 function urgencyBar(contact: Contact): string {
@@ -2407,10 +2725,10 @@ function QueueContactCard({ contact, onSelect, onCall }: {
   )
 }
 
-function QueueTab({ contacts, onSelect, onBulkSms }: {
+function QueueTab({ contacts, onSelect, onScheduleCampaign }: {
   contacts: Contact[]
   onSelect: (c: Contact) => void
-  onBulkSms: (contacts: Contact[]) => void
+  onScheduleCampaign: () => void
 }) {
   const dialer = useDialer()
   const [search, setSearch] = useState('')
@@ -2461,7 +2779,7 @@ function QueueTab({ contacts, onSelect, onBulkSms }: {
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <button onClick={() => onBulkSms(filtered.filter(c => c.phone))} className="crm-button text-sm">📱 Bulk SMS</button>
+          <button onClick={onScheduleCampaign} className="crm-button-dark text-sm">Schedule campaign</button>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…" className="crm-input w-36 text-sm" />
         </div>
       </div>
@@ -2616,6 +2934,7 @@ function PartnershipEngineInner() {
   }
 
   const [bulkSmsContacts, setBulkSmsContacts] = useState<Contact[] | null>(null)
+  const [scheduledSmsOpen, setScheduledSmsOpen] = useState(false)
   const needsReplyCount = contacts.filter(c => c.sequence_paused && !c.decision).length
   const queueCount = needsReplyCount + contacts.filter(c =>
     c.last_touch_at && Math.floor((Date.now() - new Date(c.last_touch_at).getTime()) / 86400000) >= 5
@@ -2653,7 +2972,7 @@ function PartnershipEngineInner() {
 
         {tab === 'queue' && (
           <QueueTab contacts={contacts} onSelect={setSelectedContact}
-            onBulkSms={cs => setBulkSmsContacts(cs)} />
+            onScheduleCampaign={() => setScheduledSmsOpen(true)} />
         )}
         {tab === 'overview' && (
           <OverviewTab batches={batches} contacts={contacts} loading={batchesLoading || contactsLoading}
@@ -2683,6 +3002,12 @@ function PartnershipEngineInner() {
 
         {bulkSmsContacts && (
           <BulkSmsModal contacts={bulkSmsContacts} onClose={() => setBulkSmsContacts(null)} />
+        )}
+        {scheduledSmsOpen && (
+          <ScheduledSmsCampaignModal
+            onClose={() => setScheduledSmsOpen(false)}
+            onDone={() => { void loadBatches(); void loadContacts() }}
+          />
         )}
       </div>
     </div>
