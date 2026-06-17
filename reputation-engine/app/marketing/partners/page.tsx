@@ -2104,9 +2104,11 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
   const [fromNumber, setFromNumber] = useState('+12268870667')
   const [preview, setPreview] = useState<Array<{ name: string; phone: string; message: string }> | null>(null)
   const [invalidPhoneSamples, setInvalidPhoneSamples] = useState<Array<{ name: string; phone: string; issue: string }>>([])
+  const [skippedPriorSmsSamples, setSkippedPriorSmsSamples] = useState<Array<{ name: string; phone: string; last_touch_at: string | null }>>([])
+  const [previewStats, setPreviewStats] = useState<{ will_send: number; skipped_prior_sms: number; no_phone: number } | null>(null)
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
-  const [result, setResult] = useState<{ sent: number; failed: number; no_phone: number } | null>(null)
+  const [result, setResult] = useState<{ sent: number; failed: number; no_phone: number; skipped_prior_sms?: number } | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(contacts.map(c => c.id)))
 
   const withPhone = contacts.filter(c => c.phone)
@@ -2121,15 +2123,25 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
     const data = await res.json() as {
       preview?: Array<{ name: string; phone: string; message: string }>
       will_send?: number
+      no_phone?: number
+      skipped_prior_sms?: number
+      skipped_prior_sms_samples?: Array<{ name: string; phone: string; last_touch_at: string | null }>
       invalid_phone_samples?: Array<{ name: string; phone: string; issue: string }>
     }
     setPreview(data.preview || [])
     setInvalidPhoneSamples(data.invalid_phone_samples || [])
+    setSkippedPriorSmsSamples(data.skipped_prior_sms_samples || [])
+    setPreviewStats({
+      will_send: data.will_send ?? 0,
+      skipped_prior_sms: data.skipped_prior_sms ?? 0,
+      no_phone: data.no_phone ?? 0,
+    })
     setLoading(false)
   }
 
   async function send() {
-    if (!confirm(`Send SMS to ${selected.filter(c => c.phone).length} contacts?`)) return
+    const sendCount = previewStats?.will_send ?? selected.filter(c => c.phone).length
+    if (!confirm(`Send SMS to ${sendCount} contacts? Already-texted contacts will be skipped.`)) return
     setSending(true)
     const res = await fetch('/api/marketing/contacts/bulk-sms', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
@@ -2155,7 +2167,14 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
           <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8 text-center">
             <div className="text-4xl">✅</div>
             <div className="text-lg font-semibold text-[var(--app-ink)]">{result.sent} messages sent</div>
-            <div className="text-sm text-[var(--app-muted)]">{result.failed > 0 && `${result.failed} failed · `}{result.no_phone > 0 && `${result.no_phone} had no phone`}</div>
+            <div className="text-sm text-[var(--app-muted)]">
+              {result.failed > 0 && `${result.failed} failed · `}
+              {result.skipped_prior_sms ? `${result.skipped_prior_sms} already texted skipped · ` : ''}
+              {result.no_phone > 0 && `${result.no_phone} had no phone`}
+            </div>
+            <div className="max-w-sm text-xs leading-5 text-[var(--app-muted)]">
+              This send is logged. Do not run this same recipient list again; use a new filtered batch or contacts with no prior outbound SMS.
+            </div>
             <button onClick={onClose} className="crm-button-dark px-6">Done</button>
           </div>
         ) : (
@@ -2163,10 +2182,10 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
             {/* Template */}
             <div>
               <label className="crm-label">Message template</label>
-              <textarea value={template} onChange={e => { setTemplate(e.target.value); setPreview(null); setInvalidPhoneSamples([]) }} rows={9}
+              <textarea value={template} onChange={e => { setTemplate(e.target.value); setPreview(null); setPreviewStats(null); setInvalidPhoneSamples([]); setSkippedPriorSmsSamples([]) }} rows={9}
                 className="crm-input mt-1 resize-none text-sm" />
               <div className="mt-1 text-[11px] text-[var(--app-muted)]">
-                This is the final review step. Edit here, preview real merged examples, then approve.
+                Preview first. Contacts already texted from this system are skipped automatically so this cannot casually resend the same outreach.
               </div>
               <div className="mt-1 flex flex-wrap gap-2">
                 {['{{firstName}}', '{{name}}', '{{company}}', '{{brokerage}}', '{{city}}', '{{zone}}', '{{industry}}'].map(tag => (
@@ -2190,12 +2209,41 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
             {/* Preview */}
             {preview && (
               <div>
-                <div className="crm-label mb-2">Preview (first 3)</div>
+                <div className="crm-label mb-2">Preview</div>
+                {previewStats && (
+                  <div className="mb-3 grid grid-cols-3 gap-2 text-center">
+                    <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 p-2">
+                      <div className="text-lg font-semibold text-emerald-800">{previewStats.will_send}</div>
+                      <div className="text-[10px] font-semibold uppercase text-emerald-700">Will send</div>
+                    </div>
+                    <div className="rounded-[8px] border border-slate-200 bg-slate-50 p-2">
+                      <div className="text-lg font-semibold text-slate-700">{previewStats.skipped_prior_sms}</div>
+                      <div className="text-[10px] font-semibold uppercase text-slate-500">Already texted</div>
+                    </div>
+                    <div className="rounded-[8px] border border-amber-200 bg-amber-50 p-2">
+                      <div className="text-lg font-semibold text-amber-800">{previewStats.no_phone}</div>
+                      <div className="text-[10px] font-semibold uppercase text-amber-700">No phone</div>
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-2">
                   {preview.map((p, i) => (
                     <div key={i} className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
                       <div className="text-[10px] font-semibold text-[var(--app-muted)]">{p.name} · {p.phone}</div>
                       <div className="mt-1 text-sm text-[var(--app-ink)] whitespace-pre-wrap">{p.message}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {skippedPriorSmsSamples.length > 0 && (
+              <div className="rounded-[10px] border border-slate-200 bg-slate-50 p-3">
+                <div className="text-xs font-semibold text-slate-700">Skipped because they already have an outbound SMS</div>
+                <div className="mt-2 space-y-1">
+                  {skippedPriorSmsSamples.map((sample, index) => (
+                    <div key={`${sample.phone}-${index}`} className="text-[11px] text-slate-600">
+                      {sample.name}: {sample.phone}
                     </div>
                   ))}
                 </div>
@@ -2249,7 +2297,7 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
               </button>
             ) : (
               <button onClick={send} disabled={sending} className="crm-button-dark flex-1 disabled:opacity-50">
-                {sending ? 'Sending…' : `Approve & Send to ${selected.filter(c => c.phone).length}`}
+                {sending ? 'Sending…' : `Approve & Send to ${previewStats?.will_send ?? selected.filter(c => c.phone).length}`}
               </button>
             )}
           </div>

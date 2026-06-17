@@ -60,19 +60,31 @@ export async function POST(request: Request) {
   // Fetch contacts
   const ids = body.contact_ids.map(id => `"${id}"`).join(',')
   const contactsRes = await fetch(
-    `${url}/rest/v1/market_contacts?id=in.(${ids})&select=id,name,company,phone,city,industry`,
+    `${url}/rest/v1/market_contacts?id=in.(${ids})&select=id,name,company,phone,city,industry,last_touch_at`,
     { headers, cache: 'no-store' }
   )
   const contacts = (contactsRes.ok ? await contactsRes.json() : []) as Array<{
-    id: string; name: string; company: string | null; phone: string | null; city: string | null; industry: string | null
+    id: string; name: string; company: string | null; phone: string | null; city: string | null; industry: string | null; last_touch_at?: string | null
   }>
+
+  const priorSmsContactIds = new Set<string>()
+  if (contacts.length > 0) {
+    const touchRes = await fetch(
+      `${url}/rest/v1/market_touches?contact_id=in.(${ids})&channel=eq.sms&direction=eq.outbound&select=contact_id`,
+      { headers, cache: 'no-store' }
+    )
+    const priorTouches = (touchRes.ok ? await touchRes.json() : []) as Array<{ contact_id: string }>
+    priorTouches.forEach(touch => priorSmsContactIds.add(touch.contact_id))
+  }
 
   const normalizedContacts = contacts.map(contact => ({
     ...contact,
     normalized_phone: normalizeMarketingPhone(contact.phone),
     phone_issue: smsRecipientIssue(contact.phone),
   }))
-  const withPhone = normalizedContacts.filter(c => c.normalized_phone)
+  const withPhoneCandidates = normalizedContacts.filter(c => c.normalized_phone)
+  const skippedPriorSms = withPhoneCandidates.filter(c => priorSmsContactIds.has(c.id))
+  const withPhone = withPhoneCandidates.filter(c => !priorSmsContactIds.has(c.id))
   const withoutPhone = normalizedContacts.filter(c => !c.normalized_phone)
 
   // Preview mode — return what would be sent without actually sending
@@ -81,6 +93,12 @@ export async function POST(request: Request) {
       total: contacts.length,
       will_send: withPhone.length,
       no_phone: withoutPhone.length,
+      skipped_prior_sms: skippedPriorSms.length,
+      skipped_prior_sms_samples: skippedPriorSms.slice(0, 10).map(c => ({
+        name: c.name,
+        phone: c.normalized_phone,
+        last_touch_at: c.last_touch_at ?? null,
+      })),
       invalid_phone: withoutPhone.filter(c => c.phone?.trim()).length,
       invalid_phone_samples: withoutPhone.filter(c => c.phone?.trim()).slice(0, 10).map(c => ({
         name: c.name,
@@ -218,6 +236,7 @@ export async function POST(request: Request) {
     sent,
     failed,
     no_phone: withoutPhone.length,
+    skipped_prior_sms: skippedPriorSms.length,
     total: contacts.length,
   })
 }
