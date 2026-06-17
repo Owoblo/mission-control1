@@ -149,6 +149,22 @@ interface PartnershipSmsPreview {
 
 // ─── Utils ────────────────────────────────────────────────────────────────────
 
+function readLocalStorageFlag(key: string) {
+  try {
+    if (typeof window === 'undefined') return false
+    return window.localStorage?.getItem(key) === '1'
+  } catch {
+    return false
+  }
+}
+
+function writeLocalStorageFlag(key: string, value: boolean) {
+  try {
+    if (typeof window === 'undefined') return
+    window.localStorage?.setItem(key, value ? '1' : '0')
+  } catch {}
+}
+
 function fmtDate(d?: string | null) {
   if (!d) return '—'
   return new Date(d).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -2031,6 +2047,7 @@ function PhoneTab({
   const [sheetUpdateOpen, setSheetUpdateOpen] = useState(false)
   const [sheetInstruction, setSheetInstruction] = useState('')
   const [sheetUpdating, setSheetUpdating] = useState(false)
+  const [partnerInfoCollapsed, setPartnerInfoCollapsed] = useState(() => readLocalStorageFlag('ss_partner_inbox_info_collapsed'))
   const [toast, setToast] = useState<string | null>(null)
   const threadRef = useRef<HTMLDivElement>(null)
   const mediaInputRef = useRef<HTMLInputElement>(null)
@@ -2112,6 +2129,7 @@ function PhoneTab({
   }, [selected?.id])
 
   useEffect(() => { if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight }, [touches])
+  useEffect(() => { writeLocalStorageFlag('ss_partner_inbox_info_collapsed', partnerInfoCollapsed) }, [partnerInfoCollapsed])
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(null), 3000) }
 
@@ -2641,14 +2659,43 @@ function PhoneTab({
             )}
           </div>
         </div>
+        {partnerInfoCollapsed ? (
+          <aside className="hidden w-14 shrink-0 flex-col items-center border-l border-slate-200 bg-white py-3 xl:flex">
+            <button
+              onClick={() => setPartnerInfoCollapsed(false)}
+              title="Expand partner info"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-lg font-semibold text-[#1a2744] transition hover:bg-slate-50"
+            >
+              ‹
+            </button>
+            <div className="mt-4 flex h-9 w-9 items-center justify-center rounded-full bg-[#1a2744] text-sm font-bold text-white" title={selected.name}>
+              {selected.name.charAt(0)}
+            </div>
+            <div className="mt-4 h-px w-8 bg-slate-100" />
+            <button
+              onClick={() => onSelectContact(selected)}
+              title="Open full contact details"
+              className="mt-4 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+            >
+              i
+            </button>
+          </aside>
+        ) : (
         <aside className="hidden w-[300px] shrink-0 flex-col border-l border-slate-200 bg-white xl:flex">
           <div className="border-b border-slate-100 px-4 py-4">
-            <div className="flex items-center gap-3">
+            <div className="flex items-start gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#1a2744] text-base font-bold text-white">{selected.name.charAt(0)}</div>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-semibold text-[#1a2744]">{selected.name}</div>
                 <div className="truncate text-xs text-slate-400">{selected.company || selected.industry || 'Partner contact'}</div>
               </div>
+              <button
+                onClick={() => setPartnerInfoCollapsed(true)}
+                title="Collapse partner info"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-[#1a2744]"
+              >
+                ›
+              </button>
             </div>
             <div className="mt-3 flex flex-wrap gap-1.5">
               <StageBadge stage={selected.normalized_stage} />
@@ -2724,6 +2771,7 @@ function PhoneTab({
             </div>
           </div>
         </aside>
+        )}
         </>
       )}
     </div>
