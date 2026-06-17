@@ -259,3 +259,50 @@ export async function PATCH(request: Request) {
 
   return NextResponse.json({ ok: true, contact: updated })
 }
+
+export async function DELETE(request: Request) {
+  const session = await getSessionUser()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { searchParams } = new URL(request.url)
+  const body = await request.json().catch(() => ({})) as { id?: string }
+  const id = body.id || searchParams.get('id')
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
+
+  const { url, headers } = requireSupabaseEnv()
+  const encodedId = encodeURIComponent(id)
+
+  const contactRes = await fetch(
+    `${url}/rest/v1/market_contacts?id=eq.${encodedId}&select=id,name&limit=1`,
+    { headers, cache: 'no-store' }
+  )
+  if (!contactRes.ok) return NextResponse.json({ error: 'Could not load contact' }, { status: 500 })
+  const [contact] = await contactRes.json() as Array<{ id: string; name: string | null }>
+  if (!contact) return NextResponse.json({ error: 'Contact not found' }, { status: 404 })
+
+  const cleanupTables = [
+    'sequence_jobs',
+    'market_queue',
+    'market_appointments',
+    'market_list_contacts',
+    'market_touches',
+  ]
+
+  for (const table of cleanupTables) {
+    const res = await fetch(`${url}/rest/v1/${table}?contact_id=eq.${encodedId}`, {
+      method: 'DELETE',
+      headers,
+    })
+    if (!res.ok) {
+      return NextResponse.json({ error: `Could not delete related ${table}` }, { status: 500 })
+    }
+  }
+
+  const deleteRes = await fetch(`${url}/rest/v1/market_contacts?id=eq.${encodedId}`, {
+    method: 'DELETE',
+    headers,
+  })
+  if (!deleteRes.ok) return NextResponse.json({ error: 'Delete failed' }, { status: 500 })
+
+  return NextResponse.json({ ok: true, deleted_id: id, name: contact.name })
+}

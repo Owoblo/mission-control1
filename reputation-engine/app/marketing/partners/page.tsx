@@ -1998,11 +1998,13 @@ function PhoneTab({
   lists,
   onSelectContact,
   onContactUpdated,
+  onContactDeleted,
 }: {
   contacts: Contact[]
   lists: List[]
   onSelectContact: (c: Contact) => void
   onContactUpdated: (c: Contact) => void
+  onContactDeleted: (id: string) => void
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -2024,6 +2026,7 @@ function PhoneTab({
   const [scheduledAt, setScheduledAt] = useState(defaultScheduledReplyTime)
   const [sending, setSending] = useState(false)
   const [quickActionSaving, setQuickActionSaving] = useState<InboxQuickAction | null>(null)
+  const [deletingContact, setDeletingContact] = useState(false)
   const [actionPanelOpen, setActionPanelOpen] = useState(false)
   const [sheetUpdateOpen, setSheetUpdateOpen] = useState(false)
   const [sheetInstruction, setSheetInstruction] = useState('')
@@ -2279,6 +2282,43 @@ function PhoneTab({
     })
   }
 
+  async function handleDeleteContact() {
+    if (!selected || deletingContact) return
+    const confirmed = window.confirm(`Delete ${selected.name}? This removes the contact from the partnership inbox and clears related touches, tasks, appointments, and scheduled SMS jobs.`)
+    if (!confirmed) return
+
+    const currentId = selected.id
+    const nextContact = sorted.find(contact => contact.id !== currentId) ?? null
+    setDeletingContact(true)
+    try {
+      const res = await fetch(`/api/marketing/contacts?id=${encodeURIComponent(currentId)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      const data = await res.json().catch(() => null) as { error?: string } | null
+      if (!res.ok) {
+        showToast(data?.error || 'Could not delete contact')
+        return
+      }
+
+      setReplyContacts(curr => curr.filter(contact => contact.id !== currentId))
+      onContactDeleted(currentId)
+      setTouches([])
+      setSelectedId(nextContact?.id ?? null)
+      if (nextContact) {
+        router.replace(`/marketing/partners?tab=phone&contact=${nextContact.id}`, { scroll: false })
+      } else {
+        router.replace('/marketing/partners?tab=phone', { scroll: false })
+        setMobileListOpen(true)
+      }
+      showToast('Contact deleted')
+    } catch {
+      showToast('Could not delete contact')
+    } finally {
+      setDeletingContact(false)
+    }
+  }
+
   return (
     <div className="flex h-[100dvh] min-h-0 overflow-hidden bg-white md:h-[calc(100dvh-112px)] md:min-h-[700px] md:rounded-[16px] md:border md:border-slate-200 lg:h-[calc(100vh-108px)] lg:min-h-[700px]">
       {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-[14px] bg-[#1a2744] px-5 py-3 text-sm font-medium text-white shadow-xl">{toast}</div>}
@@ -2500,6 +2540,13 @@ function PhoneTab({
                       {quickActionSaving === action.key ? 'Saving...' : action.label}
                     </button>
                   ))}
+                  <button
+                    onClick={handleDeleteContact}
+                    disabled={deletingContact}
+                    className="min-h-10 rounded-full border border-rose-200 bg-rose-50 px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-50"
+                  >
+                    {deletingContact ? 'Deleting...' : 'Delete'}
+                  </button>
                 </div>
               </div>
             )}
@@ -2624,6 +2671,13 @@ function PhoneTab({
               className="mt-2 w-full rounded-xl bg-[#1a2744] px-3 py-2.5 text-xs font-semibold text-white disabled:opacity-50"
             >
               Update sheet
+            </button>
+            <button
+              onClick={handleDeleteContact}
+              disabled={deletingContact}
+              className="mt-2 w-full rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-50"
+            >
+              {deletingContact ? 'Deleting contact...' : 'Delete contact'}
             </button>
 
             <div className="mt-5 space-y-3">
@@ -3621,6 +3675,11 @@ function PartnershipEngineInner() {
     setSelectedContact(curr => curr?.id === normalized.id ? { ...curr, ...normalized } : curr)
   }
 
+  function handleContactDeleted(contactId: string) {
+    setContacts(curr => curr.filter(contact => contact.id !== contactId))
+    setSelectedContact(curr => curr?.id === contactId ? null : curr)
+  }
+
   async function handlePipelineStageChange(contactId: string, stage: string) {
     const prev = contacts
     setContacts(curr => curr.map(c => c.id === contactId ? { ...c, stage, normalized_stage: stage, last_touch_at: new Date().toISOString() } : c))
@@ -3687,7 +3746,7 @@ function PartnershipEngineInner() {
           <PipelineTab contacts={contacts} onSelect={setSelectedContact} onStageChange={handlePipelineStageChange} />
         )}
         {(tab === 'phone' || tab === 'replies') && (
-          <PhoneTab contacts={contacts} lists={lists} onSelectContact={setSelectedContact} onContactUpdated={handleContactUpdated} />
+          <PhoneTab contacts={contacts} lists={lists} onSelectContact={setSelectedContact} onContactUpdated={handleContactUpdated} onContactDeleted={handleContactDeleted} />
         )}
         {tab === 'partners' && (
           <PartnersTab contacts={contacts} onSelect={setSelectedContact} />
