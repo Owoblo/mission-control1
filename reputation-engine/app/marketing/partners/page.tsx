@@ -1730,10 +1730,13 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [touches, setTouches] = useState<Touch[]>([])
   const [touchLoading, setTouchLoading] = useState(false)
+  const [mobileListOpen, setMobileListOpen] = useState(false)
   const [composeChannel, setComposeChannel] = useState<'sms' | 'email'>('sms')
   const [smsBody, setSmsBody] = useState('')
   const [emailSubject, setEmailSubject] = useState('')
   const [emailBody, setEmailBody] = useState('')
+  const [noteText, setNoteText] = useState('')
+  const [savingNote, setSavingNote] = useState(false)
   const [sending, setSending] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [showDecision, setShowDecision] = useState(false)
@@ -1771,10 +1774,10 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
 
   useEffect(() => {
     if (!selected) return
-    const first = selected.name.split(' ')[0] || 'there'
-    setSmsBody(`Hi ${first}, Eric from Saturn Star Movers. Following up on the letter we sent to ${selected.company || 'you'} — open to a quick call?`)
-    setEmailSubject('Partnership Opportunity — Saturn Star Moving')
-    setEmailBody(`Hi ${first},\n\nFollowing up on the letter we sent to ${selected.company || 'your team'} about a partnership with Saturn Star Moving.\n\nWould you be open to a quick 10-minute call?\n\nEric\nHead of Partnerships | Saturn Star Movers\n+1 (226) 774-6581`)
+    setSmsBody('')
+    setEmailSubject('')
+    setEmailBody('')
+    setNoteText('')
   }, [selected?.id])
 
   useEffect(() => { if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight }, [touches])
@@ -1783,6 +1786,7 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
 
   function handleSelect(id: string) {
     setSelectedId(id)
+    setMobileListOpen(false)
     router.replace(`/marketing/partners?tab=phone&contact=${id}`, { scroll: false })
   }
 
@@ -1819,14 +1823,28 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
     })
   }
 
+  async function saveNote() {
+    if (!selected || !noteText.trim()) return
+    setSavingNote(true)
+    await fetch('/api/marketing/touches', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ contact_id: selected.id, channel: 'note', direction: 'internal', notes: noteText.trim() }),
+    })
+    setNoteText('')
+    fetch(`/api/marketing/touches?contact_id=${selected.id}`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : [])
+      .then(d => setTouches(Array.isArray(d) ? d : []))
+      .finally(() => setSavingNote(false))
+  }
+
   const preview = selected ? getContactPreview(selected) : null
 
   return (
-    <div className="flex h-[calc(100vh-180px)] min-h-[520px] rounded-[24px] border border-slate-200 bg-white overflow-hidden">
+    <div className="flex h-[calc(100dvh-210px)] min-h-[560px] overflow-hidden rounded-[18px] border border-slate-200 bg-white lg:h-[calc(100vh-180px)] lg:min-h-[520px] lg:rounded-[24px]">
       {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-[14px] bg-[#1a2744] px-5 py-3 text-sm font-medium text-white shadow-xl">{toast}</div>}
 
       {/* Contact list */}
-      <div className="flex w-72 shrink-0 flex-col border-r border-slate-200">
+      <div className={`${selected && !mobileListOpen ? 'hidden lg:flex' : 'flex'} w-full shrink-0 flex-col border-r-0 border-slate-200 lg:w-72 lg:border-r`}>
         <div className="p-3 border-b border-slate-100">
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search contacts…"
             className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]" />
@@ -1853,7 +1871,7 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
                   <StageBadge stage={c.normalized_stage} />
                   {c.instantly_status && <InstantlyBadge status={c.instantly_status} />}
                 </div>
-                {p?.body && <div className={`mt-1.5 text-[11px] leading-4 ${selectedId === c.id ? 'text-white/70' : 'text-slate-500'}`}>{truncateText(p.body, 80)}</div>}
+                {p?.body && <div className={`mt-1.5 text-[12px] leading-5 ${selectedId === c.id ? 'text-white/75' : 'text-slate-600'}`}>{truncateText(p.body, 120)}</div>}
               </button>
             )
           })}
@@ -1866,14 +1884,20 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
           <div className="text-center"><div className="text-4xl">📱</div><div className="mt-3 text-sm font-medium">Select a contact</div></div>
         </div>
       ) : (
-        <div className="flex flex-1 flex-col min-w-0">
+        <div className={`${mobileListOpen ? 'hidden lg:flex' : 'flex'} flex-1 flex-col min-w-0`}>
           {/* Header */}
-          <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-5 py-4">
-            <div className="flex items-center gap-3 min-w-0">
+          <div className="border-b border-slate-200 px-3 py-3 sm:px-5 sm:py-4">
+            <div className="mb-3 lg:hidden">
+              <button onClick={() => setMobileListOpen(true)} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600">
+                ← Inbox
+              </button>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#1a2744] text-sm font-bold text-white">{selected.name.charAt(0)}</div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold text-[#1a2744]">{selected.name}</span>
+                  <span className="truncate font-semibold text-[#1a2744]">{selected.name}</span>
                   <TierBadge tier={selected.outreach_tier} />
                   <StageBadge stage={selected.normalized_stage} />
                   {selected.sequence_paused && !selected.decision && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Responded</span>}
@@ -1886,41 +1910,42 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
                 {preview && <div className="mt-1 text-xs text-slate-500">{truncateText(preview.body ?? '', 100)}</div>}
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <button onClick={() => onSelectContact(selected)} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">Profile</button>
+            <div className="grid shrink-0 grid-cols-3 gap-2 sm:flex sm:items-center">
+              <button onClick={() => onSelectContact(selected)} className="min-h-10 whitespace-nowrap rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">Profile</button>
               {selected.phone && (
                 dialer.status === 'connected' ? (
-                  <button onClick={dialer.hangup} className="flex items-center gap-1.5 rounded-xl bg-rose-500 px-3 py-2 text-sm font-semibold text-white">🔴 End Call</button>
+                  <button onClick={dialer.hangup} className="min-h-10 whitespace-nowrap rounded-xl bg-rose-500 px-3 py-2 text-sm font-semibold text-white">End Call</button>
                 ) : (
                   <button onClick={handleCall} disabled={dialer.status === 'connecting' || dialer.status === 'loading'}
-                    className="flex items-center gap-1.5 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 transition disabled:opacity-50">
-                    {dialer.status === 'connecting' || dialer.status === 'loading' ? '⏳ Connecting…' : '📞 Dial'}
+                    className="min-h-10 whitespace-nowrap rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50">
+                    {dialer.status === 'connecting' || dialer.status === 'loading' ? 'Calling…' : 'Dial'}
                   </button>
                 )
               )}
               {selected.sequence_paused && !selected.decision && (
-                <button onClick={() => setShowDecision(true)} className="rounded-xl bg-[#1a2744] px-3 py-2 text-sm font-semibold text-white hover:bg-[#243560]">Log Decision</button>
+                <button onClick={() => setShowDecision(true)} className="min-h-10 whitespace-nowrap rounded-xl bg-[#1a2744] px-3 py-2 text-sm font-semibold text-white hover:bg-[#243560]">Decision</button>
               )}
+            </div>
             </div>
           </div>
 
           {/* Thread */}
-          <div ref={threadRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-3 bg-slate-50">
+          <div ref={threadRef} className="flex-1 space-y-3 overflow-y-auto bg-slate-50 px-3 py-4 sm:px-5">
             {touchLoading && <div className="text-center text-xs text-slate-400 py-8">Loading…</div>}
             {!touchLoading && touches.length === 0 && <div className="text-center text-xs text-slate-400 py-8">No history yet.</div>}
             {[...touches].reverse().map(touch => {
               const s = summarizeTouch(touch.channel, touch.direction, touch.notes)
               return (
                 <div key={touch.id} className={`flex gap-3 ${touch.direction === 'outbound' ? 'flex-row-reverse' : ''}`}>
-                  <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm ${touch.direction === 'outbound' ? 'bg-[#1a2744]' : 'bg-white border border-slate-200'}`}>
+                  <div className={`hidden h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm sm:flex ${touch.direction === 'outbound' ? 'bg-[#1a2744]' : 'bg-white border border-slate-200'}`}>
                     <ChannelIcon channel={touch.channel} direction={touch.direction} />
                   </div>
-                  <div className={`max-w-[70%] rounded-[16px] px-4 py-2.5 text-sm ${touch.direction === 'outbound' ? 'bg-[#1a2744] text-white rounded-tr-sm' : 'bg-white border border-slate-200 text-[#1a2744] rounded-tl-sm'}`}>
-                    <div className={`mb-1 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] ${touch.direction === 'outbound' ? 'text-white/70' : 'text-slate-400'}`}>
+                  <div className={`max-w-[88%] rounded-[16px] px-4 py-2.5 text-[15px] sm:max-w-[72%] sm:text-sm ${touch.direction === 'outbound' ? 'bg-[#1a2744] text-white rounded-tr-sm' : 'bg-white border border-slate-200 text-[#1a2744] rounded-tl-sm'}`}>
+                    <div className={`mb-1 flex items-center gap-2 text-[10px] font-semibold ${touch.direction === 'outbound' ? 'text-white/70' : 'text-slate-400'}`}>
                       {s.label}
                       {s.auto && <span className={`rounded-full px-1.5 py-0.5 text-[9px] ${touch.direction === 'outbound' ? 'bg-white/15 text-white/90' : 'bg-slate-100 text-slate-500'}`}>Auto</span>}
                     </div>
-                    {s.body && <div className="whitespace-pre-wrap leading-relaxed">{s.body}</div>}
+                    {s.body && <div className="whitespace-pre-wrap break-words leading-relaxed">{s.body}</div>}
                     <div className={`mt-1 text-[10px] ${touch.direction === 'outbound' ? 'text-white/50' : 'text-slate-400'}`}>{fmtDate(touch.created_at)} {fmtTime(touch.created_at)}</div>
                   </div>
                 </div>
@@ -1929,34 +1954,42 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
           </div>
 
           {/* Compose */}
-          <div className="border-t border-slate-200 bg-white px-5 py-4">
-            <div className="mb-3 flex gap-2">
-              <button onClick={() => setComposeChannel('sms')} className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition ${composeChannel === 'sms' ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-                💬 SMS {!selected.phone && <span className="ml-1 text-red-400">no #</span>}
+          <div className="border-t border-slate-200 bg-white px-3 py-3 sm:px-5 sm:py-4">
+            <div className="mb-3 grid grid-cols-2 gap-2">
+              <button onClick={() => setComposeChannel('sms')} className={`min-h-10 rounded-xl px-3 py-2 text-xs font-semibold transition ${composeChannel === 'sms' ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                SMS {!selected.phone && <span className="ml-1 text-red-400">no #</span>}
               </button>
-              <button onClick={() => setComposeChannel('email')} className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition ${composeChannel === 'email' ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-                ✉️ Email {!selected.email && <span className="ml-1 text-red-400">no email</span>}
+              <button onClick={() => setComposeChannel('email')} className={`min-h-10 rounded-xl px-3 py-2 text-xs font-semibold transition ${composeChannel === 'email' ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                Email {!selected.email && <span className="ml-1 text-red-400">no email</span>}
               </button>
             </div>
             {composeChannel === 'sms' ? (
               <div className="flex gap-2">
                 <textarea value={smsBody} onChange={e => setSmsBody(e.target.value)} rows={2} placeholder={selected.phone ? 'Type SMS…' : 'No phone'} disabled={!selected.phone}
-                  className="flex-1 resize-none rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-[#1a2744] outline-none focus:border-[#1a2744] disabled:opacity-40" />
+                  className="flex-1 resize-none rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-2.5 text-base text-[#1a2744] outline-none focus:border-[#1a2744] disabled:opacity-40 sm:text-sm" />
                 <button onClick={handleSend} disabled={sending || !selected.phone || !smsBody.trim()}
-                  className="self-end rounded-[14px] bg-[#1a2744] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40">{sending ? '…' : 'Send'}</button>
+                  className="self-end rounded-[14px] bg-[#1a2744] px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">{sending ? '…' : 'Send'}</button>
               </div>
             ) : (
               <div className="space-y-2">
                 <input value={emailSubject} onChange={e => setEmailSubject(e.target.value)} placeholder="Subject"
-                  className="h-9 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]" />
+                  className="h-10 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 text-base text-[#1a2744] outline-none focus:border-[#1a2744] sm:text-sm" />
                 <div className="flex gap-2">
                   <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={3} placeholder={selected.email ? 'Type email…' : 'No email'} disabled={!selected.email}
-                    className="flex-1 resize-none rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-[#1a2744] outline-none focus:border-[#1a2744] disabled:opacity-40" />
+                    className="flex-1 resize-none rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-2.5 text-base text-[#1a2744] outline-none focus:border-[#1a2744] disabled:opacity-40 sm:text-sm" />
                   <button onClick={handleSend} disabled={sending || !selected.email || !emailBody.trim()}
-                    className="self-end rounded-[14px] bg-[#1a2744] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40">{sending ? '…' : 'Send'}</button>
+                    className="self-end rounded-[14px] bg-[#1a2744] px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">{sending ? '…' : 'Send'}</button>
                 </div>
               </div>
             )}
+            <div className="mt-3 flex gap-2 border-t border-slate-100 pt-3">
+              <textarea value={noteText} onChange={e => setNoteText(e.target.value)} rows={1} placeholder="Internal note about this partner…"
+                className="flex-1 resize-none rounded-[14px] border border-slate-200 bg-white px-3 py-2.5 text-base text-[#1a2744] outline-none focus:border-[#1a2744] sm:text-sm" />
+              <button onClick={saveNote} disabled={savingNote || !noteText.trim()}
+                className="self-end rounded-[14px] border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600 disabled:opacity-40">
+                {savingNote ? '…' : 'Note'}
+              </button>
+            </div>
           </div>
         </div>
       )}
