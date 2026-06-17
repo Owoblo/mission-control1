@@ -1356,11 +1356,47 @@ function ListsTab({ contacts, onSelectContact }: { contacts: Contact[]; onSelect
         (c.company ?? '').toLowerCase().includes(addSearch.toLowerCase())
       )).slice(0, 6)
     : []
+  const fieldVisitContacts = contacts
+    .filter(c => c.pipeline_phase === 'field_visit' || (c.sequence_paused_reason ?? '').startsWith('quick_action:drop_cards') || (c.sequence_paused_reason ?? '').startsWith('quick_action:meeting_requested'))
+    .sort((a, b) => (a.city || '').localeCompare(b.city || '') || a.name.localeCompare(b.name))
+  const fieldVisitCities = Array.from(new Set(fieldVisitContacts.map(c => c.city || 'No city')))
 
   return (
-    <div className="flex gap-5 h-[calc(100vh-240px)] min-h-[480px]">
+    <div className="space-y-4">
       {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-[14px] bg-[#1a2744] px-5 py-3 text-sm font-medium text-white shadow-xl">{toast}</div>}
 
+      <div className="rounded-[22px] border border-slate-200 bg-white p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-[#1a2744]">Field visits</h2>
+            <p className="text-xs text-slate-500">{fieldVisitContacts.length} contact{fieldVisitContacts.length !== 1 ? 's' : ''} marked for cards, flyers, or meetings</p>
+          </div>
+          <div className="hidden text-xs font-semibold text-slate-400 sm:block">{fieldVisitCities.slice(0, 4).join(' · ')}</div>
+        </div>
+        {fieldVisitContacts.length > 0 ? (
+          <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
+            {fieldVisitContacts.slice(0, 24).map(c => (
+              <button key={c.id} onClick={() => onSelectContact(c)}
+                className="min-w-[220px] rounded-[16px] border border-slate-200 bg-slate-50 p-3 text-left transition hover:border-[#1a2744] hover:bg-white">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold text-[#1a2744]">{c.name}</div>
+                    <div className="mt-0.5 truncate text-xs text-slate-500">{c.company || 'No brokerage'}</div>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">{c.city || 'No city'}</span>
+                </div>
+                {c.latest_inbound_note && <div className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">{c.latest_inbound_note}</div>}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-3 rounded-[16px] border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-xs text-slate-400">
+            Tap Drop cards or Meeting in the inbox to build this list.
+          </div>
+        )}
+      </div>
+
+      <div className="flex gap-5 h-[calc(100vh-380px)] min-h-[420px]">
       {/* Left: list directory */}
       <div className="w-64 shrink-0 flex flex-col rounded-[22px] border border-slate-200 bg-white overflow-hidden">
         <div className="p-4 border-b border-slate-100">
@@ -1464,6 +1500,7 @@ function ListsTab({ contacts, onSelectContact }: { contacts: Contact[]; onSelect
             </div>
           </>
         )}
+      </div>
       </div>
     </div>
   )
@@ -1875,7 +1912,37 @@ function isVideoUrl(url: string) {
   return /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url)
 }
 
-function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; lists: List[]; onSelectContact: (c: Contact) => void }) {
+type InboxQuickAction = 'active_partner' | 'drop_cards' | 'meeting_requested' | 'needs_follow_up' | 'not_interested' | 'wrong_number'
+
+const INBOX_QUICK_ACTIONS: Array<{ key: InboxQuickAction; label: string; tone: 'green' | 'blue' | 'amber' | 'slate' | 'red' }> = [
+  { key: 'active_partner', label: 'Active partner', tone: 'green' },
+  { key: 'drop_cards', label: 'Drop cards', tone: 'blue' },
+  { key: 'meeting_requested', label: 'Meeting', tone: 'blue' },
+  { key: 'needs_follow_up', label: 'Follow-up', tone: 'amber' },
+  { key: 'not_interested', label: 'Not interested', tone: 'slate' },
+  { key: 'wrong_number', label: 'Wrong #', tone: 'red' },
+]
+
+function quickActionClass(tone: 'green' | 'blue' | 'amber' | 'slate' | 'red', active: boolean) {
+  if (active) return 'border-[#1a2744] bg-[#1a2744] text-white'
+  if (tone === 'green') return 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+  if (tone === 'blue') return 'border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100'
+  if (tone === 'amber') return 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'
+  if (tone === 'red') return 'border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100'
+  return 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+}
+
+function PhoneTab({
+  contacts,
+  lists,
+  onSelectContact,
+  onContactUpdated,
+}: {
+  contacts: Contact[]
+  lists: List[]
+  onSelectContact: (c: Contact) => void
+  onContactUpdated: (c: Contact) => void
+}) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [search, setSearch] = useState('')
@@ -1891,6 +1958,7 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
   const [emailBody, setEmailBody] = useState('')
   const [mediaUrls, setMediaUrls] = useState<string[]>([])
   const [sending, setSending] = useState(false)
+  const [quickActionSaving, setQuickActionSaving] = useState<InboxQuickAction | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const threadRef = useRef<HTMLDivElement>(null)
   const dialer = useDialer()
@@ -1944,6 +2012,13 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
       .finally(() => setTouchLoading(false))
   }, [selectedId])
 
+  const reloadTouches = useCallback((contactId: string) => {
+    fetch(`/api/marketing/touches?contact_id=${contactId}`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : [])
+      .then(d => setTouches(Array.isArray(d) ? d : []))
+      .catch(() => {})
+  }, [])
+
   useEffect(() => {
     if (!selected) return
     setSmsBody('')
@@ -1993,10 +2068,44 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
       setEmailSubject('')
       setEmailBody('')
       setMediaUrls([])
-      fetch(`/api/marketing/touches?contact_id=${selected.id}`, { credentials: 'include' })
-        .then(r => r.ok ? r.json() : []).then(d => setTouches(Array.isArray(d) ? d : []))
+      reloadTouches(selected.id)
     } catch { showToast('Send failed') }
     setSending(false)
+  }
+
+  async function handleQuickAction(action: InboxQuickAction) {
+    if (!selected || quickActionSaving) return
+    const config = INBOX_QUICK_ACTIONS.find(item => item.key === action)
+    setQuickActionSaving(action)
+    try {
+      const res = await fetch(`/api/marketing/contacts/${selected.id}/quick-action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ action }),
+      })
+      const data = await res.json().catch(() => null) as { contact?: Contact; label?: string; error?: string } | null
+      if (!res.ok || !data?.contact) {
+        showToast(data?.error || 'Could not save action')
+        return
+      }
+      const updated = {
+        ...selected,
+        ...data.contact,
+        normalized_stage: String(data.contact.stage || data.contact.normalized_stage || selected.normalized_stage),
+      }
+      setReplyContacts(curr => {
+        const seen = curr.some(c => c.id === updated.id)
+        return seen ? curr.map(c => c.id === updated.id ? { ...c, ...updated } : c) : [updated, ...curr]
+      })
+      onContactUpdated(updated)
+      reloadTouches(updated.id)
+      showToast(`${data.label || config?.label || 'Action'} saved`)
+    } catch {
+      showToast('Could not save action')
+    } finally {
+      setQuickActionSaving(null)
+    }
   }
 
   async function handleCall() {
@@ -2082,6 +2191,21 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
               )}
               <button onClick={() => onSelectContact(selected)} className="h-10 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50">Info</button>
             </div>
+            </div>
+          </div>
+
+          <div className="border-b border-slate-100 bg-white px-3 py-2 sm:px-5">
+            <div className="flex gap-2 overflow-x-auto pb-0.5">
+              {INBOX_QUICK_ACTIONS.map(action => (
+                <button
+                  key={action.key}
+                  onClick={() => handleQuickAction(action.key)}
+                  disabled={quickActionSaving !== null}
+                  className={`min-h-9 shrink-0 rounded-full border px-3.5 text-xs font-semibold transition disabled:opacity-50 sm:text-sm ${quickActionClass(action.tone, quickActionSaving === action.key)}`}
+                >
+                  {quickActionSaving === action.key ? 'Saving...' : action.label}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -3104,6 +3228,18 @@ function PartnershipEngineInner() {
     router.replace(`/marketing/partners?tab=phone&contact=${contact.id}`, { scroll: false })
   }
 
+  function handleContactUpdated(contact: Contact) {
+    const normalized = {
+      ...contact,
+      normalized_stage: String(contact.stage || contact.normalized_stage || ''),
+    }
+    setContacts(curr => {
+      const seen = curr.some(c => c.id === normalized.id)
+      return seen ? curr.map(c => c.id === normalized.id ? { ...c, ...normalized } : c) : [normalized, ...curr]
+    })
+    setSelectedContact(curr => curr?.id === normalized.id ? { ...curr, ...normalized } : curr)
+  }
+
   async function handlePipelineStageChange(contactId: string, stage: string) {
     const prev = contacts
     setContacts(curr => curr.map(c => c.id === contactId ? { ...c, stage, normalized_stage: stage, last_touch_at: new Date().toISOString() } : c))
@@ -3170,7 +3306,7 @@ function PartnershipEngineInner() {
           <PipelineTab contacts={contacts} onSelect={setSelectedContact} onStageChange={handlePipelineStageChange} />
         )}
         {(tab === 'phone' || tab === 'replies') && (
-          <PhoneTab contacts={contacts} lists={lists} onSelectContact={setSelectedContact} />
+          <PhoneTab contacts={contacts} lists={lists} onSelectContact={setSelectedContact} onContactUpdated={handleContactUpdated} />
         )}
         {tab === 'partners' && (
           <PartnersTab contacts={contacts} onSelect={setSelectedContact} />
