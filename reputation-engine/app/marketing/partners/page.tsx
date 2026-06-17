@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { PARTNERSHIP_STAGE_META } from '@/lib/marketing'
 import { sendSalesMessage } from '@/lib/sales-api'
@@ -1822,6 +1822,8 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
   const searchParams = useSearchParams()
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [replyContacts, setReplyContacts] = useState<Contact[]>([])
+  const [replyLoading, setReplyLoading] = useState(false)
   const [touches, setTouches] = useState<Touch[]>([])
   const [touchLoading, setTouchLoading] = useState(false)
   const [mobileListOpen, setMobileListOpen] = useState(false)
@@ -1835,25 +1837,45 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
   const threadRef = useRef<HTMLDivElement>(null)
   const dialer = useDialer()
 
-  const sorted = [...contacts]
+  const inboxContacts = useMemo(() => {
+    const byId = new Map<string, Contact>()
+    contacts.forEach(contact => byId.set(contact.id, contact))
+    replyContacts.forEach(contact => byId.set(contact.id, { ...(byId.get(contact.id) || {} as Contact), ...contact }))
+    return Array.from(byId.values())
+  }, [contacts, replyContacts])
+
+  const sorted = useMemo(() => [...inboxContacts]
     .sort((a, b) => {
       const aNeeds = a.sequence_paused && !a.decision ? 1 : 0
       const bNeeds = b.sequence_paused && !b.decision ? 1 : 0
       if (aNeeds !== bNeeds) return bNeeds - aNeeds
       return (b.latest_inbound_at || b.last_touch_at || '').localeCompare(a.latest_inbound_at || a.last_touch_at || '')
     })
-    .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()) || (c.company ?? '').toLowerCase().includes(search.toLowerCase()))
+    .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()) || (c.company ?? '').toLowerCase().includes(search.toLowerCase())), [inboxContacts, search])
 
-  const selected = contacts.find(c => c.id === selectedId) ?? null
+  const selected = inboxContacts.find(c => c.id === selectedId) ?? null
   const selectedFromQuery = searchParams.get('contact')
 
   useEffect(() => {
-    if (selectedFromQuery && contacts.some(c => c.id === selectedFromQuery)) {
+    let cancelled = false
+    setReplyLoading(true)
+    fetch('/api/marketing/sms/replies?limit=500', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : { responses: [] })
+      .then((data: { responses?: ReplyItem[] }) => {
+        if (cancelled) return
+        setReplyContacts((data.responses || []).map(item => item.contact))
+      })
+      .finally(() => { if (!cancelled) setReplyLoading(false) })
+    return () => { cancelled = true }
+  }, [])
+
+  useEffect(() => {
+    if (selectedFromQuery && inboxContacts.some(c => c.id === selectedFromQuery)) {
       setSelectedId(curr => curr === selectedFromQuery ? curr : selectedFromQuery)
     } else if (!selectedId && sorted[0]) {
       setSelectedId(sorted[0].id)
     }
-  }, [contacts, selectedFromQuery, selectedId, sorted])
+  }, [inboxContacts, selectedFromQuery, selectedId, sorted])
 
   useEffect(() => {
     if (!selectedId) return
@@ -1938,6 +1960,7 @@ function PhoneTab({ contacts, lists, onSelectContact }: { contacts: Contact[]; l
           <div className="mb-3 text-[22px] font-semibold tracking-tight text-[#1a2744] lg:hidden">Inbox</div>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search contacts…"
             className="h-10 w-full rounded-full border border-slate-200 bg-slate-50 px-4 text-base text-[#1a2744] outline-none focus:border-[#1a2744] lg:h-9 lg:text-sm" />
+          {replyLoading && <div className="mt-2 text-[11px] text-slate-400">Loading replies...</div>}
         </div>
         <div className="flex-1 overflow-y-auto">
           {sorted.map(c => {
