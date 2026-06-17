@@ -27,6 +27,13 @@ interface Batch {
   responded_count: number
   engaged_count: number
   partner_count: number
+  sms_jobs_total?: number
+  sms_sent_total?: number
+  sms_pending_total?: number
+  sms_sent_today?: number
+  sms_pending_today?: number
+  sms_failed_total?: number
+  sms_cancelled_total?: number
 }
 
 interface Contact {
@@ -155,6 +162,16 @@ function fmtDateTime(d?: string | null) {
 function fmtTime(d?: string | null) {
   if (!d) return ''
   return new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+function parseBatchNotes(notes?: string | null) {
+  if (!notes) return null
+  try {
+    const parsed = JSON.parse(notes) as Record<string, unknown>
+    return parsed && typeof parsed === 'object' ? parsed : null
+  } catch {
+    return null
+  }
 }
 
 function timeAgo(d?: string | null) {
@@ -1159,6 +1176,14 @@ function OverviewTab({ batches, contacts, loading, onRefresh, onTabChange }: {
         ) : (
           <div className="space-y-3">
             {batches.map(batch => {
+              const notes = parseBatchNotes(batch.notes)
+              const isSmsCampaign = notes?.type === 'partnership_sms_campaign' || (batch.sms_jobs_total ?? 0) > 0
+              const smsTotal = batch.sms_jobs_total ?? 0
+              const smsSent = batch.sms_sent_total ?? 0
+              const smsPending = batch.sms_pending_total ?? 0
+              const smsSentToday = batch.sms_sent_today ?? 0
+              const smsPendingToday = batch.sms_pending_today ?? 0
+              const smsProgress = smsTotal > 0 ? Math.round((smsSent / smsTotal) * 100) : 0
               const mailed = !!batch.mail_sent_date
               const emailDate = mailed ? addDays(batch.mail_sent_date!, batch.email_delay_days ?? 10) : null
               const smsDate = emailDate ? addDays(emailDate, batch.sms_delay_days ?? 5) : null
@@ -1181,13 +1206,46 @@ function OverviewTab({ batches, contacts, loading, onRefresh, onTabChange }: {
                       </div>
                     </div>
                     <div className="flex shrink-0 flex-col gap-2 items-end">
-                      {!mailed && batch.total_contacts > 0 && (
+                      {!isSmsCampaign && !mailed && batch.total_contacts > 0 && (
                         <button onClick={() => setMarkMailed(batch)} className="rounded-xl bg-[#f5a623] px-3 py-1.5 text-xs font-semibold text-[#1a2744] hover:brightness-95">Mark Mailed</button>
                       )}
-                      <button onClick={() => setCsvBatch(batch)} className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">+ Import</button>
+                      {!isSmsCampaign && <button onClick={() => setCsvBatch(batch)} className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">+ Import</button>}
                     </div>
                   </div>
-                  {mailed && (
+                  {isSmsCampaign && (
+                    <div className="mt-4 space-y-3">
+                      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                        <div className="h-full rounded-full bg-[var(--app-accent)] transition-all" style={{ width: `${smsProgress}%` }} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+                        <div className="rounded-[14px] bg-emerald-50 p-3">
+                          <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700">Sent today</div>
+                          <div className="mt-1 text-xl font-bold text-emerald-800">{smsSentToday}</div>
+                        </div>
+                        <div className="rounded-[14px] bg-amber-50 p-3">
+                          <div className="text-[10px] font-semibold uppercase tracking-wider text-amber-700">Left today</div>
+                          <div className="mt-1 text-xl font-bold text-amber-800">{smsPendingToday}</div>
+                        </div>
+                        <div className="rounded-[14px] bg-slate-50 p-3">
+                          <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Sent total</div>
+                          <div className="mt-1 text-xl font-bold text-[#1a2744]">{smsSent}</div>
+                        </div>
+                        <div className="rounded-[14px] bg-slate-50 p-3">
+                          <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Remaining</div>
+                          <div className="mt-1 text-xl font-bold text-[#1a2744]">{smsPending}</div>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-[11px] text-slate-500">
+                        <span>{smsProgress}% complete</span>
+                        {(batch.sms_failed_total ?? 0) > 0 && <span className="text-rose-600">{batch.sms_failed_total} failed</span>}
+                        {(batch.sms_cancelled_total ?? 0) > 0 && <span>{batch.sms_cancelled_total} cancelled/skipped</span>}
+                        {typeof notes?.startHour === 'number' && typeof notes?.endHour === 'number' && (
+                          <span>Window {notes.startHour}:00-{notes.endHour}:00</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {!isSmsCampaign && mailed && (
                     <div className="mt-4 grid grid-cols-3 gap-2">
                       <div className="rounded-[14px] bg-slate-50 p-3">
                         <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Mailed</div>
@@ -2447,7 +2505,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone }: { onClose: () => void; o
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10))
   const [dailyCap, setDailyCap] = useState(400)
   const [startHour, setStartHour] = useState(10)
-  const [endHour, setEndHour] = useState(17)
+  const [endHour, setEndHour] = useState(13)
   const [preview, setPreview] = useState<PartnershipSmsPreview | null>(null)
   const [loading, setLoading] = useState(false)
   const [scheduling, setScheduling] = useState(false)

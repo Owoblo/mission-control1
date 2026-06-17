@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/marketing/sequence/process",
-      "schedule": "0 * * * *"
+      "schedule": "*/15 * * * *"
     },
     {
       "path": "/api/sales/inbox/resend-poll",
