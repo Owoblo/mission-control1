@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
 import { defaultFollowUpDate } from '@/lib/marketing'
-import { requireSupabaseEnv } from '@/lib/server/runtime'
+import { getAppBaseUrl, requireSupabaseEnv } from '@/lib/server/runtime'
 import { activateAffiliatePartner } from '@/lib/server/affiliate-bridge'
+import { syncPartnershipActionToSheet } from '@/lib/server/partnership-sheet-sync'
 
 type QuickAction =
   | 'active_partner'
@@ -186,6 +187,35 @@ export async function POST(
   if (action === 'active_partner') {
     void activateAffiliatePartner(id).catch(() => {})
   }
+
+  void syncPartnershipActionToSheet({
+    timestamp: now,
+    action,
+    action_label: config.label,
+    status: String(contact.stage || updates.stage || ''),
+    next_step: config.nextStep,
+    rep: session.name ?? 'Rep',
+    latest_message: latestInbound?.notes ?? null,
+    latest_message_at: latestInbound?.created_at ?? null,
+    app_contact_url: getAppBaseUrl()
+      ? `${getAppBaseUrl()}/marketing/partners?tab=phone&contact=${encodeURIComponent(id)}`
+      : null,
+    contact: {
+      id,
+      name: contact.name ?? null,
+      company: contact.company ?? null,
+      city: contact.city ?? null,
+      phone: contact.phone ?? null,
+      email: contact.email ?? null,
+      industry: contact.industry ?? null,
+      stage: contact.stage ?? null,
+      decision: contact.decision ?? null,
+      batch_id: contact.batch_id ?? null,
+      next_follow_up: contact.next_follow_up ?? null,
+    },
+  }).catch(error => {
+    console.error('Partnership sheet sync failed', error)
+  })
 
   return NextResponse.json({ ok: true, action, label: config.label, contact })
 }
