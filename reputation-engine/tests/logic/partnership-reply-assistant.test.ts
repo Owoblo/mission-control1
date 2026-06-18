@@ -65,6 +65,8 @@ test('partnership assistant treats client email info requests as package-forward
 test('partnership assistant treats card or picture requests as media permission', async () => {
   process.env.PARTNERSHIP_DIGITAL_PACKAGE_URL = 'https://starmovers.ca/partner/louie-lisi-windsor'
   process.env.PARTNERSHIP_FLYER_IMAGE_URL = 'https://starmovers.ca/partner/flyers/windsor.pdf'
+  delete process.env.PARTNERSHIP_RATE_CARD_URL
+  delete process.env.PARTNERSHIP_REFERRAL_PROGRAM_URL
   delete process.env.OPENAI_API_KEY
 
   const result = await suggestPartnershipReply({
@@ -73,15 +75,19 @@ test('partnership assistant treats card or picture requests as media permission'
   })
 
   assert.equal(result.intent, 'send_card_or_flyer_media')
-  assert.equal(result.recommended_action, 'send_package')
+  assert.equal(result.recommended_action, 'draft_reply')
   assert.equal(result.goal_state.physical_delivery, 'not_needed')
-  assert.match(result.draft_sms, /text.*over|text.*card|card\/flyer/i)
+  assert.equal(result.goal_state.digital_package, 'suggested')
+  assert.match(result.draft_sms, /text.*card|card\/flyer/i)
+  assert.match(result.draft_sms, /Is it okay if I send that here too\?/i)
   assert.deepEqual(result.suggested_media_urls, ['https://starmovers.ca/partner/flyers/windsor.pdf'])
 })
 
 test('partnership assistant handles digital card only replies without pushing office drop off', async () => {
   process.env.PARTNERSHIP_DIGITAL_PACKAGE_URL = 'https://starmovers.ca/partner/simon-tan-windsor'
   process.env.PARTNERSHIP_FLYER_IMAGE_URL = 'https://starmovers.ca/partner/flyers/windsor.pdf'
+  delete process.env.PARTNERSHIP_RATE_CARD_URL
+  delete process.env.PARTNERSHIP_REFERRAL_PROGRAM_URL
   delete process.env.OPENAI_API_KEY
 
   const result = await suggestPartnershipReply({
@@ -90,10 +96,34 @@ test('partnership assistant handles digital card only replies without pushing of
   })
 
   assert.equal(result.intent, 'send_card_or_flyer_media')
-  assert.equal(result.recommended_action, 'send_package')
+  assert.equal(result.recommended_action, 'draft_reply')
   assert.equal(result.goal_state.physical_delivery, 'not_needed')
   assert.match(result.draft_sms, /card|flyer/i)
+  assert.match(result.draft_sms, /Is it okay if I send that here too\?/i)
   assert.doesNotMatch(result.draft_sms, /best address|drop.*postcard|office/i)
+})
+
+test('partnership assistant auto-generates package links when env links are absent', async () => {
+  delete process.env.PARTNERSHIP_DIGITAL_PACKAGE_URL
+  delete process.env.PARTNERSHIP_RATE_CARD_URL
+  delete process.env.PARTNERSHIP_REFERRAL_PROGRAM_URL
+  delete process.env.PARTNERSHIP_FLYER_IMAGE_URL
+  delete process.env.OPENAI_API_KEY
+
+  const result = await suggestPartnershipReply({
+    contact: {
+      ...contact,
+      name: 'Simon Tan',
+      city: 'Windsor',
+      tracking_code: null,
+      affiliate_partner_id: null,
+    },
+    touches: inbound('Thank you, you can just send me your business card through this number.'),
+  })
+
+  assert.equal(result.package_configured, true)
+  assert.doesNotMatch(result.risk_flags.join(' '), /package_links_not_configured/)
+  assert.deepEqual(result.suggested_media_urls, ['https://starmovers.ca/partner/flyers/windsor.pdf'])
 })
 
 test('partnership assistant routes meeting requests through local relationship reps', async () => {

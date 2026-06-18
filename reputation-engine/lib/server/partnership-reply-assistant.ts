@@ -111,6 +111,8 @@ interface PackageConfig {
   referralProgramUrl: string
   flyerImageUrl: string
   dedicatedPhone: string
+  packageSlug: string
+  marketKey: string
 }
 
 const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i
@@ -133,19 +135,45 @@ function naturalNameSuffix(name: string) {
   return name && name.toLowerCase() !== 'there' ? `, ${name}` : ''
 }
 
+function slugify(value: string) {
+  return cleanText(value)
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80)
+}
+
+function inferMarketKey(contact: PartnershipAssistantContact) {
+  const text = `${contact.city || ''} ${contact.company || ''} ${contact.tracking_code || ''}`.toLowerCase()
+  if (/\b(london|st\.?\s*thomas|woodstock|strathroy|sarnia|ingersoll|tillsonburg)\b/.test(text)) return 'london'
+  if (/\b(kitchener|waterloo|cambridge|kw|elmira|brantford|new hamburg|ayr)\b/.test(text)) return 'waterloo'
+  if (/\b(guelph|fergus|elora|wellington)\b/.test(text)) return 'guelph'
+  if (/\b(chatham)\b/.test(text)) return 'chatham'
+  return 'windsor'
+}
+
 function getPackageConfig(contact: PartnershipAssistantContact): PackageConfig {
   const baseReferralUrl = readEnv('PARTNERSHIP_REFERRAL_PROGRAM_URL')
   const trackingCode = cleanText(contact.tracking_code || contact.affiliate_partner_id)
+  const marketKey = inferMarketKey(contact)
+  const packageSlug = slugify(trackingCode) || slugify(`${contact.name || 'partner'} ${contact.city || marketKey}`) || 'partner'
+  const defaultPackageUrl = `https://starmovers.ca/partner/${packageSlug}?city=${encodeURIComponent(marketKey)}`
+  const defaultQuoteUrl = `https://starmovers.ca/quote?ref=${encodeURIComponent(packageSlug)}&market=${encodeURIComponent(marketKey)}`
+  const flyerMarket = marketKey === 'chatham' ? 'chatham' : marketKey
+  const defaultFlyerUrl = `https://starmovers.ca/partner/flyers/${flyerMarket}.pdf`
   const referralProgramUrl = trackingCode && baseReferralUrl
     ? `${baseReferralUrl}${baseReferralUrl.includes('?') ? '&' : '?'}partner=${encodeURIComponent(trackingCode)}`
-    : baseReferralUrl
+    : baseReferralUrl || defaultQuoteUrl
 
   return {
-    digitalPackageUrl: readEnv('PARTNERSHIP_DIGITAL_PACKAGE_URL'),
-    rateCardUrl: readEnv('PARTNERSHIP_RATE_CARD_URL'),
+    digitalPackageUrl: readEnv('PARTNERSHIP_DIGITAL_PACKAGE_URL') || defaultPackageUrl,
+    rateCardUrl: readEnv('PARTNERSHIP_RATE_CARD_URL') || defaultPackageUrl,
     referralProgramUrl,
-    flyerImageUrl: readEnv('PARTNERSHIP_FLYER_IMAGE_URL'),
+    flyerImageUrl: readEnv('PARTNERSHIP_FLYER_IMAGE_URL') || defaultFlyerUrl,
     dedicatedPhone: readEnv('PARTNERSHIP_DEDICATED_PHONE') || '+12268870667',
+    packageSlug,
+    marketKey,
   }
 }
 
@@ -167,8 +195,8 @@ function wasSent(touches: PartnershipAssistantTouch[], pattern: RegExp) {
 }
 
 function packagePermissionGranted(touches: PartnershipAssistantTouch[], latestText: string, intent: PartnershipReplyIntent) {
-  if (['asks_for_email', 'asks_for_pricing', 'asks_referral_program', 'send_digital_package', 'send_card_or_flyer_media'].includes(intent)) return true
-  if (DIRECT_PACKAGE_REQUEST_RE.test(latestText)) return true
+  if (['asks_for_email', 'asks_for_pricing', 'asks_referral_program', 'send_digital_package'].includes(intent)) return true
+  if (DIRECT_PACKAGE_REQUEST_RE.test(latestText) && !CARD_OR_FLYER_REQUEST_RE.test(latestText)) return true
 
   const recent = [...touches]
     .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
@@ -303,10 +331,8 @@ function draftFromRules(input: {
     recommended_action = extracted.email ? 'send_package' : 'draft_reply'
     quick_action = 'needs_follow_up'
   } else if (intent === 'send_card_or_flyer_media') {
-    draft = canSendPackageNow
-      ? `For sure ${name}, I will text it over here. I can send the card/flyer now, and I also have a short digital package with rates, referral info, and your client quote link if you want that too.`
-      : `For sure ${name}, I can text the card/flyer here. I can also send a short digital package with rates, referral info, and your client quote link if you want that too.`
-    recommended_action = canSendPackageNow ? 'send_package' : 'draft_reply'
+    draft = `For sure ${name}, I can text the card/flyer here. I also have a short digital package with rates, referral info, and your client quote link in one place. Is it okay if I send that here too?`
+    recommended_action = 'draft_reply'
     quick_action = 'needs_follow_up'
   } else if (intent === 'digital_only_no_postcard') {
     draft = canSendPackageNow
@@ -376,7 +402,7 @@ function draftFromRules(input: {
     draft_email_body: canSendPackageNow
       ? `${draft}\n\n${[config.digitalPackageUrl, config.referralProgramUrl, extracted.asks_pricing ? config.rateCardUrl : ''].filter(Boolean).join('\n')}`.trim()
       : undefined,
-    suggested_media_urls: canSendPackageNow ? [config.flyerImageUrl].filter(Boolean) : [],
+    suggested_media_urls: canSendPackageNow || intent === 'send_card_or_flyer_media' ? [config.flyerImageUrl].filter(Boolean) : [],
     risk_flags,
     rationale: 'Rule-based partnership playbook: answer the reply, move toward address/time first, and only send package links after a direct request or permission.',
     package_configured: packageConfigured,
@@ -389,12 +415,16 @@ function extractJsonObject(value: string) {
   return trimmed.match(/\{[\s\S]*\}/)?.[0] || '{}'
 }
 
-function normalizeAiResult(value: Partial<PartnershipAssistantResult>, fallback: PartnershipAssistantResult, canSendPackageNow: boolean): PartnershipAssistantResult {
+function normalizeAiResult(value: Partial<PartnershipAssistantResult>, fallback: PartnershipAssistantResult, canSendPackageNow: boolean, config: PackageConfig): PartnershipAssistantResult {
   const allowedActions: PartnershipRecommendedAction[] = ['draft_reply', 'schedule_delivery', 'book_meeting', 'send_package', 'mark_not_interested', 'human_review']
   const allowedQuickActions: PartnershipQuickAction[] = ['active_partner', 'drop_cards', 'meeting_requested', 'needs_follow_up', 'not_interested', 'wrong_number']
   const draft = cleanText(value.draft_sms) || fallback.draft_sms
   const noUnsafeLinks = draft.replace(/https?:\/\/\S+/gi, link => {
     const allowed = [
+      config.digitalPackageUrl,
+      config.rateCardUrl,
+      config.referralProgramUrl,
+      config.flyerImageUrl,
       readEnv('PARTNERSHIP_DIGITAL_PACKAGE_URL'),
       readEnv('PARTNERSHIP_RATE_CARD_URL'),
       readEnv('PARTNERSHIP_REFERRAL_PROGRAM_URL'),
@@ -487,7 +517,7 @@ async function refineWithOpenAi(input: {
     if (!response.ok) return input.fallback
     const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> }
     const parsed = JSON.parse(extractJsonObject(payload.choices?.[0]?.message?.content || '{}')) as Partial<PartnershipAssistantResult>
-    return normalizeAiResult(parsed, input.fallback, input.canSendPackageNow)
+    return normalizeAiResult(parsed, input.fallback, input.canSendPackageNow, input.config)
   } catch {
     return input.fallback
   }
