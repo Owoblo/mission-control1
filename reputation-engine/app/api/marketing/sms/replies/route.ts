@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { normalizePartnershipStage } from '@/lib/marketing'
 import { getSessionUser } from '@/lib/server/session'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
+import { suggestPartnershipReply, type PartnershipAssistantContact, type PartnershipAssistantTouch } from '@/lib/server/partnership-reply-assistant'
 
 interface MarketTouch {
   id: string
@@ -43,6 +44,7 @@ interface MarketContact {
   instantly_status: string | null
   instantly_campaign_id: string | null
   affiliate_partner_id: string | null
+  tracking_code: string | null
   category: string | null
 }
 
@@ -110,6 +112,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const limit = Math.min(Math.max(Number(searchParams.get('limit') || '250'), 1), 500)
   const channel = searchParams.get('channel')
+  const includeSuggestions = searchParams.get('include_suggestions') === '1'
 
   const { url, headers } = requireSupabaseEnv()
   const channelFilter = channel && ['sms', 'email', 'phone', 'call'].includes(channel)
@@ -147,20 +150,57 @@ export async function GET(request: Request) {
   const contacts = (await contactRes.json()) as MarketContact[]
   const contactsById = new Map(contacts.map(contact => [contact.id, contact]))
 
-  const responses = ids
-    .map(id => {
+  let touchHistoryByContact = new Map<string, PartnershipAssistantTouch[]>()
+  if (includeSuggestions) {
+    const historyRes = await fetch(
+      `${url}/rest/v1/market_touches?contact_id=in.(${ids.map(encodeURIComponent).join(',')})&select=id,contact_id,channel,direction,notes,created_by,created_at,outcome_code,metadata&order=created_at.desc&limit=4000`,
+      { headers, cache: 'no-store' }
+    )
+    const history = (historyRes.ok ? await historyRes.json() : []) as Array<PartnershipAssistantTouch & { contact_id?: string }>
+    touchHistoryByContact = history.reduce((map, touch) => {
+      if (!touch.contact_id) return map
+      const list = map.get(touch.contact_id) ?? []
+      list.push(touch)
+      map.set(touch.contact_id, list)
+      return map
+    }, new Map<string, PartnershipAssistantTouch[]>())
+  }
+
+  const responses = await Promise.all(ids
+    .map(async id => {
       const latest = latestByContact.get(id)!
       const contact = contactsById.get(id)
       const payload = toContact(contact, latest)
       if (!payload) return null
+      const playbook = includeSuggestions && contact
+        ? await suggestPartnershipReply({
+            contact: {
+              id: contact.id,
+              name: contact.name,
+              company: contact.company,
+              title: contact.title,
+              email: contact.email,
+              phone: contact.phone,
+              city: contact.city,
+              industry: contact.industry,
+              stage: contact.stage,
+              decision: contact.decision,
+              affiliate_partner_id: contact.affiliate_partner_id,
+              tracking_code: contact.tracking_code,
+            } satisfies PartnershipAssistantContact,
+            touches: (touchHistoryByContact.get(id) ?? [latest])
+              .sort((a, b) => String(a.created_at).localeCompare(String(b.created_at))),
+            skipAi: true,
+          })
+        : null
       return {
         contact: payload,
         latest_touch: latest,
         bucket: classifyReply(latest, contact),
         needs_response: Boolean(contact?.sequence_paused && !contact?.decision),
+        ...(playbook ? { playbook } : {}),
       }
-    })
-    .filter(Boolean)
+    }))
 
-  return NextResponse.json({ responses })
+  return NextResponse.json({ responses: responses.filter(Boolean) })
 }

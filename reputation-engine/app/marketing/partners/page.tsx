@@ -69,6 +69,7 @@ interface Contact {
   instantly_campaign_id?: string | null
   affiliate_partner_id?: string | null
   category?: string | null
+  playbook?: PartnershipAiSuggestion | null
 }
 
 interface Touch {
@@ -89,6 +90,7 @@ interface ReplyItem {
   latest_touch: Touch
   bucket: 'needs_reply' | 'postcard' | 'appointment' | 'opt_out' | 'closed' | 'review'
   needs_response: boolean
+  playbook?: PartnershipAiSuggestion | null
 }
 
 interface PartnershipAiSuggestion {
@@ -2195,11 +2197,11 @@ function PhoneTab({
   useEffect(() => {
     let cancelled = false
     setReplyLoading(true)
-    fetch('/api/marketing/sms/replies?limit=500', { credentials: 'include' })
+    fetch('/api/marketing/sms/replies?limit=500&include_suggestions=1', { credentials: 'include' })
       .then(r => r.ok ? r.json() : { responses: [] })
       .then((data: { responses?: ReplyItem[] }) => {
         if (cancelled) return
-        setReplyContacts((data.responses || []).map(item => item.contact))
+        setReplyContacts((data.responses || []).map(item => ({ ...item.contact, playbook: item.playbook ?? null })))
       })
       .finally(() => { if (!cancelled) setReplyLoading(false) })
     return () => { cancelled = true }
@@ -2245,6 +2247,19 @@ function PhoneTab({
   useEffect(() => { writeLocalStorageFlag('ss_partner_inbox_info_collapsed', partnerInfoCollapsed) }, [partnerInfoCollapsed])
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(null), 3000) }
+
+  function applySuggestion(suggestion: PartnershipAiSuggestion) {
+    if (suggestion.draft_sms) {
+      setComposeChannel('sms')
+      setSmsBody(suggestion.draft_sms)
+    }
+    if (suggestion.draft_email_subject) setEmailSubject(suggestion.draft_email_subject)
+    if (suggestion.draft_email_body) setEmailBody(suggestion.draft_email_body)
+    if (suggestion.suggested_media_urls?.length) {
+      setMediaUrls(current => Array.from(new Set([...current, ...suggestion.suggested_media_urls!])).slice(0, 10))
+    }
+    setAiSuggestion(suggestion)
+  }
 
   function handleSelect(id: string) {
     setSelectedId(id)
@@ -2357,16 +2372,7 @@ function PhoneTab({
         return
       }
       const suggestion = data.suggestion
-      setAiSuggestion(suggestion)
-      if (suggestion.draft_sms) {
-        setComposeChannel('sms')
-        setSmsBody(suggestion.draft_sms)
-      }
-      if (suggestion.draft_email_subject) setEmailSubject(suggestion.draft_email_subject)
-      if (suggestion.draft_email_body) setEmailBody(suggestion.draft_email_body)
-      if (suggestion.suggested_media_urls?.length) {
-        setMediaUrls(current => Array.from(new Set([...current, ...suggestion.suggested_media_urls!])).slice(0, 10))
-      }
+      applySuggestion(suggestion)
       showToast('Smart draft ready')
     } catch {
       showToast('Could not draft reply')
@@ -2583,6 +2589,11 @@ function PhoneTab({
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${selectedId === c.id ? 'bg-white/15 text-white/80' : 'bg-slate-100 text-slate-500'}`}>{sourceBadge(c)}</span>
                   <StageBadge stage={c.normalized_stage} />
                   {c.instantly_status && <InstantlyBadge status={c.instantly_status} />}
+                  {c.playbook?.intent && (
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${selectedId === c.id ? 'bg-emerald-400/20 text-emerald-50' : 'bg-emerald-50 text-emerald-700'}`}>
+                      {c.playbook.intent.replace(/_/g, ' ')}
+                    </span>
+                  )}
                 </div>
               </button>
             )
@@ -2728,40 +2739,58 @@ function PhoneTab({
                 </div>
               </div>
             )}
-            {aiSuggestion && (
+            {(aiSuggestion || selected.playbook) && (() => {
+              const suggestion = aiSuggestion || selected.playbook!
+              return (
               <div className="mb-2 rounded-[16px] border border-emerald-200 bg-emerald-50 px-3 py-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="text-xs font-semibold text-emerald-900">
-                    {aiSuggestion.recommended_action.replace(/_/g, ' ')} · {Math.round(aiSuggestion.confidence * 100)}%
+                    {suggestion.intent.replace(/_/g, ' ')} · {suggestion.recommended_action.replace(/_/g, ' ')} · {Math.round(suggestion.confidence * 100)}%
                   </div>
-                  {aiSuggestion.quick_action && (
-                    <button
-                      onClick={() => handleQuickAction(aiSuggestion.quick_action!)}
-                      disabled={quickActionSaving !== null}
-                      className="h-7 rounded-full border border-emerald-300 bg-white px-3 text-[11px] font-semibold text-emerald-800 disabled:opacity-50"
-                    >
-                      Log {aiSuggestion.quick_action.replace(/_/g, ' ')}
-                    </button>
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    {!aiSuggestion && (
+                      <button
+                        onClick={() => applySuggestion(suggestion)}
+                        className="h-7 rounded-full border border-emerald-300 bg-white px-3 text-[11px] font-semibold text-emerald-800"
+                      >
+                        Use draft
+                      </button>
+                    )}
+                    {suggestion.quick_action && (
+                      <button
+                        onClick={() => handleQuickAction(suggestion.quick_action!)}
+                        disabled={quickActionSaving !== null}
+                        className="h-7 rounded-full border border-emerald-300 bg-white px-3 text-[11px] font-semibold text-emerald-800 disabled:opacity-50"
+                      >
+                        Log {suggestion.quick_action.replace(/_/g, ' ')}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="mt-1 flex flex-wrap gap-1.5 text-[10px] font-semibold text-emerald-800">
-                  <span className="rounded-full bg-white/70 px-2 py-0.5">Package: {aiSuggestion.goal_state.digital_package.replace(/_/g, ' ')}</span>
-                  <span className="rounded-full bg-white/70 px-2 py-0.5">Delivery: {aiSuggestion.goal_state.physical_delivery.replace(/_/g, ' ')}</span>
-                  <span className="rounded-full bg-white/70 px-2 py-0.5">Referral: {aiSuggestion.goal_state.referral_program.replace(/_/g, ' ')}</span>
-                  <span className="rounded-full bg-white/70 px-2 py-0.5">Meeting: {aiSuggestion.goal_state.meeting.replace(/_/g, ' ')}</span>
+                  <span className="rounded-full bg-white/70 px-2 py-0.5">Package: {suggestion.goal_state.digital_package.replace(/_/g, ' ')}</span>
+                  <span className="rounded-full bg-white/70 px-2 py-0.5">Delivery: {suggestion.goal_state.physical_delivery.replace(/_/g, ' ')}</span>
+                  <span className="rounded-full bg-white/70 px-2 py-0.5">Referral: {suggestion.goal_state.referral_program.replace(/_/g, ' ')}</span>
+                  <span className="rounded-full bg-white/70 px-2 py-0.5">Meeting: {suggestion.goal_state.meeting.replace(/_/g, ' ')}</span>
                 </div>
-                {(aiSuggestion.extracted.email || aiSuggestion.extracted.address || aiSuggestion.extracted.time_window || aiSuggestion.risk_flags.length > 0) && (
+                {suggestion.draft_sms && !aiSuggestion && (
+                  <div className="mt-1.5 rounded-[12px] bg-white/75 px-3 py-2 text-xs leading-5 text-emerald-950">
+                    {suggestion.draft_sms}
+                  </div>
+                )}
+                {(suggestion.extracted.email || suggestion.extracted.address || suggestion.extracted.time_window || suggestion.risk_flags.length > 0) && (
                   <div className="mt-1.5 text-[11px] leading-4 text-emerald-900">
                     {[
-                      aiSuggestion.extracted.email ? `Email: ${aiSuggestion.extracted.email}` : '',
-                      aiSuggestion.extracted.address ? `Address: ${aiSuggestion.extracted.address}` : '',
-                      aiSuggestion.extracted.time_window ? `Time: ${aiSuggestion.extracted.time_window}` : '',
-                      aiSuggestion.risk_flags.length ? `Flags: ${aiSuggestion.risk_flags.join(', ')}` : '',
+                      suggestion.extracted.email ? `Email: ${suggestion.extracted.email}` : '',
+                      suggestion.extracted.address ? `Address: ${suggestion.extracted.address}` : '',
+                      suggestion.extracted.time_window ? `Time: ${suggestion.extracted.time_window}` : '',
+                      suggestion.risk_flags.length ? `Flags: ${suggestion.risk_flags.join(', ')}` : '',
                     ].filter(Boolean).join(' · ')}
                   </div>
                 )}
               </div>
-            )}
+              )
+            })()}
             <div className="mb-1.5 flex items-center gap-1.5 overflow-x-auto">
               <button
                 onClick={() => void handleAiReply()}

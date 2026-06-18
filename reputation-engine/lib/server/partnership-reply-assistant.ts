@@ -490,6 +490,7 @@ async function refineWithOpenAi(input: {
 export async function suggestPartnershipReply(input: {
   contact: PartnershipAssistantContact
   touches: PartnershipAssistantTouch[]
+  skipAi?: boolean
 }) {
   const latest = latestInbound(input.touches)
   const latestText = cleanText(latest?.notes)
@@ -519,5 +520,6 @@ export async function suggestPartnershipReply(input: {
       rationale: 'No inbound text was available to draft from.',
     }
   }
+  if (input.skipAi) return fallback
   return refineWithOpenAi({ contact: input.contact, touches: input.touches, latestText, config, fallback, canSendPackageNow })
 }
