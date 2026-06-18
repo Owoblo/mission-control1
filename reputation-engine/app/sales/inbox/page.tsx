@@ -89,6 +89,18 @@ function formatAbsoluteTime(value: string) {
   } catch { return value }
 }
 
+function sameInboxSmsGroup(
+  current?: SmsThread['messages'][number] | null,
+  adjacent?: SmsThread['messages'][number] | null
+) {
+  if (!current || !adjacent) return false
+  if (current.direction !== adjacent.direction) return false
+  const currentAt = current.created_at ? new Date(current.created_at).getTime() : 0
+  const adjacentAt = adjacent.created_at ? new Date(adjacent.created_at).getTime() : 0
+  if (!currentAt || !adjacentAt) return true
+  return Math.abs(adjacentAt - currentAt) < 10 * 60 * 1000
+}
+
 // Speed-to-lead urgency helpers
 function secondsSince(value: string) {
   return Math.floor((Date.now() - new Date(value).getTime()) / 1000)
@@ -1523,7 +1535,7 @@ function SalesInboxPageInner() {
                     <div className="flex min-w-0 flex-1 flex-col min-h-0">
                       {/* Header */}
                       <div className="sticky top-0 z-10 border-b border-[var(--app-line)] bg-[var(--app-panel)] px-5 py-3">
-                        <button onClick={() => setSelectedEmailId(null)} className="crm-button mb-2 px-3 md:hidden">← Back</button>
+                        <button onClick={() => setSelectedEmailId(null)} className="crm-button mb-2 min-h-11 px-4 text-sm md:hidden">← Back</button>
                         <div className="flex items-start justify-between gap-4">
                           <div className="min-w-0">
                             <h2 className="text-base font-semibold text-[var(--app-ink)] line-clamp-1">
@@ -1537,7 +1549,7 @@ function SalesInboxPageInner() {
                           </div>
                           <div className="flex shrink-0 items-center gap-2">
                             {em.leadId && (
-                              <a href={`/sales/leads/${em.leadId}`} className="crm-button text-xs">View Lead →</a>
+                              <a href={`/sales/leads/${em.leadId}`} className="crm-button min-h-11 text-sm lg:min-h-9 lg:text-xs">View Lead →</a>
                             )}
                           </div>
                         </div>
@@ -1578,7 +1590,7 @@ function SalesInboxPageInner() {
                                     )}
                                   </div>
                                 </div>
-                                <div className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[var(--app-ink)]">{msg.body}</div>
+                                <div className="mt-2 max-w-[70ch] whitespace-pre-wrap text-base leading-[1.5] text-[var(--app-ink)] lg:text-sm">{msg.body}</div>
                               </div>
                             </div>
                           </div>
@@ -1594,7 +1606,7 @@ function SalesInboxPageInner() {
                           <span className="text-xs text-[var(--app-muted)]">Cmd+Enter to send</span>
                         </div>
                         <textarea
-                          className="crm-input w-full resize-none"
+                          className="crm-input min-h-[88px] w-full resize-none rounded-[18px] px-4 py-3 text-base leading-[1.5] lg:text-sm"
                           rows={3}
                           placeholder={`Reply to ${replyTo}…`}
                           value={emailReply.body}
@@ -1603,7 +1615,7 @@ function SalesInboxPageInner() {
                         />
                         <div className="mt-2 flex items-center justify-between">
                           <input
-                            className="crm-input max-w-xs text-xs"
+                            className="crm-input min-h-11 max-w-xs text-sm lg:min-h-9 lg:text-xs"
                             placeholder="Subject"
                             value={emailReply.subject}
                             onChange={e => setEmailReply(r => ({ ...r, subject: e.target.value }))}
@@ -1611,7 +1623,7 @@ function SalesInboxPageInner() {
                           <button
                             onClick={() => void sendEmailReply()}
                             disabled={emailReplyBusy || !emailReply.body.trim()}
-                            className="crm-button-dark disabled:opacity-50"
+                            className="crm-button-dark min-h-11 rounded-full px-5 text-sm disabled:opacity-50 lg:min-h-9"
                           >
                             {emailReplyBusy ? 'Sending…' : '↑ Send'}
                           </button>
@@ -1628,7 +1640,7 @@ function SalesInboxPageInner() {
                   return (
                     <div className="flex min-w-0 flex-1 flex-col min-h-0">
                       <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-[var(--app-line)] bg-[var(--app-panel)] px-4 py-4">
-                        <button onClick={() => setSelectedThread(null)} className="crm-button px-3 md:hidden">Back</button>
+                        <button onClick={() => setSelectedThread(null)} className="crm-button min-h-11 px-4 text-sm md:hidden">Back</button>
                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[rgba(15,106,83,0.1)] text-sm font-bold text-[var(--app-accent)]">
                           {(thread.leadName || thread.contactPhone).slice(0, 1).toUpperCase()}
                         </div>
@@ -1650,20 +1662,26 @@ function SalesInboxPageInner() {
                           </div>
                         </div>
                         {thread.leadId && (
-                          <a href={`/sales/leads/${thread.leadId}`} className="ml-auto crm-button text-xs">View Lead →</a>
+                          <a href={`/sales/leads/${thread.leadId}`} className="ml-auto crm-button min-h-11 text-sm lg:min-h-9 lg:text-xs">View Lead →</a>
                         )}
                       </div>
-                      <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-2 px-4 py-4">
-                        {thread.messages.map(msg => (
-                          <div key={msg.id} className={`flex min-w-0 ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[75%] min-w-0 rounded-[18px] px-3.5 py-2.5 text-sm shadow-sm ${msg.direction === 'outbound' ? 'rounded-br-[4px] bg-[#0b84ff] text-white' : 'rounded-bl-[4px] bg-[#e9e9eb] text-[#1c1c1e]'}`}>
-                              <p className="whitespace-pre-wrap break-words break-all">{msg.body}</p>
+                      <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-5">
+                        {thread.messages.map((msg, index) => {
+                          const previousMessage = thread.messages[index - 1]
+                          const nextMessage = thread.messages[index + 1]
+                          const groupedWithPrevious = sameInboxSmsGroup(msg, previousMessage)
+                          const groupedWithNext = sameInboxSmsGroup(msg, nextMessage)
+                          return (
+                          <div key={msg.id} className={`flex min-w-0 ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'} ${index === 0 ? '' : groupedWithPrevious ? 'mt-1' : 'mt-6'}`}>
+                            <div className={`max-w-[min(78%,640px)] min-w-0 px-4 py-3 text-base leading-[1.5] shadow-sm lg:text-sm ${msg.direction === 'outbound' ? `bg-[#0b84ff] text-white ${groupedWithPrevious ? 'rounded-tr-md' : 'rounded-tr-[18px]'} ${groupedWithNext ? 'rounded-br-md' : 'rounded-br-[18px]'} rounded-l-[18px]` : `bg-[#e9e9eb] text-[#1c1c1e] ${groupedWithPrevious ? 'rounded-tl-md' : 'rounded-tl-[18px]'} ${groupedWithNext ? 'rounded-bl-md' : 'rounded-bl-[18px]'} rounded-r-[18px]`}`}>
+                              <p className="whitespace-pre-wrap break-words">{msg.body}</p>
                               <p className={`mt-1 text-[10px] ${msg.direction === 'outbound' ? 'text-white/60' : 'text-[#8e8e93]'}`}>
                                 {new Date(msg.created_at).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                               </p>
                             </div>
                           </div>
-                        ))}
+                          )
+                        })}
                       </div>
                       <div className="shrink-0 border-t border-[var(--app-line)] bg-[var(--app-panel)] p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
                         {thread.branchLabel ? (
@@ -1690,9 +1708,9 @@ function SalesInboxPageInner() {
                         )}
                         <div className="flex gap-2 items-end">
                           <button onClick={() => smsFileInputRef.current?.click()} title="Attach image or video"
-                            className="shrink-0 rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1.5 text-base hover:bg-[var(--app-bg)] transition">📎</button>
+                            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[var(--app-line)] bg-white text-base transition hover:bg-[var(--app-bg)] lg:h-11 lg:w-11">📎</button>
                           <textarea
-                            className="crm-input flex-1 resize-none"
+                            className="crm-input min-h-12 flex-1 resize-none rounded-[18px] px-4 py-3 text-base leading-[1.5] lg:text-sm"
                             rows={2}
                             placeholder={smsMediaFiles.length > 0 ? 'Add a caption...' : 'Type a reply...'}
                             value={smsReply}
@@ -1702,7 +1720,7 @@ function SalesInboxPageInner() {
                           <button
                             onClick={() => void sendSmsReply()}
                             disabled={smsReplyBusy || (!smsReply.trim() && smsMediaFiles.length === 0)}
-                            className="crm-button-dark self-end disabled:opacity-50"
+                            className="crm-button-dark min-h-12 self-end rounded-full px-5 text-sm disabled:opacity-50 lg:min-h-11"
                           >
                             {smsReplyBusy ? '...' : 'Send'}
                           </button>
@@ -1862,7 +1880,7 @@ function SalesInboxPageInner() {
                           moveReadiness={aiSummary?.moveReadiness}
                           processingMessage={!recordingUnavailable && !transcript && !aiSummary?.summary && (recordingUrl || recordingSid) ? 'Transcript and summary are still processing.' : undefined}
                           actions={selected.phone ? (
-                            <button onClick={() => openDialer(selected.phone, displayLeadName(selected), selected.linkedLeadId || selected.matchedLeadId)} className="crm-button shrink-0 text-xs">
+                              <button onClick={() => openDialer(selected.phone, displayLeadName(selected), selected.linkedLeadId || selected.matchedLeadId)} className="crm-button min-h-11 shrink-0 text-sm lg:min-h-9 lg:text-xs">
                               Call back
                             </button>
                           ) : null}
@@ -1873,13 +1891,13 @@ function SalesInboxPageInner() {
                           <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3">
                             <div className="mb-2 flex items-center justify-between">
                               <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">SMS Reply</div>
-                              <button onClick={() => setScGoalOpen(scGoalOpen === 'sms' ? null : 'sms')} className="text-[10px] text-[var(--app-accent)] hover:underline">✦ Smart Compose</button>
+                              <button onClick={() => setScGoalOpen(scGoalOpen === 'sms' ? null : 'sms')} className="min-h-11 rounded-full px-3 text-sm font-semibold text-[var(--app-accent)] hover:bg-[var(--app-bg)] lg:min-h-8 lg:text-xs">✦ Smart Compose</button>
                             </div>
                             {scGoalOpen === 'sms' && (
                               <div className="mb-2 grid grid-cols-2 gap-1.5">
                                 {SC_GOALS.map(g => (
                                   <button key={g.id} onClick={() => void runSmartCompose(g.id, 'sms')} disabled={scBusy}
-                                    className="rounded-[6px] border border-[var(--app-line)] px-2 py-1.5 text-left text-[10px] hover:border-[var(--app-accent)] disabled:opacity-50">
+                                    className="min-h-11 rounded-[10px] border border-[var(--app-line)] px-3 py-2 text-left text-xs hover:border-[var(--app-accent)] disabled:opacity-50">
                                     <span className="font-medium text-[var(--app-ink)]">{g.label}</span>
                                   </button>
                                 ))}
@@ -1887,8 +1905,8 @@ function SalesInboxPageInner() {
                             )}
                             <textarea rows={2} value={compose.smsBody} onChange={e => setCompose(c => ({ ...c, smsBody: e.target.value }))}
                               onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void send('sms') }}
-                              className="crm-input w-full resize-none text-sm" placeholder="Type a reply..." />
-                            <button onClick={() => void send('sms')} disabled={messageBusy || !compose.smsBody.trim()} className="mt-2 crm-button-dark text-sm disabled:opacity-50">
+                              className="crm-input min-h-[88px] w-full resize-none rounded-[18px] px-4 py-3 text-base leading-[1.5] lg:text-sm" placeholder="Type a reply..." />
+                            <button onClick={() => void send('sms')} disabled={messageBusy || !compose.smsBody.trim()} className="mt-2 crm-button-dark min-h-11 rounded-full px-5 text-sm disabled:opacity-50">
                               {messageBusy ? 'Sending...' : 'Send SMS'}
                             </button>
                           </div>
@@ -2137,7 +2155,7 @@ function SalesInboxPageInner() {
                           <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
                             <div className="flex items-center justify-between">
                               <div className="crm-label">Email Reply</div>
-                              <button onClick={() => setScGoalOpen(scGoalOpen === 'email' ? null : 'email')} className="text-xs text-[var(--app-accent)] hover:underline">✨ Smart Compose</button>
+                              <button onClick={() => setScGoalOpen(scGoalOpen === 'email' ? null : 'email')} className="min-h-11 rounded-full px-3 text-sm font-semibold text-[var(--app-accent)] hover:bg-[var(--app-bg)] lg:min-h-8 lg:text-xs">✨ Smart Compose</button>
                             </div>
                             {scGoalOpen === 'email' ? (
                               <div className="mt-3 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
@@ -2145,7 +2163,7 @@ function SalesInboxPageInner() {
                                 <div className="grid grid-cols-2 gap-2">
                                   {SC_GOALS.map(g => (
                                     <button key={g.id} onClick={() => void runSmartCompose(g.id, 'email')} disabled={scBusy}
-                                      className="flex flex-col items-start rounded-[6px] border border-[var(--app-line)] px-2 py-1.5 text-left text-xs hover:border-[var(--app-accent)] disabled:opacity-50">
+                                      className="flex min-h-11 flex-col items-start rounded-[10px] border border-[var(--app-line)] px-3 py-2 text-left text-xs hover:border-[var(--app-accent)] disabled:opacity-50">
                                       <span className="font-medium text-[var(--app-ink)]">{scBusy ? '...' : g.label}</span>
                                       <span className="text-[var(--app-muted)]">{g.desc}</span>
                                     </button>
@@ -2154,16 +2172,16 @@ function SalesInboxPageInner() {
                               </div>
                             ) : null}
                             <input
-                              className="crm-input mt-4"
+                              className="crm-input mt-4 min-h-12 text-base leading-[1.5] lg:min-h-10 lg:text-sm"
                               value={compose.emailSubject}
                               onChange={event => setCompose(current => ({ ...current, emailSubject: event.target.value }))}
                             />
                             <textarea
-                              className="crm-input mt-4 min-h-40"
+                              className="crm-input mt-4 min-h-40 rounded-[18px] px-4 py-3 text-base leading-[1.5] lg:text-sm"
                               value={compose.emailBody}
                               onChange={event => setCompose(current => ({ ...current, emailBody: event.target.value }))}
                             />
-                            <button onClick={() => void send('email')} disabled={messageBusy} className="mt-4 crm-button-dark">
+                            <button onClick={() => void send('email')} disabled={messageBusy} className="mt-4 crm-button-dark min-h-11 rounded-full px-5">
                               {messageBusy ? 'Sending...' : 'Send Email'}
                             </button>
                           </div>
@@ -2173,7 +2191,7 @@ function SalesInboxPageInner() {
                           <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
                             <div className="flex items-center justify-between">
                               <div className="crm-label">SMS Reply</div>
-                              <button onClick={() => setScGoalOpen(scGoalOpen === 'sms' ? null : 'sms')} className="text-xs text-[var(--app-accent)] hover:underline">✨ Smart Compose</button>
+                              <button onClick={() => setScGoalOpen(scGoalOpen === 'sms' ? null : 'sms')} className="min-h-11 rounded-full px-3 text-sm font-semibold text-[var(--app-accent)] hover:bg-[var(--app-bg)] lg:min-h-8 lg:text-xs">✨ Smart Compose</button>
                             </div>
                             {scGoalOpen === 'sms' ? (
                               <div className="mt-3 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
@@ -2181,7 +2199,7 @@ function SalesInboxPageInner() {
                                 <div className="grid grid-cols-2 gap-2">
                                   {SC_GOALS.map(g => (
                                     <button key={g.id} onClick={() => void runSmartCompose(g.id, 'sms')} disabled={scBusy}
-                                      className="flex flex-col items-start rounded-[6px] border border-[var(--app-line)] px-2 py-1.5 text-left text-xs hover:border-[var(--app-accent)] disabled:opacity-50">
+                                      className="flex min-h-11 flex-col items-start rounded-[10px] border border-[var(--app-line)] px-3 py-2 text-left text-xs hover:border-[var(--app-accent)] disabled:opacity-50">
                                       <span className="font-medium text-[var(--app-ink)]">{scBusy ? '...' : g.label}</span>
                                       <span className="text-[var(--app-muted)]">{g.desc}</span>
                                     </button>
@@ -2190,11 +2208,11 @@ function SalesInboxPageInner() {
                               </div>
                             ) : null}
                             <textarea
-                              className="crm-input mt-4 min-h-40"
+                              className="crm-input mt-4 min-h-40 rounded-[18px] px-4 py-3 text-base leading-[1.5] lg:text-sm"
                               value={compose.smsBody}
                               onChange={event => setCompose(current => ({ ...current, smsBody: event.target.value }))}
                             />
-                            <button onClick={() => void send('sms')} disabled={messageBusy} className="mt-4 crm-button-dark">
+                            <button onClick={() => void send('sms')} disabled={messageBusy} className="mt-4 crm-button-dark min-h-11 rounded-full px-5">
                               {messageBusy ? 'Sending...' : 'Send SMS'}
                             </button>
                           </div>

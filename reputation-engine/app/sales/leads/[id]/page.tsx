@@ -47,6 +47,7 @@ const PhotoRequestDialog = dynamic(
   { ssr: false }
 )
 import { LeadBasicsPanel } from '@/app/components/sales/lead-detail/lead-basics-panel'
+import { CRMRecordContext, CRMRecordLayout, CRMRecordMain, CRMRecordWidget } from '@/app/components/crm-layout'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import {
   DEFAULT_ROOM_OPTIONS,
@@ -3938,7 +3939,8 @@ export default function SalesLeadDetailPage() {
           </div>
         )}
 
-        <div id="section-details" className="grid min-h-[760px] lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[250px_minmax(0,1fr)_280px]">
+        <CRMRecordLayout id="section-details">
+          <CRMRecordContext>
           <LeadBasicsPanel
             lead={lead}
             leadName={leadName}
@@ -4051,8 +4053,9 @@ export default function SalesLeadDetailPage() {
             onOverrideListing={addr => void overrideListingAddress(addr)}
             onClearListing={() => void clearListing()}
           />
+          </CRMRecordContext>
 
-          <aside className="order-2 border-t border-[var(--app-line)] bg-[var(--app-panel)] lg:order-3 lg:border-l lg:border-t-0 xl:order-3">
+          <CRMRecordWidget>
             {lead.leadKind === 'realtor_opportunity' ? (
               <div className="border-b border-[var(--app-line)] p-5">
                 <div className="crm-label">Listing Opportunity</div>
@@ -5155,9 +5158,9 @@ export default function SalesLeadDetailPage() {
                 </button>
               ) : null}
             </div>
-          </aside>
+          </CRMRecordWidget>
 
-          <div id="section-timeline" className="order-3 flex flex-col lg:order-2 xl:order-2">
+          <CRMRecordMain id="section-timeline">
             <LeadCommunicationsPanel
               lead={lead}
               activeTab={activeTab}
@@ -5227,8 +5230,8 @@ export default function SalesLeadDetailPage() {
               onSmsChannelChange={setSmsChannel}
               onSmsSend={() => void handleInlineSmsSend()}
             />
-          </div>
-        </div>
+          </CRMRecordMain>
+        </CRMRecordLayout>
       </div>
 
       {showUnsavedLeaveModal ? (

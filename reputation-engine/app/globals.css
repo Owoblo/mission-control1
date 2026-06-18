@@ -18,7 +18,7 @@
   }
   :root {
     --app-ink: #111111;
-    --app-muted: #8a8a8a;
+    --app-muted: #666b72;
     --app-line: #ebebeb;
     --app-bg: #fcfcfc;
     --app-panel: #ffffff;
@@ -27,6 +27,37 @@
     --app-accent: #0f6a53;
     --app-accent-soft: #eef8f4;
     --app-warm: #d97706;
+    --crm-space-0: 0;
+    --crm-space-1: 4px;
+    --crm-space-2: 8px;
+    --crm-space-3: 12px;
+    --crm-space-4: 16px;
+    --crm-space-5: 20px;
+    --crm-space-6: 24px;
+    --crm-space-8: 32px;
+    --crm-space-10: 40px;
+    --crm-space-12: 48px;
+    --crm-radius-xs: 4px;
+    --crm-radius-sm: 6px;
+    --crm-radius-md: 8px;
+    --crm-radius-lg: 12px;
+    --crm-radius-message: 18px;
+    --crm-shell-sidebar: 240px;
+    --crm-shell-sidebar-collapsed: 64px;
+    --crm-shell-topbar: 56px;
+    --crm-viewport-max: 1400px;
+    --crm-record-context: minmax(240px, 25%);
+    --crm-record-main: minmax(0, 50%);
+    --crm-record-widget: minmax(260px, 25%);
+    --crm-focus-ring: rgba(15, 106, 83, 0.28);
+    --crm-status-success-bg: #ecfdf3;
+    --crm-status-success-text: #05603a;
+    --crm-status-warning-bg: #fffaeb;
+    --crm-status-warning-text: #92400e;
+    --crm-status-danger-bg: #fef2f2;
+    --crm-status-danger-text: #b42318;
+    --crm-status-info-bg: #eff6ff;
+    --crm-status-info-text: #1d4ed8;
   }
   body {
     background: var(--app-bg);
@@ -112,18 +143,22 @@
     color: #73756e;
   }
   .crm-button {
-    @apply inline-flex items-center justify-center rounded-[4px] border px-4 py-2 text-sm font-medium transition;
+    @apply inline-flex items-center justify-center rounded-[4px] border px-4 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
     border-color: var(--app-line);
     background: var(--app-panel);
     color: var(--app-ink);
+    --tw-ring-color: var(--crm-focus-ring);
+    --tw-ring-offset-color: var(--app-bg);
   }
   .crm-button-dark {
-    @apply inline-flex items-center justify-center rounded-[4px] px-4 py-2 text-sm font-medium text-white transition;
+    @apply inline-flex items-center justify-center rounded-[4px] px-4 py-2 text-sm font-medium text-white transition focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
     background: var(--app-accent);
     box-shadow: none;
+    --tw-ring-color: var(--crm-focus-ring);
+    --tw-ring-offset-color: var(--app-bg);
   }
   .crm-input {
-    @apply w-full rounded-[4px] border px-4 py-2.5 text-sm outline-none transition placeholder:text-stone-400;
+    @apply w-full rounded-[4px] border px-4 py-2.5 text-sm outline-none transition placeholder:text-stone-400 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-500;
     border-color: var(--app-line);
     background: var(--app-bg);
     color: var(--app-ink);
@@ -132,7 +167,55 @@
   .crm-button-dark:hover { background: #0a5b47; }
   .crm-input:focus {
     border-color: var(--app-accent);
-    box-shadow: 0 0 0 1px rgba(15, 106, 83, 1);
+    box-shadow: 0 0 0 3px var(--crm-focus-ring);
+  }
+  .crm-app-frame {
+    @apply min-h-screen bg-[var(--app-bg)] lg:flex;
+  }
+  .crm-main-viewport {
+    @apply min-w-0 flex-1;
+  }
+  .crm-main-content {
+    @apply px-3 py-4 pb-24 md:px-8 md:py-8 md:pb-8 lg:px-8;
+  }
+  .crm-main-content-flush {
+    @apply px-0 py-0 pb-0 md:px-8 md:py-8 md:pb-8 lg:px-8;
+  }
+  .crm-viewport {
+    max-width: var(--crm-viewport-max);
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .crm-viewport-flush {
+    @apply mx-0 max-w-none md:mx-auto;
+    max-width: var(--crm-viewport-max);
+  }
+  .crm-record-layout {
+    display: grid;
+    min-height: 760px;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  @media (min-width: 1024px) {
+    .crm-record-layout {
+      grid-template-columns: minmax(0, 1fr) 300px;
+    }
+  }
+  @media (min-width: 1280px) {
+    .crm-record-layout {
+      grid-template-columns: var(--crm-record-context) var(--crm-record-main) var(--crm-record-widget);
+    }
+  }
+  .crm-record-context {
+    @apply order-1;
+  }
+  .crm-record-main {
+    @apply order-3 flex min-w-0 flex-col lg:order-2 xl:order-2;
+  }
+  .crm-record-widget {
+    @apply order-2 border-t border-[var(--app-line)] bg-[var(--app-panel)] lg:order-3 lg:border-l lg:border-t-0 xl:order-3;
+  }
+  .crm-skeleton {
+    @apply animate-pulse rounded-[var(--crm-radius-md)] bg-stone-200/70;
   }
   .crm-surface {
     @apply rounded-[8px] border px-5 py-5;

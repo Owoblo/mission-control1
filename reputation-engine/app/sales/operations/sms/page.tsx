@@ -73,6 +73,15 @@ function isVideoUrl(url: string) {
   return /\.(mp4|mov|avi|webm|3gp)(\?|$)/i.test(url)
 }
 
+function sameSmsGroup(current?: SmsMessage | null, adjacent?: SmsMessage | null) {
+  if (!current || !adjacent) return false
+  if (current.direction !== adjacent.direction) return false
+  const currentAt = current.created_at ? new Date(current.created_at).getTime() : 0
+  const adjacentAt = adjacent.created_at ? new Date(adjacent.created_at).getTime() : 0
+  if (!currentAt || !adjacentAt) return true
+  return Math.abs(adjacentAt - currentAt) < 10 * 60 * 1000
+}
+
 export default function OpsSmsPage() {
   const [messages, setMessages] = useState<SmsMessage[]>([])
   const [loading, setLoading] = useState(true)
@@ -179,9 +188,9 @@ export default function OpsSmsPage() {
   const activeThread = threads.find(t => t.contactPhone === selected)
 
   return (
-    <div className="flex h-screen bg-[var(--app-bg)]">
+    <div className="flex h-[100dvh] bg-[var(--app-bg)]">
       {/* Thread list */}
-      <div className="w-72 shrink-0 border-r border-[var(--app-line)] bg-[var(--app-panel)] flex flex-col">
+      <div className={`${selected ? 'hidden md:flex' : 'flex'} w-full shrink-0 border-r border-[var(--app-line)] bg-[var(--app-panel)] flex-col md:w-80 lg:w-72`}>
         <div className="px-4 py-3 border-b border-[var(--app-line)] flex items-center justify-between gap-2">
           <div>
             <div className="text-xs font-semibold uppercase tracking-wider text-[var(--app-muted)]">Operations SMS</div>
@@ -189,7 +198,7 @@ export default function OpsSmsPage() {
           </div>
           <button
             onClick={() => setNewChatOpen(true)}
-            className="rounded-[6px] bg-[var(--app-accent)] px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 transition"
+            className="min-h-11 rounded-full bg-[var(--app-accent)] px-4 text-sm font-semibold text-white transition hover:opacity-90 md:min-h-9 md:text-xs"
           >
             + New
           </button>
@@ -204,11 +213,11 @@ export default function OpsSmsPage() {
               onChange={e => setNewChatPhone(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') startNewChat(); if (e.key === 'Escape') setNewChatOpen(false) }}
               placeholder="Phone number (e.g. 226-555-1234)"
-              className="crm-input w-full text-sm"
+              className="crm-input min-h-12 w-full text-base md:min-h-10 md:text-sm"
             />
             <div className="flex gap-1.5">
-              <button onClick={startNewChat} className="flex-1 rounded-[6px] bg-[var(--app-accent)] py-1 text-[11px] font-semibold text-white">Start chat</button>
-              <button onClick={() => setNewChatOpen(false)} className="flex-1 rounded-[6px] border border-[var(--app-line)] py-1 text-[11px] text-[var(--app-muted)]">Cancel</button>
+              <button onClick={startNewChat} className="min-h-11 flex-1 rounded-full bg-[var(--app-accent)] px-3 text-sm font-semibold text-white md:min-h-9 md:text-xs">Start chat</button>
+              <button onClick={() => setNewChatOpen(false)} className="min-h-11 flex-1 rounded-full border border-[var(--app-line)] px-3 text-sm font-semibold text-[var(--app-muted)] md:min-h-9 md:text-xs">Cancel</button>
             </div>
           </div>
         )}
@@ -220,7 +229,7 @@ export default function OpsSmsPage() {
             <button
               key={thread.contactPhone}
               onClick={() => setSelected(thread.contactPhone)}
-              className={`w-full text-left px-4 py-3 border-b border-[var(--app-line)] transition ${selected === thread.contactPhone ? 'bg-[rgba(15,106,83,0.08)]' : 'hover:bg-[var(--app-bg)]'}`}
+              className={`w-full text-left px-4 py-4 border-b border-[var(--app-line)] transition md:py-3 ${selected === thread.contactPhone ? 'bg-[rgba(15,106,83,0.08)]' : 'hover:bg-[var(--app-bg)]'}`}
             >
               <div className="flex items-center justify-between gap-2">
                 <span className={`text-sm font-semibold truncate ${thread.unread ? 'text-[var(--app-ink)]' : 'text-[var(--app-muted)]'}`}>{formatPhone(thread.contactPhone)}</span>
@@ -234,7 +243,7 @@ export default function OpsSmsPage() {
       </div>
 
       {/* Message view */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className={`${!selected ? 'hidden md:flex' : 'flex'} flex-1 flex-col min-w-0`}>
         {!selected ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 text-[var(--app-muted)]">
             <div className="text-sm">Select a conversation or start a new one</div>
@@ -242,24 +251,33 @@ export default function OpsSmsPage() {
           </div>
         ) : (
           <>
-            <div className="px-5 py-3 border-b border-[var(--app-line)] bg-[var(--app-panel)]">
-              <div className="font-semibold text-[var(--app-ink)]">{formatPhone(selected)}</div>
-              <div className="text-[10px] text-[var(--app-muted)]">Operations line · {formatPhone(OPS_NUMBER)}</div>
+            <div className="px-4 py-3 border-b border-[var(--app-line)] bg-[var(--app-panel)] md:px-5">
+              <div className="flex items-center gap-2">
+                <button onClick={() => setSelected(null)} className="flex h-11 w-11 items-center justify-center rounded-full text-2xl text-[var(--app-ink)] md:hidden">‹</button>
+                <div>
+                  <div className="font-semibold text-[var(--app-ink)]">{formatPhone(selected)}</div>
+                  <div className="text-[10px] text-[var(--app-muted)]">Operations line · {formatPhone(OPS_NUMBER)}</div>
+                </div>
+              </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-2">
+            <div className="flex-1 overflow-y-auto px-3 py-5 sm:px-5">
               {(!activeThread || activeThread.messages.length === 0) && (
                 <div className="flex items-center justify-center h-32 text-xs text-[var(--app-muted)]">No messages yet — send the first one below</div>
               )}
-              {activeThread?.messages.map(msg => {
+              {activeThread?.messages.map((msg, index) => {
                 const isOutbound = msg.direction === 'outbound'
+                const previousMessage = activeThread.messages[index - 1]
+                const nextMessage = activeThread.messages[index + 1]
+                const groupedWithPrevious = sameSmsGroup(msg, previousMessage)
+                const groupedWithNext = sameSmsGroup(msg, nextMessage)
                 const mmsMatch = msg.body.match(/\[MMS: (.+?)\]/)
                 const mediaUrls = mmsMatch ? mmsMatch[1].split(', ').filter(Boolean) : []
                 const textBody = msg.body.replace(/\[MMS: .+?\]/, '').trim()
                 return (
-                  <div key={msg.id} className={`flex ${isOutbound ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[75%] rounded-[16px] px-3.5 py-2.5 ${isOutbound ? 'bg-[var(--app-accent)] text-white rounded-br-[4px]' : 'bg-white border border-[var(--app-line)] text-[var(--app-ink)] rounded-bl-[4px]'}`}>
-                      {textBody && <div className="text-sm leading-relaxed whitespace-pre-wrap">{textBody}</div>}
+                  <div key={msg.id} className={`flex ${isOutbound ? 'justify-end' : 'justify-start'} ${index === 0 ? '' : groupedWithPrevious ? 'mt-1' : 'mt-6'}`}>
+                    <div className={`max-w-[min(78%,640px)] px-4 py-3 text-base leading-[1.5] shadow-sm md:text-sm ${isOutbound ? `bg-[var(--app-accent)] text-white ${groupedWithPrevious ? 'rounded-tr-md' : 'rounded-tr-[18px]'} ${groupedWithNext ? 'rounded-br-md' : 'rounded-br-[18px]'} rounded-l-[18px]` : `border border-[var(--app-line)] bg-white text-[var(--app-ink)] ${groupedWithPrevious ? 'rounded-tl-md' : 'rounded-tl-[18px]'} ${groupedWithNext ? 'rounded-bl-md' : 'rounded-bl-[18px]'} rounded-r-[18px]`}`}>
+                      {textBody && <div className="whitespace-pre-wrap break-words">{textBody}</div>}
                       {mediaUrls.map((url, i) => (
                         <div key={i} className="mt-1.5">
                           {isImageUrl(url) ? (
@@ -273,7 +291,7 @@ export default function OpsSmsPage() {
                           )}
                         </div>
                       ))}
-                      <div className={`mt-1 text-[9px] ${isOutbound ? 'text-white/60' : 'text-[var(--app-muted)]'}`}>{timeAgo(msg.created_at)}</div>
+                      <div className={`mt-1 text-[10px] ${isOutbound ? 'text-white/60' : 'text-[var(--app-muted)]'}`}>{timeAgo(msg.created_at)}</div>
                     </div>
                   </div>
                 )
@@ -298,14 +316,14 @@ export default function OpsSmsPage() {
             )}
 
             {/* Reply bar */}
-            <div className="px-4 py-3 border-t border-[var(--app-line)] bg-[var(--app-panel)]">
+            <div className="px-4 py-3 pb-[max(1rem,calc(env(safe-area-inset-bottom)+0.75rem))] border-t border-[var(--app-line)] bg-[var(--app-panel)]">
               {error && <div className="mb-2 text-xs text-rose-600">{error}</div>}
               <div className="flex gap-2 items-end">
                 <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple className="hidden"
                   onChange={e => { if (e.target.files) setMediaFiles(fs => [...fs, ...Array.from(e.target.files!)]) }} />
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="shrink-0 rounded-[8px] border border-[var(--app-line)] bg-white px-2.5 py-2 text-base hover:bg-[var(--app-bg)] transition"
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[var(--app-line)] bg-white text-base transition hover:bg-[var(--app-bg)] md:h-11 md:w-11"
                   title="Attach image or video"
                 >📎</button>
                 <textarea
@@ -314,12 +332,12 @@ export default function OpsSmsPage() {
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void sendReply() } }}
                   placeholder={mediaFiles.length > 0 ? 'Add a caption (optional)...' : 'Message...'}
                   rows={2}
-                  className="crm-input flex-1 resize-none text-sm"
+                  className="crm-input min-h-12 flex-1 resize-none rounded-[18px] px-4 py-3 text-base leading-[1.5] md:text-sm"
                 />
                 <button
                   onClick={() => void sendReply()}
                   disabled={(!reply.trim() && mediaFiles.length === 0) || sending}
-                  className="shrink-0 rounded-[8px] bg-[var(--app-accent)] px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50 transition"
+                  className="min-h-12 shrink-0 rounded-full bg-[var(--app-accent)] px-5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50 md:min-h-11"
                 >
                   {sending ? '...' : 'Send'}
                 </button>

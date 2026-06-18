@@ -368,7 +368,7 @@ export function SalesHeader() {
         </div>
       )}
 
-      <header className={`sticky top-0 z-40 border-b border-[var(--app-line)] bg-[var(--app-panel-strong)] lg:h-screen lg:shrink-0 lg:border-b-0 lg:border-r ${partnershipInbox ? 'hidden lg:block' : ''} ${sidebarCollapsed ? 'lg:w-[64px]' : 'lg:w-[260px]'}`}>
+      <header className={`sticky top-0 z-40 border-b border-[var(--app-line)] bg-[var(--app-panel-strong)] lg:h-screen lg:shrink-0 lg:border-b-0 lg:border-r ${partnershipInbox ? 'hidden lg:block' : ''} ${sidebarCollapsed ? 'lg:w-[var(--crm-shell-sidebar-collapsed)]' : 'lg:w-[var(--crm-shell-sidebar)]'}`}>
         <div className="mx-auto flex max-w-[1400px] flex-col gap-4 px-4 py-4 md:px-8 lg:h-full lg:max-w-none lg:px-0">
 
           {/* ── Brand strip — slim full-width horizontal ───────────────── */}
@@ -399,7 +399,7 @@ export function SalesHeader() {
           {sidebarCollapsed && (
             <button
               onClick={() => setSidebarCollapsed(false)}
-              className="hidden lg:flex absolute top-[18px] left-0 w-[64px] h-7 items-center justify-center text-[var(--app-muted)] hover:text-[var(--app-ink)] transition text-xs"
+              className="hidden lg:flex absolute top-[18px] left-0 w-[var(--crm-shell-sidebar-collapsed)] h-7 items-center justify-center text-[var(--app-muted)] hover:text-[var(--app-ink)] transition text-xs"
               title="Expand sidebar"
             >››</button>
           )}

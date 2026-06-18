@@ -74,6 +74,15 @@ type Props = {
   onSmsSend: () => void
 }
 
+function sameSmsGroup(current?: LeadSmsMessage | null, adjacent?: LeadSmsMessage | null) {
+  if (!current || !adjacent) return false
+  if (current.direction !== adjacent.direction) return false
+  const currentAt = current.created_at ? new Date(current.created_at).getTime() : 0
+  const adjacentAt = adjacent.created_at ? new Date(adjacent.created_at).getTime() : 0
+  if (!currentAt || !adjacentAt) return true
+  return Math.abs(adjacentAt - currentAt) < 10 * 60 * 1000
+}
+
 export function LeadCommunicationsPanel({
   lead,
   activeTab,
@@ -107,14 +116,14 @@ export function LeadCommunicationsPanel({
       <div className="flex items-center gap-1 border-b border-[var(--app-line)] bg-[var(--app-panel)] px-4 pt-3">
         <button
           onClick={() => onTabChange('timeline')}
-          className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 pb-3 pt-1 text-sm font-medium transition ${activeTab === 'timeline' ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}
+          className={`-mb-px flex min-h-11 items-center gap-1.5 border-b-2 px-3 pb-3 pt-1 text-sm font-medium transition lg:min-h-9 ${activeTab === 'timeline' ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}
         >
           Timeline
         </button>
         {lead.email ? (
           <button
             onClick={() => onTabChange('emails')}
-            className={`-mb-px flex items-center gap-2 border-b-2 px-3 pb-3 pt-1 text-sm font-medium transition ${activeTab === 'emails' ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}
+            className={`-mb-px flex min-h-11 items-center gap-2 border-b-2 px-3 pb-3 pt-1 text-sm font-medium transition lg:min-h-9 ${activeTab === 'emails' ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}
           >
             Emails
             {inboundEmailCount > 0 ? (
@@ -127,7 +136,7 @@ export function LeadCommunicationsPanel({
         {lead.phone ? (
           <button
             onClick={() => onTabChange('sms')}
-            className={`-mb-px flex items-center gap-2 border-b-2 px-3 pb-3 pt-1 text-sm font-medium transition ${activeTab === 'sms' ? 'border-[#f5a623] text-[#f5a623]' : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}
+            className={`-mb-px flex min-h-11 items-center gap-2 border-b-2 px-3 pb-3 pt-1 text-sm font-medium transition lg:min-h-9 ${activeTab === 'sms' ? 'border-[#f5a623] text-[#f5a623]' : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}
           >
             💬 SMS
             {inboundSmsCount > 0 ? (
@@ -153,7 +162,7 @@ export function LeadCommunicationsPanel({
             </div>
             <button
               onClick={() => onOpenComposer('email')}
-              className="crm-button-dark text-xs"
+              className="crm-button-dark min-h-11 text-sm lg:min-h-9 lg:text-xs"
             >
               ✉️ Compose
             </button>
@@ -166,7 +175,7 @@ export function LeadCommunicationsPanel({
               <div className="text-3xl">✉️</div>
               <div className="text-sm font-medium text-[var(--app-ink)]">No emails yet</div>
               <div className="text-xs text-[var(--app-muted)]">Emails sent and received from {lead.email} will appear here.</div>
-              <button onClick={() => onOpenComposer('email')} className="crm-button-dark mt-1 text-xs">Send First Email</button>
+              <button onClick={() => onOpenComposer('email')} className="crm-button-dark mt-1 min-h-11 text-sm lg:min-h-9 lg:text-xs">Send First Email</button>
             </div>
           ) : (
             <div className="flex-1 divide-y divide-[var(--app-line)] overflow-y-auto">
@@ -191,7 +200,7 @@ export function LeadCommunicationsPanel({
                         </span>
                       </div>
                       <div className="mt-0.5 truncate text-xs text-[var(--app-muted)]">{displayEmailSubject(message.subject)}</div>
-                      <div className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[var(--app-ink)]">{message.body}</div>
+                      <div className="mt-2 max-w-[70ch] whitespace-pre-wrap text-base leading-[1.5] text-[var(--app-ink)] lg:text-sm">{message.body}</div>
                     </div>
                   </div>
                 </div>
@@ -212,7 +221,7 @@ export function LeadCommunicationsPanel({
                   onComposerSubjectChange(defaultEmailSubject)
                 }
               }}
-              className="w-full rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2 text-xs text-[var(--app-ink)] focus:border-[var(--app-accent)] focus:outline-none"
+              className="min-h-12 w-full rounded-[12px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-2 text-base leading-[1.5] text-[var(--app-ink)] focus:border-[var(--app-accent)] focus:outline-none lg:min-h-10 lg:text-sm"
               placeholder="Subject…"
               disabled={!canHandleCommunication}
             />
@@ -229,7 +238,7 @@ export function LeadCommunicationsPanel({
                   onRequestSmartCompose('email')
                 }
               }}
-              className="w-full resize-none rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-ink)] focus:border-[var(--app-accent)] focus:outline-none"
+              className="min-h-[88px] w-full resize-none rounded-[18px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-3 text-base leading-[1.5] text-[var(--app-ink)] focus:border-[var(--app-accent)] focus:outline-none lg:text-sm"
               placeholder="Write a reply…"
               rows={3}
               disabled={!canHandleCommunication}
@@ -241,7 +250,7 @@ export function LeadCommunicationsPanel({
                   onRequestSmartCompose('email')
                 }}
                 disabled={!canHandleCommunication || composer.smartComposeBusy}
-                className="text-xs text-[var(--app-muted)] hover:text-[var(--app-accent)] disabled:opacity-40"
+                className="min-h-11 rounded-full px-3 text-sm font-semibold text-[var(--app-muted)] hover:text-[var(--app-accent)] disabled:opacity-40 lg:min-h-8 lg:text-xs"
               >
                 {composer.smartComposeBusy ? '✨ Drafting…' : '✨ AI Draft'}
               </button>
@@ -251,7 +260,7 @@ export function LeadCommunicationsPanel({
                   onSendComposer()
                 }}
                 disabled={!canHandleCommunication || composer.busy || !composer.body.trim() || composer.channel !== 'email'}
-                className="rounded-[8px] bg-[var(--app-ink)] px-4 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
+                className="min-h-11 rounded-full bg-[var(--app-ink)] px-5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40 lg:min-h-9 lg:text-xs"
               >
                 {composer.busy ? 'Sending…' : 'Send Email'}
               </button>
@@ -273,14 +282,14 @@ export function LeadCommunicationsPanel({
             <div className="flex items-center gap-2">
               <button
                 onClick={onSmsSync}
-                className="rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-1.5 text-xs text-[var(--app-muted)] transition-colors hover:text-[var(--app-ink)]"
+                className="min-h-11 rounded-full border border-[var(--app-line)] bg-[var(--app-bg)] px-4 text-sm font-semibold text-[var(--app-muted)] transition-colors hover:text-[var(--app-ink)] lg:min-h-9 lg:text-xs"
                 disabled={smsThread.loading}
               >
                 {smsThread.loading ? '…' : '↺ Sync'}
               </button>
               <button
                 onClick={() => onOpenComposer('sms')}
-                className="rounded-lg px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90"
+                className="min-h-11 rounded-full px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 lg:min-h-9 lg:text-xs"
                 style={{ background: '#1a2744' }}
               >
                 ✨ AI Draft
@@ -298,19 +307,23 @@ export function LeadCommunicationsPanel({
                 <div className="text-xs text-[var(--app-muted)]">Send the first message to {lead.name || lead.phone} below.</div>
               </div>
             ) : (
-              <div className="flex flex-col gap-2">
-                {smsThread.messages.map(message => {
+              <div>
+                {smsThread.messages.map((message, index) => {
                   const isOutbound = message.direction === 'outbound'
+                  const previousMessage = smsThread.messages[index - 1]
+                  const nextMessage = smsThread.messages[index + 1]
+                  const groupedWithPrevious = sameSmsGroup(message, previousMessage)
+                  const groupedWithNext = sameSmsGroup(message, nextMessage)
                   const branchLabel = getSaturnBranchLabel(getSaturnBusinessNumberFromSmsMessage(message))
                   const isWhatsApp = message.twilio_sid?.startsWith('WA') ?? false
 
                   return (
-                    <div key={message.id} className={`flex flex-col ${isOutbound ? 'items-end' : 'items-start'}`}>
+                    <div key={message.id} className={`flex flex-col ${isOutbound ? 'items-end' : 'items-start'} ${index === 0 ? '' : groupedWithPrevious ? 'mt-1' : 'mt-6'}`}>
                       <div
-                        className="max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words"
+                        className={`max-w-[min(78%,640px)] px-4 py-3 text-base leading-[1.5] whitespace-pre-wrap break-words shadow-sm lg:text-sm ${isOutbound ? `${groupedWithPrevious ? 'rounded-tr-md' : 'rounded-tr-[18px]'} ${groupedWithNext ? 'rounded-br-md' : 'rounded-br-[18px]'} rounded-l-[18px]` : `${groupedWithPrevious ? 'rounded-tl-md' : 'rounded-tl-[18px]'} ${groupedWithNext ? 'rounded-bl-md' : 'rounded-bl-[18px]'} rounded-r-[18px]`}`}
                         style={isOutbound
-                          ? { background: isWhatsApp ? '#25D366' : '#1a2744', color: 'white', borderBottomRightRadius: '4px' }
-                          : { background: 'white', color: '#1a2744', border: '1px solid #e5e7eb', borderBottomLeftRadius: '4px' }}
+                          ? { background: isWhatsApp ? '#25D366' : '#1a2744', color: 'white' }
+                          : { background: 'white', color: '#1a2744', border: '1px solid #e5e7eb' }}
                       >
                         {message.body}
                       </div>
@@ -337,14 +350,14 @@ export function LeadCommunicationsPanel({
                 <button
                   type="button"
                   onClick={() => onSmsChannelChange('sms')}
-                  className={`rounded-md px-2.5 py-1 text-[10px] font-semibold transition ${smsThread.channel === 'sms' ? 'bg-[#1a2744] text-white' : 'text-[var(--app-muted)]'}`}
+                  className={`min-h-9 rounded-md px-3 text-xs font-semibold transition ${smsThread.channel === 'sms' ? 'bg-[#1a2744] text-white' : 'text-[var(--app-muted)]'}`}
                 >
                   SMS
                 </button>
                 <button
                   type="button"
                   onClick={() => onSmsChannelChange('whatsapp')}
-                  className={`rounded-md px-2.5 py-1 text-[10px] font-semibold transition ${smsThread.channel === 'whatsapp' ? 'bg-[#25D366] text-white' : 'text-[var(--app-muted)]'}`}
+                  className={`min-h-9 rounded-md px-3 text-xs font-semibold transition ${smsThread.channel === 'whatsapp' ? 'bg-[#25D366] text-white' : 'text-[var(--app-muted)]'}`}
                 >
                   WhatsApp
                 </button>
@@ -366,7 +379,7 @@ export function LeadCommunicationsPanel({
                   placeholder={`Message ${lead.name?.split(' ')[0] || lead.phone}…`}
                   rows={1}
                   disabled={!canHandleCommunication || smsThread.sending}
-                  className="flex-1 resize-none rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2.5 text-sm text-[var(--app-ink)] placeholder:text-[var(--app-muted)] focus:outline-none focus:ring-1"
+                  className="min-h-12 flex-1 resize-none rounded-[18px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-3 text-base leading-[1.5] text-[var(--app-ink)] placeholder:text-[var(--app-muted)] focus:outline-none focus:ring-1 lg:text-sm"
                   style={{ maxHeight: '120px', overflowY: 'auto', ['--tw-ring-color' as string]: '#f5a623' }}
                   onInput={event => {
                     const field = event.currentTarget
@@ -383,7 +396,7 @@ export function LeadCommunicationsPanel({
               <button
                 disabled={!canHandleCommunication || smsThread.sending || !smsThread.input.trim() || smsThread.input.length > 1600}
                 onClick={onSmsSend}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white transition-opacity disabled:opacity-40"
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white transition-opacity disabled:opacity-40 lg:h-11 lg:w-11"
                 style={{ background: smsThread.sending ? '#ccc' : '#f5a623' }}
               >
                 {smsThread.sending ? (

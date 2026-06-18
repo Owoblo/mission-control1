@@ -401,6 +401,34 @@ function getContactPreview(contact: Contact) {
   return null
 }
 
+function isStackableMessage(touch?: Touch | null) {
+  if (!touch) return false
+  if (touch.channel === 'note' || touch.channel === 'appointment') return false
+  return touch.direction === 'inbound' || touch.direction === 'outbound'
+}
+
+function sameMessageGroup(current?: Touch | null, adjacent?: Touch | null) {
+  if (!isStackableMessage(current) || !isStackableMessage(adjacent)) return false
+  if (current?.direction !== adjacent?.direction) return false
+  const currentAt = current?.created_at ? new Date(current.created_at).getTime() : 0
+  const adjacentAt = adjacent?.created_at ? new Date(adjacent.created_at).getTime() : 0
+  if (!currentAt || !adjacentAt) return true
+  return Math.abs(adjacentAt - currentAt) < 10 * 60 * 1000
+}
+
+function formatPlaybookLabel(value?: string | null) {
+  return value ? value.replace(/_/g, ' ') : 'unknown'
+}
+
+function recommendedActionLabel(action?: string | null) {
+  if (action === 'send_package') return 'Send package'
+  if (action === 'schedule_delivery') return 'Schedule delivery'
+  if (action === 'book_meeting') return 'Book meeting'
+  if (action === 'mark_not_interested') return 'Mark not interested'
+  if (action === 'human_review') return 'Human review'
+  return 'Draft reply'
+}
+
 // ─── Small components ─────────────────────────────────────────────────────────
 
 function StageBadge({ stage }: { stage: string }) {
@@ -2588,13 +2616,13 @@ function PhoneTab({
             <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">{filterCounts.all}</span>
           </div>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search contacts…"
-            className="h-10 w-full rounded-full border border-slate-200 bg-slate-50 px-4 text-base text-[#1a2744] outline-none focus:border-[#1a2744] lg:h-9 lg:text-sm" />
+            className="h-12 w-full rounded-full border border-slate-200 bg-slate-50 px-4 text-base leading-6 text-[#1a2744] outline-none focus:border-[#1a2744] lg:h-10 lg:text-sm" />
           <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5">
             {INBOX_FILTERS.map(filter => (
               <button
                 key={filter.key}
                 onClick={() => setInboxFilter(filter.key)}
-                className={`h-7 shrink-0 rounded-full px-3 text-[11px] font-semibold transition ${inboxFilter === filter.key ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-semibold transition lg:min-h-8 lg:px-3 lg:text-[11px] ${inboxFilter === filter.key ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
               >
                 {filter.label}
               </button>
@@ -2608,7 +2636,7 @@ function PhoneTab({
             const p = getContactPreview(c)
             return (
               <button key={c.id} onClick={() => handleSelect(c.id)}
-                className={`w-full border-b border-slate-100 px-4 py-3.5 text-left transition hover:bg-slate-50 ${selectedId === c.id ? 'bg-[#1a2744]' : ''}`}>
+                className={`w-full border-b border-slate-100 px-4 py-4 text-left transition hover:bg-slate-50 lg:py-3.5 ${selectedId === c.id ? 'bg-[#1a2744]' : ''}`}>
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <span className={`truncate text-[15px] font-semibold ${selectedId === c.id ? 'text-white' : 'text-[#1a2744]'}`}>{c.name}</span>
@@ -2620,7 +2648,7 @@ function PhoneTab({
                   </div>
                 </div>
                 <div className={`mt-0.5 truncate text-xs ${selectedId === c.id ? 'text-white/70' : 'text-slate-400'}`}>{c.company ?? c.industry ?? c.city ?? '—'}</div>
-                {p?.body && <div className={`mt-1.5 line-clamp-2 text-[13px] leading-5 ${selectedId === c.id ? 'text-white/80' : 'text-slate-600'}`}>{truncateText(p.body, 150)}</div>}
+                {p?.body && <div className={`mt-1.5 line-clamp-2 text-sm leading-[1.5] lg:text-[13px] ${selectedId === c.id ? 'text-white/80' : 'text-slate-600'}`}>{truncateText(p.body, 150)}</div>}
                 <div className="mt-2 flex items-center gap-1.5 overflow-hidden">
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${selectedId === c.id ? 'bg-white/15 text-white/80' : 'bg-slate-100 text-slate-500'}`}>{sourceBadge(c)}</span>
                   <StageBadge stage={c.normalized_stage} />
@@ -2646,13 +2674,13 @@ function PhoneTab({
         <>
         <div className={`${mobileListOpen ? 'hidden lg:flex' : 'flex'} min-w-0 flex-1 flex-col bg-white`}>
           {/* Header */}
-          <div className="shrink-0 border-b border-slate-200 bg-white px-3 py-2 sm:px-5">
+          <div className="shrink-0 border-b border-slate-200 bg-white px-3 py-2.5 sm:px-5">
             <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2.5">
-              <button onClick={() => setMobileListOpen(true)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-2xl leading-none text-[#1a2744] lg:hidden">
+              <button onClick={() => setMobileListOpen(true)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-2xl leading-none text-[#1a2744] lg:hidden">
                 ‹
               </button>
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#1a2744] text-sm font-bold text-white">{selected.name.charAt(0)}</div>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#1a2744] text-sm font-bold text-white">{selected.name.charAt(0)}</div>
               <div className="min-w-0">
                 <div className="flex min-w-0 items-center gap-2">
                   <div className="truncate font-semibold text-[#1a2744]">{selected.name}</div>
@@ -2664,26 +2692,30 @@ function PhoneTab({
             <div className="flex shrink-0 items-center gap-2">
               {selected.phone && (
                 dialer.status === 'connected' ? (
-                  <button onClick={dialer.hangup} className="h-10 rounded-full bg-rose-500 px-4 text-sm font-semibold text-white">End</button>
+                  <button onClick={dialer.hangup} className="min-h-11 rounded-full bg-rose-500 px-5 text-sm font-semibold text-white lg:min-h-10">End</button>
                 ) : (
                   <button onClick={handleCall} disabled={dialer.status === 'connecting' || dialer.status === 'loading'}
-                    className="h-9 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50 disabled:opacity-50">
+                    className="min-h-11 rounded-full border border-slate-200 bg-white px-5 text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50 disabled:opacity-50 lg:min-h-10">
                     {dialer.status === 'connecting' || dialer.status === 'loading' ? 'Calling' : 'Call'}
                   </button>
                 )
               )}
-              <button onClick={() => onSelectContact(selected)} className="h-9 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50 xl:hidden">Info</button>
+              <button onClick={() => onSelectContact(selected)} className="min-h-11 rounded-full border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-600 hover:bg-slate-50 xl:hidden">Info</button>
             </div>
             </div>
           </div>
 
           {/* Thread */}
-          <div ref={threadRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-slate-50 px-3 py-5 sm:px-6">
+          <div ref={threadRef} className="min-h-0 flex-1 overflow-y-auto bg-slate-50 px-3 py-5 sm:px-6">
             {touchLoading && <div className="text-center text-xs text-slate-400 py-8">Loading…</div>}
             {!touchLoading && touches.length === 0 && <div className="text-center text-xs text-slate-400 py-8">No history yet.</div>}
             {(() => {
               const threadTouches = [...touches].reverse()
               return threadTouches.map((touch, touchIndex) => {
+              const previousTouch = threadTouches[touchIndex - 1]
+              const nextTouch = threadTouches[touchIndex + 1]
+              const groupedWithPrevious = sameMessageGroup(touch, previousTouch)
+              const groupedWithNext = sameMessageGroup(touch, nextTouch)
               const s = summarizeTouch(touch.channel, touch.direction, touch.notes)
               const touchMedia = getTouchMediaUrls(touch)
               const rawBubbleText = (s.body || '').replace(/\n?\[MMS:\s*[^\]]+\]/ig, '').trim()
@@ -2691,8 +2723,8 @@ function PhoneTab({
               const bubbleText = reaction ? '' : hasRichSmsArtifact(rawBubbleText) ? cleanRichSmsFallback(rawBubbleText) : rawBubbleText
               if (reaction) {
                 return (
-                  <div key={touch.id} className="flex justify-end">
-                    <div className="mr-10 flex max-w-[72%] items-center gap-2 rounded-full border border-rose-100 bg-white px-3 py-1.5 text-xs font-semibold text-[#1a2744] shadow-sm">
+                  <div key={touch.id} className={`flex justify-end ${touchIndex === 0 ? '' : groupedWithPrevious ? 'mt-1' : 'mt-6'}`}>
+                    <div className="mr-10 flex max-w-[min(78%,640px)] items-center gap-2 rounded-full border border-rose-100 bg-white px-3 py-2 text-xs font-semibold text-[#1a2744] shadow-sm">
                       <span className="flex h-6 w-6 items-center justify-center rounded-full bg-rose-50 text-sm text-rose-600">{reactionSymbol(reaction.kind)}</span>
                       <span className="truncate">{reaction.kind === 'loved' ? 'Loved' : reaction.kind} your SMS</span>
                     </div>
@@ -2701,19 +2733,19 @@ function PhoneTab({
               }
               if (touch.channel === 'note' || touch.channel === 'appointment') {
                 return (
-                  <div key={touch.id} className="flex justify-center">
-                    <div className="max-w-[82%] rounded-full bg-white/80 px-3 py-1.5 text-center text-[11px] font-medium text-slate-500 shadow-sm ring-1 ring-slate-200">
+                  <div key={touch.id} className={`flex justify-center ${touchIndex === 0 ? '' : 'mt-6'}`}>
+                    <div className="max-w-[min(82%,640px)] rounded-full bg-white/80 px-3 py-2 text-center text-xs font-medium leading-[1.5] text-slate-500 shadow-sm ring-1 ring-slate-200">
                       {s.label}: {truncateText(bubbleText || 'Updated', 120)}
                     </div>
                   </div>
                 )
               }
               return (
-                <div key={touch.id} className={`flex gap-3 ${touch.direction === 'outbound' ? 'flex-row-reverse' : ''}`}>
-                  <div className={`hidden h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm sm:flex ${touch.direction === 'outbound' ? 'bg-[#1a2744]' : 'bg-white border border-slate-200'}`}>
+                <div key={touch.id} className={`flex gap-3 ${touch.direction === 'outbound' ? 'flex-row-reverse' : ''} ${touchIndex === 0 ? '' : groupedWithPrevious ? 'mt-1' : 'mt-6'}`}>
+                  <div className={`hidden h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm sm:flex ${groupedWithPrevious ? 'invisible' : ''} ${touch.direction === 'outbound' ? 'bg-[#1a2744]' : 'bg-white border border-slate-200'}`}>
                     <ChannelIcon channel={touch.channel} direction={touch.direction} />
                   </div>
-                  <div className={`max-w-[88%] rounded-[20px] px-4 py-3 text-[15px] shadow-sm sm:max-w-[72%] sm:text-[15px] ${touch.direction === 'outbound' ? 'rounded-br-[5px] bg-[#1a2744] text-white' : 'rounded-bl-[5px] bg-white text-[#1a2744]'}`}>
+                  <div className={`max-w-[min(78%,640px)] px-4 py-3 text-base leading-[1.5] shadow-sm lg:text-[15px] ${touch.direction === 'outbound' ? 'bg-[#1a2744] text-white' : 'border border-slate-200 bg-white text-[#1a2744]'} ${touch.direction === 'outbound' ? `${groupedWithPrevious ? 'rounded-tr-md' : 'rounded-tr-[18px]'} ${groupedWithNext ? 'rounded-br-md' : 'rounded-br-[18px]'} rounded-l-[18px]` : `${groupedWithPrevious ? 'rounded-tl-md' : 'rounded-tl-[18px]'} ${groupedWithNext ? 'rounded-bl-md' : 'rounded-bl-[18px]'} rounded-r-[18px]`}`}>
                     <div className={`mb-1 flex items-center gap-2 text-[10px] font-semibold ${touch.direction === 'outbound' ? 'text-white/70' : 'text-slate-400'}`}>
                       {s.label}
                       {s.auto && <span className={`rounded-full px-1.5 py-0.5 text-[9px] ${touch.direction === 'outbound' ? 'bg-white/15 text-white/90' : 'bg-slate-100 text-slate-500'}`}>Auto</span>}
@@ -2741,7 +2773,7 @@ function PhoneTab({
           </div>
 
           {/* Compose */}
-          <div className="shrink-0 border-t border-slate-200 bg-white px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-5">
+          <div className="shrink-0 border-t border-slate-200 bg-white px-3 py-3 pb-[max(1rem,calc(env(safe-area-inset-bottom)+0.75rem))] sm:px-5">
             {actionPanelOpen && (
               <div className="mb-2 rounded-[18px] border border-slate-200 bg-slate-50 p-2 xl:hidden">
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -2751,7 +2783,7 @@ function PhoneTab({
                       setSheetUpdateOpen(true)
                     }}
                     disabled={sheetUpdating}
-                    className="min-h-10 rounded-full border border-[#1a2744] bg-[#1a2744] px-3 text-xs font-semibold text-white transition hover:bg-[#243560] disabled:opacity-50"
+                    className="min-h-11 rounded-full border border-[#1a2744] bg-[#1a2744] px-4 text-sm font-semibold text-white transition hover:bg-[#243560] disabled:opacity-50"
                   >
                     Update sheet
                   </button>
@@ -2760,7 +2792,7 @@ function PhoneTab({
                       key={action.key}
                       onClick={() => handleQuickAction(action.key)}
                       disabled={quickActionSaving !== null}
-                      className={`min-h-10 rounded-full border px-3 text-xs font-semibold transition disabled:opacity-50 ${quickActionClass(action.tone, quickActionSaving === action.key)}`}
+                      className={`min-h-11 rounded-full border px-4 text-sm font-semibold transition disabled:opacity-50 ${quickActionClass(action.tone, quickActionSaving === action.key)}`}
                     >
                       {quickActionSaving === action.key ? 'Saving...' : action.label}
                     </button>
@@ -2768,7 +2800,7 @@ function PhoneTab({
                   <button
                     onClick={handleDeleteContact}
                     disabled={deletingContact}
-                    className="min-h-10 rounded-full border border-rose-200 bg-rose-50 px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-50"
+                    className="min-h-11 rounded-full border border-rose-200 bg-rose-50 px-4 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-50"
                   >
                     {deletingContact ? 'Deleting...' : 'Delete'}
                   </button>
@@ -2778,16 +2810,21 @@ function PhoneTab({
             {(aiSuggestion || selected.playbook) && (() => {
               const suggestion = aiSuggestion || selected.playbook!
               return (
-              <div className="mb-2 rounded-[16px] border border-emerald-200 bg-emerald-50 px-3 py-2">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="text-xs font-semibold text-emerald-900">
-                    {suggestion.intent.replace(/_/g, ' ')} · {suggestion.recommended_action.replace(/_/g, ' ')} · {Math.round(suggestion.confidence * 100)}%
+              <div className="mb-3 rounded-[18px] border border-emerald-200 bg-emerald-50 px-4 py-3 shadow-sm">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold leading-[1.5] text-emerald-950">
+                      {recommendedActionLabel(suggestion.recommended_action)}
+                    </div>
+                    <div className="mt-0.5 text-xs font-semibold leading-[1.5] text-emerald-800">
+                      {formatPlaybookLabel(suggestion.intent)} · {Math.round(suggestion.confidence * 100)}% confidence
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex shrink-0 items-center gap-2">
                     {!aiSuggestion && (
                       <button
                         onClick={() => applySuggestion(suggestion)}
-                        className="h-7 rounded-full border border-emerald-300 bg-white px-3 text-[11px] font-semibold text-emerald-800"
+                        className="min-h-11 rounded-full border border-emerald-300 bg-white px-4 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 lg:min-h-9 lg:text-xs"
                       >
                         Use draft
                       </button>
@@ -2796,26 +2833,26 @@ function PhoneTab({
                       <button
                         onClick={() => handleQuickAction(suggestion.quick_action!)}
                         disabled={quickActionSaving !== null}
-                        className="h-7 rounded-full border border-emerald-300 bg-white px-3 text-[11px] font-semibold text-emerald-800 disabled:opacity-50"
+                        className="min-h-11 rounded-full border border-emerald-300 bg-white px-4 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 disabled:opacity-50 lg:min-h-9 lg:text-xs"
                       >
-                        Log {suggestion.quick_action.replace(/_/g, ' ')}
+                        Log {formatPlaybookLabel(suggestion.quick_action)}
                       </button>
                     )}
                   </div>
                 </div>
-                <div className="mt-1 flex flex-wrap gap-1.5 text-[10px] font-semibold text-emerald-800">
-                  <span className="rounded-full bg-white/70 px-2 py-0.5">Package: {suggestion.goal_state.digital_package.replace(/_/g, ' ')}</span>
-                  <span className="rounded-full bg-white/70 px-2 py-0.5">Delivery: {suggestion.goal_state.physical_delivery.replace(/_/g, ' ')}</span>
-                  <span className="rounded-full bg-white/70 px-2 py-0.5">Referral: {suggestion.goal_state.referral_program.replace(/_/g, ' ')}</span>
-                  <span className="rounded-full bg-white/70 px-2 py-0.5">Meeting: {suggestion.goal_state.meeting.replace(/_/g, ' ')}</span>
+                <div className="mt-3 flex flex-wrap gap-1.5 text-xs font-semibold leading-[1.5] text-emerald-800">
+                  <span className="rounded-full bg-white/70 px-2.5 py-1">Package: {formatPlaybookLabel(suggestion.goal_state.digital_package)}</span>
+                  <span className="rounded-full bg-white/70 px-2.5 py-1">Delivery: {formatPlaybookLabel(suggestion.goal_state.physical_delivery)}</span>
+                  <span className="rounded-full bg-white/70 px-2.5 py-1">Referral: {formatPlaybookLabel(suggestion.goal_state.referral_program)}</span>
+                  <span className="rounded-full bg-white/70 px-2.5 py-1">Meeting: {formatPlaybookLabel(suggestion.goal_state.meeting)}</span>
                 </div>
                 {suggestion.draft_sms && !aiSuggestion && (
-                  <div className="mt-1.5 rounded-[12px] bg-white/75 px-3 py-2 text-xs leading-5 text-emerald-950">
+                  <div className="mt-3 rounded-[14px] bg-white/80 px-4 py-3 text-sm leading-[1.5] text-emerald-950">
                     {suggestion.draft_sms}
                   </div>
                 )}
                 {(suggestion.extracted.email || suggestion.extracted.address || suggestion.extracted.time_window || suggestion.risk_flags.length > 0) && (
-                  <div className="mt-1.5 text-[11px] leading-4 text-emerald-900">
+                  <div className="mt-2 text-xs leading-[1.5] text-emerald-900">
                     {[
                       suggestion.extracted.email ? `Email: ${suggestion.extracted.email}` : '',
                       suggestion.extracted.address ? `Address: ${suggestion.extracted.address}` : '',
@@ -2828,27 +2865,27 @@ function PhoneTab({
               </div>
               )
             })()}
-            <div className="mb-1.5 flex items-center gap-1.5 overflow-x-auto">
+            <div className="mb-2 flex items-center gap-2 overflow-x-auto">
               <button
                 onClick={() => void handleAiReply()}
                 disabled={aiReplyLoading}
-                className="h-7 shrink-0 rounded-full bg-emerald-600 px-3 text-[11px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+                className="min-h-11 shrink-0 rounded-full bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50 lg:min-h-8 lg:text-xs"
               >
                 {aiReplyLoading ? 'Drafting...' : 'Smart draft'}
               </button>
-              <button onClick={() => setComposeChannel('sms')} className={`h-7 shrink-0 rounded-full px-3 text-[11px] font-semibold transition ${composeChannel === 'sms' ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+              <button onClick={() => setComposeChannel('sms')} className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-semibold transition lg:min-h-8 lg:text-xs ${composeChannel === 'sms' ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
                 SMS {!selected.phone && <span className="ml-1 text-red-400">no #</span>}
               </button>
-              <button onClick={() => setComposeChannel('email')} className={`h-7 shrink-0 rounded-full px-3 text-[11px] font-semibold transition ${composeChannel === 'email' ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+              <button onClick={() => setComposeChannel('email')} className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-semibold transition lg:min-h-8 lg:text-xs ${composeChannel === 'email' ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
                 Email {!selected.email && <span className="ml-1 text-red-400">no email</span>}
               </button>
               <button
                 onClick={() => setActionPanelOpen(open => !open)}
-                className={`h-7 shrink-0 rounded-full px-3 text-[11px] font-semibold transition xl:hidden ${actionPanelOpen ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-semibold transition xl:hidden ${actionPanelOpen ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
               >
                 Log
               </button>
-              <button onClick={() => onSelectContact(selected)} className="h-7 shrink-0 rounded-full bg-slate-100 px-3 text-[11px] font-semibold text-slate-600 hover:bg-slate-200 xl:hidden">
+              <button onClick={() => onSelectContact(selected)} className="min-h-11 shrink-0 rounded-full bg-slate-100 px-4 text-sm font-semibold text-slate-600 hover:bg-slate-200 xl:hidden">
                 Details
               </button>
             </div>
@@ -2872,11 +2909,11 @@ function PhoneTab({
               </div>
             )}
             {composeChannel === 'sms' ? (
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
                   <button
                     onClick={() => setScheduleMode(current => !current)}
-                    className={`h-7 rounded-full border px-3 text-[11px] font-semibold transition ${scheduleMode ? 'border-[#1a2744] bg-[#1a2744] text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+                    className={`min-h-11 rounded-full border px-4 text-sm font-semibold transition lg:min-h-8 lg:text-xs ${scheduleMode ? 'border-[#1a2744] bg-[#1a2744] text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
                   >
                     {scheduleMode ? 'Scheduled' : 'Schedule'}
                   </button>
@@ -2885,7 +2922,7 @@ function PhoneTab({
                       setScheduleMode(true)
                       setScheduledAt(defaultScheduledReplyTime(aiSuggestion || selected.playbook))
                     }}
-                    className="h-7 rounded-full border border-emerald-200 bg-emerald-50 px-3 text-[11px] font-semibold text-emerald-800 transition hover:bg-emerald-100"
+                    className="min-h-11 rounded-full border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 lg:min-h-8 lg:text-xs"
                   >
                     Human timing
                   </button>
@@ -2894,7 +2931,7 @@ function PhoneTab({
                       type="datetime-local"
                       value={scheduledAt}
                       onChange={e => setScheduledAt(e.target.value)}
-                      className="h-7 min-w-0 flex-1 rounded-full border border-slate-200 bg-slate-50 px-3 text-[11px] font-semibold text-[#1a2744] outline-none focus:border-[#1a2744]"
+                      className="min-h-11 min-w-0 flex-1 rounded-full border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-[#1a2744] outline-none focus:border-[#1a2744] lg:min-h-8 lg:text-xs"
                     />
                   )}
                 </div>
@@ -2910,26 +2947,26 @@ function PhoneTab({
                   <button
                     onClick={() => mediaInputRef.current?.click()}
                     disabled={mediaUploading}
-                    className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-xl text-slate-500 disabled:opacity-50 sm:h-11 sm:w-11"
+                    className="mb-0.5 flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-xl text-slate-500 disabled:opacity-50 lg:h-11 lg:w-11"
                     title="Attach file"
                   >
                     {mediaUploading ? '…' : '+'}
                   </button>
                   <textarea value={smsBody} onChange={e => setSmsBody(e.target.value)} rows={3} placeholder={selected.phone ? 'Type SMS…' : 'No phone'} disabled={!selected.phone}
-                    className="max-h-36 min-h-[84px] flex-1 resize-y rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-base leading-6 text-[#1a2744] outline-none focus:border-[#1a2744] disabled:opacity-40 sm:text-sm" />
+                    className="max-h-36 min-h-[88px] flex-1 resize-y rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-base leading-[1.5] text-[#1a2744] outline-none focus:border-[#1a2744] disabled:opacity-40 lg:text-sm" />
                   <button onClick={handleSend} disabled={sending || mediaUploading || !selected.phone || (!smsBody.trim() && mediaUrls.length === 0) || (scheduleMode && !scheduledAt)}
-                    className="mb-0.5 h-10 rounded-full bg-[#1a2744] px-4 text-sm font-semibold text-white disabled:opacity-40 sm:h-11">{sending ? '…' : scheduleMode ? 'Schedule' : 'Send'}</button>
+                    className="mb-0.5 min-h-12 rounded-full bg-[#1a2744] px-5 text-sm font-semibold text-white disabled:opacity-40 lg:min-h-11">{sending ? '…' : scheduleMode ? 'Schedule' : 'Send'}</button>
                 </div>
               </div>
             ) : (
               <div className="space-y-2">
                 <input value={emailSubject} onChange={e => setEmailSubject(e.target.value)} placeholder="Subject"
-                  className="h-10 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 text-base text-[#1a2744] outline-none focus:border-[#1a2744] sm:text-sm" />
+                  className="min-h-12 w-full rounded-[14px] border border-slate-200 bg-slate-50 px-4 text-base leading-[1.5] text-[#1a2744] outline-none focus:border-[#1a2744] lg:min-h-10 lg:text-sm" />
                 <div className="flex gap-2">
                   <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={3} placeholder={selected.email ? 'Type email…' : 'No email'} disabled={!selected.email}
-                    className="flex-1 resize-none rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-2.5 text-base text-[#1a2744] outline-none focus:border-[#1a2744] disabled:opacity-40 sm:text-sm" />
+                    className="min-h-[88px] flex-1 resize-none rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-base leading-[1.5] text-[#1a2744] outline-none focus:border-[#1a2744] disabled:opacity-40 lg:text-sm" />
                   <button onClick={handleSend} disabled={sending || !selected.email || !emailBody.trim()}
-                    className="self-end rounded-[14px] bg-[#1a2744] px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">{sending ? '…' : 'Send'}</button>
+                    className="min-h-12 self-end rounded-full bg-[#1a2744] px-5 text-sm font-semibold text-white disabled:opacity-40 lg:min-h-11">{sending ? '…' : 'Send'}</button>
                 </div>
               </div>
             )}

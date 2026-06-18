@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { SalesHeader } from '@/app/components/sales-header'
 import { CrewHeader } from '@/app/components/crew-header'
+import { CRMAppFrame, CRMMainContent, CRMMainViewport, CRMViewport } from '@/app/components/crm-layout'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 
 const FloatingDialer = dynamic(
@@ -28,21 +29,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (pathname.startsWith('/sales') || pathname.startsWith('/admin') || pathname.startsWith('/marketing')) {
     return (
-      <div className="min-h-screen bg-[var(--app-bg)] lg:flex">
+      <CRMAppFrame>
         <SalesHeader />
-        <div className="min-w-0 flex-1">
-          <main className={partnershipInbox ? 'px-0 py-0 pb-0 md:px-8 md:py-8 md:pb-8 lg:px-8' : 'px-3 py-4 pb-24 md:px-8 md:py-8 md:pb-8 lg:px-8'}>
-            <div className={partnershipInbox ? 'mx-0 max-w-none md:mx-auto md:max-w-[1400px]' : 'mx-auto max-w-[1400px]'}>
+        <CRMMainViewport>
+          <CRMMainContent flush={partnershipInbox}>
+            <CRMViewport flush={partnershipInbox}>
               {children}
-            </div>
-          </main>
-        </div>
+            </CRMViewport>
+          </CRMMainContent>
+        </CRMMainViewport>
         {shouldMountDialer && (
           <div className={partnershipInbox ? 'hidden lg:block' : ''}>
             <FloatingDialer />
           </div>
         )}
-      </div>
+      </CRMAppFrame>
     )
   }
 
