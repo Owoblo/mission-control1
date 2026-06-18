@@ -240,6 +240,14 @@ function packagePermissionAsk(extracted: PartnershipAssistantResult['extracted']
   return `I can also send ${contents} here if that is okay.`
 }
 
+function localRepDropLine() {
+  return 'One of our local relationship reps can drop the postcards off.'
+}
+
+function localRepMeetingLine() {
+  return 'I can coordinate one of our local relationship reps to stop by.'
+}
+
 function draftFromRules(input: {
   contact: PartnershipAssistantContact
   touches: PartnershipAssistantTouch[]
@@ -274,13 +282,13 @@ function draftFromRules(input: {
     quick_action = 'not_interested'
   } else if (intent === 'asks_for_pricing') {
     draft = packageConfigured
-      ? `For sure ${name}. ${packageLine(config, extracted)} It has the general rate card and referral details in one place. What is the best address to drop the postcards at, and is there a good time this week?`
-      : `For sure ${name}. I can send over the rate card and referral details once I have the package link ready. What is the best address to drop the postcards at, and is there a good time this week?`
+      ? `For sure ${name}. ${packageLine(config, extracted)} It has the general rate card and referral details in one place. ${localRepDropLine()} What address and time work best?`
+      : `For sure ${name}. I can send over the rate card and referral details once I have the package link ready. ${localRepDropLine()} What address and time work best?`
     quick_action = 'drop_cards'
   } else if (intent === 'asks_referral_program') {
     draft = packageConfigured
-      ? `Yes, I can send the referral info over. ${packageLine(config, extracted)} What is the best address to drop the postcards at, and is there a good time that usually works for you?`
-      : 'Yes, I can send the referral info over. What is the best address to drop the postcards at, and is there a good time that usually works for you?'
+      ? `Yes, I can send the referral info over. ${packageLine(config, extracted)} ${localRepDropLine()} What address and time usually work for you?`
+      : `Yes, I can send the referral info over. ${localRepDropLine()} What address and time usually work for you?`
     quick_action = 'drop_cards'
   } else if (intent === 'asks_for_email') {
     const emailPhrase = extracted.email ? `I can send it to ${extracted.email}.` : 'Absolutely, what email should I send it to?'
@@ -303,27 +311,27 @@ function draftFromRules(input: {
     quick_action = 'needs_follow_up'
   } else if (intent === 'wants_meeting') {
     draft = extracted.time_window
-      ? `That works. We can meet around ${extracted.time_window}. What address should I come to? I can also send the digital package with your referral link here if that is okay.`
-      : 'That works. What time and address work best for you? I can also send the digital package with your referral link here if that is okay.'
+      ? `That works. ${localRepMeetingLine()} ${extracted.time_window} works on our side. What address should we use? I can also send the digital package here if that is okay.`
+      : `That works. ${localRepMeetingLine()} What time and address work best? I can also send the digital package here if that is okay.`
     recommended_action = extracted.time_window && extracted.address ? 'book_meeting' : 'draft_reply'
     quick_action = 'meeting_requested'
   } else if (intent === 'gives_address' || intent === 'gives_time_window' || intent === 'drop_by_anytime') {
     const addressPhrase = extracted.address ? `I have ${extracted.address}.` : 'What is the best address to use?'
-    const timePhrase = extracted.time_window ? `${extracted.time_window} works.` : 'Is there a time this week that is best, or should we just leave it at reception/front desk?'
-    draft = `Perfect, thank you. ${addressPhrase} ${timePhrase} ${packagePermissionAsk(extracted)}`
+    const timePhrase = extracted.time_window ? `${extracted.time_window} works.` : 'Is there a time this week that is best, or should our local team leave it at reception/front desk?'
+    draft = `Perfect, thank you. ${localRepDropLine()} ${addressPhrase} ${timePhrase} ${packagePermissionAsk(extracted)}`
     recommended_action = extracted.address || intent === 'drop_by_anytime' ? 'schedule_delivery' : 'draft_reply'
     quick_action = 'drop_cards'
   } else if (intent === 'warm_acknowledgement') {
-    draft = `Of course ${name}. Quick question so I send it to the right place: what is the best address for the postcards, and should we drop them at reception or is there a better time this week? I can also send your digital package here if that is okay.`
+    draft = `Of course ${name}. Quick question so our local team sends it to the right place: what is the best address for the postcards, and should we leave them at reception or come at a better time? I can also send your digital package here if that is okay.`
     recommended_action = 'draft_reply'
     quick_action = 'needs_follow_up'
   } else if (intent === 'postcard_yes' || intent === 'send_digital_package') {
     draft = intent === 'send_digital_package' && canSendPackageNow
-      ? `Perfect, thanks ${name}. ${packageLine(config, extracted)} What is the best address to drop the postcards at, and is there a good time this week?`
-      : `Perfect, thanks ${name}. What is the best address to drop the postcards at, and is there a good time this week? ${packagePermissionAsk(extracted)}`
+      ? `Perfect, thanks ${name}. ${packageLine(config, extracted)} ${localRepDropLine()} What address and time work best?`
+      : `Perfect, thanks ${name}. ${localRepDropLine()} What address and time work best? ${packagePermissionAsk(extracted)}`
     quick_action = 'drop_cards'
   } else {
-    draft = `Thanks ${name}. What is the best address to send the postcards to, and is there a good time this week? I can also send the digital package with your referral link here if that is okay.`
+    draft = `Thanks ${name}. ${localRepDropLine()} What address and time work best? I can also send the digital package with your referral link here if that is okay.`
     risk_flags.push('needs_context_review')
     quick_action = 'needs_follow_up'
   }
@@ -446,6 +454,8 @@ async function refineWithOpenAi(input: {
               'Use only provided facts and allowed links. Do not invent prices, referral percentages, service areas, names, meetings, deliveries, or sent status.',
               'Primary goal: answer the partner, then move toward the right next touchpoint: requested media/package, email forwarding info, delivery address/time, or meeting logistics.',
               'If they ask for a card, flyer, photo, picture, or something to send clients, answer that directly before asking any postcard logistics question.',
+              'For in-person meetings or postcard drop-offs, never imply the named sender will personally visit. Say one of our local relationship reps, someone from our local team, or our team can stop by/drop it at reception.',
+              'If they ask whether the named sender is coming personally, be transparent that the sender may not be the one stopping by but can coordinate someone local. Do not invent a specific rep name.',
               input.canSendPackageNow
                 ? 'The partner has requested or permitted package/media, so an allowed package link or media URL may be included if useful.'
                 : 'The partner has not requested or permitted the digital package link yet. Do not include any URL or media. Ask if it is okay to send the digital package/referral link here.',

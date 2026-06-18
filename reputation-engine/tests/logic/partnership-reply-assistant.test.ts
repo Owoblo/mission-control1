@@ -77,3 +77,47 @@ test('partnership assistant treats card or picture requests as media permission'
   assert.match(result.draft_sms, /text.*over|text.*card|card\/flyer/i)
   assert.deepEqual(result.suggested_media_urls, ['https://starmovers.ca/partner/flyers/windsor.pdf'])
 })
+
+test('partnership assistant handles digital card only replies without pushing office drop off', async () => {
+  process.env.PARTNERSHIP_DIGITAL_PACKAGE_URL = 'https://starmovers.ca/partner/simon-tan-windsor'
+  process.env.PARTNERSHIP_FLYER_IMAGE_URL = 'https://starmovers.ca/partner/flyers/windsor.pdf'
+  delete process.env.OPENAI_API_KEY
+
+  const result = await suggestPartnershipReply({
+    contact: { ...contact, name: 'Simon Tan', phone: '+15199715971' },
+    touches: inbound("Thank you for the information, I don't go to the office very often, you can just send me your business card through this number. I will contact you when I need."),
+  })
+
+  assert.equal(result.intent, 'send_card_or_flyer_media')
+  assert.equal(result.recommended_action, 'send_package')
+  assert.equal(result.goal_state.physical_delivery, 'not_needed')
+  assert.match(result.draft_sms, /card|flyer/i)
+  assert.doesNotMatch(result.draft_sms, /best address|drop.*postcard|office/i)
+})
+
+test('partnership assistant routes meeting requests through local relationship reps', async () => {
+  delete process.env.OPENAI_API_KEY
+
+  const result = await suggestPartnershipReply({
+    contact,
+    touches: inbound('Can you come by Tuesday afternoon to meet?'),
+  })
+
+  assert.equal(result.intent, 'wants_meeting')
+  assert.equal(result.quick_action, 'meeting_requested')
+  assert.match(result.draft_sms, /local relationship rep|local team|someone from our/i)
+  assert.doesNotMatch(result.draft_sms, /address should I come to|I can come|I'll come|I will come/i)
+})
+
+test('partnership assistant uses local team language for postcard drop offs', async () => {
+  delete process.env.OPENAI_API_KEY
+
+  const result = await suggestPartnershipReply({
+    contact,
+    touches: inbound('Sure, you can drop postcards off anytime.'),
+  })
+
+  assert.equal(result.quick_action, 'drop_cards')
+  assert.match(result.draft_sms, /local team|local relationship reps|someone from our/i)
+  assert.doesNotMatch(result.draft_sms, /I can drop|I'll drop|I will drop/i)
+})
