@@ -71,6 +71,36 @@ function titleCase(value = '') {
     .join(' ')
 }
 
+function referralNameParts(code = '') {
+  const ignored = new Set([
+    'remax', 'royal', 'lepage', 'century', 'kw', 'keller', 'williams', 'realty', 'realtor', 'broker', 'team', 'group', 'inc',
+    'windsor', 'essex', 'lasalle', 'tecumseh', 'london', 'kitchener', 'waterloo', 'cambridge', 'guelph', 'chatham',
+  ])
+  const words = String(code || '')
+    .split(/[-_\s]+/)
+    .map(word => word.trim().replace(/[^a-z0-9]/gi, ''))
+    .filter(word => word && !ignored.has(word.toLowerCase()))
+  return {
+    first: words[0] || 'star',
+    last: words[1] || '',
+  }
+}
+
+function shortMarketCode(code = '') {
+  if (/\blondon\b/i.test(code)) return 'LD'
+  if (/\b(kitchener|waterloo|cambridge|kw)\b/i.test(code)) return 'KW'
+  if (/\bguelph\b/i.test(code)) return 'GU'
+  if (/\b(chatham)\b/i.test(code)) return 'CH'
+  if (/\b(windsor|essex|lasalle|tecumseh)\b/i.test(code)) return 'WI'
+  return 'SS'
+}
+
+function readableReferralCode(code = '') {
+  const { first, last } = referralNameParts(code)
+  const namePart = `${first.slice(0, 4)}${last ? last[0] : ''}`.toUpperCase()
+  return `${namePart}${shortMarketCode(code)}`.replace(/[^A-Z0-9]/g, '').slice(0, 8)
+}
+
 function partnerFromCode(code) {
   const clean = String(code || 'partner')
     .toLowerCase()
@@ -82,6 +112,7 @@ function partnerFromCode(code) {
     code: clean,
     name: label === 'Partner' ? 'Partner' : label,
     displayName: label === 'Partner' ? 'your team' : label,
+    shortCode: readableReferralCode(clean),
   }
 }
 
@@ -138,13 +169,16 @@ async function handleReferral(request, env, partner, market) {
   const moveSize = String(body.move_size || '').trim()
   const note = String(body.notes || '').trim()
   const partnerName = String(body.partner_name || partner.name || '').trim()
+  const partnerCode = String(body.partner_code || partner.shortCode || partner.code).trim()
+  const partnerSlug = String(body.partner_slug || partner.code).trim()
 
   if (!name && !phone && !email) {
     return json({ error: 'Please include a client name, phone, or email.' }, 400)
   }
 
   const payload = {
-    partner_code: partner.code,
+    partner_code: partnerCode,
+    partner_slug: partnerSlug,
     partner_name: partnerName,
     market: market?.key || String(body.market || '').trim(),
     client_name: name,
@@ -185,7 +219,7 @@ function renderPage(request, env, partner, market) {
   const url = new URL(request.url)
   const origin = `${url.protocol}//${url.host}`
   const packageUrl = `${origin}/partner/${partner.code}?city=${encodeURIComponent(market.key)}`
-  const clientQuoteUrl = `${origin}/quote?ref=${encodeURIComponent(partner.code)}&market=${encodeURIComponent(market.key)}`
+  const clientQuoteUrl = `${origin}/quote?ref=${encodeURIComponent(partner.shortCode)}&partner=${encodeURIComponent(partner.code)}&market=${encodeURIComponent(market.key)}`
   const phone = market.phone || env.PUBLIC_PHONE || '226-773-2993'
   const email = env.PUBLIC_EMAIL || 'business@starmovers.ca'
   const title = `${partner.name} Referral Package | Saturn Star Movers`
@@ -228,7 +262,7 @@ function renderPage(request, env, partner, market) {
         </div>
         <aside class="package-card">
           <h3>Your referral code</h3>
-          <code>${escapeHtml(partner.code.toUpperCase())}</code>
+          <code>${escapeHtml(partner.shortCode)}</code>
           <p class="mini">Clients can use this link or mention your name/code when they call or text our ${escapeHtml(market.baseCity)} line.</p>
           <code>${escapeHtml(packageUrl)}</code>
         </aside>
@@ -278,9 +312,10 @@ function renderPage(request, env, partner, market) {
     <section class="section-alt" id="refer">
       <div class="wrap">
         <h2>Submit a client referral</h2>
-        <p class="sub">Add the client here, or have them use the quote link. Either way, use referral code <strong>${escapeHtml(partner.code.toUpperCase())}</strong> and the ${escapeHtml(market.baseCity)} market.</p>
+        <p class="sub">Add the client here, or have them use the quote link. Either way, use referral code <strong>${escapeHtml(partner.shortCode)}</strong> and the ${escapeHtml(market.baseCity)} market.</p>
         <form class="card form" id="referral-form">
-          <input type="hidden" name="partner_code" value="${escapeHtml(partner.code)}">
+          <input type="hidden" name="partner_code" value="${escapeHtml(partner.shortCode)}">
+          <input type="hidden" name="partner_slug" value="${escapeHtml(partner.code)}">
           <input type="hidden" name="partner_name" value="${escapeHtml(partner.name)}">
           <input type="hidden" name="market" value="${escapeHtml(market.key)}">
           <div class="field"><label>Client name</label><input name="client_name" autocomplete="name"></div>
@@ -296,7 +331,7 @@ function renderPage(request, env, partner, market) {
     <section>
       <div class="wrap grid">
         <div class="card"><h3>Client quote link</h3><p><a href="${escapeHtml(clientQuoteUrl)}">${escapeHtml(clientQuoteUrl)}</a></p></div>
-        <div class="card"><h3>${escapeHtml(market.baseCity)} call or text</h3><p><a href="tel:+1${phone.replace(/\\D/g, '')}">${escapeHtml(phone)}</a></p><p class="mini">Tell clients to mention ${escapeHtml(partner.name)} or code ${escapeHtml(partner.code.toUpperCase())}.</p></div>
+        <div class="card"><h3>${escapeHtml(market.baseCity)} call or text</h3><p><a href="tel:+1${phone.replace(/\\D/g, '')}">${escapeHtml(phone)}</a></p><p class="mini">Tell clients to mention ${escapeHtml(partner.name)} or code ${escapeHtml(partner.shortCode)}.</p></div>
         <div class="card"><h3>Postcards</h3><p>Need more cards or want us to stop by your office? Text/call us and we will coordinate a drop-off.</p></div>
       </div>
     </section>
@@ -332,8 +367,10 @@ function renderPage(request, env, partner, market) {
 function renderQuotePage(request, env) {
   const url = new URL(request.url)
   const ref = String(url.searchParams.get('ref') || 'partner')
-  const partner = partnerFromCode(ref)
-  const market = detectMarket(url, ref)
+  const partnerSlug = String(url.searchParams.get('partner') || ref)
+  const partner = partnerFromCode(partnerSlug)
+  const referralCode = ref === 'partner' ? partner.shortCode : ref.toUpperCase()
+  const market = detectMarket(url, partnerSlug)
   const phone = market.phone || env.PUBLIC_PHONE || '226-773-2993'
   const email = env.PUBLIC_EMAIL || 'business@starmovers.ca'
   const packageUrl = `${url.protocol}//${url.host}/partner/${partner.code}?city=${encodeURIComponent(market.key)}`
@@ -360,11 +397,12 @@ function renderQuotePage(request, env) {
     <div class="eyebrow">${escapeHtml(market.label)} referral quote</div>
     <h1>Get a moving quote from Saturn Star Movers.</h1>
     <p class="lead">You were referred by ${escapeHtml(partner.name)}. Send a few details and our ${escapeHtml(market.baseCity)} team will follow up with a quote.</p>
-    <div class="meta"><span class="pill">Referral code: ${escapeHtml(partner.code.toUpperCase())}</span><span class="pill">${escapeHtml(market.label)}</span></div>
+    <div class="meta"><span class="pill">Referral code: ${escapeHtml(referralCode)}</span><span class="pill">${escapeHtml(market.label)}</span></div>
   </div></section>
   <main class="wrap">
     <form class="card form" id="quote-form">
-      <input type="hidden" name="partner_code" value="${escapeHtml(partner.code)}">
+      <input type="hidden" name="partner_code" value="${escapeHtml(referralCode)}">
+      <input type="hidden" name="partner_slug" value="${escapeHtml(partner.code)}">
       <input type="hidden" name="partner_name" value="${escapeHtml(partner.name)}">
       <input type="hidden" name="market" value="${escapeHtml(market.key)}">
       <div class="field"><label>Your name</label><input name="client_name" autocomplete="name" required></div>
@@ -374,7 +412,7 @@ function renderQuotePage(request, env) {
       <div class="field"><label>Moving from</label><input name="moving_from" autocomplete="street-address"></div>
       <div class="field"><label>Moving to</label><input name="moving_to"></div>
       <div class="field full"><label>Move details</label><textarea name="notes" placeholder="Home size, apartment/house, stairs/elevator, packing, large items, destination city..."></textarea></div>
-      <div class="field full"><button class="btn" type="submit">Request quote</button><div class="success" id="success">Quote request received.</div><p class="mini">Prefer to call/text? Use ${escapeHtml(phone)} and mention ${escapeHtml(partner.name)} or code ${escapeHtml(partner.code.toUpperCase())}. Partner package: <a href="${escapeHtml(packageUrl)}">${escapeHtml(packageUrl)}</a></p></div>
+      <div class="field full"><button class="btn" type="submit">Request quote</button><div class="success" id="success">Quote request received.</div><p class="mini">Prefer to call/text? Use ${escapeHtml(phone)} and mention ${escapeHtml(partner.name)} or code ${escapeHtml(referralCode)}. Partner package: <a href="${escapeHtml(packageUrl)}">${escapeHtml(packageUrl)}</a></p></div>
     </form>
   </main>
   <footer class="wrap footer">Saturn Star Movers · <a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a> · <a href="tel:+1${phone.replace(/\\D/g, '')}">${escapeHtml(phone)}</a></footer>

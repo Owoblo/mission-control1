@@ -73,6 +73,7 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => ({})) as Record<string, unknown>
   const partnerCode = clean(body.partner_code || body.partnerCode).toLowerCase()
+  const partnerSlug = clean(body.partner_slug || body.partnerSlug).toLowerCase()
   const partnerName = clean(body.partner_name || body.partnerName || partnerCode || 'Partner')
   const market = normalizeMarket(body.market || body.partner_market || body.partnerMarket)
   const customerName = clean(body.client_name || body.customer_name || body.name)
@@ -100,6 +101,7 @@ export async function POST(request: Request) {
   const branch = branchFromInput({ market, originCity: movingFrom, destCity: movingTo, address: movingFrom })
   const message = [
     `Partner referral code: ${partnerCode}`,
+    partnerSlug && partnerSlug !== partnerCode ? `Partner slug: ${partnerSlug}` : '',
     `Partner: ${partnerName}`,
     market ? `Market: ${market}` : '',
     movingFrom ? `Moving from: ${movingFrom}` : '',
@@ -113,6 +115,8 @@ export async function POST(request: Request) {
     channel: 'partner_referral_package',
     referral_partner_code: partnerCode,
     referralPartnerCode: partnerCode,
+    referral_partner_slug: partnerSlug || null,
+    referralPartnerSlug: partnerSlug || null,
     referral_partner_name: partnerName,
     referralPartnerName: partnerName,
     referral_partner_market: market || null,
@@ -163,16 +167,19 @@ export async function POST(request: Request) {
     referralPartnerId: partnerCode,
     referralPartnerName: partnerName,
     referralPartnerCode: partnerCode,
+    referralPartnerSlug: partnerSlug || undefined,
     referralPartnerMarket: market || undefined,
     attribution: {
       source: 'partner_referral',
       partnerCode,
+      partnerSlug: partnerSlug || undefined,
       partnerName,
       market: market || undefined,
       sourceUrl: sourceUrl || undefined,
     },
     notes: [
       `Referral partner: ${partnerName} (${partnerCode})`,
+      partnerSlug && partnerSlug !== partnerCode ? `Partner slug: ${partnerSlug}` : '',
       market ? `Market: ${market}` : '',
       moveSize ? `Move size: ${moveSize}` : '',
       notes,

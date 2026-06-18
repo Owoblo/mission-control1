@@ -12,6 +12,7 @@ export type PartnershipReplyIntent =
   | 'wants_meeting'
   | 'gives_time_window'
   | 'gives_address'
+  | 'warm_acknowledgement'
   | 'positive_vague'
   | 'not_interested'
   | 'wrong_number'
@@ -212,6 +213,9 @@ function detectIntent(text: string, contact: PartnershipAssistantContact): { int
   if (/\b(meet|meeting|appointment|call me|give me a call|phone call|sit down|come by)\b/i.test(text)) return { intent: 'wants_meeting', confidence: 0.84, risk_flags }
   if (TIME_RE.test(text) && /\b(drop|stop|come|available|free|works|week|time|between)\b/i.test(text)) return { intent: 'gives_time_window', confidence: 0.82, risk_flags }
   if (/\b(drop by|stop by|drop off|leave (?:it|them)|mailbox|front desk|reception|secretary)\b/i.test(text)) return { intent: 'drop_by_anytime', confidence: 0.82, risk_flags }
+  if (/^(?:thanks?|thank you|appreciate it|sounds good|perfect|great|awesome|ok|okay|k)\.?$/i.test(text.trim()) || /\b(thanks?|thank you|appreciate it)\b/i.test(text)) {
+    return { intent: 'warm_acknowledgement', confidence: 0.7, risk_flags: [...risk_flags, 'soft_positive_acknowledgement'] }
+  }
   if (/\b(postcard|post card|card|cards|flyer|flyers|brochure|package|send.*info|sure|of course|ok|okay|yes|awesome|sounds good)\b/i.test(text)) return { intent: 'postcard_yes', confidence: 0.78, risk_flags }
   if (/\b(interested|tell me more|send|share|forward)\b/i.test(text)) return { intent: 'send_digital_package', confidence: 0.72, risk_flags }
   if (lower.length <= 24) risk_flags.push('short_or_ambiguous_reply')
@@ -298,6 +302,10 @@ function draftFromRules(input: {
     draft = `Perfect, thank you. ${addressPhrase} ${timePhrase} ${packagePermissionAsk(extracted)}`
     recommended_action = extracted.address || intent === 'drop_by_anytime' ? 'schedule_delivery' : 'draft_reply'
     quick_action = 'drop_cards'
+  } else if (intent === 'warm_acknowledgement') {
+    draft = `Of course ${name}. Quick question so I send it to the right place: what is the best address for the postcards, and should we drop them at reception or is there a better time this week? I can also send your digital package here if that is okay.`
+    recommended_action = 'draft_reply'
+    quick_action = 'needs_follow_up'
   } else if (intent === 'postcard_yes' || intent === 'send_digital_package') {
     draft = intent === 'send_digital_package' && canSendPackageNow
       ? `Perfect, thanks ${name}. ${packageLine(config, extracted)} What is the best address to drop the postcards at, and is there a good time this week?`
