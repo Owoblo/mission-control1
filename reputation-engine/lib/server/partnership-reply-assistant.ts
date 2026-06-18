@@ -5,6 +5,7 @@ export type PartnershipReplyIntent =
   | 'postcard_yes'
   | 'drop_by_anytime'
   | 'send_digital_package'
+  | 'digital_only_no_postcard'
   | 'asks_for_email'
   | 'asks_for_pricing'
   | 'asks_referral_program'
@@ -201,6 +202,9 @@ function detectIntent(text: string, contact: PartnershipAssistantContact): { int
   if (decision === 'opted_out' || isOptOutText(text)) return { intent: 'stop_opt_out', confidence: 0.98, risk_flags }
   if (/\b(wrong number|wrong person|not me|who is this)\b/i.test(text)) return { intent: 'wrong_number', confidence: 0.96, risk_flags }
   if (stage === 'closed_lost' || /\b(not interested|no thanks|no thank you|remove me|don't contact|do not contact)\b/i.test(text)) return { intent: 'not_interested', confidence: 0.92, risk_flags }
+  if (/\b(no|don'?t|do not|dont).{0,24}\b(postcard|post card|card|cards|flyer|flyers|mail|drop off|drop by)\b|\b(just|only).{0,18}\b(email|digital|link|info|information|package)\b/i.test(text)) {
+    return { intent: 'digital_only_no_postcard', confidence: 0.88, risk_flags }
+  }
   if (/\b(price|prices|pricing|rate|rates|charge|cost|fee)\b/i.test(text)) return { intent: 'asks_for_pricing', confidence: 0.88, risk_flags }
   if (/\b(referral|commission|incentive|program|kickback|paid)\b/i.test(text)) return { intent: 'asks_referral_program', confidence: 0.86, risk_flags }
   if (EMAIL_RE.test(text) || /\b(email|e-mail|send it over|send me.*link|website link)\b/i.test(text)) return { intent: 'asks_for_email', confidence: 0.86, risk_flags }
@@ -276,6 +280,12 @@ function draftFromRules(input: {
     draft = `${emailPhrase} I can also drop off the postcards so you have the physical copy. What is the best address and time for that?`
     recommended_action = extracted.email ? 'send_package' : 'draft_reply'
     quick_action = 'drop_cards'
+  } else if (intent === 'digital_only_no_postcard') {
+    draft = canSendPackageNow
+      ? `No problem ${name}, digital is perfectly fine. ${packageLine(config, extracted)} If anything comes up with a client, they can use your link or mention your name when they call.`
+      : `No problem ${name}, digital is perfectly fine. I can send the digital package with your referral link here if that is okay.`
+    recommended_action = canSendPackageNow ? 'send_package' : 'draft_reply'
+    quick_action = 'needs_follow_up'
   } else if (intent === 'wants_meeting') {
     draft = extracted.time_window
       ? `That works. We can meet around ${extracted.time_window}. What address should I come to? I can also send the digital package with your referral link here if that is okay.`
@@ -309,7 +319,7 @@ function draftFromRules(input: {
     ? 'ready_to_schedule'
     : extracted.address
       ? 'need_time'
-      : ['stop_opt_out', 'wrong_number', 'not_interested'].includes(intent)
+      : ['stop_opt_out', 'wrong_number', 'not_interested', 'digital_only_no_postcard'].includes(intent)
         ? 'not_needed'
         : 'need_address'
 
