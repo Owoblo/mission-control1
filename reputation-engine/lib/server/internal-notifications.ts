@@ -113,6 +113,7 @@ export function partnershipInboundNotificationEmail(options: {
   notes?: string | null
   phone?: string | null
   email?: string | null
+  mediaUrls?: string[]
 }) {
   const {
     contactId,
@@ -123,6 +124,7 @@ export function partnershipInboundNotificationEmail(options: {
     notes,
     phone,
     email,
+    mediaUrls = [],
   } = options
 
   const contactLabel = escapeHtml(contactName?.trim() || 'Unknown partner contact')
@@ -135,6 +137,9 @@ export function partnershipInboundNotificationEmail(options: {
       })
     : 'Just now'
   const crmLink = `https://go.quote2move.com/marketing/partners?tab=phone&contact=${encodeURIComponent(contactId)}`
+  const mediaLinks = mediaUrls
+    .map((url, index) => `<li><a href="${escapeHtml(url)}" style="color:#1a2744">${escapeHtml(`Attachment ${index + 1}`)}</a></li>`)
+    .join('')
 
   return `
 <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:24px">
@@ -150,6 +155,7 @@ export function partnershipInboundNotificationEmail(options: {
       <div><strong>Received:</strong> ${escapeHtml(occurredLabel)}</div>
     </div>
     <div style="margin-top:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;font-size:14px;color:#1a2744;white-space:pre-wrap">${detail}</div>
+    ${mediaLinks ? `<div style="margin-top:12px;font-size:13px;color:#1a2744"><strong>Media attached:</strong><ul style="margin:8px 0 0 18px;padding:0">${mediaLinks}</ul></div>` : ''}
     <div style="margin-top:16px">
       <a href="${crmLink}" style="background:#1a2744;color:#d7f5e6;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600">Open Partner Thread</a>
     </div>

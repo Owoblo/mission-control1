@@ -2133,9 +2133,11 @@ function sourceBadge(contact: Contact) {
 }
 
 function matchesInboxFilter(contact: Contact, filter: InboxFilter) {
+  const latestInbound = contact.latest_touch_direction === 'inbound'
+  const latestOutbound = contact.latest_touch_direction === 'outbound' || contact.latest_touch_direction === 'system'
   if (filter === 'all') return true
-  if (filter === 'unread') return contact.sequence_paused && !contact.decision
-  if (filter === 'open') return !contact.decision && contact.normalized_stage !== 'not_interested'
+  if (filter === 'unread') return latestInbound && !contact.decision
+  if (filter === 'open') return latestOutbound && !contact.decision && contact.normalized_stage !== 'not_interested'
   if (filter === 'follow_up') return contact.needs_follow_up || Boolean(contact.next_follow_up)
   if (filter === 'booked') return contact.decision === 'agreed' || contact.normalized_stage === 'partnership_active'
   if (filter === 'archived') return contact.decision === 'not_interested' || contact.normalized_stage === 'not_interested'
@@ -2198,10 +2200,10 @@ function PhoneTab({
   const sorted = useMemo(() => [...inboxContacts]
     .filter(c => matchesInboxFilter(c, inboxFilter))
     .sort((a, b) => {
-      const aNeeds = a.sequence_paused && !a.decision ? 1 : 0
-      const bNeeds = b.sequence_paused && !b.decision ? 1 : 0
+      const aNeeds = a.latest_touch_direction === 'inbound' && !a.decision ? 1 : 0
+      const bNeeds = b.latest_touch_direction === 'inbound' && !b.decision ? 1 : 0
       if (aNeeds !== bNeeds) return bNeeds - aNeeds
-      return (b.latest_inbound_at || b.last_touch_at || '').localeCompare(a.latest_inbound_at || a.last_touch_at || '')
+      return (b.last_touch_at || b.latest_inbound_at || '').localeCompare(a.last_touch_at || a.latest_inbound_at || '')
     })
     .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()) || (c.company ?? '').toLowerCase().includes(search.toLowerCase()) || (c.phone ?? '').includes(search)), [inboxContacts, inboxFilter, search])
 
@@ -2215,7 +2217,7 @@ function PhoneTab({
   const selected = inboxContacts.find(c => c.id === selectedId) ?? null
   const selectedFromQuery = searchParams.get('contact')
 
-  useEffect(() => {
+  const loadReplyContacts = useCallback(() => {
     let cancelled = false
     setReplyLoading(true)
     fetch('/api/marketing/sms/replies?limit=500&include_suggestions=1', { credentials: 'include' })
@@ -2227,6 +2229,8 @@ function PhoneTab({
       .finally(() => { if (!cancelled) setReplyLoading(false) })
     return () => { cancelled = true }
   }, [])
+
+  useEffect(() => loadReplyContacts(), [loadReplyContacts])
 
   useEffect(() => {
     if (selectedFromQuery && inboxContacts.some(c => c.id === selectedFromQuery)) {
@@ -2352,6 +2356,7 @@ function PhoneTab({
         setScheduleMode(false)
         setScheduledAt(defaultScheduledReplyTime())
         reloadTouches(selected.id)
+        loadReplyContacts()
         return
       }
 
@@ -2376,6 +2381,7 @@ function PhoneTab({
       setEmailBody('')
       setMediaUrls([])
       reloadTouches(selected.id)
+      loadReplyContacts()
     } catch { showToast('Send failed') }
     finally { setSending(false) }
   }

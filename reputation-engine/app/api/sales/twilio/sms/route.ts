@@ -178,7 +178,9 @@ export async function POST(request: Request) {
     const messageSid = (formData.get('MessageSid') ?? formData.get('SmsSid') ?? '').trim()
     const receivedAt = new Date().toISOString()
     const media = extractTwilioMedia(formData)
-    const messageText = body || (media.length > 0 ? `Inbound MMS (${media.length} attachment${media.length === 1 ? '' : 's'})` : '(no body)')
+    const mediaUrls = media.map(item => item.url).filter(Boolean)
+    const mediaNote = mediaUrls.length > 0 ? `\n[MMS: ${mediaUrls.join(', ')}]` : ''
+    const messageText = `${body || (media.length > 0 ? `Inbound MMS (${media.length} attachment${media.length === 1 ? '' : 's'})` : '(no body)')}${mediaNote}`.trim()
 
     // Strip WhatsApp prefix for phone matching — channel is detected from SID (WA=WhatsApp, SM=SMS)
     const from = stripTwilioChannelPrefix(rawFrom)
@@ -195,11 +197,14 @@ export async function POST(request: Request) {
         channel: 'sms',
         phone: normalized || from,
         occurredAt: receivedAt,
-        notes: body ? `Inbound SMS: ${body}` : 'Inbound SMS reply received',
+        notes: body ? `Inbound SMS: ${messageText}` : messageText,
         metadata: {
           from,
           to: toField,
           messageSid,
+          numMedia: media.length,
+          media: media.length > 0 ? media : undefined,
+          mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
         },
       }).catch(() => ({ matched: false as const }))
 

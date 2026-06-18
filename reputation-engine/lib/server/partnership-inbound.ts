@@ -106,6 +106,12 @@ function chooseBestMatch(matches: MarketContactMatch[]) {
   return matches[0] ?? null
 }
 
+function metadataMediaUrls(metadata?: Record<string, unknown>) {
+  const raw = metadata?.mediaUrls
+  if (!Array.isArray(raw)) return []
+  return raw.map(url => String(url || '').trim()).filter(Boolean).slice(0, 10)
+}
+
 export async function pausePartnershipSequenceForInbound(input: PausePartnershipSequenceInput) {
   const contact = await findPartnershipContactMatch(input)
   if (!contact) return { matched: false as const }
@@ -174,6 +180,7 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
       notes: input.notes,
       phone: contact.phone || input.phone || null,
       email: contact.email || input.email || null,
+      mediaUrls: metadataMediaUrls(input.metadata),
     }),
     getPartnershipAlertRecipients()
   )

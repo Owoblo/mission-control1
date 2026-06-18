@@ -53,6 +53,7 @@ function classifyReply(touch: MarketTouch, contact?: MarketContact | null) {
   const stage = normalizePartnershipStage(contact?.stage)
   const decision = String(contact?.decision || '').toLowerCase()
 
+  if (touch.direction !== 'inbound') return 'responded'
   if (decision === 'opted_out' || /(stop|unsubscribe|remove me|wrong number|do not text|don't text)/i.test(note)) {
     return 'opt_out'
   }
@@ -66,7 +67,7 @@ function classifyReply(touch: MarketTouch, contact?: MarketContact | null) {
   return contact?.sequence_paused && !contact?.decision ? 'needs_reply' : 'review'
 }
 
-function toContact(contact: MarketContact | null | undefined, latest: MarketTouch) {
+function toContact(contact: MarketContact | null | undefined, latest: MarketTouch, latestInbound?: MarketTouch | null) {
   if (!contact) return null
   const normalizedStage = normalizePartnershipStage(contact.stage)
   return {
@@ -95,8 +96,8 @@ function toContact(contact: MarketContact | null | undefined, latest: MarketTouc
     latest_touch_channel: latest.channel,
     latest_touch_direction: latest.direction,
     latest_touch_note: latest.notes,
-    latest_inbound_at: contact.last_inbound_at || latest.created_at,
-    latest_inbound_note: latest.notes,
+    latest_inbound_at: latestInbound?.created_at || contact.last_inbound_at || (latest.direction === 'inbound' ? latest.created_at : null),
+    latest_inbound_note: latestInbound?.notes || (latest.direction === 'inbound' ? latest.notes : null),
     outreach_tier: contact.outreach_tier,
     instantly_status: contact.instantly_status,
     instantly_campaign_id: contact.instantly_campaign_id,
@@ -119,23 +120,23 @@ export async function GET(request: Request) {
     ? `&channel=eq.${encodeURIComponent(channel)}`
     : '&channel=in.(sms,email,phone,call)'
 
-  const touchesRes = await fetch(
+  const inboundRes = await fetch(
     `${url}/rest/v1/market_touches?direction=eq.inbound${channelFilter}&select=id,contact_id,channel,direction,notes,created_by,created_at,outcome_code,next_step,metadata&order=created_at.desc&limit=${limit}`,
     { headers, cache: 'no-store' }
   )
 
-  if (!touchesRes.ok) {
+  if (!inboundRes.ok) {
     return NextResponse.json({ error: 'Failed to load replies' }, { status: 500 })
   }
 
-  const touches = (await touchesRes.json()) as MarketTouch[]
-  const latestByContact = new Map<string, MarketTouch>()
-  for (const touch of touches) {
-    if (!touch.contact_id || latestByContact.has(touch.contact_id)) continue
-    latestByContact.set(touch.contact_id, touch)
+  const inboundTouches = (await inboundRes.json()) as MarketTouch[]
+  const latestInboundByContact = new Map<string, MarketTouch>()
+  for (const touch of inboundTouches) {
+    if (!touch.contact_id) continue
+    if (!latestInboundByContact.has(touch.contact_id)) latestInboundByContact.set(touch.contact_id, touch)
   }
 
-  const ids = Array.from(latestByContact.keys())
+  const ids = Array.from(latestInboundByContact.keys())
   if (ids.length === 0) return NextResponse.json({ responses: [] })
 
   const contactRes = await fetch(
@@ -150,29 +151,30 @@ export async function GET(request: Request) {
   const contacts = (await contactRes.json()) as MarketContact[]
   const contactsById = new Map(contacts.map(contact => [contact.id, contact]))
 
+  const historyRes = await fetch(
+    `${url}/rest/v1/market_touches?contact_id=in.(${ids.map(encodeURIComponent).join(',')})&select=id,contact_id,channel,direction,notes,created_by,created_at,outcome_code,metadata&order=created_at.desc&limit=4000`,
+    { headers, cache: 'no-store' }
+  )
+  const history = (historyRes.ok ? await historyRes.json() : []) as Array<PartnershipAssistantTouch & MarketTouch & { contact_id?: string }>
+  const latestByContact = new Map<string, MarketTouch>()
   let touchHistoryByContact = new Map<string, PartnershipAssistantTouch[]>()
-  if (includeSuggestions) {
-    const historyRes = await fetch(
-      `${url}/rest/v1/market_touches?contact_id=in.(${ids.map(encodeURIComponent).join(',')})&select=id,contact_id,channel,direction,notes,created_by,created_at,outcome_code,metadata&order=created_at.desc&limit=4000`,
-      { headers, cache: 'no-store' }
-    )
-    const history = (historyRes.ok ? await historyRes.json() : []) as Array<PartnershipAssistantTouch & { contact_id?: string }>
-    touchHistoryByContact = history.reduce((map, touch) => {
-      if (!touch.contact_id) return map
-      const list = map.get(touch.contact_id) ?? []
-      list.push(touch)
-      map.set(touch.contact_id, list)
-      return map
-    }, new Map<string, PartnershipAssistantTouch[]>())
-  }
+  touchHistoryByContact = history.reduce((map, touch) => {
+    if (!touch.contact_id) return map
+    if (!latestByContact.has(touch.contact_id)) latestByContact.set(touch.contact_id, touch)
+    const list = map.get(touch.contact_id) ?? []
+    list.push(touch)
+    map.set(touch.contact_id, list)
+    return map
+  }, new Map<string, PartnershipAssistantTouch[]>())
 
   const responses = await Promise.all(ids
     .map(async id => {
-      const latest = latestByContact.get(id)!
+      const latest = latestByContact.get(id) ?? latestInboundByContact.get(id)!
+      const latestInbound = latestInboundByContact.get(id) ?? null
       const contact = contactsById.get(id)
-      const payload = toContact(contact, latest)
+      const payload = toContact(contact, latest, latestInbound)
       if (!payload) return null
-      const playbook = includeSuggestions && contact
+      const playbook = includeSuggestions && contact && latest.direction === 'inbound'
         ? await suggestPartnershipReply({
             contact: {
               id: contact.id,
@@ -197,7 +199,7 @@ export async function GET(request: Request) {
         contact: payload,
         latest_touch: latest,
         bucket: classifyReply(latest, contact),
-        needs_response: Boolean(contact?.sequence_paused && !contact?.decision),
+        needs_response: Boolean(latest.direction === 'inbound' && contact?.sequence_paused && !contact?.decision),
         ...(playbook ? { playbook } : {}),
       }
     }))
