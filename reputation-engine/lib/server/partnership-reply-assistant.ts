@@ -5,6 +5,7 @@ export type PartnershipReplyIntent =
   | 'postcard_yes'
   | 'drop_by_anytime'
   | 'send_digital_package'
+  | 'send_card_or_flyer_media'
   | 'digital_only_no_postcard'
   | 'asks_for_email'
   | 'asks_for_pricing'
@@ -115,8 +116,9 @@ interface PackageConfig {
 const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i
 const TIME_RE = /\b(?:mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?|tomorrow|today|next week|this week|morning|afternoon|evening|noon|\d{1,2}(?::\d{2})?\s?(?:am|pm)|anytime|any time|between\s+\d)/i
 const ADDRESS_RE = /\b\d{1,6}\s+[A-Za-z0-9.' -]+(?:street|st\.?|road|rd\.?|avenue|ave\.?|blvd\.?|boulevard|drive|dr\.?|court|ct\.?|lane|ln\.?|way|crescent|cres\.?|trail|parkway|pkwy\.?|unit|suite|ste\.?)\b[^.\n]*/i
-const DIRECT_PACKAGE_REQUEST_RE = /\b(send|share|forward|email|text).{0,30}\b(link|info|information|package|packet|rate card|rates|pricing|referral)\b|\b(link|website link|email it|send it over|send me.*info|send me.*package|send me.*rates)\b/i
+const DIRECT_PACKAGE_REQUEST_RE = /\b(send|share|forward|email|text).{0,30}\b(link|info|information|package|packet|rate card|rates|pricing|referral|card|business card|flyer|picture|photo)\b|\b(link|website link|email it|send it over|send me.*info|send me.*package|send me.*rates|text me.*card|send.*picture|send.*photo)\b/i
 const PACKAGE_PERMISSION_RE = /\b(sure|yes|yeah|yep|ok|okay|go ahead|send it|send that|sounds good|please do|that works|absolutely)\b/i
+const CARD_OR_FLYER_REQUEST_RE = /\b(text|send|share|forward).{0,36}\b(card|business card|flyer|picture|photo|image|graphic)\b|\b(card|business card|flyer|picture|photo|image|graphic).{0,28}\b(text|send|share|forward)\b|\btake a picture\b/i
 
 function cleanText(value: string | null | undefined) {
   return String(value || '').replace(/\s+/g, ' ').trim()
@@ -161,7 +163,7 @@ function wasSent(touches: PartnershipAssistantTouch[], pattern: RegExp) {
 }
 
 function packagePermissionGranted(touches: PartnershipAssistantTouch[], latestText: string, intent: PartnershipReplyIntent) {
-  if (['asks_for_email', 'asks_for_pricing', 'asks_referral_program', 'send_digital_package'].includes(intent)) return true
+  if (['asks_for_email', 'asks_for_pricing', 'asks_referral_program', 'send_digital_package', 'send_card_or_flyer_media'].includes(intent)) return true
   if (DIRECT_PACKAGE_REQUEST_RE.test(latestText)) return true
 
   const recent = [...touches]
@@ -208,6 +210,7 @@ function detectIntent(text: string, contact: PartnershipAssistantContact): { int
   }
   if (/\b(price|prices|pricing|rate|rates|charge|cost|fee)\b/i.test(text)) return { intent: 'asks_for_pricing', confidence: 0.88, risk_flags }
   if (/\b(referral|commission|incentive|program|kickback|paid)\b/i.test(text)) return { intent: 'asks_referral_program', confidence: 0.86, risk_flags }
+  if (CARD_OR_FLYER_REQUEST_RE.test(text)) return { intent: 'send_card_or_flyer_media', confidence: 0.9, risk_flags }
   if (EMAIL_RE.test(text) || /\b(email|e-mail|send it over|send me.*link|website link)\b/i.test(text)) return { intent: 'asks_for_email', confidence: 0.86, risk_flags }
   if (ADDRESS_RE.test(text)) return { intent: 'gives_address', confidence: 0.9, risk_flags }
   if (/\b(meet|meeting|appointment|call me|give me a call|phone call|sit down|come by)\b/i.test(text)) return { intent: 'wants_meeting', confidence: 0.84, risk_flags }
@@ -281,9 +284,17 @@ function draftFromRules(input: {
     quick_action = 'drop_cards'
   } else if (intent === 'asks_for_email') {
     const emailPhrase = extracted.email ? `I can send it to ${extracted.email}.` : 'Absolutely, what email should I send it to?'
-    draft = `${emailPhrase} I can also drop off the postcards so you have the physical copy. What is the best address and time for that?`
+    draft = extracted.email
+      ? `${emailPhrase} I will include the flyer, rate card, referral info, and client quote link. I can also drop off postcards so you have the physical copy if that helps.`
+      : `${emailPhrase} I can send a short package with the flyer, rate card, referral info, and client quote link. I can also text it here if that is easier.`
     recommended_action = extracted.email ? 'send_package' : 'draft_reply'
-    quick_action = 'drop_cards'
+    quick_action = 'needs_follow_up'
+  } else if (intent === 'send_card_or_flyer_media') {
+    draft = canSendPackageNow
+      ? `For sure ${name}, I will text it over here. I can send the card/flyer now, and I also have a short digital package with rates, referral info, and your client quote link if you want that too.`
+      : `For sure ${name}, I can text the card/flyer here. I can also send a short digital package with rates, referral info, and your client quote link if you want that too.`
+    recommended_action = canSendPackageNow ? 'send_package' : 'draft_reply'
+    quick_action = 'needs_follow_up'
   } else if (intent === 'digital_only_no_postcard') {
     draft = canSendPackageNow
       ? `No problem ${name}, digital is perfectly fine. ${packageLine(config, extracted)} If anything comes up with a client, they can use your link or mention your name when they call.`
@@ -327,7 +338,7 @@ function draftFromRules(input: {
     ? 'ready_to_schedule'
     : extracted.address
       ? 'need_time'
-      : ['stop_opt_out', 'wrong_number', 'not_interested', 'digital_only_no_postcard'].includes(intent)
+      : ['stop_opt_out', 'wrong_number', 'not_interested', 'digital_only_no_postcard', 'send_card_or_flyer_media'].includes(intent)
         ? 'not_needed'
         : 'need_address'
 
@@ -433,9 +444,10 @@ async function refineWithOpenAi(input: {
               'You draft natural SMS replies for Saturn Star Movers partnership outreach.',
               'Write as a human rep, not as an assistant. Never mention AI, automation, prompts, or internal policy.',
               'Use only provided facts and allowed links. Do not invent prices, referral percentages, service areas, names, meetings, deliveries, or sent status.',
-              'Primary goal: answer the partner, confirm the best delivery address, confirm a good time or delivery instruction for postcards, and offer the digital package/referral link only as permission-based.',
+              'Primary goal: answer the partner, then move toward the right next touchpoint: requested media/package, email forwarding info, delivery address/time, or meeting logistics.',
+              'If they ask for a card, flyer, photo, picture, or something to send clients, answer that directly before asking any postcard logistics question.',
               input.canSendPackageNow
-                ? 'The partner has requested or permitted the digital package, so an allowed package link may be included if useful.'
+                ? 'The partner has requested or permitted package/media, so an allowed package link or media URL may be included if useful.'
                 : 'The partner has not requested or permitted the digital package link yet. Do not include any URL or media. Ask if it is okay to send the digital package/referral link here.',
               'Keep the SMS under 420 characters. Ask no more than two questions. Be warm, plain, and not pushy.',
               'If the reply is ambiguous or risky, recommend human_review.',
