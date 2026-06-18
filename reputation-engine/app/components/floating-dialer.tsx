@@ -123,7 +123,7 @@ interface DialerCallerProfile {
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
-const DIALER_PRESENCE_INTERVAL_MS = 20_000
+const DIALER_PRESENCE_INTERVAL_MS = 5 * 60_000
 const DIALER_STUCK_WARNING_MS = 35_000
 const DIALER_TOKEN_REFRESH_SAFETY_MS = 5 * 60 * 1000
 const WARM_TRANSFER_BRIDGE_TIMEOUT_MS = 15_000
@@ -310,11 +310,9 @@ export function FloatingDialer() {
   const dialerStateKeyRef = useRef(getDialerStateStorageKey(currentUser?.userId))
   const dialerEventsKeyRef = useRef(getDialerStorageKey(currentUser?.userId))
   const preferencesKeyRef = useRef(`dialer_prefs:${currentUser?.userId || 'anonymous'}`)
+  const lastPresenceRef = useRef<{ signature: string; sentAt: number } | null>(null)
 
   const getEnvironmentSnapshot = useCallback((): DialerEnvironmentSnapshot => {
-    const selectedMic = audioDevices.find(device => device.deviceId === selectedMicIdRef.current)
-    const selectedSpeaker = speakerDevices.find(device => device.deviceId === selectedSpeakerIdRef.current)
-
     return {
       browser: compatibility?.browser,
       browserFamily: compatibility?.browserFamily,
@@ -323,14 +321,10 @@ export function FloatingDialer() {
       platform: compatibility?.platform,
       networkType: getNetworkType(),
       online: navigator.onLine,
-      microphoneDeviceId: selectedMicIdRef.current || undefined,
-      microphoneDeviceLabel: selectedMic?.label || undefined,
-      speakerDeviceId: selectedSpeakerIdRef.current || undefined,
-      speakerDeviceLabel: selectedSpeaker?.label || undefined,
       outputSelectionSupported: supportsOutputSelection(),
       webrtcSupported: typeof window !== 'undefined' ? !!window.RTCPeerConnection : false,
     }
-  }, [audioDevices, compatibility, speakerDevices])
+  }, [compatibility])
 
   // ── call event logger ────────────────────────────────────────────────────
 
@@ -606,15 +600,35 @@ export function FloatingDialer() {
   }
 
   function pushPresence(keepalive = false, forcedState?: DialerPresencePayload['state']) {
+    const state = forcedState || derivePresenceState()
     const payload: DialerPresencePayload = {
       ...getEnvironmentSnapshot(),
-      state: forcedState || derivePresenceState(),
+      state,
       timestamp: new Date().toISOString(),
       sessionId: sessionIdRef.current,
       identity: identityRef.current,
       deviceState: deviceStateRef.current,
     }
     syncDebugState({ presence: payload })
+
+    const now = Date.now()
+    const signature = [
+      state,
+      deviceStateRef.current,
+      identityRef.current || '',
+      navigator.onLine ? 'online' : 'offline',
+    ].join('|')
+    const lastPresence = lastPresenceRef.current
+    const shouldPost =
+      keepalive ||
+      forcedState === 'offline' ||
+      !lastPresence ||
+      lastPresence.signature !== signature ||
+      now - lastPresence.sentAt >= DIALER_PRESENCE_INTERVAL_MS
+
+    if (!shouldPost) return
+
+    lastPresenceRef.current = { signature, sentAt: now }
     void postDialerTelemetry('presence', payload, keepalive)
   }
 
@@ -1705,7 +1719,10 @@ export function FloatingDialer() {
     writeBrowserStorage('local', preferencesKeyRef.current, JSON.stringify(payload))
     if (selectedMicId || selectedSpeakerId) {
       logCallEvent('audio_preferences_updated', {
-        extra: payload,
+        extra: {
+          microphoneSelected: Boolean(selectedMicId),
+          speakerSelected: Boolean(selectedSpeakerId),
+        },
       })
       void applyAudioPreferences()
     }
