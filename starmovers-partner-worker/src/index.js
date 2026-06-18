@@ -22,6 +22,15 @@ const SERVICE_AREAS = [
   'Nearby Ontario communities by request',
 ]
 
+const FLYERS = {
+  chatham: { label: 'Chatham flyer', file: 'chatham.pdf' },
+  guelph: { label: 'Guelph flyer', file: 'guelph.pdf' },
+  kitchener: { label: 'Kitchener flyer', file: 'kitchener.pdf' },
+  london: { label: 'London flyer', file: 'london.pdf' },
+  waterloo: { label: 'Waterloo flyer', file: 'waterloo.pdf' },
+  windsor: { label: 'Windsor flyer', file: 'windsor.pdf' },
+}
+
 const MARKETS = {
   windsor: {
     label: 'Windsor / Essex',
@@ -51,6 +60,22 @@ const MARKETS = {
     areas: ['Guelph', 'Fergus', 'Elora', 'Cambridge', 'Kitchener', 'Waterloo', 'Wellington County'],
     patterns: [/\bguelph\b/i, /\bfergus\b/i, /\belora\b/i, /\bwellington\b/i],
   },
+}
+
+function flyerForContext(url, partner, market) {
+  const requested = String(url.searchParams.get('city') || url.searchParams.get('market') || '').toLowerCase()
+  const haystack = `${requested} ${partner?.code || ''}`.replace(/[_-]+/g, ' ')
+  if (/\bchatham\b/.test(haystack)) return FLYERS.chatham
+  if (/\bguelph\b/.test(haystack)) return FLYERS.guelph
+  if (/\bkitchener\b/.test(haystack)) return FLYERS.kitchener
+  if (/\blondon\b/.test(haystack)) return FLYERS.london
+  if (/\b(waterloo|cambridge|elmira|new hamburg|ayr|brantford)\b/.test(haystack)) return FLYERS.waterloo
+  if (/\b(windsor|essex|lasalle|tecumseh|amherstburg|leamington|kingsville)\b/.test(haystack)) return FLYERS.windsor
+
+  if (market?.key === 'london') return FLYERS.london
+  if (market?.key === 'waterloo') return FLYERS.waterloo
+  if (market?.key === 'guelph') return FLYERS.guelph
+  return FLYERS.windsor
 }
 
 function escapeHtml(value = '') {
@@ -215,11 +240,24 @@ async function handleReferral(request, env, partner, market) {
   })
 }
 
+async function serveAsset(request, env) {
+  if (!env.ASSETS) return new Response('Asset binding is not configured', { status: 500 })
+  const res = await env.ASSETS.fetch(request)
+  const headers = new Headers(res.headers)
+  if ((headers.get('content-type') || '').includes('application/pdf')) {
+    headers.set('content-disposition', 'inline')
+    headers.set('cache-control', 'public, max-age=86400')
+  }
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers })
+}
+
 function renderPage(request, env, partner, market) {
   const url = new URL(request.url)
   const origin = `${url.protocol}//${url.host}`
   const packageUrl = `${origin}/partner/${partner.code}?city=${encodeURIComponent(market.key)}`
   const clientQuoteUrl = `${origin}/quote?ref=${encodeURIComponent(partner.shortCode)}&partner=${encodeURIComponent(partner.code)}&market=${encodeURIComponent(market.key)}`
+  const flyer = flyerForContext(url, partner, market)
+  const flyerUrl = `${origin}/partner/flyers/${flyer.file}`
   const phone = market.phone || env.PUBLIC_PHONE || '226-773-2993'
   const email = env.PUBLIC_EMAIL || 'business@starmovers.ca'
   const title = `${partner.name} Referral Package | Saturn Star Movers`
@@ -265,6 +303,7 @@ function renderPage(request, env, partner, market) {
           <code>${escapeHtml(partner.shortCode)}</code>
           <p class="mini">Clients can use this link or mention your name/code when they call or text our ${escapeHtml(market.baseCity)} line.</p>
           <code>${escapeHtml(packageUrl)}</code>
+          <p style="margin-top:14px"><a class="btn line" href="${escapeHtml(flyerUrl)}" target="_blank" rel="noopener">Download ${escapeHtml(flyer.label)}</a></p>
         </aside>
       </div>
     </section>
@@ -332,7 +371,7 @@ function renderPage(request, env, partner, market) {
       <div class="wrap grid">
         <div class="card"><h3>Client quote link</h3><p><a href="${escapeHtml(clientQuoteUrl)}">${escapeHtml(clientQuoteUrl)}</a></p></div>
         <div class="card"><h3>${escapeHtml(market.baseCity)} call or text</h3><p><a href="tel:+1${phone.replace(/\\D/g, '')}">${escapeHtml(phone)}</a></p><p class="mini">Tell clients to mention ${escapeHtml(partner.name)} or code ${escapeHtml(partner.shortCode)}.</p></div>
-        <div class="card"><h3>Postcards</h3><p>Need more cards or want us to stop by your office? Text/call us and we will coordinate a drop-off.</p></div>
+        <div class="card"><h3>Postcards and flyer</h3><p>Need more cards or want us to stop by your office? Text/call us and we will coordinate a drop-off.</p><p><a href="${escapeHtml(flyerUrl)}" target="_blank" rel="noopener">${escapeHtml(flyer.label)}</a></p></div>
       </div>
     </section>
   </main>
@@ -371,9 +410,11 @@ function renderQuotePage(request, env) {
   const partner = partnerFromCode(partnerSlug)
   const referralCode = ref === 'partner' ? partner.shortCode : ref.toUpperCase()
   const market = detectMarket(url, partnerSlug)
+  const flyer = flyerForContext(url, partner, market)
   const phone = market.phone || env.PUBLIC_PHONE || '226-773-2993'
   const email = env.PUBLIC_EMAIL || 'business@starmovers.ca'
   const packageUrl = `${url.protocol}//${url.host}/partner/${partner.code}?city=${encodeURIComponent(market.key)}`
+  const flyerUrl = `${url.protocol}//${url.host}/partner/flyers/${flyer.file}`
 
   return html(`<!doctype html>
 <html lang="en">
@@ -412,7 +453,7 @@ function renderQuotePage(request, env) {
       <div class="field"><label>Moving from</label><input name="moving_from" autocomplete="street-address"></div>
       <div class="field"><label>Moving to</label><input name="moving_to"></div>
       <div class="field full"><label>Move details</label><textarea name="notes" placeholder="Home size, apartment/house, stairs/elevator, packing, large items, destination city..."></textarea></div>
-      <div class="field full"><button class="btn" type="submit">Request quote</button><div class="success" id="success">Quote request received.</div><p class="mini">Prefer to call/text? Use ${escapeHtml(phone)} and mention ${escapeHtml(partner.name)} or code ${escapeHtml(referralCode)}. Partner package: <a href="${escapeHtml(packageUrl)}">${escapeHtml(packageUrl)}</a></p></div>
+      <div class="field full"><button class="btn" type="submit">Request quote</button><div class="success" id="success">Quote request received.</div><p class="mini">Prefer to call/text? Use ${escapeHtml(phone)} and mention ${escapeHtml(partner.name)} or code ${escapeHtml(referralCode)}. Partner package: <a href="${escapeHtml(packageUrl)}">${escapeHtml(packageUrl)}</a>. Flyer: <a href="${escapeHtml(flyerUrl)}">${escapeHtml(flyer.label)}</a>.</p></div>
     </form>
   </main>
   <footer class="wrap footer">Saturn Star Movers · <a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a> · <a href="tel:+1${phone.replace(/\\D/g, '')}">${escapeHtml(phone)}</a></footer>
@@ -447,6 +488,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url)
     const parts = url.pathname.split('/').filter(Boolean)
+    if (parts[0] === 'partner' && parts[1] === 'flyers') return serveAsset(request, env)
     if (parts[0] === 'quote') return renderQuotePage(request, env)
     if (parts[0] !== 'partner') return new Response('Not found', { status: 404 })
 
