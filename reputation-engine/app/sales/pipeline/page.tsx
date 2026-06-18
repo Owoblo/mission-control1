@@ -190,6 +190,7 @@ function SalesPipelineContent() {
   useEffect(() => {
     void refresh()
     const interval = setInterval(() => {
+      if (document.hidden) return
       fetchSalesOverview().then(data => { setLeads(data.leads); setQuotes(data.quotes); setFollowUps(data.followUps) }).catch(() => {})
     }, 30_000)
     return () => clearInterval(interval)

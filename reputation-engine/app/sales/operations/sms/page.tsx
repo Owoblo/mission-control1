@@ -114,7 +114,10 @@ export default function OpsSmsPage() {
 
   useEffect(() => {
     void fetchMessages()
-    pollRef.current = setInterval(() => void fetchMessages(), 15000)
+    pollRef.current = setInterval(() => {
+      if (document.hidden) return
+      void fetchMessages()
+    }, 15000)
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

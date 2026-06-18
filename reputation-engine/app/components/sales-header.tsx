@@ -117,6 +117,8 @@ export function SalesHeader() {
   const partnershipInbox = tab !== undefined && pathname.startsWith('/marketing/partners') && (!tab || tab === 'phone' || tab === 'replies')
 
   const [query, setQuery] = useState('')
+  const [searchFocused, setSearchFocused] = useState(false)
+  const [leadsLoaded, setLeadsLoaded] = useState(false)
   const [newLeadOpen, setNewLeadOpen] = useState(false)
   const [quickScanOpen, setQuickScanOpen] = useState(false)
   const [allLeads, setAllLeads] = useState<CRMLead[]>([])
@@ -190,13 +192,24 @@ export function SalesHeader() {
     }
   }
 
-  // Load all leads once for search
+  // Load searchable lead data only after the user actually uses search.
   useEffect(() => {
+    if (!searchFocused && query.trim().length === 0) return
+    if (leadsLoaded) return
+    if (role === 'operations_lead' || role === 'crew') return
+    let cancelled = false
     fetch('/api/sales/overview', { credentials: 'include' })
       .then(r => r.ok ? r.json() : { leads: [] })
-      .then((d: { leads: CRMLead[] }) => setAllLeads(d.leads || []))
+      .then((d: { leads: CRMLead[] }) => {
+        if (cancelled) return
+        setAllLeads(d.leads || [])
+        setLeadsLoaded(true)
+      })
       .catch(() => null)
-  }, [])
+    return () => {
+      cancelled = true
+    }
+  }, [leadsLoaded, query, role, searchFocused])
 
   // Close search dropdown on outside click
   useEffect(() => {
@@ -253,9 +266,21 @@ export function SalesHeader() {
       } catch { /* non-fatal */ }
     }
 
+    let interval: ReturnType<typeof setInterval> | null = null
+
+    function schedule() {
+      if (interval) clearInterval(interval)
+      const delay = typeof document !== 'undefined' && document.hidden ? 60_000 : 20_000
+      interval = setInterval(() => void fetchNotifications(), delay)
+    }
+
     void fetchNotifications()
-    const interval = setInterval(() => void fetchNotifications(), 10_000)
-    return () => clearInterval(interval)
+    schedule()
+    document.addEventListener('visibilitychange', schedule)
+    return () => {
+      if (interval) clearInterval(interval)
+      document.removeEventListener('visibilitychange', schedule)
+    }
   }, [])
 
   useEffect(() => {
@@ -296,6 +321,7 @@ export function SalesHeader() {
 
   function updateQuery(nextValue: string) {
     setQuery(nextValue)
+    if (!searchFocused) setSearchFocused(true)
     setShowDropdown(nextValue.trim().length >= 1)
   }
 
@@ -604,7 +630,10 @@ export function SalesHeader() {
                 placeholder="Search name, phone, email, address…"
                 value={query}
                 onChange={e => updateQuery(e.target.value)}
-                onFocus={() => query.trim().length >= 1 && setShowDropdown(true)}
+                onFocus={() => {
+                  setSearchFocused(true)
+                  if (query.trim().length >= 1) setShowDropdown(true)
+                }}
                 onKeyDown={e => e.key === 'Escape' && setShowDropdown(false)}
                 className="h-10 w-full rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] pl-9 pr-4 text-sm text-[var(--app-ink)] outline-none transition focus:border-[var(--app-ink)]"
               />

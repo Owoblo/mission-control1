@@ -28,6 +28,15 @@ export interface NotificationItem {
   href: string
 }
 
+type NotificationsPayload = {
+  items: NotificationItem[]
+  breakdown: { leads: number; sms: number; emails: number; alerts: number }
+  totalCount: number
+}
+
+const NOTIFICATIONS_CACHE_TTL_MS = 10_000
+let notificationsCache: { expiresAt: number; payload: NotificationsPayload } | null = null
+
 const SOURCE_LABELS: Record<string, string> = {
   twilio_call:   'Inbound call',
   twilio_sms:    'Inbound SMS',
@@ -58,6 +67,10 @@ export async function GET() {
   const session = await getSessionUser()
   if (!canAccessSalesWorkspace(session)) {
     return NextResponse.json({ items: [], totalCount: 0, breakdown: { leads: 0, sms: 0, emails: 0, alerts: 0 } })
+  }
+
+  if (notificationsCache && notificationsCache.expiresAt > Date.now()) {
+    return NextResponse.json(notificationsCache.payload)
   }
 
   const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000)
@@ -206,9 +219,12 @@ export async function GET() {
     .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
     .slice(0, 40)
 
-  return NextResponse.json({
+  const payload: NotificationsPayload = {
     items: allItems,
     breakdown: { leads: leadItems.length, sms: smsItems.length, emails: emailItems.length, alerts: alertItems.length },
     totalCount: leadItems.length + smsItems.length + emailItems.length + alertItems.length,
-  })
+  }
+  notificationsCache = { expiresAt: Date.now() + NOTIFICATIONS_CACHE_TTL_MS, payload }
+
+  return NextResponse.json(payload)
 }

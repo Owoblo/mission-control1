@@ -113,7 +113,10 @@ function ActivityFeedContent() {
 
   useEffect(() => {
     if (!live) return
-    const id = setInterval(() => void fetchActivity(), POLL_MS)
+    const id = setInterval(() => {
+      if (document.hidden) return
+      void fetchActivity()
+    }, POLL_MS)
     return () => clearInterval(id)
   }, [live, fetchActivity])
 

@@ -1,13 +1,20 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { FloatingDialer } from '@/app/components/floating-dialer'
 import { SalesHeader } from '@/app/components/sales-header'
 import { CrewHeader } from '@/app/components/crew-header'
+import { useCurrentUser } from '@/lib/hooks/use-current-user'
+
+const FloatingDialer = dynamic(
+  () => import('@/app/components/floating-dialer').then(mod => mod.FloatingDialer),
+  { ssr: false },
+)
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const user = useCurrentUser()
   const [tab, setTab] = useState<string | null | undefined>(undefined)
 
   useEffect(() => {
@@ -15,6 +22,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [pathname])
 
   const partnershipInbox = tab !== undefined && pathname.startsWith('/marketing/partners') && (!tab || tab === 'phone' || tab === 'replies')
+  const shouldMountDialer =
+    pathname.startsWith('/sales') &&
+    (user?.role === 'owner' || user?.role === 'manager' || user?.role === 'sales_rep')
 
   if (pathname.startsWith('/sales') || pathname.startsWith('/admin') || pathname.startsWith('/marketing')) {
     return (
@@ -27,9 +37,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </main>
         </div>
-        <div className={partnershipInbox ? 'hidden lg:block' : ''}>
-          <FloatingDialer />
-        </div>
+        {shouldMountDialer && (
+          <div className={partnershipInbox ? 'hidden lg:block' : ''}>
+            <FloatingDialer />
+          </div>
+        )}
       </div>
     )
   }

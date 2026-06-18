@@ -179,6 +179,7 @@ export default function SalesDashboardPage() {
     void refresh()
     // Silent background refresh every 60s
     const interval = setInterval(() => {
+      if (document.hidden) return
       Promise.all([
         fetchSalesOverview(),
         fetch('/api/sales/telephony-health', { cache: 'no-store', credentials: 'include' }).then(r => r.ok ? r.json() : null).catch(() => null),
