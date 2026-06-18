@@ -12,6 +12,7 @@ import type {
   SalesDashboardSummary,
 } from './types'
 import type { UserRole } from './auth'
+import type { SalesLeadSearchSnapshot } from './server/sales-repository'
 
 export type DashboardDrilldownMetric =
   | 'active_leads'
@@ -64,6 +65,12 @@ export async function fetchSalesOverview(): Promise<{
   return readJson(response)
 }
 
+export async function fetchSalesLeadSearchIndex(): Promise<SalesLeadSearchSnapshot[]> {
+  const response = await fetch('/api/sales/overview?mode=search', { cache: 'no-store', credentials: 'include' })
+  const payload = await readJson<{ leads?: SalesLeadSearchSnapshot[] }>(response)
+  return payload.leads || []
+}
+
 export async function fetchDashboardDrilldown(metric: DashboardDrilldownMetric): Promise<DashboardDrilldownResponse> {
   const response = await fetch(`/api/sales/dashboard-drilldown?metric=${encodeURIComponent(metric)}`, {
     cache: 'no-store',
@@ -76,6 +83,12 @@ export async function fetchSalesLead(id: string): Promise<CRMLead | null> {
   const response = await fetch(`/api/sales/leads/${id}`, { cache: 'no-store', credentials: 'include' })
   if (response.status === 404) return null
   return readJson(response)
+}
+
+export async function fetchSalesLeadFollowUps(id: string): Promise<FollowUpLog[]> {
+  const response = await fetch(`/api/sales/leads/${id}/followups`, { cache: 'no-store', credentials: 'include' })
+  const payload = await readJson<{ followUps?: FollowUpLog[] }>(response)
+  return payload.followUps || []
 }
 
 export async function createSalesLead(payload: Partial<CRMLead>): Promise<CRMLead> {

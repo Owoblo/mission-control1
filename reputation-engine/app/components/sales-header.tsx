@@ -9,6 +9,7 @@ import { LogoutButton } from '@/app/components/logout-button'
 import { NewLeadModal } from '@/app/components/sales/new-lead-modal'
 import { QuickScanModal } from '@/app/components/sales/quick-scan-modal'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
+import { fetchSalesLeadSearchIndex } from '@/lib/sales-api'
 import type { CRMLead } from '@/lib/types'
 import type { NotificationItem } from '@/app/api/sales/notifications/route'
 
@@ -198,11 +199,10 @@ export function SalesHeader() {
     if (leadsLoaded) return
     if (role === 'operations_lead' || role === 'crew') return
     let cancelled = false
-    fetch('/api/sales/overview', { credentials: 'include' })
-      .then(r => r.ok ? r.json() : { leads: [] })
-      .then((d: { leads: CRMLead[] }) => {
+    fetchSalesLeadSearchIndex()
+      .then(leads => {
         if (cancelled) return
-        setAllLeads(d.leads || [])
+        setAllLeads(leads as CRMLead[])
         setLeadsLoaded(true)
       })
       .catch(() => null)

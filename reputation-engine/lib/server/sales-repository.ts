@@ -64,11 +64,21 @@ type LeadInboxRow = LeadIdentityRow & {
   totalCubicFeet?: number | string | null
   callLogs?: CallLogEntry[] | string | null
 }
+type LeadSearchRow = LeadIdentityRow & {
+  originAddress?: string | null
+  originCity?: string | null
+  destAddress?: string | null
+  destCity?: string | null
+  notes?: string | null
+}
 
 export type SalesLeadIdentitySnapshot = Pick<CRMLead, 'id' | 'name' | 'stage' | 'phone' | 'email' | 'inboundId' | 'mergedIntoLeadId'>
 export type SalesLeadInboxSnapshot =
   SalesLeadIdentitySnapshot &
   Pick<CRMLead, 'branch' | 'originAddress' | 'originCity' | 'destAddress' | 'destCity' | 'moveType' | 'totalCubicFeet' | 'callLogs'>
+export type SalesLeadSearchSnapshot =
+  SalesLeadIdentitySnapshot &
+  Pick<CRMLead, 'originAddress' | 'originCity' | 'destAddress' | 'destCity' | 'notes'>
 
 function requireSupabase() {
   return requireSupabaseEnv()
@@ -125,6 +135,18 @@ function normalizeLeadInboxSnapshot(row: LeadInboxRow): SalesLeadInboxSnapshot {
     moveType: normalizeProjectedText(row.moveType) as CRMLead['moveType'] | undefined,
     totalCubicFeet: normalizeProjectedNumber(row.totalCubicFeet),
     callLogs: normalizeProjectedCallLogs(row.callLogs),
+  }
+}
+
+function normalizeLeadSearchSnapshot(row: LeadSearchRow): SalesLeadSearchSnapshot {
+  const identity = normalizeLeadIdentitySnapshot(row)
+  return {
+    ...identity,
+    originAddress: normalizeProjectedText(row.originAddress),
+    originCity: normalizeProjectedText(row.originCity),
+    destAddress: normalizeProjectedText(row.destAddress),
+    destCity: normalizeProjectedText(row.destCity),
+    notes: normalizeProjectedText(row.notes),
   }
 }
 
@@ -209,6 +231,21 @@ const LEAD_INBOX_SELECT = [
   'moveType:data->>moveType',
   'totalCubicFeet:data->>totalCubicFeet',
   'callLogs:data->callLogs',
+].join(',')
+
+const LEAD_SEARCH_SELECT = [
+  'id',
+  'name:data->>name',
+  'stage:data->>stage',
+  'phone:data->>phone',
+  'email:data->>email',
+  'inboundId:data->>inboundId',
+  'mergedIntoLeadId:data->>mergedIntoLeadId',
+  'originAddress:data->>originAddress',
+  'originCity:data->>originCity',
+  'destAddress:data->>destAddress',
+  'destCity:data->>destCity',
+  'notes:data->>notes',
 ].join(',')
 
 const LEAD_LIFECYCLE_SELECT = [
@@ -386,6 +423,17 @@ export async function listSalesLeadInboxSnapshots() {
   const archivedLeadIds = getArchivedLeadIds(lifecycle)
   return rows
     .map(normalizeLeadInboxSnapshot)
+    .filter(lead => isVisibleSalesLead(lead, archivedLeadIds))
+}
+
+export async function listSalesLeadSearchSnapshots() {
+  const [rows, lifecycle] = await Promise.all([
+    selectProjectedLeadRows<LeadSearchRow>(LEAD_SEARCH_SELECT),
+    selectLeadLifecycleSnapshots(),
+  ])
+  const archivedLeadIds = getArchivedLeadIds(lifecycle)
+  return rows
+    .map(normalizeLeadSearchSnapshot)
     .filter(lead => isVisibleSalesLead(lead, archivedLeadIds))
 }
 
@@ -736,6 +784,45 @@ export async function listFollowUpLogs() {
   try {
     const logs = await selectAll<FollowUpLog>('crm_followup_logs')
     return logs.map(log => normalizeFollowUp(log))
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (isMissingRelationError(message)) {
+      return []
+    }
+    throw error
+  }
+}
+
+async function listFollowUpLogsByDataField(field: 'leadId' | 'quoteId', value: string) {
+  const { url, headers } = requireSupabase()
+  const response = await fetch(
+    `${url}/rest/v1/crm_followup_logs?select=id,data,updated_at,deleted&deleted=eq.false&data->>${field}=eq.${encodeURIComponent(value)}&order=updated_at.desc`,
+    { headers, cache: 'no-store' }
+  )
+
+  if (!response.ok) {
+    throw new Error(`Failed to read crm_followup_logs by ${field}`)
+  }
+
+  const records = (await response.json()) as PersistedRecord<FollowUpLog>[]
+  return records.map(record => normalizeFollowUp(record.data))
+}
+
+export async function listFollowUpLogsForLead(leadId: string, quoteIds: string[] = []) {
+  try {
+    const groups = await Promise.all([
+      listFollowUpLogsByDataField('leadId', leadId),
+      ...Array.from(new Set(quoteIds.filter(Boolean))).map(quoteId => listFollowUpLogsByDataField('quoteId', quoteId)),
+    ])
+    const byId = new Map<string, FollowUpLog>()
+    for (const log of groups.flat()) {
+      byId.set(log.id, log)
+    }
+    return Array.from(byId.values()).sort((left, right) => {
+      const leftTime = new Date(left.date || left.createdAt || 0).getTime()
+      const rightTime = new Date(right.date || right.createdAt || 0).getTime()
+      return rightTime - leftTime
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     if (isMissingRelationError(message)) {
