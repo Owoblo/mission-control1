@@ -56,6 +56,7 @@ test('partnership assistant treats client email info requests as package-forward
 
   assert.equal(result.intent, 'asks_for_email')
   assert.equal(result.recommended_action, 'draft_reply')
+  assert.match(result.draft_sms, /Mak/i)
   assert.match(result.draft_sms, /what email/i)
   assert.match(result.draft_sms, /flyer|rate card|referral|client quote/i)
   assert.doesNotMatch(result.draft_sms, /best address and time/i)
@@ -105,6 +106,7 @@ test('partnership assistant routes meeting requests through local relationship r
 
   assert.equal(result.intent, 'wants_meeting')
   assert.equal(result.quick_action, 'meeting_requested')
+  assert.match(result.draft_sms, /Mak/i)
   assert.match(result.draft_sms, /local relationship rep|local team|someone from our/i)
   assert.doesNotMatch(result.draft_sms, /address should I come to|I can come|I'll come|I will come/i)
 })

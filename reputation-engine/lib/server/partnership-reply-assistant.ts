@@ -129,6 +129,10 @@ function firstName(contact: PartnershipAssistantContact) {
   return name.split(/\s+/)[0] || 'there'
 }
 
+function naturalNameSuffix(name: string) {
+  return name && name.toLowerCase() !== 'there' ? `, ${name}` : ''
+}
+
 function getPackageConfig(contact: PartnershipAssistantContact): PackageConfig {
   const baseReferralUrl = readEnv('PARTNERSHIP_REFERRAL_PROGRAM_URL')
   const trackingCode = cleanText(contact.tracking_code || contact.affiliate_partner_id)
@@ -262,6 +266,7 @@ function draftFromRules(input: {
   const referralMentioned = digitalSent || wasSent(touches, /\b(referral|commission|incentive)\b/i)
   const canSendPackageNow = packageConfigured && packagePermissionGranted(touches, latestText, intent)
   const name = firstName(contact)
+  const nameSuffix = naturalNameSuffix(name)
   const risk_flags: string[] = []
 
   let draft = ''
@@ -291,7 +296,7 @@ function draftFromRules(input: {
       : `Yes, I can send the referral info over. ${localRepDropLine()} What address and time usually work for you?`
     quick_action = 'drop_cards'
   } else if (intent === 'asks_for_email') {
-    const emailPhrase = extracted.email ? `I can send it to ${extracted.email}.` : 'Absolutely, what email should I send it to?'
+    const emailPhrase = extracted.email ? `For sure${nameSuffix}, I can send it to ${extracted.email}.` : `Absolutely${nameSuffix}, what email should I send it to?`
     draft = extracted.email
       ? `${emailPhrase} I will include the flyer, rate card, referral info, and client quote link. I can also drop off postcards so you have the physical copy if that helps.`
       : `${emailPhrase} I can send a short package with the flyer, rate card, referral info, and client quote link. I can also text it here if that is easier.`
@@ -311,14 +316,14 @@ function draftFromRules(input: {
     quick_action = 'needs_follow_up'
   } else if (intent === 'wants_meeting') {
     draft = extracted.time_window
-      ? `That works. ${localRepMeetingLine()} ${extracted.time_window} works on our side. What address should we use? I can also send the digital package here if that is okay.`
-      : `That works. ${localRepMeetingLine()} What time and address work best? I can also send the digital package here if that is okay.`
+      ? `That works${nameSuffix}. ${localRepMeetingLine()} ${extracted.time_window} works on our side. What address should we use? I can also send the digital package here if that is okay.`
+      : `That works${nameSuffix}. ${localRepMeetingLine()} What time and address work best? I can also send the digital package here if that is okay.`
     recommended_action = extracted.time_window && extracted.address ? 'book_meeting' : 'draft_reply'
     quick_action = 'meeting_requested'
   } else if (intent === 'gives_address' || intent === 'gives_time_window' || intent === 'drop_by_anytime') {
     const addressPhrase = extracted.address ? `I have ${extracted.address}.` : 'What is the best address to use?'
     const timePhrase = extracted.time_window ? `${extracted.time_window} works.` : 'Is there a time this week that is best, or should our local team leave it at reception/front desk?'
-    draft = `Perfect, thank you. ${localRepDropLine()} ${addressPhrase} ${timePhrase} ${packagePermissionAsk(extracted)}`
+    draft = `Perfect, thank you${nameSuffix}. ${localRepDropLine()} ${addressPhrase} ${timePhrase} ${packagePermissionAsk(extracted)}`
     recommended_action = extracted.address || intent === 'drop_by_anytime' ? 'schedule_delivery' : 'draft_reply'
     quick_action = 'drop_cards'
   } else if (intent === 'warm_acknowledgement') {
@@ -453,6 +458,7 @@ async function refineWithOpenAi(input: {
               'Write as a human rep, not as an assistant. Never mention AI, automation, prompts, or internal policy.',
               'Use only provided facts and allowed links. Do not invent prices, referral percentages, service areas, names, meetings, deliveries, or sent status.',
               'Primary goal: answer the partner, then move toward the right next touchpoint: requested media/package, email forwarding info, delivery address/time, or meeting logistics.',
+              'Use the partner first name once when it sounds natural, usually in the opening phrase. Do not force the name into every reply or repeat it more than once.',
               'If they ask for a card, flyer, photo, picture, or something to send clients, answer that directly before asking any postcard logistics question.',
               'For in-person meetings or postcard drop-offs, never imply the named sender will personally visit. Say one of our local relationship reps, someone from our local team, or our team can stop by/drop it at reception.',
               'If they ask whether the named sender is coming personally, be transparent that the sender may not be the one stopping by but can coordinate someone local. Do not invent a specific rep name.',

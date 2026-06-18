@@ -2058,18 +2058,39 @@ function datetimeLocalValue(date: Date) {
   return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16)
 }
 
-function defaultScheduledReplyTime() {
+function isBusinessDay(date: Date) {
+  const day = date.getDay()
+  return day !== 0 && day !== 6
+}
+
+function nextBusinessMorning(date: Date) {
+  const next = new Date(date)
+  if (next.getHours() >= 18 || !isBusinessDay(next)) next.setDate(next.getDate() + 1)
+  next.setHours(8, 45, 0, 0)
+  while (!isBusinessDay(next)) next.setDate(next.getDate() + 1)
+  return next
+}
+
+function isUrgentPartnerReply(suggestion?: PartnershipAiSuggestion | null) {
+  if (!suggestion) return false
+  const haystack = [
+    suggestion.intent,
+    suggestion.draft_sms,
+    suggestion.rationale,
+    suggestion.extracted.asks_pricing ? 'pricing' : '',
+  ].join(' ').toLowerCase()
+  return /\b(price|pricing|rate|rates|charge|cost|client|customer|buyer|seller|quote|moving|move)\b/.test(haystack)
+}
+
+function defaultScheduledReplyTime(suggestion?: PartnershipAiSuggestion | null) {
   const date = new Date()
   date.setSeconds(0, 0)
-  if (date.getHours() < 8) {
-    date.setHours(8, 0, 0, 0)
-  } else {
-    date.setDate(date.getDate() + 1)
-    date.setHours(8, 0, 0, 0)
-  }
-  while (date.getDay() === 0 || date.getDay() === 6) {
-    date.setDate(date.getDate() + 1)
-  }
+  const inBusinessHours = isBusinessDay(date) && date.getHours() >= 8 && date.getHours() < 18
+  if (!inBusinessHours) return datetimeLocalValue(nextBusinessMorning(date))
+
+  const delayMinutes = isUrgentPartnerReply(suggestion) ? 3 : 6
+  date.setMinutes(date.getMinutes() + delayMinutes)
+  if (date.getHours() >= 18) return datetimeLocalValue(nextBusinessMorning(date))
   return datetimeLocalValue(date)
 }
 
@@ -2258,6 +2279,7 @@ function PhoneTab({
     if (suggestion.suggested_media_urls?.length) {
       setMediaUrls(current => Array.from(new Set([...current, ...suggestion.suggested_media_urls!])).slice(0, 10))
     }
+    setScheduledAt(defaultScheduledReplyTime(suggestion))
     setAiSuggestion(suggestion)
   }
 
@@ -2842,6 +2864,15 @@ function PhoneTab({
                     className={`h-7 rounded-full border px-3 text-[11px] font-semibold transition ${scheduleMode ? 'border-[#1a2744] bg-[#1a2744] text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
                   >
                     {scheduleMode ? 'Scheduled' : 'Schedule'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setScheduleMode(true)
+                      setScheduledAt(defaultScheduledReplyTime(aiSuggestion || selected.playbook))
+                    }}
+                    className="h-7 rounded-full border border-emerald-200 bg-emerald-50 px-3 text-[11px] font-semibold text-emerald-800 transition hover:bg-emerald-100"
+                  >
+                    Human timing
                   </button>
                   {scheduleMode && (
                     <input
