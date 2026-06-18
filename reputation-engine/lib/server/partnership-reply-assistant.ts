@@ -113,6 +113,8 @@ interface PackageConfig {
 const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i
 const TIME_RE = /\b(?:mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?|tomorrow|today|next week|this week|morning|afternoon|evening|noon|\d{1,2}(?::\d{2})?\s?(?:am|pm)|anytime|any time|between\s+\d)/i
 const ADDRESS_RE = /\b\d{1,6}\s+[A-Za-z0-9.' -]+(?:street|st\.?|road|rd\.?|avenue|ave\.?|blvd\.?|boulevard|drive|dr\.?|court|ct\.?|lane|ln\.?|way|crescent|cres\.?|trail|parkway|pkwy\.?|unit|suite|ste\.?)\b[^.\n]*/i
+const DIRECT_PACKAGE_REQUEST_RE = /\b(send|share|forward|email|text).{0,30}\b(link|info|information|package|packet|rate card|rates|pricing|referral)\b|\b(link|website link|email it|send it over|send me.*info|send me.*package|send me.*rates)\b/i
+const PACKAGE_PERMISSION_RE = /\b(sure|yes|yeah|yep|ok|okay|go ahead|send it|send that|sounds good|please do|that works|absolutely)\b/i
 
 function cleanText(value: string | null | undefined) {
   return String(value || '').replace(/\s+/g, ' ').trim()
@@ -154,6 +156,23 @@ function wasSent(touches: PartnershipAssistantTouch[], pattern: RegExp) {
     if (touch.direction !== 'outbound' && touch.direction !== 'system') return false
     return pattern.test(cleanText(touch.notes))
   })
+}
+
+function packagePermissionGranted(touches: PartnershipAssistantTouch[], latestText: string, intent: PartnershipReplyIntent) {
+  if (['asks_for_email', 'asks_for_pricing', 'asks_referral_program', 'send_digital_package'].includes(intent)) return true
+  if (DIRECT_PACKAGE_REQUEST_RE.test(latestText)) return true
+
+  const recent = [...touches]
+    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+    .slice(0, 6)
+  const latestInbound = recent.find(touch => touch.direction === 'inbound')
+  const priorOutboundAskedPermission = recent.some(touch => {
+    if (touch.direction !== 'outbound' && touch.direction !== 'system') return false
+    const text = cleanText(touch.notes)
+    return /\b(cool|okay|ok|alright|fine).{0,24}\b(send|share).{0,30}\b(digital package|package|referral link|rate card|link)\b|\bcan i send.{0,40}\b(digital package|package|referral link|rate card|link)\b/i.test(text)
+  })
+
+  return Boolean(priorOutboundAskedPermission && latestInbound && PACKAGE_PERMISSION_RE.test(cleanText(latestInbound.notes)))
 }
 
 function extractFields(text: string): PartnershipAssistantResult['extracted'] {
@@ -203,17 +222,26 @@ function packageLine(config: PackageConfig, extracted: PartnershipAssistantResul
   return parts.length ? `I can send over the ${parts.join(' and ')}.` : 'I can send the digital package over from here.'
 }
 
+function packagePermissionAsk(extracted: PartnershipAssistantResult['extracted']) {
+  const contents = extracted.asks_pricing
+    ? 'the digital package with the rate card and your referral link'
+    : 'the digital package with your referral link'
+  return `I can also send ${contents} here if that is okay.`
+}
+
 function draftFromRules(input: {
   contact: PartnershipAssistantContact
   touches: PartnershipAssistantTouch[]
   intent: PartnershipReplyIntent
   extracted: PartnershipAssistantResult['extracted']
   config: PackageConfig
+  latestText: string
 }): PartnershipAssistantResult {
-  const { contact, touches, intent, extracted, config } = input
+  const { contact, touches, intent, extracted, config, latestText } = input
   const packageConfigured = hasPackage(config)
   const digitalSent = wasSent(touches, /\b(digital package|referral program|rate card|flyer|package link)\b/i)
   const referralMentioned = digitalSent || wasSent(touches, /\b(referral|commission|incentive)\b/i)
+  const canSendPackageNow = packageConfigured && packagePermissionGranted(touches, latestText, intent)
   const name = firstName(contact)
   const risk_flags: string[] = []
 
@@ -250,29 +278,31 @@ function draftFromRules(input: {
     quick_action = 'drop_cards'
   } else if (intent === 'wants_meeting') {
     draft = extracted.time_window
-      ? `That works. I can send the digital package first, then we can meet around ${extracted.time_window}. What address should I come to?`
-      : 'That works. I can send the digital package first, then we can set a quick time to meet. What time and address work best for you?'
+      ? `That works. We can meet around ${extracted.time_window}. What address should I come to? I can also send the digital package with your referral link here if that is okay.`
+      : 'That works. What time and address work best for you? I can also send the digital package with your referral link here if that is okay.'
     recommended_action = extracted.time_window && extracted.address ? 'book_meeting' : 'draft_reply'
     quick_action = 'meeting_requested'
   } else if (intent === 'gives_address' || intent === 'gives_time_window' || intent === 'drop_by_anytime') {
     const addressPhrase = extracted.address ? `I have ${extracted.address}.` : 'What is the best address to use?'
     const timePhrase = extracted.time_window ? `${extracted.time_window} works.` : 'Is there a time this week that is best, or should we just leave it at reception/front desk?'
-    draft = `Perfect, thank you. ${addressPhrase} ${timePhrase} I will also send the digital package here so you have the referral details handy.`
+    draft = `Perfect, thank you. ${addressPhrase} ${timePhrase} ${packagePermissionAsk(extracted)}`
     recommended_action = extracted.address || intent === 'drop_by_anytime' ? 'schedule_delivery' : 'draft_reply'
     quick_action = 'drop_cards'
   } else if (intent === 'postcard_yes' || intent === 'send_digital_package') {
-    draft = packageConfigured
+    draft = intent === 'send_digital_package' && canSendPackageNow
       ? `Perfect, thanks ${name}. ${packageLine(config, extracted)} What is the best address to drop the postcards at, and is there a good time this week?`
-      : `Perfect, thanks ${name}. I can send the digital package here once the link is ready. What is the best address to drop the postcards at, and is there a good time this week?`
+      : `Perfect, thanks ${name}. What is the best address to drop the postcards at, and is there a good time this week? ${packagePermissionAsk(extracted)}`
     quick_action = 'drop_cards'
   } else {
-    draft = `Thanks ${name}. I can send the digital package with the referral details and drop off the postcards too. What is the best address to send them to, and is there a good time this week?`
+    draft = `Thanks ${name}. What is the best address to send the postcards to, and is there a good time this week? I can also send the digital package with your referral link here if that is okay.`
     risk_flags.push('needs_context_review')
     quick_action = 'needs_follow_up'
   }
 
   if (!packageConfigured && !['stop_opt_out', 'wrong_number', 'not_interested'].includes(intent)) {
     risk_flags.push('package_links_not_configured')
+  } else if (packageConfigured && !canSendPackageNow && !['stop_opt_out', 'wrong_number', 'not_interested'].includes(intent)) {
+    risk_flags.push('package_permission_needed')
   }
 
   const physicalDelivery = extracted.address && extracted.time_window
@@ -291,7 +321,7 @@ function draftFromRules(input: {
     intent,
     confidence: 0.7,
     goal_state: {
-      digital_package: digitalSent ? 'sent' : packageConfigured ? 'ready_to_send' : 'suggested',
+      digital_package: digitalSent ? 'sent' : canSendPackageNow ? 'ready_to_send' : 'suggested',
       physical_delivery: physicalDelivery,
       referral_program: referralMentioned ? 'sent' : packageConfigured ? 'briefly_mentioned' : 'not_mentioned',
       meeting,
@@ -300,13 +330,13 @@ function draftFromRules(input: {
     recommended_action,
     ...(quick_action ? { quick_action } : {}),
     draft_sms: draft.slice(0, 520),
-    draft_email_subject: packageConfigured ? 'Saturn Star Movers partnership package' : undefined,
-    draft_email_body: packageConfigured
+    draft_email_subject: canSendPackageNow ? 'Saturn Star Movers partnership package' : undefined,
+    draft_email_body: canSendPackageNow
       ? `${draft}\n\n${[config.digitalPackageUrl, config.referralProgramUrl, extracted.asks_pricing ? config.rateCardUrl : ''].filter(Boolean).join('\n')}`.trim()
       : undefined,
-    suggested_media_urls: [config.flyerImageUrl].filter(Boolean),
+    suggested_media_urls: canSendPackageNow ? [config.flyerImageUrl].filter(Boolean) : [],
     risk_flags,
-    rationale: 'Rule-based partnership playbook: answer the reply, move toward digital package, referral context, delivery address, and time without auto-sending.',
+    rationale: 'Rule-based partnership playbook: answer the reply, move toward address/time first, and only send package links after a direct request or permission.',
     package_configured: packageConfigured,
   }
 }
@@ -317,7 +347,7 @@ function extractJsonObject(value: string) {
   return trimmed.match(/\{[\s\S]*\}/)?.[0] || '{}'
 }
 
-function normalizeAiResult(value: Partial<PartnershipAssistantResult>, fallback: PartnershipAssistantResult): PartnershipAssistantResult {
+function normalizeAiResult(value: Partial<PartnershipAssistantResult>, fallback: PartnershipAssistantResult, canSendPackageNow: boolean): PartnershipAssistantResult {
   const allowedActions: PartnershipRecommendedAction[] = ['draft_reply', 'schedule_delivery', 'book_meeting', 'send_package', 'mark_not_interested', 'human_review']
   const allowedQuickActions: PartnershipQuickAction[] = ['active_partner', 'drop_cards', 'meeting_requested', 'needs_follow_up', 'not_interested', 'wrong_number']
   const draft = cleanText(value.draft_sms) || fallback.draft_sms
@@ -328,11 +358,12 @@ function normalizeAiResult(value: Partial<PartnershipAssistantResult>, fallback:
       readEnv('PARTNERSHIP_REFERRAL_PROGRAM_URL'),
       readEnv('PARTNERSHIP_FLYER_IMAGE_URL'),
     ].filter(Boolean)
-    return allowed.some(url => link.startsWith(url)) ? link : ''
+    return canSendPackageNow && allowed.some(url => link.startsWith(url)) ? link : ''
   }).replace(/\s+/g, ' ').trim()
 
   const risk_flags = Array.from(new Set([...(fallback.risk_flags || []), ...((value.risk_flags || []).map(String))]))
   if (/\b(ai|automated|bot|chatgpt)\b/i.test(noUnsafeLinks)) risk_flags.push('mentions_automation')
+  if (!canSendPackageNow && /https?:\/\//i.test(draft)) risk_flags.push('removed_unrequested_link')
 
   return {
     ...fallback,
@@ -341,9 +372,9 @@ function normalizeAiResult(value: Partial<PartnershipAssistantResult>, fallback:
     recommended_action: value.recommended_action && allowedActions.includes(value.recommended_action) ? value.recommended_action : fallback.recommended_action,
     quick_action: value.quick_action && allowedQuickActions.includes(value.quick_action) ? value.quick_action : fallback.quick_action,
     draft_sms: noUnsafeLinks.slice(0, 520),
-    draft_email_subject: cleanText(value.draft_email_subject) || fallback.draft_email_subject,
-    draft_email_body: cleanText(value.draft_email_body) || fallback.draft_email_body,
-    suggested_media_urls: Array.isArray(value.suggested_media_urls) ? value.suggested_media_urls.map(String).filter(Boolean).slice(0, 5) : fallback.suggested_media_urls,
+    draft_email_subject: canSendPackageNow ? cleanText(value.draft_email_subject) || fallback.draft_email_subject : undefined,
+    draft_email_body: canSendPackageNow ? cleanText(value.draft_email_body) || fallback.draft_email_body : undefined,
+    suggested_media_urls: canSendPackageNow && Array.isArray(value.suggested_media_urls) ? value.suggested_media_urls.map(String).filter(Boolean).slice(0, 5) : fallback.suggested_media_urls,
     risk_flags,
     rationale: cleanText(value.rationale) || fallback.rationale,
   }
@@ -355,6 +386,7 @@ async function refineWithOpenAi(input: {
   latestText: string
   config: PackageConfig
   fallback: PartnershipAssistantResult
+  canSendPackageNow: boolean
 }) {
   const apiKey = readEnv('OPENAI_API_KEY')
   if (!apiKey || ['stop_opt_out', 'wrong_number', 'not_interested'].includes(input.fallback.intent)) return input.fallback
@@ -383,7 +415,10 @@ async function refineWithOpenAi(input: {
               'You draft natural SMS replies for Saturn Star Movers partnership outreach.',
               'Write as a human rep, not as an assistant. Never mention AI, automation, prompts, or internal policy.',
               'Use only provided facts and allowed links. Do not invent prices, referral percentages, service areas, names, meetings, deliveries, or sent status.',
-              'Primary goal: answer the partner, send/offer the digital package/referral info, confirm the best delivery address, and confirm a good time or delivery instruction for postcards.',
+              'Primary goal: answer the partner, confirm the best delivery address, confirm a good time or delivery instruction for postcards, and offer the digital package/referral link only as permission-based.',
+              input.canSendPackageNow
+                ? 'The partner has requested or permitted the digital package, so an allowed package link may be included if useful.'
+                : 'The partner has not requested or permitted the digital package link yet. Do not include any URL or media. Ask if it is okay to send the digital package/referral link here.',
               'Keep the SMS under 420 characters. Ask no more than two questions. Be warm, plain, and not pushy.',
               'If the reply is ambiguous or risky, recommend human_review.',
               'Return JSON matching: {confidence, extracted, recommended_action, quick_action, draft_sms, draft_email_subject, draft_email_body, suggested_media_urls, risk_flags, rationale}.',
@@ -396,6 +431,7 @@ async function refineWithOpenAi(input: {
               latestInbound: input.latestText,
               conversationHistory: history,
               allowedPackageLinks: input.config,
+              canSendPackageNow: input.canSendPackageNow,
               fallback: input.fallback,
             }),
           },
@@ -405,7 +441,7 @@ async function refineWithOpenAi(input: {
     if (!response.ok) return input.fallback
     const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> }
     const parsed = JSON.parse(extractJsonObject(payload.choices?.[0]?.message?.content || '{}')) as Partial<PartnershipAssistantResult>
-    return normalizeAiResult(parsed, input.fallback)
+    return normalizeAiResult(parsed, input.fallback, input.canSendPackageNow)
   } catch {
     return input.fallback
   }
@@ -426,7 +462,9 @@ export async function suggestPartnershipReply(input: {
     intent: detected.intent,
     extracted,
     config,
+    latestText,
   })
+  const canSendPackageNow = hasPackage(config) && packagePermissionGranted(input.touches, latestText, detected.intent)
   fallback.confidence = Math.min(fallback.confidence, detected.confidence)
   fallback.risk_flags = Array.from(new Set([...fallback.risk_flags, ...detected.risk_flags]))
   if (!latestText) {
@@ -441,5 +479,5 @@ export async function suggestPartnershipReply(input: {
       rationale: 'No inbound text was available to draft from.',
     }
   }
-  return refineWithOpenAi({ contact: input.contact, touches: input.touches, latestText, config, fallback })
+  return refineWithOpenAi({ contact: input.contact, touches: input.touches, latestText, config, fallback, canSendPackageNow })
 }
