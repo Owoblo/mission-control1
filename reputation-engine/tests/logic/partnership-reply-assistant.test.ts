@@ -231,7 +231,7 @@ test('partnership assistant uses local team language for postcard drop offs', as
   })
 
   assert.equal(result.quick_action, 'drop_cards')
-  assert.match(result.draft_sms, /relationship managers/i)
+  assert.match(result.draft_sms, /make arrangements to drop it off/i)
   assert.doesNotMatch(result.draft_sms, /I can drop|I'll drop|I will drop/i)
 })
 
@@ -287,9 +287,84 @@ test('partnership assistant answers social media requests and uses brokerage loc
   assert.match(result.draft_sms, /Absolutely Natalie/i)
   assert.match(result.draft_sms, /yes we do/i)
   assert.match(result.draft_sms, /Royal LePage on Provincial works/i)
-  assert.match(result.draft_sms, /relationship managers can drop/i)
+  assert.match(result.draft_sms, /make arrangements to drop it off/i)
   assert.match(result.draft_sms, /social links/i)
   assert.match(result.draft_sms, /referral details/i)
   assert.doesNotMatch(result.draft_sms, /What is the best address to use/i)
   assert.doesNotMatch(result.draft_sms, /digital package: https:\/\//i)
+})
+
+test('partnership assistant answers share-number email and website requests before package CTA', async () => {
+  delete process.env.PARTNERSHIP_DIGITAL_PACKAGE_URL
+  delete process.env.PARTNERSHIP_RATE_CARD_URL
+  delete process.env.PARTNERSHIP_REFERRAL_PROGRAM_URL
+  delete process.env.PARTNERSHIP_FLYER_IMAGE_URL
+  delete process.env.PARTNERSHIP_PUBLIC_EMAIL
+  delete process.env.PARTNERSHIP_PUBLIC_WEBSITE
+  delete process.env.OPENAI_API_KEY
+
+  const result = await suggestPartnershipReply({
+    contact: { ...contact, name: 'Rami Abraham', city: 'Windsor' },
+    touches: inbound("Hi Hunter, thanks for reaching out. I'm not usually in the office. But I'll keep your number handy on my phone. Is this the number I can share with clients? And do you also have an email or website? Thanks"),
+  })
+
+  assert.equal(result.intent, 'asks_contact_info')
+  assert.equal(result.recommended_action, 'draft_reply')
+  assert.equal(result.goal_state.physical_delivery, 'not_needed')
+  assert.equal(result.extracted.asks_share_number, true)
+  assert.equal(result.extracted.asks_website, true)
+  assert.match(result.draft_sms, /Rami/i)
+  assert.match(result.draft_sms, /this number works for clients too/i)
+  assert.match(result.draft_sms, /info@starmovers\.ca/i)
+  assert.match(result.draft_sms, /starmovers\.ca/i)
+  assert.match(result.draft_sms, /Is it okay if I send the full digital package here too\?/i)
+  assert.doesNotMatch(result.draft_sms, /what email should I send|What address and time|drop the postcards/i)
+})
+
+test('partnership assistant answers identity after digital package email approval', async () => {
+  delete process.env.PARTNERSHIP_DIGITAL_PACKAGE_URL
+  delete process.env.PARTNERSHIP_RATE_CARD_URL
+  delete process.env.PARTNERSHIP_REFERRAL_PROGRAM_URL
+  delete process.env.PARTNERSHIP_FLYER_IMAGE_URL
+  delete process.env.OPENAI_API_KEY
+
+  const result = await suggestPartnershipReply({
+    contact: { ...contact, name: 'Rose Laflamme', city: 'Windsor' },
+    touches: conversation([
+      { direction: 'outbound', text: 'Perfect, thanks Rose. I will make arrangements to drop it off. What address and time work best? Is it okay if I send the full digital package here too?' },
+      { direction: 'inbound', text: 'Digital is good. My email rose@jumprealty.ca' },
+      { direction: 'inbound', text: 'Is this Hunter?' },
+    ]),
+  })
+
+  assert.equal(result.intent, 'confirms_identity')
+  assert.equal(result.recommended_action, 'send_package')
+  assert.equal(result.goal_state.physical_delivery, 'not_needed')
+  assert.equal(result.goal_state.digital_package, 'ready_to_send')
+  assert.match(result.draft_sms, /Yes, Rose, this is Hunter/i)
+  assert.match(result.draft_sms, /rose@jumprealty\.ca/i)
+  assert.match(result.draft_sms, /digital package/i)
+  assert.doesNotMatch(result.draft_sms, /What address and time|What is the best address|Is it okay if I send/i)
+})
+
+test('partnership assistant treats recent client referral requests as credibility requests', async () => {
+  delete process.env.PARTNERSHIP_DIGITAL_PACKAGE_URL
+  delete process.env.PARTNERSHIP_RATE_CARD_URL
+  delete process.env.PARTNERSHIP_REFERRAL_PROGRAM_URL
+  delete process.env.PARTNERSHIP_FLYER_IMAGE_URL
+  delete process.env.OPENAI_API_KEY
+
+  const result = await suggestPartnershipReply({
+    contact: { ...contact, name: 'Shaun Cushing', city: 'Windsor' },
+    touches: inbound('Absolutely. If you could add a couple referrals of recent clients, that would be great as well'),
+  })
+
+  assert.equal(result.intent, 'asks_for_references')
+  assert.equal(result.recommended_action, 'draft_reply')
+  assert.equal(result.goal_state.physical_delivery, 'not_needed')
+  assert.match(result.draft_sms, /Absolutely, Shaun/i)
+  assert.match(result.draft_sms, /recent client feedback/i)
+  assert.match(result.draft_sms, /referral examples/i)
+  assert.match(result.draft_sms, /Is it okay if I send that here too\?/i)
+  assert.doesNotMatch(result.draft_sms, /What address and time|drop the postcards|relationship managers/i)
 })

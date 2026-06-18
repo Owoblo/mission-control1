@@ -7,6 +7,9 @@ export type PartnershipReplyIntent =
   | 'send_digital_package'
   | 'send_card_or_flyer_media'
   | 'digital_only_no_postcard'
+  | 'asks_contact_info'
+  | 'confirms_identity'
+  | 'asks_for_references'
   | 'asks_for_email'
   | 'asks_for_pricing'
   | 'asks_referral_program'
@@ -95,6 +98,10 @@ export interface PartnershipAssistantResult {
     asks_pricing?: boolean
     asks_service_area?: boolean
     asks_social_media?: boolean
+    asks_website?: boolean
+    asks_share_number?: boolean
+    asks_identity_confirmation?: boolean
+    asks_references?: boolean
     low_referral_activity?: boolean
     delivery_instructions?: string
   }
@@ -128,6 +135,10 @@ const CARD_OR_FLYER_REQUEST_RE = /\b(text|send|share|forward).{0,36}\b(card|busi
 const IOS_REACTION_RE = /^(?:loved|liked|emphasized|laughed at|questioned|disliked)\s+[“"].+[”"]$/i
 const LOW_REFERRAL_ACTIVITY_RE = /\b(not|n't|dont|don't|do not).{0,24}\b(sell|selling|active|doing much|have much|many clients|many buyers|many sellers)|\b(different|new|changed).{0,24}\b(position|role|job)|\bnot selling (?:very )?much\b/i
 const SOCIAL_MEDIA_RE = /\b(social media|instagram|facebook|fb|linkedin|tik\s?tok|twitter|x page|social page|socials)\b/i
+const WEBSITE_RE = /\b(website|web site|site|url|webpage|web page)\b/i
+const SHARE_NUMBER_RE = /\b(?:is this|this|the).{0,24}\b(?:number|phone).{0,60}\b(?:share|give|send|forward).{0,36}\b(?:client|clients|customer|customers)|\b(?:share|give|send|forward).{0,36}\b(?:number|phone).{0,36}\b(?:client|clients|customer|customers)/i
+const IDENTITY_CONFIRMATION_RE = /\bis\s+this\s+hunter\b|\bthis\s+is\s+hunter\b/i
+const REFERENCES_RE = /\b(referrals?|references?|recent clients?|reviews?|testimonials?|proof|examples?)\b/i
 
 function cleanText(value: string | null | undefined) {
   return String(value || '').replace(/\s+/g, ' ').trim()
@@ -201,8 +212,16 @@ function wasSent(touches: PartnershipAssistantTouch[], pattern: RegExp) {
   })
 }
 
+function latestEmailInHistory(touches: PartnershipAssistantTouch[]) {
+  return [...touches]
+    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+    .map(touch => cleanText(touch.notes).match(EMAIL_RE)?.[0])
+    .find(Boolean)
+}
+
 function packagePermissionGranted(touches: PartnershipAssistantTouch[], latestText: string, intent: PartnershipReplyIntent) {
-  if (['asks_for_email', 'asks_for_pricing', 'asks_referral_program', 'send_digital_package'].includes(intent)) return true
+  if (['asks_for_email', 'asks_for_pricing', 'asks_referral_program', 'send_digital_package', 'asks_for_references'].includes(intent)) return true
+  if (intent === 'confirms_identity' && priorInboundApprovedDigitalPackage(touches)) return true
   if (DIRECT_PACKAGE_REQUEST_RE.test(latestText) && !CARD_OR_FLYER_REQUEST_RE.test(latestText)) return true
 
   const recent = [...touches]
@@ -216,6 +235,17 @@ function packagePermissionGranted(touches: PartnershipAssistantTouch[], latestTe
   })
 
   return Boolean(priorOutboundAskedPermission && latestInbound && PACKAGE_PERMISSION_RE.test(cleanText(latestInbound.notes)))
+}
+
+function priorInboundApprovedDigitalPackage(touches: PartnershipAssistantTouch[]) {
+  return [...touches]
+    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+    .slice(0, 8)
+    .some(touch => {
+      if (touch.direction !== 'inbound') return false
+      const text = cleanText(touch.notes)
+      return /\b(digital|package|link|email).{0,40}\b(good|works|fine|ok|okay|yes|sure|send|go ahead)\b|\b(good|works|fine|ok|okay|yes|sure|send|go ahead).{0,40}\b(digital|package|link|email)\b/i.test(text)
+    })
 }
 
 function priorOutboundAskedCardDrop(touches: PartnershipAssistantTouch[]) {
@@ -247,6 +277,10 @@ function extractFields(text: string): PartnershipAssistantResult['extracted'] {
     asks_pricing: /\b(price|prices|pricing|rate|rates|charge|cost|fee)\b/i.test(text),
     asks_service_area: /\b(service|serve|area|areas|windsor|london|chatham|sarnia|toronto|only)\b/i.test(text),
     asks_social_media: SOCIAL_MEDIA_RE.test(text),
+    asks_website: WEBSITE_RE.test(text),
+    asks_share_number: SHARE_NUMBER_RE.test(text),
+    asks_identity_confirmation: IDENTITY_CONFIRMATION_RE.test(text),
+    asks_references: REFERENCES_RE.test(text),
     low_referral_activity: LOW_REFERRAL_ACTIVITY_RE.test(text),
     ...(delivery_instructions ? { delivery_instructions } : {}),
   }
@@ -271,7 +305,12 @@ function detectIntent(text: string, contact: PartnershipAssistantContact, touche
   if (/\b(referral|commission|incentive|program|kickback|paid)\b/i.test(text)) return { intent: 'asks_referral_program', confidence: 0.86, risk_flags }
   if (SOCIAL_MEDIA_RE.test(text)) return { intent: 'asks_social_media', confidence: 0.86, risk_flags }
   if (CARD_OR_FLYER_REQUEST_RE.test(text)) return { intent: 'send_card_or_flyer_media', confidence: 0.9, risk_flags }
-  if (EMAIL_RE.test(text) || /\b(email|e-mail|send it over|send me.*link|website link)\b/i.test(text)) return { intent: 'asks_for_email', confidence: 0.86, risk_flags }
+  if (IDENTITY_CONFIRMATION_RE.test(text)) return { intent: 'confirms_identity', confidence: 0.82, risk_flags }
+  if (REFERENCES_RE.test(text) && /\b(add|include|send|share|have|provide|couple)\b/i.test(text)) return { intent: 'asks_for_references', confidence: 0.84, risk_flags }
+  if ((WEBSITE_RE.test(text) || SHARE_NUMBER_RE.test(text)) && /\b(email|e-mail|website|web site|number|phone|share|client|clients)\b/i.test(text)) {
+    return { intent: 'asks_contact_info', confidence: 0.86, risk_flags }
+  }
+  if (EMAIL_RE.test(text) || /\b(send it over|send me.*link|website link)\b/i.test(text) || /\b(email|e-mail)\b/i.test(text) && /\b(send|share|forward|text|package|info|information|link|card|flyer|rates?)\b/i.test(text)) return { intent: 'asks_for_email', confidence: 0.86, risk_flags }
   if (ADDRESS_RE.test(text)) return { intent: 'gives_address', confidence: 0.9, risk_flags }
   if (/\b(meet|meeting|appointment|call me|give me a call|phone call|sit down|come by)\b/i.test(text)) return { intent: 'wants_meeting', confidence: 0.84, risk_flags }
   if (TIME_RE.test(text) && /\b(drop|stop|come|available|free|works|week|time|between)\b/i.test(text)) return { intent: 'gives_time_window', confidence: 0.82, risk_flags }
@@ -303,8 +342,16 @@ function packagePermissionAsk(extracted: PartnershipAssistantResult['extracted']
   return `Is it okay if I send ${contents}`
 }
 
+function publicContactEmail() {
+  return readEnv('PARTNERSHIP_PUBLIC_EMAIL') || readEnv('PARTNERSHIP_CONTACT_EMAIL') || 'info@starmovers.ca'
+}
+
+function publicWebsite() {
+  return readEnv('PARTNERSHIP_PUBLIC_WEBSITE') || 'starmovers.ca'
+}
+
 function localRepDropLine() {
-  return 'One of our relationship managers can drop the postcards off.'
+  return 'I will make arrangements to drop it off.'
 }
 
 function localRepMeetingLine() {
@@ -326,6 +373,7 @@ function draftFromRules(input: {
   const canSendPackageNow = packageConfigured && packagePermissionGranted(touches, latestText, intent)
   const name = firstName(contact)
   const nameSuffix = naturalNameSuffix(name)
+  const knownEmail = extracted.email || latestEmailInHistory(touches)
   const risk_flags: string[] = []
 
   let draft = ''
@@ -364,6 +412,25 @@ function draftFromRules(input: {
     draft = `Absolutely ${name}, yes we do. ${locationPhrase} ${localRepDropLine()} ${timePhrase} Is it okay if I send the full digital package here too? It has our social links, flyer/business card, referral details, and a client quote link you can forward anytime.`
     recommended_action = 'draft_reply'
     quick_action = 'drop_cards'
+  } else if (intent === 'asks_contact_info') {
+    const contactParts = [
+      extracted.asks_share_number ? 'yes, this number works for clients too' : '',
+      `our email is ${publicContactEmail()}`,
+      `our website is ${publicWebsite()}`,
+    ].filter(Boolean)
+    draft = `Absolutely${nameSuffix}, ${contactParts.join(', ')}. Is it okay if I send the full digital package here too? It has the flyer/business card, referral details, and a client quote link you can forward anytime.`
+    recommended_action = 'draft_reply'
+    quick_action = 'needs_follow_up'
+  } else if (intent === 'confirms_identity') {
+    draft = knownEmail && canSendPackageNow
+      ? `Yes${nameSuffix}, this is Hunter. I saw your email too: ${knownEmail}. I can send the digital package there and keep the link here as well so you have everything handy.`
+      : `Yes${nameSuffix}, this is Hunter. Is it okay if I send the full digital package here too? It has the flyer/business card, referral details, and a client quote link you can forward anytime.`
+    recommended_action = knownEmail && canSendPackageNow ? 'send_package' : 'draft_reply'
+    quick_action = 'needs_follow_up'
+  } else if (intent === 'asks_for_references') {
+    draft = `Absolutely${nameSuffix}. I can include recent client feedback and a couple of referral examples in the digital package, along with the flyer/business card and quote link. Is it okay if I send that here too?`
+    recommended_action = 'draft_reply'
+    quick_action = 'needs_follow_up'
   } else if (intent === 'asks_for_email') {
     const emailPhrase = extracted.email ? `For sure${nameSuffix}, I can send it to ${extracted.email}.` : `Absolutely${nameSuffix}, what email should I send it to?`
     draft = extracted.email
@@ -428,9 +495,9 @@ function draftFromRules(input: {
   const hasDeliveryLocation = Boolean(extracted.address || extracted.brokerage_location)
   const physicalDelivery = hasDeliveryLocation && extracted.time_window
     ? 'ready_to_schedule'
-    : hasDeliveryLocation
-      ? 'need_time'
-      : ['stop_opt_out', 'wrong_number', 'not_interested', 'digital_only_no_postcard', 'send_card_or_flyer_media'].includes(intent)
+      : hasDeliveryLocation
+        ? 'need_time'
+      : ['stop_opt_out', 'wrong_number', 'not_interested', 'digital_only_no_postcard', 'send_card_or_flyer_media', 'asks_contact_info', 'confirms_identity', 'asks_for_references'].includes(intent)
         ? 'not_needed'
         : 'need_address'
 
@@ -543,7 +610,7 @@ async function refineWithOpenAi(input: {
               'Primary goal: answer the partner, then move toward the right next touchpoint: requested media/package, email forwarding info, delivery address/time, or meeting logistics.',
               'Use the partner first name once when it sounds natural, usually in the opening phrase. Do not force the name into every reply or repeat it more than once.',
               'If they ask for a card, flyer, photo, picture, or something to send clients, answer that directly before asking any postcard logistics question.',
-              'For in-person meetings or postcard drop-offs, never imply the named sender will personally visit. Say one of our local relationship reps, someone from our local team, or our team can stop by/drop it at reception.',
+              'For in-person meetings, never imply the named sender will personally visit unless the thread says so. For postcard drop-offs, say you will make arrangements to drop it off.',
               'If they ask whether the named sender is coming personally, be transparent that the sender may not be the one stopping by but can coordinate someone local. Do not invent a specific rep name.',
               input.canSendPackageNow
                 ? 'The partner has requested or permitted package/media, so an allowed package link or media URL may be included if useful.'
