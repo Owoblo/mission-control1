@@ -325,10 +325,87 @@ function renderPage(request, env, partner, market) {
 </html>`)
 }
 
+function renderQuotePage(request, env) {
+  const url = new URL(request.url)
+  const ref = String(url.searchParams.get('ref') || 'partner')
+  const partner = partnerFromCode(ref)
+  const market = detectMarket(url, ref)
+  const phone = market.phone || env.PUBLIC_PHONE || '226-773-2993'
+  const email = env.PUBLIC_EMAIL || 'business@starmovers.ca'
+  const packageUrl = `${url.protocol}//${url.host}/partner/${partner.code}?city=${encodeURIComponent(market.key)}`
+
+  return html(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Moving Quote | Saturn Star Movers</title>
+  <meta name="robots" content="noindex, nofollow">
+  <style>
+    :root{--navy:#1a2744;--ink:#162033;--muted:#64748b;--gold:#f5a623;--line:#dbe2ee;--soft:#f7f8fb;--green:#0f766e}
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--soft);line-height:1.55}
+    .wrap{max-width:960px;margin:0 auto;padding:0 22px}.top{background:var(--navy);color:#fff}.nav{display:flex;align-items:center;justify-content:space-between;padding:16px 0}.brand{font-weight:900}.nav a{color:#fff;text-decoration:none;font-weight:800}
+    .hero{background:linear-gradient(135deg,#1a2744,#24355d);color:#fff;padding:62px 0 44px}.eyebrow{display:inline-block;border:1px solid rgba(245,166,35,.35);background:rgba(245,166,35,.12);color:#ffd58a;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+    h1{font-size:clamp(34px,6vw,58px);line-height:1.04;margin:18px 0 14px}.lead{font-size:clamp(17px,2.4vw,21px);color:rgba(255,255,255,.82);max-width:720px}.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:24px;box-shadow:0 10px 28px rgba(15,23,42,.06);margin-top:-24px}.form{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field{display:flex;flex-direction:column;gap:6px}.field.full{grid-column:1/-1}label{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:900}input,textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:12px;font:inherit}textarea{min-height:108px;resize:vertical}.btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:10px;background:var(--navy);color:#fff;padding:13px 18px;font-weight:900;cursor:pointer}.success{display:none;margin-top:14px;border:1px solid #99f6e4;background:#f0fdfa;color:#115e59;border-radius:12px;padding:14px;font-weight:800}.mini{font-size:13px;color:var(--muted)}.pill{display:inline-flex;background:#eef2f7;border:1px solid var(--line);border-radius:999px;padding:7px 10px;font-size:13px;font-weight:800;color:#334155}.meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}.footer{padding:34px 0;color:var(--muted);font-size:14px}
+    @media(max-width:760px){.form{grid-template-columns:1fr}.card{margin-top:0}}
+  </style>
+</head>
+<body>
+  <header class="top"><div class="wrap nav"><div class="brand">Saturn Star Movers</div><a href="tel:+1${phone.replace(/\\D/g, '')}">${escapeHtml(phone)}</a></div></header>
+  <section class="hero"><div class="wrap">
+    <div class="eyebrow">${escapeHtml(market.label)} referral quote</div>
+    <h1>Get a moving quote from Saturn Star Movers.</h1>
+    <p class="lead">You were referred by ${escapeHtml(partner.name)}. Send a few details and our ${escapeHtml(market.baseCity)} team will follow up with a quote.</p>
+    <div class="meta"><span class="pill">Referral code: ${escapeHtml(partner.code.toUpperCase())}</span><span class="pill">${escapeHtml(market.label)}</span></div>
+  </div></section>
+  <main class="wrap">
+    <form class="card form" id="quote-form">
+      <input type="hidden" name="partner_code" value="${escapeHtml(partner.code)}">
+      <input type="hidden" name="partner_name" value="${escapeHtml(partner.name)}">
+      <input type="hidden" name="market" value="${escapeHtml(market.key)}">
+      <div class="field"><label>Your name</label><input name="client_name" autocomplete="name" required></div>
+      <div class="field"><label>Phone</label><input name="client_phone" autocomplete="tel" required></div>
+      <div class="field"><label>Email</label><input name="client_email" autocomplete="email"></div>
+      <div class="field"><label>Move date</label><input name="move_date" placeholder="Approximate is okay"></div>
+      <div class="field"><label>Moving from</label><input name="moving_from" autocomplete="street-address"></div>
+      <div class="field"><label>Moving to</label><input name="moving_to"></div>
+      <div class="field full"><label>Move details</label><textarea name="notes" placeholder="Home size, apartment/house, stairs/elevator, packing, large items, destination city..."></textarea></div>
+      <div class="field full"><button class="btn" type="submit">Request quote</button><div class="success" id="success">Quote request received.</div><p class="mini">Prefer to call/text? Use ${escapeHtml(phone)} and mention ${escapeHtml(partner.name)} or code ${escapeHtml(partner.code.toUpperCase())}. Partner package: <a href="${escapeHtml(packageUrl)}">${escapeHtml(packageUrl)}</a></p></div>
+    </form>
+  </main>
+  <footer class="wrap footer">Saturn Star Movers · <a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a> · <a href="tel:+1${phone.replace(/\\D/g, '')}">${escapeHtml(phone)}</a></footer>
+  <script>
+    const form = document.getElementById('quote-form');
+    const success = document.getElementById('success');
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const button = form.querySelector('button');
+      button.disabled = true;
+      button.textContent = 'Submitting...';
+      try {
+        const res = await fetch('/partner/${encodeURIComponent(partner.code)}/referral?city=${encodeURIComponent(market.key)}', { method: 'POST', body: new FormData(form) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not submit quote request');
+        success.textContent = data.message || 'Quote request received.';
+        success.style.display = 'block';
+        form.reset();
+      } catch (error) {
+        alert(error.message || 'Could not submit quote request. Please call or text Saturn Star Movers.');
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Request quote';
+      }
+    });
+  </script>
+</body>
+</html>`)
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url)
     const parts = url.pathname.split('/').filter(Boolean)
+    if (parts[0] === 'quote') return renderQuotePage(request, env)
     if (parts[0] !== 'partner') return new Response('Not found', { status: 404 })
 
     const partner = partnerFromCode(parts[1] || 'partner')

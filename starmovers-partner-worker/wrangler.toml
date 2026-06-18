@@ -4,7 +4,9 @@ compatibility_date = "2026-06-18"
 
 routes = [
   { pattern = "starmovers.ca/partner/*", zone_name = "starmovers.ca" },
-  { pattern = "www.starmovers.ca/partner/*", zone_name = "starmovers.ca" }
+  { pattern = "www.starmovers.ca/partner/*", zone_name = "starmovers.ca" },
+  { pattern = "starmovers.ca/quote*", zone_name = "starmovers.ca" },
+  { pattern = "www.starmovers.ca/quote*", zone_name = "starmovers.ca" }
 ]
 
 [vars]
