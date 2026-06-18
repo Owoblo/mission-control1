@@ -133,25 +133,29 @@ async function handleReferral(request, env, partner, market) {
   const phone = String(body.client_phone || body.phone || '').trim()
   const email = String(body.client_email || body.email || '').trim()
   const address = String(body.moving_from || body.address || '').trim()
+  const movingTo = String(body.moving_to || '').trim()
+  const moveDate = String(body.move_date || '').trim()
+  const moveSize = String(body.move_size || '').trim()
   const note = String(body.notes || '').trim()
   const partnerName = String(body.partner_name || partner.name || '').trim()
-  const marketName = market?.label || String(body.market || '').trim()
 
   if (!name && !phone && !email) {
     return json({ error: 'Please include a client name, phone, or email.' }, 400)
   }
 
   const payload = {
-    name,
-    phone,
-    email,
-    address,
-    inventorySummary: [
-      `Partner referral code: ${partner.code}`,
-      `Partner: ${partnerName}`,
-      marketName ? `Market: ${marketName}` : '',
-      note ? `Notes: ${note}` : '',
-    ].filter(Boolean).join(' | '),
+    partner_code: partner.code,
+    partner_name: partnerName,
+    market: market?.key || String(body.market || '').trim(),
+    client_name: name,
+    client_phone: phone,
+    client_email: email,
+    moving_from: address,
+    moving_to: movingTo,
+    move_date: moveDate,
+    move_size: moveSize,
+    notes: note,
+    source_url: request.headers.get('referer') || '',
   }
 
   let forwarded = false

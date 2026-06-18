@@ -12,4 +12,4 @@ routes = [
 [vars]
 PUBLIC_PHONE = "226-773-2993"
 PUBLIC_EMAIL = "business@starmovers.ca"
-CRM_CAPTURE_URL = "https://mc.starmovers.ca/api/free-quote/capture"
+CRM_CAPTURE_URL = "https://mc.starmovers.ca/api/partners/referral-capture"
