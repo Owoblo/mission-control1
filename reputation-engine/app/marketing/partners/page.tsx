@@ -258,12 +258,94 @@ function truncateText(value: string, max = 120) {
   return s.length <= max ? s : `${s.slice(0, max - 1).trimEnd()}…`
 }
 
+function stripTouchPrefix(value: string) {
+  return value
+    .replace(/^Inbound SMS:\s*/i, '')
+    .replace(/^SMS sent:\s*/i, '')
+    .replace(/^Auto-SMS sent:\s*/i, '')
+    .trim()
+}
+
+function cleanRichSmsFallback(value: string) {
+  return value
+    .replace(/\uFFFD/g, ' ')
+    .replace(/â€[\u0098\u0099\u009c\u009d]?/g, ' ')
+    .replace(/â[^\s]*/g, ' ')
+    .replace(/ð[^\s]*/g, ' ')
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function hasRichSmsArtifact(value: string) {
+  return /â€|�|ð/.test(value)
+}
+
+function normalizeReactionCompare(value: string) {
+  return cleanRichSmsFallback(stripTouchPrefix(value))
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function getReactionKeyword(value: string) {
+  const normalized = cleanRichSmsFallback(stripTouchPrefix(value)).toLowerCase()
+  if (/\bloved\b|\blove\b/.test(normalized)) return 'loved'
+  if (/\bliked\b|\blike\b/.test(normalized)) return 'liked'
+  if (/\bemphasized\b|\bemphasis\b/.test(normalized)) return 'emphasized'
+  if (/\blaughed\b|\blaugh\b|\bhaha\b/.test(normalized)) return 'laughed'
+  if (/\bdisliked\b|\bdislike\b/.test(normalized)) return 'disliked'
+  if (/\bquestioned\b|\bquestion\b/.test(normalized)) return 'questioned'
+  return null
+}
+
+function reactionSymbol(kind: string | null) {
+  if (kind === 'liked') return '👍'
+  if (kind === 'emphasized') return '‼'
+  if (kind === 'laughed') return '😂'
+  if (kind === 'disliked') return '👎'
+  if (kind === 'questioned') return '?'
+  return '♥'
+}
+
+function detectSmsReaction(current: Touch, priorTouches: Touch[]) {
+  if (current.channel !== 'sms' || current.direction !== 'inbound') return null
+  const body = stripTouchPrefix(current.notes || '')
+  const cleaned = normalizeReactionCompare(body)
+  if (!cleaned) return null
+
+  const previousOutbound = [...priorTouches].reverse().find(touch => touch.channel === 'sms' && touch.direction === 'outbound')
+  if (!previousOutbound?.notes) return null
+
+  const outbound = normalizeReactionCompare(previousOutbound.notes.replace(/\n?\[MMS:\s*[^\]]+\]/ig, ''))
+  if (!outbound || outbound.length < 20) return null
+
+  const containsQuotedOutbound = cleaned.includes(outbound.slice(0, Math.min(outbound.length, 80)))
+  const mostlyQuotedOutbound = outbound.length > 0 && cleaned.length / outbound.length < 1.35
+  const hasKnownReaction = getReactionKeyword(body)
+  const hasRichEncodingArtifact = /â€|�|ð/.test(body)
+
+  if (!containsQuotedOutbound && !(hasRichEncodingArtifact && mostlyQuotedOutbound && cleaned.includes(outbound.slice(0, 28)))) return null
+
+  return {
+    kind: hasKnownReaction || 'loved',
+    preview: truncateText(cleanRichSmsFallback(stripTouchPrefix(previousOutbound.notes || '')), 96),
+  }
+}
+
 function unwrapAutoTouch(value: string, prefix: string) {
   return value.replace(prefix, '').trim().replace(/^"/, '').replace(/"$/, '')
 }
 
 function summarizeTouch(channel: string, direction?: string | null, notes?: string | null) {
   const text = (notes || '').trim()
+  const reactionKeyword = getReactionKeyword(text)
+  const smsArtifactPreview = channel === 'sms' && direction === 'inbound' && hasRichSmsArtifact(text) && reactionKeyword
+    ? `${reactionSymbol(reactionKeyword)} reacted to your SMS`
+    : null
+  const cleanSmsArtifactText = channel === 'sms' && hasRichSmsArtifact(text) ? cleanRichSmsFallback(text) : text
   if (text.startsWith('Auto-SMS sent:')) return { label: 'Auto SMS', body: unwrapAutoTouch(text, 'Auto-SMS sent:'), auto: true }
   if (text.startsWith('Auto-email sent:')) return { label: 'Auto Email', body: unwrapAutoTouch(text, 'Auto-email sent:'), auto: true }
   if (text.startsWith('Added to Instantly')) return { label: 'Added to Instantly', body: text, auto: true }
@@ -274,7 +356,7 @@ function summarizeTouch(channel: string, direction?: string | null, notes?: stri
   if (channel === 'direct_mail') return { label: 'Direct Mail', body: text || 'Direct mail sent' }
   if (channel === 'phone' || channel === 'call') return { label: direction === 'inbound' ? 'Inbound Call' : 'Call', body: text || 'Call logged' }
   if (channel === 'email') return { label: direction === 'inbound' ? 'Email Reply' : 'Email Sent', body: text || 'Email' }
-  if (channel === 'sms') return { label: direction === 'inbound' ? 'Inbound SMS' : 'SMS Sent', body: text || 'SMS' }
+  if (channel === 'sms') return { label: direction === 'inbound' ? 'Inbound SMS' : 'SMS Sent', body: smsArtifactPreview || cleanSmsArtifactText || 'SMS' }
   if (channel === 'note') return { label: 'Note', body: text || 'Note saved' }
   if (channel === 'appointment' || text.includes('Appointment')) return { label: 'Appointment', body: text }
   return { label: channel.replace(/_/g, ' '), body: text }
@@ -2489,10 +2571,24 @@ function PhoneTab({
           <div ref={threadRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-slate-50 px-3 py-5 sm:px-6">
             {touchLoading && <div className="text-center text-xs text-slate-400 py-8">Loading…</div>}
             {!touchLoading && touches.length === 0 && <div className="text-center text-xs text-slate-400 py-8">No history yet.</div>}
-            {[...touches].reverse().map(touch => {
+            {(() => {
+              const threadTouches = [...touches].reverse()
+              return threadTouches.map((touch, touchIndex) => {
               const s = summarizeTouch(touch.channel, touch.direction, touch.notes)
               const touchMedia = getTouchMediaUrls(touch)
-              const bubbleText = (s.body || '').replace(/\n?\[MMS:\s*[^\]]+\]/ig, '').trim()
+              const rawBubbleText = (s.body || '').replace(/\n?\[MMS:\s*[^\]]+\]/ig, '').trim()
+              const reaction = detectSmsReaction(touch, threadTouches.slice(0, touchIndex))
+              const bubbleText = reaction ? '' : hasRichSmsArtifact(rawBubbleText) ? cleanRichSmsFallback(rawBubbleText) : rawBubbleText
+              if (reaction) {
+                return (
+                  <div key={touch.id} className="flex justify-end">
+                    <div className="mr-10 flex max-w-[72%] items-center gap-2 rounded-full border border-rose-100 bg-white px-3 py-1.5 text-xs font-semibold text-[#1a2744] shadow-sm">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-rose-50 text-sm text-rose-600">{reactionSymbol(reaction.kind)}</span>
+                      <span className="truncate">{reaction.kind === 'loved' ? 'Loved' : reaction.kind} your SMS</span>
+                    </div>
+                  </div>
+                )
+              }
               if (touch.channel === 'note' || touch.channel === 'appointment') {
                 return (
                   <div key={touch.id} className="flex justify-center">
@@ -2530,7 +2626,8 @@ function PhoneTab({
                   </div>
                 </div>
               )
-            })}
+              })
+            })()}
           </div>
 
           {/* Compose */}
