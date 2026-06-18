@@ -101,6 +101,7 @@ export async function POST(request: Request) {
     signal_description?: string
     due_date?: string
     note?: string
+    outcome_code?: string
   }
 
   const { url, headers } = requireSupabaseEnv()
@@ -187,9 +188,14 @@ export async function POST(request: Request) {
 
     if (body.action === 'complete') {
       // Get current item to find contact + step
-      const itemRes = await fetch(`${url}/rest/v1/market_queue?id=eq.${body.queue_id}&select=contact_id,step_number,channel,label`, { headers, cache: 'no-store' })
-      const [item] = (await itemRes.json()) as { contact_id: string; step_number: number; channel: string; label: string }[]
+      const itemRes = await fetch(`${url}/rest/v1/market_queue?id=eq.${body.queue_id}&select=contact_id,step_number,channel,label,signal_id`, { headers, cache: 'no-store' })
+      const [item] = (await itemRes.json()) as { contact_id: string | null; step_number: number; channel: string; label: string; signal_id?: string | null }[]
       if (!item) return NextResponse.json({ ok: true })
+      const outcomeCode = body.outcome_code || 'completed'
+
+      if (!item.contact_id) {
+        return NextResponse.json({ ok: true })
+      }
 
       // Get contact tier
       const cRes = await fetch(`${url}/rest/v1/market_contacts?id=eq.${item.contact_id}&select=tier,stage,next_follow_up`, { headers, cache: 'no-store' })
@@ -215,8 +221,10 @@ export async function POST(request: Request) {
           channel: item.channel,
           direction: 'outbound',
           notes: `Queue complete: ${item.label}`,
+          outcome_code: outcomeCode,
           created_by: session.name ?? 'Rep',
           created_at: completedAt,
+          metadata: { source: 'market_queue', queue_id: body.queue_id },
         }),
       })
 

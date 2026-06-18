@@ -31,6 +31,15 @@ interface QueueItem {
   } | null
 }
 
+const OUTCOME_OPTIONS = [
+  { code: 'left_voicemail', label: 'Left voicemail' },
+  { code: 'spoke_to_contact', label: 'Spoke to them' },
+  { code: 'no_answer', label: 'No answer' },
+  { code: 'not_interested', label: 'Not interested' },
+  { code: 'sent_message', label: 'Sent message' },
+  { code: 'completed', label: 'Done' },
+]
+
 const CHANNEL_META: Record<string, { icon: string; color: string; label: string }> = {
   direct_mail: { icon: '✉️', color: 'bg-amber-50 border-amber-200', label: 'Direct Mail' },
   email:       { icon: '📧', color: 'bg-sky-50 border-sky-200', label: 'Email' },
@@ -57,6 +66,7 @@ export default function QueuePage() {
   const [expanded, setExpanded] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set())
+  const [outcomeItem, setOutcomeItem] = useState<QueueItem | null>(null)
 
   async function load() {
     setLoading(true)
@@ -71,15 +81,16 @@ export default function QueuePage() {
 
   useEffect(() => { void load() }, [view]) // eslint-disable-line
 
-  async function complete(item: QueueItem) {
+  async function complete(item: QueueItem, outcomeCode = 'completed') {
     setBusy(item.id)
     await fetch('/api/marketing/queue', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ action: 'complete', queue_id: item.id }),
+      body: JSON.stringify({ action: 'complete', queue_id: item.id, outcome_code: outcomeCode }),
     })
     setDoneIds(prev => new Set(Array.from(prev).concat(item.id)))
+    setOutcomeItem(null)
     setBusy(null)
     // Reload after short delay to show next step scheduled
     setTimeout(() => void load(), 800)
@@ -149,7 +160,7 @@ export default function QueuePage() {
                 </span>
                 <div className="h-px flex-1 bg-rose-200" />
               </div>
-              {overdue.map(item => <ActionCard key={item.id} item={item} expanded={expanded} setExpanded={setExpanded} busy={busy} onComplete={complete} onSkip={skip} done={doneIds.has(item.id)} />)}
+              {overdue.map(item => <ActionCard key={item.id} item={item} expanded={expanded} setExpanded={setExpanded} busy={busy} onComplete={() => setOutcomeItem(item)} onSkip={skip} done={doneIds.has(item.id)} />)}
             </section>
           )}
 
@@ -165,9 +176,35 @@ export default function QueuePage() {
                   <div className="h-px flex-1 bg-slate-200" />
                 </div>
               )}
-              {today.map(item => <ActionCard key={item.id} item={item} expanded={expanded} setExpanded={setExpanded} busy={busy} onComplete={complete} onSkip={skip} done={doneIds.has(item.id)} />)}
+              {today.map(item => <ActionCard key={item.id} item={item} expanded={expanded} setExpanded={setExpanded} busy={busy} onComplete={() => setOutcomeItem(item)} onSkip={skip} done={doneIds.has(item.id)} />)}
             </section>
           )}
+        </div>
+      )}
+
+      {outcomeItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">
+          <div className="crm-panel w-full max-w-md space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold text-[#1a2744]">What happened?</h2>
+              <p className="mt-1 text-sm text-[var(--app-muted)]">{outcomeItem.contact?.name ?? outcomeItem.label}</p>
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {OUTCOME_OPTIONS.map(option => (
+                <button
+                  key={option.code}
+                  onClick={() => void complete(outcomeItem, option.code)}
+                  disabled={busy === outcomeItem.id}
+                  className="crm-button justify-start"
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setOutcomeItem(null)} className="w-full text-sm font-medium text-[var(--app-muted)] hover:text-[#1a2744]">
+              Cancel
+            </button>
+          </div>
         </div>
       )}
     </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { DEFAULT_DIRECT_MAIL_COST_PER_LETTER_CENTS, formatCadFromCents } from '@/lib/partnership-constants'
 
 interface Campaign {
   id: string
@@ -42,13 +43,13 @@ const INDUSTRY_CODES = [
 ]
 
 function fmt(cents: number) {
-  return (cents / 100).toLocaleString('en-CA', { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 })
+  return formatCadFromCents(cents)
 }
 
 function roi(c: Campaign) {
   const letters = c.live_letters_sent ?? c.letters_sent
   if (c.revenue_cents <= 0 || letters <= 0) return null
-  const cost = c.cost_cents > 0 ? c.cost_cents : letters * 200 // $2/letter default
+  const cost = c.cost_cents > 0 ? c.cost_cents : letters * DEFAULT_DIRECT_MAIL_COST_PER_LETTER_CENTS
   return ((c.revenue_cents - cost) / cost * 100).toFixed(0)
 }
 
@@ -118,7 +119,7 @@ export default function CampaignsPage() {
     responses: acc.responses + (c.live_responses ?? c.responses),
     bookings: acc.bookings + (c.live_bookings ?? c.bookings),
     revenue: acc.revenue + c.revenue_cents,
-    cost: acc.cost + (c.cost_cents || (c.live_letters_sent ?? c.letters_sent) * 200),
+    cost: acc.cost + (c.cost_cents || (c.live_letters_sent ?? c.letters_sent) * DEFAULT_DIRECT_MAIL_COST_PER_LETTER_CENTS),
   }), { letters: 0, responses: 0, bookings: 0, revenue: 0, cost: 0 })
 
   return (
