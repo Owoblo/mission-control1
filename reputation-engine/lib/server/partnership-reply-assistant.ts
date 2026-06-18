@@ -121,6 +121,7 @@ const ADDRESS_RE = /\b\d{1,6}\s+[A-Za-z0-9.' -]+(?:street|st\.?|road|rd\.?|avenu
 const DIRECT_PACKAGE_REQUEST_RE = /\b(send|share|forward|email|text).{0,30}\b(link|info|information|package|packet|rate card|rates|pricing|referral|card|business card|flyer|picture|photo)\b|\b(link|website link|email it|send it over|send me.*info|send me.*package|send me.*rates|text me.*card|send.*picture|send.*photo)\b/i
 const PACKAGE_PERMISSION_RE = /\b(sure|yes|yeah|yep|ok|okay|go ahead|send it|send that|sounds good|please do|that works|absolutely)\b/i
 const CARD_OR_FLYER_REQUEST_RE = /\b(text|send|share|forward).{0,36}\b(card|business card|flyer|picture|photo|image|graphic)\b|\b(card|business card|flyer|picture|photo|image|graphic).{0,28}\b(text|send|share|forward)\b|\btake a picture\b/i
+const IOS_REACTION_RE = /^(?:loved|liked|emphasized|laughed at|questioned|disliked)\s+[“"].+[”"]$/i
 
 function cleanText(value: string | null | undefined) {
   return String(value || '').replace(/\s+/g, ' ').trim()
@@ -205,10 +206,20 @@ function packagePermissionGranted(touches: PartnershipAssistantTouch[], latestTe
   const priorOutboundAskedPermission = recent.some(touch => {
     if (touch.direction !== 'outbound' && touch.direction !== 'system') return false
     const text = cleanText(touch.notes)
-    return /\b(cool|okay|ok|alright|fine).{0,24}\b(send|share).{0,30}\b(digital package|package|referral link|rate card|link)\b|\bcan i send.{0,40}\b(digital package|package|referral link|rate card|link)\b/i.test(text)
+    return /\b(cool|okay|ok|alright|fine).{0,24}\b(send|share).{0,30}\b(digital package|package|referral link|rate card|link)\b|\b(?:can i|may i|is it ok(?:ay)? if i).{0,50}\b(send|share|text).{0,30}\b(digital package|package|referral link|rate card|link|it|that)\b|\b(digital package|package|referral info|client quote link|rate card|rates).{0,120}\bis it ok(?:ay)? if i send (?:that|it) here too\??/i.test(text)
   })
 
   return Boolean(priorOutboundAskedPermission && latestInbound && PACKAGE_PERMISSION_RE.test(cleanText(latestInbound.notes)))
+}
+
+function priorOutboundAskedCardDrop(touches: PartnershipAssistantTouch[]) {
+  return [...touches]
+    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+    .slice(0, 8)
+    .some(touch => {
+      if (touch.direction !== 'outbound' && touch.direction !== 'system') return false
+      return /\b(stop(?:ped)? by|drop(?:ped)? off|drop|bring|leave).{0,60}\b(card|cards|postcard|postcards|flyer|flyers)\b|\b(card|cards|postcard|postcards|flyer|flyers).{0,60}\b(drop|stop by|drop off|leave)\b/i.test(cleanText(touch.notes))
+    })
 }
 
 function extractFields(text: string): PartnershipAssistantResult['extracted'] {
@@ -228,7 +239,7 @@ function extractFields(text: string): PartnershipAssistantResult['extracted'] {
   }
 }
 
-function detectIntent(text: string, contact: PartnershipAssistantContact): { intent: PartnershipReplyIntent; confidence: number; risk_flags: string[] } {
+function detectIntent(text: string, contact: PartnershipAssistantContact, touches: PartnershipAssistantTouch[] = []): { intent: PartnershipReplyIntent; confidence: number; risk_flags: string[] } {
   const lower = text.toLowerCase()
   const risk_flags: string[] = []
   const decision = cleanText(contact.decision).toLowerCase()
@@ -237,6 +248,9 @@ function detectIntent(text: string, contact: PartnershipAssistantContact): { int
   if (decision === 'opted_out' || isOptOutText(text)) return { intent: 'stop_opt_out', confidence: 0.98, risk_flags }
   if (/\b(wrong number|wrong person|not me|who is this)\b/i.test(text)) return { intent: 'wrong_number', confidence: 0.96, risk_flags }
   if (stage === 'closed_lost' || /\b(not interested|no thanks|no thank you|remove me|don't contact|do not contact)\b/i.test(text)) return { intent: 'not_interested', confidence: 0.92, risk_flags }
+  if (IOS_REACTION_RE.test(text.trim())) {
+    return { intent: 'warm_acknowledgement', confidence: 0.64, risk_flags: [...risk_flags, 'sms_reaction_only'] }
+  }
   if (/\b(no|don'?t|do not|dont).{0,24}\b(postcard|post card|card|cards|flyer|flyers|mail|drop off|drop by)\b|\b(just|only).{0,18}\b(email|digital|link|info|information|package)\b/i.test(text)) {
     return { intent: 'digital_only_no_postcard', confidence: 0.88, risk_flags }
   }
@@ -248,6 +262,9 @@ function detectIntent(text: string, contact: PartnershipAssistantContact): { int
   if (/\b(meet|meeting|appointment|call me|give me a call|phone call|sit down|come by)\b/i.test(text)) return { intent: 'wants_meeting', confidence: 0.84, risk_flags }
   if (TIME_RE.test(text) && /\b(drop|stop|come|available|free|works|week|time|between)\b/i.test(text)) return { intent: 'gives_time_window', confidence: 0.82, risk_flags }
   if (/\b(drop by|stop by|drop off|leave (?:it|them)|mailbox|front desk|reception|secretary)\b/i.test(text)) return { intent: 'drop_by_anytime', confidence: 0.82, risk_flags }
+  if (PACKAGE_PERMISSION_RE.test(text) && priorOutboundAskedCardDrop(touches)) {
+    return { intent: 'postcard_yes', confidence: 0.84, risk_flags }
+  }
   if (/^(?:thanks?|thank you|appreciate it|sounds good|perfect|great|awesome|ok|okay|k)\.?$/i.test(text.trim()) || /\b(thanks?|thank you|appreciate it)\b/i.test(text)) {
     return { intent: 'warm_acknowledgement', confidence: 0.7, risk_flags: [...risk_flags, 'soft_positive_acknowledgement'] }
   }
@@ -267,9 +284,9 @@ function packageLine(config: PackageConfig, extracted: PartnershipAssistantResul
 
 function packagePermissionAsk(extracted: PartnershipAssistantResult['extracted']) {
   const contents = extracted.asks_pricing
-    ? 'the digital package with the rate card and your referral link'
-    : 'the digital package with your referral link'
-  return `I can also send ${contents} here if that is okay.`
+    ? 'the full digital package here too? It has your referral link, flyer/rates, and a client quote link you can forward anytime.'
+    : 'the full digital package here too? It has your referral link, flyer, and a client quote link you can forward anytime.'
+  return `Is it okay if I send ${contents}`
 }
 
 function localRepDropLine() {
@@ -290,7 +307,7 @@ function draftFromRules(input: {
 }): PartnershipAssistantResult {
   const { contact, touches, intent, extracted, config, latestText } = input
   const packageConfigured = hasPackage(config)
-  const digitalSent = wasSent(touches, /\b(digital package|referral program|rate card|flyer|package link)\b/i)
+  const digitalSent = wasSent(touches, /\b(digital package|referral program|rate card|flyer|package link)\s*:\s*https?:\/\//i)
   const referralMentioned = digitalSent || wasSent(touches, /\b(referral|commission|incentive)\b/i)
   const canSendPackageNow = packageConfigured && packagePermissionGranted(touches, latestText, intent)
   const name = firstName(contact)
@@ -331,19 +348,19 @@ function draftFromRules(input: {
     recommended_action = extracted.email ? 'send_package' : 'draft_reply'
     quick_action = 'needs_follow_up'
   } else if (intent === 'send_card_or_flyer_media') {
-    draft = `For sure ${name}, I can text the card/flyer here. I also have a short digital package with rates, referral info, and your client quote link in one place. Is it okay if I send that here too?`
+    draft = `For sure ${name}, I can text the card/flyer here. I also have the full digital package with rates, referral info, and your client quote link in one place. Is it okay if I send that here too?`
     recommended_action = 'draft_reply'
     quick_action = 'needs_follow_up'
   } else if (intent === 'digital_only_no_postcard') {
     draft = canSendPackageNow
       ? `No problem ${name}, digital is perfectly fine. ${packageLine(config, extracted)} If anything comes up with a client, they can use your link or mention your name when they call.`
-      : `No problem ${name}, digital is perfectly fine. I can send the digital package with your referral link here if that is okay.`
+      : `No problem ${name}, digital is perfectly fine. Is it okay if I send the full digital package here too? It has your referral link, flyer, and a client quote link you can forward anytime.`
     recommended_action = canSendPackageNow ? 'send_package' : 'draft_reply'
     quick_action = 'needs_follow_up'
   } else if (intent === 'wants_meeting') {
     draft = extracted.time_window
-      ? `That works${nameSuffix}. ${localRepMeetingLine()} ${extracted.time_window} works on our side. What address should we use? I can also send the digital package here if that is okay.`
-      : `That works${nameSuffix}. ${localRepMeetingLine()} What time and address work best? I can also send the digital package here if that is okay.`
+      ? `That works${nameSuffix}. ${localRepMeetingLine()} ${extracted.time_window} works on our side. What address should we use? Is it okay if I send the full digital package here too?`
+      : `That works${nameSuffix}. ${localRepMeetingLine()} What time and address work best? Is it okay if I send the full digital package here too?`
     recommended_action = extracted.time_window && extracted.address ? 'book_meeting' : 'draft_reply'
     quick_action = 'meeting_requested'
   } else if (intent === 'gives_address' || intent === 'gives_time_window' || intent === 'drop_by_anytime') {
@@ -353,8 +370,10 @@ function draftFromRules(input: {
     recommended_action = extracted.address || intent === 'drop_by_anytime' ? 'schedule_delivery' : 'draft_reply'
     quick_action = 'drop_cards'
   } else if (intent === 'warm_acknowledgement') {
-    draft = `Of course ${name}. Quick question so our local team sends it to the right place: what is the best address for the postcards, and should we leave them at reception or come at a better time? I can also send your digital package here if that is okay.`
-    recommended_action = 'draft_reply'
+    draft = canSendPackageNow
+      ? `Perfect, thanks ${name}. ${packageLine(config, extracted)}`
+      : `Of course ${name}. Quick question so our local team sends it to the right place: what is the best address for the postcards, and should we leave them at reception or come at a better time? Is it okay if I send the full digital package here too?`
+    recommended_action = canSendPackageNow ? 'send_package' : 'draft_reply'
     quick_action = 'needs_follow_up'
   } else if (intent === 'postcard_yes' || intent === 'send_digital_package') {
     draft = intent === 'send_digital_package' && canSendPackageNow
@@ -362,8 +381,11 @@ function draftFromRules(input: {
       : `Perfect, thanks ${name}. ${localRepDropLine()} What address and time work best? ${packagePermissionAsk(extracted)}`
     quick_action = 'drop_cards'
   } else {
-    draft = `Thanks ${name}. ${localRepDropLine()} What address and time work best? I can also send the digital package with your referral link here if that is okay.`
-    risk_flags.push('needs_context_review')
+    draft = canSendPackageNow
+      ? `Perfect, thanks ${name}. ${packageLine(config, extracted)}`
+      : `Thanks ${name}. ${localRepDropLine()} What address and time work best? Is it okay if I send the full digital package here too?`
+    if (!canSendPackageNow) risk_flags.push('needs_context_review')
+    recommended_action = canSendPackageNow ? 'send_package' : 'draft_reply'
     quick_action = 'needs_follow_up'
   }
 
@@ -531,7 +553,7 @@ export async function suggestPartnershipReply(input: {
   const latest = latestInbound(input.touches)
   const latestText = cleanText(latest?.notes)
   const extracted = extractFields(latestText)
-  const detected = detectIntent(latestText, input.contact)
+  const detected = detectIntent(latestText, input.contact, input.touches)
   const config = getPackageConfig(input.contact)
   const fallback = draftFromRules({
     contact: input.contact,

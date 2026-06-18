@@ -43,6 +43,17 @@ function inbound(notes: string): PartnershipAssistantTouch[] {
   }]
 }
 
+function conversation(notes: Array<{ direction: 'inbound' | 'outbound'; text: string }>): PartnershipAssistantTouch[] {
+  return notes.map((item, index) => ({
+    id: `touch_${index + 1}`,
+    channel: 'sms',
+    direction: item.direction,
+    notes: item.text,
+    created_by: item.direction === 'outbound' ? 'Hunter' : null,
+    created_at: new Date(Date.UTC(2026, 5, 18, 16, 48 + index)).toISOString(),
+  }))
+}
+
 test('partnership assistant treats client email info requests as package-forwarding requests', async () => {
   process.env.PARTNERSHIP_DIGITAL_PACKAGE_URL = 'https://starmovers.ca/partner/mak-cole-windsor'
   process.env.PARTNERSHIP_RATE_CARD_URL = 'https://starmovers.ca/partner/flyers/windsor.pdf'
@@ -124,6 +135,76 @@ test('partnership assistant auto-generates package links when env links are abse
   assert.equal(result.package_configured, true)
   assert.doesNotMatch(result.risk_flags.join(' '), /package_links_not_configured/)
   assert.deepEqual(result.suggested_media_urls, ['https://starmovers.ca/partner/flyers/windsor.pdf'])
+})
+
+test('partnership assistant treats go ahead after package permission ask as approval to send package', async () => {
+  delete process.env.PARTNERSHIP_DIGITAL_PACKAGE_URL
+  delete process.env.PARTNERSHIP_RATE_CARD_URL
+  delete process.env.PARTNERSHIP_REFERRAL_PROGRAM_URL
+  delete process.env.PARTNERSHIP_FLYER_IMAGE_URL
+  delete process.env.OPENAI_API_KEY
+
+  const result = await suggestPartnershipReply({
+    contact: { ...contact, name: 'Moe Fakih', city: 'Windsor' },
+    touches: conversation([
+      { direction: 'inbound', text: 'Hi Hunter, you can just text me your card here.' },
+      { direction: 'outbound', text: 'For sure Moe, I can text the card/flyer here. I also have a short digital package with rates, referral info, and your client quote link in one place. Is it okay if I send that here too?' },
+      { direction: 'inbound', text: 'Hey Hunter ya go ahead' },
+    ]),
+  })
+
+  assert.equal(result.intent, 'positive_vague')
+  assert.equal(result.recommended_action, 'send_package')
+  assert.equal(result.goal_state.digital_package, 'ready_to_send')
+  assert.match(result.draft_sms, /digital package: https:\/\/starmovers\.ca\/partner\/moe-fakih-windsor\?city=windsor/i)
+  assert.doesNotMatch(result.draft_sms, /if that is okay|Is it okay|Is it cool/i)
+})
+
+test('partnership assistant treats go ahead after card drop ask as postcard approval only', async () => {
+  delete process.env.PARTNERSHIP_DIGITAL_PACKAGE_URL
+  delete process.env.PARTNERSHIP_RATE_CARD_URL
+  delete process.env.PARTNERSHIP_REFERRAL_PROGRAM_URL
+  delete process.env.PARTNERSHIP_FLYER_IMAGE_URL
+  delete process.env.OPENAI_API_KEY
+
+  const result = await suggestPartnershipReply({
+    contact: { ...contact, name: 'Moe Fakih', city: 'Windsor' },
+    touches: conversation([
+      { direction: 'outbound', text: 'Would it be okay if I stopped by your office next week to drop off a few cards?' },
+      { direction: 'inbound', text: 'Loved “Would it be okay if I stopped by your office next week to drop off a few cards?”' },
+      { direction: 'inbound', text: 'Hey Hunter ya go ahead' },
+    ]),
+  })
+
+  assert.equal(result.intent, 'postcard_yes')
+  assert.equal(result.recommended_action, 'draft_reply')
+  assert.equal(result.goal_state.digital_package, 'suggested')
+  assert.match(result.draft_sms, /What address and time work best/i)
+  assert.match(result.draft_sms, /Is it okay if I send the full digital package here too\?/i)
+  assert.match(result.draft_sms, /client quote link you can forward anytime/i)
+  assert.doesNotMatch(result.draft_sms, /digital package: https:\/\//i)
+  assert.doesNotMatch(result.risk_flags.join(' '), /needs_context_review/)
+})
+
+test('partnership assistant treats sms love reactions as soft acknowledgement', async () => {
+  delete process.env.PARTNERSHIP_DIGITAL_PACKAGE_URL
+  delete process.env.PARTNERSHIP_RATE_CARD_URL
+  delete process.env.PARTNERSHIP_REFERRAL_PROGRAM_URL
+  delete process.env.PARTNERSHIP_FLYER_IMAGE_URL
+  delete process.env.OPENAI_API_KEY
+
+  const result = await suggestPartnershipReply({
+    contact: { ...contact, name: 'Moe Fakih', city: 'Windsor' },
+    touches: conversation([
+      { direction: 'outbound', text: 'Would it be okay if I stopped by your office next week to drop off a few cards?' },
+      { direction: 'inbound', text: 'Loved “Would it be okay if I stopped by your office next week to drop off a few cards?”' },
+    ]),
+  })
+
+  assert.equal(result.intent, 'warm_acknowledgement')
+  assert.match(result.risk_flags.join(' '), /sms_reaction_only/)
+  assert.equal(result.recommended_action, 'draft_reply')
+  assert.doesNotMatch(result.draft_sms, /digital package: https:\/\//i)
 })
 
 test('partnership assistant routes meeting requests through local relationship reps', async () => {
