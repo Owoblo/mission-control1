@@ -362,9 +362,53 @@ test('partnership assistant treats recent client referral requests as credibilit
   assert.equal(result.intent, 'asks_for_references')
   assert.equal(result.recommended_action, 'draft_reply')
   assert.equal(result.goal_state.physical_delivery, 'not_needed')
-  assert.match(result.draft_sms, /Absolutely, Shaun/i)
+  assert.match(result.draft_sms, /For sure, Shaun/i)
   assert.match(result.draft_sms, /recent client feedback/i)
   assert.match(result.draft_sms, /referral examples/i)
   assert.match(result.draft_sms, /Is it okay if I send that here too\?/i)
   assert.doesNotMatch(result.draft_sms, /What address and time|drop the postcards|relationship managers/i)
+})
+
+test('partnership assistant extracts secondary contact handoffs', async () => {
+  delete process.env.PARTNERSHIP_DIGITAL_PACKAGE_URL
+  delete process.env.PARTNERSHIP_RATE_CARD_URL
+  delete process.env.PARTNERSHIP_REFERRAL_PROGRAM_URL
+  delete process.env.PARTNERSHIP_FLYER_IMAGE_URL
+  delete process.env.OPENAI_API_KEY
+
+  const result = await suggestPartnershipReply({
+    contact: { ...contact, name: 'Doris Lapico', city: 'Windsor' },
+    touches: inbound('Please reach out to Julie my assistant at 5199662368 and she can help coordinate.'),
+  })
+
+  assert.equal(result.intent, 'refers_to_another_contact')
+  assert.equal(result.recommended_action, 'draft_reply')
+  assert.equal(result.goal_state.physical_delivery, 'not_needed')
+  assert.equal(result.extracted.referred_person_name, 'Julie')
+  assert.equal(result.extracted.referred_person_phone, '5199662368')
+  assert.equal(result.extracted.referred_person_role, 'assistant')
+  assert.match(result.draft_sms, /Thanks, Doris/i)
+  assert.match(result.draft_sms, /reach out to Julie at 5199662368/i)
+  assert.match(result.draft_sms, /digital package too/i)
+})
+
+test('partnership assistant treats referred lead updates as dispositions', async () => {
+  delete process.env.PARTNERSHIP_DIGITAL_PACKAGE_URL
+  delete process.env.PARTNERSHIP_RATE_CARD_URL
+  delete process.env.PARTNERSHIP_REFERRAL_PROGRAM_URL
+  delete process.env.PARTNERSHIP_FLYER_IMAGE_URL
+  delete process.env.OPENAI_API_KEY
+
+  const result = await suggestPartnershipReply({
+    contact: { ...contact, name: 'Ken Allen', city: 'Windsor' },
+    touches: inbound("I don't believe they'll be using a mover. The house was vacant and had no furniture."),
+  })
+
+  assert.equal(result.intent, 'lead_disposition_update')
+  assert.equal(result.recommended_action, 'draft_reply')
+  assert.equal(result.goal_state.physical_delivery, 'not_needed')
+  assert.match(result.extracted.lead_disposition || '', /no furniture/i)
+  assert.match(result.draft_sms, /Thanks for the update, Ken/i)
+  assert.match(result.draft_sms, /no worries at all/i)
+  assert.doesNotMatch(result.draft_sms, /What address and time|drop it off/i)
 })

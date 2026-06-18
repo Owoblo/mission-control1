@@ -22,6 +22,7 @@ The system should answer the person first, then guide the conversation toward th
 ## Relationship Principles
 
 - Human first: reply like Hunter or the local team is having a real conversation.
+- Friendly, not corporate: use plain phrases like "for sure," "no worries," "appreciate that," and "thanks for the update" when they fit.
 - Direct answer first: if they ask for an email, website, social page, phone number, pricing, proof, or whether this is Hunter, answer that before asking anything else.
 - Permission-based links: do not drop digital package links into every conversation. Ask if it is okay unless they directly requested or approved the link/package.
 - One clean CTA: ask no more than one or two questions in a draft.
@@ -30,6 +31,10 @@ The system should answer the person first, then guide the conversation toward th
 - Do not imply Hunter personally visits every office. For postcard or flyer drop-offs, use "I will make arrangements to drop it off." For meetings, say the meeting will be coordinated with a relationship manager or local team member.
 - No AI tells: never mention AI, automation, prompts, or internal confidence.
 - Do not invent facts: no invented rates, referral percentages, service areas, names, client examples, delivery status, or meetings.
+
+Tone rule:
+
+The reply should feel like a capable person texting from their phone: warm, brief, and useful. Avoid stiff wording like "per our workflow," "relationship pipeline," "classified intent," or anything that sounds like a CRM note. The partner should feel helped, not processed.
 
 ## Digital Package
 
@@ -234,6 +239,63 @@ Do not auto-send when:
 - The package link is not configured.
 - The partner asks for specific rates, payout terms, or client proof that is not verified.
 - The response would mention a delivery, appointment, or sent package that has not actually happened.
+
+## Approved Pattern Learning Loop
+
+The long-term goal is not to manually approve every reply forever. The goal is to create a vetted library of "what John would do in this context" and let the system reuse those patterns safely.
+
+The learning loop:
+
+1. New inbound message arrives.
+2. System classifies the intent and extracts context.
+3. AI drafts a reply using the playbook, prior thread, market, package status, and known business facts.
+4. Human approves, edits, or rejects the draft.
+5. Approved or edited reply is stored as a reusable pattern with the inbound context that triggered it.
+6. Future similar messages are compared against approved patterns.
+7. If the match is strong and the risk is low, the system can auto-send or queue as "pre-approved."
+8. If the match is weak, sensitive, or missing context, it stays manual-approved.
+
+This creates a controlled version of AI automation: the model can personalize and adapt wording, but the business decision and conversation strategy come from approved history.
+
+Recommended pattern record:
+
+```json
+{
+  "intent_category": "asks_contact_info",
+  "sample_inbound": "Is this the number I can share with clients? Do you have an email or website?",
+  "approved_strategy": "Answer phone/email/website first, then ask permission for digital package.",
+  "approved_draft": "Absolutely Rami, yes, this number works for clients too. Our email is info@starmovers.ca and our website is starmovers.ca. Is it okay if I send the full digital package here too?",
+  "required_context": {
+    "package_permission_granted": false,
+    "has_public_contact_info": true,
+    "is_opt_out": false
+  },
+  "auto_send_eligible": true,
+  "min_confidence": 0.9,
+  "risk_blocks": ["mentions_pricing_specifics", "asks_legal_question", "angry_or_confused", "missing_thread_context"]
+}
+```
+
+Auto-send should require all of these:
+
+- Intent matches an approved pattern.
+- Latest inbound and prior outbound context are similar enough.
+- No new unapproved facts are needed.
+- Package permission rule is satisfied if a link/media is included.
+- The generated message stays within the approved strategy.
+- The message does not introduce pricing, payout terms, testimonials, or delivery commitments that are not verified.
+
+If those are not true, the system should still draft, but it should ask for human approval.
+
+The practical operator flow:
+
+- `Approve`: send this reply and mark the pattern as useful.
+- `Approve similar`: allow future similar conversations to be auto-eligible.
+- `Edit and approve`: store the edited version as the better canonical pattern.
+- `Reject`: block that pattern from auto-sending.
+- `Human only`: keep this class manual forever or until more examples are reviewed.
+
+This is how the system gradually moves from manual draft review to safe automation without losing the human tone.
 
 ## Intent Categories
 

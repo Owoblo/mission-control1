@@ -1,6 +1,7 @@
 import { defaultFollowUpDate, normalizePartnershipStage } from '@/lib/marketing'
 import { digitsOnly, normalizePhone } from '@/lib/sales-phones'
 import { getPartnershipAlertRecipients, partnershipInboundNotificationEmail, sendRepAlertEmail } from '@/lib/server/internal-notifications'
+import { partnershipDispositionFromSuggestion, suggestPartnershipReply, type PartnershipAssistantContact } from '@/lib/server/partnership-reply-assistant'
 import { isOptOutText } from '@/lib/server/partnership-sms'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 
@@ -19,12 +20,17 @@ interface MarketContactMatch {
   id: string
   name: string | null
   company: string | null
+  title: string | null
   email: string | null
   phone: string | null
+  city: string | null
+  industry: string | null
   stage: string | null
   decision: string | null
   sequence_paused: boolean
   pipeline_phase: string | null
+  affiliate_partner_id?: string | null
+  tracking_code?: string | null
 }
 
 function normalizeEmail(value?: string | null) {
@@ -49,7 +55,7 @@ async function findPartnershipContactMatch(input: PausePartnershipSequenceInput)
 
   if (normalizedEmail) {
     const emailRes = await fetch(
-      `${url}/rest/v1/market_contacts?email=eq.${encodeURIComponent(normalizedEmail)}&select=id,name,company,email,phone,stage,decision,sequence_paused,pipeline_phase&order=created_at.desc&limit=20`,
+      `${url}/rest/v1/market_contacts?email=eq.${encodeURIComponent(normalizedEmail)}&select=id,name,company,title,email,phone,city,industry,stage,decision,sequence_paused,pipeline_phase,affiliate_partner_id,tracking_code&order=created_at.desc&limit=20`,
       { headers, cache: 'no-store' }
     )
     if (emailRes.ok) {
@@ -60,7 +66,7 @@ async function findPartnershipContactMatch(input: PausePartnershipSequenceInput)
 
   if (lastTen) {
     const phoneRes = await fetch(
-      `${url}/rest/v1/market_contacts?phone=ilike.*${encodeURIComponent(lastTen)}*&select=id,name,company,email,phone,stage,decision,sequence_paused,pipeline_phase&order=created_at.desc&limit=50`,
+      `${url}/rest/v1/market_contacts?phone=ilike.*${encodeURIComponent(lastTen)}*&select=id,name,company,title,email,phone,city,industry,stage,decision,sequence_paused,pipeline_phase,affiliate_partner_id,tracking_code&order=created_at.desc&limit=50`,
       { headers, cache: 'no-store' }
     )
     if (phoneRes.ok) {
@@ -71,7 +77,7 @@ async function findPartnershipContactMatch(input: PausePartnershipSequenceInput)
   }
 
   const response = await fetch(
-    `${url}/rest/v1/market_contacts?select=id,name,company,email,phone,stage,decision,sequence_paused,pipeline_phase&batch_id=not.is.null&order=created_at.desc&limit=10000`,
+    `${url}/rest/v1/market_contacts?select=id,name,company,title,email,phone,city,industry,stage,decision,sequence_paused,pipeline_phase,affiliate_partner_id,tracking_code&batch_id=not.is.null&order=created_at.desc&limit=10000`,
     { headers, cache: 'no-store' }
   )
 
@@ -120,6 +126,36 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
   const { url, headers } = requireSupabaseEnv()
   const currentStage = normalizePartnershipStage(contact.stage)
   const optedOut = isOptOutText(input.notes)
+  const touchNotes = input.notes?.trim() || (optedOut ? 'Inbound opt-out received' : `Inbound ${input.channel} reply received`)
+  const assistantContact: PartnershipAssistantContact = {
+    id: contact.id,
+    name: contact.name,
+    company: contact.company,
+    title: contact.title,
+    email: contact.email,
+    phone: contact.phone || input.phone || null,
+    city: contact.city,
+    industry: contact.industry,
+    stage: contact.stage,
+    decision: optedOut ? 'opted_out' : contact.decision,
+    affiliate_partner_id: contact.affiliate_partner_id,
+    tracking_code: contact.tracking_code,
+  }
+  const playbook = await suggestPartnershipReply({
+    contact: assistantContact,
+    touches: [{
+      id: 'inbound_pending',
+      channel: input.channel,
+      direction: 'inbound',
+      notes: touchNotes,
+      created_by: 'System',
+      created_at: occurredAt,
+      outcome_code: optedOut ? 'opt_out' : null,
+      metadata: input.metadata ?? {},
+    }],
+    skipAi: true,
+  })
+  const disposition = partnershipDispositionFromSuggestion(playbook)
   const shouldAdvanceToConnected = ['target', 'mail_sent', 'follow_up_due', 'attempting_contact'].includes(currentStage)
   const nextFollowUp =
     optedOut
@@ -160,11 +196,26 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
         contact_id: contact.id,
         channel: input.channel,
         direction: 'inbound',
-        notes: input.notes?.trim() || (optedOut ? 'Inbound opt-out received' : `Inbound ${input.channel} reply received`),
+        notes: touchNotes,
         created_by: 'System',
         created_at: occurredAt,
-        outcome_code: optedOut ? 'opt_out' : null,
-        metadata: { ...(input.metadata ?? {}), optedOut },
+        outcome_code: optedOut ? 'opt_out' : disposition.outcome_code,
+        next_step: optedOut ? 'Mark opted out and stop messaging.' : disposition.next_step,
+        metadata: {
+          ...(input.metadata ?? {}),
+          optedOut,
+          partnership_ai: {
+            intent: playbook.intent,
+            confidence: playbook.confidence,
+            goal_state: playbook.goal_state,
+            extracted: playbook.extracted,
+            recommended_action: playbook.recommended_action,
+            quick_action: playbook.quick_action ?? null,
+            draft_sms: playbook.draft_sms,
+            risk_flags: playbook.risk_flags,
+            rationale: playbook.rationale,
+          },
+        },
       }),
     }),
   ])

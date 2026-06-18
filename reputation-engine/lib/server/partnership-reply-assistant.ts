@@ -10,6 +10,8 @@ export type PartnershipReplyIntent =
   | 'asks_contact_info'
   | 'confirms_identity'
   | 'asks_for_references'
+  | 'refers_to_another_contact'
+  | 'lead_disposition_update'
   | 'asks_for_email'
   | 'asks_for_pricing'
   | 'asks_referral_program'
@@ -102,6 +104,10 @@ export interface PartnershipAssistantResult {
     asks_share_number?: boolean
     asks_identity_confirmation?: boolean
     asks_references?: boolean
+    referred_person_name?: string
+    referred_person_phone?: string
+    referred_person_role?: string
+    lead_disposition?: string
     low_referral_activity?: boolean
     delivery_instructions?: string
   }
@@ -139,6 +145,9 @@ const WEBSITE_RE = /\b(website|web site|site|url|webpage|web page)\b/i
 const SHARE_NUMBER_RE = /\b(?:is this|this|the).{0,24}\b(?:number|phone).{0,60}\b(?:share|give|send|forward).{0,36}\b(?:client|clients|customer|customers)|\b(?:share|give|send|forward).{0,36}\b(?:number|phone).{0,36}\b(?:client|clients|customer|customers)/i
 const IDENTITY_CONFIRMATION_RE = /\bis\s+this\s+hunter\b|\bthis\s+is\s+hunter\b/i
 const REFERENCES_RE = /\b(referrals?|references?|recent clients?|reviews?|testimonials?|proof|examples?)\b/i
+const PHONE_RE = /(?:\+?1[\s.-]?)?(?:\(?[2-9]\d{2}\)?[\s.-]?)\d{3}[\s.-]?\d{4}\b/
+const SECONDARY_CONTACT_RE = /\b(?:reach out to|ask for|contact|call|speak to|talk to|connect with)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)(?:[^.\n]{0,80})/i
+const LEAD_DISPOSITION_RE = /\b(?:client|clients|buyer|buyers|seller|sellers|they|he|she).{0,80}\b(?:not|n't|no longer|already|won't|will not|don't|do not).{0,80}\b(?:using|use|need|need a|need movers?|moving|mover|movers|furniture|move)|\b(?:vacant|no furniture|already moved|found movers?|not moving|move cancelled|deal fell through|closing fell through)\b/i
 
 function cleanText(value: string | null | undefined) {
   return String(value || '').replace(/\s+/g, ' ').trim()
@@ -219,6 +228,19 @@ function latestEmailInHistory(touches: PartnershipAssistantTouch[]) {
     .find(Boolean)
 }
 
+function cleanPhone(value: string | undefined) {
+  if (!value) return undefined
+  return value.replace(/[^\d+]/g, '')
+}
+
+function cleanReferredPersonName(value: string | undefined) {
+  return cleanText(value)
+    .split(/\s+/)
+    .filter(word => !/^(my|the|his|her|their|our|at|and)$/i.test(word))
+    .slice(0, 2)
+    .join(' ') || undefined
+}
+
 function packagePermissionGranted(touches: PartnershipAssistantTouch[], latestText: string, intent: PartnershipReplyIntent) {
   if (['asks_for_email', 'asks_for_pricing', 'asks_referral_program', 'send_digital_package', 'asks_for_references'].includes(intent)) return true
   if (intent === 'confirms_identity' && priorInboundApprovedDigitalPackage(touches)) return true
@@ -260,6 +282,8 @@ function priorOutboundAskedCardDrop(touches: PartnershipAssistantTouch[]) {
 
 function extractFields(text: string): PartnershipAssistantResult['extracted'] {
   const email = text.match(EMAIL_RE)?.[0]
+  const referredContactName = cleanReferredPersonName(text.match(SECONDARY_CONTACT_RE)?.[1])
+  const referredPhone = cleanPhone(text.match(PHONE_RE)?.[0])
   const address = text.match(ADDRESS_RE)?.[0]?.replace(/[,.]\s*$/, '')
   const brokerageLocation = text.match(/\b(?:at|to|the|on)\s+([A-Za-z0-9&' .-]{2,80}\b(?:real estate|realty|royal lepage|remax|re\/max|brokerage|provincial|dougall)\b[A-Za-z0-9&' .-]{0,50})/i)?.[1]
     ?.replace(/\b(?:do you|can you|would you|is it|what|when|where)\b[\s\S]*$/i, '')
@@ -281,6 +305,10 @@ function extractFields(text: string): PartnershipAssistantResult['extracted'] {
     asks_share_number: SHARE_NUMBER_RE.test(text),
     asks_identity_confirmation: IDENTITY_CONFIRMATION_RE.test(text),
     asks_references: REFERENCES_RE.test(text),
+    ...(referredContactName ? { referred_person_name: referredContactName } : {}),
+    ...(referredPhone ? { referred_person_phone: referredPhone } : {}),
+    referred_person_role: /\bassistant\b/i.test(text) ? 'assistant' : /\bfront desk|reception\b/i.test(text) ? 'front desk' : undefined,
+    lead_disposition: LEAD_DISPOSITION_RE.test(text) ? text.slice(0, 220) : undefined,
     low_referral_activity: LOW_REFERRAL_ACTIVITY_RE.test(text),
     ...(delivery_instructions ? { delivery_instructions } : {}),
   }
@@ -301,12 +329,14 @@ function detectIntent(text: string, contact: PartnershipAssistantContact, touche
   if (/\b(no|don'?t|do not|dont).{0,24}\b(postcard|post card|card|cards|flyer|flyers|mail|drop off|drop by)\b|\b(just|only).{0,18}\b(email|digital|link|info|information|package)\b/i.test(text)) {
     return { intent: 'digital_only_no_postcard', confidence: 0.88, risk_flags }
   }
+  if (IDENTITY_CONFIRMATION_RE.test(text)) return { intent: 'confirms_identity', confidence: 0.82, risk_flags }
+  if (SECONDARY_CONTACT_RE.test(text) && (PHONE_RE.test(text) || /\b(assistant|front desk|reception|office manager|admin)\b/i.test(text))) return { intent: 'refers_to_another_contact', confidence: 0.88, risk_flags }
+  if (LEAD_DISPOSITION_RE.test(text)) return { intent: 'lead_disposition_update', confidence: 0.84, risk_flags }
+  if (REFERENCES_RE.test(text) && /\b(add|include|send|share|have|provide|couple)\b/i.test(text)) return { intent: 'asks_for_references', confidence: 0.84, risk_flags }
   if (/\b(price|prices|pricing|rate|rates|charge|cost|fee)\b/i.test(text)) return { intent: 'asks_for_pricing', confidence: 0.88, risk_flags }
   if (/\b(referral|commission|incentive|program|kickback|paid)\b/i.test(text)) return { intent: 'asks_referral_program', confidence: 0.86, risk_flags }
   if (SOCIAL_MEDIA_RE.test(text)) return { intent: 'asks_social_media', confidence: 0.86, risk_flags }
   if (CARD_OR_FLYER_REQUEST_RE.test(text)) return { intent: 'send_card_or_flyer_media', confidence: 0.9, risk_flags }
-  if (IDENTITY_CONFIRMATION_RE.test(text)) return { intent: 'confirms_identity', confidence: 0.82, risk_flags }
-  if (REFERENCES_RE.test(text) && /\b(add|include|send|share|have|provide|couple)\b/i.test(text)) return { intent: 'asks_for_references', confidence: 0.84, risk_flags }
   if ((WEBSITE_RE.test(text) || SHARE_NUMBER_RE.test(text)) && /\b(email|e-mail|website|web site|number|phone|share|client|clients)\b/i.test(text)) {
     return { intent: 'asks_contact_info', confidence: 0.86, risk_flags }
   }
@@ -381,11 +411,11 @@ function draftFromRules(input: {
   let quick_action: PartnershipQuickAction | undefined
 
   if (intent === 'stop_opt_out') {
-    draft = 'No problem, I will make sure we do not text you again.'
+    draft = "No problem, I'll make sure we do not text you again."
     recommended_action = 'mark_not_interested'
     quick_action = 'not_interested'
   } else if (intent === 'wrong_number') {
-    draft = 'Sorry about that, I will update our list.'
+    draft = "Sorry about that, I'll update our list."
     recommended_action = 'mark_not_interested'
     quick_action = 'wrong_number'
   } else if (intent === 'not_interested') {
@@ -399,8 +429,8 @@ function draftFromRules(input: {
     quick_action = 'drop_cards'
   } else if (intent === 'asks_referral_program') {
     draft = packageConfigured
-      ? `Yes, I can send the referral info over. ${packageLine(config, extracted)} ${localRepDropLine()} What address and time usually work for you?`
-      : `Yes, I can send the referral info over. ${localRepDropLine()} What address and time usually work for you?`
+      ? `Yes for sure${nameSuffix}. ${packageLine(config, extracted)} ${localRepDropLine()} What address and time usually work for you?`
+      : `Yes for sure${nameSuffix}, I can send the referral info over. ${localRepDropLine()} What address and time usually work for you?`
     quick_action = 'drop_cards'
   } else if (intent === 'asks_social_media') {
     const locationPhrase = extracted.address
@@ -428,7 +458,17 @@ function draftFromRules(input: {
     recommended_action = knownEmail && canSendPackageNow ? 'send_package' : 'draft_reply'
     quick_action = 'needs_follow_up'
   } else if (intent === 'asks_for_references') {
-    draft = `Absolutely${nameSuffix}. I can include recent client feedback and a couple of referral examples in the digital package, along with the flyer/business card and quote link. Is it okay if I send that here too?`
+    draft = `For sure${nameSuffix}. I can include recent client feedback and a couple of referral examples in the digital package, along with the flyer/business card and quote link. Is it okay if I send that here too?`
+    recommended_action = 'draft_reply'
+    quick_action = 'needs_follow_up'
+  } else if (intent === 'refers_to_another_contact') {
+    const referred = extracted.referred_person_name || 'them'
+    const phone = extracted.referred_person_phone ? ` at ${extracted.referred_person_phone}` : ''
+    draft = `Thanks${nameSuffix}, I appreciate that. I'll reach out to ${referred}${phone} and mention you pointed me in the right direction. Is it okay if I send you the digital package too, so you have our info handy for future clients?`
+    recommended_action = 'draft_reply'
+    quick_action = 'needs_follow_up'
+  } else if (intent === 'lead_disposition_update') {
+    draft = `Thanks for the update${nameSuffix}, no worries at all. Appreciate you keeping us in mind. If another client needs movers later, I can send a simple package with our info and quote link.`
     recommended_action = 'draft_reply'
     quick_action = 'needs_follow_up'
   } else if (intent === 'asks_for_email') {
@@ -497,7 +537,7 @@ function draftFromRules(input: {
     ? 'ready_to_schedule'
       : hasDeliveryLocation
         ? 'need_time'
-      : ['stop_opt_out', 'wrong_number', 'not_interested', 'digital_only_no_postcard', 'send_card_or_flyer_media', 'asks_contact_info', 'confirms_identity', 'asks_for_references'].includes(intent)
+      : ['stop_opt_out', 'wrong_number', 'not_interested', 'digital_only_no_postcard', 'send_card_or_flyer_media', 'asks_contact_info', 'confirms_identity', 'asks_for_references', 'refers_to_another_contact', 'lead_disposition_update'].includes(intent)
         ? 'not_needed'
         : 'need_address'
 
@@ -615,7 +655,7 @@ async function refineWithOpenAi(input: {
               input.canSendPackageNow
                 ? 'The partner has requested or permitted package/media, so an allowed package link or media URL may be included if useful.'
                 : 'The partner has not requested or permitted the digital package link yet. Do not include any URL or media. Ask if it is okay to send the digital package/referral link here.',
-              'Keep the SMS under 420 characters. Ask no more than two questions. Be warm, plain, and not pushy.',
+              'Keep the SMS under 420 characters. Ask no more than two questions. Be friendly, plain, and not pushy. Sound like a real person texting, not a CRM note.',
               'If the reply is ambiguous or risky, recommend human_review.',
               'Return JSON matching: {confidence, extracted, recommended_action, quick_action, draft_sms, draft_email_subject, draft_email_body, suggested_media_urls, risk_flags, rationale}.',
             ].join(' '),
@@ -678,4 +718,63 @@ export async function suggestPartnershipReply(input: {
   }
   if (input.skipAi) return fallback
   return refineWithOpenAi({ contact: input.contact, touches: input.touches, latestText, config, fallback, canSendPackageNow })
+}
+
+export function partnershipDispositionFromSuggestion(result: PartnershipAssistantResult) {
+  const nextStepByIntent: Record<PartnershipReplyIntent, string> = {
+    postcard_yes: 'Confirm drop-off address/time and ask permission to send the digital package.',
+    drop_by_anytime: 'Log card drop-off details and ask permission to send the digital package.',
+    send_digital_package: 'Send the approved digital package and keep the partner in follow-up.',
+    send_card_or_flyer_media: 'Send card/flyer media after approval and ask permission for the full digital package.',
+    digital_only_no_postcard: 'Respect digital-only preference and send or request permission for package.',
+    asks_contact_info: 'Answer contact info, then ask permission to send the digital package.',
+    confirms_identity: 'Confirm identity and continue package/email follow-up based on prior permission.',
+    asks_for_references: 'Add verified reviews/references to package before sending.',
+    refers_to_another_contact: 'Create or call secondary contact and link it back to this partner.',
+    lead_disposition_update: 'Update referred lead disposition; keep partner warm without pushing.',
+    asks_for_email: 'Capture email and send package after approval.',
+    asks_for_pricing: 'Send rate card/package after approval; do not invent exact pricing.',
+    asks_referral_program: 'Send referral program details after approval.',
+    asks_social_media: 'Answer social links and ask permission to send package.',
+    wants_meeting: 'Coordinate meeting logistics without implying Hunter personally attends.',
+    gives_time_window: 'Confirm time and collect missing delivery address if needed.',
+    gives_address: 'Confirm address and collect best time or front-desk instruction.',
+    warm_acknowledgement: 'Light follow-up only; avoid pushing unless package permission exists.',
+    positive_vague: 'Use prior thread context before sending; manual review if ambiguous.',
+    not_interested: 'Close as not interested and stop outreach unless they re-engage.',
+    wrong_number: 'Mark wrong number and stop outreach to this phone.',
+    stop_opt_out: 'Mark opted out and stop messaging.',
+    needs_human_review: 'Human review required before reply.',
+  }
+
+  const outcomeByIntent: Record<PartnershipReplyIntent, string> = {
+    postcard_yes: 'postcard_requested',
+    drop_by_anytime: 'drop_cards',
+    send_digital_package: 'package_requested',
+    send_card_or_flyer_media: 'media_requested',
+    digital_only_no_postcard: 'digital_only',
+    asks_contact_info: 'asks_contact_info',
+    confirms_identity: 'identity_confirmation',
+    asks_for_references: 'asks_references',
+    refers_to_another_contact: 'secondary_contact_referral',
+    lead_disposition_update: 'lead_disposition_update',
+    asks_for_email: 'asks_for_email',
+    asks_for_pricing: 'asks_pricing',
+    asks_referral_program: 'asks_referral_program',
+    asks_social_media: 'asks_social_media',
+    wants_meeting: 'meeting_requested',
+    gives_time_window: 'gives_time_window',
+    gives_address: 'gives_address',
+    warm_acknowledgement: 'warm_acknowledgement',
+    positive_vague: 'positive_vague',
+    not_interested: 'replied_negative',
+    wrong_number: 'wrong_number',
+    stop_opt_out: 'opt_out',
+    needs_human_review: 'needs_human_review',
+  }
+
+  return {
+    outcome_code: outcomeByIntent[result.intent],
+    next_step: nextStepByIntent[result.intent],
+  }
 }
