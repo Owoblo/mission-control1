@@ -91,6 +91,34 @@ interface ReplyItem {
   needs_response: boolean
 }
 
+interface PartnershipAiSuggestion {
+  intent: string
+  confidence: number
+  goal_state: {
+    digital_package: string
+    physical_delivery: string
+    referral_program: string
+    meeting: string
+  }
+  extracted: {
+    email?: string
+    address?: string
+    time_window?: string
+    asks_pricing?: boolean
+    asks_service_area?: boolean
+    delivery_instructions?: string
+  }
+  recommended_action: string
+  quick_action?: InboxQuickAction
+  draft_sms: string
+  draft_email_subject?: string
+  draft_email_body?: string
+  suggested_media_urls?: string[]
+  risk_flags: string[]
+  rationale: string
+  package_configured: boolean
+}
+
 interface List {
   id: string
   name: string
@@ -2123,6 +2151,8 @@ function PhoneTab({
   const [scheduleMode, setScheduleMode] = useState(false)
   const [scheduledAt, setScheduledAt] = useState(defaultScheduledReplyTime)
   const [sending, setSending] = useState(false)
+  const [aiReplyLoading, setAiReplyLoading] = useState(false)
+  const [aiSuggestion, setAiSuggestion] = useState<PartnershipAiSuggestion | null>(null)
   const [quickActionSaving, setQuickActionSaving] = useState<InboxQuickAction | null>(null)
   const [deletingContact, setDeletingContact] = useState(false)
   const [actionPanelOpen, setActionPanelOpen] = useState(false)
@@ -2207,6 +2237,7 @@ function PhoneTab({
     setMediaUrls([])
     setScheduleMode(false)
     setActionPanelOpen(false)
+    setAiSuggestion(null)
     setScheduledAt(defaultScheduledReplyTime())
   }, [selected?.id])
 
@@ -2310,6 +2341,38 @@ function PhoneTab({
       reloadTouches(selected.id)
     } catch { showToast('Send failed') }
     finally { setSending(false) }
+  }
+
+  async function handleAiReply() {
+    if (!selected || aiReplyLoading) return
+    setAiReplyLoading(true)
+    try {
+      const res = await fetch(`/api/marketing/contacts/${selected.id}/ai-reply`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      const data = await res.json().catch(() => null) as { suggestion?: PartnershipAiSuggestion; error?: string } | null
+      if (!res.ok || !data?.suggestion) {
+        showToast(data?.error || 'Could not draft reply')
+        return
+      }
+      const suggestion = data.suggestion
+      setAiSuggestion(suggestion)
+      if (suggestion.draft_sms) {
+        setComposeChannel('sms')
+        setSmsBody(suggestion.draft_sms)
+      }
+      if (suggestion.draft_email_subject) setEmailSubject(suggestion.draft_email_subject)
+      if (suggestion.draft_email_body) setEmailBody(suggestion.draft_email_body)
+      if (suggestion.suggested_media_urls?.length) {
+        setMediaUrls(current => Array.from(new Set([...current, ...suggestion.suggested_media_urls!])).slice(0, 10))
+      }
+      showToast('Smart draft ready')
+    } catch {
+      showToast('Could not draft reply')
+    } finally {
+      setAiReplyLoading(false)
+    }
   }
 
   async function handleQuickAction(action: InboxQuickAction) {
@@ -2665,7 +2728,48 @@ function PhoneTab({
                 </div>
               </div>
             )}
+            {aiSuggestion && (
+              <div className="mb-2 rounded-[16px] border border-emerald-200 bg-emerald-50 px-3 py-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-xs font-semibold text-emerald-900">
+                    {aiSuggestion.recommended_action.replace(/_/g, ' ')} · {Math.round(aiSuggestion.confidence * 100)}%
+                  </div>
+                  {aiSuggestion.quick_action && (
+                    <button
+                      onClick={() => handleQuickAction(aiSuggestion.quick_action!)}
+                      disabled={quickActionSaving !== null}
+                      className="h-7 rounded-full border border-emerald-300 bg-white px-3 text-[11px] font-semibold text-emerald-800 disabled:opacity-50"
+                    >
+                      Log {aiSuggestion.quick_action.replace(/_/g, ' ')}
+                    </button>
+                  )}
+                </div>
+                <div className="mt-1 flex flex-wrap gap-1.5 text-[10px] font-semibold text-emerald-800">
+                  <span className="rounded-full bg-white/70 px-2 py-0.5">Package: {aiSuggestion.goal_state.digital_package.replace(/_/g, ' ')}</span>
+                  <span className="rounded-full bg-white/70 px-2 py-0.5">Delivery: {aiSuggestion.goal_state.physical_delivery.replace(/_/g, ' ')}</span>
+                  <span className="rounded-full bg-white/70 px-2 py-0.5">Referral: {aiSuggestion.goal_state.referral_program.replace(/_/g, ' ')}</span>
+                  <span className="rounded-full bg-white/70 px-2 py-0.5">Meeting: {aiSuggestion.goal_state.meeting.replace(/_/g, ' ')}</span>
+                </div>
+                {(aiSuggestion.extracted.email || aiSuggestion.extracted.address || aiSuggestion.extracted.time_window || aiSuggestion.risk_flags.length > 0) && (
+                  <div className="mt-1.5 text-[11px] leading-4 text-emerald-900">
+                    {[
+                      aiSuggestion.extracted.email ? `Email: ${aiSuggestion.extracted.email}` : '',
+                      aiSuggestion.extracted.address ? `Address: ${aiSuggestion.extracted.address}` : '',
+                      aiSuggestion.extracted.time_window ? `Time: ${aiSuggestion.extracted.time_window}` : '',
+                      aiSuggestion.risk_flags.length ? `Flags: ${aiSuggestion.risk_flags.join(', ')}` : '',
+                    ].filter(Boolean).join(' · ')}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="mb-1.5 flex items-center gap-1.5 overflow-x-auto">
+              <button
+                onClick={() => void handleAiReply()}
+                disabled={aiReplyLoading}
+                className="h-7 shrink-0 rounded-full bg-emerald-600 px-3 text-[11px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {aiReplyLoading ? 'Drafting...' : 'Smart draft'}
+              </button>
               <button onClick={() => setComposeChannel('sms')} className={`h-7 shrink-0 rounded-full px-3 text-[11px] font-semibold transition ${composeChannel === 'sms' ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
                 SMS {!selected.phone && <span className="ml-1 text-red-400">no #</span>}
               </button>
