@@ -1,0 +1,340 @@
+const RATE_ROWS = [
+  ['2 movers + 1 truck', '$160/hr', 'Small apartments, condos, lighter local moves'],
+  ['3 movers + 1 truck', '$225/hr', 'Most homes and larger apartments'],
+  ['4 movers + 1 truck', '$270/hr', 'Heavy homes or faster load/unload plans'],
+  ['4 movers + 2 trucks', '$290/hr', 'Two-truck volume with efficient pricing'],
+  ['5 movers + 2 trucks', '$350/hr', 'Large homes, tight timing, commercial'],
+  ['6 movers + 2 trucks', '$395/hr', 'Large homes or complex office moves'],
+]
+
+const LABOR_ROWS = [
+  ['2 movers', '$120/hr'],
+  ['3 movers', '$150/hr'],
+  ['4 movers', '$200/hr'],
+]
+
+const SERVICE_AREAS = [
+  'Windsor',
+  'London',
+  'Kitchener / Waterloo',
+  'Guelph',
+  'Chatham',
+  'Nearby Ontario communities by request',
+]
+
+const MARKETS = {
+  windsor: {
+    label: 'Windsor / Essex',
+    baseCity: 'Windsor',
+    phone: '226-773-2993',
+    areas: ['Windsor', 'Tecumseh', 'LaSalle', 'Amherstburg', 'Essex', 'Lakeshore', 'Leamington', 'Kingsville', 'Chatham-Kent'],
+    patterns: [/\bwindsor\b/i, /\bessex\b/i, /\btecumseh\b/i, /\blasalle\b/i, /\bla-salle\b/i, /\bamherstburg\b/i, /\bleamington\b/i, /\bkingsville\b/i, /\bchatham\b/i],
+  },
+  london: {
+    label: 'London / Southwestern Ontario',
+    baseCity: 'London',
+    phone: '548-488-3245',
+    areas: ['London', 'St. Thomas', 'Woodstock', 'Strathroy', 'Ingersoll', 'Tillsonburg', 'Sarnia', 'Oxford County'],
+    patterns: [/\blondon\b/i, /\bst-?thomas\b/i, /\bst\.?\s*thomas\b/i, /\bwoodstock\b/i, /\bstrathroy\b/i, /\bingersoll\b/i, /\btillsonburg\b/i, /\bsarnia\b/i],
+  },
+  waterloo: {
+    label: 'Kitchener / Waterloo',
+    baseCity: 'Kitchener-Waterloo',
+    phone: '226-780-6649',
+    areas: ['Kitchener', 'Waterloo', 'Cambridge', 'Guelph', 'Elmira', 'New Hamburg', 'Ayr', 'Brantford'],
+    patterns: [/\bkitchener\b/i, /\bwaterloo\b/i, /\bkw\b/i, /\bcambridge\b/i, /\bguelph\b/i, /\belmira\b/i, /\bnew-?hamburg\b/i, /\bbrantford\b/i],
+  },
+  guelph: {
+    label: 'Guelph / Wellington',
+    baseCity: 'Guelph',
+    phone: '226-780-7014',
+    areas: ['Guelph', 'Fergus', 'Elora', 'Cambridge', 'Kitchener', 'Waterloo', 'Wellington County'],
+    patterns: [/\bguelph\b/i, /\bfergus\b/i, /\belora\b/i, /\bwellington\b/i],
+  },
+}
+
+function escapeHtml(value = '') {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+function titleCase(value = '') {
+  return value
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ')
+    .map(word => word ? word[0].toUpperCase() + word.slice(1).toLowerCase() : '')
+    .join(' ')
+}
+
+function partnerFromCode(code) {
+  const clean = String(code || 'partner')
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80) || 'partner'
+  const label = titleCase(clean)
+  return {
+    code: clean,
+    name: label === 'Partner' ? 'Partner' : label,
+    displayName: label === 'Partner' ? 'your team' : label,
+  }
+}
+
+function detectMarket(url, code) {
+  const requested = String(url.searchParams.get('city') || url.searchParams.get('market') || '').toLowerCase()
+  const haystack = `${requested} ${code || ''}`.replace(/[_-]+/g, ' ')
+  for (const [key, market] of Object.entries(MARKETS)) {
+    if (requested === key || requested === market.baseCity.toLowerCase()) return { key, ...market }
+    if (market.patterns.some(pattern => pattern.test(haystack))) return { key, ...market }
+  }
+  return { key: 'windsor', ...MARKETS.windsor }
+}
+
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'access-control-allow-origin': '*',
+      'access-control-allow-methods': 'POST, OPTIONS',
+      'access-control-allow-headers': 'content-type',
+    },
+  })
+}
+
+function html(body, status = 200) {
+  return new Response(body, {
+    status,
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+      'cache-control': 'public, max-age=120',
+    },
+  })
+}
+
+async function parseForm(request) {
+  const type = request.headers.get('content-type') || ''
+  if (type.includes('application/json')) return request.json()
+  const form = await request.formData()
+  return Object.fromEntries([...form.entries()].map(([key, value]) => [key, String(value || '')]))
+}
+
+async function handleReferral(request, env, partner, market) {
+  if (request.method === 'OPTIONS') return json({ ok: true })
+  if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
+
+  const body = await parseForm(request)
+  const name = String(body.client_name || body.name || '').trim()
+  const phone = String(body.client_phone || body.phone || '').trim()
+  const email = String(body.client_email || body.email || '').trim()
+  const address = String(body.moving_from || body.address || '').trim()
+  const note = String(body.notes || '').trim()
+  const partnerName = String(body.partner_name || partner.name || '').trim()
+  const marketName = market?.label || String(body.market || '').trim()
+
+  if (!name && !phone && !email) {
+    return json({ error: 'Please include a client name, phone, or email.' }, 400)
+  }
+
+  const payload = {
+    name,
+    phone,
+    email,
+    address,
+    inventorySummary: [
+      `Partner referral code: ${partner.code}`,
+      `Partner: ${partnerName}`,
+      marketName ? `Market: ${marketName}` : '',
+      note ? `Notes: ${note}` : '',
+    ].filter(Boolean).join(' | '),
+  }
+
+  let forwarded = false
+  if (env.CRM_CAPTURE_URL) {
+    try {
+      const res = await fetch(env.CRM_CAPTURE_URL, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      forwarded = res.ok
+    } catch {
+      forwarded = false
+    }
+  }
+
+  return json({
+    ok: true,
+    forwarded,
+    message: forwarded
+      ? 'Referral received. Saturn Star Movers will follow up.'
+      : 'Referral received. Please also call/text Saturn Star Movers if it is urgent.',
+  })
+}
+
+function renderPage(request, env, partner, market) {
+  const url = new URL(request.url)
+  const origin = `${url.protocol}//${url.host}`
+  const packageUrl = `${origin}/partner/${partner.code}?city=${encodeURIComponent(market.key)}`
+  const clientQuoteUrl = `${origin}/quote?ref=${encodeURIComponent(partner.code)}&market=${encodeURIComponent(market.key)}`
+  const phone = market.phone || env.PUBLIC_PHONE || '226-773-2993'
+  const email = env.PUBLIC_EMAIL || 'business@starmovers.ca'
+  const title = `${partner.name} Referral Package | Saturn Star Movers`
+
+  return html(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escapeHtml(title)}</title>
+  <meta name="description" content="Personal Saturn Star Movers referral package with rates, referral form, and client quote link.">
+  <meta name="robots" content="noindex, nofollow">
+  <style>
+    :root{--navy:#1a2744;--ink:#162033;--muted:#64748b;--gold:#f5a623;--line:#dbe2ee;--soft:#f7f8fb;--green:#0f766e}
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:#fff;line-height:1.55}
+    a{color:inherit}.wrap{max-width:1120px;margin:0 auto;padding:0 22px}.top{background:var(--navy);color:#fff}.nav{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 0}.brand{font-weight:800;letter-spacing:.02em}.nav a{color:#fff;text-decoration:none;font-weight:700;font-size:14px}
+    .hero{background:linear-gradient(135deg,#1a2744 0%,#24355d 70%,#10213d 100%);color:#fff;padding:72px 0 48px}.eyebrow{display:inline-flex;border:1px solid rgba(245,166,35,.35);background:rgba(245,166,35,.12);color:#ffd58a;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+    h1{font-size:clamp(34px,6vw,62px);line-height:1.02;margin:20px 0 16px;max-width:820px}h1 span{color:var(--gold)}.lead{font-size:clamp(17px,2.4vw,21px);color:rgba(255,255,255,.82);max-width:720px}.hero-grid{display:grid;grid-template-columns:1fr 340px;gap:32px;align-items:end}.package-card{background:#fff;color:var(--ink);border-radius:16px;padding:22px;box-shadow:0 18px 60px rgba(0,0,0,.24)}.package-card code{display:block;word-break:break-all;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:11px;font-size:13px}
+    .actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px}.btn{display:inline-flex;align-items:center;justify-content:center;border-radius:10px;border:2px solid transparent;padding:13px 18px;text-decoration:none;font-weight:800;cursor:pointer}.btn.gold{background:var(--gold);color:#111c35}.btn.white{border-color:rgba(255,255,255,.5);color:#fff}.btn.navy{background:var(--navy);color:#fff}.btn.line{border-color:var(--line);background:#fff;color:var(--navy)}
+    section{padding:64px 0}.section-alt{background:var(--soft)}h2{font-size:clamp(26px,4vw,40px);line-height:1.12;color:var(--navy);margin:0 0 12px}.sub{color:var(--muted);max-width:720px;margin:0 0 28px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.card{border:1px solid var(--line);background:#fff;border-radius:14px;padding:22px;box-shadow:0 8px 24px rgba(15,23,42,.04)}.card h3{margin:0 0 8px;color:var(--navy)}
+    .rate-table{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff}.rate-row{display:grid;grid-template-columns:1.2fr .6fr 1.4fr;gap:12px;padding:14px 16px;border-top:1px solid var(--line);align-items:center}.rate-row:first-child{border-top:0;background:var(--navy);color:#fff;font-weight:800}.rate{font-weight:900;color:var(--green)}.rate-row:first-child .rate{color:#fff}
+    .form{display:grid;grid-template-columns:1fr 1fr;gap:14px}.form label{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:800}.field{display:flex;flex-direction:column;gap:6px}.field.full{grid-column:1/-1}input,textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:12px;font:inherit}textarea{min-height:92px;resize:vertical}.notice{border-left:4px solid var(--gold);background:#fff8ec;padding:14px;border-radius:10px;color:#6b4a00}.success{display:none;margin-top:14px;border:1px solid #99f6e4;background:#f0fdfa;color:#115e59;border-radius:12px;padding:14px;font-weight:800}
+    .pill-list{display:flex;gap:8px;flex-wrap:wrap}.pill{background:#eef2f7;border:1px solid var(--line);border-radius:999px;padding:8px 11px;font-size:13px;font-weight:750;color:#334155}.footer{background:#111c35;color:#cbd5e1;padding:34px 0;font-size:14px}.footer a{color:#fff}.mini{font-size:12px;color:var(--muted)}
+    @media(max-width:850px){.hero-grid,.grid{grid-template-columns:1fr}.rate-row{grid-template-columns:1fr}.form{grid-template-columns:1fr}.hero{padding-top:50px}}
+  </style>
+</head>
+<body>
+  <header class="top"><div class="wrap nav"><div class="brand">Saturn Star Movers</div><a href="tel:+1${phone.replace(/\\D/g, '')}">${escapeHtml(phone)}</a></div></header>
+  <main>
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div>
+          <div class="eyebrow">Personal referral package</div>
+          <h1>${escapeHtml(partner.displayName)}, your <span>Saturn Star Movers</span> referral page is ready.</h1>
+          <p class="lead">Use this page when a client needs movers in the ${escapeHtml(market.label)} area. It includes your referral code, client quote link, rate guidance, local contact number, and a simple referral form.</p>
+          <div class="actions">
+            <a class="btn gold" href="${escapeHtml(clientQuoteUrl)}">Open client quote link</a>
+            <a class="btn white" href="#refer">Submit a referral</a>
+          </div>
+        </div>
+        <aside class="package-card">
+          <h3>Your referral code</h3>
+          <code>${escapeHtml(partner.code.toUpperCase())}</code>
+          <p class="mini">Clients can use this link or mention your name/code when they call or text our ${escapeHtml(market.baseCity)} line.</p>
+          <code>${escapeHtml(packageUrl)}</code>
+        </aside>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap grid">
+        <div class="card"><h3>1. Share the link</h3><p>Send your client the quote link or have them call/text and mention your name.</p></div>
+        <div class="card"><h3>2. We quote the move</h3><p>Saturn Star confirms inventory, access, truck plan, timing, and service needs.</p></div>
+        <div class="card"><h3>3. You get credited</h3><p>Your referral is tagged to your code once the client books and completes the move.</p></div>
+      </div>
+    </section>
+
+    <section class="section-alt">
+      <div class="wrap">
+        <h2>Rate card guidance</h2>
+          <p class="sub">These are planning rates for common ${escapeHtml(market.label)} moves. Final pricing depends on inventory, access, distance, truck count, date, stairs/elevator/parking, packing, specialty items, and added stops.</p>
+        <div class="rate-table">
+          <div class="rate-row"><div>Crew plan</div><div>Rate</div><div>Best fit</div></div>
+          ${RATE_ROWS.map(row => `<div class="rate-row"><div>${escapeHtml(row[0])}</div><div class="rate">${escapeHtml(row[1])}</div><div>${escapeHtml(row[2])}</div></div>`).join('')}
+        </div>
+        <p class="mini" style="margin-top:12px">3-hour minimum. HST is 13%. Hourly/non-binding jobs are based on actual time worked. Binding estimates are only locked once inventory, addresses, access, crew plan, and included services are confirmed.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap grid">
+        <div class="card">
+          <h3>Labor-only guidance</h3>
+          ${LABOR_ROWS.map(row => `<p><strong>${escapeHtml(row[0])}</strong>: ${escapeHtml(row[1])}</p>`).join('')}
+        </div>
+        <div class="card">
+          <h3>Referral payout</h3>
+          <p><strong>$100</strong> for a completed booked move.</p>
+          <p><strong>$200</strong> for larger commercial, long-distance, or high-value jobs when approved.</p>
+          <p class="mini">Paid by e-transfer after the move is complete and client payment is confirmed.</p>
+        </div>
+        <div class="card">
+          <h3>${escapeHtml(market.baseCity)} service area</h3>
+          <div class="pill-list">${market.areas.map(area => `<span class="pill">${escapeHtml(area)}</span>`).join('')}</div>
+          <p class="mini" style="margin-top:12px">Broader coverage includes ${SERVICE_AREAS.map(escapeHtml).join(', ')}.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-alt" id="refer">
+      <div class="wrap">
+        <h2>Submit a client referral</h2>
+        <p class="sub">Add the client here, or have them use the quote link. Either way, use referral code <strong>${escapeHtml(partner.code.toUpperCase())}</strong> and the ${escapeHtml(market.baseCity)} market.</p>
+        <form class="card form" id="referral-form">
+          <input type="hidden" name="partner_code" value="${escapeHtml(partner.code)}">
+          <input type="hidden" name="partner_name" value="${escapeHtml(partner.name)}">
+          <input type="hidden" name="market" value="${escapeHtml(market.key)}">
+          <div class="field"><label>Client name</label><input name="client_name" autocomplete="name"></div>
+          <div class="field"><label>Client phone</label><input name="client_phone" autocomplete="tel"></div>
+          <div class="field"><label>Client email</label><input name="client_email" autocomplete="email"></div>
+          <div class="field"><label>Moving from</label><input name="moving_from" autocomplete="street-address"></div>
+          <div class="field full"><label>Notes</label><textarea name="notes" placeholder="Move date, destination city, home size, special instructions..."></textarea></div>
+          <div class="field full"><button class="btn navy" type="submit">Submit referral</button><div class="success" id="success">Referral received.</div></div>
+        </form>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap grid">
+        <div class="card"><h3>Client quote link</h3><p><a href="${escapeHtml(clientQuoteUrl)}">${escapeHtml(clientQuoteUrl)}</a></p></div>
+        <div class="card"><h3>${escapeHtml(market.baseCity)} call or text</h3><p><a href="tel:+1${phone.replace(/\\D/g, '')}">${escapeHtml(phone)}</a></p><p class="mini">Tell clients to mention ${escapeHtml(partner.name)} or code ${escapeHtml(partner.code.toUpperCase())}.</p></div>
+        <div class="card"><h3>Postcards</h3><p>Need more cards or want us to stop by your office? Text/call us and we will coordinate a drop-off.</p></div>
+      </div>
+    </section>
+  </main>
+  <footer class="footer"><div class="wrap">Saturn Star Movers · <a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a> · <a href="tel:+1${phone.replace(/\\D/g, '')}">${escapeHtml(phone)}</a></div></footer>
+  <script>
+    const form = document.getElementById('referral-form');
+    const success = document.getElementById('success');
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const button = form.querySelector('button');
+      button.disabled = true;
+      button.textContent = 'Submitting...';
+      try {
+        const res = await fetch(location.pathname + '/referral', { method: 'POST', body: new FormData(form) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not submit referral');
+        success.textContent = data.message || 'Referral received.';
+        success.style.display = 'block';
+        form.reset();
+      } catch (error) {
+        alert(error.message || 'Could not submit referral. Please call or text Saturn Star Movers.');
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Submit referral';
+      }
+    });
+  </script>
+</body>
+</html>`)
+}
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url)
+    const parts = url.pathname.split('/').filter(Boolean)
+    if (parts[0] !== 'partner') return new Response('Not found', { status: 404 })
+
+    const partner = partnerFromCode(parts[1] || 'partner')
+    const market = detectMarket(url, parts[1] || '')
+    if (parts[2] === 'referral') return handleReferral(request, env, partner, market)
+    if (request.method !== 'GET' && request.method !== 'HEAD') return json({ error: 'Method not allowed' }, 405)
+    return renderPage(request, env, partner, market)
+  },
+}

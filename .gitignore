@@ -12,3 +12,5 @@ reputation-engine/.env*.local
 .vercel
 reputation-engine/.vercel
 .env*.local
+.wrangler/
+**/.wrangler/
