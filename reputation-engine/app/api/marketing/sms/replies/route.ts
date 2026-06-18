@@ -174,7 +174,7 @@ export async function GET(request: Request) {
       const contact = contactsById.get(id)
       const payload = toContact(contact, latest, latestInbound)
       if (!payload) return null
-      const playbook = includeSuggestions && contact && latest.direction === 'inbound'
+      const playbook = includeSuggestions && contact && latestInbound
         ? await suggestPartnershipReply({
             contact: {
               id: contact.id,
@@ -190,7 +190,7 @@ export async function GET(request: Request) {
               affiliate_partner_id: contact.affiliate_partner_id,
               tracking_code: contact.tracking_code,
             } satisfies PartnershipAssistantContact,
-            touches: (touchHistoryByContact.get(id) ?? [latest])
+            touches: (touchHistoryByContact.get(id) ?? [latestInbound])
               .sort((a, b) => String(a.created_at).localeCompare(String(b.created_at))),
             skipAi: true,
           })

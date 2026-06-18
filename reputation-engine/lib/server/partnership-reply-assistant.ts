@@ -10,6 +10,7 @@ export type PartnershipReplyIntent =
   | 'asks_for_email'
   | 'asks_for_pricing'
   | 'asks_referral_program'
+  | 'asks_social_media'
   | 'wants_meeting'
   | 'gives_time_window'
   | 'gives_address'
@@ -89,9 +90,12 @@ export interface PartnershipAssistantResult {
   extracted: {
     email?: string
     address?: string
+    brokerage_location?: string
     time_window?: string
     asks_pricing?: boolean
     asks_service_area?: boolean
+    asks_social_media?: boolean
+    low_referral_activity?: boolean
     delivery_instructions?: string
   }
   recommended_action: PartnershipRecommendedAction
@@ -122,6 +126,8 @@ const DIRECT_PACKAGE_REQUEST_RE = /\b(send|share|forward|email|text).{0,30}\b(li
 const PACKAGE_PERMISSION_RE = /\b(sure|yes|yeah|yep|ok|okay|go ahead|send it|send that|sounds good|please do|that works|absolutely)\b/i
 const CARD_OR_FLYER_REQUEST_RE = /\b(text|send|share|forward).{0,36}\b(card|business card|flyer|picture|photo|image|graphic)\b|\b(card|business card|flyer|picture|photo|image|graphic).{0,28}\b(text|send|share|forward)\b|\btake a picture\b/i
 const IOS_REACTION_RE = /^(?:loved|liked|emphasized|laughed at|questioned|disliked)\s+[“"].+[”"]$/i
+const LOW_REFERRAL_ACTIVITY_RE = /\b(not|n't|dont|don't|do not).{0,24}\b(sell|selling|active|doing much|have much|many clients|many buyers|many sellers)|\b(different|new|changed).{0,24}\b(position|role|job)|\bnot selling (?:very )?much\b/i
+const SOCIAL_MEDIA_RE = /\b(social media|instagram|facebook|fb|linkedin|tik\s?tok|twitter|x page|social page|socials)\b/i
 
 function cleanText(value: string | null | undefined) {
   return String(value || '').replace(/\s+/g, ' ').trim()
@@ -225,6 +231,10 @@ function priorOutboundAskedCardDrop(touches: PartnershipAssistantTouch[]) {
 function extractFields(text: string): PartnershipAssistantResult['extracted'] {
   const email = text.match(EMAIL_RE)?.[0]
   const address = text.match(ADDRESS_RE)?.[0]?.replace(/[,.]\s*$/, '')
+  const brokerageLocation = text.match(/\b(?:at|to|the|on)\s+([A-Za-z0-9&' .-]{2,80}\b(?:real estate|realty|royal lepage|remax|re\/max|brokerage|provincial|dougall)\b[A-Za-z0-9&' .-]{0,50})/i)?.[1]
+    ?.replace(/\b(?:do you|can you|would you|is it|what|when|where)\b[\s\S]*$/i, '')
+    .replace(/[,.]\s*$/, '')
+    .trim()
   const time_window = text.match(TIME_RE)?.[0]
   const delivery_instructions = /\b(mailbox|front desk|reception|secretary|assistant|leave|drop|office|brokerage)\b/i.test(text)
     ? text.slice(0, 220)
@@ -232,9 +242,12 @@ function extractFields(text: string): PartnershipAssistantResult['extracted'] {
   return {
     ...(email ? { email } : {}),
     ...(address ? { address } : {}),
+    ...(brokerageLocation && !address ? { brokerage_location: brokerageLocation } : {}),
     ...(time_window ? { time_window } : {}),
     asks_pricing: /\b(price|prices|pricing|rate|rates|charge|cost|fee)\b/i.test(text),
     asks_service_area: /\b(service|serve|area|areas|windsor|london|chatham|sarnia|toronto|only)\b/i.test(text),
+    asks_social_media: SOCIAL_MEDIA_RE.test(text),
+    low_referral_activity: LOW_REFERRAL_ACTIVITY_RE.test(text),
     ...(delivery_instructions ? { delivery_instructions } : {}),
   }
 }
@@ -256,6 +269,7 @@ function detectIntent(text: string, contact: PartnershipAssistantContact, touche
   }
   if (/\b(price|prices|pricing|rate|rates|charge|cost|fee)\b/i.test(text)) return { intent: 'asks_for_pricing', confidence: 0.88, risk_flags }
   if (/\b(referral|commission|incentive|program|kickback|paid)\b/i.test(text)) return { intent: 'asks_referral_program', confidence: 0.86, risk_flags }
+  if (SOCIAL_MEDIA_RE.test(text)) return { intent: 'asks_social_media', confidence: 0.86, risk_flags }
   if (CARD_OR_FLYER_REQUEST_RE.test(text)) return { intent: 'send_card_or_flyer_media', confidence: 0.9, risk_flags }
   if (EMAIL_RE.test(text) || /\b(email|e-mail|send it over|send me.*link|website link)\b/i.test(text)) return { intent: 'asks_for_email', confidence: 0.86, risk_flags }
   if (ADDRESS_RE.test(text)) return { intent: 'gives_address', confidence: 0.9, risk_flags }
@@ -284,17 +298,17 @@ function packageLine(config: PackageConfig, extracted: PartnershipAssistantResul
 
 function packagePermissionAsk(extracted: PartnershipAssistantResult['extracted']) {
   const contents = extracted.asks_pricing
-    ? 'the full digital package here too? It has your referral link, flyer/rates, and a client quote link you can forward anytime.'
-    : 'the full digital package here too? It has your referral link, flyer, and a client quote link you can forward anytime.'
+    ? 'the full digital package here too? It has your referral link, flyer/rates, referral details, and a client quote link you can forward anytime.'
+    : 'the full digital package here too? It has your referral link, flyer/business card, referral details, and a client quote link you can forward anytime.'
   return `Is it okay if I send ${contents}`
 }
 
 function localRepDropLine() {
-  return 'One of our local relationship reps can drop the postcards off.'
+  return 'One of our relationship managers can drop the postcards off.'
 }
 
 function localRepMeetingLine() {
-  return 'I can coordinate one of our local relationship reps to stop by.'
+  return 'I can coordinate one of our relationship managers to stop by.'
 }
 
 function draftFromRules(input: {
@@ -340,6 +354,16 @@ function draftFromRules(input: {
       ? `Yes, I can send the referral info over. ${packageLine(config, extracted)} ${localRepDropLine()} What address and time usually work for you?`
       : `Yes, I can send the referral info over. ${localRepDropLine()} What address and time usually work for you?`
     quick_action = 'drop_cards'
+  } else if (intent === 'asks_social_media') {
+    const locationPhrase = extracted.address
+      ? `I have ${extracted.address}.`
+      : extracted.brokerage_location
+        ? `${extracted.brokerage_location} works.`
+        : 'What is the best address to use?'
+    const timePhrase = extracted.time_window ? `${extracted.time_window} works.` : 'Is there a time this week that is best?'
+    draft = `Absolutely ${name}, yes we do. ${locationPhrase} ${localRepDropLine()} ${timePhrase} Is it okay if I send the full digital package here too? It has our social links, flyer/business card, referral details, and a client quote link you can forward anytime.`
+    recommended_action = 'draft_reply'
+    quick_action = 'drop_cards'
   } else if (intent === 'asks_for_email') {
     const emailPhrase = extracted.email ? `For sure${nameSuffix}, I can send it to ${extracted.email}.` : `Absolutely${nameSuffix}, what email should I send it to?`
     draft = extracted.email
@@ -364,10 +388,16 @@ function draftFromRules(input: {
     recommended_action = extracted.time_window && extracted.address ? 'book_meeting' : 'draft_reply'
     quick_action = 'meeting_requested'
   } else if (intent === 'gives_address' || intent === 'gives_time_window' || intent === 'drop_by_anytime') {
-    const addressPhrase = extracted.address ? `I have ${extracted.address}.` : 'What is the best address to use?'
+    const addressPhrase = extracted.address
+      ? `I have ${extracted.address}.`
+      : extracted.brokerage_location
+        ? `${extracted.brokerage_location} works.`
+        : 'What is the best address to use?'
     const timePhrase = extracted.time_window ? `${extracted.time_window} works.` : 'Is there a time this week that is best, or should our local team leave it at reception/front desk?'
-    draft = `Perfect, thank you${nameSuffix}. ${localRepDropLine()} ${addressPhrase} ${timePhrase} ${packagePermissionAsk(extracted)}`
-    recommended_action = extracted.address || intent === 'drop_by_anytime' ? 'schedule_delivery' : 'draft_reply'
+    draft = extracted.low_referral_activity
+      ? `Totally understand${nameSuffix}, no pressure at all. We can leave a few cards at reception. If anything comes up later, even one client is helpful. ${packagePermissionAsk(extracted)}`
+      : `Perfect, thank you${nameSuffix}. ${localRepDropLine()} ${addressPhrase} ${timePhrase} ${packagePermissionAsk(extracted)}`
+    recommended_action = extracted.address || extracted.brokerage_location || intent === 'drop_by_anytime' ? 'schedule_delivery' : 'draft_reply'
     quick_action = 'drop_cards'
   } else if (intent === 'warm_acknowledgement') {
     draft = canSendPackageNow
@@ -395,9 +425,10 @@ function draftFromRules(input: {
     risk_flags.push('package_permission_needed')
   }
 
-  const physicalDelivery = extracted.address && extracted.time_window
+  const hasDeliveryLocation = Boolean(extracted.address || extracted.brokerage_location)
+  const physicalDelivery = hasDeliveryLocation && extracted.time_window
     ? 'ready_to_schedule'
-    : extracted.address
+    : hasDeliveryLocation
       ? 'need_time'
       : ['stop_opt_out', 'wrong_number', 'not_interested', 'digital_only_no_postcard', 'send_card_or_flyer_media'].includes(intent)
         ? 'not_needed'

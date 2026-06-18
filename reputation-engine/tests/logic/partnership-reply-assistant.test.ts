@@ -218,7 +218,7 @@ test('partnership assistant routes meeting requests through local relationship r
   assert.equal(result.intent, 'wants_meeting')
   assert.equal(result.quick_action, 'meeting_requested')
   assert.match(result.draft_sms, /Mak/i)
-  assert.match(result.draft_sms, /local relationship rep|local team|someone from our/i)
+  assert.match(result.draft_sms, /relationship managers/i)
   assert.doesNotMatch(result.draft_sms, /address should I come to|I can come|I'll come|I will come/i)
 })
 
@@ -231,6 +231,65 @@ test('partnership assistant uses local team language for postcard drop offs', as
   })
 
   assert.equal(result.quick_action, 'drop_cards')
-  assert.match(result.draft_sms, /local team|local relationship reps|someone from our/i)
+  assert.match(result.draft_sms, /relationship managers/i)
   assert.doesNotMatch(result.draft_sms, /I can drop|I'll drop|I will drop/i)
+})
+
+test('partnership assistant keeps low-referral-capacity drop offs low pressure', async () => {
+  delete process.env.PARTNERSHIP_DIGITAL_PACKAGE_URL
+  delete process.env.PARTNERSHIP_RATE_CARD_URL
+  delete process.env.PARTNERSHIP_REFERRAL_PROGRAM_URL
+  delete process.env.PARTNERSHIP_FLYER_IMAGE_URL
+  delete process.env.OPENAI_API_KEY
+
+  const result = await suggestPartnershipReply({
+    contact: {
+      ...contact,
+      name: 'Kevin Diluca',
+      company: 'REMO VALENTE REAL ESTATE (1990) LIMITED',
+    },
+    touches: inbound('You can drop off cards to reception at Valente Real Estate on Dougall. I have a different position at the company an not selling very much'),
+  })
+
+  assert.equal(result.intent, 'drop_by_anytime')
+  assert.equal(result.quick_action, 'drop_cards')
+  assert.equal(result.extracted.low_referral_activity, true)
+  assert.match(result.draft_sms, /Totally understand, Kevin/i)
+  assert.match(result.draft_sms, /no pressure/i)
+  assert.match(result.draft_sms, /leave a few cards at reception/i)
+  assert.match(result.draft_sms, /even one client is helpful/i)
+  assert.match(result.draft_sms, /Is it okay if I send the full digital package here too\?/i)
+  assert.doesNotMatch(result.draft_sms, /What is the best address to use|What address and time work best|relationship managers/i)
+  assert.doesNotMatch(result.draft_sms, /digital package: https:\/\//i)
+})
+
+test('partnership assistant answers social media requests and uses brokerage location hints', async () => {
+  delete process.env.PARTNERSHIP_DIGITAL_PACKAGE_URL
+  delete process.env.PARTNERSHIP_RATE_CARD_URL
+  delete process.env.PARTNERSHIP_REFERRAL_PROGRAM_URL
+  delete process.env.PARTNERSHIP_FLYER_IMAGE_URL
+  delete process.env.OPENAI_API_KEY
+
+  const result = await suggestPartnershipReply({
+    contact: {
+      ...contact,
+      name: 'Natalie Lazzarin-Gignac',
+      company: 'ROYAL LEPAGE BINDER REAL ESTATE',
+    },
+    touches: inbound("Hey! Always open to new business and we always need movers! You certainly can. It's the Royal LePage on Provincial. Do you have a social media page"),
+  })
+
+  assert.equal(result.intent, 'asks_social_media')
+  assert.equal(result.recommended_action, 'draft_reply')
+  assert.equal(result.quick_action, 'drop_cards')
+  assert.equal(result.extracted.asks_social_media, true)
+  assert.match(result.extracted.brokerage_location || '', /Royal LePage on Provincial/i)
+  assert.match(result.draft_sms, /Absolutely Natalie/i)
+  assert.match(result.draft_sms, /yes we do/i)
+  assert.match(result.draft_sms, /Royal LePage on Provincial works/i)
+  assert.match(result.draft_sms, /relationship managers can drop/i)
+  assert.match(result.draft_sms, /social links/i)
+  assert.match(result.draft_sms, /referral details/i)
+  assert.doesNotMatch(result.draft_sms, /What is the best address to use/i)
+  assert.doesNotMatch(result.draft_sms, /digital package: https:\/\//i)
 })

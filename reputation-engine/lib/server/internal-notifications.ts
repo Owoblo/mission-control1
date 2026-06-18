@@ -36,7 +36,7 @@ export async function sendCallerIdSms(
 
 const NOTIFY_FROM = 'Saturn Star OS <notifications@starmovers.ca>'
 const NOTIFY_TO = ['business@starmovers.ca', 'thelma.ufot@starmovers.ca']
-const PARTNERSHIP_DEFAULT_NOTIFY_TO = ['business@starmovers.ca', 'hunter@starmovers.ca']
+const PARTNERSHIP_DEFAULT_NOTIFY_TO = ['business@starmovers.ca']
 
 function uniqueEmails(values: Array<string | null | undefined>) {
   const seen = new Set<string>()

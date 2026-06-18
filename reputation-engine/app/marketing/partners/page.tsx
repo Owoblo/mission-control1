@@ -105,9 +105,12 @@ interface PartnershipAiSuggestion {
   extracted: {
     email?: string
     address?: string
+    brokerage_location?: string
     time_window?: string
     asks_pricing?: boolean
     asks_service_area?: boolean
+    asks_social_media?: boolean
+    low_referral_activity?: boolean
     delivery_instructions?: string
   }
   recommended_action: string
@@ -2257,6 +2260,11 @@ function PhoneTab({
   }, [])
 
   useEffect(() => {
+    if (!selected?.id || !selected.latest_inbound_at) return
+    reloadTouches(selected.id)
+  }, [selected?.id, selected?.latest_inbound_at, reloadTouches])
+
+  useEffect(() => {
     if (!selected) return
     setSmsBody('')
     setEmailSubject('')
@@ -2811,6 +2819,7 @@ function PhoneTab({
                     {[
                       suggestion.extracted.email ? `Email: ${suggestion.extracted.email}` : '',
                       suggestion.extracted.address ? `Address: ${suggestion.extracted.address}` : '',
+                      suggestion.extracted.brokerage_location ? `Location: ${suggestion.extracted.brokerage_location}` : '',
                       suggestion.extracted.time_window ? `Time: ${suggestion.extracted.time_window}` : '',
                       suggestion.risk_flags.length ? `Flags: ${suggestion.risk_flags.join(', ')}` : '',
                     ].filter(Boolean).join(' · ')}
@@ -2906,8 +2915,8 @@ function PhoneTab({
                   >
                     {mediaUploading ? '…' : '+'}
                   </button>
-                  <textarea value={smsBody} onChange={e => setSmsBody(e.target.value)} rows={1} placeholder={selected.phone ? 'Type SMS…' : 'No phone'} disabled={!selected.phone}
-                    className="max-h-20 min-h-10 flex-1 resize-none rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-2.5 text-base text-[#1a2744] outline-none focus:border-[#1a2744] disabled:opacity-40 sm:text-sm" />
+                  <textarea value={smsBody} onChange={e => setSmsBody(e.target.value)} rows={3} placeholder={selected.phone ? 'Type SMS…' : 'No phone'} disabled={!selected.phone}
+                    className="max-h-36 min-h-[84px] flex-1 resize-y rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-base leading-6 text-[#1a2744] outline-none focus:border-[#1a2744] disabled:opacity-40 sm:text-sm" />
                   <button onClick={handleSend} disabled={sending || mediaUploading || !selected.phone || (!smsBody.trim() && mediaUrls.length === 0) || (scheduleMode && !scheduledAt)}
                     className="mb-0.5 h-10 rounded-full bg-[#1a2744] px-4 text-sm font-semibold text-white disabled:opacity-40 sm:h-11">{sending ? '…' : scheduleMode ? 'Schedule' : 'Send'}</button>
                 </div>
