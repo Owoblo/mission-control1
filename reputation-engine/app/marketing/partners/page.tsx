@@ -1572,7 +1572,7 @@ function ListsTab({ contacts, onSelectContact }: { contacts: Contact[]; onSelect
           </div>
         ) : (
           <div className="mt-3 rounded-[16px] border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-xs text-slate-400">
-            Tap Drop cards or Meeting in the inbox to build this list.
+            Tap Postcards or Meeting in the inbox to build this list.
           </div>
         )}
       </div>
@@ -2172,7 +2172,7 @@ type InboxStatus = 'needs_reply' | 'promising' | 'package_sent' | 'postcard' | '
 
 const INBOX_QUICK_ACTIONS: Array<{ key: InboxQuickAction; label: string; tone: 'green' | 'blue' | 'amber' | 'slate' | 'red' }> = [
   { key: 'active_partner', label: 'Active partner', tone: 'green' },
-  { key: 'drop_cards', label: 'Drop cards', tone: 'blue' },
+  { key: 'drop_cards', label: 'Postcards', tone: 'blue' },
   { key: 'meeting_requested', label: 'Meeting', tone: 'blue' },
   { key: 'needs_follow_up', label: 'Follow-up', tone: 'amber' },
   { key: 'not_interested', label: 'Not interested', tone: 'slate' },
@@ -2227,7 +2227,7 @@ const INBOX_FILTERS: Array<{ key: InboxFilter; label: string }> = [
   { key: 'needs_reply', label: 'Needs reply' },
   { key: 'promising', label: 'Positive' },
   { key: 'package_sent', label: 'Digital sent' },
-  { key: 'postcard', label: 'Drop cards' },
+  { key: 'postcard', label: 'Postcards' },
   { key: 'appointment', label: 'Appointments' },
   { key: 'waiting', label: 'Waiting' },
   { key: 'follow_up', label: 'Follow-up' },
@@ -2286,6 +2286,29 @@ function hasDigitalPackageTouch(contact: Contact) {
   return false
 }
 
+function hasPostcardLogisticsIntent(contact: Contact) {
+  const text = [
+    contact.latest_inbound_note,
+    contact.latest_touch_note,
+    contact.playbook?.intent,
+    contact.playbook?.recommended_action,
+    contact.playbook?.goal_state?.physical_delivery,
+    contact.playbook?.extracted?.address,
+    contact.playbook?.extracted?.brokerage_location,
+    contact.playbook?.extracted?.time_window,
+    contact.playbook?.extracted?.delivery_instructions,
+    contact.playbook?.draft_sms,
+  ].filter(Boolean).join(' ').toLowerCase()
+
+  if (!text) return false
+  if (/\b(digital only|email only|text me|send it digitally|digital is good|no postcard|no cards|don't drop|do not drop)\b/.test(text)) return false
+  if (/\b(postcards?|post cards?|business cards?|drop cards?|flyers?|brochures?|printed package|physical package)\b/.test(text)) return true
+  if (/\b(drop|stop|come|swing)\s+(it|them|by|off|over)\b/.test(text)) return true
+  if (/\b(mail|send|deliver|leave)\s+(it|them|cards?|flyers?|package|at|to)\b/.test(text)) return true
+  if (/\b(reception|front desk|office|brokerage|suite|unit)\b/.test(text) && /\b(address|drop|deliver|leave|mail|cards?|flyers?)\b/.test(text)) return true
+  return false
+}
+
 function latestTouchIsAfterLatestInbound(contact: Contact) {
   const latestTouchAt = contact.last_touch_at ? new Date(contact.last_touch_at).getTime() : 0
   const latestInboundAt = contact.latest_inbound_at ? new Date(contact.latest_inbound_at).getTime() : 0
@@ -2307,7 +2330,16 @@ function workflowActionFromReason(reason?: string | null) {
   return value
 }
 
-function isDeliveryIntent(intent?: string | null) {
+function isPostcardIntent(intent?: string | null) {
+  return [
+    'postcard_yes',
+    'drop_by_anytime',
+    'gives_address',
+    'gives_time_window',
+  ].includes(String(intent || ''))
+}
+
+function isFieldWorkIntent(intent?: string | null) {
   return [
     'postcard_yes',
     'drop_by_anytime',
@@ -2354,12 +2386,14 @@ function getInboxStatus(contact: Contact): InboxStatus {
     workflowAction === 'drop_cards' ||
     playbookAction === 'drop_cards' ||
     recommendedAction === 'schedule_delivery' ||
-    isDeliveryIntent(playbookIntent)
+    isPostcardIntent(playbookIntent) ||
+    hasPostcardLogisticsIntent(contact)
   const packageSent = hasDigitalPackageTouch(contact) && (lastDirection === 'outbound' || lastDirection === 'system') && latestTouchIsAfterLatestInbound(contact)
   const promising =
     stage === 'connected' ||
     stage === 'qualified' ||
     isPackageIntent(playbookIntent) ||
+    isFieldWorkIntent(playbookIntent) ||
     (hasInbound && handledWorkflowAction)
 
   if (closed) return 'closed'
@@ -2378,7 +2412,7 @@ function inboxStatusLabel(status: InboxStatus) {
   if (status === 'needs_reply') return 'Needs reply'
   if (status === 'promising') return 'Positive'
   if (status === 'package_sent') return 'Digital sent'
-  if (status === 'postcard') return 'Drop cards'
+  if (status === 'postcard') return 'Postcards'
   if (status === 'appointment') return 'Appointment'
   if (status === 'waiting') return 'Waiting'
   if (status === 'follow_up') return 'Follow-up'
@@ -3047,7 +3081,7 @@ function PhoneTab({
             <div>
               <div className="text-[22px] font-semibold tracking-tight text-[#111827] lg:text-xl">Partnership replies</div>
               <div className="text-xs font-medium text-slate-500">
-                {filterCounts.needs_reply} need reply · {filterCounts.promising} positive · {filterCounts.package_sent} digital sent · {filterCounts.appointment + filterCounts.postcard} field work
+                {filterCounts.needs_reply} need reply · {filterCounts.promising} positive · {filterCounts.package_sent} digital sent · {filterCounts.postcard} postcards · {filterCounts.appointment} appointments
               </div>
             </div>
             <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">{filterCounts.all}</span>
@@ -3550,7 +3584,7 @@ function PartnersTab({ contacts, onSelect }: { contacts: Contact[]; onSelect: (c
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-[#1a2744]">Partner Directory</h2>
-          <p className="text-sm text-slate-500">{partners.length} active · {warmPartners.length} warm · {fieldVisit.length} field work</p>
+          <p className="text-sm text-slate-500">{partners.length} active · {warmPartners.length} warm · {fieldVisit.length} postcard logistics</p>
         </div>
         <input
           value={search}
