@@ -161,6 +161,13 @@ interface Appointment {
   status: string
 }
 
+interface AppointmentSuggestion {
+  title: string
+  scheduledAtLocal: string
+  channel: string
+  notes: string
+}
+
 interface InstantlyCampaign {
   id: string
   name: string
@@ -463,6 +470,70 @@ function sameMessageGroup(current?: Touch | null, adjacent?: Touch | null) {
 
 function formatPlaybookLabel(value?: string | null) {
   return value ? value.replace(/_/g, ' ') : 'unknown'
+}
+
+function datetimeLocalFromDate(date: Date) {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function nextWeekdayDate(targetDay: number) {
+  const date = new Date()
+  date.setSeconds(0, 0)
+  const daysAhead = (targetDay + 7 - date.getDay()) % 7 || 7
+  date.setDate(date.getDate() + daysAhead)
+  return date
+}
+
+function parseConversationAppointmentSuggestion(contact: Contact, context?: string): AppointmentSuggestion | null {
+  const raw = [
+    context,
+    contact.latest_inbound_note,
+    contact.latest_touch_note,
+    contact.playbook?.draft_sms,
+    contact.playbook?.rationale,
+    contact.playbook?.extracted?.time_window,
+  ].filter(Boolean).join(' ')
+  const text = raw.toLowerCase()
+  if (!text.trim()) return null
+  if (/\bappointment booked:|reminder saved\b/.test(text)) return null
+
+  const hasAppointmentLanguage = /\b(call|phone|meeting|appointment|meet|set it|schedule|scheduled|book|10am it is|works for you|works for me)\b/.test(text)
+  const hasTimeLanguage = /\b(today|tomorrow|mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?|morning|afternoon|evening|\d{1,2}(?::\d{2})?\s?(?:am|pm)?)\b/.test(text)
+  if (!hasAppointmentLanguage || !hasTimeLanguage) return null
+
+  const dayMap: Record<string, number> = { sun: 0, sunday: 0, mon: 1, monday: 1, tue: 2, tuesday: 2, wed: 3, wednesday: 3, thu: 4, thursday: 4, fri: 5, friday: 5, sat: 6, saturday: 6 }
+  const dayMatch = text.match(/\b(today|tomorrow|mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b/)
+  let scheduled = new Date()
+  scheduled.setSeconds(0, 0)
+  if (dayMatch?.[1] === 'tomorrow') {
+    scheduled.setDate(scheduled.getDate() + 1)
+  } else if (dayMatch?.[1] && dayMatch[1] !== 'today') {
+    scheduled = nextWeekdayDate(dayMap[dayMatch[1]])
+  }
+
+  const timeMatch = text.match(/\b(\d{1,2})(?::(\d{2}))?\s?(am|pm)?\b/)
+  let hour = text.includes('afternoon') ? 14 : text.includes('evening') ? 17 : 10
+  let minute = 0
+  if (timeMatch) {
+    hour = Number(timeMatch[1])
+    minute = timeMatch[2] ? Number(timeMatch[2]) : 0
+    const meridiem = timeMatch[3]
+    if (meridiem === 'pm' && hour < 12) hour += 12
+    if (meridiem === 'am' && hour === 12) hour = 0
+    if (!meridiem && hour < 8) hour += 12
+  }
+  scheduled.setHours(hour, minute, 0, 0)
+  if (scheduled.getTime() < Date.now() && !dayMatch) scheduled.setDate(scheduled.getDate() + 1)
+
+  const physical = /\b(postcards?|post cards?|drop cards?|flyers?|drop off|come by|stop by|deliver|office|reception|front desk)\b/.test(text)
+  const phone = /\b(call|phone)\b/.test(text) && !physical
+  return {
+    title: physical ? 'Postcard drop-off' : phone ? 'Partnership call' : 'Partnership meeting',
+    scheduledAtLocal: datetimeLocalFromDate(scheduled),
+    channel: physical ? 'in_person' : phone ? 'phone' : 'meeting',
+    notes: truncateText(cleanRichSmsFallback(stripTouchPrefix(raw)), 320),
+  }
 }
 
 // ─── Small components ─────────────────────────────────────────────────────────
@@ -2394,7 +2465,8 @@ function getInboxStatus(contact: Contact): InboxStatus {
   const appointmentWork =
     workflowAction === 'meeting_requested' ||
     playbookAction === 'meeting_requested' ||
-    recommendedAction === 'book_meeting'
+    recommendedAction === 'book_meeting' ||
+    (latestTouchIsAfterLatestInbound(contact) && Boolean(parseConversationAppointmentSuggestion(contact)))
   const postcardWork =
     contact.pipeline_phase === 'field_visit' ||
     workflowAction === 'drop_cards' ||
@@ -2522,6 +2594,7 @@ function PhoneTab({
   const [toast, setToast] = useState<string | null>(null)
   const [voiceListening, setVoiceListening] = useState(false)
   const [voiceError, setVoiceError] = useState<string | null>(null)
+  const [appointmentSaving, setAppointmentSaving] = useState(false)
   const threadRef = useRef<HTMLDivElement>(null)
   const mediaInputRef = useRef<HTMLInputElement>(null)
   const speechRecognitionRef = useRef<BrowserSpeechRecognition | null>(null)
@@ -2571,6 +2644,14 @@ function PhoneTab({
 
   const selected = inboxContacts.find(c => c.id === selectedId) ?? null
   const selectedFromQuery = searchParams.get('contact')
+  const appointmentSuggestion = useMemo(() => {
+    if (!selected) return null
+    const threadContext = touches
+      .slice(-8)
+      .map(touch => `${touch.direction || ''} ${touch.channel || ''}: ${touch.notes || ''}`)
+      .join('\n')
+    return parseConversationAppointmentSuggestion(selected, threadContext)
+  }, [selected, touches])
 
   const loadReplyContacts = useCallback(() => {
     let cancelled = false
@@ -2933,6 +3014,53 @@ function PhoneTab({
       showToast('Could not save action')
     } finally {
       setQuickActionSaving(null)
+    }
+  }
+
+  async function handleCreateAppointmentFromSuggestion() {
+    if (!selected || !appointmentSuggestion || appointmentSaving) return
+    setAppointmentSaving(true)
+    try {
+      const res = await fetch('/api/marketing/appointments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          contact_id: selected.id,
+          title: appointmentSuggestion.title,
+          scheduled_at: new Date(appointmentSuggestion.scheduledAtLocal).toISOString(),
+          duration_minutes: appointmentSuggestion.channel === 'phone' ? 20 : 30,
+          channel: appointmentSuggestion.channel,
+          notes: appointmentSuggestion.notes,
+        }),
+      })
+      const data = await res.json().catch(() => null) as { appointment?: Appointment; error?: string } | null
+      if (!res.ok) {
+        showToast(data?.error || 'Could not create reminder')
+        return
+      }
+      const updated = {
+        ...selected,
+        stage: 'qualified',
+        normalized_stage: 'qualified',
+        pipeline_phase: 'field_visit',
+        sequence_paused: true,
+        sequence_paused_reason: appointmentSuggestion.channel === 'in_person' ? 'quick_action:drop_cards' : 'quick_action:meeting_requested',
+        latest_touch_direction: 'outbound',
+        latest_touch_channel: appointmentSuggestion.channel,
+        latest_touch_note: `Appointment booked: ${appointmentSuggestion.title}`,
+        last_touch_at: new Date().toISOString(),
+        needs_follow_up: false,
+      }
+      setReplyContacts(curr => curr.some(c => c.id === updated.id) ? curr.map(c => c.id === updated.id ? { ...c, ...updated } : c) : [updated, ...curr])
+      onContactUpdated(updated)
+      reloadTouches(selected.id)
+      loadReplyContacts()
+      showToast(`${appointmentSuggestion.title} reminder saved`)
+    } catch {
+      showToast('Could not create reminder')
+    } finally {
+      setAppointmentSaving(false)
     }
   }
 
@@ -3336,6 +3464,23 @@ function PhoneTab({
 
           {/* Compose */}
           <div className="shrink-0 border-t border-slate-200 bg-white px-3 py-3 pb-[max(1rem,calc(env(safe-area-inset-bottom)+0.75rem))] sm:px-5">
+            {appointmentSuggestion && (
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-[16px] border border-indigo-100 bg-indigo-50 px-3 py-2">
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-indigo-900">{appointmentSuggestion.title} detected</div>
+                  <div className="truncate text-xs font-medium text-indigo-700">
+                    {new Date(appointmentSuggestion.scheduledAtLocal).toLocaleString('en-CA', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                  </div>
+                </div>
+                <button
+                  onClick={() => void handleCreateAppointmentFromSuggestion()}
+                  disabled={appointmentSaving}
+                  className="min-h-9 shrink-0 rounded-full bg-indigo-600 px-3 text-xs font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {appointmentSaving ? 'Saving...' : 'Save reminder'}
+                </button>
+              </div>
+            )}
             {actionPanelOpen && (
               <div className="mb-2 rounded-[18px] border border-slate-200 bg-slate-50 p-2 xl:hidden">
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
