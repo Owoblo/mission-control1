@@ -2599,6 +2599,22 @@ function matchesInboxFilter(contact: Contact, filter: InboxFilter) {
   return true
 }
 
+function normalizeInboxCategory(value: string | null | undefined) {
+  const normalized = String(value || '').trim().toLowerCase().replace(/[-\s]+/g, '_')
+  if (!normalized) return ''
+  if (['real_estate', 'real_estate_agent', 'real_estate_agents', 'realtor', 'realtors'].includes(normalized)) return 'realtor'
+  return normalized
+}
+
+function getContactCategoryKey(contact: Contact) {
+  return normalizeInboxCategory(contact.category) || normalizeInboxCategory(contact.industry)
+}
+
+function inboxCategoryLabel(category: string) {
+  if (category === 'realtor') return 'Realtors'
+  return getCategoryMeta(category)?.label || category.replace(/_/g, ' ')
+}
+
 function PhoneTab({
   contacts,
   batches,
@@ -2679,7 +2695,7 @@ function PhoneTab({
 
   const segmentContacts = useMemo(() => inboxContacts.filter(contact => {
     if (cityFilter && (contact.city || '').toLowerCase() !== cityFilter.toLowerCase()) return false
-    if (categoryFilter && (contact.category || contact.industry || '') !== categoryFilter) return false
+    if (categoryFilter && getContactCategoryKey(contact) !== categoryFilter) return false
     if (batchFilter && contact.batch_id !== batchFilter) return false
     return true
   }), [inboxContacts, cityFilter, categoryFilter, batchFilter])
@@ -2690,11 +2706,11 @@ function PhoneTab({
     .sort((a, b) => a.localeCompare(b)), [inboxContacts])
 
   const categoryOptions = useMemo(() => Array.from(new Set(inboxContacts
-    .map(contact => (contact.category || contact.industry || '').trim())
+    .map(contact => getContactCategoryKey(contact))
     .filter(Boolean)))
     .sort((a, b) => {
-      const aLabel = getCategoryMeta(a)?.label || a
-      const bLabel = getCategoryMeta(b)?.label || b
+      const aLabel = inboxCategoryLabel(a)
+      const bLabel = inboxCategoryLabel(b)
       return aLabel.localeCompare(bLabel)
     }), [inboxContacts])
 
@@ -3475,12 +3491,9 @@ function PhoneTab({
               className="h-10 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#1a2744] lg:h-9 lg:text-[12px]"
             >
               <option value="">All categories</option>
-              {categoryOptions.map(category => {
-                const meta = getCategoryMeta(category)
-                return (
-                  <option key={category} value={category}>{meta ? meta.label : category.replace(/_/g, ' ')}</option>
-                )
-              })}
+              {categoryOptions.map(category => (
+                <option key={category} value={category}>{inboxCategoryLabel(category)}</option>
+              ))}
             </select>
             <select
               value={batchFilter}
