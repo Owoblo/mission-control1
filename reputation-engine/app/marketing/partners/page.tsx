@@ -196,6 +196,20 @@ interface PartnershipSmsPreview {
   error?: string
 }
 
+type BrowserSpeechRecognition = {
+  continuous: boolean
+  interimResults: boolean
+  lang: string
+  start: () => void
+  stop: () => void
+  abort: () => void
+  onresult: ((event: { results: ArrayLike<{ isFinal: boolean; 0: { transcript: string } }> }) => void) | null
+  onerror: ((event: { error?: string }) => void) | null
+  onend: (() => void) | null
+}
+
+type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition
+
 // ─── Utils ────────────────────────────────────────────────────────────────────
 
 function readLocalStorageFlag(key: string) {
@@ -2506,8 +2520,11 @@ function PhoneTab({
   const [sheetUpdating, setSheetUpdating] = useState(false)
   const [partnerInfoCollapsed, setPartnerInfoCollapsed] = useState(() => readLocalStorageFlag('ss_partner_inbox_info_collapsed'))
   const [toast, setToast] = useState<string | null>(null)
+  const [voiceListening, setVoiceListening] = useState(false)
+  const [voiceError, setVoiceError] = useState<string | null>(null)
   const threadRef = useRef<HTMLDivElement>(null)
   const mediaInputRef = useRef<HTMLInputElement>(null)
+  const speechRecognitionRef = useRef<BrowserSpeechRecognition | null>(null)
   const touchRequestRef = useRef(0)
   const dialer = useDialer()
 
@@ -2618,6 +2635,10 @@ function PhoneTab({
 
   useEffect(() => {
     if (!selected) return
+    speechRecognitionRef.current?.abort()
+    speechRecognitionRef.current = null
+    setVoiceListening(false)
+    setVoiceError(null)
     setSmsBody('')
     setEmailSubject('')
     setEmailBody('')
@@ -2630,8 +2651,73 @@ function PhoneTab({
 
   useEffect(() => { if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight }, [touches])
   useEffect(() => { writeLocalStorageFlag('ss_partner_inbox_info_collapsed', partnerInfoCollapsed) }, [partnerInfoCollapsed])
+  useEffect(() => () => speechRecognitionRef.current?.abort(), [])
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(null), 3000) }
+
+  function appendDictation(text: string) {
+    const cleaned = text.replace(/\s+/g, ' ').trim()
+    if (!cleaned) return
+    if (composeChannel === 'email') {
+      setEmailBody(current => current.trim() ? `${current.trim()} ${cleaned}` : cleaned)
+    } else {
+      setSmsBody(current => current.trim() ? `${current.trim()} ${cleaned}` : cleaned)
+    }
+  }
+
+  function toggleVoiceDictation() {
+    if (voiceListening) {
+      speechRecognitionRef.current?.stop()
+      setVoiceListening(false)
+      return
+    }
+    const SpeechRecognitionCtor = (window as unknown as {
+      SpeechRecognition?: BrowserSpeechRecognitionConstructor
+      webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor
+    }).SpeechRecognition || (window as unknown as {
+      webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor
+    }).webkitSpeechRecognition
+
+    if (!SpeechRecognitionCtor) {
+      setVoiceError('Voice typing works best in Chrome desktop.')
+      showToast('Voice typing is not supported in this browser')
+      return
+    }
+
+    const recognition = new SpeechRecognitionCtor()
+    recognition.continuous = true
+    recognition.interimResults = false
+    recognition.lang = 'en-CA'
+    recognition.onresult = event => {
+      let finalText = ''
+      for (let i = 0; i < event.results.length; i++) {
+        const result = event.results[i]
+        if (result?.isFinal) finalText += ` ${result[0]?.transcript || ''}`
+      }
+      appendDictation(finalText)
+    }
+    recognition.onerror = event => {
+      const message = event.error === 'not-allowed' ? 'Microphone permission blocked.' : 'Voice typing stopped.'
+      setVoiceError(message)
+      showToast(message)
+      setVoiceListening(false)
+    }
+    recognition.onend = () => {
+      setVoiceListening(false)
+      speechRecognitionRef.current = null
+    }
+
+    setVoiceError(null)
+    speechRecognitionRef.current = recognition
+    setVoiceListening(true)
+    try {
+      recognition.start()
+    } catch {
+      setVoiceListening(false)
+      speechRecognitionRef.current = null
+      showToast('Could not start voice typing')
+    }
+  }
 
   function applySuggestion(suggestion: PartnershipAiSuggestion) {
     if (suggestion.draft_sms) {
@@ -3381,22 +3467,48 @@ function PhoneTab({
                   >
                     {mediaUploading ? '…' : '+'}
                   </button>
+                  <button
+                    onClick={toggleVoiceDictation}
+                    type="button"
+                    className={`mb-0.5 flex h-12 w-12 shrink-0 items-center justify-center rounded-full border text-lg font-semibold transition lg:h-11 lg:w-11 ${voiceListening ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'}`}
+                    title={voiceListening ? 'Stop voice typing' : 'Voice type'}
+                  >
+                    {voiceListening ? '■' : '🎙'}
+                  </button>
                   <textarea value={smsBody} onChange={e => setSmsBody(e.target.value)} rows={3} placeholder={selected.phone ? 'Type SMS…' : 'No phone'} disabled={!selected.phone}
                     className="max-h-36 min-h-[88px] flex-1 resize-y rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-base leading-[1.5] text-[#1a2744] outline-none focus:border-[#1a2744] disabled:opacity-40 lg:text-sm" />
                   <button onClick={handleSend} disabled={sending || mediaUploading || !selected.phone || (!smsBody.trim() && mediaUrls.length === 0) || (scheduleMode && !scheduledAt)}
                     className="mb-0.5 min-h-12 rounded-full bg-[#1a2744] px-5 text-sm font-semibold text-white disabled:opacity-40 lg:min-h-11">{sending ? '…' : scheduleMode ? 'Schedule' : 'Send'}</button>
                 </div>
+                {(voiceListening || voiceError) && (
+                  <div className={`pl-14 text-xs font-medium ${voiceError ? 'text-rose-600' : 'text-slate-500'}`}>
+                    {voiceError || 'Listening... speak your reply, then tap stop.'}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-2">
                 <input value={emailSubject} onChange={e => setEmailSubject(e.target.value)} placeholder="Subject"
                   className="min-h-12 w-full rounded-[14px] border border-slate-200 bg-slate-50 px-4 text-base leading-[1.5] text-[#1a2744] outline-none focus:border-[#1a2744] lg:min-h-10 lg:text-sm" />
                 <div className="flex gap-2">
+                  <button
+                    onClick={toggleVoiceDictation}
+                    type="button"
+                    className={`mt-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-full border text-lg font-semibold transition lg:h-11 lg:w-11 ${voiceListening ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'}`}
+                    title={voiceListening ? 'Stop voice typing' : 'Voice type'}
+                  >
+                    {voiceListening ? '■' : '🎙'}
+                  </button>
                   <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={3} placeholder={selected.email ? 'Type email…' : 'No email'} disabled={!selected.email}
                     className="min-h-[88px] flex-1 resize-none rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-base leading-[1.5] text-[#1a2744] outline-none focus:border-[#1a2744] disabled:opacity-40 lg:text-sm" />
                   <button onClick={handleSend} disabled={sending || !selected.email || !emailBody.trim()}
                     className="min-h-12 self-end rounded-full bg-[#1a2744] px-5 text-sm font-semibold text-white disabled:opacity-40 lg:min-h-11">{sending ? '…' : 'Send'}</button>
                 </div>
+                {(voiceListening || voiceError) && (
+                  <div className={`pl-14 text-xs font-medium ${voiceError ? 'text-rose-600' : 'text-slate-500'}`}>
+                    {voiceError || 'Listening... speak your email, then tap stop.'}
+                  </div>
+                )}
               </div>
             )}
           </div>
