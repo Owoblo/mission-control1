@@ -2226,7 +2226,7 @@ function quickActionClass(tone: 'green' | 'blue' | 'amber' | 'slate' | 'red', ac
 const INBOX_FILTERS: Array<{ key: InboxFilter; label: string }> = [
   { key: 'needs_reply', label: 'Needs reply' },
   { key: 'promising', label: 'Positive' },
-  { key: 'package_sent', label: 'Package sent' },
+  { key: 'package_sent', label: 'Digital sent' },
   { key: 'postcard', label: 'Drop cards' },
   { key: 'appointment', label: 'Appointments' },
   { key: 'waiting', label: 'Waiting' },
@@ -2272,14 +2272,18 @@ function partnerPackageMessage(contact: Contact) {
   return `Here is your Saturn Star Movers partner package: ${partnerPackageUrl(contact)}`
 }
 
-function hasPartnerPackageTouch(contact: Contact) {
+function hasDigitalPackageTouch(contact: Contact) {
   const text = [
     contact.latest_touch_note,
     contact.latest_inbound_note,
     contact.playbook?.draft_sms,
     contact.playbook?.draft_email_body,
   ].filter(Boolean).join(' ').toLowerCase()
-  return text.includes('starmovers.ca/partner/') || text.includes('saturn star movers partner package')
+  if (text.includes('starmovers.ca/partner/') || text.includes('saturn star movers partner package')) return true
+  if (text.includes('[mms:')) return true
+  if (/\b(download|digital package|partner package|referral link|business card|flyer|rate sheet|pricing sheet|payment methods?)\b/.test(text)) return true
+  if (/https?:\/\/\S+\.(pdf|png|jpe?g|webp|docx?|xlsx?)/.test(text)) return true
+  return false
 }
 
 function latestTouchIsAfterLatestInbound(contact: Contact) {
@@ -2351,7 +2355,7 @@ function getInboxStatus(contact: Contact): InboxStatus {
     playbookAction === 'drop_cards' ||
     recommendedAction === 'schedule_delivery' ||
     isDeliveryIntent(playbookIntent)
-  const packageSent = hasPartnerPackageTouch(contact) && (lastDirection === 'outbound' || lastDirection === 'system') && latestTouchIsAfterLatestInbound(contact)
+  const packageSent = hasDigitalPackageTouch(contact) && (lastDirection === 'outbound' || lastDirection === 'system') && latestTouchIsAfterLatestInbound(contact)
   const promising =
     stage === 'connected' ||
     stage === 'qualified' ||
@@ -2373,7 +2377,7 @@ function getInboxStatus(contact: Contact): InboxStatus {
 function inboxStatusLabel(status: InboxStatus) {
   if (status === 'needs_reply') return 'Needs reply'
   if (status === 'promising') return 'Positive'
-  if (status === 'package_sent') return 'Package sent'
+  if (status === 'package_sent') return 'Digital sent'
   if (status === 'postcard') return 'Drop cards'
   if (status === 'appointment') return 'Appointment'
   if (status === 'waiting') return 'Waiting'
@@ -3043,7 +3047,7 @@ function PhoneTab({
             <div>
               <div className="text-[22px] font-semibold tracking-tight text-[#111827] lg:text-xl">Partnership replies</div>
               <div className="text-xs font-medium text-slate-500">
-                {filterCounts.needs_reply} need reply · {filterCounts.promising} positive · {filterCounts.package_sent} package sent · {filterCounts.appointment + filterCounts.postcard} field work
+                {filterCounts.needs_reply} need reply · {filterCounts.promising} positive · {filterCounts.package_sent} digital sent · {filterCounts.appointment + filterCounts.postcard} field work
               </div>
             </div>
             <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">{filterCounts.all}</span>
