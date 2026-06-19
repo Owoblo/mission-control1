@@ -2126,7 +2126,8 @@ function defaultScheduledReplyTime(suggestion?: PartnershipAiSuggestion | null) 
 }
 
 type InboxQuickAction = 'active_partner' | 'drop_cards' | 'meeting_requested' | 'needs_follow_up' | 'not_interested' | 'wrong_number'
-type InboxFilter = 'all' | 'unread' | 'open' | 'follow_up' | 'booked' | 'archived'
+type InboxFilter = 'needs_reply' | 'responded' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'all'
+type InboxStatus = 'needs_reply' | 'responded' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'review'
 
 const INBOX_QUICK_ACTIONS: Array<{ key: InboxQuickAction; label: string; tone: 'green' | 'blue' | 'amber' | 'slate' | 'red' }> = [
   { key: 'active_partner', label: 'Active partner', tone: 'green' },
@@ -2147,12 +2148,13 @@ function quickActionClass(tone: 'green' | 'blue' | 'amber' | 'slate' | 'red', ac
 }
 
 const INBOX_FILTERS: Array<{ key: InboxFilter; label: string }> = [
-  { key: 'all', label: 'All' },
-  { key: 'unread', label: 'Unread' },
-  { key: 'open', label: 'Open' },
+  { key: 'needs_reply', label: 'Needs reply' },
+  { key: 'responded', label: 'Responded' },
+  { key: 'waiting', label: 'Waiting' },
   { key: 'follow_up', label: 'Follow-up' },
-  { key: 'booked', label: 'Booked' },
-  { key: 'archived', label: 'Archived' },
+  { key: 'active', label: 'Active' },
+  { key: 'closed', label: 'Closed' },
+  { key: 'all', label: 'All' },
 ]
 
 function sourceBadge(contact: Contact) {
@@ -2163,15 +2165,66 @@ function sourceBadge(contact: Contact) {
   return contact.category || contact.industry || 'Realtor'
 }
 
+function getInboxStatus(contact: Contact): InboxStatus {
+  const stage = contact.normalized_stage || contact.stage || ''
+  const hasInbound = Boolean(contact.latest_inbound_at || contact.latest_inbound_note || contact.latest_touch_direction === 'inbound' || contact.sequence_paused)
+  const lastDirection = contact.latest_touch_direction
+  const followUpDue = Boolean(contact.needs_follow_up || contact.next_follow_up)
+  const pauseReason = contact.sequence_paused_reason || ''
+  const handledQuickAction = pauseReason.startsWith('quick_action:')
+  const closed = contact.decision === 'not_interested' || contact.decision === 'rejected' || contact.decision === 'bad_number' || stage === 'not_interested' || stage === 'closed_lost' || stage === 'dnc'
+  const active = contact.decision === 'agreed' || stage === 'partnership_active'
+
+  if (closed) return 'closed'
+  if (active) return 'active'
+  if (followUpDue) return 'follow_up'
+  if (hasInbound && !contact.decision && !handledQuickAction && (lastDirection === 'inbound' || contact.sequence_paused)) return 'needs_reply'
+  if (hasInbound && !contact.decision) return 'responded'
+  if ((lastDirection === 'outbound' || lastDirection === 'system') && !contact.decision) return 'waiting'
+  return 'review'
+}
+
+function inboxStatusLabel(status: InboxStatus) {
+  if (status === 'needs_reply') return 'Needs reply'
+  if (status === 'responded') return 'Responded'
+  if (status === 'waiting') return 'Waiting'
+  if (status === 'follow_up') return 'Follow-up'
+  if (status === 'active') return 'Active'
+  if (status === 'closed') return 'Closed'
+  return 'Review'
+}
+
+function inboxStatusClass(status: InboxStatus) {
+  if (status === 'needs_reply') return 'bg-amber-50 text-amber-700'
+  if (status === 'responded') return 'bg-emerald-50 text-emerald-700'
+  if (status === 'waiting') return 'bg-slate-100 text-slate-600'
+  if (status === 'follow_up') return 'bg-sky-50 text-sky-700'
+  if (status === 'active') return 'bg-emerald-100 text-emerald-800'
+  if (status === 'closed') return 'bg-rose-50 text-rose-700'
+  return 'bg-violet-50 text-violet-700'
+}
+
+function inboxUrgencyRank(contact: Contact) {
+  const status = getInboxStatus(contact)
+  if (status === 'needs_reply') return 0
+  if (status === 'follow_up') return 1
+  if (status === 'responded') return 2
+  if (status === 'waiting') return 3
+  if (status === 'review') return 4
+  if (status === 'active') return 5
+  return 6
+}
+
 function matchesInboxFilter(contact: Contact, filter: InboxFilter) {
-  const latestInbound = contact.latest_touch_direction === 'inbound'
-  const latestOutbound = contact.latest_touch_direction === 'outbound' || contact.latest_touch_direction === 'system'
+  const status = getInboxStatus(contact)
+  const hasInbound = Boolean(contact.latest_inbound_at || contact.latest_inbound_note || contact.latest_touch_direction === 'inbound' || contact.sequence_paused)
   if (filter === 'all') return true
-  if (filter === 'unread') return latestInbound && !contact.decision
-  if (filter === 'open') return latestOutbound && !contact.decision && contact.normalized_stage !== 'not_interested'
-  if (filter === 'follow_up') return contact.needs_follow_up || Boolean(contact.next_follow_up)
-  if (filter === 'booked') return contact.decision === 'agreed' || contact.normalized_stage === 'partnership_active'
-  if (filter === 'archived') return contact.decision === 'not_interested' || contact.normalized_stage === 'not_interested'
+  if (filter === 'responded') return hasInbound && status !== 'closed'
+  if (filter === 'needs_reply') return status === 'needs_reply'
+  if (filter === 'waiting') return status === 'waiting'
+  if (filter === 'follow_up') return status === 'follow_up'
+  if (filter === 'active') return status === 'active'
+  if (filter === 'closed') return status === 'closed'
   return true
 }
 
@@ -2191,7 +2244,7 @@ function PhoneTab({
   const router = useRouter()
   const searchParams = useSearchParams()
   const [search, setSearch] = useState('')
-  const [inboxFilter, setInboxFilter] = useState<InboxFilter>('all')
+  const [inboxFilter, setInboxFilter] = useState<InboxFilter>('needs_reply')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [replyContacts, setReplyContacts] = useState<Contact[]>([])
   const [replyLoading, setReplyLoading] = useState(false)
@@ -2215,6 +2268,7 @@ function PhoneTab({
   const [sheetUpdateOpen, setSheetUpdateOpen] = useState(false)
   const [sheetInstruction, setSheetInstruction] = useState('')
   const [sheetUpdating, setSheetUpdating] = useState(false)
+  const [aiPanelOpen, setAiPanelOpen] = useState(false)
   const [partnerInfoCollapsed, setPartnerInfoCollapsed] = useState(() => readLocalStorageFlag('ss_partner_inbox_info_collapsed'))
   const [toast, setToast] = useState<string | null>(null)
   const threadRef = useRef<HTMLDivElement>(null)
@@ -2231,12 +2285,29 @@ function PhoneTab({
   const sorted = useMemo(() => [...inboxContacts]
     .filter(c => matchesInboxFilter(c, inboxFilter))
     .sort((a, b) => {
-      const aNeeds = a.latest_touch_direction === 'inbound' && !a.decision ? 1 : 0
-      const bNeeds = b.latest_touch_direction === 'inbound' && !b.decision ? 1 : 0
-      if (aNeeds !== bNeeds) return bNeeds - aNeeds
+      const urgency = inboxUrgencyRank(a) - inboxUrgencyRank(b)
+      if (urgency !== 0) return urgency
       return (b.last_touch_at || b.latest_inbound_at || '').localeCompare(a.last_touch_at || a.latest_inbound_at || '')
     })
-    .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()) || (c.company ?? '').toLowerCase().includes(search.toLowerCase()) || (c.phone ?? '').includes(search)), [inboxContacts, inboxFilter, search])
+    .filter(c => {
+      const q = search.trim().toLowerCase()
+      if (!q) return true
+      const status = inboxStatusLabel(getInboxStatus(c)).toLowerCase()
+      const preview = getContactPreview(c)?.body ?? ''
+      return [
+        c.name,
+        c.company,
+        c.email,
+        c.phone,
+        c.city,
+        c.industry,
+        c.normalized_stage,
+        c.latest_inbound_note,
+        c.latest_touch_note,
+        preview,
+        status,
+      ].filter(Boolean).join(' ').toLowerCase().includes(q)
+    }), [inboxContacts, inboxFilter, search])
 
   const filterCounts = useMemo(() => {
     return INBOX_FILTERS.reduce((acc, filter) => {
@@ -2301,6 +2372,7 @@ function PhoneTab({
     setScheduleMode(false)
     setActionPanelOpen(false)
     setAiSuggestion(null)
+    setAiPanelOpen(false)
     setScheduledAt(defaultScheduledReplyTime())
   }, [selected?.id])
 
@@ -2321,6 +2393,7 @@ function PhoneTab({
     }
     setScheduledAt(defaultScheduledReplyTime(suggestion))
     setAiSuggestion(suggestion)
+    setAiPanelOpen(true)
   }
 
   function handleSelect(id: string) {
@@ -2412,6 +2485,21 @@ function PhoneTab({
         }),
       })
       showToast(composeChannel === 'sms' ? '💬 SMS sent' : '✉️ Email sent')
+      const outboundAt = new Date().toISOString()
+      const updatedAfterSend = {
+        ...selected,
+        latest_touch_direction: 'outbound',
+        latest_touch_channel: composeChannel,
+        latest_touch_note: composeChannel === 'sms' ? smsBody : emailBody,
+        last_touch_at: outboundAt,
+        sequence_paused: false,
+        needs_follow_up: true,
+      }
+      setReplyContacts(curr => curr.some(c => c.id === selected.id)
+        ? curr.map(c => c.id === selected.id ? { ...c, ...updatedAfterSend } : c)
+        : [updatedAfterSend, ...curr]
+      )
+      onContactUpdated(updatedAfterSend)
       setSmsBody('')
       setEmailSubject('')
       setEmailBody('')
@@ -2611,7 +2699,7 @@ function PhoneTab({
           <div className="mb-3 flex items-center justify-between lg:mb-2">
             <div>
               <div className="text-[22px] font-semibold tracking-tight text-[#111827] lg:text-xl">Partnership replies</div>
-              <div className="text-xs font-medium text-slate-500">{filterCounts.unread} unread · {filterCounts.follow_up} follow-up</div>
+              <div className="text-xs font-medium text-slate-500">{filterCounts.needs_reply} need reply · {filterCounts.responded} responded</div>
             </div>
             <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">{filterCounts.all}</span>
           </div>
@@ -2632,7 +2720,8 @@ function PhoneTab({
         </div>
         <div className="flex-1 overflow-y-auto">
           {sorted.map(c => {
-            const unread = c.needs_follow_up || (c.sequence_paused && !c.decision)
+            const status = getInboxStatus(c)
+            const unread = status === 'needs_reply'
             const p = getContactPreview(c)
             return (
               <button key={c.id} onClick={() => handleSelect(c.id)}
@@ -2653,6 +2742,7 @@ function PhoneTab({
                 </div>
                 {p?.body && <div className={`mt-2 line-clamp-2 text-sm leading-[1.5] lg:text-[13px] ${selectedId === c.id ? 'text-slate-700' : 'text-slate-600'}`}>{truncateText(p.body, 150)}</div>}
                 <div className="mt-2 flex items-center gap-1.5 overflow-hidden pl-12">
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${inboxStatusClass(status)}`}>{inboxStatusLabel(status)}</span>
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${selectedId === c.id ? 'bg-white text-slate-600' : 'bg-slate-100 text-slate-500'}`}>{sourceBadge(c)}</span>
                   <StageBadge stage={c.normalized_stage} />
                   {c.instantly_status && <InstantlyBadge status={c.instantly_status} />}
@@ -2816,12 +2906,26 @@ function PhoneTab({
               <div className="mb-3 rounded-[16px] border border-emerald-100 bg-white px-4 py-3 shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm font-semibold leading-[1.5] text-[#111827]">
-                      {recommendedActionLabel(suggestion.recommended_action)}
-                    </div>
-                    <div className="mt-0.5 text-xs font-medium leading-[1.5] text-slate-500">
-                      {formatPlaybookLabel(suggestion.intent)} · {Math.round(suggestion.confidence * 100)}% confidence
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAiPanelOpen(open => !open)}
+                      className="block w-full min-w-0 text-left"
+                      aria-expanded={aiPanelOpen}
+                    >
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="text-sm font-semibold leading-[1.5] text-[#111827]">
+                          {recommendedActionLabel(suggestion.recommended_action)}
+                        </span>
+                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                          {Math.round(suggestion.confidence * 100)}%
+                        </span>
+                        <span className="text-xs font-semibold text-slate-400">{aiPanelOpen ? 'Hide' : 'Show'}</span>
+                      </div>
+                      <div className="mt-0.5 line-clamp-1 text-xs font-medium leading-[1.5] text-slate-500">
+                        {formatPlaybookLabel(suggestion.intent)}
+                        {suggestion.draft_sms ? ` · ${suggestion.draft_sms}` : ''}
+                      </div>
+                    </button>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     {!aiSuggestion && (
@@ -2843,27 +2947,31 @@ function PhoneTab({
                     )}
                   </div>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-1.5 text-xs font-semibold leading-[1.5] text-emerald-800">
-                  <span className="rounded-full bg-emerald-50 px-2.5 py-1">Package: {formatPlaybookLabel(suggestion.goal_state.digital_package)}</span>
-                  <span className="rounded-full bg-emerald-50 px-2.5 py-1">Delivery: {formatPlaybookLabel(suggestion.goal_state.physical_delivery)}</span>
-                  <span className="rounded-full bg-emerald-50 px-2.5 py-1">Referral: {formatPlaybookLabel(suggestion.goal_state.referral_program)}</span>
-                  <span className="rounded-full bg-emerald-50 px-2.5 py-1">Meeting: {formatPlaybookLabel(suggestion.goal_state.meeting)}</span>
-                </div>
-                {suggestion.draft_sms && !aiSuggestion && (
-                  <div className="mt-3 rounded-[14px] bg-slate-50 px-4 py-3 text-sm leading-[1.5] text-slate-700">
-                    <div className="line-clamp-2">{suggestion.draft_sms}</div>
-                  </div>
-                )}
-                {(suggestion.extracted.email || suggestion.extracted.address || suggestion.extracted.time_window || suggestion.risk_flags.length > 0) && (
-                  <div className="mt-2 line-clamp-1 text-xs leading-[1.5] text-slate-500">
-                    {[
-                      suggestion.extracted.email ? `Email: ${suggestion.extracted.email}` : '',
-                      suggestion.extracted.address ? `Address: ${suggestion.extracted.address}` : '',
-                      suggestion.extracted.brokerage_location ? `Location: ${suggestion.extracted.brokerage_location}` : '',
-                      suggestion.extracted.time_window ? `Time: ${suggestion.extracted.time_window}` : '',
-                      suggestion.risk_flags.length ? `Flags: ${suggestion.risk_flags.join(', ')}` : '',
-                    ].filter(Boolean).join(' · ')}
-                  </div>
+                {aiPanelOpen && (
+                  <>
+                    <div className="mt-3 flex flex-wrap gap-1.5 text-xs font-semibold leading-[1.5] text-emerald-800">
+                      <span className="rounded-full bg-emerald-50 px-2.5 py-1">Package: {formatPlaybookLabel(suggestion.goal_state.digital_package)}</span>
+                      <span className="rounded-full bg-emerald-50 px-2.5 py-1">Delivery: {formatPlaybookLabel(suggestion.goal_state.physical_delivery)}</span>
+                      <span className="rounded-full bg-emerald-50 px-2.5 py-1">Referral: {formatPlaybookLabel(suggestion.goal_state.referral_program)}</span>
+                      <span className="rounded-full bg-emerald-50 px-2.5 py-1">Meeting: {formatPlaybookLabel(suggestion.goal_state.meeting)}</span>
+                    </div>
+                    {suggestion.draft_sms && !aiSuggestion && (
+                      <div className="mt-3 rounded-[14px] bg-slate-50 px-4 py-3 text-sm leading-[1.5] text-slate-700">
+                        {suggestion.draft_sms}
+                      </div>
+                    )}
+                    {(suggestion.extracted.email || suggestion.extracted.address || suggestion.extracted.time_window || suggestion.risk_flags.length > 0) && (
+                      <div className="mt-2 text-xs leading-[1.5] text-slate-500">
+                        {[
+                          suggestion.extracted.email ? `Email: ${suggestion.extracted.email}` : '',
+                          suggestion.extracted.address ? `Address: ${suggestion.extracted.address}` : '',
+                          suggestion.extracted.brokerage_location ? `Location: ${suggestion.extracted.brokerage_location}` : '',
+                          suggestion.extracted.time_window ? `Time: ${suggestion.extracted.time_window}` : '',
+                          suggestion.risk_flags.length ? `Flags: ${suggestion.risk_flags.join(', ')}` : '',
+                        ].filter(Boolean).join(' · ')}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
               )
@@ -4060,7 +4168,7 @@ function PartnershipEngineInner() {
 
   const [bulkSmsContacts, setBulkSmsContacts] = useState<Contact[] | null>(null)
   const [scheduledSmsOpen, setScheduledSmsOpen] = useState(false)
-  const needsReplyCount = contacts.filter(c => c.sequence_paused && !c.decision).length
+  const needsReplyCount = contacts.filter(c => getInboxStatus(c) === 'needs_reply').length
   const queueCount = needsReplyCount + contacts.filter(c =>
     c.last_touch_at && Math.floor((Date.now() - new Date(c.last_touch_at).getTime()) / 86400000) >= 5
   ).length
