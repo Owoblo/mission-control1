@@ -2461,6 +2461,7 @@ function PhoneTab({
   const [toast, setToast] = useState<string | null>(null)
   const threadRef = useRef<HTMLDivElement>(null)
   const mediaInputRef = useRef<HTMLInputElement>(null)
+  const touchRequestRef = useRef(0)
   const dialer = useDialer()
 
   const inboxContacts = useMemo(() => {
@@ -2530,21 +2531,38 @@ function PhoneTab({
     }
   }, [inboxContacts, selectedFromQuery, selectedId, sorted])
 
-  useEffect(() => {
-    if (!selectedId) return
-    setTouches([]); setTouchLoading(true)
-    fetch(`/api/marketing/touches?contact_id=${selectedId}`, { credentials: 'include' })
-      .then(r => r.ok ? r.json() : [])
-      .then(d => setTouches(Array.isArray(d) ? d : []))
-      .finally(() => setTouchLoading(false))
-  }, [selectedId])
-
   const reloadTouches = useCallback((contactId: string) => {
+    const requestId = ++touchRequestRef.current
     fetch(`/api/marketing/touches?contact_id=${contactId}`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : [])
-      .then(d => setTouches(Array.isArray(d) ? d : []))
+      .then(d => {
+        if (touchRequestRef.current !== requestId) return
+        setTouches(Array.isArray(d) ? d : [])
+      })
       .catch(() => {})
+      .finally(() => {
+        if (touchRequestRef.current === requestId) setTouchLoading(false)
+      })
   }, [])
+
+  useEffect(() => {
+    if (!selectedId) return
+    const requestId = ++touchRequestRef.current
+    setTouches([])
+    setTouchLoading(true)
+    fetch(`/api/marketing/touches?contact_id=${selectedId}`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : [])
+      .then(d => {
+        if (touchRequestRef.current !== requestId) return
+        setTouches(Array.isArray(d) ? d : [])
+      })
+      .catch(() => {
+        if (touchRequestRef.current === requestId) setTouches([])
+      })
+      .finally(() => {
+        if (touchRequestRef.current === requestId) setTouchLoading(false)
+      })
+  }, [selectedId])
 
   useEffect(() => {
     if (!selected?.id || !selected.latest_inbound_at) return
