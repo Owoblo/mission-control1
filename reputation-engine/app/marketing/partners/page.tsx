@@ -2410,8 +2410,18 @@ function latestTouchIsAfterLatestInbound(contact: Contact) {
   return !latestInboundAt || latestTouchAt >= latestInboundAt
 }
 
+function isClosingAcknowledgementInbound(value?: string | null) {
+  const text = cleanRichSmsFallback(stripTouchPrefix(String(value || ''))).toLowerCase()
+  if (!text) return false
+  if (text.includes('?')) return false
+  if (text.length > 220) return false
+  if (/\b(when|where|what|who|how|which|can you|could you|would you|please send|send me|call me|email me|appointment|meeting|monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today|address|office|drop off|drop by|postcard|flyer|business card|price|pricing|rate|referral link|package)\b/.test(text)) return false
+  return /\b(thanks?|thank you|appreciate|awesome|sounds good|perfect|ok|okay|alright|all right|no problem|great|will keep (you|u) in mind|keep you in mind|added (you|u) to (my )?contacts?|have a great day|talk soon|cheers|you're welcome|you are welcome)\b/.test(text)
+}
+
 function latestInboundNeedsReply(contact: Contact) {
   if (isPassiveInboundReaction(contact.latest_inbound_note || '')) return false
+  if (isClosingAcknowledgementInbound(contact.latest_inbound_note || '')) return false
   const latestTouchAt = contact.last_touch_at ? new Date(contact.last_touch_at).getTime() : 0
   const latestInboundAt = contact.latest_inbound_at ? new Date(contact.latest_inbound_at).getTime() : 0
   if (contact.latest_touch_direction === 'inbound') return true
@@ -2429,7 +2439,10 @@ function hasRepResponded(contact: Contact) {
   const latestTouchAt = contact.last_touch_at ? new Date(contact.last_touch_at).getTime() : 0
   const latestInboundAt = contact.latest_inbound_at ? new Date(contact.latest_inbound_at).getTime() : 0
   const lastDirection = contact.latest_touch_direction
-  return (lastDirection === 'outbound' || lastDirection === 'system' || lastDirection === 'internal') && latestTouchAt > 0 && (!latestInboundAt || latestTouchAt >= latestInboundAt)
+  const stage = contact.normalized_stage || contact.stage || ''
+  if ((lastDirection === 'outbound' || lastDirection === 'system' || lastDirection === 'internal') && latestTouchAt > 0 && (!latestInboundAt || latestTouchAt >= latestInboundAt)) return true
+  if (['connected', 'qualified', 'partnership_active', 'dormant', 'closed_lost'].includes(stage) && !latestInboundNeedsReply(contact)) return true
+  return false
 }
 
 function workflowActionFromReason(reason?: string | null) {
@@ -3631,6 +3644,23 @@ function PhoneTab({
               >
                 Copy link
               </button>
+              <label className="flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white pl-3 pr-2 text-sm font-semibold text-slate-500 lg:min-h-8 lg:text-xs">
+                Stage
+                <select
+                  value={selected.normalized_stage || 'target'}
+                  onChange={e => void handleStageChange(e.target.value)}
+                  disabled={stageSaving !== null}
+                  className="max-w-[150px] bg-transparent text-sm font-semibold text-[#1a2744] outline-none disabled:opacity-50 lg:text-xs"
+                >
+                  <option value="target">Target</option>
+                  <option value="connected">Connected</option>
+                  <option value="qualified">Qualified</option>
+                  <option value="partnership_active">Active partner</option>
+                  <option value="follow_up_due">Follow-up</option>
+                  <option value="dormant">Nurture</option>
+                  <option value="closed_lost">Closed</option>
+                </select>
+              </label>
               <button
                 onClick={() => setActionPanelOpen(open => !open)}
                 className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-semibold transition xl:hidden ${actionPanelOpen ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
