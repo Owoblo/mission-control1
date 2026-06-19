@@ -1669,8 +1669,9 @@ function ListsTab({ contacts, onSelectContact }: { contacts: Contact[]; onSelect
 // ─── Tab: Pipeline ────────────────────────────────────────────────────────────
 
 const PIPELINE_COLS = [
-  { key: 'connected', label: '💬 Engaged', color: 'bg-violet-50 border-violet-200' },
-  { key: 'qualified', label: '🗣 Qualified', color: 'bg-orange-50 border-orange-200' },
+  { key: 'connected', label: '💬 Promising', color: 'bg-emerald-50 border-emerald-200' },
+  { key: 'qualified', label: '📬 Postcard / Meeting', color: 'bg-sky-50 border-sky-200' },
+  { key: 'follow_up_due', label: '⏱ Follow-up', color: 'bg-amber-50 border-amber-200' },
   { key: 'partnership_active', label: '✅ Active', color: 'bg-emerald-50 border-emerald-200' },
   { key: 'dormant', label: '❄️ Nurture', color: 'bg-slate-50 border-slate-200' },
 ]
@@ -1685,15 +1686,26 @@ function PipelineTab({ contacts, onSelect, onStageChange }: {
   const [movingId, setMovingId] = useState<string | null>(null)
   const [tierFilter, setTierFilter] = useState<number | null>(null)
 
-  const responded = contacts.filter(c => c.sequence_paused)
-  const filtered = tierFilter ? responded.filter(c => c.outreach_tier === tierFilter) : responded
+  const inPlay = contacts.filter(c => {
+    const status = getInboxStatus(c)
+    return (
+      c.sequence_paused ||
+      Boolean(c.latest_inbound_at || c.latest_inbound_note) ||
+      ['connected', 'qualified', 'follow_up_due', 'partnership_active', 'dormant'].includes(c.normalized_stage) ||
+      status === 'promising' ||
+      status === 'postcard' ||
+      status === 'follow_up' ||
+      status === 'active'
+    )
+  })
+  const filtered = tierFilter ? inPlay.filter(c => c.outreach_tier === tierFilter) : inPlay
 
-  if (responded.length === 0) {
+  if (inPlay.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-[24px] border border-dashed border-slate-300 bg-white p-16 text-center">
         <div className="text-4xl">📭</div>
-        <div className="mt-4 text-base font-semibold text-[#1a2744]">No responses yet</div>
-        <div className="mt-2 text-sm text-slate-500">People who reply show up here.</div>
+        <div className="mt-4 text-base font-semibold text-[#1a2744]">No partnership work in play yet</div>
+        <div className="mt-2 text-sm text-slate-500">Replies, postcard requests, follow-ups, and active partners show up here.</div>
       </div>
     )
   }
@@ -1703,7 +1715,7 @@ function PipelineTab({ contacts, onSelect, onStageChange }: {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h2 className="text-base font-semibold text-[#1a2744]">Relationship Pipeline</h2>
-          <p className="text-sm text-slate-500">{filtered.length} contact{filtered.length !== 1 ? 's' : ''} in play</p>
+          <p className="text-sm text-slate-500">{filtered.length} partner opportunit{filtered.length === 1 ? 'y' : 'ies'} in play</p>
         </div>
         <div className="flex gap-1.5">
           {[null, 1, 2, 3].map(t => (
@@ -1726,7 +1738,7 @@ function PipelineTab({ contacts, onSelect, onStageChange }: {
                 const contactId = e.dataTransfer.getData('text/plain') || draggingId
                 setDropTarget(null); setDraggingId(null)
                 if (!contactId) return
-                const curr = responded.find(c => c.id === contactId)
+                const curr = inPlay.find(c => c.id === contactId)
                 if (!curr || curr.normalized_stage === col.key) return
                 setMovingId(contactId)
                 void onStageChange(contactId, col.key).finally(() => setMovingId(id => id === contactId ? null : id))
@@ -1756,6 +1768,9 @@ function PipelineTab({ contacts, onSelect, onStageChange }: {
                       {movingId === c.id ? <span>Saving…</span> : c.last_touch_at && <span>{timeAgo(c.last_touch_at)}</span>}
                     </div>
                     <div className="mt-1.5 flex items-center gap-1 flex-wrap">
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${inboxStatusClass(getInboxStatus(c))}`}>
+                        {inboxStatusLabel(getInboxStatus(c))}
+                      </span>
                       {c.instantly_status && <InstantlyBadge status={c.instantly_status} />}
                       {c.decision && (
                         <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${c.decision === 'agreed' ? 'bg-emerald-100 text-emerald-700' : c.decision === 'rejected' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>
@@ -2131,8 +2146,8 @@ function defaultScheduledReplyTime(suggestion?: PartnershipAiSuggestion | null) 
 }
 
 type InboxQuickAction = 'active_partner' | 'drop_cards' | 'meeting_requested' | 'needs_follow_up' | 'not_interested' | 'wrong_number'
-type InboxFilter = 'needs_reply' | 'responded' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'all'
-type InboxStatus = 'needs_reply' | 'responded' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'review'
+type InboxFilter = 'needs_reply' | 'promising' | 'postcard' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'all'
+type InboxStatus = 'needs_reply' | 'promising' | 'postcard' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'review'
 
 const INBOX_QUICK_ACTIONS: Array<{ key: InboxQuickAction; label: string; tone: 'green' | 'blue' | 'amber' | 'slate' | 'red' }> = [
   { key: 'active_partner', label: 'Active partner', tone: 'green' },
@@ -2154,7 +2169,8 @@ function quickActionClass(tone: 'green' | 'blue' | 'amber' | 'slate' | 'red', ac
 
 const INBOX_FILTERS: Array<{ key: InboxFilter; label: string }> = [
   { key: 'needs_reply', label: 'Needs reply' },
-  { key: 'responded', label: 'Responded' },
+  { key: 'promising', label: 'Promising' },
+  { key: 'postcard', label: 'Field work' },
   { key: 'waiting', label: 'Waiting' },
   { key: 'follow_up', label: 'Follow-up' },
   { key: 'active', label: 'Active' },
@@ -2170,6 +2186,31 @@ function sourceBadge(contact: Contact) {
   return contact.category || contact.industry || 'Realtor'
 }
 
+function isDeliveryIntent(intent?: string | null) {
+  return [
+    'postcard_yes',
+    'drop_by_anytime',
+    'gives_address',
+    'gives_time_window',
+    'asks_for_pricing',
+    'asks_referral_program',
+    'asks_social_media',
+  ].includes(String(intent || ''))
+}
+
+function isPackageIntent(intent?: string | null) {
+  return [
+    'send_digital_package',
+    'send_card_or_flyer_media',
+    'digital_only_no_postcard',
+    'asks_contact_info',
+    'asks_for_email',
+    'asks_for_references',
+    'refers_to_another_contact',
+    'lead_disposition_update',
+  ].includes(String(intent || ''))
+}
+
 function getInboxStatus(contact: Contact): InboxStatus {
   const stage = contact.normalized_stage || contact.stage || ''
   const hasInbound = Boolean(contact.latest_inbound_at || contact.latest_inbound_note || contact.latest_touch_direction === 'inbound' || contact.sequence_paused)
@@ -2177,21 +2218,40 @@ function getInboxStatus(contact: Contact): InboxStatus {
   const followUpDue = Boolean(contact.needs_follow_up || contact.next_follow_up)
   const pauseReason = contact.sequence_paused_reason || ''
   const handledQuickAction = pauseReason.startsWith('quick_action:')
+  const playbookAction = contact.playbook?.quick_action
+  const playbookIntent = contact.playbook?.intent
+  const recommendedAction = contact.playbook?.recommended_action
   const closed = contact.decision === 'not_interested' || contact.decision === 'rejected' || contact.decision === 'bad_number' || stage === 'not_interested' || stage === 'closed_lost' || stage === 'dnc'
   const active = contact.decision === 'agreed' || stage === 'partnership_active'
+  const postcardWork =
+    contact.pipeline_phase === 'field_visit' ||
+    pauseReason === 'quick_action:drop_cards' ||
+    pauseReason === 'quick_action:meeting_requested' ||
+    playbookAction === 'drop_cards' ||
+    playbookAction === 'meeting_requested' ||
+    recommendedAction === 'schedule_delivery' ||
+    recommendedAction === 'book_meeting' ||
+    isDeliveryIntent(playbookIntent)
+  const promising =
+    stage === 'connected' ||
+    stage === 'qualified' ||
+    isPackageIntent(playbookIntent) ||
+    (hasInbound && handledQuickAction)
 
   if (closed) return 'closed'
   if (active) return 'active'
-  if (followUpDue) return 'follow_up'
   if (hasInbound && !contact.decision && !handledQuickAction && (lastDirection === 'inbound' || contact.sequence_paused)) return 'needs_reply'
-  if (hasInbound && !contact.decision) return 'responded'
+  if (postcardWork) return 'postcard'
+  if (promising) return 'promising'
+  if (followUpDue) return 'follow_up'
   if ((lastDirection === 'outbound' || lastDirection === 'system') && !contact.decision) return 'waiting'
   return 'review'
 }
 
 function inboxStatusLabel(status: InboxStatus) {
   if (status === 'needs_reply') return 'Needs reply'
-  if (status === 'responded') return 'Responded'
+  if (status === 'promising') return 'Promising'
+  if (status === 'postcard') return 'Field work'
   if (status === 'waiting') return 'Waiting'
   if (status === 'follow_up') return 'Follow-up'
   if (status === 'active') return 'Active'
@@ -2201,7 +2261,8 @@ function inboxStatusLabel(status: InboxStatus) {
 
 function inboxStatusClass(status: InboxStatus) {
   if (status === 'needs_reply') return 'bg-amber-50 text-amber-700'
-  if (status === 'responded') return 'bg-emerald-50 text-emerald-700'
+  if (status === 'promising') return 'bg-emerald-50 text-emerald-700'
+  if (status === 'postcard') return 'bg-sky-50 text-sky-700'
   if (status === 'waiting') return 'bg-slate-100 text-slate-600'
   if (status === 'follow_up') return 'bg-sky-50 text-sky-700'
   if (status === 'active') return 'bg-emerald-100 text-emerald-800'
@@ -2212,20 +2273,21 @@ function inboxStatusClass(status: InboxStatus) {
 function inboxUrgencyRank(contact: Contact) {
   const status = getInboxStatus(contact)
   if (status === 'needs_reply') return 0
-  if (status === 'follow_up') return 1
-  if (status === 'responded') return 2
-  if (status === 'waiting') return 3
-  if (status === 'review') return 4
-  if (status === 'active') return 5
+  if (status === 'postcard') return 1
+  if (status === 'follow_up') return 2
+  if (status === 'promising') return 3
+  if (status === 'waiting') return 4
+  if (status === 'review') return 5
+  if (status === 'active') return 6
   return 6
 }
 
 function matchesInboxFilter(contact: Contact, filter: InboxFilter) {
   const status = getInboxStatus(contact)
-  const hasInbound = Boolean(contact.latest_inbound_at || contact.latest_inbound_note || contact.latest_touch_direction === 'inbound' || contact.sequence_paused)
   if (filter === 'all') return true
-  if (filter === 'responded') return hasInbound && status !== 'closed'
   if (filter === 'needs_reply') return status === 'needs_reply'
+  if (filter === 'promising') return status === 'promising'
+  if (filter === 'postcard') return status === 'postcard'
   if (filter === 'waiting') return status === 'waiting'
   if (filter === 'follow_up') return status === 'follow_up'
   if (filter === 'active') return status === 'active'
@@ -2704,7 +2766,7 @@ function PhoneTab({
           <div className="mb-3 flex items-center justify-between lg:mb-2">
             <div>
               <div className="text-[22px] font-semibold tracking-tight text-[#111827] lg:text-xl">Partnership replies</div>
-              <div className="text-xs font-medium text-slate-500">{filterCounts.needs_reply} need reply · {filterCounts.responded} responded</div>
+              <div className="text-xs font-medium text-slate-500">{filterCounts.needs_reply} need reply · {filterCounts.promising} promising · {filterCounts.postcard} field work</div>
             </div>
             <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">{filterCounts.all}</span>
           </div>
@@ -3210,7 +3272,26 @@ function PhoneTab({
 // ─── Tab: Active Partners ─────────────────────────────────────────────────────
 
 function PartnersTab({ contacts, onSelect }: { contacts: Contact[]; onSelect: (c: Contact) => void }) {
+  const [search, setSearch] = useState('')
+  const [view, setView] = useState<'active' | 'warm' | 'field_visit' | 'all'>('active')
   const partners = contacts.filter(c => c.decision === 'agreed' || c.normalized_stage === 'partnership_active')
+  const warmPartners = contacts.filter(c => ['promising', 'postcard', 'follow_up', 'active'].includes(getInboxStatus(c)))
+  const fieldVisit = contacts.filter(c => getInboxStatus(c) === 'postcard')
+  const visible = (view === 'active' ? partners : view === 'warm' ? warmPartners : view === 'field_visit' ? fieldVisit : contacts)
+    .filter(c => {
+      const q = search.trim().toLowerCase()
+      if (!q) return true
+      return [c.name, c.company, c.city, c.industry, c.phone, c.email, c.normalized_stage, c.decision]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(q)
+    })
+    .sort((a, b) => {
+      const statusRank = inboxUrgencyRank(a) - inboxUrgencyRank(b)
+      if (statusRank !== 0) return statusRank
+      return (b.last_touch_at || b.latest_inbound_at || '').localeCompare(a.last_touch_at || a.latest_inbound_at || '')
+    })
 
   if (partners.length === 0) {
     return (
@@ -3224,14 +3305,39 @@ function PartnersTab({ contacts, onSelect }: { contacts: Contact[]; onSelect: (c
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-base font-semibold text-[#1a2744]">Active Partners</h2>
-        <p className="text-sm text-slate-500">{partners.length} active</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-base font-semibold text-[#1a2744]">Partner Directory</h2>
+          <p className="text-sm text-slate-500">{partners.length} active · {warmPartners.length} warm · {fieldVisit.length} field work</p>
+        </div>
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search partners..."
+          className="crm-input h-10 w-full text-sm sm:w-64"
+        />
+      </div>
+      <div className="flex gap-2 overflow-x-auto">
+        {[
+          { key: 'active', label: 'Active', count: partners.length },
+          { key: 'warm', label: 'Warm', count: warmPartners.length },
+          { key: 'field_visit', label: 'Field work', count: fieldVisit.length },
+          { key: 'all', label: 'All contacts', count: contacts.length },
+        ].map(item => (
+          <button
+            key={item.key}
+            onClick={() => setView(item.key as typeof view)}
+            className={`min-h-9 shrink-0 rounded-full px-3 text-xs font-semibold transition ${view === item.key ? 'bg-[#1a2744] text-white' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+          >
+            {item.label} <span className="ml-1 opacity-70">{item.count}</span>
+          </button>
+        ))}
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {partners.map(c => {
+        {visible.map(c => {
           const daysSince = c.last_touch_at ? Math.floor((Date.now() - new Date(c.last_touch_at).getTime()) / 86400000) : null
           const warm = daysSince !== null && daysSince <= 30
+          const status = getInboxStatus(c)
           return (
             <button key={c.id} onClick={() => onSelect(c)}
               className={`rounded-[22px] border bg-white p-5 text-left hover:shadow-md transition ${!warm ? 'border-amber-300' : 'border-slate-200'}`}>
@@ -3244,6 +3350,11 @@ function PartnersTab({ contacts, onSelect }: { contacts: Contact[]; onSelect: (c
                   </div>
                   <div className="text-xs text-slate-500 truncate">{c.company ?? c.industry ?? ''}</div>
                 </div>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${inboxStatusClass(status)}`}>{inboxStatusLabel(status)}</span>
+                <StageBadge stage={c.normalized_stage} />
+                {c.city && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">{c.city}</span>}
               </div>
               {c.affiliate_partner_id && (
                 <div className="mt-2 flex items-center gap-1.5 rounded-[8px] border border-emerald-200 bg-emerald-50 px-2.5 py-1.5">
@@ -3262,6 +3373,11 @@ function PartnersTab({ contacts, onSelect }: { contacts: Contact[]; onSelect: (c
           )
         })}
       </div>
+      {visible.length === 0 && (
+        <div className="rounded-[16px] border border-dashed border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
+          No partners match this view.
+        </div>
+      )}
     </div>
   )
 }

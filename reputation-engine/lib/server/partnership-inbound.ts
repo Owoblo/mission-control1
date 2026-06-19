@@ -118,6 +118,57 @@ function metadataMediaUrls(metadata?: Record<string, unknown>) {
   return raw.map(url => String(url || '').trim()).filter(Boolean).slice(0, 10)
 }
 
+function classifyInboundWorkflow(
+  playbook: Awaited<ReturnType<typeof suggestPartnershipReply>>,
+  currentStage: ReturnType<typeof normalizePartnershipStage>,
+  contact: MarketContactMatch,
+  optedOut: boolean
+) {
+  if (optedOut || playbook.quick_action === 'not_interested' || playbook.quick_action === 'wrong_number') {
+    return {
+      stage: playbook.quick_action === 'wrong_number' ? 'closed_lost' : 'dnc',
+      pipeline_phase: 'closed',
+      decision: playbook.quick_action === 'wrong_number' ? 'bad_number' : 'opted_out',
+    }
+  }
+
+  if (contact.decision) {
+    return {
+      stage: contact.stage,
+      pipeline_phase: contact.pipeline_phase,
+      decision: contact.decision,
+    }
+  }
+
+  if (playbook.quick_action === 'active_partner') {
+    return { stage: 'partnership_active', pipeline_phase: 'maintenance', decision: 'agreed' }
+  }
+
+  if (
+    playbook.quick_action === 'drop_cards' ||
+    playbook.quick_action === 'meeting_requested' ||
+    playbook.recommended_action === 'schedule_delivery' ||
+    playbook.recommended_action === 'book_meeting'
+  ) {
+    return { stage: 'qualified', pipeline_phase: 'field_visit', decision: contact.decision }
+  }
+
+  if (playbook.recommended_action === 'send_package') {
+    return { stage: 'connected', pipeline_phase: 'digital_package', decision: contact.decision }
+  }
+
+  if (playbook.recommended_action === 'human_review') {
+    return { stage: 'connected', pipeline_phase: 'manual_review', decision: contact.decision }
+  }
+
+  const shouldAdvanceToConnected = ['target', 'mail_sent', 'follow_up_due', 'attempting_contact'].includes(currentStage)
+  return {
+    stage: shouldAdvanceToConnected ? 'connected' : contact.stage,
+    pipeline_phase: 'engaged',
+    decision: contact.decision,
+  }
+}
+
 export async function pausePartnershipSequenceForInbound(input: PausePartnershipSequenceInput) {
   const contact = await findPartnershipContactMatch(input)
   if (!contact) return { matched: false as const }
@@ -156,7 +207,7 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
     skipAi: true,
   })
   const disposition = partnershipDispositionFromSuggestion(playbook)
-  const shouldAdvanceToConnected = ['target', 'mail_sent', 'follow_up_due', 'attempting_contact'].includes(currentStage)
+  const workflow = classifyInboundWorkflow(playbook, currentStage, contact, optedOut)
   const nextFollowUp =
     optedOut
       ? null
@@ -173,9 +224,9 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
       body: JSON.stringify({
         sequence_paused: true,
         sequence_paused_reason: optedOut ? 'opt_out' : `${input.channel}_reply`,
-        pipeline_phase: optedOut ? 'closed' : contact.decision ? contact.pipeline_phase : 'engaged',
-        stage: optedOut ? 'dnc' : shouldAdvanceToConnected ? 'connected' : contact.stage,
-        decision: optedOut ? 'opted_out' : contact.decision,
+        pipeline_phase: workflow.pipeline_phase,
+        stage: workflow.stage,
+        decision: workflow.decision,
         last_inbound_at: occurredAt,
         last_touch_at: occurredAt,
         next_follow_up: nextFollowUp,
