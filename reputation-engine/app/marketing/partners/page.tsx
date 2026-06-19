@@ -311,6 +311,20 @@ function cleanRichSmsFallback(value: string) {
     .trim()
 }
 
+function cleanRichSmsDisplay(value: string) {
+  return value
+    .replace(/\uFFFD/g, ' ')
+    .replace(/â€[\u0098\u0099\u009c\u009d]?/g, ' ')
+    .replace(/â[^\s]*/g, ' ')
+    .replace(/ð[^\s]*/g, ' ')
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/[^\S\r\n]+/g, ' ')
+    .replace(/[ \t]*\n[ \t]*/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 function hasRichSmsArtifact(value: string) {
   return /â€|�|ð/.test(value)
 }
@@ -380,7 +394,7 @@ function summarizeTouch(channel: string, direction?: string | null, notes?: stri
     ? `${reactionSymbol(reactionKeyword)} reacted to your SMS`
     : null
   const cleanSmsArtifactText = channel === 'sms' && hasRichSmsArtifact(smsText) ? cleanRichSmsFallback(smsText) : smsText
-  if (text.startsWith('Auto-SMS sent:')) return { label: 'Auto', body: cleanRichSmsFallback(unwrapAutoTouch(text, 'Auto-SMS sent:')), auto: true }
+  if (text.startsWith('Auto-SMS sent:')) return { label: 'Auto', body: cleanRichSmsDisplay(unwrapAutoTouch(text, 'Auto-SMS sent:')), auto: true }
   if (text.startsWith('Auto-email sent:')) return { label: 'Auto Email', body: unwrapAutoTouch(text, 'Auto-email sent:'), auto: true }
   if (text.startsWith('Added to Instantly')) return { label: 'Added to Instantly', body: text, auto: true }
   const src = (text.match(/source["\s:]+instantly/i) || (notes && JSON.stringify(notes).includes('instantly')))
