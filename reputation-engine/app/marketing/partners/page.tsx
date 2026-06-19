@@ -43,6 +43,7 @@ interface Contact {
   title: string | null
   email: string | null
   phone: string | null
+  address?: string | null
   city: string | null
   industry: string | null
   stage: string | null
@@ -70,6 +71,21 @@ interface Contact {
   affiliate_partner_id?: string | null
   category?: string | null
   playbook?: PartnershipAiSuggestion | null
+}
+
+interface SheetUpdateForm {
+  action: InboxQuickAction | ''
+  sheetNote: string
+  sheetTarget: string
+  name: string
+  company: string
+  title: string
+  email: string
+  phone: string
+  address: string
+  city: string
+  industry: string
+  nextFollowUp: string
 }
 
 interface Touch {
@@ -2172,6 +2188,41 @@ const INBOX_QUICK_ACTIONS: Array<{ key: InboxQuickAction; label: string; tone: '
   { key: 'wrong_number', label: 'Wrong #', tone: 'red' },
 ]
 
+function defaultSheetUpdateForm(contact: Contact): SheetUpdateForm {
+  return {
+    action: '',
+    sheetNote: '',
+    sheetTarget: '',
+    name: contact.name || '',
+    company: contact.company || '',
+    title: contact.title || '',
+    email: contact.email || '',
+    phone: contact.phone || '',
+    address: contact.address || '',
+    city: contact.city || '',
+    industry: contact.industry || '',
+    nextFollowUp: contact.next_follow_up || '',
+  }
+}
+
+function sheetUpdateFormHasChanges(form: SheetUpdateForm | null, contact: Contact) {
+  if (!form) return false
+  return (
+    form.action !== '' ||
+    form.sheetNote.trim() !== '' ||
+    form.sheetTarget.trim() !== '' ||
+    form.name.trim() !== (contact.name || '') ||
+    form.company.trim() !== (contact.company || '') ||
+    form.title.trim() !== (contact.title || '') ||
+    form.email.trim() !== (contact.email || '') ||
+    form.phone.trim() !== (contact.phone || '') ||
+    form.address.trim() !== (contact.address || '') ||
+    form.city.trim() !== (contact.city || '') ||
+    form.industry.trim() !== (contact.industry || '') ||
+    form.nextFollowUp.trim() !== (contact.next_follow_up || '')
+  )
+}
+
 function quickActionClass(tone: 'green' | 'blue' | 'amber' | 'slate' | 'red', active: boolean) {
   if (active) return 'border-[#1a2744] bg-[#1a2744] text-white'
   if (tone === 'green') return 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
@@ -2348,6 +2399,7 @@ function PhoneTab({
   const [actionPanelOpen, setActionPanelOpen] = useState(false)
   const [sheetUpdateOpen, setSheetUpdateOpen] = useState(false)
   const [sheetInstruction, setSheetInstruction] = useState('')
+  const [sheetForm, setSheetForm] = useState<SheetUpdateForm | null>(null)
   const [sheetUpdating, setSheetUpdating] = useState(false)
   const [aiPanelOpen, setAiPanelOpen] = useState(false)
   const [partnerInfoCollapsed, setPartnerInfoCollapsed] = useState(() => readLocalStorageFlag('ss_partner_inbox_info_collapsed'))
@@ -2480,7 +2532,15 @@ function PhoneTab({
   function handleSelect(id: string) {
     setSelectedId(id)
     setMobileListOpen(false)
-    router.replace(`/marketing/partners?tab=phone&contact=${id}`, { scroll: false })
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', `/marketing/partners?tab=phone&contact=${id}`)
+    }
+  }
+
+  function openSheetUpdate(contact: Contact) {
+    setSheetInstruction('')
+    setSheetForm(defaultSheetUpdateForm(contact))
+    setSheetUpdateOpen(true)
   }
 
   async function uploadMedia(file: File): Promise<string | null> {
@@ -2650,24 +2710,50 @@ function PhoneTab({
   }
 
   async function handleSheetUpdate() {
-    if (!selected || sheetUpdating || !sheetInstruction.trim()) return
+    if (!selected || sheetUpdating || (!sheetInstruction.trim() && !sheetUpdateFormHasChanges(sheetForm, selected))) return
     setSheetUpdating(true)
     try {
       const res = await fetch(`/api/marketing/contacts/${selected.id}/sheet-update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ instruction: sheetInstruction.trim() }),
+        body: JSON.stringify({
+          instruction: sheetInstruction.trim(),
+          action: sheetForm?.action || undefined,
+          sheet_note: sheetForm?.sheetNote.trim() || undefined,
+          sheet_target: sheetForm?.sheetTarget.trim() || undefined,
+          contact_updates: sheetForm ? {
+            name: sheetForm.name.trim(),
+            company: sheetForm.company.trim(),
+            title: sheetForm.title.trim(),
+            email: sheetForm.email.trim(),
+            phone: sheetForm.phone.trim(),
+            address: sheetForm.address.trim(),
+            city: sheetForm.city.trim(),
+            industry: sheetForm.industry.trim(),
+            next_follow_up: sheetForm.nextFollowUp,
+          } : undefined,
+        }),
       })
-      const data = await res.json().catch(() => null) as { error?: string; summary?: string; label?: string } | null
+      const data = await res.json().catch(() => null) as { error?: string; summary?: string; label?: string; sheetSyncOk?: boolean; contact?: Contact } | null
       if (!res.ok) {
         showToast(data?.error || 'Could not update sheet')
         return
       }
+      if (data?.contact) {
+        const updated = {
+          ...selected,
+          ...data.contact,
+          normalized_stage: String(data.contact.stage || data.contact.normalized_stage || selected.normalized_stage),
+        }
+        setReplyContacts(curr => curr.some(c => c.id === updated.id) ? curr.map(c => c.id === updated.id ? { ...c, ...updated } : c) : [updated, ...curr])
+        onContactUpdated(updated)
+      }
       setSheetUpdateOpen(false)
       setSheetInstruction('')
+      setSheetForm(null)
       reloadTouches(selected.id)
-      showToast(`Sheet updated for ${selected.name}`)
+      showToast(data?.sheetSyncOk === false ? 'CRM updated; sheet sync not configured' : `Sheet updated for ${selected.name}`)
     } catch {
       showToast('Could not update sheet')
     } finally {
@@ -2726,10 +2812,10 @@ function PhoneTab({
       {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-[14px] bg-[#1a2744] px-5 py-3 text-sm font-medium text-white shadow-xl">{toast}</div>}
       {sheetUpdateOpen && selected && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-[20px] border border-slate-200 bg-white p-5 shadow-xl">
+          <div className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-[20px] border border-slate-200 bg-white p-5 shadow-xl">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-base font-semibold text-[#1a2744]">Update Sheet</h3>
+                <h3 className="text-base font-semibold text-[#1a2744]">Update partner record</h3>
                 <p className="mt-0.5 text-sm text-slate-500">
                   {selected.name}{selected.company ? ` · ${selected.company}` : ''}
                 </p>
@@ -2741,22 +2827,95 @@ function PhoneTab({
                 x
               </button>
             </div>
-            <div className="mt-4">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">Where should this go, and what is next?</label>
-              <textarea
-                value={sheetInstruction}
-                onChange={e => setSheetInstruction(e.target.value)}
-                rows={7}
-                placeholder="Example: Move this to Active Partners. They want us to drop by the office to meet them, so the sheet note should say to bring cards/flyers and stop by their office next week."
-                className="mt-2 w-full resize-none rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-3 text-sm leading-6 text-[#1a2744] outline-none focus:border-[#1a2744]"
-              />
-            </div>
-            <div className="mt-3 rounded-[14px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
-              The sheet Notes cell will be a concise next-step summary for this partner.
+            {sheetForm && (
+              <div className="mt-4 space-y-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Status / action</span>
+                    <select
+                      value={sheetForm.action}
+                      onChange={e => setSheetForm(form => form ? { ...form, action: e.target.value as SheetUpdateForm['action'] } : form)}
+                      className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-[#1a2744] outline-none focus:border-[#1a2744]"
+                    >
+                      <option value="">No status change</option>
+                      {INBOX_QUICK_ACTIONS.map(action => (
+                        <option key={action.key} value={action.key}>{action.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">List / sheet target</span>
+                    <input
+                      value={sheetForm.sheetTarget}
+                      onChange={e => setSheetForm(form => form ? { ...form, sheetTarget: e.target.value } : form)}
+                      placeholder="Active partners, Field work, Windsor realtors..."
+                      className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]"
+                    />
+                  </label>
+                </div>
+
+                <label className="block">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Remarks / next step</span>
+                  <textarea
+                    value={sheetForm.sheetNote}
+                    onChange={e => setSheetForm(form => form ? { ...form, sheetNote: e.target.value } : form)}
+                    rows={3}
+                    placeholder="Example: Send digital package, then drop cards at front desk next week. Prefers text."
+                    className="mt-1 w-full resize-none rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-3 text-sm leading-6 text-[#1a2744] outline-none focus:border-[#1a2744]"
+                  />
+                </label>
+
+                <div className="rounded-[16px] border border-slate-200 bg-white p-3">
+                  <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Partner context</div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {[
+                      ['name', 'Name', sheetForm.name],
+                      ['company', 'Company / brokerage', sheetForm.company],
+                      ['title', 'Title', sheetForm.title],
+                      ['phone', 'Phone', sheetForm.phone],
+                      ['email', 'Email', sheetForm.email],
+                      ['city', 'City', sheetForm.city],
+                      ['industry', 'Industry', sheetForm.industry],
+                      ['nextFollowUp', 'Next follow-up', sheetForm.nextFollowUp],
+                    ].map(([field, label, value]) => (
+                      <label key={field} className="block">
+                        <span className="text-[11px] font-semibold text-slate-500">{label}</span>
+                        <input
+                          value={value}
+                          onChange={e => setSheetForm(form => form ? { ...form, [field]: e.target.value } as SheetUpdateForm : form)}
+                          className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]"
+                        />
+                      </label>
+                    ))}
+                    <label className="block sm:col-span-2">
+                      <span className="text-[11px] font-semibold text-slate-500">Address</span>
+                      <input
+                        value={sheetForm.address}
+                        onChange={e => setSheetForm(form => form ? { ...form, address: e.target.value } : form)}
+                        className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <label className="block">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Extra instruction</span>
+                  <textarea
+                    value={sheetInstruction}
+                    onChange={e => setSheetInstruction(e.target.value)}
+                    rows={3}
+                    placeholder="Optional: explain where this should go if the list/status is not obvious."
+                    className="mt-1 w-full resize-none rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-3 text-sm leading-6 text-[#1a2744] outline-none focus:border-[#1a2744]"
+                  />
+                </label>
+              </div>
+            )}
+            <div className="mt-3 rounded-[14px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-800">
+              Saves the CRM record first, then sends the same tagged update to the partnership sheet when sheet sync is configured.
             </div>
             <div className="mt-4 flex gap-2">
               <button
-                onClick={() => setSheetUpdateOpen(false)}
+                onClick={() => { setSheetUpdateOpen(false); setSheetForm(null) }}
                 disabled={sheetUpdating}
                 className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
               >
@@ -2764,10 +2923,10 @@ function PhoneTab({
               </button>
               <button
                 onClick={() => void handleSheetUpdate()}
-                disabled={sheetUpdating || !sheetInstruction.trim()}
+                disabled={sheetUpdating || (!sheetInstruction.trim() && !sheetUpdateFormHasChanges(sheetForm, selected))}
                 className="flex-1 rounded-xl bg-[#1a2744] py-2.5 text-sm font-semibold text-white disabled:opacity-40"
               >
-                {sheetUpdating ? 'Updating...' : 'Submit Update'}
+                {sheetUpdating ? 'Updating...' : 'Save update'}
               </button>
             </div>
           </div>
@@ -2952,10 +3111,7 @@ function PhoneTab({
               <div className="mb-2 rounded-[18px] border border-slate-200 bg-slate-50 p-2 xl:hidden">
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   <button
-                    onClick={() => {
-                      setSheetInstruction('')
-                      setSheetUpdateOpen(true)
-                    }}
+                    onClick={() => openSheetUpdate(selected)}
                     disabled={sheetUpdating}
                     className="min-h-11 rounded-full border border-[#1a2744] bg-[#1a2744] px-4 text-sm font-semibold text-white transition hover:bg-[#243560] disabled:opacity-50"
                   >
@@ -3215,10 +3371,7 @@ function PhoneTab({
               <button onClick={() => onSelectContact(selected)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#1a2744]">Details</button>
             </div>
             <button
-              onClick={() => {
-                setSheetInstruction('')
-                setSheetUpdateOpen(true)
-              }}
+              onClick={() => openSheetUpdate(selected)}
               disabled={sheetUpdating}
               className="mt-2 w-full rounded-xl bg-[#1a2744] px-3 py-2.5 text-xs font-semibold text-white disabled:opacity-50"
             >

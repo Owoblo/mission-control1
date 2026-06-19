@@ -161,7 +161,14 @@ export async function PATCH(request: Request) {
     stage?: string
     notes?: string
     next_follow_up?: string
+    name?: string
+    company?: string | null
+    title?: string | null
     email?: string
+    phone?: string | null
+    address?: string | null
+    city?: string | null
+    industry?: string | null
     owner_name?: string | null
     owner_email?: string | null
     priority?: string | null
@@ -184,7 +191,14 @@ export async function PATCH(request: Request) {
   if (body.stage) updates.stage = body.stage
   if (body.notes !== undefined) updates.notes = body.notes
   if (body.next_follow_up !== undefined) updates.next_follow_up = body.next_follow_up || null
+  if (body.name !== undefined) updates.name = body.name
+  if (body.company !== undefined) updates.company = body.company || null
+  if (body.title !== undefined) updates.title = body.title || null
   if (body.email !== undefined) updates.email = body.email
+  if (body.phone !== undefined) updates.phone = body.phone || null
+  if (body.address !== undefined) updates.address = body.address || null
+  if (body.city !== undefined) updates.city = body.city || null
+  if (body.industry !== undefined) updates.industry = body.industry || null
   if (body.owner_name !== undefined) updates.owner_name = body.owner_name || null
   if (body.owner_email !== undefined) updates.owner_email = body.owner_email || null
   if (body.priority !== undefined) updates.priority = body.priority || 'normal'

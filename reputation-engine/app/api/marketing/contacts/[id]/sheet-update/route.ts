@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
+import { defaultFollowUpDate } from '@/lib/marketing'
 import { getAppBaseUrl, readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
+import { activateAffiliatePartner } from '@/lib/server/affiliate-bridge'
 import { syncPartnershipActionToSheet, type PartnershipSheetAction } from '@/lib/server/partnership-sheet-sync'
 
 type SheetUpdateAction = PartnershipSheetAction
@@ -12,12 +14,26 @@ interface MarketContact {
   title: string | null
   email: string | null
   phone: string | null
+  address?: string | null
   city: string | null
   industry: string | null
   stage: string | null
   decision: string | null
   batch_id: string | null
   next_follow_up: string | null
+}
+
+interface SheetContactUpdates {
+  name?: string | null
+  company?: string | null
+  title?: string | null
+  email?: string | null
+  phone?: string | null
+  address?: string | null
+  city?: string | null
+  industry?: string | null
+  stage?: string | null
+  next_follow_up?: string | null
 }
 
 interface MarketTouch {
@@ -46,6 +62,85 @@ const ACTION_LABELS: Record<SheetUpdateAction, string> = {
   needs_follow_up: 'Needs follow-up',
   not_interested: 'Not interested',
   wrong_number: 'Wrong number',
+}
+
+const CONTACT_UPDATE_FIELDS = new Set<keyof SheetContactUpdates>([
+  'name',
+  'company',
+  'title',
+  'email',
+  'phone',
+  'address',
+  'city',
+  'industry',
+  'stage',
+  'next_follow_up',
+])
+
+function workflowUpdatesForAction(action: SheetUpdateAction, now: string): Record<string, unknown> {
+  if (action === 'active_partner') {
+    return {
+      decision: 'agreed',
+      stage: 'partnership_active',
+      pipeline_phase: 'maintenance',
+      sequence_paused: true,
+      sequence_paused_reason: 'sheet_update:active_partner',
+      partnership_outcome: 'secured',
+      partnership_outcome_at: now,
+      partnership_started_at: now,
+      account_status: 'active',
+      next_follow_up: null,
+    }
+  }
+  if (action === 'drop_cards') {
+    return {
+      stage: 'qualified',
+      pipeline_phase: 'field_visit',
+      sequence_paused: true,
+      sequence_paused_reason: 'sheet_update:drop_cards',
+      next_follow_up: defaultFollowUpDate(now, 3),
+    }
+  }
+  if (action === 'meeting_requested') {
+    return {
+      stage: 'qualified',
+      pipeline_phase: 'field_visit',
+      sequence_paused: true,
+      sequence_paused_reason: 'sheet_update:meeting_requested',
+      next_follow_up: defaultFollowUpDate(now, 1),
+    }
+  }
+  if (action === 'needs_follow_up') {
+    return {
+      stage: 'follow_up_due',
+      pipeline_phase: 'nurture',
+      sequence_paused: true,
+      sequence_paused_reason: 'sheet_update:needs_follow_up',
+      next_follow_up: defaultFollowUpDate(now, 2),
+    }
+  }
+  if (action === 'not_interested') {
+    return {
+      decision: 'rejected',
+      stage: 'closed_lost',
+      pipeline_phase: 'removed',
+      sequence_paused: true,
+      sequence_paused_reason: 'sheet_update:not_interested',
+      partnership_outcome: 'declined',
+      partnership_outcome_at: now,
+      account_status: 'closed',
+      next_follow_up: null,
+    }
+  }
+  return {
+    decision: 'bad_number',
+    stage: 'dnc',
+    pipeline_phase: 'removed',
+    sequence_paused: true,
+    sequence_paused_reason: 'sheet_update:wrong_number',
+    account_status: 'closed',
+    next_follow_up: null,
+  }
 }
 
 function fallbackActionFromInstruction(instruction: string): SheetUpdateAction {
@@ -166,16 +261,29 @@ export async function POST(
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const body = await request.json().catch(() => ({})) as { instruction?: string }
+  const body = await request.json().catch(() => ({})) as {
+    instruction?: string
+    action?: SheetUpdateAction
+    sheet_note?: string
+    sheet_target?: string
+    contact_updates?: SheetContactUpdates
+  }
   const instruction = body.instruction?.trim()
-  if (!instruction) {
-    return NextResponse.json({ error: 'Tell the AI what to update for this partner.' }, { status: 400 })
+  const contactUpdates = body.contact_updates || {}
+  const hasStructuredUpdate = Boolean(
+    body.action ||
+    body.sheet_note?.trim() ||
+    body.sheet_target?.trim() ||
+    Object.values(contactUpdates).some(value => value !== undefined)
+  )
+  if (!instruction && !hasStructuredUpdate) {
+    return NextResponse.json({ error: 'Add a note, status, or contact update for this partner.' }, { status: 400 })
   }
 
   const { url, headers } = requireSupabaseEnv()
   const [contactRes, touchesRes] = await Promise.all([
     fetch(
-      `${url}/rest/v1/market_contacts?id=eq.${encodeURIComponent(id)}&select=id,name,company,title,email,phone,city,industry,stage,decision,batch_id,next_follow_up&limit=1`,
+      `${url}/rest/v1/market_contacts?id=eq.${encodeURIComponent(id)}&select=id,name,company,title,email,phone,address,city,industry,stage,decision,batch_id,next_follow_up&limit=1`,
       { headers, cache: 'no-store' }
     ),
     fetch(
@@ -192,14 +300,56 @@ export async function POST(
 
   const touches = await touchesRes.json() as MarketTouch[]
   const now = new Date().toISOString()
-  const ai = await analyzeSheetUpdate({ instruction, contact, touches })
+  let ai: AiSheetUpdate
+  if (instruction) {
+    try {
+      ai = await analyzeSheetUpdate({ instruction, contact, touches })
+    } catch {
+      ai = normalizeAiResult({}, instruction, touches)
+    }
+  } else {
+    const action = body.action && ACTION_LABELS[body.action] ? body.action : 'needs_follow_up'
+    ai = {
+      action,
+      actionLabel: ACTION_LABELS[action],
+      status: ACTION_LABELS[action],
+      relationshipSummary: body.sheet_note?.trim() || 'Manual CRM update from partnership desk.',
+      nextStep: body.sheet_note?.trim() || 'Review this partner and follow up manually from the partnership inbox.',
+      sheetNote: body.sheet_note?.trim() || 'Manual CRM update from partnership desk.',
+      sheetTarget: body.sheet_target?.trim() || 'Partnership CRM',
+    }
+  }
   const sheetNote = ai.sheetNote
   const internalNote = [
-    `Manual instruction: ${instruction}`,
+    instruction ? `Manual instruction: ${instruction}` : '',
     `Sheet target: ${ai.sheetTarget}`,
     `Relationship summary: ${ai.relationshipSummary}`,
     `Next sheet note: ${sheetNote}`,
-  ].join('\n')
+  ].filter(Boolean).join('\n')
+
+  const sanitizedUpdates = Object.fromEntries(
+    Object.entries(contactUpdates)
+      .filter(([key, value]) => CONTACT_UPDATE_FIELDS.has(key as keyof SheetContactUpdates) && value !== undefined)
+      .map(([key, value]) => [key, typeof value === 'string' && value.trim() === '' ? null : value])
+  )
+  const shouldApplyWorkflowAction = Boolean(body.action || (instruction && ai.action !== 'needs_follow_up'))
+  const contactPatch = {
+    ...(shouldApplyWorkflowAction ? workflowUpdatesForAction(ai.action, now) : {}),
+    ...sanitizedUpdates,
+    last_touch_at: now,
+  }
+
+  let updatedContact = contact
+  if (Object.keys(contactPatch).length > 1) {
+    const updateRes = await fetch(`${url}/rest/v1/market_contacts?id=eq.${encodeURIComponent(id)}&select=*`, {
+      method: 'PATCH',
+      headers: { ...headers, Prefer: 'return=representation' },
+      body: JSON.stringify(contactPatch),
+    })
+    if (!updateRes.ok) return NextResponse.json({ error: 'Could not update partner fields' }, { status: 500 })
+    const [nextContact] = await updateRes.json() as MarketContact[]
+    if (nextContact) updatedContact = nextContact
+  }
 
   const syncResult = await syncPartnershipActionToSheet({
     timestamp: now,
@@ -218,22 +368,20 @@ export async function POST(
       : null,
     contact: {
       id,
-      name: contact.name ?? null,
-      company: contact.company ?? null,
-      city: contact.city ?? null,
-      phone: contact.phone ?? null,
-      email: contact.email ?? null,
-      industry: contact.industry ?? null,
-      stage: contact.stage ?? null,
-      decision: contact.decision ?? null,
-      batch_id: contact.batch_id ?? null,
-      next_follow_up: contact.next_follow_up ?? null,
+      name: updatedContact.name ?? null,
+      company: updatedContact.company ?? null,
+      title: updatedContact.title ?? null,
+      city: updatedContact.city ?? null,
+      address: updatedContact.address ?? null,
+      phone: updatedContact.phone ?? null,
+      email: updatedContact.email ?? null,
+      industry: updatedContact.industry ?? null,
+      stage: updatedContact.stage ?? null,
+      decision: updatedContact.decision ?? null,
+      batch_id: updatedContact.batch_id ?? null,
+      next_follow_up: updatedContact.next_follow_up ?? null,
     },
-  })
-
-  if (!syncResult.configured || !syncResult.ok) {
-    return NextResponse.json({ error: 'Partnership sheet sync is not configured.' }, { status: 500 })
-  }
+  }).catch(() => ({ configured: true, ok: false }))
 
   await fetch(`${url}/rest/v1/market_touches`, {
     method: 'POST',
@@ -248,15 +396,23 @@ export async function POST(
       metadata: {
         source: 'manual_partnership_sheet_update',
         action: ai.action,
-        instruction,
+        instruction: instruction || null,
+        contactUpdates: sanitizedUpdates,
+        workflowApplied: shouldApplyWorkflowAction,
         relationshipSummary: ai.relationshipSummary,
         sheetNote,
         sheetTarget: ai.sheetTarget,
+        sheetSyncConfigured: syncResult.configured,
+        sheetSyncOk: syncResult.ok,
       },
       created_by: session.name ?? 'Rep',
       created_at: now,
     }),
   })
+
+  if (shouldApplyWorkflowAction && ai.action === 'active_partner') {
+    void activateAffiliatePartner(id).catch(() => {})
+  }
 
   return NextResponse.json({
     ok: true,
@@ -267,5 +423,8 @@ export async function POST(
     nextStep: ai.nextStep,
     sheetNote,
     sheetTarget: ai.sheetTarget,
+    sheetSyncConfigured: syncResult.configured,
+    sheetSyncOk: syncResult.ok,
+    contact: updatedContact,
   })
 }

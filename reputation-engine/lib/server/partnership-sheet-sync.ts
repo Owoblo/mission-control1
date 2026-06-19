@@ -30,7 +30,9 @@ export type PartnershipSheetSyncPayload = {
     id: string
     name: string | null
     company: string | null
+    title?: string | null
     city: string | null
+    address?: string | null
     phone: string | null
     email: string | null
     industry: string | null
