@@ -2615,6 +2615,82 @@ function inboxCategoryLabel(category: string) {
   return getCategoryMeta(category)?.label || category.replace(/_/g, ' ')
 }
 
+const PARTNERSHIP_AREA_GROUPS = [
+  {
+    id: 'windsor_area',
+    label: 'Windsor area',
+    cityKeys: ['windsor', 'lasalle', 'tecumseh', 'lakeshore', 'belle_river', 'amherstburg', 'essex', 'harrow', 'kingsville', 'leamington', 'stoney_point', 'chatham_kent'],
+  },
+  {
+    id: 'kwg_area',
+    label: 'KWG area',
+    cityKeys: ['kitchener', 'waterloo', 'cambridge', 'guelph', 'kitchener_waterloo'],
+  },
+  {
+    id: 'london_area',
+    label: 'London area',
+    cityKeys: ['london', 'st_thomas', 'strathroy', 'woodstock'],
+  },
+  {
+    id: 'ottawa_area',
+    label: 'Ottawa area',
+    cityKeys: ['ottawa', 'kanata', 'nepean', 'orleans', 'gatineau'],
+  },
+]
+
+const CITY_LABELS: Record<string, string> = {
+  amherstburg: 'Amherstburg',
+  belle_river: 'Belle River',
+  cambridge: 'Cambridge',
+  chatham_kent: 'Chatham Kent',
+  essex: 'Essex',
+  gatineau: 'Gatineau',
+  guelph: 'Guelph',
+  harrow: 'Harrow',
+  kanata: 'Kanata',
+  kingsville: 'Kingsville',
+  kitchener: 'Kitchener',
+  kitchener_waterloo: 'Kitchener/Waterloo',
+  lakeshore: 'Lakeshore',
+  lasalle: 'LaSalle',
+  leamington: 'Leamington',
+  london: 'London',
+  nepean: 'Nepean',
+  orleans: 'Orleans',
+  ottawa: 'Ottawa',
+  st_thomas: 'St. Thomas',
+  stoney_point: 'Stoney Point',
+  strathroy: 'Strathroy',
+  tecumseh: 'Tecumseh',
+  waterloo: 'Waterloo',
+  windsor: 'Windsor',
+  woodstock: 'Woodstock',
+}
+
+function normalizeInboxCity(value: string | null | undefined) {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+  if (!normalized) return ''
+  if (['la_salle', 'lasalle'].includes(normalized)) return 'lasalle'
+  if (['chathamkent', 'chatham_kent', 'chatham'].includes(normalized)) return 'chatham_kent'
+  if (['kitchener_waterloo', 'kitchener_and_waterloo', 'kw', 'kwg'].includes(normalized)) return 'kitchener_waterloo'
+  if (['stoney_pt', 'stoney_point'].includes(normalized)) return 'stoney_point'
+  if (['st_thomas', 'saint_thomas'].includes(normalized)) return 'st_thomas'
+  return normalized
+}
+
+function inboxCityLabel(cityKey: string) {
+  return CITY_LABELS[cityKey] || cityKey.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase())
+}
+
+function areaForCity(cityKey: string) {
+  return PARTNERSHIP_AREA_GROUPS.find(area => area.cityKeys.includes(cityKey))
+}
+
 function PhoneTab({
   contacts,
   batches,
@@ -2634,6 +2710,7 @@ function PhoneTab({
   const searchParams = useSearchParams()
   const [search, setSearch] = useState('')
   const [inboxFilter, setInboxFilter] = useState<InboxFilter>('needs_reply')
+  const [areaFilter, setAreaFilter] = useState('')
   const [cityFilter, setCityFilter] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [batchFilter, setBatchFilter] = useState('')
@@ -2694,16 +2771,31 @@ function PhoneTab({
   }, [batches])
 
   const segmentContacts = useMemo(() => inboxContacts.filter(contact => {
-    if (cityFilter && (contact.city || '').toLowerCase() !== cityFilter.toLowerCase()) return false
+    const cityKey = normalizeInboxCity(contact.city)
+    if (areaFilter) {
+      const area = PARTNERSHIP_AREA_GROUPS.find(item => item.id === areaFilter)
+      if (area && !area.cityKeys.includes(cityKey)) return false
+    }
+    if (cityFilter && cityKey !== cityFilter) return false
     if (categoryFilter && getContactCategoryKey(contact) !== categoryFilter) return false
     if (batchFilter && contact.batch_id !== batchFilter) return false
     return true
-  }), [inboxContacts, cityFilter, categoryFilter, batchFilter])
+  }), [inboxContacts, areaFilter, cityFilter, categoryFilter, batchFilter])
 
-  const cityOptions = useMemo(() => Array.from(new Set(inboxContacts
-    .map(contact => (contact.city || '').trim())
-    .filter(Boolean)))
-    .sort((a, b) => a.localeCompare(b)), [inboxContacts])
+  const cityOptions = useMemo(() => {
+    const area = PARTNERSHIP_AREA_GROUPS.find(item => item.id === areaFilter)
+    return Array.from(new Set(inboxContacts
+      .map(contact => normalizeInboxCity(contact.city))
+      .filter(Boolean)
+      .filter(cityKey => !area || area.cityKeys.includes(cityKey))))
+      .map(cityKey => ({ key: cityKey, label: inboxCityLabel(cityKey) }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }, [inboxContacts, areaFilter])
+
+  useEffect(() => {
+    if (!cityFilter) return
+    if (!cityOptions.some(city => city.key === cityFilter)) setCityFilter('')
+  }, [cityFilter, cityOptions])
 
   const categoryOptions = useMemo(() => Array.from(new Set(inboxContacts
     .map(contact => getContactCategoryKey(contact))
@@ -2721,7 +2813,7 @@ function PhoneTab({
       .map(([id, meta]) => ({ id, ...meta }))
   }, [batchMeta, inboxContacts])
 
-  const hasSegmentFilter = Boolean(cityFilter || categoryFilter || batchFilter)
+  const hasSegmentFilter = Boolean(areaFilter || cityFilter || categoryFilter || batchFilter)
 
   const sorted = useMemo(() => [...segmentContacts]
     .filter(c => matchesInboxFilter(c, inboxFilter))
@@ -2741,6 +2833,7 @@ function PhoneTab({
         c.email,
         c.phone,
         c.city,
+        areaForCity(normalizeInboxCity(c.city))?.label,
         c.industry,
         c.category,
         c.batch_id ? batchMeta.get(c.batch_id)?.name : '',
@@ -3474,7 +3567,17 @@ function PhoneTab({
           </div>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search contacts…"
             className="h-12 w-full rounded-full border border-slate-200 bg-slate-50 px-4 text-base leading-6 text-[#1a2744] outline-none focus:border-[#1a2744] lg:h-10 lg:text-sm" />
-          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <select
+              value={areaFilter}
+              onChange={e => setAreaFilter(e.target.value)}
+              className="h-10 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#1a2744] lg:h-9 lg:text-[12px]"
+            >
+              <option value="">All areas</option>
+              {PARTNERSHIP_AREA_GROUPS.map(area => (
+                <option key={area.id} value={area.id}>{area.label}</option>
+              ))}
+            </select>
             <select
               value={cityFilter}
               onChange={e => setCityFilter(e.target.value)}
@@ -3482,7 +3585,7 @@ function PhoneTab({
             >
               <option value="">All cities</option>
               {cityOptions.map(city => (
-                <option key={city} value={city}>{city}</option>
+                <option key={city.key} value={city.key}>{city.label}</option>
               ))}
             </select>
             <select
@@ -3512,7 +3615,7 @@ function PhoneTab({
                 Showing {segmentContacts.length} of {inboxContacts.length} in this segment
               </span>
               <button
-                onClick={() => { setCityFilter(''); setCategoryFilter(''); setBatchFilter('') }}
+                onClick={() => { setAreaFilter(''); setCityFilter(''); setCategoryFilter(''); setBatchFilter('') }}
                 className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 hover:text-[#1a2744]"
               >
                 Clear
