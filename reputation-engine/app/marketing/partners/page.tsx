@@ -451,15 +451,6 @@ function formatPlaybookLabel(value?: string | null) {
   return value ? value.replace(/_/g, ' ') : 'unknown'
 }
 
-function recommendedActionLabel(action?: string | null) {
-  if (action === 'send_package') return 'Send package'
-  if (action === 'schedule_delivery') return 'Schedule delivery'
-  if (action === 'book_meeting') return 'Book meeting'
-  if (action === 'mark_not_interested') return 'Mark not interested'
-  if (action === 'human_review') return 'Human review'
-  return 'Draft reply'
-}
-
 // ─── Small components ─────────────────────────────────────────────────────────
 
 function StageBadge({ stage }: { stage: string }) {
@@ -2176,8 +2167,8 @@ function defaultScheduledReplyTime(suggestion?: PartnershipAiSuggestion | null) 
 }
 
 type InboxQuickAction = 'active_partner' | 'drop_cards' | 'meeting_requested' | 'needs_follow_up' | 'not_interested' | 'wrong_number'
-type InboxFilter = 'needs_reply' | 'promising' | 'postcard' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'all'
-type InboxStatus = 'needs_reply' | 'promising' | 'postcard' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'review'
+type InboxFilter = 'needs_reply' | 'promising' | 'package_sent' | 'postcard' | 'appointment' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'all'
+type InboxStatus = 'needs_reply' | 'promising' | 'package_sent' | 'postcard' | 'appointment' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'review'
 
 const INBOX_QUICK_ACTIONS: Array<{ key: InboxQuickAction; label: string; tone: 'green' | 'blue' | 'amber' | 'slate' | 'red' }> = [
   { key: 'active_partner', label: 'Active partner', tone: 'green' },
@@ -2234,11 +2225,13 @@ function quickActionClass(tone: 'green' | 'blue' | 'amber' | 'slate' | 'red', ac
 
 const INBOX_FILTERS: Array<{ key: InboxFilter; label: string }> = [
   { key: 'needs_reply', label: 'Needs reply' },
-  { key: 'promising', label: 'Promising' },
-  { key: 'postcard', label: 'Field work' },
+  { key: 'promising', label: 'Positive' },
+  { key: 'package_sent', label: 'Package sent' },
+  { key: 'postcard', label: 'Drop cards' },
+  { key: 'appointment', label: 'Appointments' },
   { key: 'waiting', label: 'Waiting' },
   { key: 'follow_up', label: 'Follow-up' },
-  { key: 'active', label: 'Active' },
+  { key: 'active', label: 'Partners' },
   { key: 'closed', label: 'Closed' },
   { key: 'all', label: 'All' },
 ]
@@ -2279,6 +2272,28 @@ function partnerPackageMessage(contact: Contact) {
   return `Here is your Saturn Star Movers partner package: ${partnerPackageUrl(contact)}`
 }
 
+function hasPartnerPackageTouch(contact: Contact) {
+  const text = [
+    contact.latest_touch_note,
+    contact.latest_inbound_note,
+    contact.playbook?.draft_sms,
+    contact.playbook?.draft_email_body,
+  ].filter(Boolean).join(' ').toLowerCase()
+  return text.includes('starmovers.ca/partner/') || text.includes('saturn star movers partner package')
+}
+
+function latestTouchIsAfterLatestInbound(contact: Contact) {
+  const latestTouchAt = contact.last_touch_at ? new Date(contact.last_touch_at).getTime() : 0
+  const latestInboundAt = contact.latest_inbound_at ? new Date(contact.latest_inbound_at).getTime() : 0
+  return !latestInboundAt || latestTouchAt >= latestInboundAt
+}
+
+function workflowActionFromReason(reason?: string | null) {
+  const value = String(reason || '')
+  if (value.includes(':')) return value.split(':').pop() || ''
+  return value
+}
+
 function isDeliveryIntent(intent?: string | null) {
   return [
     'postcard_yes',
@@ -2310,31 +2325,36 @@ function getInboxStatus(contact: Contact): InboxStatus {
   const lastDirection = contact.latest_touch_direction
   const followUpDue = Boolean(contact.needs_follow_up || contact.next_follow_up)
   const pauseReason = contact.sequence_paused_reason || ''
-  const handledQuickAction = pauseReason.startsWith('quick_action:')
+  const workflowAction = workflowActionFromReason(pauseReason)
+  const handledWorkflowAction = pauseReason.startsWith('quick_action:') || pauseReason.startsWith('sheet_update:')
   const playbookAction = contact.playbook?.quick_action
   const playbookIntent = contact.playbook?.intent
   const recommendedAction = contact.playbook?.recommended_action
   const closed = contact.decision === 'not_interested' || contact.decision === 'rejected' || contact.decision === 'bad_number' || stage === 'not_interested' || stage === 'closed_lost' || stage === 'dnc'
   const active = contact.decision === 'agreed' || stage === 'partnership_active'
+  const appointmentWork =
+    workflowAction === 'meeting_requested' ||
+    playbookAction === 'meeting_requested' ||
+    recommendedAction === 'book_meeting'
   const postcardWork =
     contact.pipeline_phase === 'field_visit' ||
-    pauseReason === 'quick_action:drop_cards' ||
-    pauseReason === 'quick_action:meeting_requested' ||
+    workflowAction === 'drop_cards' ||
     playbookAction === 'drop_cards' ||
-    playbookAction === 'meeting_requested' ||
     recommendedAction === 'schedule_delivery' ||
-    recommendedAction === 'book_meeting' ||
     isDeliveryIntent(playbookIntent)
+  const packageSent = hasPartnerPackageTouch(contact) && (lastDirection === 'outbound' || lastDirection === 'system') && latestTouchIsAfterLatestInbound(contact)
   const promising =
     stage === 'connected' ||
     stage === 'qualified' ||
     isPackageIntent(playbookIntent) ||
-    (hasInbound && handledQuickAction)
+    (hasInbound && handledWorkflowAction)
 
   if (closed) return 'closed'
   if (active) return 'active'
-  if (hasInbound && !contact.decision && !handledQuickAction && (lastDirection === 'inbound' || contact.sequence_paused)) return 'needs_reply'
+  if (hasInbound && !contact.decision && !handledWorkflowAction && (lastDirection === 'inbound' || contact.sequence_paused)) return 'needs_reply'
+  if (appointmentWork) return 'appointment'
   if (postcardWork) return 'postcard'
+  if (packageSent) return 'package_sent'
   if (promising) return 'promising'
   if (followUpDue) return 'follow_up'
   if ((lastDirection === 'outbound' || lastDirection === 'system') && !contact.decision) return 'waiting'
@@ -2343,11 +2363,13 @@ function getInboxStatus(contact: Contact): InboxStatus {
 
 function inboxStatusLabel(status: InboxStatus) {
   if (status === 'needs_reply') return 'Needs reply'
-  if (status === 'promising') return 'Promising'
-  if (status === 'postcard') return 'Field work'
+  if (status === 'promising') return 'Positive'
+  if (status === 'package_sent') return 'Package sent'
+  if (status === 'postcard') return 'Drop cards'
+  if (status === 'appointment') return 'Appointment'
   if (status === 'waiting') return 'Waiting'
   if (status === 'follow_up') return 'Follow-up'
-  if (status === 'active') return 'Active'
+  if (status === 'active') return 'Partner'
   if (status === 'closed') return 'Closed'
   return 'Review'
 }
@@ -2355,7 +2377,9 @@ function inboxStatusLabel(status: InboxStatus) {
 function inboxStatusClass(status: InboxStatus) {
   if (status === 'needs_reply') return 'bg-amber-50 text-amber-700'
   if (status === 'promising') return 'bg-emerald-50 text-emerald-700'
+  if (status === 'package_sent') return 'bg-teal-50 text-teal-700'
   if (status === 'postcard') return 'bg-sky-50 text-sky-700'
+  if (status === 'appointment') return 'bg-indigo-50 text-indigo-700'
   if (status === 'waiting') return 'bg-slate-100 text-slate-600'
   if (status === 'follow_up') return 'bg-sky-50 text-sky-700'
   if (status === 'active') return 'bg-emerald-100 text-emerald-800'
@@ -2366,10 +2390,12 @@ function inboxStatusClass(status: InboxStatus) {
 function inboxUrgencyRank(contact: Contact) {
   const status = getInboxStatus(contact)
   if (status === 'needs_reply') return 0
-  if (status === 'postcard') return 1
+  if (status === 'appointment') return 1
+  if (status === 'postcard') return 2
   if (status === 'follow_up') return 2
   if (status === 'promising') return 3
-  if (status === 'waiting') return 4
+  if (status === 'package_sent') return 4
+  if (status === 'waiting') return 5
   if (status === 'review') return 5
   if (status === 'active') return 6
   return 6
@@ -2380,7 +2406,9 @@ function matchesInboxFilter(contact: Contact, filter: InboxFilter) {
   if (filter === 'all') return true
   if (filter === 'needs_reply') return status === 'needs_reply'
   if (filter === 'promising') return status === 'promising'
+  if (filter === 'package_sent') return status === 'package_sent'
   if (filter === 'postcard') return status === 'postcard'
+  if (filter === 'appointment') return status === 'appointment'
   if (filter === 'waiting') return status === 'waiting'
   if (filter === 'follow_up') return status === 'follow_up'
   if (filter === 'active') return status === 'active'
@@ -2429,7 +2457,6 @@ function PhoneTab({
   const [sheetInstruction, setSheetInstruction] = useState('')
   const [sheetForm, setSheetForm] = useState<SheetUpdateForm | null>(null)
   const [sheetUpdating, setSheetUpdating] = useState(false)
-  const [aiPanelOpen, setAiPanelOpen] = useState(false)
   const [partnerInfoCollapsed, setPartnerInfoCollapsed] = useState(() => readLocalStorageFlag('ss_partner_inbox_info_collapsed'))
   const [toast, setToast] = useState<string | null>(null)
   const threadRef = useRef<HTMLDivElement>(null)
@@ -2533,7 +2560,6 @@ function PhoneTab({
     setScheduleMode(false)
     setActionPanelOpen(false)
     setAiSuggestion(null)
-    setAiPanelOpen(false)
     setScheduledAt(defaultScheduledReplyTime())
   }, [selected?.id])
 
@@ -2554,7 +2580,6 @@ function PhoneTab({
     }
     setScheduledAt(defaultScheduledReplyTime(suggestion))
     setAiSuggestion(suggestion)
-    setAiPanelOpen(true)
   }
 
   function handleSelect(id: string) {
@@ -2990,7 +3015,9 @@ function PhoneTab({
           <div className="mb-3 flex items-center justify-between lg:mb-2">
             <div>
               <div className="text-[22px] font-semibold tracking-tight text-[#111827] lg:text-xl">Partnership replies</div>
-              <div className="text-xs font-medium text-slate-500">{filterCounts.needs_reply} need reply · {filterCounts.promising} promising · {filterCounts.postcard} field work</div>
+              <div className="text-xs font-medium text-slate-500">
+                {filterCounts.needs_reply} need reply · {filterCounts.promising} positive · {filterCounts.package_sent} package sent · {filterCounts.appointment + filterCounts.postcard} field work
+              </div>
             </div>
             <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">{filterCounts.all}</span>
           </div>
@@ -3188,82 +3215,6 @@ function PhoneTab({
                 </div>
               </div>
             )}
-            {(aiSuggestion || selected.playbook) && (() => {
-              const suggestion = aiSuggestion || selected.playbook!
-              return (
-              <div className="mb-3 rounded-[16px] border border-emerald-100 bg-white px-4 py-3 shadow-sm">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <button
-                      type="button"
-                      onClick={() => setAiPanelOpen(open => !open)}
-                      className="block w-full min-w-0 text-left"
-                      aria-expanded={aiPanelOpen}
-                    >
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span className="text-sm font-semibold leading-[1.5] text-[#111827]">
-                          {recommendedActionLabel(suggestion.recommended_action)}
-                        </span>
-                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                          {Math.round(suggestion.confidence * 100)}%
-                        </span>
-                        <span className="text-xs font-semibold text-slate-400">{aiPanelOpen ? 'Hide' : 'Show'}</span>
-                      </div>
-                      <div className="mt-0.5 line-clamp-1 text-xs font-medium leading-[1.5] text-slate-500">
-                        {formatPlaybookLabel(suggestion.intent)}
-                        {suggestion.draft_sms ? ` · ${suggestion.draft_sms}` : ''}
-                      </div>
-                    </button>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    {!aiSuggestion && (
-                      <button
-                        onClick={() => applySuggestion(suggestion)}
-                        className="min-h-11 rounded-full border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 lg:min-h-9 lg:text-xs"
-                      >
-                        Use draft
-                      </button>
-                    )}
-                    {suggestion.quick_action && (
-                      <button
-                        onClick={() => handleQuickAction(suggestion.quick_action!)}
-                        disabled={quickActionSaving !== null}
-                        className="min-h-11 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 lg:min-h-9 lg:text-xs"
-                      >
-                        Log {formatPlaybookLabel(suggestion.quick_action)}
-                      </button>
-                    )}
-                  </div>
-                </div>
-                {aiPanelOpen && (
-                  <>
-                    <div className="mt-3 flex flex-wrap gap-1.5 text-xs font-semibold leading-[1.5] text-emerald-800">
-                      <span className="rounded-full bg-emerald-50 px-2.5 py-1">Package: {formatPlaybookLabel(suggestion.goal_state.digital_package)}</span>
-                      <span className="rounded-full bg-emerald-50 px-2.5 py-1">Delivery: {formatPlaybookLabel(suggestion.goal_state.physical_delivery)}</span>
-                      <span className="rounded-full bg-emerald-50 px-2.5 py-1">Referral: {formatPlaybookLabel(suggestion.goal_state.referral_program)}</span>
-                      <span className="rounded-full bg-emerald-50 px-2.5 py-1">Meeting: {formatPlaybookLabel(suggestion.goal_state.meeting)}</span>
-                    </div>
-                    {suggestion.draft_sms && !aiSuggestion && (
-                      <div className="mt-3 rounded-[14px] bg-slate-50 px-4 py-3 text-sm leading-[1.5] text-slate-700">
-                        {suggestion.draft_sms}
-                      </div>
-                    )}
-                    {(suggestion.extracted.email || suggestion.extracted.address || suggestion.extracted.time_window || suggestion.risk_flags.length > 0) && (
-                      <div className="mt-2 text-xs leading-[1.5] text-slate-500">
-                        {[
-                          suggestion.extracted.email ? `Email: ${suggestion.extracted.email}` : '',
-                          suggestion.extracted.address ? `Address: ${suggestion.extracted.address}` : '',
-                          suggestion.extracted.brokerage_location ? `Location: ${suggestion.extracted.brokerage_location}` : '',
-                          suggestion.extracted.time_window ? `Time: ${suggestion.extracted.time_window}` : '',
-                          suggestion.risk_flags.length ? `Flags: ${suggestion.risk_flags.join(', ')}` : '',
-                        ].filter(Boolean).join(' · ')}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-              )
-            })()}
             <div className="mb-2 flex items-center gap-2 overflow-x-auto">
               <button
                 onClick={() => void handleAiReply()}
