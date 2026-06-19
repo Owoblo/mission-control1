@@ -2601,12 +2601,14 @@ function matchesInboxFilter(contact: Contact, filter: InboxFilter) {
 
 function PhoneTab({
   contacts,
+  batches,
   lists,
   onSelectContact,
   onContactUpdated,
   onContactDeleted,
 }: {
   contacts: Contact[]
+  batches: Batch[]
   lists: List[]
   onSelectContact: (c: Contact) => void
   onContactUpdated: (c: Contact) => void
@@ -2616,6 +2618,9 @@ function PhoneTab({
   const searchParams = useSearchParams()
   const [search, setSearch] = useState('')
   const [inboxFilter, setInboxFilter] = useState<InboxFilter>('needs_reply')
+  const [cityFilter, setCityFilter] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('')
+  const [batchFilter, setBatchFilter] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [replyContacts, setReplyContacts] = useState<Contact[]>([])
   const [replyLoading, setReplyLoading] = useState(false)
@@ -2659,7 +2664,50 @@ function PhoneTab({
     return Array.from(byId.values())
   }, [contacts, replyContacts])
 
-  const sorted = useMemo(() => [...inboxContacts]
+  const batchMeta = useMemo(() => {
+    const sortedBatches = [...batches].sort((a, b) => a.created_at.localeCompare(b.created_at))
+    return new Map(sortedBatches.map((batch, index) => [
+      batch.id,
+      {
+        label: `Batch ${index + 1}`,
+        name: batch.name,
+        city: batch.city,
+        industry: batch.industry,
+      },
+    ]))
+  }, [batches])
+
+  const segmentContacts = useMemo(() => inboxContacts.filter(contact => {
+    if (cityFilter && (contact.city || '').toLowerCase() !== cityFilter.toLowerCase()) return false
+    if (categoryFilter && (contact.category || contact.industry || '') !== categoryFilter) return false
+    if (batchFilter && contact.batch_id !== batchFilter) return false
+    return true
+  }), [inboxContacts, cityFilter, categoryFilter, batchFilter])
+
+  const cityOptions = useMemo(() => Array.from(new Set(inboxContacts
+    .map(contact => (contact.city || '').trim())
+    .filter(Boolean)))
+    .sort((a, b) => a.localeCompare(b)), [inboxContacts])
+
+  const categoryOptions = useMemo(() => Array.from(new Set(inboxContacts
+    .map(contact => (contact.category || contact.industry || '').trim())
+    .filter(Boolean)))
+    .sort((a, b) => {
+      const aLabel = getCategoryMeta(a)?.label || a
+      const bLabel = getCategoryMeta(b)?.label || b
+      return aLabel.localeCompare(bLabel)
+    }), [inboxContacts])
+
+  const batchOptions = useMemo(() => {
+    const usedBatchIds = new Set(inboxContacts.map(contact => contact.batch_id).filter(Boolean))
+    return Array.from(batchMeta.entries())
+      .filter(([id]) => usedBatchIds.has(id))
+      .map(([id, meta]) => ({ id, ...meta }))
+  }, [batchMeta, inboxContacts])
+
+  const hasSegmentFilter = Boolean(cityFilter || categoryFilter || batchFilter)
+
+  const sorted = useMemo(() => [...segmentContacts]
     .filter(c => matchesInboxFilter(c, inboxFilter))
     .sort((a, b) => {
       const urgency = inboxUrgencyRank(a) - inboxUrgencyRank(b)
@@ -2678,20 +2726,23 @@ function PhoneTab({
         c.phone,
         c.city,
         c.industry,
+        c.category,
+        c.batch_id ? batchMeta.get(c.batch_id)?.name : '',
+        c.batch_id ? batchMeta.get(c.batch_id)?.label : '',
         c.normalized_stage,
         c.latest_inbound_note,
         c.latest_touch_note,
         preview,
         status,
       ].filter(Boolean).join(' ').toLowerCase().includes(q)
-    }), [inboxContacts, inboxFilter, search])
+    }), [segmentContacts, inboxFilter, search, batchMeta])
 
   const filterCounts = useMemo(() => {
     return INBOX_FILTERS.reduce((acc, filter) => {
-      acc[filter.key] = inboxContacts.filter(contact => matchesInboxFilter(contact, filter.key)).length
+      acc[filter.key] = segmentContacts.filter(contact => matchesInboxFilter(contact, filter.key)).length
       return acc
     }, {} as Record<InboxFilter, number>)
-  }, [inboxContacts])
+  }, [segmentContacts])
 
   const selected = inboxContacts.find(c => c.id === selectedId) ?? null
   const selectedFromQuery = searchParams.get('contact')
@@ -3407,6 +3458,54 @@ function PhoneTab({
           </div>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search contacts…"
             className="h-12 w-full rounded-full border border-slate-200 bg-slate-50 px-4 text-base leading-6 text-[#1a2744] outline-none focus:border-[#1a2744] lg:h-10 lg:text-sm" />
+          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <select
+              value={cityFilter}
+              onChange={e => setCityFilter(e.target.value)}
+              className="h-10 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#1a2744] lg:h-9 lg:text-[12px]"
+            >
+              <option value="">All cities</option>
+              {cityOptions.map(city => (
+                <option key={city} value={city}>{city}</option>
+              ))}
+            </select>
+            <select
+              value={categoryFilter}
+              onChange={e => setCategoryFilter(e.target.value)}
+              className="h-10 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#1a2744] lg:h-9 lg:text-[12px]"
+            >
+              <option value="">All categories</option>
+              {categoryOptions.map(category => {
+                const meta = getCategoryMeta(category)
+                return (
+                  <option key={category} value={category}>{meta ? meta.label : category.replace(/_/g, ' ')}</option>
+                )
+              })}
+            </select>
+            <select
+              value={batchFilter}
+              onChange={e => setBatchFilter(e.target.value)}
+              className="h-10 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#1a2744] lg:h-9 lg:text-[12px]"
+            >
+              <option value="">All batches</option>
+              {batchOptions.map(batch => (
+                <option key={batch.id} value={batch.id}>{batch.label} · {batch.name}</option>
+              ))}
+            </select>
+          </div>
+          {hasSegmentFilter && (
+            <div className="mt-2 flex items-center justify-between gap-2 rounded-[12px] bg-slate-50 px-3 py-2">
+              <span className="min-w-0 truncate text-[11px] font-semibold text-slate-500">
+                Showing {segmentContacts.length} of {inboxContacts.length} in this segment
+              </span>
+              <button
+                onClick={() => { setCityFilter(''); setCategoryFilter(''); setBatchFilter('') }}
+                className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 hover:text-[#1a2744]"
+              >
+                Clear
+              </button>
+            </div>
+          )}
           <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5">
             {INBOX_FILTERS.map(filter => (
               <button
@@ -5027,7 +5126,7 @@ function PartnershipEngineInner() {
           <PipelineTab contacts={contacts} onSelect={setSelectedContact} onStageChange={handlePipelineStageChange} />
         )}
         {(tab === 'phone' || tab === 'replies') && (
-          <PhoneTab contacts={contacts} lists={lists} onSelectContact={setSelectedContact} onContactUpdated={handleContactUpdated} onContactDeleted={handleContactDeleted} />
+          <PhoneTab contacts={contacts} batches={batches} lists={lists} onSelectContact={setSelectedContact} onContactUpdated={handleContactUpdated} onContactDeleted={handleContactDeleted} />
         )}
         {tab === 'partners' && (
           <PartnersTab contacts={contacts} onSelect={setSelectedContact} />
