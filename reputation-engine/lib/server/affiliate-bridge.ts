@@ -173,15 +173,15 @@ async function sendWelcomeEmail(
       html: `
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a2744;">
           <div style="background:linear-gradient(135deg,#1a2744 0%,#0f6a53 100%);padding:32px 24px;border-radius:16px 16px 0 0;">
-            <div style="color:rgba(255,255,255,0.6);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;">Partner Portal</div>
+            <div style="color:rgba(255,255,255,0.6);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;">Local Partner Network</div>
             <div style="color:white;font-size:22px;font-weight:700;">Saturn Star Movers</div>
           </div>
           <div style="background:white;padding:32px 24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 16px 16px;">
             <p style="font-size:16px;font-weight:600;margin:0 0 12px;">Hi ${firstName} 👋</p>
             <p style="font-size:14px;color:#4b5563;margin:0 0 20px;line-height:1.6;">
-              We've set up your referral partner portal. Whenever you have a client who needs moving services,
-              you can submit their info through your personal link — we'll take care of the rest, and you get
-              <strong style="color:#0f6a53;">$50 for every completed move</strong>.
+              We've set up your Saturn Star Movers partner portal. Whenever a client needs moving help,
+              you can submit their info through your personal link. We'll contact them, quote clearly, and
+              <strong style="color:#0f6a53;">credit partner rewards only after a completed paid move</strong>.
             </p>
 
             <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px;margin:20px 0;">
@@ -204,7 +204,7 @@ async function sendWelcomeEmail(
           </div>
         </div>
       `,
-      text: `Hi ${firstName},\n\nYour Saturn Star referral partner portal is ready.\n\nYour link: ${portalUrl}\n\nBookmark it — no login needed. Submit a referral anytime and you'll earn $50 when the move completes.\n\nQuestions? Call 226-887-0667\n\nEric\nSaturn Star Movers`,
+      text: `Hi ${firstName},\n\nYour Saturn Star Movers partner portal is ready.\n\nYour link: ${portalUrl}\n\nBookmark it — no login needed. Submit a referral anytime. Partner rewards are credited only after a completed paid move.\n\nQuestions? Call 226-887-0667\n\nEric\nSaturn Star Movers`,
     }),
   })
 }

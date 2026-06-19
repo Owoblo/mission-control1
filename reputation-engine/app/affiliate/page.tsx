@@ -114,7 +114,7 @@ function AffiliatePortal() {
       {/* Header */}
       <div style={{ background: 'linear-gradient(135deg, #1a2744 0%, #0f6a53 100%)' }} className="px-4 py-6">
         <div className="mx-auto max-w-lg">
-          <div className="text-white/60 text-[11px] font-semibold uppercase tracking-widest mb-1">Partner Portal</div>
+          <div className="text-white/60 text-[11px] font-semibold uppercase tracking-widest mb-1">Local Partner Network</div>
           <div className="text-white text-xl font-bold">Saturn Star Movers</div>
           <div className="mt-3 flex items-center gap-3">
             <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-sm">
@@ -133,10 +133,10 @@ function AffiliatePortal() {
         {/* Stats */}
         <div className="grid grid-cols-2 gap-3">
           {[
-            { label: 'Jobs Referred', value: submissions.length, sub: `${wonJobs} booked` },
+            { label: 'Clients Referred', value: submissions.length, sub: `${wonJobs} completed` },
             { label: 'In Progress', value: pendingJobs, sub: 'being worked' },
-            { label: 'Total Earned', value: `$${totalEarned}`, sub: partner?.commissionType === 'per_job' ? `$${partner.commissionRate} per booking` : `${partner?.commissionRate}%` },
-            { label: 'Pending Payout', value: `$${pendingPayout}`, sub: pendingPayout > 0 ? 'owed to you' : 'all paid up' },
+            { label: 'Credited Rewards', value: `$${totalEarned}`, sub: partner?.commissionType === 'per_job' ? `after completed paid moves` : `${partner?.commissionRate}% after completion` },
+            { label: 'Pending Payout', value: `$${pendingPayout}`, sub: pendingPayout > 0 ? 'ready for payout' : 'nothing due yet' },
           ].map(s => (
             <div key={s.label} className="rounded-[16px] bg-white p-4 shadow-sm">
               <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{s.label}</div>
@@ -161,12 +161,12 @@ function AffiliatePortal() {
 
         {/* How it works */}
         <div className="rounded-[16px] bg-white p-5 shadow-sm">
-          <div className="text-sm font-semibold text-[#1a2744] mb-3">How it works</div>
+          <div className="text-sm font-semibold text-[#1a2744] mb-3">How the network works</div>
           <div className="space-y-3">
             {[
-              { n: '1', title: 'Refer a client', desc: 'Submit their name + contact info — takes 30 seconds.' },
-              { n: '2', title: 'We take it from here', desc: 'Our team contacts them and handles the quote & booking.' },
-              { n: '3', title: 'You get paid', desc: `$${partner?.commissionRate || 50} when the job is completed. No chasing needed.` },
+              { n: '1', title: 'Introduce the client', desc: 'Send their name and contact details when moving help comes up.' },
+              { n: '2', title: 'We protect your reputation', desc: 'SSM contacts them, quotes clearly, and keeps the move organized.' },
+              { n: '3', title: 'Reward after completion', desc: `Rewards are credited only after the client completes a paid move.` },
             ].map(s => (
               <div key={s.n} className="flex gap-3">
                 <div className="h-7 w-7 rounded-full bg-[#0f6a53] text-white text-xs font-bold flex items-center justify-center shrink-0">{s.n}</div>

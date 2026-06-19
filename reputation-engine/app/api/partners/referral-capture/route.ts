@@ -75,6 +75,8 @@ export async function POST(request: Request) {
   const partnerCode = clean(body.partner_code || body.partnerCode).toLowerCase()
   const partnerSlug = clean(body.partner_slug || body.partnerSlug).toLowerCase()
   const partnerName = clean(body.partner_name || body.partnerName || partnerCode || 'Partner')
+  const partnerType = clean(body.partner_type || body.partnerType || body.referral_source_type || body.referralSourceType)
+  const partnerCompany = clean(body.partner_company || body.partnerCompany)
   const market = normalizeMarket(body.market || body.partner_market || body.partnerMarket)
   const customerName = clean(body.client_name || body.customer_name || body.name)
   const customerPhone = clean(body.client_phone || body.customer_phone || body.phone)
@@ -103,6 +105,8 @@ export async function POST(request: Request) {
     `Partner referral code: ${partnerCode}`,
     partnerSlug && partnerSlug !== partnerCode ? `Partner slug: ${partnerSlug}` : '',
     `Partner: ${partnerName}`,
+    partnerType ? `Partner type: ${partnerType}` : '',
+    partnerCompany ? `Partner company: ${partnerCompany}` : '',
     market ? `Market: ${market}` : '',
     movingFrom ? `Moving from: ${movingFrom}` : '',
     movingTo ? `Moving to: ${movingTo}` : '',
@@ -119,6 +123,10 @@ export async function POST(request: Request) {
     referralPartnerSlug: partnerSlug || null,
     referral_partner_name: partnerName,
     referralPartnerName: partnerName,
+    referral_partner_type: partnerType || null,
+    referralPartnerType: partnerType || null,
+    referral_partner_company: partnerCompany || null,
+    referralPartnerCompany: partnerCompany || null,
     referral_partner_market: market || null,
     referralPartnerMarket: market || null,
     sourceUrl: sourceUrl || null,
@@ -168,20 +176,31 @@ export async function POST(request: Request) {
     referralPartnerName: partnerName,
     referralPartnerCode: partnerCode,
     referralPartnerSlug: partnerSlug || undefined,
+    referralSourceType: partnerType || undefined,
+    referralPartnerCompany: partnerCompany || undefined,
     referralPartnerMarket: market || undefined,
+    referralRewardRule: 'Reward credited only after completed paid move.',
+    rewardStatus: 'not_eligible_until_completed_paid_move',
+    rewardDue: false,
+    rewardPaid: false,
     attribution: {
       source: 'partner_referral',
       partnerCode,
       partnerSlug: partnerSlug || undefined,
       partnerName,
+      partnerType: partnerType || undefined,
+      partnerCompany: partnerCompany || undefined,
       market: market || undefined,
       sourceUrl: sourceUrl || undefined,
     },
     notes: [
       `Referral partner: ${partnerName} (${partnerCode})`,
+      partnerType ? `Partner type: ${partnerType}` : '',
+      partnerCompany ? `Partner company: ${partnerCompany}` : '',
       partnerSlug && partnerSlug !== partnerCode ? `Partner slug: ${partnerSlug}` : '',
       market ? `Market: ${market}` : '',
       moveSize ? `Move size: ${moveSize}` : '',
+      'Reward rule: credit partner only after a completed paid move.',
       notes,
     ].filter(Boolean).join('\n') || undefined,
     createdAt: now,
@@ -202,6 +221,8 @@ export async function POST(request: Request) {
   <div style="background:#1a2744;color:#f5a623;padding:14px 18px;border-radius:10px 10px 0 0;font-weight:800">New Partner Referral</div>
   <div style="border:1px solid #e2e8f0;border-top:0;border-radius:0 0 10px 10px;padding:18px">
     <p><strong>Partner:</strong> ${escapeHtml(partnerName)} (${escapeHtml(partnerCode)})</p>
+    ${partnerType ? `<p><strong>Partner type:</strong> ${escapeHtml(partnerType)}</p>` : ''}
+    ${partnerCompany ? `<p><strong>Partner company:</strong> ${escapeHtml(partnerCompany)}</p>` : ''}
     ${market ? `<p><strong>Market:</strong> ${escapeHtml(market)} · ${escapeHtml(branch)}</p>` : `<p><strong>Branch:</strong> ${escapeHtml(branch)}</p>`}
     <p><strong>Client:</strong> ${escapeHtml(customerName || '—')}</p>
     <p><strong>Phone:</strong> ${escapeHtml(customerPhone || '—')}</p>
