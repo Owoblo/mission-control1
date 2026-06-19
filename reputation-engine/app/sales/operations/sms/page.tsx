@@ -188,17 +188,17 @@ export default function OpsSmsPage() {
   const activeThread = threads.find(t => t.contactPhone === selected)
 
   return (
-    <div className="flex h-[100dvh] bg-[var(--app-bg)]">
+    <div className="flex h-[calc(100dvh-5.5rem)] min-h-0 overflow-hidden bg-white md:h-[calc(100dvh-7rem)]">
       {/* Thread list */}
-      <div className={`${selected ? 'hidden md:flex' : 'flex'} w-full shrink-0 border-r border-[var(--app-line)] bg-[var(--app-panel)] flex-col md:w-80 lg:w-72`}>
-        <div className="px-4 py-3 border-b border-[var(--app-line)] flex items-center justify-between gap-2">
+      <div className={`${selected ? 'hidden md:flex' : 'flex'} w-full shrink-0 flex-col border-r border-slate-200 bg-white md:w-[340px] lg:w-[360px]`}>
+        <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-4">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-[var(--app-muted)]">Operations SMS</div>
-            <div className="text-[10px] text-[var(--app-muted)]">{formatPhone(OPS_NUMBER)}</div>
+            <div className="text-xl font-semibold tracking-tight text-[#111827]">Operations SMS</div>
+            <div className="text-xs font-medium text-slate-500">{formatPhone(OPS_NUMBER)}</div>
           </div>
           <button
             onClick={() => setNewChatOpen(true)}
-            className="min-h-11 rounded-full bg-[var(--app-accent)] px-4 text-sm font-semibold text-white transition hover:opacity-90 md:min-h-9 md:text-xs"
+            className="min-h-11 rounded-full bg-[#111827] px-4 text-sm font-semibold text-white transition hover:bg-slate-800 md:min-h-10 md:text-xs"
           >
             + New
           </button>
@@ -206,37 +206,37 @@ export default function OpsSmsPage() {
 
         {/* New chat input */}
         {newChatOpen && (
-          <div className="px-3 py-2 border-b border-[var(--app-line)] bg-[var(--app-bg)] space-y-1.5">
+          <div className="space-y-2 border-b border-slate-100 bg-slate-50 px-3 py-3">
             <input
               autoFocus
               value={newChatPhone}
               onChange={e => setNewChatPhone(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') startNewChat(); if (e.key === 'Escape') setNewChatOpen(false) }}
               placeholder="Phone number (e.g. 226-555-1234)"
-              className="crm-input min-h-12 w-full text-base md:min-h-10 md:text-sm"
+              className="crm-input min-h-12 w-full rounded-full text-base md:min-h-10 md:text-sm"
             />
             <div className="flex gap-1.5">
-              <button onClick={startNewChat} className="min-h-11 flex-1 rounded-full bg-[var(--app-accent)] px-3 text-sm font-semibold text-white md:min-h-9 md:text-xs">Start chat</button>
-              <button onClick={() => setNewChatOpen(false)} className="min-h-11 flex-1 rounded-full border border-[var(--app-line)] px-3 text-sm font-semibold text-[var(--app-muted)] md:min-h-9 md:text-xs">Cancel</button>
+              <button onClick={startNewChat} className="min-h-11 flex-1 rounded-full bg-[#111827] px-3 text-sm font-semibold text-white md:min-h-9 md:text-xs">Start chat</button>
+              <button onClick={() => setNewChatOpen(false)} className="min-h-11 flex-1 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 md:min-h-9 md:text-xs">Cancel</button>
             </div>
           </div>
         )}
 
         <div className="flex-1 overflow-y-auto">
-          {loading && <div className="px-4 py-8 text-xs text-[var(--app-muted)]">Loading...</div>}
-          {!loading && threads.length === 0 && <div className="px-4 py-8 text-xs text-[var(--app-muted)]">No messages yet. Tap + New to start a conversation.</div>}
+          {loading && <div className="px-4 py-8 text-xs text-slate-500">Loading...</div>}
+          {!loading && threads.length === 0 && <div className="px-4 py-8 text-xs text-slate-500">No messages yet. Tap + New to start a conversation.</div>}
           {threads.map(thread => (
             <button
               key={thread.contactPhone}
               onClick={() => setSelected(thread.contactPhone)}
-              className={`w-full text-left px-4 py-4 border-b border-[var(--app-line)] transition md:py-3 ${selected === thread.contactPhone ? 'bg-[rgba(15,106,83,0.08)]' : 'hover:bg-[var(--app-bg)]'}`}
+              className={`w-full border-b border-slate-100 px-4 py-4 text-left transition md:py-3.5 ${selected === thread.contactPhone ? 'bg-slate-100 shadow-[inset_3px_0_0_#111827]' : 'hover:bg-slate-50'}`}
             >
               <div className="flex items-center justify-between gap-2">
-                <span className={`text-sm font-semibold truncate ${thread.unread ? 'text-[var(--app-ink)]' : 'text-[var(--app-muted)]'}`}>{formatPhone(thread.contactPhone)}</span>
-                <span className="text-[10px] text-[var(--app-muted)] shrink-0">{timeAgo(thread.lastAt)}</span>
+                <span className={`truncate text-sm font-semibold ${thread.unread || selected === thread.contactPhone ? 'text-[#111827]' : 'text-slate-700'}`}>{formatPhone(thread.contactPhone)}</span>
+                <span className="shrink-0 text-[11px] text-slate-500">{timeAgo(thread.lastAt)}</span>
               </div>
-              <div className="mt-0.5 text-[11px] text-[var(--app-muted)] truncate">{thread.lastBody}</div>
-              {thread.unread && <div className="mt-1 inline-block rounded-full bg-[var(--app-accent)] px-2 py-0.5 text-[9px] font-semibold text-white uppercase tracking-wide">New</div>}
+              <div className="mt-1 truncate text-sm leading-[1.5] text-slate-600">{thread.lastBody}</div>
+              {thread.unread && <div className="mt-2 inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">New</div>}
             </button>
           ))}
         </div>
@@ -245,25 +245,27 @@ export default function OpsSmsPage() {
       {/* Message view */}
       <div className={`${!selected ? 'hidden md:flex' : 'flex'} flex-1 flex-col min-w-0`}>
         {!selected ? (
-          <div className="flex-1 flex flex-col items-center justify-center gap-3 text-[var(--app-muted)]">
-            <div className="text-sm">Select a conversation or start a new one</div>
-            <button onClick={() => setNewChatOpen(true)} className="rounded-[8px] bg-[var(--app-accent)] px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition">+ New conversation</button>
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 text-slate-500">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 text-3xl">💬</div>
+            <div className="text-base font-semibold text-[#111827]">Start conversation</div>
+            <div className="max-w-xs text-center text-sm">Choose a thread from the list, or start a new SMS from the operations line.</div>
+            <button onClick={() => setNewChatOpen(true)} className="rounded-full bg-[#111827] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800">New conversation</button>
           </div>
         ) : (
           <>
-            <div className="px-4 py-3 border-b border-[var(--app-line)] bg-[var(--app-panel)] md:px-5">
+            <div className="border-b border-slate-200 bg-white px-4 py-3 md:px-5">
               <div className="flex items-center gap-2">
-                <button onClick={() => setSelected(null)} className="flex h-11 w-11 items-center justify-center rounded-full text-2xl text-[var(--app-ink)] md:hidden">‹</button>
+                <button onClick={() => setSelected(null)} className="flex h-11 w-11 items-center justify-center rounded-full text-2xl text-[#111827] md:hidden">‹</button>
                 <div>
-                  <div className="font-semibold text-[var(--app-ink)]">{formatPhone(selected)}</div>
-                  <div className="text-[10px] text-[var(--app-muted)]">Operations line · {formatPhone(OPS_NUMBER)}</div>
+                  <div className="font-semibold text-[#111827]">{formatPhone(selected)}</div>
+                  <div className="text-xs text-slate-500">Operations line · {formatPhone(OPS_NUMBER)}</div>
                 </div>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-3 py-5 sm:px-5">
+            <div className="flex-1 overflow-y-auto bg-white px-3 py-6 sm:px-6">
               {(!activeThread || activeThread.messages.length === 0) && (
-                <div className="flex items-center justify-center h-32 text-xs text-[var(--app-muted)]">No messages yet — send the first one below</div>
+                <div className="flex h-32 items-center justify-center text-xs text-slate-500">No messages yet. Send the first one below.</div>
               )}
               {activeThread?.messages.map((msg, index) => {
                 const isOutbound = msg.direction === 'outbound'
@@ -276,7 +278,7 @@ export default function OpsSmsPage() {
                 const textBody = msg.body.replace(/\[MMS: .+?\]/, '').trim()
                 return (
                   <div key={msg.id} className={`flex ${isOutbound ? 'justify-end' : 'justify-start'} ${index === 0 ? '' : groupedWithPrevious ? 'mt-1' : 'mt-6'}`}>
-                    <div className={`max-w-[min(78%,640px)] px-4 py-3 text-base leading-[1.5] shadow-sm md:text-sm ${isOutbound ? `bg-[var(--app-accent)] text-white ${groupedWithPrevious ? 'rounded-tr-md' : 'rounded-tr-[18px]'} ${groupedWithNext ? 'rounded-br-md' : 'rounded-br-[18px]'} rounded-l-[18px]` : `border border-[var(--app-line)] bg-white text-[var(--app-ink)] ${groupedWithPrevious ? 'rounded-tl-md' : 'rounded-tl-[18px]'} ${groupedWithNext ? 'rounded-bl-md' : 'rounded-bl-[18px]'} rounded-r-[18px]`}`}>
+                    <div className={`max-w-[min(78%,620px)] px-4 py-3 text-base leading-[1.5] md:text-sm ${isOutbound ? `bg-[#0f6a53] text-white ${groupedWithPrevious ? 'rounded-tr-md' : 'rounded-tr-[18px]'} ${groupedWithNext ? 'rounded-br-md' : 'rounded-br-[18px]'} rounded-l-[18px]` : `bg-[#f1f3f5] text-[#111827] ${groupedWithPrevious ? 'rounded-tl-md' : 'rounded-tl-[18px]'} ${groupedWithNext ? 'rounded-bl-md' : 'rounded-bl-[18px]'} rounded-r-[18px]`}`}>
                       {textBody && <div className="whitespace-pre-wrap break-words">{textBody}</div>}
                       {mediaUrls.map((url, i) => (
                         <div key={i} className="mt-1.5">
@@ -291,7 +293,7 @@ export default function OpsSmsPage() {
                           )}
                         </div>
                       ))}
-                      <div className={`mt-1 text-[10px] ${isOutbound ? 'text-white/60' : 'text-[var(--app-muted)]'}`}>{timeAgo(msg.created_at)}</div>
+                      <div className={`mt-1 text-[10px] ${isOutbound ? 'text-white/60' : 'text-slate-500'}`}>{timeAgo(msg.created_at)}</div>
                     </div>
                   </div>
                 )
@@ -301,7 +303,7 @@ export default function OpsSmsPage() {
 
             {/* Media preview */}
             {mediaFiles.length > 0 && (
-              <div className="px-4 pt-2 flex gap-2 flex-wrap bg-[var(--app-panel)] border-t border-[var(--app-line)]">
+              <div className="flex flex-wrap gap-2 border-t border-slate-200 bg-white px-4 pt-2">
                 {mediaFiles.map((f, i) => (
                   <div key={i} className="relative">
                     {f.type.startsWith('image/') ? (
@@ -316,14 +318,14 @@ export default function OpsSmsPage() {
             )}
 
             {/* Reply bar */}
-            <div className="px-4 py-3 pb-[max(1rem,calc(env(safe-area-inset-bottom)+0.75rem))] border-t border-[var(--app-line)] bg-[var(--app-panel)]">
+            <div className="border-t border-slate-200 bg-white px-4 py-3 pb-[max(1rem,calc(env(safe-area-inset-bottom)+0.75rem))]">
               {error && <div className="mb-2 text-xs text-rose-600">{error}</div>}
               <div className="flex gap-2 items-end">
                 <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple className="hidden"
                   onChange={e => { if (e.target.files) setMediaFiles(fs => [...fs, ...Array.from(e.target.files!)]) }} />
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[var(--app-line)] bg-white text-base transition hover:bg-[var(--app-bg)] md:h-11 md:w-11"
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-base transition hover:bg-slate-50 md:h-11 md:w-11"
                   title="Attach image or video"
                 >📎</button>
                 <textarea
@@ -332,12 +334,12 @@ export default function OpsSmsPage() {
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void sendReply() } }}
                   placeholder={mediaFiles.length > 0 ? 'Add a caption (optional)...' : 'Message...'}
                   rows={2}
-                  className="crm-input min-h-12 flex-1 resize-none rounded-[18px] px-4 py-3 text-base leading-[1.5] md:text-sm"
+                  className="min-h-12 flex-1 resize-none rounded-full border border-slate-200 bg-slate-100 px-5 py-3 text-base leading-[1.5] text-[#111827] outline-none transition placeholder:text-slate-400 focus:border-slate-300 focus:bg-white md:text-sm"
                 />
                 <button
                   onClick={() => void sendReply()}
                   disabled={(!reply.trim() && mediaFiles.length === 0) || sending}
-                  className="min-h-12 shrink-0 rounded-full bg-[var(--app-accent)] px-5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50 md:min-h-11"
+                  className="min-h-12 shrink-0 rounded-full bg-[#0f6a53] px-5 text-sm font-semibold text-white transition hover:bg-[#0c5745] disabled:opacity-50 md:min-h-11"
                 >
                   {sending ? '...' : 'Send'}
                 </button>

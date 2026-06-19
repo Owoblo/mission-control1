@@ -1638,10 +1638,10 @@ function SalesInboxPageInner() {
                   const thread = smsThreads.find(t => t.contactPhone === selectedThread)
                   if (!thread) return <div className="flex-1 p-16 text-center text-sm text-[var(--app-muted)]">Select a conversation.</div>
                   return (
-                    <div className="flex min-w-0 flex-1 flex-col min-h-0">
-                      <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-[var(--app-line)] bg-[var(--app-panel)] px-4 py-4">
+                    <div className="flex min-w-0 flex-1 flex-col min-h-0 bg-white">
+                      <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-4">
                         <button onClick={() => setSelectedThread(null)} className="crm-button min-h-11 px-4 text-sm md:hidden">Back</button>
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[rgba(15,106,83,0.1)] text-sm font-bold text-[var(--app-accent)]">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-[#111827]">
                           {(thread.leadName || thread.contactPhone).slice(0, 1).toUpperCase()}
                         </div>
                         <div className="min-w-0">
@@ -1665,7 +1665,7 @@ function SalesInboxPageInner() {
                           <a href={`/sales/leads/${thread.leadId}`} className="ml-auto crm-button min-h-11 text-sm lg:min-h-9 lg:text-xs">View Lead →</a>
                         )}
                       </div>
-                      <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-5">
+                      <div className="flex-1 overflow-y-auto overflow-x-hidden bg-white px-4 py-6 sm:px-6">
                         {thread.messages.map((msg, index) => {
                           const previousMessage = thread.messages[index - 1]
                           const nextMessage = thread.messages[index + 1]
@@ -1673,7 +1673,7 @@ function SalesInboxPageInner() {
                           const groupedWithNext = sameInboxSmsGroup(msg, nextMessage)
                           return (
                           <div key={msg.id} className={`flex min-w-0 ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'} ${index === 0 ? '' : groupedWithPrevious ? 'mt-1' : 'mt-6'}`}>
-                            <div className={`max-w-[min(78%,640px)] min-w-0 px-4 py-3 text-base leading-[1.5] shadow-sm lg:text-sm ${msg.direction === 'outbound' ? `bg-[#0b84ff] text-white ${groupedWithPrevious ? 'rounded-tr-md' : 'rounded-tr-[18px]'} ${groupedWithNext ? 'rounded-br-md' : 'rounded-br-[18px]'} rounded-l-[18px]` : `bg-[#e9e9eb] text-[#1c1c1e] ${groupedWithPrevious ? 'rounded-tl-md' : 'rounded-tl-[18px]'} ${groupedWithNext ? 'rounded-bl-md' : 'rounded-bl-[18px]'} rounded-r-[18px]`}`}>
+                            <div className={`max-w-[min(78%,620px)] min-w-0 px-4 py-3 text-base leading-[1.5] lg:text-sm ${msg.direction === 'outbound' ? `bg-[#0f6a53] text-white ${groupedWithPrevious ? 'rounded-tr-md' : 'rounded-tr-[18px]'} ${groupedWithNext ? 'rounded-br-md' : 'rounded-br-[18px]'} rounded-l-[18px]` : `bg-[#f1f3f5] text-[#111827] ${groupedWithPrevious ? 'rounded-tl-md' : 'rounded-tl-[18px]'} ${groupedWithNext ? 'rounded-bl-md' : 'rounded-bl-[18px]'} rounded-r-[18px]`}`}>
                               <p className="whitespace-pre-wrap break-words">{msg.body}</p>
                               <p className={`mt-1 text-[10px] ${msg.direction === 'outbound' ? 'text-white/60' : 'text-[#8e8e93]'}`}>
                                 {new Date(msg.created_at).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
@@ -1683,7 +1683,7 @@ function SalesInboxPageInner() {
                           )
                         })}
                       </div>
-                      <div className="shrink-0 border-t border-[var(--app-line)] bg-[var(--app-panel)] p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                      <div className="shrink-0 border-t border-slate-200 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
                         {thread.branchLabel ? (
                           <div className="mb-2 text-xs text-[var(--app-muted)]">
                             Outbound replies go out from <span className="font-semibold text-[var(--app-ink)]">{thread.branchLabel}</span> ({thread.businessNumber}).
@@ -1708,9 +1708,9 @@ function SalesInboxPageInner() {
                         )}
                         <div className="flex gap-2 items-end">
                           <button onClick={() => smsFileInputRef.current?.click()} title="Attach image or video"
-                            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[var(--app-line)] bg-white text-base transition hover:bg-[var(--app-bg)] lg:h-11 lg:w-11">📎</button>
+                            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-base transition hover:bg-slate-50 lg:h-11 lg:w-11">📎</button>
                           <textarea
-                            className="crm-input min-h-12 flex-1 resize-none rounded-[18px] px-4 py-3 text-base leading-[1.5] lg:text-sm"
+                            className="min-h-12 flex-1 resize-none rounded-full border border-slate-200 bg-slate-100 px-5 py-3 text-base leading-[1.5] text-[#111827] outline-none transition placeholder:text-slate-400 focus:border-slate-300 focus:bg-white lg:text-sm"
                             rows={2}
                             placeholder={smsMediaFiles.length > 0 ? 'Add a caption...' : 'Type a reply...'}
                             value={smsReply}
@@ -1720,7 +1720,7 @@ function SalesInboxPageInner() {
                           <button
                             onClick={() => void sendSmsReply()}
                             disabled={smsReplyBusy || (!smsReply.trim() && smsMediaFiles.length === 0)}
-                            className="crm-button-dark min-h-12 self-end rounded-full px-5 text-sm disabled:opacity-50 lg:min-h-11"
+                            className="min-h-12 self-end rounded-full bg-[#0f6a53] px-5 text-sm font-semibold text-white transition hover:bg-[#0c5745] disabled:opacity-50 lg:min-h-11"
                           >
                             {smsReplyBusy ? '...' : 'Send'}
                           </button>

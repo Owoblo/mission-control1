@@ -154,8 +154,8 @@ export function LeadCommunicationsPanel({
       {activeTab === 'timeline' ? timeline : null}
 
       {activeTab === 'emails' ? (
-        <div className="flex h-full flex-col overflow-hidden">
-          <div className="flex items-center justify-between border-b border-[var(--app-line)] bg-[var(--app-panel)] px-5 py-3">
+        <div className="flex h-full flex-col overflow-hidden bg-white">
+          <div className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-3">
             <div>
               <div className="text-sm font-semibold text-[var(--app-ink)]">Email Thread</div>
               <div className="text-xs text-[var(--app-muted)]">{lead.email}</div>
@@ -297,7 +297,7 @@ export function LeadCommunicationsPanel({
             </div>
           </div>
 
-          <div ref={smsThread.areaRef} className="flex-1 overflow-y-auto px-4 py-4" style={{ background: '#f9fafb' }}>
+          <div ref={smsThread.areaRef} className="flex-1 overflow-y-auto bg-white px-4 py-6 sm:px-6">
             {smsThread.loading && smsThread.messages.length === 0 ? (
               <div className="flex h-full items-center justify-center text-sm text-[var(--app-muted)]">Loading messages…</div>
             ) : smsThread.messages.length === 0 ? (
@@ -320,10 +320,10 @@ export function LeadCommunicationsPanel({
                   return (
                     <div key={message.id} className={`flex flex-col ${isOutbound ? 'items-end' : 'items-start'} ${index === 0 ? '' : groupedWithPrevious ? 'mt-1' : 'mt-6'}`}>
                       <div
-                        className={`max-w-[min(78%,640px)] px-4 py-3 text-base leading-[1.5] whitespace-pre-wrap break-words shadow-sm lg:text-sm ${isOutbound ? `${groupedWithPrevious ? 'rounded-tr-md' : 'rounded-tr-[18px]'} ${groupedWithNext ? 'rounded-br-md' : 'rounded-br-[18px]'} rounded-l-[18px]` : `${groupedWithPrevious ? 'rounded-tl-md' : 'rounded-tl-[18px]'} ${groupedWithNext ? 'rounded-bl-md' : 'rounded-bl-[18px]'} rounded-r-[18px]`}`}
+                        className={`max-w-[min(78%,620px)] px-4 py-3 text-base leading-[1.5] whitespace-pre-wrap break-words lg:text-sm ${isOutbound ? `${groupedWithPrevious ? 'rounded-tr-md' : 'rounded-tr-[18px]'} ${groupedWithNext ? 'rounded-br-md' : 'rounded-br-[18px]'} rounded-l-[18px]` : `${groupedWithPrevious ? 'rounded-tl-md' : 'rounded-tl-[18px]'} ${groupedWithNext ? 'rounded-bl-md' : 'rounded-bl-[18px]'} rounded-r-[18px]`}`}
                         style={isOutbound
-                          ? { background: isWhatsApp ? '#25D366' : '#1a2744', color: 'white' }
-                          : { background: 'white', color: '#1a2744', border: '1px solid #e5e7eb' }}
+                          ? { background: isWhatsApp ? '#25D366' : '#0f6a53', color: 'white' }
+                          : { background: '#f1f3f5', color: '#111827' }}
                       >
                         {message.body}
                       </div>
@@ -339,7 +339,7 @@ export function LeadCommunicationsPanel({
             )}
           </div>
 
-          <div className="border-t border-[var(--app-line)] bg-[var(--app-panel)] px-4 py-3">
+          <div className="border-t border-slate-200 bg-white px-4 py-3">
             <div className="mb-2 flex items-center justify-between gap-2">
               {smsThread.preferredBranchLabel ? (
                 <div className="text-xs text-[var(--app-muted)]">
@@ -379,7 +379,7 @@ export function LeadCommunicationsPanel({
                   placeholder={`Message ${lead.name?.split(' ')[0] || lead.phone}…`}
                   rows={1}
                   disabled={!canHandleCommunication || smsThread.sending}
-                  className="min-h-12 flex-1 resize-none rounded-[18px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-3 text-base leading-[1.5] text-[var(--app-ink)] placeholder:text-[var(--app-muted)] focus:outline-none focus:ring-1 lg:text-sm"
+                  className="min-h-12 flex-1 resize-none rounded-full border border-slate-200 bg-slate-100 px-5 py-3 text-base leading-[1.5] text-[#111827] placeholder:text-slate-400 outline-none transition focus:border-slate-300 focus:bg-white lg:text-sm"
                   style={{ maxHeight: '120px', overflowY: 'auto', ['--tw-ring-color' as string]: '#f5a623' }}
                   onInput={event => {
                     const field = event.currentTarget
@@ -397,7 +397,7 @@ export function LeadCommunicationsPanel({
                 disabled={!canHandleCommunication || smsThread.sending || !smsThread.input.trim() || smsThread.input.length > 1600}
                 onClick={onSmsSend}
                 className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white transition-opacity disabled:opacity-40 lg:h-11 lg:w-11"
-                style={{ background: smsThread.sending ? '#ccc' : '#f5a623' }}
+                style={{ background: smsThread.sending ? '#ccc' : '#0f6a53' }}
               >
                 {smsThread.sending ? (
                   <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeDashoffset="12" /></svg>
