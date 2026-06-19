@@ -2288,6 +2288,15 @@ function latestTouchIsAfterLatestInbound(contact: Contact) {
   return !latestInboundAt || latestTouchAt >= latestInboundAt
 }
 
+function latestInboundNeedsReply(contact: Contact) {
+  const latestTouchAt = contact.last_touch_at ? new Date(contact.last_touch_at).getTime() : 0
+  const latestInboundAt = contact.latest_inbound_at ? new Date(contact.latest_inbound_at).getTime() : 0
+  if (contact.latest_touch_direction === 'inbound') return true
+  if (!latestInboundAt) return Boolean(contact.sequence_paused && contact.latest_inbound_note)
+  if (!latestTouchAt) return true
+  return latestInboundAt >= latestTouchAt
+}
+
 function workflowActionFromReason(reason?: string | null) {
   const value = String(reason || '')
   if (value.includes(':')) return value.split(':').pop() || ''
@@ -2321,7 +2330,7 @@ function isPackageIntent(intent?: string | null) {
 
 function getInboxStatus(contact: Contact): InboxStatus {
   const stage = contact.normalized_stage || contact.stage || ''
-  const hasInbound = Boolean(contact.latest_inbound_at || contact.latest_inbound_note || contact.latest_touch_direction === 'inbound' || contact.sequence_paused)
+  const hasInbound = Boolean(contact.latest_inbound_at || contact.latest_inbound_note || contact.latest_touch_direction === 'inbound')
   const lastDirection = contact.latest_touch_direction
   const followUpDue = Boolean(contact.needs_follow_up || contact.next_follow_up)
   const pauseReason = contact.sequence_paused_reason || ''
@@ -2351,7 +2360,7 @@ function getInboxStatus(contact: Contact): InboxStatus {
 
   if (closed) return 'closed'
   if (active) return 'active'
-  if (hasInbound && !contact.decision && !handledWorkflowAction && (lastDirection === 'inbound' || contact.sequence_paused)) return 'needs_reply'
+  if (hasInbound && !contact.decision && !handledWorkflowAction && latestInboundNeedsReply(contact)) return 'needs_reply'
   if (appointmentWork) return 'appointment'
   if (postcardWork) return 'postcard'
   if (packageSent) return 'package_sent'
