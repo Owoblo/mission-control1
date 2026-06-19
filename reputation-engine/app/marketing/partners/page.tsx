@@ -374,12 +374,13 @@ function unwrapAutoTouch(value: string, prefix: string) {
 
 function summarizeTouch(channel: string, direction?: string | null, notes?: string | null) {
   const text = (notes || '').trim()
+  const smsText = channel === 'sms' ? stripTouchPrefix(text) : text
   const reactionKeyword = getReactionKeyword(text)
   const smsArtifactPreview = channel === 'sms' && direction === 'inbound' && hasRichSmsArtifact(text) && reactionKeyword
     ? `${reactionSymbol(reactionKeyword)} reacted to your SMS`
     : null
-  const cleanSmsArtifactText = channel === 'sms' && hasRichSmsArtifact(text) ? cleanRichSmsFallback(text) : text
-  if (text.startsWith('Auto-SMS sent:')) return { label: 'Auto SMS', body: unwrapAutoTouch(text, 'Auto-SMS sent:'), auto: true }
+  const cleanSmsArtifactText = channel === 'sms' && hasRichSmsArtifact(smsText) ? cleanRichSmsFallback(smsText) : smsText
+  if (text.startsWith('Auto-SMS sent:')) return { label: 'Auto', body: cleanRichSmsFallback(unwrapAutoTouch(text, 'Auto-SMS sent:')), auto: true }
   if (text.startsWith('Auto-email sent:')) return { label: 'Auto Email', body: unwrapAutoTouch(text, 'Auto-email sent:'), auto: true }
   if (text.startsWith('Added to Instantly')) return { label: 'Added to Instantly', body: text, auto: true }
   const src = (text.match(/source["\s:]+instantly/i) || (notes && JSON.stringify(notes).includes('instantly')))
@@ -388,8 +389,8 @@ function summarizeTouch(channel: string, direction?: string | null, notes?: stri
   if (channel === 'email' && text.includes('clicked')) return { label: 'Link Clicked', body: text, auto: true }
   if (channel === 'direct_mail') return { label: 'Direct Mail', body: text || 'Direct mail sent' }
   if (channel === 'phone' || channel === 'call') return { label: direction === 'inbound' ? 'Inbound Call' : 'Call', body: text || 'Call logged' }
-  if (channel === 'email') return { label: direction === 'inbound' ? 'Email Reply' : 'Email Sent', body: text || 'Email' }
-  if (channel === 'sms') return { label: direction === 'inbound' ? 'Inbound SMS' : 'SMS Sent', body: smsArtifactPreview || cleanSmsArtifactText || 'SMS' }
+  if (channel === 'email') return { label: direction === 'inbound' ? 'Email reply' : 'Email sent', body: text || 'Email' }
+  if (channel === 'sms') return { label: direction === 'inbound' ? 'Received' : 'Sent', body: smsArtifactPreview || cleanSmsArtifactText || 'Message' }
   if (channel === 'note') return { label: 'Note', body: text || 'Note saved' }
   if (channel === 'appointment' || text.includes('Appointment')) return { label: 'Appointment', body: text }
   return { label: channel.replace(/_/g, ' '), body: text }
@@ -1961,7 +1962,9 @@ function RepliesTab({ onSelectContact, onOpenThread }: {
                   </div>
                   <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${replyBucketClass(item.bucket)}`}>{replyBucketLabel(item.bucket)}</span>
                 </div>
-                <div className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">{item.latest_touch.notes || 'No message body saved.'}</div>
+                <div className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">
+                  {summarizeTouch(item.latest_touch.channel, item.latest_touch.direction, item.latest_touch.notes).body || 'No message body saved.'}
+                </div>
                 <div className="mt-2 flex items-center justify-between text-[10px] text-[var(--app-muted)]">
                   <span>{String(item.latest_touch.channel || 'reply').toUpperCase()}</span>
                   <span>{timeAgo(item.latest_touch.created_at)}</span>
@@ -1998,10 +2001,12 @@ function RepliesTab({ onSelectContact, onOpenThread }: {
 
               <div className="rounded-[14px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
                 <div className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--app-muted)]">
-                  <span>Latest inbound {selected.latest_touch.channel}</span>
+                  <span>Latest reply</span>
                   <span>{fmtDateTime(selected.latest_touch.created_at)}</span>
                 </div>
-                <div className="whitespace-pre-wrap text-base leading-7 text-[var(--app-ink)]">{selected.latest_touch.notes || 'No message body saved.'}</div>
+                <div className="whitespace-pre-wrap text-base leading-7 text-[var(--app-ink)]">
+                  {summarizeTouch(selected.latest_touch.channel, selected.latest_touch.direction, selected.latest_touch.notes).body || 'No message body saved.'}
+                </div>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-3">
