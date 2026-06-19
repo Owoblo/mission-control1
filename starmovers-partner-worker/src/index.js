@@ -111,6 +111,38 @@ function referralNameParts(code = '') {
   }
 }
 
+function inferredPartnerType(code = '') {
+  if (/\b(remax|royal|lepage|century|keller|williams|realty|realtor|broker|brokerage|exp)\b/i.test(code)) return 'Realtor / brokerage'
+  if (/\b(storage|uhaul|u-haul)\b/i.test(code)) return 'Storage facility'
+  if (/\b(property|landlord|rental|apartment)\b/i.test(code)) return 'Property manager'
+  if (/\b(senior|retirement|downsizing)\b/i.test(code)) return 'Senior living / downsizing'
+  if (/\binsurance|broker\b/i.test(code)) return 'Insurance broker'
+  return 'Professional partner'
+}
+
+function inferredPartnerCompany(code = '') {
+  const value = String(code || '').toLowerCase()
+  if (/\bremax\b/.test(value)) return 'RE/MAX'
+  if (/\broyal[-_\s]*lepage\b/.test(value)) return 'Royal LePage'
+  if (/\bcentury[-_\s]*21\b/.test(value) || /\bcentury\b/.test(value)) return 'Century 21'
+  if (/\bkeller[-_\s]*williams\b/.test(value)) return 'Keller Williams'
+  if (/\bexp\b/.test(value)) return 'eXp Realty'
+  return ''
+}
+
+function displayNameFromCode(code = '') {
+  const ignored = new Set([
+    'remax', 'royal', 'lepage', 'century', '21', 'kw', 'keller', 'williams', 'realty', 'realtor', 'broker', 'brokerage', 'team', 'group', 'inc', 'exp',
+    'windsor', 'essex', 'lasalle', 'tecumseh', 'london', 'kitchener', 'waterloo', 'cambridge', 'guelph', 'chatham',
+  ])
+  const words = String(code || '')
+    .split(/[-_\s]+/)
+    .map(word => word.trim().replace(/[^a-z0-9]/gi, ''))
+    .filter(word => word && !ignored.has(word.toLowerCase()))
+  const name = titleCase(words.slice(0, 3).join(' '))
+  return name || titleCase(code) || 'Partner'
+}
+
 function shortMarketCode(code = '') {
   if (/\blondon\b/i.test(code)) return 'LD'
   if (/\b(kitchener|waterloo|cambridge|kw)\b/i.test(code)) return 'KW'
@@ -135,8 +167,10 @@ function partnerFromCode(code) {
   const label = titleCase(clean)
   return {
     code: clean,
-    name: label === 'Partner' ? 'Partner' : label,
-    displayName: label === 'Partner' ? 'your team' : label,
+    name: displayNameFromCode(clean),
+    displayName: label === 'Partner' ? 'your team' : displayNameFromCode(clean),
+    company: inferredPartnerCompany(clean),
+    type: inferredPartnerType(clean),
     shortCode: readableReferralCode(clean),
   }
 }
@@ -196,6 +230,8 @@ async function handleReferral(request, env, partner, market) {
   const partnerName = String(body.partner_name || partner.name || '').trim()
   const partnerCode = String(body.partner_code || partner.shortCode || partner.code).trim()
   const partnerSlug = String(body.partner_slug || partner.code).trim()
+  const partnerType = String(body.partner_type || partner.type || '').trim()
+  const partnerCompany = String(body.partner_company || partner.company || '').trim()
 
   if (!name && !phone && !email) {
     return json({ error: 'Please include a client name, phone, or email.' }, 400)
@@ -205,6 +241,8 @@ async function handleReferral(request, env, partner, market) {
     partner_code: partnerCode,
     partner_slug: partnerSlug,
     partner_name: partnerName,
+    partner_type: partnerType,
+    partner_company: partnerCompany,
     market: market?.key || String(body.market || '').trim(),
     client_name: name,
     client_phone: phone,
@@ -302,6 +340,7 @@ function renderPage(request, env, partner, market) {
           <h3>Your referral code</h3>
           <code>${escapeHtml(partner.shortCode)}</code>
           <p class="mini">Clients can use this link or mention your name/code when they call or text our ${escapeHtml(market.baseCity)} line.</p>
+          ${partner.company ? `<p class="mini"><strong>Company context:</strong> ${escapeHtml(partner.company)}</p>` : ''}
           <code>${escapeHtml(packageUrl)}</code>
           <p style="margin-top:14px"><a class="btn line" href="${escapeHtml(flyerUrl)}" target="_blank" rel="noopener">Download ${escapeHtml(flyer.label)}</a></p>
         </aside>
@@ -312,7 +351,7 @@ function renderPage(request, env, partner, market) {
       <div class="wrap grid">
         <div class="card"><h3>1. Share the link</h3><p>Send your client the quote link or have them call/text and mention your name.</p></div>
         <div class="card"><h3>2. We quote the move</h3><p>Saturn Star confirms inventory, access, truck plan, timing, and service needs.</p></div>
-        <div class="card"><h3>3. You get credited</h3><p>Your referral is tagged to your code once the client books and completes the move.</p></div>
+        <div class="card"><h3>3. You get credited</h3><p>Your referral is tagged to your code. Partner rewards are credited after the client completes a paid move.</p></div>
       </div>
     </section>
 
@@ -336,9 +375,9 @@ function renderPage(request, env, partner, market) {
         </div>
         <div class="card">
           <h3>Referral payout</h3>
-          <p><strong>$100</strong> for a completed booked move.</p>
-          <p><strong>$200</strong> for larger commercial, long-distance, or high-value jobs when approved.</p>
-          <p class="mini">Paid by e-transfer after the move is complete and client payment is confirmed.</p>
+          <p><strong>$50-$150</strong> for completed local moves by job size.</p>
+          <p><strong>$200-$500</strong> for long-distance, commercial, institutional, or high-value jobs when approved.</p>
+          <p class="mini">No payment for leads, quotes, or cancelled jobs. Paid by e-transfer after the move is complete and client payment is confirmed.</p>
         </div>
         <div class="card">
           <h3>${escapeHtml(market.baseCity)} service area</h3>
@@ -356,6 +395,8 @@ function renderPage(request, env, partner, market) {
           <input type="hidden" name="partner_code" value="${escapeHtml(partner.shortCode)}">
           <input type="hidden" name="partner_slug" value="${escapeHtml(partner.code)}">
           <input type="hidden" name="partner_name" value="${escapeHtml(partner.name)}">
+          <input type="hidden" name="partner_type" value="${escapeHtml(partner.type)}">
+          <input type="hidden" name="partner_company" value="${escapeHtml(partner.company)}">
           <input type="hidden" name="market" value="${escapeHtml(market.key)}">
           <div class="field"><label>Client name</label><input name="client_name" autocomplete="name"></div>
           <div class="field"><label>Client phone</label><input name="client_phone" autocomplete="tel"></div>
