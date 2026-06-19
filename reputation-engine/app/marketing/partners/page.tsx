@@ -2264,6 +2264,15 @@ const INBOX_QUICK_ACTIONS: Array<{ key: InboxQuickAction; label: string; tone: '
   { key: 'wrong_number', label: 'Wrong #', tone: 'red' },
 ]
 
+const REPLY_DESK_STAGE_ACTIONS: Array<{ key: string; label: string; helper: string; tone: 'green' | 'blue' | 'amber' | 'slate' | 'red' }> = [
+  { key: 'connected', label: 'Connected', helper: 'Conversation is live', tone: 'blue' },
+  { key: 'qualified', label: 'Qualified', helper: 'Good partner fit', tone: 'amber' },
+  { key: 'partnership_active', label: 'Active partner', helper: 'Move to Partners', tone: 'green' },
+  { key: 'follow_up_due', label: 'Follow-up', helper: 'Needs next touch', tone: 'amber' },
+  { key: 'dormant', label: 'Nurture', helper: 'Warm but not now', tone: 'slate' },
+  { key: 'closed_lost', label: 'Closed', helper: 'Do not pursue', tone: 'red' },
+]
+
 function defaultSheetUpdateForm(contact: Contact): SheetUpdateForm {
   return {
     action: '',
@@ -2610,6 +2619,7 @@ function PhoneTab({
   const [voiceListening, setVoiceListening] = useState(false)
   const [voiceError, setVoiceError] = useState<string | null>(null)
   const [appointmentSaving, setAppointmentSaving] = useState(false)
+  const [stageSaving, setStageSaving] = useState<string | null>(null)
   const threadRef = useRef<HTMLDivElement>(null)
   const mediaInputRef = useRef<HTMLInputElement>(null)
   const speechRecognitionRef = useRef<BrowserSpeechRecognition | null>(null)
@@ -3032,6 +3042,60 @@ function PhoneTab({
     }
   }
 
+  async function handleStageChange(stage: string) {
+    if (!selected || stageSaving || selected.normalized_stage === stage) return
+    const previous = selected
+    const nextDecision = stage === 'partnership_active'
+      ? 'agreed'
+      : stage === 'closed_lost'
+        ? 'rejected'
+        : previous.decision === 'agreed' || previous.decision === 'rejected'
+          ? null
+          : previous.decision
+    const optimistic = {
+      ...previous,
+      stage,
+      normalized_stage: stage,
+      decision: nextDecision,
+      last_touch_at: new Date().toISOString(),
+    }
+    setStageSaving(stage)
+    setReplyContacts(curr => curr.some(c => c.id === optimistic.id)
+      ? curr.map(c => c.id === optimistic.id ? { ...c, ...optimistic } : c)
+      : [optimistic, ...curr]
+    )
+    onContactUpdated(optimistic)
+    try {
+      const res = await fetch('/api/marketing/contacts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: selected.id, stage, decision: nextDecision }),
+      })
+      const data = await res.json().catch(() => null) as { contact?: Contact; error?: string } | null
+      if (!res.ok || !data?.contact) {
+        setReplyContacts(curr => curr.map(c => c.id === previous.id ? previous : c))
+        onContactUpdated(previous)
+        showToast(data?.error || 'Could not update stage')
+        return
+      }
+      const updated = {
+        ...optimistic,
+        ...data.contact,
+        normalized_stage: String(data.contact.stage || data.contact.normalized_stage || stage),
+      }
+      setReplyContacts(curr => curr.map(c => c.id === updated.id ? { ...c, ...updated } : c))
+      onContactUpdated(updated)
+      showToast(stage === 'partnership_active' ? 'Moved to Partners' : 'Stage updated')
+    } catch {
+      setReplyContacts(curr => curr.map(c => c.id === previous.id ? previous : c))
+      onContactUpdated(previous)
+      showToast('Could not update stage')
+    } finally {
+      setStageSaving(null)
+    }
+  }
+
   async function handleCreateAppointmentFromSuggestion() {
     if (!selected || !appointmentSuggestion || appointmentSaving) return
     setAppointmentSaving(true)
@@ -3392,6 +3456,19 @@ function PhoneTab({
                   <StageBadge stage={selected.normalized_stage} />
                 </div>
                 <div className="mt-0.5 truncate text-xs text-slate-400">{selected.phone || selected.company || selected.city || 'Partner contact'} · Hunter</div>
+                <div className="mt-2 hidden max-w-[62vw] items-center gap-1.5 overflow-x-auto md:flex">
+                  {REPLY_DESK_STAGE_ACTIONS.slice(0, 4).map(stage => (
+                    <button
+                      key={stage.key}
+                      onClick={() => void handleStageChange(stage.key)}
+                      disabled={stageSaving !== null}
+                      title={stage.helper}
+                      className={`min-h-8 shrink-0 rounded-full border px-3 text-[11px] font-semibold transition disabled:opacity-50 ${selected.normalized_stage === stage.key ? quickActionClass(stage.tone, true) : quickActionClass(stage.tone, stageSaving === stage.key)}`}
+                    >
+                      {stageSaving === stage.key ? 'Saving...' : stage.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -3739,6 +3816,26 @@ function PhoneTab({
             </button>
 
             <div className="mt-5 space-y-3">
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Stage</div>
+                  {stageSaving && <span className="text-[10px] font-semibold text-slate-400">Saving...</span>}
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {REPLY_DESK_STAGE_ACTIONS.map(stage => (
+                    <button
+                      key={stage.key}
+                      onClick={() => void handleStageChange(stage.key)}
+                      disabled={stageSaving !== null}
+                      className={`min-h-11 rounded-xl border px-2 py-2 text-left transition disabled:opacity-50 ${selected.normalized_stage === stage.key ? quickActionClass(stage.tone, true) : quickActionClass(stage.tone, stageSaving === stage.key)}`}
+                    >
+                      <span className="block text-[11px] font-semibold leading-4">{stage.label}</span>
+                      <span className={`mt-0.5 block text-[10px] font-medium leading-4 ${selected.normalized_stage === stage.key || stageSaving === stage.key ? 'text-white/75' : 'text-slate-400'}`}>{stage.helper}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div>
                 <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Partner links</div>
                 <div className="mt-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
