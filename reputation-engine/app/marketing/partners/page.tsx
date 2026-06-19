@@ -2252,7 +2252,7 @@ function defaultScheduledReplyTime(suggestion?: PartnershipAiSuggestion | null) 
 }
 
 type InboxQuickAction = 'active_partner' | 'drop_cards' | 'meeting_requested' | 'needs_follow_up' | 'not_interested' | 'wrong_number'
-type InboxFilter = 'needs_reply' | 'promising' | 'package_sent' | 'postcard' | 'appointment' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'all'
+type InboxFilter = 'needs_reply' | 'responded' | 'promising' | 'package_sent' | 'postcard' | 'appointment' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'all'
 type InboxStatus = 'needs_reply' | 'promising' | 'package_sent' | 'postcard' | 'appointment' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'review'
 
 const INBOX_QUICK_ACTIONS: Array<{ key: InboxQuickAction; label: string; tone: 'green' | 'blue' | 'amber' | 'slate' | 'red' }> = [
@@ -2310,6 +2310,8 @@ function quickActionClass(tone: 'green' | 'blue' | 'amber' | 'slate' | 'red', ac
 
 const INBOX_FILTERS: Array<{ key: InboxFilter; label: string }> = [
   { key: 'needs_reply', label: 'Needs reply' },
+  { key: 'responded', label: 'Responded' },
+  { key: 'all', label: 'All' },
   { key: 'promising', label: 'Positive' },
   { key: 'package_sent', label: 'Digital sent' },
   { key: 'postcard', label: 'Postcards' },
@@ -2318,7 +2320,6 @@ const INBOX_FILTERS: Array<{ key: InboxFilter; label: string }> = [
   { key: 'follow_up', label: 'Follow-up' },
   { key: 'active', label: 'Partners' },
   { key: 'closed', label: 'Closed' },
-  { key: 'all', label: 'All' },
 ]
 
 function sourceBadge(contact: Contact) {
@@ -2401,12 +2402,25 @@ function latestTouchIsAfterLatestInbound(contact: Contact) {
 }
 
 function latestInboundNeedsReply(contact: Contact) {
+  if (isPassiveInboundReaction(contact.latest_inbound_note || '')) return false
   const latestTouchAt = contact.last_touch_at ? new Date(contact.last_touch_at).getTime() : 0
   const latestInboundAt = contact.latest_inbound_at ? new Date(contact.latest_inbound_at).getTime() : 0
   if (contact.latest_touch_direction === 'inbound') return true
   if (!latestInboundAt) return Boolean(contact.sequence_paused && contact.latest_inbound_note)
   if (!latestTouchAt) return true
   return latestInboundAt >= latestTouchAt
+}
+
+function isPassiveInboundReaction(value?: string | null) {
+  const text = cleanRichSmsFallback(stripTouchPrefix(String(value || ''))).toLowerCase()
+  return /^(loved|liked|emphasized|laughed at|questioned|disliked)\s+[“"].+[”"]$/.test(text)
+}
+
+function hasRepResponded(contact: Contact) {
+  const latestTouchAt = contact.last_touch_at ? new Date(contact.last_touch_at).getTime() : 0
+  const latestInboundAt = contact.latest_inbound_at ? new Date(contact.latest_inbound_at).getTime() : 0
+  const lastDirection = contact.latest_touch_direction
+  return (lastDirection === 'outbound' || lastDirection === 'system' || lastDirection === 'internal') && latestTouchAt > 0 && (!latestInboundAt || latestTouchAt >= latestInboundAt)
 }
 
 function workflowActionFromReason(reason?: string | null) {
@@ -2537,6 +2551,7 @@ function inboxUrgencyRank(contact: Contact) {
 function matchesInboxFilter(contact: Contact, filter: InboxFilter) {
   const status = getInboxStatus(contact)
   if (filter === 'all') return true
+  if (filter === 'responded') return hasRepResponded(contact)
   if (filter === 'needs_reply') return status === 'needs_reply'
   if (filter === 'promising') return status === 'promising'
   if (filter === 'package_sent') return status === 'package_sent'
@@ -3295,7 +3310,7 @@ function PhoneTab({
             <div>
               <div className="text-[22px] font-semibold tracking-tight text-[#111827] lg:text-xl">Partnership replies</div>
               <div className="text-xs font-medium text-slate-500">
-                {filterCounts.needs_reply} need reply · {filterCounts.promising} positive · {filterCounts.package_sent} digital sent · {filterCounts.postcard} postcards · {filterCounts.appointment} appointments
+                {filterCounts.needs_reply} need reply · {filterCounts.responded} responded · {filterCounts.package_sent} digital sent · {filterCounts.postcard} postcards · {filterCounts.appointment} appointments
               </div>
             </div>
             <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">{filterCounts.all}</span>
