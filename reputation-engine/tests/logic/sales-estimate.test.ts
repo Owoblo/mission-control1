@@ -332,3 +332,55 @@ test('computeJobPenalties prices conjoint second pickup apartment access', () =>
   assert.ok(result.penalties.some(item => item.label === 'Second pickup – elevator not reserved (shared, wait time)' && item.hours === 0.75))
   assert.ok(result.penalties.some(item => item.label === 'Second pickup – limited truck access' && item.hours === 0.75))
 })
+
+test('estimateLeadQuote prices conjoint second pickup as incremental load plus final unload', () => {
+  const lead = makeLead({
+    inventory: [
+      { name: 'Person A furniture', room: 'Living Room', qty: 1, cubicFeet: 1023, weightLbs: 5238, included: true, source: 'manual' },
+      { name: 'Person B furniture', room: 'Bedroom', qty: 1, cubicFeet: 115, weightLbs: 590, included: true, source: 'manual', owner: 'person_b' },
+    ],
+    totalItems: 2,
+    totalCubicFeet: 1138,
+    totalWeightLbs: 5828,
+    jobFactors: { conjointMove: true, personALabel: 'A', personBLabel: 'Person B' },
+  })
+
+  const estimate = estimateLeadQuote(lead, {
+    quoteType: 'standard',
+    legs: [
+      {
+        id: 'leg_a',
+        label: 'Leg 1 — Person A pickup',
+        type: 'move',
+        originAddress: '136 Marcy Crescent',
+        destAddress: '1245 Franklin Boulevard',
+        billableDistanceKm: 6,
+        operationalDistanceKm: 6,
+        billableDriveHours: 0.25,
+        operationalDriveHours: 0.25,
+        routeCategory: 'local',
+        pricingStatus: 'ready',
+        inventorySharePct: 90,
+      },
+      {
+        id: 'leg_b',
+        label: 'Leg 2 — Person B pickup + delivery',
+        type: 'move',
+        originAddress: '1245 Franklin Boulevard',
+        destAddress: '55 McFarlane Drive',
+        billableDistanceKm: 4,
+        operationalDistanceKm: 4,
+        billableDriveHours: 0.25,
+        operationalDriveHours: 0.25,
+        routeCategory: 'local',
+        pricingStatus: 'ready',
+        inventorySharePct: 100,
+      },
+    ],
+  }, lead.jobFactors)
+
+  assert.match(estimate.lineItems[0].details || '', /loads ~90%/)
+  assert.match(estimate.lineItems[1].details || '', /loads remaining ~10%/)
+  assert.ok(estimate.pricingBreakdown.loadHours < 23, `load hours should not double count: ${estimate.pricingBreakdown.loadHours}`)
+  assert.ok(estimate.estimatedHours < 31, `conjoint estimate should stay under duplicated 40h quote: ${estimate.estimatedHours}`)
+})

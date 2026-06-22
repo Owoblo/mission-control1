@@ -750,7 +750,7 @@ export function EstimateDraftModal({
         originCity: '',
         destAddress: finalDest,
         destCity: finalDestCity,
-        inventorySharePct: 100,
+        inventorySharePct: 50,
         notes: 'Load items from second pickup, deliver everything to final destination',
       },
     ]
@@ -1093,9 +1093,10 @@ export function EstimateDraftModal({
   useEffect(() => {
     if (!open || !legsEnabled || !conjointMode || legs.length < 2 || conjointMetrics.totalCubicFeet <= 0) return
     const firstShare = Math.max(1, conjointMetrics.personASharePct)
+    const secondShare = Math.max(1, 100 - firstShare)
     const next = legs.map((leg, index) => {
       if (index === 0) return leg.inventorySharePct === firstShare ? leg : { ...leg, inventorySharePct: firstShare }
-      if (index === 1) return leg.inventorySharePct === 100 ? leg : { ...leg, inventorySharePct: 100 }
+      if (index === 1) return leg.inventorySharePct === secondShare ? leg : { ...leg, inventorySharePct: secondShare }
       return leg
     })
     if (next.some((leg, index) => leg.inventorySharePct !== legs[index]?.inventorySharePct)) {
@@ -3123,13 +3124,13 @@ export function EstimateDraftModal({
                             <div className="text-[11px] font-semibold text-purple-900">
                               {idx === 0
                                 ? `${conjointMetrics.personASharePct}% · ${conjointMetrics.personACubicFeet} cu ft`
-                                : `100% delivery · ${conjointMetrics.totalCubicFeet} cu ft`}
+                                : `${conjointMetrics.personBSharePct}% load · ${conjointMetrics.personBCubicFeet} cu ft`}
                             </div>
                           </div>
                           <div className="mt-1 text-[10px] text-purple-700">
                             {idx === 0
                               ? `Calculated from ${jobFactors.personALabel || 'Person A'}'s tagged inventory. No manual percentage needed.`
-                              : `Second pickup adds ${jobFactors.personBLabel || 'Person B'}'s ${conjointMetrics.personBCubicFeet} cu ft, then delivers the combined load.`}
+                              : `Second pickup only loads ${jobFactors.personBLabel || 'Person B'}'s items, then unloads the combined ${conjointMetrics.totalCubicFeet} cu ft at destination.`}
                           </div>
                         </div>
                       ) : (

@@ -1630,6 +1630,26 @@ function buildLegFactors(baseFactors: JobFactors | undefined, leg: QuoteLeg): Jo
   return touched ? next : undefined
 }
 
+function buildConjointLegFactors(baseFactors: JobFactors | undefined, legIndex: number): JobFactors | undefined {
+  if (!baseFactors) return undefined
+  const next: JobFactors = { ...baseFactors, conjointMove: false }
+
+  if (legIndex === 0) {
+    next.destFloors = 1
+    next.destHasElevator = false
+    next.destElevatorReserved = undefined
+    next.destParkingOk = true
+    if (next.disassemblyItemCount) next.disassemblyMode = 'disassemble_only'
+    return next
+  }
+
+  next.originFloors = baseFactors.personBOriginFloors
+  next.originHasElevator = baseFactors.personBOriginHasElevator
+  next.originElevatorReserved = baseFactors.personBOriginElevatorReserved
+  next.originParkingOk = baseFactors.personBOriginParkingOk
+  return next
+}
+
 function getLegServiceLabel(leg: QuoteLeg) {
   if (leg.type === 'storage') return 'House → Storage'
   if (leg.type === 'storage_delivery') return 'Storage → New Home'
@@ -1861,6 +1881,95 @@ function buildMultiLegEstimate(
       if (legs[cursor].type !== 'delivery') break
       deliveryLegs.push(legs[cursor])
     }
+
+    if (baseFactors?.conjointMove && legs.length >= 2 && index < 2 && leg.type === 'move') {
+      const firstLegSharePct = clampInventorySharePct(legs[0]?.inventorySharePct, 50)
+      const loadSharePct = index === 0 ? firstLegSharePct : Math.max(5, 100 - firstLegSharePct)
+      const loadScaledLead = buildScaledLeadSnapshot(lead, totalCubicFeet, totalWeightLbs, loadSharePct)
+      const routeContext = buildLegRouteContext(leg, baseEstimate.pricingBreakdown.routeCategory)
+      const legFactors = buildConjointLegFactors(baseFactors, index)
+      const loadEstimate = estimateSingleLeadQuote(
+        loadScaledLead,
+        {
+          crewSize: baseEstimate.crewSize,
+          truckCount: baseEstimate.truckCount,
+          estimatedWeightLbs: loadScaledLead.totalWeightLbs,
+          quoteType: routeContext.routeCategory === 'long-distance' ? 'long_distance' : 'standard',
+          routeContext,
+        },
+        legFactors
+      )
+      const unloadEstimate = index === 1
+        ? estimateSingleLeadQuote(
+            lead,
+            {
+              crewSize: baseEstimate.crewSize,
+              truckCount: baseEstimate.truckCount,
+              estimatedWeightLbs: totalWeightLbs,
+              quoteType: routeContext.routeCategory === 'long-distance' ? 'long_distance' : 'standard',
+              routeContext,
+            },
+            legFactors
+          )
+        : null
+
+      const loadHours = roundQuarterHour(loadEstimate.pricingBreakdown.loadHours)
+      const unloadHours = index === 1 ? roundQuarterHour(unloadEstimate?.pricingBreakdown.unloadHours || 0) : 0
+      const driveHours = roundQuarterHour(loadEstimate.pricingBreakdown.driveHours)
+      const operationalDriveHours = roundQuarterHour(loadEstimate.pricingBreakdown.operationalDriveHours)
+      const penaltyHours = roundQuarterHour(loadEstimate.pricingBreakdown.penaltyHours)
+      const driveBufferHours = roundQuarterHour(routeContext.routeCategory === 'long-distance' ? 0 : driveHours * 0.1)
+      const loadUnloadBufferHours = roundQuarterHour(
+        routeContext.routeCategory === 'long-distance' ? 0 : (loadHours + unloadHours + penaltyHours) * 0.1
+      )
+      const totalHours = Math.max(1.5, roundQuarterHour(loadHours + unloadHours + driveHours + penaltyHours + driveBufferHours + loadUnloadBufferHours))
+      const operationalHours = roundQuarterHour(loadHours + unloadHours + operationalDriveHours + penaltyHours + driveBufferHours + loadUnloadBufferHours)
+      const amount = roundCurrency(totalHours * baseEstimate.pricingBreakdown.crewRatePerHour)
+      const shareNote = index === 0
+        ? `loads ~${loadSharePct}% of shipment · carries to second pickup`
+        : `loads remaining ~${loadSharePct}% · delivers 100% at final destination`
+
+      lineItems.push(buildLegLineItem({
+        leg,
+        index,
+        crewSize: baseEstimate.crewSize,
+        truckCount: baseEstimate.truckCount,
+        totalHours,
+        amount,
+        driveHours,
+        distanceKm: roundCurrency(loadEstimate.pricingBreakdown.billableDistanceKm || 0),
+        shareNote,
+      }))
+      if (routeContext.pricingStatus === 'provisional') {
+        lineItems.push({
+          description: `[Leg ${index + 1}] Route pending`,
+          details: 'Travel route still needs confirmation for this conjoint stop',
+          amount: 0,
+        })
+        missingDestination = true
+      }
+
+      const legLabel = getLegDisplayLabel(leg, index)
+      collectedPenalties.push(
+        ...loadEstimate.pricingBreakdown.penalties.map(penalty => ({
+          ...penalty,
+          label: `${legLabel} — ${penalty.label}`,
+        }))
+      )
+      routeCategories.add(routeContext.routeCategory || baseEstimate.pricingBreakdown.routeCategory)
+      totalLoadHours += loadHours
+      totalUnloadHours += unloadHours
+      totalDriveHours += driveHours
+      totalOperationalDriveHours += operationalDriveHours
+      totalPenaltyHours += penaltyHours
+      totalDriveBufferHours += driveBufferHours
+      totalLoadUnloadBufferHours += loadUnloadBufferHours
+      totalBillableDistanceKm += Number(loadEstimate.pricingBreakdown.billableDistanceKm || 0)
+      totalOperationalDistanceKm += Number(loadEstimate.pricingBreakdown.operationalDistanceKm || 0)
+      totalOperationalHours += operationalHours
+      continue
+    }
+
     const defaultDeliveryShare = deliveryLegs.length > 0
       ? Math.max(10, Math.round(40 / deliveryLegs.length))
       : 0
