@@ -285,7 +285,7 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
         ok: true,
         deduped: true,
         result: { ok: true, deduped: true, fromNumber: rawFrom, branchLabel: getSaturnBranchLabel(rawFrom) },
-        log: await saveFollowUpLog(dedupeLog),
+        log: actor === 'automation' ? dedupeLog : await saveFollowUpLog(dedupeLog),
         email: null,
         lead: null,
       }
