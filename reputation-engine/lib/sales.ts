@@ -1918,10 +1918,8 @@ function buildMultiLegEstimate(
       const driveHours = roundQuarterHour(loadEstimate.pricingBreakdown.driveHours)
       const operationalDriveHours = roundQuarterHour(loadEstimate.pricingBreakdown.operationalDriveHours)
       const penaltyHours = roundQuarterHour(loadEstimate.pricingBreakdown.penaltyHours)
-      const driveBufferHours = roundQuarterHour(routeContext.routeCategory === 'long-distance' ? 0 : driveHours * 0.1)
-      const loadUnloadBufferHours = roundQuarterHour(
-        routeContext.routeCategory === 'long-distance' ? 0 : (loadHours + unloadHours + penaltyHours) * 0.1
-      )
+      const driveBufferHours = 0
+      const loadUnloadBufferHours = 0
       const totalHours = Math.max(1.5, roundQuarterHour(loadHours + unloadHours + driveHours + penaltyHours + driveBufferHours + loadUnloadBufferHours))
       const operationalHours = roundQuarterHour(loadHours + unloadHours + operationalDriveHours + penaltyHours + driveBufferHours + loadUnloadBufferHours)
       const amount = roundCurrency(totalHours * baseEstimate.pricingBreakdown.crewRatePerHour)

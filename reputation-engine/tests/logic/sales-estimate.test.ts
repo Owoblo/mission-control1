@@ -381,6 +381,7 @@ test('estimateLeadQuote prices conjoint second pickup as incremental load plus f
 
   assert.match(estimate.lineItems[0].details || '', /loads ~90%/)
   assert.match(estimate.lineItems[1].details || '', /loads remaining ~10%/)
+  assert.equal(estimate.pricingBreakdown.bufferHours, 0)
   assert.ok(estimate.pricingBreakdown.loadHours < 23, `load hours should not double count: ${estimate.pricingBreakdown.loadHours}`)
   assert.ok(estimate.estimatedHours < 31, `conjoint estimate should stay under duplicated 40h quote: ${estimate.estimatedHours}`)
 })
