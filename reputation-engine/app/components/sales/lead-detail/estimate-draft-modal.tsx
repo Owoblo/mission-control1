@@ -1110,6 +1110,7 @@ export function EstimateDraftModal({
   const [quickItem, setQuickItem] = useState('')
   const [quickQty, setQuickQty] = useState(1)
   const [quickCuFt, setQuickCuFt] = useState('')
+  const [quickWeightLbs, setQuickWeightLbs] = useState('')
   const [quickLookupLoading, setQuickLookupLoading] = useState(false)
   const [quickLookupNote, setQuickLookupNote] = useState<string | null>(null)
   // Paste-list import
@@ -1692,6 +1693,7 @@ export function EstimateDraftModal({
       const data = await res.json() as { cubicFeet?: number; weightLbs?: number; notes?: string; confidence?: string; source?: string }
       if (data.cubicFeet && !quickCuFt) {
         setQuickCuFt(String(data.cubicFeet))
+        if (data.weightLbs) setQuickWeightLbs(String(data.weightLbs))
         const src = data.source === 'preset' ? 'preset' : `AI · ${data.confidence || 'medium'} confidence`
         setQuickLookupNote(`${data.cubicFeet} cu ft · ${data.weightLbs ? `${data.weightLbs} lbs` : ''} (${src})${data.notes ? ` — ${data.notes}` : ''}`)
       }
@@ -1702,6 +1704,7 @@ export function EstimateDraftModal({
   function addQuickItem() {
     if (!quickItem.trim()) return
     const cf = Number(quickCuFt) || 0
+    const weightLbs = Number(quickWeightLbs) || Math.round(cf * 4)
     onAddInventoryItems([{
       id: `manual-${Date.now()}`,
       room: quickRoom,
@@ -1709,12 +1712,13 @@ export function EstimateDraftModal({
       item: quickItem.trim(),
       qty: quickQty,
       cubicFeet: cf,
-      weightLbs: Math.round(cf * 7),
+      weightLbs,
       included: true,
     }])
     setQuickItem('')
     setQuickQty(1)
     setQuickCuFt('')
+    setQuickWeightLbs('')
     setQuickLookupNote(null)
   }
 
