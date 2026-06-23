@@ -4,6 +4,8 @@ import { getSessionUser } from '@/lib/server/session'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { suggestPartnershipReply, type PartnershipAssistantContact, type PartnershipAssistantTouch } from '@/lib/server/partnership-reply-assistant'
 
+const CONTEXT_CLARIFICATION_RE = /\b(who is this|who'?s this|what is this|what'?s this|what is this for|what'?s this for|what is this about|what'?s this about|don'?t see (?:an |the )?earlier text|missing.*conversation|missing.*part|part of a conversation|not sure what this is|what conversation|remind me|sorry.*missing)\b/i
+
 interface MarketTouch {
   id: string
   contact_id: string
@@ -64,6 +66,9 @@ function classifyReply(touch: MarketTouch, contact?: MarketContact | null) {
     return 'opt_out'
   }
   if (stage === 'closed_lost') return 'closed'
+  if (CONTEXT_CLARIFICATION_RE.test(note)) {
+    return 'context'
+  }
   if (/(postcard|post card|mail me|send.*card|send.*info|drop.*card|drop.*off|brochure|flyer)/i.test(note)) {
     return 'postcard'
   }

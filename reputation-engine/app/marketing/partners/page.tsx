@@ -104,7 +104,7 @@ interface Touch {
 interface ReplyItem {
   contact: Contact
   latest_touch: Touch
-  bucket: 'needs_reply' | 'postcard' | 'appointment' | 'opt_out' | 'closed' | 'review'
+  bucket: 'needs_reply' | 'context' | 'postcard' | 'appointment' | 'opt_out' | 'closed' | 'review'
   needs_response: boolean
   playbook?: PartnershipAiSuggestion | null
 }
@@ -1898,6 +1898,7 @@ function PipelineTab({ contacts, onSelect, onStageChange }: {
 // ─── Tab: Partnership Replies ────────────────────────────────────────────────
 
 const REPLY_BUCKETS: Array<{ key: ReplyItem['bucket'] | 'all'; label: string }> = [
+  { key: 'context', label: 'Context' },
   { key: 'needs_reply', label: 'Needs reply' },
   { key: 'postcard', label: 'Postcard' },
   { key: 'appointment', label: 'Appointment' },
@@ -1907,6 +1908,7 @@ const REPLY_BUCKETS: Array<{ key: ReplyItem['bucket'] | 'all'; label: string }> 
 ]
 
 function replyBucketLabel(bucket: ReplyItem['bucket']) {
+  if (bucket === 'context') return 'Needs context'
   if (bucket === 'postcard') return 'Postcard request'
   if (bucket === 'appointment') return 'Meeting / call'
   if (bucket === 'opt_out') return 'Opt-out'
@@ -1916,6 +1918,7 @@ function replyBucketLabel(bucket: ReplyItem['bucket']) {
 }
 
 function replyBucketClass(bucket: ReplyItem['bucket']) {
+  if (bucket === 'context') return 'border-rose-200 bg-rose-50 text-rose-700'
   if (bucket === 'postcard') return 'border-amber-200 bg-amber-50 text-amber-700'
   if (bucket === 'appointment') return 'border-emerald-200 bg-emerald-50 text-emerald-700'
   if (bucket === 'opt_out' || bucket === 'closed') return 'border-rose-200 bg-rose-50 text-rose-700'
@@ -2293,8 +2296,8 @@ function defaultScheduledReplyTime(suggestion?: PartnershipAiSuggestion | null) 
 }
 
 type InboxQuickAction = 'active_partner' | 'drop_cards' | 'meeting_requested' | 'needs_follow_up' | 'not_interested' | 'wrong_number'
-type InboxFilter = 'needs_reply' | 'responded' | 'no_response' | 'promising' | 'package_sent' | 'postcard' | 'appointment' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'all'
-type InboxStatus = 'needs_reply' | 'promising' | 'package_sent' | 'postcard' | 'appointment' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'review'
+type InboxFilter = 'context' | 'needs_reply' | 'responded' | 'no_response' | 'promising' | 'package_sent' | 'postcard' | 'appointment' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'all'
+type InboxStatus = 'context' | 'needs_reply' | 'promising' | 'package_sent' | 'postcard' | 'appointment' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'review'
 
 const INBOX_QUICK_ACTIONS: Array<{ key: InboxQuickAction; label: string; tone: 'green' | 'blue' | 'amber' | 'slate' | 'red' }> = [
   { key: 'active_partner', label: 'Active partner', tone: 'green' },
@@ -2359,6 +2362,7 @@ function quickActionClass(tone: 'green' | 'blue' | 'amber' | 'slate' | 'red', ac
 }
 
 const INBOX_FILTERS: Array<{ key: InboxFilter; label: string }> = [
+  { key: 'context', label: 'Context' },
   { key: 'needs_reply', label: 'Needs reply' },
   { key: 'responded', label: 'Responded' },
   { key: 'no_response', label: 'No response' },
@@ -2459,6 +2463,12 @@ function isClosingAcknowledgementInbound(value?: string | null) {
   if (text.length > 220) return false
   if (/\b(when|where|what|who|how|which|can you|could you|would you|please send|send me|call me|email me|appointment|meeting|monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today|address|office|drop off|drop by|postcard|flyer|business card|price|pricing|rate|referral link|package)\b/.test(text)) return false
   return /\b(thanks?|thank you|appreciate|awesome|sounds good|perfect|ok|okay|alright|all right|no problem|great|will keep (you|u) in mind|keep you in mind|added (you|u) to (my )?contacts?|have a great day|talk soon|cheers|you're welcome|you are welcome)\b/.test(text)
+}
+
+function isContextLossInbound(value?: string | null) {
+  const text = cleanRichSmsFallback(stripTouchPrefix(String(value || ''))).toLowerCase()
+  if (!text) return false
+  return /\b(who is this|who'?s this|what is this|what'?s this|what is this for|what'?s this for|what is this about|what'?s this about|don'?t see (?:an |the )?earlier text|missing.*conversation|missing.*part|part of a conversation|not sure what this is|what conversation|remind me|sorry.*missing)\b/i.test(text)
 }
 
 function latestInboundNeedsReply(contact: Contact) {
@@ -2573,6 +2583,7 @@ function getInboxStatus(contact: Contact): InboxStatus {
 
   if (closed) return 'closed'
   if (active) return 'active'
+  if (hasInbound && isContextLossInbound(contact.latest_inbound_note || contact.latest_touch_note)) return 'context'
   if (hasInbound && !contact.decision && !handledWorkflowAction && latestInboundNeedsReply(contact)) return 'needs_reply'
   if (appointmentWork) return 'appointment'
   if (postcardWork) return 'postcard'
@@ -2584,6 +2595,7 @@ function getInboxStatus(contact: Contact): InboxStatus {
 }
 
 function inboxStatusLabel(status: InboxStatus) {
+  if (status === 'context') return 'Needs context'
   if (status === 'needs_reply') return 'Needs reply'
   if (status === 'promising') return 'Positive'
   if (status === 'package_sent') return 'Digital sent'
@@ -2597,6 +2609,7 @@ function inboxStatusLabel(status: InboxStatus) {
 }
 
 function inboxStatusClass(status: InboxStatus) {
+  if (status === 'context') return 'bg-rose-50 text-rose-700'
   if (status === 'needs_reply') return 'bg-amber-50 text-amber-700'
   if (status === 'promising') return 'bg-emerald-50 text-emerald-700'
   if (status === 'package_sent') return 'bg-teal-50 text-teal-700'
@@ -2611,21 +2624,23 @@ function inboxStatusClass(status: InboxStatus) {
 
 function inboxUrgencyRank(contact: Contact) {
   const status = getInboxStatus(contact)
-  if (status === 'needs_reply') return 0
-  if (status === 'appointment') return 1
-  if (status === 'postcard') return 2
-  if (status === 'follow_up') return 2
-  if (status === 'promising') return 3
-  if (status === 'package_sent') return 4
-  if (status === 'waiting') return 5
-  if (status === 'review') return 5
-  if (status === 'active') return 6
-  return 6
+  if (status === 'context') return 0
+  if (status === 'needs_reply') return 1
+  if (status === 'appointment') return 2
+  if (status === 'postcard') return 3
+  if (status === 'follow_up') return 3
+  if (status === 'promising') return 4
+  if (status === 'package_sent') return 5
+  if (status === 'waiting') return 6
+  if (status === 'review') return 6
+  if (status === 'active') return 7
+  return 7
 }
 
 function matchesInboxFilter(contact: Contact, filter: InboxFilter) {
   const status = getInboxStatus(contact)
   if (filter === 'all') return true
+  if (filter === 'context') return status === 'context'
   if (filter === 'responded') return hasRepResponded(contact)
   if (filter === 'no_response') return hasNoPartnerResponse(contact)
   if (filter === 'needs_reply') return status === 'needs_reply'
@@ -3604,7 +3619,7 @@ function PhoneTab({
             <div>
               <div className="text-[22px] font-semibold tracking-tight text-[#111827] lg:text-xl">Partnership replies</div>
               <div className="text-xs font-medium text-slate-500">
-                {filterCounts.needs_reply} need reply · {filterCounts.responded} responded · {filterCounts.no_response} no response · {filterCounts.postcard} postcards · {filterCounts.appointment} appointments
+                {filterCounts.context} context · {filterCounts.needs_reply} need reply · {filterCounts.responded} responded · {filterCounts.no_response} no response · {filterCounts.postcard} postcards · {filterCounts.appointment} appointments
               </div>
             </div>
             <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">{filterCounts.all}</span>
@@ -3682,7 +3697,7 @@ function PhoneTab({
         <div className="flex-1 overflow-y-auto">
           {sorted.map(c => {
             const status = getInboxStatus(c)
-            const unread = status === 'needs_reply'
+            const unread = status === 'context' || status === 'needs_reply'
             const p = getContactPreview(c)
             return (
               <button key={c.id} onClick={() => handleSelect(c.id)}

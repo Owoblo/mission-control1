@@ -210,18 +210,25 @@ test('partnership assistant treats sms love reactions as soft acknowledgement', 
 test('partnership assistant flags missing-context replies without closing as wrong number', async () => {
   delete process.env.OPENAI_API_KEY
 
-  const result = await suggestPartnershipReply({
-    contact: { ...contact, name: 'Alyssa Ismail' },
-    touches: inbound("Hi there. Sorry I'm missing maybe part of a conversation?"),
-  })
+  for (const note of [
+    "Hi there. Sorry I'm missing maybe part of a conversation?",
+    "Sorry. I don't see an earlier text. What is this for?",
+    'Who is this',
+    "I'm sorry, who is this and what is this regarding?",
+  ]) {
+    const result = await suggestPartnershipReply({
+      contact: { ...contact, name: 'Alyssa Ismail' },
+      touches: inbound(note),
+    })
 
-  assert.equal(result.intent, 'asks_context')
-  assert.equal(result.quick_action, 'needs_follow_up')
-  assert.equal(result.recommended_action, 'draft_reply')
-  assert.match(result.risk_flags.join(' '), /resend_previous_context/)
-  assert.match(result.draft_sms, /Saturn Star Movers/i)
-  assert.match(result.draft_sms, /resend the original note/i)
-  assert.notEqual(result.intent, 'wrong_number')
+    assert.equal(result.intent, 'asks_context')
+    assert.equal(result.quick_action, 'needs_follow_up')
+    assert.equal(result.recommended_action, 'draft_reply')
+    assert.match(result.risk_flags.join(' '), /resend_previous_context/)
+    assert.match(result.draft_sms, /Saturn Star Movers/i)
+    assert.match(result.draft_sms, /resend the original note/i)
+    assert.notEqual(result.intent, 'wrong_number')
+  }
 })
 
 test('partnership assistant routes meeting requests through local relationship reps', async () => {
