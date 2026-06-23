@@ -2161,7 +2161,48 @@ function RepliesTab({ onSelectContact, onOpenThread }: {
 
 // ─── Tab: Phone ───────────────────────────────────────────────────────────────
 
-const PARTNERSHIP_FROM_NUMBER = '+12268870667'  // Windsor dedicated outbound number
+const PARTNERSHIP_FROM_NUMBER = '+12268870667'  // Primary Windsor dedicated outbound number
+const PARTNERSHIP_FROM_NUMBERS = ['+12268870667', '+12266055008']
+
+function normalizePhoneNumber(value: unknown) {
+  if (typeof value !== 'string') return ''
+  const digits = value.replace(/\D/g, '')
+  if (digits.length === 10) return `+1${digits}`
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`
+  return value.trim()
+}
+
+function normalizePartnershipFromNumber(value: unknown) {
+  const normalized = normalizePhoneNumber(value)
+  return PARTNERSHIP_FROM_NUMBERS.includes(normalized) ? normalized : ''
+}
+
+function metadataString(metadata: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = metadata[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return ''
+}
+
+function threadFromNumber(touches: Touch[]) {
+  const sorted = [...touches].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+
+  for (const touch of sorted) {
+    const metadata = touch.metadata || {}
+    const scheduled = metadata.scheduled_reply && typeof metadata.scheduled_reply === 'object'
+      ? metadata.scheduled_reply as Record<string, unknown>
+      : {}
+    const candidate = touch.direction === 'inbound'
+      ? metadataString(metadata, ['to', 'To', 'to_number', 'toNumber'])
+      : metadataString(metadata, ['from', 'From', 'from_number', 'fromNumber']) ||
+        metadataString(scheduled, ['fromNumber', 'from_number', 'from'])
+    const normalized = normalizePartnershipFromNumber(candidate)
+    if (normalized) return normalized
+  }
+
+  return PARTNERSHIP_FROM_NUMBER
+}
 
 function getTouchMediaUrls(touch: Touch) {
   const urls = new Set<string>()
@@ -3101,6 +3142,7 @@ function PhoneTab({
   async function handleSend() {
     if (!selected) return
     setSending(true)
+    const replyFromNumber = threadFromNumber(touches)
     try {
       if (composeChannel === 'sms' && scheduleMode) {
         const res = await fetch(`/api/marketing/contacts/${selected.id}/schedule-reply`, {
@@ -3110,7 +3152,7 @@ function PhoneTab({
           body: JSON.stringify({
             body: smsBody,
             scheduled_at: new Date(scheduledAt).toISOString(),
-            from_number: PARTNERSHIP_FROM_NUMBER,
+            from_number: replyFromNumber,
             media_urls: mediaUrls,
           }),
         })
@@ -3131,7 +3173,7 @@ function PhoneTab({
 
       await sendSalesMessage(
         composeChannel === 'sms'
-          ? { channel: 'sms', to: selected.phone!, body: smsBody || ' ', fromNumber: PARTNERSHIP_FROM_NUMBER, mediaUrls: mediaUrls.length ? mediaUrls : undefined }
+          ? { channel: 'sms', to: selected.phone!, body: smsBody || ' ', fromNumber: replyFromNumber, mediaUrls: mediaUrls.length ? mediaUrls : undefined }
           : { channel: 'email', to: selected.email!, subject: emailSubject, body: emailBody }
       )
       const mediaNote = composeChannel === 'sms' && mediaUrls.length ? `\n[MMS: ${mediaUrls.join(', ')}]` : ''
@@ -3140,7 +3182,9 @@ function PhoneTab({
         body: JSON.stringify({
           contact_id: selected.id, channel: composeChannel, direction: 'outbound',
           notes: composeChannel === 'sms' ? `${smsBody}${mediaNote}`.trim() : `Subject: ${emailSubject}\n\n${emailBody}`,
-          metadata: composeChannel === 'sms' && mediaUrls.length ? { mediaUrls } : {},
+          metadata: composeChannel === 'sms'
+            ? { from: replyFromNumber, ...(mediaUrls.length ? { mediaUrls } : {}) }
+            : {},
           schedule_follow_up_days: 3,
         }),
       })
@@ -4398,6 +4442,7 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
               <label className="crm-label">Send from</label>
               <select value={fromNumber} onChange={e => setFromNumber(e.target.value)} className="crm-input mt-1 text-sm">
                 <option value="+12268870667">+1 (226) 887-0667 — Windsor Partnership</option>
+                <option value="+12266055008">+1 (226) 605-5008 — Partnership 2</option>
               </select>
               <div className="mt-1 text-[11px] text-[var(--app-muted)]">Sales and operations numbers are intentionally hidden here.</div>
             </div>

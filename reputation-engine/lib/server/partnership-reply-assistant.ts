@@ -8,6 +8,7 @@ export type PartnershipReplyIntent =
   | 'send_card_or_flyer_media'
   | 'digital_only_no_postcard'
   | 'asks_contact_info'
+  | 'asks_context'
   | 'confirms_identity'
   | 'asks_for_references'
   | 'refers_to_another_contact'
@@ -144,6 +145,7 @@ const SOCIAL_MEDIA_RE = /\b(social media|instagram|facebook|fb|linkedin|tik\s?to
 const WEBSITE_RE = /\b(website|web site|site|url|webpage|web page)\b/i
 const SHARE_NUMBER_RE = /\b(?:is this|this|the).{0,24}\b(?:number|phone).{0,60}\b(?:share|give|send|forward).{0,36}\b(?:client|clients|customer|customers)|\b(?:share|give|send|forward).{0,36}\b(?:number|phone).{0,36}\b(?:client|clients|customer|customers)/i
 const IDENTITY_CONFIRMATION_RE = /\bis\s+this\s+hunter\b|\bthis\s+is\s+hunter\b/i
+const CONTEXT_CLARIFICATION_RE = /\b(who is this|who'?s this|what is this|what'?s this|what is this about|what'?s this about|missing.*conversation|part of a conversation|not sure what this is|what conversation|remind me|sorry.*missing)\b/i
 const REFERENCES_RE = /\b(referrals?|references?|recent clients?|reviews?|testimonials?|proof|examples?)\b/i
 const PHONE_RE = /(?:\+?1[\s.-]?)?(?:\(?[2-9]\d{2}\)?[\s.-]?)\d{3}[\s.-]?\d{4}\b/
 const SECONDARY_CONTACT_RE = /\b(?:reach out to|ask for|contact|call|speak to|talk to|connect with)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)(?:[^.\n]{0,80})/i
@@ -321,7 +323,10 @@ function detectIntent(text: string, contact: PartnershipAssistantContact, touche
   const stage = cleanText(contact.stage).toLowerCase()
 
   if (decision === 'opted_out' || isOptOutText(text)) return { intent: 'stop_opt_out', confidence: 0.98, risk_flags }
-  if (/\b(wrong number|wrong person|not me|who is this)\b/i.test(text)) return { intent: 'wrong_number', confidence: 0.96, risk_flags }
+  if (CONTEXT_CLARIFICATION_RE.test(text)) {
+    return { intent: 'asks_context', confidence: 0.9, risk_flags: [...risk_flags, 'resend_previous_context'] }
+  }
+  if (/\b(wrong number|wrong person|not me)\b/i.test(text)) return { intent: 'wrong_number', confidence: 0.96, risk_flags }
   if (stage === 'closed_lost' || /\b(not interested|no thanks|no thank you|remove me|don't contact|do not contact)\b/i.test(text)) return { intent: 'not_interested', confidence: 0.92, risk_flags }
   if (IOS_REACTION_RE.test(text.trim())) {
     return { intent: 'warm_acknowledgement', confidence: 0.64, risk_flags: [...risk_flags, 'sms_reaction_only'] }
@@ -451,6 +456,11 @@ function draftFromRules(input: {
     draft = `Absolutely${nameSuffix}, ${contactParts.join(', ')}. Is it okay if I send the full digital package here too? It has the flyer/business card, referral details, and a client quote link you can forward anytime.`
     recommended_action = 'draft_reply'
     quick_action = 'needs_follow_up'
+  } else if (intent === 'asks_context') {
+    draft = `Sorry about that${nameSuffix}. This is Hunter from Saturn Star Movers. I had reached out about partnering with local real estate professionals so their clients have a reliable moving option. I can resend the original note here so the context is clear.`
+    recommended_action = 'draft_reply'
+    quick_action = 'needs_follow_up'
+    risk_flags.push('resend_previous_context')
   } else if (intent === 'confirms_identity') {
     draft = knownEmail && canSendPackageNow
       ? `Yes${nameSuffix}, this is Hunter. I saw your email too: ${knownEmail}. I can send the digital package there and keep the link here as well so you have everything handy.`
@@ -537,7 +547,7 @@ function draftFromRules(input: {
     ? 'ready_to_schedule'
       : hasDeliveryLocation
         ? 'need_time'
-      : ['stop_opt_out', 'wrong_number', 'not_interested', 'digital_only_no_postcard', 'send_card_or_flyer_media', 'asks_contact_info', 'confirms_identity', 'asks_for_references', 'refers_to_another_contact', 'lead_disposition_update'].includes(intent)
+      : ['stop_opt_out', 'wrong_number', 'not_interested', 'digital_only_no_postcard', 'send_card_or_flyer_media', 'asks_contact_info', 'asks_context', 'confirms_identity', 'asks_for_references', 'refers_to_another_contact', 'lead_disposition_update'].includes(intent)
         ? 'not_needed'
         : 'need_address'
 
@@ -650,6 +660,7 @@ async function refineWithOpenAi(input: {
               'Primary goal: answer the partner, then move toward the right next touchpoint: requested media/package, email forwarding info, delivery address/time, or meeting logistics.',
               'Use the partner first name once when it sounds natural, usually in the opening phrase. Do not force the name into every reply or repeat it more than once.',
               'If they ask for a card, flyer, photo, picture, or something to send clients, answer that directly before asking any postcard logistics question.',
+              'If they ask who this is, what this is about, or say they are missing part of the conversation, briefly identify Saturn Star Movers, restate the original partner outreach context, and recommend resending the prior note. Do not mark this as wrong number unless they explicitly say wrong number or not me.',
               'For in-person meetings, never imply the named sender will personally visit unless the thread says so. For postcard drop-offs, say you will make arrangements to drop it off.',
               'If they ask whether the named sender is coming personally, be transparent that the sender may not be the one stopping by but can coordinate someone local. Do not invent a specific rep name.',
               input.canSendPackageNow
@@ -728,6 +739,7 @@ export function partnershipDispositionFromSuggestion(result: PartnershipAssistan
     send_card_or_flyer_media: 'Send card/flyer media after approval and ask permission for the full digital package.',
     digital_only_no_postcard: 'Respect digital-only preference and send or request permission for package.',
     asks_contact_info: 'Answer contact info, then ask permission to send the digital package.',
+    asks_context: 'Resend the original outreach context before continuing the partner conversation.',
     confirms_identity: 'Confirm identity and continue package/email follow-up based on prior permission.',
     asks_for_references: 'Add verified reviews/references to package before sending.',
     refers_to_another_contact: 'Create or call secondary contact and link it back to this partner.',
@@ -754,6 +766,7 @@ export function partnershipDispositionFromSuggestion(result: PartnershipAssistan
     send_card_or_flyer_media: 'media_requested',
     digital_only_no_postcard: 'digital_only',
     asks_contact_info: 'asks_contact_info',
+    asks_context: 'asks_context',
     confirms_identity: 'identity_confirmation',
     asks_for_references: 'asks_references',
     refers_to_another_contact: 'secondary_contact_referral',

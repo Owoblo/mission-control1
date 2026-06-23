@@ -26,6 +26,20 @@ export const SATURN_BRANCH_PHONE_DIRECTORY = {
     trackingLabel: 'Essex / Windsor Area',
     trackingSource: 'direct_mail',
   },
+  // 226-887-0667 — dedicated partnership outreach/reply line
+  '+12268870667': {
+    branchLabel: 'Windsor Partnerships',
+    salesBranch: 'windsor',
+    trackingLabel: 'Windsor Partnership',
+    trackingSource: 'partnership_outreach',
+  },
+  // 226-605-5008 — second dedicated partnership outreach/reply line
+  '+12266055008': {
+    branchLabel: 'Windsor Partnerships 2',
+    salesBranch: 'windsor',
+    trackingLabel: 'Windsor Partnership 2',
+    trackingSource: 'partnership_outreach',
+  },
   // ── Guelph / KW ───────────────────────────────────────────────────────────
   // 226-242-3319 — Twilio locates as Woodstock, ON (London/KW border)
   // Use for Woodstock/Cambridge area coverage under waterloo branch

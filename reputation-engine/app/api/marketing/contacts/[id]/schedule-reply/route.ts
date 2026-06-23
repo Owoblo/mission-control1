@@ -4,7 +4,48 @@ import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { encodeSenderTemplateKey, isOptOutText } from '@/lib/server/partnership-sms'
 
 const PARTNERSHIP_PHONE = '+12268870667'
+const PARTNERSHIP_PHONES = ['+12268870667', '+12266055008']
 const MIN_SCHEDULE_DELAY_MS = 1000 * 60
+
+function normalizePhoneNumber(value: unknown) {
+  if (typeof value !== 'string') return ''
+  const digits = value.replace(/\D/g, '')
+  if (digits.length === 10) return `+1${digits}`
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`
+  return value.trim()
+}
+
+function normalizePartnershipPhone(value: unknown) {
+  const normalized = normalizePhoneNumber(value)
+  return PARTNERSHIP_PHONES.includes(normalized) ? normalized : ''
+}
+
+function metadataString(metadata: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = metadata[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return ''
+}
+
+function threadSenderFromTouches(touches: Array<Record<string, unknown>>) {
+  for (const touch of touches) {
+    const metadata = touch.metadata && typeof touch.metadata === 'object'
+      ? touch.metadata as Record<string, unknown>
+      : {}
+    const scheduled = metadata.scheduled_reply && typeof metadata.scheduled_reply === 'object'
+      ? metadata.scheduled_reply as Record<string, unknown>
+      : {}
+    const direction = String(touch.direction || '').toLowerCase()
+    const candidate = direction === 'inbound'
+      ? metadataString(metadata, ['to', 'To', 'to_number', 'toNumber'])
+      : metadataString(metadata, ['from', 'From', 'from_number', 'fromNumber']) ||
+        metadataString(scheduled, ['fromNumber', 'from_number', 'from'])
+    const normalized = normalizePartnershipPhone(candidate)
+    if (normalized) return normalized
+  }
+  return ''
+}
 
 export async function POST(
   request: Request,
@@ -54,8 +95,16 @@ export async function POST(
     return NextResponse.json({ error: 'Contact is opted out or closed' }, { status: 400 })
   }
 
+  const touchesRes = await fetch(
+    `${url}/rest/v1/market_touches?contact_id=eq.${encodeURIComponent(id)}&channel=eq.sms&select=id,direction,metadata,created_at&order=created_at.desc&limit=25`,
+    { headers, cache: 'no-store' }
+  )
+  const recentTouches = (touchesRes.ok ? await touchesRes.json() : []) as Array<Record<string, unknown>>
+
   const now = new Date().toISOString()
-  const fromNumber = (body.from_number || PARTNERSHIP_PHONE).trim()
+  const fromNumber = normalizePartnershipPhone(body.from_number) ||
+    threadSenderFromTouches(recentTouches) ||
+    PARTNERSHIP_PHONE
   const scheduledIso = scheduledAt.toISOString()
   const mediaNote = mediaUrls.length ? `\n[MMS: ${mediaUrls.join(', ')}]` : ''
 
