@@ -63,8 +63,10 @@ interface Contact {
   latest_touch_channel?: string | null
   latest_touch_direction?: string | null
   latest_touch_note?: string | null
+  latest_touch_metadata?: Record<string, unknown> | null
   latest_inbound_at?: string | null
   latest_inbound_note?: string | null
+  latest_inbound_metadata?: Record<string, unknown> | null
   outreach_tier?: number | null
   instantly_status?: string | null
   instantly_campaign_id?: string | null
@@ -2166,6 +2168,8 @@ function RepliesTab({ onSelectContact, onOpenThread }: {
 
 const PARTNERSHIP_FROM_NUMBER = '+12268870667'  // Primary Windsor dedicated outbound number
 const PARTNERSHIP_FROM_NUMBERS = ['+12268870667', '+12266055008']
+const TEMP_SALES_RECOVERY_NUMBER = '+12267732993'
+const PARTNERSHIP_REPLY_FROM_NUMBERS = [...PARTNERSHIP_FROM_NUMBERS, TEMP_SALES_RECOVERY_NUMBER]
 
 function normalizePhoneNumber(value: unknown) {
   if (typeof value !== 'string') return ''
@@ -2177,7 +2181,16 @@ function normalizePhoneNumber(value: unknown) {
 
 function normalizePartnershipFromNumber(value: unknown) {
   const normalized = normalizePhoneNumber(value)
-  return PARTNERSHIP_FROM_NUMBERS.includes(normalized) ? normalized : ''
+  return PARTNERSHIP_REPLY_FROM_NUMBERS.includes(normalized) ? normalized : ''
+}
+
+function displayReplyNumber(value: string) {
+  const normalized = normalizePhoneNumber(value)
+  const digits = normalized.replace(/\D/g, '')
+  if (digits.length === 11 && digits.startsWith('1')) {
+    return `+1 ${digits.slice(1, 4)}-${digits.slice(4, 7)}-${digits.slice(7)}`
+  }
+  return value
 }
 
 function metadataString(metadata: Record<string, unknown>, keys: string[]) {
@@ -2241,6 +2254,18 @@ function isVideoUrl(url: string) {
   return /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url)
 }
 
+function isTwilioApiUrl(url: string) {
+  try {
+    return new URL(url).hostname === 'api.twilio.com'
+  } catch {
+    return false
+  }
+}
+
+function mediaPlaybackUrl(url: string) {
+  return isTwilioApiUrl(url) ? `/api/marketing/twilio-media?url=${encodeURIComponent(url)}` : url
+}
+
 function isImageUrl(url: string) {
   return /\.(png|jpe?g|gif|webp|heic|heif)(\?|$)/i.test(url)
 }
@@ -2296,7 +2321,7 @@ function defaultScheduledReplyTime(suggestion?: PartnershipAiSuggestion | null) 
 }
 
 type InboxQuickAction = 'active_partner' | 'drop_cards' | 'meeting_requested' | 'needs_follow_up' | 'not_interested' | 'wrong_number'
-type InboxFilter = 'context' | 'needs_reply' | 'responded' | 'no_response' | 'promising' | 'package_sent' | 'postcard' | 'appointment' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'all'
+type InboxFilter = 'sales_line' | 'context' | 'needs_reply' | 'responded' | 'no_response' | 'promising' | 'package_sent' | 'postcard' | 'appointment' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'all'
 type InboxStatus = 'context' | 'needs_reply' | 'promising' | 'package_sent' | 'postcard' | 'appointment' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'review'
 
 const INBOX_QUICK_ACTIONS: Array<{ key: InboxQuickAction; label: string; tone: 'green' | 'blue' | 'amber' | 'slate' | 'red' }> = [
@@ -2362,6 +2387,7 @@ function quickActionClass(tone: 'green' | 'blue' | 'amber' | 'slate' | 'red', ac
 }
 
 const INBOX_FILTERS: Array<{ key: InboxFilter; label: string }> = [
+  { key: 'sales_line', label: 'Sales line' },
   { key: 'context', label: 'Context' },
   { key: 'needs_reply', label: 'Needs reply' },
   { key: 'responded', label: 'Responded' },
@@ -2469,6 +2495,28 @@ function isContextLossInbound(value?: string | null) {
   const text = cleanRichSmsFallback(stripTouchPrefix(String(value || ''))).toLowerCase()
   if (!text) return false
   return /\b(who is this|who'?s this|what is this|what'?s this|what is this for|what'?s this for|what is this about|what'?s this about|don'?t see (?:an |the )?earlier text|missing.*conversation|missing.*part|part of a conversation|not sure what this is|what conversation|remind me|sorry.*missing)\b/i.test(text)
+}
+
+function touchMetadataSender(metadata: Record<string, unknown> | null | undefined, direction?: string | null) {
+  if (!metadata) return ''
+  const scheduled = metadata.scheduled_reply && typeof metadata.scheduled_reply === 'object'
+    ? metadata.scheduled_reply as Record<string, unknown>
+    : {}
+  const candidate = direction === 'inbound'
+    ? metadataString(metadata, ['to', 'To', 'to_number', 'toNumber'])
+    : metadataString(metadata, ['from', 'From', 'from_number', 'fromNumber']) ||
+      metadataString(scheduled, ['fromNumber', 'from_number', 'from'])
+  return normalizePartnershipFromNumber(candidate)
+}
+
+function contactThreadFromNumber(contact: Contact) {
+  return touchMetadataSender(contact.latest_inbound_metadata, 'inbound') ||
+    touchMetadataSender(contact.latest_touch_metadata, contact.latest_touch_direction) ||
+    PARTNERSHIP_FROM_NUMBER
+}
+
+function isSalesLineThread(contact: Contact) {
+  return contactThreadFromNumber(contact) === TEMP_SALES_RECOVERY_NUMBER
 }
 
 function latestInboundNeedsReply(contact: Contact) {
@@ -2640,6 +2688,7 @@ function inboxUrgencyRank(contact: Contact) {
 function matchesInboxFilter(contact: Contact, filter: InboxFilter) {
   const status = getInboxStatus(contact)
   if (filter === 'all') return true
+  if (filter === 'sales_line') return isSalesLineThread(contact)
   if (filter === 'context') return status === 'context'
   if (filter === 'responded') return hasRepResponded(contact)
   if (filter === 'no_response') return hasNoPartnerResponse(contact)
@@ -2911,6 +2960,12 @@ function PhoneTab({
 
   const selected = inboxContacts.find(c => c.id === selectedId) ?? null
   const selectedFromQuery = searchParams.get('contact')
+  const selectedThreadFromNumber = selected
+    ? touches.length > 0
+      ? threadFromNumber(touches)
+      : contactThreadFromNumber(selected)
+    : PARTNERSHIP_FROM_NUMBER
+  const selectedUsingSalesLine = selectedThreadFromNumber === TEMP_SALES_RECOVERY_NUMBER
   const appointmentSuggestion = useMemo(() => {
     if (!selected) return null
     const threadContext = touches
@@ -3157,7 +3212,7 @@ function PhoneTab({
   async function handleSend() {
     if (!selected) return
     setSending(true)
-    const replyFromNumber = threadFromNumber(touches)
+    const replyFromNumber = selectedThreadFromNumber
     try {
       if (composeChannel === 'sms' && scheduleMode) {
         const res = await fetch(`/api/marketing/contacts/${selected.id}/schedule-reply`, {
@@ -3619,7 +3674,7 @@ function PhoneTab({
             <div>
               <div className="text-[22px] font-semibold tracking-tight text-[#111827] lg:text-xl">Partnership replies</div>
               <div className="text-xs font-medium text-slate-500">
-                {filterCounts.context} context · {filterCounts.needs_reply} need reply · {filterCounts.responded} responded · {filterCounts.no_response} no response · {filterCounts.postcard} postcards · {filterCounts.appointment} appointments
+                {filterCounts.sales_line} sales line · {filterCounts.context} context · {filterCounts.needs_reply} need reply · {filterCounts.responded} responded · {filterCounts.no_response} no response · {filterCounts.postcard} postcards · {filterCounts.appointment} appointments
               </div>
             </div>
             <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">{filterCounts.all}</span>
@@ -3721,6 +3776,11 @@ function PhoneTab({
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${inboxStatusClass(status)}`}>{inboxStatusLabel(status)}</span>
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${selectedId === c.id ? 'bg-white text-slate-600' : 'bg-slate-100 text-slate-500'}`}>{sourceBadge(c)}</span>
                   <StageBadge stage={c.normalized_stage} />
+                  {isSalesLineThread(c) && (
+                    <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                      sales line
+                    </span>
+                  )}
                   {c.instantly_status && <InstantlyBadge status={c.instantly_status} />}
                   {c.playbook?.intent && (
                     <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
@@ -3837,10 +3897,10 @@ function PhoneTab({
                       <div className="mt-2 grid gap-2">
                         {touchMedia.map(url => (
                           isVideoUrl(url) ? (
-                            <video key={url} src={url} controls className="max-h-64 rounded-[12px] bg-black" />
+                            <video key={url} src={mediaPlaybackUrl(url)} controls className="max-h-64 rounded-[12px] bg-black" />
                           ) : (
-                            <a key={url} href={url} target="_blank" rel="noreferrer">
-                              <img src={url} alt="" className="max-h-64 rounded-[12px] object-cover" />
+                            <a key={url} href={mediaPlaybackUrl(url)} target="_blank" rel="noreferrer">
+                              <img src={mediaPlaybackUrl(url)} alt="" className="max-h-64 rounded-[12px] object-cover" />
                             </a>
                           )
                         ))}
@@ -3917,6 +3977,20 @@ function PhoneTab({
               <button onClick={() => setComposeChannel('email')} className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-semibold transition lg:min-h-8 lg:text-xs ${composeChannel === 'email' ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
                 Email {!selected.email && <span className="ml-1 text-red-400">no email</span>}
               </button>
+              {composeChannel === 'sms' && (
+                <span
+                  className={`flex min-h-11 shrink-0 items-center rounded-full border px-3 text-sm font-semibold lg:min-h-8 lg:text-xs ${
+                    selectedUsingSalesLine
+                      ? 'border-amber-200 bg-amber-50 text-amber-800'
+                      : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                  }`}
+                  title={selectedUsingSalesLine
+                    ? 'Temporary recovery lane: replies in this thread go from the sales number.'
+                    : 'Replies in this thread go from the partnership number.'}
+                >
+                  From {selectedUsingSalesLine ? 'Sales line' : 'Partner line'} · {displayReplyNumber(selectedThreadFromNumber)}
+                </span>
+              )}
               <button
                 onClick={insertPartnerLink}
                 className="min-h-11 shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 lg:min-h-8 lg:text-xs"
@@ -3965,9 +4039,9 @@ function PhoneTab({
                     {isVideoUrl(url) ? (
                       <div className="flex h-full items-center justify-center text-xs font-semibold text-slate-500">Video</div>
                     ) : isImageUrl(url) ? (
-                      <img src={url} alt="" className="h-full w-full object-cover" />
+                      <img src={mediaPlaybackUrl(url)} alt="" className="h-full w-full object-cover" />
                     ) : (
-                      <a href={url} target="_blank" rel="noreferrer" className="flex h-full flex-col items-center justify-center px-1 text-center">
+                      <a href={mediaPlaybackUrl(url)} target="_blank" rel="noreferrer" className="flex h-full flex-col items-center justify-center px-1 text-center">
                         <span className="text-lg">📎</span>
                         <span className="mt-0.5 line-clamp-2 text-[9px] font-semibold leading-3 text-slate-500">{mediaFileName(url)}</span>
                       </a>

@@ -44,6 +44,7 @@ interface MarketTouch {
   notes: string | null
   created_by: string | null
   created_at: string
+  metadata: Record<string, unknown> | null
 }
 
 interface QueueItem {
@@ -88,7 +89,7 @@ export async function GET(request: Request) {
   const contactIds = contacts.map(contact => `"${contact.id}"`).join(',')
   const [touchRes, queueRes] = await Promise.all([
     fetch(
-      `${url}/rest/v1/market_touches?select=id,contact_id,channel,direction,notes,created_by,created_at&contact_id=in.(${contactIds})&order=created_at.desc`,
+      `${url}/rest/v1/market_touches?select=id,contact_id,channel,direction,notes,created_by,created_at,metadata&contact_id=in.(${contactIds})&order=created_at.desc`,
       { headers, cache: 'no-store' }
     ),
     fetch(
@@ -142,8 +143,10 @@ export async function GET(request: Request) {
       latest_touch_channel: latestTouch?.channel ?? null,
       latest_touch_direction: latestTouch?.direction ?? null,
       latest_touch_note: latestTouch?.notes ?? null,
+      latest_touch_metadata: latestTouch?.metadata ?? null,
       latest_inbound_at: latestInboundTouch?.created_at ?? null,
       latest_inbound_note: latestInboundTouch?.notes ?? null,
+      latest_inbound_metadata: latestInboundTouch?.metadata ?? null,
       needs_follow_up: needsFollowUp,
       has_reply: hasReply,
     }

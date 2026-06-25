@@ -5,6 +5,8 @@ import { encodeSenderTemplateKey, isOptOutText } from '@/lib/server/partnership-
 
 const PARTNERSHIP_PHONE = '+12268870667'
 const PARTNERSHIP_PHONES = ['+12268870667', '+12266055008']
+const TEMP_SALES_RECOVERY_PHONE = '+12267732993'
+const PARTNERSHIP_REPLY_PHONES = [...PARTNERSHIP_PHONES, TEMP_SALES_RECOVERY_PHONE]
 const MIN_SCHEDULE_DELAY_MS = 1000 * 60
 
 function normalizePhoneNumber(value: unknown) {
@@ -17,7 +19,7 @@ function normalizePhoneNumber(value: unknown) {
 
 function normalizePartnershipPhone(value: unknown) {
   const normalized = normalizePhoneNumber(value)
-  return PARTNERSHIP_PHONES.includes(normalized) ? normalized : ''
+  return PARTNERSHIP_REPLY_PHONES.includes(normalized) ? normalized : ''
 }
 
 function metadataString(metadata: Record<string, unknown>, keys: string[]) {
