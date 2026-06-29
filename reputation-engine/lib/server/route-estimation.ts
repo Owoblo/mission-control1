@@ -429,10 +429,10 @@ export async function estimateRouteContext(input: {
     throw new Error(`Could not locate: "${input.destination}"`)
   }
 
-	  const [originToDestination, returnToOrigin] = await Promise.all([
-	    getDrivingRoute(originGeo, destGeo),
-	    getDrivingRoute(destGeo, originGeo),
-	  ])
+  const [originToDestination, returnToOrigin] = await Promise.all([
+    getDrivingRoute(originGeo, destGeo),
+    getDrivingRoute(destGeo, yardGeo),
+  ])
 
 	  if (!originToDestination || !returnToOrigin) {
 	    throw new Error('Could not calculate driving route between these addresses')
@@ -456,22 +456,18 @@ export async function estimateRouteContext(input: {
   const billableDistanceKm =
     routeCategory === 'long-distance'
       ? originToDestination.distanceKm + returnToOrigin.distanceKm
-      : yardToOrigin.distanceKm + originToDestination.distanceKm
+      : yardToOrigin.distanceKm + originToDestination.distanceKm + returnToOrigin.distanceKm
 
   const operationalDistanceKm =
-    routeCategory === 'long-distance'
-      ? yardToOrigin.distanceKm + originToDestination.distanceKm + returnToOrigin.distanceKm
-      : yardToOrigin.distanceKm + originToDestination.distanceKm
+    yardToOrigin.distanceKm + originToDestination.distanceKm + returnToOrigin.distanceKm
 
   const billableDriveHours =
     routeCategory === 'long-distance'
       ? originToDestination.driveHours + returnToOrigin.driveHours
-      : yardToOrigin.driveHours + originToDestination.driveHours
+      : yardToOrigin.driveHours + originToDestination.driveHours + returnToOrigin.driveHours
 
   const operationalDriveHours =
-    routeCategory === 'long-distance'
-      ? yardToOrigin.driveHours + originToDestination.driveHours + returnToOrigin.driveHours
-      : yardToOrigin.driveHours + originToDestination.driveHours
+    yardToOrigin.driveHours + originToDestination.driveHours + returnToOrigin.driveHours
 
   return {
     pricingStatus: 'ready',

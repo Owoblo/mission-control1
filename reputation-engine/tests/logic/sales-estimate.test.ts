@@ -165,6 +165,24 @@ test('estimateLeadQuote keeps standard moving jobs at a two-mover minimum', () =
   assert.match(estimate.lineItems[0].details || '', /2 professional movers/)
 })
 
+test('estimateLeadQuote includes return-to-yard travel when local route context omits a billable total', () => {
+  const estimate = estimateLeadQuote(makeLead({ totalCubicFeet: 80, totalWeightLbs: 410 }), {
+    quoteType: 'standard',
+    routeContext: {
+      routeCategory: 'medium',
+      pricingStatus: 'ready',
+      yardToOriginHours: 0.25,
+      originToDestinationHours: 1.5,
+      returnTripHours: 1.5,
+      yardToOriginDistanceKm: 4,
+      originToDestinationDistanceKm: 119,
+      returnTripDistanceKm: 103,
+    },
+  })
+
+  assert.equal(estimate.pricingBreakdown.driveHours, 3.25)
+})
+
 test('estimateLeadQuote applies commercial direct costs and markup to margin math', () => {
   const estimate = estimateLeadQuote(
     makeLead({

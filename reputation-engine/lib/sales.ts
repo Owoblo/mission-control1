@@ -1184,7 +1184,7 @@ function estimateSingleLeadQuote(
           ? originToDestHours + returnTripHours
           : isLaborOnly
             ? 0.5
-            : yardToOriginHours + originToDestHours)
+            : yardToOriginHours + originToDestHours + returnTripHours)
   )
   const operationalDriveHours = roundQuarterHour(
     routeContext?.operationalDriveHours ??
@@ -1194,7 +1194,7 @@ function estimateSingleLeadQuote(
           ? yardToOriginHours + originToDestHours + returnTripHours
           : isLaborOnly
             ? 0.5
-            : yardToOriginHours + originToDestHours)
+            : yardToOriginHours + originToDestHours + returnTripHours)
   )
   const billableDistanceKm = routeContext?.billableDistanceKm ?? overrides?.distanceKm
   const operationalDistanceKm = routeContext?.operationalDistanceKm ?? billableDistanceKm
