@@ -13,6 +13,13 @@ import {
   uid,
 } from '@/lib/sales'
 import { getListingPropertyContext, shouldPreferListingSnapshot } from '@/lib/listing'
+import {
+  getAutomationMissingFields,
+  getExactAddressMissingFields,
+  hasCompleteMoveAddress,
+  hasCompleteRouteAddresses,
+  hasStreetNumber,
+} from '@/lib/sales-automation-qualification'
 import { logEvent } from '@/lib/server/analytics'
 import { analyzeListingPhotos } from '@/lib/server/inventory-enrichment'
 import { estimateRouteContext } from '@/lib/server/route-estimation'
@@ -546,10 +553,6 @@ function detectTemporaryPause(message?: string) {
   return /\b(leave (me )?a message|leave voicemail|leave a voicemail|i'?m at work|at work right now|busy right now|i'?m busy|in a meeting|can'?t talk|cannot talk|can'?t answer|call (me )?later|after work|text me instead|driving right now|on shift)\b/i.test(message || '')
 }
 
-function hasStreetNumber(value?: string) {
-  return /\d{1,6}/.test(value || '')
-}
-
 function combineRouteAddress(address?: string, city?: string) {
   return [address, city].filter(Boolean).join(', ').trim()
 }
@@ -903,7 +906,9 @@ function buildEstimateMissingReasons(lead: CRMLead) {
   if (!lead.email && !lead.phone) reasons.push('customer_email')
   if (!lead.moveDate && !lead.moveDateFlexible) reasons.push('move_date')
   if (!(lead.originAddress || lead.originCity)) reasons.push('origin')
+  else if (!hasCompleteMoveAddress(lead.originAddress)) reasons.push('origin_address')
   if (!(lead.destAddress || lead.destCity)) reasons.push('destination')
+  else if (!hasCompleteMoveAddress(lead.destAddress)) reasons.push('destination_address')
   if (!lead.totalCubicFeet && !(lead.inventory || []).length) reasons.push('inventory')
   return reasons
 }
@@ -1230,28 +1235,8 @@ async function maybeCreateAutomatedQuote(lead: CRMLead, preferredChannel?: Conve
   }
 }
 
-function getMissingFields(lead: CRMLead) {
-  const missing: string[] = []
-  const moveDateKnown = !!lead.moveDate || !!lead.moveDateFlexible
-  const routeKnown = !!(lead.originCity || lead.originAddress) && !!(lead.destCity || lead.destAddress)
-  const inventoryKnown = !!lead.totalItems || !!lead.totalCubicFeet || !!(lead.inventory || []).length || !!lead.surveyCompletedAt
-  const accessKnown =
-    !!lead.originAccess ||
-    !!lead.destAccess ||
-    !!lead.jobFactors?.originFloors ||
-    !!lead.jobFactors?.destFloors ||
-    !!lead.jobFactors?.originHasElevator ||
-    !!lead.jobFactors?.destHasElevator
-
-  if (!lead.moveDate && !lead.moveDateFlexible) missing.push('move_date')
-  if (!lead.originCity && !lead.originAddress) missing.push('origin')
-  if (!lead.destCity && !lead.destAddress) missing.push('destination')
-  if (!lead.totalItems && !lead.totalCubicFeet && !(lead.inventory || []).length && !lead.surveyCompletedAt) missing.push('inventory')
-  if (!lead.email && moveDateKnown && routeKnown && inventoryKnown) missing.push('customer_email')
-  if (!accessKnown) {
-    missing.push('access')
-  }
-  return missing
+export function getMissingFields(lead: CRMLead) {
+  return getAutomationMissingFields(lead)
 }
 
 function buildQualificationState(lead: CRMLead, overrides: Partial<LeadQualificationState> = {}): LeadQualificationState {
@@ -1261,7 +1246,7 @@ function buildQualificationState(lead: CRMLead, overrides: Partial<LeadQualifica
       : getMissingFields(lead)
   return {
     moveDateKnown: !!lead.moveDate || !!lead.moveDateFlexible,
-    routeKnown: !!(lead.originCity || lead.originAddress) && !!(lead.destCity || lead.destAddress),
+    routeKnown: hasCompleteRouteAddresses(lead),
     inventoryKnown: !!lead.totalItems || !!lead.totalCubicFeet || !!(lead.inventory || []).length || !!lead.surveyCompletedAt,
     accessKnown:
       !!lead.originAccess ||
@@ -1279,7 +1264,10 @@ function buildQualificationState(lead: CRMLead, overrides: Partial<LeadQualifica
       overrides.nextBestAction ||
       (missingFields[0] === 'move_date'
         ? 'collect_move_date'
-        : missingFields[0] === 'origin' || missingFields[0] === 'destination'
+        : missingFields[0] === 'origin' ||
+            missingFields[0] === 'destination' ||
+            missingFields[0] === 'origin_address' ||
+            missingFields[0] === 'destination_address'
           ? 'collect_route'
           : missingFields[0] === 'inventory'
             ? 'collect_inventory'
@@ -1648,6 +1636,7 @@ SPECIAL CASES
 - If LEAD STAGE is booked or PAYMENT STATUS is deposit_received/paid_in_full, treat the message as post-booking support. Acknowledge the booked move and answer in an operations tone, not a sales tone.
 - If the customer says they booked another mover, moved on, or no longer need us, do not sell. Ask one short feedback question so Saturn Star can learn if it was price, timing, trust, service, or another reason.
 - If inventory already exists, confirm it rather than asking from scratch.
+- Treat city-only route details as incomplete. A usable moving route needs the exact pickup address and exact dropoff address. If either exact address is missing, ask for the missing address before asking about inventory, parking, access, or email.
 - If email is missing but move is qualified AND lead has no phone, ask for email so the estimate can be sent. If they have a phone, the SMS estimate was already sent or will be sent.
 - If the person explicitly wants a human or phone call, set shouldHandoff=true.
 - If the person opts out, set doNotContact=true and leave reply empty.
@@ -1664,7 +1653,7 @@ Return JSON only:
   "nextBestAction": "short action label",
   "capturedSummary": "one sentence summary",
   "intent": "lead_response|quote_followup|quote_viewed_followup|quote_expiry_followup|survey_followup|consultation_reminder|move_reminder|stale_reactivation|handoff|opt_out",
-  "missingFields": ["move_date","origin","destination","inventory"]
+  "missingFields": ["move_date","origin","destination","origin_address","destination_address","inventory"]
 }`
 
   const userPrompt = [
@@ -1676,8 +1665,13 @@ Return JSON only:
     input.lead.bookedAt ? `BOOKED AT: ${input.lead.bookedAt}` : '',
     input.lead.moveType ? `MOVE TYPE: ${input.lead.moveType}` : '',
     input.lead.moveDate ? `MOVE DATE: ${input.lead.moveDate}` : '',
-    input.lead.originCity || input.lead.originAddress ? `ORIGIN: ${input.lead.originCity || input.lead.originAddress}` : '',
-    input.lead.destCity || input.lead.destAddress ? `DESTINATION: ${input.lead.destCity || input.lead.destAddress}` : '',
+    input.lead.originAddress || input.lead.originCity ? `ORIGIN: ${input.lead.originAddress || input.lead.originCity}` : '',
+    input.lead.destAddress || input.lead.destCity ? `DESTINATION: ${input.lead.destAddress || input.lead.destCity}` : '',
+    `EXACT ADDRESS STATUS: ${JSON.stringify({
+      originAddressComplete: hasCompleteMoveAddress(input.lead.originAddress),
+      destinationAddressComplete: hasCompleteMoveAddress(input.lead.destAddress),
+      missingExactAddresses: getExactAddressMissingFields(input.lead),
+    })}`,
     `INVENTORY SNAPSHOT: ${inventorySummary}`,
     `ACCESS SNAPSHOT: ${accessSummary}`,
     `AUTO ESTIMATE READINESS: ${JSON.stringify({
@@ -1948,8 +1942,41 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
   if (missing[0] === 'move_date') {
     reply =
       channel === 'sms'
-        ? `Hi ${firstName}, thanks for reaching out to Saturn Star Moving. What date are you aiming for, and where are you moving from and to?`
-        : `Hi ${firstName},\n\nThanks for reaching out to Saturn Star Moving. What move date are you aiming for, and what city are you moving from and to?\n\nJohn\nSaturn Star Moving`
+        ? `Hi ${firstName}, thanks for reaching out to Saturn Star Moving. What move date are you aiming for, and what are the exact pickup and dropoff addresses?`
+        : `Hi ${firstName},\n\nThanks for reaching out to Saturn Star Moving. What move date are you aiming for, and what are the exact pickup and dropoff addresses?\n\nJohn\nSaturn Star Moving`
+  } else if (missing[0] === 'origin_address' && missing[1] === 'destination_address') {
+    const routeHint = [lead.originCity, lead.destCity].filter(Boolean).join(' to ')
+    reply =
+      channel === 'sms'
+        ? `Hi ${firstName}, I have${routeHint ? ` ${routeHint}` : ' the cities'} on file. What are the exact pickup and dropoff addresses so we can price the route properly?`
+        : `Hi ${firstName},\n\nI have${routeHint ? ` ${routeHint}` : ' the cities'} on file. What are the exact pickup and dropoff addresses so we can price the route properly?\n\nJohn\nSaturn Star Moving`
+  } else if (missing[0] === 'origin_address') {
+    const destinationHint = lead.destAddress || lead.destCity
+    reply =
+      channel === 'sms'
+        ? `Hi ${firstName}, I have the destination${destinationHint ? ` as ${destinationHint}` : ''}. What is the exact pickup address?`
+        : `Hi ${firstName},\n\nI have the destination${destinationHint ? ` as ${destinationHint}` : ''}. What is the exact pickup address?\n\nJohn\nSaturn Star Moving`
+  } else if (missing[0] === 'destination_address') {
+    const originHint = lead.originAddress || lead.originCity
+    reply =
+      channel === 'sms'
+        ? `Hi ${firstName}, I have the pickup${originHint ? ` as ${originHint}` : ''}. What is the exact dropoff address?`
+        : `Hi ${firstName},\n\nI have the pickup${originHint ? ` as ${originHint}` : ''}. What is the exact dropoff address?\n\nJohn\nSaturn Star Moving`
+  } else if (missing[0] === 'origin' && missing[1] === 'destination') {
+    reply =
+      channel === 'sms'
+        ? `Hi ${firstName}, thanks for reaching out. What are the exact pickup and dropoff addresses for the move?`
+        : `Hi ${firstName},\n\nThanks for reaching out. What are the exact pickup and dropoff addresses for the move?\n\nJohn\nSaturn Star Moving`
+  } else if (missing[0] === 'origin') {
+    reply =
+      channel === 'sms'
+        ? `Hi ${firstName}, what is the exact pickup address for the move?`
+        : `Hi ${firstName},\n\nWhat is the exact pickup address for the move?\n\nJohn\nSaturn Star Moving`
+  } else if (missing[0] === 'destination') {
+    reply =
+      channel === 'sms'
+        ? `Hi ${firstName}, what is the exact dropoff address for the move?`
+        : `Hi ${firstName},\n\nWhat is the exact dropoff address for the move?\n\nJohn\nSaturn Star Moving`
   } else if (missing[0] === 'inventory') {
     reply =
       channel === 'sms'
