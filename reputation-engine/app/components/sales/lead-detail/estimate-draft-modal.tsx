@@ -14,6 +14,7 @@ import { getTvBoxMaterialPresetForSize } from '@/lib/packing-materials'
 import { buildStarterInventoryPlan } from '@/lib/starter-inventory'
 import { deriveAccessComplexityAssessment } from '@/lib/access-intelligence'
 import { deriveMoveLogisticsPlan, type LogisticsOption } from '@/lib/move-logistics'
+import { prepareUploadFile } from '@/lib/browser-media'
 import { PhotoLightbox } from '@/app/components/sales/photo-lightbox'
 import { DEFAULT_ROOM_OPTIONS } from './helpers'
 import type { EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, LeadMediaAsset, PricingBreakdown, QuoteLineItem, QuoteLeg, QuoteLegType } from '@/lib/types'
@@ -531,11 +532,30 @@ export function EstimateDraftModal({
       form.set('notes', `Conjoint upload — ${partyLabel}`)
       form.set('partyLabel', partyLabel)
       form.set('partyOwner', owner)
-      files.forEach(f => form.append('files', f))
-      const res = await fetch(`/api/sales/leads/${lead.id}/media-upload`, { method: 'POST', body: form, credentials: 'include' })
-      const data = await res.json() as { ok?: boolean; uploadedCount?: number; analyzedImageCount?: number; detectedItems?: InventoryItem[]; lead?: CRMLead; analyzeWarning?: string; error?: string }
-      if (!res.ok || data.error) throw new Error(data.error || 'Upload failed')
-      const detectedItems = (data.detectedItems || []).map(item => ({
+      const allDetectedItems: InventoryItem[] = []
+      let latestLead: CRMLead | undefined
+      let uploadedCount = 0
+      let analyzedImageCount = 0
+      const analyzeWarnings: string[] = []
+      for (const file of files) {
+        const preparedFile = await prepareUploadFile(file)
+        const perFileForm = new FormData()
+        perFileForm.set('purpose', String(form.get('purpose') || 'customer_media'))
+        perFileForm.set('room', String(form.get('room') || partyLabel))
+        perFileForm.set('notes', String(form.get('notes') || `Conjoint upload — ${partyLabel}`))
+        perFileForm.set('partyLabel', String(form.get('partyLabel') || partyLabel))
+        perFileForm.set('partyOwner', String(form.get('partyOwner') || owner))
+        perFileForm.append('files', preparedFile)
+        const res = await fetch(`/api/sales/leads/${lead.id}/media-upload`, { method: 'POST', body: perFileForm, credentials: 'include' })
+        const data = await res.json().catch(() => ({ error: `Upload failed (${res.status})` })) as { ok?: boolean; uploadedCount?: number; analyzedImageCount?: number; detectedItems?: InventoryItem[]; lead?: CRMLead; analyzeWarning?: string; error?: string }
+        if (!res.ok || data.error) throw new Error(data.error || 'Upload failed')
+        uploadedCount += data.uploadedCount || 0
+        analyzedImageCount += data.analyzedImageCount || 0
+        if (data.lead) latestLead = data.lead
+        if (data.analyzeWarning) analyzeWarnings.push(data.analyzeWarning)
+        allDetectedItems.push(...(data.detectedItems || []))
+      }
+      const detectedItems = allDetectedItems.map(item => ({
         ...item,
         id: item.id || `conjoint-${owner}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         owner: owner,
@@ -560,12 +580,12 @@ export function EstimateDraftModal({
           party: partyLabel,
           owner,
           detected: detectedItems.length,
-          returnedLeadInventory: data.lead?.inventory?.length || 0,
+          returnedLeadInventory: latestLead?.inventory?.length || 0,
         })
       }
-      if (data.lead) {
+      if (latestLead) {
         if (detectedItems.length > 0) onAddInventoryItems(detectedItems)
-        const leadInventory = Array.isArray(data.lead.inventory) ? data.lead.inventory : []
+        const leadInventory = Array.isArray(latestLead.inventory) ? latestLead.inventory : []
         const detectedIds = new Set(detectedItems.map(item => item.id).filter(Boolean))
         const detectedNames = new Set(detectedItems.map(item => String(item.name || item.item || '').trim().toLowerCase()).filter(Boolean))
         const ownedLeadInventory = leadInventory.map(item => {
@@ -596,7 +616,7 @@ export function EstimateDraftModal({
         ]
         const mergedMetrics = deriveInventoryMetrics(mergedInventory)
         onLeadMediaSynced?.({
-          ...data.lead,
+          ...latestLead,
           inventory: mergedInventory,
           totalItems: mergedMetrics.totalItems,
           totalCubicFeet: mergedMetrics.totalCubicFeet,
@@ -611,13 +631,14 @@ export function EstimateDraftModal({
         const syncedKeys = new Set(detectedItems.map(item => conjointInventoryKey(item)))
         setConjointPendingScanItems(current => current.filter(item => !syncedKeys.has(conjointInventoryKey(item))))
       }
-      const detectedCount = data.detectedItems?.length || 0
+      const detectedCount = detectedItems.length
       const scanText = detectedCount > 0
         ? ` Scan added ${detectedCount} inventory item${detectedCount === 1 ? '' : 's'} to ${partyLabel}.`
-        : data.analyzedImageCount
+        : analyzedImageCount
           ? ' Photos saved; no inventory items were detected automatically.'
           : ''
-      setConjointUploadNotice(`Uploaded ${data.uploadedCount ?? files.length} file${(data.uploadedCount ?? files.length) !== 1 ? 's' : ''} for ${partyLabel}.${scanText}${data.analyzeWarning ? ` ${data.analyzeWarning}` : ''}`)
+      const finalUploadedCount = uploadedCount || files.length
+      setConjointUploadNotice(`Uploaded ${finalUploadedCount} file${finalUploadedCount !== 1 ? 's' : ''} for ${partyLabel}.${scanText}${analyzeWarnings.length ? ` ${analyzeWarnings.join(' ')}` : ''}`)
     } catch (err) {
       setConjointUploadNotice((err as Error).message)
     } finally {

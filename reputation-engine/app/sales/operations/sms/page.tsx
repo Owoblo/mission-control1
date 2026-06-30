@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { prepareUploadFile } from '@/lib/browser-media'
 
 const OPS_NUMBER = '+12267746581'
 const SUPA_URL = 'https://idbyrtwdeeruiutoukct.supabase.co'
@@ -137,8 +138,9 @@ export default function OpsSmsPage() {
 
   async function uploadMedia(file: File): Promise<string | null> {
     try {
+      const preparedFile = await prepareUploadFile(file)
       const fd = new FormData()
-      fd.append('file', file)
+      fd.append('file', preparedFile)
       const res = await fetch('/api/sales/operations/upload-media', { method: 'POST', body: fd, credentials: 'include' })
       if (!res.ok) return null
       const data = (await res.json()) as { url?: string }

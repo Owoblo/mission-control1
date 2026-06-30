@@ -169,6 +169,15 @@ function isTwilioTransportUnavailable(error: unknown) {
     message.includes('no transport available to send or receive messages')
 }
 
+function isTwilioAccessTokenExpired(error: unknown) {
+  const code = getTwilioErrorCode(error)
+  const message = getTwilioErrorMessage(error).toLowerCase()
+  return code === 20104 ||
+    message.includes('accesstokenexpired') ||
+    (message.includes('20104') && message.includes('access token')) ||
+    message.includes('the access token provided to the twilio api has expired')
+}
+
 function getDialerStateStorageKey(userId?: string | null) {
   return `dialer_state:${userId || 'anonymous'}`
 }
@@ -879,6 +888,18 @@ export function FloatingDialer() {
         (code ? `Twilio error ${code}` : null) ||
         String(twilioError) ||
         'Dialer error'
+      if (isTwilioAccessTokenExpired(twilioError)) {
+        logCallEvent('token_refresh_start', {
+          errorCode: code || null,
+          errorMessage: msg,
+          extra: { reason: 'device_access_token_expired' },
+        })
+        console.warn('[Dialer] Twilio access token expired; refreshing device token.')
+        setPreCallWarning('Browser voice session expired. Refreshing dialer connection...')
+        setError(null)
+        void refreshToken('device_access_token_expired')
+        return
+      }
       if (isTwilioTransportUnavailable(twilioError)) {
         logCallEvent('call_error', {
           errorCode: code || null,
@@ -1724,6 +1745,20 @@ export function FloatingDialer() {
     }
 
     function onUnhandledRejection(event: PromiseRejectionEvent) {
+      if (isTwilioAccessTokenExpired(event.reason)) {
+        event.preventDefault()
+        const code = getTwilioErrorCode(event.reason)
+        const msg = getTwilioErrorMessage(event.reason) || 'Twilio access token expired'
+        logCallEvent('token_refresh_start', {
+          errorCode: code || null,
+          errorMessage: msg,
+          extra: { reason: 'unhandled_access_token_expired' },
+        })
+        setPreCallWarning('Browser voice session expired. Refreshing dialer connection...')
+        setError(null)
+        void refreshToken('unhandled_access_token_expired')
+        return
+      }
       if (!isTwilioTransportUnavailable(event.reason)) return
       event.preventDefault()
       const code = getTwilioErrorCode(event.reason)
@@ -1742,12 +1777,29 @@ export function FloatingDialer() {
       pushPresence(false, 'ready')
     }
 
+    function onWindowError(event: ErrorEvent) {
+      const error = event.error || event.message
+      if (!isTwilioAccessTokenExpired(error)) return
+      event.preventDefault()
+      const code = getTwilioErrorCode(error)
+      const msg = getTwilioErrorMessage(error) || 'Twilio access token expired'
+      logCallEvent('token_refresh_start', {
+        errorCode: code || null,
+        errorMessage: msg,
+        extra: { reason: 'window_access_token_expired' },
+      })
+      setPreCallWarning('Browser voice session expired. Refreshing dialer connection...')
+      setError(null)
+      void refreshToken('window_access_token_expired')
+    }
+
     window.addEventListener('crm:open-dialer', handleOpenDialer)
     window.addEventListener('beforeunload', onBeforeUnload)
     window.addEventListener('pagehide', onPageHide)
     window.addEventListener('offline', onOffline)
     window.addEventListener('online', onOnline)
     window.addEventListener('unhandledrejection', onUnhandledRejection)
+    window.addEventListener('error', onWindowError)
     navigator.mediaDevices?.addEventListener?.('devicechange', onDeviceChange)
     navigator.connection?.addEventListener?.('change', onConnectionChange)
 
@@ -1758,6 +1810,7 @@ export function FloatingDialer() {
       window.removeEventListener('offline', onOffline)
       window.removeEventListener('online', onOnline)
       window.removeEventListener('unhandledrejection', onUnhandledRejection)
+      window.removeEventListener('error', onWindowError)
       navigator.mediaDevices?.removeEventListener?.('devicechange', onDeviceChange)
       navigator.connection?.removeEventListener?.('change', onConnectionChange)
       if (tokenRefreshTimerRef.current) clearTimeout(tokenRefreshTimerRef.current)

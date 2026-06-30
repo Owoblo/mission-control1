@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { useSearchParams, useRouter } from 'next/navigation'
 import { PARTNERSHIP_STAGE_META } from '@/lib/marketing'
 import { sendSalesMessage } from '@/lib/sales-api'
+import { prepareUploadFile } from '@/lib/browser-media'
 import { PARTNER_CATEGORIES, CATEGORY_LIST, SERVICE_AREAS, suggestBatchName, getCategoryMeta } from '@/lib/partner-categories'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -3298,8 +3299,9 @@ function PhoneTab({
 
   async function uploadMedia(file: File): Promise<string | null> {
     try {
+      const preparedFile = await prepareUploadFile(file)
       const fd = new FormData()
-      fd.append('file', file)
+      fd.append('file', preparedFile)
       const res = await fetch('/api/sales/operations/upload-media', { method: 'POST', body: fd, credentials: 'include' })
       if (!res.ok) return null
       const data = await res.json() as { url?: string }

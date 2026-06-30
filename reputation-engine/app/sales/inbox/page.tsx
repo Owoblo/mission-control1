@@ -18,6 +18,7 @@ import {
 } from '@/lib/inbound-inbox'
 import { getSaturnBranchLabel, getSaturnBranchNumberFromRawData, getSaturnTrackingLabel } from '@/lib/sales-phones'
 import { claimInboundLead, fetchInboundLeads, markInboxRead, markInboundLeadDisposition, markInboundLeadHandled, restoreInboundLead, sendSalesMessage } from '@/lib/sales-api'
+import { prepareUploadFile } from '@/lib/browser-media'
 import { displayEmailSubject, replyEmailSubject } from '@/lib/email-display'
 import type { CRMEmail, InboundClosedFilter, InboundInboxPayload, InboundLead, InboundLeadFocusFilter } from '@/lib/types'
 
@@ -1047,8 +1048,9 @@ function SalesInboxPageInner() {
 
   async function uploadSmsMedia(file: File): Promise<string | null> {
     try {
+      const preparedFile = await prepareUploadFile(file)
       const fd = new FormData()
-      fd.append('file', file)
+      fd.append('file', preparedFile)
       const res = await fetch('/api/sales/operations/upload-media', { method: 'POST', body: fd, credentials: 'include' })
       if (!res.ok) return null
       const data = (await res.json()) as { url?: string }

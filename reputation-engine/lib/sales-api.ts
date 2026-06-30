@@ -13,6 +13,7 @@ import type {
 } from './types'
 import type { UserRole } from './auth'
 import type { SalesLeadSearchSnapshot } from './server/sales-repository'
+import { prepareUploadFile } from './browser-media'
 
 export type DashboardDrilldownMetric =
   | 'active_leads'
@@ -178,19 +179,39 @@ export async function uploadLeadMedia(
   id: string,
   payload: { room: string; files: File[]; notes?: string; purpose?: 'customer_media' | 'receipt' }
 ): Promise<{ ok: boolean; uploadedCount: number; analyzedImageCount: number; scanBatchCount?: number; skippedVideoCount: number; detectedItems: InventoryItem[]; lead?: CRMLead; analyzeWarning?: string }> {
-  const form = new FormData()
-  form.append('room', payload.room)
-  if (payload.notes) form.append('notes', payload.notes)
-  if (payload.purpose) form.append('purpose', payload.purpose)
-  payload.files.forEach(file => form.append('files', file))
+  const summary: { ok: boolean; uploadedCount: number; analyzedImageCount: number; scanBatchCount?: number; skippedVideoCount: number; detectedItems: InventoryItem[]; lead?: CRMLead; analyzeWarning?: string } = {
+    ok: true,
+    uploadedCount: 0,
+    analyzedImageCount: 0,
+    scanBatchCount: 0,
+    skippedVideoCount: 0,
+    detectedItems: [],
+  }
 
-  const response = await fetch(`/api/sales/leads/${id}/media-upload`, {
-    method: 'POST',
-    credentials: 'include',
-    body: form,
-  })
+  for (const file of payload.files) {
+    const preparedFile = await prepareUploadFile(file)
+    const form = new FormData()
+    form.append('room', payload.room)
+    if (payload.notes) form.append('notes', payload.notes)
+    if (payload.purpose) form.append('purpose', payload.purpose)
+    form.append('files', preparedFile)
 
-  return readJson(response)
+    const response = await fetch(`/api/sales/leads/${id}/media-upload`, {
+      method: 'POST',
+      credentials: 'include',
+      body: form,
+    })
+    const data = await readJson<typeof summary>(response)
+    summary.uploadedCount += data.uploadedCount || 0
+    summary.analyzedImageCount += data.analyzedImageCount || 0
+    summary.scanBatchCount = (summary.scanBatchCount || 0) + (data.scanBatchCount || 0)
+    summary.skippedVideoCount += data.skippedVideoCount || 0
+    summary.detectedItems.push(...(data.detectedItems || []))
+    summary.lead = data.lead || summary.lead
+    summary.analyzeWarning = [summary.analyzeWarning, data.analyzeWarning].filter(Boolean).join(' ')
+  }
+
+  return summary
 }
 
 export async function handoffRealtorOpportunityLead(
