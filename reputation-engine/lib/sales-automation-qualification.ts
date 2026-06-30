@@ -22,11 +22,25 @@ export function hasCompleteRouteAddresses(lead: Pick<CRMLead, 'originAddress' | 
   return getExactAddressMissingFields(lead).length === 0
 }
 
+export function hasVerifiedInventory(lead: Pick<CRMLead, 'inventoryVerification' | 'surveyCompletedAt'>) {
+  return !!lead.surveyCompletedAt || !!lead.inventoryVerification?.completedAt
+}
+
+export function hasMlsDraftInventoryNeedingConfirmation(
+  lead: Pick<CRMLead, 'inventory' | 'inventoryVerification' | 'lastAutoEnrichmentAt' | 'listingScanSnapshot' | 'surveyCompletedAt'>
+) {
+  const hasInventory = !!(lead.inventory || []).filter(item => item.included !== false).length
+  const hasListingDraft = !!lead.listingScanSnapshot || !!lead.lastAutoEnrichmentAt
+  return hasInventory && hasListingDraft && !hasVerifiedInventory(lead)
+}
+
 export function getAutomationMissingFields(lead: CRMLead) {
   const missing: string[] = []
   const moveDateKnown = !!lead.moveDate || !!lead.moveDateFlexible
   const routeKnown = hasCompleteRouteAddresses(lead)
-  const inventoryKnown = !!lead.totalItems || !!lead.totalCubicFeet || !!(lead.inventory || []).length || !!lead.surveyCompletedAt
+  const inventoryKnown =
+    (!!lead.totalItems || !!lead.totalCubicFeet || !!(lead.inventory || []).length || !!lead.surveyCompletedAt) &&
+    !hasMlsDraftInventoryNeedingConfirmation(lead)
   const accessKnown =
     !!lead.originAccess ||
     !!lead.destAccess ||
@@ -40,7 +54,8 @@ export function getAutomationMissingFields(lead: CRMLead) {
   else if (!hasCompleteMoveAddress(lead.originAddress)) missing.push('origin_address')
   if (!lead.destCity && !lead.destAddress) missing.push('destination')
   else if (!hasCompleteMoveAddress(lead.destAddress)) missing.push('destination_address')
-  if (!lead.totalItems && !lead.totalCubicFeet && !(lead.inventory || []).length && !lead.surveyCompletedAt) missing.push('inventory')
+  if (hasMlsDraftInventoryNeedingConfirmation(lead)) missing.push('inventory_confirmation')
+  else if (!lead.totalItems && !lead.totalCubicFeet && !(lead.inventory || []).length && !lead.surveyCompletedAt) missing.push('inventory')
   if (!lead.email && moveDateKnown && routeKnown && inventoryKnown) missing.push('customer_email')
   if (!accessKnown) missing.push('access')
   return missing
@@ -58,7 +73,9 @@ export function buildLeadQualificationState(
   return {
     moveDateKnown: !!lead.moveDate || !!lead.moveDateFlexible,
     routeKnown: hasCompleteRouteAddresses(lead),
-    inventoryKnown: !!lead.totalItems || !!lead.totalCubicFeet || !!(lead.inventory || []).length || !!lead.surveyCompletedAt,
+    inventoryKnown:
+      (!!lead.totalItems || !!lead.totalCubicFeet || !!(lead.inventory || []).length || !!lead.surveyCompletedAt) &&
+      !hasMlsDraftInventoryNeedingConfirmation(lead),
     accessKnown:
       !!lead.originAccess ||
       !!lead.destAccess ||
@@ -82,6 +99,8 @@ export function buildLeadQualificationState(
           ? 'collect_route'
           : missingFields[0] === 'inventory'
             ? 'collect_inventory'
+            : missingFields[0] === 'inventory_confirmation'
+              ? 'confirm_inventory'
             : missingFields[0] === 'access'
               ? 'collect_access'
               : 'hand_off_for_quote'),

@@ -45,3 +45,24 @@ test('automation accepts street-level pickup and dropoff addresses', () => {
   assert.equal(missing.includes('origin_address'), false)
   assert.equal(missing.includes('destination_address'), false)
 })
+
+test('automation requires confirmation before treating MLS inventory as ready', () => {
+  const missing = getAutomationMissingFields(lead({
+    moveDate: '2026-08-22',
+    originAddress: '123 King St N',
+    originCity: 'Waterloo',
+    destAddress: '456 Ouellette Ave',
+    destCity: 'Windsor',
+    listingScanSnapshot: {
+      inventory: [{ name: 'Sofa', qty: 1 }],
+      totalItems: 1,
+      totalCubicFeet: 80,
+      source: 'mls_photo_ai',
+    },
+    lastAutoEnrichmentAt: '2026-06-30T04:00:00.000Z',
+    inventory: [{ name: 'Sofa', qty: 1 }],
+  }))
+
+  assert.equal(missing.includes('inventory_confirmation'), true)
+  assert.equal(missing.includes('inventory'), false)
+})

@@ -14,10 +14,18 @@ import {
 } from '@/lib/sales'
 import { getListingPropertyContext, shouldPreferListingSnapshot } from '@/lib/listing'
 import {
+  buildInventorySmsReference,
+  buildMlsInventoryConfirmationSms,
+  buildVerifiedInventorySms,
+  mergeInventorySmsUpdate,
+  type InventorySmsUpdate,
+} from '@/lib/sales-automation-inventory-sms'
+import {
   getAutomationMissingFields,
   getExactAddressMissingFields,
   hasCompleteMoveAddress,
   hasCompleteRouteAddresses,
+  hasMlsDraftInventoryNeedingConfirmation,
   hasStreetNumber,
 } from '@/lib/sales-automation-qualification'
 import { logEvent } from '@/lib/server/analytics'
@@ -909,6 +917,7 @@ function buildEstimateMissingReasons(lead: CRMLead) {
   else if (!hasCompleteMoveAddress(lead.originAddress)) reasons.push('origin_address')
   if (!(lead.destAddress || lead.destCity)) reasons.push('destination')
   else if (!hasCompleteMoveAddress(lead.destAddress)) reasons.push('destination_address')
+  if (hasMlsDraftInventoryNeedingConfirmation(lead)) reasons.push('inventory_confirmation')
   if (!lead.totalCubicFeet && !(lead.inventory || []).length) reasons.push('inventory')
   return reasons
 }
@@ -1637,6 +1646,7 @@ SPECIAL CASES
 - If the customer says they booked another mover, moved on, or no longer need us, do not sell. Ask one short feedback question so Saturn Star can learn if it was price, timing, trust, service, or another reason.
 - If inventory already exists, confirm it rather than asking from scratch.
 - Treat city-only route details as incomplete. A usable moving route needs the exact pickup address and exact dropoff address. If either exact address is missing, ask for the missing address before asking about inventory, parking, access, or email.
+- If inventory came from listing photos or MLS, do not treat it as final until the customer confirms what is going, what is staying, boxes, and hidden garage/basement/storage items.
 - If email is missing but move is qualified AND lead has no phone, ask for email so the estimate can be sent. If they have a phone, the SMS estimate was already sent or will be sent.
 - If the person explicitly wants a human or phone call, set shouldHandoff=true.
 - If the person opts out, set doNotContact=true and leave reply empty.
@@ -1653,7 +1663,7 @@ Return JSON only:
   "nextBestAction": "short action label",
   "capturedSummary": "one sentence summary",
   "intent": "lead_response|quote_followup|quote_viewed_followup|quote_expiry_followup|survey_followup|consultation_reminder|move_reminder|stale_reactivation|handoff|opt_out",
-  "missingFields": ["move_date","origin","destination","origin_address","destination_address","inventory"]
+  "missingFields": ["move_date","origin","destination","origin_address","destination_address","inventory","inventory_confirmation"]
 }`
 
   const userPrompt = [
@@ -1977,11 +1987,16 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
       channel === 'sms'
         ? `Hi ${firstName}, what is the exact dropoff address for the move?`
         : `Hi ${firstName},\n\nWhat is the exact dropoff address for the move?\n\nJohn\nSaturn Star Moving`
+  } else if (missing[0] === 'inventory_confirmation') {
+    reply =
+      channel === 'sms'
+        ? buildMlsInventoryConfirmationSms(lead)
+        : `Hi ${firstName},\n\nI pulled a starter inventory from the listing photos. Please reply with anything staying behind, missing items, and boxes/garage/basement/storage items we cannot see. If it looks right, reply YES.\n\nJohn\nSaturn Star Moving`
   } else if (missing[0] === 'inventory') {
     reply =
       channel === 'sms'
-        ? `Hi ${firstName}, thanks for reaching out. Is this closer to a studio, 2-bedroom, or full house move? That'll help me line up the right crew and quote.`
-        : `Hi ${firstName},\n\nThanks for reaching out. Is this closer to a studio, 2-bedroom, or full house move? That'll help us line up the right crew and quote.\n\nJohn\nSaturn Star Moving`
+        ? `Hi ${firstName}, I couldn't pull a clear listing inventory for that address. Please text the main items room by room, plus boxes, garage, basement, storage, and any specialty items.`
+        : `Hi ${firstName},\n\nI couldn't pull a clear listing inventory for that address. Please send the main items room by room, plus boxes, garage, basement, storage, and any specialty items.\n\nJohn\nSaturn Star Moving`
   } else if (missing[0] === 'customer_email') {
     reply =
       channel === 'sms'
@@ -2136,6 +2151,189 @@ async function handoffLeadForManualReview(lead: CRMLead, reason: string, summary
   }).catch(() => {})
 
   return handedLead
+}
+
+function looksLikeInventoryConfirmationReply(message?: string) {
+  if (!message) return false
+  return /\b(yes|correct|looks right|that'?s right|all good|remove|staying|not going|leave behind|leaving behind|add|also|boxes|box|garage|basement|storage|shed|only|except|actually|missing)\b/i.test(message)
+}
+
+async function parseInventorySmsUpdate(lead: CRMLead, inboundMessage: string): Promise<InventorySmsUpdate | null> {
+  const apiKey = readEnv('OPENAI_API_KEY')
+  if (!apiKey || !inboundMessage.trim()) return null
+
+  const inventoryReference = buildInventorySmsReference(lead)
+  if (!inventoryReference.length) return null
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: OPENAI_MODEL,
+      response_format: { type: 'json_object' },
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You convert a moving customer SMS reply into inventory verification JSON. Return JSON only. ' +
+            'Use itemChoices only for items from the provided inventoryReference. ' +
+            'Set decision "not_going" for staying behind/removing/leaving items, "going" for explicitly confirmed items, and "unsure" when unclear. ' +
+            'Use addedItems for boxes, garage, basement, storage, shed, or any missing item the customer adds. ' +
+            'If the customer says yes/all correct/looks right with no edits, set complete=true and mark all inventoryReference items as going. ' +
+            'If they provide edits and imply the corrected list is now complete, set complete=true; otherwise false. ' +
+            'Never invent furniture that is not in the SMS or inventoryReference.',
+        },
+        {
+          role: 'user',
+          content: JSON.stringify({
+            inventoryReference,
+            customerMessage: inboundMessage,
+            returnShape: {
+              itemChoices: [{ itemKey: 'string', decision: 'going|not_going|unsure', note: 'optional' }],
+              addedItems: [{ room: 'Garage|Basement|Storage / Other|Living Room|Bedroom 1|Other', name: 'string', qty: 1, note: 'optional' }],
+              addressConfirmed: true,
+              addressMismatchNote: 'optional',
+              complete: false,
+              summary: 'one sentence',
+            },
+          }),
+        },
+      ],
+      max_tokens: 900,
+    }),
+  }).catch(() => null)
+
+  if (!response?.ok) return null
+  const payload = (await response.json().catch(() => null)) as { choices?: Array<{ message?: { content?: string } }> } | null
+  const content = payload?.choices?.[0]?.message?.content || ''
+  if (!content) return null
+
+  try {
+    return JSON.parse(content) as InventorySmsUpdate
+  } catch {
+    return null
+  }
+}
+
+async function maybeHandleMlsInventorySms(input: {
+  job: CRMAutomationJob
+  lead: CRMLead
+  contact: { channel: ConversationChannel; to: string }
+  existingThread: CRMConversationThread | null
+  inboundMessage: string
+}) {
+  if (input.job.kind !== 'lead_response') return null
+  if (input.contact.channel !== 'sms') return null
+  if (!hasMlsDraftInventoryNeedingConfirmation(input.lead)) return null
+
+  const nowIso = new Date().toISOString()
+  const verificationStarted = !!input.lead.inventoryVerification?.startedAt
+
+  if (verificationStarted && looksLikeInventoryConfirmationReply(input.inboundMessage)) {
+    const parsed = await parseInventorySmsUpdate(input.lead, input.inboundMessage).catch(() => null)
+    if (parsed) {
+      const updatedDraft = mergeInventorySmsUpdate(input.lead, parsed, nowIso)
+      const savedLead = await saveSalesLead({
+        ...updatedDraft,
+        qualificationState: buildQualificationState(updatedDraft, {
+          ...withoutMissingFields(updatedDraft.qualificationState),
+          capturedSummary: parsed.summary || `Customer updated MLS inventory by SMS: ${input.inboundMessage}`,
+          lastIntent: 'inventory_sms_update',
+          nextBestAction: parsed.complete ? 'collect_access' : 'confirm_inventory',
+        }),
+        notes: [
+          updatedDraft.notes,
+          `Inventory SMS update ${nowIso}: ${parsed.summary || input.inboundMessage}`,
+        ].filter(Boolean).join('\n\n'),
+      })
+
+      await saveFollowUpLog({
+        id: uid('fu'),
+        leadId: savedLead.id,
+        type: 'note',
+        date: nowIso,
+        createdAt: nowIso,
+        notes: `Automation updated inventory from SMS reply: ${parsed.summary || input.inboundMessage}`,
+      }).catch(() => {})
+
+      const message = parsed.complete
+        ? `${buildVerifiedInventorySms(savedLead)} Also, are there stairs, elevators, or tight parking at either address?`
+        : buildVerifiedInventorySms(savedLead)
+
+      const sendResult = await sendSalesMessage({
+        actor: 'automation',
+        channel: 'sms',
+        to: input.contact.to,
+        body: message,
+        leadId: savedLead.id,
+        notes: `Automation confirmed revised MLS inventory by SMS to ${input.contact.to}`,
+      })
+
+      const thread = await saveAutomationThreadAfterOutbound({
+        lead: sendResult.lead || savedLead,
+        existingThread: input.existingThread,
+        channel: input.contact.channel,
+        contactValue: input.contact.to,
+        preview: message,
+        jobKind: input.job.kind,
+        intent: 'inventory_sms_update',
+        inboundMessage: input.inboundMessage,
+      })
+
+      return { status: 'completed' as const, sent: true, lead: sendResult.lead || savedLead, thread, message }
+    }
+  }
+
+  if (verificationStarted) return null
+
+  const draftLead = await saveSalesLead({
+    ...input.lead,
+    inventoryVerification: {
+      ...(input.lead.inventoryVerification || {}),
+      startedAt: input.lead.inventoryVerification?.startedAt || nowIso,
+      lastUpdatedAt: input.lead.inventoryVerification?.lastUpdatedAt || nowIso,
+    },
+    qualificationState: buildQualificationState(input.lead, {
+      ...withoutMissingFields(input.lead.qualificationState),
+      capturedSummary: 'Automation sent MLS draft inventory by SMS for customer confirmation.',
+      lastIntent: 'inventory_sms_confirmation_requested',
+      nextBestAction: 'confirm_inventory',
+    }),
+  })
+  const message = buildMlsInventoryConfirmationSms(draftLead)
+  const sendResult = await sendSalesMessage({
+    actor: 'automation',
+    channel: 'sms',
+    to: input.contact.to,
+    body: message,
+    leadId: draftLead.id,
+    notes: `Automation sent MLS draft inventory confirmation SMS to ${input.contact.to}`,
+  })
+
+  await saveFollowUpLog({
+    id: uid('fu'),
+    leadId: draftLead.id,
+    type: 'note',
+    date: nowIso,
+    createdAt: nowIso,
+    notes: 'Automation sent room-by-room MLS inventory draft by SMS for customer confirmation.',
+  }).catch(() => {})
+
+  const thread = await saveAutomationThreadAfterOutbound({
+    lead: sendResult.lead || draftLead,
+    existingThread: input.existingThread,
+    channel: input.contact.channel,
+    contactValue: input.contact.to,
+    preview: message,
+    jobKind: input.job.kind,
+    intent: 'inventory_sms_confirmation_requested',
+    inboundMessage: input.inboundMessage,
+  })
+
+  return { status: 'completed' as const, sent: true, lead: sendResult.lead || draftLead, thread, message }
 }
 
 async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
@@ -2459,6 +2657,15 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
       return { status: 'completed' as const, sent: true, lead: sendResult?.lead || syncedLead, thread, quoteId: acceptedQuote.id, message: 'Customer accepted. Deposit link sent.' }
     }
   }
+
+  const inventorySmsResult = await maybeHandleMlsInventorySms({
+    job,
+    lead,
+    contact,
+    existingThread,
+    inboundMessage,
+  }).catch(() => null)
+  if (inventorySmsResult) return inventorySmsResult
 
   const quoteResult: AutomatedQuoteResult =
     job.kind === 'lead_response'
