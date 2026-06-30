@@ -144,6 +144,31 @@ function getNetworkType() {
   return navigator.connection?.effectiveType || navigator.connection?.type || 'unknown'
 }
 
+function getTwilioErrorCode(error: unknown) {
+  const code = (error as { code?: unknown })?.code
+  if (typeof code === 'number') return code
+  if (typeof code === 'string') {
+    const parsed = Number(code)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
+}
+
+function getTwilioErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message
+  const message = (error as { message?: unknown })?.message
+  if (typeof message === 'string') return message
+  return String(error || '')
+}
+
+function isTwilioTransportUnavailable(error: unknown) {
+  const code = getTwilioErrorCode(error)
+  const message = getTwilioErrorMessage(error).toLowerCase()
+  return code === 31009 ||
+    (message.includes('31009') && message.includes('transport')) ||
+    message.includes('no transport available to send or receive messages')
+}
+
 function getDialerStateStorageKey(userId?: string | null) {
   return `dialer_state:${userId || 'anonymous'}`
 }
@@ -848,12 +873,34 @@ export function FloatingDialer() {
     })
 
     device.on('error', (twilioError: any) => {
-      const code = twilioError?.code
+      const code = getTwilioErrorCode(twilioError)
       const msg =
         twilioError?.message ||
         (code ? `Twilio error ${code}` : null) ||
         String(twilioError) ||
         'Dialer error'
+      if (isTwilioTransportUnavailable(twilioError)) {
+        logCallEvent('call_error', {
+          errorCode: code || null,
+          errorMessage: msg,
+          failureReason: 'transport_unavailable',
+          audioConnected: false,
+          extra: { networkType: getNetworkType(), online: navigator.onLine },
+        })
+        console.warn('[Dialer] Twilio transport unavailable:', twilioError)
+        activeCallRef.current = null
+        incomingCallRef.current = null
+        audioConnectedRef.current = false
+        setDialerStatus('idle')
+        setErrorCode(code || null)
+        setError('Browser voice connection is unavailable on this network/device. Try again, or use Groundwire/mobile.')
+        setPreCallWarning('Browser voice temporarily lost transport. Groundwire/mobile remains available.')
+        pushPresence(false, 'ready')
+        if (navigator.onLine) {
+          window.setTimeout(() => void retryConnection().catch(() => {}), 1500)
+        }
+        return
+      }
       const failureReason = code === 53405 ? 'failed_media_connection' : 'device_error'
       logCallEvent('call_error', {
         errorCode: code || null,
@@ -1322,8 +1369,40 @@ export function FloatingDialer() {
       })
 
       call.on('error', (err: Error) => {
-        const code = (err as any)?.code as number | undefined
+        const code = getTwilioErrorCode(err) || undefined
         const msg = err.message || ''
+        if (isTwilioTransportUnavailable(err)) {
+          logCallEvent('call_error', {
+            callDirection: 'outbound',
+            phoneNumber: e164,
+            errorCode: code || null,
+            errorMessage: msg,
+            failureReason: 'transport_unavailable',
+            audioConnected: false,
+            extra: { networkType: getNetworkType(), online: navigator.onLine },
+          })
+          clearStuckTimer()
+          activeCallRef.current = null
+          callStartRef.current = null
+          callSidRef.current = undefined
+          finalizedCallRef.current = false
+          setMuted(false)
+          setCallNotes('')
+          setShowTransfer(false)
+          clearWarmTransferState()
+          audioConnectedRef.current = false
+          activeLocalCallIdRef.current = undefined
+          activeCallDirectionRef.current = null
+          setErrorCode(code || null)
+          setDialerStatus('idle')
+          setError('Browser voice connection is unavailable on this network/device. Try again, or use Groundwire/mobile.')
+          setPreCallWarning('Browser voice temporarily lost transport. Groundwire/mobile remains available.')
+          pushPresence(false, 'ready')
+          if (navigator.onLine) {
+            window.setTimeout(() => void retryConnection().catch(() => {}), 1500)
+          }
+          return
+        }
         const failureReason = code === 53405 || msg.includes('53405') ? 'failed_media_connection' : 'call_error'
         logCallEvent('call_error', {
           callDirection: 'outbound',
@@ -1644,11 +1723,31 @@ export function FloatingDialer() {
       pushPresence()
     }
 
+    function onUnhandledRejection(event: PromiseRejectionEvent) {
+      if (!isTwilioTransportUnavailable(event.reason)) return
+      event.preventDefault()
+      const code = getTwilioErrorCode(event.reason)
+      const msg = getTwilioErrorMessage(event.reason) || 'Twilio transport unavailable'
+      logCallEvent('call_error', {
+        errorCode: code || null,
+        errorMessage: msg,
+        failureReason: 'transport_unavailable',
+        audioConnected: false,
+        extra: { source: 'unhandledrejection', networkType: getNetworkType(), online: navigator.onLine },
+      })
+      setDialerStatus('idle')
+      setErrorCode(code || null)
+      setError('Browser voice connection is unavailable on this network/device. Try again, or use Groundwire/mobile.')
+      setPreCallWarning('Browser voice temporarily lost transport. Groundwire/mobile remains available.')
+      pushPresence(false, 'ready')
+    }
+
     window.addEventListener('crm:open-dialer', handleOpenDialer)
     window.addEventListener('beforeunload', onBeforeUnload)
     window.addEventListener('pagehide', onPageHide)
     window.addEventListener('offline', onOffline)
     window.addEventListener('online', onOnline)
+    window.addEventListener('unhandledrejection', onUnhandledRejection)
     navigator.mediaDevices?.addEventListener?.('devicechange', onDeviceChange)
     navigator.connection?.addEventListener?.('change', onConnectionChange)
 
@@ -1658,6 +1757,7 @@ export function FloatingDialer() {
       window.removeEventListener('pagehide', onPageHide)
       window.removeEventListener('offline', onOffline)
       window.removeEventListener('online', onOnline)
+      window.removeEventListener('unhandledrejection', onUnhandledRejection)
       navigator.mediaDevices?.removeEventListener?.('devicechange', onDeviceChange)
       navigator.connection?.removeEventListener?.('change', onConnectionChange)
       if (tokenRefreshTimerRef.current) clearTimeout(tokenRefreshTimerRef.current)

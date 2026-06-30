@@ -13,6 +13,15 @@ type ComposeMessage = {
   created_at?: string
 }
 
+function isRetryableOpenAiNetworkError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || '')
+  const cause = (error as { cause?: { code?: string; message?: string } })?.cause
+  return message.includes('terminated') ||
+    message.includes('ECONNRESET') ||
+    cause?.code === 'ECONNRESET' ||
+    cause?.message?.includes('ECONNRESET')
+}
+
 export async function POST(request: Request) {
   const session = await getSessionUser()
   if (!canAccessSalesWorkspace(session)) {
@@ -108,34 +117,50 @@ Return JSON with exactly:
   "subject": "required for email, omit for SMS"
 }`
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      response_format: { type: 'json_object' },
-      temperature: 0.4,
-      max_tokens: 600,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-    }),
-    signal: AbortSignal.timeout(25000),
-  })
+  let response: Response
+  try {
+    response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        response_format: { type: 'json_object' },
+        temperature: 0.4,
+        max_tokens: 600,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+      }),
+      signal: AbortSignal.timeout(25000),
+    })
+  } catch (error) {
+    const message = isRetryableOpenAiNetworkError(error)
+      ? 'Smart compose connection reset. Please try again.'
+      : 'Smart compose could not reach OpenAI. Please try again.'
+    return NextResponse.json({ error: message, retryable: true }, { status: 502 })
+  }
 
   if (!response.ok) {
     const detail = await response.text().catch(() => '')
-    return NextResponse.json({ error: `Smart compose failed: ${detail.slice(0, 200)}` }, { status: 500 })
+    return NextResponse.json({ error: `Smart compose failed: ${detail.slice(0, 200)}` }, { status: 502 })
   }
 
-  const data = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>
+  let content = '{}'
+  try {
+    const data = (await response.json()) as {
+      choices?: Array<{ message?: { content?: string } }>
+    }
+    content = data.choices?.[0]?.message?.content || '{}'
+  } catch (error) {
+    const message = isRetryableOpenAiNetworkError(error)
+      ? 'Smart compose connection reset. Please try again.'
+      : 'Smart compose returned an unreadable response. Please try again.'
+    return NextResponse.json({ error: message, retryable: true }, { status: 502 })
   }
-  const content = data.choices?.[0]?.message?.content || '{}'
 
   try {
     const parsed = JSON.parse(content) as { draft?: string; subject?: string }
