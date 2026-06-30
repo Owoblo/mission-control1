@@ -625,12 +625,20 @@ function ChannelIcon({ channel, direction }: { channel: string; direction?: stri
 
 // ─── Dialer hook ──────────────────────────────────────────────────────────────
 
-type DialStatus = 'idle' | 'loading' | 'ready' | 'connecting' | 'connected'
+type DialStatus = 'idle' | 'loading' | 'ready' | 'connecting' | 'ringing' | 'connected'
+type TwilioVoiceCall = {
+  accept?: () => void
+  reject?: () => void
+  disconnect?: () => void
+  on: (event: string, cb: () => void) => void
+  parameters?: Record<string, string>
+}
 
 function useDialer() {
   const [status, setStatus] = useState<DialStatus>('idle')
   const deviceRef = useRef<unknown>(null)
   const callRef = useRef<unknown>(null)
+  const [incomingFrom, setIncomingFrom] = useState<string | null>(null)
 
   async function ensureReady() {
     if (deviceRef.current) return true
@@ -646,7 +654,22 @@ function useDialer() {
     if (!res.ok) { setStatus('idle'); return false }
     const { token } = await res.json() as { token: string }
     const TwilioSDK = (window as unknown as Record<string, unknown>).Twilio as { Device: new (token: string) => unknown }
-    deviceRef.current = new TwilioSDK.Device(token)
+    const device = new TwilioSDK.Device(token) as {
+      on?: (event: string, cb: (call: TwilioVoiceCall) => void) => void
+      register?: () => Promise<void>
+    }
+    device.on?.('incoming', call => {
+      callRef.current = call
+      setIncomingFrom(call.parameters?.From || 'Incoming partnership call')
+      setStatus('ringing')
+      call.on('accept', () => { setIncomingFrom(null); setStatus('connected') })
+      call.on('disconnect', () => { setIncomingFrom(null); setStatus('ready'); callRef.current = null })
+      call.on('cancel', () => { setIncomingFrom(null); setStatus('ready'); callRef.current = null })
+      call.on('reject', () => { setIncomingFrom(null); setStatus('ready'); callRef.current = null })
+      call.on('error', () => { setIncomingFrom(null); setStatus('ready'); callRef.current = null })
+    })
+    await device.register?.()
+    deviceRef.current = device
     setStatus('ready')
     return true
   }
@@ -656,7 +679,7 @@ function useDialer() {
     if (!ready || !deviceRef.current) return
     setStatus('connecting')
     const device = deviceRef.current as { connect: (opts?: unknown) => Promise<unknown> }
-    const conn = await device.connect({ params: { To: phoneNumber } } as unknown) as { on: (event: string, cb: () => void) => void; disconnect?: () => void }
+    const conn = await device.connect({ params: { To: phoneNumber } } as unknown) as TwilioVoiceCall
     callRef.current = conn
     conn.on('accept', () => setStatus('connected'))
     conn.on('disconnect', () => { setStatus('ready'); callRef.current = null })
@@ -668,7 +691,20 @@ function useDialer() {
     conn?.disconnect?.()
   }
 
-  return { status, call, hangup }
+  function acceptIncoming() {
+    const conn = callRef.current as TwilioVoiceCall | null
+    conn?.accept?.()
+  }
+
+  function rejectIncoming() {
+    const conn = callRef.current as TwilioVoiceCall | null
+    conn?.reject?.()
+    setIncomingFrom(null)
+    setStatus('ready')
+    callRef.current = null
+  }
+
+  return { status, incomingFrom, call, hangup, acceptIncoming, rejectIncoming, ensureReady }
 }
 
 // ─── Appointment Modal ────────────────────────────────────────────────────────
@@ -3072,6 +3108,12 @@ function PhoneTab({
   useEffect(() => loadReplyContacts(), [loadReplyContacts])
 
   useEffect(() => {
+    void dialer.ensureReady()
+    // Register the partnership browser dialer once when the inbox mounts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
     if (selectedFromQuery && inboxContacts.some(c => c.id === selectedFromQuery)) {
       setSelectedId(curr => curr === selectedFromQuery ? curr : selectedFromQuery)
     } else if (!selectedId && sorted[0]) {
@@ -3625,6 +3667,16 @@ function PhoneTab({
   return (
     <div className="flex h-[calc(100dvh-5.5rem)] min-h-0 overflow-hidden bg-white md:h-[calc(100dvh-7rem)] md:min-h-[680px] md:rounded-[16px] md:border md:border-slate-200 lg:h-[calc(100vh-7rem)]">
       {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-[14px] bg-[#1a2744] px-5 py-3 text-sm font-medium text-white shadow-xl">{toast}</div>}
+      {dialer.status === 'ringing' && (
+        <div className="fixed left-1/2 top-6 z-[80] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-[16px] border border-emerald-200 bg-white p-4 shadow-2xl">
+          <div className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Incoming partnership call</div>
+          <div className="mt-1 truncate text-sm font-semibold text-[#1a2744]">{dialer.incomingFrom || 'Unknown caller'}</div>
+          <div className="mt-3 flex gap-2">
+            <button onClick={dialer.acceptIncoming} className="min-h-10 flex-1 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white">Accept</button>
+            <button onClick={dialer.rejectIncoming} className="min-h-10 flex-1 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600">Decline</button>
+          </div>
+        </div>
+      )}
       {sheetUpdateOpen && selected && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
           <div className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-[20px] border border-slate-200 bg-white p-5 shadow-xl">
@@ -5174,6 +5226,12 @@ function QueueTab({ contacts, batches, onSelect, onScheduleCampaign }: {
     void dialer.call(c.phone)
   }
 
+  useEffect(() => {
+    void dialer.ensureReady()
+    // Register the partnership browser dialer once when the queue mounts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const batchMeta = useMemo(() => {
     const sortedBatches = [...batches].sort((a, b) => a.created_at.localeCompare(b.created_at))
     return new Map(sortedBatches.map((batch, index) => [
@@ -5213,6 +5271,20 @@ function QueueTab({ contacts, batches, onSelect, onScheduleCampaign }: {
 
   return (
     <div className="space-y-6">
+      {dialer.status === 'ringing' && (
+        <div className="rounded-[16px] border border-emerald-200 bg-emerald-50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Incoming partnership call</div>
+              <div className="mt-1 text-sm font-semibold text-[#1a2744]">{dialer.incomingFrom || 'Unknown caller'}</div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={dialer.acceptIncoming} className="min-h-10 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white">Accept</button>
+              <button onClick={dialer.rejectIncoming} className="min-h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600">Decline</button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>

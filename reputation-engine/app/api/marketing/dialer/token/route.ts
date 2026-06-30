@@ -31,7 +31,7 @@ async function buildVoiceToken(
     grants: {
       identity,
       voice: {
-        incoming: { allow: false },
+        incoming: { allow: true },
         outgoing: { application_sid: twimlAppSid },
       },
     },

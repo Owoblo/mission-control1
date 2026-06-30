@@ -48,6 +48,8 @@ function LoginForm() {
         window.location.href = '/crew/calendar'
       } else if (role === 'operations_lead') {
         window.location.href = '/sales/operations'
+      } else if (role === 'partnership_manager') {
+        window.location.href = '/marketing/partners?tab=phone'
       } else {
         window.location.href = '/sales'
       }

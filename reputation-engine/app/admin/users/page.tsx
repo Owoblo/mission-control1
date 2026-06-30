@@ -23,6 +23,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   owner: 'Owner',
   manager: 'Manager',
   sales_rep: 'Sales Rep',
+  partnership_manager: 'Partnership Manager',
   operations_lead: 'Operations Lead',
   crew: 'Crew',
 }
@@ -31,6 +32,7 @@ const ROLE_COLORS: Record<UserRole, string> = {
   owner: 'bg-[#1a2744] text-white',
   manager: 'bg-sky-100 text-sky-800',
   sales_rep: 'bg-emerald-100 text-emerald-800',
+  partnership_manager: 'bg-teal-100 text-teal-800',
   operations_lead: 'bg-orange-100 text-orange-800',
   crew: 'bg-amber-100 text-amber-800',
 }
@@ -39,6 +41,7 @@ const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   owner: 'Full access — CRM, operations, financials, settings',
   manager: 'CRM + operations, assign crew, no financials',
   sales_rep: 'Pipeline, leads, dialer, quotes only',
+  partnership_manager: 'Partnership CRM, partner SMS, partner dialer, tasks, and appointments only',
   operations_lead: 'Operations calendar only — sees booked jobs, assigns crew for their branch',
   crew: 'Crew calendar — sees their assigned jobs only',
 }
@@ -250,6 +253,7 @@ export default function AdminUsersPage() {
                   onChange={e => setForm(f => ({ ...f, role: e.target.value as UserRole }))}
                 >
                   <option value="sales_rep">Sales Rep — CRM + dialer</option>
+                  <option value="partnership_manager">Partnership Manager — partner CRM only</option>
                   <option value="crew">Crew — Job calendar only</option>
                   <option value="operations_lead">Operations Lead — Jobs calendar, crew assignment</option>
                   <option value="manager">Manager — CRM + operations</option>

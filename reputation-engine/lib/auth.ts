@@ -4,7 +4,7 @@ const SESSION_COOKIE = 'mc_session'
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7
 const SESSION_REFRESH_WINDOW_MS = 1000 * 60 * 60 * 24
 
-export type UserRole = 'owner' | 'manager' | 'sales_rep' | 'operations_lead' | 'crew'
+export type UserRole = 'owner' | 'manager' | 'sales_rep' | 'operations_lead' | 'crew' | 'partnership_manager'
 
 export interface SessionPayload {
   exp: number

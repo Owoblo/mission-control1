@@ -33,6 +33,8 @@ const NAV_ICONS: Record<string, React.ReactNode> = {
   Partnerships: <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M7 10l2 2 4-4"/><path d="M3 10a7 7 0 1014 0A7 7 0 003 10z"/></svg>,
 }
 
+const SALES_ROLES = ['owner', 'manager', 'sales_rep']
+
 const BASE_NAV = [
   { href: '/sales', label: 'Dashboard', match: (p: string) => p === '/sales', roles: ['owner', 'manager', 'sales_rep'] },
   { href: '/sales/follow-up', label: 'Follow-Up', match: (p: string) => p.startsWith('/sales/follow-up'), roles: ['owner', 'manager', 'sales_rep'] },
@@ -49,7 +51,7 @@ const BASE_NAV = [
   { href: '/sales/reps', label: 'Reps', match: (p: string) => p.startsWith('/sales/reps'), roles: ['owner', 'manager'] },
   { href: '/sales/settings', label: 'Settings', match: (p: string) => p.startsWith('/sales/settings'), roles: ['owner'] },
   { href: '/admin/users', label: 'Team', match: (p: string) => p.startsWith('/admin'), roles: ['owner'] },
-  { href: '/marketing', label: 'Partnerships', match: (p: string) => p.startsWith('/marketing'), roles: ['owner', 'manager'] },
+  { href: '/marketing', label: 'Partnerships', match: (p: string) => p.startsWith('/marketing'), roles: ['owner', 'manager', 'partnership_manager'] },
 ]
 
 const TYPE_ICON: Record<string, string> = {
@@ -109,6 +111,8 @@ export function SalesHeader() {
   const router = useRouter()
   const user = useCurrentUser()
   const role = user?.role ?? 'owner'
+  const canUseSalesActions = SALES_ROLES.includes(role)
+  const homeHref = role === 'partnership_manager' ? '/marketing/partners?tab=phone' : role === 'crew' ? '/crew/calendar' : role === 'operations_lead' ? '/sales/operations' : '/sales'
   const [tab, setTab] = useState<string | null | undefined>(undefined)
 
   useEffect(() => {
@@ -197,7 +201,7 @@ export function SalesHeader() {
   useEffect(() => {
     if (!searchFocused && query.trim().length === 0) return
     if (leadsLoaded) return
-    if (role === 'operations_lead' || role === 'crew') return
+    if (!canUseSalesActions) return
     let cancelled = false
     fetchSalesLeadSearchIndex()
       .then(leads => {
@@ -209,7 +213,7 @@ export function SalesHeader() {
     return () => {
       cancelled = true
     }
-  }, [leadsLoaded, query, role, searchFocused])
+  }, [canUseSalesActions, leadsLoaded, query, searchFocused])
 
   // Close search dropdown on outside click
   useEffect(() => {
@@ -373,7 +377,7 @@ export function SalesHeader() {
 
           {/* ── Brand strip — slim full-width horizontal ───────────────── */}
           <div className={`hidden lg:flex items-center border-b border-[var(--app-line)] ${sidebarCollapsed ? 'h-14 justify-center px-0' : 'h-14 gap-2.5 px-4'}`}>
-            <Link href="/sales" className={`flex min-w-0 items-center ${sidebarCollapsed ? 'justify-center' : 'gap-2.5 flex-1 min-w-0'}`}>
+            <Link href={homeHref} className={`flex min-w-0 items-center ${sidebarCollapsed ? 'justify-center' : 'gap-2.5 flex-1 min-w-0'}`}>
               <Image src="/saturn-star-logo.png" alt="Saturn Star" width={30} height={30} className="shrink-0" />
               {!sidebarCollapsed && (
                 <span className="truncate text-sm font-bold tracking-tight text-[var(--app-ink)]">Saturn Star OS</span>
@@ -406,12 +410,12 @@ export function SalesHeader() {
 
           {/* ── Mobile/tablet top bar ─────────────────────────────────── */}
           <div className="flex items-center justify-between gap-4 lg:hidden">
-            <Link href="/sales" className="flex min-w-0 items-center gap-2.5">
+            <Link href={homeHref} className="flex min-w-0 items-center gap-2.5">
               <Image src="/saturn-star-logo.png" alt="Saturn Star" width={28} height={28} className="shrink-0" />
               <div className="truncate font-semibold tracking-tight text-[var(--app-ink)]">Saturn Star OS</div>
             </Link>
             <div className="flex items-center gap-2">
-              {(role === 'owner' || role === 'manager' || role === 'sales_rep') && (
+              {canUseSalesActions && (
                 <>
                   <button onClick={() => setNewLeadOpen(true)} className="crm-button-dark h-9 px-3 text-sm">New Lead</button>
                   <button onClick={() => setQuickScanOpen(true)} className="flex h-9 items-center gap-1 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 text-sm font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition" title="MLS Quick Inventory Scan">⚡</button>
@@ -437,7 +441,7 @@ export function SalesHeader() {
 
           {/* ── Desktop action row (New Lead + Bell) ─────────────────── */}
           <div className={`hidden lg:flex items-center gap-2 ${sidebarCollapsed ? 'flex-col px-2 pt-1' : 'px-4'}`}>
-            {(role === 'owner' || role === 'manager' || role === 'sales_rep') && (
+            {canUseSalesActions && (
               <>
               <button
                 onClick={() => setNewLeadOpen(true)}
@@ -611,51 +615,54 @@ export function SalesHeader() {
                 )
               })}
               {/* Mobile-only Leads link */}
-              <Link
-                href="/sales/leads"
-                className={`shrink-0 rounded-full border px-3 py-2 text-sm font-medium transition md:hidden ${
-                  pathname.startsWith('/sales/leads')
-                    ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white'
-                    : 'border-[var(--app-line)] text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)]'
-                }`}
-              >
-                Leads
-              </Link>
+              {canUseSalesActions && (
+                <Link
+                  href="/sales/leads"
+                  className={`shrink-0 rounded-full border px-3 py-2 text-sm font-medium transition md:hidden ${
+                    pathname.startsWith('/sales/leads')
+                      ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white'
+                      : 'border-[var(--app-line)] text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)]'
+                  }`}
+                >
+                  Leads
+                </Link>
+              )}
             </nav>
 
-            <div ref={searchRef} className={`relative w-full md:max-w-[320px] lg:order-first lg:max-w-none ${sidebarCollapsed ? 'lg:hidden' : 'lg:px-3'}`}>
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[var(--app-muted)]">⌕</span>
-              <input
-                type="text"
-                placeholder="Search name, phone, email, address…"
-                value={query}
-                onChange={e => updateQuery(e.target.value)}
-                onFocus={() => {
-                  setSearchFocused(true)
-                  if (query.trim().length >= 1) setShowDropdown(true)
-                }}
-                onKeyDown={e => e.key === 'Escape' && setShowDropdown(false)}
-                className="h-10 w-full rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] pl-9 pr-4 text-sm text-[var(--app-ink)] outline-none transition focus:border-[var(--app-ink)]"
-              />
-              {showDropdown && (
-                <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-[10px] border border-[var(--app-line)] bg-white shadow-lg">
-                  {searchResults.length === 0 ? (
-                    <div className="px-4 py-3 text-sm text-[var(--app-muted)]">No leads found for &ldquo;{query}&rdquo;</div>
-                  ) : (
-                    searchResults.map(lead => (
-                      <button
-                        key={lead.id}
-                        onMouseDown={() => handleSelectLead(lead)}
-                        className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-[var(--app-bg)] border-b border-[var(--app-line)] last:border-0"
-                      >
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1a2744] text-[11px] font-bold text-white">
-                          {(lead.name || lead.phone || '?').slice(0, 2).toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-semibold text-[var(--app-ink)]">{lead.name || lead.phone}</div>
-                          <div className="flex flex-wrap gap-x-2 text-xs text-[var(--app-muted)]">
-                            {lead.phone && <span>{lead.phone}</span>}
-                            {lead.email && <span>{lead.email}</span>}
+            {canUseSalesActions && (
+              <div ref={searchRef} className={`relative w-full md:max-w-[320px] lg:order-first lg:max-w-none ${sidebarCollapsed ? 'lg:hidden' : 'lg:px-3'}`}>
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[var(--app-muted)]">⌕</span>
+                <input
+                  type="text"
+                  placeholder="Search name, phone, email, address..."
+                  value={query}
+                  onChange={e => updateQuery(e.target.value)}
+                  onFocus={() => {
+                    setSearchFocused(true)
+                    if (query.trim().length >= 1) setShowDropdown(true)
+                  }}
+                  onKeyDown={e => e.key === 'Escape' && setShowDropdown(false)}
+                  className="h-10 w-full rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] pl-9 pr-4 text-sm text-[var(--app-ink)] outline-none transition focus:border-[var(--app-ink)]"
+                />
+                {showDropdown && (
+                  <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-[10px] border border-[var(--app-line)] bg-white shadow-lg">
+                    {searchResults.length === 0 ? (
+                      <div className="px-4 py-3 text-sm text-[var(--app-muted)]">No leads found for &ldquo;{query}&rdquo;</div>
+                    ) : (
+                      searchResults.map(lead => (
+                        <button
+                          key={lead.id}
+                          onMouseDown={() => handleSelectLead(lead)}
+                          className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-[var(--app-bg)] border-b border-[var(--app-line)] last:border-0"
+                        >
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1a2744] text-[11px] font-bold text-white">
+                            {(lead.name || lead.phone || '?').slice(0, 2).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold text-[var(--app-ink)]">{lead.name || lead.phone}</div>
+                            <div className="flex flex-wrap gap-x-2 text-xs text-[var(--app-muted)]">
+                              {lead.phone && <span>{lead.phone}</span>}
+                              {lead.email && <span>{lead.email}</span>}
                           </div>
                           {(lead.originCity || lead.destCity) && (
                             <div className="text-xs text-[var(--app-muted)]">
@@ -672,6 +679,7 @@ export function SalesHeader() {
                 </div>
               )}
             </div>
+            )}
 
             <div className={`hidden rounded-[16px] border border-[var(--app-line)] bg-[var(--app-bg)] p-2 lg:mt-auto lg:block ${sidebarCollapsed ? 'lg:hidden' : 'lg:mx-3'}`}>
               <div className="mb-2 flex items-center gap-2 rounded-[12px] px-2 py-1">

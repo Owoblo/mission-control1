@@ -23,6 +23,14 @@ function isPublicDialerPath(pathname: string) {
   return pathname.startsWith('/api/sales/dialer/')
 }
 
+function isPublicMarketingDialerPath(pathname: string) {
+  return (
+    pathname === '/api/marketing/dialer/twiml' ||
+    pathname === '/api/marketing/dialer/call-status' ||
+    pathname === '/api/marketing/dialer/recording-callback'
+  )
+}
+
 const INTERNAL_SECRET_API_PATHS = new Set([
   '/api/sales/automation/ingest',
   '/api/sales/automation/process',
@@ -64,6 +72,7 @@ export async function middleware(request: NextRequest) {
     PUBLIC_PATHS.has(pathname) ||
     PUBLIC_API_PATHS.has(pathname) ||
     isPublicDialerPath(pathname) ||
+    isPublicMarketingDialerPath(pathname) ||
     isPublicMarketingPath(pathname) ||
     isApprovalPath(pathname) ||
     hasCronBypass(request, pathname) ||
@@ -107,17 +116,34 @@ export async function middleware(request: NextRequest) {
   // Owner-only: admin pages
   if ((pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) && role !== 'owner') {
     if (pathname.startsWith('/api/')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    return NextResponse.redirect(new URL('/sales', request.url))
+    return NextResponse.redirect(new URL(role === 'partnership_manager' ? '/marketing/partners?tab=phone' : '/sales', request.url))
   }
 
-  // Crew members: redirect /sales/* to their calendar
-  if (pathname.startsWith('/sales') && role === 'crew') {
-    return NextResponse.redirect(new URL('/crew/calendar', request.url))
+  // Sales workspace is only for sales-capable roles.
+  if (pathname.startsWith('/sales') || pathname.startsWith('/api/sales')) {
+    const canAccessSales = role === 'owner' || role === 'manager' || role === 'sales_rep'
+    if (!canAccessSales) {
+      if (pathname.startsWith('/api/')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      return NextResponse.redirect(new URL(role === 'partnership_manager' ? '/marketing/partners?tab=phone' : '/crew/calendar', request.url))
+    }
   }
 
   // Crew-only route guard: /crew/* requires crew, manager, or owner
-  if (pathname.startsWith('/crew') && role === 'sales_rep') {
-    return NextResponse.redirect(new URL('/sales', request.url))
+  if (pathname.startsWith('/crew') || pathname.startsWith('/api/crew')) {
+    const canAccessCrew = role === 'owner' || role === 'manager' || role === 'operations_lead' || role === 'crew'
+    if (!canAccessCrew) {
+      if (pathname.startsWith('/api/')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      return NextResponse.redirect(new URL(role === 'partnership_manager' ? '/marketing/partners?tab=phone' : '/sales', request.url))
+    }
+  }
+
+  // Partnership workspace is for owners, managers, and partnership managers.
+  if (pathname.startsWith('/marketing') || pathname.startsWith('/api/marketing')) {
+    const canAccessMarketing = role === 'owner' || role === 'manager' || role === 'partnership_manager'
+    if (!canAccessMarketing) {
+      if (pathname.startsWith('/api/')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      return NextResponse.redirect(new URL(role === 'crew' ? '/crew/calendar' : '/sales', request.url))
+    }
   }
 
   return NextResponse.next()
