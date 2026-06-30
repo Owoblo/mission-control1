@@ -46,7 +46,10 @@ interface Contact {
   address?: string | null
   city: string | null
   industry: string | null
+  tier?: string | null
+  tracking_code?: string | null
   stage: string | null
+  pipeline?: string | null
   pipeline_phase: string | null
   decision: string | null
   sequence_step: number
@@ -58,6 +61,9 @@ interface Contact {
   sms_scheduled_at: string | null
   batch_id: string | null
   touch_count: number
+  pending_queue_count?: number
+  next_queue_due?: string | null
+  next_queue_label?: string | null
   needs_follow_up: boolean
   normalized_stage: string
   latest_touch_channel?: string | null
@@ -68,6 +74,10 @@ interface Contact {
   latest_inbound_note?: string | null
   latest_inbound_metadata?: Record<string, unknown> | null
   outreach_tier?: number | null
+  owner_name?: string | null
+  owner_email?: string | null
+  priority?: string | null
+  referred_lead_count?: number | null
   instantly_status?: string | null
   instantly_campaign_id?: string | null
   affiliate_partner_id?: string | null
@@ -274,6 +284,28 @@ function timeAgo(d?: string | null) {
 function daysUntil(d?: string | null) {
   if (!d) return null
   return Math.ceil((new Date(d).getTime() - Date.now()) / 86400000)
+}
+
+function getPartnerReferralCode(contact: Contact) {
+  return contact.tracking_code || contact.affiliate_partner_id || null
+}
+
+function getNextPartnerAction(contact: Contact) {
+  if (contact.next_queue_label || contact.next_queue_due) {
+    return {
+      label: contact.next_queue_label || 'Follow up',
+      due: contact.next_queue_due || null,
+      overdue: contact.next_queue_due ? new Date(contact.next_queue_due).getTime() < Date.now() : false,
+    }
+  }
+  if (contact.next_follow_up) {
+    return {
+      label: 'Follow up',
+      due: contact.next_follow_up,
+      overdue: new Date(contact.next_follow_up).getTime() < Date.now(),
+    }
+  }
+  return null
 }
 
 function addDays(dateStr: string, days: number) {
@@ -951,6 +983,10 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
 
   const upcoming = appointments.filter(a => a.status === 'scheduled' && new Date(a.scheduled_at) > new Date())
   const past = appointments.filter(a => a.status !== 'scheduled' || new Date(a.scheduled_at) <= new Date())
+  const referralCode = getPartnerReferralCode(contact)
+  const nextAction = getNextPartnerAction(contact)
+  const owner = contact.owner_name || contact.owner_email || 'Unassigned'
+  const referralCount = contact.referred_lead_count ?? 0
 
   return (
     <>
@@ -1013,6 +1049,34 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
                 </button>
               ) : null
             )}
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+              <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Owner</div>
+              <div className="mt-1 truncate text-xs font-semibold text-[#1a2744]">{owner}</div>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+              <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Category</div>
+              <div className="mt-1 truncate text-xs font-semibold text-[#1a2744]">{contact.industry || contact.category || 'Uncategorized'}</div>
+            </div>
+            <div className={`col-span-2 rounded-xl border px-3 py-2 ${nextAction?.overdue ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-slate-50'}`}>
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Next Action</div>
+                  <div className="mt-1 truncate text-xs font-semibold text-[#1a2744]">{nextAction?.label || 'No next action set'}</div>
+                </div>
+                <div className={`shrink-0 text-xs font-semibold ${nextAction?.overdue ? 'text-amber-700' : 'text-slate-500'}`}>{nextAction?.due ? fmtDate(nextAction.due) : '—'}</div>
+              </div>
+            </div>
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+              <div className="text-[9px] font-semibold uppercase tracking-wider text-emerald-700/70">Referral Code</div>
+              <div className="mt-1 truncate text-xs font-bold text-emerald-800">{referralCode || 'Not assigned'}</div>
+            </div>
+            <div className="rounded-xl border border-emerald-200 bg-white px-3 py-2">
+              <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Referrals</div>
+              <div className="mt-1 text-xs font-bold text-[#1a2744]">{referralCount} captured</div>
+            </div>
           </div>
         </div>
 
@@ -1777,11 +1841,11 @@ function ListsTab({ contacts, onSelectContact }: { contacts: Contact[]; onSelect
 // ─── Tab: Pipeline ────────────────────────────────────────────────────────────
 
 const PIPELINE_COLS = [
-  { key: 'connected', label: '💬 Promising', color: 'bg-emerald-50 border-emerald-200' },
-  { key: 'qualified', label: '📬 Postcard / Meeting', color: 'bg-sky-50 border-sky-200' },
-  { key: 'follow_up_due', label: '⏱ Follow-up', color: 'bg-amber-50 border-amber-200' },
-  { key: 'partnership_active', label: '✅ Active', color: 'bg-emerald-50 border-emerald-200' },
-  { key: 'dormant', label: '❄️ Nurture', color: 'bg-slate-50 border-slate-200' },
+  { key: 'connected', label: 'Conversation Started', color: 'bg-emerald-50 border-emerald-200' },
+  { key: 'qualified', label: 'Meeting / Visit', color: 'bg-sky-50 border-sky-200' },
+  { key: 'follow_up_due', label: 'Follow-Up Needed', color: 'bg-amber-50 border-amber-200' },
+  { key: 'partnership_active', label: 'Active Partner', color: 'bg-emerald-50 border-emerald-200' },
+  { key: 'dormant', label: 'Inactive / Nurture', color: 'bg-slate-50 border-slate-200' },
 ]
 
 function PipelineTab({ contacts, onSelect, onStageChange }: {
@@ -1859,35 +1923,52 @@ function PipelineTab({ contacts, onSelect, onStageChange }: {
               <div className="space-y-2">
                 {colContacts.length === 0 ? (
                   <div className={`rounded-[14px] border border-dashed border-slate-200 bg-white/50 p-4 text-center text-xs text-slate-400 transition ${dropTarget === col.key ? 'border-[#1a2744] bg-white text-[#1a2744]' : ''}`}>Drop here</div>
-                ) : colContacts.map(c => (
-                  <div key={c.id} role="button" tabIndex={0} draggable
-                    onClick={() => onSelect(c)}
-                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(c) } }}
-                    onDragStart={e => { e.dataTransfer.setData('text/plain', c.id); e.dataTransfer.effectAllowed = 'move'; setDraggingId(c.id) }}
-                    onDragEnd={() => { setDraggingId(null); setDropTarget(null) }}
-                    className={`w-full rounded-[16px] border border-white bg-white p-3 text-left shadow-sm transition hover:shadow-md ${draggingId === c.id ? 'cursor-grabbing opacity-50' : 'cursor-grab'} ${movingId === c.id ? 'pointer-events-none opacity-60' : ''}`}>
-                    <div className="flex items-start justify-between gap-1">
-                      <div className="text-sm font-semibold text-[#1a2744] truncate">{c.name}</div>
-                      <TierBadge tier={c.outreach_tier} />
-                    </div>
-                    <div className="mt-0.5 text-xs text-slate-500 truncate">{c.company ?? c.industry ?? ''}</div>
-                    <div className="mt-1.5 flex items-center justify-between text-[10px] text-slate-400">
-                      <span>{c.city ?? ''}</span>
-                      {movingId === c.id ? <span>Saving…</span> : c.last_touch_at && <span>{timeAgo(c.last_touch_at)}</span>}
-                    </div>
-                    <div className="mt-1.5 flex items-center gap-1 flex-wrap">
-                      <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${inboxStatusClass(getInboxStatus(c))}`}>
-                        {inboxStatusLabel(getInboxStatus(c))}
-                      </span>
-                      {c.instantly_status && <InstantlyBadge status={c.instantly_status} />}
-                      {c.decision && (
-                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${c.decision === 'agreed' ? 'bg-emerald-100 text-emerald-700' : c.decision === 'rejected' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {c.decision}
-                        </span>
+                ) : colContacts.map(c => {
+                  const nextAction = getNextPartnerAction(c)
+                  const referralCode = getPartnerReferralCode(c)
+                  return (
+                    <div key={c.id} role="button" tabIndex={0} draggable
+                      onClick={() => onSelect(c)}
+                      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(c) } }}
+                      onDragStart={e => { e.dataTransfer.setData('text/plain', c.id); e.dataTransfer.effectAllowed = 'move'; setDraggingId(c.id) }}
+                      onDragEnd={() => { setDraggingId(null); setDropTarget(null) }}
+                      className={`w-full rounded-[16px] border border-white bg-white p-3 text-left shadow-sm transition hover:shadow-md ${draggingId === c.id ? 'cursor-grabbing opacity-50' : 'cursor-grab'} ${movingId === c.id ? 'pointer-events-none opacity-60' : ''}`}>
+                      <div className="flex items-start justify-between gap-1">
+                        <div className="text-sm font-semibold text-[#1a2744] truncate">{c.name}</div>
+                        <TierBadge tier={c.outreach_tier} />
+                      </div>
+                      <div className="mt-0.5 text-xs text-slate-500 truncate">{c.company ?? c.industry ?? ''}</div>
+                      <div className="mt-1.5 flex items-center justify-between text-[10px] text-slate-400">
+                        <span>{c.city ?? ''}</span>
+                        {movingId === c.id ? <span>Saving…</span> : c.last_touch_at && <span>{timeAgo(c.last_touch_at)}</span>}
+                      </div>
+                      {(nextAction || referralCode) && (
+                        <div className="mt-2 space-y-1 rounded-[10px] bg-slate-50 px-2 py-1.5 text-[10px]">
+                          {nextAction && (
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="truncate font-semibold text-slate-600">{nextAction.label}</span>
+                              <span className={nextAction.overdue ? 'font-semibold text-amber-700' : 'text-slate-400'}>{fmtDate(nextAction.due)}</span>
+                            </div>
+                          )}
+                          {referralCode && (
+                            <div className="truncate font-semibold text-emerald-700">Code: {referralCode}</div>
+                          )}
+                        </div>
                       )}
+                      <div className="mt-1.5 flex items-center gap-1 flex-wrap">
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${inboxStatusClass(getInboxStatus(c))}`}>
+                          {inboxStatusLabel(getInboxStatus(c))}
+                        </span>
+                        {c.instantly_status && <InstantlyBadge status={c.instantly_status} />}
+                        {c.decision && (
+                          <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${c.decision === 'agreed' ? 'bg-emerald-100 text-emerald-700' : c.decision === 'rejected' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>
+                            {c.decision}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )
@@ -2334,12 +2415,12 @@ const INBOX_QUICK_ACTIONS: Array<{ key: InboxQuickAction; label: string; tone: '
 ]
 
 const REPLY_DESK_STAGE_ACTIONS: Array<{ key: string; label: string; helper: string; tone: 'green' | 'blue' | 'amber' | 'slate' | 'red' }> = [
-  { key: 'connected', label: 'Connected', helper: 'Conversation is live', tone: 'blue' },
-  { key: 'qualified', label: 'Qualified', helper: 'Good partner fit', tone: 'amber' },
-  { key: 'partnership_active', label: 'Active partner', helper: 'Move to Partners', tone: 'green' },
-  { key: 'follow_up_due', label: 'Follow-up', helper: 'Needs next touch', tone: 'amber' },
-  { key: 'dormant', label: 'Nurture', helper: 'Warm but not now', tone: 'slate' },
-  { key: 'closed_lost', label: 'Closed', helper: 'Do not pursue', tone: 'red' },
+  { key: 'connected', label: 'Conversation', helper: 'Conversation started', tone: 'blue' },
+  { key: 'qualified', label: 'Meeting / Visit', helper: 'Good partner fit', tone: 'amber' },
+  { key: 'partnership_active', label: 'Active partner', helper: 'Referral-ready', tone: 'green' },
+  { key: 'follow_up_due', label: 'Follow-up', helper: 'Needs next action', tone: 'amber' },
+  { key: 'dormant', label: 'Inactive', helper: 'Nurture later', tone: 'slate' },
+  { key: 'closed_lost', label: 'Lost', helper: 'Do not pursue', tone: 'red' },
 ]
 
 function defaultSheetUpdateForm(contact: Contact): SheetUpdateForm {
@@ -4334,7 +4415,7 @@ function PartnersTab({ contacts, onSelect }: { contacts: Contact[]; onSelect: (c
       <div className="flex flex-col items-center justify-center rounded-[24px] border border-dashed border-slate-300 bg-white p-16 text-center">
         <div className="text-4xl">🤝</div>
         <div className="mt-4 text-base font-semibold text-[#1a2744]">No active partners yet</div>
-        <div className="mt-2 text-sm text-slate-500">Once you log a decision of "Agreed", they appear here.</div>
+        <div className="mt-2 text-sm text-slate-500">Once a relationship becomes referral-ready, it appears here.</div>
       </div>
     )
   }
@@ -4344,7 +4425,7 @@ function PartnersTab({ contacts, onSelect }: { contacts: Contact[]; onSelect: (c
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-[#1a2744]">Partner Directory</h2>
-          <p className="text-sm text-slate-500">{partners.length} active · {warmPartners.length} warm · {fieldVisit.length} postcard logistics</p>
+          <p className="text-sm text-slate-500">{partners.length} active · {warmPartners.length} warm · {fieldVisit.length} meeting or visit work</p>
         </div>
         <input
           value={search}
@@ -4374,6 +4455,8 @@ function PartnersTab({ contacts, onSelect }: { contacts: Contact[]; onSelect: (c
           const daysSince = c.last_touch_at ? Math.floor((Date.now() - new Date(c.last_touch_at).getTime()) / 86400000) : null
           const warm = daysSince !== null && daysSince <= 30
           const status = getInboxStatus(c)
+          const nextAction = getNextPartnerAction(c)
+          const referralCode = getPartnerReferralCode(c)
           return (
             <button key={c.id} onClick={() => onSelect(c)}
               className={`rounded-[22px] border bg-white p-5 text-left hover:shadow-md transition ${!warm ? 'border-amber-300' : 'border-slate-200'}`}>
@@ -4398,6 +4481,18 @@ function PartnersTab({ contacts, onSelect }: { contacts: Contact[]; onSelect: (c
                 </div>
               )}
               <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                <div className="rounded-[10px] bg-slate-50 p-2">
+                  <div className="text-[9px] font-semibold uppercase text-slate-400">Next Action</div>
+                  <div className={`mt-0.5 truncate font-medium ${nextAction?.overdue ? 'text-amber-600' : 'text-[#1a2744]'}`}>{nextAction ? `${nextAction.label} · ${fmtDate(nextAction.due)}` : '—'}</div>
+                </div>
+                <div className="rounded-[10px] bg-slate-50 p-2">
+                  <div className="text-[9px] font-semibold uppercase text-slate-400">Referral Code</div>
+                  <div className="mt-0.5 truncate font-medium text-emerald-700">{referralCode || '—'}</div>
+                </div>
+                <div className="rounded-[10px] bg-slate-50 p-2">
+                  <div className="text-[9px] font-semibold uppercase text-slate-400">Referrals</div>
+                  <div className="mt-0.5 font-medium text-[#1a2744]">{c.referred_lead_count ?? 0}</div>
+                </div>
                 {c.phone && <div className="rounded-[10px] bg-slate-50 p-2"><div className="text-[9px] font-semibold uppercase text-slate-400">Phone</div><div className="mt-0.5 font-medium text-[#1a2744]">{c.phone}</div></div>}
                 {c.email && <div className="rounded-[10px] bg-slate-50 p-2 col-span-2 truncate"><div className="text-[9px] font-semibold uppercase text-slate-400">Email</div><div className="mt-0.5 font-medium text-[#1a2744] truncate">{c.email}</div></div>}
                 <div className="rounded-[10px] bg-slate-50 p-2">

@@ -29,15 +29,15 @@ export const PARTNERSHIP_STAGE_ORDER: PartnershipStage[] = [
 ]
 
 export const PARTNERSHIP_STAGE_META: Record<PartnershipStage, PartnershipStageMeta> = {
-  target:             { label: 'Target',              shortLabel: 'Target',     color: 'bg-slate-100 text-slate-700',        ring: 'ring-slate-200' },
-  mail_sent:          { label: 'Mail Sent',           shortLabel: 'Mailed',     color: 'bg-amber-100 text-amber-800',        ring: 'ring-amber-200' },
-  follow_up_due:      { label: 'Follow-Up Due',       shortLabel: 'Due',        color: 'bg-rose-100 text-rose-700',          ring: 'ring-rose-200' },
-  attempting_contact: { label: 'Attempting Contact',  shortLabel: 'Attempting', color: 'bg-sky-100 text-sky-700',           ring: 'ring-sky-200' },
-  connected:          { label: 'Connected',           shortLabel: 'Connected',  color: 'bg-violet-100 text-violet-700',      ring: 'ring-violet-200' },
-  qualified:          { label: 'Qualified',           shortLabel: 'Qualified',  color: 'bg-orange-100 text-orange-700',      ring: 'ring-orange-200' },
-  partnership_active: { label: 'Partnership Active',  shortLabel: 'Active',     color: 'bg-emerald-100 text-emerald-700',    ring: 'ring-emerald-200' },
-  dormant:            { label: 'Dormant',             shortLabel: 'Dormant',    color: 'bg-fuchsia-100 text-fuchsia-700',    ring: 'ring-fuchsia-200' },
-  closed_lost:        { label: 'Closed Lost',         shortLabel: 'Closed',     color: 'bg-zinc-200 text-zinc-700',          ring: 'ring-zinc-300' },
+  target:             { label: 'Lead Added',           shortLabel: 'New',        color: 'bg-slate-100 text-slate-700',        ring: 'ring-slate-200' },
+  mail_sent:          { label: 'Package Sent',         shortLabel: 'Package',    color: 'bg-amber-100 text-amber-800',        ring: 'ring-amber-200' },
+  follow_up_due:      { label: 'Follow-Up Needed',     shortLabel: 'Follow-up',  color: 'bg-rose-100 text-rose-700',          ring: 'ring-rose-200' },
+  attempting_contact: { label: 'First Contact',        shortLabel: 'First Touch', color: 'bg-sky-100 text-sky-700',           ring: 'ring-sky-200' },
+  connected:          { label: 'Conversation Started', shortLabel: 'Talking',    color: 'bg-violet-100 text-violet-700',      ring: 'ring-violet-200' },
+  qualified:          { label: 'Meeting / Visit',      shortLabel: 'Meeting',    color: 'bg-orange-100 text-orange-700',      ring: 'ring-orange-200' },
+  partnership_active: { label: 'Active Partner',       shortLabel: 'Active',     color: 'bg-emerald-100 text-emerald-700',    ring: 'ring-emerald-200' },
+  dormant:            { label: 'Inactive',             shortLabel: 'Inactive',   color: 'bg-fuchsia-100 text-fuchsia-700',    ring: 'ring-fuchsia-200' },
+  closed_lost:        { label: 'Lost',                 shortLabel: 'Lost',       color: 'bg-zinc-200 text-zinc-700',          ring: 'ring-zinc-300' },
 }
 
 const LEGACY_STAGE_MAP: Record<string, PartnershipStage> = {
