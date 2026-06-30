@@ -5,6 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
+import { ChangePasswordButton } from '@/app/components/change-password-button'
 import { LogoutButton } from '@/app/components/logout-button'
 import { NewLeadModal } from '@/app/components/sales/new-lead-modal'
 import { QuickScanModal } from '@/app/components/sales/quick-scan-modal'
@@ -435,6 +436,7 @@ export function SalesHeader() {
                   )}
                 </button>
               </div>
+              <ChangePasswordButton compact />
               <LogoutButton compact />
             </div>
           </div>
@@ -691,6 +693,7 @@ export function SalesHeader() {
                   <div className="truncate text-xs capitalize text-[var(--app-muted)]">{role.replaceAll('_', ' ')}</div>
                 </div>
               </div>
+              <ChangePasswordButton />
               <LogoutButton />
             </div>
           </div>
