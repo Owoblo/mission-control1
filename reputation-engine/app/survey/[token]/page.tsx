@@ -36,6 +36,10 @@ type ReviewItemState = SurveyVerificationRoomItem
 
 type AddedItemState = InventoryVerificationAddedItem
 
+const MAX_UPLOAD_IMAGE_DIMENSION = 1600
+const MAX_UPLOAD_BYTES = 2_800_000
+const IMAGE_UPLOAD_QUALITY = 0.76
+
 function roomEmoji(id: string) {
   return ROOM_EMOJIS[id] || '📦'
 }
@@ -69,6 +73,97 @@ function buildDefaultRooms(rooms: SurveyVerificationPayload['rooms']) {
 
 function formatRoomCount(count: number, noun: string) {
   return `${count} ${noun}${count === 1 ? '' : 's'}`
+}
+
+function readImage(file: File) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      resolve(img)
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('Could not read this photo. Try a different image.'))
+    }
+    img.src = url
+  })
+}
+
+function canvasToBlob(canvas: HTMLCanvasElement, quality: number) {
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(blob => {
+      if (!blob) {
+        reject(new Error('Could not prepare this photo for upload.'))
+        return
+      }
+      resolve(blob)
+    }, 'image/jpeg', quality)
+  })
+}
+
+async function prepareSurveyUploadFile(file: File) {
+  if (file.type.startsWith('video/')) {
+    if (file.size > MAX_UPLOAD_BYTES) {
+      throw new Error('That video is too large for the survey link. Please send photos instead, or text the video to Saturn Star Movers.')
+    }
+    return file
+  }
+
+  if (!file.type.startsWith('image/')) return file
+  if (file.type === 'image/gif') return file
+
+  try {
+    const img = await readImage(file)
+    const scale = Math.min(1, MAX_UPLOAD_IMAGE_DIMENSION / Math.max(img.naturalWidth || img.width, img.naturalHeight || img.height))
+    const width = Math.max(1, Math.round((img.naturalWidth || img.width) * scale))
+    const height = Math.max(1, Math.round((img.naturalHeight || img.height) * scale))
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error('Could not prepare this photo for upload.')
+    context.drawImage(img, 0, 0, width, height)
+
+    let blob = await canvasToBlob(canvas, IMAGE_UPLOAD_QUALITY)
+    if (blob.size > MAX_UPLOAD_BYTES) {
+      blob = await canvasToBlob(canvas, 0.58)
+    }
+    if (blob.size > MAX_UPLOAD_BYTES) {
+      const smallScale = Math.min(1, 1200 / Math.max(width, height))
+      const smallCanvas = document.createElement('canvas')
+      smallCanvas.width = Math.max(1, Math.round(width * smallScale))
+      smallCanvas.height = Math.max(1, Math.round(height * smallScale))
+      const smallContext = smallCanvas.getContext('2d')
+      if (!smallContext) throw new Error('Could not prepare this photo for upload.')
+      smallContext.drawImage(img, 0, 0, smallCanvas.width, smallCanvas.height)
+      blob = await canvasToBlob(smallCanvas, 0.58)
+    }
+    if (blob.size > MAX_UPLOAD_BYTES) {
+      throw new Error('That photo is too large. Please retake it or choose a smaller photo.')
+    }
+
+    const safeName = (file.name || 'room-photo').replace(/\.[^.]+$/, '')
+    return new File([blob], `${safeName}.jpg`, { type: 'image/jpeg', lastModified: Date.now() })
+  } catch (error) {
+    if (file.size <= MAX_UPLOAD_BYTES) return file
+    throw error instanceof Error ? error : new Error('Could not prepare this photo for upload.')
+  }
+}
+
+async function readUploadResponse(response: Response) {
+  const contentType = response.headers.get('content-type') || ''
+  if (contentType.includes('application/json')) {
+    return await response.json() as { ok?: boolean; uploadedCount?: number; error?: string; detail?: string }
+  }
+
+  const text = await response.text().catch(() => '')
+  const lower = text.toLowerCase()
+  if (response.status === 413 || lower.includes('request entity too large') || lower.includes('payload too large')) {
+    return { error: 'That photo is too large. Please try one smaller photo at a time.' }
+  }
+  return { error: text.trim() || `Upload failed (${response.status})` }
 }
 
 export default function SurveyPage({ params }: { params: { token: string } }) {
@@ -284,21 +379,26 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
     setRooms(prev => prev.map(entry => entry.id === roomId ? { ...entry, uploading: true } : entry))
 
     try {
-      const form = new FormData()
-      form.append('room', room.label)
-      fileArr.forEach(file => form.append('photos', file))
+      let uploadedCount = 0
+      for (const file of fileArr) {
+        const preparedFile = await prepareSurveyUploadFile(file)
+        const form = new FormData()
+        form.append('room', room.label)
+        form.append('photos', preparedFile)
 
-      const response = await fetch(`/api/survey/${params.token}/upload`, {
-        method: 'POST',
-        body: form,
-      })
-      const data = await response.json() as { ok?: boolean; uploadedCount?: number; error?: string; detail?: string }
-      if (!response.ok || data.error) throw new Error(data.error || data.detail || 'Upload failed')
+        const response = await fetch(`/api/survey/${params.token}/upload`, {
+          method: 'POST',
+          body: form,
+        })
+        const data = await readUploadResponse(response)
+        if (!response.ok || data.error) throw new Error(data.error || data.detail || 'Upload failed')
+        uploadedCount += data.uploadedCount || 1
+      }
 
       if (!mountedRef.current) return
       setRooms(prev => prev.map(entry =>
         entry.id === roomId
-          ? { ...entry, uploading: false, photoCount: entry.photoCount + (data.uploadedCount || fileArr.length) }
+          ? { ...entry, uploading: false, photoCount: entry.photoCount + uploadedCount }
           : entry
       ))
     } catch (error) {

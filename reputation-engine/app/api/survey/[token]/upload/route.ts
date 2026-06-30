@@ -4,6 +4,8 @@ import { getSalesLead, saveSalesLead } from '@/lib/server/sales-repository'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { sendRepAlertEmail, surveyPhotosUploadedEmail } from '@/lib/server/internal-notifications'
 
+export const maxDuration = 60
+
 async function getLeadByToken(token: string): Promise<{ id: string; data: Record<string, unknown>; partyLabel?: string } | null> {
   const { url, headers } = requireSupabaseEnv()
   // Check primary survey token
