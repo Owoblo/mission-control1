@@ -6,6 +6,11 @@ import {
   getSaturnBusinessNumberFromSmsMessage,
 } from '@/lib/sales-phones'
 import { displayEmailSubject, replyEmailSubject } from '@/lib/email-display'
+import {
+  isTwilioApiMediaUrl,
+  normalizeSmsMediaUrls,
+  stripMmsMarkersFromBody,
+} from '@/lib/sms-media'
 import type { CRMLead } from '@/lib/types'
 
 export interface LeadEmailMessage {
@@ -28,6 +33,13 @@ export interface LeadSmsMessage {
   lead_id: string | null
   created_at: string
   twilio_sid?: string | null
+  media?: Array<{ url?: string | null; contentType?: string | null }> | null
+  mediaUrls?: Array<string | null | undefined> | null
+  metadata?: {
+    media?: Array<{ url?: string | null; contentType?: string | null }> | null
+    mediaUrls?: Array<string | null | undefined> | null
+    media_urls?: Array<string | null | undefined> | null
+  } | null
 }
 
 type CommunicationsTab = 'timeline' | 'emails' | 'sms'
@@ -81,6 +93,15 @@ function sameSmsGroup(current?: LeadSmsMessage | null, adjacent?: LeadSmsMessage
   const adjacentAt = adjacent.created_at ? new Date(adjacent.created_at).getTime() : 0
   if (!currentAt || !adjacentAt) return true
   return Math.abs(adjacentAt - currentAt) < 10 * 60 * 1000
+}
+
+function salesMediaUrl(url: string) {
+  return isTwilioApiMediaUrl(url) ? `/api/sales/twilio-media?url=${encodeURIComponent(url)}` : url
+}
+
+function isLikelyImageUrl(url: string) {
+  const lower = url.toLowerCase()
+  return lower.includes('/media/') || /\.(png|jpe?g|gif|webp|heic|heif)(\?|$)/.test(lower)
 }
 
 export function LeadCommunicationsPanel({
@@ -316,16 +337,52 @@ export function LeadCommunicationsPanel({
                   const groupedWithNext = sameSmsGroup(message, nextMessage)
                   const branchLabel = getSaturnBranchLabel(getSaturnBusinessNumberFromSmsMessage(message))
                   const isWhatsApp = message.twilio_sid?.startsWith('WA') ?? false
+                  const cleanBody = stripMmsMarkersFromBody(message.body)
+                  const mediaUrls = normalizeSmsMediaUrls(message)
 
                   return (
                     <div key={message.id} className={`flex flex-col ${isOutbound ? 'items-end' : 'items-start'} ${index === 0 ? '' : groupedWithPrevious ? 'mt-1' : 'mt-6'}`}>
                       <div
-                        className={`max-w-[min(78%,620px)] px-4 py-3 text-base leading-[1.5] whitespace-pre-wrap break-words lg:text-sm ${isOutbound ? `${groupedWithPrevious ? 'rounded-tr-md' : 'rounded-tr-[18px]'} ${groupedWithNext ? 'rounded-br-md' : 'rounded-br-[18px]'} rounded-l-[18px]` : `${groupedWithPrevious ? 'rounded-tl-md' : 'rounded-tl-[18px]'} ${groupedWithNext ? 'rounded-bl-md' : 'rounded-bl-[18px]'} rounded-r-[18px]`}`}
+                        className={`max-w-[min(78%,620px)] px-4 py-3 text-base leading-[1.5] break-words lg:text-sm ${isOutbound ? `${groupedWithPrevious ? 'rounded-tr-md' : 'rounded-tr-[18px]'} ${groupedWithNext ? 'rounded-br-md' : 'rounded-br-[18px]'} rounded-l-[18px]` : `${groupedWithPrevious ? 'rounded-tl-md' : 'rounded-tl-[18px]'} ${groupedWithNext ? 'rounded-bl-md' : 'rounded-bl-[18px]'} rounded-r-[18px]`}`}
                         style={isOutbound
                           ? { background: isWhatsApp ? '#25D366' : '#0f6a53', color: 'white' }
                           : { background: '#f1f3f5', color: '#111827' }}
                       >
-                        {message.body}
+                        {cleanBody ? (
+                          <div className="whitespace-pre-wrap">{cleanBody}</div>
+                        ) : mediaUrls.length > 0 ? (
+                          <div className="font-medium">Attachment received</div>
+                        ) : null}
+                        {mediaUrls.length > 0 ? (
+                          <div className={`grid gap-2 ${cleanBody ? 'mt-3' : ''}`}>
+                            {mediaUrls.map((url, mediaIndex) => {
+                              const proxiedUrl = salesMediaUrl(url)
+                              return (
+                                <a
+                                  key={`${url}-${mediaIndex}`}
+                                  href={proxiedUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className={`block overflow-hidden rounded-[10px] border ${isOutbound ? 'border-white/30 bg-white/10' : 'border-slate-200 bg-white'}`}
+                                >
+                                  {isLikelyImageUrl(url) ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                      src={proxiedUrl}
+                                      alt="SMS attachment"
+                                      className="max-h-72 w-full max-w-[340px] object-cover"
+                                      loading="lazy"
+                                    />
+                                  ) : (
+                                    <div className={`px-3 py-2 text-xs font-semibold ${isOutbound ? 'text-white' : 'text-[#1a2744]'}`}>
+                                      Open attachment
+                                    </div>
+                                  )}
+                                </a>
+                              )
+                            })}
+                          </div>
+                        ) : null}
                       </div>
                       <div className="mt-0.5 px-1 text-[10px] text-[var(--app-muted)]">
                         {isWhatsApp ? <span className="mr-1 text-[#25D366]">WhatsApp ·</span> : null}
