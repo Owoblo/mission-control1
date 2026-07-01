@@ -2662,7 +2662,7 @@ export default function SalesLeadDetailPage() {
         credentials: 'include',
         body: JSON.stringify({ leadId: lead.id, quoteId: quote.id, amountOverride: amountOverride !== undefined && amountOverride > 0 ? amountOverride : undefined }),
       })
-      const payload = await r.json() as { ok?: boolean; error?: string; balance?: number; amount?: number; lead?: CRMLead; quote?: CRMQuote }
+      const payload = await r.json() as { ok?: boolean; error?: string; balance?: number; amount?: number; cardLast4?: string; lead?: CRMLead; quote?: CRMQuote }
       if (!r.ok || !payload.ok || !payload.lead || !payload.quote) throw new Error(payload.error || 'Charge failed')
       setLead(payload.lead)
       setQuote(payload.quote)
@@ -2671,6 +2671,27 @@ export default function SalesLeadDetailPage() {
       setChargeBalanceFlash({ amount: chargeAmt, remaining: payload.balance ?? 0 })
       setTimeout(() => setChargeBalanceFlash(null), 6000)
       setError(null)
+      if (payload.lead.email) {
+        void fetch('/api/sales/deposit-receipt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            toEmail: payload.lead.email,
+            toName: payload.lead.name,
+            quoteNumber: payload.quote.number,
+            moveDate: payload.quote.moveDate,
+            originCity: payload.quote.originCity,
+            destCity: payload.quote.destCity,
+            paymentKind: 'balance',
+            depositAmount: payload.amount || chargeAmt,
+            balanceAmount: payload.quote.balance,
+            totalAmount: payload.quote.total,
+            paymentMethod: 'Credit Card',
+            cardLast4: payload.cardLast4,
+          }),
+        }).catch(() => null)
+      }
     } catch (err) {
       setError((err as Error).message)
     } finally {

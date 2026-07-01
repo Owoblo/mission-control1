@@ -69,6 +69,7 @@ export async function POST(request: Request) {
     piParams.set('confirm', 'true')
     piParams.set('off_session', 'true')
     piParams.set('description', `Balance – ${quote.number} – ${lead.name}`)
+    if (lead.email) piParams.set('receipt_email', lead.email)
     piParams.set('metadata[quoteId]', quote.id)
     piParams.set('metadata[leadId]', lead.id)
     piParams.set('metadata[type]', 'balance')
@@ -135,6 +136,8 @@ export async function POST(request: Request) {
       status: pi.status,
       amount: chargeAmount,
       balance: nextBalance,
+      cardLast4,
+      cardBrand,
       lead: updatedLead,
       quote: updatedQuote,
     })

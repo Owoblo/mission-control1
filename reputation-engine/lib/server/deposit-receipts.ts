@@ -7,6 +7,7 @@ export type DepositReceiptPayload = {
   moveDate?: string
   originCity?: string
   destCity?: string
+  paymentKind?: 'deposit' | 'balance' | 'payment'
   depositAmount: number
   balanceAmount: number
   totalAmount: number
@@ -34,6 +35,7 @@ export function buildDepositReceiptEmail(payload: DepositReceiptPayload) {
     moveDate,
     originCity,
     destCity,
+    paymentKind = 'deposit',
     depositAmount,
     balanceAmount,
     totalAmount,
@@ -47,6 +49,25 @@ export function buildDepositReceiptEmail(payload: DepositReceiptPayload) {
   const paymentStr = cardLast4
     ? `${paymentMethod} ending ····${cardLast4}`
     : paymentMethod
+  const paidLabel =
+    paymentKind === 'balance' ? 'Balance Paid' :
+    paymentKind === 'payment' ? 'Payment Received' :
+    'Deposit Paid'
+  const badgeLabel =
+    paymentKind === 'balance' ? 'BALANCE PAID' :
+    paymentKind === 'payment' ? 'PAYMENT RECEIVED' :
+    'DEPOSIT RECEIVED'
+  const intro =
+    paymentKind === 'balance'
+      ? `We've received your balance payment — your move balance is <strong style="color:#1a2744;">paid</strong>. Here's your receipt for your records.`
+      : paymentKind === 'payment'
+        ? `We've received your payment. Here's your receipt for your records.`
+        : `We've received your deposit — your move is <strong style="color:#1a2744;">confirmed</strong>. Here's your receipt for your records.`
+  const balanceLabel = balanceAmount <= 0 ? 'Remaining Balance' : 'Balance Due After Move'
+  const footerCopy =
+    balanceAmount <= 0
+      ? `Your balance is now <strong>paid in full</strong>. If you have any questions, reply to this email or call us at <strong>226-773-2993</strong>.`
+      : `The remaining balance of <strong>${formatMoney(balanceAmount)}</strong> is due on move day. If you have any questions, reply to this email or call us at <strong>226-773-2993</strong>.`
 
   const subject = `Payment Received — Saturn Star Moving (${quoteNumber})`
 
@@ -71,7 +92,7 @@ export function buildDepositReceiptEmail(payload: DepositReceiptPayload) {
             <div style="font-size:12px;color:#94a3b8;margin-top:2px;">starmovers.ca · business@starmovers.ca</div>
           </td>
           <td align="right">
-            <div style="background:#f5a623;color:#1a2744;font-size:11px;font-weight:700;padding:5px 12px;border-radius:20px;letter-spacing:0.5px;white-space:nowrap;">DEPOSIT RECEIVED</div>
+            <div style="background:#f5a623;color:#1a2744;font-size:11px;font-weight:700;padding:5px 12px;border-radius:20px;letter-spacing:0.5px;white-space:nowrap;">${badgeLabel}</div>
           </td>
         </tr>
       </table>
@@ -83,8 +104,7 @@ export function buildDepositReceiptEmail(payload: DepositReceiptPayload) {
     <td style="background:#ffffff;padding:32px 36px;">
       <p style="margin:0 0 20px;font-size:15px;color:#1a2744;">Hi ${firstName},</p>
       <p style="margin:0 0 24px;font-size:14px;color:#475569;line-height:1.6;">
-        We've received your deposit — your move is <strong style="color:#1a2744;">confirmed</strong>.
-        Here's your receipt for your records.
+        ${intro}
       </p>
 
       <div style="background:#f8fafc;border-radius:10px;padding:20px 22px;margin-bottom:24px;border:1px solid #e2e8f0;">
@@ -114,7 +134,7 @@ export function buildDepositReceiptEmail(payload: DepositReceiptPayload) {
           </tr>
           <tr>
             <td style="padding-bottom:6px;">
-              <span style="font-size:13px;color:#64748b;">Deposit Paid</span>
+              <span style="font-size:13px;color:#64748b;">${paidLabel}</span>
               <span style="font-size:11px;color:#94a3b8;margin-left:6px;">via ${paymentStr}</span>
             </td>
             <td align="right" style="padding-bottom:6px;">
@@ -125,15 +145,14 @@ export function buildDepositReceiptEmail(payload: DepositReceiptPayload) {
             <td colspan="2" style="border-top:1px solid #e2e8f0;padding-top:10px;"></td>
           </tr>
           <tr>
-            <td style="font-size:14px;font-weight:700;color:#1a2744;">Balance Due After Move</td>
+            <td style="font-size:14px;font-weight:700;color:#1a2744;">${balanceLabel}</td>
             <td align="right" style="font-size:14px;font-weight:700;color:#1a2744;">${formatMoney(balanceAmount)}</td>
           </tr>
         </table>
       </div>
 
       <p style="margin:0 0 8px;font-size:13px;color:#64748b;line-height:1.6;">
-        The remaining balance of <strong>${formatMoney(balanceAmount)}</strong> is due on move day.
-        If you have any questions, reply to this email or call us at <strong>226-773-2993</strong>.
+        ${footerCopy}
       </p>
       <p style="margin:16px 0 0;font-size:13px;color:#64748b;">We can't wait to make your move seamless! 🚛</p>
     </td>
@@ -154,7 +173,13 @@ export function buildDepositReceiptEmail(payload: DepositReceiptPayload) {
 </body>
 </html>`
 
-  const plain = `Hi ${firstName},\n\nYour deposit has been received and your move is confirmed!\n\nQuote: ${quoteNumber}\nMove Date: ${moveDateStr}\nRoute: ${routeStr}\n\nDeposit Paid: ${formatMoney(depositAmount)} (${paymentStr})\nBalance Due After Move: ${formatMoney(balanceAmount)}\n\nQuestions? Call us at 226-773-2993 or reply to this email.\n\nThanks,\nSaturn Star Moving Team`
+  const plainIntro =
+    paymentKind === 'balance'
+      ? 'Your balance payment has been received.'
+      : paymentKind === 'payment'
+        ? 'Your payment has been received.'
+        : 'Your deposit has been received and your move is confirmed!'
+  const plain = `Hi ${firstName},\n\n${plainIntro}\n\nQuote: ${quoteNumber}\nMove Date: ${moveDateStr}\nRoute: ${routeStr}\n\n${paidLabel}: ${formatMoney(depositAmount)} (${paymentStr})\n${balanceLabel}: ${formatMoney(balanceAmount)}\n\nQuestions? Call us at 226-773-2993 or reply to this email.\n\nThanks,\nSaturn Star Moving Team`
 
   return { subject, html, plain }
 }
