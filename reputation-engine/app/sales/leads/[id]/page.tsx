@@ -136,6 +136,29 @@ function isCustomerFacingQuote(quote?: CRMQuote | null) {
   )
 }
 
+function normalizeQuoteLineItemsForCompare(items?: QuoteLineItem[]) {
+  return (items || []).map(item => ({
+    description: (item.description || '').trim(),
+    details: (item.details || '').trim(),
+    amount: Math.round(Number(item.amount || 0) * 100) / 100,
+  }))
+}
+
+function quotePricingInputsMatchSaved(
+  quote: CRMQuote,
+  lineItems: QuoteLineItem[],
+  discountAmount: number,
+  discountLabel: string
+) {
+  const savedDiscountAmount = Math.round(Number(quote.discountAmount || 0) * 100) / 100
+  const nextDiscountAmount = Math.round(Number(discountAmount || 0) * 100) / 100
+  return (
+    JSON.stringify(normalizeQuoteLineItemsForCompare(quote.lineItems)) === JSON.stringify(normalizeQuoteLineItemsForCompare(lineItems)) &&
+    savedDiscountAmount === nextDiscountAmount &&
+    (quote.discountLabel || '').trim() === (discountLabel || '').trim()
+  )
+}
+
 export default function SalesLeadDetailPage() {
   const params = useParams() as { id?: string }
   const router = useRouter()
@@ -2289,16 +2312,19 @@ export default function SalesLeadDetailPage() {
         ? (quote.total > 0 ? quote.deposit / quote.total : 0.2)
         : 0
       const quoteIsLockedForPricing = isCustomerFacingQuote(quote)
-      const sourceLineItems = quoteIsLockedForPricing ? (quote.lineItems || []) : quoteLineItems
+      const preserveCustomerFacingPricing =
+        quoteIsLockedForPricing &&
+        quotePricingInputsMatchSaved(quote, quoteLineItems, quoteDiscountAmount, quoteDiscountLabel)
+      const sourceLineItems = preserveCustomerFacingPricing ? (quote.lineItems || []) : quoteLineItems
 
       // When an override is active, bypass any existing discount — the override IS the final pre-tax price
       const overrideLineItem = sourceLineItems.find(li => li.description === 'Moving Services — Agreed Rate')
       const hasOverride = Boolean(overrideLineItem)
-      const effectiveDiscount = quoteIsLockedForPricing
+      const effectiveDiscount = preserveCustomerFacingPricing
         ? Number(quote.discountAmount || 0)
         : hasOverride ? 0 : quoteDiscountAmount
 
-      const totals = quoteIsLockedForPricing
+      const totals = preserveCustomerFacingPricing
         ? {
             lineItems: quote.lineItems || [],
             subtotal: quote.subtotal,
@@ -2329,16 +2355,16 @@ export default function SalesLeadDetailPage() {
         total: totals.total,
         deposit: totals.deposit,
         balance: totals.balance,
-        crewSize: quoteIsLockedForPricing ? quote.crewSize : pricingMetaRef.current.crewSize,
-        estimatedHours: quoteIsLockedForPricing ? quote.estimatedHours : pricingMetaRef.current.estimatedHours,
-        truckCount: quoteIsLockedForPricing ? quote.truckCount : pricingMetaRef.current.truckCount,
-        estimatedWeightLbs: quoteIsLockedForPricing ? quote.estimatedWeightLbs : pricingMetaRef.current.estimatedWeightLbs,
-        longDistanceDistanceKm: quoteIsLockedForPricing ? quote.longDistanceDistanceKm : pricingMetaRef.current.longDistanceDistanceKm,
-        longDistanceTruckCost: quoteIsLockedForPricing ? quote.longDistanceTruckCost : pricingMetaRef.current.longDistanceTruckCost,
-        longDistanceGasCost: quoteIsLockedForPricing ? quote.longDistanceGasCost : pricingMetaRef.current.longDistanceGasCost,
-        longDistanceInsuranceCost: quoteIsLockedForPricing ? quote.longDistanceInsuranceCost : pricingMetaRef.current.longDistanceInsuranceCost,
-        longDistanceMiscCost: quoteIsLockedForPricing ? quote.longDistanceMiscCost : pricingMetaRef.current.longDistanceMiscCost,
-        longDistanceMarkupRate: quoteIsLockedForPricing ? quote.longDistanceMarkupRate : pricingMetaRef.current.longDistanceMarkupRate,
+        crewSize: preserveCustomerFacingPricing ? quote.crewSize : pricingMetaRef.current.crewSize,
+        estimatedHours: preserveCustomerFacingPricing ? quote.estimatedHours : pricingMetaRef.current.estimatedHours,
+        truckCount: preserveCustomerFacingPricing ? quote.truckCount : pricingMetaRef.current.truckCount,
+        estimatedWeightLbs: preserveCustomerFacingPricing ? quote.estimatedWeightLbs : pricingMetaRef.current.estimatedWeightLbs,
+        longDistanceDistanceKm: preserveCustomerFacingPricing ? quote.longDistanceDistanceKm : pricingMetaRef.current.longDistanceDistanceKm,
+        longDistanceTruckCost: preserveCustomerFacingPricing ? quote.longDistanceTruckCost : pricingMetaRef.current.longDistanceTruckCost,
+        longDistanceGasCost: preserveCustomerFacingPricing ? quote.longDistanceGasCost : pricingMetaRef.current.longDistanceGasCost,
+        longDistanceInsuranceCost: preserveCustomerFacingPricing ? quote.longDistanceInsuranceCost : pricingMetaRef.current.longDistanceInsuranceCost,
+        longDistanceMiscCost: preserveCustomerFacingPricing ? quote.longDistanceMiscCost : pricingMetaRef.current.longDistanceMiscCost,
+        longDistanceMarkupRate: preserveCustomerFacingPricing ? quote.longDistanceMarkupRate : pricingMetaRef.current.longDistanceMarkupRate,
         destAddress: destAddress || lead?.destAddress || undefined,
         destCity: destCity || lead?.destCity || undefined,
         originAddress: originAddress || lead?.originAddress || undefined,
@@ -2348,10 +2374,10 @@ export default function SalesLeadDetailPage() {
         moveDescription: nextMoveDescription || undefined,
         internalNotes: nextInternalNotes || undefined,
         conditionalClause: overrides?.conditionalClause !== undefined ? (overrides.conditionalClause || undefined) : quote.conditionalClause,
-        priceOverrideTotal: quoteIsLockedForPricing
+        priceOverrideTotal: preserveCustomerFacingPricing
           ? quote.priceOverrideTotal
           : overrideLineItem ? Math.round(Number(overrideLineItem.amount || 0) * 100) / 100 : undefined,
-        priceOverrideReason: quoteIsLockedForPricing
+        priceOverrideReason: preserveCustomerFacingPricing
           ? quote.priceOverrideReason
           : overrideLineItem?.details || undefined,
       })
