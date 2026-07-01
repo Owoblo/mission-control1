@@ -178,6 +178,10 @@ function isTwilioAccessTokenExpired(error: unknown) {
     message.includes('the access token provided to the twilio api has expired')
 }
 
+function isBlankTwilioSdkRejection(error: unknown) {
+  return error === undefined || error === null || getTwilioErrorMessage(error).toLowerCase() === 'undefined'
+}
+
 function getDialerStateStorageKey(userId?: string | null) {
   return `dialer_state:${userId || 'anonymous'}`
 }
@@ -819,7 +823,19 @@ export function FloatingDialer() {
         }
         await device.updateToken(payload.token)
         if (!activeSession) {
-          await device.register()
+          try {
+            await device.register()
+          } catch (err) {
+            const msg = getTwilioErrorMessage(err) || 'Twilio device registration failed after token refresh'
+            logCallEvent('call_error', {
+              errorCode: getTwilioErrorCode(err) || null,
+              errorMessage: msg,
+              failureReason: 'device_register_failed',
+              audioConnected: false,
+              extra: { reason, blankRejection: isBlankTwilioSdkRejection(err), networkType: getNetworkType(), online: navigator.onLine },
+            })
+            throw new Error(msg)
+          }
         }
         await applyAudioPreferences(device)
       } else {
@@ -1069,7 +1085,19 @@ export function FloatingDialer() {
       })
     })
 
-    await device.register()
+    try {
+      await device.register()
+    } catch (err) {
+      const msg = getTwilioErrorMessage(err) || 'Twilio device registration failed'
+      logCallEvent('call_error', {
+        errorCode: getTwilioErrorCode(err) || null,
+        errorMessage: msg,
+        failureReason: 'device_register_failed',
+        audioConnected: false,
+        extra: { blankRejection: isBlankTwilioSdkRejection(err), networkType: getNetworkType(), online: navigator.onLine },
+      })
+      throw new Error(msg)
+    }
     deviceRef.current = device
     await applyAudioPreferences(device)
     scheduleTokenRefresh(payload.expiresAt || null)
@@ -1745,6 +1773,26 @@ export function FloatingDialer() {
     }
 
     function onUnhandledRejection(event: PromiseRejectionEvent) {
+      if (isBlankTwilioSdkRejection(event.reason) && tokenExpiresAtRef.current) {
+        event.preventDefault()
+        logCallEvent('call_error', {
+          errorMessage: 'Twilio SDK rejected without an error object',
+          failureReason: 'device_register_failed',
+          audioConnected: false,
+          extra: {
+            source: 'unhandledrejection',
+            blankRejection: true,
+            deviceState: deviceStateRef.current,
+            networkType: getNetworkType(),
+            online: navigator.onLine,
+          },
+        })
+        if (deviceStateRef.current === 'registering' || deviceStateRef.current === 'unregistered') {
+          setPreCallWarning('Browser voice had a registration hiccup. Reconnecting dialer...')
+          window.setTimeout(() => void retryConnection().catch(() => {}), 1500)
+        }
+        return
+      }
       if (isTwilioAccessTokenExpired(event.reason)) {
         event.preventDefault()
         const code = getTwilioErrorCode(event.reason)

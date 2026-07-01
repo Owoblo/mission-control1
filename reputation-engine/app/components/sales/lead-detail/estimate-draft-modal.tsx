@@ -239,6 +239,18 @@ function buildPackingMaterialsLineItemDetails(estimate: PackingMaterialsFlag) {
   return `~${estimate.plannedBoxes} planned boxes · ${highlights}${remainder} · charge actual used materials, unopened extras credited back`
 }
 
+function isCustomerFacingQuote(quote?: CRMQuote | null) {
+  if (!quote) return false
+  return Boolean(
+    quote.billingModel === 'binding' ||
+    quote.sentAt ||
+    quote.viewedAt ||
+    quote.acceptedAt ||
+    quote.depositPaidAt ||
+    ['sent', 'viewed', 'accepted', 'invoiced'].includes(quote.status)
+  )
+}
+
 type Props = {
   open: boolean
   quote: CRMQuote | null
@@ -1394,6 +1406,14 @@ export function EstimateDraftModal({
       legs: legsEnabled ? legs : undefined,
     }, jobFactors).pricingBreakdown
   }, [open, lead, inventory, jobFactors, quoteType, distanceKm, route, routeContext, legs, legsEnabled])
+
+  const quoteIsCustomerFacing = isCustomerFacingQuote(quote)
+  const savedQuoteSubtotal = quote ? Number(quote.subtotal || 0) : quoteModalTotals.subtotal
+  const savedQuoteTotal = quote ? Number(quote.total || 0) : quoteModalTotals.total
+  const savedQuoteHours = quote ? Number(quote.estimatedHours || 0) : 0
+  const savedQuoteCrewSize = quote ? Number(quote.crewSize || 0) : 0
+  const savedQuoteTruckCount = quote ? Number(quote.truckCount || 0) : 0
+  const savedQuoteStatusLabel = quote?.status ? quote.status.replace(/_/g, ' ') : 'draft'
 
   function setFactor<K extends keyof JobFactors>(key: K, value: JobFactors[K]) {
     const next = { ...jobFactors, [key]: value }
@@ -4863,6 +4883,18 @@ export function EstimateDraftModal({
                     <div className="text-[var(--app-muted)] mt-0.5">{effectiveInventoryMetrics.totalItems} items across all rooms</div>
                   </div>
 
+                  {quoteIsCustomerFacing && quote && (
+                    <div className="px-3 py-2.5 bg-emerald-50 text-emerald-900">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.1em]">Saved customer quote</div>
+                      <div className="mt-1 font-semibold">
+                        {quote.number || quote.id} · {savedQuoteStatusLabel}
+                      </div>
+                      <div className="mt-1 text-[11px] leading-4 text-emerald-800">
+                        Showing the sent binding numbers. Live inventory/job-factor math is not allowed to overwrite this quote.
+                      </div>
+                    </div>
+                  )}
+
                   {/* Per-leg route summary when multi-stop is on */}
                   {legsEnabled && legs.length > 0 && (
                     <div className="px-3 py-2.5 space-y-1.5">
@@ -5009,6 +5041,29 @@ export function EstimateDraftModal({
                     </div>
                   )}
 
+                  {!quoteIsCustomerFacing && (() => {
+                    const visibleAdjustmentHours = pricingBreakdown.adjustmentBreakdown.reduce((sum, item) => sum + item.hours, 0)
+                    const visibleHours =
+                      pricingBreakdown.loadHours +
+                      pricingBreakdown.unloadHours +
+                      pricingBreakdown.driveHours +
+                      visibleAdjustmentHours +
+                      pricingBreakdown.bufferHours
+                    const undisplayedHours = Math.round(Math.max(0, pricingBreakdown.totalHours - visibleHours) * 4) / 4
+                    if (undisplayedHours < 0.25) return null
+                    return (
+                      <div className="px-3 py-2.5 space-y-1">
+                        <div className="flex justify-between text-[var(--app-muted)]">
+                          <span className="uppercase tracking-wide text-[10px]">Other pricing adjustments</span>
+                          <span>+{undisplayedHours}h</span>
+                        </div>
+                        <div className="text-[10px] leading-4 text-[var(--app-muted)]">
+                          Includes multi-trip handling, minimums, route rounding, or operational scope not shown in the simple categories above.
+                        </div>
+                      </div>
+                    )
+                  })()}
+
                   {/* BUFFERS */}
                   <div className="px-3 py-2.5 space-y-1">
                     <div className="flex justify-between text-[var(--app-muted)]">
@@ -5019,7 +5074,26 @@ export function EstimateDraftModal({
 
                   {/* TOTAL — hourly for local, flat-rate guidance for long-distance */}
                   <div className="px-3 py-3 bg-[#1a2744] text-white space-y-1">
-                    {(route?.category === 'long-distance' || quoteType === 'long_distance') ? (
+                    {quoteIsCustomerFacing && quote ? (
+                      <>
+                        <div className="flex justify-between font-semibold">
+                          <span>
+                            {savedQuoteCrewSize || pricingBreakdown.crewSize} movers · {savedQuoteTruckCount || pricingBreakdown.truckCount} truck{(savedQuoteTruckCount || pricingBreakdown.truckCount) > 1 ? 's' : ''}
+                          </span>
+                          <span>{savedQuoteHours > 0 ? `${savedQuoteHours}h` : 'Locked'}</span>
+                        </div>
+                        <div className="flex justify-between text-sm font-bold text-[#f5a623]">
+                          <span>Saved estimate</span>
+                          <span>{formatMoney(savedQuoteSubtotal || quoteModalTotals.subtotal)}</span>
+                        </div>
+                        {savedQuoteTotal > 0 && (
+                          <div className="flex justify-between text-[11px] text-white/70">
+                            <span>Incl. HST</span>
+                            <span>{formatMoney(savedQuoteTotal)}</span>
+                          </div>
+                        )}
+                      </>
+                    ) : (route?.category === 'long-distance' || quoteType === 'long_distance') ? (
                       <>
                         <div className="flex justify-between font-semibold">
                           <span>{pricingBreakdown.crewSize} movers · {pricingBreakdown.truckCount} truck{pricingBreakdown.truckCount > 1 ? 's' : ''} · U-Haul one-way</span>

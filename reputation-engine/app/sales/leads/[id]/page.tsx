@@ -124,6 +124,18 @@ function automationJobLabel(job: CRMAutomationJob) {
   return 'Scheduled automation'
 }
 
+function isCustomerFacingQuote(quote?: CRMQuote | null) {
+  if (!quote) return false
+  return Boolean(
+    quote.billingModel === 'binding' ||
+    quote.sentAt ||
+    quote.viewedAt ||
+    quote.acceptedAt ||
+    quote.depositPaidAt ||
+    ['sent', 'viewed', 'accepted', 'invoiced'].includes(quote.status)
+  )
+}
+
 export default function SalesLeadDetailPage() {
   const params = useParams() as { id?: string }
   const router = useRouter()
@@ -1563,6 +1575,7 @@ export default function SalesLeadDetailPage() {
     routeContext?: EstimateRouteContext
   }) {
     if (!lead) return
+    if (isCustomerFacingQuote(quote)) return
     // Never auto-recalculate when an override is active — it would stack old + new price
     if (quoteLineItemsRef.current.some(li =>
       li.description === 'Moving Services — Agreed Rate' ||
@@ -1621,6 +1634,7 @@ export default function SalesLeadDetailPage() {
   // This keeps Draft Summary in sync with the live breakdown whenever factors are toggled
   useEffect(() => {
     if (!quoteModalOpen || !lead) return
+    if (isCustomerFacingQuote(quote)) return
     // Use ref (not state) to avoid stale closure — always reads the latest line items
     if (quoteLineItemsRef.current.some(li =>
       li.description === 'Moving Services — Agreed Rate' ||
@@ -1628,7 +1642,7 @@ export default function SalesLeadDetailPage() {
     )) return
     recalculateEstimate()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inventoryMetrics.totalCubicFeet, inventoryMetrics.totalWeightLbs, quoteModalOpen, jobFactors, quoteLegs])
+  }, [inventoryMetrics.totalCubicFeet, inventoryMetrics.totalWeightLbs, quoteModalOpen, jobFactors, quoteLegs, quote])
 
   async function saveLead(options?: {
     skipLostCheck?: boolean
@@ -2274,14 +2288,27 @@ export default function SalesLeadDetailPage() {
       const depositRate = effectivePaymentTerms === 'deposit_required'
         ? (quote.total > 0 ? quote.deposit / quote.total : 0.2)
         : 0
+      const quoteIsLockedForPricing = isCustomerFacingQuote(quote)
+      const sourceLineItems = quoteIsLockedForPricing ? (quote.lineItems || []) : quoteLineItems
 
       // When an override is active, bypass any existing discount — the override IS the final pre-tax price
-      const overrideLineItem = quoteLineItems.find(li => li.description === 'Moving Services — Agreed Rate')
+      const overrideLineItem = sourceLineItems.find(li => li.description === 'Moving Services — Agreed Rate')
       const hasOverride = Boolean(overrideLineItem)
-      const effectiveDiscount = hasOverride ? 0 : quoteDiscountAmount
+      const effectiveDiscount = quoteIsLockedForPricing
+        ? Number(quote.discountAmount || 0)
+        : hasOverride ? 0 : quoteDiscountAmount
 
-      const totals = computeQuoteTotals(quoteLineItems, depositRate, effectiveDiscount)
-      const quoteHasMovingScope = quoteLineItems.some(item => /moving service|full-service moving|moving labor|\[leg\s+\d+\]/i.test(`${item.description} ${item.details || ''}`))
+      const totals = quoteIsLockedForPricing
+        ? {
+            lineItems: quote.lineItems || [],
+            subtotal: quote.subtotal,
+            hst: quote.hst,
+            total: quote.total,
+            deposit: quote.deposit,
+            balance: quote.balance,
+          }
+        : computeQuoteTotals(sourceLineItems, depositRate, effectiveDiscount)
+      const quoteHasMovingScope = sourceLineItems.some(item => /moving service|full-service moving|moving labor|\[leg\s+\d+\]/i.test(`${item.description} ${item.details || ''}`))
       const effectiveQuoteMoveType: CRMLead['moveType'] =
         (jobFactors.conjointMove || quoteLegs.length > 1 || quoteHasMovingScope) && moveType === 'labor-only'
           ? 'residential'
@@ -2302,16 +2329,16 @@ export default function SalesLeadDetailPage() {
         total: totals.total,
         deposit: totals.deposit,
         balance: totals.balance,
-        crewSize: pricingMetaRef.current.crewSize,
-        estimatedHours: pricingMetaRef.current.estimatedHours,
-        truckCount: pricingMetaRef.current.truckCount,
-        estimatedWeightLbs: pricingMetaRef.current.estimatedWeightLbs,
-        longDistanceDistanceKm: pricingMetaRef.current.longDistanceDistanceKm,
-        longDistanceTruckCost: pricingMetaRef.current.longDistanceTruckCost,
-        longDistanceGasCost: pricingMetaRef.current.longDistanceGasCost,
-        longDistanceInsuranceCost: pricingMetaRef.current.longDistanceInsuranceCost,
-        longDistanceMiscCost: pricingMetaRef.current.longDistanceMiscCost,
-        longDistanceMarkupRate: pricingMetaRef.current.longDistanceMarkupRate,
+        crewSize: quoteIsLockedForPricing ? quote.crewSize : pricingMetaRef.current.crewSize,
+        estimatedHours: quoteIsLockedForPricing ? quote.estimatedHours : pricingMetaRef.current.estimatedHours,
+        truckCount: quoteIsLockedForPricing ? quote.truckCount : pricingMetaRef.current.truckCount,
+        estimatedWeightLbs: quoteIsLockedForPricing ? quote.estimatedWeightLbs : pricingMetaRef.current.estimatedWeightLbs,
+        longDistanceDistanceKm: quoteIsLockedForPricing ? quote.longDistanceDistanceKm : pricingMetaRef.current.longDistanceDistanceKm,
+        longDistanceTruckCost: quoteIsLockedForPricing ? quote.longDistanceTruckCost : pricingMetaRef.current.longDistanceTruckCost,
+        longDistanceGasCost: quoteIsLockedForPricing ? quote.longDistanceGasCost : pricingMetaRef.current.longDistanceGasCost,
+        longDistanceInsuranceCost: quoteIsLockedForPricing ? quote.longDistanceInsuranceCost : pricingMetaRef.current.longDistanceInsuranceCost,
+        longDistanceMiscCost: quoteIsLockedForPricing ? quote.longDistanceMiscCost : pricingMetaRef.current.longDistanceMiscCost,
+        longDistanceMarkupRate: quoteIsLockedForPricing ? quote.longDistanceMarkupRate : pricingMetaRef.current.longDistanceMarkupRate,
         destAddress: destAddress || lead?.destAddress || undefined,
         destCity: destCity || lead?.destCity || undefined,
         originAddress: originAddress || lead?.originAddress || undefined,
@@ -2321,8 +2348,12 @@ export default function SalesLeadDetailPage() {
         moveDescription: nextMoveDescription || undefined,
         internalNotes: nextInternalNotes || undefined,
         conditionalClause: overrides?.conditionalClause !== undefined ? (overrides.conditionalClause || undefined) : quote.conditionalClause,
-        priceOverrideTotal: overrideLineItem ? Math.round(Number(overrideLineItem.amount || 0) * 100) / 100 : undefined,
-        priceOverrideReason: overrideLineItem?.details || undefined,
+        priceOverrideTotal: quoteIsLockedForPricing
+          ? quote.priceOverrideTotal
+          : overrideLineItem ? Math.round(Number(overrideLineItem.amount || 0) * 100) / 100 : undefined,
+        priceOverrideReason: quoteIsLockedForPricing
+          ? quote.priceOverrideReason
+          : overrideLineItem?.details || undefined,
       })
       setQuote(result.quote)
       if (result.lead) setLead(result.lead)
