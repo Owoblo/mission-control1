@@ -565,6 +565,18 @@ function combineRouteAddress(address?: string, city?: string) {
   return [address, city].filter(Boolean).join(', ').trim()
 }
 
+function meaningfulRoutePart(value?: string | null) {
+  const text = String(value || '').trim()
+  if (!text || /^not\s+specified$/i.test(text) || /^unknown$/i.test(text)) return ''
+  return text
+}
+
+function bookedSupportRoute(lead: Pick<CRMLead, 'originAddress' | 'originCity' | 'destAddress' | 'destCity'>) {
+  const origin = meaningfulRoutePart(lead.originAddress) || meaningfulRoutePart(lead.originCity)
+  const destination = meaningfulRoutePart(lead.destAddress) || meaningfulRoutePart(lead.destCity)
+  return [origin, destination].filter(Boolean).join(' to ')
+}
+
 function parseMaybeNumber(value: unknown) {
   if (typeof value === 'number' && Number.isFinite(value)) return value
   if (typeof value === 'string') {
@@ -1740,6 +1752,45 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
     return { doNotContact: true, intent: 'opt_out', capturedSummary: 'Lead opted out of automation.' }
   }
 
+  if (isBookedOrPaidLead(lead) && kind === 'lead_response') {
+    if (isCompletedCustomerLead(lead)) {
+      return {
+        reply:
+          channel === 'sms'
+            ? `Thanks ${firstName}. I found your completed Saturn Star customer file and saved this message there. If this is for a new move, send the new date and route and we'll start a fresh estimate.`
+            : `Hi ${firstName},\n\nThanks. I found your completed Saturn Star customer file and saved this message there. If this is for a new move, send the new date and route and we'll start a fresh estimate.\n\nJohn\nSaturn Star Moving`,
+        subject: channel === 'email' ? 'Re: Saturn Star Moving' : undefined,
+        capturedSummary: 'Completed customer replied. Automation acknowledged the existing customer file instead of restarting sales intake.',
+        intent: 'lead_response',
+        missingFields: [],
+        moveReadiness: 'warm',
+        nextBestAction: 'customer_success_review',
+      }
+    }
+
+    const moveDate = lead.moveDate
+      ? new Date(`${lead.moveDate}T12:00:00`).toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' })
+      : 'your move day'
+    const route = bookedSupportRoute(lead)
+    const hasLogisticsDetail = /\b(park|parking|truck|entrance|door|elevator|stairs|loading|access|hall|unit|apartment|furniture|wrap|blanket|box|packing|pack)\b/i.test(inboundMessage || '')
+    return {
+      reply:
+        channel === 'sms'
+          ? hasLogisticsDetail
+            ? `Thanks ${firstName}. Your move${route ? ` from ${route}` : ''} is already booked for ${moveDate}, and I saved this logistics note for the crew briefing.`
+            : `Thanks ${firstName}. Your move${route ? ` from ${route}` : ''} is already booked for ${moveDate}. I saved your message on the job file.`
+          : hasLogisticsDetail
+            ? `Hi ${firstName},\n\nThanks. Your move${route ? ` from ${route}` : ''} is already booked for ${moveDate}, and I saved this logistics note for the crew briefing.\n\nJohn\nSaturn Star Moving`
+            : `Hi ${firstName},\n\nThanks. Your move${route ? ` from ${route}` : ''} is already booked for ${moveDate}. I saved your message on the job file.\n\nJohn\nSaturn Star Moving`,
+      subject: channel === 'email' ? 'Re: Your Booked Move' : undefined,
+      capturedSummary: 'Booked customer sent a post-booking question. Automation acknowledged and routed the note to operations.',
+      intent: 'lead_response',
+      missingFields: [],
+      moveReadiness: 'hot',
+      nextBestAction: 'operations_review',
+    }
+  }
+
   if (kind === 'lost_feedback') {
     return {
       reply:
@@ -1793,45 +1844,6 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
       intent: 'lead_response',
       missingFields: [],
       moveReadiness: 'cold',
-    }
-  }
-
-  if (isBookedOrPaidLead(lead) && kind === 'lead_response') {
-    if (isCompletedCustomerLead(lead)) {
-      return {
-        reply:
-          channel === 'sms'
-            ? `Thanks ${firstName}. I found your completed Saturn Star customer file and saved this message there. If this is for a new move, send the new date and route and we'll start a fresh estimate.`
-            : `Hi ${firstName},\n\nThanks. I found your completed Saturn Star customer file and saved this message there. If this is for a new move, send the new date and route and we'll start a fresh estimate.\n\nJohn\nSaturn Star Moving`,
-        subject: channel === 'email' ? 'Re: Saturn Star Moving' : undefined,
-        capturedSummary: 'Completed customer replied. Automation acknowledged the existing customer file instead of restarting sales intake.',
-        intent: 'lead_response',
-        missingFields: [],
-        moveReadiness: 'warm',
-        nextBestAction: 'customer_success_review',
-      }
-    }
-
-    const moveDate = lead.moveDate
-      ? new Date(`${lead.moveDate}T12:00:00`).toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' })
-      : 'your move day'
-    const route = [lead.originCity || lead.originAddress, lead.destCity || lead.destAddress].filter(Boolean).join(' to ')
-    const hasLogisticsDetail = /\b(park|parking|truck|entrance|door|elevator|stairs|loading|access|hall|unit|apartment|furniture|wrap|blanket|box|packing|pack)\b/i.test(inboundMessage || '')
-    return {
-      reply:
-        channel === 'sms'
-          ? hasLogisticsDetail
-            ? `Thanks ${firstName}. Your move${route ? ` from ${route}` : ''} is already booked for ${moveDate}, and I saved this logistics note for the crew briefing.`
-            : `Thanks ${firstName}. Your move${route ? ` from ${route}` : ''} is already booked for ${moveDate}. I saved your message on the job file.`
-          : hasLogisticsDetail
-            ? `Hi ${firstName},\n\nThanks. Your move${route ? ` from ${route}` : ''} is already booked for ${moveDate}, and I saved this logistics note for the crew briefing.\n\nJohn\nSaturn Star Moving`
-            : `Hi ${firstName},\n\nThanks. Your move${route ? ` from ${route}` : ''} is already booked for ${moveDate}. I saved your message on the job file.\n\nJohn\nSaturn Star Moving`,
-      subject: channel === 'email' ? 'Re: Your Booked Move' : undefined,
-      capturedSummary: 'Booked customer sent a post-booking question. Automation acknowledged and routed the note to operations.',
-      intent: 'lead_response',
-      missingFields: [],
-      moveReadiness: 'hot',
-      nextBestAction: 'operations_review',
     }
   }
 
@@ -2378,6 +2390,42 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
     }
   }
 
+  if (job.kind === 'lead_response' && isBookedOrPaidLead(lead)) {
+    const copy = fallbackCopy(job.kind, lead, contact.channel, inboundMessage)
+    const sendResult = await sendSalesMessage({
+      actor: 'automation',
+      channel: contact.channel,
+      to: contact.to,
+      subject: contact.channel === 'email' ? copy.subject || inboundSubject || 'Re: Your Booked Move' : undefined,
+      body: copy.reply || fallbackCopy(job.kind, lead, contact.channel, inboundMessage).reply || '',
+      leadId: lead.id,
+      notes: `Automation booked-customer support reply sent to ${contact.to}`,
+    })
+
+    const updatedLead = await updateLeadAfterAutomation(sendResult.lead || lead, copy)
+    await saveFollowUpLog({
+      id: uid('fu'),
+      leadId: updatedLead.id,
+      type: 'note',
+      date: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      notes: `Booked customer asked an operations/support question. Automation acknowledged and handed off if needed: ${inboundMessage}`,
+    }).catch(() => {})
+
+    const thread = await saveAutomationThreadAfterOutbound({
+      lead: updatedLead,
+      existingThread,
+      channel: contact.channel,
+      contactValue: contact.to,
+      preview: copy.reply || '',
+      jobKind: job.kind,
+      intent: copy.intent,
+      inboundMessage,
+    })
+
+    return { status: 'completed' as const, sent: true, lead: updatedLead, thread, message: copy.reply }
+  }
+
   if (job.kind === 'lead_response' && lead.stage === 'lost' && inboundMessage && detectRenewedMoveInterest(inboundMessage)) {
     const nowIso = new Date().toISOString()
     const reopenedLead = await saveSalesLead({
@@ -2416,7 +2464,7 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
     const moveDate = reopenedLead.moveDate
       ? new Date(`${reopenedLead.moveDate}T12:00:00`).toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' })
       : ''
-    const route = [reopenedLead.originCity || reopenedLead.originAddress, reopenedLead.destCity || reopenedLead.destAddress].filter(Boolean).join(' to ')
+    const route = bookedSupportRoute(reopenedLead)
     const body = contact.channel === 'email'
       ? `Hi ${firstName},\n\nYes, I can help. I reopened your file. Are we working with the same move${moveDate ? ` for ${moveDate}` : ''}${route ? ` from ${route}` : ''}, or did the date, route, or inventory change?\n\nJohn\nSaturn Star Moving`
       : `Yes ${firstName}, I can help. I reopened your file. Is this the same move${moveDate ? ` for ${moveDate}` : ''}${route ? ` from ${route}` : ''}, or did the date, route, or inventory change?`
@@ -2506,7 +2554,7 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
     return { status: 'completed' as const, sent: true, lead: updatedLead, thread, message: copy.reply }
   }
 
-  if (job.kind === 'lead_response' && inboundMessage && detectMovedOnIntent(inboundMessage)) {
+  if (job.kind === 'lead_response' && inboundMessage && detectMovedOnIntent(inboundMessage) && !isBookedOrPaidLead(lead)) {
     const nowIso = new Date().toISOString()
     const lostLead = await saveSalesLead({
       ...lead,
@@ -2546,42 +2594,6 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
     })
 
     const updatedLead = await updateLeadAfterAutomation(sendResult.lead || lostLead, copy)
-    const thread = await saveAutomationThreadAfterOutbound({
-      lead: updatedLead,
-      existingThread,
-      channel: contact.channel,
-      contactValue: contact.to,
-      preview: copy.reply || '',
-      jobKind: job.kind,
-      intent: copy.intent,
-      inboundMessage,
-    })
-
-    return { status: 'completed' as const, sent: true, lead: updatedLead, thread, message: copy.reply }
-  }
-
-  if (job.kind === 'lead_response' && isBookedOrPaidLead(lead)) {
-    const copy = fallbackCopy(job.kind, lead, contact.channel, inboundMessage)
-    const sendResult = await sendSalesMessage({
-      actor: 'automation',
-      channel: contact.channel,
-      to: contact.to,
-      subject: contact.channel === 'email' ? copy.subject || inboundSubject || 'Re: Your Booked Move' : undefined,
-      body: copy.reply || fallbackCopy(job.kind, lead, contact.channel, inboundMessage).reply || '',
-      leadId: lead.id,
-      notes: `Automation booked-customer support reply sent to ${contact.to}`,
-    })
-
-    const updatedLead = await updateLeadAfterAutomation(sendResult.lead || lead, copy)
-    await saveFollowUpLog({
-      id: uid('fu'),
-      leadId: updatedLead.id,
-      type: 'note',
-      date: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      notes: `Booked customer asked an operations/support question. Automation acknowledged and handed off if needed: ${inboundMessage}`,
-    }).catch(() => {})
-
     const thread = await saveAutomationThreadAfterOutbound({
       lead: updatedLead,
       existingThread,
