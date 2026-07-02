@@ -1775,8 +1775,8 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
       return {
         reply:
           channel === 'sms'
-            ? `Thanks ${firstName}. I found your completed Saturn Star customer file and saved this message there. If this is for a new move, send the new date and route and we'll start a fresh estimate.`
-            : `Hi ${firstName},\n\nThanks. I found your completed Saturn Star customer file and saved this message there. If this is for a new move, send the new date and route and we'll start a fresh estimate.\n\nJohn\nSaturn Star Moving`,
+            ? `Thanks ${firstName}. I saved this message on your completed Saturn Star job file.`
+            : `Hi ${firstName},\n\nThanks. I saved this message on your completed Saturn Star job file.\n\nJohn\nSaturn Star Moving`,
         subject: channel === 'email' ? 'Re: Saturn Star Moving' : undefined,
         capturedSummary: 'Completed customer replied. Automation acknowledged the existing customer file instead of restarting sales intake.',
         intent: 'lead_response',
@@ -2410,6 +2410,71 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
   }
 
   if (job.kind === 'lead_response' && isBookedOrPaidLead(lead)) {
+    if (isCompletedCustomerLead(lead)) {
+      const nowIso = new Date().toISOString()
+      const copy = fallbackCopy(job.kind, lead, contact.channel, inboundMessage)
+      const handedLead = await saveSalesLead({
+        ...lead,
+        automationStatus: 'handoff',
+        automationPausedUntil: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        automationPauseReason: 'completed_customer_reply',
+        automationHandoffAt: nowIso,
+        automationHandoffReason: 'Completed customer replied. Rep should review before sending any customer-facing response.',
+        automationLastJobAt: nowIso,
+        inboundMessage: inboundMessage || lead.inboundMessage,
+        qualificationState: buildQualificationState(lead, {
+          ...withoutMissingFields(lead.qualificationState),
+          capturedSummary: `Completed customer replied. Saved for customer success review: ${inboundMessage}`,
+          lastIntent: 'completed_customer_reply',
+          nextBestAction: 'customer_success_review',
+          missingFields: [],
+        }),
+      }).catch(() => lead)
+
+      await saveFollowUpLog({
+        id: uid('fu'),
+        leadId: handedLead.id,
+        type: 'note',
+        date: nowIso,
+        createdAt: nowIso,
+        notes: `Completed customer replied. Automation did not send a response; rep should review: ${inboundMessage}`,
+      }).catch(() => {})
+
+      const thread = await saveConversationThread({
+        id: existingThread?.id || uid('thread'),
+        leadId: handedLead.id,
+        channel: contact.channel,
+        contactValue: normalizeConversationContactValue(contact.channel, contact.to),
+        contactName: existingThread?.contactName || handedLead.name,
+        status: 'human_handoff',
+        automationStatus: 'handoff',
+        automationOwner: 'mixed',
+        lastInboundAt: handedLead.lastInboundAt || existingThread?.lastInboundAt,
+        lastOutboundAt: existingThread?.lastOutboundAt,
+        lastHumanOutboundAt: existingThread?.lastHumanOutboundAt,
+        lastAutomationOutboundAt: existingThread?.lastAutomationOutboundAt,
+        lastInboundPreview: previewText(inboundMessage) || existingThread?.lastInboundPreview,
+        lastOutboundPreview: existingThread?.lastOutboundPreview,
+        qualificationState: handedLead.qualificationState,
+        metadata: {
+          ...(existingThread?.metadata || {}),
+          lastJobKind: job.kind,
+          lastIntent: copy.intent,
+          handoffReason: 'completed_customer_reply',
+        },
+        createdAt: existingThread?.createdAt || nowIso,
+        updatedAt: nowIso,
+      })
+
+      return {
+        status: 'completed' as const,
+        sent: false,
+        lead: handedLead,
+        thread,
+        reason: 'Completed customer reply saved for manual review.',
+      }
+    }
+
     const copy = fallbackCopy(job.kind, lead, contact.channel, inboundMessage)
     const sendResult = await sendSalesMessage({
       actor: 'automation',
