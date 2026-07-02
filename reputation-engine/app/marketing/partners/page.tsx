@@ -3366,23 +3366,31 @@ function PhoneTab({
         return
       }
 
-      await sendSalesMessage(
-        composeChannel === 'sms'
-          ? { channel: 'sms', to: selected.phone!, body: smsBody || ' ', fromNumber: replyFromNumber, mediaUrls: mediaUrls.length ? mediaUrls : undefined }
-          : { channel: 'email', to: selected.email!, subject: emailSubject, body: emailBody }
-      )
-      const mediaNote = composeChannel === 'sms' && mediaUrls.length ? `\n[MMS: ${mediaUrls.join(', ')}]` : ''
-      await fetch('/api/marketing/touches', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        body: JSON.stringify({
-          contact_id: selected.id, channel: composeChannel, direction: 'outbound',
-          notes: composeChannel === 'sms' ? `${smsBody}${mediaNote}`.trim() : `Subject: ${emailSubject}\n\n${emailBody}`,
-          metadata: composeChannel === 'sms'
-            ? { from: replyFromNumber, ...(mediaUrls.length ? { mediaUrls } : {}) }
-            : {},
-          schedule_follow_up_days: 3,
-        }),
-      })
+      if (composeChannel === 'sms') {
+        const res = await fetch(`/api/marketing/contacts/${selected.id}/send-reply`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            body: smsBody,
+            from_number: replyFromNumber,
+            media_urls: mediaUrls,
+          }),
+        })
+        const data = await res.json().catch(() => null) as { error?: string } | null
+        if (!res.ok) throw new Error(data?.error || 'Could not send SMS')
+      } else {
+        await sendSalesMessage({ channel: 'email', to: selected.email!, subject: emailSubject, body: emailBody })
+        await fetch('/api/marketing/touches', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+          body: JSON.stringify({
+            contact_id: selected.id, channel: composeChannel, direction: 'outbound',
+            notes: `Subject: ${emailSubject}\n\n${emailBody}`,
+            metadata: {},
+            schedule_follow_up_days: 3,
+          }),
+        })
+      }
       showToast(composeChannel === 'sms' ? '💬 SMS sent' : '✉️ Email sent')
       const outboundAt = new Date().toISOString()
       const updatedAfterSend = {
@@ -3405,7 +3413,9 @@ function PhoneTab({
       setMediaUrls([])
       reloadTouches(selected.id)
       loadReplyContacts()
-    } catch { showToast('Send failed') }
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Send failed')
+    }
     finally { setSending(false) }
   }
 
