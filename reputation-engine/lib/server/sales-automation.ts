@@ -594,6 +594,23 @@ function isBookedOrPaidLead(lead: Pick<CRMLead, 'stage' | 'paymentStatus' | 'boo
   return isBookedLikeStage(lead.stage) || lead.paymentStatus === 'deposit_received' || lead.paymentStatus === 'paid_in_full' || !!lead.bookedAt
 }
 
+function normalizePaidLeadStage(lead: CRMLead): CRMLead {
+  if (!isBookedOrPaidLead(lead) || lead.stage !== 'lost') return lead
+  return normalizeLead({
+    ...lead,
+    stage: 'booked',
+    followUpStatus: 'followed_up',
+    qualificationState: buildQualificationState(lead, {
+      ...withoutMissingFields(lead.qualificationState),
+      activeCustomer: true,
+      capturedSummary: 'Lead has deposit/booked evidence, so automation restored booked status instead of treating it as lost.',
+      lastIntent: 'booked_paid_status_repaired',
+      nextBestAction: 'operations_support',
+      missingFields: [],
+    }),
+  })
+}
+
 function isCompletedCustomerLead(lead: Pick<CRMLead, 'stage'>) {
   return lead.stage === 'completed' || lead.stage === 'customer_success'
 }
@@ -848,11 +865,12 @@ function mergeExtractedSignals(lead: CRMLead, signals: ExtractedLeadSignals | nu
     ...(signals.hasSafe !== undefined ? { hasSafe: signals.hasSafe } : {}),
   }
 
-  const next = normalizeLead({
+  const next = normalizePaidLeadStage(normalizeLead({
     ...lead,
     name: lead.name || signals.name || lead.name,
     email: lead.email || normalizeEmail(signals.email),
     phone: lead.phone || normalizePhone(signals.phone),
+    stage: signals.depositConfirmed && lead.stage === 'lost' ? 'booked' : lead.stage,
     moveDate: lead.moveDate || signals.moveDate,
     moveDateFlexible: lead.moveDateFlexible ?? signals.moveDateFlexible,
     moveDateFlexibleReason: lead.moveDateFlexibleReason || signals.moveDateFlexibleReason,
@@ -878,7 +896,7 @@ function mergeExtractedSignals(lead: CRMLead, signals: ExtractedLeadSignals | nu
       : lead.notes,
     inboundMessage: inboundSummary || lead.inboundMessage,
     jobFactors: Object.keys(nextJobFactors).length > 0 ? nextJobFactors : lead.jobFactors,
-  })
+  }))
 
   return next
 }
@@ -2090,49 +2108,50 @@ function shouldSkipAutomation(lead: CRMLead, job: CRMAutomationJob) {
 
 async function updateLeadAfterAutomation(lead: CRMLead, copy: AutomationCopy) {
   const now = new Date().toISOString()
-  const qualificationState = buildQualificationState(lead, {
-    ...withoutMissingFields(lead.qualificationState),
-    capturedSummary: copy.capturedSummary || lead.qualificationState?.capturedSummary,
-    lastIntent: copy.intent || lead.qualificationState?.lastIntent,
+  const normalizedLead = normalizePaidLeadStage(lead)
+  const qualificationState = buildQualificationState(normalizedLead, {
+    ...withoutMissingFields(normalizedLead.qualificationState),
+    capturedSummary: copy.capturedSummary || normalizedLead.qualificationState?.capturedSummary,
+    lastIntent: copy.intent || normalizedLead.qualificationState?.lastIntent,
     ...(copy.nextBestAction !== undefined ? { nextBestAction: copy.nextBestAction } : {}),
     ...(copy.missingFields !== undefined ? { missingFields: copy.missingFields } : {}),
   })
 
   return saveSalesLead({
-    ...lead,
+    ...normalizedLead,
     qualificationState,
-    lastOutboundAt: copy.reply ? now : lead.lastOutboundAt,
-    lastAutomationOutboundAt: copy.reply ? now : lead.lastAutomationOutboundAt,
+    lastOutboundAt: copy.reply ? now : normalizedLead.lastOutboundAt,
+    lastAutomationOutboundAt: copy.reply ? now : normalizedLead.lastAutomationOutboundAt,
     automationLastJobAt: now,
     automationStatus:
       copy.doNotContact
         ? 'do_not_contact'
         : copy.shouldHandoff
           ? 'handoff'
-          : lead.automationStatus === 'handoff'
+          : normalizedLead.automationStatus === 'handoff'
             ? 'handoff'
             : 'active',
     automationPausedUntil:
       copy.doNotContact
-        ? lead.automationPausedUntil
+        ? normalizedLead.automationPausedUntil
         : copy.shouldHandoff
           ? new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString()
-          : lead.automationStatus === 'handoff'
-            ? lead.automationPausedUntil
+          : normalizedLead.automationStatus === 'handoff'
+            ? normalizedLead.automationPausedUntil
             : undefined,
     automationPauseReason:
       copy.doNotContact
-        ? lead.automationPauseReason
+        ? normalizedLead.automationPauseReason
         : copy.shouldHandoff
           ? 'customer_requested_human'
-          : lead.automationStatus === 'handoff'
-            ? lead.automationPauseReason
+          : normalizedLead.automationStatus === 'handoff'
+            ? normalizedLead.automationPauseReason
             : undefined,
-    automationHandoffAt: copy.shouldHandoff ? now : lead.automationHandoffAt,
+    automationHandoffAt: copy.shouldHandoff ? now : normalizedLead.automationHandoffAt,
     automationHandoffReason:
       copy.shouldHandoff
         ? 'Customer requested human handling.'
-        : lead.automationHandoffReason,
+        : normalizedLead.automationHandoffReason,
   })
 }
 
@@ -3164,6 +3183,7 @@ export async function scheduleQuoteFollowup(leadId: string, quoteId?: string) {
 export async function scheduleLostFeedback(leadId: string) {
   const lead = await getSalesLead(leadId)
   if (!lead || lead.stage !== 'lost') return null
+  if (isBookedOrPaidLead(lead)) return null
   if (lead.automationStatus === 'do_not_contact') return null
 
   const channel = lead.phone ? 'sms' : lead.email ? 'email' : null

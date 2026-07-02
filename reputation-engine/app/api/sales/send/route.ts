@@ -11,6 +11,31 @@ import { getSessionUser } from '@/lib/server/session'
 import { sendSalesMessage } from '@/lib/server/sales-messaging'
 import { getAppBaseUrl, getWorkerSharedSecret } from '@/lib/server/runtime'
 
+const PARTNERSHIP_REPLY_FROM_NUMBERS = new Set(['+12268870667', '+12266055008', '+12267732993'])
+
+function normalizePhoneNumber(value?: string | null) {
+  const digits = String(value || '').replace(/\D/g, '')
+  if (digits.length === 10) return `+1${digits}`
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`
+  return String(value || '').trim()
+}
+
+function isPartnershipStandaloneSms(
+  session: Awaited<ReturnType<typeof getSessionUser>>,
+  payload: {
+    channel?: 'email' | 'sms' | 'whatsapp'
+    leadId?: string
+    inboundId?: string
+    quoteId?: string
+    fromNumber?: string
+  }
+) {
+  if (session?.role !== 'partnership_manager') return false
+  if (payload.channel !== 'sms') return false
+  if (payload.leadId || payload.inboundId || payload.quoteId) return false
+  return PARTNERSHIP_REPLY_FROM_NUMBERS.has(normalizePhoneNumber(payload.fromNumber))
+}
+
 function triggerIntelligence(leadId: string) {
   const base = getAppBaseUrl()
   const secret = getWorkerSharedSecret()
@@ -24,10 +49,6 @@ function triggerIntelligence(leadId: string) {
 export async function POST(request: Request) {
   try {
     const session = await getSessionUser()
-    if (!canAccessSalesWorkspace(session)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const payload = (await request.json()) as {
       channel?: 'email' | 'sms' | 'whatsapp'
       to?: string
@@ -43,6 +64,11 @@ export async function POST(request: Request) {
       mediaUrls?: string[]
       replyEmailIds?: string[]
       actor?: 'human' | 'automation'
+    }
+
+    const partnershipStandaloneSms = isPartnershipStandaloneSms(session, payload)
+    if (!canAccessSalesWorkspace(session) && !partnershipStandaloneSms) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const body = payload.body || payload.message
