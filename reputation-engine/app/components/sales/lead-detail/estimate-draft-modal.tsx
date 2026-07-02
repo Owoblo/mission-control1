@@ -1442,6 +1442,8 @@ export function EstimateDraftModal({
   const savedQuoteCrewSize = quote ? Number(quote.crewSize || 0) : 0
   const savedQuoteTruckCount = quote ? Number(quote.truckCount || 0) : 0
   const savedQuoteStatusLabel = quote?.status ? quote.status.replace(/_/g, ' ') : 'draft'
+  const showLivePricingBreakdown = !quoteIsCustomerFacing || quoteHasUnsavedPricingRevision
+  const savedQuoteLineItems = quoteHasUnsavedPricingRevision ? quoteLineItems : (quote?.lineItems || quoteLineItems)
 
   function setFactor<K extends keyof JobFactors>(key: K, value: JobFactors[K]) {
     const next = { ...jobFactors, [key]: value }
@@ -4927,8 +4929,27 @@ export function EstimateDraftModal({
                     </div>
                   )}
 
+                  {quoteIsCustomerFacing && !quoteHasUnsavedPricingRevision && quote && (
+                    <div className="px-3 py-2.5 space-y-2">
+                      <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Saved Quote Lines</div>
+                      {savedQuoteLineItems.length > 0 ? (
+                        savedQuoteLineItems.map((item, index) => (
+                          <div key={`${item.description}-${index}`} className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="font-semibold text-[var(--app-ink)]">{item.description || 'Line item'}</div>
+                              {item.details ? <div className="mt-0.5 text-[10px] leading-4 text-[var(--app-muted)]">{item.details}</div> : null}
+                            </div>
+                            <div className="shrink-0 font-semibold text-[var(--app-ink)]">{formatMoney(Number(item.amount || 0))}</div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-[var(--app-muted)]">No saved line items on this quote.</div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Per-leg route summary when multi-stop is on */}
-                  {legsEnabled && legs.length > 0 && (
+                  {showLivePricingBreakdown && legsEnabled && legs.length > 0 && (
                     <div className="px-3 py-2.5 space-y-1.5">
                       <div className="font-semibold text-[10px] uppercase tracking-wide text-purple-700">Stop-by-Stop Route</div>
                       {legs.map((leg, idx) => {
@@ -4962,7 +4983,7 @@ export function EstimateDraftModal({
                   )}
 
                   {/* BASE LABOR */}
-                  <div className="px-3 py-2.5 space-y-1">
+                  {showLivePricingBreakdown && <div className="px-3 py-2.5 space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-[var(--app-ink)] uppercase tracking-wide text-[10px]">Base Labor</span>
                       <span className="font-semibold text-[var(--app-ink)]">{pricingBreakdown.loadHours + pricingBreakdown.unloadHours}h</span>
@@ -4975,10 +4996,10 @@ export function EstimateDraftModal({
                       <span>Unload (carry + unwrap + place)</span>
                       <span>~{pricingBreakdown.unloadHours}h</span>
                     </div>
-                  </div>
+                  </div>}
 
                   {/* OUTER — TRAVEL */}
-                  <div className="px-3 py-2.5 space-y-1">
+                  {showLivePricingBreakdown && <div className="px-3 py-2.5 space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-sky-700 uppercase tracking-wide text-[10px]">Outer — Travel & Access</span>
                       <span className="font-semibold text-sky-700">{pricingBreakdown.driveHours > 0 ? `+${pricingBreakdown.driveHours}h` : '—'}</span>
@@ -5011,10 +5032,10 @@ export function EstimateDraftModal({
                         <span>{a.hours > 0 ? `+${a.hours}h / +${Math.round(a.hours * 60)} min` : 'flagged'}</span>
                       </div>
                     ))}
-                  </div>
+                  </div>}
 
                   {/* INNER — ON-SITE SCOPE */}
-                  {(pricingBreakdown.disassemblyItems.length > 0 || pricingBreakdown.specialtyItemFlags.length > 0 || pricingBreakdown.adjustmentBreakdown.some(a => a.category === 'disassembly' || a.category === 'specialty' || a.category === 'packing')) && (
+                  {showLivePricingBreakdown && (pricingBreakdown.disassemblyItems.length > 0 || pricingBreakdown.specialtyItemFlags.length > 0 || pricingBreakdown.adjustmentBreakdown.some(a => a.category === 'disassembly' || a.category === 'specialty' || a.category === 'packing')) && (
                     <div className="px-3 py-2.5 space-y-1">
                       <div className="flex items-center justify-between">
                         <span className="font-semibold text-amber-700 uppercase tracking-wide text-[10px]">Inner — On-site Scope</span>
@@ -5073,7 +5094,7 @@ export function EstimateDraftModal({
                     </div>
                   )}
 
-                  {!quoteIsCustomerFacing && (() => {
+                  {showLivePricingBreakdown && (() => {
                     const visibleAdjustmentHours = pricingBreakdown.adjustmentBreakdown.reduce((sum, item) => sum + item.hours, 0)
                     const visibleHours =
                       pricingBreakdown.loadHours +
@@ -5097,12 +5118,12 @@ export function EstimateDraftModal({
                   })()}
 
                   {/* BUFFERS */}
-                  <div className="px-3 py-2.5 space-y-1">
+                  {showLivePricingBreakdown && <div className="px-3 py-2.5 space-y-1">
                     <div className="flex justify-between text-[var(--app-muted)]">
                       <span className="uppercase tracking-wide text-[10px]">Buffers</span>
                       <span>+{pricingBreakdown.bufferHours}h</span>
                     </div>
-                  </div>
+                  </div>}
 
                   {/* TOTAL — hourly for local, flat-rate guidance for long-distance */}
                   <div className="px-3 py-3 bg-[#1a2744] text-white space-y-1">
@@ -5112,7 +5133,7 @@ export function EstimateDraftModal({
                           <span>
                             {savedQuoteCrewSize || pricingBreakdown.crewSize} movers · {savedQuoteTruckCount || pricingBreakdown.truckCount} truck{(savedQuoteTruckCount || pricingBreakdown.truckCount) > 1 ? 's' : ''}
                           </span>
-                          <span>{savedQuoteHours > 0 ? `${savedQuoteHours}h` : 'Locked'}</span>
+                          <span>{quoteHasUnsavedPricingRevision ? (savedQuoteHours > 0 ? `${savedQuoteHours}h` : 'Revision') : 'Saved'}</span>
                         </div>
                         <div className="flex justify-between text-sm font-bold text-[#f5a623]">
                           <span>{quoteHasUnsavedPricingRevision ? 'Revision estimate' : 'Saved estimate'}</span>
