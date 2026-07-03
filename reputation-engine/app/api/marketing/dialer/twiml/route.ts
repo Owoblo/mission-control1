@@ -3,11 +3,15 @@ import { pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inb
 import { getAppBaseUrl, readEnv } from '@/lib/server/runtime'
 import {
   DEFAULT_PARTNERSHIP_FROM_NUMBER,
-  PARTNERSHIP_LINES,
   getPartnershipPrimaryNumberForMarket,
 } from '@/lib/partnership-lines'
 
-const PARTNERSHIP_NUMBERS = Object.fromEntries(PARTNERSHIP_LINES.map(line => [line.market, line.number]))
+const PARTNERSHIP_NUMBERS = {
+  windsor: getPartnershipPrimaryNumberForMarket('windsor'),
+  waterloo: getPartnershipPrimaryNumberForMarket('waterloo'),
+  london: getPartnershipPrimaryNumberForMarket('london'),
+  ottawa: getPartnershipPrimaryNumberForMarket('ottawa'),
+}
 const DEFAULT_PARTNERSHIP_NUMBER = DEFAULT_PARTNERSHIP_FROM_NUMBER
 
 function xmlAttr(value: string) {
