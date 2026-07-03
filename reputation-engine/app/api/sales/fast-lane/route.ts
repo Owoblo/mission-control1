@@ -25,7 +25,7 @@ const DEPOSIT = 100
 const FAST_LANE_DEDUPE_WINDOW_MS = 6 * 60 * 60 * 1000
 
 const RATES: Record<string, Record<number, number>> = {
-  truck:  { 2: 160, 3: 225, 4: 315 },
+  truck:  { 2: 160, 3: 200, 4: 315 },
   labor:  { 2: 120, 3: 150, 4: 200 },
 }
 
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Add a phone number or email before sending a Fast Lane quote.' }, { status: 400 })
     }
 
-    const rate = RATES[moveType]?.[crew] ?? 225
+    const rate = RATES[moveType]?.[crew] ?? RATES.truck[3]
     const quotedHours = minHours
     const subtotal = Math.round(rate * quotedHours * 100) / 100
     const hst = Math.round(subtotal * HST * 100) / 100

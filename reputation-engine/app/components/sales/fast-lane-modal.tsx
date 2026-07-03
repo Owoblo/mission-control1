@@ -4,7 +4,7 @@ import { useState } from 'react'
 import type { CRMLead } from '@/lib/types'
 
 const RATES: Record<string, Record<number, number>> = {
-  truck:  { 2: 160, 3: 225, 4: 315 },
+  truck:  { 2: 160, 3: 200, 4: 315 },
   labor:  { 2: 120, 3: 150, 4: 200 },
 }
 
@@ -48,7 +48,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
     recipient: string
   } | null>(null)
 
-  const rate = RATES[moveType]?.[crew] ?? 225
+  const rate = RATES[moveType]?.[crew] ?? RATES.truck[3]
   const range = HOUR_RANGES[rangeIdx]
   const minTotal = Math.round(rate * range.min * 1.13) + surcharge
   const maxTotal = Math.round(rate * range.max * 1.13) + surcharge

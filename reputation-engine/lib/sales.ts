@@ -456,7 +456,7 @@ export function normalizeQuote(quote: CRMQuote): CRMQuote {
 const LOCAL_CREW_RATES: Record<number, number> = {
   1: 100,
   2: 160,
-  3: 225,
+  3: 200,
   4: 270,
   5: 325,
   6: 375,
@@ -468,7 +468,7 @@ const LOCAL_CREW_RATES: Record<number, number> = {
 const LOCAL_CREW_RATES_TRUCK_AWARE: Record<string, number> = {
   '1-1': 100,
   '2-1': 160,
-  '3-1': 225,
+  '3-1': 200,
   '4-1': 270,   // rare — 4 movers, 1 large truck
   '4-2': 290,   // standard 2-truck job — competitive market rate
   '5-2': 350,
