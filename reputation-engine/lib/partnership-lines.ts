@@ -47,10 +47,14 @@ export const PARTNERSHIP_LINES: PartnershipLine[] = [
 
 export const TEMP_PARTNERSHIP_SALES_RECOVERY_NUMBER = '+12267732993'
 
-export const DEFAULT_PARTNERSHIP_SENDER_NUMBERS = PARTNERSHIP_LINES.map(line => line.number)
+export const ALL_PARTNERSHIP_SENDER_NUMBERS = PARTNERSHIP_LINES.map(line => line.number)
+
+export const DEFAULT_PARTNERSHIP_SENDER_NUMBERS = PARTNERSHIP_LINES
+  .filter(line => line.primary)
+  .map(line => line.number)
 
 export const PARTNERSHIP_REPLY_SENDER_NUMBERS = [
-  ...DEFAULT_PARTNERSHIP_SENDER_NUMBERS,
+  ...ALL_PARTNERSHIP_SENDER_NUMBERS,
   TEMP_PARTNERSHIP_SALES_RECOVERY_NUMBER,
 ]
 
@@ -86,8 +90,14 @@ export function getPartnershipLinesForMarket(market?: string | null) {
   return PARTNERSHIP_LINES.filter(line => line.market === 'windsor')
 }
 
-export function getPartnershipSenderNumbersForMarket(market?: string | null) {
-  return getPartnershipLinesForMarket(market).map(line => line.number)
+export function getPartnershipSenderNumbersForMarket(
+  market?: string | null,
+  options?: { includeSecondary?: boolean },
+) {
+  const lines = getPartnershipLinesForMarket(market)
+  if (options?.includeSecondary) return lines.map(line => line.number)
+  const primaryLines = lines.filter(line => line.primary)
+  return (primaryLines.length > 0 ? primaryLines : lines).map(line => line.number)
 }
 
 export function getPartnershipPrimaryNumberForMarket(market?: string | null) {
@@ -101,6 +111,6 @@ export function getPartnershipLineLabel(number?: string | null) {
 }
 
 export function isPartnershipSenderNumber(number?: string | null, options?: { includeRecovery?: boolean }) {
-  const allowed = options?.includeRecovery ? PARTNERSHIP_REPLY_SENDER_NUMBERS : DEFAULT_PARTNERSHIP_SENDER_NUMBERS
+  const allowed = options?.includeRecovery ? PARTNERSHIP_REPLY_SENDER_NUMBERS : ALL_PARTNERSHIP_SENDER_NUMBERS
   return !!number && allowed.includes(number)
 }

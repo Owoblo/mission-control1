@@ -4698,13 +4698,15 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
             <div>
               <label className="crm-label">Send from</label>
               <select value={fromNumber} onChange={e => setFromNumber(e.target.value)} className="crm-input mt-1 text-sm">
-                {PARTNERSHIP_LINES.map(line => (
+                {PARTNERSHIP_LINES.filter(line => line.primary).map(line => (
                   <option key={line.number} value={line.number}>
                     {displayReplyNumber(line.number)} — {line.label}
                   </option>
                 ))}
               </select>
-              <div className="mt-1 text-[11px] text-[var(--app-muted)]">Sales and operations numbers are intentionally hidden here.</div>
+              <div className="mt-1 text-[11px] text-[var(--app-muted)]">
+                New sends use primary partnership lines only. Existing SMS threads keep replying from the number that contact already saw.
+              </div>
             </div>
 
             {/* Preview */}
