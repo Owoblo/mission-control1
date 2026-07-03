@@ -10,13 +10,18 @@ import {
   mergePartnershipSmsTemplate,
   parseSmsCampaignConfig,
 } from '@/lib/server/partnership-sms'
+import {
+  DEFAULT_PARTNERSHIP_EMAIL,
+  DEFAULT_PARTNERSHIP_FROM_NUMBER,
+  getPartnershipPrimaryNumberForMarket,
+} from '@/lib/partnership-lines'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 const STALE_JOB_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7
 
-const PARTNERSHIP_PHONE = '+12268870667'
-const PARTNERSHIP_EMAIL = 'eric@starmovers.ca'
+const PARTNERSHIP_PHONE = DEFAULT_PARTNERSHIP_FROM_NUMBER
+const PARTNERSHIP_EMAIL = DEFAULT_PARTNERSHIP_EMAIL
 
 function cleanCompanyName(value: string) {
   return value
@@ -32,7 +37,10 @@ function isRealtorContact(contact: Record<string, unknown>) {
 }
 
 function buildEmail(contact: Record<string, unknown>, batch: Record<string, unknown>) {
-  const repName = (batch.rep_name as string) ?? 'Eric'
+  const repName = (batch.rep_name as string) ?? 'Saturn Star Partnerships'
+  const partnershipPhone = getPartnershipPrimaryNumberForMarket(
+    (batch.city as string | null) || (contact.city as string | null)
+  )
   const firstName = ((contact.name as string) ?? '').split(' ')[0] || 'there'
   const company = cleanCompanyName((contact.company as string) ?? 'your organization')
   const industry = (contact.industry as string) ?? 'your field'
@@ -56,11 +64,11 @@ function buildEmail(contact: Record<string, unknown>, batch: Record<string, unkn
       ? `We work with agents and brokerages in ${city} who refer clients our way. We take great care of those clients and make the referral process easy.`
       : `We work with ${industry} professionals in ${city} who refer clients our way. We take great care of those clients and make the referral process easy.`,
     '',
-    `Would you be open to a quick 10-minute conversation? You can reply to this email, call or text me at ${PARTNERSHIP_PHONE}, or scan the QR code from our letter.`,
+    `Would you be open to a quick 10-minute conversation? You can reply to this email, call or text me at ${partnershipPhone}, or scan the QR code from our letter.`,
     '',
     `${repName}`,
     `Head of Partnerships | Saturn Star Movers`,
-    `${PARTNERSHIP_PHONE} | ${PARTNERSHIP_EMAIL}`,
+    `${partnershipPhone} | ${PARTNERSHIP_EMAIL}`,
   ].join('\n')
 
   const html = `
@@ -73,28 +81,31 @@ function buildEmail(contact: Record<string, unknown>, batch: Record<string, unkn
   <p>${realtorSpecific
     ? `We work with agents and brokerages in ${city} who refer clients our way. We take great care of those clients and make the referral process easy.`
     : `We work with ${industry} professionals in ${city} who refer clients our way. We take great care of those clients and make the referral process easy.`}</p>
-  <p>Would you be open to a quick 10-minute conversation? You can reply to this email, call or text me at <strong>${PARTNERSHIP_PHONE}</strong>, or scan the QR code from our letter.</p>
+  <p>Would you be open to a quick 10-minute conversation? You can reply to this email, call or text me at <strong>${partnershipPhone}</strong>, or scan the QR code from our letter.</p>
   <br/>
-  <p style="color:#555">${repName}<br/>Head of Partnerships | Saturn Star Movers<br/>${PARTNERSHIP_PHONE} | ${PARTNERSHIP_EMAIL}</p>
+  <p style="color:#555">${repName}<br/>Head of Partnerships | Saturn Star Movers<br/>${partnershipPhone} | ${PARTNERSHIP_EMAIL}</p>
 </div>`
 
   return { subject, html, text }
 }
 
 function buildSms(contact: Record<string, unknown>, batch: Record<string, unknown>): string {
-  const repName = (batch.rep_name as string) ?? 'Eric'
+  const repName = (batch.rep_name as string) ?? 'Saturn Star Partnerships'
+  const partnershipPhone = getPartnershipPrimaryNumberForMarket(
+    (batch.city as string | null) || (contact.city as string | null)
+  )
   const firstName = ((contact.name as string) ?? '').split(' ')[0] || 'there'
   const company = cleanCompanyName((contact.company as string) ?? 'your organization')
   if (isRealtorContact(contact)) {
-    return `Hi ${firstName}, ${repName} from Saturn Star Movers. We sent ${company} a letter about client referral opportunities. Open to a quick 10-minute call? Reply here or call/text ${PARTNERSHIP_PHONE}.`
+    return `Hi ${firstName}, ${repName} from Saturn Star Movers. We sent ${company} a letter about client referral opportunities. Open to a quick 10-minute call? Reply here or call/text ${partnershipPhone}.`
   }
-  return `Hi ${firstName}, ${repName} from Saturn Star Movers. We sent ${company} a letter about a possible partnership. Open to a quick 10-minute call? Reply here or call/text ${PARTNERSHIP_PHONE}.`
+  return `Hi ${firstName}, ${repName} from Saturn Star Movers. We sent ${company} a letter about a possible partnership. Open to a quick 10-minute call? Reply here or call/text ${partnershipPhone}.`
 }
 
 function buildLinkedInDraft(contact: Record<string, unknown>, batch: Record<string, unknown>) {
   const company = (contact.company as string) ?? 'their team'
   const firstName = ((contact.name as string) ?? '').split(' ')[0] || 'there'
-  const repName = (batch.rep_name as string) ?? 'Eric'
+  const repName = (batch.rep_name as string) ?? 'Saturn Star Partnerships'
   return `Connect with ${firstName} at ${company}. Mention the letter Saturn Star Movers mailed last week and offer a short call with ${repName} about a referral or relocation partnership.`
 }
 
@@ -418,7 +429,7 @@ export async function POST(request: Request) {
 
         const { subject, html, text } = buildEmail(contact, batch)
         await resend.emails.send({
-          from: `Eric at Saturn Star Movers <${PARTNERSHIP_EMAIL}>`,
+          from: `Saturn Star Partnerships <${PARTNERSHIP_EMAIL}>`,
           to: contact.email as string,
           subject,
           html,

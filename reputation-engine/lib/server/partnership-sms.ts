@@ -1,4 +1,8 @@
 import { digitsOnly, normalizePhone } from '@/lib/sales-phones'
+import {
+  DEFAULT_PARTNERSHIP_SENDER_NUMBERS as SHARED_PARTNERSHIP_SENDER_NUMBERS,
+  getPartnershipSenderNumbersForMarket,
+} from '@/lib/partnership-lines'
 
 export type PartnershipSmsCampaignConfig = {
   type: 'partnership_sms_campaign'
@@ -42,10 +46,8 @@ export const DEFAULT_PARTNERSHIP_SMS_TEMPLATE =
     'Would it be okay if I stopped by your office next week to drop off a few cards?',
   ].join('\n')
 
-export const DEFAULT_PARTNERSHIP_SENDER_NUMBERS = [
-  '+12268870667',
-  '+12266055008',
-]
+export const DEFAULT_PARTNERSHIP_SENDER_NUMBERS = SHARED_PARTNERSHIP_SENDER_NUMBERS
+export { getPartnershipSenderNumbersForMarket }
 
 export function normalizeOutboundNumber(value?: string | null) {
   const normalized = normalizePhone(value)

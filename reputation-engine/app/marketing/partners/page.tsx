@@ -6,6 +6,13 @@ import { PARTNERSHIP_STAGE_META } from '@/lib/marketing'
 import { sendSalesMessage } from '@/lib/sales-api'
 import { prepareUploadFile } from '@/lib/browser-media'
 import { PARTNER_CATEGORIES, CATEGORY_LIST, SERVICE_AREAS, suggestBatchName, getCategoryMeta } from '@/lib/partner-categories'
+import {
+  DEFAULT_PARTNERSHIP_FROM_NUMBER,
+  PARTNERSHIP_LINES,
+  PARTNERSHIP_REPLY_SENDER_NUMBERS,
+  TEMP_PARTNERSHIP_SALES_RECOVERY_NUMBER,
+  getPartnershipSenderNumbersForMarket,
+} from '@/lib/partnership-lines'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -2284,10 +2291,8 @@ function RepliesTab({ onSelectContact, onOpenThread }: {
 
 // ─── Tab: Phone ───────────────────────────────────────────────────────────────
 
-const PARTNERSHIP_FROM_NUMBER = '+12268870667'  // Primary Windsor dedicated outbound number
-const PARTNERSHIP_FROM_NUMBERS = ['+12268870667', '+12266055008']
-const TEMP_SALES_RECOVERY_NUMBER = '+12267732993'
-const PARTNERSHIP_REPLY_FROM_NUMBERS = [...PARTNERSHIP_FROM_NUMBERS, TEMP_SALES_RECOVERY_NUMBER]
+const PARTNERSHIP_FROM_NUMBER = DEFAULT_PARTNERSHIP_FROM_NUMBER
+const PARTNERSHIP_REPLY_FROM_NUMBERS = PARTNERSHIP_REPLY_SENDER_NUMBERS
 
 function normalizePhoneNumber(value: unknown) {
   if (typeof value !== 'string') return ''
@@ -2309,6 +2314,10 @@ function displayReplyNumber(value: string) {
     return `+1 ${digits.slice(1, 4)}-${digits.slice(4, 7)}-${digits.slice(7)}`
   }
   return value
+}
+
+function senderNumbersForPartnershipSegment(segment?: string | null) {
+  return getPartnershipSenderNumbersForMarket(segment)
 }
 
 function metadataString(metadata: Record<string, unknown>, keys: string[]) {
@@ -2634,7 +2643,7 @@ function contactThreadFromNumber(contact: Contact) {
 }
 
 function isSalesLineThread(contact: Contact) {
-  return contactThreadFromNumber(contact) === TEMP_SALES_RECOVERY_NUMBER
+  return contactThreadFromNumber(contact) === TEMP_PARTNERSHIP_SALES_RECOVERY_NUMBER
 }
 
 function latestInboundNeedsReply(contact: Contact) {
@@ -3083,7 +3092,7 @@ function PhoneTab({
       ? threadFromNumber(touches)
       : contactThreadFromNumber(selected)
     : PARTNERSHIP_FROM_NUMBER
-  const selectedUsingSalesLine = selectedThreadFromNumber === TEMP_SALES_RECOVERY_NUMBER
+  const selectedUsingSalesLine = selectedThreadFromNumber === TEMP_PARTNERSHIP_SALES_RECOVERY_NUMBER
   const appointmentSuggestion = useMemo(() => {
     if (!selected) return null
     const threadContext = touches
@@ -4589,7 +4598,7 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
     '',
     'Would it be okay if I stopped by your office next week to drop off a few cards?',
   ].join('\n'))
-  const [fromNumber, setFromNumber] = useState('+12268870667')
+  const [fromNumber, setFromNumber] = useState(DEFAULT_PARTNERSHIP_FROM_NUMBER)
   const [preview, setPreview] = useState<Array<{ name: string; phone: string; message: string }> | null>(null)
   const [invalidPhoneSamples, setInvalidPhoneSamples] = useState<Array<{ name: string; phone: string; issue: string }>>([])
   const [skippedPriorSmsSamples, setSkippedPriorSmsSamples] = useState<Array<{ name: string; phone: string; last_touch_at: string | null }>>([])
@@ -4689,8 +4698,11 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
             <div>
               <label className="crm-label">Send from</label>
               <select value={fromNumber} onChange={e => setFromNumber(e.target.value)} className="crm-input mt-1 text-sm">
-                <option value="+12268870667">+1 (226) 887-0667 — Windsor Partnership</option>
-                <option value="+12266055008">+1 (226) 605-5008 — Partnership 2</option>
+                {PARTNERSHIP_LINES.map(line => (
+                  <option key={line.number} value={line.number}>
+                    {displayReplyNumber(line.number)} — {line.label}
+                  </option>
+                ))}
               </select>
               <div className="mt-1 text-[11px] text-[var(--app-muted)]">Sales and operations numbers are intentionally hidden here.</div>
             </div>
@@ -4870,6 +4882,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone }: { onClose: () => void; o
   const contacts = selectedRows.map(mapCsvRealtor)
   const selectedCities = Array.from(new Set(selectedRows.map(row => row.city_scraped || row.city).filter(Boolean))).sort((a, b) => a.localeCompare(b))
   const segmentLabel = segmentMode === 'zone' ? labelFromZone(segment) : segment
+  const senderNumbers = senderNumbersForPartnershipSegment(segment)
 
   async function handleFile(file: File | null) {
     if (!file) return
@@ -4905,7 +4918,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone }: { onClose: () => void; o
         zone: segmentMode === 'zone' ? segment : undefined,
         contacts,
         template,
-        sender_numbers: ['+12268870667', '+12266055008'],
+        sender_numbers: senderNumbers,
         daily_cap: dailyCap,
         start_date: startDate,
         start_hour: startHour,

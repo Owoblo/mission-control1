@@ -10,8 +10,7 @@ import {
 import { getSessionUser } from '@/lib/server/session'
 import { sendSalesMessage } from '@/lib/server/sales-messaging'
 import { getAppBaseUrl, getWorkerSharedSecret } from '@/lib/server/runtime'
-
-const PARTNERSHIP_REPLY_FROM_NUMBERS = new Set(['+12268870667', '+12266055008', '+12267732993'])
+import { isPartnershipSenderNumber } from '@/lib/partnership-lines'
 
 function normalizePhoneNumber(value?: string | null) {
   const digits = String(value || '').replace(/\D/g, '')
@@ -33,7 +32,7 @@ function isPartnershipStandaloneSms(
   if (session?.role !== 'partnership_manager') return false
   if (payload.channel !== 'sms') return false
   if (payload.leadId || payload.inboundId || payload.quoteId) return false
-  return PARTNERSHIP_REPLY_FROM_NUMBERS.has(normalizePhoneNumber(payload.fromNumber))
+  return isPartnershipSenderNumber(normalizePhoneNumber(payload.fromNumber), { includeRecovery: true })
 }
 
 function triggerIntelligence(leadId: string) {

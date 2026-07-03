@@ -10,6 +10,7 @@ import {
   encodeSenderTemplateKey,
   ensureSmsOptOutLine,
   formatPersonName,
+  getPartnershipSenderNumbersForMarket,
   mergePartnershipSmsTemplate,
   normalizeMarketingPhone,
   normalizeOutboundNumber,
@@ -130,7 +131,16 @@ export async function POST(request: Request) {
   if (!body.name?.trim()) return NextResponse.json({ error: 'Campaign name required' }, { status: 400 })
   if (contactsInput.length === 0) return NextResponse.json({ error: 'contacts required' }, { status: 400 })
 
-  const senderNumbers = (body.sender_numbers || DEFAULT_PARTNERSHIP_SENDER_NUMBERS)
+  const requestedSenderNumbers = Array.isArray(body.sender_numbers)
+    ? body.sender_numbers.filter(Boolean)
+    : []
+  const inferredSenderNumbers = getPartnershipSenderNumbersForMarket(body.zone || body.city || body.name)
+  const senderSource = requestedSenderNumbers.length > 0
+    ? requestedSenderNumbers
+    : inferredSenderNumbers.length > 0
+      ? inferredSenderNumbers
+      : DEFAULT_PARTNERSHIP_SENDER_NUMBERS
+  const senderNumbers = senderSource
     .map(normalizeOutboundNumber)
     .filter(Boolean)
   if (senderNumbers.length === 0) {

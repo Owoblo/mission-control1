@@ -70,6 +70,13 @@ export const SATURN_BRANCH_PHONE_DIRECTORY = {
     trackingLabel: 'Guelph GBP',
     trackingSource: 'google_online_search',
   },
+  // 226-241-9853 — dedicated Kitchener / Waterloo partnership outreach/reply line
+  '+12262419853': {
+    branchLabel: 'Kitchener / Waterloo Partnerships',
+    salesBranch: 'waterloo',
+    trackingLabel: 'Kitchener / Waterloo Partnership',
+    trackingSource: 'partnership_outreach',
+  },
   // ── Ottawa ─────────────────────────────────────────────────────────────────
   '+16135193236': {
     branchLabel: 'Ottawa',
@@ -77,12 +84,26 @@ export const SATURN_BRANCH_PHONE_DIRECTORY = {
     trackingLabel: 'Ottawa GMB',
     trackingSource: 'google_online_search',
   },
+  // 548-290-8695 — dedicated Ottawa partnership outreach/reply line
+  '+15482908695': {
+    branchLabel: 'Ottawa Partnerships',
+    salesBranch: 'ottawa',
+    trackingLabel: 'Ottawa Partnership',
+    trackingSource: 'partnership_outreach',
+  },
   // ── London ─────────────────────────────────────────────────────────────────
   '+15484883245': {
     branchLabel: 'London',
     salesBranch: 'london',
     trackingLabel: 'London GMB',
     trackingSource: 'google_online_search',
+  },
+  // 548-639-1428 — dedicated London partnership outreach/reply line
+  '+15486391428': {
+    branchLabel: 'London Partnerships',
+    salesBranch: 'london',
+    trackingLabel: 'London Partnership',
+    trackingSource: 'partnership_outreach',
   },
 } as const satisfies Record<string, SaturnPhoneMetadata>
 

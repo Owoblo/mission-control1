@@ -4,6 +4,7 @@
  * portal token, and sends a welcome email with their unique portal link.
  */
 import { requireSupabaseEnv, getAppBaseUrl, readEnv } from '@/lib/server/runtime'
+import { DEFAULT_PARTNERSHIP_EMAIL, getPartnershipPrimaryNumberForMarket } from '@/lib/partnership-lines'
 
 function generateToken() {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
@@ -162,12 +163,14 @@ async function sendWelcomeEmail(
   if (!resendKey || !contact.email) return
 
   const firstName = (contact.name || 'there').split(' ')[0]
+  const partnershipPhone = getPartnershipPrimaryNumberForMarket(contact.city)
+  const partnershipPhoneDisplay = partnershipPhone.replace(/^\+1(\d{3})(\d{3})(\d{4})$/, '$1-$2-$3')
 
   await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: 'Eric at Saturn Star Movers <eric@saturnstarmovers.ca>',
+      from: `Saturn Star Partnerships <${DEFAULT_PARTNERSHIP_EMAIL}>`,
       to: [contact.email],
       subject: `Your Saturn Star referral partner portal is ready`,
       html: `
@@ -198,13 +201,13 @@ async function sendWelcomeEmail(
             <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;" />
 
             <p style="font-size:13px;color:#4b5563;margin:0;line-height:1.6;">
-              Questions? Call or text us at <a href="tel:+12268870667" style="color:#0f6a53;">226-887-0667</a><br/>
-              Eric — Partnerships, Saturn Star Movers
+              Questions? Call or text us at <a href="tel:${partnershipPhone}" style="color:#0f6a53;">${partnershipPhoneDisplay}</a><br/>
+              Saturn Star Partnerships
             </p>
           </div>
         </div>
       `,
-      text: `Hi ${firstName},\n\nYour Saturn Star Movers partner portal is ready.\n\nYour link: ${portalUrl}\n\nBookmark it — no login needed. Submit a referral anytime. Partner rewards are credited only after a completed paid move.\n\nQuestions? Call 226-887-0667\n\nEric\nSaturn Star Movers`,
+      text: `Hi ${firstName},\n\nYour Saturn Star Movers partner portal is ready.\n\nYour link: ${portalUrl}\n\nBookmark it — no login needed. Submit a referral anytime. Partner rewards are credited only after a completed paid move.\n\nQuestions? Call ${partnershipPhoneDisplay}\n\nSaturn Star Partnerships`,
     }),
   })
 }

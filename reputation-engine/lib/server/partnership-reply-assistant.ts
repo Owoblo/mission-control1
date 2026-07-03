@@ -1,5 +1,6 @@
 import { readEnv } from '@/lib/server/runtime'
 import { isOptOutText } from '@/lib/server/partnership-sms'
+import { getPartnershipPrimaryNumberForMarket } from '@/lib/partnership-lines'
 
 export type PartnershipReplyIntent =
   | 'postcard_yes'
@@ -200,7 +201,7 @@ function getPackageConfig(contact: PartnershipAssistantContact): PackageConfig {
     rateCardUrl: readEnv('PARTNERSHIP_RATE_CARD_URL') || defaultPackageUrl,
     referralProgramUrl,
     flyerImageUrl: readEnv('PARTNERSHIP_FLYER_IMAGE_URL') || defaultFlyerUrl,
-    dedicatedPhone: readEnv('PARTNERSHIP_DEDICATED_PHONE') || '+12268870667',
+    dedicatedPhone: readEnv('PARTNERSHIP_DEDICATED_PHONE') || getPartnershipPrimaryNumberForMarket(marketKey),
     packageSlug,
     marketKey,
   }

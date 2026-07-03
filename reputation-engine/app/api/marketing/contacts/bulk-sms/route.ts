@@ -11,6 +11,7 @@ import { twilioAuth } from '@/lib/server/twilio-recordings'
 import {
   DEFAULT_PARTNERSHIP_SENDER_NUMBERS,
   ensureSmsOptOutLine,
+  getPartnershipSenderNumbersForMarket,
   normalizeMarketingPhone,
   normalizeOutboundNumber,
   smsRecipientIssue,
@@ -19,7 +20,7 @@ import {
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-const DEFAULT_FROM = DEFAULT_PARTNERSHIP_SENDER_NUMBERS[0]  // Windsor partnership outbound number
+const DEFAULT_FROM = DEFAULT_PARTNERSHIP_SENDER_NUMBERS[0]  // Default Windsor partnership outbound number
 
 function mergeSms(template: string, contact: Record<string, string>) {
   return template
@@ -51,7 +52,8 @@ export async function POST(request: Request) {
   }
 
   const { url, headers } = requireSupabaseEnv()
-  const fromNumber = normalizeOutboundNumber(body.from_number) || DEFAULT_FROM
+  const requestedFromNumber = normalizeOutboundNumber(body.from_number)
+  const fromNumber = requestedFromNumber || DEFAULT_FROM
   if (!DEFAULT_PARTNERSHIP_SENDER_NUMBERS.includes(fromNumber)) {
     return NextResponse.json({ error: 'Bulk partnership SMS must use a partnership sender number' }, { status: 400 })
   }
@@ -82,6 +84,10 @@ export async function POST(request: Request) {
     normalized_phone: normalizeMarketingPhone(contact.phone),
     phone_issue: smsRecipientIssue(contact.phone),
   }))
+  const marketSuggestedNumbers = Array.from(new Set(normalizedContacts.flatMap(contact => getPartnershipSenderNumbersForMarket(contact.city))))
+  const effectiveFromNumber = requestedFromNumber ||
+    marketSuggestedNumbers.find(number => DEFAULT_PARTNERSHIP_SENDER_NUMBERS.includes(number)) ||
+    fromNumber
   const withPhoneCandidates = normalizedContacts.filter(c => c.normalized_phone)
   const skippedPriorSms = withPhoneCandidates.filter(c => priorSmsContactIds.has(c.id))
   const withPhone = withPhoneCandidates.filter(c => !priorSmsContactIds.has(c.id))
@@ -151,7 +157,7 @@ export async function POST(request: Request) {
             'Content-Type': 'application/x-www-form-urlencoded',
           },
           body: new URLSearchParams({
-            From: fromNumber,
+            From: effectiveFromNumber,
             To: contact.normalized_phone,
             Body: messageBody,
           }),
@@ -168,7 +174,7 @@ export async function POST(request: Request) {
           outcome_code: null,
           created_by: session.name ?? 'Rep',
           created_at: now,
-          metadata: { bulk: true, from: fromNumber },
+          metadata: { bulk: true, from: effectiveFromNumber },
         })
       } else {
         failed++
@@ -182,7 +188,7 @@ export async function POST(request: Request) {
           outcome_code: 'sms_failed',
           created_by: 'System',
           created_at: now,
-          metadata: { bulk: true, from: fromNumber, status: res.status },
+          metadata: { bulk: true, from: effectiveFromNumber, status: res.status },
         })
       }
     } catch {

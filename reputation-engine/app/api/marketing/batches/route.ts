@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
+import { DEFAULT_PARTNERSHIP_FROM_NUMBER, getPartnershipPrimaryNumberForMarket } from '@/lib/partnership-lines'
 
 export const dynamic = 'force-dynamic'
 
@@ -108,8 +109,10 @@ export async function POST(request: Request) {
       sequence_type: body.sequence_type ?? 'standard',
       email_delay_days: body.email_delay_days ?? 7,
       sms_delay_days: body.sms_delay_days ?? 5,
-      rep_name: body.rep_name ?? 'Eric',
-      partnership_phone: body.partnership_phone ?? '+12267746581',
+      rep_name: body.rep_name ?? 'Partnerships',
+      partnership_phone: body.partnership_phone ??
+        getPartnershipPrimaryNumberForMarket(body.city || body.name) ??
+        DEFAULT_PARTNERSHIP_FROM_NUMBER,
       tracking_code: body.tracking_code ?? null,
       notes: body.notes ?? null,
     }),

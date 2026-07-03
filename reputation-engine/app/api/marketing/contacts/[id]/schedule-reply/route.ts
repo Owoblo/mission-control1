@@ -2,11 +2,11 @@ import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { encodeSenderTemplateKey, isOptOutText } from '@/lib/server/partnership-sms'
-
-const PARTNERSHIP_PHONE = '+12268870667'
-const PARTNERSHIP_PHONES = ['+12268870667', '+12266055008']
-const TEMP_SALES_RECOVERY_PHONE = '+12267732993'
-const PARTNERSHIP_REPLY_PHONES = [...PARTNERSHIP_PHONES, TEMP_SALES_RECOVERY_PHONE]
+import {
+  DEFAULT_PARTNERSHIP_FROM_NUMBER,
+  getPartnershipPrimaryNumberForMarket,
+  isPartnershipSenderNumber,
+} from '@/lib/partnership-lines'
 const MIN_SCHEDULE_DELAY_MS = 1000 * 60
 
 function normalizePhoneNumber(value: unknown) {
@@ -19,7 +19,7 @@ function normalizePhoneNumber(value: unknown) {
 
 function normalizePartnershipPhone(value: unknown) {
   const normalized = normalizePhoneNumber(value)
-  return PARTNERSHIP_REPLY_PHONES.includes(normalized) ? normalized : ''
+  return isPartnershipSenderNumber(normalized, { includeRecovery: true }) ? normalized : ''
 }
 
 function metadataString(metadata: Record<string, unknown>, keys: string[]) {
@@ -106,7 +106,8 @@ export async function POST(
   const now = new Date().toISOString()
   const fromNumber = normalizePartnershipPhone(body.from_number) ||
     threadSenderFromTouches(recentTouches) ||
-    PARTNERSHIP_PHONE
+    getPartnershipPrimaryNumberForMarket(contact.city as string | null) ||
+    DEFAULT_PARTNERSHIP_FROM_NUMBER
   const scheduledIso = scheduledAt.toISOString()
   const mediaNote = mediaUrls.length ? `\n[MMS: ${mediaUrls.join(', ')}]` : ''
 

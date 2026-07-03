@@ -4,11 +4,11 @@ import { getTwilioCredentials, requireSupabaseEnv } from '@/lib/server/runtime'
 import { normalizeMarketingPhone, isOptOutText } from '@/lib/server/partnership-sms'
 import { recordOutboundSmsToSupabase } from '@/lib/server/sales-messaging'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
-
-const PARTNERSHIP_PHONE = '+12268870667'
-const PARTNERSHIP_PHONES = ['+12268870667', '+12266055008']
-const TEMP_SALES_RECOVERY_PHONE = '+12267732993'
-const PARTNERSHIP_REPLY_PHONES = [...PARTNERSHIP_PHONES, TEMP_SALES_RECOVERY_PHONE]
+import {
+  DEFAULT_PARTNERSHIP_FROM_NUMBER,
+  getPartnershipPrimaryNumberForMarket,
+  isPartnershipSenderNumber,
+} from '@/lib/partnership-lines'
 
 function normalizePhoneNumber(value: unknown) {
   if (typeof value !== 'string') return ''
@@ -20,7 +20,7 @@ function normalizePhoneNumber(value: unknown) {
 
 function normalizePartnershipPhone(value: unknown) {
   const normalized = normalizePhoneNumber(value)
-  return PARTNERSHIP_REPLY_PHONES.includes(normalized) ? normalized : ''
+  return isPartnershipSenderNumber(normalized, { includeRecovery: true }) ? normalized : ''
 }
 
 function metadataString(metadata: Record<string, unknown>, keys: string[]) {
@@ -93,7 +93,8 @@ export async function POST(
   const recentTouches = (touchesRes.ok ? await touchesRes.json() : []) as Array<Record<string, unknown>>
   const fromNumber = normalizePartnershipPhone(payload.from_number) ||
     threadSenderFromTouches(recentTouches) ||
-    PARTNERSHIP_PHONE
+    getPartnershipPrimaryNumberForMarket(contact.city as string | null) ||
+    DEFAULT_PARTNERSHIP_FROM_NUMBER
 
   const { accountSid, authToken } = getTwilioCredentials()
   const twilioBody = new URLSearchParams({

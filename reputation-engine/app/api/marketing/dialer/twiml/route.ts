@@ -1,16 +1,14 @@
 import { normalizePhone } from '@/lib/sales-phones'
 import { pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
 import { getAppBaseUrl, readEnv } from '@/lib/server/runtime'
+import {
+  DEFAULT_PARTNERSHIP_FROM_NUMBER,
+  PARTNERSHIP_LINES,
+  getPartnershipPrimaryNumberForMarket,
+} from '@/lib/partnership-lines'
 
-// City-specific outbound numbers — uses Windsor by default
-const PARTNERSHIP_NUMBERS: Record<string, string> = {
-  windsor:    '+12268870667',  // dedicated Windsor partnership outbound
-  windsor2:   '+12266055008',  // second Windsor/Essex partnership outbound
-  kitchener:  '+12267746581',  // shared ops number (expand later)
-  london:     '+12267746581',  // expand with dedicated number later
-  ottawa:     '+12267746581',  // expand with dedicated number later
-}
-const DEFAULT_PARTNERSHIP_NUMBER = PARTNERSHIP_NUMBERS.windsor
+const PARTNERSHIP_NUMBERS = Object.fromEntries(PARTNERSHIP_LINES.map(line => [line.market, line.number]))
+const DEFAULT_PARTNERSHIP_NUMBER = DEFAULT_PARTNERSHIP_FROM_NUMBER
 
 function xmlAttr(value: string) {
   return value
@@ -90,7 +88,7 @@ export async function POST(request: Request) {
     }
 
     const dialTarget = normalizeDialTarget(to)
-    const callerId = PARTNERSHIP_NUMBERS[city] || DEFAULT_PARTNERSHIP_NUMBER
+    const callerId = getPartnershipPrimaryNumberForMarket(city) || DEFAULT_PARTNERSHIP_NUMBER
 
     const dialAttrs = [
       `callerId="${xmlAttr(callerId)}"`,
