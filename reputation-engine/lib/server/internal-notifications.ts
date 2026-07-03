@@ -41,6 +41,11 @@ const PARTNERSHIP_MARKET_NOTIFY_TO: Record<string, string[]> = {
   windsor: ['rahin@starmovers.ca'],
   essex: ['rahin@starmovers.ca'],
   chatham: ['rahin@starmovers.ca'],
+  waterloo: ['gui@starmovers.ca'],
+  kitchener: ['gui@starmovers.ca'],
+  cambridge: ['gui@starmovers.ca'],
+  guelph: ['gui@starmovers.ca'],
+  kw: ['gui@starmovers.ca'],
 }
 
 function uniqueEmails(values: Array<string | null | undefined>) {
@@ -73,6 +78,7 @@ export function getPartnershipAlertRecipients(market?: string | null) {
   const marketRecipients = [
     ...(PARTNERSHIP_MARKET_NOTIFY_TO[key] || []),
     ...(key.includes('windsor') || key.includes('essex') ? PARTNERSHIP_MARKET_NOTIFY_TO.windsor : []),
+    ...(key.includes('waterloo') || key.includes('kitchener') || key.includes('cambridge') || key.includes('guelph') ? PARTNERSHIP_MARKET_NOTIFY_TO.waterloo : []),
   ]
   return uniqueEmails([
     ...PARTNERSHIP_DEFAULT_NOTIFY_TO,
