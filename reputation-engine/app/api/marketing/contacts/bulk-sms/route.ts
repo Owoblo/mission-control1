@@ -10,6 +10,7 @@ import { requireSupabaseEnv, readEnv } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
 import {
   DEFAULT_PARTNERSHIP_SENDER_NUMBERS,
+  buildStickyPartnershipSenderMap,
   ensureSmsOptOutLine,
   getPartnershipSenderNumbersForMarket,
   normalizeMarketingPhone,
@@ -70,13 +71,21 @@ export async function POST(request: Request) {
   }>
 
   const priorSmsContactIds = new Set<string>()
+  const stickySenderMap = new Map<string, string>()
   if (contacts.length > 0) {
     const touchRes = await fetch(
-      `${url}/rest/v1/market_touches?contact_id=in.(${ids})&channel=eq.sms&direction=eq.outbound&select=contact_id`,
+      `${url}/rest/v1/market_touches?contact_id=in.(${ids})&channel=eq.sms&select=contact_id,direction,metadata,created_at&order=created_at.desc&limit=2000`,
       { headers, cache: 'no-store' }
     )
-    const priorTouches = (touchRes.ok ? await touchRes.json() : []) as Array<{ contact_id: string }>
+    const priorTouches = (touchRes.ok ? await touchRes.json() : []) as Array<{
+      contact_id: string
+      direction?: string | null
+      metadata?: unknown
+    }>
     priorTouches.forEach(touch => priorSmsContactIds.add(touch.contact_id))
+    buildStickyPartnershipSenderMap(priorTouches).forEach((sender, contactId) => {
+      stickySenderMap.set(contactId, sender)
+    })
   }
 
   const normalizedContacts = contacts.map(contact => ({
@@ -139,6 +148,7 @@ export async function POST(request: Request) {
 
   // Send in sequence to avoid rate limits (Twilio allows ~1/sec)
   for (const contact of withPhone) {
+    const contactFromNumber = stickySenderMap.get(contact.id) || effectiveFromNumber
     const messageBody = mergeSms(template, {
       name: contact.name || '',
       firstName: (contact.name || '').split(' ')[0],
@@ -157,7 +167,7 @@ export async function POST(request: Request) {
             'Content-Type': 'application/x-www-form-urlencoded',
           },
           body: new URLSearchParams({
-            From: effectiveFromNumber,
+            From: contactFromNumber,
             To: contact.normalized_phone,
             Body: messageBody,
           }),
@@ -174,7 +184,7 @@ export async function POST(request: Request) {
           outcome_code: null,
           created_by: session.name ?? 'Rep',
           created_at: now,
-          metadata: { bulk: true, from: effectiveFromNumber },
+          metadata: { bulk: true, from: contactFromNumber },
         })
       } else {
         failed++
@@ -188,7 +198,7 @@ export async function POST(request: Request) {
           outcome_code: 'sms_failed',
           created_by: 'System',
           created_at: now,
-          metadata: { bulk: true, from: effectiveFromNumber, status: res.status },
+          metadata: { bulk: true, from: contactFromNumber, status: res.status },
         })
       }
     } catch {

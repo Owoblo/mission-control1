@@ -6,6 +6,7 @@ import { Resend } from 'resend'
 import {
   decodeSenderFromTemplateKey,
   ensureSmsOptOutLine,
+  buildStickyPartnershipSenderMap,
   isOptOutText,
   mergePartnershipSmsTemplate,
   parseSmsCampaignConfig,
@@ -354,6 +355,18 @@ export async function POST(request: Request) {
   const batchMap = new Map<string, Record<string, unknown>>(
     (batchesRes.ok ? await batchesRes.json() : []).map((b: Record<string, unknown>) => [b.id as string, b])
   )
+  const stickySenderMap = new Map<string, string>()
+  if (contactIds.length > 0) {
+    const touchRes = await fetch(
+      `${url}/rest/v1/market_touches?contact_id=in.(${contactIds.map(id => `"${id}"`).join(',')})&channel=eq.sms&select=contact_id,direction,metadata,created_at&order=created_at.desc&limit=2000`,
+      { headers, cache: 'no-store' }
+    )
+    if (touchRes.ok) {
+      buildStickyPartnershipSenderMap(await touchRes.json()).forEach((sender, contactId) => {
+        stickySenderMap.set(contactId, sender)
+      })
+    }
+  }
 
   const resend = new Resend(readEnv('RESEND_API_KEY'))
   const accountSid = readEnv('TWILIO_ACCOUNT_SID')
@@ -478,9 +491,13 @@ export async function POST(request: Request) {
 
         const campaignConfig = parseSmsCampaignConfig(batch.notes)
         const smsBody = campaignConfig
-          ? ensureSmsOptOutLine(mergePartnershipSmsTemplate(campaignConfig.template, contact))
+          ? ensureSmsOptOutLine(mergePartnershipSmsTemplate(campaignConfig.template, {
+              ...contact,
+              rep_name: campaignConfig.repName,
+            }))
           : buildSms(contact, batch)
         const fromNumber =
+          stickySenderMap.get(String(contact.id)) ||
           (campaignConfig ? decodeSenderFromTemplateKey(job.template_key) : '') ||
           campaignConfig?.senderNumbers[0] ||
           PARTNERSHIP_PHONE

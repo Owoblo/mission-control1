@@ -37,6 +37,11 @@ export async function sendCallerIdSms(
 const NOTIFY_FROM = 'Saturn Star OS <notifications@starmovers.ca>'
 const NOTIFY_TO = ['business@starmovers.ca', 'thelma.ufot@starmovers.ca']
 const PARTNERSHIP_DEFAULT_NOTIFY_TO = ['business@starmovers.ca']
+const PARTNERSHIP_MARKET_NOTIFY_TO: Record<string, string[]> = {
+  windsor: ['rahin@starmovers.ca'],
+  essex: ['rahin@starmovers.ca'],
+  chatham: ['rahin@starmovers.ca'],
+}
 
 function uniqueEmails(values: Array<string | null | undefined>) {
   const seen = new Set<string>()
@@ -54,9 +59,24 @@ function uniqueEmails(values: Array<string | null | undefined>) {
   return emails
 }
 
-export function getPartnershipAlertRecipients() {
+function marketKey(value?: string | null) {
+  return (value || '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+export function getPartnershipAlertRecipients(market?: string | null) {
+  const key = marketKey(market)
+  const marketRecipients = [
+    ...(PARTNERSHIP_MARKET_NOTIFY_TO[key] || []),
+    ...(key.includes('windsor') || key.includes('essex') ? PARTNERSHIP_MARKET_NOTIFY_TO.windsor : []),
+  ]
   return uniqueEmails([
     ...PARTNERSHIP_DEFAULT_NOTIFY_TO,
+    ...marketRecipients,
     readEnv('PARTNERSHIP_NOTIFY_TO'),
   ])
 }

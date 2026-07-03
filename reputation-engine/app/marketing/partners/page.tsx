@@ -4811,7 +4811,7 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
 // ─── Scheduled Partnership SMS Modal ─────────────────────────────────────────
 
 const PARTNERSHIP_SMS_TEMPLATE = [
-  'Hey {{firstName}}, my name is John. I run a local moving company serving the {{city}} area....It\'s called SSM | Saturn Star Movers.',
+  'Hey {{firstName}}, my name is {{repName}} from SSM | Saturn Star Movers. We are a local moving company serving the {{city}} area.',
   '',
   'I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myself instead of just sending a random email.',
   '',
@@ -4861,6 +4861,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone }: { onClose: () => void; o
   const [segmentMode, setSegmentMode] = useState<'zone' | 'city'>('zone')
   const [segment, setSegment] = useState('zone1_windsor_essex')
   const [name, setName] = useState('Windsor Essex Realtor Partnership SMS')
+  const [repName, setRepName] = useState('Rahin')
   const [template, setTemplate] = useState(PARTNERSHIP_SMS_TEMPLATE)
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10))
   const [dailyCap, setDailyCap] = useState(400)
@@ -4896,6 +4897,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone }: { onClose: () => void; o
     setSegmentMode(nextMode)
     setSegment(nextSegment)
     setName(`${nextMode === 'zone' ? labelFromZone(nextSegment) : nextSegment} Realtor Partnership SMS`)
+    setRepName(nextSegment.toLowerCase().includes('windsor') || nextSegment.toLowerCase().includes('essex') ? 'Rahin' : 'Saturn Star Partnerships')
     setPreview(null)
     setResult(null)
     setError('')
@@ -4918,6 +4920,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone }: { onClose: () => void; o
         zone: segmentMode === 'zone' ? segment : undefined,
         contacts,
         template,
+        rep_name: repName,
         sender_numbers: senderNumbers,
         daily_cap: dailyCap,
         start_date: startDate,
@@ -4978,6 +4981,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone }: { onClose: () => void; o
                       setSegmentMode(nextMode)
                       setSegment(nextSegment)
                       setName(`${nextMode === 'zone' ? labelFromZone(nextSegment) : nextSegment} Realtor Partnership SMS`)
+                      setRepName(nextSegment.toLowerCase().includes('windsor') || nextSegment.toLowerCase().includes('essex') ? 'Rahin' : 'Saturn Star Partnerships')
                       setPreview(null)
                     }} className="crm-input mt-1 text-sm">
                       <option value="zone">Area / zone</option>
@@ -4990,6 +4994,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone }: { onClose: () => void; o
                       const next = e.target.value
                       setSegment(next)
                       setName(`${segmentMode === 'zone' ? labelFromZone(next) : next} Realtor Partnership SMS`)
+                      setRepName(next.toLowerCase().includes('windsor') || next.toLowerCase().includes('essex') ? 'Rahin' : 'Saturn Star Partnerships')
                       setPreview(null)
                     }} className="crm-input mt-1 text-sm">
                       {segmentMode === 'zone' ? (
@@ -5005,6 +5010,13 @@ function ScheduledSmsCampaignModal({ onClose, onDone }: { onClose: () => void; o
                       )}
                     </select>
                   </div>
+                </div>
+
+                <div>
+                  <label className="crm-label">Partnership manager name</label>
+                  <input value={repName} onChange={e => { setRepName(e.target.value); setPreview(null) }}
+                    className="crm-input mt-1 text-sm" />
+                  <div className="mt-1 text-[11px] text-[var(--app-muted)]">Use <span className="font-semibold">{'{{repName}}'}</span> in the message template.</div>
                 </div>
 
                 <div>

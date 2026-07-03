@@ -284,7 +284,7 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
       email: contact.email || input.email || null,
       mediaUrls: metadataMediaUrls(input.metadata),
     }),
-    getPartnershipAlertRecipients()
+    getPartnershipAlertRecipients(contact.city)
   )
 
   return {

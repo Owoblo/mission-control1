@@ -2,6 +2,7 @@ import { digitsOnly, normalizePhone } from '@/lib/sales-phones'
 import {
   DEFAULT_PARTNERSHIP_SENDER_NUMBERS as SHARED_PARTNERSHIP_SENDER_NUMBERS,
   getPartnershipSenderNumbersForMarket,
+  isPartnershipSenderNumber,
 } from '@/lib/partnership-lines'
 
 export type PartnershipSmsCampaignConfig = {
@@ -13,6 +14,7 @@ export type PartnershipSmsCampaignConfig = {
   startHour: number
   endHour: number
   source?: string
+  repName?: string
 }
 
 export type PartnershipSmsContactInput = {
@@ -142,6 +144,7 @@ export function parseSmsCampaignConfig(notes?: unknown): PartnershipSmsCampaignC
     startHour: Math.max(7, Math.min(20, Number(config.startHour || 10))),
     endHour: Math.max(8, Math.min(21, Number(config.endHour || 17))),
     source: typeof config.source === 'string' ? config.source : undefined,
+    repName: typeof config.repName === 'string' ? config.repName : undefined,
   }
 }
 
@@ -155,6 +158,45 @@ export function decodeSenderFromTemplateKey(templateKey?: unknown) {
   return normalizeOutboundNumber(value.slice('partnership_sms|'.length))
 }
 
+function metadataValue(metadata: unknown, keys: string[]) {
+  if (!metadata || typeof metadata !== 'object') return ''
+  const record = metadata as Record<string, unknown>
+  for (const key of keys) {
+    const value = record[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return ''
+}
+
+export function partnershipSenderFromTouch(touch: {
+  direction?: string | null
+  metadata?: unknown
+}) {
+  const direction = String(touch.direction || '').toLowerCase()
+  const metadata = touch.metadata
+  const raw = direction === 'inbound'
+    ? metadataValue(metadata, ['to', 'To', 'to_number', 'toNumber'])
+    : metadataValue(metadata, ['from', 'From', 'from_number', 'fromNumber'])
+
+  const normalized = normalizeOutboundNumber(raw)
+  return isPartnershipSenderNumber(normalized, { includeRecovery: true }) ? normalized : ''
+}
+
+export function buildStickyPartnershipSenderMap(touches: Array<{
+  contact_id?: string | null
+  direction?: string | null
+  metadata?: unknown
+}>) {
+  const map = new Map<string, string>()
+  for (const touch of touches) {
+    const contactId = String(touch.contact_id || '')
+    if (!contactId || map.has(contactId)) continue
+    const sender = partnershipSenderFromTouch(touch)
+    if (sender) map.set(contactId, sender)
+  }
+  return map
+}
+
 export function mergePartnershipSmsTemplate(
   template: string,
   contact: Record<string, unknown>,
@@ -165,6 +207,7 @@ export function mergePartnershipSmsTemplate(
   const industry = String(contact.industry || 'real estate')
   const title = String(contact.title || contact.position || 'realtor')
   const zone = String(contact.zone || city)
+  const repName = String(contact.rep_name || contact.repName || 'Saturn Star Partnerships')
   return template
     .replace(/\{\{firstName\}\}/gi, firstNameFromName(name))
     .replace(/\{\{name\}\}/gi, name || 'there')
@@ -175,6 +218,8 @@ export function mergePartnershipSmsTemplate(
     .replace(/\{\{title\}\}/gi, title)
     .replace(/\{\{position\}\}/gi, title)
     .replace(/\{\{zone\}\}/gi, zone)
+    .replace(/\{\{repName\}\}/gi, repName)
+    .replace(/\{\{rep_name\}\}/gi, repName)
 }
 
 export function ensureSmsOptOutLine(message: string) {

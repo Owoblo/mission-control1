@@ -9,6 +9,7 @@ import {
   contactPhoneKey,
   encodeSenderTemplateKey,
   ensureSmsOptOutLine,
+  buildStickyPartnershipSenderMap,
   formatPersonName,
   getPartnershipSenderNumbersForMarket,
   mergePartnershipSmsTemplate,
@@ -118,6 +119,7 @@ export async function POST(request: Request) {
     contacts?: PartnershipSmsContactInput[]
     template?: string
     sender_numbers?: string[]
+    rep_name?: string
     daily_cap?: number
     start_date?: string
     start_hour?: number
@@ -148,6 +150,7 @@ export async function POST(request: Request) {
   }
 
   const template = ensureSmsOptOutLine(body.template || DEFAULT_PARTNERSHIP_SMS_TEMPLATE)
+  const repName = cleanText(body.rep_name) || 'Saturn Star Partnerships'
   const dailyCap = Math.max(1, Math.min(500, Number(body.daily_cap || 100)))
   const startHour = Math.max(7, Math.min(20, Number(body.start_hour || 10)))
   const endHour = Math.max(startHour + 1, Math.min(21, Number(body.end_hour || 17)))
@@ -235,7 +238,7 @@ export async function POST(request: Request) {
         city: contact.city,
         scheduled_at: schedulePreview[index]?.scheduledAt ?? null,
         from_number: schedulePreview[index]?.fromNumber ?? null,
-        message: mergePartnershipSmsTemplate(template, contact),
+        message: mergePartnershipSmsTemplate(template, { ...contact, rep_name: repName }),
       })),
     })
   }
@@ -263,6 +266,7 @@ export async function POST(request: Request) {
         startHour,
         endHour,
         source: body.zone || body.city || 'partnership_sms',
+        repName,
       }),
     }),
   })
@@ -310,6 +314,19 @@ export async function POST(request: Request) {
     }
   }
   const scheduledContacts = Array.from(scheduledByPhone.values())
+  const scheduledIds = scheduledContacts.map(contact => String(contact.id || '')).filter(Boolean)
+  const stickySenderMap = new Map<string, string>()
+  if (scheduledIds.length > 0) {
+    const touchRes = await fetch(
+      `${url}/rest/v1/market_touches?contact_id=in.(${scheduledIds.map(id => `"${id}"`).join(',')})&channel=eq.sms&select=contact_id,direction,metadata,created_at&order=created_at.desc&limit=2000`,
+      { headers, cache: 'no-store' }
+    )
+    if (touchRes.ok) {
+      buildStickyPartnershipSenderMap(await touchRes.json()).forEach((sender, contactId) => {
+        stickySenderMap.set(contactId, sender)
+      })
+    }
+  }
 
   const schedule = buildPartnershipSmsSchedule({
     count: scheduledContacts.length,
@@ -327,8 +344,8 @@ export async function POST(request: Request) {
     channel: 'sms',
     scheduled_at: schedule[index]?.scheduledAt || now,
     status: 'pending',
-    template_key: encodeSenderTemplateKey(schedule[index]?.fromNumber || senderNumbers[0]),
-  }))
+        template_key: encodeSenderTemplateKey(stickySenderMap.get(String(contact.id)) || schedule[index]?.fromNumber || senderNumbers[0]),
+      }))
 
   for (let i = 0; i < jobs.length; i += 50) {
     await fetch(`${url}/rest/v1/sequence_jobs`, {
