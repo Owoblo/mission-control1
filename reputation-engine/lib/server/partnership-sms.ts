@@ -179,7 +179,7 @@ export function partnershipSenderFromTouch(touch: {
     : metadataValue(metadata, ['from', 'From', 'from_number', 'fromNumber'])
 
   const normalized = normalizeOutboundNumber(raw)
-  return isPartnershipSenderNumber(normalized, { includeRecovery: true }) ? normalized : ''
+  return isPartnershipSenderNumber(normalized) ? normalized : ''
 }
 
 export function buildStickyPartnershipSenderMap(touches: Array<{

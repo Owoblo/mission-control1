@@ -20,7 +20,7 @@ function normalizePhoneNumber(value: unknown) {
 
 function normalizePartnershipPhone(value: unknown) {
   const normalized = normalizePhoneNumber(value)
-  return isPartnershipSenderNumber(normalized, { includeRecovery: true }) ? normalized : ''
+  return isPartnershipSenderNumber(normalized) ? normalized : ''
 }
 
 function metadataString(metadata: Record<string, unknown>, keys: string[]) {

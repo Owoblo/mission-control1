@@ -7,10 +7,9 @@ import { sendSalesMessage } from '@/lib/sales-api'
 import { prepareUploadFile } from '@/lib/browser-media'
 import { PARTNER_CATEGORIES, CATEGORY_LIST, SERVICE_AREAS, suggestBatchName, getCategoryMeta } from '@/lib/partner-categories'
 import {
+  ALL_PARTNERSHIP_SENDER_NUMBERS,
   DEFAULT_PARTNERSHIP_FROM_NUMBER,
   PARTNERSHIP_LINES,
-  PARTNERSHIP_REPLY_SENDER_NUMBERS,
-  TEMP_PARTNERSHIP_SALES_RECOVERY_NUMBER,
   getPartnershipSenderNumbersForMarket,
 } from '@/lib/partnership-lines'
 
@@ -2292,7 +2291,7 @@ function RepliesTab({ onSelectContact, onOpenThread }: {
 // ─── Tab: Phone ───────────────────────────────────────────────────────────────
 
 const PARTNERSHIP_FROM_NUMBER = DEFAULT_PARTNERSHIP_FROM_NUMBER
-const PARTNERSHIP_REPLY_FROM_NUMBERS = PARTNERSHIP_REPLY_SENDER_NUMBERS
+const PARTNERSHIP_REPLY_FROM_NUMBERS = ALL_PARTNERSHIP_SENDER_NUMBERS
 
 function normalizePhoneNumber(value: unknown) {
   if (typeof value !== 'string') return ''
@@ -2328,7 +2327,7 @@ function metadataString(metadata: Record<string, unknown>, keys: string[]) {
   return ''
 }
 
-function threadFromNumber(touches: Touch[]) {
+function threadFromNumber(touches: Touch[], market?: string | null) {
   const sorted = [...touches].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
 
   for (const touch of sorted) {
@@ -2344,7 +2343,8 @@ function threadFromNumber(touches: Touch[]) {
     if (normalized) return normalized
   }
 
-  return PARTNERSHIP_FROM_NUMBER
+  return getPartnershipSenderNumbersForMarket(market)[0] ||
+    PARTNERSHIP_FROM_NUMBER
 }
 
 function getTouchMediaUrls(touch: Touch) {
@@ -2448,7 +2448,7 @@ function defaultScheduledReplyTime(suggestion?: PartnershipAiSuggestion | null) 
 }
 
 type InboxQuickAction = 'active_partner' | 'drop_cards' | 'meeting_requested' | 'needs_follow_up' | 'not_interested' | 'wrong_number'
-type InboxFilter = 'sales_line' | 'context' | 'needs_reply' | 'responded' | 'no_response' | 'promising' | 'package_sent' | 'postcard' | 'appointment' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'all'
+type InboxFilter = 'context' | 'needs_reply' | 'responded' | 'no_response' | 'promising' | 'package_sent' | 'postcard' | 'appointment' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'all'
 type InboxStatus = 'context' | 'needs_reply' | 'promising' | 'package_sent' | 'postcard' | 'appointment' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'review'
 
 const INBOX_QUICK_ACTIONS: Array<{ key: InboxQuickAction; label: string; tone: 'green' | 'blue' | 'amber' | 'slate' | 'red' }> = [
@@ -2514,7 +2514,6 @@ function quickActionClass(tone: 'green' | 'blue' | 'amber' | 'slate' | 'red', ac
 }
 
 const INBOX_FILTERS: Array<{ key: InboxFilter; label: string }> = [
-  { key: 'sales_line', label: 'Sales line' },
   { key: 'context', label: 'Context' },
   { key: 'needs_reply', label: 'Needs reply' },
   { key: 'responded', label: 'Responded' },
@@ -2636,14 +2635,32 @@ function touchMetadataSender(metadata: Record<string, unknown> | null | undefine
   return normalizePartnershipFromNumber(candidate)
 }
 
+function touchMetadataHasNonPartnershipSmsSender(metadata: Record<string, unknown> | null | undefined, direction?: string | null) {
+  if (!metadata) return false
+  const scheduled = metadata.scheduled_reply && typeof metadata.scheduled_reply === 'object'
+    ? metadata.scheduled_reply as Record<string, unknown>
+    : {}
+  const candidate = direction === 'inbound'
+    ? metadataString(metadata, ['to', 'To', 'to_number', 'toNumber'])
+    : metadataString(metadata, ['from', 'From', 'from_number', 'fromNumber']) ||
+      metadataString(scheduled, ['fromNumber', 'from_number', 'from'])
+  const normalized = normalizePhoneNumber(candidate)
+  return Boolean(normalized) && !PARTNERSHIP_REPLY_FROM_NUMBERS.includes(normalized)
+}
+
+function hasNonPartnershipLatestSms(contact: Contact) {
+  if (touchMetadataHasNonPartnershipSmsSender(contact.latest_inbound_metadata, 'inbound')) return true
+  if (String(contact.latest_touch_channel || '').toLowerCase() === 'sms') {
+    return touchMetadataHasNonPartnershipSmsSender(contact.latest_touch_metadata, contact.latest_touch_direction)
+  }
+  return false
+}
+
 function contactThreadFromNumber(contact: Contact) {
   return touchMetadataSender(contact.latest_inbound_metadata, 'inbound') ||
     touchMetadataSender(contact.latest_touch_metadata, contact.latest_touch_direction) ||
+    getPartnershipSenderNumbersForMarket(contact.city)[0] ||
     PARTNERSHIP_FROM_NUMBER
-}
-
-function isSalesLineThread(contact: Contact) {
-  return contactThreadFromNumber(contact) === TEMP_PARTNERSHIP_SALES_RECOVERY_NUMBER
 }
 
 function latestInboundNeedsReply(contact: Contact) {
@@ -2815,7 +2832,6 @@ function inboxUrgencyRank(contact: Contact) {
 function matchesInboxFilter(contact: Contact, filter: InboxFilter) {
   const status = getInboxStatus(contact)
   if (filter === 'all') return true
-  if (filter === 'sales_line') return isSalesLineThread(contact)
   if (filter === 'context') return status === 'context'
   if (filter === 'responded') return hasRepResponded(contact)
   if (filter === 'no_response') return hasNoPartnerResponse(contact)
@@ -2984,7 +3000,11 @@ function PhoneTab({
 
   const inboxContacts = useMemo(() => {
     const byId = new Map<string, Contact>()
-    contacts.forEach(contact => byId.set(contact.id, contact))
+    const replyIds = new Set(replyContacts.map(contact => contact.id))
+    contacts.forEach(contact => {
+      if (!replyIds.has(contact.id) && hasNonPartnershipLatestSms(contact)) return
+      byId.set(contact.id, contact)
+    })
     replyContacts.forEach(contact => byId.set(contact.id, { ...(byId.get(contact.id) || {} as Contact), ...contact }))
     return Array.from(byId.values())
   }, [contacts, replyContacts])
@@ -3089,10 +3109,9 @@ function PhoneTab({
   const selectedFromQuery = searchParams.get('contact')
   const selectedThreadFromNumber = selected
     ? touches.length > 0
-      ? threadFromNumber(touches)
+      ? threadFromNumber(touches, selected.city)
       : contactThreadFromNumber(selected)
     : PARTNERSHIP_FROM_NUMBER
-  const selectedUsingSalesLine = selectedThreadFromNumber === TEMP_PARTNERSHIP_SALES_RECOVERY_NUMBER
   const appointmentSuggestion = useMemo(() => {
     if (!selected) return null
     const threadContext = touches
@@ -3828,7 +3847,7 @@ function PhoneTab({
             <div>
               <div className="text-[22px] font-semibold tracking-tight text-[#111827] lg:text-xl">Partnership replies</div>
               <div className="text-xs font-medium text-slate-500">
-                {filterCounts.sales_line} sales line · {filterCounts.context} context · {filterCounts.needs_reply} need reply · {filterCounts.responded} responded · {filterCounts.no_response} no response · {filterCounts.postcard} postcards · {filterCounts.appointment} appointments
+                {filterCounts.context} context · {filterCounts.needs_reply} need reply · {filterCounts.responded} responded · {filterCounts.no_response} no response · {filterCounts.postcard} postcards · {filterCounts.appointment} appointments
               </div>
             </div>
             <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">{filterCounts.all}</span>
@@ -3930,11 +3949,6 @@ function PhoneTab({
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${inboxStatusClass(status)}`}>{inboxStatusLabel(status)}</span>
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${selectedId === c.id ? 'bg-white text-slate-600' : 'bg-slate-100 text-slate-500'}`}>{sourceBadge(c)}</span>
                   <StageBadge stage={c.normalized_stage} />
-                  {isSalesLineThread(c) && (
-                    <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-                      sales line
-                    </span>
-                  )}
                   {c.instantly_status && <InstantlyBadge status={c.instantly_status} />}
                   {c.playbook?.intent && (
                     <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
@@ -4133,16 +4147,10 @@ function PhoneTab({
               </button>
               {composeChannel === 'sms' && (
                 <span
-                  className={`flex min-h-11 shrink-0 items-center rounded-full border px-3 text-sm font-semibold lg:min-h-8 lg:text-xs ${
-                    selectedUsingSalesLine
-                      ? 'border-amber-200 bg-amber-50 text-amber-800'
-                      : 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                  }`}
-                  title={selectedUsingSalesLine
-                    ? 'Temporary recovery lane: replies in this thread go from the sales number.'
-                    : 'Replies in this thread go from the partnership number.'}
+                  className="flex min-h-11 shrink-0 items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-800 lg:min-h-8 lg:text-xs"
+                  title="Replies in this thread go from the partnership number."
                 >
-                  From {selectedUsingSalesLine ? 'Sales line' : 'Partner line'} · {displayReplyNumber(selectedThreadFromNumber)}
+                  From Partner line · {displayReplyNumber(selectedThreadFromNumber)}
                 </span>
               )}
               <button

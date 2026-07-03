@@ -4,6 +4,7 @@ import { getSessionUser } from '@/lib/server/session'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { suggestPartnershipReply, type PartnershipAssistantContact, type PartnershipAssistantTouch } from '@/lib/server/partnership-reply-assistant'
 import { partnershipScopeFilter } from '@/lib/server/partnership-access'
+import { isPartnershipSenderNumber } from '@/lib/partnership-lines'
 
 const CONTEXT_CLARIFICATION_RE = /\b(who is this|who'?s this|what is this|what'?s this|what is this for|what'?s this for|what is this about|what'?s this about|don'?t see (?:an |the )?earlier text|missing.*conversation|missing.*part|part of a conversation|not sure what this is|what conversation|remind me|sorry.*missing)\b/i
 
@@ -49,6 +50,33 @@ interface MarketContact {
   affiliate_partner_id: string | null
   tracking_code: string | null
   category: string | null
+}
+
+function normalizePhoneNumber(value: unknown) {
+  if (typeof value !== 'string') return ''
+  const digits = value.replace(/\D/g, '')
+  if (digits.length === 10) return `+1${digits}`
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`
+  return value.trim()
+}
+
+function metadataString(metadata: Record<string, unknown> | null | undefined, keys: string[]) {
+  if (!metadata) return ''
+  for (const key of keys) {
+    const value = metadata[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return ''
+}
+
+function touchPartnershipSender(touch: { channel?: string | null; direction?: string | null; metadata?: Record<string, unknown> | null }) {
+  if (String(touch.channel || '').toLowerCase() !== 'sms') return true
+  const direction = String(touch.direction || '').toLowerCase()
+  const candidate = direction === 'inbound'
+    ? metadataString(touch.metadata, ['to', 'To', 'to_number', 'toNumber'])
+    : metadataString(touch.metadata, ['from', 'From', 'from_number', 'fromNumber'])
+  const normalized = normalizePhoneNumber(candidate)
+  return !!normalized && isPartnershipSenderNumber(normalized)
 }
 
 function classifyReply(touch: MarketTouch, contact?: MarketContact | null) {
@@ -143,7 +171,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Failed to load replies' }, { status: 500 })
   }
 
-  const inboundTouches = (await inboundRes.json()) as MarketTouch[]
+  const inboundTouches = ((await inboundRes.json()) as MarketTouch[]).filter(touchPartnershipSender)
   const latestInboundByContact = new Map<string, MarketTouch>()
   for (const touch of inboundTouches) {
     if (!touch.contact_id) continue
@@ -171,7 +199,8 @@ export async function GET(request: Request) {
     `${url}/rest/v1/market_touches?contact_id=in.(${scopedIds.map(encodeURIComponent).join(',')})&select=id,contact_id,channel,direction,notes,created_by,created_at,outcome_code,metadata&order=created_at.desc&limit=4000`,
     { headers, cache: 'no-store' }
   )
-  const history = (historyRes.ok ? await historyRes.json() : []) as Array<PartnershipAssistantTouch & MarketTouch & { contact_id?: string }>
+  const history = ((historyRes.ok ? await historyRes.json() : []) as Array<PartnershipAssistantTouch & MarketTouch & { contact_id?: string }>)
+    .filter(touchPartnershipSender)
   const latestByContact = new Map<string, MarketTouch>()
   let touchHistoryByContact = new Map<string, PartnershipAssistantTouch[]>()
   touchHistoryByContact = history.reduce((map, touch) => {

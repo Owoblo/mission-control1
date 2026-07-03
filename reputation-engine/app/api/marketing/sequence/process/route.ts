@@ -15,6 +15,7 @@ import {
   DEFAULT_PARTNERSHIP_EMAIL,
   DEFAULT_PARTNERSHIP_FROM_NUMBER,
   getPartnershipPrimaryNumberForMarket,
+  isPartnershipSenderNumber,
 } from '@/lib/partnership-lines'
 
 export const dynamic = 'force-dynamic'
@@ -23,6 +24,12 @@ const STALE_JOB_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7
 
 const PARTNERSHIP_PHONE = DEFAULT_PARTNERSHIP_FROM_NUMBER
 const PARTNERSHIP_EMAIL = DEFAULT_PARTNERSHIP_EMAIL
+
+function partnershipSenderOrFallback(value: string | null | undefined, market?: string | null) {
+  return value && isPartnershipSenderNumber(value)
+    ? value
+    : getPartnershipPrimaryNumberForMarket(market) || PARTNERSHIP_PHONE
+}
 
 function cleanCompanyName(value: string) {
   return value
@@ -201,8 +208,12 @@ async function processScheduledReply(params: {
     return 'skipped'
   }
 
+  const fromNumber = partnershipSenderOrFallback(
+    payload.fromNumber || scheduled.fromNumber,
+    contact.city as string | null,
+  )
   const paramsBody = new URLSearchParams({
-    From: payload.fromNumber || scheduled.fromNumber,
+    From: fromNumber,
     To: contact.phone as string,
     Body: payload.body || ' ',
   })
@@ -263,7 +274,7 @@ async function processScheduledReply(params: {
         created_at: now,
         metadata: {
           scheduled_reply: true,
-          from: payload.fromNumber || scheduled.fromNumber,
+          from: fromNumber,
           scheduled_touch_id: scheduled.touchId,
           mediaUrls: payload.mediaUrls,
         },
@@ -496,11 +507,15 @@ export async function POST(request: Request) {
               rep_name: campaignConfig.repName,
             }))
           : buildSms(contact, batch)
-        const fromNumber =
+        const requestedFromNumber =
           stickySenderMap.get(String(contact.id)) ||
           (campaignConfig ? decodeSenderFromTemplateKey(job.template_key) : '') ||
           campaignConfig?.senderNumbers[0] ||
-          PARTNERSHIP_PHONE
+          ''
+        const fromNumber = partnershipSenderOrFallback(
+          requestedFromNumber,
+          (batch.city as string | null) || (contact.city as string | null),
+        )
 
         const contactStage = String(contact.stage || '').toLowerCase()
         const contactDecision = String(contact.decision || '').toLowerCase()
