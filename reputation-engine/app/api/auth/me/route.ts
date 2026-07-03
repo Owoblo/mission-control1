@@ -8,5 +8,6 @@ export async function GET() {
     role: user.role ?? 'owner',
     name: user.name ?? 'Owner',
     userId: user.userId ?? null,
+    branch: user.branch ?? null,
   })
 }

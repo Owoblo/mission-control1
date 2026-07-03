@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { encodeSenderTemplateKey, isOptOutText } from '@/lib/server/partnership-sms'
+import { partnershipRecordMatchesSession } from '@/lib/server/partnership-access'
 import {
   DEFAULT_PARTNERSHIP_FROM_NUMBER,
   getPartnershipPrimaryNumberForMarket,
@@ -89,6 +90,9 @@ export async function POST(
   )
   const [contact] = (contactRes.ok ? await contactRes.json() : []) as Array<Record<string, unknown>>
   if (!contact) return NextResponse.json({ error: 'Contact not found' }, { status: 404 })
+  if (!partnershipRecordMatchesSession(session, contact)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
   if (!contact.phone) return NextResponse.json({ error: 'Contact has no phone number' }, { status: 400 })
 
   const stage = String(contact.stage || '').toLowerCase()

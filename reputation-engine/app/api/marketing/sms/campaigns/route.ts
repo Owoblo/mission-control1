@@ -17,6 +17,8 @@ import {
   normalizeOutboundNumber,
   smsRecipientIssue,
 } from '@/lib/server/partnership-sms'
+import { partnershipRecordMatchesSession, partnershipScopeFilter } from '@/lib/server/partnership-access'
+import type { SessionPayload } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -69,7 +71,7 @@ function phoneInputs(contact: PartnershipSmsContactInput) {
     .filter(Boolean) as string[]
 }
 
-async function fetchExistingKeys(phoneKeys: string[], nameKeys: string[]) {
+async function fetchExistingKeys(phoneKeys: string[], nameKeys: string[], session?: SessionPayload | null) {
   const { url, headers } = requireSupabaseEnv()
   const unique = Array.from(new Set(phoneKeys.filter(Boolean)))
   const wantedNames = new Set(nameKeys.filter(Boolean))
@@ -79,7 +81,7 @@ async function fetchExistingKeys(phoneKeys: string[], nameKeys: string[]) {
 
   for (let offset = 0; ; offset += 1000) {
     const res = await fetch(
-      `${url}/rest/v1/market_contacts?select=id,name,phone,sequence_paused,stage,decision&limit=1000&offset=${offset}`,
+      `${url}/rest/v1/market_contacts?select=id,name,phone,city,sequence_paused,stage,decision&limit=1000&offset=${offset}${partnershipScopeFilter(session)}`,
       { headers, cache: 'no-store' }
     )
     if (!res.ok) break
@@ -132,6 +134,9 @@ export async function POST(request: Request) {
   const contactsInput = Array.isArray(body.contacts) ? body.contacts : []
   if (!body.name?.trim()) return NextResponse.json({ error: 'Campaign name required' }, { status: 400 })
   if (contactsInput.length === 0) return NextResponse.json({ error: 'contacts required' }, { status: 400 })
+  if (session && !partnershipRecordMatchesSession(session, { city: body.city || body.zone, name: body.name }, ['city', 'name'])) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   const requestedSenderNumbers = Array.isArray(body.sender_numbers)
     ? body.sender_numbers.filter(Boolean)
@@ -172,7 +177,7 @@ export async function POST(request: Request) {
   const inputPhoneKeys = contactsInput.flatMap(phoneInputs).map(contactPhoneKey)
   const inputPrimaryPhoneKeys = normalized.map(contact => contactPhoneKey(contact.phone))
   const inputNameKeys = normalized.map(contact => normalizeName(contact.name))
-  const existingKeys = await fetchExistingKeys(inputPhoneKeys, inputNameKeys)
+  const existingKeys = await fetchExistingKeys(inputPhoneKeys, inputNameKeys, session)
   const allowExistingReschedule = Boolean(body.allow_existing_reschedule)
   const schedulableExistingKeys = allowExistingReschedule
     ? new Set(

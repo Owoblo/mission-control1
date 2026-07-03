@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
 import { readEnv } from '@/lib/server/runtime'
+import { getPartnershipPrimaryNumberForMarket, normalizePartnershipCityKey } from '@/lib/partnership-lines'
 
 const IDENTITY_PREFIX = 'partnership-rep'
 
@@ -78,6 +79,8 @@ export async function GET() {
 
   const identity = `${IDENTITY_PREFIX}-${session.userId}`
   const { token, expiresAt } = await buildVoiceToken(accountSid!, apiKeySid!, apiKeySecret!, twimlAppSid!, identity)
+  const market = normalizePartnershipCityKey(session.branch || '')
+  const callerId = getPartnershipPrimaryNumberForMarket(session.branch)
 
-  return NextResponse.json({ ok: true, token, identity, expiresAt })
+  return NextResponse.json({ ok: true, token, identity, expiresAt, branch: session.branch ?? null, market, callerId })
 }

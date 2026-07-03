@@ -3,6 +3,7 @@ import { getSessionUser } from '@/lib/server/session'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { defaultFollowUpDate, getPipelineBucket, isDateDue, normalizePartnershipStage } from '@/lib/marketing'
 import { activateAffiliatePartner } from '@/lib/server/affiliate-bridge'
+import { partnershipRecordMatchesSession, partnershipScopeFilter, partnershipScopeOrClause } from '@/lib/server/partnership-access'
 
 interface MarketContact {
   id: string
@@ -74,7 +75,16 @@ export async function GET(request: Request) {
   if (stage) query += `&stage=eq.${encodeURIComponent(stage)}`
   if (tier) query += `&tier=eq.${encodeURIComponent(tier)}`
   if (industry) query += `&industry=eq.${encodeURIComponent(industry)}`
-  if (q) query += `&or=(name.ilike.*${encodeURIComponent(q)}*,company.ilike.*${encodeURIComponent(q)}*,city.ilike.*${encodeURIComponent(q)}*)`
+  const scopeClause = partnershipScopeOrClause(session)
+  const searchClause = q
+    ? `name.ilike.*${encodeURIComponent(q)}*,company.ilike.*${encodeURIComponent(q)}*,city.ilike.*${encodeURIComponent(q)}*`
+    : ''
+  if (scopeClause && searchClause) {
+    query += `&and=(or(${scopeClause}),or(${searchClause}))`
+  } else {
+    if (scopeClause) query += partnershipScopeFilter(session)
+    if (searchClause) query += `&or=(${searchClause})`
+  }
 
   const res = await fetch(query, { headers: { ...headers, Prefer: 'count=exact' }, cache: 'no-store' })
   if (!res.ok) return NextResponse.json({ error: 'Failed to load contacts' }, { status: 500 })
@@ -220,6 +230,16 @@ export async function PATCH(request: Request) {
 
   const { url, headers } = requireSupabaseEnv()
 
+  const currentRes = await fetch(
+    `${url}/rest/v1/market_contacts?id=eq.${encodeURIComponent(body.id)}&select=id,city&limit=1`,
+    { headers, cache: 'no-store' }
+  )
+  const [currentContact] = (currentRes.ok ? await currentRes.json() : []) as Array<Record<string, unknown>>
+  if (!currentContact) return NextResponse.json({ error: 'Contact not found' }, { status: 404 })
+  if (!partnershipRecordMatchesSession(session, currentContact)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   const touchDate = body.touch_date || new Date().toISOString()
   if (body.quick_action === 'mark_mail_sent') {
     updates.stage = 'mail_sent'
@@ -290,12 +310,15 @@ export async function DELETE(request: Request) {
   const encodedId = encodeURIComponent(id)
 
   const contactRes = await fetch(
-    `${url}/rest/v1/market_contacts?id=eq.${encodedId}&select=id,name&limit=1`,
+    `${url}/rest/v1/market_contacts?id=eq.${encodedId}&select=id,name,city&limit=1`,
     { headers, cache: 'no-store' }
   )
   if (!contactRes.ok) return NextResponse.json({ error: 'Could not load contact' }, { status: 500 })
   const [contact] = await contactRes.json() as Array<{ id: string; name: string | null }>
   if (!contact) return NextResponse.json({ error: 'Contact not found' }, { status: 404 })
+  if (!partnershipRecordMatchesSession(session, contact)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   const cleanupTables = [
     'sequence_jobs',

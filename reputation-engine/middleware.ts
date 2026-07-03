@@ -144,6 +144,9 @@ export async function middleware(request: NextRequest) {
       if (pathname.startsWith('/api/')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       return NextResponse.redirect(new URL(role === 'crew' ? '/crew/calendar' : '/sales', request.url))
     }
+    if (role === 'partnership_manager' && pathname.startsWith('/marketing') && !pathname.startsWith('/marketing/partners')) {
+      return NextResponse.redirect(new URL('/marketing/partners?tab=phone', request.url))
+    }
   }
 
   return NextResponse.next()

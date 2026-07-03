@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { suggestPartnershipReply, type PartnershipAssistantContact, type PartnershipAssistantTouch } from '@/lib/server/partnership-reply-assistant'
+import { partnershipRecordMatchesSession } from '@/lib/server/partnership-access'
 
 export async function POST(
   _request: Request,
@@ -29,6 +30,9 @@ export async function POST(
 
   const [contact] = await contactRes.json() as PartnershipAssistantContact[]
   if (!contact) return NextResponse.json({ error: 'Partner not found' }, { status: 404 })
+  if (!partnershipRecordMatchesSession(session, contact as unknown as Record<string, unknown>)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   const touches = await touchesRes.json() as PartnershipAssistantTouch[]
   const suggestion = await suggestPartnershipReply({ contact, touches })

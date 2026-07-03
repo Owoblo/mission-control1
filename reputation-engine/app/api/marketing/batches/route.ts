@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { DEFAULT_PARTNERSHIP_FROM_NUMBER, getPartnershipPrimaryNumberForMarket } from '@/lib/partnership-lines'
+import { partnershipRecordMatchesSession, partnershipScopeFilter } from '@/lib/server/partnership-access'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,14 +25,15 @@ export async function GET() {
   const { url, headers } = requireSupabaseEnv()
 
   const [batchRes, contactRes, jobsRes] = await Promise.all([
-    fetch(`${url}/rest/v1/market_campaigns?select=*&order=created_at.desc`, { headers, cache: 'no-store' }),
-    fetch(`${url}/rest/v1/market_contacts?select=batch_id,stage,sequence_paused,pipeline_phase,decision&batch_id=not.is.null`, { headers, cache: 'no-store' }),
+    fetch(`${url}/rest/v1/market_campaigns?select=*&order=created_at.desc${partnershipScopeFilter(session, ['city', 'name'])}`, { headers, cache: 'no-store' }),
+    fetch(`${url}/rest/v1/market_contacts?select=batch_id,stage,sequence_paused,pipeline_phase,decision&batch_id=not.is.null${partnershipScopeFilter(session)}`, { headers, cache: 'no-store' }),
     fetch(`${url}/rest/v1/sequence_jobs?select=batch_id,channel,status,scheduled_at,sent_at&batch_id=not.is.null&channel=eq.sms`, { headers, cache: 'no-store' }),
   ])
 
   if (!batchRes.ok) return NextResponse.json({ error: 'Failed to load batches' }, { status: 500 })
 
   const batches = await batchRes.json() as Record<string, unknown>[]
+  const visibleBatchIds = new Set(batches.map(batch => String(batch.id || '')).filter(Boolean))
   const contacts = (contactRes.ok ? await contactRes.json() : []) as Record<string, unknown>[]
   const jobs = (jobsRes.ok ? await jobsRes.json() : []) as Array<{
     batch_id: string | null
@@ -52,6 +54,7 @@ export async function GET() {
   const jobsByBatch = new Map<string, typeof jobs>()
   for (const job of jobs) {
     if (!job.batch_id) continue
+    if (!visibleBatchIds.has(job.batch_id)) continue
     jobsByBatch.set(job.batch_id, [...(jobsByBatch.get(job.batch_id) ?? []), job])
   }
 
@@ -97,6 +100,9 @@ export async function POST(request: Request) {
   }
 
   const { url, headers } = requireSupabaseEnv()
+  if (!partnershipRecordMatchesSession(session, { city: body.city, name: body.name }, ['city', 'name'])) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   const res = await fetch(`${url}/rest/v1/market_campaigns`, {
     method: 'POST',

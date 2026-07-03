@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
+import { partnershipRecordMatchesSession, partnershipScopeFilter } from '@/lib/server/partnership-access'
 
 export async function GET() {
   const session = await getSessionUser()
@@ -8,8 +9,8 @@ export async function GET() {
 
   const { url, headers } = requireSupabaseEnv()
   const [campaignRes, contactRes] = await Promise.all([
-    fetch(`${url}/rest/v1/market_campaigns?select=*&order=sent_date.desc`, { headers, cache: 'no-store' }),
-    fetch(`${url}/rest/v1/market_contacts?select=batch_id,stage,decision,sequence_paused,pipeline_phase&batch_id=not.is.null`, { headers, cache: 'no-store' }),
+    fetch(`${url}/rest/v1/market_campaigns?select=*&order=sent_date.desc${partnershipScopeFilter(session, ['city', 'name'])}`, { headers, cache: 'no-store' }),
+    fetch(`${url}/rest/v1/market_contacts?select=batch_id,stage,decision,sequence_paused,pipeline_phase&batch_id=not.is.null${partnershipScopeFilter(session)}`, { headers, cache: 'no-store' }),
   ])
 
   if (!campaignRes.ok) return NextResponse.json({ error: 'Failed' }, { status: 500 })
@@ -47,6 +48,9 @@ export async function POST(request: Request) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
+  if (!partnershipRecordMatchesSession(session, { city: body.city, name: body.name }, ['city', 'name'])) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
   const { url, headers } = requireSupabaseEnv()
   const res = await fetch(`${url}/rest/v1/market_campaigns`, {
     method: 'POST',
@@ -81,6 +85,15 @@ export async function PATCH(request: Request) {
   if (body.notes !== undefined) updates.notes = body.notes
 
   const { url, headers } = requireSupabaseEnv()
+  const campaignRes = await fetch(
+    `${url}/rest/v1/market_campaigns?id=eq.${encodeURIComponent(body.id)}&select=id,city,name&limit=1`,
+    { headers, cache: 'no-store' }
+  )
+  const [campaign] = (campaignRes.ok ? await campaignRes.json() : []) as Array<Record<string, unknown>>
+  if (!campaign) return NextResponse.json({ error: 'Campaign not found' }, { status: 404 })
+  if (!partnershipRecordMatchesSession(session, campaign, ['city', 'name'])) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
   await fetch(`${url}/rest/v1/market_campaigns?id=eq.${body.id}`, {
     method: 'PATCH', headers, body: JSON.stringify(updates),
   })

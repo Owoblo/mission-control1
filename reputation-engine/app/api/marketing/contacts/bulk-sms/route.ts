@@ -8,6 +8,7 @@ import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
 import { requireSupabaseEnv, readEnv } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
+import { partnershipScopeFilter } from '@/lib/server/partnership-access'
 import {
   DEFAULT_PARTNERSHIP_SENDER_NUMBERS,
   buildStickyPartnershipSenderMap,
@@ -63,7 +64,7 @@ export async function POST(request: Request) {
   // Fetch contacts
   const ids = body.contact_ids.map(id => `"${id}"`).join(',')
   const contactsRes = await fetch(
-    `${url}/rest/v1/market_contacts?id=in.(${ids})&select=id,name,company,phone,city,industry,last_touch_at`,
+    `${url}/rest/v1/market_contacts?id=in.(${ids})&select=id,name,company,phone,city,industry,last_touch_at${partnershipScopeFilter(session)}`,
     { headers, cache: 'no-store' }
   )
   const contacts = (contactsRes.ok ? await contactsRes.json() : []) as Array<{

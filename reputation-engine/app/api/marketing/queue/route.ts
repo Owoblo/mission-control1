@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { defaultFollowUpDate, normalizePartnershipStage } from '@/lib/marketing'
+import { canSeeAllPartnershipMarkets, partnershipRecordMatchesSession, partnershipScopeFilter } from '@/lib/server/partnership-access'
 
 interface QueueItem {
   id: string
@@ -58,7 +59,7 @@ export async function GET(request: Request) {
   if (view === 'all') dateFilter = ''
 
   const queueRes = await fetch(
-    `${url}/rest/v1/market_queue?status=eq.pending${dateFilter ? '&' + dateFilter : ''}&order=due_date.asc&limit=50`,
+    `${url}/rest/v1/market_queue?status=eq.pending${dateFilter ? '&' + dateFilter : ''}&order=due_date.asc&limit=250`,
     { headers, cache: 'no-store' }
   )
   if (!queueRes.ok) return NextResponse.json({ error: 'Failed to load queue' }, { status: 500 })
@@ -69,20 +70,23 @@ export async function GET(request: Request) {
   // Fetch matching contacts (signal blasts have null contact_id)
   const contactIds = Array.from(new Set(queueItems.map(q => q.contact_id).filter(Boolean))) as string[]
   const contactsRes = await fetch(
-    `${url}/rest/v1/market_contacts?id=in.(${contactIds.map(id => `"${id}"`).join(',')})&select=id,name,company,title,email,phone,city,industry,tier,tracking_code,stage,notes,website,next_follow_up`,
+    `${url}/rest/v1/market_contacts?id=in.(${contactIds.map(id => `"${id}"`).join(',')})&select=id,name,company,title,email,phone,city,industry,tier,tracking_code,stage,notes,website,next_follow_up${partnershipScopeFilter(session)}`,
     { headers, cache: 'no-store' }
   )
   const contacts = (contactsRes.ok ? await contactsRes.json() : []) as Contact[]
   const contactMap = Object.fromEntries(contacts.map(c => [c.id, c]))
 
-  const items = queueItems.map(q => ({
-    ...q,
-    contact: q.contact_id ? (contactMap[q.contact_id] ?? null) : null,
-    overdue: q.due_date < today,
-    daysOverdue: q.due_date < today
-      ? Math.floor((new Date(today).getTime() - new Date(q.due_date).getTime()) / 86400000)
-      : 0,
-  }))
+  const items = queueItems
+    .map(q => ({
+      ...q,
+      contact: q.contact_id ? (contactMap[q.contact_id] ?? null) : null,
+      overdue: q.due_date < today,
+      daysOverdue: q.due_date < today
+        ? Math.floor((new Date(today).getTime() - new Date(q.due_date).getTime()) / 86400000)
+        : 0,
+    }))
+    .filter(item => canSeeAllPartnershipMarkets(session) || !!item.contact)
+    .slice(0, 50)
 
   return NextResponse.json({ items, total: items.length })
 }
@@ -147,9 +151,12 @@ export async function POST(request: Request) {
 
   if (body.action === 'seed_contact' && body.contact_id) {
     // Get contact's tier and schedule step 1
-    const cRes = await fetch(`${url}/rest/v1/market_contacts?id=eq.${body.contact_id}&select=tier,stage`, { headers, cache: 'no-store' })
-    const [contact] = (await cRes.json()) as { tier: string; stage: string }[]
+    const cRes = await fetch(`${url}/rest/v1/market_contacts?id=eq.${body.contact_id}&select=tier,stage,city`, { headers, cache: 'no-store' })
+    const [contact] = (await cRes.json()) as { tier: string; stage: string; city?: string | null }[]
     if (!contact) return NextResponse.json({ error: 'Contact not found' }, { status: 404 })
+    if (!partnershipRecordMatchesSession(session, contact as unknown as Record<string, unknown>)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
     const tier = contact.tier === 'HOT' ? 'HOT' : contact.tier
     const seqRes = await fetch(`${url}/rest/v1/market_sequences?tier=eq.${tier}&step_number=eq.1`, { headers, cache: 'no-store' })
@@ -175,7 +182,19 @@ export async function POST(request: Request) {
 
   if ((body.action === 'complete' || body.action === 'skip') && body.queue_id) {
     const completedAt = new Date().toISOString()
-    // Mark current item done
+    const itemRes = await fetch(`${url}/rest/v1/market_queue?id=eq.${body.queue_id}&select=contact_id,step_number,channel,label,signal_id`, { headers, cache: 'no-store' })
+    const [item] = (await itemRes.json()) as { contact_id: string | null; step_number: number; channel: string; label: string; signal_id?: string | null }[]
+    if (!item) return NextResponse.json({ ok: true })
+
+    if (!canSeeAllPartnershipMarkets(session)) {
+      if (!item.contact_id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      const guardRes = await fetch(`${url}/rest/v1/market_contacts?id=eq.${item.contact_id}&select=id,city`, { headers, cache: 'no-store' })
+      const [guardContact] = (await guardRes.json()) as Array<Record<string, unknown>>
+      if (!partnershipRecordMatchesSession(session, guardContact)) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+    }
+
     await fetch(`${url}/rest/v1/market_queue?id=eq.${body.queue_id}`, {
       method: 'PATCH',
       headers,
@@ -187,20 +206,18 @@ export async function POST(request: Request) {
     })
 
     if (body.action === 'complete') {
-      // Get current item to find contact + step
-      const itemRes = await fetch(`${url}/rest/v1/market_queue?id=eq.${body.queue_id}&select=contact_id,step_number,channel,label,signal_id`, { headers, cache: 'no-store' })
-      const [item] = (await itemRes.json()) as { contact_id: string | null; step_number: number; channel: string; label: string; signal_id?: string | null }[]
-      if (!item) return NextResponse.json({ ok: true })
       const outcomeCode = body.outcome_code || 'completed'
-
       if (!item.contact_id) {
         return NextResponse.json({ ok: true })
       }
 
       // Get contact tier
-      const cRes = await fetch(`${url}/rest/v1/market_contacts?id=eq.${item.contact_id}&select=tier,stage,next_follow_up`, { headers, cache: 'no-store' })
-      const [contact] = (await cRes.json()) as { tier: string; stage: string; next_follow_up?: string | null }[]
+      const cRes = await fetch(`${url}/rest/v1/market_contacts?id=eq.${item.contact_id}&select=tier,stage,next_follow_up,city`, { headers, cache: 'no-store' })
+      const [contact] = (await cRes.json()) as { tier: string; stage: string; next_follow_up?: string | null; city?: string | null }[]
       if (!contact) return NextResponse.json({ ok: true })
+      if (!partnershipRecordMatchesSession(session, contact as unknown as Record<string, unknown>)) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
 
       const currentStage = normalizePartnershipStage(contact.stage)
       let stageUpdate: string | undefined

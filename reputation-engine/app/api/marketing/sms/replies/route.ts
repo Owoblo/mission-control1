@@ -3,6 +3,7 @@ import { normalizePartnershipStage } from '@/lib/marketing'
 import { getSessionUser } from '@/lib/server/session'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { suggestPartnershipReply, type PartnershipAssistantContact, type PartnershipAssistantTouch } from '@/lib/server/partnership-reply-assistant'
+import { partnershipScopeFilter } from '@/lib/server/partnership-access'
 
 const CONTEXT_CLARIFICATION_RE = /\b(who is this|who'?s this|what is this|what'?s this|what is this for|what'?s this for|what is this about|what'?s this about|don'?t see (?:an |the )?earlier text|missing.*conversation|missing.*part|part of a conversation|not sure what this is|what conversation|remind me|sorry.*missing)\b/i
 
@@ -153,7 +154,7 @@ export async function GET(request: Request) {
   if (ids.length === 0) return NextResponse.json({ responses: [] })
 
   const contactRes = await fetch(
-    `${url}/rest/v1/market_contacts?id=in.(${ids.map(encodeURIComponent).join(',')})&select=*`,
+    `${url}/rest/v1/market_contacts?id=in.(${ids.map(encodeURIComponent).join(',')})&select=*${partnershipScopeFilter(session)}`,
     { headers, cache: 'no-store' }
   )
 
@@ -162,10 +163,12 @@ export async function GET(request: Request) {
   }
 
   const contacts = (await contactRes.json()) as MarketContact[]
+  const scopedIds = contacts.map(contact => contact.id)
+  if (scopedIds.length === 0) return NextResponse.json({ responses: [] })
   const contactsById = new Map(contacts.map(contact => [contact.id, contact]))
 
   const historyRes = await fetch(
-    `${url}/rest/v1/market_touches?contact_id=in.(${ids.map(encodeURIComponent).join(',')})&select=id,contact_id,channel,direction,notes,created_by,created_at,outcome_code,metadata&order=created_at.desc&limit=4000`,
+    `${url}/rest/v1/market_touches?contact_id=in.(${scopedIds.map(encodeURIComponent).join(',')})&select=id,contact_id,channel,direction,notes,created_by,created_at,outcome_code,metadata&order=created_at.desc&limit=4000`,
     { headers, cache: 'no-store' }
   )
   const history = (historyRes.ok ? await historyRes.json() : []) as Array<PartnershipAssistantTouch & MarketTouch & { contact_id?: string }>
@@ -180,7 +183,7 @@ export async function GET(request: Request) {
     return map
   }, new Map<string, PartnershipAssistantTouch[]>())
 
-  const responses = await Promise.all(ids
+  const responses = await Promise.all(scopedIds
     .map(async id => {
       const latest = latestByContact.get(id) ?? latestInboundByContact.get(id)!
       const latestInbound = latestInboundByContact.get(id) ?? null

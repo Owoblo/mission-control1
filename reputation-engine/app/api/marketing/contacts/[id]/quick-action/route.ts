@@ -3,6 +3,7 @@ import { getSessionUser } from '@/lib/server/session'
 import { defaultFollowUpDate } from '@/lib/marketing'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { activateAffiliatePartner } from '@/lib/server/affiliate-bridge'
+import { partnershipRecordMatchesSession } from '@/lib/server/partnership-access'
 
 type QuickAction =
   | 'active_partner'
@@ -120,6 +121,16 @@ export async function POST(
   const { url, headers } = requireSupabaseEnv()
   const now = new Date().toISOString()
   const config = ACTIONS[action]
+
+  const contactGuardRes = await fetch(
+    `${url}/rest/v1/market_contacts?id=eq.${encodeURIComponent(id)}&select=id,city&limit=1`,
+    { headers, cache: 'no-store' }
+  )
+  const [contactGuard] = (contactGuardRes.ok ? await contactGuardRes.json() : []) as Array<Record<string, unknown>>
+  if (!contactGuard) return NextResponse.json({ error: 'Contact not found' }, { status: 404 })
+  if (!partnershipRecordMatchesSession(session, contactGuard)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   const latestRes = await fetch(
     `${url}/rest/v1/market_touches?contact_id=eq.${encodeURIComponent(id)}&direction=eq.inbound&select=id,notes,created_at,channel&order=created_at.desc&limit=1`,

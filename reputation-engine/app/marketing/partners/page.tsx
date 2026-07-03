@@ -682,12 +682,12 @@ function useDialer() {
     return true
   }
 
-  async function call(phoneNumber: string) {
+  async function call(phoneNumber: string, city?: string | null) {
     const ready = await ensureReady()
     if (!ready || !deviceRef.current) return
     setStatus('connecting')
     const device = deviceRef.current as { connect: (opts?: unknown) => Promise<unknown> }
-    const conn = await device.connect({ params: { To: phoneNumber } } as unknown) as TwilioVoiceCall
+    const conn = await device.connect({ params: { To: phoneNumber, City: city || '' } } as unknown) as TwilioVoiceCall
     callRef.current = conn
     conn.on('accept', () => setStatus('connected'))
     conn.on('disconnect', () => { setStatus('ready'); callRef.current = null })
@@ -3641,7 +3641,7 @@ function PhoneTab({
 
   async function handleCall() {
     if (!selected?.phone) return
-    await dialer.call(selected.phone)
+    await dialer.call(selected.phone, selected.city)
     await fetch('/api/marketing/touches', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
       body: JSON.stringify({ contact_id: selected.id, channel: 'phone', direction: 'outbound', notes: 'Outbound call via partnership dialer', schedule_follow_up_days: 2 }),

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { defaultFollowUpDate, normalizePartnershipStage } from '@/lib/marketing'
+import { partnershipRecordMatchesSession } from '@/lib/server/partnership-access'
 
 export async function GET(request: Request) {
   const session = await getSessionUser()
@@ -12,6 +13,16 @@ export async function GET(request: Request) {
   if (!contactId) return NextResponse.json({ error: 'contact_id required' }, { status: 400 })
 
   const { url, headers } = requireSupabaseEnv()
+  const contactRes = await fetch(
+    `${url}/rest/v1/market_contacts?id=eq.${encodeURIComponent(contactId)}&select=id,city&limit=1`,
+    { headers, cache: 'no-store' }
+  )
+  const [contact] = (contactRes.ok ? await contactRes.json() : []) as Array<Record<string, unknown>>
+  if (!contact) return NextResponse.json({ error: 'Contact not found' }, { status: 404 })
+  if (!partnershipRecordMatchesSession(session, contact)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   const res = await fetch(
     `${url}/rest/v1/market_touches?contact_id=eq.${encodeURIComponent(contactId)}&order=created_at.desc`,
     { headers, cache: 'no-store' }
@@ -46,10 +57,14 @@ export async function POST(request: Request) {
   const touchDate = body.touch_date || new Date().toISOString()
 
   const contactRes = await fetch(
-    `${url}/rest/v1/market_contacts?id=eq.${encodeURIComponent(body.contact_id)}&select=id,stage,next_follow_up`,
+    `${url}/rest/v1/market_contacts?id=eq.${encodeURIComponent(body.contact_id)}&select=id,stage,next_follow_up,city`,
     { headers, cache: 'no-store' }
   )
   const [contact] = (contactRes.ok ? await contactRes.json() : []) as Array<{ id: string; stage: string | null; next_follow_up: string | null }>
+  if (!contact) return NextResponse.json({ error: 'Contact not found' }, { status: 404 })
+  if (!partnershipRecordMatchesSession(session, contact as unknown as Record<string, unknown>)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   // Insert touch
   await fetch(`${url}/rest/v1/market_touches`, {

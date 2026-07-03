@@ -3,6 +3,7 @@ import { getSessionUser } from '@/lib/server/session'
 import { defaultFollowUpDate } from '@/lib/marketing'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { activateAffiliatePartner } from '@/lib/server/affiliate-bridge'
+import { partnershipRecordMatchesSession } from '@/lib/server/partnership-access'
 
 export async function POST(
   request: Request,
@@ -21,6 +22,16 @@ export async function POST(
 
   const { url, headers } = requireSupabaseEnv()
   const now = new Date().toISOString()
+
+  const contactRes = await fetch(
+    `${url}/rest/v1/market_contacts?id=eq.${encodeURIComponent(id)}&select=id,city&limit=1`,
+    { headers, cache: 'no-store' }
+  )
+  const [contact] = (contactRes.ok ? await contactRes.json() : []) as Array<Record<string, unknown>>
+  if (!contact) return NextResponse.json({ error: 'Contact not found' }, { status: 404 })
+  if (!partnershipRecordMatchesSession(session, contact)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   const stageMap: Record<string, string> = {
     agreed: 'partnership_active',

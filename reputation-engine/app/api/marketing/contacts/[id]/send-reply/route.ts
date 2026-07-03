@@ -4,6 +4,7 @@ import { getTwilioCredentials, requireSupabaseEnv } from '@/lib/server/runtime'
 import { normalizeMarketingPhone, isOptOutText } from '@/lib/server/partnership-sms'
 import { recordOutboundSmsToSupabase } from '@/lib/server/sales-messaging'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
+import { partnershipRecordMatchesSession } from '@/lib/server/partnership-access'
 import {
   DEFAULT_PARTNERSHIP_FROM_NUMBER,
   getPartnershipPrimaryNumberForMarket,
@@ -76,6 +77,9 @@ export async function POST(
   )
   const [contact] = (contactRes.ok ? await contactRes.json() : []) as Array<Record<string, unknown>>
   if (!contact) return NextResponse.json({ error: 'Contact not found' }, { status: 404 })
+  if (!partnershipRecordMatchesSession(session, contact)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   const toNumber = normalizeMarketingPhone(contact.phone as string | null)
   if (!toNumber) return NextResponse.json({ error: 'Contact has no usable phone number' }, { status: 400 })

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
 import { requireSupabaseEnv, readEnv } from '@/lib/server/runtime'
 import { addLeadToCampaign } from '@/lib/server/instantly'
+import { partnershipRecordMatchesSession } from '@/lib/server/partnership-access'
 
 interface BulkContact {
   name: string
@@ -51,6 +52,9 @@ export async function POST(request: Request) {
   )
   const [batch] = batchRes.ok ? await batchRes.json() : []
   if (!batch) return NextResponse.json({ error: 'Batch not found' }, { status: 404 })
+  if (!partnershipRecordMatchesSession(session, batch, ['city', 'name'])) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   const rows = body.contacts
     .filter(c => c.name?.trim())

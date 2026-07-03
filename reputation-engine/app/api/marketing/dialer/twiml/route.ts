@@ -1,9 +1,11 @@
 import { normalizePhone } from '@/lib/sales-phones'
 import { pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
-import { getAppBaseUrl, readEnv } from '@/lib/server/runtime'
+import { getAppBaseUrl, readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
 import {
   DEFAULT_PARTNERSHIP_FROM_NUMBER,
+  PARTNERSHIP_LINES,
   getPartnershipPrimaryNumberForMarket,
+  normalizePartnershipCityKey,
 } from '@/lib/partnership-lines'
 
 const PARTNERSHIP_NUMBERS = {
@@ -46,6 +48,29 @@ function dialDestinations(forwardPhone?: string | null, clientIdentity?: string 
   return destinations.join('')
 }
 
+function partnershipLineForNumber(value?: string | null) {
+  const normalized = normalizePhone(value || '')
+  return PARTNERSHIP_LINES.find(line => line.number === normalized) || null
+}
+
+async function clientIdentityForPartnershipLine(dialedNumber?: string | null) {
+  const line = partnershipLineForNumber(dialedNumber)
+  if (!line) return ''
+  try {
+    const { url, headers } = requireSupabaseEnv()
+    const keys = Array.from(new Set([line.market, ...line.cityKeys].map(normalizePartnershipCityKey).filter(Boolean)))
+    const branchFilter = keys.map(key => `branch.ilike.*${encodeURIComponent(key)}*`).join(',')
+    const res = await fetch(
+      `${url}/rest/v1/app_users?role=eq.partnership_manager&select=id,branch&or=(${branchFilter})&order=created_at.asc&limit=1`,
+      { headers, cache: 'no-store' }
+    )
+    const [user] = (res.ok ? await res.json() : []) as Array<{ id?: string }>
+    return user?.id ? `partnership-rep-${user.id}` : ''
+  } catch {
+    return ''
+  }
+}
+
 export async function GET() {
   return Response.json({ ok: true, route: 'partnership-dialer-twiml', numbers: PARTNERSHIP_NUMBERS })
 }
@@ -63,14 +88,15 @@ export async function POST(request: Request) {
 
     if (!fromBrowser) {
       const configuredForwardPhone = readEnv('PARTNERSHIP_FORWARD_PHONE')
-      const forwardClientIdentity = readEnv('PARTNERSHIP_FORWARD_CLIENT_IDENTITY')
+      const dialedNumber = normalizePhone(to) || DEFAULT_PARTNERSHIP_NUMBER
+      const marketClientIdentity = await clientIdentityForPartnershipLine(dialedNumber)
+      const forwardClientIdentity = marketClientIdentity || readEnv('PARTNERSHIP_FORWARD_CLIENT_IDENTITY')
       const forwardPhone = configuredForwardPhone
         ? normalizePhone(configuredForwardPhone)
         : forwardClientIdentity
           ? null
           : '+12267241730'
       const inboundPhone = normalizePhone(from) || from
-      const dialedNumber = normalizePhone(to) || DEFAULT_PARTNERSHIP_NUMBER
       const callSid = (formData.get('CallSid') as string | null)?.trim() || null
       const statusCallback = `${appUrl}/api/marketing/dialer/call-status`
 
