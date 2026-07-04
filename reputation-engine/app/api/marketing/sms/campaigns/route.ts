@@ -116,6 +116,7 @@ export async function POST(request: Request) {
 
   const body = await request.json() as {
     name?: string
+    market?: string
     city?: string
     zone?: string
     contacts?: PartnershipSmsContactInput[]
@@ -138,10 +139,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  const marketKey = cleanText(body.market) || cleanText(body.zone) || cleanText(body.city) || cleanText(body.name)
+  const inferredSenderNumbers = getPartnershipSenderNumbersForMarket(marketKey)
+  const allowedSenderNumbers = new Set((inferredSenderNumbers.length > 0 ? inferredSenderNumbers : DEFAULT_PARTNERSHIP_SENDER_NUMBERS).map(normalizeOutboundNumber))
   const requestedSenderNumbers = Array.isArray(body.sender_numbers)
-    ? body.sender_numbers.filter(Boolean)
+    ? body.sender_numbers
+        .map(normalizeOutboundNumber)
+        .filter(number => number && allowedSenderNumbers.has(number))
     : []
-  const inferredSenderNumbers = getPartnershipSenderNumbersForMarket(body.zone || body.city || body.name)
   const senderSource = requestedSenderNumbers.length > 0
     ? requestedSenderNumbers
     : inferredSenderNumbers.length > 0
@@ -149,7 +154,7 @@ export async function POST(request: Request) {
       : DEFAULT_PARTNERSHIP_SENDER_NUMBERS
   const senderNumbers = senderSource
     .map(normalizeOutboundNumber)
-    .filter(Boolean)
+    .filter(number => number && allowedSenderNumbers.has(number))
   if (senderNumbers.length === 0) {
     return NextResponse.json({ error: 'At least one valid sender number is required' }, { status: 400 })
   }

@@ -10,6 +10,7 @@ import {
   ALL_PARTNERSHIP_SENDER_NUMBERS,
   DEFAULT_PARTNERSHIP_FROM_NUMBER,
   PARTNERSHIP_LINES,
+  getPartnershipPrimaryNumberForMarket,
   getPartnershipSenderNumbersForMarket,
 } from '@/lib/partnership-lines'
 
@@ -632,23 +633,65 @@ function ChannelIcon({ channel, direction }: { channel: string; direction?: stri
 
 // ─── Dialer hook ──────────────────────────────────────────────────────────────
 
-type DialStatus = 'idle' | 'loading' | 'ready' | 'connecting' | 'ringing' | 'connected'
+type DialStatus = 'idle' | 'loading' | 'ready' | 'connecting' | 'ringing' | 'connected' | 'error'
 type TwilioVoiceCall = {
   accept?: () => void
   reject?: () => void
   disconnect?: () => void
-  on: (event: string, cb: () => void) => void
+  on: (event: string, cb: (error?: unknown) => void) => void
   parameters?: Record<string, string>
+}
+
+function twilioErrorCode(error: unknown) {
+  if (!error || typeof error !== 'object') return null
+  const code = (error as { code?: unknown }).code
+  const numeric = Number(code)
+  return Number.isFinite(numeric) ? numeric : null
+}
+
+function twilioErrorMessage(error: unknown) {
+  if (!error) return 'Browser voice connection failed.'
+  if (error instanceof Error && error.message) return error.message
+  if (typeof error === 'object') {
+    const message = (error as { message?: unknown }).message
+    if (typeof message === 'string' && message.trim()) return message
+  }
+  return String(error)
+}
+
+function partnershipDialerUserMessage(error: unknown) {
+  const code = twilioErrorCode(error)
+  if (code === 31005 || code === 31003 || code === 31000) {
+    return 'Browser voice lost its connection. Check network/VPN/firewall and try again.'
+  }
+  if (code === 53405) {
+    return 'Microphone/media connection failed. Check browser permissions and try again.'
+  }
+  return twilioErrorMessage(error)
 }
 
 function useDialer() {
   const [status, setStatus] = useState<DialStatus>('idle')
+  const [error, setError] = useState<string | null>(null)
   const deviceRef = useRef<unknown>(null)
   const callRef = useRef<unknown>(null)
   const [incomingFrom, setIncomingFrom] = useState<string | null>(null)
 
+  function handleDialerError(errorValue: unknown, scope: 'device' | 'call' | 'incoming') {
+    const message = partnershipDialerUserMessage(errorValue)
+    console.warn(`[PartnershipDialer] ${scope} error`, {
+      code: twilioErrorCode(errorValue),
+      message: twilioErrorMessage(errorValue),
+    })
+    setIncomingFrom(null)
+    callRef.current = null
+    setStatus('error')
+    setError(message)
+  }
+
   async function ensureReady() {
     if (deviceRef.current) return true
+    setError(null)
     setStatus('loading')
     await new Promise<void>(resolve => {
       if ((window as unknown as Record<string, unknown>).Twilio) { resolve(); return }
@@ -662,35 +705,54 @@ function useDialer() {
     const { token } = await res.json() as { token: string }
     const TwilioSDK = (window as unknown as Record<string, unknown>).Twilio as { Device: new (token: string) => unknown }
     const device = new TwilioSDK.Device(token) as {
-      on?: (event: string, cb: (call: TwilioVoiceCall) => void) => void
+      on?: (event: string, cb: (value: unknown) => void) => void
       register?: () => Promise<void>
     }
-    device.on?.('incoming', call => {
-      callRef.current = call
-      setIncomingFrom(call.parameters?.From || 'Incoming partnership call')
-      setStatus('ringing')
-      call.on('accept', () => { setIncomingFrom(null); setStatus('connected') })
-      call.on('disconnect', () => { setIncomingFrom(null); setStatus('ready'); callRef.current = null })
-      call.on('cancel', () => { setIncomingFrom(null); setStatus('ready'); callRef.current = null })
-      call.on('reject', () => { setIncomingFrom(null); setStatus('ready'); callRef.current = null })
-      call.on('error', () => { setIncomingFrom(null); setStatus('ready'); callRef.current = null })
+    device.on?.('error', errorValue => {
+      handleDialerError(errorValue, 'device')
     })
-    await device.register?.()
-    deviceRef.current = device
-    setStatus('ready')
-    return true
+    device.on?.('unregistered', () => {
+      if (status !== 'connected' && status !== 'connecting') setStatus('idle')
+    })
+    device.on?.('incoming', call => {
+      const incomingCall = call as TwilioVoiceCall
+      callRef.current = call
+      setError(null)
+      setIncomingFrom(incomingCall.parameters?.From || 'Incoming partnership call')
+      setStatus('ringing')
+      incomingCall.on('accept', () => { setIncomingFrom(null); setError(null); setStatus('connected') })
+      incomingCall.on('disconnect', () => { setIncomingFrom(null); setStatus('ready'); callRef.current = null })
+      incomingCall.on('cancel', () => { setIncomingFrom(null); setStatus('ready'); callRef.current = null })
+      incomingCall.on('reject', () => { setIncomingFrom(null); setStatus('ready'); callRef.current = null })
+      incomingCall.on('error', errorValue => handleDialerError(errorValue, 'incoming'))
+    })
+    try {
+      await device.register?.()
+      deviceRef.current = device
+      setStatus('ready')
+      setError(null)
+      return true
+    } catch (errorValue) {
+      handleDialerError(errorValue, 'device')
+      return false
+    }
   }
 
   async function call(phoneNumber: string, city?: string | null) {
     const ready = await ensureReady()
     if (!ready || !deviceRef.current) return
+    setError(null)
     setStatus('connecting')
     const device = deviceRef.current as { connect: (opts?: unknown) => Promise<unknown> }
-    const conn = await device.connect({ params: { To: phoneNumber, City: city || '' } } as unknown) as TwilioVoiceCall
-    callRef.current = conn
-    conn.on('accept', () => setStatus('connected'))
-    conn.on('disconnect', () => { setStatus('ready'); callRef.current = null })
-    conn.on('error', () => { setStatus('ready'); callRef.current = null })
+    try {
+      const conn = await device.connect({ params: { To: phoneNumber, City: city || '' } } as unknown) as TwilioVoiceCall
+      callRef.current = conn
+      conn.on('accept', () => { setError(null); setStatus('connected') })
+      conn.on('disconnect', () => { setStatus('ready'); callRef.current = null })
+      conn.on('error', errorValue => handleDialerError(errorValue, 'call'))
+    } catch (errorValue) {
+      handleDialerError(errorValue, 'call')
+    }
   }
 
   function hangup() {
@@ -711,7 +773,7 @@ function useDialer() {
     callRef.current = null
   }
 
-  return { status, incomingFrom, call, hangup, acceptIncoming, rejectIncoming, ensureReady }
+  return { status, error, incomingFrom, call, hangup, acceptIncoming, rejectIncoming, ensureReady }
 }
 
 // ─── Appointment Modal ────────────────────────────────────────────────────────
@@ -2939,6 +3001,92 @@ function areaForCity(cityKey: string) {
   return PARTNERSHIP_AREA_GROUPS.find(area => area.cityKeys.includes(cityKey))
 }
 
+type PartnershipMarketKey = 'windsor' | 'waterloo' | 'london' | 'ottawa'
+
+type PartnershipMarketCommand = {
+  id: PartnershipMarketKey
+  label: string
+  manager: string
+  email: string
+  areaId: string
+  defaultSegment: string
+  defaultName: string
+  cityKeys: string[]
+}
+
+const PARTNERSHIP_MARKET_COMMANDS: PartnershipMarketCommand[] = [
+  {
+    id: 'windsor',
+    label: 'Windsor / Essex',
+    manager: 'Rahin',
+    email: 'rahin@starmovers.ca',
+    areaId: 'windsor_area',
+    defaultSegment: 'zone1_windsor_essex',
+    defaultName: 'Windsor Essex Realtor Partnership SMS',
+    cityKeys: ['windsor', 'lasalle', 'tecumseh', 'lakeshore', 'belle_river', 'amherstburg', 'essex', 'harrow', 'kingsville', 'leamington', 'stoney_point', 'chatham_kent'],
+  },
+  {
+    id: 'waterloo',
+    label: 'Kitchener / Waterloo',
+    manager: 'Gui',
+    email: 'gui@starmovers.ca',
+    areaId: 'kwg_area',
+    defaultSegment: 'waterloo',
+    defaultName: 'Kitchener Waterloo Realtor Partnership SMS',
+    cityKeys: ['kitchener', 'waterloo', 'cambridge', 'guelph', 'kitchener_waterloo'],
+  },
+  {
+    id: 'london',
+    label: 'London area',
+    manager: 'Unassigned',
+    email: 'business@starmovers.ca',
+    areaId: 'london_area',
+    defaultSegment: 'london',
+    defaultName: 'London Realtor Partnership SMS',
+    cityKeys: ['london', 'st_thomas', 'strathroy', 'woodstock'],
+  },
+  {
+    id: 'ottawa',
+    label: 'Ottawa area',
+    manager: 'Dr Courage',
+    email: 'courage.ottawa@starmovers.ca',
+    areaId: 'ottawa_area',
+    defaultSegment: 'ottawa',
+    defaultName: 'Ottawa Realtor Partnership SMS',
+    cityKeys: ['ottawa', 'kanata', 'nepean', 'orleans', 'gatineau'],
+  },
+]
+
+function marketCommandForKey(value?: string | null) {
+  return PARTNERSHIP_MARKET_COMMANDS.find(market => market.id === value) || PARTNERSHIP_MARKET_COMMANDS[0]
+}
+
+function marketForCityKey(cityKey: string): PartnershipMarketKey | null {
+  return PARTNERSHIP_MARKET_COMMANDS.find(market => market.cityKeys.includes(cityKey))?.id || null
+}
+
+function marketForText(value?: string | null): PartnershipMarketKey | null {
+  const key = normalizeInboxCity(value)
+  if (!key) return null
+  return marketForCityKey(key) ||
+    PARTNERSHIP_MARKET_COMMANDS.find(market => key.includes(market.id) || market.id.includes(key))?.id ||
+    null
+}
+
+function marketForContact(contact: Contact): PartnershipMarketKey {
+  return marketForText(contact.city) || marketForText(contact.company) || marketForText(contact.latest_touch_note) || 'windsor'
+}
+
+function marketForBatch(batch: Batch): PartnershipMarketKey {
+  return marketForText(batch.city) || marketForText(batch.name) || 'windsor'
+}
+
+function formatPhoneDisplay(value?: string | null) {
+  const digits = String(value || '').replace(/\D/g, '')
+  if (digits.length === 11 && digits.startsWith('1')) return `+1 ${digits.slice(1, 4)}-${digits.slice(4, 7)}-${digits.slice(7)}`
+  return value || ''
+}
+
 function PhoneTab({
   contacts,
   batches,
@@ -4000,6 +4148,11 @@ function PhoneTab({
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
+              {dialer.error && (
+                <div className="hidden max-w-[220px] rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 lg:block">
+                  {dialer.error}
+                </div>
+              )}
               {selected.phone && (
                 dialer.status === 'connected' ? (
                   <button onClick={dialer.hangup} className="min-h-11 rounded-full bg-rose-500 px-5 text-sm font-semibold text-white lg:min-h-10">End</button>
@@ -4865,13 +5018,16 @@ function labelFromZone(zone: string) {
     .join(' ')
 }
 
-function ScheduledSmsCampaignModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose: () => void; onDone: () => void; initialMarket?: PartnershipMarketKey | null }) {
+  const initialMarketConfig = marketCommandForKey(initialMarket || 'windsor')
   const [rows, setRows] = useState<Record<string, string>[]>([])
   const [fileName, setFileName] = useState('')
+  const [selectedMarket, setSelectedMarket] = useState<PartnershipMarketKey>(initialMarketConfig.id)
+  const [category, setCategory] = useState('realtor')
   const [segmentMode, setSegmentMode] = useState<'zone' | 'city'>('zone')
-  const [segment, setSegment] = useState('zone1_windsor_essex')
-  const [name, setName] = useState('Windsor Essex Realtor Partnership SMS')
-  const [repName, setRepName] = useState('Rahin')
+  const [segment, setSegment] = useState(initialMarketConfig.defaultSegment)
+  const [name, setName] = useState(initialMarketConfig.defaultName)
+  const [repName, setRepName] = useState(initialMarketConfig.manager === 'Unassigned' ? 'Saturn Star Partnerships' : initialMarketConfig.manager)
   const [template, setTemplate] = useState(PARTNERSHIP_SMS_TEMPLATE)
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10))
   const [dailyCap, setDailyCap] = useState(400)
@@ -4890,10 +5046,31 @@ function ScheduledSmsCampaignModal({ onClose, onDone }: { onClose: () => void; o
     const value = segmentMode === 'zone' ? row.zone : (row.city_scraped || row.city)
     return (value || '').toLowerCase() === segment.toLowerCase()
   })
-  const contacts = selectedRows.map(mapCsvRealtor)
+  const selectedMarketConfig = marketCommandForKey(selectedMarket)
+  const contacts = selectedRows.map(row => {
+    const mapped = mapCsvRealtor(row)
+    const categoryMeta = getCategoryMeta(category)
+    return {
+      ...mapped,
+      category,
+      industry: category === 'realtor' ? 'real estate' : (categoryMeta?.label || category),
+    }
+  })
   const selectedCities = Array.from(new Set(selectedRows.map(row => row.city_scraped || row.city).filter(Boolean))).sort((a, b) => a.localeCompare(b))
   const segmentLabel = segmentMode === 'zone' ? labelFromZone(segment) : segment
-  const senderNumbers = senderNumbersForPartnershipSegment(segment)
+  const senderNumbers = senderNumbersForPartnershipSegment(selectedMarket)
+
+  function applyMarket(nextMarket: PartnershipMarketKey) {
+    const config = marketCommandForKey(nextMarket)
+    setSelectedMarket(config.id)
+    setSegment(config.defaultSegment)
+    setSegmentMode(config.defaultSegment.startsWith('zone') ? 'zone' : 'city')
+    setName(config.defaultName)
+    setRepName(config.manager === 'Unassigned' ? 'Saturn Star Partnerships' : config.manager)
+    setPreview(null)
+    setResult(null)
+    setError('')
+  }
 
   async function handleFile(file: File | null) {
     if (!file) return
@@ -4906,8 +5083,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone }: { onClose: () => void; o
     const nextMode = firstZone ? 'zone' : 'city'
     setSegmentMode(nextMode)
     setSegment(nextSegment)
-    setName(`${nextMode === 'zone' ? labelFromZone(nextSegment) : nextSegment} Realtor Partnership SMS`)
-    setRepName(nextSegment.toLowerCase().includes('windsor') || nextSegment.toLowerCase().includes('essex') ? 'Rahin' : 'Saturn Star Partnerships')
+    setName(`${selectedMarketConfig.label} ${getCategoryMeta(category)?.label || 'Partner'} Outreach`)
     setPreview(null)
     setResult(null)
     setError('')
@@ -4926,6 +5102,8 @@ function ScheduledSmsCampaignModal({ onClose, onDone }: { onClose: () => void; o
       credentials: 'include',
       body: JSON.stringify({
         name,
+        market: selectedMarket,
+        category,
         city: segmentMode === 'city' ? segment : undefined,
         zone: segmentMode === 'zone' ? segment : undefined,
         contacts,
@@ -4984,14 +5162,32 @@ function ScheduledSmsCampaignModal({ onClose, onDone }: { onClose: () => void; o
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
+                    <label className="crm-label">Market line</label>
+                    <select value={selectedMarket} onChange={e => applyMarket(e.target.value as PartnershipMarketKey)} className="crm-input mt-1 text-sm">
+                      {PARTNERSHIP_MARKET_COMMANDS.map(market => (
+                        <option key={market.id} value={market.id}>{market.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="crm-label">Category</label>
+                    <select value={category} onChange={e => { setCategory(e.target.value); setName(`${selectedMarketConfig.label} ${getCategoryMeta(e.target.value)?.label || 'Partner'} Outreach`); setPreview(null) }} className="crm-input mt-1 text-sm">
+                      {CATEGORY_LIST.map(item => (
+                        <option key={item.id} value={item.id}>{item.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
                     <label className="crm-label">Group by</label>
                     <select value={segmentMode} onChange={e => {
                       const nextMode = e.target.value as 'zone' | 'city'
                       const nextSegment = nextMode === 'zone' ? (availableZones[0] || segment) : (availableCities[0] || segment)
                       setSegmentMode(nextMode)
                       setSegment(nextSegment)
-                      setName(`${nextMode === 'zone' ? labelFromZone(nextSegment) : nextSegment} Realtor Partnership SMS`)
-                      setRepName(nextSegment.toLowerCase().includes('windsor') || nextSegment.toLowerCase().includes('essex') ? 'Rahin' : 'Saturn Star Partnerships')
+                      setName(`${selectedMarketConfig.label} ${getCategoryMeta(category)?.label || 'Partner'} Outreach`)
                       setPreview(null)
                     }} className="crm-input mt-1 text-sm">
                       <option value="zone">Area / zone</option>
@@ -5003,8 +5199,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone }: { onClose: () => void; o
                     <select value={segment} onChange={e => {
                       const next = e.target.value
                       setSegment(next)
-                      setName(`${segmentMode === 'zone' ? labelFromZone(next) : next} Realtor Partnership SMS`)
-                      setRepName(next.toLowerCase().includes('windsor') || next.toLowerCase().includes('essex') ? 'Rahin' : 'Saturn Star Partnerships')
+                      setName(`${selectedMarketConfig.label} ${getCategoryMeta(category)?.label || 'Partner'} Outreach`)
                       setPreview(null)
                     }} className="crm-input mt-1 text-sm">
                       {segmentMode === 'zone' ? (
@@ -5055,7 +5250,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone }: { onClose: () => void; o
                 </div>
 
                 <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3 text-xs leading-5 text-[var(--app-muted)]">
-                  Uses both partnership numbers, primary phone only, exact-name/phone duplicate checks, and Toronto/Windsor working hours.
+                  Sends from {selectedMarketConfig.label}: {senderNumbers.map(formatPhoneDisplay).join(', ')}. Uses primary phone only, duplicate checks, and Toronto working hours.
                 </div>
 
                 {selectedCities.length > 0 && (
@@ -5332,6 +5527,11 @@ function QueueTab({ contacts, batches, onSelect, onScheduleCampaign }: {
           </div>
         </div>
       )}
+      {dialer.error && (
+        <div className="rounded-[16px] border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800">
+          {dialer.error}
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
@@ -5449,11 +5649,188 @@ function QueueTab({ contacts, batches, onSelect, onScheduleCampaign }: {
   )
 }
 
+function AdminCommandCenter({
+  contacts,
+  batches,
+  loading,
+  onOpenInbox,
+  onOpenPipeline,
+  onLaunchCampaign,
+}: {
+  contacts: Contact[]
+  batches: Batch[]
+  loading: boolean
+  onOpenInbox: () => void
+  onOpenPipeline: () => void
+  onLaunchCampaign: (market: PartnershipMarketKey) => void
+}) {
+  const marketStats = PARTNERSHIP_MARKET_COMMANDS.map(market => {
+    const marketContacts = contacts.filter(contact => marketForContact(contact) === market.id)
+    const marketBatches = batches.filter(batch => marketForBatch(batch) === market.id)
+    const needsReply = marketContacts.filter(contact => getInboxStatus(contact) === 'needs_reply' || getInboxStatus(contact) === 'context').length
+    const activePartners = marketContacts.filter(contact => getInboxStatus(contact) === 'active').length
+    const meetings = marketContacts.filter(contact => getInboxStatus(contact) === 'appointment' || contact.normalized_stage === 'qualified' || contact.stage === 'qualified').length
+    const responded = marketContacts.filter(contact => hasPartnerInbound(contact)).length
+    const noResponse = marketContacts.filter(contact => hasNoPartnerResponse(contact)).length
+    const sentToday = marketBatches.reduce((sum, batch) => sum + (batch.sms_sent_today || 0), 0)
+    const pendingToday = marketBatches.reduce((sum, batch) => sum + (batch.sms_pending_today || 0), 0)
+    const queued = marketBatches.reduce((sum, batch) => sum + (batch.sms_pending_total || 0), 0)
+    const failed = marketBatches.reduce((sum, batch) => sum + (batch.sms_failed_total || 0), 0)
+    const lastBatch = [...marketBatches].sort((a, b) => b.created_at.localeCompare(a.created_at))[0]
+    const activeCampaigns = marketBatches.filter(batch => batch.sms_pending_total || batch.status === 'active').length
+    const latestTouch = marketContacts
+      .map(contact => contact.latest_inbound_at || contact.last_touch_at || '')
+      .filter(Boolean)
+      .sort()
+      .pop()
+
+    return {
+      market,
+      contacts: marketContacts.length,
+      batches: marketBatches.length,
+      needsReply,
+      activePartners,
+      meetings,
+      responded,
+      noResponse,
+      sentToday,
+      pendingToday,
+      queued,
+      failed,
+      activeCampaigns,
+      lastBatch,
+      latestTouch,
+    }
+  })
+
+  const totals = marketStats.reduce((acc, item) => ({
+    contacts: acc.contacts + item.contacts,
+    needsReply: acc.needsReply + item.needsReply,
+    sentToday: acc.sentToday + item.sentToday,
+    queued: acc.queued + item.queued,
+    activePartners: acc.activePartners + item.activePartners,
+  }), { contacts: 0, needsReply: 0, sentToday: 0, queued: 0, activePartners: 0 })
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-[18px] border border-[var(--app-line)] bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="text-xs font-bold uppercase tracking-[0.22em] text-[var(--app-muted)]">Owner command center</div>
+            <h2 className="mt-2 text-2xl font-semibold text-[var(--app-ink)]">Partnership markets</h2>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--app-muted)]">
+              Launch outreach from the admin side, keep each city on its dedicated partnership line, and monitor replies without giving managers the full CRM.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={onOpenInbox} className="crm-button text-sm">Open inbox</button>
+            <button onClick={onOpenPipeline} className="crm-button text-sm">Pipeline</button>
+            <button onClick={() => onLaunchCampaign('windsor')} className="crm-button-dark text-sm">Launch outreach</button>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-5">
+          <div className="rounded-[12px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
+            <div className="text-[10px] font-bold uppercase text-[var(--app-muted)]">Contacts</div>
+            <div className="mt-1 text-xl font-semibold text-[var(--app-ink)]">{loading ? '-' : totals.contacts}</div>
+          </div>
+          <div className="rounded-[12px] border border-amber-200 bg-amber-50 p-3">
+            <div className="text-[10px] font-bold uppercase text-amber-700">Need reply</div>
+            <div className="mt-1 text-xl font-semibold text-amber-800">{loading ? '-' : totals.needsReply}</div>
+          </div>
+          <div className="rounded-[12px] border border-emerald-200 bg-emerald-50 p-3">
+            <div className="text-[10px] font-bold uppercase text-emerald-700">Sent today</div>
+            <div className="mt-1 text-xl font-semibold text-emerald-800">{loading ? '-' : totals.sentToday}</div>
+          </div>
+          <div className="rounded-[12px] border border-sky-200 bg-sky-50 p-3">
+            <div className="text-[10px] font-bold uppercase text-sky-700">Queued</div>
+            <div className="mt-1 text-xl font-semibold text-sky-800">{loading ? '-' : totals.queued}</div>
+          </div>
+          <div className="rounded-[12px] border border-teal-200 bg-teal-50 p-3">
+            <div className="text-[10px] font-bold uppercase text-teal-700">Partners</div>
+            <div className="mt-1 text-xl font-semibold text-teal-800">{loading ? '-' : totals.activePartners}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {marketStats.map(item => (
+          <div key={item.market.id} className="rounded-[16px] border border-[var(--app-line)] bg-white p-4 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-lg font-semibold text-[var(--app-ink)]">{item.market.label}</h3>
+                  {item.needsReply > 0 && (
+                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">{item.needsReply} need reply</span>
+                  )}
+                </div>
+                <div className="mt-1 text-xs text-[var(--app-muted)]">
+                  {item.market.manager} · {item.market.email}
+                </div>
+              </div>
+              <div className="rounded-full border border-[var(--app-line)] px-3 py-1 text-xs font-semibold text-[var(--app-muted)]">
+                {formatPhoneDisplay(getPartnershipPrimaryNumberForMarket(item.market.id))}
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="rounded-[10px] bg-[var(--app-bg)] p-3">
+                <div className="text-[10px] font-bold uppercase text-[var(--app-muted)]">Contacts</div>
+                <div className="mt-1 text-lg font-semibold text-[var(--app-ink)]">{item.contacts}</div>
+              </div>
+              <div className="rounded-[10px] bg-[var(--app-bg)] p-3">
+                <div className="text-[10px] font-bold uppercase text-[var(--app-muted)]">Responses</div>
+                <div className="mt-1 text-lg font-semibold text-[var(--app-ink)]">{item.responded}</div>
+              </div>
+              <div className="rounded-[10px] bg-[var(--app-bg)] p-3">
+                <div className="text-[10px] font-bold uppercase text-[var(--app-muted)]">Partners</div>
+                <div className="mt-1 text-lg font-semibold text-[var(--app-ink)]">{item.activePartners}</div>
+              </div>
+              <div className="rounded-[10px] bg-[var(--app-bg)] p-3">
+                <div className="text-[10px] font-bold uppercase text-[var(--app-muted)]">Meetings</div>
+                <div className="mt-1 text-lg font-semibold text-[var(--app-ink)]">{item.meetings}</div>
+              </div>
+              <div className="rounded-[10px] bg-[var(--app-bg)] p-3">
+                <div className="text-[10px] font-bold uppercase text-[var(--app-muted)]">No reply</div>
+                <div className="mt-1 text-lg font-semibold text-[var(--app-ink)]">{item.noResponse}</div>
+              </div>
+              <div className="rounded-[10px] bg-[var(--app-bg)] p-3">
+                <div className="text-[10px] font-bold uppercase text-[var(--app-muted)]">Campaigns</div>
+                <div className="mt-1 text-lg font-semibold text-[var(--app-ink)]">{item.activeCampaigns || item.batches}</div>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-[12px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
+              <div className="grid gap-2 text-xs text-[var(--app-muted)] sm:grid-cols-2">
+                <div><span className="font-semibold text-[var(--app-ink)]">{item.sentToday}</span> sent today</div>
+                <div><span className="font-semibold text-[var(--app-ink)]">{item.pendingToday}</span> pending today</div>
+                <div><span className="font-semibold text-[var(--app-ink)]">{item.queued}</span> queued total</div>
+                <div><span className={`font-semibold ${item.failed > 0 ? 'text-rose-700' : 'text-[var(--app-ink)]'}`}>{item.failed}</span> failed</div>
+              </div>
+              <div className="mt-2 text-[11px] text-[var(--app-muted)]">
+                {item.lastBatch ? `Latest batch: ${item.lastBatch.name}` : 'No campaign batch yet'}
+                {item.latestTouch ? ` · Last activity ${fmtDateTime(item.latestTouch)}` : ''}
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button onClick={() => onLaunchCampaign(item.market.id)} className="crm-button-dark text-sm">Launch {item.market.label}</button>
+              <button onClick={onOpenInbox} className="crm-button text-sm">View inbox</button>
+              <button onClick={onOpenPipeline} className="crm-button text-sm">View pipeline</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-type Tab = 'queue' | 'replies' | 'overview' | 'lists' | 'pipeline' | 'phone' | 'partners'
+type Tab = 'command' | 'queue' | 'replies' | 'overview' | 'lists' | 'pipeline' | 'phone' | 'partners'
 
 const TABS: { key: Tab; label: string; icon: string }[] = [
+  { key: 'command',  label: 'Command',  icon: '🏙️' },
   { key: 'queue',    label: 'Queue',    icon: '⚡' },
   { key: 'phone',    label: 'Inbox',    icon: '💬' },
   { key: 'overview', label: 'Overview', icon: '📊' },
@@ -5465,8 +5842,9 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
 function PartnershipEngineInner() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const initialTab = (searchParams.get('tab') as Tab) || 'phone'
+  const initialTab = (searchParams.get('tab') as Tab) || 'command'
   const [tab, setTab] = useState<Tab>(initialTab === 'replies' ? 'phone' : initialTab)
+  const [currentUser, setCurrentUser] = useState<{ role?: string; branch?: string | null } | null>(null)
   const [contacts, setContacts] = useState<Contact[]>([])
   const [batches, setBatches] = useState<Batch[]>([])
   const [lists, setLists] = useState<List[]>([])
@@ -5493,6 +5871,12 @@ function PartnershipEngineInner() {
     if (r.ok) setLists(await r.json() as List[])
   }, [])
 
+  useEffect(() => {
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => setCurrentUser(data as { role?: string; branch?: string | null } | null))
+      .catch(() => setCurrentUser(null))
+  }, [])
   useEffect(() => { void loadContacts() }, [loadContacts])
   useEffect(() => { void loadBatches() }, [loadBatches])
   useEffect(() => { void loadLists() }, [loadLists])
@@ -5539,12 +5923,23 @@ function PartnershipEngineInner() {
   }
 
   const [bulkSmsContacts, setBulkSmsContacts] = useState<Contact[] | null>(null)
-  const [scheduledSmsOpen, setScheduledSmsOpen] = useState(false)
+  const [scheduledSmsOpen, setScheduledSmsOpen] = useState<{ market?: PartnershipMarketKey } | null>(null)
+  const canUseCommandCenter = currentUser?.role !== 'partnership_manager'
+  const visibleTabs = useMemo(() => canUseCommandCenter
+    ? TABS
+    : TABS.filter(t => ['phone', 'pipeline', 'partners'].includes(t.key)), [canUseCommandCenter])
   const needsReplyCount = contacts.filter(c => getInboxStatus(c) === 'needs_reply').length
   const queueCount = needsReplyCount + contacts.filter(c =>
     c.last_touch_at && Math.floor((Date.now() - new Date(c.last_touch_at).getTime()) / 86400000) >= 5
   ).length
   const inboxActive = tab === 'phone' || tab === 'replies'
+
+  useEffect(() => {
+    if (currentUser?.role === 'partnership_manager' && !visibleTabs.some(item => item.key === tab)) {
+      handleTabChange('phone')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.role, tab, visibleTabs])
 
   return (
     <div className={inboxActive ? 'min-h-screen bg-white md:bg-[var(--app-bg,#f0f2f5)]' : 'min-h-screen bg-[var(--app-bg,#f0f2f5)]'}>
@@ -5560,7 +5955,7 @@ function PartnershipEngineInner() {
         </div>
 
         <div className={`${inboxActive ? 'hidden' : 'flex'} ${inboxActive ? 'mb-2 gap-1 rounded-[14px] p-1' : 'mb-6 gap-1 rounded-[16px] p-1.5'} border border-[var(--app-line)] bg-[var(--app-panel,white)]`}>
-          {TABS.map(t => (
+          {visibleTabs.map(t => (
             <button key={t.key} onClick={() => handleTabChange(t.key)}
               className={`flex flex-1 items-center justify-center gap-2 rounded-[11px] ${inboxActive ? 'py-1.5 text-xs' : 'py-2.5 text-sm'} font-semibold transition ${tab === t.key ? 'bg-[var(--app-ink)] text-white shadow-sm' : 'text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}>
               <span>{t.icon}</span>
@@ -5575,9 +5970,19 @@ function PartnershipEngineInner() {
           ))}
         </div>
 
+        {tab === 'command' && canUseCommandCenter && (
+          <AdminCommandCenter
+            contacts={contacts}
+            batches={batches}
+            loading={batchesLoading || contactsLoading}
+            onOpenInbox={() => handleTabChange('phone')}
+            onOpenPipeline={() => handleTabChange('pipeline')}
+            onLaunchCampaign={market => setScheduledSmsOpen({ market })}
+          />
+        )}
         {tab === 'queue' && (
           <QueueTab contacts={contacts} batches={batches} onSelect={setSelectedContact}
-            onScheduleCampaign={() => setScheduledSmsOpen(true)} />
+            onScheduleCampaign={() => setScheduledSmsOpen({})} />
         )}
         {tab === 'overview' && (
           <OverviewTab batches={batches} contacts={contacts} loading={batchesLoading || contactsLoading}
@@ -5610,7 +6015,8 @@ function PartnershipEngineInner() {
         )}
         {scheduledSmsOpen && (
           <ScheduledSmsCampaignModal
-            onClose={() => setScheduledSmsOpen(false)}
+            initialMarket={scheduledSmsOpen.market}
+            onClose={() => setScheduledSmsOpen(null)}
             onDone={() => { void loadBatches(); void loadContacts() }}
           />
         )}
