@@ -28,6 +28,7 @@ import {
   hasMlsDraftInventoryNeedingConfirmation,
   hasStreetNumber,
 } from '@/lib/sales-automation-qualification'
+import { resolveInboundSalesContext } from '@/lib/sales-automation-context'
 import { logEvent } from '@/lib/server/analytics'
 import { analyzeListingPhotos } from '@/lib/server/inventory-enrichment'
 import { estimateRouteContext } from '@/lib/server/route-estimation'
@@ -853,6 +854,14 @@ async function extractLeadSignals(lead: CRMLead, event: InboundAutomationEvent):
 function mergeExtractedSignals(lead: CRMLead, signals: ExtractedLeadSignals | null, inboundSummary?: string) {
   if (!signals) return lead
 
+  function mergeLatestAddress(existing?: string, incoming?: string) {
+    const cleanIncoming = incoming?.trim()
+    if (!cleanIncoming) return existing
+    if (!existing) return cleanIncoming
+    if (hasCompleteMoveAddress(cleanIncoming) && !hasCompleteMoveAddress(existing)) return cleanIncoming
+    return existing
+  }
+
   const nextJobFactors = {
     ...(lead.jobFactors || {}),
     ...(signals.estimatedBoxes !== undefined ? { estimatedBoxes: parseMaybeNumber(signals.estimatedBoxes) } : {}),
@@ -875,9 +884,9 @@ function mergeExtractedSignals(lead: CRMLead, signals: ExtractedLeadSignals | nu
     moveDateFlexible: lead.moveDateFlexible ?? signals.moveDateFlexible,
     moveDateFlexibleReason: lead.moveDateFlexibleReason || signals.moveDateFlexibleReason,
     moveType: lead.moveType || (normalizeMoveTypeSignal(signals.moveType) as CRMLead['moveType'] | undefined),
-    originAddress: lead.originAddress || signals.originAddress,
+    originAddress: mergeLatestAddress(lead.originAddress, signals.originAddress),
     originCity: lead.originCity || signals.originCity,
-    destAddress: lead.destAddress || signals.destAddress,
+    destAddress: mergeLatestAddress(lead.destAddress, signals.destAddress),
     destCity: lead.destCity || signals.destCity,
     originAccess: lead.originAccess || signals.originAccess,
     destAccess: lead.destAccess || signals.destAccess,
@@ -1454,6 +1463,7 @@ async function ensureLeadForInbound(event: InboundAutomationEvent): Promise<CRML
   }).catch(() => null)
 
   let enrichedLead = mergeExtractedSignals(lead, extractedSignals, message || lead.inboundMessage)
+  enrichedLead = resolveInboundSalesContext(enrichedLead, message || lead.inboundMessage)
   enrichedLead = await hydrateLeadFromAddressAndInventory(enrichedLead).catch(() => enrichedLead)
 
   const explicitHumanRequest =
@@ -1676,7 +1686,9 @@ SPECIAL CASES
 - If the customer says they booked another mover, moved on, or no longer need us, do not sell. Ask one short feedback question so Saturn Star can learn if it was price, timing, trust, service, or another reason.
 - If inventory already exists, confirm it rather than asking from scratch.
 - Treat city-only route details as incomplete. A usable moving route needs the exact pickup address and exact dropoff address. If either exact address is missing, ask for the missing address before asking about inventory, parking, access, or email.
+- Before asking for an address or inventory, read RECENT THREAD and LATEST MESSAGE for customer corrections. If the customer gives two addresses separated by "to", treat the first as pickup and the second as dropoff. If the customer says "that is the pickup" or "the other one is dropoff", do not repeat the same address question.
 - If inventory came from listing photos or MLS, do not treat it as final until the customer confirms what is going, what is staying, boxes, and hidden garage/basement/storage items.
+- For packing-only leads, ask packing scope questions, not standard moving inventory questions: whether packing is for all rooms or only listed items, whether Saturn Star supplies boxes/materials, and whether fragile kitchen/glass items are included.
 - If email is missing but move is qualified AND lead has no phone, ask for email so the estimate can be sent. If they have a phone, the SMS estimate was already sent or will be sent.
 - If the person explicitly wants a human or phone call, set shouldHandoff=true.
 - If the person opts out, set doNotContact=true and leave reply empty.
@@ -2024,9 +2036,13 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
         : `Hi ${firstName},\n\nI pulled a starter inventory from the listing photos. Please reply with anything staying behind, missing items, and boxes/garage/basement/storage items we cannot see. If it looks right, reply YES.\n\nJohn\nSaturn Star Moving`
   } else if (missing[0] === 'inventory') {
     reply =
-      channel === 'sms'
-        ? `Hi ${firstName}, I couldn't pull a clear listing inventory for that address. Please text the main items room by room, plus boxes, garage, basement, storage, and any specialty items.`
-        : `Hi ${firstName},\n\nI couldn't pull a clear listing inventory for that address. Please send the main items room by room, plus boxes, garage, basement, storage, and any specialty items.\n\nJohn\nSaturn Star Moving`
+      lead.moveType === 'packing'
+        ? channel === 'sms'
+          ? `Hi ${firstName}, for packing, are we packing all rooms or only specific items? Also, do you need us to supply boxes/materials, and are there fragile kitchen or glass items?`
+          : `Hi ${firstName},\n\nFor packing, are we packing all rooms or only specific items? Also, do you need us to supply boxes/materials, and are there fragile kitchen or glass items?\n\nJohn\nSaturn Star Moving`
+        : channel === 'sms'
+          ? `Hi ${firstName}, I couldn't pull a clear listing inventory for that address. Please text the main items room by room, plus boxes, garage, basement, storage, and any specialty items.`
+          : `Hi ${firstName},\n\nI couldn't pull a clear listing inventory for that address. Please send the main items room by room, plus boxes, garage, basement, storage, and any specialty items.\n\nJohn\nSaturn Star Moving`
   } else if (missing[0] === 'customer_email') {
     reply =
       channel === 'sms'
@@ -2034,9 +2050,13 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
         : `Hi ${firstName},\n\nI can turn this into a proper estimate now. What's the best email address to send the quote to?\n\nJohn\nSaturn Star Moving`
   } else if (missing[0] === 'access') {
     reply =
-      channel === 'sms'
-        ? `Hi ${firstName}, one quick thing so we plan this properly: are there stairs, elevators, or tight parking at either location?`
-        : `Hi ${firstName},\n\nOne quick thing so we plan this properly: are there stairs, elevators, or tight parking at either location?\n\nJohn\nSaturn Star Moving`
+      lead.moveType === 'packing'
+        ? channel === 'sms'
+          ? `Thanks ${firstName}. For the packing quote, should we pack everything or only the listed items, and do you want us to bring boxes/materials?`
+          : `Hi ${firstName},\n\nThanks. For the packing quote, should we pack everything or only the listed items, and do you want us to bring boxes/materials?\n\nJohn\nSaturn Star Moving`
+        : channel === 'sms'
+          ? `Hi ${firstName}, one quick thing so we plan this properly: are there stairs, elevators, or tight parking at either location?`
+          : `Hi ${firstName},\n\nOne quick thing so we plan this properly: are there stairs, elevators, or tight parking at either location?\n\nJohn\nSaturn Star Moving`
   } else {
     reply =
       channel === 'sms'
