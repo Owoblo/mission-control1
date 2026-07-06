@@ -367,8 +367,9 @@ function ApartmentPrompt({
   onApply: (info: ApartmentInfo) => void
   onDismiss: () => void
 }) {
-  const [floor, setFloor] = useState(1)
+  const [floor, setFloor] = useState('1')
   const [hasElevator, setHasElevator] = useState(true)
+  const floorNumber = Math.max(1, Number(floor) || 1)
 
   return (
     <div className="rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-3">
@@ -383,7 +384,8 @@ function ApartmentPrompt({
           min={1}
           max={60}
           value={floor}
-          onChange={e => setFloor(Math.max(1, Number(e.target.value)))}
+          onChange={e => setFloor(e.target.value)}
+          onBlur={() => setFloor(String(floorNumber))}
           className="w-16 rounded-[6px] border border-amber-300 bg-white px-2 py-1 text-sm text-center focus:outline-none"
         />
         <label className="flex cursor-pointer items-center gap-1.5 text-[10px] font-medium text-amber-800">
@@ -397,15 +399,15 @@ function ApartmentPrompt({
         </label>
         <button
           type="button"
-          onClick={() => onApply({ floor, hasElevator })}
+          onClick={() => onApply({ floor: floorNumber, hasElevator })}
           className="ml-auto rounded-[6px] bg-amber-600 px-3 py-1 text-[10px] font-semibold text-white hover:bg-amber-700"
         >
           Apply
         </button>
       </div>
-      {!hasElevator && floor >= 2 && (
+      {!hasElevator && floorNumber >= 2 && (
         <div className="mt-1.5 text-[10px] text-amber-700">
-          +{((floor - 1) * 0.35).toFixed(2)} hrs stair penalty will be added to estimate
+          +{((floorNumber - 1) * 0.35).toFixed(2)} hrs stair penalty will be added to estimate
         </div>
       )}
     </div>

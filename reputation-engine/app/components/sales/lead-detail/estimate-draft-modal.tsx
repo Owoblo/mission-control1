@@ -1164,7 +1164,7 @@ export function EstimateDraftModal({
   // Manual inventory quick-add state
   const [quickRoom, setQuickRoom] = useState('Living Room')
   const [quickItem, setQuickItem] = useState('')
-  const [quickQty, setQuickQty] = useState(1)
+  const [quickQty, setQuickQty] = useState('1')
   const [quickCuFt, setQuickCuFt] = useState('')
   const [quickWeightLbs, setQuickWeightLbs] = useState('')
   const [quickLookupLoading, setQuickLookupLoading] = useState(false)
@@ -1774,6 +1774,7 @@ export function EstimateDraftModal({
 
   function addQuickItem() {
     if (!quickItem.trim()) return
+    const qty = Math.max(1, Number(quickQty) || 1)
     const cf = Number(quickCuFt) || 0
     const weightLbs = Number(quickWeightLbs) || Math.round(cf * 4)
     onAddInventoryItems([{
@@ -1781,13 +1782,13 @@ export function EstimateDraftModal({
       room: quickRoom,
       name: quickItem.trim(),
       item: quickItem.trim(),
-      qty: quickQty,
+      qty,
       cubicFeet: cf,
       weightLbs,
       included: true,
     }])
     setQuickItem('')
-    setQuickQty(1)
+    setQuickQty('1')
     setQuickCuFt('')
     setQuickWeightLbs('')
     setQuickLookupNote(null)
@@ -4059,7 +4060,8 @@ export function EstimateDraftModal({
                             type="number"
                             min={1}
                             value={quickQty}
-                            onChange={e => setQuickQty(Math.max(1, Number(e.target.value)))}
+                            onChange={e => setQuickQty(e.target.value)}
+                            onBlur={() => setQuickQty(String(Math.max(1, Number(quickQty) || 1)))}
                             className="crm-input w-14 py-1 text-right text-xs"
                             placeholder="Qty"
                           />

@@ -20,6 +20,7 @@ import {
   mergeInventorySmsUpdate,
   type InventorySmsUpdate,
 } from '@/lib/sales-automation-inventory-sms'
+import { buildAutomationQuoteSmsSummary } from '@/lib/sales-quote-sms'
 import {
   getAutomationMissingFields,
   getExactAddressMissingFields,
@@ -130,20 +131,12 @@ function buildSmsQuoteSummary(
   const crews = `${estimate.crewSize} movers · ${estimate.truckCount} truck${estimate.truckCount > 1 ? 's' : ''}`
   const hrs = `~${Math.round(estimate.estimatedHours)}-${Math.round(estimate.estimatedHours + 2)}hrs`
 
-  return [
-    `Hi ${firstName}! Your Saturn Star moving estimate is ready 📦`,
-    ``,
-    route + (moveLine ? ` · ${moveLine}` : ''),
-    `${crews} · ${hrs}`,
-    ``,
-    `Total: $${Math.round(estimate.total).toLocaleString()} (HST incl.)`,
-    `Deposit to book: $${Math.round(estimate.deposit).toLocaleString()}`,
-    ``,
-    `Review + confirm:`,
+  return buildAutomationQuoteSmsSummary({
+    firstName,
+    routeLine: route + (moveLine ? ` · ${moveLine}` : ''),
+    crewLine: `${crews} · ${hrs}`,
     acceptUrl,
-    ``,
-    `Reply YES to book, or text any questions anytime.`,
-  ].join('\n')
+  })
 }
 
 async function createDepositCheckoutUrl(lead: CRMLead, quote: CRMQuote): Promise<string | null> {
@@ -1268,7 +1261,7 @@ async function maybeCreateAutomatedQuote(lead: CRMLead, preferredChannel?: Conve
   await scheduleQuoteFollowup(syncedLead.id, quote.id).catch(() => {})
 
   const confirmationMessage = smsSent
-    ? `Perfect — I've just texted you your moving estimate${canEmail && emailSendResult ? ' and emailed it' : ''}. Review the details and reply YES to book, or ask any questions here.`
+    ? `Perfect — I've just texted you your moving estimate${canEmail && emailSendResult ? ' and emailed it' : ''}. Review the details and ask any questions here.`
     : canEmail && emailSendResult
       ? `Perfect — I've emailed your estimate. Reply here if anything about the inventory, access, or route needs tweaking.`
       : undefined
@@ -2033,7 +2026,7 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
     reply =
       channel === 'sms'
         ? buildMlsInventoryConfirmationSms(lead)
-        : `Hi ${firstName},\n\nI pulled a starter inventory from the listing photos. Please reply with anything staying behind, missing items, and boxes/garage/basement/storage items we cannot see. If it looks right, reply YES.\n\nJohn\nSaturn Star Moving`
+        : `Hi ${firstName},\n\nI pulled a starter inventory from the listing photos. Please reply with anything staying behind, missing items, and boxes/garage/basement/storage items we cannot see.\n\nJohn\nSaturn Star Moving`
   } else if (missing[0] === 'inventory') {
     reply =
       lead.moveType === 'packing'

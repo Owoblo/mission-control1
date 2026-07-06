@@ -60,9 +60,24 @@ test('automation requires confirmation before treating MLS inventory as ready', 
       source: 'mls_photo_ai',
     },
     lastAutoEnrichmentAt: '2026-06-30T04:00:00.000Z',
-    inventory: [{ name: 'Sofa', qty: 1 }],
+    inventory: [{ name: 'Sofa', qty: 1, source: 'mls' }],
   }))
 
   assert.equal(missing.includes('inventory_confirmation'), true)
+  assert.equal(missing.includes('inventory'), false)
+})
+
+test('automation does not call customer-provided inventory an MLS scan', () => {
+  const missing = getAutomationMissingFields(lead({
+    moveDate: '2026-08-22',
+    originAddress: '123 King St N',
+    originCity: 'Waterloo',
+    destAddress: '456 Ouellette Ave',
+    destCity: 'Windsor',
+    lastAutoEnrichmentAt: '2026-06-30T04:00:00.000Z',
+    inventory: [{ name: 'Sofa', qty: 1, source: 'customer_verification' }],
+  }))
+
+  assert.equal(missing.includes('inventory_confirmation'), false)
   assert.equal(missing.includes('inventory'), false)
 })

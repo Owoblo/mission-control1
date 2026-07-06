@@ -29,7 +29,10 @@ export function hasVerifiedInventory(lead: Pick<CRMLead, 'inventoryVerification'
 export function hasMlsDraftInventoryNeedingConfirmation(
   lead: Pick<CRMLead, 'inventory' | 'inventoryVerification' | 'lastAutoEnrichmentAt' | 'listingScanSnapshot' | 'surveyCompletedAt'>
 ) {
-  const hasInventory = !!(lead.inventory || []).filter(item => item.included !== false).length
+  const hasInventory = !!(lead.inventory || []).filter(item =>
+    item.included !== false &&
+    ['mls', 'mls_photo_ai', 'existing_scan', 'fallback_scan'].includes(String(item.source || ''))
+  ).length
   const hasListingDraft = !!lead.listingScanSnapshot || !!lead.lastAutoEnrichmentAt
   return hasInventory && hasListingDraft && !hasVerifiedInventory(lead)
 }

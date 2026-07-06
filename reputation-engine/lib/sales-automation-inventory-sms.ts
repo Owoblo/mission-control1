@@ -40,6 +40,12 @@ function includedBaseInventory(lead: CRMLead) {
   return (lead.inventory || []).filter(item => item.source !== 'customer_verification' && item.included !== false)
 }
 
+function listingBaseInventory(lead: CRMLead) {
+  return includedBaseInventory(lead).filter(item =>
+    ['mls', 'mls_photo_ai', 'existing_scan', 'fallback_scan'].includes(String(item.source || ''))
+  )
+}
+
 function visibleBaseInventory(lead: CRMLead) {
   return (lead.inventory || []).filter(item => item.source !== 'customer_verification')
 }
@@ -89,7 +95,13 @@ export function buildInventorySmsReference(lead: CRMLead) {
 export function buildMlsInventoryConfirmationSms(lead: CRMLead) {
   const firstName = (lead.name || 'there').split(' ')[0]
   const grouped = new Map<string, string[]>()
-  for (const item of includedBaseInventory(lead)) {
+  const listingItems = listingBaseInventory(lead)
+
+  if (listingItems.length === 0) {
+    return `Hi ${firstName}, I couldn't pull a clear listing inventory for that address. Please text the main items room by room, plus boxes, garage, basement, storage, and anything staying behind.`
+  }
+
+  for (const item of listingItems) {
     const room = canonicalizeSurveyRoomLabel(item.room || 'Unassigned')
     const items = grouped.get(room) || []
     const qty = Math.max(1, Number(item.qty || 1))
@@ -104,7 +116,7 @@ export function buildMlsInventoryConfirmationSms(lead: CRMLead) {
   return [
     `Hi ${firstName}, I pulled a starter inventory from the listing photos.`,
     ...roomLines,
-    `Reply with anything staying behind, missing items, and boxes/garage/basement/storage items we can't see. If it looks right, reply YES.`,
+    `Please text anything staying behind, missing items, and boxes/garage/basement/storage items we can't see.`,
   ].join('\n')
 }
 
@@ -125,7 +137,7 @@ export function buildVerifiedInventorySms(lead: CRMLead) {
   return [
     `Got it. I updated the move inventory:`,
     ...lines,
-    `Reply YES if this is now correct, or text any other edits.`,
+    `Please review this and text any other edits.`,
   ].join('\n')
 }
 

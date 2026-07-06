@@ -23,14 +23,27 @@ function lead(overrides: Partial<CRMLead>): CRMLead {
 test('MLS inventory SMS is grouped by room for customer confirmation', () => {
   const body = buildMlsInventoryConfirmationSms(lead({
     inventory: [
-      { room: 'Living Room', name: 'Sofa', qty: 1, included: true },
-      { room: 'Bedroom 1', name: 'Queen Bed', qty: 1, included: true },
+      { room: 'Living Room', name: 'Sofa', qty: 1, included: true, source: 'mls' },
+      { room: 'Bedroom 1', name: 'Queen Bed', qty: 1, included: true, source: 'mls' },
     ],
   }))
 
   assert.match(body, /Living Room: Sofa/)
   assert.match(body, /Bedroom 1: Queen Bed/)
-  assert.match(body, /Reply with anything staying behind/i)
+  assert.match(body, /Please text anything staying behind/i)
+  assert.doesNotMatch(body, /reply yes/i)
+})
+
+test('MLS inventory SMS does not claim a scan when only customer inventory exists', () => {
+  const body = buildMlsInventoryConfirmationSms(lead({
+    inventory: [
+      { room: 'Packing scope', name: 'Recliner Sofa', qty: 1, included: true, source: 'customer_verification' },
+    ],
+  }))
+
+  assert.match(body, /couldn't pull a clear listing inventory/i)
+  assert.doesNotMatch(body, /pulled a starter inventory/i)
+  assert.doesNotMatch(body, /reply yes/i)
 })
 
 test('SMS inventory updates can exclude scanned items and add hidden inventory', () => {
