@@ -308,6 +308,7 @@ export function FloatingDialer() {
   const [deviceState, setDeviceState] = useState('idle')
   const [tokenExpiresAt, setTokenExpiresAt] = useState<string | null>(null)
   const [preCallWarning, setPreCallWarning] = useState<string | null>(null)
+  const [blockingIncoming, setBlockingIncoming] = useState(false)
 
   // refs
   const deviceRef = useRef<any>(null)
@@ -316,6 +317,10 @@ export function FloatingDialer() {
   const callStartRef = useRef<number | null>(null)
   const callSidRef = useRef<string | undefined>(undefined)
   const activeLeadIdRef = useRef<string | null>(null)
+  const activeLeadPhoneRef = useRef('')
+  const activeCallLeadIdRef = useRef<string | null>(null)
+  const activeCallPhoneRef = useRef('')
+  const leadMatchSeqRef = useRef(0)
   const callerProfileRef = useRef<DialerCallerProfile | null>(null)
   const currentBusinessNumberRef = useRef<string>('')
   const callerProfileLookupSeqRef = useRef(0)
@@ -447,7 +452,30 @@ export function FloatingDialer() {
   }
 
   function inferCurrentPhoneNumber(explicit?: string) {
-    return explicit || callingNumberRef.current || phone.trim() || incomingFromRef.current || undefined
+    return explicit || activeCallPhoneRef.current || callingNumberRef.current || phone.trim() || incomingFromRef.current || undefined
+  }
+
+  function clearLeadAssociation() {
+    leadMatchSeqRef.current += 1
+    activeLeadIdRef.current = null
+    activeLeadPhoneRef.current = ''
+    setActiveLeadId(null)
+    setActiveLeadName(null)
+  }
+
+  function setLeadAssociation(leadId: string, name: string | null | undefined, associatedPhone: string) {
+    activeLeadIdRef.current = leadId
+    activeLeadPhoneRef.current = toE164(associatedPhone)
+    setActiveLeadId(leadId)
+    setActiveLeadName(name || null)
+  }
+
+  function handlePhoneChange(nextPhone: string) {
+    setPhone(nextPhone)
+    const associatedPhone = activeLeadPhoneRef.current
+    if (activeLeadIdRef.current && associatedPhone && toE164(nextPhone) !== associatedPhone) {
+      clearLeadAssociation()
+    }
   }
 
   function inferCurrentBusinessNumber() {
@@ -1029,13 +1057,15 @@ export function FloatingDialer() {
       }
 
       incomingFromRef.current = from
+      activeCallPhoneRef.current = from
+      activeCallLeadIdRef.current = null
       activeCallDirectionRef.current = 'inbound'
       activeLocalCallIdRef.current = crypto.randomUUID()
       audioConnectedRef.current = false
       callSidRef.current = call?.parameters?.CallSid || call?.parameters?.callsid || undefined
       setIncomingFrom(from)
-      setActiveLeadId(null)
-      activeLeadIdRef.current = null
+      setPhone(from)
+      clearLeadAssociation()
       setDialerStatus('incoming')
       setOpen(true)
       logCallEvent('incoming_call_received', {
@@ -1044,12 +1074,12 @@ export function FloatingDialer() {
       })
       pushPresence()
 
+      const matchSeq = ++leadMatchSeqRef.current
       void matchLeadByPhone(from).then(lead => {
+        if ((incomingCallRef.current !== call && activeCallRef.current !== call) || leadMatchSeqRef.current !== matchSeq) return
         if (lead) {
-          setActiveLeadId(lead.id)
-          activeLeadIdRef.current = lead.id
-          setPhone(lead.phone || from)
-          if (lead.name) setActiveLeadName(lead.name)
+          setLeadAssociation(lead.id, lead.name, from)
+          activeCallLeadIdRef.current = lead.id
         }
       }).catch(() => {})
 
@@ -1073,6 +1103,8 @@ export function FloatingDialer() {
         callSidRef.current = undefined
         activeLocalCallIdRef.current = undefined
         activeCallDirectionRef.current = null
+        activeCallLeadIdRef.current = null
+        activeCallPhoneRef.current = ''
         currentBusinessNumberRef.current = ''
         callerProfileRef.current = null
         setCallerProfile(null)
@@ -1256,6 +1288,8 @@ export function FloatingDialer() {
       const outboundBusinessNumber = resolvedCallerProfile?.fromNumber || currentBusinessNumberRef.current || ''
 
       callingNumberRef.current = phone.trim()
+      activeCallPhoneRef.current = e164
+      activeCallLeadIdRef.current = activeLeadIdRef.current
       activeLocalCallIdRef.current = crypto.randomUUID()
       activeCallDirectionRef.current = 'outbound'
       audioConnectedRef.current = false
@@ -1305,7 +1339,8 @@ export function FloatingDialer() {
       const call = await deviceRef.current.connect({
         params: {
           To: e164,
-          ...(activeLeadIdRef.current ? { leadId: activeLeadIdRef.current } : {}),
+          ...(activeCallLeadIdRef.current ? { leadId: activeCallLeadIdRef.current } : {}),
+          ...(activeCallLeadIdRef.current && activeLeadPhoneRef.current ? { leadPhoneContext: activeLeadPhoneRef.current } : {}),
           ...(outboundBusinessNumber ? { preferredFromNumber: outboundBusinessNumber } : {}),
         },
       })
@@ -1321,12 +1356,12 @@ export function FloatingDialer() {
         callSidRef.current = call.parameters?.CallSid || call.parameters?.callsid || undefined
         audioConnectedRef.current = true
         // Look up lead name for keypad-dialed outbound calls (no lead context from crm:open-dialer)
-        if (!activeLeadIdRef.current) {
+        if (!activeCallLeadIdRef.current) {
+          const matchSeq = ++leadMatchSeqRef.current
           void matchLeadByPhone(e164).then(lead => {
-            if (lead) {
-              setActiveLeadId(lead.id)
-              activeLeadIdRef.current = lead.id
-              if (lead.name) setActiveLeadName(lead.name)
+            if (lead && activeCallPhoneRef.current === e164 && leadMatchSeqRef.current === matchSeq) {
+              setLeadAssociation(lead.id, lead.name, e164)
+              activeCallLeadIdRef.current = lead.id
             }
           }).catch(() => {})
         }
@@ -1607,6 +1642,32 @@ export function FloatingDialer() {
     pushPresence()
   }
 
+  async function blockIncomingAsSpam() {
+    const number = incomingFromRef.current
+    if (!number || blockingIncoming) return
+    setBlockingIncoming(true)
+    try {
+      const response = await fetch('/api/sales/dialer/blocked-callers', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: number, tag: 'Spam call', note: 'Blocked from the incoming-call card.' }),
+      })
+      const payload = await response.json() as { error?: string }
+      if (!response.ok) throw new Error(payload.error || 'Could not block caller')
+      logCallEvent('call_rejected', { callDirection: 'inbound', phoneNumber: number, audioConnected: false, extra: { blockedAsSpam: true } })
+      incomingCallRef.current?.reject?.()
+      incomingCallRef.current = null
+      setDialerStatus('ready')
+      setPreCallWarning(`${number} tagged as spam and blocked.`)
+      pushPresence()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not block caller')
+    } finally {
+      setBlockingIncoming(false)
+    }
+  }
+
   async function finalizeCall(
     direction: 'inbound' | 'outbound',
     options: {
@@ -1620,7 +1681,7 @@ export function FloatingDialer() {
       callSid?: string
     } = {},
   ) {
-    const leadId = activeLeadIdRef.current
+    const leadId = activeCallLeadIdRef.current
     if (!leadId || finalizedCallRef.current) return
     finalizedCallRef.current = true
     const startedAt = callStartRef.current
@@ -1633,7 +1694,7 @@ export function FloatingDialer() {
     try {
       const updatedLead = await logDialerCall({
         leadId,
-        phone: inferCurrentPhoneNumber(),
+        phone: activeCallPhoneRef.current || inferCurrentPhoneNumber(),
         branchNumber: inferCurrentBusinessNumber(),
         direction,
         durationSeconds,
@@ -1725,9 +1786,11 @@ export function FloatingDialer() {
       const customEvent = event as CustomEvent<{ phone?: string; leadId?: string; name?: string; branchNumber?: string }>
       if (customEvent.detail?.phone) setPhone(customEvent.detail.phone)
       const nextLeadId = customEvent.detail?.leadId || null
-      setActiveLeadId(nextLeadId)
-      activeLeadIdRef.current = nextLeadId
-      setActiveLeadName(customEvent.detail?.name || null)
+      if (nextLeadId && customEvent.detail?.phone) {
+        setLeadAssociation(nextLeadId, customEvent.detail?.name, customEvent.detail.phone)
+      } else {
+        clearLeadAssociation()
+      }
       const incomingProfile = buildCallerProfile(customEvent.detail?.branchNumber, 'explicit')
       if (incomingProfile) {
         setCallerProfile(incomingProfile)
@@ -2039,11 +2102,11 @@ export function FloatingDialer() {
       if (isEditable(e.target)) return
       if (/^\d$/.test(e.key) || e.key === '*' || e.key === '#' || e.key === '+') {
         e.preventDefault()
-        setPhone(p => `${p}${e.key}`)
+        handlePhoneChange(`${phone}${e.key}`)
         phoneInputRef.current?.focus({ preventScroll: true })
         return
       }
-      if (e.key === 'Backspace' && phone) { e.preventDefault(); setPhone(p => p.slice(0, -1)); return }
+      if (e.key === 'Backspace' && phone) { e.preventDefault(); handlePhoneChange(phone.slice(0, -1)); return }
       if (e.key === 'Enter' && phone.trim()) { e.preventDefault(); void makeCall() }
     }
     window.addEventListener('keydown', handleKeydown)
@@ -2255,6 +2318,13 @@ export function FloatingDialer() {
                   {activeLeadName ? 'CRM lead matched' : 'Matched CRM lead'}
                 </div>
               )}
+              <button
+                onClick={() => void blockIncomingAsSpam()}
+                disabled={blockingIncoming}
+                className="mt-5 rounded-full border border-rose-400/30 bg-rose-500/10 px-4 py-2 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/20 disabled:opacity-50"
+              >
+                {blockingIncoming ? 'Blocking…' : 'Tag as spam & block'}
+              </button>
               <div className="mt-9 flex items-end justify-center gap-14">
                 <div className="flex flex-col items-center gap-2.5">
                   <button onClick={declineIncoming} className="flex h-16 w-16 items-center justify-center rounded-full bg-rose-500 shadow-[0_8px_24px_rgba(239,68,68,0.4)] transition hover:bg-rose-400 active:scale-95">
@@ -2588,13 +2658,13 @@ export function FloatingDialer() {
                 <input
                   ref={phoneInputRef}
                   value={phone}
-                  onChange={e => setPhone(e.target.value)}
+                  onChange={e => handlePhoneChange(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && phone.trim()) void makeCall() }}
                   className="h-11 flex-1 rounded-[12px] border border-white/10 bg-white/5 px-4 text-base font-medium text-white outline-none placeholder:text-white/25 focus:border-white/20"
                   placeholder="Enter number"
                 />
                 {phone && (
-                  <button onClick={() => setPhone(p => p.slice(0, -1))} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-white/5 text-white/50 transition hover:bg-white/10 hover:text-white/80">
+                  <button onClick={() => handlePhoneChange(phone.slice(0, -1))} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-white/5 text-white/50 transition hover:bg-white/10 hover:text-white/80">
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M21 12H9m0 0l4-4m-4 4l4 4" />
                     </svg>
@@ -2710,7 +2780,7 @@ export function FloatingDialer() {
                   <button
                     key={key}
                     type="button"
-                    onClick={() => setPhone(p => `${p}${key}`)}
+                    onClick={() => handlePhoneChange(`${phone}${key}`)}
                     className="flex h-11 items-center justify-center rounded-[12px] border border-white/8 bg-white/5 text-base font-medium text-white/80 transition hover:bg-white/10 active:bg-white/15"
                   >
                     {key}

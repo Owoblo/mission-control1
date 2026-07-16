@@ -49,6 +49,8 @@ export default function DialerSettingsPage() {
   const [error, setError] = useState<string | null>(null)
   const [newEmail, setNewEmail] = useState('')
   const [newSipUser, setNewSipUser] = useState('')
+  const [newBlockedPhone, setNewBlockedPhone] = useState('')
+  const [newBlockedTag, setNewBlockedTag] = useState('Spam')
 
   const isOwner = currentUser?.role === 'owner'
 
@@ -93,6 +95,40 @@ export default function DialerSettingsPage() {
     const next = { ...settings, [key]: value }
     setSettings(next)
     void save({ [key]: value })
+  }
+
+  async function addBlockedCaller() {
+    if (!newBlockedPhone.trim()) return
+    setSaving(true)
+    setError(null)
+    try {
+      const response = await fetch('/api/sales/dialer/blocked-callers', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: newBlockedPhone, tag: newBlockedTag }),
+      })
+      const payload = await response.json() as { blockedCallers?: DialerSettings['blockedCallers']; error?: string }
+      if (!response.ok) throw new Error(payload.error || 'Could not block number')
+      setSettings(current => current ? { ...current, blockedCallers: payload.blockedCallers || [] } : current)
+      setNewBlockedPhone('')
+      setNewBlockedTag('Spam')
+      setSaved(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not block number')
+    } finally { setSaving(false) }
+  }
+
+  async function unblockCaller(phone: string) {
+    setSaving(true)
+    setError(null)
+    try {
+      const response = await fetch(`/api/sales/dialer/blocked-callers?phone=${encodeURIComponent(phone)}`, { method: 'DELETE', credentials: 'include' })
+      const payload = await response.json() as { blockedCallers?: DialerSettings['blockedCallers']; error?: string }
+      if (!response.ok) throw new Error(payload.error || 'Could not unblock number')
+      setSettings(current => current ? { ...current, blockedCallers: payload.blockedCallers || [] } : current)
+      setSaved(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not unblock number')
+    } finally { setSaving(false) }
   }
 
   if (loading) {
@@ -161,6 +197,28 @@ export default function DialerSettingsPage() {
           You can view settings but only the owner can make changes.
         </div>
       )}
+
+      {/* Business Hours */}
+      <SectionCard title="Spam & Blocked Numbers" description="Blocked callers are rejected by Twilio before any CRM browser, SIP phone, IVR, voicemail, or missed-call workflow rings.">
+        <div className="grid gap-2 sm:grid-cols-[1fr_160px_auto]">
+          <input value={newBlockedPhone} onChange={event => setNewBlockedPhone(event.target.value)} placeholder="Phone number" className="crm-input" />
+          <input value={newBlockedTag} onChange={event => setNewBlockedTag(event.target.value)} placeholder="Tag (Spam, Robocall…)" className="crm-input" />
+          <button onClick={() => void addBlockedCaller()} disabled={!newBlockedPhone.trim() || saving} className="rounded-[8px] bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500 disabled:opacity-40">Tag & block</button>
+        </div>
+        <div className="mt-4 space-y-2">
+          {(settings.blockedCallers || []).length === 0 ? (
+            <div className="rounded-[8px] bg-[var(--app-bg)] px-4 py-5 text-center text-sm text-[var(--app-muted)]">No blocked callers yet.</div>
+          ) : (settings.blockedCallers || []).map(entry => (
+            <div key={entry.phone} className="flex items-center justify-between gap-4 rounded-[8px] border border-[var(--app-line)] px-4 py-3">
+              <div className="min-w-0">
+                <div className="font-semibold text-[var(--app-ink)]">{entry.phone}</div>
+                <div className="mt-0.5 text-xs text-[var(--app-muted)]"><span className="font-semibold text-rose-600">{entry.tag}</span> · Blocked {new Date(entry.blockedAt).toLocaleDateString()}{entry.blockedBy ? ` by ${entry.blockedBy}` : ''}</div>
+              </div>
+              <button onClick={() => void unblockCaller(entry.phone)} className="shrink-0 rounded-[7px] border border-[var(--app-line)] px-3 py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:bg-[var(--app-bg)]">Unblock</button>
+            </div>
+          ))}
+        </div>
+      </SectionCard>
 
       {/* Business Hours */}
       <SectionCard title="Business Hours" description="Calls outside these hours go straight to voicemail.">

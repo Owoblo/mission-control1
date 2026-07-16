@@ -1,8 +1,8 @@
 import { saveInboundLead, listSalesLeads, saveSalesLead, saveCrmCallSidMapping } from '@/lib/server/sales-repository'
 import { pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
-import { getAppBaseUrl } from '@/lib/server/runtime'
+import { getAppBaseUrl, requireSupabaseEnv } from '@/lib/server/runtime'
 import { getHealthyBrowserPresence } from '@/lib/server/telephony-monitoring'
-import { getDialerSettings, isWithinBusinessHoursSettings } from '@/lib/server/dialer-settings'
+import { findBlockedCaller, getDialerSettings, isWithinBusinessHoursSettings } from '@/lib/server/dialer-settings'
 import { sendCallerIdSms } from '@/lib/server/internal-notifications'
 import { resolveVoiceCallerId } from '@/lib/server/voice-caller-id'
 import { uid } from '@/lib/sales'
@@ -10,12 +10,17 @@ import { getDefaultSaturnBranchNumber, getSaturnBranchLabel, getSaturnTrackingLa
 import type { CRMLead } from '@/lib/types'
 
 const FALLBACK_CLIENT_IDENTITY = 'saturn-star-rep'
+const CLIENT_IDENTITY_PREFIX = 'saturn-rep'
 const SIP_DOMAIN = 'saturn.sip.twilio.com'
 const INTERNAL_SIP_USERS = ['john', 'salesrep1']
+const SALES_DIALER_ROLES = ['owner', 'manager', 'sales_rep']
+const SALES_DIALER_ROSTER_CACHE_MS = 30_000
 const INBOUND_RING_TIMEOUT = 28             // seconds before missed-call action fires
 const DIAL_RECORDING_MODE = 'record-from-answer'
 const DIAL_RECORDING_TRIM = 'do-not-trim'
 const DIAL_RECORDING_EVENTS = 'completed absent'
+
+let salesDialerRosterCache: { expiresAt: number; identities: string[] } | null = null
 
 function getAppUrl() {
   return getAppBaseUrl()
@@ -42,6 +47,54 @@ function internalSipTargets(users?: string[]) {
   return (users || INTERNAL_SIP_USERS)
     .map(username => `<Sip>sip:${username}@${SIP_DOMAIN}</Sip>`)
     .join('')
+}
+
+function clientIdentityForUserId(userId: string) {
+  return `${CLIENT_IDENTITY_PREFIX}-${userId}`
+}
+
+function uniqueIdentities(...identityGroups: Array<Array<string | null | undefined> | null | undefined>) {
+  const seen = new Set<string>()
+  const result: string[] = []
+
+  identityGroups.flatMap(group => group || []).forEach(identity => {
+    const normalized = (identity || '').trim()
+    if (!normalized || seen.has(normalized)) return
+    seen.add(normalized)
+    result.push(normalized)
+  })
+
+  return result
+}
+
+async function getSalesDialerRosterIdentities() {
+  const now = Date.now()
+  if (salesDialerRosterCache && salesDialerRosterCache.expiresAt > now) {
+    return salesDialerRosterCache.identities
+  }
+
+  const { url, headers } = requireSupabaseEnv()
+  const roles = SALES_DIALER_ROLES.join(',')
+  const response = await fetch(
+    `${url}/rest/v1/app_users?select=id,role&role=in.(${roles})&order=name.asc&limit=50`,
+    { headers, cache: 'no-store' },
+  )
+
+  if (!response.ok) {
+    throw new Error(`Failed to load sales dialer roster: ${response.status}`)
+  }
+
+  const rows = await response.json() as Array<{ id?: string | null; role?: string | null }>
+  const identities = uniqueIdentities(rows
+    .filter(row => row.id && SALES_DIALER_ROLES.includes(row.role || ''))
+    .map(row => clientIdentityForUserId(row.id!)))
+
+  salesDialerRosterCache = {
+    expiresAt: now + SALES_DIALER_ROSTER_CACHE_MS,
+    identities,
+  }
+
+  return identities
 }
 
 function internalRingTargets(browserIdentities: string[], fallbackToLegacy = false, sipUsers?: string[]) {
@@ -169,6 +222,9 @@ export async function POST(request: Request) {
 
       // Load settings (30s cached — no material latency impact on call routing)
       const dialerSettings = await getDialerSettings().catch(() => null)
+      if (dialerSettings && findBlockedCaller(dialerSettings, from)) {
+        return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?><Response><Reject reason="rejected"/></Response>`)
+      }
       const appUrl = getRequestOrigin(request) || getAppUrl()
 
       // IVR menu — active when enabled in Settings UI (or env var override)
@@ -218,6 +274,14 @@ export async function POST(request: Request) {
         identities: [] as string[],
         availableIdentities: [] as string[],
       }))
+      const rosterIdentities = await getSalesDialerRosterIdentities().catch(() => [])
+      const presenceIdentities = browserPresence.active
+        ? (browserPresence.availableIdentities?.length > 0
+            ? browserPresence.availableIdentities
+            : browserPresence.identities)
+        : []
+      const staleOrUnseenRosterIdentities = rosterIdentities.filter(identity => !browserPresence.identities.includes(identity))
+      const ringIdentities = uniqueIdentities(presenceIdentities, staleOrUnseenRosterIdentities)
 
       if (from) {
         // Fire all CRM writes in the background — never block TwiML response on DB latency.
@@ -322,8 +386,13 @@ export async function POST(request: Request) {
       if (normalizedTo) dialStatusParams.set('branchNumber', normalizedTo)
       dialStatusParams.set('browserHealthy', browserPresence.active ? '1' : '0')
       dialStatusParams.set('browserSessionCount', String(browserPresence.sessionCount))
+      dialStatusParams.set('browserRosterCount', String(rosterIdentities.length))
+      dialStatusParams.set('browserRingCount', String(ringIdentities.length))
       if (from) dialStatusParams.set('from', from)
-      const allBusy = browserPresence.active && (browserPresence.availableIdentities?.length === 0)
+      const allBusy = browserPresence.active &&
+        browserPresence.sessionCount > 0 &&
+        browserPresence.availableIdentities?.length === 0 &&
+        staleOrUnseenRosterIdentities.length === 0
       dialStatusParams.set('allBusy', allBusy ? '1' : '0')
       const branchQuery = dialStatusParams.toString() ? `?${dialStatusParams.toString()}` : ''
 
@@ -353,13 +422,9 @@ export async function POST(request: Request) {
         )
       }
 
-      // Prefer ringing only available (not-busy) reps. If all reps are busy, ring everyone
-      // so the call still gets through rather than being silently dropped.
-      const ringIdentities = browserPresence.active
-        ? (browserPresence.availableIdentities?.length > 0
-            ? browserPresence.availableIdentities
-            : browserPresence.identities)
-        : []
+      // Prefer available browser reps from presence, then include the sales roster as a
+      // safety net. A registered browser can still ring even if its telemetry heartbeat
+      // was delayed or dropped.
       return xmlResponse(
         `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrsInbound}>${internalRingTargets(ringIdentities, false, activeSipUsers)}</Dial></Response>`
       )
@@ -369,8 +434,17 @@ export async function POST(request: Request) {
     const dialTarget = sipDialTarget || to || ''
     if (!dialTarget) return fallbackTwiml(getRequestOrigin(request) || getAppUrl())
 
-    const outboundLeadId =
+    const requestedOutboundLeadId =
       ((formData.get('leadId') as string | null) || (formData.get('LeadId') as string | null) || '').trim() || null
+    const leadPhoneContext = normalizePhoneTarget(
+      ((formData.get('leadPhoneContext') as string | null) || (formData.get('LeadPhoneContext') as string | null) || '').trim(),
+    )
+    // Never trust a retained CRM lead ID when the dialled number has changed. The browser
+    // sends the number that established the lead association; a mismatch strips the lead
+    // context so callbacks cannot write this call onto an unrelated client timeline.
+    const outboundLeadId = requestedOutboundLeadId && leadPhoneContext === normalizePhoneTarget(dialTarget)
+      ? requestedOutboundLeadId
+      : null
     const outboundPreferredFrom =
       ((formData.get('preferredFromNumber') as string | null) || (formData.get('PreferredFromNumber') as string | null) || '').trim() || null
     const callerIdResolution = await resolveVoiceCallerId({

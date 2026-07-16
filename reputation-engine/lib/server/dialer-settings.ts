@@ -2,6 +2,14 @@ import { requireSupabaseEnv } from '@/lib/server/runtime'
 
 export interface DaySchedule { open: string; close: string }
 
+export interface BlockedCaller {
+  phone: string
+  tag: string
+  note?: string
+  blockedAt: string
+  blockedBy?: string
+}
+
 export interface DialerSettings {
   businessHours: {
     enabled: boolean
@@ -29,6 +37,7 @@ export interface DialerSettings {
   }
   sipUsers: string[]
   ringTimeout: number
+  blockedCallers: BlockedCaller[]
 }
 
 export const DEFAULT_SETTINGS: DialerSettings = {
@@ -64,6 +73,21 @@ export const DEFAULT_SETTINGS: DialerSettings = {
   },
   sipUsers: ['john', 'salesrep1'],
   ringTimeout: 28,
+  blockedCallers: [],
+}
+
+export function normalizeBlockedCallerPhone(value?: string | null) {
+  const digits = (value || '').replace(/\D/g, '')
+  if (digits.length === 10) return `+1${digits}`
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`
+  if (digits.length >= 8 && digits.length <= 15) return `+${digits}`
+  return ''
+}
+
+export function findBlockedCaller(settings: DialerSettings, phone?: string | null) {
+  const normalized = normalizeBlockedCallerPhone(phone)
+  if (!normalized) return null
+  return (settings.blockedCallers || []).find(entry => normalizeBlockedCallerPhone(entry.phone) === normalized) || null
 }
 
 // 30-second in-memory cache — avoids a DB hit on every inbound call

@@ -57,6 +57,34 @@ const REVIEWS = [
   { name: 'Lazlo', text: 'You guys did a great job, definitely recommended.', stars: 5 },
 ]
 
+type QuoteBrand = {
+  name: string
+  shortName: string
+  phone: string
+  phoneHref: string
+  email?: string
+  website?: string
+  logo: 'saturn' | 'dexa'
+}
+
+const SATURN_STAR_BRAND: QuoteBrand = {
+  name: 'Saturn Star Moving',
+  shortName: 'SATURN STAR',
+  phone: '226-773-2993',
+  phoneHref: 'tel:+12267732993',
+  email: 'info@starmovers.ca',
+  website: 'starmovers.ca',
+  logo: 'saturn',
+}
+
+const DEXA_MOVERS_BRAND: QuoteBrand = {
+  name: 'Dexa Movers',
+  shortName: 'DEXA MOVERS',
+  phone: '613-519-3236',
+  phoneHref: 'tel:+16135193236',
+  logo: 'dexa',
+}
+
 const QUOTE_TERMS_VERSION = '2026-06-07-basic-moving-terms'
 
 const QUOTE_TERMS_SECTIONS = [
@@ -97,7 +125,18 @@ const QUOTE_TERMS_SECTIONS = [
   },
 ]
 
-function LogoMark({ size = 32, dark = false }: { size?: number; dark?: boolean }) {
+function LogoMark({ size = 32, dark = false, brand = SATURN_STAR_BRAND }: { size?: number; dark?: boolean; brand?: QuoteBrand }) {
+  if (brand.logo === 'dexa') {
+    return (
+      <span
+        className={`inline-flex shrink-0 items-center justify-center rounded-[10px] font-black tracking-tight ${dark ? 'bg-white text-[#1a2744] shadow-sm' : 'bg-[#1a2744] text-white'}`}
+        style={{ width: size, height: size, fontSize: Math.max(10, Math.round(size * 0.28)) }}
+        aria-label={brand.name}
+      >
+        DEXA
+      </span>
+    )
+  }
   return (
     <span
       className={`inline-flex shrink-0 items-center justify-center rounded-[10px] ${dark ? 'bg-white/95 p-1 shadow-sm' : ''}`}
@@ -167,7 +206,7 @@ const PUBLIC_BRANCH_MARKETS: Record<NonNullable<CRMLead['branch']>, string> = {
   ottawa: 'Ottawa, Ontario',
 }
 
-function quoteMarketLabel(quote: PublicQuote) {
+function quoteBranch(quote: PublicQuote) {
   const routeParts = [
     quote.originCity,
     quote.originAddress,
@@ -180,7 +219,15 @@ function quoteMarketLabel(quote: PublicQuote) {
       leg.destAddress,
     ]),
   ]
-  const detectedBranch = quote.branch || detectSalesBranchFromLocation(...routeParts)
+  return quote.branch || detectSalesBranchFromLocation(...routeParts)
+}
+
+function quoteBrand(quote: PublicQuote): QuoteBrand {
+  return quoteBranch(quote) === 'ottawa' ? DEXA_MOVERS_BRAND : SATURN_STAR_BRAND
+}
+
+function quoteMarketLabel(quote: PublicQuote) {
+  const detectedBranch = quoteBranch(quote)
   if (detectedBranch && PUBLIC_BRANCH_MARKETS[detectedBranch]) return PUBLIC_BRANCH_MARKETS[detectedBranch]
   const city = quote.originCity || quote.destCity || getSalesBranchLabel(detectedBranch)
   return city && city !== 'Unassigned' ? `${city}, Ontario` : 'Ontario'
@@ -407,6 +454,7 @@ function PhotoGallery({ photos }: { photos: string[] }) {
 
 function AcceptBlock({
   quote,
+  brand,
   accepting,
   declining,
   accepted,
@@ -421,6 +469,7 @@ function AcceptBlock({
   variant = 'main',
 }: {
   quote: PublicQuote
+  brand: QuoteBrand
   accepting: boolean
   declining: boolean
   accepted: boolean
@@ -457,7 +506,7 @@ function AcceptBlock({
     ) : (
       <div className="rounded-xl border border-[#1a2744]/15 bg-[#1a2744]/5 p-6 text-center">
         <div className="text-sm font-semibold text-[#1a2744]/60 mb-1">Quote Declined</div>
-        <div className="text-xs text-[#1a2744]/40">If you change your mind, call or text us at 226-773-2993.</div>
+        <div className="text-xs text-[#1a2744]/40">If you change your mind, call or text us at {brand.phone}.</div>
       </div>
     )
   }
@@ -467,13 +516,13 @@ function AcceptBlock({
       <div className="rounded-lg bg-[#1a2744] px-4 py-2 text-xs font-bold text-[#f5a623]">Deposit Paid — You&apos;re Booked</div>
     ) : (
       <div className="rounded-xl border-2 border-[#1a2744] bg-[#1a2744] p-8 text-center">
-        <LogoMark size={56} dark />
+        <LogoMark size={56} dark brand={brand} />
         <div className="mt-4 text-xl font-black text-white mb-2">You&apos;re on the calendar.</div>
         <div className="text-sm text-white/70 max-w-sm mx-auto leading-6">
-          Your deposit has been received. The Saturn Star team will be in touch shortly to confirm move-day details.
+          Your deposit has been received. The {brand.name} team will be in touch shortly to confirm move-day details.
         </div>
         <div className="mt-5 rounded-lg bg-white/10 p-4 text-sm text-white/80">
-          Questions? Call or text <strong className="text-[#f5a623]">226-773-2993</strong> or email <strong className="text-[#f5a623]">business@starmovers.ca</strong>
+          Questions? Call or text <strong className="text-[#f5a623]">{brand.phone}</strong>{brand.email ? <> or email <strong className="text-[#f5a623]">{brand.email}</strong></> : null}
         </div>
       </div>
     )
@@ -512,7 +561,7 @@ function AcceptBlock({
           {stripeLoading ? 'Redirecting to payment...' : `Pay Deposit Online — ${formatMoney(quote.deposit)}`}
         </button>
         <div className="mt-3 rounded-lg border border-[#1a2744]/10 bg-[#1a2744]/5 p-3 text-xs text-[#1a2744]/50 text-center">
-          Prefer e-Transfer or cash? Send to <strong>business@starmovers.ca</strong> and reply to confirm.
+          {brand.email ? <>Prefer e-Transfer or cash? Send to <strong>{brand.email}</strong> and reply to confirm.</> : <>Prefer e-Transfer or cash? Call or text <strong>{brand.phone}</strong> to arrange payment.</>}
         </div>
       </div>
     )
@@ -568,11 +617,13 @@ function AcceptBlock({
 }
 
 function CustomerTermsAgreement({
+  brand,
   isBindingEstimate,
   termsAccepted,
   termsPrompt,
   onChange,
 }: {
+  brand: QuoteBrand
   isBindingEstimate: boolean
   termsAccepted: boolean
   termsPrompt: boolean
@@ -585,7 +636,7 @@ function CustomerTermsAgreement({
           <SectionLabel>Booking Terms & Conditions</SectionLabel>
           <h2 className="text-lg font-black text-[#1a2744]">Please review before paying your deposit.</h2>
           <p className="mt-2 max-w-xl text-xs leading-5 text-[#1a2744]/55">
-            This protects both sides: Saturn Star is agreeing to the price and plan shown here, and you are confirming that the inventory, access, addresses, and services are accurate.
+            This protects both sides: {brand.name} is agreeing to the price and plan shown here, and you are confirming that the inventory, access, addresses, and services are accurate.
           </p>
         </div>
         <div className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${isBindingEstimate ? 'bg-emerald-50 text-emerald-700' : 'bg-[#f5a623]/12 text-[#9b5b00]'}`}>
@@ -609,7 +660,7 @@ function CustomerTermsAgreement({
           <div key={section.title} className={`p-4 ${sectionIndex > 0 ? 'border-t border-[#1a2744]/8' : ''}`}>
             <div className="text-xs font-black uppercase tracking-wider text-[#1a2744]/70">{section.title}</div>
             <ul className="mt-3 space-y-2">
-              {section.items.map(item => (
+              {section.items.map(item => item.replaceAll('Saturn Star', brand.name)).map(item => (
                 <li key={item} className="flex gap-2 text-xs leading-5 text-[#1a2744]/58">
                   <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#f5a623]" />
                   <span>{item}</span>
@@ -773,7 +824,7 @@ function QuoteAcceptPageInner() {
   if (loading) return (
     <div className="flex min-h-screen items-center justify-center bg-[#f0f2f5]">
       <div className="flex flex-col items-center gap-3">
-        <LogoMark size={40} />
+        <div className="h-9 w-9 animate-pulse rounded-xl bg-[#1a2744]/10" />
         <div className="text-xs text-[#1a2744]/40 tracking-wider uppercase">Loading your quote...</div>
       </div>
     </div>
@@ -800,6 +851,7 @@ function QuoteAcceptPageInner() {
   const isBindingEstimate = hasInventory && inventory.length >= 5
   const serviceLabel = quoteServiceLabel(quote)
   const marketLabel = quoteMarketLabel(quote)
+  const brand = quoteBrand(quote)
   const quoteOptionLabel = quote.jobLabel || quote.moveDescription?.replace(/^Quote option:\s*/i, '').trim()
 
   // ── Fast Lane view — hourly rate quote, no inventory/photos, direct to Stripe ──
@@ -827,22 +879,22 @@ function QuoteAcceptPageInner() {
         <div className="mx-auto max-w-md px-4 py-8 pb-16">
           {/* Header */}
           <div className="mb-6 flex items-center gap-3">
-            <LogoMark size={36} />
+            <LogoMark size={36} brand={brand} />
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a2744]/40">Saturn Star Moving</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a2744]/40">{brand.name}</div>
               <div className="text-sm font-semibold text-[#1a2744]">Your Moving Quote</div>
             </div>
           </div>
 
           {alreadyPaid ? (
             <div className="rounded-2xl border-2 border-[#1a2744] bg-[#1a2744] p-8 text-center">
-              <LogoMark size={56} dark />
+              <LogoMark size={56} dark brand={brand} />
               <div className="mt-4 text-xl font-black text-white mb-2">You&apos;re on the calendar.</div>
               <div className="text-sm text-white/70 max-w-sm mx-auto leading-6">
-                Deposit received. The Saturn Star team will be in touch to confirm your move details.
+                Deposit received. The {brand.name} team will be in touch to confirm your move details.
               </div>
               <div className="mt-5 rounded-lg bg-white/10 p-4 text-sm text-white/80">
-                Questions? Call or text <strong className="text-[#f5a623]">226-773-2993</strong>
+                Questions? Call or text <strong className="text-[#f5a623]">{brand.phone}</strong>
               </div>
             </div>
           ) : (
@@ -895,6 +947,7 @@ function QuoteAcceptPageInner() {
               {!alreadyPaid && (
                 <div ref={termsRef} className="mb-4">
                   <CustomerTermsAgreement
+                    brand={brand}
                     isBindingEstimate={false}
                     termsAccepted={termsAccepted}
                     termsPrompt={termsPrompt}
@@ -923,14 +976,14 @@ function QuoteAcceptPageInner() {
                 </button>
                 {!invoiceStyleTerms ? (
                   <div className="mt-3 text-[10px] text-white/30">
-                    Prefer e-Transfer? Send to business@starmovers.ca and reply to confirm.
+                    {brand.email ? `Prefer e-Transfer? Send to ${brand.email} and reply to confirm.` : `Prefer e-Transfer? Call or text ${brand.phone} to arrange payment.`}
                   </div>
                 ) : null}
               </div>
 
               {/* Social proof */}
               <div className="space-y-2">
-                {REVIEWS.slice(0, 2).map((r, i) => (
+                {brand.logo === 'saturn' && REVIEWS.slice(0, 2).map((r, i) => (
                   <div key={i} className="rounded-xl bg-white border border-[#1a2744]/8 p-4">
                     <Stars count={r.stars} />
                     <div className="mt-1 text-xs text-[#1a2744]/70 leading-5">&ldquo;{r.text}&rdquo;</div>
@@ -940,7 +993,7 @@ function QuoteAcceptPageInner() {
               </div>
 
               <div className="mt-6 text-center text-xs text-[#1a2744]/40">
-                Questions? Call or text <strong>226-773-2993</strong> · starmovers.ca
+                Questions? Call or text <strong>{brand.phone}</strong>{brand.website ? ` · ${brand.website}` : ''}
               </div>
             </>
           )}
@@ -956,14 +1009,15 @@ function QuoteAcceptPageInner() {
       <div className="print:hidden sticky top-0 z-20 border-b border-[#1a2744]/10 bg-white/95 backdrop-blur-sm shadow-sm">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-4 px-4 py-3">
           <div className="flex items-center gap-2.5">
-            <LogoMark size={28} />
+            <LogoMark size={28} brand={brand} />
             <div>
-              <div className="text-xs font-black tracking-tight text-[#1a2744]">SATURN STAR</div>
+              <div className="text-xs font-black tracking-tight text-[#1a2744]">{brand.shortName}</div>
               <div className="text-[9px] font-medium text-[#1a2744]/40 tracking-wide">MOVING</div>
             </div>
           </div>
           <AcceptBlock
             quote={quote}
+            brand={brand}
             accepting={accepting}
             declining={declining}
             accepted={accepted}
@@ -989,9 +1043,9 @@ function QuoteAcceptPageInner() {
           <div className="px-6 py-7">
             {/* Logo + brand */}
             <div className="flex items-center gap-3 mb-5">
-              <LogoMark size={52} dark />
+              <LogoMark size={52} dark brand={brand} />
               <div>
-                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#f5a623]">Saturn Star Moving</div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#f5a623]">{brand.name}</div>
                 <div className="text-[9px] text-white/30 tracking-wider uppercase mt-0.5">{marketLabel}</div>
               </div>
             </div>
@@ -1253,7 +1307,7 @@ function QuoteAcceptPageInner() {
               <div className="text-[9px] font-bold uppercase tracking-widest text-[#f5a623] mb-1">Terms</div>
               <div className="text-2xl font-black text-[#1a2744]">{paymentTermsLabel(quote.paymentTerms)}</div>
               <div className="mt-2 text-xs leading-5 text-[#1a2744]/45">
-                Approving this estimate confirms the scope and terms. Saturn Star will coordinate billing, invoice details, or purchase-order requirements with your office contact.
+                Approving this estimate confirms the scope and terms. {brand.name} will coordinate billing, invoice details, or purchase-order requirements with your office contact.
               </div>
             </div>
           ) : (
@@ -1276,7 +1330,7 @@ function QuoteAcceptPageInner() {
                 <span key={m} className="rounded-full border border-[#1a2744]/15 px-2.5 py-0.5 text-[10px] font-medium text-[#1a2744]/50">{m}</span>
               ))}
             </div>
-            <div className="mt-1.5 text-[9px] text-[#1a2744]/30">4% processing fee on card payments · e-Transfer to business@starmovers.ca</div>
+            <div className="mt-1.5 text-[9px] text-[#1a2744]/30">4% processing fee on card payments{brand.email ? ` · e-Transfer to ${brand.email}` : ` · Contact ${brand.phone} for e-Transfer details`}</div>
           </div>
         </div>
 
@@ -1284,6 +1338,7 @@ function QuoteAcceptPageInner() {
         <div className="mb-8 print:hidden">
           <AcceptBlock
             quote={quote}
+            brand={brand}
             accepting={accepting}
             declining={declining}
             accepted={accepted}
@@ -1395,6 +1450,7 @@ function QuoteAcceptPageInner() {
         {!declined && !justPaid && (
           <div ref={termsRef} className="mb-8">
             <CustomerTermsAgreement
+              brand={brand}
               isBindingEstimate={isBindingEstimate}
               termsAccepted={termsAccepted}
               termsPrompt={termsPrompt}
@@ -1410,6 +1466,7 @@ function QuoteAcceptPageInner() {
         <div className="mb-10 print:hidden">
           <AcceptBlock
             quote={quote}
+            brand={brand}
             accepting={accepting}
             declining={declining}
             accepted={accepted}
@@ -1443,7 +1500,7 @@ function QuoteAcceptPageInner() {
         </div>
 
         {/* ── Reviews ── */}
-        <div className="mb-8">
+        {brand.logo === 'saturn' && <div className="mb-8">
           <SectionLabel>What Our Customers Say</SectionLabel>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {REVIEWS.map((r, i) => (
@@ -1460,22 +1517,20 @@ function QuoteAcceptPageInner() {
             <span>·</span>
             <a href="https://starmovers.ca" className="text-[#1a2744]/40 hover:text-[#1a2744]">starmovers.ca</a>
           </div>
-        </div>
+        </div>}
 
         {/* ── Footer ── */}
         <div className="overflow-hidden rounded-2xl bg-[#1a2744]">
           <div className="h-1 bg-[#f5a623]" />
           <div className="flex flex-col items-center gap-2 px-6 py-7 text-center">
-            <LogoMark size={56} dark />
-            <div className="mt-2 text-base font-black tracking-tight text-white">SATURN STAR MOVING</div>
+            <LogoMark size={56} dark brand={brand} />
+            <div className="mt-2 text-base font-black tracking-tight text-white">{brand.shortName}</div>
             <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#f5a623]/70">Professional Moving Services</div>
             <div className="mt-3 text-[10px] text-white/30 leading-6">
               {marketLabel}<br />
-              <a href="tel:+12267732993" className="text-white/50 hover:text-white">226-773-2993</a>
-              {' · '}
-              <a href="mailto:business@starmovers.ca" className="text-white/50 hover:text-white">business@starmovers.ca</a>
-              {' · '}
-              <a href="https://starmovers.ca" className="text-white/50 hover:text-white">starmovers.ca</a>
+              <a href={brand.phoneHref} className="text-white/50 hover:text-white">{brand.phone}</a>
+              {brand.email ? <>{' · '}<a href={`mailto:${brand.email}`} className="text-white/50 hover:text-white">{brand.email}</a></> : null}
+              {brand.website ? <>{' · '}<a href={`https://${brand.website}`} className="text-white/50 hover:text-white">{brand.website}</a></> : null}
             </div>
             <div className="mt-2 text-[9px] text-white/20">Quote {quote.number} · Valid until {expiryDate(quote)}</div>
           </div>
@@ -1491,7 +1546,7 @@ export default function QuoteAcceptPage() {
     <Suspense fallback={
       <div className="flex min-h-screen items-center justify-center bg-[#f0f2f5]">
         <div className="flex flex-col items-center gap-3">
-          <LogoMark size={40} />
+          <div className="h-9 w-9 animate-pulse rounded-xl bg-[#1a2744]/10" />
           <div className="text-xs text-[#1a2744]/40 tracking-wider uppercase">Loading...</div>
         </div>
       </div>
