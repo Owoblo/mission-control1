@@ -127,6 +127,7 @@ const DIALER_PRESENCE_INTERVAL_MS = 5 * 60_000
 const DIALER_STUCK_WARNING_MS = 35_000
 const DIALER_TOKEN_REFRESH_SAFETY_MS = 5 * 60 * 1000
 const WARM_TRANSFER_BRIDGE_TIMEOUT_MS = 15_000
+const CALLER_PROFILE_LOOKUP_TIMEOUT_MS = 6_000
 
 function toE164(phone: string) {
   const digits = phone.replace(/\D/g, '')
@@ -309,6 +310,7 @@ export function FloatingDialer() {
   const [tokenExpiresAt, setTokenExpiresAt] = useState<string | null>(null)
   const [preCallWarning, setPreCallWarning] = useState<string | null>(null)
   const [blockingIncoming, setBlockingIncoming] = useState(false)
+  const [outboundCallStarting, setOutboundCallStarting] = useState(false)
 
   // refs
   const deviceRef = useRef<any>(null)
@@ -347,6 +349,7 @@ export function FloatingDialer() {
   const stuckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const presenceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const tokenRefreshInFlightRef = useRef(false)
+  const outboundCallStartingRef = useRef(false)
   const warmTransferSessionRef = useRef<WarmTransferSession | null>(null)
   const warmTransferBridgePendingRef = useRef(false)
   const warmTransferBridgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -514,10 +517,13 @@ export function FloatingDialer() {
     if (preferredFromNumber) params.set('preferredFromNumber', preferredFromNumber)
 
     setCallerProfileLoading(true)
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), CALLER_PROFILE_LOOKUP_TIMEOUT_MS)
     try {
       const response = await fetch(`/api/sales/dialer/caller-id?${params.toString()}`, {
         cache: 'no-store',
         credentials: 'include',
+        signal: controller.signal,
       })
       if (!response.ok) {
         throw new Error(`Caller ID lookup failed: ${response.status}`)
@@ -556,6 +562,7 @@ export function FloatingDialer() {
       }
       return fallbackProfile
     } finally {
+      window.clearTimeout(timeout)
       if (lookupSeq === callerProfileLookupSeqRef.current) {
         setCallerProfileLoading(false)
       }
@@ -1262,20 +1269,41 @@ export function FloatingDialer() {
     const e164 = toE164(phone.trim())
     if (!e164) return
 
+    // This ref is intentionally set before the first await. React state alone cannot
+    // prevent two click/Enter events in the same render from creating two Twilio calls.
+    if (
+      outboundCallStartingRef.current ||
+      activeCallRef.current ||
+      statusRef.current === 'connecting' ||
+      statusRef.current === 'active'
+    ) return
+    outboundCallStartingRef.current = true
+    setOutboundCallStarting(true)
+
     if (micPermission === 'denied') {
       setDialerStatus('error')
       setError('Microphone access is blocked. Allow mic permission in your browser settings, then retry.')
+      outboundCallStartingRef.current = false
+      setOutboundCallStarting(false)
       return
     }
 
     if (!deviceRef.current) {
       if (status === 'error' || status === 'idle') {
-        try { await retryConnection() } catch { return }
+        try { await retryConnection() } catch {
+          outboundCallStartingRef.current = false
+          setOutboundCallStarting(false)
+          return
+        }
         if (!deviceRef.current) {
           setError('Could not initialize dialer. Check your connection.')
+          outboundCallStartingRef.current = false
+          setOutboundCallStarting(false)
           return
         }
       } else {
+        outboundCallStartingRef.current = false
+        setOutboundCallStarting(false)
         return
       }
     }
@@ -1559,6 +1587,9 @@ export function FloatingDialer() {
         failureReason: 'connect_exception',
         audioConnected: false,
       })
+    } finally {
+      outboundCallStartingRef.current = false
+      setOutboundCallStarting(false)
     }
   }
 
@@ -2659,7 +2690,13 @@ export function FloatingDialer() {
                   ref={phoneInputRef}
                   value={phone}
                   onChange={e => handlePhoneChange(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && phone.trim()) void makeCall() }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && phone.trim()) {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      void makeCall()
+                    }
+                  }}
                   className="h-11 flex-1 rounded-[12px] border border-white/10 bg-white/5 px-4 text-base font-medium text-white outline-none placeholder:text-white/25 focus:border-white/20"
                   placeholder="Enter number"
                 />
@@ -2791,11 +2828,17 @@ export function FloatingDialer() {
               {/* Call button */}
               <button
                 onClick={() => void makeCall()}
-                disabled={!phone.trim() || status === 'idle' || micPermission === 'denied'}
+                disabled={!phone.trim() || status === 'idle' || outboundCallStarting || callerProfileLoading || micPermission === 'denied'}
                 className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-[14px] bg-emerald-500 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(16,185,129,0.28)] transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none active:scale-[0.98]"
               >
                 <PhoneIcon className="h-4 w-4" />
-                {status === 'idle' ? 'Initializing…' : micPermission === 'denied' ? 'Mic blocked' : 'Call'}
+                {status === 'idle'
+                  ? 'Initializing…'
+                  : micPermission === 'denied'
+                    ? 'Mic blocked'
+                    : outboundCallStarting || callerProfileLoading
+                      ? 'Preparing call…'
+                      : 'Call'}
               </button>
 
               {/* Quick links */}
