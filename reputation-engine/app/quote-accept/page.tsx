@@ -139,7 +139,7 @@ function LogoMark({ size = 32, dark = false, brand = SATURN_STAR_BRAND }: { size
   }
   return (
     <span
-      className={`inline-flex shrink-0 items-center justify-center rounded-[10px] ${dark ? 'bg-white/95 p-1 shadow-sm' : ''}`}
+      className="inline-flex shrink-0 items-center justify-center"
       style={{ width: size, height: size }}
     >
       <Image
@@ -391,10 +391,8 @@ function depositPct(quote: PublicQuote): number {
 // Divider with label
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mb-4 flex items-center gap-3">
-      <div className="h-px flex-1 bg-[#071421]/10" />
-      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#071421]/40">{children}</div>
-      <div className="h-px flex-1 bg-[#071421]/10" />
+    <div className="mb-6">
+      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#667085]">{children}</div>
     </div>
   )
 }
@@ -406,30 +404,30 @@ function PhotoGallery({ photos }: { photos: string[] }) {
   if (photos.length === 0) return null
 
   return (
-    <div className="mb-8">
-      <div className="relative overflow-hidden rounded-xl bg-[#071421]/5" style={{ aspectRatio: '16/7' }}>
+    <div className="mb-16">
+      <div className="group relative overflow-hidden rounded-2xl bg-[#071421]/5 shadow-[0_24px_70px_rgba(7,20,33,0.13)]" style={{ aspectRatio: '16/9' }}>
         <img
           src={photos[active]}
           alt="Your home"
-          className="h-full w-full object-cover"
+          className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.025]"
           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
         />
-        <div className="absolute inset-0 bg-[#071421]/30" />
-        <div className="absolute bottom-3 left-4">
-          <div className="text-[9px] font-bold uppercase tracking-widest text-[#C99700]">Your Property</div>
-          <div className="text-xs font-semibold text-white mt-0.5">{photos.length} photos reviewed by our team</div>
+        <div className="absolute inset-0 bg-gradient-to-t from-[#071421]/60 via-transparent to-transparent" />
+        <div className="absolute bottom-6 left-7">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/60">Your home</div>
+          <div className="mt-1 text-sm font-semibold text-white">Prepared from {photos.length} property photos</div>
         </div>
         {photos.length > 1 && (
           <>
             <button
               onClick={() => setActive(a => Math.max(0, a - 1))}
               disabled={active === 0}
-              className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-[#071421]/70 px-2.5 py-1.5 text-sm font-bold text-white disabled:opacity-20 hover:bg-[#071421]"
+              className="absolute left-4 top-1/2 -translate-y-1/2 rounded-xl bg-[#071421]/70 px-3 py-2 text-sm font-bold text-white disabled:opacity-20 hover:bg-[#071421]"
             >‹</button>
             <button
               onClick={() => setActive(a => Math.min(photos.length - 1, a + 1))}
               disabled={active === photos.length - 1}
-              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-[#071421]/70 px-2.5 py-1.5 text-sm font-bold text-white disabled:opacity-20 hover:bg-[#071421]"
+              className="absolute right-4 top-1/2 -translate-y-1/2 rounded-xl bg-[#071421]/70 px-3 py-2 text-sm font-bold text-white disabled:opacity-20 hover:bg-[#071421]"
             >›</button>
           </>
         )}
@@ -440,7 +438,7 @@ function PhotoGallery({ photos }: { photos: string[] }) {
             <button
               key={i}
               onClick={() => setActive(i)}
-              className={`shrink-0 overflow-hidden rounded-md border-2 transition ${active === i ? 'border-[#C99700]' : 'border-transparent opacity-50 hover:opacity-80'}`}
+              className={`shrink-0 overflow-hidden rounded-lg border transition ${active === i ? 'border-[#071421]' : 'border-transparent opacity-50 hover:opacity-80'}`}
               style={{ width: 60, height: 44 }}
             >
               <img src={photo} alt="" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).parentElement!.style.display = 'none' }} />
@@ -582,9 +580,9 @@ function AcceptBlock({
   }
 
   return (
-    <div className="rounded-xl border-2 border-[#071421] bg-[#071421] p-8 text-center">
-      <div className="text-lg font-black text-white mb-2">{invoiceStyleTerms ? 'Ready to approve this scope?' : 'Ready to lock in your move?'}</div>
-      <p className="text-sm text-white/60 mb-6 max-w-sm mx-auto leading-6">
+    <div className="rounded-2xl bg-[#071421] px-8 py-14 text-center sm:px-12">
+      <div className="text-3xl font-bold tracking-tight text-white">{invoiceStyleTerms ? 'Ready to approve your move?' : 'Ready to secure your move?'}</div>
+      <p className="mx-auto mb-8 mt-3 max-w-md text-base leading-7 text-white/55">
         {invoiceStyleTerms
           ? `Approve the estimate and terms now. Billing will be handled by ${paymentTermsLabel(quote.paymentTerms).toLowerCase()} after office confirmation.`
           : 'Pay your deposit now to confirm your booking. Your card is saved on file — balance is due after the move.'}
@@ -592,9 +590,9 @@ function AcceptBlock({
       <button
         onClick={invoiceStyleTerms ? acceptOrRequestTerms : payOrRequestTerms}
         disabled={invoiceStyleTerms ? accepting : stripeLoading}
-        className="w-full rounded-xl bg-[#C99700] py-4 text-base font-bold text-[#071421] hover:opacity-90 disabled:opacity-50 shadow-lg transition"
+        className="w-full rounded-xl bg-[#C99700] py-4 text-base font-bold text-[#071421] shadow-lg transition hover:-translate-y-0.5 hover:opacity-95 disabled:opacity-50"
       >
-        {invoiceStyleTerms ? (accepting ? 'Approving...' : 'Approve Estimate') : (stripeLoading ? 'Redirecting to payment...' : 'Accept Quote & Pay Deposit')}
+        {invoiceStyleTerms ? (accepting ? 'Approving...' : 'Approve Proposal') : (stripeLoading ? 'Redirecting to payment...' : 'Reserve Your Crew')}
       </button>
       {!invoiceStyleTerms ? (
         <button
@@ -630,11 +628,11 @@ function CustomerTermsAgreement({
   onChange: (accepted: boolean) => void
 }) {
   return (
-    <div className={`rounded-2xl border-2 bg-white p-5 transition ${termsPrompt && !termsAccepted ? 'border-[#C99700] shadow-lg shadow-[#C99700]/10' : 'border-[#071421]/12'}`}>
+    <div className={`rounded-2xl bg-white p-8 transition ${termsPrompt && !termsAccepted ? 'ring-2 ring-[#C99700] shadow-lg shadow-[#C99700]/10' : 'shadow-[0_12px_40px_rgba(7,20,33,0.06)]'}`}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <SectionLabel>Booking Terms & Conditions</SectionLabel>
-          <h2 className="text-lg font-black text-[#071421]">Please review before paying your deposit.</h2>
+          <SectionLabel>Important information</SectionLabel>
+          <h2 className="text-3xl font-bold tracking-tight text-[#071421]">A calm, clear agreement.</h2>
           <p className="mt-2 max-w-xl text-xs leading-5 text-[#071421]/55">
             This protects both sides: {brand.name} is agreeing to the price and plan shown here, and you are confirming that the inventory, access, addresses, and services are accurate.
           </p>
@@ -655,19 +653,19 @@ function CustomerTermsAgreement({
         </div>
       </div>
 
-      <div className="mt-4 max-h-80 overflow-y-auto rounded-xl border border-[#071421]/10 bg-white">
+      <div className="mt-6 space-y-2">
         {QUOTE_TERMS_SECTIONS.map((section, sectionIndex) => (
-          <div key={section.title} className={`p-4 ${sectionIndex > 0 ? 'border-t border-[#071421]/8' : ''}`}>
-            <div className="text-xs font-black uppercase tracking-wider text-[#071421]/70">{section.title}</div>
-            <ul className="mt-3 space-y-2">
+          <details key={section.title} className="group rounded-xl bg-[#F7F4ED] px-5 py-4" open={sectionIndex === 0}>
+            <summary className="cursor-pointer list-none text-sm font-bold text-[#071421] marker:hidden">{section.title}<span className="float-right text-[#667085] group-open:rotate-45">+</span></summary>
+            <ul className="mt-4 space-y-3">
               {section.items.map(item => item.replaceAll('Saturn Star', brand.name)).map(item => (
                 <li key={item} className="flex gap-2 text-xs leading-5 text-[#071421]/58">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#C99700]" />
+                  <span className="mt-1.5 text-[#667085]">✓</span>
                   <span>{item}</span>
                 </li>
               ))}
             </ul>
-          </div>
+          </details>
         ))}
       </div>
 
@@ -1034,37 +1032,37 @@ function QuoteAcceptPageInner() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-2xl px-4 py-8 print:px-0 print:py-4 print:max-w-none">
+      <div className="mx-auto max-w-4xl px-5 py-12 sm:px-8 sm:py-16 print:px-0 print:py-4 print:max-w-none">
 
         {/* ── Hero ── */}
-        <div className="mb-6 overflow-hidden rounded-2xl bg-[#071421]">
+        <div className="mb-16 overflow-hidden rounded-2xl bg-[#071421] shadow-[0_30px_90px_rgba(7,20,33,0.18)]">
           {/* Gold top accent bar */}
-          <div className="h-1.5 bg-[#C99700]" />
-          <div className="px-6 py-7">
+          <div className="h-1 bg-[#C99700]" />
+          <div className="px-7 py-12 sm:px-12 sm:py-16">
             {/* Logo + brand */}
-            <div className="flex items-center gap-3 mb-5">
-              <LogoMark size={52} dark brand={brand} />
+            <div className="mb-12 flex items-center gap-4">
+              <LogoMark size={64} dark brand={brand} />
               <div>
-                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#C99700]">{brand.name}</div>
-                <div className="text-[9px] text-white/30 tracking-wider uppercase mt-0.5">{marketLabel}</div>
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white">{brand.name}</div>
+                <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-white/40">Estimate {quote.number} · {marketLabel}</div>
               </div>
             </div>
 
-            <h1 className="text-2xl font-black text-white leading-tight mb-2">
-              Hi {firstName} — your moving estimate is ready.
+            <h1 className="mb-4 max-w-2xl text-4xl font-bold leading-[1.08] tracking-[-0.035em] text-white sm:text-6xl">
+              Hi {firstName}.<br />Your move is ready.
             </h1>
-            <p className={`text-sm text-white/50 ${quoteOptionLabel ? 'mb-2' : 'mb-5'}`}>Quote {quote.number} · {serviceLabel}</p>
+            <p className={`text-base leading-7 text-white/55 ${quoteOptionLabel ? 'mb-3' : 'mb-10'}`}>A personal relocation proposal prepared for your home and moving day.</p>
             {quoteOptionLabel && (
-              <div className="mb-5 inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80">
+              <div className="mb-8 inline-flex rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold text-white/80">
                 {quoteOptionLabel}
               </div>
             )}
 
             {/* Move countdown */}
             {daysOut !== null && daysOut > 0 && (
-              <div className="inline-flex items-center gap-2 rounded-full border border-[#C99700]/30 bg-[#C99700]/10 px-3 py-1.5 mb-5">
+              <div className="mb-8 inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2">
                 <div className="h-1.5 w-1.5 rounded-full bg-[#C99700]" />
-                <span className="text-xs font-bold text-[#C99700]">
+                <span className="text-xs font-bold text-white/80">
                   {daysOut === 1 ? 'Move is TOMORROW' : `${daysOut} days until your move`}
                 </span>
               </div>
@@ -1077,11 +1075,11 @@ function QuoteAcceptPageInner() {
             )}
 
             {/* Route */}
-            <div className="grid grid-cols-[1fr_28px_1fr] items-center gap-2 rounded-xl bg-white/8 border border-white/10 px-4 py-4" style={{ background: 'rgba(255,255,255,0.06)' }}>
+            <div className="grid grid-cols-[1fr_44px_1fr] items-center gap-3 rounded-2xl px-5 py-6" style={{ background: 'rgba(255,255,255,0.06)' }}>
               <div>
-                <div className="text-[9px] font-bold uppercase tracking-widest text-[#C99700]/60 mb-0.5">From</div>
-                <div className="text-sm font-bold text-white leading-tight">{quote.originCity || 'Origin'}</div>
-                {quote.originAddress && <div className="text-[10px] text-white/40 mt-0.5 leading-4">{quote.originAddress}</div>}
+                <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-white/35">Origin</div>
+                <div className="text-lg font-bold leading-tight text-white">{quote.originCity || 'Origin'}</div>
+                {quote.originAddress && <div className="mt-1 text-xs leading-5 text-white/40">{quote.originAddress}</div>}
               </div>
               <div className="flex justify-center">
                 <svg width="20" height="16" viewBox="0 0 20 16" fill="none">
@@ -1089,13 +1087,13 @@ function QuoteAcceptPageInner() {
                 </svg>
               </div>
               <div className="text-right">
-                <div className="text-[9px] font-bold uppercase tracking-widest text-[#C99700]/60 mb-0.5">To</div>
+                <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-white/35">Destination</div>
                 {(quote.legs?.length ?? 0) > 1 ? (
                   <div className="text-sm font-bold text-white leading-tight">{quote.legs!.length} Stops</div>
                 ) : (
                   <>
-                    <div className="text-sm font-bold text-white leading-tight">{quote.destCity || 'Destination'}</div>
-                    {quote.destAddress && <div className="text-[10px] text-white/40 mt-0.5 leading-4">{quote.destAddress}</div>}
+                    <div className="text-lg font-bold leading-tight text-white">{quote.destCity || 'Destination'}</div>
+                    {quote.destAddress && <div className="mt-1 text-xs leading-5 text-white/40">{quote.destAddress}</div>}
                   </>
                 )}
               </div>
@@ -1107,19 +1105,23 @@ function QuoteAcceptPageInner() {
         {listingPhotos.length > 0 && <PhotoGallery photos={listingPhotos} />}
 
         {/* ── Move stats ── */}
-        <div className="mb-6 grid grid-cols-5 gap-2">
+        <div className="mb-16">
+          <SectionLabel>Your move at a glance</SectionLabel>
+          <div className="grid grid-cols-2 overflow-hidden rounded-2xl bg-white shadow-[0_12px_40px_rgba(7,20,33,0.06)] sm:grid-cols-3 lg:grid-cols-6">
           {[
             { label: 'Move Date', value: quote.moveDate ? formatDate(quote.moveDate) : 'TBD' },
-            { label: 'Start Time', value: quote.moveTime ? formatMoveTime(quote.moveTime) : '9:00 AM' },
+            { label: 'Route', value: `${quote.originCity || 'Origin'} → ${quote.destCity || 'Destination'}` },
             { label: 'Crew', value: `${crewSize} Movers` },
             { label: trucks === 1 ? 'Truck' : 'Trucks', value: `${trucks} Truck${trucks > 1 ? 's' : ''}` },
+            { label: 'Home inventory', value: hasInventory ? `${inventory.length} Items` : 'In review' },
             { label: 'Est. Hours', value: hours ? `${hours}h` : 'TBD' },
           ].map(stat => (
-            <div key={stat.label} className="rounded-xl border border-[#071421]/10 bg-white px-3 py-3 text-center">
-              <div className="text-sm font-black text-[#071421]">{stat.value}</div>
-              <div className="text-[9px] font-medium text-[#071421]/35 mt-0.5 uppercase tracking-wide">{stat.label}</div>
+            <div key={stat.label} className="px-5 py-6 text-center">
+              <div className="text-base font-bold text-[#071421]">{stat.value}</div>
+              <div className="mt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#667085]">{stat.label}</div>
             </div>
           ))}
+          </div>
         </div>
 
         {/* ── Estimate type ── */}
@@ -1207,19 +1209,20 @@ function QuoteAcceptPageInner() {
             isTwoDay,
           })
           return (
-            <div className="mb-6 overflow-hidden rounded-xl border border-[#071421]/10 bg-white">
-              <div className="border-b border-[#071421]/8 px-5 py-4">
-                <div className="text-xs font-bold uppercase tracking-wider text-[#071421]">Your Move Day</div>
-                <div className="text-[10px] text-[#071421]/40 mt-0.5">How your move unfolds from start to finish</div>
+            <div className="mb-16 overflow-hidden rounded-2xl bg-white p-8 shadow-[0_12px_40px_rgba(7,20,33,0.06)] sm:p-10">
+              <div className="mb-8">
+                <SectionLabel>Your moving day</SectionLabel>
+                <div className="text-3xl font-bold tracking-tight text-[#071421]">From arrival to the final room.</div>
+                <div className="mt-2 text-sm text-[#667085]">A considered plan for how your move unfolds.</div>
               </div>
-              <div className="px-5 py-4">
+              <div>
                 <div className="relative">
                   {/* Vertical line */}
                   <div className="absolute left-3.5 top-4 bottom-4 w-px bg-[#071421]/10" />
-                  <div className="space-y-5">
+                  <div className="space-y-7">
                     {timeline.map((phase, i) => (
                       <div key={i} className="flex gap-4">
-                        <div className="relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white border border-[#071421]/15 text-sm">
+                        <div className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#F7F4ED] text-base">
                           {phase.emoji}
                         </div>
                         <div className="flex-1 min-w-0 pt-0.5">
@@ -1227,7 +1230,7 @@ function QuoteAcceptPageInner() {
                             <span className="text-xs font-bold text-[#071421]">{phase.time}</span>
                             <span className="text-xs font-semibold text-[#071421]/70">{phase.title}</span>
                           </div>
-                          <div className="mt-0.5 text-[11px] text-[#071421]/40 leading-4">{phase.detail}</div>
+                          <div className="mt-1 text-sm leading-5 text-[#667085]">{phase.detail}</div>
                         </div>
                       </div>
                     ))}
@@ -1239,68 +1242,64 @@ function QuoteAcceptPageInner() {
         })()}
 
         {/* ── Pricing ── */}
-        <div className="mb-6 overflow-hidden rounded-xl border border-[#071421]/10 bg-white">
-          <div className="flex items-center justify-between border-b border-[#071421]/8 px-5 py-4">
-            <div className="text-xs font-bold uppercase tracking-wider text-[#071421]">Your Quote</div>
+        <div className="mb-12 overflow-hidden rounded-2xl bg-[#071421] text-white shadow-[0_24px_70px_rgba(7,20,33,0.16)]">
+          <div className="flex items-center justify-between px-8 pt-8 sm:px-12 sm:pt-12">
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">Your move investment</div>
             <button
               onClick={() => setLineItemsOpen(v => !v)}
-              className="text-[10px] font-semibold uppercase tracking-wide text-[#071421]/40 hover:text-[#071421]"
+              className="text-[10px] font-semibold uppercase tracking-wide text-white/40 hover:text-white"
             >
               {lineItemsOpen ? 'Hide breakdown' : 'See breakdown'}
             </button>
           </div>
 
           {/* Summary row */}
-          <div className="grid grid-cols-[1fr_auto] gap-4 border-b border-[#071421]/8 px-5 py-4 text-sm">
+          <div className="grid grid-cols-[1fr_auto] gap-4 px-8 py-6 text-sm sm:px-12">
             <div>
-              <div className="font-semibold text-[#071421]">{serviceLabel}</div>
-              <div className="text-xs text-[#071421]/40 mt-0.5">
+              <div className="font-semibold text-white">{serviceLabel}</div>
+              <div className="mt-1 text-xs text-white/40">
                 {crewSize}-person crew · {trucks} truck{trucks > 1 ? 's' : ''}{hours ? ` · ~${hours} hrs` : ''}
               </div>
             </div>
-            <div className="font-semibold text-[#071421]">{formatMoney(quote.subtotal)}</div>
+            <div className="font-semibold text-white">{formatMoney(quote.subtotal)}</div>
           </div>
 
           {/* Line items */}
           {lineItemsOpen && (
-            <div className="border-b border-[#071421]/8">
+            <div className="mx-8 rounded-xl bg-white/5 sm:mx-12">
               {quote.lineItems.map((item, i) => (
-                <div key={i} className="grid grid-cols-[1fr_auto] gap-4 border-b border-[#071421]/5 last:border-0 px-5 py-3">
+                <div key={i} className="grid grid-cols-[1fr_auto] gap-4 px-5 py-3">
                   <div>
-                    <div className="text-xs font-medium text-[#071421]">{item.description}</div>
-                    {item.details && <div className="mt-0.5 text-[10px] leading-4 text-[#071421]/35">{item.details}</div>}
+                    <div className="text-xs font-medium text-white/80">{item.description}</div>
+                    {item.details && <div className="mt-0.5 text-[10px] leading-4 text-white/35">{item.details}</div>}
                   </div>
-                  <div className="text-xs font-medium text-[#071421]/70 text-right">{formatMoney(item.amount)}</div>
+                  <div className="text-right text-xs font-medium text-white/60">{formatMoney(item.amount)}</div>
                 </div>
               ))}
             </div>
           )}
 
           {/* Totals */}
-          <div className="space-y-1.5 px-5 py-4 text-sm">
+          <div className="px-8 pb-10 pt-4 text-center sm:px-12 sm:pb-14">
             {(quote.discountAmount || 0) > 0 && (
-              <div className="flex justify-between text-[#C99700]">
+              <div className="mb-3 flex justify-center gap-3 text-white/55">
                 <span className="text-xs">{quote.discountLabel || 'Discount'}</span>
                 <span className="text-xs font-semibold">−{formatMoney(quote.discountAmount!)}</span>
               </div>
             )}
             {/* Subtotal is the hero — anchors customer on pre-tax price */}
-            <div className="flex justify-between border-t border-[#071421]/10 pt-2.5 text-base font-black text-[#071421]">
-              <span>Estimated Total</span><span>{formatMoney(quote.subtotal)}</span>
-            </div>
-            <div className="flex justify-between text-[#071421]/35 text-xs mt-1">
-              <span>HST (13%)</span><span>+{formatMoney(quote.hst)}</span>
-            </div>
-            <div className="flex justify-between text-[#071421]/35 text-xs border-t border-[#071421]/8 pt-1.5 mt-1.5">
-              <span>Total incl. HST</span><span>{formatMoney(quote.total)}</span>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/40">Estimated relocation total</div>
+            <div className="mt-3 text-5xl font-bold tracking-[-0.04em] text-white sm:text-6xl">{formatMoney(quote.subtotal)}</div>
+            <div className="mt-4 flex justify-center gap-2 text-xs text-white/35">
+              <span>HST {formatMoney(quote.hst)}</span><span>·</span><span>{formatMoney(quote.total)} inclusive</span>
             </div>
           </div>
         </div>
 
         {/* ── Payment schedule ── */}
-        <div className="mb-6 overflow-hidden rounded-xl border border-[#071421]/10 bg-white">
-          <div className="border-b border-[#071421]/8 px-5 py-4">
-            <div className="text-xs font-bold uppercase tracking-wider text-[#071421]">{invoiceStyleTerms ? 'Approval & Billing' : 'Payment Schedule'}</div>
+        <div className="mb-16 overflow-hidden rounded-2xl bg-white shadow-[0_12px_40px_rgba(7,20,33,0.06)]">
+          <div className="px-8 pt-8 sm:px-10">
+            <SectionLabel>{invoiceStyleTerms ? 'Approval and billing' : 'Reservation and payment'}</SectionLabel>
           </div>
           {invoiceStyleTerms ? (
             <div className="px-5 py-4">
@@ -1311,16 +1310,16 @@ function QuoteAcceptPageInner() {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-2 divide-x divide-[#071421]/8">
-              <div className="px-5 py-4">
-                <div className="text-[9px] font-bold uppercase tracking-widest text-[#C99700] mb-1">Deposit ({depPct}%)</div>
-                <div className="text-2xl font-black text-[#071421]">{formatMoney(quote.deposit)}</div>
-                <div className="text-[10px] text-[#071421]/35 mt-1">Required to confirm booking</div>
+            <div className="grid grid-cols-2">
+              <div className="px-8 pb-8 sm:px-10">
+                <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-[#667085]">Deposit today · {depPct}%</div>
+                <div className="text-4xl font-bold tracking-tight text-[#071421]">{formatMoney(quote.deposit)}</div>
+                <div className="mt-2 text-xs text-[#667085]">Reserves your date and crew</div>
               </div>
-              <div className="px-5 py-4">
-                <div className="text-[9px] font-bold uppercase tracking-widest text-[#071421]/30 mb-1">Balance ({100 - depPct}%)</div>
-                <div className="text-2xl font-black text-[#071421]">{formatMoney(quote.balance)}</div>
-                <div className="text-[10px] text-[#071421]/35 mt-1">Due upon move completion</div>
+              <div className="px-8 pb-8 sm:px-10">
+                <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-[#667085]">Balance · {100 - depPct}%</div>
+                <div className="text-4xl font-bold tracking-tight text-[#071421]">{formatMoney(quote.balance)}</div>
+                <div className="mt-2 text-xs text-[#667085]">Due when your move is complete</div>
               </div>
             </div>
           )}
@@ -1354,6 +1353,24 @@ function QuoteAcceptPageInner() {
           {error && <div className="mt-3 rounded-lg border border-[#071421]/15 bg-[#071421]/5 px-4 py-2 text-xs text-[#071421]/60">{error}</div>}
         </div>
 
+        {/* ── Trust before paperwork ── */}
+        {brand.logo === 'saturn' && (
+          <div className="mb-16">
+            <SectionLabel>Trusted for moves that matter</SectionLabel>
+            <div className="mb-8 max-w-2xl text-3xl font-bold tracking-tight text-[#071421] sm:text-4xl">Careful planning. Calm communication. Five-star execution.</div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {REVIEWS.map((review, index) => (
+                <div key={index} className="rounded-2xl bg-white p-7 shadow-[0_12px_40px_rgba(7,20,33,0.05)]">
+                  <Stars count={review.stars} />
+                  <p className="mt-5 text-base leading-7 text-[#071421]/70">{review.text}</p>
+                  <p className="mt-5 text-xs font-semibold uppercase tracking-[0.12em] text-[#667085]">{review.name}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 text-center text-xs text-[#667085]">Five-star rated on Google · starmovers.ca</div>
+          </div>
+        )}
+
         {/* ── Conditional Clause ── */}
         {quote.conditionalClause && (
           <div className="mb-6 overflow-hidden rounded-xl border border-[#C99700]/30 bg-white">
@@ -1371,24 +1388,25 @@ function QuoteAcceptPageInner() {
 
         {/* ── What's moving ── */}
         {hasInventory && (
-          <div className="mb-8">
-            <SectionLabel>Inventory — Reviewed by Our Team</SectionLabel>
-            <div className="space-y-2">
+          <div className="mb-16">
+            <SectionLabel>Your home inventory</SectionLabel>
+            <div className="mb-8 max-w-2xl text-3xl font-bold tracking-tight text-[#071421] sm:text-4xl">Everything we&apos;re preparing to move.</div>
+            <div className="grid gap-5 sm:grid-cols-2">
               {Array.from(roomGroups.entries()).map(([room, items]) => (
-                <div key={room} className="overflow-hidden rounded-xl border border-[#071421]/10 bg-white">
-                  <div className="border-b border-[#071421]/8 bg-[#071421]/3 px-4 py-2.5" style={{ background: 'rgba(26,39,68,0.03)' }}>
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-[#071421]/60">{room}</div>
+                <div key={room} className="overflow-hidden rounded-2xl bg-white p-7 shadow-[0_10px_35px_rgba(7,20,33,0.045)]">
+                  <div className="mb-5">
+                    <div className="text-lg font-bold text-[#071421]">{room}</div>
                   </div>
-                  <div className="divide-y divide-[#071421]/5">
+                  <div className="space-y-3.5">
                     {items.map((item, i) => {
                       const name = item.name || item.item || 'Item'
                       const qty = Number(item.qty || 1)
                       return (
-                        <div key={i} className="flex items-center justify-between px-4 py-2.5">
-                          <span className="text-sm text-[#071421]">{name}</span>
+                        <div key={i} className="flex items-center justify-between gap-4">
+                          <span className="text-sm text-[#071421]/75"><span className="mr-2 text-[#667085]">✓</span>{name}</span>
                           <div className="flex items-center gap-3">
                             {item.size && <span className="text-[10px] text-[#071421]/30">{item.size}</span>}
-                            {qty > 1 && <span className="rounded-full bg-[#071421]/8 px-2 py-0.5 text-[10px] font-semibold text-[#071421]/50">×{qty}</span>}
+                            {qty > 1 && <span className="text-[10px] font-semibold text-[#667085]">×{qty}</span>}
                           </div>
                         </div>
                       )
@@ -1397,7 +1415,7 @@ function QuoteAcceptPageInner() {
                 </div>
               ))}
             </div>
-            <div className="mt-3 rounded-xl border border-[#C99700]/25 bg-[#C99700]/6 p-3 text-[10px] text-[#071421]/60 leading-5" style={{ background: 'rgba(245,166,35,0.05)' }}>
+            <div className="mt-5 rounded-2xl bg-white/60 p-5 text-xs leading-6 text-[#667085]">
               <span className="font-bold text-[#071421]/70">Note:</span> This estimate covers the items listed. If items are added on move day, the crew will do a brief walk-through and adjust the time before starting.
             </div>
           </div>
@@ -1499,34 +1517,12 @@ function QuoteAcceptPageInner() {
           </div>
         </div>
 
-        {/* ── Reviews ── */}
-        {brand.logo === 'saturn' && <div className="mb-8">
-          <SectionLabel>What Our Customers Say</SectionLabel>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {REVIEWS.map((r, i) => (
-              <div key={i} className="rounded-xl border border-[#071421]/10 bg-white p-4">
-                <Stars count={r.stars} />
-                <p className="mt-2 text-xs leading-5 text-[#071421]/60">{r.text}</p>
-                <p className="mt-2 text-[10px] font-semibold text-[#071421]/30">— {r.name}</p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 flex items-center justify-center gap-3 text-[10px] text-[#071421]/30">
-            <Stars count={5} />
-            <span>5-star rated on Google</span>
-            <span>·</span>
-            <a href="https://starmovers.ca" className="text-[#071421]/40 hover:text-[#071421]">starmovers.ca</a>
-          </div>
-        </div>}
-
         {/* ── Footer ── */}
         <div className="overflow-hidden rounded-2xl bg-[#071421]">
-          <div className="h-1 bg-[#C99700]" />
-          <div className="flex flex-col items-center gap-2 px-6 py-7 text-center">
-            <LogoMark size={56} dark brand={brand} />
-            <div className="mt-2 text-base font-black tracking-tight text-white">{brand.shortName}</div>
-            <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#C99700]/70">Professional Moving Services</div>
-            <div className="mt-3 text-[10px] text-white/30 leading-6">
+          <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
+            <LogoMark size={48} dark brand={brand} />
+            <div className="mt-3 text-sm font-bold tracking-tight text-white">{brand.shortName}</div>
+            <div className="mt-3 text-xs leading-6 text-white/40">
               {marketLabel}<br />
               <a href={brand.phoneHref} className="text-white/50 hover:text-white">{brand.phone}</a>
               {brand.email ? <>{' · '}<a href={`mailto:${brand.email}`} className="text-white/50 hover:text-white">{brand.email}</a></> : null}
