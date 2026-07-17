@@ -256,6 +256,31 @@ const LEAD_LIFECYCLE_SELECT = [
   'createdAt:data->>createdAt',
 ].join(',')
 
+function isRetryableSupabaseStatus(status: number) {
+  return status === 408 || status === 429 || status === 502 || status === 503 || status === 504
+}
+
+async function fetchSupabaseWithRetry(input: string, init?: RequestInit) {
+  const maxAttempts = 3
+  let lastError: unknown
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const response = await fetch(input, init)
+      if (!isRetryableSupabaseStatus(response.status) || attempt === maxAttempts) {
+        return response
+      }
+    } catch (error) {
+      lastError = error
+      if (attempt === maxAttempts) throw error
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 150 * 2 ** (attempt - 1)))
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Supabase request failed')
+}
+
 async function selectLeadLifecycleSnapshots() {
   try {
     const { url, headers } = requireSupabase()
@@ -344,7 +369,7 @@ async function selectById<T>(table: TableName, id: string): Promise<T | null> {
 
 async function selectRecordById<T>(table: TableName, id: string): Promise<PersistedRecord<T> | null> {
   const { url, headers } = requireSupabase()
-  const response = await fetch(
+  const response = await fetchSupabaseWithRetry(
     `${url}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}&select=id,data,deleted&limit=1`,
     { headers, cache: 'no-store' }
   )
@@ -364,7 +389,7 @@ async function upsert<T extends { id: string }>(table: TableName, data: T): Prom
   }
 
   const { url, headers } = requireSupabase()
-  const response = await fetch(`${url}/rest/v1/${table}`, {
+  const response = await fetchSupabaseWithRetry(`${url}/rest/v1/${table}`, {
     method: 'POST',
     headers: {
       ...headers,

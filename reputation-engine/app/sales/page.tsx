@@ -108,10 +108,19 @@ export default function SalesDashboardPage() {
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
   const [drilldown, setDrilldown] = useState<DashboardDrilldownResponse | null>(null)
   const [drilldownLoading, setDrilldownLoading] = useState(false)
-  const [actionsCollapsed, setActionsCollapsed] = useState(() => readLocalStorageFlag('ss_actions_collapsed'))
-  const [workflowHidden, setWorkflowHidden] = useState(() => readLocalStorageFlag('ss_workflow_hidden'))
-  const [statsCollapsed, setStatsCollapsed] = useState(() => readLocalStorageFlag('ss_stats_collapsed'))
-  const [advancedDashboardOpen, setAdvancedDashboardOpen] = useState(() => readLocalStorageFlag('ss_sales_dashboard_advanced_open'))
+  // Keep the server and first browser render identical. Persisted display
+  // preferences are applied after hydration to avoid a markup mismatch.
+  const [actionsCollapsed, setActionsCollapsed] = useState(false)
+  const [workflowHidden, setWorkflowHidden] = useState(false)
+  const [statsCollapsed, setStatsCollapsed] = useState(false)
+  const [advancedDashboardOpen, setAdvancedDashboardOpen] = useState(false)
+
+  useEffect(() => {
+    setActionsCollapsed(readLocalStorageFlag('ss_actions_collapsed'))
+    setWorkflowHidden(readLocalStorageFlag('ss_workflow_hidden'))
+    setStatsCollapsed(readLocalStorageFlag('ss_stats_collapsed'))
+    setAdvancedDashboardOpen(readLocalStorageFlag('ss_sales_dashboard_advanced_open'))
+  }, [])
 
   function toggleActions() {
     setActionsCollapsed(v => {
