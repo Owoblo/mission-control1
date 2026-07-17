@@ -319,6 +319,7 @@ export default function SalesLeadDetailPage() {
   const [confirmJobBusy, setConfirmJobBusy] = useState(false)
   const [depositLinkBusy, setDepositLinkBusy] = useState(false)
   const [logDepositOpen, setLogDepositOpen] = useState(false)
+  const [logDepositAmount, setLogDepositAmount] = useState('')
   const [logDepositMethod, setLogDepositMethod] = useState<'cash' | 'etransfer' | 'cheque'>('etransfer')
   const [logDepositNote, setLogDepositNote] = useState('')
   const [logDepositBusy, setLogDepositBusy] = useState(false)
@@ -1849,13 +1850,9 @@ export default function SalesLeadDetailPage() {
   }
 
   function openConfirmJobModal() {
-    setConfirmJobDeposit(
-      lead?.paymentStatus === 'deposit_received' || lead?.paymentStatus === 'paid_in_full'
-        ? ''
-        : quote?.deposit
-          ? String(quote.deposit)
-          : ''
-    )
+    // Never infer money received from the quote. The rep must enter the
+    // amount that actually cleared, or use an already recorded payment.
+    setConfirmJobDeposit('')
     setConfirmJobDepositMethod(lead?.depositMethod || 'E-Transfer')
     setShowConfirmJobModal(true)
   }
@@ -2536,7 +2533,7 @@ export default function SalesLeadDetailPage() {
         body: JSON.stringify({
           method: logDepositMethod,
           note: logDepositNote,
-          amount: quote.deposit,
+          amount: Number(logDepositAmount),
           sendReceipt: true,
           sendSmsReceipt: true,
           recordAccounting: true,
@@ -2558,6 +2555,7 @@ export default function SalesLeadDetailPage() {
       setQuote(payload.quote)
       setReceiptEmail(payload.lead.email || '')
       setLogDepositOpen(false)
+      setLogDepositAmount('')
       setLogDepositNote('')
       setError(null)
     } catch (err) {
@@ -4714,7 +4712,7 @@ export default function SalesLeadDetailPage() {
                       </>
                     )}
                     <button
-                      onClick={() => setLogDepositOpen(open => !open)}
+                      onClick={() => { setLogDepositOpen(open => !open); setLogDepositAmount('') }}
                       disabled={!canEditCurrentLead}
                       className="w-full rounded-[8px] border border-[#1a2744]/20 bg-white px-3 py-2 text-xs font-medium text-[#1a2744] hover:bg-[#1a2744]/5"
                     >
@@ -4722,6 +4720,15 @@ export default function SalesLeadDetailPage() {
                     </button>
                     {logDepositOpen && (
                       <div className="space-y-2 pt-1">
+                        <input
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          className="crm-input w-full text-xs"
+                          placeholder="Actual amount received"
+                          value={logDepositAmount}
+                          onChange={e => setLogDepositAmount(e.target.value)}
+                        />
                         <select
                           value={logDepositMethod}
                           onChange={e => setLogDepositMethod(e.target.value as 'cash' | 'etransfer' | 'cheque')}
@@ -4739,10 +4746,10 @@ export default function SalesLeadDetailPage() {
                         />
                         <button
                           onClick={() => void logManualDeposit()}
-                          disabled={!canEditCurrentLead || logDepositBusy}
+                          disabled={!canEditCurrentLead || logDepositBusy || !Number.isFinite(Number(logDepositAmount)) || Number(logDepositAmount) <= 0}
                           className="w-full rounded-[8px] bg-[#1a2744] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
                         >
-                          {logDepositBusy ? 'Saving...' : '✓ Mark Deposit Received'}
+                          {logDepositBusy ? 'Saving...' : Number(logDepositAmount) > 0 ? `Record ${formatMoney(Number(logDepositAmount))} Received` : 'Enter Actual Amount Received'}
                         </button>
                       </div>
                     )}
@@ -5610,7 +5617,7 @@ export default function SalesLeadDetailPage() {
                       value={confirmJobDeposit}
                       onChange={e => setConfirmJobDeposit(e.target.value)}
                       className="crm-input mt-1.5 w-full"
-                      placeholder={quote ? `${formatMoney(quote.deposit)} (20% of total)` : 'e.g. 400'}
+                      placeholder="Enter the exact amount that cleared"
                     />
                   </label>
                   <label className="block">

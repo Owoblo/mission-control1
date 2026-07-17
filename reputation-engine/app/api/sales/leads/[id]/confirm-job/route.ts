@@ -3,12 +3,25 @@ import { deriveOpsChecklist, getQuotedTruckCount } from '@/lib/operations'
 import { deriveLeadBranch, generateCrewBrief, mergeCrewBrief, pickAutoAssignedCrewIds } from '@/lib/server/crew-dispatch'
 import { scheduleMoveReminder } from '@/lib/server/sales-automation'
 import { sendSalesMessage } from '@/lib/server/sales-messaging'
-import { getSalesLead, getSalesQuote, saveSalesLead, saveFollowUpLog } from '@/lib/server/sales-repository'
+import { getSalesLead, getSalesQuote, saveSalesLead, saveFollowUpLog, saveSalesQuote } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
 import { uid } from '@/lib/sales'
+import { buildPaymentRecord } from '@/lib/payment-records'
+import type { PaymentRecordMethod } from '@/lib/types'
 
 const SATURN_STAR_PHONE = '+12267732993'
 const SATURN_STAR_EMAIL = 'business@starmovers.ca'
+
+function normalizePaymentMethod(value?: string): PaymentRecordMethod {
+  const normalized = String(value || '').toLowerCase().replace(/[^a-z]/g, '')
+  if (normalized.includes('credit')) return 'credit_card'
+  if (normalized.includes('debit')) return 'debit'
+  if (normalized.includes('cash')) return 'cash'
+  if (normalized.includes('cheque') || normalized.includes('check')) return 'cheque'
+  if (normalized.includes('bank')) return 'bank_transfer'
+  if (normalized.includes('transfer')) return 'etransfer'
+  return 'other'
+}
 
 function buildBookingConfirmationSms(name: string, moveDate?: string) {
   const first = (name || 'there').split(' ')[0]
@@ -100,6 +113,34 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         truckReservationStatus: quotedTruckCount ? (lead.truckReservationStatus || 'needs_booking') : 'not_needed',
       }),
     })
+
+    if (explicitDepositAmount && quote) {
+      const paymentMethod = normalizePaymentMethod(body.depositMethod)
+      const paymentRecord = buildPaymentRecord({
+        quote,
+        lead,
+        amount: explicitDepositAmount,
+        kind: 'deposit',
+        method: paymentMethod,
+        paidAt: now,
+        note: 'Recorded while confirming booking',
+        recordedBy: session?.name,
+        recordedByUserId: session?.userId,
+      })
+      await saveSalesQuote({
+        ...quote,
+        status: quote.status === 'declined' ? quote.status : 'accepted',
+        acceptedAt: quote.acceptedAt || now,
+        depositPaidAt: now,
+        depositPaidAmount: explicitDepositAmount,
+        depositPaidMethod: paymentMethod === 'credit_card'
+          ? 'stripe'
+          : paymentMethod === 'etransfer' || paymentMethod === 'cash' || paymentMethod === 'cheque'
+            ? paymentMethod
+            : 'other',
+        paymentRecords: [...(quote.paymentRecords || []), paymentRecord],
+      })
+    }
 
     // Log to timeline
     const depositNote = explicitDepositAmount

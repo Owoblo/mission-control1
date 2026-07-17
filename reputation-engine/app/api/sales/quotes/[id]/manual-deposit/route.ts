@@ -6,6 +6,7 @@ import { getAppBaseUrl } from '@/lib/server/runtime'
 import { sendDepositReceipt } from '@/lib/server/deposit-receipts'
 import { sendSalesMessage } from '@/lib/server/sales-messaging'
 import { uid } from '@/lib/sales'
+import { buildPaymentRecord } from '@/lib/payment-records'
 import type { CRMLead, CRMQuote } from '@/lib/types'
 
 const MANUAL_METHOD_LABELS = {
@@ -76,7 +77,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const now = new Date()
     const paidAt = now.toISOString()
     const paidDate = paidAt.slice(0, 10)
-    const amount = Number(body.amount || quote.deposit || 0)
+    const amount = Number(body.amount)
     if (!Number.isFinite(amount) || amount <= 0) {
       return NextResponse.json({ error: 'Deposit amount must be greater than zero' }, { status: 400 })
     }
@@ -85,6 +86,18 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const note = (body.note || '').trim()
     const balanceAmount = Math.max(0, Math.round(((quote.total || 0) - amount) * 100) / 100)
     const paidInFull = balanceAmount <= 0
+
+    const paymentRecord = buildPaymentRecord({
+      quote,
+      lead,
+      amount,
+      kind: 'deposit',
+      method,
+      paidAt,
+      note: note || undefined,
+      recordedBy: session?.name,
+      recordedByUserId: session?.userId,
+    })
 
     const savedQuote = await saveSalesQuote({
       ...quote,
@@ -95,6 +108,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       depositPaidAmount: amount,
       depositPaidMethod: manualQuoteMethod(method),
       depositPaidNote: note || `Manually verified by ${session?.name || 'Saturn Star'}`,
+      paymentRecords: [...(quote.paymentRecords || []), paymentRecord],
     })
 
     const savedLead = await saveSalesLead({

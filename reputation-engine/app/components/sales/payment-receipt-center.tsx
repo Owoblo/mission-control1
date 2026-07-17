@@ -12,7 +12,9 @@ export function PaymentReceiptCenter({ lead, quote, canEdit, onUpdated }: { lead
   const paid = Math.max(recordedPaid, legacyPaid)
   const owing = Math.max(0, quote.total - paid)
   const [open, setOpen] = useState(false)
-  const [amount, setAmount] = useState(String(owing > 0 ? Math.min(owing, quote.deposit || owing) : ''))
+  // Deliberately blank: a receipt must reflect a real transaction, never an
+  // amount inferred from the quote or remaining balance.
+  const [amount, setAmount] = useState('')
   const [kind, setKind] = useState<PaymentRecordKind>(paid <= 0 ? 'deposit' : owing > 0 ? 'partial' : 'other')
   const [method, setMethod] = useState<PaymentRecordMethod>('etransfer')
   const [reference, setReference] = useState('')

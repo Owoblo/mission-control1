@@ -7,6 +7,7 @@ import { getQuotePaidSoFar } from '@/lib/server/job-billing'
 import { getAppBaseUrl } from '@/lib/server/runtime'
 import { sendSalesMessage } from '@/lib/server/sales-messaging'
 import { uid } from '@/lib/sales'
+import { resolveDepositReceiptAmount } from '@/lib/payment-records'
 import type { CRMLead, CRMQuote } from '@/lib/types'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -83,11 +84,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     }
 
     const paid = getQuotePaidSoFar(quote, lead)
-    const recordedDepositAmount = Math.max(
-      Number(quote.depositPaidAmount || 0),
-      Number(lead.depositAmount || 0)
-    )
-    const receiptAmount = recordedDepositAmount > 0 ? recordedDepositAmount : Number(quote.deposit || 0)
+    const receiptAmount = resolveDepositReceiptAmount(quote, lead)
     if (!quote.depositPaidAt && !lead.depositDate && paid.totalPaid <= 0) {
       return NextResponse.json({ error: 'No deposit has been recorded for this quote yet.' }, { status: 409 })
     }

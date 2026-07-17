@@ -7,6 +7,16 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentRecordMethod, string> = {
   cheque: 'Cheque', bank_transfer: 'Bank Transfer', other: 'Other',
 }
 
+export function resolveDepositReceiptAmount(quote: CRMQuote, lead?: CRMLead | null) {
+  const latestDepositRecord = [...(quote.paymentRecords || [])]
+    .filter(payment => payment.kind === 'deposit')
+    .sort((left, right) => right.paidAt.localeCompare(left.paidAt))[0]
+
+  return latestDepositRecord?.amount
+    || Number(quote.depositPaidAmount || 0)
+    || Number(lead?.depositAmount || 0)
+}
+
 export function buildPaymentRecord(input: {
   quote: CRMQuote
   lead?: CRMLead | null
