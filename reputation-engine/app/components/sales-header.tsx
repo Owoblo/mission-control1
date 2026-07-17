@@ -379,7 +379,7 @@ export function SalesHeader() {
           {/* ── Brand strip — slim full-width horizontal ───────────────── */}
           <div className={`hidden lg:flex items-center border-b border-[var(--app-line)] ${sidebarCollapsed ? 'h-14 justify-center px-0' : 'h-14 gap-2.5 px-4'}`}>
             <Link href={homeHref} className={`flex min-w-0 items-center ${sidebarCollapsed ? 'justify-center' : 'gap-2.5 flex-1 min-w-0'}`}>
-              <Image src="/saturn-star-logo.png" alt="Saturn Star" width={30} height={30} className="shrink-0" />
+              <Image src="/brand/saturn-star-icon-full-color.png" alt="Saturn Star" width={32} height={32} className="shrink-0 object-contain" priority />
               {!sidebarCollapsed && (
                 <span className="truncate text-sm font-bold tracking-tight text-[var(--app-ink)]">Saturn Star OS</span>
               )}
@@ -412,7 +412,7 @@ export function SalesHeader() {
           {/* ── Mobile/tablet top bar ─────────────────────────────────── */}
           <div className="flex items-center justify-between gap-4 lg:hidden">
             <Link href={homeHref} className="flex min-w-0 items-center gap-2.5">
-              <Image src="/saturn-star-logo.png" alt="Saturn Star" width={28} height={28} className="shrink-0" />
+              <Image src="/brand/saturn-star-icon-full-color.png" alt="Saturn Star" width={30} height={30} className="shrink-0 object-contain" priority />
               <div className="truncate font-semibold tracking-tight text-[var(--app-ink)]">Saturn Star OS</div>
             </Link>
             <div className="flex items-center gap-2">

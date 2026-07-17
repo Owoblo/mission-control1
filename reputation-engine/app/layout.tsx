@@ -8,9 +8,9 @@ export const metadata: Metadata = {
   description: 'Sales CRM, quotes, operations, and reviews for Saturn Star Moving',
   manifest: '/manifest.webmanifest',
   icons: {
-    icon: '/saturn-star-logo.png',
-    apple: '/saturn-star-logo.png',
-    shortcut: '/saturn-star-logo.png',
+    icon: '/brand/saturn-star-icon-full-color.png?v=2',
+    apple: '/icon-192.png?v=2',
+    shortcut: '/brand/saturn-star-icon-full-color.png?v=2',
   },
   appleWebApp: {
     capable: true,
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#1a2744',
+  themeColor: '#071421',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -30,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
-        <link rel="apple-touch-icon" href="/saturn-star-logo.png" />
+        <link rel="apple-touch-icon" href="/icon-192.png?v=2" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body className="min-h-screen">

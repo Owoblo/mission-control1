@@ -65,7 +65,7 @@ function LoginForm() {
       <div className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-panel)] p-8 shadow-sm">
         {/* Logo */}
         <div className="mb-8 flex flex-col items-center gap-2">
-          <Image src="/saturn-star-logo.png" alt="Saturn Star Moving" width={96} height={96} priority />
+          <Image src="/brand/saturn-star-icon-full-color.png" alt="Saturn Star Moving" width={96} height={96} className="object-contain" priority />
           <div className="text-center">
             <div className="font-semibold text-[var(--app-ink)]">Saturn Star OS</div>
             <div className="text-xs text-[var(--app-muted)]">Mission Control</div>

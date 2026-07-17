@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'Saturn Star Moving — Sales & Operations Command Centre',
     start_url: '/sales/pipeline',
     display: 'standalone',
-    background_color: '#f0f2f5',
-    theme_color: '#1a2744',
+    background_color: '#F7F4ED',
+    theme_color: '#071421',
     orientation: 'portrait-primary',
     icons: [
       {

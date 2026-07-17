@@ -1,7 +1,7 @@
 // Saturn Star OS — Service Worker
 // Keeps the app alive in the background so the dialer never misses a call.
 
-const CACHE = 'saturn-star-v2'
+const CACHE = 'saturn-star-brand-v3'
 
 // Do not pre-cache authenticated CRM pages. They are dynamic and can easily
 // become stale across deploys, which is worse than a slower first paint.
