@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { buildSmsThreads, listSmsMessages, mergeInboundLeadSmsThreadMessages } from '@/lib/server/sms-threads'
-import { listAllInboundLeads, listSalesLeads } from '@/lib/server/sales-repository'
+import { listAllInboundLeads, listInboundLeadsByPhone, listSalesLeads } from '@/lib/server/sales-repository'
 
 export { type SalesSmsThread as SmsThread, type SmsMessageRecord as SmsMessage } from '@/lib/server/sms-threads'
 
@@ -12,7 +12,9 @@ export async function GET(request: Request) {
     const messages = await listSmsMessages(filterPhone || undefined, filterLeadId || undefined)
 
     if (filterPhone || filterLeadId) {
-      const inboundLeads = await listAllInboundLeads().catch(() => [])
+      const inboundLeads = filterPhone
+        ? await listInboundLeadsByPhone(filterPhone).catch(() => [])
+        : []
       return NextResponse.json(mergeInboundLeadSmsThreadMessages(messages, inboundLeads, filterPhone || undefined))
     }
 

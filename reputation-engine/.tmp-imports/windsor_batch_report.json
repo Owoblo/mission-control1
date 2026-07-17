@@ -1,0 +1,143 @@
+{
+  "city": "windsor",
+  "source_csv": "/Users/owoblo/Downloads/realtors/all_zones_enriched.csv",
+  "total_rows": 7913,
+  "city_rows": 1300,
+  "live_market_contacts": 180,
+  "sendable_primary_phone_rows": 1094,
+  "excluded_rows": 206,
+  "excluded_by_reason": {
+    "existing_phone": 121,
+    "existing_exact_name": 97,
+    "no_primary_phone": 30,
+    "duplicate_primary_phone_in_file": 53
+  },
+  "dedupe_rules": [
+    "primary phone is required for first send",
+    "exclude if any CSV phone/phone2/phone3 matches an existing market_contacts phone/metadata phone",
+    "exclude if normalized realtor name exactly matches an existing market_contacts name",
+    "do not exclude on brokerage/company match",
+    "do not send phone2/phone3 on first pass; keep them for later fallback only"
+  ],
+  "daily_total": 400,
+  "per_sender": 200,
+  "sender_numbers": [
+    "+12268870667",
+    "+12266055008"
+  ],
+  "waves": [
+    {
+      "file_key": "day_01_12268870667",
+      "count": 200
+    },
+    {
+      "file_key": "day_01_12266055008",
+      "count": 200
+    },
+    {
+      "file_key": "day_02_12268870667",
+      "count": 200
+    },
+    {
+      "file_key": "day_02_12266055008",
+      "count": 200
+    },
+    {
+      "file_key": "day_03_12268870667",
+      "count": 200
+    },
+    {
+      "file_key": "day_03_12266055008",
+      "count": 94
+    }
+  ],
+  "sample_sendable": [
+    {
+      "name": "KATHRYN HENGL",
+      "city": "Windsor",
+      "phone": "519-566-4777",
+      "sender_number": "+12268870667",
+      "wave": "day_01"
+    },
+    {
+      "name": "RYAN DUROCHER",
+      "city": "Windsor",
+      "phone": "519-613-9087",
+      "sender_number": "+12268870667",
+      "wave": "day_01"
+    },
+    {
+      "name": "TANYA QUICK",
+      "city": "Windsor",
+      "phone": "519-567-7437",
+      "sender_number": "+12268870667",
+      "wave": "day_01"
+    },
+    {
+      "name": "HAMID POURKASRAEI",
+      "city": "Windsor",
+      "phone": "226-241-6538",
+      "sender_number": "+12268870667",
+      "wave": "day_01"
+    },
+    {
+      "name": "AHMAD KALOUTI",
+      "city": "Windsor",
+      "phone": "519-995-8766",
+      "sender_number": "+12268870667",
+      "wave": "day_01"
+    }
+  ],
+  "sample_excluded": [
+    {
+      "name": "JASON BROWN",
+      "phone": "519-999-3688",
+      "reason": "existing_phone|existing_exact_name"
+    },
+    {
+      "name": "ANNA KOLM",
+      "phone": "519-250-8800",
+      "reason": "existing_phone"
+    },
+    {
+      "name": "RICK ROSE",
+      "phone": "226-788-9966",
+      "reason": "existing_phone"
+    },
+    {
+      "name": "RICK LESCANEC",
+      "phone": "519-972-1600",
+      "reason": "existing_phone|existing_exact_name"
+    },
+    {
+      "name": "MAGGIE CHEN",
+      "phone": "519-972-3888",
+      "reason": "existing_exact_name"
+    },
+    {
+      "name": "KARL SCHUSTER",
+      "phone": "519-250-8800",
+      "reason": "existing_phone"
+    },
+    {
+      "name": "AMANDA IBRAHIM",
+      "phone": "",
+      "reason": "no_primary_phone"
+    },
+    {
+      "name": "SCOTT INNOCENTE",
+      "phone": "519-567-1987",
+      "reason": "existing_phone|existing_exact_name"
+    },
+    {
+      "name": "MIRNA CASTELLI",
+      "phone": "",
+      "reason": "no_primary_phone"
+    },
+    {
+      "name": "ALINA COSTAN",
+      "phone": "",
+      "reason": "no_primary_phone"
+    }
+  ]
+}

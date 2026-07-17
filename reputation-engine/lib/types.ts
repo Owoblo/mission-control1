@@ -190,6 +190,19 @@ export interface LeadQualificationState {
   lastIntent?: string
   nextBestAction?: string
   capturedSummary?: string
+  addressVerification?: {
+    pending?: {
+      field: 'originAddress' | 'destAddress'
+      original: string
+      suggestion: string
+      city?: string
+      placeId?: string
+      promptedAt: string
+    }
+    confirmedAt?: string
+    lastConfirmedField?: 'originAddress' | 'destAddress'
+    lastConfirmedAddress?: string
+  }
 }
 
 export interface CallLogEntry {
@@ -206,6 +219,12 @@ export interface CallLogEntry {
   recordingUrl?: string
   recordingSid?: string
   recordingDuration?: number
+  recordingStatus?: 'received' | 'uploaded' | 'verified' | 'transcribed' | 'failed' | 'twilio_deleted' | 'unavailable'
+  recordingSize?: number
+  recordingContentType?: string
+  storageProvider?: 'r2' | 's3' | 'supabase' | string
+  cloudflareObjectKey?: string
+  cloudflareUrl?: string
   recordingUnavailable?: boolean
   recordingUnavailableAt?: string
   recordingUnavailableReason?: string
@@ -985,6 +1004,7 @@ export interface CRMQuote {
   balancePaidAt?: string
   balancePaidAmount?: number
   balancePaidMethod?: 'stripe' | 'etransfer' | 'cash' | 'cheque' | 'other'
+  paymentRecords?: PaymentRecord[]
   // Overridable fields
   moveDescription?: string  // shown on the quote document
   internalNotes?: string    // crew / internal only, not on quote
@@ -1005,6 +1025,31 @@ export interface CRMQuote {
   priceOverrideApprovalReason?: string
   // Conditional clause — shown on customer quote (e.g. "if 2nd truck needed, $X extra")
   conditionalClause?: string
+}
+
+export type PaymentRecordKind = 'deposit' | 'partial' | 'balance' | 'final' | 'other'
+export type PaymentRecordMethod = 'credit_card' | 'debit' | 'etransfer' | 'cash' | 'cheque' | 'bank_transfer' | 'other'
+
+export interface PaymentRecord {
+  id: string
+  receiptNumber: string
+  publicToken: string
+  kind: PaymentRecordKind
+  method: PaymentRecordMethod
+  methodLabel: string
+  amount: number
+  totalBeforePayment: number
+  paidBeforePayment: number
+  paidAfterPayment: number
+  balanceAfterPayment: number
+  paidAt: string
+  note?: string
+  reference?: string
+  cardLast4?: string
+  recordedBy?: string
+  recordedByUserId?: string
+  emailSentAt?: string
+  smsSentAt?: string
 }
 
 export interface FollowUpLog {

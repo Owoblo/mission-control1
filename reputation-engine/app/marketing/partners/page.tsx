@@ -13,6 +13,7 @@ import {
   getPartnershipPrimaryNumberForMarket,
   getPartnershipSenderNumbersForMarket,
 } from '@/lib/partnership-lines'
+import { formatCadFromCents } from '@/lib/partnership-constants'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -84,6 +85,32 @@ interface Contact {
   outreach_tier?: number | null
   owner_name?: string | null
   owner_email?: string | null
+  assigned_manager_user_id?: string | null
+  preferred_channel?: string | null
+  relationship_score?: number | null
+  relationship_temperature?: string | null
+  tags?: string[] | null
+  do_not_contact?: boolean | null
+  partner_company_id?: string | null
+  partner_company?: {
+    id: string
+    company_name: string
+    industry: string | null
+    website: string | null
+    main_phone: string | null
+    city: string | null
+    account_owner_user_id: string | null
+    account_owner_name: string | null
+    account_owner_email: string | null
+    account_status: string | null
+    partnership_potential: string | null
+    total_referrals: number | null
+    total_revenue_cents: number | null
+  } | null
+  partner_referral_count?: number
+  partner_company_referral_count?: number
+  partner_booked_revenue_cents?: number
+  partner_company_booked_revenue_cents?: number
   priority?: string | null
   referred_lead_count?: number | null
   instantly_status?: string | null
@@ -675,7 +702,13 @@ function useDialer() {
   const [error, setError] = useState<string | null>(null)
   const deviceRef = useRef<unknown>(null)
   const callRef = useRef<unknown>(null)
+  const statusRef = useRef<DialStatus>('idle')
   const [incomingFrom, setIncomingFrom] = useState<string | null>(null)
+
+  function updateStatus(next: DialStatus) {
+    statusRef.current = next
+    setStatus(next)
+  }
 
   function handleDialerError(errorValue: unknown, scope: 'device' | 'call' | 'incoming') {
     const message = partnershipDialerUserMessage(errorValue)
@@ -685,23 +718,37 @@ function useDialer() {
     })
     setIncomingFrom(null)
     callRef.current = null
-    setStatus('error')
+    updateStatus('error')
     setError(message)
   }
 
-  async function ensureReady() {
+  async function ensureReady(options: { showError?: boolean } = {}) {
+    const showError = options.showError ?? true
     if (deviceRef.current) return true
     setError(null)
-    setStatus('loading')
-    await new Promise<void>(resolve => {
-      if ((window as unknown as Record<string, unknown>).Twilio) { resolve(); return }
+    updateStatus('loading')
+    const sdkLoaded = await new Promise<boolean>(resolve => {
+      if ((window as unknown as Record<string, unknown>).Twilio) { resolve(true); return }
       const s = document.createElement('script')
+      const timeout = window.setTimeout(() => resolve(false), 10_000)
       s.src = 'https://media.twiliocdn.com/sdk/js/voice/v2.0/twilio.min.js'
-      s.onload = () => resolve()
+      s.onload = () => {
+        window.clearTimeout(timeout)
+        resolve(true)
+      }
+      s.onerror = () => {
+        window.clearTimeout(timeout)
+        resolve(false)
+      }
       document.head.appendChild(s)
     })
+    if (!sdkLoaded) {
+      if (showError) setError('Browser voice could not load. Refresh and check network/ad blockers.')
+      updateStatus('idle')
+      return false
+    }
     const res = await fetch('/api/marketing/dialer/token', { credentials: 'include' })
-    if (!res.ok) { setStatus('idle'); return false }
+    if (!res.ok) { updateStatus('idle'); return false }
     const { token } = await res.json() as { token: string }
     const TwilioSDK = (window as unknown as Record<string, unknown>).Twilio as { Device: new (token: string) => unknown }
     const device = new TwilioSDK.Device(token) as {
@@ -712,44 +759,61 @@ function useDialer() {
       handleDialerError(errorValue, 'device')
     })
     device.on?.('unregistered', () => {
-      if (status !== 'connected' && status !== 'connecting') setStatus('idle')
+      if (statusRef.current !== 'connected' && statusRef.current !== 'connecting') updateStatus('idle')
     })
     device.on?.('incoming', call => {
       const incomingCall = call as TwilioVoiceCall
       callRef.current = call
       setError(null)
       setIncomingFrom(incomingCall.parameters?.From || 'Incoming partnership call')
-      setStatus('ringing')
-      incomingCall.on('accept', () => { setIncomingFrom(null); setError(null); setStatus('connected') })
-      incomingCall.on('disconnect', () => { setIncomingFrom(null); setStatus('ready'); callRef.current = null })
-      incomingCall.on('cancel', () => { setIncomingFrom(null); setStatus('ready'); callRef.current = null })
-      incomingCall.on('reject', () => { setIncomingFrom(null); setStatus('ready'); callRef.current = null })
+      updateStatus('ringing')
+      incomingCall.on('accept', () => { setIncomingFrom(null); setError(null); updateStatus('connected') })
+      incomingCall.on('disconnect', () => { setIncomingFrom(null); updateStatus('ready'); callRef.current = null })
+      incomingCall.on('cancel', () => { setIncomingFrom(null); updateStatus('ready'); callRef.current = null })
+      incomingCall.on('reject', () => { setIncomingFrom(null); updateStatus('ready'); callRef.current = null })
       incomingCall.on('error', errorValue => handleDialerError(errorValue, 'incoming'))
     })
     try {
       await device.register?.()
       deviceRef.current = device
-      setStatus('ready')
+      updateStatus('ready')
       setError(null)
       return true
     } catch (errorValue) {
-      handleDialerError(errorValue, 'device')
+      if (showError) {
+        handleDialerError(errorValue, 'device')
+      } else {
+        console.warn('[PartnershipDialer] background device registration failed', {
+          code: twilioErrorCode(errorValue),
+          message: twilioErrorMessage(errorValue),
+        })
+        updateStatus('idle')
+      }
       return false
     }
   }
 
   async function call(phoneNumber: string, city?: string | null) {
-    const ready = await ensureReady()
+    const ready = await ensureReady({ showError: true })
     if (!ready || !deviceRef.current) return
     setError(null)
-    setStatus('connecting')
+    updateStatus('connecting')
+    const startedAt = Date.now()
     const device = deviceRef.current as { connect: (opts?: unknown) => Promise<unknown> }
     try {
       const conn = await device.connect({ params: { To: phoneNumber, City: city || '' } } as unknown) as TwilioVoiceCall
       callRef.current = conn
-      conn.on('accept', () => { setError(null); setStatus('connected') })
-      conn.on('disconnect', () => { setStatus('ready'); callRef.current = null })
+      conn.on('accept', () => { setError(null); updateStatus('connected') })
+      conn.on('disconnect', () => { updateStatus('ready'); callRef.current = null })
+      conn.on('cancel', () => { updateStatus('ready'); callRef.current = null })
+      conn.on('reject', () => { updateStatus('ready'); callRef.current = null })
       conn.on('error', errorValue => handleDialerError(errorValue, 'call'))
+      window.setTimeout(() => {
+        if (statusRef.current === 'connecting' && Date.now() - startedAt >= 45000) {
+          callRef.current = null
+          updateStatus('ready')
+        }
+      }, 45000)
     } catch (errorValue) {
       handleDialerError(errorValue, 'call')
     }
@@ -769,7 +833,7 @@ function useDialer() {
     const conn = callRef.current as TwilioVoiceCall | null
     conn?.reject?.()
     setIncomingFrom(null)
-    setStatus('ready')
+    updateStatus('ready')
     callRef.current = null
   }
 
@@ -1090,8 +1154,8 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
   const past = appointments.filter(a => a.status !== 'scheduled' || new Date(a.scheduled_at) <= new Date())
   const referralCode = getPartnerReferralCode(contact)
   const nextAction = getNextPartnerAction(contact)
-  const owner = contact.owner_name || contact.owner_email || 'Unassigned'
-  const referralCount = contact.referred_lead_count ?? 0
+  const owner = assignedPartnerOwner(contact)
+  const referralCount = contact.partner_referral_count ?? contact.referred_lead_count ?? 0
 
   return (
     <>
@@ -1108,7 +1172,7 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
                 <StageBadge stage={contact.normalized_stage} />
                 {contact.instantly_status && <InstantlyBadge status={contact.instantly_status} />}
               </div>
-              <div className="mt-0.5 text-sm text-slate-500">{contact.company ?? contact.industry ?? 'No company'}</div>
+              <div className="mt-0.5 text-sm text-slate-500">{partnerCompanyLabel(contact)}</div>
               <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-slate-400">
                 {contact.phone && <a href={`tel:${contact.phone}`} className="hover:text-[#1a2744]">📞 {contact.phone}</a>}
                 {contact.email && <a href={`mailto:${contact.email}`} className="hover:text-[#1a2744]">✉️ {contact.email}</a>}
@@ -1164,6 +1228,14 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
               <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Category</div>
               <div className="mt-1 truncate text-xs font-semibold text-[#1a2744]">{contact.industry || contact.category || 'Uncategorized'}</div>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+              <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Account</div>
+              <div className="mt-1 truncate text-xs font-semibold text-[#1a2744]">{partnerCompanyLabel(contact)}</div>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+              <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Temperature</div>
+              <div className="mt-1 truncate text-xs font-semibold text-[#1a2744]">{partnerTemperatureLabel(contact.relationship_temperature)}</div>
             </div>
             <div className={`col-span-2 rounded-xl border px-3 py-2 ${nextAction?.overdue ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-slate-50'}`}>
               <div className="flex items-center justify-between gap-2">
@@ -2599,6 +2671,32 @@ function sourceBadge(contact: Contact) {
   return contact.category || contact.industry || 'Realtor'
 }
 
+function assignedPartnerOwner(contact: Contact) {
+  return contact.owner_name || contact.owner_email || contact.partner_company?.account_owner_name || contact.partner_company?.account_owner_email || 'Unassigned'
+}
+
+function partnershipManagerLabel(contact: Contact) {
+  const assigned = assignedPartnerOwner(contact)
+  if (assigned !== 'Unassigned') return assigned
+  const market = PARTNERSHIP_MARKET_COMMANDS.find(item => item.id === marketForContact(contact))
+  return market?.manager && market.manager !== 'Unassigned' ? market.manager : 'Saturn Star Partnerships'
+}
+
+function partnerCompanyLabel(contact: Contact) {
+  return contact.partner_company?.company_name || contact.company || 'No company linked'
+}
+
+function partnerTemperatureLabel(value?: string | null) {
+  const normalized = String(value || '').replace(/_/g, ' ').trim()
+  return normalized ? normalized.charAt(0).toUpperCase() + normalized.slice(1) : 'Cold'
+}
+
+function isUnhandledPositiveReply(contact: Contact) {
+  const status = getInboxStatus(contact)
+  const unassigned = !contact.owner_name && !contact.owner_email && !contact.assigned_manager_user_id
+  return (status === 'needs_reply' || status === 'context' || status === 'promising' || status === 'appointment' || status === 'postcard') && unassigned
+}
+
 function partnerLinkSlug(contact: Contact) {
   const value = [
     contact.name,
@@ -2925,26 +3023,210 @@ function inboxCategoryLabel(category: string) {
   return getCategoryMeta(category)?.label || category.replace(/_/g, ' ')
 }
 
+const WINDSOR_PARTNER_CITY_KEYS = [
+  'windsor',
+  'lasalle',
+  'tecumseh',
+  'amherstburg',
+  'lakeshore',
+  'belle_river',
+  'comber',
+  'stoney_point',
+  'st_joachim',
+  'puce',
+  'emeryville',
+  'anderdon',
+  'leamington',
+  'kingsville',
+  'essex',
+  'harrow',
+  'mcgregor',
+  'cottam',
+  'ruthven',
+  'colchester',
+  'maidstone',
+  'wheatley',
+  'chatham',
+  'chatham_kent',
+  'tilbury',
+  'wallaceburg',
+  'dresden',
+  'pain_court',
+  'blenheim',
+  'merlin',
+  'charing_cross',
+  'cedar_springs',
+  'dealtown',
+  'ridgetown',
+  'thamesville',
+  'bothwell',
+  'highgate',
+  'morpeth',
+  'muirkirk',
+  'mitchells_bay',
+  'lighthouse_cove',
+  'erieau',
+  'shrewsbury',
+  'erie_beach',
+]
+
+const WATERLOO_PARTNER_CITY_KEYS = [
+  'kitchener',
+  'waterloo',
+  'cambridge',
+  'guelph',
+  'kitchener_waterloo',
+  'elmira',
+  'st_jacobs',
+  'conestogo',
+  'breslau',
+  'woolwich',
+  'new_hamburg',
+  'baden',
+  'wellesley',
+  'wilmot',
+  'ayr',
+  'north_dumfries',
+  'puslinch',
+  'guelph_eramosa',
+  'rockwood',
+  'fergus',
+  'elora',
+  'centre_wellington',
+  'drayton',
+  'mapleton',
+  'arthur',
+  'palmerston',
+  'stratford',
+  'listowel',
+  'paris',
+]
+
+const LONDON_PARTNER_CITY_KEYS = [
+  'london',
+  'lucan',
+  'lucan_biddulph',
+  'ailsa_craig',
+  'parkhill',
+  'ilderton',
+  'north_middlesex',
+  'strathroy',
+  'strathroy_caradoc',
+  'mount_brydges',
+  'kerwood',
+  'glencoe',
+  'newbury',
+  'wardsville',
+  'adelaide_metcalfe',
+  'southwest_middlesex',
+  'komoka',
+  'middlesex_centre',
+  'dorchester',
+  'thames_centre',
+  'belmont',
+  'st_thomas',
+  'central_elgin',
+  'southwold',
+  'talbotville',
+  'shedden',
+  'fingal',
+  'port_stanley',
+  'dutton',
+  'dutton_dunwich',
+  'west_lorne',
+  'rodney',
+  'aylmer',
+  'springfield',
+  'malahide',
+  'bayham',
+  'vienna',
+  'port_burwell',
+  'st_marys',
+  'sarnia',
+  'point_edward',
+  'brights_grove',
+  'camlachie',
+  'corunna',
+  'mooretown',
+  'courtright',
+  'sombra',
+  'port_lambton',
+  'st_clair',
+  'dawn_euphemia',
+  'petrolia',
+  'oil_springs',
+  'brigden',
+  'wyoming',
+  'plympton_wyoming',
+  'watford',
+  'warwick',
+  'alvinston',
+  'brooke_alvinston',
+  'arkona',
+  'forest',
+  'thedford',
+  'grand_bend',
+  'lambton_shores',
+  'port_franks',
+  'ipperwash',
+  'woodstock',
+  'ingersoll',
+  'beachville',
+  'sweaburg',
+  'burgessville',
+  'otterville',
+  'norwich',
+  'mount_elgin',
+  'courtland',
+  'tillsonburg',
+  'tavistock',
+  'thamesford',
+  'innerkip',
+  'east_zorra_tavistock',
+  'embro',
+  'hickson',
+  'kintore',
+  'zorra',
+  'drumbo',
+  'princeton',
+  'plattsville',
+  'bright',
+  'delhi',
+]
+
+const OTTAWA_PARTNER_CITY_KEYS = [
+  'ottawa',
+  'kanata',
+  'nepean',
+  'orleans',
+  'barrhaven',
+  'gloucester',
+  'stittsville',
+  'manotick',
+  'rockland',
+  'carp',
+]
+
 const PARTNERSHIP_AREA_GROUPS = [
   {
     id: 'windsor_area',
-    label: 'Windsor area',
-    cityKeys: ['windsor', 'lasalle', 'tecumseh', 'lakeshore', 'belle_river', 'amherstburg', 'essex', 'harrow', 'kingsville', 'leamington', 'stoney_point', 'chatham_kent'],
+    label: 'Windsor / Essex / Chatham',
+    cityKeys: WINDSOR_PARTNER_CITY_KEYS,
   },
   {
     id: 'kwg_area',
     label: 'KWG area',
-    cityKeys: ['kitchener', 'waterloo', 'cambridge', 'guelph', 'kitchener_waterloo'],
+    cityKeys: WATERLOO_PARTNER_CITY_KEYS,
   },
   {
     id: 'london_area',
-    label: 'London area',
-    cityKeys: ['london', 'st_thomas', 'strathroy', 'woodstock'],
+    label: 'London / Sarnia / Woodstock',
+    cityKeys: LONDON_PARTNER_CITY_KEYS,
   },
   {
     id: 'ottawa_area',
     label: 'Ottawa area',
-    cityKeys: ['ottawa', 'kanata', 'nepean', 'orleans', 'gatineau'],
+    cityKeys: OTTAWA_PARTNER_CITY_KEYS,
   },
 ]
 
@@ -2952,8 +3234,15 @@ const CITY_LABELS: Record<string, string> = {
   amherstburg: 'Amherstburg',
   belle_river: 'Belle River',
   cambridge: 'Cambridge',
+  chatham: 'Chatham',
   chatham_kent: 'Chatham Kent',
+  comber: 'Comber',
+  cottam: 'Cottam',
+  delhi: 'Delhi',
   essex: 'Essex',
+  elmira: 'Elmira',
+  elora: 'Elora',
+  fergus: 'Fergus',
   gatineau: 'Gatineau',
   guelph: 'Guelph',
   harrow: 'Harrow',
@@ -2961,14 +3250,29 @@ const CITY_LABELS: Record<string, string> = {
   kingsville: 'Kingsville',
   kitchener: 'Kitchener',
   kitchener_waterloo: 'Kitchener/Waterloo',
+  kw: 'KW',
+  kwg: 'KW/Guelph',
   lakeshore: 'Lakeshore',
   lasalle: 'LaSalle',
   leamington: 'Leamington',
   london: 'London',
+  mcgregor: 'McGregor',
+  new_hamburg: 'New Hamburg',
   nepean: 'Nepean',
   orleans: 'Orleans',
   ottawa: 'Ottawa',
+  ayr: 'Ayr',
+  baden: 'Baden',
+  barrhaven: 'Barrhaven',
+  gloucester: 'Gloucester',
+  london_area: 'London area',
+  manotick: 'Manotick',
+  sarnia: 'Sarnia',
   st_thomas: 'St. Thomas',
+  st_jacobs: 'St. Jacobs',
+  st_joachim: 'St. Joachim',
+  st_marys: 'St. Marys',
+  stittsville: 'Stittsville',
   stoney_point: 'Stoney Point',
   strathroy: 'Strathroy',
   tecumseh: 'Tecumseh',
@@ -2987,9 +3291,15 @@ function normalizeInboxCity(value: string | null | undefined) {
   if (!normalized) return ''
   if (['la_salle', 'lasalle'].includes(normalized)) return 'lasalle'
   if (['chathamkent', 'chatham_kent', 'chatham'].includes(normalized)) return 'chatham_kent'
-  if (['kitchener_waterloo', 'kitchener_and_waterloo', 'kw', 'kwg'].includes(normalized)) return 'kitchener_waterloo'
+  if (['kitchener_waterloo', 'kitchener_and_waterloo', 'kw', 'kwg', 'wkg'].includes(normalized)) return 'kitchener_waterloo'
+  if (['st_jacobs', 'saint_jacobs'].includes(normalized)) return 'st_jacobs'
+  if (['newhamburg', 'new_hamburg'].includes(normalized)) return 'new_hamburg'
+  if (['barr_haven', 'barrhaven'].includes(normalized)) return 'barrhaven'
   if (['stoney_pt', 'stoney_point'].includes(normalized)) return 'stoney_point'
   if (['st_thomas', 'saint_thomas'].includes(normalized)) return 'st_thomas'
+  if (['st_joachim', 'saint_joachim'].includes(normalized)) return 'st_joachim'
+  if (['st_marys', 'saint_marys'].includes(normalized)) return 'st_marys'
+  if (['mitchell_s_bay', 'mitchells_bay'].includes(normalized)) return 'mitchells_bay'
   return normalized
 }
 
@@ -3023,27 +3333,27 @@ const PARTNERSHIP_MARKET_COMMANDS: PartnershipMarketCommand[] = [
     areaId: 'windsor_area',
     defaultSegment: 'zone1_windsor_essex',
     defaultName: 'Windsor Essex Realtor Partnership SMS',
-    cityKeys: ['windsor', 'lasalle', 'tecumseh', 'lakeshore', 'belle_river', 'amherstburg', 'essex', 'harrow', 'kingsville', 'leamington', 'stoney_point', 'chatham_kent'],
+    cityKeys: WINDSOR_PARTNER_CITY_KEYS,
   },
   {
     id: 'waterloo',
-    label: 'Kitchener / Waterloo',
+    label: 'Kitchener / Waterloo / Guelph',
     manager: 'Gui',
     email: 'gui@starmovers.ca',
     areaId: 'kwg_area',
-    defaultSegment: 'waterloo',
+    defaultSegment: 'kwg',
     defaultName: 'Kitchener Waterloo Realtor Partnership SMS',
-    cityKeys: ['kitchener', 'waterloo', 'cambridge', 'guelph', 'kitchener_waterloo'],
+    cityKeys: WATERLOO_PARTNER_CITY_KEYS,
   },
   {
     id: 'london',
-    label: 'London area',
+    label: 'London / Sarnia / Woodstock',
     manager: 'Unassigned',
     email: 'business@starmovers.ca',
     areaId: 'london_area',
     defaultSegment: 'london',
     defaultName: 'London Realtor Partnership SMS',
-    cityKeys: ['london', 'st_thomas', 'strathroy', 'woodstock'],
+    cityKeys: LONDON_PARTNER_CITY_KEYS,
   },
   {
     id: 'ottawa',
@@ -3053,7 +3363,7 @@ const PARTNERSHIP_MARKET_COMMANDS: PartnershipMarketCommand[] = [
     areaId: 'ottawa_area',
     defaultSegment: 'ottawa',
     defaultName: 'Ottawa Realtor Partnership SMS',
-    cityKeys: ['ottawa', 'kanata', 'nepean', 'orleans', 'gatineau'],
+    cityKeys: OTTAWA_PARTNER_CITY_KEYS,
   },
 ]
 
@@ -3104,9 +3414,11 @@ function PhoneTab({
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const requestedMarket = (searchParams.get('market') as PartnershipMarketKey | null)
+  const requestedAreaId = requestedMarket ? marketCommandForKey(requestedMarket).areaId : ''
   const [search, setSearch] = useState('')
   const [inboxFilter, setInboxFilter] = useState<InboxFilter>('needs_reply')
-  const [areaFilter, setAreaFilter] = useState('')
+  const [areaFilter, setAreaFilter] = useState(requestedAreaId)
   const [cityFilter, setCityFilter] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [batchFilter, setBatchFilter] = useState('')
@@ -3145,6 +3457,12 @@ function PhoneTab({
   const speechRecognitionRef = useRef<BrowserSpeechRecognition | null>(null)
   const touchRequestRef = useRef(0)
   const dialer = useDialer()
+
+  useEffect(() => {
+    if (!requestedAreaId) return
+    setAreaFilter(requestedAreaId)
+    setCityFilter('')
+  }, [requestedAreaId])
 
   const inboxContacts = useMemo(() => {
     const byId = new Map<string, Contact>()
@@ -3253,7 +3571,7 @@ function PhoneTab({
     }, {} as Record<InboxFilter, number>)
   }, [segmentContacts])
 
-  const selected = inboxContacts.find(c => c.id === selectedId) ?? null
+  const selected = segmentContacts.find(c => c.id === selectedId) ?? null
   const selectedFromQuery = searchParams.get('contact')
   const selectedThreadFromNumber = selected
     ? touches.length > 0
@@ -3285,18 +3603,20 @@ function PhoneTab({
   useEffect(() => loadReplyContacts(), [loadReplyContacts])
 
   useEffect(() => {
-    void dialer.ensureReady()
+    void dialer.ensureReady({ showError: false })
     // Register the partnership browser dialer once when the inbox mounts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
-    if (selectedFromQuery && inboxContacts.some(c => c.id === selectedFromQuery)) {
+    if (selectedFromQuery && segmentContacts.some(c => c.id === selectedFromQuery)) {
       setSelectedId(curr => curr === selectedFromQuery ? curr : selectedFromQuery)
     } else if (!selectedId && sorted[0]) {
       setSelectedId(sorted[0].id)
+    } else if (selectedId && !segmentContacts.some(c => c.id === selectedId)) {
+      setSelectedId(sorted[0]?.id ?? null)
     }
-  }, [inboxContacts, selectedFromQuery, selectedId, sorted])
+  }, [segmentContacts, selectedFromQuery, selectedId, sorted])
 
   const reloadTouches = useCallback((contactId: string) => {
     const requestId = ++touchRequestRef.current
@@ -3440,7 +3760,11 @@ function PhoneTab({
     setSelectedId(id)
     setMobileListOpen(false)
     if (typeof window !== 'undefined') {
-      window.history.replaceState(null, '', `/marketing/partners?tab=phone&contact=${id}`)
+      const currentMarket = areaFilter
+        ? PARTNERSHIP_MARKET_COMMANDS.find(market => market.areaId === areaFilter)?.id
+        : requestedMarket
+      const marketParam = currentMarket ? `&market=${currentMarket}` : ''
+      window.history.replaceState(null, '', `/marketing/partners?tab=phone${marketParam}&contact=${id}`)
     }
   }
 
@@ -3473,17 +3797,17 @@ function PhoneTab({
     }
   }
 
-  async function uploadMedia(file: File): Promise<string | null> {
+  async function uploadMedia(file: File): Promise<{ url?: string; error?: string }> {
     try {
       const preparedFile = await prepareUploadFile(file)
       const fd = new FormData()
       fd.append('file', preparedFile)
-      const res = await fetch('/api/sales/operations/upload-media', { method: 'POST', body: fd, credentials: 'include' })
-      if (!res.ok) return null
-      const data = await res.json() as { url?: string }
-      return data.url || null
-    } catch {
-      return null
+      const res = await fetch('/api/marketing/upload-media', { method: 'POST', body: fd, credentials: 'include' })
+      const data = await res.json().catch(() => null) as { url?: string; error?: string } | null
+      if (!res.ok) return { error: data?.error || 'Upload failed' }
+      return data?.url ? { url: data.url } : { error: 'Upload did not return a media URL' }
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'Upload failed' }
     }
   }
 
@@ -3494,15 +3818,17 @@ function PhoneTab({
     setMediaUploading(true)
     try {
       const uploaded: string[] = []
+      const errors: string[] = []
       for (const file of selectedFiles) {
-        const url = await uploadMedia(file)
-        if (url) uploaded.push(url)
+        const result = await uploadMedia(file)
+        if (result.url) uploaded.push(result.url)
+        else if (result.error) errors.push(result.error)
       }
       if (uploaded.length > 0) {
         setMediaUrls(current => [...current, ...uploaded].slice(0, 10))
         showToast(uploaded.length === 1 ? 'Attachment added' : `${uploaded.length} attachments added`)
       } else {
-        showToast('Upload failed')
+        showToast(errors[0] || 'Upload failed')
       }
     } finally {
       setMediaUploading(false)
@@ -4131,7 +4457,7 @@ function PhoneTab({
                   <div className="truncate font-semibold text-[#1a2744]">{selected.name}</div>
                   <StageBadge stage={selected.normalized_stage} />
                 </div>
-                <div className="mt-0.5 truncate text-xs text-slate-400">{selected.phone || selected.company || selected.city || 'Partner contact'} · Hunter</div>
+                <div className="mt-0.5 truncate text-xs text-slate-400">{selected.phone || selected.company || selected.city || 'Partner contact'} · {partnershipManagerLabel(selected)}</div>
                 <div className="mt-2 hidden max-w-[62vw] items-center gap-1.5 overflow-x-auto md:flex">
                   {REPLY_DESK_STAGE_ACTIONS.slice(0, 4).map(stage => (
                     <button
@@ -4159,7 +4485,7 @@ function PhoneTab({
                 ) : (
                   <button onClick={handleCall} disabled={dialer.status === 'connecting' || dialer.status === 'loading'}
                     className="min-h-11 rounded-full border border-slate-200 bg-white px-5 text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50 disabled:opacity-50 lg:min-h-10">
-                    {dialer.status === 'connecting' || dialer.status === 'loading' ? 'Calling' : 'Call'}
+                    {dialer.status === 'connecting' ? 'Calling' : dialer.status === 'loading' ? 'Preparing' : 'Call'}
                   </button>
                 )
               )}
@@ -4306,20 +4632,6 @@ function PhoneTab({
                   From Partner line · {displayReplyNumber(selectedThreadFromNumber)}
                 </span>
               )}
-              <button
-                onClick={insertPartnerLink}
-                className="min-h-11 shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 lg:min-h-8 lg:text-xs"
-                title="Add partner package link to the draft"
-              >
-                Add link
-              </button>
-              <button
-                onClick={() => void copyPartnerLink()}
-                className="min-h-11 shrink-0 rounded-full bg-slate-100 px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-200 lg:min-h-8 lg:text-xs"
-                title="Copy partner package link"
-              >
-                Copy link
-              </button>
               <label className="flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white pl-3 pr-2 text-sm font-semibold text-slate-500 lg:min-h-8 lg:text-xs">
                 Stage
                 <select
@@ -4484,7 +4796,7 @@ function PhoneTab({
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#1a2744] text-base font-bold text-white">{selected.name.charAt(0)}</div>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-semibold text-[#1a2744]">{selected.name}</div>
-                <div className="truncate text-xs text-slate-400">{selected.company || selected.industry || 'Partner contact'}</div>
+                <div className="truncate text-xs text-slate-400">{partnerCompanyLabel(selected)}</div>
               </div>
               <button
                 onClick={() => setPartnerInfoCollapsed(true)}
@@ -4522,6 +4834,31 @@ function PhoneTab({
             </button>
 
             <div className="mt-5 space-y-3">
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Account</div>
+                <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3">
+                  <div className="text-sm font-semibold text-[#1a2744]">{partnerCompanyLabel(selected)}</div>
+                  <div className="mt-1 text-xs text-slate-500">
+                    {selected.partner_company?.city || selected.city || 'No city'} · {selected.partner_company?.industry || selected.industry || 'Partner account'}
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <div className="rounded-lg bg-slate-50 px-2 py-2">
+                      <div className="text-[10px] font-semibold uppercase text-slate-400">Company referrals</div>
+                      <div className="mt-0.5 text-sm font-bold text-[#1a2744]">{selected.partner_company_referral_count ?? selected.partner_company?.total_referrals ?? 0}</div>
+                    </div>
+                    <div className="rounded-lg bg-slate-50 px-2 py-2">
+                      <div className="text-[10px] font-semibold uppercase text-slate-400">Revenue</div>
+                      <div className="mt-0.5 text-sm font-bold text-[#1a2744]">{formatCadFromCents(selected.partner_company_booked_revenue_cents || selected.partner_company?.total_revenue_cents || 0)}</div>
+                    </div>
+                  </div>
+                  {selected.partner_company?.website && (
+                    <a href={selected.partner_company.website} target="_blank" rel="noreferrer" className="mt-2 block truncate text-xs font-semibold text-emerald-800 underline">
+                      {selected.partner_company.website}
+                    </a>
+                  )}
+                </div>
+              </div>
+
               <div>
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Stage</div>
@@ -4576,10 +4913,12 @@ function PhoneTab({
                 ['Phone', selected.phone || '—'],
                 ['Email', selected.email || '—'],
                 ['City', selected.city || '—'],
-                ['Company', selected.company || '—'],
+                ['Company', partnerCompanyLabel(selected)],
                 ['Service type', selected.industry || 'Realtor'],
                 ['Lead stage', PARTNERSHIP_STAGE_META[selected.normalized_stage as keyof typeof PARTNERSHIP_STAGE_META]?.label || selected.normalized_stage || '—'],
-                ['Assigned rep', 'Hunter'],
+                ['Assigned manager', assignedPartnerOwner(selected)],
+                ['Temperature', partnerTemperatureLabel(selected.relationship_temperature)],
+                ['Referral count', String(selected.partner_referral_count ?? selected.referred_lead_count ?? 0)],
                 ['Next follow-up', selected.next_follow_up ? fmtDate(selected.next_follow_up) : '—'],
               ].map(([label, value]) => (
                 <div key={label} className="rounded-xl bg-slate-50 px-3 py-2">
@@ -5024,7 +5363,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
   const [fileName, setFileName] = useState('')
   const [selectedMarket, setSelectedMarket] = useState<PartnershipMarketKey>(initialMarketConfig.id)
   const [category, setCategory] = useState('realtor')
-  const [segmentMode, setSegmentMode] = useState<'zone' | 'city'>('zone')
+  const [segmentMode, setSegmentMode] = useState<'all' | 'zone' | 'city'>('all')
   const [segment, setSegment] = useState(initialMarketConfig.defaultSegment)
   const [name, setName] = useState(initialMarketConfig.defaultName)
   const [repName, setRepName] = useState(initialMarketConfig.manager === 'Unassigned' ? 'Saturn Star Partnerships' : initialMarketConfig.manager)
@@ -5042,6 +5381,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
   const availableZones = Array.from(new Set(rows.map(row => row.zone).filter(Boolean))).sort((a, b) => a.localeCompare(b))
   const availableCities = Array.from(new Set(rows.map(row => row.city_scraped || row.city).filter(Boolean))).sort((a, b) => a.localeCompare(b))
   const selectedRows = rows.filter(row => {
+    if (segmentMode === 'all') return true
     if (!segment) return true
     const value = segmentMode === 'zone' ? row.zone : (row.city_scraped || row.city)
     return (value || '').toLowerCase() === segment.toLowerCase()
@@ -5063,8 +5403,8 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
   function applyMarket(nextMarket: PartnershipMarketKey) {
     const config = marketCommandForKey(nextMarket)
     setSelectedMarket(config.id)
-    setSegment(config.defaultSegment)
-    setSegmentMode(config.defaultSegment.startsWith('zone') ? 'zone' : 'city')
+    setSegment('')
+    setSegmentMode('all')
     setName(config.defaultName)
     setRepName(config.manager === 'Unassigned' ? 'Saturn Star Partnerships' : config.manager)
     setPreview(null)
@@ -5078,11 +5418,8 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
     const parsed = parseCSV(text)
     setRows(parsed)
     setFileName(file.name)
-    const firstZone = parsed.find(row => row.zone)?.zone
-    const nextSegment = firstZone || parsed.find(row => row.city_scraped || row.city)?.city_scraped || parsed.find(row => row.city)?.city || segment
-    const nextMode = firstZone ? 'zone' : 'city'
-    setSegmentMode(nextMode)
-    setSegment(nextSegment)
+    setSegmentMode('all')
+    setSegment('')
     setName(`${selectedMarketConfig.label} ${getCategoryMeta(category)?.label || 'Partner'} Outreach`)
     setPreview(null)
     setResult(null)
@@ -5091,7 +5428,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
 
   async function submit(dryRun: boolean) {
     if (!contacts.length) {
-      setError('Upload a CSV and choose a city first.')
+      setError('Upload a CSV and choose at least one row first.')
       return
     }
     setError('')
@@ -5183,17 +5520,23 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
                   <div>
                     <label className="crm-label">Group by</label>
                     <select value={segmentMode} onChange={e => {
-                      const nextMode = e.target.value as 'zone' | 'city'
-                      const nextSegment = nextMode === 'zone' ? (availableZones[0] || segment) : (availableCities[0] || segment)
+                      const nextMode = e.target.value as 'all' | 'zone' | 'city'
+                      const nextSegment = nextMode === 'all'
+                        ? ''
+                        : nextMode === 'zone'
+                          ? (availableZones[0] || segment)
+                          : (availableCities[0] || segment)
                       setSegmentMode(nextMode)
                       setSegment(nextSegment)
                       setName(`${selectedMarketConfig.label} ${getCategoryMeta(category)?.label || 'Partner'} Outreach`)
                       setPreview(null)
                     }} className="crm-input mt-1 text-sm">
+                      <option value="all">All selected CSV rows</option>
                       <option value="zone">Area / zone</option>
                       <option value="city">Exact city</option>
                     </select>
                   </div>
+                  {segmentMode !== 'all' && (
                   <div>
                     <label className="crm-label">{segmentMode === 'zone' ? 'Area' : 'City'}</label>
                     <select value={segment} onChange={e => {
@@ -5215,6 +5558,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
                       )}
                     </select>
                   </div>
+                  )}
                 </div>
 
                 <div>
@@ -5469,7 +5813,7 @@ function QueueTab({ contacts, batches, onSelect, onScheduleCampaign }: {
   }
 
   useEffect(() => {
-    void dialer.ensureReady()
+    void dialer.ensureReady({ showError: false })
     // Register the partnership browser dialer once when the queue mounts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -5660,8 +6004,8 @@ function AdminCommandCenter({
   contacts: Contact[]
   batches: Batch[]
   loading: boolean
-  onOpenInbox: () => void
-  onOpenPipeline: () => void
+  onOpenInbox: (market?: PartnershipMarketKey) => void
+  onOpenPipeline: (market?: PartnershipMarketKey) => void
   onLaunchCampaign: (market: PartnershipMarketKey) => void
 }) {
   const marketStats = PARTNERSHIP_MARKET_COMMANDS.map(market => {
@@ -5671,7 +6015,10 @@ function AdminCommandCenter({
     const activePartners = marketContacts.filter(contact => getInboxStatus(contact) === 'active').length
     const meetings = marketContacts.filter(contact => getInboxStatus(contact) === 'appointment' || contact.normalized_stage === 'qualified' || contact.stage === 'qualified').length
     const responded = marketContacts.filter(contact => hasPartnerInbound(contact)).length
+    const unhandledPositive = marketContacts.filter(isUnhandledPositiveReply).length
     const noResponse = marketContacts.filter(contact => hasNoPartnerResponse(contact)).length
+    const referrals = marketContacts.reduce((sum, contact) => sum + (contact.partner_referral_count || contact.referred_lead_count || 0), 0)
+    const bookedRevenueCents = marketContacts.reduce((sum, contact) => sum + (contact.partner_booked_revenue_cents || 0), 0)
     const sentToday = marketBatches.reduce((sum, batch) => sum + (batch.sms_sent_today || 0), 0)
     const pendingToday = marketBatches.reduce((sum, batch) => sum + (batch.sms_pending_today || 0), 0)
     const queued = marketBatches.reduce((sum, batch) => sum + (batch.sms_pending_total || 0), 0)
@@ -5692,7 +6039,10 @@ function AdminCommandCenter({
       activePartners,
       meetings,
       responded,
+      unhandledPositive,
       noResponse,
+      referrals,
+      bookedRevenueCents,
       sentToday,
       pendingToday,
       queued,
@@ -5706,10 +6056,13 @@ function AdminCommandCenter({
   const totals = marketStats.reduce((acc, item) => ({
     contacts: acc.contacts + item.contacts,
     needsReply: acc.needsReply + item.needsReply,
+    unhandledPositive: acc.unhandledPositive + item.unhandledPositive,
     sentToday: acc.sentToday + item.sentToday,
     queued: acc.queued + item.queued,
     activePartners: acc.activePartners + item.activePartners,
-  }), { contacts: 0, needsReply: 0, sentToday: 0, queued: 0, activePartners: 0 })
+    referrals: acc.referrals + item.referrals,
+    bookedRevenueCents: acc.bookedRevenueCents + item.bookedRevenueCents,
+  }), { contacts: 0, needsReply: 0, unhandledPositive: 0, sentToday: 0, queued: 0, activePartners: 0, referrals: 0, bookedRevenueCents: 0 })
 
   return (
     <div className="space-y-6">
@@ -5723,8 +6076,8 @@ function AdminCommandCenter({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button onClick={onOpenInbox} className="crm-button text-sm">Open inbox</button>
-            <button onClick={onOpenPipeline} className="crm-button text-sm">Pipeline</button>
+            <button onClick={() => onOpenInbox()} className="crm-button text-sm">Open inbox</button>
+            <button onClick={() => onOpenPipeline()} className="crm-button text-sm">Pipeline</button>
             <button onClick={() => onLaunchCampaign('windsor')} className="crm-button-dark text-sm">Launch outreach</button>
           </div>
         </div>
@@ -5751,6 +6104,21 @@ function AdminCommandCenter({
             <div className="mt-1 text-xl font-semibold text-teal-800">{loading ? '-' : totals.activePartners}</div>
           </div>
         </div>
+
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <button onClick={() => onOpenInbox()} className="rounded-[12px] border border-rose-200 bg-rose-50 p-3 text-left transition hover:bg-rose-100">
+            <div className="text-[10px] font-bold uppercase text-rose-700">Positive replies not handled</div>
+            <div className="mt-1 text-2xl font-semibold text-rose-800">{loading ? '-' : totals.unhandledPositive}</div>
+          </button>
+          <div className="rounded-[12px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
+            <div className="text-[10px] font-bold uppercase text-[var(--app-muted)]">Partner referrals</div>
+            <div className="mt-1 text-2xl font-semibold text-[var(--app-ink)]">{loading ? '-' : totals.referrals}</div>
+          </div>
+          <div className="rounded-[12px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
+            <div className="text-[10px] font-bold uppercase text-[var(--app-muted)]">Booked partner revenue</div>
+            <div className="mt-1 text-2xl font-semibold text-[var(--app-ink)]">{loading ? '-' : formatCadFromCents(totals.bookedRevenueCents)}</div>
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -5762,6 +6130,9 @@ function AdminCommandCenter({
                   <h3 className="text-lg font-semibold text-[var(--app-ink)]">{item.market.label}</h3>
                   {item.needsReply > 0 && (
                     <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">{item.needsReply} need reply</span>
+                  )}
+                  {item.unhandledPositive > 0 && (
+                    <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700">{item.unhandledPositive} unassigned positive</span>
                   )}
                 </div>
                 <div className="mt-1 text-xs text-[var(--app-muted)]">
@@ -5798,6 +6169,14 @@ function AdminCommandCenter({
                 <div className="text-[10px] font-bold uppercase text-[var(--app-muted)]">Campaigns</div>
                 <div className="mt-1 text-lg font-semibold text-[var(--app-ink)]">{item.activeCampaigns || item.batches}</div>
               </div>
+              <div className="rounded-[10px] bg-[var(--app-bg)] p-3">
+                <div className="text-[10px] font-bold uppercase text-[var(--app-muted)]">Referrals</div>
+                <div className="mt-1 text-lg font-semibold text-[var(--app-ink)]">{item.referrals}</div>
+              </div>
+              <div className="rounded-[10px] bg-[var(--app-bg)] p-3">
+                <div className="text-[10px] font-bold uppercase text-[var(--app-muted)]">Revenue</div>
+                <div className="mt-1 text-lg font-semibold text-[var(--app-ink)]">{formatCadFromCents(item.bookedRevenueCents)}</div>
+              </div>
             </div>
 
             <div className="mt-4 rounded-[12px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
@@ -5815,8 +6194,8 @@ function AdminCommandCenter({
 
             <div className="mt-4 flex flex-wrap gap-2">
               <button onClick={() => onLaunchCampaign(item.market.id)} className="crm-button-dark text-sm">Launch {item.market.label}</button>
-              <button onClick={onOpenInbox} className="crm-button text-sm">View inbox</button>
-              <button onClick={onOpenPipeline} className="crm-button text-sm">View pipeline</button>
+              <button onClick={() => onOpenInbox(item.market.id)} className="crm-button text-sm">View inbox</button>
+              <button onClick={() => onOpenPipeline(item.market.id)} className="crm-button text-sm">View pipeline</button>
             </div>
           </div>
         ))}
@@ -5884,6 +6263,16 @@ function PartnershipEngineInner() {
   function handleTabChange(t: Tab) {
     setTab(t)
     router.replace(`/marketing/partners?tab=${t}`, { scroll: false })
+  }
+
+  function handleOpenInbox(market?: PartnershipMarketKey) {
+    setTab('phone')
+    router.replace(`/marketing/partners?tab=phone${market ? `&market=${market}` : ''}`, { scroll: false })
+  }
+
+  function handleOpenPipeline(market?: PartnershipMarketKey) {
+    setTab('pipeline')
+    router.replace(`/marketing/partners?tab=pipeline${market ? `&market=${market}` : ''}`, { scroll: false })
   }
 
   function handleOpenThread(contact: Contact) {
@@ -5975,8 +6364,8 @@ function PartnershipEngineInner() {
             contacts={contacts}
             batches={batches}
             loading={batchesLoading || contactsLoading}
-            onOpenInbox={() => handleTabChange('phone')}
-            onOpenPipeline={() => handleTabChange('pipeline')}
+            onOpenInbox={handleOpenInbox}
+            onOpenPipeline={handleOpenPipeline}
             onLaunchCampaign={market => setScheduledSmsOpen({ market })}
           />
         )}
@@ -5992,7 +6381,14 @@ function PartnershipEngineInner() {
           <ListsTab contacts={contacts} onSelectContact={setSelectedContact} />
         )}
         {tab === 'pipeline' && (
-          <PipelineTab contacts={contacts} onSelect={setSelectedContact} onStageChange={handlePipelineStageChange} />
+          <PipelineTab
+            contacts={contacts.filter(contact => {
+              const market = searchParams.get('market') as PartnershipMarketKey | null
+              return !market || marketForContact(contact) === market
+            })}
+            onSelect={setSelectedContact}
+            onStageChange={handlePipelineStageChange}
+          />
         )}
         {(tab === 'phone' || tab === 'replies') && (
           <PhoneTab contacts={contacts} batches={batches} lists={lists} onSelectContact={setSelectedContact} onContactUpdated={handleContactUpdated} onContactDeleted={handleContactDeleted} />

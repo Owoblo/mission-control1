@@ -1,8 +1,21 @@
-import { NextResponse } from 'next/server'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
+import { PARTNERSHIP_LINES, isPartnershipSenderNumber, normalizePartnershipCityKey } from '@/lib/partnership-lines'
 
 export const dynamic = 'force-dynamic'
+
+function partnershipLineForNumber(value?: string | null) {
+  const normalized = String(value || '').replace(/\D/g, '')
+  const e164 = normalized.length === 10 ? `+1${normalized}` : normalized.length === 11 && normalized.startsWith('1') ? `+${normalized}` : value || ''
+  return PARTNERSHIP_LINES.find(line => line.number === e164) || null
+}
+
+function contactMatchesLine(contact: { city?: string | null }, dialedNumber?: string | null) {
+  const line = partnershipLineForNumber(dialedNumber)
+  if (!line) return true
+  const cityKey = normalizePartnershipCityKey(contact.city)
+  return line.cityKeys.some(city => normalizePartnershipCityKey(city) === cityKey)
+}
 
 export async function POST(request: Request) {
   const formData = await request.formData()
@@ -16,9 +29,10 @@ export async function POST(request: Request) {
   const now = new Date().toISOString()
   const isOutbound = direction === 'outbound-api' || direction === 'outbound-dial'
   const contactPhone = isOutbound ? to : from
+  const partnershipNumber = isOutbound ? from : to
 
   if (!contactPhone || callStatus === 'initiated' || callStatus === 'ringing') {
-    return new Response('', { status: 204 })
+    return new Response(null, { status: 204 })
   }
 
   const { url, headers } = requireSupabaseEnv()
@@ -26,12 +40,13 @@ export async function POST(request: Request) {
   // Find the contact by phone
   const digits = contactPhone.replace(/\D/g, '').replace(/^1/, '')
   const contactRes = await fetch(
-    `${url}/rest/v1/market_contacts?phone=ilike.*${digits}&select=id,name,stage,sequence_paused&limit=1`,
+    `${url}/rest/v1/market_contacts?phone=ilike.*${digits}&select=id,name,city,stage,sequence_paused&limit=20`,
     { headers, cache: 'no-store' }
   )
-  const [contact] = (contactRes.ok ? await contactRes.json() : []) as Array<{ id: string; name: string; stage: string; sequence_paused: boolean }>
+  const contacts = (contactRes.ok ? await contactRes.json() : []) as Array<{ id: string; name: string; city: string | null; stage: string; sequence_paused: boolean }>
+  const contact = contacts.find(item => contactMatchesLine(item, partnershipNumber)) || (isPartnershipSenderNumber(partnershipNumber) ? null : contacts[0])
 
-  if (!contact) return new Response('', { status: 204 })
+  if (!contact) return new Response(null, { status: 204 })
 
   const durationSec = parseInt(callDuration, 10)
   const connected = callStatus === 'completed' && durationSec > 5
@@ -72,5 +87,5 @@ export async function POST(request: Request) {
     }).catch(() => {})
   }
 
-  return new Response('', { status: 204 })
+  return new Response(null, { status: 204 })
 }

@@ -36,7 +36,16 @@ function AddressAutocompleteInput({ value, placeholder, onSelect }: {
   const [fetching, setFetching] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  useEffect(() => { setRaw(value) }, [value])
+  const focusedRef = useRef(false)
+  const latestQueryRef = useRef('')
+  useEffect(() => {
+    if (!focusedRef.current) setRaw(value)
+  }, [value])
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [])
   useEffect(() => {
     function h(e: MouseEvent) { if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false) }
     document.addEventListener('mousedown', h)
@@ -45,6 +54,7 @@ function AddressAutocompleteInput({ value, placeholder, onSelect }: {
   function handleChange(val: string) {
     setRaw(val)
     onSelect(val)
+    latestQueryRef.current = val
     if (debounceRef.current) clearTimeout(debounceRef.current)
     if (val.length < 4) { setSuggestions([]); setOpen(false); return }
     debounceRef.current = setTimeout(async () => {
@@ -52,10 +62,15 @@ function AddressAutocompleteInput({ value, placeholder, onSelect }: {
       try {
         const res = await fetch(`/api/sales/address-suggest?q=${encodeURIComponent(val)}`, { credentials: 'include' })
         const data = (await res.json()) as { suggestions?: Array<{ label: string; city?: string; placeType?: string; placeId?: string }> }
+        if (latestQueryRef.current !== val) return
         const list = data.suggestions || []
         setSuggestions(list)
         if (list.length > 0) setOpen(true)
-      } catch { /* ignore */ } finally { setFetching(false) }
+      } catch {
+        if (latestQueryRef.current === val) setSuggestions([])
+      } finally {
+        if (latestQueryRef.current === val) setFetching(false)
+      }
     }, 350)
   }
   function select(s: { label: string; city?: string; placeType?: string; placeId?: string }) {
@@ -63,8 +78,15 @@ function AddressAutocompleteInput({ value, placeholder, onSelect }: {
   }
   return (
     <div ref={containerRef} className="relative">
-      <input value={raw} onChange={e => handleChange(e.target.value)} onFocus={() => suggestions.length > 0 && setOpen(true)}
-        onBlur={() => { if (!open) onSelect(raw) }}
+      <input value={raw} onChange={e => handleChange(e.target.value)}
+        onFocus={() => {
+          focusedRef.current = true
+          if (suggestions.length > 0) setOpen(true)
+        }}
+        onBlur={() => {
+          focusedRef.current = false
+          onSelect(raw)
+        }}
         className="w-full rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--app-accent)] focus:ring-1 focus:ring-[var(--app-accent)]"
         placeholder={placeholder} autoComplete="off" />
       {fetching && <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 block h-3 w-3 animate-spin rounded-full border-2 border-[var(--app-accent)] border-t-transparent" />}
@@ -118,6 +140,7 @@ type QuoteWorkspaceSaveOptions = {
   moveDescription?: string
   internalNotes?: string
   conditionalClause?: string
+  quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'
 }
 
 type QuoteWorkspaceSendOptions = QuoteWorkspaceSaveOptions & {
@@ -1109,21 +1132,23 @@ export function EstimateDraftModal({
       const hrs = data.originToDestination?.driveHours  ?? data.driveHours  ?? 0
       if (!km && !hrs) return  // API returned zeros — don't overwrite with bad data
       setLegRoutes(prev => ({ ...prev, [id]: { distanceKm: km, driveHours: hrs } }))
-      const withRoute = currentLegs.map(l => l.id === id ? {
-        ...l,
-        distanceKm: km,
-        driveHours: hrs,
-        routeCategory: data.category,
-        pricingStatus: data.pricingStatus,
-        billableDistanceKm: data.billableDistanceKm,
-        operationalDistanceKm: data.operationalDistanceKm,
-        billableDriveHours: data.billableDriveHours,
-        operationalDriveHours: data.operationalDriveHours,
-        yardToOriginHours: data.yardToOrigin?.driveHours,
-        returnTripHours: data.returnToOrigin?.driveHours,
-      } : l)
-      setLegs(withRoute)
-      onLegsChange?.(withRoute)
+      setLegs(prev => {
+        const withRoute = prev.map(l => l.id === id ? {
+          ...l,
+          distanceKm: km,
+          driveHours: hrs,
+          routeCategory: data.category,
+          pricingStatus: data.pricingStatus,
+          billableDistanceKm: data.billableDistanceKm,
+          operationalDistanceKm: data.operationalDistanceKm,
+          billableDriveHours: data.billableDriveHours,
+          operationalDriveHours: data.operationalDriveHours,
+          yardToOriginHours: data.yardToOrigin?.driveHours,
+          returnTripHours: data.returnToOrigin?.driveHours,
+        } : l)
+        onLegsChange?.(withRoute)
+        return withRoute
+      })
     } catch { /* non-fatal */ }
   }
 
@@ -2252,7 +2277,7 @@ export function EstimateDraftModal({
       setSendGuardOpen(true)
       return
     }
-    await onSaveAndPreview({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined })
+    await onSaveAndPreview({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined, quoteType })
   }
 
   async function handleProvisionalSend() {
@@ -2262,6 +2287,7 @@ export function EstimateDraftModal({
     await onSaveAndPreview({
       provisional: true,
       missingItems,
+      quoteType,
       moveDescription: prependUniqueLine(moveDescription, moveNote),
       internalNotes: prependUniqueLine(internalNotes, internalNote),
     })
@@ -6634,7 +6660,7 @@ export function EstimateDraftModal({
                       </button>
                       <button
                         type="button"
-                        onClick={() => void onSaveDraft()}
+                        onClick={() => void onSaveDraft({ quoteType })}
                         disabled={quoteModalBusy || !quote}
                         className="rounded-[6px] border border-[var(--app-line)] bg-white px-2.5 py-1 text-[10px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)] disabled:opacity-50"
                       >
@@ -6683,7 +6709,7 @@ export function EstimateDraftModal({
                 <button onClick={() => void handlePreviewSend()} disabled={quoteModalBusy || routeBusy || !quote || (conjointInventoryPending && !marginGateAck) || (!conjointInventoryPending && liveMarginSummary !== null && liveMarginSummary.liveMargin < 50 && liveMarginSummary.actualRevenue > 0 && !marginGateAck)} className="w-full justify-center rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
                   {routeBusy ? 'Calculating route…' : quoteModalBusy ? 'Saving...' : 'Preview & Send →'}
                 </button>
-                <button onClick={() => void onSaveDraft({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined })} disabled={quoteModalBusy || !quote} className="crm-button-dark w-full justify-center disabled:opacity-60">
+                <button onClick={() => void onSaveDraft({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined, quoteType })} disabled={quoteModalBusy || !quote} className="crm-button-dark w-full justify-center disabled:opacity-60">
                   Save Draft
                 </button>
 

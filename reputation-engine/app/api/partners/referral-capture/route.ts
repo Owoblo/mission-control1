@@ -15,11 +15,18 @@ const corsHeaders = {
 
 const MARKET_BRANCH: Record<string, SalesBranch> = {
   windsor: 'windsor',
+  chatham: 'windsor',
+  chatham_kent: 'windsor',
   london: 'london',
+  sarnia: 'london',
+  woodstock: 'london',
   waterloo: 'waterloo',
   kitchener: 'waterloo',
   guelph: 'waterloo',
+  cambridge: 'waterloo',
   kw: 'waterloo',
+  kwg: 'waterloo',
+  wkg: 'waterloo',
   ottawa: 'ottawa',
 }
 
@@ -213,6 +220,77 @@ export async function POST(request: Request) {
     headers: { ...headers, Prefer: 'return=minimal' },
     body: JSON.stringify({ id: leadId, data: leadData }),
   }).catch(() => {})
+
+  void (async () => {
+    const partnerMatchRes = await fetch(
+      `${url}/rest/v1/market_contacts?select=id,partner_company_id,affiliate_partner_id,tracking_code,linked_partner_id&or=(tracking_code.eq.${encodeURIComponent(partnerCode)},affiliate_partner_id.eq.${encodeURIComponent(partnerCode)},linked_partner_id.eq.${encodeURIComponent(partnerCode)})&limit=1`,
+      { headers, cache: 'no-store' }
+    ).catch(() => null)
+    const [partnerContact] = partnerMatchRes?.ok ? await partnerMatchRes.json() as Array<{
+      id: string
+      partner_company_id: string | null
+      affiliate_partner_id: string | null
+      tracking_code: string | null
+      linked_partner_id: string | null
+    }> : []
+
+    const referralRes = await fetch(`${url}/rest/v1/partner_referrals`, {
+      method: 'POST',
+      headers: { ...headers, Prefer: 'return=representation' },
+      body: JSON.stringify({
+        contact_id: partnerContact?.id || null,
+        company_id: partnerContact?.partner_company_id || null,
+        affiliate_partner_id: partnerContact?.affiliate_partner_id || partnerContact?.linked_partner_id || null,
+        partner_code: partnerCode,
+        customer_name: customerName || null,
+        customer_phone: customerPhone || null,
+        customer_email: customerEmail || null,
+        job_city: market || branch,
+        move_date: moveDate || null,
+        inbound_lead_id: inboundId,
+        crm_lead_id: leadId,
+        job_status: 'new',
+        commission_status: 'rule_required',
+        source: 'partner_referral_package',
+        proof_notes: message,
+      }),
+    }).catch(() => null)
+
+    const [referral] = referralRes?.ok ? await referralRes.json() as Array<{ id: string }> : []
+    if (partnerContact?.id) {
+      const countRes = await fetch(
+        `${url}/rest/v1/market_contacts?id=eq.${encodeURIComponent(partnerContact.id)}&select=referred_lead_count&limit=1`,
+        { headers, cache: 'no-store' }
+      ).catch(() => null)
+      const [countRow] = countRes?.ok ? await countRes.json() as Array<{ referred_lead_count: number | null }> : []
+      await fetch(`${url}/rest/v1/market_contacts?id=eq.${encodeURIComponent(partnerContact.id)}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ referred_lead_count: (countRow?.referred_lead_count || 0) + 1 }),
+      }).catch(() => {})
+    }
+    await fetch(`${url}/rest/v1/partner_activity_logs`, {
+      method: 'POST',
+      headers: { ...headers, Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        contact_id: partnerContact?.id || null,
+        company_id: partnerContact?.partner_company_id || null,
+        referral_id: referral?.id || null,
+        action: 'referral.created',
+        next_value: {
+          partnerCode,
+          inboundId,
+          leadId,
+          customerName,
+          customerPhone,
+          customerEmail,
+          market,
+          branch,
+        },
+        metadata: { source: 'partner_referral_capture' },
+      }),
+    }).catch(() => {})
+  })().catch(() => {})
 
   void sendRepAlertEmail(
     `New partner referral: ${customerName || customerPhone || customerEmail || 'New lead'} from ${partnerName}`,

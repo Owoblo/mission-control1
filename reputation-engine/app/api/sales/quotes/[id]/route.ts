@@ -4,7 +4,7 @@ import { getAcceptedQuoteLockedFieldChanges, ACCEPTED_QUOTE_LOCKED_KEYS, recordQ
 import { canAccessSalesWorkspace, canReviseExistingQuote, validateQuotePricingPermissions } from '@/lib/server/sales-permissions'
 import { scheduleQuoteExpiryFollowup, scheduleQuoteFollowup, scheduleQuoteViewedFollowup } from '@/lib/server/sales-automation'
 import { getSessionUser } from '@/lib/server/session'
-import { deleteSalesQuote, getSalesClient, getSalesLead, getSalesQuote, listFollowUpLogs, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
+import { deleteSalesQuote, getSalesClient, getSalesLead, getSalesQuote, listFollowUpLogs, listFollowUpLogsForLead, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
 import { sendRepAlertEmail, quoteViewedEmail, quoteAcceptedEmail } from '@/lib/server/internal-notifications'
 import type { QuoteChangeEntry } from '@/lib/types'
 
@@ -20,11 +20,13 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
       return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
     }
 
-    const [lead, client, followUps] = await Promise.all([
+    const [lead, client] = await Promise.all([
       quote.leadId ? getSalesLead(quote.leadId) : Promise.resolve(null),
       getSalesClient(quote.clientId),
-      listFollowUpLogs(),
     ])
+    const followUps = quote.leadId
+      ? await listFollowUpLogsForLead(quote.leadId, [quote.id])
+      : await listFollowUpLogs()
 
     return NextResponse.json({
       quote,

@@ -18,6 +18,7 @@ import {
   findTwilioRecordingForCall,
   normalizeTwilioRecordingSid,
 } from '@/lib/server/twilio-recordings'
+import { archiveTwilioRecording } from '@/lib/server/recording-archive'
 import { uid } from '@/lib/sales'
 
 export async function POST(request: Request) {
@@ -91,13 +92,42 @@ export async function POST(request: Request) {
       }, { status: 404 })
     }
 
-    const recordingUrl = recording.recordingUrl
+    let archivedRecording: Awaited<ReturnType<typeof archiveTwilioRecording>> = null
+    try {
+      archivedRecording = await archiveTwilioRecording({
+        accountSid,
+        authToken,
+        callSid: requestedCallSid || recording.callSid || '',
+        recordingUrl: recording.recordingUrl,
+        recordingSid: recording.recordingSid || storedRecordingSid,
+        durationSeconds: recording.durationSeconds,
+        leadId: resolvedLeadId,
+        callLogId: existingLog?.id || mapping?.callLogId,
+        phoneNumber: existingLog?.phone || lead?.phone,
+        city: lead?.branch || lead?.originCity,
+        createdAt: existingLog?.date,
+      })
+    } catch (error) {
+      console.error('[fetch-recording] R2 archive failed; preserving Twilio fallback', {
+        callSid: requestedCallSid,
+        recordingSid: recording.recordingSid || storedRecordingSid,
+        message: error instanceof Error ? error.message : String(error),
+      })
+    }
+
+    const recordingUrl = archivedRecording?.recordingUrl || recording.recordingUrl
     const effectiveRecordingSid = recording.recordingSid || storedRecordingSid || undefined
     const effectiveCallSid = requestedCallSid || recording.callSid || ''
     const recordingUpdate = {
       recordingUrl,
       recordingSid: effectiveRecordingSid,
       recordingDuration: recording.durationSeconds,
+      recordingStatus: archivedRecording ? 'verified' : undefined,
+      recordingSize: archivedRecording?.sizeBytes,
+      recordingContentType: archivedRecording?.contentType,
+      storageProvider: archivedRecording?.storageProvider,
+      cloudflareObjectKey: archivedRecording?.objectKey,
+      cloudflareUrl: archivedRecording?.recordingUrl,
       source: 'manual',
     } as any
 

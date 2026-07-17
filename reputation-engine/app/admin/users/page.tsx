@@ -261,9 +261,9 @@ export default function AdminUsersPage() {
                 </select>
               </label>
 
-              {(form.role === 'operations_lead' || form.role === 'crew') && (
+              {(form.role === 'partnership_manager' || form.role === 'operations_lead' || form.role === 'crew') && (
                 <label className="block">
-                  <span className="crm-label">Branch <span className="font-normal text-slate-400">(which location this person manages)</span></span>
+                  <span className="crm-label">Branch <span className="font-normal text-slate-400">(which market this person manages)</span></span>
                   <select
                     className="crm-input mt-1"
                     value={form.branch}

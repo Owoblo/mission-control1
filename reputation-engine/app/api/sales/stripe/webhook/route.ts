@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { sendDepositReceipt } from '@/lib/server/deposit-receipts'
+import { buildPaymentRecord } from '@/lib/payment-records'
 import { scheduleMoveReminder } from '@/lib/server/sales-automation'
-import { readEnv } from '@/lib/server/runtime'
+import { getAppBaseUrl, readEnv } from '@/lib/server/runtime'
+import { getReceiptBrand } from '@/lib/receipt-brand'
 import { getSalesLead, getSalesQuote, saveSalesLead, saveSalesQuote, saveFollowUpLog } from '@/lib/server/sales-repository'
 import { sendRepAlertEmail } from '@/lib/server/internal-notifications'
 import { sendSalesMessage } from '@/lib/server/sales-messaging'
@@ -77,6 +79,9 @@ export async function POST(request: Request) {
         // Update the quote with deposit payment info
         const quote = await getSalesQuote(quoteId)
         const receiptAlreadyRecorded = quote?.depositStripeSessionId === session.id && !!quote.depositPaidAt
+        const paymentRecord = quote && !receiptAlreadyRecorded
+          ? buildPaymentRecord({ quote, amount: actualDepositPaid ?? quote.deposit, kind: 'deposit', method: 'credit_card', paidAt: now, reference: typeof session.payment_intent === 'string' ? session.payment_intent : session.id, recordedBy: 'Stripe Checkout' })
+          : null
         if (quote) {
           await saveSalesQuote({
             ...quote,
@@ -87,6 +92,7 @@ export async function POST(request: Request) {
             depositStripePaymentIntentId: typeof session.payment_intent === 'string' ? session.payment_intent : undefined,
             depositStripeCustomerId: customerId,
             depositStripePaymentMethodId: paymentMethodId,
+            paymentRecords: paymentRecord ? [...(quote.paymentRecords || []), paymentRecord] : quote.paymentRecords,
           })
         }
 
@@ -179,6 +185,11 @@ export async function POST(request: Request) {
                 ),
                 totalAmount: quote.total,
                 paymentMethod: 'Credit Card',
+                receiptNumber: paymentRecord?.receiptNumber,
+                receiptUrl: paymentRecord ? `${getAppBaseUrl('https://go.quote2move.com')}/receipt?id=${encodeURIComponent(quote.id)}&token=${encodeURIComponent(paymentRecord.publicToken)}` : undefined,
+                paidAt: paymentRecord?.paidAt,
+                reference: paymentRecord?.reference,
+                brand: getReceiptBrand(lead, quote),
               }).catch(() => null)
             }
           }

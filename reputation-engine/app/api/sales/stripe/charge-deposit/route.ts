@@ -6,6 +6,7 @@ import { readEnv } from '@/lib/server/runtime'
 import { getSalesLead, getSalesQuote, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
 import { sendRepAlertEmail } from '@/lib/server/internal-notifications'
+import { buildPaymentRecord } from '@/lib/payment-records'
 
 export async function POST(request: Request) {
   const session = await getSessionUser()
@@ -82,6 +83,7 @@ export async function POST(request: Request) {
     }
 
     const now = new Date().toISOString()
+    const paymentRecord = buildPaymentRecord({ quote, lead, amount: chargeAmount, kind: 'deposit', method: 'credit_card', paidAt: now, reference: pi.id, cardLast4, recordedBy: session?.name, recordedByUserId: session?.userId })
     const updatedQuote = await saveSalesQuote({
       ...quote,
       depositPaidAt: now,
@@ -92,6 +94,7 @@ export async function POST(request: Request) {
       depositStripePaymentMethodId: paymentMethodId,
       depositStripeCardBrand: cardBrand || quote.depositStripeCardBrand,
       depositStripeCardLast4: cardLast4 || quote.depositStripeCardLast4,
+      paymentRecords: [...(quote.paymentRecords || []), paymentRecord],
     })
 
     const updatedLead = await saveSalesLead({

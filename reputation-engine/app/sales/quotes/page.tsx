@@ -8,7 +8,8 @@ import type { CRMLead, CRMQuote } from '@/lib/types'
 
 function daysUntilExpiry(quote: CRMQuote): number | null {
   if (!quote.createdAt) return null
-  const base = new Date(`${quote.createdAt}T12:00:00`)
+  const base = new Date(quote.createdAt.length === 10 ? `${quote.createdAt}T12:00:00` : quote.createdAt)
+  if (Number.isNaN(base.getTime())) return null
   base.setDate(base.getDate() + (quote.validDays || 30))
   const diff = base.getTime() - new Date().setHours(12, 0, 0, 0)
   return Math.ceil(diff / 86400000)

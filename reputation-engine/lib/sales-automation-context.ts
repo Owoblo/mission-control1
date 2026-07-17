@@ -1,5 +1,5 @@
 import { deriveInventoryMetrics } from './sales'
-import { hasCompleteMoveAddress } from './sales-automation-qualification'
+import { hasCanadianPostalCode, hasCompleteMoveAddress, hasStreetType } from './sales-automation-qualification'
 import type { CRMLead, InventoryItem } from './types'
 
 const ADDRESS_SPLIT_RE = /\s+(?:to|->|→|drop\s*off\s*(?:is|:)?|dropoff\s*(?:is|:)?)\s+/i
@@ -22,7 +22,7 @@ function trimAddressCandidate(value: string) {
 
 function firstCompleteAddress(value?: string | null) {
   const text = trimAddressCandidate(cleanLine(value))
-  if (!text || !/\d{1,6}/.test(text) || !ADDRESS_HINT_RE.test(text)) return ''
+  if (!text || !/\d{1,6}/.test(text) || (!hasStreetType(text) && !hasCanadianPostalCode(text) && !ADDRESS_HINT_RE.test(text))) return ''
   if (!hasCompleteMoveAddress(text)) return ''
   return text
 }
@@ -117,7 +117,14 @@ export function resolveInboundSalesContext(lead: CRMLead, inboundMessage?: strin
   const message = cleanLine(inboundMessage)
   if (!message) return lead
 
-  const route = extractRouteAddresses(message)
+  let route = extractRouteAddresses(message)
+  if (!route.originAddress && !route.destAddress) {
+    const singleAddress = firstCompleteAddress(message)
+    if (singleAddress) {
+      if (lead.originAddress && !hasCompleteMoveAddress(lead.originAddress)) route = { originAddress: singleAddress }
+      else if (lead.destAddress && !hasCompleteMoveAddress(lead.destAddress)) route = { destAddress: singleAddress }
+    }
+  }
   const parsedInventory = extractCustomerInventoryItems(message)
   const nextInventory = mergeInventory(lead.inventory, parsedInventory)
   const inventoryMetrics = parsedInventory.length ? deriveInventoryMetrics(nextInventory) : null

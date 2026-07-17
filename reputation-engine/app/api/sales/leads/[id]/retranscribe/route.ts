@@ -19,15 +19,16 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const recordingUrl  = (entry as any).recordingUrl as string | undefined
     const recordingSid  = normalizeTwilioRecordingSid((entry as any).recordingSid)
     const isTwilioUrl   = recordingUrl?.startsWith('https://api.twilio.com/')
+    const isArchivedUrl = recordingUrl?.startsWith('/api/sales/dialer/recording?key=')
     const isDataUrl     = recordingUrl?.startsWith('data:audio/')
 
-    if (!isTwilioUrl && !isDataUrl && !recordingSid) {
+    if (!isTwilioUrl && !isArchivedUrl && !isDataUrl && !recordingSid) {
       return NextResponse.json({ error: 'No recording attached to this call log entry' }, { status: 400 })
     }
 
     let transcript: string | null = null
 
-    if (isTwilioUrl || recordingSid) {
+    if (isTwilioUrl || isArchivedUrl || recordingSid) {
       const { accountSid, authToken } = getTwilioCredentials()
       transcript = await transcribeFromUrl(recordingUrl || '', accountSid, authToken, recordingSid || null)
     } else if (isDataUrl) {
@@ -42,7 +43,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const callDirection = (entry as any).direction || 'inbound'
     let aiSummary: any = null
     try {
-      if (isTwilioUrl || recordingSid) {
+      if (isTwilioUrl || isArchivedUrl || recordingSid) {
         aiSummary = await summarizePhoneCall(lead, transcript, callDirection)
       } else {
         aiSummary = await summarizeConsultation(lead, transcript, (entry as any).notes)
@@ -58,7 +59,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       }
     )
 
-    const nextLead = aiSummary && (isTwilioUrl || recordingSid)
+    const nextLead = aiSummary && (isTwilioUrl || isArchivedUrl || recordingSid)
       ? applyPhoneCallSummaryToLead({ ...lead, callLogs: updatedCallLogs }, aiSummary)
       : { ...lead, callLogs: updatedCallLogs }
 

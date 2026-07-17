@@ -1,4 +1,5 @@
 import { readEnv } from '@/lib/server/runtime'
+import type { ReceiptBrand } from '@/lib/receipt-brand'
 
 export type DepositReceiptPayload = {
   toEmail: string
@@ -13,6 +14,12 @@ export type DepositReceiptPayload = {
   totalAmount: number
   paymentMethod: string
   cardLast4?: string
+  receiptNumber?: string
+  receiptUrl?: string
+  paidAt?: string
+  note?: string
+  reference?: string
+  brand?: ReceiptBrand
 }
 
 function formatMoney(n: number) {
@@ -41,6 +48,16 @@ export function buildDepositReceiptEmail(payload: DepositReceiptPayload) {
     totalAmount,
     paymentMethod,
     cardLast4,
+    receiptNumber,
+    receiptUrl,
+    paidAt,
+    note,
+    reference,
+    brand = {
+      name: 'Saturn Star', fullName: 'Saturn Star Movers', tagline: 'Moving with care, from city to city.',
+      phone: '226-773-2993', phoneHref: 'tel:+12267732993', email: 'info@starmovers.ca', website: 'starmovers.ca',
+      logoPath: '/brand/saturn-star-horizontal-full-color.png',
+    },
   } = payload
 
   const firstName = (toName || 'there').split(' ')[0]
@@ -69,7 +86,7 @@ export function buildDepositReceiptEmail(payload: DepositReceiptPayload) {
       ? `Your balance is now <strong>paid in full</strong>. If you have any questions, reply to this email or call us at <strong>226-773-2993</strong>.`
       : `The remaining balance of <strong>${formatMoney(balanceAmount)}</strong> is due on move day. If you have any questions, reply to this email or call us at <strong>226-773-2993</strong>.`
 
-  const subject = `Payment Received — Saturn Star Moving (${quoteNumber})`
+  const subject = `Payment receipt ${receiptNumber ? `${receiptNumber} — ` : '— '}${brand.name}`
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -78,25 +95,25 @@ export function buildDepositReceiptEmail(payload: DepositReceiptPayload) {
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Payment Receipt</title>
 </head>
-<body style="margin:0;padding:0;background:#f0f2f5;font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f2f5;padding:32px 16px;">
+<body style="margin:0;padding:0;background:#F7F4ED;font-family:Inter,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#F7F4ED;padding:32px 16px;">
 <tr><td align="center">
 <table width="100%" style="max-width:520px;" cellpadding="0" cellspacing="0">
 
   <tr>
-    <td style="background:#1a2744;border-radius:12px 12px 0 0;padding:32px 36px 28px;">
+    <td style="background:#071421;border-radius:20px 20px 0 0;padding:30px 36px 26px;">
       <table width="100%" cellpadding="0" cellspacing="0">
         <tr>
           <td>
-            <div style="font-size:20px;font-weight:800;color:#ffffff;letter-spacing:-0.3px;">Saturn Star Moving</div>
-            <div style="font-size:12px;color:#94a3b8;margin-top:2px;">starmovers.ca · business@starmovers.ca</div>
+            ${brand.logoPath ? `<img src="${brand.logoPath.startsWith('http') ? brand.logoPath : `https://go.quote2move.com${brand.logoPath}`}" width="220" alt="${brand.fullName}" style="display:block;max-width:220px;height:auto;"/>` : `<div style="font-family:Manrope,Arial,sans-serif;font-size:22px;font-weight:800;color:#ffffff;">${brand.fullName}</div>`}
+            <div style="font-size:12px;color:#CBD5E1;margin-top:8px;">${brand.tagline}</div>
           </td>
           <td align="right">
-            <div style="background:#f5a623;color:#1a2744;font-size:11px;font-weight:700;padding:5px 12px;border-radius:20px;letter-spacing:0.5px;white-space:nowrap;">${badgeLabel}</div>
+            <div style="background:#C99700;color:#071421;font-size:11px;font-weight:800;padding:7px 12px;border-radius:999px;letter-spacing:0.5px;white-space:nowrap;">${badgeLabel}</div>
           </td>
         </tr>
       </table>
-      <div style="height:1px;background:#f5a623;margin-top:20px;opacity:0.6;"></div>
+      <div style="height:1px;background:#C99700;margin-top:22px;"></div>
     </td>
   </tr>
 
@@ -107,7 +124,7 @@ export function buildDepositReceiptEmail(payload: DepositReceiptPayload) {
         ${intro}
       </p>
 
-      <div style="background:#f8fafc;border-radius:10px;padding:20px 22px;margin-bottom:24px;border:1px solid #e2e8f0;">
+      <div style="background:#F7F4ED;border-radius:18px;padding:20px 22px;margin-bottom:24px;border:1px solid #E5E7EB;">
         <div style="font-size:11px;font-weight:700;color:#94a3b8;letter-spacing:1px;margin-bottom:12px;text-transform:uppercase;">Move Details</div>
         <table width="100%" cellpadding="0" cellspacing="0">
           <tr>
@@ -125,7 +142,7 @@ export function buildDepositReceiptEmail(payload: DepositReceiptPayload) {
         </table>
       </div>
 
-      <div style="border-radius:10px;padding:20px 22px;margin-bottom:24px;border:2px solid #1a2744;">
+      <div style="border-radius:18px;padding:20px 22px;margin-bottom:24px;border:1px solid #071421;">
         <div style="font-size:11px;font-weight:700;color:#94a3b8;letter-spacing:1px;margin-bottom:12px;text-transform:uppercase;">Payment Summary</div>
         <table width="100%" cellpadding="0" cellspacing="0">
           <tr>
@@ -151,6 +168,10 @@ export function buildDepositReceiptEmail(payload: DepositReceiptPayload) {
         </table>
       </div>
 
+      ${(receiptNumber || paidAt || reference || note) ? `<div style="background:#F7F4ED;border:1px solid #E5E7EB;border-radius:18px;padding:16px 20px;margin-bottom:22px;font-size:12px;line-height:1.8;color:#667085;">${receiptNumber ? `<strong style="color:#111827;">Receipt:</strong> ${receiptNumber}<br/>` : ''}${paidAt ? `<strong style="color:#111827;">Paid:</strong> ${formatDate(paidAt)}<br/>` : ''}${reference ? `<strong style="color:#111827;">Reference:</strong> ${reference}<br/>` : ''}${note ? `<strong style="color:#111827;">Note:</strong> ${note}` : ''}</div>` : ''}
+
+      ${receiptUrl ? `<p style="margin:0 0 24px;"><a href="${receiptUrl}" style="display:inline-block;background:#C99700;color:#071421;text-decoration:none;padding:14px 20px;border-radius:12px;font-weight:800;">View official receipt</a></p>` : ''}
+
       <p style="margin:0 0 8px;font-size:13px;color:#64748b;line-height:1.6;">
         ${footerCopy}
       </p>
@@ -159,10 +180,9 @@ export function buildDepositReceiptEmail(payload: DepositReceiptPayload) {
   </tr>
 
   <tr>
-    <td style="background:#1a2744;border-radius:0 0 12px 12px;padding:20px 36px;text-align:center;">
+    <td style="background:#071421;border-radius:0 0 20px 20px;padding:22px 36px;text-align:center;">
       <div style="font-size:11px;color:#64748b;line-height:1.8;">
-        Saturn Star Moving · Windsor, ON · 226-773-2993<br/>
-        <a href="https://starmovers.ca" style="color:#f5a623;text-decoration:none;">starmovers.ca</a>
+        ${brand.fullName} · ${brand.phone}${brand.website ? `<br/><a href="https://${brand.website}" style="color:#C99700;text-decoration:none;">${brand.website}</a>` : ''}
       </div>
     </td>
   </tr>
@@ -179,7 +199,7 @@ export function buildDepositReceiptEmail(payload: DepositReceiptPayload) {
       : paymentKind === 'payment'
         ? 'Your payment has been received.'
         : 'Your deposit has been received and your move is confirmed!'
-  const plain = `Hi ${firstName},\n\n${plainIntro}\n\nQuote: ${quoteNumber}\nMove Date: ${moveDateStr}\nRoute: ${routeStr}\n\n${paidLabel}: ${formatMoney(depositAmount)} (${paymentStr})\n${balanceLabel}: ${formatMoney(balanceAmount)}\n\nQuestions? Call us at 226-773-2993 or reply to this email.\n\nThanks,\nSaturn Star Moving Team`
+  const plain = `Hi ${firstName},\n\n${plainIntro}\n\n${receiptNumber ? `Receipt: ${receiptNumber}\n` : ''}Quote: ${quoteNumber}\nMove Date: ${moveDateStr}\nRoute: ${routeStr}\n\n${paidLabel}: ${formatMoney(depositAmount)} (${paymentStr})\n${balanceLabel}: ${formatMoney(balanceAmount)}${reference ? `\nReference: ${reference}` : ''}${note ? `\nNote: ${note}` : ''}${receiptUrl ? `\n\nView official receipt: ${receiptUrl}` : ''}\n\nQuestions? Call us at ${brand.phone} or reply to this email.\n\nThanks,\n${brand.fullName}`
 
   return { subject, html, plain }
 }
@@ -198,12 +218,12 @@ export async function sendDepositReceipt(payload: DepositReceiptPayload) {
       Authorization: `Bearer ${resendKey}`,
     },
     body: JSON.stringify({
-      from: 'Saturn Star Movers <business@starmovers.ca>',
+      from: `${payload.brand?.fullName || 'Saturn Star Movers'} <info@starmovers.ca>`,
       to: [payload.toEmail],
       subject,
       text: plain,
       html,
-      reply_to: 'business@inbound.starmovers.ca',
+      reply_to: payload.brand?.email || 'info@starmovers.ca',
     }),
   })
 

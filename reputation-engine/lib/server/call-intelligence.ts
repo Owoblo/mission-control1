@@ -3,6 +3,8 @@ import type { AISummary, CRMLead, LeadIntelligence, LeadIntelligenceFollowUp, Le
 import { SATURN_STAR_SALES_PROCESS } from '@/lib/server/sales-training'
 import { readEnv } from '@/lib/server/runtime'
 import { downloadTwilioRecording } from '@/lib/server/twilio-recordings'
+import { extractRecordingObjectKey } from '@/lib/server/recording-archive'
+import { getStorageService } from '@/lib/server/storage-service'
 
 function getOpenAIKey() {
   return readEnv('OPENAI_API_KEY')
@@ -103,34 +105,27 @@ export async function transcribeConsultationRecording(recordingDataUrl: string) 
   return payload.text?.trim() || null
 }
 
-export async function transcribeFromUrl(audioUrl: string, accountSid: string, authToken: string, recordingSid?: string | null) {
+export async function transcribeAudioBuffer(buffer: Buffer, contentType: string, filenamePrefix = 'call') {
   const apiKey = getOpenAIKey()
   if (!apiKey) return null
 
-  const recording = await downloadTwilioRecording({
-    accountSid,
-    authToken,
-    recordingUrl: audioUrl,
-    recordingSid,
-  })
-  const buffer = recording.buffer
-  const contentType = recording.contentType.toLowerCase()
+  const normalizedContentType = contentType.toLowerCase()
   const ext =
-    contentType.includes('wav') ? 'wav' :
-    contentType.includes('mpeg') || contentType.includes('mp3') ? 'mp3' :
+    normalizedContentType.includes('wav') ? 'wav' :
+    normalizedContentType.includes('mpeg') || normalizedContentType.includes('mp3') ? 'mp3' :
+    normalizedContentType.includes('webm') ? 'webm' :
     'mp3'
   const response = await fetchWithRetry(() =>
     fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}` },
-      body: buildAudioTranscriptionForm(buffer, `call.${ext}`, recording.contentType),
+      body: buildAudioTranscriptionForm(buffer, `${filenamePrefix}.${ext}`, contentType),
       signal: AbortSignal.timeout(45_000),
     })
   )
 
   if (!response.ok) {
     const detail = await response.text().catch(() => '')
-    // 429 = quota exhausted — surface a clean error so callers can suppress noisy alerts
     if (response.status === 429) {
       const err = new Error(`Transcription quota exceeded — add OpenAI credits to re-enable.`) as Error & { isQuotaError: boolean }
       err.isQuotaError = true
@@ -141,6 +136,25 @@ export async function transcribeFromUrl(audioUrl: string, accountSid: string, au
 
   const payload = (await response.json()) as { text?: string }
   return payload.text?.trim() || null
+}
+
+export async function transcribeFromUrl(audioUrl: string, accountSid: string, authToken: string, recordingSid?: string | null) {
+  const apiKey = getOpenAIKey()
+  if (!apiKey) return null
+
+  const objectKey = extractRecordingObjectKey(audioUrl)
+  if (objectKey) {
+    const recording = await getStorageService().getObject(objectKey)
+    return transcribeAudioBuffer(recording.buffer, recording.contentType, 'call')
+  }
+
+  const recording = await downloadTwilioRecording({
+    accountSid,
+    authToken,
+    recordingUrl: audioUrl,
+    recordingSid,
+  })
+  return transcribeAudioBuffer(recording.buffer, recording.contentType, 'call')
 }
 
 function isMeaninglessTranscript(transcript: string): boolean {

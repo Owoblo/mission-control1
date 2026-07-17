@@ -1,7 +1,7 @@
 /**
  * POST /api/sales/leads/[id]/transcribe-calls
- * Auto-transcribes any call logs that have a recordingUrl but no transcript.
- * Safe to call on every page load — skips already-transcribed entries.
+ * Transcribes call logs that have a recordingUrl but no transcript.
+ * Webhooks handle new recordings; this route is for explicit/manual backfill.
  */
 export const maxDuration = 120
 
@@ -17,10 +17,11 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
 
     const { accountSid, authToken } = getTwilioCredentials()
 
-    // Find all call logs with a Twilio recording URL but no transcript yet
+    // Find all call logs with a recording reference but no transcript yet.
+    // R2-backed recordings use the internal playback endpoint; legacy rows may still use Twilio URLs.
     const pending = (lead.callLogs || []).filter(
       c => c.recordingUrl &&
-        c.recordingUrl.startsWith('https://api.twilio.com/') &&
+        (c.recordingUrl.startsWith('https://api.twilio.com/') || c.recordingUrl.startsWith('/api/sales/dialer/recording?key=')) &&
         !c.transcript
     )
 

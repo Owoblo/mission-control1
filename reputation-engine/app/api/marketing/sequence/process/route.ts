@@ -21,6 +21,8 @@ import {
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 const STALE_JOB_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7
+const STALE_RUNNING_JOB_MS = 1000 * 60 * 15
+const DEFAULT_MAX_ATTEMPTS = 3
 
 const PARTNERSHIP_PHONE = DEFAULT_PARTNERSHIP_FROM_NUMBER
 const PARTNERSHIP_EMAIL = DEFAULT_PARTNERSHIP_EMAIL
@@ -144,6 +146,83 @@ function parseScheduledReplyTemplateKey(value: unknown) {
     touchId,
     fromNumber: decodeSenderFromTemplateKey(senderParts.join(':')) || PARTNERSHIP_PHONE,
   }
+}
+
+async function readError(response: Response) {
+  return await response.text().catch(() => '') || `Request failed with ${response.status}`
+}
+
+function jobAttempts(job: Record<string, unknown>) {
+  return Math.max(0, Number(job.attempts || 0))
+}
+
+function jobMaxAttempts(job: Record<string, unknown>) {
+  return Math.max(1, Number(job.max_attempts || DEFAULT_MAX_ATTEMPTS))
+}
+
+function retryAt(attempts: number) {
+  const delaySeconds = Math.min(15 * 60, Math.max(30, 30 * Math.pow(2, Math.max(0, attempts - 1))))
+  return new Date(Date.now() + delaySeconds * 1000).toISOString()
+}
+
+async function recoverStaleSequenceJobs(url: string, headers: HeadersInit) {
+  const cutoff = new Date(Date.now() - STALE_RUNNING_JOB_MS).toISOString()
+  await fetch(
+    `${url}/rest/v1/sequence_jobs?status=eq.running&locked_at=lt.${encodeURIComponent(cutoff)}`,
+    {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({
+        status: 'pending',
+        locked_at: null,
+        last_error: 'Recovered stale running job after worker timeout',
+      }),
+    }
+  ).catch(() => {})
+}
+
+async function claimSequenceJob(url: string, headers: HeadersInit, job: Record<string, unknown>) {
+  const now = new Date().toISOString()
+  const response = await fetch(
+    `${url}/rest/v1/sequence_jobs?id=eq.${encodeURIComponent(String(job.id))}&status=eq.pending&select=*`,
+    {
+      method: 'PATCH',
+      headers: {
+        ...headers,
+        Prefer: 'return=representation',
+      },
+      body: JSON.stringify({
+        status: 'running',
+        attempts: jobAttempts(job) + 1,
+        locked_at: now,
+        last_error: null,
+      }),
+    }
+  )
+  if (!response.ok) throw new Error(`Failed to claim sequence job: ${await readError(response)}`)
+  const rows = await response.json() as Record<string, unknown>[]
+  return rows[0] || null
+}
+
+async function releaseFailedSequenceJob(
+  url: string,
+  headers: HeadersInit,
+  job: Record<string, unknown>,
+  error: unknown,
+) {
+  const attempts = jobAttempts(job)
+  const failed = attempts >= jobMaxAttempts(job)
+  await fetch(`${url}/rest/v1/sequence_jobs?id=eq.${encodeURIComponent(String(job.id))}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({
+      status: failed ? 'failed' : 'pending',
+      scheduled_at: failed ? job.scheduled_at : retryAt(attempts),
+      locked_at: null,
+      error: error instanceof Error ? error.message : String(error),
+      last_error: error instanceof Error ? error.message : String(error),
+    }),
+  })
 }
 
 function scheduledReplyPayload(touch: Record<string, unknown>) {
@@ -340,6 +419,7 @@ export async function POST(request: Request) {
 
   const { url, headers } = requireSupabaseEnv()
   const now = new Date().toISOString()
+  await recoverStaleSequenceJobs(url, headers)
 
   const jobsRes = await fetch(
     `${url}/rest/v1/sequence_jobs?status=eq.pending&scheduled_at=lte.${encodeURIComponent(now)}&select=*&limit=50&order=scheduled_at.asc`,
@@ -350,8 +430,16 @@ export async function POST(request: Request) {
   const jobs = await jobsRes.json() as Record<string, unknown>[]
   if (jobs.length === 0) return NextResponse.json({ ok: true, processed: 0, skipped: 0 })
 
-  const contactIds = Array.from(new Set(jobs.map(j => j.contact_id as string)))
-  const batchIds = Array.from(new Set(jobs.map(j => j.batch_id as string).filter(Boolean)))
+  const claimedJobs: Record<string, unknown>[] = []
+  for (const job of jobs) {
+    const claimed = await claimSequenceJob(url, headers, job)
+    if (claimed) claimedJobs.push(claimed)
+  }
+
+  if (claimedJobs.length === 0) return NextResponse.json({ ok: true, processed: 0, skipped: 0, raced: jobs.length })
+
+  const contactIds = Array.from(new Set(claimedJobs.map(j => j.contact_id as string)))
+  const batchIds = Array.from(new Set(claimedJobs.map(j => j.batch_id as string).filter(Boolean)))
 
   const [contactsRes, batchesRes] = await Promise.all([
     fetch(`${url}/rest/v1/market_contacts?id=in.(${contactIds.map(id => `"${id}"`).join(',')})&select=*`, { headers, cache: 'no-store' }),
@@ -386,7 +474,7 @@ export async function POST(request: Request) {
   let processed = 0
   let skipped = 0
 
-  for (const job of jobs) {
+  for (const job of claimedJobs) {
     const contact = contactMap.get(job.contact_id as string)
     const batch = batchMap.get(job.batch_id as string) ?? {}
     const scheduledAt = typeof job.scheduled_at === 'string' ? job.scheduled_at : now
@@ -409,10 +497,7 @@ export async function POST(request: Request) {
         if (result === 'processed') processed++
         else skipped++
       } catch (err) {
-        await fetch(`${url}/rest/v1/sequence_jobs?id=eq.${job.id}`, {
-          method: 'PATCH', headers,
-          body: JSON.stringify({ status: 'failed', error: (err as Error).message }),
-        })
+        await releaseFailedSequenceJob(url, headers, job, err)
       }
       continue
     }
@@ -627,14 +712,11 @@ export async function POST(request: Request) {
         skipped++
       }
     } catch (err) {
-      await fetch(`${url}/rest/v1/sequence_jobs?id=eq.${job.id}`, {
-        method: 'PATCH', headers,
-        body: JSON.stringify({ status: 'failed', error: (err as Error).message }),
-      })
+      await releaseFailedSequenceJob(url, headers, job, err)
     }
   }
 
-  return NextResponse.json({ ok: true, processed, skipped, total: jobs.length })
+  return NextResponse.json({ ok: true, processed, skipped, total: claimedJobs.length, raced: jobs.length - claimedJobs.length })
 }
 
 export async function GET(request: Request) {

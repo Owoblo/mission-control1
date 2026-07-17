@@ -252,7 +252,8 @@ export function genQuoteNumber(clientName: string) {
 
 export function validUntil(quote: CRMQuote) {
   if (!quote.createdAt) return '—'
-  const base = new Date(`${quote.createdAt}T12:00:00`)
+  const base = new Date(quote.createdAt.length === 10 ? `${quote.createdAt}T12:00:00` : quote.createdAt)
+  if (Number.isNaN(base.getTime())) return '—'
   base.setDate(base.getDate() + (quote.validDays || 30))
   return formatDate(base.toISOString().slice(0, 10))
 }

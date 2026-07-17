@@ -10,7 +10,7 @@ import { resolveVoiceCallerId } from '@/lib/server/voice-caller-id'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
 import {
   getSalesLead,
-  listFollowUpLogs,
+  listFollowUpLogsForLead,
   saveFollowUpLog,
   saveSalesEmail,
   saveSalesLead,
@@ -375,12 +375,8 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
         const messageLead = lead || (await getSalesLead(input.leadId!))
         if (!messageLead) return
 
-        const allLogs = await listFollowUpLogs()
-        const sameLeadMsgLogs = allLogs.filter(
-          entry =>
-            entry.leadId === input.leadId &&
-            (entry.type === 'sms' || entry.type === 'email') &&
-            entry.notes
+        const sameLeadMsgLogs = (await listFollowUpLogsForLead(input.leadId!)).filter(
+          entry => (entry.type === 'sms' || entry.type === 'email') && entry.notes
         )
 
         const thread = sameLeadMsgLogs

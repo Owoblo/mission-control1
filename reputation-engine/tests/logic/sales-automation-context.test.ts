@@ -36,6 +36,16 @@ test('inbound context resolver splits two customer addresses and overwrites stal
   assert.equal(missing.includes('destination_address'), false)
 })
 
+test('inbound context resolver accepts postal-code-complete address without street suffix', () => {
+  const updated = resolveInboundSalesContext(
+    lead({ originAddress: '29 Alderton', originCity: 'Leamington' }),
+    'It is a HOUSE at 29 Alderton, Leamington, N8H 4L6'
+  )
+
+  assert.equal(updated.originAddress, '29 Alderton, Leamington, N8H 4L6')
+  assert.equal(getAutomationMissingFields(updated).includes('origin_address'), false)
+})
+
 test('inbound context resolver captures packing inventory list from SMS', () => {
   const updated = resolveInboundSalesContext(
     lead({ originAddress: '225 Wyandotte Street West', destAddress: '4755 Walker Road' }),

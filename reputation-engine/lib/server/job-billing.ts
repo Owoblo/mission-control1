@@ -51,11 +51,13 @@ export function getQuotePaidSoFar(quote: CRMQuote, lead?: Pick<CRMLead, 'deposit
     lead?.paymentStatus && lead.paymentStatus !== 'pending' ? Number(lead.depositAmount || 0) : 0
   )
   const balancePaid = Math.max(Number(quote.balancePaidAmount || 0), 0)
+  const recordedPayments = (quote.paymentRecords || []).reduce((sum, payment) => sum + Math.max(0, Number(payment.amount || 0)), 0)
+  const legacyTotal = depositPaid + balancePaid
 
   return {
     depositPaid: roundMoney(depositPaid),
     balancePaid: roundMoney(balancePaid),
-    totalPaid: roundMoney(depositPaid + balancePaid),
+    totalPaid: roundMoney(Math.max(legacyTotal, recordedPayments)),
   }
 }
 

@@ -1,7 +1,7 @@
 /**
  * POST /api/sales/leads/[id]/sync-calls
  * Fetches recent Twilio calls for this lead's phone number and logs any unmapped ones.
- * Called automatically on lead page load — safe to run repeatedly.
+ * Explicit backfill action for missing/legacy call history. New calls should arrive via Twilio webhooks.
  */
 export const maxDuration = 60
 
@@ -16,6 +16,7 @@ import {
 import { isSaturnBranchPhoneNumber, normalizePhone } from '@/lib/sales-phones'
 import { getTwilioCredentials } from '@/lib/server/runtime'
 import { findTwilioRecordingForCall, twilioAuth } from '@/lib/server/twilio-recordings'
+import { archiveTwilioRecording } from '@/lib/server/recording-archive'
 import { uid } from '@/lib/sales'
 function formatDuration(s: number) {
   const m = Math.floor(s / 60)
@@ -94,11 +95,30 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
           if (existingLog && !(existingLog as any).recordingUrl) {
             const recording = await findTwilioRecordingForCall({ accountSid, authToken, callSid: call.sid })
             if (recording) {
-              const recNote = ' Recording available.'
-              await updateLeadCallLogEntry(existing.leadId, existing.callLogId, {
+              const archived = await archiveTwilioRecording({
+                accountSid,
+                authToken,
+                callSid: call.sid,
                 recordingUrl: recording.recordingUrl,
                 recordingSid: recording.recordingSid,
+                durationSeconds: recording.durationSeconds,
+                leadId: existing.leadId,
+                callLogId: existing.callLogId,
+                phoneNumber: existingLog.phone || lead.phone,
+                city: lead.branch || lead.originCity,
+                createdAt: existingLog.date,
+              }).catch(() => null)
+              const recNote = ' Recording available.'
+              await updateLeadCallLogEntry(existing.leadId, existing.callLogId, {
+                recordingUrl: archived?.recordingUrl || recording.recordingUrl,
+                recordingSid: recording.recordingSid,
                 recordingDuration: recording.durationSeconds,
+                recordingStatus: archived ? 'verified' : undefined,
+                recordingSize: archived?.sizeBytes,
+                recordingContentType: archived?.contentType,
+                storageProvider: archived?.storageProvider,
+                cloudflareObjectKey: archived?.objectKey,
+                cloudflareUrl: archived?.recordingUrl,
                 notes: ((existingLog as any).notes || '').endsWith('.')
                   ? ((existingLog as any).notes || '') + recNote
                   : (existingLog as any).notes,
@@ -136,7 +156,19 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
 
       // Fetch recording across direct, parent, and child call legs.
       const recording = await findTwilioRecordingForCall({ accountSid, authToken, callSid: call.sid })
-      const recordingUrl = recording?.recordingUrl
+      const archived = recording ? await archiveTwilioRecording({
+        accountSid,
+        authToken,
+        callSid: call.sid,
+        recordingUrl: recording.recordingUrl,
+        recordingSid: recording.recordingSid,
+        durationSeconds: recording.durationSeconds,
+        leadId: lead.id,
+        phoneNumber: normalizePhone(externalPhone),
+        city: lead.branch || lead.originCity,
+        createdAt: call.start_time,
+      }).catch(() => null) : null
+      const recordingUrl = archived?.recordingUrl || recording?.recordingUrl
 
       const callLogId = uid('cl')
       const dirLabel = isOutbound ? 'Outbound' : 'Inbound'
@@ -155,6 +187,12 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
         recordingUrl,
         recordingSid: recording?.recordingSid,
         recordingDuration: recording?.durationSeconds,
+        recordingStatus: archived ? 'verified' : undefined,
+        recordingSize: archived?.sizeBytes,
+        recordingContentType: archived?.contentType,
+        storageProvider: archived?.storageProvider,
+        cloudflareObjectKey: archived?.objectKey,
+        cloudflareUrl: archived?.recordingUrl,
         source: 'manual' as const,
       }
 

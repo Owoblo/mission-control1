@@ -13,6 +13,7 @@ import type {
 } from './types'
 import type { UserRole } from './auth'
 import type { SalesLeadSearchSnapshot } from './server/sales-repository'
+import type { QuoteSendJob, QuoteSendJobChannel } from './quote-send-jobs'
 import { prepareUploadFile } from './browser-media'
 
 export type DashboardDrilldownMetric =
@@ -301,6 +302,37 @@ export async function sendSalesMessage(payload: {
     body: JSON.stringify(payload),
   })
   return readJson(response)
+}
+
+export async function enqueueQuoteSendJobs(payload: {
+  quoteId: string
+  leadId?: string | null
+  followUpDate?: string | null
+  jobs: Array<{
+    channel: QuoteSendJobChannel
+    recipient: string
+    subject?: string
+    body: string
+    htmlBody?: string
+    notes?: string
+  }>
+}): Promise<{ ok: true; jobs: QuoteSendJob[] }> {
+  const response = await fetch('/api/sales/quote-send-jobs', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  return readJson(response)
+}
+
+export async function fetchQuoteSendJobs(quoteId: string): Promise<QuoteSendJob[]> {
+  const response = await fetch(`/api/sales/quote-send-jobs?quoteId=${encodeURIComponent(quoteId)}`, {
+    cache: 'no-store',
+    credentials: 'include',
+  })
+  const payload = await readJson<{ jobs?: QuoteSendJob[] }>(response)
+  return payload.jobs || []
 }
 
 export async function requestPriceOverrideApproval(payload: {

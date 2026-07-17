@@ -129,7 +129,7 @@ function LogoMark({ size = 32, dark = false, brand = SATURN_STAR_BRAND }: { size
   if (brand.logo === 'dexa') {
     return (
       <span
-        className={`inline-flex shrink-0 items-center justify-center rounded-[10px] font-black tracking-tight ${dark ? 'bg-white text-[#1a2744] shadow-sm' : 'bg-[#1a2744] text-white'}`}
+        className={`inline-flex shrink-0 items-center justify-center rounded-[10px] font-black tracking-tight ${dark ? 'bg-white text-[#071421] shadow-sm' : 'bg-[#071421] text-white'}`}
         style={{ width: size, height: size, fontSize: Math.max(10, Math.round(size * 0.28)) }}
         aria-label={brand.name}
       >
@@ -143,7 +143,7 @@ function LogoMark({ size = 32, dark = false, brand = SATURN_STAR_BRAND }: { size
       style={{ width: size, height: size }}
     >
       <Image
-        src="/saturn-star-logo.png"
+        src="/brand/saturn-star-icon-full-color.png"
         alt="Saturn Star Moving"
         width={size}
         height={size}
@@ -155,7 +155,7 @@ function LogoMark({ size = 32, dark = false, brand = SATURN_STAR_BRAND }: { size
 }
 
 function Stars({ count }: { count: number }) {
-  return <span className="text-[#f5a623]">{'★'.repeat(count)}</span>
+  return <span className="text-[#C99700]">{'★'.repeat(count)}</span>
 }
 
 function expiryDate(quote: PublicQuote): string {
@@ -392,9 +392,9 @@ function depositPct(quote: PublicQuote): number {
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="mb-4 flex items-center gap-3">
-      <div className="h-px flex-1 bg-[#1a2744]/10" />
-      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#1a2744]/40">{children}</div>
-      <div className="h-px flex-1 bg-[#1a2744]/10" />
+      <div className="h-px flex-1 bg-[#071421]/10" />
+      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#071421]/40">{children}</div>
+      <div className="h-px flex-1 bg-[#071421]/10" />
     </div>
   )
 }
@@ -407,16 +407,16 @@ function PhotoGallery({ photos }: { photos: string[] }) {
 
   return (
     <div className="mb-8">
-      <div className="relative overflow-hidden rounded-xl bg-[#1a2744]/5" style={{ aspectRatio: '16/7' }}>
+      <div className="relative overflow-hidden rounded-xl bg-[#071421]/5" style={{ aspectRatio: '16/7' }}>
         <img
           src={photos[active]}
           alt="Your home"
           className="h-full w-full object-cover"
           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
         />
-        <div className="absolute inset-0 bg-[#1a2744]/30" />
+        <div className="absolute inset-0 bg-[#071421]/30" />
         <div className="absolute bottom-3 left-4">
-          <div className="text-[9px] font-bold uppercase tracking-widest text-[#f5a623]">Your Property</div>
+          <div className="text-[9px] font-bold uppercase tracking-widest text-[#C99700]">Your Property</div>
           <div className="text-xs font-semibold text-white mt-0.5">{photos.length} photos reviewed by our team</div>
         </div>
         {photos.length > 1 && (
@@ -424,12 +424,12 @@ function PhotoGallery({ photos }: { photos: string[] }) {
             <button
               onClick={() => setActive(a => Math.max(0, a - 1))}
               disabled={active === 0}
-              className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-[#1a2744]/70 px-2.5 py-1.5 text-sm font-bold text-white disabled:opacity-20 hover:bg-[#1a2744]"
+              className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-[#071421]/70 px-2.5 py-1.5 text-sm font-bold text-white disabled:opacity-20 hover:bg-[#071421]"
             >‹</button>
             <button
               onClick={() => setActive(a => Math.min(photos.length - 1, a + 1))}
               disabled={active === photos.length - 1}
-              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-[#1a2744]/70 px-2.5 py-1.5 text-sm font-bold text-white disabled:opacity-20 hover:bg-[#1a2744]"
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-[#071421]/70 px-2.5 py-1.5 text-sm font-bold text-white disabled:opacity-20 hover:bg-[#071421]"
             >›</button>
           </>
         )}
@@ -440,7 +440,7 @@ function PhotoGallery({ photos }: { photos: string[] }) {
             <button
               key={i}
               onClick={() => setActive(i)}
-              className={`shrink-0 overflow-hidden rounded-md border-2 transition ${active === i ? 'border-[#f5a623]' : 'border-transparent opacity-50 hover:opacity-80'}`}
+              className={`shrink-0 overflow-hidden rounded-md border-2 transition ${active === i ? 'border-[#C99700]' : 'border-transparent opacity-50 hover:opacity-80'}`}
               style={{ width: 60, height: 44 }}
             >
               <img src={photo} alt="" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).parentElement!.style.display = 'none' }} />
@@ -502,27 +502,27 @@ function AcceptBlock({
 
   if (declined) {
     return variant === 'sticky' ? (
-      <div className="rounded-lg border border-[#1a2744]/20 bg-[#1a2744]/5 px-4 py-2 text-xs font-semibold text-[#1a2744]/50">Quote Declined</div>
+      <div className="rounded-lg border border-[#071421]/20 bg-[#071421]/5 px-4 py-2 text-xs font-semibold text-[#071421]/50">Quote Declined</div>
     ) : (
-      <div className="rounded-xl border border-[#1a2744]/15 bg-[#1a2744]/5 p-6 text-center">
-        <div className="text-sm font-semibold text-[#1a2744]/60 mb-1">Quote Declined</div>
-        <div className="text-xs text-[#1a2744]/40">If you change your mind, call or text us at {brand.phone}.</div>
+      <div className="rounded-xl border border-[#071421]/15 bg-[#071421]/5 p-6 text-center">
+        <div className="text-sm font-semibold text-[#071421]/60 mb-1">Quote Declined</div>
+        <div className="text-xs text-[#071421]/40">If you change your mind, call or text us at {brand.phone}.</div>
       </div>
     )
   }
 
   if (accepted && justPaid) {
     return variant === 'sticky' ? (
-      <div className="rounded-lg bg-[#1a2744] px-4 py-2 text-xs font-bold text-[#f5a623]">Deposit Paid — You&apos;re Booked</div>
+      <div className="rounded-lg bg-[#071421] px-4 py-2 text-xs font-bold text-[#C99700]">Deposit Paid — You&apos;re Booked</div>
     ) : (
-      <div className="rounded-xl border-2 border-[#1a2744] bg-[#1a2744] p-8 text-center">
+      <div className="rounded-xl border-2 border-[#071421] bg-[#071421] p-8 text-center">
         <LogoMark size={56} dark brand={brand} />
         <div className="mt-4 text-xl font-black text-white mb-2">You&apos;re on the calendar.</div>
         <div className="text-sm text-white/70 max-w-sm mx-auto leading-6">
           Your deposit has been received. The {brand.name} team will be in touch shortly to confirm move-day details.
         </div>
         <div className="mt-5 rounded-lg bg-white/10 p-4 text-sm text-white/80">
-          Questions? Call or text <strong className="text-[#f5a623]">{brand.phone}</strong>{brand.email ? <> or email <strong className="text-[#f5a623]">{brand.email}</strong></> : null}
+          Questions? Call or text <strong className="text-[#C99700]">{brand.phone}</strong>{brand.email ? <> or email <strong className="text-[#C99700]">{brand.email}</strong></> : null}
         </div>
       </div>
     )
@@ -531,11 +531,11 @@ function AcceptBlock({
   if (accepted) {
     if (invoiceStyleTerms) {
       return variant === 'sticky' ? (
-        <div className="rounded-lg bg-[#1a2744] px-4 py-2 text-xs font-bold text-[#f5a623]">Estimate Approved</div>
+        <div className="rounded-lg bg-[#071421] px-4 py-2 text-xs font-bold text-[#C99700]">Estimate Approved</div>
       ) : (
-        <div className="rounded-xl border-2 border-[#1a2744] bg-white p-6 text-center">
-          <div className="text-sm font-bold text-[#1a2744] mb-1">Estimate Approved</div>
-          <div className="text-xs text-[#1a2744]/50">We&apos;ll coordinate billing using {paymentTermsLabel(quote.paymentTerms).toLowerCase()}.</div>
+        <div className="rounded-xl border-2 border-[#071421] bg-white p-6 text-center">
+          <div className="text-sm font-bold text-[#071421] mb-1">Estimate Approved</div>
+          <div className="text-xs text-[#071421]/50">We&apos;ll coordinate billing using {paymentTermsLabel(quote.paymentTerms).toLowerCase()}.</div>
         </div>
       )
     }
@@ -543,24 +543,24 @@ function AcceptBlock({
       <button
         onClick={payOrRequestTerms}
         disabled={stripeLoading}
-        className="rounded-lg bg-[#f5a623] px-5 py-2 text-xs font-bold text-[#1a2744] hover:opacity-90 disabled:opacity-50"
+        className="rounded-lg bg-[#C99700] px-5 py-2 text-xs font-bold text-[#071421] hover:opacity-90 disabled:opacity-50"
       >
         {stripeLoading ? 'Redirecting...' : `Pay Deposit — ${formatMoney(quote.deposit)}`}
       </button>
     ) : (
-      <div className="rounded-xl border-2 border-[#1a2744] bg-white p-6">
+      <div className="rounded-xl border-2 border-[#071421] bg-white p-6">
         <div className="text-center mb-5">
-          <div className="text-sm font-bold text-[#1a2744] mb-1">Quote Accepted — Secure Your Date</div>
-          <div className="text-xs text-[#1a2744]/50">Pay your deposit to lock in your move.</div>
+          <div className="text-sm font-bold text-[#071421] mb-1">Quote Accepted — Secure Your Date</div>
+          <div className="text-xs text-[#071421]/50">Pay your deposit to lock in your move.</div>
         </div>
         <button
           onClick={payOrRequestTerms}
           disabled={stripeLoading}
-          className="w-full rounded-xl bg-[#1a2744] py-4 text-base font-bold text-white hover:bg-[#243460] disabled:opacity-50 shadow-md"
+          className="w-full rounded-xl bg-[#071421] py-4 text-base font-bold text-white hover:bg-[#243460] disabled:opacity-50 shadow-md"
         >
           {stripeLoading ? 'Redirecting to payment...' : `Pay Deposit Online — ${formatMoney(quote.deposit)}`}
         </button>
-        <div className="mt-3 rounded-lg border border-[#1a2744]/10 bg-[#1a2744]/5 p-3 text-xs text-[#1a2744]/50 text-center">
+        <div className="mt-3 rounded-lg border border-[#071421]/10 bg-[#071421]/5 p-3 text-xs text-[#071421]/50 text-center">
           {brand.email ? <>Prefer e-Transfer or cash? Send to <strong>{brand.email}</strong> and reply to confirm.</> : <>Prefer e-Transfer or cash? Call or text <strong>{brand.phone}</strong> to arrange payment.</>}
         </div>
       </div>
@@ -571,10 +571,10 @@ function AcceptBlock({
   if (variant === 'sticky') {
     return (
       <div className="flex items-center gap-2">
-        <button onClick={onDecline} disabled={declining} className="rounded-lg border border-[#1a2744]/20 px-3 py-2 text-xs font-medium text-[#1a2744]/40 hover:border-[#1a2744]/40 disabled:opacity-40">
+        <button onClick={onDecline} disabled={declining} className="rounded-lg border border-[#071421]/20 px-3 py-2 text-xs font-medium text-[#071421]/40 hover:border-[#071421]/40 disabled:opacity-40">
           {declining ? '...' : 'Decline'}
         </button>
-        <button onClick={invoiceStyleTerms ? acceptOrRequestTerms : payOrRequestTerms} disabled={invoiceStyleTerms ? accepting : stripeLoading} className="rounded-lg bg-[#1a2744] px-5 py-2 text-xs font-bold text-white hover:bg-[#243460] disabled:opacity-50">
+        <button onClick={invoiceStyleTerms ? acceptOrRequestTerms : payOrRequestTerms} disabled={invoiceStyleTerms ? accepting : stripeLoading} className="rounded-lg bg-[#071421] px-5 py-2 text-xs font-bold text-white hover:bg-[#243460] disabled:opacity-50">
           {invoiceStyleTerms ? (accepting ? 'Approving...' : 'Approve Estimate') : (stripeLoading ? 'Redirecting...' : 'Accept & Pay Deposit')}
         </button>
       </div>
@@ -582,7 +582,7 @@ function AcceptBlock({
   }
 
   return (
-    <div className="rounded-xl border-2 border-[#1a2744] bg-[#1a2744] p-8 text-center">
+    <div className="rounded-xl border-2 border-[#071421] bg-[#071421] p-8 text-center">
       <div className="text-lg font-black text-white mb-2">{invoiceStyleTerms ? 'Ready to approve this scope?' : 'Ready to lock in your move?'}</div>
       <p className="text-sm text-white/60 mb-6 max-w-sm mx-auto leading-6">
         {invoiceStyleTerms
@@ -592,7 +592,7 @@ function AcceptBlock({
       <button
         onClick={invoiceStyleTerms ? acceptOrRequestTerms : payOrRequestTerms}
         disabled={invoiceStyleTerms ? accepting : stripeLoading}
-        className="w-full rounded-xl bg-[#f5a623] py-4 text-base font-bold text-[#1a2744] hover:opacity-90 disabled:opacity-50 shadow-lg transition"
+        className="w-full rounded-xl bg-[#C99700] py-4 text-base font-bold text-[#071421] hover:opacity-90 disabled:opacity-50 shadow-lg transition"
       >
         {invoiceStyleTerms ? (accepting ? 'Approving...' : 'Approve Estimate') : (stripeLoading ? 'Redirecting to payment...' : 'Accept Quote & Pay Deposit')}
       </button>
@@ -630,39 +630,39 @@ function CustomerTermsAgreement({
   onChange: (accepted: boolean) => void
 }) {
   return (
-    <div className={`rounded-2xl border-2 bg-white p-5 transition ${termsPrompt && !termsAccepted ? 'border-[#f5a623] shadow-lg shadow-[#f5a623]/10' : 'border-[#1a2744]/12'}`}>
+    <div className={`rounded-2xl border-2 bg-white p-5 transition ${termsPrompt && !termsAccepted ? 'border-[#C99700] shadow-lg shadow-[#C99700]/10' : 'border-[#071421]/12'}`}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <SectionLabel>Booking Terms & Conditions</SectionLabel>
-          <h2 className="text-lg font-black text-[#1a2744]">Please review before paying your deposit.</h2>
-          <p className="mt-2 max-w-xl text-xs leading-5 text-[#1a2744]/55">
+          <h2 className="text-lg font-black text-[#071421]">Please review before paying your deposit.</h2>
+          <p className="mt-2 max-w-xl text-xs leading-5 text-[#071421]/55">
             This protects both sides: {brand.name} is agreeing to the price and plan shown here, and you are confirming that the inventory, access, addresses, and services are accurate.
           </p>
         </div>
-        <div className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${isBindingEstimate ? 'bg-emerald-50 text-emerald-700' : 'bg-[#f5a623]/12 text-[#9b5b00]'}`}>
+        <div className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${isBindingEstimate ? 'bg-emerald-50 text-emerald-700' : 'bg-[#C99700]/12 text-[#9b5b00]'}`}>
           {isBindingEstimate ? 'Inventory-based estimate' : 'Hourly / non-binding estimate'}
         </div>
       </div>
 
-      <div className="mt-4 rounded-xl border border-[#1a2744]/10 bg-[#f8f9fb] p-4">
-        <div className="text-xs font-bold text-[#1a2744]">
+      <div className="mt-4 rounded-xl border border-[#071421]/10 bg-[#F7F4ED] p-4">
+        <div className="text-xs font-bold text-[#071421]">
           {isBindingEstimate ? 'If the inventory matches, your agreed estimate is protected.' : 'Final price follows the actual time and work required.'}
         </div>
-        <div className="mt-1 text-xs leading-5 text-[#1a2744]/55">
+        <div className="mt-1 text-xs leading-5 text-[#071421]/55">
           {isBindingEstimate
             ? 'If the crew finds extra items, undisclosed areas, special handling, or access conditions that were not included, the office will confirm the change before work starts and the quote may become non-binding.'
             : 'Hourly or non-binding moves are based on the real work performed, including time, labour, materials, truck usage, waiting, access, and approved added scope.'}
         </div>
       </div>
 
-      <div className="mt-4 max-h-80 overflow-y-auto rounded-xl border border-[#1a2744]/10 bg-white">
+      <div className="mt-4 max-h-80 overflow-y-auto rounded-xl border border-[#071421]/10 bg-white">
         {QUOTE_TERMS_SECTIONS.map((section, sectionIndex) => (
-          <div key={section.title} className={`p-4 ${sectionIndex > 0 ? 'border-t border-[#1a2744]/8' : ''}`}>
-            <div className="text-xs font-black uppercase tracking-wider text-[#1a2744]/70">{section.title}</div>
+          <div key={section.title} className={`p-4 ${sectionIndex > 0 ? 'border-t border-[#071421]/8' : ''}`}>
+            <div className="text-xs font-black uppercase tracking-wider text-[#071421]/70">{section.title}</div>
             <ul className="mt-3 space-y-2">
               {section.items.map(item => item.replaceAll('Saturn Star', brand.name)).map(item => (
-                <li key={item} className="flex gap-2 text-xs leading-5 text-[#1a2744]/58">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#f5a623]" />
+                <li key={item} className="flex gap-2 text-xs leading-5 text-[#071421]/58">
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#C99700]" />
                   <span>{item}</span>
                 </li>
               ))}
@@ -671,16 +671,16 @@ function CustomerTermsAgreement({
         ))}
       </div>
 
-      <label className={`mt-4 flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${termsAccepted ? 'border-emerald-200 bg-emerald-50' : termsPrompt ? 'border-[#f5a623] bg-[#fff8e8]' : 'border-[#1a2744]/10 bg-[#f8f9fb]'}`}>
+      <label className={`mt-4 flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${termsAccepted ? 'border-emerald-200 bg-emerald-50' : termsPrompt ? 'border-[#C99700] bg-[#fff8e8]' : 'border-[#071421]/10 bg-[#F7F4ED]'}`}>
         <input
           type="checkbox"
           checked={termsAccepted}
           onChange={event => onChange(event.target.checked)}
-          className="mt-1 h-5 w-5 accent-[#1a2744]"
+          className="mt-1 h-5 w-5 accent-[#071421]"
         />
         <span>
-          <span className="block text-sm font-bold text-[#1a2744]">I have read and agree to the booking terms and conditions.</span>
-          <span className="mt-1 block text-xs leading-5 text-[#1a2744]/55">
+          <span className="block text-sm font-bold text-[#071421]">I have read and agree to the booking terms and conditions.</span>
+          <span className="mt-1 block text-xs leading-5 text-[#071421]/55">
             I understand the binding/non-binding estimate rules, inventory accuracy requirements, payment terms, claim process, restricted items, and liability release requirements.
           </span>
         </span>
@@ -822,17 +822,17 @@ function QuoteAcceptPageInner() {
   }
 
   if (loading) return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f0f2f5]">
+    <div className="flex min-h-screen items-center justify-center bg-[#F7F4ED]">
       <div className="flex flex-col items-center gap-3">
-        <div className="h-9 w-9 animate-pulse rounded-xl bg-[#1a2744]/10" />
-        <div className="text-xs text-[#1a2744]/40 tracking-wider uppercase">Loading your quote...</div>
+        <div className="h-9 w-9 animate-pulse rounded-xl bg-[#071421]/10" />
+        <div className="text-xs text-[#071421]/40 tracking-wider uppercase">Loading your quote...</div>
       </div>
     </div>
   )
 
   if (error || !quote) return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f0f2f5] p-6">
-      <div className="rounded-xl border border-[#1a2744]/15 bg-white p-8 text-center text-sm text-[#1a2744]/60 max-w-md">
+    <div className="flex min-h-screen items-center justify-center bg-[#F7F4ED] p-6">
+      <div className="rounded-xl border border-[#071421]/15 bg-white p-8 text-center text-sm text-[#071421]/60 max-w-md">
         {error || 'Quote not found or link is invalid.'}
       </div>
     </div>
@@ -875,54 +875,54 @@ function QuoteAcceptPageInner() {
       : minimumTotal
 
     return (
-      <div className="min-h-screen bg-[#f0f2f5]">
+      <div className="min-h-screen bg-[#F7F4ED]">
         <div className="mx-auto max-w-md px-4 py-8 pb-16">
           {/* Header */}
           <div className="mb-6 flex items-center gap-3">
             <LogoMark size={36} brand={brand} />
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a2744]/40">{brand.name}</div>
-              <div className="text-sm font-semibold text-[#1a2744]">Your Moving Quote</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[#071421]/40">{brand.name}</div>
+              <div className="text-sm font-semibold text-[#071421]">Your Moving Quote</div>
             </div>
           </div>
 
           {alreadyPaid ? (
-            <div className="rounded-2xl border-2 border-[#1a2744] bg-[#1a2744] p-8 text-center">
+            <div className="rounded-2xl border-2 border-[#071421] bg-[#071421] p-8 text-center">
               <LogoMark size={56} dark brand={brand} />
               <div className="mt-4 text-xl font-black text-white mb-2">You&apos;re on the calendar.</div>
               <div className="text-sm text-white/70 max-w-sm mx-auto leading-6">
                 Deposit received. The {brand.name} team will be in touch to confirm your move details.
               </div>
               <div className="mt-5 rounded-lg bg-white/10 p-4 text-sm text-white/80">
-                Questions? Call or text <strong className="text-[#f5a623]">{brand.phone}</strong>
+                Questions? Call or text <strong className="text-[#C99700]">{brand.phone}</strong>
               </div>
             </div>
           ) : (
             <>
               {/* Hi + name */}
-              <div className="mb-4 text-lg font-semibold text-[#1a2744]">Hi {firstName},</div>
+              <div className="mb-4 text-lg font-semibold text-[#071421]">Hi {firstName},</div>
 
               {/* Rate card */}
-              <div className="rounded-2xl bg-white border border-[#1a2744]/10 shadow-sm p-5 mb-4">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a2744]/40 mb-3">Your quote</div>
-                <div className="text-xl font-black text-[#1a2744] mb-1">{rateDesc}</div>
+              <div className="rounded-2xl bg-white border border-[#071421]/10 shadow-sm p-5 mb-4">
+                <div className="text-[10px] font-bold uppercase tracking-widest text-[#071421]/40 mb-3">Your quote</div>
+                <div className="text-xl font-black text-[#071421] mb-1">{rateDesc}</div>
                 {maximumHours > minimumHours ? (
-                  <div className="text-sm text-[#1a2744]/60 mb-4">Most jobs in this lane take about {minimumHours}-{maximumHours} hours</div>
+                  <div className="text-sm text-[#071421]/60 mb-4">Most jobs in this lane take about {minimumHours}-{maximumHours} hours</div>
                 ) : (
-                  <div className="text-sm text-[#1a2744]/60 mb-4">{minimumHours}-hour minimum</div>
+                  <div className="text-sm text-[#071421]/60 mb-4">{minimumHours}-hour minimum</div>
                 )}
 
                 {rate && minimumHours > 0 && (
-                  <div className="rounded-xl bg-[#f0f2f5] p-4">
-                    <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a2744]/40 mb-2">Minimum charge (incl. HST)</div>
-                    <div className="text-2xl font-black text-[#1a2744]">
+                  <div className="rounded-xl bg-[#F7F4ED] p-4">
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-[#071421]/40 mb-2">Minimum charge (incl. HST)</div>
+                    <div className="text-2xl font-black text-[#071421]">
                       ${minimumTotal.toLocaleString()}
                     </div>
-                    <div className="mt-1 text-[11px] text-[#1a2744]/50">
+                    <div className="mt-1 text-[11px] text-[#071421]/50">
                       Based on a {minimumHours}-hour minimum at ${rate}/hr + 13% HST
                     </div>
                     {maximumHours > minimumHours ? (
-                      <div className="mt-2 text-[11px] font-medium text-[#1a2744]/70">
+                      <div className="mt-2 text-[11px] font-medium text-[#071421]/70">
                         If the move runs longer, the same hourly rate continues. A typical top end for this lane is about ${maximumTotal.toLocaleString()} incl. HST.
                       </div>
                     ) : null}
@@ -937,9 +937,9 @@ function QuoteAcceptPageInner() {
                 </div>
 
                 {specialtyNote && (
-                  <div className="mt-3 flex items-start gap-2 rounded-lg border border-[#1a2744]/10 bg-[#f0f2f5] px-3 py-2.5">
+                  <div className="mt-3 flex items-start gap-2 rounded-lg border border-[#071421]/10 bg-[#F7F4ED] px-3 py-2.5">
                     <span className="text-sm">📋</span>
-                    <div className="text-[11px] leading-snug text-[#1a2744]/70">{specialtyNote}</div>
+                    <div className="text-[11px] leading-snug text-[#071421]/70">{specialtyNote}</div>
                   </div>
                 )}
               </div>
@@ -960,7 +960,7 @@ function QuoteAcceptPageInner() {
               )}
 
               {/* Deposit + book */}
-              <div className="rounded-2xl border-2 border-[#1a2744] bg-[#1a2744] p-6 text-center mb-4">
+              <div className="rounded-2xl border-2 border-[#071421] bg-[#071421] p-6 text-center mb-4">
                 <div className="text-lg font-black text-white mb-1">{invoiceStyleTerms ? 'Approve this estimate' : 'Reserve your move date'}</div>
                 <div className="text-sm text-white/60 mb-5 leading-5">
                   {invoiceStyleTerms
@@ -970,7 +970,7 @@ function QuoteAcceptPageInner() {
                 <button
                   onClick={() => invoiceStyleTerms ? void confirmAccept() : void payDepositStripe()}
                   disabled={invoiceStyleTerms ? accepting : stripeLoading}
-                  className="w-full rounded-xl bg-[#f5a623] py-4 text-base font-black text-[#1a2744] hover:opacity-90 disabled:opacity-50 shadow-lg transition"
+                  className="w-full rounded-xl bg-[#C99700] py-4 text-base font-black text-[#071421] hover:opacity-90 disabled:opacity-50 shadow-lg transition"
                 >
                   {invoiceStyleTerms ? (accepting ? 'Approving...' : 'Approve Estimate') : (stripeLoading ? 'Redirecting...' : `Book Now — Pay $${DEPOSIT} Deposit`)}
                 </button>
@@ -984,15 +984,15 @@ function QuoteAcceptPageInner() {
               {/* Social proof */}
               <div className="space-y-2">
                 {brand.logo === 'saturn' && REVIEWS.slice(0, 2).map((r, i) => (
-                  <div key={i} className="rounded-xl bg-white border border-[#1a2744]/8 p-4">
+                  <div key={i} className="rounded-xl bg-white border border-[#071421]/8 p-4">
                     <Stars count={r.stars} />
-                    <div className="mt-1 text-xs text-[#1a2744]/70 leading-5">&ldquo;{r.text}&rdquo;</div>
-                    <div className="mt-1 text-[10px] font-semibold text-[#1a2744]/40">{r.name}</div>
+                    <div className="mt-1 text-xs text-[#071421]/70 leading-5">&ldquo;{r.text}&rdquo;</div>
+                    <div className="mt-1 text-[10px] font-semibold text-[#071421]/40">{r.name}</div>
                   </div>
                 ))}
               </div>
 
-              <div className="mt-6 text-center text-xs text-[#1a2744]/40">
+              <div className="mt-6 text-center text-xs text-[#071421]/40">
                 Questions? Call or text <strong>{brand.phone}</strong>{brand.website ? ` · ${brand.website}` : ''}
               </div>
             </>
@@ -1003,16 +1003,16 @@ function QuoteAcceptPageInner() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f0f2f5] print:bg-white">
+    <div className="min-h-screen bg-[#F7F4ED] print:bg-white">
 
       {/* ── Sticky top bar ── */}
-      <div className="print:hidden sticky top-0 z-20 border-b border-[#1a2744]/10 bg-white/95 backdrop-blur-sm shadow-sm">
+      <div className="print:hidden sticky top-0 z-20 border-b border-[#071421]/10 bg-white/95 backdrop-blur-sm shadow-sm">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-4 px-4 py-3">
           <div className="flex items-center gap-2.5">
             <LogoMark size={28} brand={brand} />
             <div>
-              <div className="text-xs font-black tracking-tight text-[#1a2744]">{brand.shortName}</div>
-              <div className="text-[9px] font-medium text-[#1a2744]/40 tracking-wide">MOVING</div>
+              <div className="text-xs font-black tracking-tight text-[#071421]">{brand.shortName}</div>
+              <div className="text-[9px] font-medium text-[#071421]/40 tracking-wide">MOVING</div>
             </div>
           </div>
           <AcceptBlock
@@ -1037,15 +1037,15 @@ function QuoteAcceptPageInner() {
       <div className="mx-auto max-w-2xl px-4 py-8 print:px-0 print:py-4 print:max-w-none">
 
         {/* ── Hero ── */}
-        <div className="mb-6 overflow-hidden rounded-2xl bg-[#1a2744]">
+        <div className="mb-6 overflow-hidden rounded-2xl bg-[#071421]">
           {/* Gold top accent bar */}
-          <div className="h-1.5 bg-[#f5a623]" />
+          <div className="h-1.5 bg-[#C99700]" />
           <div className="px-6 py-7">
             {/* Logo + brand */}
             <div className="flex items-center gap-3 mb-5">
               <LogoMark size={52} dark brand={brand} />
               <div>
-                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#f5a623]">{brand.name}</div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#C99700]">{brand.name}</div>
                 <div className="text-[9px] text-white/30 tracking-wider uppercase mt-0.5">{marketLabel}</div>
               </div>
             </div>
@@ -1062,9 +1062,9 @@ function QuoteAcceptPageInner() {
 
             {/* Move countdown */}
             {daysOut !== null && daysOut > 0 && (
-              <div className="inline-flex items-center gap-2 rounded-full border border-[#f5a623]/30 bg-[#f5a623]/10 px-3 py-1.5 mb-5">
-                <div className="h-1.5 w-1.5 rounded-full bg-[#f5a623]" />
-                <span className="text-xs font-bold text-[#f5a623]">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#C99700]/30 bg-[#C99700]/10 px-3 py-1.5 mb-5">
+                <div className="h-1.5 w-1.5 rounded-full bg-[#C99700]" />
+                <span className="text-xs font-bold text-[#C99700]">
                   {daysOut === 1 ? 'Move is TOMORROW' : `${daysOut} days until your move`}
                 </span>
               </div>
@@ -1079,17 +1079,17 @@ function QuoteAcceptPageInner() {
             {/* Route */}
             <div className="grid grid-cols-[1fr_28px_1fr] items-center gap-2 rounded-xl bg-white/8 border border-white/10 px-4 py-4" style={{ background: 'rgba(255,255,255,0.06)' }}>
               <div>
-                <div className="text-[9px] font-bold uppercase tracking-widest text-[#f5a623]/60 mb-0.5">From</div>
+                <div className="text-[9px] font-bold uppercase tracking-widest text-[#C99700]/60 mb-0.5">From</div>
                 <div className="text-sm font-bold text-white leading-tight">{quote.originCity || 'Origin'}</div>
                 {quote.originAddress && <div className="text-[10px] text-white/40 mt-0.5 leading-4">{quote.originAddress}</div>}
               </div>
               <div className="flex justify-center">
                 <svg width="20" height="16" viewBox="0 0 20 16" fill="none">
-                  <path d="M0 8H18M18 8L11 1M18 8L11 15" stroke="#f5a623" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M0 8H18M18 8L11 1M18 8L11 15" stroke="#C99700" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </div>
               <div className="text-right">
-                <div className="text-[9px] font-bold uppercase tracking-widest text-[#f5a623]/60 mb-0.5">To</div>
+                <div className="text-[9px] font-bold uppercase tracking-widest text-[#C99700]/60 mb-0.5">To</div>
                 {(quote.legs?.length ?? 0) > 1 ? (
                   <div className="text-sm font-bold text-white leading-tight">{quote.legs!.length} Stops</div>
                 ) : (
@@ -1115,9 +1115,9 @@ function QuoteAcceptPageInner() {
             { label: trucks === 1 ? 'Truck' : 'Trucks', value: `${trucks} Truck${trucks > 1 ? 's' : ''}` },
             { label: 'Est. Hours', value: hours ? `${hours}h` : 'TBD' },
           ].map(stat => (
-            <div key={stat.label} className="rounded-xl border border-[#1a2744]/10 bg-white px-3 py-3 text-center">
-              <div className="text-sm font-black text-[#1a2744]">{stat.value}</div>
-              <div className="text-[9px] font-medium text-[#1a2744]/35 mt-0.5 uppercase tracking-wide">{stat.label}</div>
+            <div key={stat.label} className="rounded-xl border border-[#071421]/10 bg-white px-3 py-3 text-center">
+              <div className="text-sm font-black text-[#071421]">{stat.value}</div>
+              <div className="text-[9px] font-medium text-[#071421]/35 mt-0.5 uppercase tracking-wide">{stat.label}</div>
             </div>
           ))}
         </div>
@@ -1125,15 +1125,15 @@ function QuoteAcceptPageInner() {
         {/* ── Estimate type ── */}
         <div className={`mb-6 flex items-start gap-3 rounded-xl border px-4 py-3.5 ${
           isBindingEstimate
-            ? 'border-[#1a2744]/20 bg-[#1a2744]/5'
-            : 'border-[#f5a623]/30 bg-[#f5a623]/8'
+            ? 'border-[#071421]/20 bg-[#071421]/5'
+            : 'border-[#C99700]/30 bg-[#C99700]/8'
         }`} style={isBindingEstimate ? {} : { background: 'rgba(245,166,35,0.06)' }}>
-          <div className={`mt-0.5 h-2 w-2 rounded-full flex-shrink-0 ${isBindingEstimate ? 'bg-[#1a2744]' : 'bg-[#f5a623]'}`} />
+          <div className={`mt-0.5 h-2 w-2 rounded-full flex-shrink-0 ${isBindingEstimate ? 'bg-[#071421]' : 'bg-[#C99700]'}`} />
           <div>
-            <div className={`text-xs font-bold mb-0.5 ${isBindingEstimate ? 'text-[#1a2744]' : 'text-[#1a2744]'}`}>
+            <div className={`text-xs font-bold mb-0.5 ${isBindingEstimate ? 'text-[#071421]' : 'text-[#071421]'}`}>
               {isBindingEstimate ? 'Inventory-Based Estimate' : 'Hourly Estimate'}
             </div>
-            <div className="text-xs leading-5 text-[#1a2744]/50">
+            <div className="text-xs leading-5 text-[#071421]/50">
               {isBindingEstimate
                 ? 'Priced from your specific inventory. Final time may vary if items are added on move day.'
                 : 'Based on a typical move of this type. You pay for actual hours at the agreed rate.'
@@ -1144,33 +1144,33 @@ function QuoteAcceptPageInner() {
 
         {/* ── Multi-leg Move Plan ── */}
         {(quote.legs?.length ?? 0) > 1 && (
-          <div className="mb-6 overflow-hidden rounded-xl border border-[#1a2744]/10 bg-white">
-            <div className="border-b border-[#1a2744]/8 px-5 py-4">
-              <div className="text-xs font-bold uppercase tracking-wider text-[#1a2744]">Move Plan — {quote.legs!.length} Stops</div>
+          <div className="mb-6 overflow-hidden rounded-xl border border-[#071421]/10 bg-white">
+            <div className="border-b border-[#071421]/8 px-5 py-4">
+              <div className="text-xs font-bold uppercase tracking-wider text-[#071421]">Move Plan — {quote.legs!.length} Stops</div>
             </div>
-            <div className="divide-y divide-[#1a2744]/6">
+            <div className="divide-y divide-[#071421]/6">
               {quote.legs!.map((leg, idx) => {
                 const typeLabel = leg.type === 'junk' ? 'Junk Removal' : leg.type === 'delivery' ? 'Delivery' : leg.type === 'storage' ? 'House → Storage' : leg.type === 'storage_delivery' ? 'Storage → New Home' : 'Moving'
                 const origin = [leg.originAddress, leg.originCity].filter(Boolean).join(', ') || '—'
                 const dest = [leg.destAddress, leg.destCity].filter(Boolean).join(', ') || '—'
                 return (
                   <div key={leg.id} className="flex items-start gap-4 px-5 py-4">
-                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#1a2744] text-[10px] font-bold text-white mt-0.5">{idx + 1}</div>
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#071421] text-[10px] font-bold text-white mt-0.5">{idx + 1}</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-semibold text-[#1a2744]">{leg.label}</span>
-                        <span className="rounded-full bg-[#f5a623]/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#1a2744]">{typeLabel}</span>
+                        <span className="text-sm font-semibold text-[#071421]">{leg.label}</span>
+                        <span className="rounded-full bg-[#C99700]/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#071421]">{typeLabel}</span>
                         {leg.scheduledDate && (
-                          <span className="text-[10px] text-[#1a2744]/40">{new Date(leg.scheduledDate + 'T12:00:00').toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })}</span>
+                          <span className="text-[10px] text-[#071421]/40">{new Date(leg.scheduledDate + 'T12:00:00').toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })}</span>
                         )}
                       </div>
-                      <div className="mt-1.5 flex items-center gap-2 text-xs text-[#1a2744]/50">
+                      <div className="mt-1.5 flex items-center gap-2 text-xs text-[#071421]/50">
                         <span className="truncate">{origin}</span>
-                        <svg className="h-3 w-3 shrink-0 text-[#f5a623]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                        <svg className="h-3 w-3 shrink-0 text-[#C99700]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
                         <span className="truncate">{dest}</span>
                       </div>
                       {(leg.distanceKm || leg.notes) && (
-                        <div className="mt-1 text-[10px] text-[#1a2744]/35">
+                        <div className="mt-1 text-[10px] text-[#071421]/35">
                           {leg.distanceKm ? `${leg.distanceKm} km · ${leg.driveHours}h drive` : ''}
                           {leg.distanceKm && leg.notes ? ' · ' : ''}
                           {leg.notes || ''}
@@ -1207,27 +1207,27 @@ function QuoteAcceptPageInner() {
             isTwoDay,
           })
           return (
-            <div className="mb-6 overflow-hidden rounded-xl border border-[#1a2744]/10 bg-white">
-              <div className="border-b border-[#1a2744]/8 px-5 py-4">
-                <div className="text-xs font-bold uppercase tracking-wider text-[#1a2744]">Your Move Day</div>
-                <div className="text-[10px] text-[#1a2744]/40 mt-0.5">How your move unfolds from start to finish</div>
+            <div className="mb-6 overflow-hidden rounded-xl border border-[#071421]/10 bg-white">
+              <div className="border-b border-[#071421]/8 px-5 py-4">
+                <div className="text-xs font-bold uppercase tracking-wider text-[#071421]">Your Move Day</div>
+                <div className="text-[10px] text-[#071421]/40 mt-0.5">How your move unfolds from start to finish</div>
               </div>
               <div className="px-5 py-4">
                 <div className="relative">
                   {/* Vertical line */}
-                  <div className="absolute left-3.5 top-4 bottom-4 w-px bg-[#1a2744]/10" />
+                  <div className="absolute left-3.5 top-4 bottom-4 w-px bg-[#071421]/10" />
                   <div className="space-y-5">
                     {timeline.map((phase, i) => (
                       <div key={i} className="flex gap-4">
-                        <div className="relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white border border-[#1a2744]/15 text-sm">
+                        <div className="relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white border border-[#071421]/15 text-sm">
                           {phase.emoji}
                         </div>
                         <div className="flex-1 min-w-0 pt-0.5">
                           <div className="flex items-baseline gap-2 flex-wrap">
-                            <span className="text-xs font-bold text-[#1a2744]">{phase.time}</span>
-                            <span className="text-xs font-semibold text-[#1a2744]/70">{phase.title}</span>
+                            <span className="text-xs font-bold text-[#071421]">{phase.time}</span>
+                            <span className="text-xs font-semibold text-[#071421]/70">{phase.title}</span>
                           </div>
-                          <div className="mt-0.5 text-[11px] text-[#1a2744]/40 leading-4">{phase.detail}</div>
+                          <div className="mt-0.5 text-[11px] text-[#071421]/40 leading-4">{phase.detail}</div>
                         </div>
                       </div>
                     ))}
@@ -1239,38 +1239,38 @@ function QuoteAcceptPageInner() {
         })()}
 
         {/* ── Pricing ── */}
-        <div className="mb-6 overflow-hidden rounded-xl border border-[#1a2744]/10 bg-white">
-          <div className="flex items-center justify-between border-b border-[#1a2744]/8 px-5 py-4">
-            <div className="text-xs font-bold uppercase tracking-wider text-[#1a2744]">Your Quote</div>
+        <div className="mb-6 overflow-hidden rounded-xl border border-[#071421]/10 bg-white">
+          <div className="flex items-center justify-between border-b border-[#071421]/8 px-5 py-4">
+            <div className="text-xs font-bold uppercase tracking-wider text-[#071421]">Your Quote</div>
             <button
               onClick={() => setLineItemsOpen(v => !v)}
-              className="text-[10px] font-semibold uppercase tracking-wide text-[#1a2744]/40 hover:text-[#1a2744]"
+              className="text-[10px] font-semibold uppercase tracking-wide text-[#071421]/40 hover:text-[#071421]"
             >
               {lineItemsOpen ? 'Hide breakdown' : 'See breakdown'}
             </button>
           </div>
 
           {/* Summary row */}
-          <div className="grid grid-cols-[1fr_auto] gap-4 border-b border-[#1a2744]/8 px-5 py-4 text-sm">
+          <div className="grid grid-cols-[1fr_auto] gap-4 border-b border-[#071421]/8 px-5 py-4 text-sm">
             <div>
-              <div className="font-semibold text-[#1a2744]">{serviceLabel}</div>
-              <div className="text-xs text-[#1a2744]/40 mt-0.5">
+              <div className="font-semibold text-[#071421]">{serviceLabel}</div>
+              <div className="text-xs text-[#071421]/40 mt-0.5">
                 {crewSize}-person crew · {trucks} truck{trucks > 1 ? 's' : ''}{hours ? ` · ~${hours} hrs` : ''}
               </div>
             </div>
-            <div className="font-semibold text-[#1a2744]">{formatMoney(quote.subtotal)}</div>
+            <div className="font-semibold text-[#071421]">{formatMoney(quote.subtotal)}</div>
           </div>
 
           {/* Line items */}
           {lineItemsOpen && (
-            <div className="border-b border-[#1a2744]/8">
+            <div className="border-b border-[#071421]/8">
               {quote.lineItems.map((item, i) => (
-                <div key={i} className="grid grid-cols-[1fr_auto] gap-4 border-b border-[#1a2744]/5 last:border-0 px-5 py-3">
+                <div key={i} className="grid grid-cols-[1fr_auto] gap-4 border-b border-[#071421]/5 last:border-0 px-5 py-3">
                   <div>
-                    <div className="text-xs font-medium text-[#1a2744]">{item.description}</div>
-                    {item.details && <div className="mt-0.5 text-[10px] leading-4 text-[#1a2744]/35">{item.details}</div>}
+                    <div className="text-xs font-medium text-[#071421]">{item.description}</div>
+                    {item.details && <div className="mt-0.5 text-[10px] leading-4 text-[#071421]/35">{item.details}</div>}
                   </div>
-                  <div className="text-xs font-medium text-[#1a2744]/70 text-right">{formatMoney(item.amount)}</div>
+                  <div className="text-xs font-medium text-[#071421]/70 text-right">{formatMoney(item.amount)}</div>
                 </div>
               ))}
             </div>
@@ -1279,58 +1279,58 @@ function QuoteAcceptPageInner() {
           {/* Totals */}
           <div className="space-y-1.5 px-5 py-4 text-sm">
             {(quote.discountAmount || 0) > 0 && (
-              <div className="flex justify-between text-[#f5a623]">
+              <div className="flex justify-between text-[#C99700]">
                 <span className="text-xs">{quote.discountLabel || 'Discount'}</span>
                 <span className="text-xs font-semibold">−{formatMoney(quote.discountAmount!)}</span>
               </div>
             )}
             {/* Subtotal is the hero — anchors customer on pre-tax price */}
-            <div className="flex justify-between border-t border-[#1a2744]/10 pt-2.5 text-base font-black text-[#1a2744]">
+            <div className="flex justify-between border-t border-[#071421]/10 pt-2.5 text-base font-black text-[#071421]">
               <span>Estimated Total</span><span>{formatMoney(quote.subtotal)}</span>
             </div>
-            <div className="flex justify-between text-[#1a2744]/35 text-xs mt-1">
+            <div className="flex justify-between text-[#071421]/35 text-xs mt-1">
               <span>HST (13%)</span><span>+{formatMoney(quote.hst)}</span>
             </div>
-            <div className="flex justify-between text-[#1a2744]/35 text-xs border-t border-[#1a2744]/8 pt-1.5 mt-1.5">
+            <div className="flex justify-between text-[#071421]/35 text-xs border-t border-[#071421]/8 pt-1.5 mt-1.5">
               <span>Total incl. HST</span><span>{formatMoney(quote.total)}</span>
             </div>
           </div>
         </div>
 
         {/* ── Payment schedule ── */}
-        <div className="mb-6 overflow-hidden rounded-xl border border-[#1a2744]/10 bg-white">
-          <div className="border-b border-[#1a2744]/8 px-5 py-4">
-            <div className="text-xs font-bold uppercase tracking-wider text-[#1a2744]">{invoiceStyleTerms ? 'Approval & Billing' : 'Payment Schedule'}</div>
+        <div className="mb-6 overflow-hidden rounded-xl border border-[#071421]/10 bg-white">
+          <div className="border-b border-[#071421]/8 px-5 py-4">
+            <div className="text-xs font-bold uppercase tracking-wider text-[#071421]">{invoiceStyleTerms ? 'Approval & Billing' : 'Payment Schedule'}</div>
           </div>
           {invoiceStyleTerms ? (
             <div className="px-5 py-4">
-              <div className="text-[9px] font-bold uppercase tracking-widest text-[#f5a623] mb-1">Terms</div>
-              <div className="text-2xl font-black text-[#1a2744]">{paymentTermsLabel(quote.paymentTerms)}</div>
-              <div className="mt-2 text-xs leading-5 text-[#1a2744]/45">
+              <div className="text-[9px] font-bold uppercase tracking-widest text-[#C99700] mb-1">Terms</div>
+              <div className="text-2xl font-black text-[#071421]">{paymentTermsLabel(quote.paymentTerms)}</div>
+              <div className="mt-2 text-xs leading-5 text-[#071421]/45">
                 Approving this estimate confirms the scope and terms. {brand.name} will coordinate billing, invoice details, or purchase-order requirements with your office contact.
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-2 divide-x divide-[#1a2744]/8">
+            <div className="grid grid-cols-2 divide-x divide-[#071421]/8">
               <div className="px-5 py-4">
-                <div className="text-[9px] font-bold uppercase tracking-widest text-[#f5a623] mb-1">Deposit ({depPct}%)</div>
-                <div className="text-2xl font-black text-[#1a2744]">{formatMoney(quote.deposit)}</div>
-                <div className="text-[10px] text-[#1a2744]/35 mt-1">Required to confirm booking</div>
+                <div className="text-[9px] font-bold uppercase tracking-widest text-[#C99700] mb-1">Deposit ({depPct}%)</div>
+                <div className="text-2xl font-black text-[#071421]">{formatMoney(quote.deposit)}</div>
+                <div className="text-[10px] text-[#071421]/35 mt-1">Required to confirm booking</div>
               </div>
               <div className="px-5 py-4">
-                <div className="text-[9px] font-bold uppercase tracking-widest text-[#1a2744]/30 mb-1">Balance ({100 - depPct}%)</div>
-                <div className="text-2xl font-black text-[#1a2744]">{formatMoney(quote.balance)}</div>
-                <div className="text-[10px] text-[#1a2744]/35 mt-1">Due upon move completion</div>
+                <div className="text-[9px] font-bold uppercase tracking-widest text-[#071421]/30 mb-1">Balance ({100 - depPct}%)</div>
+                <div className="text-2xl font-black text-[#071421]">{formatMoney(quote.balance)}</div>
+                <div className="text-[10px] text-[#071421]/35 mt-1">Due upon move completion</div>
               </div>
             </div>
           )}
-          <div className="border-t border-[#1a2744]/8 bg-[#1a2744]/3 px-5 py-3" style={{ background: 'rgba(26,39,68,0.025)' }}>
+          <div className="border-t border-[#071421]/8 bg-[#071421]/3 px-5 py-3" style={{ background: 'rgba(26,39,68,0.025)' }}>
             <div className="flex flex-wrap gap-1.5">
               {['Cash', 'e-Transfer', 'Credit Card', 'Debit'].map(m => (
-                <span key={m} className="rounded-full border border-[#1a2744]/15 px-2.5 py-0.5 text-[10px] font-medium text-[#1a2744]/50">{m}</span>
+                <span key={m} className="rounded-full border border-[#071421]/15 px-2.5 py-0.5 text-[10px] font-medium text-[#071421]/50">{m}</span>
               ))}
             </div>
-            <div className="mt-1.5 text-[9px] text-[#1a2744]/30">4% processing fee on card payments{brand.email ? ` · e-Transfer to ${brand.email}` : ` · Contact ${brand.phone} for e-Transfer details`}</div>
+            <div className="mt-1.5 text-[9px] text-[#071421]/30">4% processing fee on card payments{brand.email ? ` · e-Transfer to ${brand.email}` : ` · Contact ${brand.phone} for e-Transfer details`}</div>
           </div>
         </div>
 
@@ -1351,19 +1351,19 @@ function QuoteAcceptPageInner() {
             onPayStripe={() => void payDepositStripe()}
             onRequireTerms={ensureTermsAccepted}
           />
-          {error && <div className="mt-3 rounded-lg border border-[#1a2744]/15 bg-[#1a2744]/5 px-4 py-2 text-xs text-[#1a2744]/60">{error}</div>}
+          {error && <div className="mt-3 rounded-lg border border-[#071421]/15 bg-[#071421]/5 px-4 py-2 text-xs text-[#071421]/60">{error}</div>}
         </div>
 
         {/* ── Conditional Clause ── */}
         {quote.conditionalClause && (
-          <div className="mb-6 overflow-hidden rounded-xl border border-[#f5a623]/30 bg-white">
-            <div className="border-b border-[#f5a623]/20 px-5 py-3.5" style={{ background: 'rgba(245,166,35,0.05)' }}>
+          <div className="mb-6 overflow-hidden rounded-xl border border-[#C99700]/30 bg-white">
+            <div className="border-b border-[#C99700]/20 px-5 py-3.5" style={{ background: 'rgba(245,166,35,0.05)' }}>
               <div className="flex items-center gap-2">
                 <span className="text-sm">⚠️</span>
-                <div className="text-xs font-bold uppercase tracking-wider text-[#1a2744]">Important Condition</div>
+                <div className="text-xs font-bold uppercase tracking-wider text-[#071421]">Important Condition</div>
               </div>
             </div>
-            <div className="px-5 py-4 text-sm text-[#1a2744]/70 leading-6">
+            <div className="px-5 py-4 text-sm text-[#071421]/70 leading-6">
               {quote.conditionalClause}
             </div>
           </div>
@@ -1375,20 +1375,20 @@ function QuoteAcceptPageInner() {
             <SectionLabel>Inventory — Reviewed by Our Team</SectionLabel>
             <div className="space-y-2">
               {Array.from(roomGroups.entries()).map(([room, items]) => (
-                <div key={room} className="overflow-hidden rounded-xl border border-[#1a2744]/10 bg-white">
-                  <div className="border-b border-[#1a2744]/8 bg-[#1a2744]/3 px-4 py-2.5" style={{ background: 'rgba(26,39,68,0.03)' }}>
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-[#1a2744]/60">{room}</div>
+                <div key={room} className="overflow-hidden rounded-xl border border-[#071421]/10 bg-white">
+                  <div className="border-b border-[#071421]/8 bg-[#071421]/3 px-4 py-2.5" style={{ background: 'rgba(26,39,68,0.03)' }}>
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-[#071421]/60">{room}</div>
                   </div>
-                  <div className="divide-y divide-[#1a2744]/5">
+                  <div className="divide-y divide-[#071421]/5">
                     {items.map((item, i) => {
                       const name = item.name || item.item || 'Item'
                       const qty = Number(item.qty || 1)
                       return (
                         <div key={i} className="flex items-center justify-between px-4 py-2.5">
-                          <span className="text-sm text-[#1a2744]">{name}</span>
+                          <span className="text-sm text-[#071421]">{name}</span>
                           <div className="flex items-center gap-3">
-                            {item.size && <span className="text-[10px] text-[#1a2744]/30">{item.size}</span>}
-                            {qty > 1 && <span className="rounded-full bg-[#1a2744]/8 px-2 py-0.5 text-[10px] font-semibold text-[#1a2744]/50">×{qty}</span>}
+                            {item.size && <span className="text-[10px] text-[#071421]/30">{item.size}</span>}
+                            {qty > 1 && <span className="rounded-full bg-[#071421]/8 px-2 py-0.5 text-[10px] font-semibold text-[#071421]/50">×{qty}</span>}
                           </div>
                         </div>
                       )
@@ -1397,8 +1397,8 @@ function QuoteAcceptPageInner() {
                 </div>
               ))}
             </div>
-            <div className="mt-3 rounded-xl border border-[#f5a623]/25 bg-[#f5a623]/6 p-3 text-[10px] text-[#1a2744]/60 leading-5" style={{ background: 'rgba(245,166,35,0.05)' }}>
-              <span className="font-bold text-[#1a2744]/70">Note:</span> This estimate covers the items listed. If items are added on move day, the crew will do a brief walk-through and adjust the time before starting.
+            <div className="mt-3 rounded-xl border border-[#C99700]/25 bg-[#C99700]/6 p-3 text-[10px] text-[#071421]/60 leading-5" style={{ background: 'rgba(245,166,35,0.05)' }}>
+              <span className="font-bold text-[#071421]/70">Note:</span> This estimate covers the items listed. If items are added on move day, the crew will do a brief walk-through and adjust the time before starting.
             </div>
           </div>
         )}
@@ -1410,11 +1410,11 @@ function QuoteAcceptPageInner() {
           return (
             <div className="mb-8">
               <SectionLabel>Move-Specific Notes</SectionLabel>
-              <div className="rounded-xl border border-[#1a2744]/10 bg-white divide-y divide-[#1a2744]/5">
+              <div className="rounded-xl border border-[#071421]/10 bg-white divide-y divide-[#071421]/5">
                 {notes.map((note, i) => (
                   <div key={i} className="flex items-start gap-3 px-4 py-3">
-                    <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#f5a623] flex-shrink-0" />
-                    <span className="text-xs text-[#1a2744]/70 leading-5">{note}</span>
+                    <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#C99700] flex-shrink-0" />
+                    <span className="text-xs text-[#071421]/70 leading-5">{note}</span>
                   </div>
                 ))}
               </div>
@@ -1425,8 +1425,8 @@ function QuoteAcceptPageInner() {
         {/* ── What's included ── */}
         <div className="mb-8">
           <SectionLabel>What&apos;s Included</SectionLabel>
-          <div className="rounded-xl border border-[#1a2744]/10 bg-white">
-            <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 divide-[#1a2744]/5">
+          <div className="rounded-xl border border-[#071421]/10 bg-white">
+            <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 divide-[#071421]/5">
               {[
                 'Professional licensed moving crew',
                 'Moving trucks with pads & equipment',
@@ -1437,9 +1437,9 @@ function QuoteAcceptPageInner() {
                 'Portal-to-portal billing — no hidden drive fees',
                 'Fuel included — no surcharge',
               ].map((item, i) => (
-                <div key={item} className={`flex items-center gap-2.5 px-4 py-3 ${i % 2 === 0 && i < 7 ? 'sm:border-r border-[#1a2744]/5' : ''}`}>
-                  <div className="h-1.5 w-1.5 rounded-full bg-[#f5a623] flex-shrink-0" />
-                  <span className="text-xs text-[#1a2744]/70">{item}</span>
+                <div key={item} className={`flex items-center gap-2.5 px-4 py-3 ${i % 2 === 0 && i < 7 ? 'sm:border-r border-[#071421]/5' : ''}`}>
+                  <div className="h-1.5 w-1.5 rounded-full bg-[#C99700] flex-shrink-0" />
+                  <span className="text-xs text-[#071421]/70">{item}</span>
                 </div>
               ))}
             </div>
@@ -1483,16 +1483,16 @@ function QuoteAcceptPageInner() {
 
         {/* ── Print totals ── */}
         <div className="hidden print:block mb-8">
-          <div className="rounded-xl border border-[#1a2744]/15 p-5">
-            <div className="text-sm font-bold text-[#1a2744] mb-3">Payment Summary</div>
+          <div className="rounded-xl border border-[#071421]/15 p-5">
+            <div className="text-sm font-bold text-[#071421] mb-3">Payment Summary</div>
             <div className="space-y-1.5 text-sm">
-              <div className="flex justify-between text-[#1a2744]/60"><span>Total</span><span className="font-bold">{formatMoney(quote.total)}</span></div>
+              <div className="flex justify-between text-[#071421]/60"><span>Total</span><span className="font-bold">{formatMoney(quote.total)}</span></div>
               {invoiceStyleTerms ? (
-                <div className="flex justify-between text-[#1a2744]/60"><span>Payment Terms</span><span className="font-bold">{paymentTermsLabel(quote.paymentTerms)}</span></div>
+                <div className="flex justify-between text-[#071421]/60"><span>Payment Terms</span><span className="font-bold">{paymentTermsLabel(quote.paymentTerms)}</span></div>
               ) : (
                 <>
-                  <div className="flex justify-between text-[#1a2744]/60"><span>Deposit Required</span><span className="font-bold">{formatMoney(quote.deposit)}</span></div>
-                  <div className="flex justify-between text-[#1a2744]/60"><span>Balance Due</span><span className="font-bold">{formatMoney(quote.balance)}</span></div>
+                  <div className="flex justify-between text-[#071421]/60"><span>Deposit Required</span><span className="font-bold">{formatMoney(quote.deposit)}</span></div>
+                  <div className="flex justify-between text-[#071421]/60"><span>Balance Due</span><span className="font-bold">{formatMoney(quote.balance)}</span></div>
                 </>
               )}
             </div>
@@ -1504,28 +1504,28 @@ function QuoteAcceptPageInner() {
           <SectionLabel>What Our Customers Say</SectionLabel>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {REVIEWS.map((r, i) => (
-              <div key={i} className="rounded-xl border border-[#1a2744]/10 bg-white p-4">
+              <div key={i} className="rounded-xl border border-[#071421]/10 bg-white p-4">
                 <Stars count={r.stars} />
-                <p className="mt-2 text-xs leading-5 text-[#1a2744]/60">{r.text}</p>
-                <p className="mt-2 text-[10px] font-semibold text-[#1a2744]/30">— {r.name}</p>
+                <p className="mt-2 text-xs leading-5 text-[#071421]/60">{r.text}</p>
+                <p className="mt-2 text-[10px] font-semibold text-[#071421]/30">— {r.name}</p>
               </div>
             ))}
           </div>
-          <div className="mt-3 flex items-center justify-center gap-3 text-[10px] text-[#1a2744]/30">
+          <div className="mt-3 flex items-center justify-center gap-3 text-[10px] text-[#071421]/30">
             <Stars count={5} />
             <span>5-star rated on Google</span>
             <span>·</span>
-            <a href="https://starmovers.ca" className="text-[#1a2744]/40 hover:text-[#1a2744]">starmovers.ca</a>
+            <a href="https://starmovers.ca" className="text-[#071421]/40 hover:text-[#071421]">starmovers.ca</a>
           </div>
         </div>}
 
         {/* ── Footer ── */}
-        <div className="overflow-hidden rounded-2xl bg-[#1a2744]">
-          <div className="h-1 bg-[#f5a623]" />
+        <div className="overflow-hidden rounded-2xl bg-[#071421]">
+          <div className="h-1 bg-[#C99700]" />
           <div className="flex flex-col items-center gap-2 px-6 py-7 text-center">
             <LogoMark size={56} dark brand={brand} />
             <div className="mt-2 text-base font-black tracking-tight text-white">{brand.shortName}</div>
-            <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#f5a623]/70">Professional Moving Services</div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#C99700]/70">Professional Moving Services</div>
             <div className="mt-3 text-[10px] text-white/30 leading-6">
               {marketLabel}<br />
               <a href={brand.phoneHref} className="text-white/50 hover:text-white">{brand.phone}</a>
@@ -1544,10 +1544,10 @@ function QuoteAcceptPageInner() {
 export default function QuoteAcceptPage() {
   return (
     <Suspense fallback={
-      <div className="flex min-h-screen items-center justify-center bg-[#f0f2f5]">
+      <div className="flex min-h-screen items-center justify-center bg-[#F7F4ED]">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-9 w-9 animate-pulse rounded-xl bg-[#1a2744]/10" />
-          <div className="text-xs text-[#1a2744]/40 tracking-wider uppercase">Loading...</div>
+          <div className="h-9 w-9 animate-pulse rounded-xl bg-[#071421]/10" />
+          <div className="text-xs text-[#071421]/40 tracking-wider uppercase">Loading...</div>
         </div>
       </div>
     }>

@@ -86,6 +86,20 @@ export function LeadTimeline({
   const [quickNote, setQuickNote] = useState('')
   const [postingNote, setPostingNote] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [transcribing, setTranscribing] = useState(false)
+
+  const pendingTranscriptionCount = useMemo(() => {
+    return (lead.callLogs || []).filter(call => {
+      const recordingUrl = call.recordingUrl || ''
+      return (
+        !call.transcript &&
+        (
+          recordingUrl.startsWith('https://api.twilio.com/') ||
+          recordingUrl.startsWith('/api/sales/dialer/recording?key=')
+        )
+      )
+    }).length
+  }, [lead.callLogs])
 
   const syncCalls = useCallback(async () => {
     if (syncing) return
@@ -105,6 +119,25 @@ export function LeadTimeline({
       setSyncing(false)
     }
   }, [lead.id, syncing, onLeadUpdate])
+
+  const transcribeCalls = useCallback(async () => {
+    if (transcribing || pendingTranscriptionCount === 0) return
+    setTranscribing(true)
+    try {
+      const res = await fetch(`/api/sales/leads/${lead.id}/transcribe-calls`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      if (res.ok) {
+        const data = await res.json() as { ok?: boolean; lead?: CRMLead; transcribed?: number }
+        if (data.lead) onLeadUpdate?.(data.lead)
+      }
+    } catch {
+      // best-effort
+    } finally {
+      setTranscribing(false)
+    }
+  }, [lead.id, pendingTranscriptionCount, transcribing, onLeadUpdate])
 
   async function handlePostNote() {
     if (!quickNote.trim() || postingNote || readOnly) return
@@ -148,6 +181,17 @@ export function LeadTimeline({
           >
             {syncing ? '↻ Syncing…' : '↻ Sync calls'}
           </button>
+          {pendingTranscriptionCount > 0 ? (
+            <button
+              type="button"
+              onClick={() => void transcribeCalls()}
+              disabled={transcribing}
+              title="Transcribe recordings that are already saved but missing transcript text"
+              className="rounded-full border border-[var(--app-line)] bg-white px-2.5 py-1 text-[10px] font-semibold text-[var(--app-muted)] transition hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] disabled:opacity-50"
+            >
+              {transcribing ? 'Transcribing…' : `Transcribe ${pendingTranscriptionCount}`}
+            </button>
+          ) : null}
         </div>
         <div className="flex items-center gap-2 text-[var(--app-muted)]">
           {[

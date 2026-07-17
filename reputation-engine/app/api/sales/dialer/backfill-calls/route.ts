@@ -16,6 +16,7 @@ import {
 import { digitsOnly, isSaturnBranchPhoneNumber, normalizePhone } from '@/lib/sales-phones'
 import { getTwilioCredentials } from '@/lib/server/runtime'
 import { findTwilioRecordingForCall, twilioAuth } from '@/lib/server/twilio-recordings'
+import { archiveTwilioRecording } from '@/lib/server/recording-archive'
 import { uid } from '@/lib/sales'
 import type { CRMLead } from '@/lib/types'
 function formatDuration(s: number) {
@@ -86,10 +87,26 @@ export async function POST() {
         const recording = await findTwilioRecordingForCall({ accountSid, authToken, callSid })
         if (recording) {
           try {
-            await updateLeadCallLogEntry(existing.leadId, existing.callLogId, {
+            const archived = await archiveTwilioRecording({
+              accountSid,
+              authToken,
+              callSid,
               recordingUrl: recording.recordingUrl,
               recordingSid: recording.recordingSid,
+              durationSeconds: recording.durationSeconds,
+              leadId: existing.leadId,
+              callLogId: existing.callLogId,
+            }).catch(() => null)
+            await updateLeadCallLogEntry(existing.leadId, existing.callLogId, {
+              recordingUrl: archived?.recordingUrl || recording.recordingUrl,
+              recordingSid: recording.recordingSid,
               recordingDuration: recording.durationSeconds,
+              recordingStatus: archived ? 'verified' : undefined,
+              recordingSize: archived?.sizeBytes,
+              recordingContentType: archived?.contentType,
+              storageProvider: archived?.storageProvider,
+              cloudflareObjectKey: archived?.objectKey,
+              cloudflareUrl: archived?.recordingUrl,
             } as any)
             patched++
           } catch { /* best-effort */ }
@@ -117,7 +134,17 @@ export async function POST() {
 
       // Get recordings for this call, including child/parent call legs.
       const recording = await findTwilioRecordingForCall({ accountSid, authToken, callSid })
-      const recordingUrl = recording?.recordingUrl
+      const archived = recording ? await archiveTwilioRecording({
+        accountSid,
+        authToken,
+        callSid,
+        recordingUrl: recording.recordingUrl,
+        recordingSid: recording.recordingSid,
+        durationSeconds: recording.durationSeconds,
+        phoneNumber: normalizePhone(rawExternal),
+        createdAt: call.start_time,
+      }).catch(() => null) : null
+      const recordingUrl = archived?.recordingUrl || recording?.recordingUrl
 
       // Find matching CRM lead
       let crmLead = allLeads.find(l => {
@@ -179,6 +206,12 @@ export async function POST() {
             recordingUrl: recordingUrl || undefined,
             recordingSid: recording?.recordingSid,
             recordingDuration: recording?.durationSeconds,
+            recordingStatus: archived ? 'verified' : undefined,
+            recordingSize: archived?.sizeBytes,
+            recordingContentType: archived?.contentType,
+            storageProvider: archived?.storageProvider,
+            cloudflareObjectKey: archived?.objectKey,
+            cloudflareUrl: archived?.recordingUrl,
             source: 'manual',
           } as any,
         ],

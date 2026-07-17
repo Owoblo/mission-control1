@@ -25,10 +25,18 @@ export function SalesAddressAutocompleteInput({
   const [fetching, setFetching] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const focusedRef = useRef(false)
+  const latestQueryRef = useRef('')
 
   useEffect(() => {
-    setRaw(value)
+    if (!focusedRef.current) setRaw(value)
   }, [value])
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     function handleMouseDown(event: MouseEvent) {
@@ -44,6 +52,7 @@ export function SalesAddressAutocompleteInput({
   function handleChange(nextValue: string) {
     setRaw(nextValue)
     onSelect(nextValue)
+    latestQueryRef.current = nextValue
 
     if (debounceRef.current) clearTimeout(debounceRef.current)
     if (nextValue.length < 4) {
@@ -57,14 +66,16 @@ export function SalesAddressAutocompleteInput({
       try {
         const response = await fetch(`/api/sales/address-suggest?q=${encodeURIComponent(nextValue)}`, { credentials: 'include' })
         const payload = (await response.json()) as { suggestions?: Suggestion[] }
+        if (latestQueryRef.current !== nextValue) return
         const nextSuggestions = payload.suggestions || []
         setSuggestions(nextSuggestions)
         setOpen(nextSuggestions.length > 0)
       } catch {
+        if (latestQueryRef.current !== nextValue) return
         setSuggestions([])
         setOpen(false)
       } finally {
-        setFetching(false)
+        if (latestQueryRef.current === nextValue) setFetching(false)
       }
     }, 350)
   }
@@ -84,7 +95,14 @@ export function SalesAddressAutocompleteInput({
         value={raw}
         autoComplete="off"
         onChange={event => handleChange(event.target.value)}
-        onFocus={() => suggestions.length > 0 && setOpen(true)}
+        onFocus={() => {
+          focusedRef.current = true
+          if (suggestions.length > 0) setOpen(true)
+        }}
+        onBlur={() => {
+          focusedRef.current = false
+          onSelect(raw)
+        }}
       />
       {fetching && (
         <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 mt-0.5">

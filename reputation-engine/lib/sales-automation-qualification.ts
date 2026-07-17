@@ -4,11 +4,27 @@ export function hasStreetNumber(value?: string) {
   return /\d{1,6}/.test(value || '')
 }
 
+export function hasCanadianPostalCode(value?: string) {
+  return /\b[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTV-Z][ -]?\d[ABCEGHJ-NPRSTV-Z]\d\b/i.test(value || '')
+}
+
+export function hasUnitMarker(value?: string) {
+  const text = value || ''
+  return (
+    /\b(unit|suite|ste|apt|apartment|condo|#\s*[a-z0-9]|ph\b|penthouse)\b/i.test(text) ||
+    /\b\d{1,5}\s*-\s*\d{1,6}\b/.test(text)
+  )
+}
+
+export function hasStreetType(value?: string) {
+  return /\b(st|street|ave|avenue|rd|road|dr|drive|blvd|boulevard|cres|crescent|ct|court|ln|lane|way|pkwy|parkway|pl|place|terrace|trail|circle|cir|sq|square|hwy|highway)\b/i.test(value || '')
+}
+
 export function hasCompleteMoveAddress(value?: string) {
   const text = (value || '').replace(/\s+/g, ' ').trim()
   if (!text) return false
   if (!hasStreetNumber(text)) return false
-  return /\b(st|street|ave|avenue|rd|road|dr|drive|blvd|boulevard|cres|crescent|ct|court|ln|lane|way|pkwy|parkway|pl|place|terrace|trail|circle|cir|sq|square|hwy|highway|unit|suite|apt|apartment|#)\b/i.test(text)
+  return hasStreetType(text) || hasCanadianPostalCode(text)
 }
 
 export function getExactAddressMissingFields(lead: Pick<CRMLead, 'originAddress' | 'destAddress'>) {
@@ -37,6 +53,45 @@ export function hasMlsDraftInventoryNeedingConfirmation(
   return hasInventory && hasListingDraft && !hasVerifiedInventory(lead)
 }
 
+export function hasAnyAccessDetails(
+  lead: Pick<CRMLead, 'originAccess' | 'destAccess' | 'parkingNotes' | 'jobFactors'>
+) {
+  return (
+    !!lead.originAccess ||
+    !!lead.destAccess ||
+    !!lead.parkingNotes ||
+    lead.jobFactors?.originFloors !== undefined ||
+    lead.jobFactors?.destFloors !== undefined ||
+    lead.jobFactors?.originHasElevator !== undefined ||
+    lead.jobFactors?.destHasElevator !== undefined ||
+    lead.jobFactors?.originParkingOk !== undefined ||
+    lead.jobFactors?.destParkingOk !== undefined ||
+    lead.jobFactors?.originElevatorReserved !== undefined ||
+    lead.jobFactors?.destElevatorReserved !== undefined
+  )
+}
+
+export function addressNeedsAccessConfirmation(address?: string, propertyType?: CRMLead['propertyType']) {
+  const text = address || ''
+  if (propertyType === 'apartment' || propertyType === 'condo' || propertyType === 'commercial' || propertyType === 'storage_unit') {
+    return true
+  }
+  return (
+    hasUnitMarker(text) ||
+    /\b(condo|apartment|apt|suite|tower|building|high[- ]?rise|elevator|storage|commercial|office|loading dock)\b/i.test(text)
+  )
+}
+
+export function leadNeedsAccessBeforeAutomatedQuote(
+  lead: Pick<CRMLead, 'originAddress' | 'destAddress' | 'propertyType' | 'originAccess' | 'destAccess' | 'parkingNotes' | 'jobFactors'>
+) {
+  if (hasAnyAccessDetails(lead)) return false
+  return (
+    addressNeedsAccessConfirmation(lead.originAddress, lead.propertyType) ||
+    addressNeedsAccessConfirmation(lead.destAddress, lead.propertyType)
+  )
+}
+
 export function getAutomationMissingFields(lead: CRMLead) {
   const missing: string[] = []
   const moveDateKnown = !!lead.moveDate || !!lead.moveDateFlexible
@@ -44,13 +99,7 @@ export function getAutomationMissingFields(lead: CRMLead) {
   const inventoryKnown =
     (!!lead.totalItems || !!lead.totalCubicFeet || !!(lead.inventory || []).length || !!lead.surveyCompletedAt) &&
     !hasMlsDraftInventoryNeedingConfirmation(lead)
-  const accessKnown =
-    !!lead.originAccess ||
-    !!lead.destAccess ||
-    !!lead.jobFactors?.originFloors ||
-    !!lead.jobFactors?.destFloors ||
-    !!lead.jobFactors?.originHasElevator ||
-    !!lead.jobFactors?.destHasElevator
+  const accessKnown = hasAnyAccessDetails(lead)
 
   if (!lead.moveDate && !lead.moveDateFlexible) missing.push('move_date')
   if (!lead.originCity && !lead.originAddress) missing.push('origin')
@@ -80,17 +129,15 @@ export function buildLeadQualificationState(
       (!!lead.totalItems || !!lead.totalCubicFeet || !!(lead.inventory || []).length || !!lead.surveyCompletedAt) &&
       !hasMlsDraftInventoryNeedingConfirmation(lead),
     accessKnown:
-      !!lead.originAccess ||
-      !!lead.destAccess ||
-      !!lead.jobFactors?.originFloors ||
-      !!lead.jobFactors?.destFloors ||
-      !!lead.jobFactors?.originHasElevator ||
-      !!lead.jobFactors?.destHasElevator,
+      hasAnyAccessDetails(lead),
     surveyRequested: !!lead.surveyRequestedAt,
     surveyCompleted: !!lead.surveyCompletedAt,
     quoteReady: missingFields.length === 0 || (missingFields.length === 1 && missingFields[0] === 'access'),
     activeCustomer: lead.stage === 'booked' || lead.stage === 'completed' || lead.stage === 'customer_success',
     missingFields,
+    addressVerification: Object.prototype.hasOwnProperty.call(overrides, 'addressVerification')
+      ? overrides.addressVerification
+      : lead.qualificationState?.addressVerification,
     nextBestAction:
       overrides.nextBestAction ||
       (missingFields[0] === 'move_date'

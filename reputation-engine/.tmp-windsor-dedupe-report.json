@@ -1,0 +1,400 @@
+{
+  "live_market_contacts": 180,
+  "windsor_rows": 1300,
+  "windsor_primary_phone": 1270,
+  "matches": {
+    "primary_phone": 120,
+    "alternate_phone_only": 1,
+    "exact_normalized_name": 97,
+    "strong_name_city_or_brokerage": 96,
+    "unique_excluded_by_any_rule": 131
+  },
+  "sendable_windsor_primary_phone_after_dedupe": 1141,
+  "windsor_no_primary_phone": 30,
+  "sample_exclusions": [
+    {
+      "csv_name": "JASON BROWN",
+      "csv_phone": "519-999-3688",
+      "csv_brokerage": "REMO VALENTE REAL ESTATE (1990) LIMITED",
+      "reasons": [
+        "exact_name",
+        "primary_phone",
+        "strong_name_city_or_brokerage"
+      ],
+      "existing": [
+        {
+          "name": "Jason Brown",
+          "phone": "519-999-3688",
+          "company": "Remo Valente Real Estate (1990) Limited Brokerage",
+          "city": "Kingsville"
+        }
+      ]
+    },
+    {
+      "csv_name": "ANNA KOLM",
+      "csv_phone": "519-250-8800",
+      "csv_brokerage": "MANOR WINDSOR REALTY LTD.",
+      "reasons": [
+        "primary_phone"
+      ],
+      "existing": [
+        {
+          "name": "Mark A. Eugeni",
+          "phone": "519-250-8800",
+          "company": "Manor Windsor Realty Ltd. Brokerage",
+          "city": "Windsor"
+        }
+      ]
+    },
+    {
+      "csv_name": "RICK ROSE",
+      "csv_phone": "226-788-9966",
+      "csv_brokerage": "KW SIGNATURE",
+      "reasons": [
+        "primary_phone"
+      ],
+      "existing": [
+        {
+          "name": "Shan Hasan",
+          "phone": "226-788-9966",
+          "company": "Kw Signature Brokerage",
+          "city": "Windsor"
+        }
+      ]
+    },
+    {
+      "csv_name": "RICK LESCANEC",
+      "csv_phone": "519-972-1600",
+      "csv_brokerage": "DEERBROOK PLUS REALTY INC",
+      "reasons": [
+        "exact_name",
+        "primary_phone",
+        "strong_name_city_or_brokerage"
+      ],
+      "existing": [
+        {
+          "name": "Rick Lescanec",
+          "phone": "519-972-1600",
+          "company": "Deerbrook Plus Realty Inc Brokerage",
+          "city": "Windsor"
+        }
+      ]
+    },
+    {
+      "csv_name": "KARL SCHUSTER",
+      "csv_phone": "519-250-8800",
+      "csv_brokerage": "MANOR WINDSOR REALTY LTD.",
+      "reasons": [
+        "primary_phone"
+      ],
+      "existing": [
+        {
+          "name": "Mark A. Eugeni",
+          "phone": "519-250-8800",
+          "company": "Manor Windsor Realty Ltd. Brokerage",
+          "city": "Windsor"
+        }
+      ]
+    },
+    {
+      "csv_name": "JASON BROWN",
+      "csv_phone": "519-999-3688",
+      "csv_brokerage": "REMO VALENTE REAL ESTATE (1990) LIMITED",
+      "reasons": [
+        "exact_name",
+        "primary_phone",
+        "strong_name_city_or_brokerage"
+      ],
+      "existing": [
+        {
+          "name": "Jason Brown",
+          "phone": "519-999-3688",
+          "company": "Remo Valente Real Estate (1990) Limited Brokerage",
+          "city": "Kingsville"
+        }
+      ]
+    },
+    {
+      "csv_name": "RICK LESCANEC",
+      "csv_phone": "519-972-1600",
+      "csv_brokerage": "DEERBROOK PLUS REALTY INC",
+      "reasons": [
+        "exact_name",
+        "primary_phone",
+        "strong_name_city_or_brokerage"
+      ],
+      "existing": [
+        {
+          "name": "Rick Lescanec",
+          "phone": "519-972-1600",
+          "company": "Deerbrook Plus Realty Inc Brokerage",
+          "city": "Windsor"
+        }
+      ]
+    },
+    {
+      "csv_name": "MAGGIE CHEN",
+      "csv_phone": "519-972-3888",
+      "csv_brokerage": "LC PLATINUM REALTY INC.",
+      "reasons": [
+        "exact_name",
+        "strong_name_city_or_brokerage"
+      ],
+      "existing": [
+        {
+          "name": "Maggie Chen",
+          "phone": "519-919-2398",
+          "company": "Lc Platinum Realty Inc. Brokerage",
+          "city": "Windsor"
+        }
+      ]
+    },
+    {
+      "csv_name": "SCOTT INNOCENTE",
+      "csv_phone": "519-567-1987",
+      "csv_brokerage": "REMAX CAPITAL DIAMOND REALTY",
+      "reasons": [
+        "exact_name",
+        "primary_phone",
+        "strong_name_city_or_brokerage"
+      ],
+      "existing": [
+        {
+          "name": "Scott Innocente",
+          "phone": "519-567-1987",
+          "company": "Remax Capital Diamond Realty Brokerage",
+          "city": "Windsor"
+        }
+      ]
+    },
+    {
+      "csv_name": "RANDY STANDEL",
+      "csv_phone": "519-562-4970",
+      "csv_brokerage": "CENTURY 21 LOCAL HOME TEAM REALTY INC.",
+      "reasons": [
+        "exact_name",
+        "primary_phone",
+        "strong_name_city_or_brokerage"
+      ],
+      "existing": [
+        {
+          "name": "Randy Standel",
+          "phone": "519-562-4970",
+          "company": "Century 21 Local Home Team Realty Inc. Brokerage",
+          "city": "Windsor"
+        }
+      ]
+    },
+    {
+      "csv_name": "JASON BROWN",
+      "csv_phone": "519-999-3688",
+      "csv_brokerage": "REMO VALENTE REAL ESTATE (1990) LIMITED",
+      "reasons": [
+        "exact_name",
+        "primary_phone",
+        "strong_name_city_or_brokerage"
+      ],
+      "existing": [
+        {
+          "name": "Jason Brown",
+          "phone": "519-999-3688",
+          "company": "Remo Valente Real Estate (1990) Limited Brokerage",
+          "city": "Kingsville"
+        }
+      ]
+    },
+    {
+      "csv_name": "RICK LESCANEC",
+      "csv_phone": "519-972-1600",
+      "csv_brokerage": "DEERBROOK PLUS REALTY INC",
+      "reasons": [
+        "exact_name",
+        "primary_phone",
+        "strong_name_city_or_brokerage"
+      ],
+      "existing": [
+        {
+          "name": "Rick Lescanec",
+          "phone": "519-972-1600",
+          "company": "Deerbrook Plus Realty Inc Brokerage",
+          "city": "Windsor"
+        }
+      ]
+    },
+    {
+      "csv_name": "MAGGIE CHEN",
+      "csv_phone": "519-972-3888",
+      "csv_brokerage": "LC PLATINUM REALTY INC.",
+      "reasons": [
+        "exact_name",
+        "strong_name_city_or_brokerage"
+      ],
+      "existing": [
+        {
+          "name": "Maggie Chen",
+          "phone": "519-919-2398",
+          "company": "Lc Platinum Realty Inc. Brokerage",
+          "city": "Windsor"
+        }
+      ]
+    },
+    {
+      "csv_name": "SCOTT INNOCENTE",
+      "csv_phone": "519-567-1987",
+      "csv_brokerage": "REMAX CAPITAL DIAMOND REALTY",
+      "reasons": [
+        "exact_name",
+        "primary_phone",
+        "strong_name_city_or_brokerage"
+      ],
+      "existing": [
+        {
+          "name": "Scott Innocente",
+          "phone": "519-567-1987",
+          "company": "Remax Capital Diamond Realty Brokerage",
+          "city": "Windsor"
+        }
+      ]
+    },
+    {
+      "csv_name": "RANDY STANDEL",
+      "csv_phone": "519-562-4970",
+      "csv_brokerage": "CENTURY 21 LOCAL HOME TEAM REALTY INC.",
+      "reasons": [
+        "exact_name",
+        "primary_phone",
+        "strong_name_city_or_brokerage"
+      ],
+      "existing": [
+        {
+          "name": "Randy Standel",
+          "phone": "519-562-4970",
+          "company": "Century 21 Local Home Team Realty Inc. Brokerage",
+          "city": "Windsor"
+        }
+      ]
+    }
+  ],
+  "first_20_sendable": [
+    {
+      "name": "KATHRYN HENGL",
+      "phone": "519-566-4777",
+      "brokerage": "REMAX CAPITAL DIAMOND REALTY",
+      "individual_id": "2104371"
+    },
+    {
+      "name": "RYAN DUROCHER",
+      "phone": "519-613-9087",
+      "brokerage": "JUMP REALTY INC.",
+      "individual_id": "2165814"
+    },
+    {
+      "name": "TANYA QUICK",
+      "phone": "519-567-7437",
+      "brokerage": "REMAX PREFERRED REALTY LTD. - 584",
+      "individual_id": "2176428"
+    },
+    {
+      "name": "HAMID POURKASRAEI",
+      "phone": "226-241-6538",
+      "brokerage": "DEERBROOK REALTY INC.",
+      "individual_id": "2155737"
+    },
+    {
+      "name": "AHMAD KALOUTI",
+      "phone": "519-995-8766",
+      "brokerage": "LC PLATINUM REALTY INC.",
+      "individual_id": "2100008"
+    },
+    {
+      "name": "RAVINDER BHULLAR",
+      "phone": "734-892-6447",
+      "brokerage": "HOMELIFE GOLD STAR REALTY INC., BROKERAGE",
+      "individual_id": "2153822"
+    },
+    {
+      "name": "BRETT TETLEY",
+      "phone": "519-996-4442",
+      "brokerage": "KW SIGNATURE",
+      "individual_id": "1980501"
+    },
+    {
+      "name": "FRANK BINDER",
+      "phone": "519-948-5300",
+      "brokerage": "ROYAL LEPAGE BINDER REAL ESTATE",
+      "individual_id": "1397982"
+    },
+    {
+      "name": "MAC LAFOREST",
+      "phone": "519-992-4967",
+      "brokerage": "PINNACLE PLUS REALTY LTD.",
+      "individual_id": "2010239"
+    },
+    {
+      "name": "VIPIN KUMAR",
+      "phone": "306-881-2207",
+      "brokerage": "REMO VALENTE REAL ESTATE (1990) LIMITED",
+      "individual_id": "2172777"
+    },
+    {
+      "name": "KEMMY RAJI",
+      "phone": "226-602-4998",
+      "brokerage": "REMAX CARE REALTY",
+      "individual_id": "2209664"
+    },
+    {
+      "name": "EVAN GAISWINKLER",
+      "phone": "519-401-5213",
+      "brokerage": "JUMP REALTY INC.",
+      "individual_id": "2171815"
+    },
+    {
+      "name": "RYAN HUGHES",
+      "phone": "519-984-3911",
+      "brokerage": "REMAX PREFERRED REALTY LTD. - 585",
+      "individual_id": "2082763"
+    },
+    {
+      "name": "MATTHEW GEBO",
+      "phone": "519-981-8135",
+      "brokerage": "REMAX CAPITAL DIAMOND REALTY",
+      "individual_id": "2169121"
+    },
+    {
+      "name": "MON YEE TAM",
+      "phone": "519-800-8014",
+      "brokerage": "LC PLATINUM REALTY INC.",
+      "individual_id": "2046765"
+    },
+    {
+      "name": "TERRY COOK",
+      "phone": "519-818-2852",
+      "brokerage": "DEERBROOK REALTY INC.",
+      "individual_id": "1861171"
+    },
+    {
+      "name": "ROB STEEL, ABR",
+      "phone": "226-347-4779",
+      "brokerage": "LC PLATINUM REALTY INC.",
+      "individual_id": "1739877"
+    },
+    {
+      "name": "LAKHWINDER HANS",
+      "phone": "519-991-5684",
+      "brokerage": "DEERBROOK REALTY INC.",
+      "individual_id": "2148169"
+    },
+    {
+      "name": "RAMZI KALOUTI",
+      "phone": "519-991-8195",
+      "brokerage": "KW SIGNATURE",
+      "individual_id": "2173825"
+    },
+    {
+      "name": "FLO OLTEANU",
+      "phone": "519-551-5638",
+      "brokerage": "REMAX CAPITAL DIAMOND REALTY",
+      "individual_id": "2213508"
+    }
+  ]
+}

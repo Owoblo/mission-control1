@@ -8,6 +8,7 @@ import { getQuotePaidSoFar } from '@/lib/server/job-billing'
 import { recordLeadPaymentAudit, recordQuoteUpdatedAudit } from '@/lib/server/sales-audit'
 import { canHandleLeadPayments } from '@/lib/server/sales-permissions'
 import { fetchStripeCardSummary, stripePost } from '@/lib/server/stripe-payments'
+import { buildPaymentRecord } from '@/lib/payment-records'
 import { readEnv } from '@/lib/server/runtime'
 import { getSalesLead, getSalesQuote, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
@@ -86,12 +87,16 @@ export async function POST(request: Request) {
 
     const paid = getQuotePaidSoFar(quote, lead)
     const nextBalance = Math.max(0, Math.round((quote.total - (paid.totalPaid + chargeAmount)) * 100) / 100)
+    const paidAt = new Date().toISOString()
+    const { cardBrand, cardLast4 } = await fetchStripeCardSummary(stripeKey, paymentMethodId)
+    const paymentRecord = buildPaymentRecord({ quote, lead, amount: chargeAmount, kind: nextBalance <= 0 ? 'final' : 'balance', method: 'credit_card', paidAt, reference: pi.id, cardLast4, recordedBy: session?.name, recordedByUserId: session?.userId })
     const updatedQuote = await saveSalesQuote({
       ...quote,
       balance: nextBalance,
-      balancePaidAt: new Date().toISOString(),
+      balancePaidAt: paidAt,
       balancePaidAmount: Math.round((paid.balancePaid + chargeAmount) * 100) / 100,
       balancePaidMethod: 'stripe',
+      paymentRecords: [...(quote.paymentRecords || []), paymentRecord],
     })
 
     const updatedLead = await saveSalesLead({
@@ -99,7 +104,6 @@ export async function POST(request: Request) {
       paymentStatus: nextBalance <= 0 ? 'paid_in_full' : 'deposit_received',
     })
 
-    const { cardBrand, cardLast4 } = await fetchStripeCardSummary(stripeKey, paymentMethodId)
     await recordQuoteUpdatedAudit(quote, updatedQuote, session?.name)
     await recordLeadPaymentAudit({
       leadId,

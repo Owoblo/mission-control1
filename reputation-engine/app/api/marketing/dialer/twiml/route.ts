@@ -53,6 +53,25 @@ function partnershipLineForNumber(value?: string | null) {
   return PARTNERSHIP_LINES.find(line => line.number === normalized) || null
 }
 
+function envMarketSuffix(value?: string | null) {
+  return normalizePartnershipCityKey(value)
+    .replace(/-/g, '_')
+    .toUpperCase()
+}
+
+function configuredForwardPhoneForLine(dialedNumber?: string | null) {
+  const line = partnershipLineForNumber(dialedNumber)
+  const suffix = envMarketSuffix(line?.market)
+  const marketForwardPhone = suffix
+    ? readEnv(`PARTNERSHIP_FORWARD_PHONE_${suffix}`) || readEnv(`PARTNERSHIP_${suffix}_FORWARD_PHONE`)
+    : ''
+  return normalizePhone(
+    marketForwardPhone ||
+    readEnv('PARTNERSHIP_FORWARD_PHONE') ||
+    '+12267241730'
+  )
+}
+
 async function clientIdentityForPartnershipLine(dialedNumber?: string | null) {
   const line = partnershipLineForNumber(dialedNumber)
   if (!line) return ''
@@ -87,15 +106,10 @@ export async function POST(request: Request) {
     const recordingCallback = `${appUrl}/api/marketing/dialer/recording-callback`
 
     if (!fromBrowser) {
-      const configuredForwardPhone = readEnv('PARTNERSHIP_FORWARD_PHONE')
       const dialedNumber = normalizePhone(to) || DEFAULT_PARTNERSHIP_NUMBER
       const marketClientIdentity = await clientIdentityForPartnershipLine(dialedNumber)
       const forwardClientIdentity = marketClientIdentity || readEnv('PARTNERSHIP_FORWARD_CLIENT_IDENTITY')
-      const forwardPhone = configuredForwardPhone
-        ? normalizePhone(configuredForwardPhone)
-        : forwardClientIdentity
-          ? null
-          : '+12267241730'
+      const forwardPhone = configuredForwardPhoneForLine(dialedNumber)
       const inboundPhone = normalizePhone(from) || from
       const callSid = (formData.get('CallSid') as string | null)?.trim() || null
       const statusCallback = `${appUrl}/api/marketing/dialer/call-status`

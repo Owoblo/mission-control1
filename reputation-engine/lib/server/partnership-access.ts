@@ -25,23 +25,29 @@ export function partnershipMarketKeysForSession(session?: SessionPayload | null)
 export function partnershipScopeFilter(
   session?: SessionPayload | null,
   columns: string[] = ['city'],
+  includeAssigned = false,
 ) {
-  const clause = partnershipScopeOrClause(session, columns)
+  const clause = partnershipScopeOrClause(session, columns, includeAssigned)
   return clause ? `&or=(${clause})` : ''
 }
 
 export function partnershipScopeOrClause(
   session?: SessionPayload | null,
   columns: string[] = ['city'],
+  includeAssigned = false,
 ) {
   if (canSeeAllPartnershipMarkets(session)) return ''
   if (!isPartnershipManager(session)) return ''
   const keys = partnershipMarketKeysForSession(session)
-  if (keys.length === 0) return 'id.eq.__no_partnership_market__'
+  const ownerClauses = includeAssigned ? [
+    session?.userId ? `assigned_manager_user_id.eq.${encodeURIComponent(session.userId)}` : '',
+    session?.name ? `owner_name.ilike.*${encodeURIComponent(session.name)}*` : '',
+  ].filter(Boolean) : []
+  if (keys.length === 0) return ownerClauses.join(',') || 'id.eq.__no_partnership_market__'
   const clauses = keys.flatMap(key =>
     columns.map(column => `${column}.ilike.*${encodeURIComponent(key)}*`)
   )
-  return clauses.join(',')
+  return [...clauses, ...ownerClauses].join(',')
 }
 
 export function partnershipRecordMatchesSession(
@@ -51,6 +57,8 @@ export function partnershipRecordMatchesSession(
 ) {
   if (canSeeAllPartnershipMarkets(session)) return true
   if (!isPartnershipManager(session)) return false
+  if (session?.userId && String(record?.assigned_manager_user_id || '') === session.userId) return true
+  if (session?.name && String(record?.owner_name || '').toLowerCase().includes(session.name.toLowerCase())) return true
   const keys = partnershipMarketKeysForSession(session)
   if (keys.length === 0) return false
   const haystack = fields

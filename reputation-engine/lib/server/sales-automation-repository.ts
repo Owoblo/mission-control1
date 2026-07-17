@@ -338,6 +338,79 @@ export async function saveAutomationJob(job: CRMAutomationJob): Promise<CRMAutom
   return rows[0] ? normalizeAutomationJob(rows[0]) : job
 }
 
+export async function patchAutomationJob(
+  id: string,
+  updates: Partial<Pick<
+    CRMAutomationJob,
+    'leadId' | 'status' | 'dueAt' | 'lockedAt' | 'attempts' | 'payload' | 'result' | 'lastError' | 'completedAt'
+  >>
+): Promise<CRMAutomationJob | null> {
+  const body: Partial<AutomationJobRow> = {
+    updated_at: new Date().toISOString(),
+  }
+  if (updates.leadId !== undefined) body.lead_id = updates.leadId
+  if (updates.status !== undefined) body.status = updates.status
+  if (updates.dueAt !== undefined) body.due_at = updates.dueAt
+  if (updates.lockedAt !== undefined) body.locked_at = updates.lockedAt
+  if (updates.attempts !== undefined) body.attempts = updates.attempts
+  if (updates.payload !== undefined) body.payload = updates.payload || {}
+  if (updates.result !== undefined) body.result = updates.result || {}
+  if (updates.lastError !== undefined) body.last_error = updates.lastError
+  if (updates.completedAt !== undefined) body.completed_at = updates.completedAt
+
+  const { url, headers } = requireSupabaseEnv()
+  const response = await fetch(
+    `${url}/rest/v1/crm_automation_jobs?id=eq.${encodeURIComponent(id)}&select=${encodeURIComponent(JOB_SELECT)}`,
+    {
+      method: 'PATCH',
+      headers: {
+        ...headers,
+        Prefer: 'return=representation',
+      },
+      body: JSON.stringify(body),
+    }
+  )
+
+  if (!response.ok) {
+    const detail = await readError(response)
+    if (isMissingRelationError(detail)) return null
+    throw new Error(`Failed to patch crm_automation_jobs: ${detail}`)
+  }
+
+  const rows = (await response.json()) as AutomationJobRow[]
+  return rows[0] ? normalizeAutomationJob(rows[0]) : null
+}
+
+export async function claimAutomationJob(job: CRMAutomationJob): Promise<CRMAutomationJob | null> {
+  const now = new Date().toISOString()
+  const { url, headers } = requireSupabaseEnv()
+  const response = await fetch(
+    `${url}/rest/v1/crm_automation_jobs?id=eq.${encodeURIComponent(job.id)}&status=eq.pending&select=${encodeURIComponent(JOB_SELECT)}`,
+    {
+      method: 'PATCH',
+      headers: {
+        ...headers,
+        Prefer: 'return=representation',
+      },
+      body: JSON.stringify({
+        status: 'running',
+        locked_at: now,
+        attempts: (job.attempts || 0) + 1,
+        updated_at: now,
+      }),
+    }
+  )
+
+  if (!response.ok) {
+    const detail = await readError(response)
+    if (isMissingRelationError(detail)) return null
+    throw new Error(`Failed to claim crm_automation_jobs: ${detail}`)
+  }
+
+  const rows = (await response.json()) as AutomationJobRow[]
+  return rows[0] ? normalizeAutomationJob(rows[0]) : null
+}
+
 export async function queueAutomationJob(input: {
   leadId: string
   conversationId?: string | null

@@ -1,0 +1,665 @@
+zone,city,name,company,title,email,phone,phone2,phone3,address,industry,website,category,external_id,profile_url,photo_url,notes,sender_number,wave
+zone1_windsor_essex,Windsor,JASON BROWN,REMO VALENTE REAL ESTATE (1990) LIMITED,Sales Person,,519-999-3688,,,"2985 DOUGALL AVENUE, WINDSOR, Ontario N9E1S1",real estate,,realtor,2037152,https://www.realtor.ca/agent/2037152/jason-brown-2985-dougall-avenue-windsor-ontario-n9e1s1,https://cdn.realtor.ca/individuals/TS637586689200000000/lowres/1313690.jpg,"Position: Sales Person
+Brokerage address: 2985 DOUGALL AVENUE, WINDSOR, Ontario N9E1S1
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,ANNA KOLM,MANOR WINDSOR REALTY LTD.,REALTOR® Salesperson,,519-250-8800,,,"3276 WALKER RD, WINDSOR, Ontario N8W3R8",real estate,,realtor,1469500,https://www.realtor.ca/agent/1469500/anna-kolm-3276-walker-rd-windsor-ontario-n8w3r8,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1126491.jpg,"Position: REALTOR® Salesperson
+Brokerage address: 3276 WALKER RD, WINDSOR, Ontario N8W3R8
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,RICK ROSE,KW SIGNATURE,Broker,,226-788-9966,,,"3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9",real estate,,realtor,1397933,https://www.realtor.ca/agent/1397933/rick-rose-3070-jefferson-boulevard-windsor-ontario-n8t3g9,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1107578.jpg,"Position: Broker
+Brokerage address: 3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,RICK LESCANEC,DEERBROOK PLUS REALTY INC,Broker of Record,,519-972-1600,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,1397572,https://www.realtor.ca/agent/1397572/rick-lescanec-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1037560.jpg,"Position: Broker of Record
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,MAGGIE CHEN,LC PLATINUM REALTY INC.,Broker of Record,maggie@lcplatinumrealty.com,519-972-3888,(455) 886-1228,(575) 204-0373,"2518 OUELLETTE, WINDSOR, Ontario N8X1L7",real estate,https://www.maggiechenrealestate.com/,realtor,1474934,https://www.realtor.ca/agent/1474934/maggie-chen-2518-ouellette-windsor-ontario-n8x1l7,https://cdn.realtor.ca/individuals/TS637465785000000000/lowres/1130182.jpg,"Position: Broker of Record
+Brokerage address: 2518 OUELLETTE, WINDSOR, Ontario N8X1L7
+Facebook: http://www.facebook.com/2008
+Excluded: existing_exact_name",,
+zone1_windsor_essex,Windsor,KARL SCHUSTER,MANOR WINDSOR REALTY LTD.,REALTOR®,,519-250-8800,,,"3276 WALKER RD, WINDSOR, Ontario N8W3R8",real estate,,realtor,1397695,https://www.realtor.ca/agent/1397695/karl-schuster-3276-walker-rd-windsor-ontario-n8w3r8,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1037526.jpg,"Position: REALTOR®
+Brokerage address: 3276 WALKER RD, WINDSOR, Ontario N8W3R8
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,AMANDA IBRAHIM,JUMP REALTY INC.,Sales Person,,,,,"SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1",real estate,,realtor,2240011,https://www.realtor.ca/agent/2240011/amanda-ibrahim-suite-300-3390-walker-rd-windsor-ontario-n8w3s1,,"Position: Sales Person
+Brokerage address: SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1
+Excluded: no_primary_phone",,
+zone1_windsor_essex,Windsor,SCOTT INNOCENTE,REMAX CAPITAL DIAMOND REALTY,Sales Person,,519-567-1987,,,"254 LAUZON RD, WINDSOR, Ontario N8S3L6",real estate,,realtor,2055026,https://www.realtor.ca/agent/2055026/scott-innocente-254-lauzon-rd-windsor-ontario-n8s3l6,,"Position: Sales Person
+Brokerage address: 254 LAUZON RD, WINDSOR, Ontario N8S3L6
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,MIRNA CASTELLI,DEERBROOK REALTY INC.,Sales Person,,,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,2239186,https://www.realtor.ca/agent/2239186/mirna-castelli-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS638760819000000000/lowres/1477069.jpg,"Position: Sales Person
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: no_primary_phone",,
+zone1_windsor_essex,Windsor,ALINA COSTAN,DEERBROOK REALTY INC.,Sales Person,,,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,2175276,https://www.realtor.ca/agent/2175276/alina-costan-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS638761720200000000/lowres/1425597.jpg,"Position: Sales Person
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: no_primary_phone",,
+zone1_windsor_essex,Windsor,"MATT BIGGLEY, BA, BEd",REMAX CAPITAL DIAMOND REALTY,Real Estate Agent,,519-890-2030,,,"2451 DOUGALL UNIT C, WINDSOR, Ontario N8X1T3",real estate,,realtor,2094990,https://www.realtor.ca/agent/2094990/matt-biggley-ba-bed-2451-dougall-unit-c-windsor-ontario-n8x1t3,https://cdn.realtor.ca/individuals/TS638129572800000000/lowres/1367212.jpg,"Position: Real Estate Agent
+Brokerage address: 2451 DOUGALL UNIT C, WINDSOR, Ontario N8X1T3
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,HOLLY BAKER,JUMP REALTY INC.,Sales Person,,,,,"SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1",real estate,,realtor,2237509,https://www.realtor.ca/agent/2237509/holly-baker-suite-300-3390-walker-rd-windsor-ontario-n8w3s1,https://cdn.realtor.ca/individuals/TS638748286200000000/lowres/1475426.jpg,"Position: Sales Person
+Brokerage address: SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1
+Excluded: no_primary_phone",,
+zone1_windsor_essex,Windsor,DANIEL ZAJACZ,ROYAL LEPAGE BINDER REAL ESTATE,Broker,,519-948-5300,,,"1350 PROVINCIAL, WINDSOR, Ontario N8W5W1",real estate,,realtor,1397969,https://www.realtor.ca/agent/1397969/daniel-zajacz-1350-provincial-windsor-ontario-n8w5w1,https://cdn.realtor.ca/individuals/TS637877821200000000/lowres/1037513.jpg,"Position: Broker
+Brokerage address: 1350 PROVINCIAL, WINDSOR, Ontario N8W5W1
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,RANDY STANDEL,CENTURY 21 LOCAL HOME TEAM REALTY INC.,Sales Person,,519-562-4970,,,"3200 Deziel Dr Unit 310, WINDSOR, Ontario N8W5K8",real estate,,realtor,1397356,https://www.realtor.ca/agent/1397356/randy-standel-3200-deziel-dr-unit-310-windsor-ontario-n8w5k8,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1037851.jpg,"Position: Sales Person
+Brokerage address: 3200 Deziel Dr Unit 310, WINDSOR, Ontario N8W5K8
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,MO ELKADRI,JUMP REALTY INC.,Sales Person,,226-340-3090,,,"SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1",real estate,,realtor,2245326,https://www.realtor.ca/agent/2245326/mo-elkadri-suite-300-3390-walker-rd-windsor-ontario-n8w3s1,https://cdn.realtor.ca/individuals/TS638853761400000000/lowres/1484098.jpg,"Position: Sales Person
+Brokerage address: SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,MARTIN SHKRELI,DEERBROOK REALTY INC.,Salesperson,,519-566-7704,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,2055647,https://www.realtor.ca/agent/2055647/martin-shkreli-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS638083487400000000/lowres/1330943.jpg,"Position: Salesperson
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,BRANDI PLANTUS,DEERBROOK REALTY INC.,Salesperson,,519-564-9365,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,2103626,https://www.realtor.ca/agent/2103626/brandi-plantus-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS637824208200000000/lowres/1373172.jpg,"Position: Salesperson
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,JARED DENNIS,PINNACLE PLUS REALTY LTD.,Sales Person,,,,,"5444 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1C7",real estate,,realtor,2137888,https://www.realtor.ca/agent/2137888/jared-dennis-5444-tecumseh-road-east-windsor-ontario-n8t1c7,https://cdn.realtor.ca/individuals/TS638314453200000000/lowres/1389951.jpg,"Position: Sales Person
+Brokerage address: 5444 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1C7
+Excluded: no_primary_phone",,
+zone1_windsor_essex,Windsor,NICK MONTALEONE,DEERBROOK REALTY INC.,Broker,,519-990-7779,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,1684962,https://www.realtor.ca/agent/1684962/nick-montaleone-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS638577663000000000/lowres/1173257.jpg,"Position: Broker
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,SARAH MITCHELL,ROYAL LEPAGE BINDER REAL ESTATE,Sales Person,,519-564-9632,,,"1350 PROVINCIAL, WINDSOR, Ontario N8W5W1",real estate,,realtor,1456578,https://www.realtor.ca/agent/1456578/sarah-mitchell-1350-provincial-windsor-ontario-n8w5w1,https://cdn.realtor.ca/individuals/TS638954340000000000/lowres/1204601.jpg,"Position: Sales Person
+Brokerage address: 1350 PROVINCIAL, WINDSOR, Ontario N8W5W1
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,EDDIE AZAR,PINNACLE PLUS REALTY LTD.,Broker,,519-796-7642,,,"5444 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1C7",real estate,,realtor,1975987,https://www.realtor.ca/agent/1975987/eddie-azar-5444-tecumseh-road-east-windsor-ontario-n8t1c7,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1262642.jpg,"Position: Broker
+Brokerage address: 5444 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1C7
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,AMY MULLINS,MANOR WINDSOR REALTY LTD.,Sales Person,,519-250-8800,,,"3276 WALKER RD, WINDSOR, Ontario N8W3R8",real estate,,realtor,1475268,https://www.realtor.ca/agent/1475268/amy-mullins-3276-walker-rd-windsor-ontario-n8w3r8,https://cdn.realtor.ca/individuals/TS639047256600000000/lowres/1130608.jpg,"Position: Sales Person
+Brokerage address: 3276 WALKER RD, WINDSOR, Ontario N8W3R8
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,STEPHANIE BRADT,REALTY ONE GROUP ICONIC BROKERAGE,Sales Person,,226-260-4343,,,"531 PELISSIER ST UNIT 101, WINDSOR, Ontario N9A4L2",real estate,,realtor,2063225,https://www.realtor.ca/agent/2063225/stephanie-bradt-531-pelissier-st-unit-101-windsor-ontario-n9a4l2,https://cdn.realtor.ca/individuals/TS638918328600000000/lowres/1338250.jpg,"Position: Sales Person
+Brokerage address: 531 PELISSIER ST UNIT 101, WINDSOR, Ontario N9A4L2
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,ALEX WU,LC PLATINUM REALTY INC.,Sales Person,,,,,"2518 OUELLETTE, WINDSOR, Ontario N8X1L7",real estate,,realtor,2139863,https://www.realtor.ca/agent/2139863/alex-wu-2518-ouellette-windsor-ontario-n8x1l7,,"Position: Sales Person
+Brokerage address: 2518 OUELLETTE, WINDSOR, Ontario N8X1L7
+Excluded: no_primary_phone",,
+zone1_windsor_essex,Windsor,CRISTINA POLJAK,REALTY ONE GROUP ICONIC BROKERAGE,Sales Person,,519-796-9897,,,"531 PELISSIER ST UNIT 101, WINDSOR, Ontario N9A4L2",real estate,,realtor,1989400,https://www.realtor.ca/agent/1989400/cristina-poljak-531-pelissier-st-unit-101-windsor-ontario-n9a4l2,https://cdn.realtor.ca/individuals/TS638215572000000000/lowres/1273383.jpg,"Position: Sales Person
+Brokerage address: 531 PELISSIER ST UNIT 101, WINDSOR, Ontario N9A4L2
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,TASHA SLATER,JUMP REALTY INC.,Sales Person,,519-997-2320,,,"SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1",real estate,,realtor,1571227,https://www.realtor.ca/agent/1571227/tasha-slater-suite-300-3390-walker-rd-windsor-ontario-n8w3s1,https://cdn.realtor.ca/individuals/TS638451656400000000/lowres/1151659.jpg,"Position: Sales Person
+Brokerage address: SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1
+Excluded: duplicate_primary_phone_in_file, existing_exact_name",,
+zone1_windsor_essex,Windsor,MIKE SEAL,REALTY ONE GROUP ICONIC BROKERAGE,Sales Person,,519-566-0119,,,"531 PELISSIER ST UNIT 101, WINDSOR, Ontario N9A4L2",real estate,,realtor,1397789,https://www.realtor.ca/agent/1397789/mike-seal-531-pelissier-st-unit-101-windsor-ontario-n9a4l2,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1096139.jpg,"Position: Sales Person
+Brokerage address: 531 PELISSIER ST UNIT 101, WINDSOR, Ontario N9A4L2
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,TINA PICKLE,MANOR WINDSOR REALTY LTD.,Sales Person,,519-250-8800,,,"3276 WALKER RD, WINDSOR, Ontario N8W3R8",real estate,,realtor,1464781,https://www.realtor.ca/agent/1464781/tina-pickle-3276-walker-rd-windsor-ontario-n8w3r8,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1124447.jpg,"Position: Sales Person
+Brokerage address: 3276 WALKER RD, WINDSOR, Ontario N8W3R8
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,DAVID MADY,ROYAL LEPAGE BINDER REAL ESTATE,Sales Person,,226-350-1110,,,"1350 PROVINCIAL, WINDSOR, Ontario N8W5W1",real estate,,realtor,2091467,https://www.realtor.ca/agent/2091467/david-mady-1350-provincial-windsor-ontario-n8w5w1,https://cdn.realtor.ca/individuals/TS637560918600000000/lowres/1364097.jpg,"Position: Sales Person
+Brokerage address: 1350 PROVINCIAL, WINDSOR, Ontario N8W5W1
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,MARCO D'ANTONIO,MANOR WINDSOR REALTY LTD.,Sales Person,,519-250-8800,,,"3276 WALKER RD, WINDSOR, Ontario N8W3R8",real estate,,realtor,1398092,https://www.realtor.ca/agent/1398092/marco-dantonio-3276-walker-rd-windsor-ontario-n8w3r8,https://cdn.realtor.ca/individuals/TS637659304800000000/lowres/1037250.jpg,"Position: Sales Person
+Brokerage address: 3276 WALKER RD, WINDSOR, Ontario N8W3R8
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,KELLY SCHROTH,DEERBROOK REALTY INC.,Broker of Record,,519-972-1000,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,1397586,https://www.realtor.ca/agent/1397586/kelly-schroth-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS637769817600000000/lowres/1095834.jpg,"Position: Broker of Record
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,CHRISTOPHER TOLDO,REMAX CAPITAL DIAMOND REALTY,Sales Person,,519-890-3690,,,"254 LAUZON RD, WINDSOR, Ontario N8S3L6",real estate,,realtor,1998438,https://www.realtor.ca/agent/1998438/christopher-toldo-254-lauzon-rd-windsor-ontario-n8s3l6,https://cdn.realtor.ca/individuals/TS638214064200000000/lowres/1280816.jpg,"Position: Sales Person
+Brokerage address: 254 LAUZON RD, WINDSOR, Ontario N8S3L6
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,AMANDA TURNER,DEERBROOK REALTY INC.,Sales Person,,,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,2249751,https://www.realtor.ca/agent/2249751/amanda-turner-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS638949960600000000/lowres/1488616.jpg,"Position: Sales Person
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: no_primary_phone",,
+zone1_windsor_essex,Windsor,HANAN NIGMA,JUMP REALTY INC.,Real Estate Broker,mo@nigmaandpartners.com,226-280-1969,(974) 774-5435,(226) 280-1969,"SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1",real estate,http://www.nigmaandpartners.com/,realtor,2061882,https://www.realtor.ca/agent/2061882/hanan-nigma-suite-300-3390-walker-rd-windsor-ontario-n8w3s1,https://cdn.realtor.ca/individuals/TS638253225000000000/lowres/1336928.jpg,"Position: Real Estate Broker
+Brokerage address: SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1
+Facebook: https://www.facebook.com/nigma.hanan
+Instagram: https://www.instagram.com/hanannigma/
+LinkedIn: https://linkedin.com/in/hanannigma
+YouTube: https://youtube.com/nigmaandpartners
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,"JULIE BONDY, ASA, ABR, SRES",MANOR WINDSOR REALTY LTD.,Broker,jbondy@manorrealty.ca,519-250-8800,(553) 888-6781,(553) 889-5570,"3276 WALKER RD, WINDSOR, Ontario N8W3R8",real estate,http://www.juliebondy.com/,realtor,1397718,https://www.realtor.ca/agent/1397718/julie-bondy-asa-abr-sres-3276-walker-rd-windsor-ontario-n8w3r8,https://cdn.realtor.ca/individuals/TS636292283400000000/lowres/1117127.jpg,"Position: Broker
+Brokerage address: 3276 WALKER RD, WINDSOR, Ontario N8W3R8
+Facebook: https://www.facebook.com/Julie-Bondy-Manor-Windsor-Realty-Ltd-219041414929677
+Instagram: https://instagram.com/julbondy
+LinkedIn: https://linkedin.com/in/julie-bondy-38675691
+YouTube: https://youtube.com/UCv6NZ10dLVHcXqd7DdvT-yg
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,MATT MCSHANE,REMO VALENTE REAL ESTATE (1990) LIMITED,Broker,,519-991-4393,,,"2985 DOUGALL AVENUE, WINDSOR, Ontario N9E1S1",real estate,,realtor,1939413,https://www.realtor.ca/agent/1939413/matt-mcshane-2985-dougall-avenue-windsor-ontario-n9e1s1,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1237396.jpg,"Position: Broker
+Brokerage address: 2985 DOUGALL AVENUE, WINDSOR, Ontario N9E1S1
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,LINDA JOSEPH,EXP REALTY,Sales Person,,519-999-1721,,,"5060 TECUMSEH RD E UNIT 501, WINDSOR, Ontario N8T1C1",real estate,,realtor,2056626,https://www.realtor.ca/agent/2056626/linda-joseph-5060-tecumseh-rd-e-unit-501-windsor-ontario-n8t1c1,https://cdn.realtor.ca/individuals/TS637210526400000000/lowres/1331855.jpg,"Position: Sales Person
+Brokerage address: 5060 TECUMSEH RD E UNIT 501, WINDSOR, Ontario N8T1C1
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,JIM WHITFIELD,BUCKINGHAM REALTY (WINDSOR) LTD.,Sales Person,,519-948-8171,,,"4573 TECUMSEH ROAD EAST, WINDSOR, Ontario N8W1K6",real estate,,realtor,1398021,https://www.realtor.ca/agent/1398021/jim-whitfield-4573-tecumseh-road-east-windsor-ontario-n8w1k6,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1036517.jpg,"Position: Sales Person
+Brokerage address: 4573 TECUMSEH ROAD EAST, WINDSOR, Ontario N8W1K6
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,KHADIJA BRADDY,ROYAL LEPAGE BINDER REAL ESTATE,Sales Person,,519-300-3727,,,"1350 PROVINCIAL, WINDSOR, Ontario N8W5W1",real estate,,realtor,2147729,https://www.realtor.ca/agent/2147729/khadija-braddy-1350-provincial-windsor-ontario-n8w5w1,https://cdn.realtor.ca/individuals/TS637982583000000000/lowres/1398807.jpg,"Position: Sales Person
+Brokerage address: 1350 PROVINCIAL, WINDSOR, Ontario N8W5W1
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,DARCIE VALENTE,REMO VALENTE REAL ESTATE (1990) LIMITED,Sales Person,,519-966-7777,,,"2985 DOUGALL AVENUE, WINDSOR, Ontario N9E1S1",real estate,,realtor,1947067,https://www.realtor.ca/agent/1947067/darcie-valente-2985-dougall-avenue-windsor-ontario-n9e1s1,https://cdn.realtor.ca/individuals/TS638911110600000000/lowres/1243612.jpg,"Position: Sales Person
+Brokerage address: 2985 DOUGALL AVENUE, WINDSOR, Ontario N9E1S1
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,JENNIFER PAVAO,DEERBROOK REALTY INC.,Broker,,519-972-1000,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,1562875,https://www.realtor.ca/agent/1562875/jennifer-pavao-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS638961186600000000/lowres/1148477.jpg,"Position: Broker
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,KEVIN CORNWALL,BOB PEDLER REAL ESTATE LIMITED,Sales Person,,519-966-3750,,,"2 - 280 EDINBOROUGH, WINDSOR, Ontario N8X3C4",real estate,,realtor,1397783,https://www.realtor.ca/agent/1397783/kevin-cornwall-2-280-edinborough-windsor-ontario-n8x3c4,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1036464.jpg,"Position: Sales Person
+Brokerage address: 2 - 280 EDINBOROUGH, WINDSOR, Ontario N8X3C4
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,RANDY VOLLANS,DEERBROOK REALTY INC.,Sales Person,,519-972-1000,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,1397545,https://www.realtor.ca/agent/1397545/randy-vollans-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS638985546600000000/lowres/1037745.jpg,"Position: Sales Person
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,FATIMA SOBH,DEERBROOK REALTY INC.,Sales Person,,519-991-3532,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,2083379,https://www.realtor.ca/agent/2083379/fatima-sobh-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS639160213800000000/lowres/1368313.jpg,"Position: Sales Person
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,JEEWEN GILL,NATIONAL REALTY EXCHANGE CORP.,Broker of Record,,519-791-9600,,,"3139 BRIARBANK DR, WINDSOR, Ontario N8R1T1",real estate,,realtor,1397286,https://www.realtor.ca/agent/1397286/jeewen-gill-3139-briarbank-dr-windsor-ontario-n8r1t1,https://cdn.realtor.ca/individuals/TS638369664000000000/lowres/1096136.jpg,"Position: Broker of Record
+Brokerage address: 3139 BRIARBANK DR, WINDSOR, Ontario N8R1T1
+Facebook: https://www.facebook.com/jeewen.gill
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,DAVID LEVY,ROYAL LEPAGE BINDER REAL ESTATE,Sales Person,,519-948-5300,,,"1350 PROVINCIAL, WINDSOR, Ontario N8W5W1",real estate,,realtor,1529582,https://www.realtor.ca/agent/1529582/david-levy-1350-provincial-windsor-ontario-n8w5w1,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1141161.jpg,"Position: Sales Person
+Brokerage address: 1350 PROVINCIAL, WINDSOR, Ontario N8W5W1
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,MAGGIE CHEN,LC PLATINUM REALTY INC.,Broker of Record,maggie@lcplatinumrealty.com,519-252-3558,(455) 886-1228,(575) 204-0373,"19 DUNCOMBE LANE, WINDSOR, Ontario N9B1J1",real estate,http://www.maggiechenrealestate.com/,realtor,2104837,https://www.realtor.ca/agent/2104837/maggie-chen-19-duncombe-lane-windsor-ontario-n9b1j1,,"Position: Broker of Record
+Brokerage address: 19 DUNCOMBE LANE, WINDSOR, Ontario N9B1J1
+Facebook: http://www.facebook.com/2008
+Excluded: existing_exact_name",,
+zone1_windsor_essex,Windsor,CHANTEL WASYLUK,REMAX CAPITAL DIAMOND REALTY,Sales Person,,519-564-4804,,,"254 LAUZON RD, WINDSOR, Ontario N8S3L6",real estate,,realtor,2070531,https://www.realtor.ca/agent/2070531/chantel-wasyluk-254-lauzon-rd-windsor-ontario-n8s3l6,https://cdn.realtor.ca/individuals/TS638633242800000000/lowres/1345751.jpg,"Position: Sales Person
+Brokerage address: 254 LAUZON RD, WINDSOR, Ontario N8S3L6
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,DAVID MASTRONARDI,EXP REALTY,Sales Person,,,,,"5060 TECUMSEH RD E UNIT 501, WINDSOR, Ontario N8T1C1",real estate,,realtor,2249156,https://www.realtor.ca/agent/2249156/david-mastronardi-5060-tecumseh-rd-e-unit-501-windsor-ontario-n8t1c1,,"Position: Sales Person
+Brokerage address: 5060 TECUMSEH RD E UNIT 501, WINDSOR, Ontario N8T1C1
+Excluded: no_primary_phone",,
+zone1_windsor_essex,Windsor,CRISTINA GAZO,REALTY ONE GROUP ICONIC BROKERAGE,Sales Person,,519-567-3031,,,"531 PELISSIER ST UNIT 101, WINDSOR, Ontario N9A4L2",real estate,,realtor,2059761,https://www.realtor.ca/agent/2059761/cristina-gazo-531-pelissier-st-unit-101-windsor-ontario-n9a4l2,https://cdn.realtor.ca/individuals/TS637660885800000000/lowres/1334932.jpg,"Position: Sales Person
+Brokerage address: 531 PELISSIER ST UNIT 101, WINDSOR, Ontario N9A4L2
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,JASON MARTIN,JUMP REALTY INC.,Sales Person,,,,,"SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1",real estate,,realtor,2240022,https://www.realtor.ca/agent/2240022/jason-martin-suite-300-3390-walker-rd-windsor-ontario-n8w3s1,,"Position: Sales Person
+Brokerage address: SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1
+Excluded: no_primary_phone",,
+zone1_windsor_essex,Windsor,Sophie Alegra Giterman,Easy List Realty Ltd.,Broker of Record,,888-323-1998,,,"750 Randolph Ave., Windsor, Ontario N9B2T8",real estate,,realtor,2220194,https://www.realtor.ca/agent/2220194/sophie-giterman-750-randolph-ave-windsor-ontario-n9b2t8,,"Position: Broker of Record
+Brokerage address: 750 Randolph Ave., Windsor, Ontario N9B2T8
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,JOE FALLEA,KW SIGNATURE,REALTOR®,,519-818-9757,,,"3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9",real estate,https://www.teamfallea.com/,realtor,2015854,https://www.realtor.ca/agent/2015854/joe-fallea-3070-jefferson-boulevard-windsor-ontario-n8t3g9,https://cdn.realtor.ca/individuals/TS638622282000000000/lowres/1297134.jpg,"Position: REALTOR®
+Brokerage address: 3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9
+Facebook: https://www.facebook.com/joefallea
+Instagram: https://www.instagram.com/joe_fallea?igsh=djlyc3RlNmVxYjVy
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,AUSTIN DAILEY,KW SIGNATURE,Sales Person,,,,,"3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9",real estate,,realtor,2235311,https://www.realtor.ca/agent/2235311/austin-dailey-3070-jefferson-boulevard-windsor-ontario-n8t3g9,,"Position: Sales Person
+Brokerage address: 3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9
+Excluded: no_primary_phone",,
+zone1_windsor_essex,Windsor,KHALED ELSAKKA,JUMP REALTY INC.,Sales Person,,,,,"SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1",real estate,,realtor,2254397,https://www.realtor.ca/agent/2254397/khaled-elsakka-suite-300-3390-walker-rd-windsor-ontario-n8w3s1,https://cdn.realtor.ca/individuals/TS639112990200000000/lowres/1493346.jpg,"Position: Sales Person
+Brokerage address: SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1
+Excluded: no_primary_phone",,
+zone1_windsor_essex,Windsor,BRITNI GOULET,REMAX PREFERRED REALTY LTD. - 585,Sales Person,,519-944-5955,,,"6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7",real estate,,realtor,1963204,https://www.realtor.ca/agent/1963204/britni-goulet-6505-tecumseh-road-east-windsor-ontario-n8t1e7,,"Position: Sales Person
+Brokerage address: 6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,PARVESH BANSAL,LC PLATINUM REALTY INC.,Sales Person,,,,,"2518 OUELLETTE, WINDSOR, Ontario N8X1L7",real estate,,realtor,2238693,https://www.realtor.ca/agent/2238693/parvesh-bansal-2518-ouellette-windsor-ontario-n8x1l7,,"Position: Sales Person
+Brokerage address: 2518 OUELLETTE, WINDSOR, Ontario N8X1L7
+Excluded: no_primary_phone",,
+zone1_windsor_essex,Windsor,LAURIE ARRUDA,ONE PERCENT REALTY LTD,Sales Person,,519-919-4773,,,"3075 Kenilworth Dr., WINDSOR, Ontario N9E4M6",real estate,,realtor,1397590,https://www.realtor.ca/agent/1397590/laurie-arruda-3075-kenilworth-dr-windsor-ontario-n9e4m6,https://cdn.realtor.ca/individuals/TS638851988400000000/lowres/1132594.jpg,"Position: Sales Person
+Brokerage address: 3075 Kenilworth Dr., WINDSOR, Ontario N9E4M6
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,ANTHONY JRAIGE,DEERBROOK REALTY INC.,REALTOR®,,519-992-3984,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,2077917,https://www.realtor.ca/agent/2077917/anthony-jraige-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS638687309400000000/lowres/1352773.jpg,"Position: REALTOR®
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,RICKY MORRISON,JUMP REALTY INC.,Real Estate Agent,,519-562-9961,,,"SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1",real estate,,realtor,2102832,https://www.realtor.ca/agent/2102832/ricky-morrison-suite-300-3390-walker-rd-windsor-ontario-n8w3s1,,"Position: Real Estate Agent
+Brokerage address: SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,JEN JOHNSON,REMO VALENTE REAL ESTATE (1990) LIMITED,Sales Person,,519-966-7777,,,"2985 DOUGALL AVENUE, WINDSOR, Ontario N9E1S1",real estate,,realtor,1939240,https://www.realtor.ca/agent/1939240/jen-johnson-2985-dougall-avenue-windsor-ontario-n9e1s1,https://cdn.realtor.ca/individuals/TS636567556200000000/lowres/1237100.jpg,"Position: Sales Person
+Brokerage address: 2985 DOUGALL AVENUE, WINDSOR, Ontario N9E1S1
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,TERRA LAVACK,DEERBROOK REALTY INC.,Sales Person,,519-972-1000,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,1397853,https://www.realtor.ca/agent/1397853/terra-lavack-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1036930.jpg,"Position: Sales Person
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,"SUSAN KEELAN, BA, SRES, ABR",BUCKINGHAM REALTY (WINDSOR) LTD.,Sales Person,,519-948-8171,,,"4573 TECUMSEH ROAD EAST, WINDSOR, Ontario N8W1K6",real estate,,realtor,2011833,https://www.realtor.ca/agent/2011833/susan-keelan-ba-sres-abr-4573-tecumseh-road-east-windsor-ontario-n8w1k6,https://cdn.realtor.ca/individuals/TS638182049400000000/lowres/1293307.jpg,"Position: Sales Person
+Brokerage address: 4573 TECUMSEH ROAD EAST, WINDSOR, Ontario N8W1K6
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,JOSH ALICE,KW SIGNATURE,Sales Person,,519-564-7346,,,"3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9",real estate,,realtor,2151994,https://www.realtor.ca/agent/2151994/josh-alice-3070-jefferson-boulevard-windsor-ontario-n8t3g9,,"Position: Sales Person
+Brokerage address: 3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,SOPHIE ALEGRA GITERMAN,EASY LIST REALTY LTD.,Broker of Record,,888-323-1998,(352) 883-3661,(860) 565-1782,,real estate,http://www.sophiegiterman.com/,realtor,1569321,https://www.realtor.ca/agent/1569321/sophie-alegra-giterman,https://cdn.realtor.ca/individuals/TS638906277000000000/lowres/1150604.jpg,"Position: Broker of Record
+Facebook: https://www.facebook.com/SophieGitermanRealEstate/
+Instagram: http://ttps//www.instagram.com/sophie_easylist_realestate/
+YouTube: https://youtube.com/UC1LpvR8x2Apebzhmfjk2IFw
+TikTok: https://tiktok.com/@userh2raphc576
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,JOE CONLON,ROYAL LEPAGE BINDER REAL ESTATE,Broker,,226-345-0836,,,"643 WINDERMERE RD, WINDSOR, Ontario N8Y3E2",real estate,,realtor,1945760,https://www.realtor.ca/agent/1945760/joe-conlon-643-windermere-rd-windsor-ontario-n8y3e2,https://cdn.realtor.ca/individuals/TS638266827000000000/lowres/1241055.jpg,"Position: Broker
+Brokerage address: 643 WINDERMERE RD, WINDSOR, Ontario N8Y3E2
+Facebook: https://www.facebook.com/joeconlonrealtor
+Instagram: https://www.instagram.com/yourrealtorsforlife/
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,MO EL KAHIL,JUMP REALTY INC.,REALTOR®,,226-787-0111,,,"SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1",real estate,,realtor,2154309,https://www.realtor.ca/agent/2154309/mo-el-kahil-suite-300-3390-walker-rd-windsor-ontario-n8w3s1,https://cdn.realtor.ca/individuals/TS639156494400000000/lowres/1405858.jpg,"Position: REALTOR®
+Brokerage address: SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,KAINE BROUYETTE,REMO VALENTE REAL ESTATE (1990) LIMITED,Sales Person,,519-966-7777,,,"2985 DOUGALL AVENUE, WINDSOR, Ontario N9E1S1",real estate,,realtor,2001429,https://www.realtor.ca/agent/2001429/kaine-brouyette-2985-dougall-avenue-windsor-ontario-n9e1s1,https://cdn.realtor.ca/individuals/TS637667829600000000/lowres/1284002.jpg,"Position: Sales Person
+Brokerage address: 2985 DOUGALL AVENUE, WINDSOR, Ontario N9E1S1
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,"RHYS TRENHAILE, BSC., JD",MANOR WINDSOR REALTY LTD.,Broker,,519-250-8800,,,"3276 WALKER RD, WINDSOR, Ontario N8W3R8",real estate,,realtor,1397719,https://www.realtor.ca/agent/1397719/rhys-trenhaile-bsc-jd-3276-walker-rd-windsor-ontario-n8w3r8,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1118789.jpg,"Position: Broker
+Brokerage address: 3276 WALKER RD, WINDSOR, Ontario N8W3R8
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,REED RENAUD,MANOR WINDSOR REALTY LTD.,REALTOR®,,519-250-8800,,,"3276 WALKER RD, WINDSOR, Ontario N8W3R8",real estate,,realtor,2010541,https://www.realtor.ca/agent/2010541/reed-renaud-3276-walker-rd-windsor-ontario-n8w3r8,https://cdn.realtor.ca/individuals/TS636015046800000000/lowres/1292041.jpg,"Position: REALTOR®
+Brokerage address: 3276 WALKER RD, WINDSOR, Ontario N8W3R8
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,SYLVIA BIEDERMAN,DEERBROOK REALTY INC.,Sales Person,,519-796-0523,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,2128203,https://www.realtor.ca/agent/2128203/sylvia-biederman-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS638302872600000000/lowres/1381525.jpg,"Position: Sales Person
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Facebook: https://www.facebook.com/sylviabiederman.realtor
+Instagram: https://www.instagram.com/sylviabiederman.realtor/
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,CARMEN NICOLA,BUCKINGHAM REALTY (WINDSOR) LTD.,Sales Person,,519-948-8171,,,"4573 TECUMSEH ROAD EAST, WINDSOR, Ontario N8W1K6",real estate,,realtor,1398079,https://www.realtor.ca/agent/1398079/carmen-nicola-4573-tecumseh-road-east-windsor-ontario-n8w1k6,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1121009.jpg,"Position: Sales Person
+Brokerage address: 4573 TECUMSEH ROAD EAST, WINDSOR, Ontario N8W1K6
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,MARK BLOOMFIELD,ROYAL LEPAGE BINDER REAL ESTATE,Broker,,519-981-5221,,,"1350 PROVINCIAL, WINDSOR, Ontario N8W5W1",real estate,,realtor,1397659,https://www.realtor.ca/agent/1397659/mark-bloomfield-1350-provincial-windsor-ontario-n8w5w1,https://cdn.realtor.ca/individuals/TS636409986600000000/lowres/1036341.jpg,"Position: Broker
+Brokerage address: 1350 PROVINCIAL, WINDSOR, Ontario N8W5W1
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,MEGHAN LI,LC PLATINUM REALTY INC.,Sales Person,,519-972-3888,,,"2518 OUELLETTE, WINDSOR, Ontario N8X1L7",real estate,,realtor,1950336,https://www.realtor.ca/agent/1950336/meghan-li-2518-ouellette-windsor-ontario-n8x1l7,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1244959.jpg,"Position: Sales Person
+Brokerage address: 2518 OUELLETTE, WINDSOR, Ontario N8X1L7
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,RACHEL LEFAIVE,REMO VALENTE REAL ESTATE (1990) LIMITED,Sales Person,,519-966-7777,,,"2985 DOUGALL AVENUE, WINDSOR, Ontario N9E1S1",real estate,,realtor,1970108,https://www.realtor.ca/agent/1970108/rachel-lefaive-2985-dougall-avenue-windsor-ontario-n9e1s1,https://cdn.realtor.ca/individuals/TS638417775600000000/lowres/1257463.jpg,"Position: Sales Person
+Brokerage address: 2985 DOUGALL AVENUE, WINDSOR, Ontario N9E1S1
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,LAURA YERYK,DEERBROOK REALTY INC.,REALTOR®,,,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,2032604,https://www.realtor.ca/agent/2032604/laura-yeryk-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS636450520800000000/lowres/1309847.jpg,"Position: REALTOR®
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: no_primary_phone",,
+zone1_windsor_essex,Windsor,SITA GAYADEEN,CENTURY 21 TEAMS & ASSOCIATES LTD.,Sales Person,,,,,"11825 TECUMSEH RD EAST, WINDSOR, Ontario N8N1L8",real estate,,realtor,2252284,https://www.realtor.ca/agent/2252284/sita-gayadeen-11825-tecumseh-rd-east-windsor-ontario-n8n1l8,,"Position: Sales Person
+Brokerage address: 11825 TECUMSEH RD EAST, WINDSOR, Ontario N8N1L8
+Excluded: no_primary_phone",,
+zone1_windsor_essex,Windsor,RON G. GAGNON,DEERBROOK REALTY INC.,Sales Person,,519-972-1000,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,2004520,https://www.realtor.ca/agent/2004520/ron-g-gagnon-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS637613530800000000/lowres/1286970.jpg,"Position: Sales Person
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,JOHN ISSHAK,PINNACLE PLUS REALTY LTD.,Broker of Record,,519-791-5922,,,"5444 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1C7",real estate,,realtor,1397842,https://www.realtor.ca/agent/1397842/john-isshak-5444-tecumseh-road-east-windsor-ontario-n8t1c7,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1037179.jpg,"Position: Broker of Record
+Brokerage address: 5444 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1C7
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,DORIS LAPICO,REMAX CAPITAL DIAMOND REALTY,Sales Person,,519-796-0174,,,"2451 DOUGALL UNIT C, WINDSOR, Ontario N8X1T3",real estate,,realtor,1397880,https://www.realtor.ca/agent/1397880/doris-lapico-2451-dougall-unit-c-windsor-ontario-n8x1t3,https://cdn.realtor.ca/individuals/TS638957146200000000/lowres/1037188.jpg,"Position: Sales Person
+Brokerage address: 2451 DOUGALL UNIT C, WINDSOR, Ontario N8X1T3
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,STEVAN MUSTAC,MANOR WINDSOR REALTY LTD.,Broker of Record,,519-250-8800,,,"3276 WALKER RD, WINDSOR, Ontario N8W3R8",real estate,,realtor,1397704,https://www.realtor.ca/agent/1397704/stevan-mustac-3276-walker-rd-windsor-ontario-n8w3r8,,"Position: Broker of Record
+Brokerage address: 3276 WALKER RD, WINDSOR, Ontario N8W3R8
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,SABASTIAN SEKE,ROYAL LEPAGE BINDER REAL ESTATE,Sales Person,,,,,"1350 PROVINCIAL, WINDSOR, Ontario N8W5W1",real estate,,realtor,2249330,https://www.realtor.ca/agent/2249330/sabastian-seke-1350-provincial-windsor-ontario-n8w5w1,https://cdn.realtor.ca/individuals/TS638949448800000000/lowres/1488176.jpg,"Position: Sales Person
+Brokerage address: 1350 PROVINCIAL, WINDSOR, Ontario N8W5W1
+Excluded: no_primary_phone",,
+zone1_windsor_essex,Windsor,JANELLE LANOUE,DEERBROOK REALTY INC.,Salesperson,,519-819-7812,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,2079797,https://www.realtor.ca/agent/2079797/janelle-lanoue-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS637660885800000000/lowres/1354655.jpg,"Position: Salesperson
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,TERRY ZHANG,LC PLATINUM REALTY INC.,Sales Person,,,,,"2518 OUELLETTE, WINDSOR, Ontario N8X1L7",real estate,,realtor,1975180,https://www.realtor.ca/agent/1975180/terry-zhang-2518-ouellette-windsor-ontario-n8x1l7,https://cdn.realtor.ca/individuals/TS636791718600000000/lowres/1262002.jpg,"Position: Sales Person
+Brokerage address: 2518 OUELLETTE, WINDSOR, Ontario N8X1L7
+Excluded: no_primary_phone",,
+zone1_windsor_essex,Windsor,PAULINE LANOUE,DEERBROOK REALTY INC.,Sales Person,,519-796-5701,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,1889663,https://www.realtor.ca/agent/1889663/pauline-lanoue-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS637660884000000000/lowres/1210872.jpg,"Position: Sales Person
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,SHANNON MATHESON,JUMP REALTY INC.,Sales Person,,519-329-7291,,,"SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1",real estate,,realtor,2127607,https://www.realtor.ca/agent/2127607/shannon-matheson-suite-300-3390-walker-rd-windsor-ontario-n8w3s1,https://cdn.realtor.ca/individuals/TS639012460200000000/lowres/1380838.jpg,"Position: Sales Person
+Brokerage address: SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,GLEN MUIR,REMAX PREFERRED REALTY LTD. - 585,Broker,,519-944-5955,,,"6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7",real estate,,realtor,1397868,https://www.realtor.ca/agent/1397868/glen-muir-6505-tecumseh-road-east-windsor-ontario-n8t1e7,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1037125.jpg,"Position: Broker
+Brokerage address: 6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,YOLLA ABRAHAM,DEERBROOK REALTY INC.,Broker,,519-816-7449,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,1559494,https://www.realtor.ca/agent/1559494/yolla-abraham-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS638924553000000000/lowres/1146588.jpg,"Position: Broker
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,MARKO AGBABA,JUMP REALTY INC.,Sales Person,,519-997-2320,,,"SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1",real estate,,realtor,2082480,https://www.realtor.ca/agent/2082480/marko-agbaba-suite-300-3390-walker-rd-windsor-ontario-n8w3s1,https://cdn.realtor.ca/individuals/TS637184203800000000/lowres/1357271.jpg,"Position: Sales Person
+Brokerage address: SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,HARINDER GHOTRA,WINDSOR-ESSEX REALTY INC.,Broker of Record,,226-246-9101,,,"4785 Walker Rd. Unit: 208, WINDSOR, Ontario N9G0C1",real estate,,realtor,2017220,https://www.realtor.ca/agent/2017220/harinder-ghotra-4785-walker-rd-unit-208-windsor-ontario-n9g0c1,https://cdn.realtor.ca/individuals/TS638009317800000000/lowres/1298393.jpg,"Position: Broker of Record
+Brokerage address: 4785 Walker Rd. Unit: 208, WINDSOR, Ontario N9G0C1
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,GORD MUIR,REMAX PREFERRED REALTY LTD. - 585,Broker of Record,,519-944-5955,,,"6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7",real estate,,realtor,1983327,https://www.realtor.ca/agent/1983327/gord-muir-6505-tecumseh-road-east-windsor-ontario-n8t1e7,https://cdn.realtor.ca/individuals/TS638563283400000000/lowres/1268249.jpg,"Position: Broker of Record
+Brokerage address: 6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,JOHN JACKSON,ROYAL LEPAGE BINDER REAL ESTATE,Sales Person,,226-280-2745,,,"1350 PROVINCIAL, WINDSOR, Ontario N8W5W1",real estate,,realtor,2167005,https://www.realtor.ca/agent/2167005/john-jackson-1350-provincial-windsor-ontario-n8w5w1,,"Position: Sales Person
+Brokerage address: 1350 PROVINCIAL, WINDSOR, Ontario N8W5W1
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,ALI BIN BASHIR ARAIN,LC PLATINUM REALTY INC.,Sales Person,,519-992-2019,,,"2518 OUELLETTE, WINDSOR, Ontario N8X1L7",real estate,,realtor,2136590,https://www.realtor.ca/agent/2136590/ali-bin-bashir-arain-2518-ouellette-windsor-ontario-n8x1l7,https://cdn.realtor.ca/individuals/TS637752824400000000/lowres/1388797.jpg,"Position: Sales Person
+Brokerage address: 2518 OUELLETTE, WINDSOR, Ontario N8X1L7
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,BRIAN MCGINTY,BUCKINGHAM REALTY (WINDSOR) LTD.,Sales Person,,519-948-8171,,,"4573 TECUMSEH ROAD EAST, WINDSOR, Ontario N8W1K6",real estate,,realtor,1398047,https://www.realtor.ca/agent/1398047/brian-mcginty-4573-tecumseh-road-east-windsor-ontario-n8w1k6,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1036516.jpg,"Position: Sales Person
+Brokerage address: 4573 TECUMSEH ROAD EAST, WINDSOR, Ontario N8W1K6
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,ANNA TARANTINO,REMO VALENTE REAL ESTATE (1990) LIMITED,REALTOR®,,519-966-7777,,,"2985 DOUGALL AVENUE, WINDSOR, Ontario N9E1S1",real estate,,realtor,1398139,https://www.realtor.ca/agent/1398139/anna-tarantino-2985-dougall-avenue-windsor-ontario-n9e1s1,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1107582.jpg,"Position: REALTOR®
+Brokerage address: 2985 DOUGALL AVENUE, WINDSOR, Ontario N9E1S1
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,DARIN SCHILLER,KW SIGNATURE,Sales Person,,,,,"3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9",real estate,,realtor,1397276,https://www.realtor.ca/agent/1397276/darin-schiller-3070-jefferson-boulevard-windsor-ontario-n8t3g9,https://cdn.realtor.ca/individuals/TS636848890200000000/lowres/1122076.jpg,"Position: Sales Person
+Brokerage address: 3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9
+Excluded: no_primary_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,ANDREW DEL GRECO,JUMP REALTY INC.,Sales Person,,,,,"SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1",real estate,,realtor,2246544,https://www.realtor.ca/agent/2246544/andrew-del-greco-suite-300-3390-walker-rd-windsor-ontario-n8w3s1,,"Position: Sales Person
+Brokerage address: SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1
+Excluded: no_primary_phone",,
+zone1_windsor_essex,Windsor,SUHAIL MOHAMED,MANOR WINDSOR REALTY LTD.,Real Estate Agent,,519-890-6000,,,"3276 WALKER RD, WINDSOR, Ontario N8W3R8",real estate,,realtor,2153543,https://www.realtor.ca/agent/2153543/suhail-mohamed-3276-walker-rd-windsor-ontario-n8w3r8,https://cdn.realtor.ca/individuals/TS637764843000000000/lowres/1405112.jpg,"Position: Real Estate Agent
+Brokerage address: 3276 WALKER RD, WINDSOR, Ontario N8W3R8
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,HOLLI FOWLER,DEERBROOK REALTY INC.,Sales Person,,519-972-1000,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,2004521,https://www.realtor.ca/agent/2004521/holli-fowler-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS638119693800000000/lowres/1286942.jpg,"Position: Sales Person
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,JUSTIN VELDHUIS,REMAX CAPITAL DIAMOND REALTY,Sales Person,jason@thesoeteam.com,519-564-7369,(111) 378-8825,(781) 157-7977,"2451 DOUGALL UNIT C, WINDSOR, Ontario N8X1T3",real estate,http://www.thesignofexperience.com/,realtor,2152077,https://www.realtor.ca/agent/2152077/justin-veldhuis-2451-dougall-unit-c-windsor-ontario-n8x1t3,https://cdn.realtor.ca/individuals/TS638169972600000000/lowres/1403732.jpg,"Position: Sales Person
+Brokerage address: 2451 DOUGALL UNIT C, WINDSOR, Ontario N8X1T3
+Facebook: http://www.facebook.com/2008
+Instagram: https://instagram.com/signofexperienceteam
+YouTube: https://youtube.com/signofexperienceteam
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,DEBORAH KOUTOULA,REMAX PREFERRED REALTY LTD. - 585,Sales Person,content-hero-arrow-down@2x.png,519-944-5955,(333) 333-3333,(666) 666-6667,"6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7",real estate,http://www.buyorsell4u.com/,realtor,1397875,https://www.realtor.ca/agent/1397875/deborah-koutoula-6505-tecumseh-road-east-windsor-ontario-n8t1e7,https://cdn.realtor.ca/individuals/TS636889743600000000/lowres/1037813.jpg,"Position: Sales Person
+Brokerage address: 6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7
+Twitter: https://twitter.com/119059
+Excluded: duplicate_primary_phone_in_file, existing_exact_name",,
+zone1_windsor_essex,Windsor,TYLER KNIGHT,JUMP REALTY INC.,Sales Person,,519-890-7287,,,"SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1",real estate,,realtor,2157796,https://www.realtor.ca/agent/2157796/tyler-knight-suite-300-3390-walker-rd-windsor-ontario-n8w3s1,https://cdn.realtor.ca/individuals/TS639086668800000000/lowres/1409172.jpg,"Position: Sales Person
+Brokerage address: SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,KELLY ZHAO,LC PLATINUM REALTY INC.,Sales Person,,519-972-3888,,,"2518 OUELLETTE, WINDSOR, Ontario N8X1L7",real estate,,realtor,1989120,https://www.realtor.ca/agent/1989120/kelly-zhao-2518-ouellette-windsor-ontario-n8x1l7,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1273399.jpg,"Position: Sales Person
+Brokerage address: 2518 OUELLETTE, WINDSOR, Ontario N8X1L7
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,ELTON FERO,KW SIGNATURE,Sales Person,,519-566-0794,,,"3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9",real estate,,realtor,2051847,https://www.realtor.ca/agent/2051847/elton-fero-3070-jefferson-boulevard-windsor-ontario-n8t3g9,https://cdn.realtor.ca/individuals/TS639074216400000000/lowres/1327227.jpg,"Position: Sales Person
+Brokerage address: 3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,VARUN PATHAKAMUDI,JVRE REALTY INC.,Sales Person,,,,,"922 WYANDOTTE ST. WEST, WINDSOR, Ontario N9A5Y2",real estate,,realtor,2235984,https://www.realtor.ca/agent/2235984/varun-pathakamudi-922-wyandotte-st-west-windsor-ontario-n9a5y2,https://cdn.realtor.ca/individuals/TS638718939000000000/lowres/1474034.jpg,"Position: Sales Person
+Brokerage address: 922 WYANDOTTE ST. WEST, WINDSOR, Ontario N9A5Y2
+Excluded: no_primary_phone",,
+zone1_windsor_essex,Windsor,PATRICK OUELLETTE,REMAX PREFERRED REALTY LTD. - 585,Sales Person,,519-944-5955,,,"6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7",real estate,,realtor,1397852,https://www.realtor.ca/agent/1397852/patrick-ouellette-6505-tecumseh-road-east-windsor-ontario-n8t1e7,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1037027.jpg,"Position: Sales Person
+Brokerage address: 6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,SEAMUS POWER,BUCKINGHAM REALTY (WINDSOR) LTD.,Broker,,519-948-8171,,,"4573 TECUMSEH ROAD EAST, WINDSOR, Ontario N8W1K6",real estate,,realtor,1398044,https://www.realtor.ca/agent/1398044/seamus-power-4573-tecumseh-road-east-windsor-ontario-n8w1k6,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1036547.jpg,"Position: Broker
+Brokerage address: 4573 TECUMSEH ROAD EAST, WINDSOR, Ontario N8W1K6
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,KARTIK KALIA,LC PLATINUM REALTY INC.,Sales Person,,226-260-2600,,,"2518 OUELLETTE, WINDSOR, Ontario N8X1L7",real estate,,realtor,2053023,https://www.realtor.ca/agent/2053023/kartik-kalia-2518-ouellette-windsor-ontario-n8x1l7,https://cdn.realtor.ca/individuals/TS637660885800000000/lowres/1328337.jpg,"Position: Sales Person
+Brokerage address: 2518 OUELLETTE, WINDSOR, Ontario N8X1L7
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,LYNN BENNEIAN,DEERBROOK REALTY INC.,Sales Person,,519-818-4957,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,1397576,https://www.realtor.ca/agent/1397576/lynn-benneian-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS638907393600000000/lowres/1037684.jpg,"Position: Sales Person
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,SHELDON HARRISON,JUMP REALTY INC.,Real Estate Agent,,519-300-2338,,,"SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1",real estate,,realtor,2079633,https://www.realtor.ca/agent/2079633/sheldon-harrison-suite-300-3390-walker-rd-windsor-ontario-n8w3s1,https://cdn.realtor.ca/individuals/TS637718361000000000/lowres/1354506.jpg,"Position: Real Estate Agent
+Brokerage address: SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,ALEX ARMSTRONG,ROYAL LEPAGE BINDER REAL ESTATE,Sales Person,,226-347-2909,,,"1350 PROVINCIAL, WINDSOR, Ontario N8W5W1",real estate,,realtor,2078418,https://www.realtor.ca/agent/2078418/alex-armstrong-1350-provincial-windsor-ontario-n8w5w1,https://cdn.realtor.ca/individuals/TS639129162000000000/lowres/1353340.jpg,"Position: Sales Person
+Brokerage address: 1350 PROVINCIAL, WINDSOR, Ontario N8W5W1
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,DIMITRIOS (J KOUTOULAS,REMAX PREFERRED REALTY LTD. - 585,Sales Person,,519-944-5955,,,"6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7",real estate,,realtor,1397885,https://www.realtor.ca/agent/1397885/dimitrios-j-koutoulas-6505-tecumseh-road-east-windsor-ontario-n8t1e7,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1096180.jpg,"Position: Sales Person
+Brokerage address: 6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,AMBER PINSONNEAULT,ROYAL LEPAGE BINDER REAL ESTATE,Broker of Record,,519-948-5300,,,"1350 PROVINCIAL, WINDSOR, Ontario N8W5W1",real estate,,realtor,2238495,https://www.realtor.ca/agent/2238495/amber-pinsonneault-1350-provincial-windsor-ontario-n8w5w1,,"Position: Broker of Record
+Brokerage address: 1350 PROVINCIAL, WINDSOR, Ontario N8W5W1
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,MATT BUSCHMAN,KW SIGNATURE,Sales Person,,226-788-9966,(519) 566-7788,(639) 166-0731,"3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9",real estate,http://www.synergyrealestategroup.net/,realtor,1670122,https://www.realtor.ca/agent/1670122/matt-buschman-3070-jefferson-boulevard-windsor-ontario-n8t3g9,https://cdn.realtor.ca/individuals/TS637111717800000000/lowres/1170292.jpg,"Position: Sales Person
+Brokerage address: 3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9
+Facebook: http://www.facebook.com/2008
+Instagram: https://instagram.com/kwsynergyrealestategroup
+LinkedIn: https://linkedin.com/in/synergy-real-estate-group-at-keller-williams-lifestyles-realty-75b1a31b8
+YouTube: https://youtube.com/UC9Z52k93YNEwatOdR8wrmJg
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,PETER VALENTE,REMO VALENTE REAL ESTATE (1990) LIMITED,Broker,,519-966-7777,,,"2985 DOUGALL AVENUE, WINDSOR, Ontario N9E1S1",real estate,,realtor,1398108,https://www.realtor.ca/agent/1398108/peter-valente-2985-dougall-avenue-windsor-ontario-n9e1s1,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1037356.jpg,"Position: Broker
+Brokerage address: 2985 DOUGALL AVENUE, WINDSOR, Ontario N9E1S1
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,TRINA MARGOS,BUCKINGHAM REALTY (WINDSOR) LTD.,REALTOR®,,226-346-4322,,,"4573 TECUMSEH ROAD EAST, WINDSOR, Ontario N8W1K6",real estate,,realtor,2071164,https://www.realtor.ca/agent/2071164/trina-margos-4573-tecumseh-road-east-windsor-ontario-n8w1k6,https://cdn.realtor.ca/individuals/TS637660885800000000/lowres/1346402.jpg,"Position: REALTOR®
+Brokerage address: 4573 TECUMSEH ROAD EAST, WINDSOR, Ontario N8W1K6
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,SASH TRAJKOVSKI,STONEBRIDGE REAL ESTATE CORPORATION,Broker of Record,,519-252-9665,,,"4229 MASOTTI CRES., WINDSOR, Ontario N9G2V4",real estate,,realtor,1397409,https://www.realtor.ca/agent/1397409/sash-trajkovski-4229-masotti-cres-windsor-ontario-n9g2v4,https://cdn.realtor.ca/individuals/TS636446116800000000/lowres/1036837.jpg,"Position: Broker of Record
+Brokerage address: 4229 MASOTTI CRES., WINDSOR, Ontario N9G2V4
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,DEAN KRAL,BUCKINGHAM REALTY (WINDSOR) LTD.,Sales Person,,,,,"4573 TECUMSEH ROAD EAST, WINDSOR, Ontario N8W1K6",real estate,,realtor,1398052,https://www.realtor.ca/agent/1398052/dean-kral-4573-tecumseh-road-east-windsor-ontario-n8w1k6,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1036509.jpg,"Position: Sales Person
+Brokerage address: 4573 TECUMSEH ROAD EAST, WINDSOR, Ontario N8W1K6
+Excluded: no_primary_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,ANGELA GOULET,REMAX PREFERRED REALTY LTD. - 585,Sales Person,,519-944-5955,,,"6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7",real estate,,realtor,1397891,https://www.realtor.ca/agent/1397891/angela-goulet-6505-tecumseh-road-east-windsor-ontario-n8t1e7,https://cdn.realtor.ca/individuals/TS636452157000000000/lowres/1170980.jpg,"Position: Sales Person
+Brokerage address: 6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7
+Excluded: duplicate_primary_phone_in_file, existing_exact_name",,
+zone1_windsor_essex,Windsor,GREGORY MOORE,DEERBROOK REALTY INC.,Salesperson,,519-817-2918,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,2191491,https://www.realtor.ca/agent/2191491/gregory-moore-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS638206931400000000/lowres/1440611.jpg,"Position: Salesperson
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,JULIE TOUMA,PINNACLE PLUS REALTY LTD.,Broker,,519-944-7466,,,"5444 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1C7",real estate,,realtor,1975831,https://www.realtor.ca/agent/1975831/julie-touma-5444-tecumseh-road-east-windsor-ontario-n8t1c7,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1262428.jpg,"Position: Broker
+Brokerage address: 5444 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1C7
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,MONA SABET,REMO VALENTE REAL ESTATE (1990) LIMITED,REALTOR®,,519-966-7777,,,"2985 DOUGALL AVENUE, WINDSOR, Ontario N9E1S1",real estate,,realtor,1397411,https://www.realtor.ca/agent/1397411/mona-sabet-2985-dougall-avenue-windsor-ontario-n9e1s1,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1037081.jpg,"Position: REALTOR®
+Brokerage address: 2985 DOUGALL AVENUE, WINDSOR, Ontario N9E1S1
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,GORAN TODOROVIC,REMAX CARE REALTY,Broker of Record,,519-979-9949,,,"12105 Tecumseh Road East, WINDSOR, Ontario N8N1M2",real estate,,realtor,1397803,https://www.realtor.ca/agent/1397803/goran-todorovic-12105-tecumseh-road-east-windsor-ontario-n8n1m2,https://cdn.realtor.ca/individuals/TS638138111400000000/lowres/1037073.jpg,"Position: Broker of Record
+Brokerage address: 12105 Tecumseh Road East, WINDSOR, Ontario N8N1M2
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,ANGELA COPE,MANOR WINDSOR REALTY LTD.,REALTOR®,,519-250-8800,,,"3276 WALKER RD, WINDSOR, Ontario N8W3R8",real estate,,realtor,1397720,https://www.realtor.ca/agent/1397720/angela-cope-3276-walker-rd-windsor-ontario-n8w3r8,https://cdn.realtor.ca/individuals/TS636903518400000000/lowres/1118788.jpg,"Position: REALTOR®
+Brokerage address: 3276 WALKER RD, WINDSOR, Ontario N8W3R8
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,MARIO LEONARDO,REMAX CAPITAL DIAMOND REALTY,Sales Person,,226-280-3499,,,"2451 DOUGALL UNIT C, WINDSOR, Ontario N8X1T3",real estate,,realtor,2020912,https://www.realtor.ca/agent/2020912/mario-leonardo-2451-dougall-unit-c-windsor-ontario-n8x1t3,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1300795.jpg,"Position: Sales Person
+Brokerage address: 2451 DOUGALL UNIT C, WINDSOR, Ontario N8X1T3
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,SARA KHOSRAVI,JUMP REALTY INC.,Sales Person,,,,,"SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1",real estate,,realtor,2249389,https://www.realtor.ca/agent/2249389/sara-khosravi-suite-300-3390-walker-rd-windsor-ontario-n8w3s1,,"Position: Sales Person
+Brokerage address: SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1
+Excluded: no_primary_phone",,
+zone1_windsor_essex,Windsor,SILKY KHULLAR,REMAX PREFERRED REALTY LTD. - 585,Broker,,226-724-1111,,,"6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7",real estate,,realtor,2110220,https://www.realtor.ca/agent/2110220/silky-khullar-6505-tecumseh-road-east-windsor-ontario-n8t1e7,https://cdn.realtor.ca/individuals/TS638176192800000000/lowres/1379196.jpg,"Position: Broker
+Brokerage address: 6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,TERESA NEUSCH,REMAX PREFERRED REALTY LTD. - 584,Sales Person,,519-966-0444,,,"3065 DOUGALL AVE., WINDSOR, Ontario N9E1S3",real estate,,realtor,1776285,https://www.realtor.ca/agent/1776285/teresa-neusch-3065-dougall-ave-windsor-ontario-n9e1s3,https://cdn.realtor.ca/individuals/TS636090220800000000/lowres/1187121.jpg,"Position: Sales Person
+Brokerage address: 3065 DOUGALL AVE., WINDSOR, Ontario N9E1S3
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,JAZZ CHAPPUS,ROYAL LEPAGE BINDER REAL ESTATE,Sales Person,,519-567-4857,,,"1350 PROVINCIAL, WINDSOR, Ontario N8W5W1",real estate,,realtor,2030120,https://www.realtor.ca/agent/2030120/jazz-chappus-1350-provincial-windsor-ontario-n8w5w1,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1307912.jpg,"Position: Sales Person
+Brokerage address: 1350 PROVINCIAL, WINDSOR, Ontario N8W5W1
+Facebook: https://www.facebook.com/share/12D1YArmdrg/?mibextid=LQQJ4d
+Instagram: https://www.instagram.com/jazz.chappus.realtor/?hl=en
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,"ADELE YOUSSEF, ASA",MANOR WINDSOR REALTY LTD.,Sales Person,,519-250-8800,,,"3276 WALKER RD, WINDSOR, Ontario N8W3R8",real estate,,realtor,1670121,https://www.realtor.ca/agent/1670121/adele-youssef-asa-3276-walker-rd-windsor-ontario-n8w3r8,https://cdn.realtor.ca/individuals/TS637660885800000000/lowres/1170294.jpg,"Position: Sales Person
+Brokerage address: 3276 WALKER RD, WINDSOR, Ontario N8W3R8
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,MIKE SLEIMAN,REMO VALENTE REAL ESTATE (1990) LIMITED,Sales Person,,519-966-7777,,,"2985 DOUGALL AVENUE, WINDSOR, Ontario N9E1S1",real estate,,realtor,1398093,https://www.realtor.ca/agent/1398093/mike-sleiman-2985-dougall-avenue-windsor-ontario-n9e1s1,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1037810.jpg,"Position: Sales Person
+Brokerage address: 2985 DOUGALL AVENUE, WINDSOR, Ontario N9E1S1
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,ROBERT ROTONDI,REMAX PREFERRED REALTY LTD. - 585,Sales Person,,519-944-5955,,,"6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7",real estate,,realtor,1910877,https://www.realtor.ca/agent/1910877/robert-rotondi-6505-tecumseh-road-east-windsor-ontario-n8t1e7,https://cdn.realtor.ca/individuals/TS638092019400000000/lowres/1222641.jpg,"Position: Sales Person
+Brokerage address: 6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,JULIANNE GREEN,BUCKINGHAM REALTY (WINDSOR) LTD.,Broker,,519-948-8171,,,"4573 TECUMSEH ROAD EAST, WINDSOR, Ontario N8W1K6",real estate,,realtor,1397849,https://www.realtor.ca/agent/1397849/julianne-green-4573-tecumseh-road-east-windsor-ontario-n8w1k6,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1037177.jpg,"Position: Broker
+Brokerage address: 4573 TECUMSEH ROAD EAST, WINDSOR, Ontario N8W1K6
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,PAUL GERMANESE,REMAX CAPITAL DIAMOND REALTY,Sales Person,,519-817-3512,,,"254 LAUZON RD, WINDSOR, Ontario N8S3L6",real estate,,realtor,1662498,https://www.realtor.ca/agent/1662498/paul-germanese-254-lauzon-rd-windsor-ontario-n8s3l6,https://cdn.realtor.ca/individuals/TS637660885800000000/lowres/1168276.jpg,"Position: Sales Person
+Brokerage address: 254 LAUZON RD, WINDSOR, Ontario N8S3L6
+Excluded: existing_exact_name",,
+zone1_windsor_essex,Windsor,MARK A. EUGENI,MANOR WINDSOR REALTY LTD.,Sales Person,,519-250-8800,,,"3276 WALKER RD, WINDSOR, Ontario N8W3R8",real estate,,realtor,1397715,https://www.realtor.ca/agent/1397715/mark-a-eugeni-3276-walker-rd-windsor-ontario-n8w3r8,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1109485.jpg,"Position: Sales Person
+Brokerage address: 3276 WALKER RD, WINDSOR, Ontario N8W3R8
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,CANDACE SHANK,PINNACLE PLUS REALTY LTD.,Sales Person,,226-347-7709,,,"5444 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1C7",real estate,,realtor,2140997,https://www.realtor.ca/agent/2140997/candace-shank-5444-tecumseh-road-east-windsor-ontario-n8t1c7,https://cdn.realtor.ca/individuals/TS639153654600000000/lowres/1392735.jpg,"Position: Sales Person
+Brokerage address: 5444 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1C7
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,"NEIL JONES, ASA",REMAX CAPITAL DIAMOND REALTY,Broker,,519-980-7126,,,"2451 DOUGALL UNIT C, WINDSOR, Ontario N8X1T3",real estate,,realtor,1397518,https://www.realtor.ca/agent/1397518/neil-jones-asa-2451-dougall-unit-c-windsor-ontario-n8x1t3,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1036267.jpg,"Position: Broker
+Brokerage address: 2451 DOUGALL UNIT C, WINDSOR, Ontario N8X1T3
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,TYLER SOULLIERE,KW SIGNATURE,Sales Person,,226-788-9966,,,"3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9",real estate,,realtor,2093613,https://www.realtor.ca/agent/2093613/tyler-soulliere-3070-jefferson-boulevard-windsor-ontario-n8t3g9,https://cdn.realtor.ca/individuals/TS637345649400000000/lowres/1367835.jpg,"Position: Sales Person
+Brokerage address: 3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,NADIA KHALAF,REMAX CAPITAL DIAMOND REALTY,Broker,,519-903-7212,,,"2451 DOUGALL UNIT C, WINDSOR, Ontario N8X1T3",real estate,,realtor,1958598,https://www.realtor.ca/agent/1958598/nadia-khalaf-2451-dougall-unit-c-windsor-ontario-n8x1t3,https://cdn.realtor.ca/individuals/TS636960519600000000/lowres/1249703.jpg,"Position: Broker
+Brokerage address: 2451 DOUGALL UNIT C, WINDSOR, Ontario N8X1T3
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,ROCCO URBANO,DEERBROOK REALTY INC.,Sales Person,,519-977-3890,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,1398062,https://www.realtor.ca/agent/1398062/rocco-urbano-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS638472318600000000/lowres/1036483.jpg,"Position: Sales Person
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,ROBERT AGNEW,MANOR WINDSOR REALTY LTD.,Broker,,519-250-8800,,,"3276 WALKER RD, WINDSOR, Ontario N8W3R8",real estate,,realtor,1397686,https://www.realtor.ca/agent/1397686/robert-agnew-3276-walker-rd-windsor-ontario-n8w3r8,,"Position: Broker
+Brokerage address: 3276 WALKER RD, WINDSOR, Ontario N8W3R8
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,KAREN BARON,K RICH  REALTY INC.,Broker of Record,,519-257-0974,,,,real estate,,realtor,2096793,https://www.realtor.ca/agent/2096793/karen-baron,,"Position: Broker of Record
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,ZOEY HUANG,LC PLATINUM REALTY INC.,Sales Person,,226-787-6098,,,"2518 OUELLETTE, WINDSOR, Ontario N8X1L7",real estate,,realtor,2130537,https://www.realtor.ca/agent/2130537/zoey-huang-2518-ouellette-windsor-ontario-n8x1l7,https://cdn.realtor.ca/individuals/TS637660885800000000/lowres/1383812.jpg,"Position: Sales Person
+Brokerage address: 2518 OUELLETTE, WINDSOR, Ontario N8X1L7
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,"REBECCA CAO, M.Comm",DEERBROOK REALTY INC.,Sales Person,,519-972-1000,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,2078045,https://www.realtor.ca/agent/2078045/rebecca-cao-mcomm-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS639116844600000000/lowres/1352942.jpg,"Position: Sales Person
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,STEVEN JARROUGE,MANOR WINDSOR REALTY LTD.,Sales Person,,519-990-5959,,,"3276 WALKER RD, WINDSOR, Ontario N8W3R8",real estate,,realtor,1949816,https://www.realtor.ca/agent/1949816/steven-jarrouge-3276-walker-rd-windsor-ontario-n8w3r8,,"Position: Sales Person
+Brokerage address: 3276 WALKER RD, WINDSOR, Ontario N8W3R8
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,KATE SALEH,MANOR WINDSOR REALTY LTD.,Sales Person,,519-890-9026,,,"3276 WALKER RD, WINDSOR, Ontario N8W3R8",real estate,,realtor,2010514,https://www.realtor.ca/agent/2010514/kate-saleh-3276-walker-rd-windsor-ontario-n8w3r8,https://cdn.realtor.ca/individuals/TS638022400800000000/lowres/1292021.jpg,"Position: Sales Person
+Brokerage address: 3276 WALKER RD, WINDSOR, Ontario N8W3R8
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,AYAD SADDY,KW SIGNATURE,Sales Person,,519-817-8855,,,"3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9",real estate,,realtor,2156050,https://www.realtor.ca/agent/2156050/ayad-saddy-3070-jefferson-boulevard-windsor-ontario-n8t3g9,https://cdn.realtor.ca/individuals/TS638689654200000000/lowres/1407464.jpg,"Position: Sales Person
+Brokerage address: 3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,DANIEL BECHARD,REMAX PREFERRED REALTY LTD. - 585,Sales Person,,519-919-9900,,,"6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7",real estate,,realtor,1397534,https://www.realtor.ca/agent/1397534/daniel-bechard-6505-tecumseh-road-east-windsor-ontario-n8t1e7,https://cdn.realtor.ca/individuals/TS638726295000000000/lowres/1037289.jpg,"Position: Sales Person
+Brokerage address: 6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,JOYCE RILEY,REMO VALENTE REAL ESTATE (1990) LIMITED,Sales Person,soldbyjbrown@gmail.com,519-966-7777,(519) 966-7777,(519) 999-3688,"2985 DOUGALL AVENUE, WINDSOR, Ontario N9E1S1",real estate,http://www.windsorrealestate.net/,realtor,1398103,https://www.realtor.ca/agent/1398103/joyce-riley-2985-dougall-avenue-windsor-ontario-n9e1s1,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1037282.jpg,"Position: Sales Person
+Brokerage address: 2985 DOUGALL AVENUE, WINDSOR, Ontario N9E1S1
+Facebook: http://www.facebook.com/2008
+Excluded: duplicate_primary_phone_in_file, existing_phone",,
+zone1_windsor_essex,Windsor,ROB MANCINI,REN CEN REAL ESTATE LIMITED,Broker,,519-966-6677,,,"2521 VILLA BORGHESE CRT., WINDSOR, Ontario N9G2K3",real estate,,realtor,1920964,https://www.realtor.ca/agent/1920964/rob-mancini-2521-villa-borghese-crt-windsor-ontario-n9g2k3,https://cdn.realtor.ca/individuals/TS638144127000000000/lowres/1226863.jpg,"Position: Broker
+Brokerage address: 2521 VILLA BORGHESE CRT., WINDSOR, Ontario N9G2K3
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,SHAN HASAN,KW SIGNATURE,Broker of Record,,226-788-9966,,,"3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9",real estate,,realtor,1963598,https://www.realtor.ca/agent/1963598/shan-hasan-3070-jefferson-boulevard-windsor-ontario-n8t3g9,https://cdn.realtor.ca/individuals/TS638416492200000000/lowres/1252642.jpg,"Position: Broker of Record
+Brokerage address: 3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,SHAWN ASGHAR,REMAX PREFERRED REALTY LTD. - 585,Sales Person,,,,,"6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7",real estate,,realtor,2236322,https://www.realtor.ca/agent/2236322/shawn-asghar-6505-tecumseh-road-east-windsor-ontario-n8t1e7,https://cdn.realtor.ca/individuals/TS638719632000000000/lowres/1474227.jpg,"Position: Sales Person
+Brokerage address: 6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7
+Excluded: no_primary_phone",,
+zone1_windsor_essex,Windsor,ASHLEY SWEET,REMAX CAPITAL DIAMOND REALTY,Sales Person,,519-980-1427,,,"2451 DOUGALL UNIT C, WINDSOR, Ontario N8X1T3",real estate,,realtor,2087898,https://www.realtor.ca/agent/2087898/ashley-sweet-2451-dougall-unit-c-windsor-ontario-n8x1t3,https://cdn.realtor.ca/individuals/TS637886864400000000/lowres/1361204.jpg,"Position: Sales Person
+Brokerage address: 2451 DOUGALL UNIT C, WINDSOR, Ontario N8X1T3
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,TERESA MACRI,REMAX PREFERRED REALTY LTD. - 585,Sales Person,,519-965-1793,,,"6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7",real estate,http://www.tmacri.com/,realtor,1558825,https://www.realtor.ca/agent/1558825/teresa-macri-6505-tecumseh-road-east-windsor-ontario-n8t1e7,https://cdn.realtor.ca/individuals/TS636637464600000000/lowres/1146449.jpg,"Position: Sales Person
+Brokerage address: 6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7
+Facebook: https://www.facebook.com/TeresaMacriRemaxPreferredRealty/
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,"SHIBU GEORGE EIPE, ABR, MBA",ROYAL LEPAGE BINDER REAL ESTATE,Sales Person,,519-980-7790,,,"1350 PROVINCIAL, WINDSOR, Ontario N8W5W1",real estate,,realtor,1621278,https://www.realtor.ca/agent/1621278/shibu-george-eipe-abr-mba-1350-provincial-windsor-ontario-n8w5w1,https://cdn.realtor.ca/individuals/TS638877414000000000/lowres/1160785.jpg,"Position: Sales Person
+Brokerage address: 1350 PROVINCIAL, WINDSOR, Ontario N8W5W1
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,KRISTA KLUNDERT,REMAX PREFERRED REALTY LTD. - 585,Sales Person,,519-944-5955,,,"6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7",real estate,,realtor,1462439,https://www.realtor.ca/agent/1462439/krista-klundert-6505-tecumseh-road-east-windsor-ontario-n8t1e7,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1124209.jpg,"Position: Sales Person
+Brokerage address: 6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7
+Excluded: duplicate_primary_phone_in_file, existing_exact_name",,
+zone1_windsor_essex,Windsor,GIANLUCA RAUTI,REMO VALENTE REAL ESTATE (1990) LIMITED,Sales Person,,519-996-5507,,,"2985 DOUGALL AVENUE, WINDSOR, Ontario N9E1S1",real estate,,realtor,2203882,https://www.realtor.ca/agent/2203882/gianluca-rauti-2985-dougall-avenue-windsor-ontario-n9e1s1,,"Position: Sales Person
+Brokerage address: 2985 DOUGALL AVENUE, WINDSOR, Ontario N9E1S1
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,TANJA ANDIC,REMAX CARE REALTY,Sales Person,,519-979-9949,,,"12105 Tecumseh Road East, WINDSOR, Ontario N8N1M2",real estate,,realtor,2133100,https://www.realtor.ca/agent/2133100/tanja-andic-12105-tecumseh-road-east-windsor-ontario-n8n1m2,,"Position: Sales Person
+Brokerage address: 12105 Tecumseh Road East, WINDSOR, Ontario N8N1M2
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,RYAN GIROUX,KW SIGNATURE,Sales Person,info@obrienpremier.com,226-788-9966,(519) 945-6964,(639) 159-3270,"3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9",real estate,http://www.obrienpremier.com/,realtor,1532853,https://www.realtor.ca/agent/1532853/ryan-giroux-3070-jefferson-boulevard-windsor-ontario-n8t3g9,https://cdn.realtor.ca/individuals/TS637493440800000000/lowres/1142869.jpg,"Position: Sales Person
+Brokerage address: 3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,GARY KERN,REMAX PREFERRED REALTY LTD. - 585,Sales Person,,519-944-5955,,,"6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7",real estate,,realtor,1397869,https://www.realtor.ca/agent/1397869/gary-kern-6505-tecumseh-road-east-windsor-ontario-n8t1e7,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1037021.jpg,"Position: Sales Person
+Brokerage address: 6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,CASSANDRA BALINT,REALTY ONE GROUP ICONIC BROKERAGE,Real Estate Agent,,519-257-9961,,,"531 PELISSIER ST UNIT 101, WINDSOR, Ontario N9A4L2",real estate,,realtor,2128855,https://www.realtor.ca/agent/2128855/cassandra-balint-531-pelissier-st-unit-101-windsor-ontario-n9a4l2,https://cdn.realtor.ca/individuals/TS637660885800000000/lowres/1381950.jpg,"Position: Real Estate Agent
+Brokerage address: 531 PELISSIER ST UNIT 101, WINDSOR, Ontario N9A4L2
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,ASMAR GORGES,REMAX PREFERRED REALTY LTD. - 585,Sales Person,,519-982-2613,,,"6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7",real estate,,realtor,2104930,https://www.realtor.ca/agent/2104930/asmar-gorges-6505-tecumseh-road-east-windsor-ontario-n8t1e7,https://cdn.realtor.ca/individuals/TS638032060800000000/lowres/1374270.jpg,"Position: Sales Person
+Brokerage address: 6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,DONALD CAMPEAU,REMAX PREFERRED REALTY LTD. - 585,Sales Person,,519-944-5955,,,"6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7",real estate,,realtor,1397862,https://www.realtor.ca/agent/1397862/donald-campeau-6505-tecumseh-road-east-windsor-ontario-n8t1e7,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1037162.jpg,"Position: Sales Person
+Brokerage address: 6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,DAVINDER SINGH,LC PLATINUM REALTY INC.,Sales Person,,,,,"2518 OUELLETTE, WINDSOR, Ontario N8X1L7",real estate,,realtor,2137895,https://www.realtor.ca/agent/2137895/davinder-singh-2518-ouellette-windsor-ontario-n8x1l7,https://cdn.realtor.ca/individuals/TS637707711000000000/lowres/1389952.jpg,"Position: Sales Person
+Brokerage address: 2518 OUELLETTE, WINDSOR, Ontario N8X1L7
+Excluded: no_primary_phone",,
+zone1_windsor_essex,Windsor,LISA GRECH NORMANDEAU,MANOR WINDSOR REALTY LTD.,REALTOR®,,,,,"3276 WALKER RD, WINDSOR, Ontario N8W3R8",real estate,,realtor,1397687,https://www.realtor.ca/agent/1397687/lisa-grech-normandeau-3276-walker-rd-windsor-ontario-n8w3r8,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1037509.jpg,"Position: REALTOR®
+Brokerage address: 3276 WALKER RD, WINDSOR, Ontario N8W3R8
+Excluded: no_primary_phone",,
+zone1_windsor_essex,Windsor,MARA ONDEJKO,ROYAL LEPAGE BINDER REAL ESTATE,Sales Person,,519-329-4840,,,"1350 PROVINCIAL, WINDSOR, Ontario N8W5W1",real estate,,realtor,2135472,https://www.realtor.ca/agent/2135472/mara-ondejko-1350-provincial-windsor-ontario-n8w5w1,https://cdn.realtor.ca/individuals/TS637817404200000000/lowres/1387771.jpg,"Position: Sales Person
+Brokerage address: 1350 PROVINCIAL, WINDSOR, Ontario N8W5W1
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,DAVID J. BINDER,ROYAL LEPAGE BINDER REAL ESTATE,Sales Person,davidjbinder@royallepage.ca,519-948-5300,(226) 346-7459,(519) 948-5300,"1350 PROVINCIAL, WINDSOR, Ontario N8W5W1",real estate,https://davidbinder.rlpbinder.ca/,realtor,2006896,https://www.realtor.ca/agent/2006896/david-j-binder-1350-provincial-windsor-ontario-n8w5w1,https://cdn.realtor.ca/individuals/TS638866303200000000/lowres/1289206.jpg,"Position: Sales Person
+Brokerage address: 1350 PROVINCIAL, WINDSOR, Ontario N8W5W1
+Facebook: http://www.facebook.com/davidjbinder.ca
+Instagram: https://www.instagram.com/3ringbinder54
+LinkedIn: https://linkedin.com/in/david-j-binder-a843353a
+YouTube: https://youtube.com/UCcrccyH2qVazXqIrPas8ylw
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,BRAD MITCHELL,MANOR WINDSOR REALTY LTD.,Sales Person,,519-250-8800,(333) 333-3333,(142) 857-1428,"3276 WALKER RD, WINDSOR, Ontario N8W3R8",real estate,https://urbanlivingspaces.com/,realtor,1879834,https://www.realtor.ca/agent/1879834/brad-mitchell-3276-walker-rd-windsor-ontario-n8w3r8,https://cdn.realtor.ca/individuals/TS639016702200000000/lowres/1205772.jpg,"Position: Sales Person
+Brokerage address: 3276 WALKER RD, WINDSOR, Ontario N8W3R8
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,JOHN YARED,YARED REALTY INC.,Broker of Record,,,,,"337 RUSSELL WOODS DRIVE, WINDSOR, Ontario N8N4L3",real estate,,realtor,1398036,https://www.realtor.ca/agent/1398036/john-yared-337-russell-woods-drive-windsor-ontario-n8n4l3,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1036551.jpg,"Position: Broker of Record
+Brokerage address: 337 RUSSELL WOODS DRIVE, WINDSOR, Ontario N8N4L3
+Excluded: no_primary_phone",,
+zone1_windsor_essex,Windsor,SALIM BABONA PILIPOS,REMAX PREFERRED REALTY LTD. - 585,Sales Person,,519-982-2613,,,"6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7",real estate,,realtor,2222335,https://www.realtor.ca/agent/2222335/salim-babona-pilipos-6505-tecumseh-road-east-windsor-ontario-n8t1e7,,"Position: Sales Person
+Brokerage address: 6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,ANDREW J. SMITH,DEERBROOK REALTY INC.,Broker,,519-564-2639,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,1470118,https://www.realtor.ca/agent/1470118/andrew-j-smith-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS638107903800000000/lowres/1127217.jpg,"Position: Broker
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,BARBARA OCZACHOWSKI,REMAX PREFERRED REALTY LTD. - 585,Broker,,519-944-5955,,,"6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7",real estate,,realtor,1397840,https://www.realtor.ca/agent/1397840/barbara-oczachowski-6505-tecumseh-road-east-windsor-ontario-n8t1e7,https://cdn.realtor.ca/individuals/TS0/lowres/1036928.jpg,"Position: Broker
+Brokerage address: 6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,JESSICA SPITERI,JUMP REALTY INC.,Sales Person,,519-919-5867,,,"SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1",real estate,,realtor,2067220,https://www.realtor.ca/agent/2067220/jessica-spiteri-suite-300-3390-walker-rd-windsor-ontario-n8w3s1,https://cdn.realtor.ca/individuals/TS638320638000000000/lowres/1342434.jpg,"Position: Sales Person
+Brokerage address: SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,SARA LAPORTE,KW SIGNATURE,REALTOR®,,519-817-8700,,,"3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9",real estate,,realtor,2004642,https://www.realtor.ca/agent/2004642/sara-laporte-3070-jefferson-boulevard-windsor-ontario-n8t3g9,https://cdn.realtor.ca/individuals/TS637659336600000000/lowres/1287132.jpg,"Position: REALTOR®
+Brokerage address: 3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,CLARKE GALLIE,JUMP REALTY INC.,Sales Person,,226-345-2999,,,"SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1",real estate,,realtor,2091404,https://www.realtor.ca/agent/2091404/clarke-gallie-suite-300-3390-walker-rd-windsor-ontario-n8w3s1,https://cdn.realtor.ca/individuals/TS637424386800000000/lowres/1364016.jpg,"Position: Sales Person
+Brokerage address: SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,JOHN BOUFFARD,PINNACLE PLUS REALTY LTD.,Sales Person,,519-903-4663,,,"5444 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1C7",real estate,,realtor,2044045,https://www.realtor.ca/agent/2044045/john-bouffard-5444-tecumseh-road-east-windsor-ontario-n8t1c7,https://cdn.realtor.ca/individuals/TS636922300800000000/lowres/1319962.jpg,"Position: Sales Person
+Brokerage address: 5444 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1C7
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,LANA PLAVSIC,BOB PEDLER REAL ESTATE LIMITED,Sales Person,,,,,"2 - 280 EDINBOROUGH, WINDSOR, Ontario N8X3C4",real estate,,realtor,2162023,https://www.realtor.ca/agent/2162023/lana-plavsic-2-280-edinborough-windsor-ontario-n8x3c4,https://cdn.realtor.ca/individuals/TS637883106600000000/lowres/1413149.jpg,"Position: Sales Person
+Brokerage address: 2 - 280 EDINBOROUGH, WINDSOR, Ontario N8X3C4
+Excluded: no_primary_phone",,
+zone1_windsor_essex,Windsor,"DONALD FUERTH, B.A., AACI, P. APP",FUERLAND REALTY LTD.,Broker of Record,,519-966-0881,,,"725 - 4510 RHODES DRIVE, WINDSOR, Ontario N8W5K5",real estate,,realtor,1397322,https://www.realtor.ca/agent/1397322/donald-fuerth-ba-aaci-p-app-725-4510-rhodes-drive-windsor-ontario-n8w5k5,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1037834.jpg,"Position: Broker of Record
+Brokerage address: 725 - 4510 RHODES DRIVE, WINDSOR, Ontario N8W5K5
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,PETE SPILIADIS,MANOR WINDSOR REALTY LTD.,Broker,,519-250-8800,,,"3276 WALKER RD, WINDSOR, Ontario N8W3R8",real estate,,realtor,1397914,https://www.realtor.ca/agent/1397914/pete-spiliadis-3276-walker-rd-windsor-ontario-n8w3r8,,"Position: Broker
+Brokerage address: 3276 WALKER RD, WINDSOR, Ontario N8W3R8
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,ALI CHEHAB,CAPITAL WEALTH REALTY BROKERAGE,Sales Person,,,,,"1504 Pelissier St, WINDSOR, Ontario N9A6V7",real estate,,realtor,2246684,https://www.realtor.ca/agent/2246684/ali-chehab-1504-pelissier-st-windsor-ontario-n9a6v7,https://cdn.realtor.ca/individuals/TS638892930000000000/lowres/1485555.jpg,"Position: Sales Person
+Brokerage address: 1504 Pelissier St, WINDSOR, Ontario N9A6V7
+Excluded: no_primary_phone",,
+zone1_windsor_essex,Windsor,CHANTELLE TESKEY,DEERBROOK PLUS REALTY INC,Sales Person,,519-972-1600,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,1990050,https://www.realtor.ca/agent/1990050/chantelle-teskey-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1273905.jpg,"Position: Sales Person
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,KEN ALLEN,DEERBROOK REALTY INC.,Sales Person,,519-965-5833,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,2036553,https://www.realtor.ca/agent/2036553/ken-allen-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1313085.jpg,"Position: Sales Person
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,ADAM CUSSON,ROYAL LEPAGE BINDER REAL ESTATE,REALTOR®,,226-350-8898,,,"1350 PROVINCIAL, WINDSOR, Ontario N8W5W1",real estate,,realtor,2127082,https://www.realtor.ca/agent/2127082/adam-cusson-1350-provincial-windsor-ontario-n8w5w1,https://cdn.realtor.ca/individuals/TS637542277200000000/lowres/1380367.jpg,"Position: REALTOR®
+Brokerage address: 1350 PROVINCIAL, WINDSOR, Ontario N8W5W1
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,DAVID MARROCCO,MANOR WINDSOR REALTY LTD.,Sales Person,,519-250-8800,,,"3276 WALKER RD, WINDSOR, Ontario N8W3R8",real estate,,realtor,1528457,https://www.realtor.ca/agent/1528457/david-marrocco-3276-walker-rd-windsor-ontario-n8w3r8,https://cdn.realtor.ca/individuals/TS638249644800000000/lowres/1140328.jpg,"Position: Sales Person
+Brokerage address: 3276 WALKER RD, WINDSOR, Ontario N8W3R8
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,"JASON LAFRAMBOISE, ASA",REMAX CAPITAL DIAMOND REALTY,Broker,,519-796-9177,,,"2451 DOUGALL UNIT C, WINDSOR, Ontario N8X1T3",real estate,,realtor,1397288,https://www.realtor.ca/agent/1397288/jason-laframboise-asa-2451-dougall-unit-c-windsor-ontario-n8x1t3,https://cdn.realtor.ca/individuals/TS638151671400000000/lowres/1037792.jpg,"Position: Broker
+Brokerage address: 2451 DOUGALL UNIT C, WINDSOR, Ontario N8X1T3
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,DON MERRIFIELD JR,REMAX PREFERRED REALTY LTD. - 585,Sales Person,,519-944-5955,,,"6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7",real estate,,realtor,1397882,https://www.realtor.ca/agent/1397882/don-merrifield-jr-6505-tecumseh-road-east-windsor-ontario-n8t1e7,https://cdn.realtor.ca/individuals/TS636856715400000000/lowres/1114665.jpg,"Position: Sales Person
+Brokerage address: 6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,GREIG PEDLER,BOB PEDLER REAL ESTATE LIMITED,Broker of Record,,519-966-3750,,,"2 - 280 EDINBOROUGH, WINDSOR, Ontario N8X3C4",real estate,,realtor,1397773,https://www.realtor.ca/agent/1397773/greig-pedler-2-280-edinborough-windsor-ontario-n8x3c4,https://cdn.realtor.ca/individuals/TS637068307200000000/lowres/1036453.jpg,"Position: Broker of Record
+Brokerage address: 2 - 280 EDINBOROUGH, WINDSOR, Ontario N8X3C4
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,BRENDA HAWTIN,REMO VALENTE REAL ESTATE (1990) LIMITED,Sales Person,,519-966-7777,,,"2985 DOUGALL AVENUE, WINDSOR, Ontario N9E1S1",real estate,,realtor,1397427,https://www.realtor.ca/agent/1397427/brenda-hawtin-2985-dougall-avenue-windsor-ontario-n9e1s1,https://cdn.realtor.ca/individuals/TS638854044600000000/lowres/1036845.jpg,"Position: Sales Person
+Brokerage address: 2985 DOUGALL AVENUE, WINDSOR, Ontario N9E1S1
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,TYLER RUTKOWSKI-MACLEOD,REALTY ONE GROUP ICONIC BROKERAGE,Sales Person,,226-260-3574,,,"531 PELISSIER ST UNIT 101, WINDSOR, Ontario N9A4L2",real estate,,realtor,2167235,https://www.realtor.ca/agent/2167235/tyler-rutkowski-macleod-531-pelissier-st-unit-101-windsor-ontario-n9a4l2,,"Position: Sales Person
+Brokerage address: 531 PELISSIER ST UNIT 101, WINDSOR, Ontario N9A4L2
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,TINA ROY,REMAX PREFERRED REALTY LTD. - 585,Broker,,519-999-8462,(226) 721-1233,(639) 101-2863,"6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7",real estate,http://www.trurealestategroup.ca/,realtor,1567453,https://www.realtor.ca/agent/1567453/tina-roy-6505-tecumseh-road-east-windsor-ontario-n8t1e7,https://cdn.realtor.ca/individuals/TS637945261200000000/lowres/1149745.jpg,"Position: Broker
+Brokerage address: 6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7
+Facebook: http://www.facebook.com/2008
+Instagram: https://instagram.com/trurealestategroup
+LinkedIn: https://linkedin.com/in/tina-roy-41326574
+YouTube: https://youtube.com/UCQu8mcfqsfsZfdIA9JEGBzw
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,NANCI JOHNSTON,REMAX PREFERRED REALTY LTD. - 584,Sales Person,,519-818-5573,,,"3065 DOUGALL AVE., WINDSOR, Ontario N9E1S3",real estate,,realtor,1397876,https://www.realtor.ca/agent/1397876/nanci-johnston-3065-dougall-ave-windsor-ontario-n9e1s3,https://cdn.realtor.ca/individuals/TS638778499200000000/lowres/1107320.jpg,"Position: Sales Person
+Brokerage address: 3065 DOUGALL AVE., WINDSOR, Ontario N9E1S3
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,MIKE BROGAN,BUCKINGHAM REALTY (WINDSOR) LTD.,Sales Person,,519-948-8171,,,"4573 TECUMSEH ROAD EAST, WINDSOR, Ontario N8W1K6",real estate,,realtor,1476337,https://www.realtor.ca/agent/1476337/mike-brogan-4573-tecumseh-road-east-windsor-ontario-n8w1k6,https://cdn.realtor.ca/individuals/TS636894946800000000/lowres/1036309.jpg,"Position: Sales Person
+Brokerage address: 4573 TECUMSEH ROAD EAST, WINDSOR, Ontario N8W1K6
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,CAMERON PAINE,BUCKINGHAM REALTY (WINDSOR) LTD.,Broker of Record,nmickle@buckinghamrealty.ca,519-948-8171,(519) 948-8171,(226) 345-9584,"4573 TECUMSEH ROAD EAST, WINDSOR, Ontario N8W1K6",real estate,https://www.buckinghamrealty.ca/,realtor,1398031,https://www.realtor.ca/agent/1398031/cameron-paine-4573-tecumseh-road-east-windsor-ontario-n8w1k6,https://cdn.realtor.ca/individuals/TS637526415000000000/lowres/1036484.jpg,"Position: Broker of Record
+Brokerage address: 4573 TECUMSEH ROAD EAST, WINDSOR, Ontario N8W1K6
+Facebook: https://www.facebook.com/BuckinghamRealty
+Instagram: https://www.instagram.com/buckingham_realty/?hl=en
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,TIM P. CAMPBELL,CENTURY 21 TEAMS & ASSOCIATES LTD.,Broker of Record,,519-259-9999,,,"11825 TECUMSEH RD EAST, WINDSOR, Ontario N8N1L8",real estate,,realtor,1397836,https://www.realtor.ca/agent/1397836/tim-p-campbell-11825-tecumseh-rd-east-windsor-ontario-n8n1l8,https://cdn.realtor.ca/individuals/TS636059950800000000/lowres/1037173.jpg,"Position: Broker of Record
+Brokerage address: 11825 TECUMSEH RD EAST, WINDSOR, Ontario N8N1L8
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,MILENA SIMSIC,EXP REALTY,Sales Person,,226-909-1557,,,"5060 TECUMSEH RD E UNIT 501, WINDSOR, Ontario N8T1C1",real estate,,realtor,2156051,https://www.realtor.ca/agent/2156051/milena-simsic-5060-tecumseh-rd-e-unit-501-windsor-ontario-n8t1c1,https://cdn.realtor.ca/individuals/TS638895750600000000/lowres/1407463.jpg,"Position: Sales Person
+Brokerage address: 5060 TECUMSEH RD E UNIT 501, WINDSOR, Ontario N8T1C1
+Instagram: https://www.instagram.com/milena_simsic/
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,JAY KAAFARANI,LC PLATINUM REALTY INC.,Sales Person,,519-972-3888,,,"2518 OUELLETTE, WINDSOR, Ontario N8X1L7",real estate,,realtor,1978339,https://www.realtor.ca/agent/1978339/jay-kaafarani-2518-ouellette-windsor-ontario-n8x1l7,https://cdn.realtor.ca/individuals/TS636512848200000000/lowres/1264433.jpg,"Position: Sales Person
+Brokerage address: 2518 OUELLETTE, WINDSOR, Ontario N8X1L7
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,SUNAINA BHAGAT,DEERBROOK REALTY INC.,Sales Person,,,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,2252846,https://www.realtor.ca/agent/2252846/sunaina-bhagat-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS639116748000000000/lowres/1491928.jpg,"Position: Sales Person
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: no_primary_phone",,
+zone1_windsor_essex,Windsor,MARIO DEMARCO,DEERBROOK REALTY INC.,Sales Person,,519-972-1000,,,"59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9",real estate,,realtor,1397541,https://www.realtor.ca/agent/1397541/mario-demarco-59-eugenie-st-east-windsor-ontario-n8x2x9,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1037683.jpg,"Position: Sales Person
+Brokerage address: 59 EUGENIE ST. EAST, WINDSOR, Ontario N8X2X9
+Excluded: duplicate_primary_phone_in_file, existing_exact_name",,
+zone1_windsor_essex,Windsor,BRIAN LANOUE,REMAX PREFERRED REALTY LTD. - 585,Sales Person,,519-257-8235,,,"6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7",real estate,,realtor,1988875,https://www.realtor.ca/agent/1988875/brian-lanoue-6505-tecumseh-road-east-windsor-ontario-n8t1e7,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1272960.jpg,"Position: Sales Person
+Brokerage address: 6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,JON CASEY,REALTY ONE GROUP ICONIC BROKERAGE,Sales Person,,,,,"531 PELISSIER ST UNIT 101, WINDSOR, Ontario N9A4L2",real estate,,realtor,2249925,https://www.realtor.ca/agent/2249925/jon-casey-531-pelissier-st-unit-101-windsor-ontario-n9a4l2,,"Position: Sales Person
+Brokerage address: 531 PELISSIER ST UNIT 101, WINDSOR, Ontario N9A4L2
+Excluded: no_primary_phone",,
+zone1_windsor_essex,Windsor,PETER-JAMES LUCENTE,KW SIGNATURE,Sales Person,,226-788-9966,(519) 566-7788,(639) 166-0731,"3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9",real estate,http://www.synergyrealestategroup.net/,realtor,1886963,https://www.realtor.ca/agent/1886963/peter-james-lucente-3070-jefferson-boulevard-windsor-ontario-n8t3g9,https://cdn.realtor.ca/individuals/TS638932883400000000/lowres/1209630.jpg,"Position: Sales Person
+Brokerage address: 3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9
+Facebook: http://www.facebook.com/2008
+Instagram: https://instagram.com/kwsynergyrealestategroup
+LinkedIn: https://linkedin.com/in/synergy-real-estate-group-at-keller-williams-lifestyles-realty-75b1a31b8
+YouTube: https://youtube.com/UC9Z52k93YNEwatOdR8wrmJg
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,SANDRA ROTONDI,REMAX PREFERRED REALTY LTD. - 585,Sales Person,,519-944-5955,,,"6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7",real estate,,realtor,1397806,https://www.realtor.ca/agent/1397806/sandra-rotondi-6505-tecumseh-road-east-windsor-ontario-n8t1e7,https://cdn.realtor.ca/individuals/TS637660885200000000/lowres/1037029.jpg,"Position: Sales Person
+Brokerage address: 6505 TECUMSEH ROAD EAST, WINDSOR, Ontario N8T1E7
+Excluded: duplicate_primary_phone_in_file",,
+zone1_windsor_essex,Windsor,JAY KHAWAJA,KW SIGNATURE,Sales Person,,519-551-0602,,,"3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9",real estate,,realtor,2136329,https://www.realtor.ca/agent/2136329/jay-khawaja-3070-jefferson-boulevard-windsor-ontario-n8t3g9,https://cdn.realtor.ca/individuals/TS637685319600000000/lowres/1388613.jpg,"Position: Sales Person
+Brokerage address: 3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,ALBERT KANTARJIAN,REMAX CAPITAL DIAMOND REALTY,Broker of Record,,519-816-4222,,,"2451 DOUGALL UNIT C, WINDSOR, Ontario N8X1T3",real estate,,realtor,1570824,https://www.realtor.ca/agent/1570824/albert-kantarjian-2451-dougall-unit-c-windsor-ontario-n8x1t3,https://cdn.realtor.ca/individuals/TS637660885800000000/lowres/1151311.jpg,"Position: Broker of Record
+Brokerage address: 2451 DOUGALL UNIT C, WINDSOR, Ontario N8X1T3
+Excluded: existing_phone, existing_exact_name",,
+zone1_windsor_essex,Windsor,"CRIS KAMBOURIS, ASA",KW SIGNATURE,Sales Person,,519-995-7600,,,"3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9",real estate,,realtor,1530111,https://www.realtor.ca/agent/1530111/cris-kambouris-asa-3070-jefferson-boulevard-windsor-ontario-n8t3g9,https://cdn.realtor.ca/individuals/TS636604507800000000/lowres/1141628.jpg,"Position: Sales Person
+Brokerage address: 3070 JEFFERSON BOULEVARD, WINDSOR, Ontario N8T3G9
+Excluded: existing_phone",,
+zone1_windsor_essex,Windsor,PRABH SANDHU,JUMP REALTY INC.,Sales Person,,,,,"SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1",real estate,,realtor,2238571,https://www.realtor.ca/agent/2238571/prabh-sandhu-suite-300-3390-walker-rd-windsor-ontario-n8w3s1,,"Position: Sales Person
+Brokerage address: SUITE 300 - 3390 WALKER RD, WINDSOR, Ontario N8W3S1
+Excluded: no_primary_phone",,

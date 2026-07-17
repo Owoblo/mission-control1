@@ -3,12 +3,25 @@
  * Twilio calls this when a partnership call recording is ready.
  * Downloads the recording → transcribes via OpenAI Whisper → AI summary → saves to contact timeline.
  */
-import { NextResponse } from 'next/server'
 import { requireSupabaseEnv, readEnv } from '@/lib/server/runtime'
 import { verifyTwilioSignature } from '@/lib/server/security'
+import { PARTNERSHIP_LINES, isPartnershipSenderNumber, normalizePartnershipCityKey } from '@/lib/partnership-lines'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
+
+function partnershipLineForNumber(value?: string | null) {
+  const normalized = String(value || '').replace(/\D/g, '')
+  const e164 = normalized.length === 10 ? `+1${normalized}` : normalized.length === 11 && normalized.startsWith('1') ? `+${normalized}` : value || ''
+  return PARTNERSHIP_LINES.find(line => line.number === e164) || null
+}
+
+function contactMatchesLine(contact: { city?: string | null }, partnershipNumber?: string | null) {
+  const line = partnershipLineForNumber(partnershipNumber)
+  if (!line) return true
+  const cityKey = normalizePartnershipCityKey(contact.city)
+  return line.cityKeys.some(city => normalizePartnershipCityKey(city) === cityKey)
+}
 
 async function transcribeRecording(recordingUrl: string, authHeader: string): Promise<string | null> {
   const apiKey = readEnv('OPENAI_API_KEY')
@@ -99,7 +112,7 @@ export async function POST(request: Request) {
     const to = formData.get('To') || ''
 
     if (!recordingUrl || recordingDuration < 5) {
-      return new Response('', { status: 204 })
+      return new Response(null, { status: 204 })
     }
 
     const { url, headers } = requireSupabaseEnv()
@@ -107,15 +120,19 @@ export async function POST(request: Request) {
     const authToken = readEnv('TWILIO_AUTH_TOKEN')
     const authHeader = `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`
 
-    // Find the contact by phone number (to = partnership number, from = contact)
-    const contactPhone = from.replace(/\D/g, '').replace(/^1/, '')
+    const fromIsPartnership = isPartnershipSenderNumber(from)
+    const toIsPartnership = isPartnershipSenderNumber(to)
+    const partnershipNumber = fromIsPartnership ? from : toIsPartnership ? to : ''
+    const customerNumber = fromIsPartnership ? to : from
+    const contactPhone = customerNumber.replace(/\D/g, '').replace(/^1/, '')
     const contactRes = await fetch(
-      `${url}/rest/v1/market_contacts?phone=ilike.*${contactPhone}&select=id,name,company&limit=1`,
+      `${url}/rest/v1/market_contacts?phone=ilike.*${contactPhone}&select=id,name,company,city&limit=20`,
       { headers, cache: 'no-store' }
     )
-    const [contact] = contactRes.ok ? await contactRes.json() as Array<{ id: string; name: string; company: string }> : []
+    const contacts = contactRes.ok ? await contactRes.json() as Array<{ id: string; name: string; company: string; city: string | null }> : []
+    const contact = contacts.find(item => contactMatchesLine(item, partnershipNumber)) || (partnershipNumber ? null : contacts[0])
 
-    if (!contact) return new Response('', { status: 204 })
+    if (!contact) return new Response(null, { status: 204 })
 
     const now = new Date().toISOString()
 
@@ -139,7 +156,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         contact_id: contact.id,
         channel: 'phone',
-        direction: 'outbound',
+        direction: fromIsPartnership ? 'outbound' : 'inbound',
         notes,
         outcome_code: aiSummary?.toLowerCase().includes('voicemail') ? 'voicemail' :
           aiSummary?.toLowerCase().includes('not interested') ? 'not_interested' :
@@ -147,7 +164,7 @@ export async function POST(request: Request) {
           aiSummary?.toLowerCase().includes('interested') ? 'replied_positive' : 'call_connected',
         created_by: 'System',
         created_at: now,
-        metadata: { call_sid: callSid, recording_sid: recordingSid, recording_url: recordingUrl, duration_seconds: recordingDuration },
+        metadata: { call_sid: callSid, recording_sid: recordingSid, recording_url: recordingUrl, duration_seconds: recordingDuration, from, to },
       }),
     })
 
@@ -157,8 +174,8 @@ export async function POST(request: Request) {
       body: JSON.stringify({ last_touch_at: now }),
     })
 
-    return new Response('', { status: 204 })
+    return new Response(null, { status: 204 })
   } catch {
-    return new Response('', { status: 204 })
+    return new Response(null, { status: 204 })
   }
 }

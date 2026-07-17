@@ -14,10 +14,12 @@ import {
   updateInboundLeadRawData,
   updateLeadCallLogEntry,
 } from '@/lib/server/sales-repository'
-import { applyPhoneCallSummaryToLead, transcribeFromUrl, summarizePhoneCall } from '@/lib/server/call-intelligence'
+import { applyPhoneCallSummaryToLead, transcribeAudioBuffer, transcribeFromUrl, summarizePhoneCall } from '@/lib/server/call-intelligence'
 import { logEvent } from '@/lib/server/analytics'
 import { getTwilioCredentials } from '@/lib/server/runtime'
 import { verifyTwilioSignature } from '@/lib/server/security'
+import { archiveTwilioRecording, updateArchivedRecordingAiMetadata } from '@/lib/server/recording-archive'
+import { getCallRecordingBySid, recordingPlaybackReference } from '@/lib/server/call-recordings'
 import {
   buildTwilioRecordingMediaUrl,
   normalizeTwilioRecordingMediaUrl,
@@ -262,12 +264,51 @@ export async function POST(request: Request) {
     const callbackRecordingUrl = normalizeTwilioRecordingMediaUrl(recordingUrl)
     const mp3Url = callbackRecordingUrl || (recordingSid ? buildTwilioRecordingMediaUrl(accountSid, recordingSid) : '')
     const likelyVoicemail = recordingDuration > 0 && recordingDuration <= 30
+    const currentCallLog = lead && callLogId
+      ? (lead.callLogs || []).find(entry => entry.id === callLogId)
+      : null
+    const callDirection = currentCallLog?.direction || (inboundLead ? 'inbound' : 'outbound')
+    const existingArchivedRecord = recordingSid ? await getCallRecordingBySid(recordingSid).catch(() => null) : null
+
+    let archivedRecording: Awaited<ReturnType<typeof archiveTwilioRecording>> = null
+    let archiveError: string | null = null
+    if (!existingArchivedRecord?.cloudflare_object_key) {
+      try {
+        archivedRecording = await retryCallbackStep('archiveTwilioRecording', () => archiveTwilioRecording({
+          accountSid,
+          authToken,
+          callSid,
+          recordingUrl: mp3Url,
+          recordingSid,
+          durationSeconds: recordingDuration > 0 ? recordingDuration : undefined,
+          leadId,
+          callLogId,
+          phoneNumber: currentCallLog?.phone || inboundLead?.phone || lead?.phone,
+          city: lead?.branch || lead?.originCity || getSaturnBranchNumberFromRawData(inboundLead?.raw_data) || undefined,
+          createdAt: currentCallLog?.date || inboundLead?.created_at || undefined,
+        }), { attempts: 3, baseDelayMs: 500 })
+      } catch (error) {
+        archiveError = error instanceof Error ? error.message : 'Unknown recording archive failure'
+        console.error('[recording-callback] R2 archive failed; preserving Twilio fallback', {
+          callSid,
+          recordingSid,
+          message: archiveError,
+        })
+      }
+    }
+
+    const persistedRecordingUrl = archivedRecording?.recordingUrl ||
+      recordingPlaybackReference(existingArchivedRecord?.cloudflare_object_key) ||
+      mp3Url
+    const persistedRecordingSid = archivedRecording?.recordingSid || existingArchivedRecord?.recording_sid || recordingSid || undefined
 
     let transcript: string | null = null
     let transcriptionError: string | null = null
     let transcriptionQuotaExhausted = false
     try {
-      transcript = await transcribeFromUrl(mp3Url, accountSid, authToken, recordingSid)
+      transcript = existingArchivedRecord?.transcript || (archivedRecording
+        ? await transcribeAudioBuffer(archivedRecording.buffer, archivedRecording.contentType, 'call')
+        : await transcribeFromUrl(persistedRecordingUrl, accountSid, authToken, recordingSid))
     } catch (error) {
       const isQuota = error instanceof Error && (error as any).isQuotaError === true
       transcriptionQuotaExhausted = isQuota
@@ -276,11 +317,6 @@ export async function POST(request: Request) {
 
     const voicemailKeywords = ['leave a message', 'not available', 'please record', 'after the tone', 'after the beep', 'voicemail box', 'mailbox is full', 'call back', 'reach me at']
     const isVoicemail = likelyVoicemail || (!!transcript && voicemailKeywords.some(kw => transcript!.toLowerCase().includes(kw)))
-
-    const currentCallLog = lead && callLogId
-      ? (lead.callLogs || []).find(entry => entry.id === callLogId)
-      : null
-    const callDirection = currentCallLog?.direction || (inboundLead ? 'inbound' : 'outbound')
 
     const aiSummary = transcript && lead
       ? await summarizePhoneCall(lead, transcript, callDirection).catch(() => null)
@@ -295,9 +331,15 @@ export async function POST(request: Request) {
     let updatedLead = lead
     if (leadId && callLogId) {
       updatedLead = await retryCallbackStep('updateLeadCallLogEntry', () => updateLeadCallLogEntry(leadId!, callLogId!, {
-        recordingUrl: mp3Url,
-        recordingSid: recordingSid || undefined,
+        recordingUrl: persistedRecordingUrl,
+        recordingSid: persistedRecordingSid,
         recordingDuration: recordingDuration > 0 ? recordingDuration : undefined,
+        recordingStatus: archivedRecording || existingArchivedRecord?.cloudflare_object_key ? (transcript ? 'transcribed' : 'verified') : archiveError ? 'failed' : undefined,
+        recordingSize: archivedRecording?.sizeBytes || existingArchivedRecord?.recording_size || undefined,
+        recordingContentType: archivedRecording?.contentType || existingArchivedRecord?.content_type || undefined,
+        storageProvider: archivedRecording?.storageProvider || existingArchivedRecord?.storage_provider || undefined,
+        cloudflareObjectKey: archivedRecording?.objectKey || existingArchivedRecord?.cloudflare_object_key || undefined,
+        cloudflareUrl: archivedRecording?.recordingUrl || existingArchivedRecord?.cloudflare_url || undefined,
         branchNumber: branchNumber || undefined,
         transcript: transcriptionQuotaExhausted
           ? undefined
@@ -306,6 +348,15 @@ export async function POST(request: Request) {
         isVoicemail: isVoicemail || undefined,
         source: 'manual',
       } as any))
+
+      if (archivedRecording || existingArchivedRecord?.cloudflare_object_key) {
+        void updateArchivedRecordingAiMetadata({
+          recordingSid: persistedRecordingSid,
+          callSid,
+          transcript: transcriptionQuotaExhausted ? null : transcript,
+          aiSummary: aiSummary as any,
+        })
+      }
 
       if (updatedLead) {
         let nextLead = aiSummary ? applyPhoneCallSummaryToLead(updatedLead, aiSummary as any) : updatedLead
@@ -370,11 +421,27 @@ export async function POST(request: Request) {
       })
     }
 
+    if (leadId && archiveError) {
+      void createSalesSystemAlert({
+        title: 'Call recording archive failed',
+        leadId,
+        branchNumber,
+        details: `${archiveError}. Twilio fallback URL was preserved; do not delete this Twilio recording until it is backfilled to R2.`,
+        occurredAt: new Date().toISOString(),
+      })
+    }
+
     if (inboundLead) {
       await retryCallbackStep('updateInboundLeadRawData', () => updateInboundLeadRawData(inboundLead.id, {
-        recordingUrl: mp3Url,
-        recordingSid: recordingSid || undefined,
+        recordingUrl: persistedRecordingUrl,
+        recordingSid: persistedRecordingSid,
         recordingDuration: recordingDuration > 0 ? recordingDuration : undefined,
+        recordingStatus: archivedRecording || existingArchivedRecord?.cloudflare_object_key ? (transcript ? 'transcribed' : 'verified') : archiveError ? 'failed' : undefined,
+        recordingSize: archivedRecording?.sizeBytes || existingArchivedRecord?.recording_size || undefined,
+        recordingContentType: archivedRecording?.contentType || existingArchivedRecord?.content_type || undefined,
+        storageProvider: archivedRecording?.storageProvider || existingArchivedRecord?.storage_provider || undefined,
+        cloudflareObjectKey: archivedRecording?.objectKey || existingArchivedRecord?.cloudflare_object_key || undefined,
+        cloudflareUrl: archivedRecording?.recordingUrl || existingArchivedRecord?.cloudflare_url || undefined,
         recordingUnavailable: false,
         recordingUnavailableAt: undefined,
         recordingUnavailableReason: undefined,

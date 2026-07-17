@@ -15,6 +15,14 @@
     {
       "path": "/api/sales/automation/process",
       "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/sales/quote-send-jobs/process",
+      "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/sales/recordings/cleanup",
+      "schedule": "15 3 * * *"
     }
   ]
 }

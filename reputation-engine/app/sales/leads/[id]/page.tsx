@@ -46,6 +46,10 @@ const PhotoRequestDialog = dynamic(
   () => import('@/app/components/sales/lead-detail/photo-request-dialog').then(m => ({ default: m.PhotoRequestDialog })),
   { ssr: false }
 )
+const PaymentReceiptCenter = dynamic(
+  () => import('@/app/components/sales/payment-receipt-center').then(m => ({ default: m.PaymentReceiptCenter })),
+  { ssr: false }
+)
 import { LeadBasicsPanel } from '@/app/components/sales/lead-detail/lead-basics-panel'
 import { CRMRecordContext, CRMRecordLayout, CRMRecordMain, CRMRecordWidget } from '@/app/components/crm-layout'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
@@ -172,8 +176,6 @@ export default function SalesLeadDetailPage() {
   const leadPollInFlightRef = useRef(false)
   const smsFetchInFlightRef = useRef(false)
   const emailFetchInFlightRef = useRef(false)
-  const syncCallsInFlightRef = useRef(false)
-  const transcribeCallsInFlightRef = useRef(false)
   const [followUps, setFollowUps] = useState<FollowUpLog[]>([])
   const [automationSettings, setAutomationSettings] = useState<Required<LeadAutomationSettings>>(DEFAULT_AUTOMATION_SETTINGS)
   const [automationJobs, setAutomationJobs] = useState<CRMAutomationJob[]>([])
@@ -320,6 +322,10 @@ export default function SalesLeadDetailPage() {
   const [logDepositMethod, setLogDepositMethod] = useState<'cash' | 'etransfer' | 'cheque'>('etransfer')
   const [logDepositNote, setLogDepositNote] = useState('')
   const [logDepositBusy, setLogDepositBusy] = useState(false)
+  const [receiptEmail, setReceiptEmail] = useState('')
+  const [receiptSendSms, setReceiptSendSms] = useState(true)
+  const [receiptBusy, setReceiptBusy] = useState(false)
+  const [receiptNotice, setReceiptNotice] = useState<string | null>(null)
   const [chargeDepositBusy, setChargeDepositBusy] = useState(false)
   const [chargeBalanceBusy, setChargeBalanceBusy] = useState(false)
   const [chargeBalanceFlash, setChargeBalanceFlash] = useState<{ amount: number; remaining: number } | null>(null)
@@ -769,6 +775,11 @@ export default function SalesLeadDetailPage() {
   }, [])
 
   useEffect(() => {
+    setReceiptEmail(lead?.email || '')
+    setReceiptNotice(null)
+  }, [lead?.id])
+
+  useEffect(() => {
     if (!params?.id) return
     setLead(null)
     setQuote(null)
@@ -848,43 +859,9 @@ export default function SalesLeadDetailPage() {
     }
   }, [params?.id])
 
-  // ── Auto-transcribe: fire silently when calls have recording but no transcript ──
-  useEffect(() => {
-    if (!lead?.id) return
-    const needsTranscription = (lead.callLogs || []).some(
-      c => c.recordingUrl?.startsWith('https://api.twilio.com/') && !c.transcript
-    )
-    if (!needsTranscription || transcribeCallsInFlightRef.current) return
-    transcribeCallsInFlightRef.current = true
-    // Fire and forget — updates will appear on next poll
-    void fetch(`/api/sales/leads/${lead.id}/transcribe-calls`, { method: 'POST', credentials: 'include' })
-      .then(r => r.ok ? r.json() : null)
-      .then((data: { ok?: boolean; transcribed?: number; lead?: typeof lead } | null) => {
-        if (data?.transcribed && data.lead) {
-          setLead(prev => prev ? { ...prev, callLogs: data.lead!.callLogs } : data.lead!)
-        }
-      })
-      .catch(() => null)
-      .finally(() => { transcribeCallsInFlightRef.current = false })
-  // Count calls that have a recording but no transcript — changes when sync-calls patches a recording in
-  }, [lead?.id, (lead?.callLogs || []).filter((c: any) => c.recordingUrl?.startsWith('https://api.twilio.com/') && !c.transcript).length])
-
-  // ── Auto-sync calls: pull any unmapped Twilio calls for this lead's number ──
-  useEffect(() => {
-    if (!lead?.id || !lead?.phone) return
-    if (syncCallsInFlightRef.current) return
-    syncCallsInFlightRef.current = true
-    void fetch(`/api/sales/leads/${lead.id}/sync-calls`, { method: 'POST', credentials: 'include' })
-      .then(r => r.ok ? r.json() : null)
-      .then((data: { ok?: boolean; synced?: number; lead?: typeof lead } | null) => {
-        if (data?.synced && data.lead) {
-          setLead(prev => prev ? { ...prev, callLogs: data.lead!.callLogs } : data.lead!)
-        }
-      })
-      .catch(() => null)
-      .finally(() => { syncCallsInFlightRef.current = false })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lead?.id])
+  // Recording archive/transcription is handled by webhooks for new calls. Older or
+  // missing calls stay available through explicit timeline actions so opening a
+  // lead does not fan out to Twilio/OpenAI.
 
   useEffect(() => {
     if (!lead?.supabaseListing?.address) return
@@ -2300,7 +2277,12 @@ export default function SalesLeadDetailPage() {
     setQuoteModalDirty(true)
   }
 
-  async function saveQuoteDraft(overrides?: { moveDescription?: string; internalNotes?: string; conditionalClause?: string }): Promise<boolean> {
+  async function saveQuoteDraft(overrides?: {
+    moveDescription?: string
+    internalNotes?: string
+    conditionalClause?: string
+    quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'
+  }): Promise<boolean> {
     if (!quote) return false
     if (!ensureLeadEditable()) return false
     try {
@@ -2335,14 +2317,15 @@ export default function SalesLeadDetailPage() {
           }
         : computeQuoteTotals(sourceLineItems, depositRate, effectiveDiscount)
       const quoteHasMovingScope = sourceLineItems.some(item => /moving service|full-service moving|moving labor|\[leg\s+\d+\]/i.test(`${item.description} ${item.details || ''}`))
+      const selectedQuoteType = overrides?.quoteType || quote.quoteType || 'standard'
       const effectiveQuoteMoveType: CRMLead['moveType'] =
         (jobFactors.conjointMove || quoteLegs.length > 1 || quoteHasMovingScope) && moveType === 'labor-only'
           ? 'residential'
           : moveType
       const effectiveQuoteType =
-        (jobFactors.conjointMove || quoteLegs.length > 1 || quoteHasMovingScope) && quote.quoteType === 'labor_only'
+        (jobFactors.conjointMove || quoteLegs.length > 1 || quoteHasMovingScope) && selectedQuoteType === 'labor_only'
           ? 'standard'
-          : quote.quoteType
+          : selectedQuoteType
       const result = await updateSalesQuote(quote.id, {
         moveType: effectiveQuoteMoveType,
         quoteType: effectiveQuoteType,
@@ -2421,6 +2404,7 @@ export default function SalesLeadDetailPage() {
     moveDescription?: string
     internalNotes?: string
     conditionalClause?: string
+    quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'
   }) {
     if (!quote) return
     if (!ensureLeadEditable()) return
@@ -2428,6 +2412,7 @@ export default function SalesLeadDetailPage() {
       moveDescription: options?.moveDescription,
       internalNotes: options?.internalNotes,
       conditionalClause: options?.conditionalClause,
+      quoteType: options?.quoteType,
     })
     if (!saved) return
     if (options?.provisional && lead) {
@@ -2524,23 +2509,12 @@ export default function SalesLeadDetailPage() {
       setError(null)
 
       if (payload.lead.email) {
-        void fetch('/api/sales/deposit-receipt', {
+        const paymentId = payload.quote.paymentRecords?.at(-1)?.id
+        if (paymentId) void fetch(`/api/sales/quotes/${payload.quote.id}/payments`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({
-            toEmail: payload.lead.email,
-            toName: payload.lead.name,
-            quoteNumber: payload.quote.number,
-            moveDate: payload.quote.moveDate,
-            originCity: payload.quote.originCity,
-            destCity: payload.quote.destCity,
-            depositAmount: payload.quote.depositPaidAmount || payload.quote.deposit,
-            balanceAmount: payload.quote.balance,
-            totalAmount: payload.quote.total,
-            paymentMethod: 'Credit Card',
-            cardLast4: payload.cardLast4,
-          }),
+          body: JSON.stringify({ paymentId, email: payload.lead.email, sendEmail: true, sendSms: true }),
         }).catch(() => null)
       }
     } catch (err) {
@@ -2555,68 +2529,37 @@ export default function SalesLeadDetailPage() {
     if (!ensureLeadEditable()) return
     try {
       setLogDepositBusy(true)
-      const methodLabels = { cash: 'Cash', etransfer: 'Interac E-Transfer', cheque: 'Cheque' }
-      const methodLabel = methodLabels[logDepositMethod]
-
-      // If quote not yet accepted, accept it now (manual payment = confirmed booking)
-      if (quote.status === 'sent' || quote.status === 'viewed' || quote.status === 'draft') {
-        await updateSalesQuote(quote.id, {
-          status: 'accepted',
-          acceptedAt: new Date().toISOString().slice(0, 10),
-          respondedAt: new Date().toISOString(),
-        })
-        setQuote(q => q ? { ...q, status: 'accepted', acceptedAt: new Date().toISOString().slice(0, 10) } : q)
-      }
-
-      // Update CRM lead — move to booked + record deposit
-      const updatedLead = await updateSalesLead(lead.id, {
-        stage: 'booked',
-        paymentStatus: 'deposit_received',
-        depositAmount: quote.deposit,
-        depositMethod: methodLabel,
-        depositDate: new Date().toISOString().slice(0, 10),
-      })
-      setLead(updatedLead)
-      setLogDepositOpen(false)
-      setLogDepositNote('')
-
-      // Record in Stripe as out-of-band invoice (fire & forget — don't block UI)
-      void fetch('/api/sales/stripe/record-cash', {
+      const response = await fetch(`/api/sales/quotes/${quote.id}/manual-deposit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          leadId: lead.id,
-          leadName: lead.name,
-          leadEmail: lead.email,
-          leadPhone: lead.phone,
-          quoteNumber: quote.number,
-          amount: quote.deposit,
           method: logDepositMethod,
-          description: `Deposit – ${quote.number} – ${lead.name} – ${methodLabel}`,
+          note: logDepositNote,
+          amount: quote.deposit,
+          sendReceipt: true,
+          sendSmsReceipt: true,
+          recordAccounting: true,
         }),
-      }).catch(() => null)
-
-      // Send receipt email if we have an email address
-      if (lead.email) {
-        void fetch('/api/sales/deposit-receipt', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            toEmail: lead.email,
-            toName: lead.name,
-            quoteNumber: quote.number,
-            moveDate: quote.moveDate,
-            originCity: quote.originCity,
-            destCity: quote.destCity,
-            depositAmount: quote.deposit,
-            balanceAmount: quote.balance,
-            totalAmount: quote.total,
-            paymentMethod: methodLabel,
-          }),
-        }).catch(() => null)
+      })
+      const payload = await response.json() as {
+        ok?: boolean
+        error?: string
+        lead?: CRMLead
+        quote?: CRMQuote
+        receiptSent?: boolean
+        smsReceiptSent?: boolean
       }
+      if (!response.ok || !payload.ok || !payload.lead || !payload.quote) {
+        throw new Error(payload.error || 'Manual deposit verification failed')
+      }
+
+      setLead(payload.lead)
+      setQuote(payload.quote)
+      setReceiptEmail(payload.lead.email || '')
+      setLogDepositOpen(false)
+      setLogDepositNote('')
+      setError(null)
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -2624,19 +2567,88 @@ export default function SalesLeadDetailPage() {
     }
   }
 
+  async function resendDepositReceipt() {
+    if (!lead || !quote) return
+    if (!ensureLeadEditable()) return
+    const toEmail = receiptEmail.trim()
+    if (!toEmail) {
+      setError('Add the customer email before sending the receipt.')
+      return
+    }
+
+    try {
+      setReceiptBusy(true)
+      setReceiptNotice(null)
+      const response = await fetch(`/api/sales/quotes/${quote.id}/deposit-receipt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          toEmail,
+          updateLeadEmail: true,
+          sendSms: receiptSendSms,
+        }),
+      })
+      const payload = await response.json() as {
+        ok?: boolean
+        error?: string
+        lead?: CRMLead
+        quote?: CRMQuote
+        email?: string
+        receiptSent?: boolean
+        smsSent?: boolean
+        receiptError?: string
+        smsError?: string
+      }
+      if (!response.ok || !payload.ok || !payload.lead || !payload.quote) {
+        throw new Error(payload.error || 'Receipt send failed')
+      }
+
+      setLead(payload.lead)
+      setQuote(payload.quote)
+      setLeadEmail(payload.lead.email || '')
+      setReceiptEmail(payload.email || payload.lead.email || toEmail)
+      const sentChannels = [
+        payload.receiptSent !== false ? `email to ${payload.email || toEmail}` : '',
+        payload.smsSent ? `SMS to ${payload.lead.phone || lead.phone}` : '',
+      ].filter(Boolean)
+      const failedChannels = [
+        payload.receiptError ? `Email issue: ${payload.receiptError}` : '',
+        payload.smsError ? `SMS issue: ${payload.smsError}` : '',
+      ].filter(Boolean)
+      setReceiptNotice([
+        sentChannels.length ? `Receipt sent by ${sentChannels.join(' and ')}.` : 'Receipt request finished.',
+        failedChannels.length ? failedChannels.join(' ') : '',
+      ].filter(Boolean).join(' '))
+      setError(null)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setReceiptBusy(false)
+    }
+  }
+
   async function clearManualDepositMark() {
-    if (!lead) return
+    if (!lead || !quote) return
     if (!ensureLeadEditable()) return
     if (!await showConfirm('Clear deposit?', 'Remove the recorded deposit? Only do this if it was logged by mistake.', { confirmLabel: 'Clear', destructive: true })) return
     try {
       setLogDepositBusy(true)
-      const updatedLead = await updateSalesLead(lead.id, {
-        paymentStatus: 'pending',
-        depositAmount: undefined,
-        depositMethod: undefined,
-        depositDate: undefined,
+      const response = await fetch(`/api/sales/quotes/${quote.id}/manual-deposit`, {
+        method: 'DELETE',
+        credentials: 'include',
       })
-      setLead(updatedLead)
+      const payload = await response.json() as {
+        ok?: boolean
+        error?: string
+        lead?: CRMLead
+        quote?: CRMQuote
+      }
+      if (!response.ok || !payload.ok || !payload.lead || !payload.quote) {
+        throw new Error(payload.error || 'Could not clear deposit')
+      }
+      setLead(payload.lead)
+      setQuote(payload.quote)
       setError(null)
     } catch (err) {
       setError((err as Error).message)
@@ -2672,24 +2684,12 @@ export default function SalesLeadDetailPage() {
       setTimeout(() => setChargeBalanceFlash(null), 6000)
       setError(null)
       if (payload.lead.email) {
-        void fetch('/api/sales/deposit-receipt', {
+        const paymentId = payload.quote.paymentRecords?.at(-1)?.id
+        if (paymentId) void fetch(`/api/sales/quotes/${payload.quote.id}/payments`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({
-            toEmail: payload.lead.email,
-            toName: payload.lead.name,
-            quoteNumber: payload.quote.number,
-            moveDate: payload.quote.moveDate,
-            originCity: payload.quote.originCity,
-            destCity: payload.quote.destCity,
-            paymentKind: 'balance',
-            depositAmount: payload.amount || chargeAmt,
-            balanceAmount: payload.quote.balance,
-            totalAmount: payload.quote.total,
-            paymentMethod: 'Credit Card',
-            cardLast4: payload.cardLast4,
-          }),
+          body: JSON.stringify({ paymentId, email: payload.lead.email, sendEmail: true, sendSms: true }),
         }).catch(() => null)
       }
     } catch (err) {
@@ -4492,6 +4492,19 @@ export default function SalesLeadDetailPage() {
                   </div>
                 )}
 
+                {quote && (
+                  <PaymentReceiptCenter
+                    lead={lead}
+                    quote={quote}
+                    canEdit={canHandleCurrentLeadPayments}
+                    onUpdated={(nextLead, nextQuote) => {
+                      setLead(nextLead)
+                      setQuote(nextQuote)
+                      setReceiptEmail(nextLead.email || '')
+                    }}
+                  />
+                )}
+
                 {/* DEPOSIT STATUS */}
                 {lead.paymentStatus === 'paid_in_full' ? (
                   <div className="rounded-[8px] bg-emerald-600 px-3 py-2.5 text-center text-xs font-bold text-white">
@@ -4504,6 +4517,42 @@ export default function SalesLeadDetailPage() {
                     </div>
                     {quote && (
                       <div className="space-y-2">
+                        <div className="rounded-[8px] border border-emerald-200 bg-white p-3 text-xs">
+                          <div className="mb-2 font-semibold text-[var(--app-ink)]">Deposit receipt</div>
+                          <input
+                            type="email"
+                            value={receiptEmail}
+                            onChange={event => setReceiptEmail(event.target.value)}
+                            disabled={!canEditCurrentLead || receiptBusy}
+                            className="crm-input w-full text-xs"
+                            placeholder="customer@email.com"
+                          />
+                          <label className="mt-2 flex items-center gap-2 rounded-[8px] border border-slate-200 bg-slate-50 px-2 py-2 text-[11px] font-semibold text-[var(--app-ink)]">
+                            <input
+                              type="checkbox"
+                              checked={receiptSendSms}
+                              onChange={event => setReceiptSendSms(event.target.checked)}
+                              disabled={!canEditCurrentLead || receiptBusy || !lead.phone}
+                              className="h-3.5 w-3.5 accent-emerald-600"
+                            />
+                            <span>
+                              Text receipt too{lead.phone ? ` to ${lead.phone}` : ' after a phone is added'}
+                            </span>
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => void resendDepositReceipt()}
+                            disabled={!canEditCurrentLead || receiptBusy || !receiptEmail.trim()}
+                            className="mt-2 w-full rounded-[8px] bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
+                          >
+                            {receiptBusy ? 'Sending...' : 'Resend Deposit Receipt'}
+                          </button>
+                          {receiptNotice ? (
+                            <div className="mt-2 rounded-[6px] bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">
+                              {receiptNotice}
+                            </div>
+                          ) : null}
+                        </div>
                         <div className={`rounded-[8px] border px-3 py-2 text-xs ${
                           hasStoredPaymentCard
                             ? 'border-slate-200 bg-slate-50 text-[var(--app-ink)]'
@@ -4611,7 +4660,7 @@ export default function SalesLeadDetailPage() {
                             Quoted balance: {formatMoney(quote.balance)} — adjust if actual hours differ
                           </div>
                         </div>
-                        {!quote.depositPaidAt && !quote.depositPaidAmount && !quote.depositStripePaymentIntentId && !quote.depositStripeSessionId ? (
+                        {quote.depositPaidMethod !== 'stripe' && !quote.depositStripePaymentIntentId && !quote.depositStripeSessionId ? (
                           <button
                             onClick={() => void clearManualDepositMark()}
                             disabled={!canEditCurrentLead || logDepositBusy}
@@ -5662,6 +5711,7 @@ export default function SalesLeadDetailPage() {
         onBooked={updatedLead => { applyLeadSnapshot(updatedLead, { hydrateForm: true }); setFastLaneOpen(false) }}
       />
 
+      {quoteModalOpen ? (
       <EstimateDraftModal
         open={quoteModalOpen}
         quote={quote}
@@ -5679,7 +5729,10 @@ export default function SalesLeadDetailPage() {
         parkingNotes={parkingNotes}
         recalculateBusy={recalculateBusy}
         legs={quoteLegs}
-        onLegsChange={setQuoteLegs}
+        onLegsChange={legs => {
+          setQuoteLegs(legs)
+          setQuoteModalDirty(true)
+        }}
         onUhaulPriceChange={price => { pricingMetaRef.current.longDistanceTruckCost = price }}
         listingPhotos={listingPhotos}
         mediaAssets={lead.mediaAssets || []}
@@ -5743,11 +5796,26 @@ export default function SalesLeadDetailPage() {
           })
         }}
         onBranchChange={setBranch}
-        onJobFactorsChange={setJobFactors}
-        onOriginAddressChange={setOriginAddress}
-        onOriginCityChange={setOriginCity}
-        onDestAddressChange={setDestAddress}
-        onDestCityChange={setDestCity}
+        onJobFactorsChange={value => {
+          setJobFactors(value)
+          setQuoteModalDirty(true)
+        }}
+        onOriginAddressChange={value => {
+          setOriginAddress(value)
+          setQuoteModalDirty(true)
+        }}
+        onOriginCityChange={value => {
+          setOriginCity(value)
+          setQuoteModalDirty(true)
+        }}
+        onDestAddressChange={value => {
+          setDestAddress(value)
+          setQuoteModalDirty(true)
+        }}
+        onDestCityChange={value => {
+          setDestCity(value)
+          setQuoteModalDirty(true)
+        }}
         onAddInventoryItems={items => setInventory(current => {
           const merged = [...current]
           const keys = new Set(merged.map(item => inventoryItemKey(item)))
@@ -5767,6 +5835,7 @@ export default function SalesLeadDetailPage() {
         onToggleInventoryItem={toggleInventoryItem}
         onRemoveInventoryItem={removeInventoryItem}
       />
+      ) : null}
 
       <CollectCardModal
         open={collectCardOpen}

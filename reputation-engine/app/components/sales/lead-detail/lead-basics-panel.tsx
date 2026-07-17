@@ -110,9 +110,19 @@ function AddressInput({
   const [fetching, setFetching] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const focusedRef = useRef(false)
+  const latestQueryRef = useRef('')
 
   // Sync when parent resets the value (e.g. form clear)
-  useEffect(() => { setRaw(value) }, [value])
+  useEffect(() => {
+    if (!focusedRef.current) setRaw(value)
+  }, [value])
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     function onDown(e: MouseEvent) {
@@ -124,6 +134,7 @@ function AddressInput({
 
   function handleInput(val: string) {
     setRaw(val)
+    latestQueryRef.current = val
     // Defer parent state update to after suggestions settle — avoids INP lag
     if (debounceRef.current) clearTimeout(debounceRef.current)
     if (val.length < 4) {
@@ -138,11 +149,16 @@ function AddressInput({
       try {
         const res = await fetch(`/api/sales/address-suggest?q=${encodeURIComponent(val)}`, { credentials: 'include' })
         const data = (await res.json()) as { suggestions?: AddressSuggestion[] }
+        if (latestQueryRef.current !== val) return
         const list = data.suggestions || []
         setSuggestions(list)
         if (list.length > 0) setOpen(true)
-      } catch { setSuggestions([]) }
-      finally { setFetching(false) }
+      } catch {
+        if (latestQueryRef.current === val) setSuggestions([])
+      }
+      finally {
+        if (latestQueryRef.current === val) setFetching(false)
+      }
     }, 380)
   }
 
@@ -161,8 +177,14 @@ function AddressInput({
       <input
         value={raw}
         onChange={e => handleInput(e.target.value)}
-        onFocus={() => suggestions.length > 0 && setOpen(true)}
-        onBlur={() => { if (!open) onChange(raw) }}  // sync on blur in case user typed without selecting
+        onFocus={() => {
+          focusedRef.current = true
+          if (suggestions.length > 0) setOpen(true)
+        }}
+        onBlur={() => {
+          focusedRef.current = false
+          onChange(raw)
+        }}
         className="crm-input w-full pr-6"
         placeholder={placeholder}
         disabled={disabled}

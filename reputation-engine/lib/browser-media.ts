@@ -6,6 +6,10 @@ function isBrowserImage(file: File) {
   return file.type.startsWith('image/') && file.type !== 'image/gif' && file.type !== 'image/svg+xml'
 }
 
+function isHeicImage(file: File) {
+  return /image\/hei[cf]/i.test(file.type) || /\.(heic|heif)$/i.test(file.name || '')
+}
+
 function loadImage(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file)
@@ -55,6 +59,10 @@ export async function prepareUploadFile(
   const maxImageDimension = options.maxImageDimension || DEFAULT_MAX_IMAGE_DIMENSION
   const maxImageBytes = options.maxImageBytes || DEFAULT_MAX_IMAGE_BYTES
   const maxUploadBytes = options.maxUploadBytes || DEFAULT_MAX_UPLOAD_BYTES
+
+  if (isHeicImage(file)) {
+    throw new Error('HEIC photos cannot be sent by SMS. Please export or choose JPG/PNG.')
+  }
 
   if (!isBrowserImage(file)) {
     if (file.size > maxUploadBytes) {

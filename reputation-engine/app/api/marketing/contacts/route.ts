@@ -24,6 +24,13 @@ interface MarketContact {
   next_follow_up: string | null
   owner_name?: string | null
   owner_email?: string | null
+  assigned_manager_user_id?: string | null
+  preferred_channel?: string | null
+  relationship_score?: number | null
+  relationship_temperature?: string | null
+  tags?: string[] | null
+  do_not_contact?: boolean | null
+  partner_company_id?: string | null
   priority?: string | null
   account_status?: string | null
   mailed_at?: string | null
@@ -57,6 +64,58 @@ interface QueueItem {
   status: string
 }
 
+interface PartnerCompany {
+  id: string
+  company_name: string
+  industry: string | null
+  website: string | null
+  main_phone: string | null
+  city: string | null
+  account_owner_user_id: string | null
+  account_owner_name: string | null
+  account_owner_email: string | null
+  account_status: string | null
+  partnership_potential: string | null
+  total_referrals: number | null
+  total_revenue_cents: number | null
+}
+
+interface PartnerReferral {
+  id: string
+  contact_id: string | null
+  company_id: string | null
+  commission_status: string | null
+  booked_amount_cents: number | null
+}
+
+async function writePartnerActivityLog(input: {
+  url: string
+  headers: Record<string, string>
+  contactId?: string | null
+  companyId?: string | null
+  action: string
+  actorUserId?: string | null
+  actorName?: string | null
+  nextValue?: Record<string, unknown>
+  previousValue?: Record<string, unknown>
+  metadata?: Record<string, unknown>
+}) {
+  await fetch(`${input.url}/rest/v1/partner_activity_logs`, {
+    method: 'POST',
+    headers: { ...input.headers, Prefer: 'return=minimal' },
+    body: JSON.stringify({
+      contact_id: input.contactId || null,
+      company_id: input.companyId || null,
+      actor_user_id: input.actorUserId || null,
+      actor_name: input.actorName || null,
+      action: input.action,
+      previous_value: input.previousValue || null,
+      next_value: input.nextValue || null,
+      metadata: input.metadata || {},
+    }),
+  }).catch(() => {})
+}
+
 export async function GET(request: Request) {
   const session = await getSessionUser()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -75,14 +134,14 @@ export async function GET(request: Request) {
   if (stage) query += `&stage=eq.${encodeURIComponent(stage)}`
   if (tier) query += `&tier=eq.${encodeURIComponent(tier)}`
   if (industry) query += `&industry=eq.${encodeURIComponent(industry)}`
-  const scopeClause = partnershipScopeOrClause(session)
+  const scopeClause = partnershipScopeOrClause(session, ['city'], true)
   const searchClause = q
     ? `name.ilike.*${encodeURIComponent(q)}*,company.ilike.*${encodeURIComponent(q)}*,city.ilike.*${encodeURIComponent(q)}*`
     : ''
   if (scopeClause && searchClause) {
     query += `&and=(or(${scopeClause}),or(${searchClause}))`
   } else {
-    if (scopeClause) query += partnershipScopeFilter(session)
+    if (scopeClause) query += partnershipScopeFilter(session, ['city'], true)
     if (searchClause) query += `&or=(${searchClause})`
   }
 
@@ -110,6 +169,36 @@ export async function GET(request: Request) {
 
   const touches = (touchRes.ok ? await touchRes.json() : []) as MarketTouch[]
   const queueItems = (queueRes.ok ? await queueRes.json() : []) as QueueItem[]
+  const companyIds = Array.from(new Set(contacts.map(contact => contact.partner_company_id).filter(Boolean))) as string[]
+  const companyMap = new Map<string, PartnerCompany>()
+  if (companyIds.length > 0) {
+    const companyRes = await fetch(
+      `${url}/rest/v1/partner_companies?select=id,company_name,industry,website,main_phone,city,account_owner_user_id,account_owner_name,account_owner_email,account_status,partnership_potential,total_referrals,total_revenue_cents&id=in.(${companyIds.map(id => `"${id}"`).join(',')})`,
+      { headers, cache: 'no-store' }
+    ).catch(() => null)
+    if (companyRes?.ok) {
+      for (const company of await companyRes.json() as PartnerCompany[]) companyMap.set(company.id, company)
+    }
+  }
+  const referralRes = await fetch(
+    `${url}/rest/v1/partner_referrals?select=id,contact_id,company_id,commission_status,booked_amount_cents&or=(contact_id.in.(${contactIds}),company_id.in.(${companyIds.map(id => `"${id}"`).join(',') || '"00000000-0000-0000-0000-000000000000"'}))&limit=2000`,
+    { headers, cache: 'no-store' }
+  ).catch(() => null)
+  const referrals = (referralRes?.ok ? await referralRes.json() : []) as PartnerReferral[]
+  const referralMap = new Map<string, PartnerReferral[]>()
+  const companyReferralMap = new Map<string, PartnerReferral[]>()
+  for (const referral of referrals) {
+    if (referral.contact_id) {
+      const list = referralMap.get(referral.contact_id) ?? []
+      list.push(referral)
+      referralMap.set(referral.contact_id, list)
+    }
+    if (referral.company_id) {
+      const list = companyReferralMap.get(referral.company_id) ?? []
+      list.push(referral)
+      companyReferralMap.set(referral.company_id, list)
+    }
+  }
 
   const touchMap = new Map<string, MarketTouch[]>()
   for (const touch of touches) {
@@ -129,6 +218,9 @@ export async function GET(request: Request) {
   const enriched = contacts.map(contact => {
     const contactTouches = [...(touchMap.get(contact.id) ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at))
     const pending = queueMap.get(contact.id) ?? []
+    const company = contact.partner_company_id ? companyMap.get(contact.partner_company_id) ?? null : null
+    const contactReferrals = referralMap.get(contact.id) ?? []
+    const companyReferrals = contact.partner_company_id ? companyReferralMap.get(contact.partner_company_id) ?? [] : []
     const latestTouch = contactTouches[0] ?? null
     const latestInboundTouch = contactTouches.find(touch => touch.direction === 'inbound') ?? null
     const lastDirectMail = contactTouches.find(touch => touch.channel === 'direct_mail')
@@ -159,6 +251,11 @@ export async function GET(request: Request) {
       latest_inbound_metadata: latestInboundTouch?.metadata ?? null,
       needs_follow_up: needsFollowUp,
       has_reply: hasReply,
+      partner_company: company,
+      partner_referral_count: contactReferrals.length,
+      partner_company_referral_count: companyReferrals.length,
+      partner_booked_revenue_cents: contactReferrals.reduce((sum, referral) => sum + (referral.booked_amount_cents || 0), 0),
+      partner_company_booked_revenue_cents: companyReferrals.reduce((sum, referral) => sum + (referral.booked_amount_cents || 0), 0),
     }
   })
 
@@ -184,6 +281,12 @@ export async function PATCH(request: Request) {
     industry?: string | null
     owner_name?: string | null
     owner_email?: string | null
+    assigned_manager_user_id?: string | null
+    preferred_channel?: string | null
+    relationship_score?: number | null
+    relationship_temperature?: string | null
+    tags?: string[] | null
+    do_not_contact?: boolean | null
     priority?: string | null
     account_status?: string | null
     mailed_at?: string | null
@@ -214,6 +317,20 @@ export async function PATCH(request: Request) {
   if (body.industry !== undefined) updates.industry = body.industry || null
   if (body.owner_name !== undefined) updates.owner_name = body.owner_name || null
   if (body.owner_email !== undefined) updates.owner_email = body.owner_email || null
+  if (body.assigned_manager_user_id !== undefined) updates.assigned_manager_user_id = body.assigned_manager_user_id || null
+  if (body.preferred_channel !== undefined) updates.preferred_channel = body.preferred_channel || null
+  if (body.relationship_score !== undefined) updates.relationship_score = Math.max(0, Math.min(100, Number(body.relationship_score || 0)))
+  if (body.relationship_temperature !== undefined) updates.relationship_temperature = body.relationship_temperature || 'cold'
+  if (body.tags !== undefined) updates.tags = Array.isArray(body.tags) ? body.tags.map(tag => String(tag).trim()).filter(Boolean).slice(0, 25) : []
+  if (body.do_not_contact !== undefined) {
+    updates.do_not_contact = Boolean(body.do_not_contact)
+    if (body.do_not_contact) {
+      updates.sequence_paused = true
+      updates.sequence_paused_reason = 'do_not_contact'
+      updates.stage = updates.stage || 'dnc'
+      updates.decision = updates.decision || 'opted_out'
+    }
+  }
   if (body.priority !== undefined) updates.priority = body.priority || 'normal'
   if (body.account_status !== undefined) updates.account_status = body.account_status || 'active'
   if (body.mailed_at !== undefined) updates.mailed_at = body.mailed_at || null
@@ -231,7 +348,7 @@ export async function PATCH(request: Request) {
   const { url, headers } = requireSupabaseEnv()
 
   const currentRes = await fetch(
-    `${url}/rest/v1/market_contacts?id=eq.${encodeURIComponent(body.id)}&select=id,city&limit=1`,
+    `${url}/rest/v1/market_contacts?id=eq.${encodeURIComponent(body.id)}&select=id,city,stage,decision,owner_name,owner_email,assigned_manager_user_id,partner_company_id&limit=1`,
     { headers, cache: 'no-store' }
   )
   const [currentContact] = (currentRes.ok ? await currentRes.json() : []) as Array<Record<string, unknown>>
@@ -293,6 +410,18 @@ export async function PATCH(request: Request) {
   if (isActivated) {
     void activateAffiliatePartner(body.id).catch(() => {})
   }
+  void writePartnerActivityLog({
+    url,
+    headers,
+    contactId: body.id,
+    companyId: updated?.partner_company_id || currentContact.partner_company_id as string | undefined,
+    action: body.quick_action ? `contact.${body.quick_action}` : body.stage ? 'contact.stage_updated' : 'contact.updated',
+    actorUserId: session.userId,
+    actorName: session.name,
+    previousValue: currentContact,
+    nextValue: updates,
+    metadata: { source: 'marketing_contacts_api' },
+  })
 
   return NextResponse.json({ ok: true, contact: updated })
 }

@@ -1,0 +1,946 @@
+status,context_loss,name,company,phone,canonical_number,current_inbound_number,latest_inbound_at,latest_inbound,prior_outbound_at,prior_outbound_from,prior_outbound,latest_outbound_at,latest_outbound_from,wrong_numbers_used,source,recovery_sms
+context_lost_wrong_number,true,Alyssa Ismail,CENTURY 21 LOCAL HOME TEAM REALTY INC.,+15198903058,+12268870667,+12267732993,"Tue, 23 Jun 2026 18:39:12 +0000",Hi there. Sorry I'm missing maybe part of a conversation? ,2026-06-23T17:26:55.675+00:00,+12267732993,Thank you! Could you please share the Kingsville address?,,,+12267732993,twilio_api / sms_messages,"Hey Alyssa, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+context_lost_wrong_number,true,Bushra Helou,MANOR WINDSOR REALTY LTD.,+15199650890,+12268870667,+12267732993,"Tue, 23 Jun 2026 17:54:39 +0000",Who is this ,2026-06-23T17:52:44.629+00:00,+12267732993,Thank you Bushra. Could you please share the address it should be dropped off at?,,,+12267732993,twilio_api / sms_messages,"Hey Bushra, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+context_lost_wrong_number,true,Chris Macleod,REALTY ONE GROUP ICONIC BROKERAGE,+15198175588,+12268870667,+12267732993,"Tue, 23 Jun 2026 17:51:08 +0000",Sorry. I don't see an earlier text. What is this for?,2026-06-23T17:45:18.849+00:00,+12267732993,Thank you Chris. Could you please share the address it should be dropped off at?,2026-06-23T17:51:24.75+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Chris, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+context_lost_wrong_number,true,Waad Al-Ghazi,LC PLATINUM REALTY INC.,+12267390630,+12268870667,+12267732993,"Tue, 23 Jun 2026 17:48:03 +0000",Who is this,2026-06-23T17:46:58.737+00:00,+12267732993,Thank you very much. Could you please share the address it should be dropped off at?,,,+12267732993,twilio_api / sms_messages,"Hey Waad, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+context_lost_wrong_number,true,Eric Renaud,KW SIGNATURE,+15195621374,+12268870667,+12267732993,"Tue, 23 Jun 2026 17:46:59 +0000",Who is this?,2026-06-23T17:46:09.667+00:00,+12267732993,Thanks Eric! Could you please share the address it should be dropped off at?,,,+12267732993,twilio_api / sms_messages,"Hey Eric, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+context_lost_wrong_number,true,Brenda Gaudette,REGENCY REALTY LIMITED BROKERAGE,+15198188883,+12268870667,+12267732993,"Tue, 23 Jun 2026 17:45:35 +0000",You are welcome!! Not sure who is this though?,2026-06-23T17:13:57.792+00:00,+12267732993,Thank you very much Brenda. We appreciate that.,,,+12267732993,twilio_api / sms_messages,"Hey Brenda, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+context_lost_wrong_number,true,Andrej Miletic,EXP REALTY,+15199652862,+12268870667,+12267732993,"Tue, 23 Jun 2026 17:36:38 +0000","I'm sorry, who is this and what is this regarding?",2026-06-23T17:35:46.774+00:00,+12267732993,"Hi Andrej, my apologies for getting back to you late. Could you please share an address that we can drop the cards off at?",,,+12267732993,twilio_api / sms_messages,"Hey Andrej, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+context_lost_wrong_number,true,Cody Kraus,CENTURY 21 LOCAL HOME TEAM REALTY INC.,+15193227105,+12268870667,+12267732993,"Tue, 23 Jun 2026 17:30:12 +0000","Good afternoon, I apologize I don't have this number saved in my phone, who is this?",2026-06-23T17:10:36.642+00:00,+12267732993,Thank you very much Cody. Could you please share the address we should frop them off at?,,,+12267732993,twilio_api / sms_messages,"Hey Cody, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+thread_drift_wrong_number,false,Ramy Oraha,REMAX CAPITAL DIAMOND REALTY,+15197963289,+12268870667,+12267732993,"Tue, 23 Jun 2026 17:54:41 +0000",2451 Dougall Avenue Unit C,2026-06-23T17:50:56.851+00:00,+12267732993,"This is Hunter, I had sent you a message earlier about my moving company.",,,+12267732993,twilio_api / sms_messages,"Hey Ramy, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+thread_drift_wrong_number,false,David Cheslea,ROYAL LEPAGE BINDER REAL ESTATE,+15199808147,+12268870667,+12267732993,"Tue, 23 Jun 2026 17:54:18 +0000",519-735-7222,2026-06-23T17:51:09.392+00:00,+12267732993,"This is Hunter, I had sent you a message earlier about my moving company.",,,+12267732993,twilio_api / sms_messages,"Hey David, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+thread_drift_wrong_number,false,Jordan Luciw,KW SIGNATURE,+15195518800,+12268870667,+12267732993,"Tue, 23 Jun 2026 17:52:28 +0000","Oh yes no problem 
+3070 Jefferson blvd 
+
+My office is specifically upstairs - ask for verge real estate team - KW signature",2026-06-23T17:49:57.667+00:00,+12267732993,"This is Hunter, I had sent you a message earlier about my moving company.",2026-06-23T18:01:42.361+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Jordan, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+thread_drift_wrong_number,false,Marzena Desrosier,ROYAL LEPAGE BINDER REAL ESTATE,+15199913393,+12268870667,+12267732993,"Tue, 23 Jun 2026 17:27:09 +0000",Sounds good. I probably won't be here but you can leave them at the front desk for me,2026-06-23T17:25:58.824+00:00,+12267732993,Thank you very much. We'll have someone come by with them this week.,,,+12267732993,twilio_api / sms_messages,"Hey Marzena, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+thread_drift_wrong_number,false,Monica Brotto,DEERBROOK REALTY INC.,+15199191035,+12268870667,+12267732993,"Sat, 20 Jun 2026 12:36:00 +0000",No I don't have a compete list at this time ,2026-06-20T12:30:35.021+00:00,+12267732993,"Hi Monica! I see we’re planning your office relocation in Windsor on July 31, 2026. To lock in your estimate, I need a complete inventory list of the items we’ll be moving. Can you provide that?",,,+12267732993,twilio_api / sms_messages,"Hey Monica, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+thread_drift_wrong_number,false,Bob Quick,REMO VALENTE REAL ESTATE (1990) LIMITED,+15199197771,+12268870667,+12267732993,"Fri, 19 Jun 2026 23:11:35 +0000",2985 Dougall... I too have a referral system whereby you refer a client looking to move and you receive a $200 gift card thanks Bob,2026-06-19T15:56:34.117+00:00,+12267732993,"Wonderful, thank you Bob.
+Could you please share the address that the cards should be dropped at?
+
+In addition, we have a referral program for our realtors that can earn them up to $150 for each of their client's moves. ",,,+12267732993,twilio_api / sms_messages,"Hey Bob, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+thread_drift_wrong_number,false,Brad Bondy,Remax Preferred Realty Ltd. - 586 Brokerage,519-919-1187,+12268870667,+12267732993,"Fri, 19 Jun 2026 19:59:57 +0000",Probably somewhere down the line,2026-06-19T19:18:26.105+00:00,+12267732993,"No worries Brad, will def do that.
+
+Just of out curiosity, Are you related to Sue Bondy, ASA?",,,+12267732993,twilio_api / sms_messages,"Hey Brad, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+thread_drift_wrong_number,false,Natasha Tiessen,IDEAL: A BOUTIQUE REAL ESTATE BROKERAGE INC,+15199656111,+12268870667,+12267732993,"Fri, 19 Jun 2026 19:43:58 +0000",Ok great! Sounds good,2026-06-19T19:40:46.404+00:00,+12267732993,"*Looking
+",,,+12267732993,twilio_api / sms_messages,"Hey Natasha, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+thread_drift_wrong_number,false,Brady Thrasher,Remax Preferred Realty Ltd. - 586 Brokerage,519-819-5965,+12268870667,+12267732993,"Fri, 19 Jun 2026 19:25:05 +0000", ​🙏​ to “ Florida has a nice weather. Why you leaving us so soon haha...No worries Brady. I will make sure to send some to the office. Looking forward to working with you ” ,2026-06-19T19:16:47.922+00:00,+12267732993,Florida has a nice weather. Why you leaving us so soon haha...No worries Brady. I will make sure to send some to the office. Looking forward to working with you,2026-06-23T17:25:13.192+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Brady, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+thread_drift_wrong_number,false,John D'alimonte,Remax Preferred Realty Ltd. - 586 Brokerage,519-796-8073,+12268870667,+12267732993,"Fri, 19 Jun 2026 19:10:58 +0000",Thank you for sending this.  I'm sure we will be talking.  ,2026-06-19T19:02:49.865+00:00,+12267732993,"Thank you very much John. 
+
+In addition, we have a referral program for realtors where you can earn up to $150 for each of your clients moves and your client can get a discount. 
+
+All the information on the program is in",,,+12267732993,twilio_api / sms_messages,"Hey John, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+thread_drift_wrong_number,false,Marlene Zibara,H. FEATHERSTONE REALTY INC.,+15199908900,+12268870667,+12267732993,"Fri, 19 Jun 2026 18:33:11 +0000","Thank you, have a great day ",2026-06-19T18:27:34.621+00:00,+12267732993,Sounds good Marlene. I have added you already.,,,+12267732993,twilio_api / sms_messages,"Hey Marlene, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+thread_drift_wrong_number,false,Milena Simsic,Exp Realty Brokerage,226-909-1557,+12268870667,+12267732993,"Fri, 19 Jun 2026 17:59:23 +0000",Thank you! I'll keep you in mind for the next event - we'll have it coming up in September. Looking forward to connecting further,2026-06-19T17:50:29.084+00:00,+12267732993,"Sounds good Milena. Will make arrangements to get that across.
+
+Love the work you do in Windsor and I enjoyed your watching you at the miss windsor paegaent show.
+
+Would also love to come in as a partner/sponsor at some ",,,+12267732993,twilio_api / sms_messages,"Hey Milena, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+thread_drift_wrong_number,false,"Ron Deneau, Asa",BOB PEDLER REAL ESTATE LIMITED,+15197920130,+12268870667,+12267732993,"Fri, 19 Jun 2026 17:45:09 +0000","That's ok
+I would rather you keep it and invest it in to yourself to grow a very difficult job",2026-06-19T17:28:14.127+00:00,+12267732993,"Thank you Ron. I look forward to working with you. 
+
+We also give $100-$150 referral bonus for a successful move as a way of saying thank you.",,,+12267732993,twilio_api / sms_messages,"Hey Ron, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+thread_drift_wrong_number,false,Tasha Slater,Jump Realty Inc. Brokerage,519-796-3102,+12268870667,+12267732993,"Fri, 19 Jun 2026 17:33:44 +0000",Ok let's set it for Monday morning.  I am swamped the next few days. 10am? ,2026-06-19T17:33:06.635+00:00,+12267732993,"Most definitely. I'm free for a call from now till 4 pm today. Let me know if that time works for you. 
+
+",2026-06-19T17:35:10.168+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Tasha, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+thread_drift_wrong_number,false,Cris Kambouris,Keller Williams Lifestyles Realty Brokerage,519-995-7600,+12268870667,+12267732993,"Fri, 19 Jun 2026 17:33:39 +0000",Liked “That's alright. We'll reach out when you're back and schedule something for then. Thank you.”,2026-06-19T17:30:34.267+00:00,+12267732993,That's alright. We'll reach out when you're back and schedule something for then. Thank you.,,,+12267732993,twilio_api / sms_messages,"Hey Cris, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+thread_drift_wrong_number,false,Adina Dobrin-Turnbull,ROYAL LEPAGE BINDER REAL ESTATE,+15198177444,+12268870667,+12267732993,"Fri, 19 Jun 2026 17:28:46 +0000","Liked “Awwwn. No worries Adina. There is no pressure. I would do the same too haha. But if there is ever a need for backup, be it commercial or residential. We are one call away.”",2026-06-19T16:57:39.299+00:00,+12267732993,"Awwwn. No worries Adina. There is no pressure. I would do the same too haha. But if there is ever a need for backup, be it commercial or residential. We are one call away. ",,,+12267732993,twilio_api / sms_messages,"Hey Adina, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+thread_drift_wrong_number,false,Matt Alita,REALTY ONE GROUP ICONIC BROKERAGE,+15193005037,+12268870667,+12267732993,"Thu, 18 Jun 2026 22:16:38 +0000",Sure no problem. It's 531 Pelissier suite 101. If you just text me the day that you're in the area I'll make sure someone is there. ,2026-06-18T21:58:54.324+00:00,+12267732993,"Perfect, thanks Matt. I will make arrangements to drop it off. What address and time work best? Is it okay if I send the full digital package here too? It has your referral link, flyer/business card, referral details, an",,,+12267732993,twilio_api / sms_messages,"Hey Matt, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+thread_drift_wrong_number,false,Joe Mejalli,BOB PEDLER REAL ESTATE LIMITED,+15197920122,+12268870667,+12267732993,"Thu, 18 Jun 2026 19:32:36 +0000","280 Edingborough Windsor anytime between 10-4 pm , just drop off some cards. Perhaps flyers or price sheet, I'm  semi retired but could use good movers when required.",2026-06-18T18:57:58.975+00:00,+12267732993,"Perfect, thanks Joe. One of our local relationship reps can drop the postcards off. What address and time work best? Is it okay if I send the full digital package here too? It has your referral link, flyer, and a client ",2026-06-19T17:44:45.549+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Joe, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+thread_drift_wrong_number,false,"Rose Laflamme, Asa",JUMP REALTY INC.,+15197967159,+12268870667,+12267732993,"Thu, 18 Jun 2026 19:07:14 +0000",Is this Hunter?,2026-06-18T18:56:26.357+00:00,+12267732993,"Perfect, thanks Rose. One of our local relationship reps can drop the postcards off. What address and time work best? Is it okay if I send the full digital package here too? It has your referral link, flyer, and a quote ","Thu, 18 Jun 2026 19:43:54 +0000",+12267732993,+12267732993,twilio_api / sms_messages,"Hey Rose, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+thread_drift_wrong_number,false,Rene Thrasher,Remax Preferred Realty Ltd. - 586 Brokerage,519-819-3442,+12268870667,+12267732993,"Wed, 17 Jun 2026 19:33:41 +0000","Liked “Yeah, we would very much appreciate that, Rene! Our office number is 226 773 2993; tell them to mention you! If they book, we offer incentives for you and savings for them!”",2026-06-17T19:30:52.842+00:00,+12267732993,"Yeah, we would very much appreciate that, Rene! Our office number is 226 773 2993; tell them to mention you! If they book, we offer incentives for you and savings for them!",2026-06-17T19:35:39.375+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Rene, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+thread_drift_wrong_number,false,Steward R. Fulford,"S.R. FULFORD, BROKER",+15199842943,+12268870667,+12267732993,"Wed, 17 Jun 2026 19:27:55 +0000","Sure. Send to me in an email please. 
+fulford@fulford.com.",2026-06-17T19:20:15.904+00:00,+12267732993,"Thanks for the response. If you don't mind, I can send you our referral program details. We offer incentives for you and give discounts to whoever you send our way, + free boxes delivered before moving day to make their ",,,+12267732993,twilio_api / sms_messages,"Hey Steward, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+thread_drift_wrong_number,false,Carmen Sandu,PINNACLE PLUS REALTY LTD.,+15195675727,+12266055008,+12267732993,2026-05-29T21:24:36.257+00:00,Thanks for reaching out. I decided to go with another company,"Fri, 29 May 2026 15:17:57 +0000",+12267732993,"Kitchen
+5 items · 0 cu ft
+• 5 x Adjustable Height Swivel Bar Stool with White Upholstery — Standard bar stool size approx 18x18x40 in — Five stools at kitchen island, likely movable Likely custom/built-in fixture — confi","Wed, 17 Jun 2026 15:45:07 +0000",+12266055008,+12267732993,twilio_api / sms_messages,"Hey Carmen, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12266055008, but one reply came from +12267732993. Let's keep the conversation on +12266055008 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+thread_drift_wrong_number,false,Ken Allen,Deerbrook Realty Inc. Brokerage,519-965-5833,+12268870667,+12267732993,"Wed, 20 May 2026 16:31:52 +0000","Hey, I dont believe they'll be using a mover. It was a sticky situation due to financial reasons. Ill reach out to them and let you know.",2026-05-20T16:29:15.618+00:00,+12267732993,"Hi Ken, just following up on our previous messages. Have you had a chance to connect with the listing side about the destination move opportunity? Let me know if you need any assistance or have questions. Looking forward","Tue, 16 Jun 2026 14:40:48 +0000",+12268870667,+12267732993,twilio_api / sms_messages,"Hey Ken, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+thread_drift_wrong_number,false,Eyram Dodjro,REMAX CARE REALTY,+12263472078,+12266055008,+12267732993,2026-05-14T04:59:48.572+00:00,Yoo,2026-05-14T04:59:44.288+00:00,+12267732993,"Hey! To help you get your moving estimate, could you provide your move date and where you're moving from and to? 😊","Wed, 17 Jun 2026 17:45:16 +0000",+12266055008,+12267732993,twilio_api / sms_messages,"Hey Eyram, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12266055008, but one reply came from +12267732993. Let's keep the conversation on +12266055008 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+prior_sender_mismatch,false,Allan Blain,ATLAS REALTY (WINDSOR) INC.,+12267877881,+12268870667,+12268870667,"Fri, 19 Jun 2026 16:00:26 +0000",1440 outram LaSalle ,2026-06-19T15:54:51.569+00:00,+12267732993,"Definitely Allan, thank you very much? Could you please share the address?
+
+In addition, we have a referral program for our realtors that can earn them up to $150 for each of their client's moves. Please click the link f",,,+12267732993,twilio_api / sms_messages,"Hey Allan, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+misthreaded_reply,false,Eleonora Montaleone,REMAX CARE REALTY,+12267734744,+12268870667,+12268870667,"Tue, 23 Jun 2026 16:55:33 +0000",Hi Hunter! Thank you for reaching out. Visor Guys are our in house moving company so business cards are not needed. They have an office in our building. I always do suggest 3 companies to my clients and will make sure yo,"Thu, 18 Jun 2026 21:01:39 +0000",+12268870667,"Hi Eleonora, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pers",2026-06-23T17:09:02.076+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Eleonora, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+misthreaded_reply,false,Rosanne St. Denis,BUCKINGHAM REALTY (WINDSOR) LTD.,+15195667233,+12268870667,+12268870667,"Fri, 19 Jun 2026 22:42:00 +0000",I am sure that would be fine. I won't be there but you can leave the cards with the office girls and they will distribute to the real estate agents if you wish. We have 60 agents. ,"Wed, 17 Jun 2026 15:01:19 +0000",+12268870667,"Hi Rosanne, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to perso",2026-06-23T17:12:55.563+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Rosanne, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+misthreaded_reply,false,Edward Viselli,REMAX PREFERRED REALTY LTD. - 584,+15195627757,+12268870667,+12268870667,"Fri, 19 Jun 2026 18:53:12 +0000","Absolutely Hunter, Will do..
+Could have used you 2 months ago..
+Throw some buisiness my way as well.
+Ed Viselli @ Remax","Thu, 18 Jun 2026 17:45:48 +0000",+12268870667,"Hi Edward, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",2026-06-19T18:56:58.262+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Edward, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+misthreaded_reply,false,Zeena Aziz,REMAX CARE REALTY,+12267984109,+12268870667,+12268870667,"Fri, 19 Jun 2026 18:50:57 +0000","Hi there
+
+Can you send me your card?","Fri, 19 Jun 2026 15:00:22 +0000",+12268870667,"Hi Zeena, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona","Fri, 19 Jun 2026 18:58:28 +0000",+12267732993,+12267732993,twilio_api / sms_messages,"Hey Zeena, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+misthreaded_reply,false,Janet Chesterfield,EXCEL REALTY CORP. (1996),+15193228599,+12268870667,+12268870667,"Fri, 19 Jun 2026 17:20:12 +0000","Send cards to 
+The Excel Realty Corp
+382 Mersea Rd 19
+LEAMINGTON  N8H 3V6","Fri, 19 Jun 2026 17:15:05 +0000",+12268870667,"Hi Janet, my name is Hunter. I run a local moving company serving the Leamington area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pers",2026-06-19T17:28:44.575+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Janet, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+misthreaded_reply,false,Hussein El-Rifai,KEY SOLUTIONS REALTY LTD.,+15197909429,+12268870667,+12268870667,"Fri, 19 Jun 2026 17:02:23 +0000",Do you guys move hot tubs ,"Fri, 19 Jun 2026 16:30:04 +0000",+12268870667,"Hi Hussein, my name is Hunter. I run a local moving company serving the Tecumseh area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pers",2026-06-19T17:11:18.428+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Hussein, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+misthreaded_reply,false,Michael Barrett,SUN COUNTY REALTY INC.,+12262020203,+12268870667,+12268870667,"Fri, 19 Jun 2026 17:02:19 +0000",I'm not sure if anyone is at the office at the moment but I certainly would like to have your information.  ,"Fri, 19 Jun 2026 17:00:46 +0000",+12268870667,"Hi Michael, my name is Hunter. I run a local moving company serving the Leamington area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pe",2026-06-19T17:38:28.231+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Michael, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+misthreaded_reply,false,Debbie Nedin,BOB PEDLER REAL ESTATE LIMITED,+15199806449,+12268870667,+12268870667,"Fri, 19 Jun 2026 16:35:13 +0000",That would be great pls send me a pic of your business card I have client now that r in need ,"Fri, 19 Jun 2026 16:30:24 +0000",+12268870667,"Hi Debbie, my name is Hunter. I run a local moving company serving the Amherstburg area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pe",2026-06-19T16:53:38.168+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Debbie, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+misthreaded_reply,false,"Sue Bondy, Asa",ROYAL LEPAGE BINDER REAL ESTATE,+15199998656,+12268870667,+12268870667,"Fri, 19 Jun 2026 16:06:41 +0000",Absolutely put some brochures at my office and I definitely will refer you,"Fri, 19 Jun 2026 16:01:29 +0000",+12268870667,"Hi Sue, my name is Hunter. I run a local moving company serving the Tecumseh area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",2026-06-19T17:04:52.539+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Sue, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+misthreaded_reply,false,Persis Akolawala,ROYAL LEPAGE BINDER REAL ESTATE,+12262807812,+12268870667,+12268870667,"Fri, 19 Jun 2026 16:05:08 +0000","Hey Hunter!
+
+Appreciate the message. I'm just with clients but will be in touch. Thank you!","Fri, 19 Jun 2026 16:01:11 +0000",+12268870667,"Hi Persis, my name is Hunter. I run a local moving company serving the Tecumseh area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to perso",2026-06-19T17:22:11.766+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Persis, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+misthreaded_reply,false,Larry Couture,REMAX PREFERRED REALTY LTD. - 585,+15198186748,+12268870667,+12268870667,"Fri, 19 Jun 2026 15:17:48 +0000",Yeah you can drop off a few cards I'll keep you in mind,"Fri, 19 Jun 2026 15:15:40 +0000",+12268870667,"Hi Larry, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",2026-06-19T15:31:08.54+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Larry, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+misthreaded_reply,false,Mary Walsh,KW SIGNATURE,+15195674533,+12268870667,+12268870667,"Fri, 19 Jun 2026 15:12:44 +0000","Hi Hunter 
+Is this for real estate that you're contacting me? ","Fri, 19 Jun 2026 14:45:20 +0000",+12268870667,"Hi Mary, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",2026-06-19T15:42:28.327+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Mary, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+misthreaded_reply,false,Steph Marier,CENTURY 21 LOCAL HOME TEAM REALTY INC.,+15195644662,+12268870667,+12268870667,"Fri, 19 Jun 2026 15:07:39 +0000","Hey Hunter! Really appreciate you reaching out personally — that says a lot. I'm actually not actively practicing real estate right now, though I still hold my license. I'm the owner of H2M Staging, one of the larger hom","Thu, 18 Jun 2026 19:16:02 +0000",+12268870667,"Hi Steph, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",2026-06-19T15:55:20.399+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Steph, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+misthreaded_reply,false,Aman Ranu,REMAX PREFERRED REALTY LTD. - 585,+15195678989,+12268870667,+12268870667,"Fri, 19 Jun 2026 03:04:08 +0000",Sure Hunter thanks ,"Wed, 17 Jun 2026 18:15:55 +0000",+12268870667,"Hi Aman, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",2026-06-19T15:53:49.504+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Aman, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+misthreaded_reply,false,Sherry Rudling,BUCKINGHAM REALTY (WINDSOR) LTD.,+15198185645,+12268870667,+12268870667,"Thu, 18 Jun 2026 20:44:53 +0000",Hi Hunter. That's fine. Best of luck with your new company ,"Thu, 18 Jun 2026 18:45:09 +0000",+12268870667,"Hi Sherry, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",2026-06-23T17:34:12.903+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Sherry, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+misthreaded_reply,false,Amber Johnston,REMAX PREFERRED REALTY LTD. - 585,+12269614451,+12268870667,+12268870667,"Thu, 18 Jun 2026 20:17:29 +0000","Hi Hunter! You can always stop by the brokerage and speak to the lady at the front desk to put cards in the back for agents. 
+
+That would most likely be your best bet! 
+
+Hope that helps 🙂","Thu, 18 Jun 2026 20:15:42 +0000",+12268870667,"Hi Amber, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",2026-06-18T20:17:58.751+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Amber, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+misthreaded_reply,false,Rami Abraham,DEERBROOK REALTY INC.,+15199847264,+12268870667,+12268870667,"Thu, 18 Jun 2026 19:58:05 +0000","Hi Hunter, thanks for reaching out. I'm not usually in the office. But I'll keep your number handy on my phone. Is this the number I can share with clients? And do you also have an email or website? Thanks ","Thu, 18 Jun 2026 19:31:03 +0000",+12268870667,"Hi Rami, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",2026-06-23T17:41:58.505+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Rami, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+misthreaded_reply,false,Alannah Drouillard,JUMP REALTY INC.,+15194378381,+12268870667,+12268870667,"Thu, 18 Jun 2026 19:36:16 +0000",Hey Hunter - the office I use most is Leamington. I'm sure our Windsor location would be happy to have some of your business cards however! ,"Thu, 18 Jun 2026 16:01:14 +0000",+12268870667,"Hi Alannah, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to perso",2026-06-18T20:17:37.098+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Alannah, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+misthreaded_reply,false,Srinivas Vadapalli,JVRE REALTY INC.,+15198183737,+12268870667,+12268870667,"Thu, 18 Jun 2026 19:34:27 +0000",Hi Hunter. Nice knowing you. As such I don't have an office but pls feel free to send me a digital version of it. Would be happy to pass along your contact as a recommended one to my clients when they're looking for movi,"Thu, 18 Jun 2026 19:31:04 +0000",+12268870667,"Hi Srinivas, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pers",2026-06-19T17:43:17.172+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Srinivas, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+misthreaded_reply,false,Manjot Kaur,EVEREST REALTY LTD,+15199848007,+12268870667,+12268870667,"Thu, 18 Jun 2026 19:17:54 +0000","Hello Hunter,
+
+Thanks for sending message with all details. 
+kindly send me digital card as I am not in windsor next week. 
+
+Thanks
+Manjot ","Thu, 18 Jun 2026 19:15:43 +0000",+12268870667,"Hi Manjot, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",2026-06-19T17:30:31.659+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Manjot, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+misthreaded_reply,false,Barbra Nwoye,LC PLATINUM REALTY INC.,+15197910877,+12268870667,+12268870667,"Thu, 18 Jun 2026 17:54:33 +0000","Hi Hunter, you can just text me your card here and I will keep you mind if anyone is looking for movers. Thanks","Thu, 18 Jun 2026 17:46:25 +0000",+12268870667,"Hi Barbra, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person","Thu, 18 Jun 2026 18:03:43 +0000",+12267732993,+12267732993,twilio_api / sms_messages,"Hey Barbra, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+misthreaded_reply,false,Nitin Arora,"HOMELIFE GOLD STAR REALTY INC., BROKERAGE",+15199650403,+12268870667,+12268870667,"Thu, 18 Jun 2026 15:45:17 +0000",Sure,"Wed, 17 Jun 2026 19:30:29 +0000",+12268870667,"Hi Nitin, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",2026-06-19T19:00:16.608+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Nitin, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+misthreaded_reply,false,Muhammad Naveed,LC PLATINUM REALTY INC.,+12263445416,+12268870667,+12268870667,"Wed, 17 Jun 2026 16:01:28 +0000",Sure you can drop off at the front desk ,"Wed, 17 Jun 2026 15:47:07 +0000",+12268870667,"Hi Muhammad, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pers",2026-06-17T20:12:05.607+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Muhammad, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+misthreaded_reply,false,Martin Shkreli,Deerbrook Realty Inc. Brokerage,519-566-7704,+12268870667,+12268870667,"Tue, 16 Jun 2026 14:44:50 +0000","Hey, thanks so much for the message. Just shoot me a picture of your business card and when someone asks, I will definitely send it to them.","Tue, 16 Jun 2026 14:43:48 +0000",+12268870667,"Hey Martin, my name is John. I run Saturn Star Movers, a local moving company serving the Lakeshore area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myse",2026-06-19T19:01:51.368+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Martin, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+misthreaded_reply,false,Chris Bishop,Royal Lepage Binder Real Estate Brokerage,519-982-2474,+12268870667,+12268870667,"Tue, 16 Jun 2026 14:44:22 +0000","Hi John, sure stop in anytime. If I am not here Dee will be. Friday's the office is closed. Thanks","Tue, 16 Jun 2026 14:42:53 +0000",+12268870667,"Hey Chris, my name is John. I run Saturn Star Movers, a local moving company serving the Windsor area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myself ",2026-06-19T19:00:36.335+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Chris, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+misthreaded_reply,false,Krista Klundert,Remax Preferred Realty Ltd. - 585 Brokerage,519-980-3540,+12268870667,+12268870667,"Tue, 16 Jun 2026 14:41:42 +0000","Sure, that would be fine.You can just leave them with reception.If you want as i'm not usually in that office location as I use my home office","Tue, 16 Jun 2026 14:40:50 +0000",+12268870667,"Hey Krista, my name is John. I run Saturn Star Movers, a local moving company serving the Windsor area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myself",2026-06-17T15:23:48.548+00:00,+12267732993,+12267732993,twilio_api / sms_messages,"Hey Krista, sorry for the confusion. This is Saturn Star Movers. We had reached out earlier from +12268870667, but one reply came from +12267732993. Let's keep the conversation on +12268870667 so it stays in one place. We were introducing our local partner package for moving referrals. I can resend the original note here so the context is clear."
+needs_reply_on_thread,false,Rose-Marie Beaudoin,DEERBROOK REALTY INC.,+15199900130,+12268870667,+12268870667,"Mon, 22 Jun 2026 22:13:46 +0000","Hi Hunter, send me your Instagram Account so I can refer you to future clients 😊 ","Wed, 17 Jun 2026 16:30:43 +0000",+12268870667,"Hi Rose-Marie, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pe",,,,twilio_api,
+needs_reply_on_thread,false,Nina Casporowiez,REMAX CARE REALTY,+12267731188,+12266055008,+12266055008,"Mon, 22 Jun 2026 15:23:49 +0000","Hi Hunter,
+We have in house moving company ( they have office in our building) .
+You can come by and leave some business cards no problem.","Thu, 18 Jun 2026 16:00:40 +0000",+12266055008,"Hi Nina, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Liliana Stefan,CENTURY 21 TEAMS & ASSOCIATES LTD.,+15195668836,+12268870667,+12268870667,"Fri, 19 Jun 2026 22:37:08 +0000","Hi Hunter. Thanks for reaching out.  I will be out of town for couple of weeks,  but I will keep you in mind and let you know if anyone will need your services. ","Fri, 19 Jun 2026 15:15:39 +0000",+12268870667,"Hi Liliana, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to perso",,,,twilio_api,
+needs_reply_on_thread,false,Rossana Moavro,CENTURY 21 LOCAL HOME TEAM REALTY INC.,+15195514911,+12268870667,+12268870667,"Fri, 19 Jun 2026 20:32:42 +0000","Cancel all appointments.
+I did not ask to schedule yet","Fri, 19 Jun 2026 17:30:07 +0000",+12268870667,"Hi Rossana, my name is Hunter. I run a local moving company serving the Leamington area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pe",,,,twilio_api,
+needs_reply_on_thread,false,Sawyer Desmarais,CENTURY 21 LOCAL HOME TEAM REALTY INC.,+15198177803,+12266055008,+12266055008,"Fri, 19 Jun 2026 20:15:40 +0000","Hey Hunter, thanks for reaching out! 
+
+That'd be great if you could come drop off some cards next week. Just let me know when you're planning on dropping them off and I'll try to be here so we can formally meet, thanks! ","Fri, 19 Jun 2026 17:46:28 +0000",+12266055008,"Hi Sawyer, my name is Hunter. I run a local moving company serving the Kingsville area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to per",,,,twilio_api,
+needs_reply_on_thread,false,Michael Vaughan,H. FEATHERSTONE REALTY INC.,+12263403305,+12266055008,+12266055008,"Fri, 19 Jun 2026 19:14:16 +0000",This is a hospital corporate cell phone.  ,"Fri, 19 Jun 2026 17:45:47 +0000",+12266055008,"Hi Michael, my name is Hunter. I run a local moving company serving the Leamington area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pe",,,,twilio_api,
+needs_reply_on_thread,false,Jeremy D'Alimonte,ROYAL LEPAGE BINDER REAL ESTATE,+15199192001,+12266055008,+12266055008,"Fri, 19 Jun 2026 18:43:11 +0000","Hey Hunter! Yes, for sure. Thanks ","Fri, 19 Jun 2026 16:45:24 +0000",+12266055008,"Hi Jeremy, my name is Hunter. I run a local moving company serving the Amherstburg area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pe",,,,twilio_api,
+needs_reply_on_thread,false,Peggy Cruickshank,"RE/MAX FINEST REALTY INC., BROKERAGE",+16135394111,+12266055008,+12266055008,"Fri, 19 Jun 2026 18:42:52 +0000","Hey Hunter, thanks so much for your introductory note. You would be best to take any information into the Remax Finest office on GARDNER Road. Myself and other agents will then have access to it. Many of us work from hom","Fri, 19 Jun 2026 18:30:38 +0000",+12266055008,"Hi Peggy, my name is Hunter. I run a local moving company serving the Harrow area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Bill Hess,HESS REALTY,+15195676621,+12266055008,+12266055008,"Fri, 19 Jun 2026 18:32:23 +0000","Sure, give me call at this number and I would be glad to grab some from you. Thanks ","Fri, 19 Jun 2026 18:30:39 +0000",+12266055008,"Hi Bill, my name is Hunter. I run a local moving company serving the Harrow area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personall",,,,twilio_api,
+needs_reply_on_thread,false,Phil Dorner,LOUIS PARENT REALTY LTD.,+15197967234,+12266055008,+12266055008,"Fri, 19 Jun 2026 18:29:16 +0000",Yes ,"Fri, 19 Jun 2026 17:00:44 +0000",+12266055008,"Hi Phil, my name is Hunter. I run a local moving company serving the Belle River area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pers",,,,twilio_api,
+needs_reply_on_thread,false,Christian Pottle,REMAX PREFERRED REALTY LTD. - 588,+15197916019,+12266055008,+12266055008,"Fri, 19 Jun 2026 18:24:05 +0000",Hi Hunter thanks for reaching out.  Please feel free to stop into the Kingsville office and mention to Kayla that you're dropping some off for me. ,"Fri, 19 Jun 2026 18:02:01 +0000",+12266055008,"Hi Christian, my name is Hunter. I run a local moving company serving the Kingsville area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to ",,,,twilio_api,
+needs_reply_on_thread,false,Stephanie Winger,IDEAL: A BOUTIQUE REAL ESTATE BROKERAGE INC,+15195671622,+12266055008,+12266055008,"Fri, 19 Jun 2026 18:19:13 +0000","Thanks for reaching out! I'm away for another week but would be happy to meet you!!
+
+Movers are definitely an important part and we've heard so many nightmare stories from clients ","Fri, 19 Jun 2026 18:16:39 +0000",+12266055008,"Hi Stephanie, my name is Hunter. I run a local moving company serving the Essex area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to perso",,,,twilio_api,
+needs_reply_on_thread,false,Roger Demers,ROYAL LEPAGE BINDER REAL ESTATE,+15198186174,+12266055008,+12266055008,"Fri, 19 Jun 2026 18:15:55 +0000",Ok. No problem ,"Fri, 19 Jun 2026 16:16:04 +0000",+12266055008,"Hi Roger, my name is Hunter. I run a local moving company serving the Tecumseh area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,Joel Robinet,CENTURY 21 LOCAL HOME TEAM REALTY INC.,+15199995712,+12266055008,+12266055008,"Fri, 19 Jun 2026 18:07:57 +0000","Hi Hunter, you should call my office at 519-733-8411. They will take your info and you can potentially meet with a manager or our realtors at an upcoming meeting. Thanks","Fri, 19 Jun 2026 17:46:08 +0000",+12266055008,"Hi Joel, my name is Hunter. I run a local moving company serving the Kingsville area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to perso",,,,twilio_api,
+needs_reply_on_thread,false,Len Filiault,CENTURY 21 LOCAL HOME TEAM REALTY INC.,+15198905045,+12266055008,+12266055008,"Fri, 19 Jun 2026 18:04:28 +0000",Sure feel free to stop by and drop off some info. Thanks,"Fri, 19 Jun 2026 17:30:28 +0000",+12266055008,"Hi Len, my name is Hunter. I run a local moving company serving the Leamington area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,Marty Pedersen B. Comm.,BUCKINGHAM REALTY (WINDSOR) LTD.,+15198173307,+12266055008,+12266055008,"Fri, 19 Jun 2026 18:01:30 +0000",Sure,"Fri, 19 Jun 2026 14:15:59 +0000",+12266055008,"Hi Marty, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Adil Malik,ROYAL LEPAGE BINDER REAL ESTATE,+12265061328,+12266055008,+12266055008,"Fri, 19 Jun 2026 17:56:59 +0000","Hi Hunter, thanks for reaching out. You can send over your business card, will reach out when needed","Fri, 19 Jun 2026 16:30:04 +0000",+12266055008,"Hi Adil, my name is Hunter. I run a local moving company serving the Tecumseh area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Kevin Babkirk,REALTY HOUSE SUN PARLOUR INC.,+15198184432,+12266055008,+12266055008,"Fri, 19 Jun 2026 17:49:52 +0000","Hello Hunter
+You are more than welcome to stop by anytime. 
+We are always in and out but usually around between 10:00  to noonish.
+Our secretary does go home at 2:00 usually but maybe just give a quick call before coming","Fri, 19 Jun 2026 17:15:04 +0000",+12266055008,"Hi Kevin, my name is Hunter. I run a local moving company serving the Leamington area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pers",,,,twilio_api,
+needs_reply_on_thread,false,"Robert Tatomir, Abr, Mva, Recs, Sres",FUTURE HOMES & REAL ESTATE LTD.,+15193228177,+12266055008,+12266055008,"Fri, 19 Jun 2026 17:45:52 +0000",Okay,"Fri, 19 Jun 2026 17:45:08 +0000",+12266055008,"Hi Robert, my name is Hunter. I run a local moving company serving the Leamington area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to per",,,,twilio_api,
+needs_reply_on_thread,false,Ronald Derksen,ROYAL LEPAGE BINDER REAL ESTATE,+15197913482,+12268870667,+12268870667,"Fri, 19 Jun 2026 17:40:16 +0000","Feel free to drop some off at my Kingsville ofc  - on Main St E ... Dee, will be there.
+
+Thanks ","Fri, 19 Jun 2026 17:15:25 +0000",+12268870667,"Hi Ronald, my name is Hunter. I run a local moving company serving the Leamington area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to per",,,,twilio_api,
+needs_reply_on_thread,false,Elaine Beaumont,ROYAL LEPAGE BINDER REAL ESTATE,+15199714274,+12266055008,+12266055008,"Fri, 19 Jun 2026 17:35:16 +0000","Yes, of course ","Fri, 19 Jun 2026 16:15:04 +0000",+12266055008,"Hi Elaine, my name is Hunter. I run a local moving company serving the Tecumseh area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to perso",,,,twilio_api,
+needs_reply_on_thread,false,Flora Mcneil,MAC 1 REALTY LTD,+15193246723,+12266055008,+12266055008,"Fri, 19 Jun 2026 17:34:53 +0000",Yea that would be great ,"Fri, 19 Jun 2026 17:15:44 +0000",+12266055008,"Hi Flora, my name is Hunter. I run a local moving company serving the Leamington area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pers",,,,twilio_api,
+needs_reply_on_thread,false,Conrad Babkirk,REALTY HOUSE SUN PARLOUR INC.,+15198184435,+12266055008,+12266055008,"Fri, 19 Jun 2026 17:33:08 +0000",Perfect 👍 ,"Fri, 19 Jun 2026 17:30:07 +0000",+12266055008,"Hi Conrad, my name is Hunter. I run a local moving company serving the Leamington area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to per",,,,twilio_api,
+needs_reply_on_thread,false,Mary Ann Bernabe,KEY SOLUTIONS REALTY LTD.,+16475180297,+12266055008,+12266055008,"Fri, 19 Jun 2026 17:28:00 +0000","Please text me your business card.
+Thank you","Fri, 19 Jun 2026 16:01:08 +0000",+12266055008,"Hi Mary, my name is Hunter. I run a local moving company serving the Tecumseh area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Sharon O'Beid,H. FEATHERSTONE REALTY INC.,+15199653167,+12266055008,+12266055008,"Fri, 19 Jun 2026 17:27:49 +0000",That's fine. Leave it with the secretary  ,"Fri, 19 Jun 2026 17:15:25 +0000",+12266055008,"Hi Sharon, my name is Hunter. I run a local moving company serving the Leamington area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to per",,,,twilio_api,
+needs_reply_on_thread,false,Joyce Blackmere,THE DAN GEMUS REAL ESTATE TEAM LTD.,+15192578999,+12266055008,+12266055008,"Fri, 19 Jun 2026 17:17:54 +0000","Hey Hunter!
+
+Thanks for reaching out! We are hosting rib fest this weekend so my apologies for the delay in responding. Sure, feel free to pop by and introduce yourself. Maybe send me a text first to make sure I'm not ti","Fri, 19 Jun 2026 16:30:44 +0000",+12266055008,"Hi Joyce, my name is Hunter. I run a local moving company serving the Amherstburg area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to per",,,,twilio_api,
+needs_reply_on_thread,false,Deiba Wigle,SUN COUNTY REALTY INC.,+15198186942,+12266055008,+12266055008,"Fri, 19 Jun 2026 17:16:18 +0000",Sure. No problem,"Fri, 19 Jun 2026 17:15:24 +0000",+12266055008,"Hi Deiba, my name is Hunter. I run a local moving company serving the Leamington area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pers",,,,twilio_api,
+needs_reply_on_thread,false,Chantal El-Chaar,PINNACLE PLUS REALTY LTD.,+15199906102,+12266055008,+12266055008,"Fri, 19 Jun 2026 17:06:51 +0000","Loved “Hi Chantal, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted t","Wed, 17 Jun 2026 16:30:44 +0000",+12266055008,"Hi Chantal, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to perso",,,,twilio_api,
+needs_reply_on_thread,false,Jim Boutros,SUN COUNTY REALTY INC.,+15197914319,+12266055008,+12266055008,"Fri, 19 Jun 2026 17:01:22 +0000",Not interested ,"Fri, 19 Jun 2026 17:00:06 +0000",+12266055008,"Hi Jim, my name is Hunter. I run a local moving company serving the Leamington area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,Paul Sulja,DEERBROOK REALTY INC.,+15198905898,+12266055008,+12266055008,"Fri, 19 Jun 2026 16:47:44 +0000","Hey Hunter, I've got a client moving from Windsor to Kitchener; would you be able to help with that or within Windsor only?","Fri, 19 Jun 2026 15:15:22 +0000",+12266055008,"Hi Paul, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Glenn Ritchie,ROYAL LEPAGE BINDER REAL ESTATE,+12265060824,+12266055008,+12266055008,"Fri, 19 Jun 2026 16:44:28 +0000",Absolutely ,"Fri, 19 Jun 2026 16:30:04 +0000",+12266055008,"Hi Glenn, my name is Hunter. I run a local moving company serving the Tecumseh area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,Dawn Furmanek,ROYAL LEPAGE BINDER REAL ESTATE,+15199846750,+12266055008,+12266055008,"Fri, 19 Jun 2026 16:33:02 +0000","Hi Hunter, sure ","Fri, 19 Jun 2026 16:31:04 +0000",+12266055008,"Hi Dawn, my name is Hunter. I run a local moving company serving the Amherstburg area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pers",,,,twilio_api,
+needs_reply_on_thread,false,Renay Grant,ROYAL LEPAGE BINDER REAL ESTATE,+15197966073,+12266055008,+12266055008,"Fri, 19 Jun 2026 16:22:58 +0000",Absolutely thank you,"Fri, 19 Jun 2026 16:15:05 +0000",+12266055008,"Hi Renay, my name is Hunter. I run a local moving company serving the Tecumseh area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,Fahd Ahmed,KEY SOLUTIONS REALTY LTD.,+12899331093,+12266055008,+12266055008,"Fri, 19 Jun 2026 16:18:34 +0000",Thank you for letting me know ,"Fri, 19 Jun 2026 16:15:25 +0000",+12266055008,"Hi Fahd, my name is Hunter. I run a local moving company serving the Tecumseh area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Johanna Young,ROYAL LEPAGE BINDER REAL ESTATE,+15197910564,+12266055008,+12266055008,"Fri, 19 Jun 2026 16:16:53 +0000",Sure,"Fri, 19 Jun 2026 16:15:24 +0000",+12266055008,"Hi Johanna, my name is Hunter. I run a local moving company serving the Tecumseh area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pers",,,,twilio_api,
+needs_reply_on_thread,false,Annette O'Neil,ROYAL LEPAGE BINDER REAL ESTATE,+15199995478,+12268870667,+12268870667,"Fri, 19 Jun 2026 16:10:11 +0000","Hi. Hunter. Please just email me information at
+annetteoneil@royallepage.ca
+
+Thank you","Fri, 19 Jun 2026 15:46:05 +0000",+12268870667,"Hi Annette, my name is Hunter. I run a local moving company serving the Tecumseh area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pers",,,,twilio_api,
+needs_reply_on_thread,false,Marvin Calito,LC PLATINUM REALTY INC.,+15199808484,+12266055008,+12266055008,"Fri, 19 Jun 2026 16:08:21 +0000",Feel free to send me your contact information in a picture of your business cards.,"Fri, 19 Jun 2026 15:00:21 +0000",+12266055008,"Hi Marvin, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,Vicki Vasovski,KEY SOLUTIONS REALTY LTD.,+15197960640,+12266055008,+12266055008,"Fri, 19 Jun 2026 16:07:50 +0000","Yes 
+My office is in my house
+140 Chambers dr lakeshore","Fri, 19 Jun 2026 16:01:29 +0000",+12266055008,"Hi Vicki, my name is Hunter. I run a local moving company serving the Tecumseh area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,Caitlin Beaumont,ROYAL LEPAGE BINDER REAL ESTATE,+12269754905,+12266055008,+12266055008,"Fri, 19 Jun 2026 16:07:18 +0000","Also, is this your cell or work number? I'm going to add you to my contacts. ","Fri, 19 Jun 2026 16:02:08 +0000",+12266055008,"Hi Caitlin, my name is Hunter. I run a local moving company serving the Tecumseh area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pers",,,,twilio_api,
+needs_reply_on_thread,false,"Carrie-Lynn Macleod, Asa",ROYAL LEPAGE BINDER REAL ESTATE,+15199198009,+12266055008,+12266055008,"Fri, 19 Jun 2026 16:06:09 +0000",It's always good to have movers on hand! I'm traveling so I will be back in July ,"Fri, 19 Jun 2026 16:01:28 +0000",+12266055008,"Hi Carrie-Lynn, my name is Hunter. I run a local moving company serving the Tecumseh area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to ",,,,twilio_api,
+needs_reply_on_thread,false,Manmeet Dhillon,DEERBROOK REALTY INC.,+16472926209,+12266055008,+12266055008,"Fri, 19 Jun 2026 15:48:50 +0000","Sure! We would really appreciate. I will keep you in my contacts. 
+Thank! for reaching out Hunter. ","Fri, 19 Jun 2026 15:45:25 +0000",+12266055008,"Hi Manmeet, my name is Hunter. I run a local moving company serving the LaSalle area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to perso",,,,twilio_api,
+needs_reply_on_thread,false,Barbara Tellerd,ATLAS REALTY (WINDSOR) INC.,+12263501135,+12266055008,+12266055008,"Fri, 19 Jun 2026 15:45:52 +0000",Ideal mostly in the Windsor area,"Fri, 19 Jun 2026 15:31:00 +0000",+12266055008,"Hi Barbara, my name is Hunter. I run a local moving company serving the LaSalle area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to perso",,,,twilio_api,
+needs_reply_on_thread,false,Sandra Chappus,CENTURY 21 LOCAL HOME TEAM REALTY INC.,+15199905020,+12266055008,+12266055008,"Fri, 19 Jun 2026 15:19:38 +0000",It would be best for you to call the office directly. Good luck,"Fri, 19 Jun 2026 15:00:40 +0000",+12266055008,"Hi Sandra, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,Makenna Schuyler,ONE PERCENT REALTY LTD,+15483864663,+12266055008,+12266055008,"Fri, 19 Jun 2026 14:57:21 +0000","Sorry Hunter, I'm not located in windsor","Fri, 19 Jun 2026 14:45:40 +0000",+12266055008,"Hi Makenna, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to perso",,,,twilio_api,
+needs_reply_on_thread,false,Gino Gesuale,REMO VALENTE REAL ESTATE (1990) LIMITED,+15199954466,+12266055008,+12266055008,"Fri, 19 Jun 2026 14:48:06 +0000",You should stop by Valente office and drop cards off there ,"Fri, 19 Jun 2026 14:45:59 +0000",+12266055008,"Hi Gino, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,John Hall,JUMP REALTY INC.,+12263478956,+12266055008,+12266055008,"Fri, 19 Jun 2026 13:31:16 +0000",I don't have an office per say but text me your card,"Thu, 18 Jun 2026 17:46:06 +0000",+12266055008,"Hi John, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Raman Ghotra,JUMP REALTY INC.,+15198186500,+12266055008,+12266055008,"Fri, 19 Jun 2026 05:39:22 +0000","Thank You so much sir!
+
+I believe so, but I would have to confirm with my boss for you!","Thu, 18 Jun 2026 14:30:09 +0000",+12266055008,"Hi Raman, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Katherine Roth,BOB PEDLER REAL ESTATE LIMITED,+15199958300,+12268870667,+12268870667,"Fri, 19 Jun 2026 01:31:44 +0000","Hi  Hunter!
+Thanks for touching base and for informing me about your moving company. Please feel free to drop off your cards at my office at 280 Edinborough. I'll let you know if I have any referrals for you!
+Thanks! Kat","Thu, 18 Jun 2026 17:46:06 +0000",+12268870667,"Hi Katherine, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to per",,,,twilio_api,
+needs_reply_on_thread,false,Becky Mai,DEERBROOK REALTY INC.,+15197816606,+12268870667,+12268870667,"Fri, 19 Jun 2026 00:14:04 +0000",i will keep that in mind. thank you ,"Thu, 18 Jun 2026 14:15:10 +0000",+12268870667,"Hi Becky, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Khrystye Hamlin,REMAX PREFERRED REALTY LTD. - 585,+15199958011,+12266055008,+12266055008,"Fri, 19 Jun 2026 00:12:57 +0000",Hi Hunter.. Do you have a website or Google reviews I can look at... I'm very Leary or recommending ppl I haven't personally used,"Thu, 18 Jun 2026 20:46:41 +0000",+12266055008,"Hi Khrystye, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pers",,,,twilio_api,
+needs_reply_on_thread,false,Martin Solecki,DEERBROOK REALTY INC.,+12262467186,+12266055008,+12266055008,"Thu, 18 Jun 2026 23:46:20 +0000",You got to ask at the office. It should be fine,"Thu, 18 Jun 2026 20:16:42 +0000",+12266055008,"Hi Martin, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,Kimberly Miller,REMAX CAPITAL DIAMOND REALTY,+15199198100,+12266055008,+12266055008,"Thu, 18 Jun 2026 22:24:42 +0000",Hi. I'm never in the office.  Thanks for reaching out.  If you want to drop off cards I will definitely consider your company.  I dont have a good moving company.  Thanks ,"Thu, 18 Jun 2026 20:16:44 +0000",+12266055008,"Hi Kimberly, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pers",,,,twilio_api,
+needs_reply_on_thread,false,Maher Samhat,REMAX CARE REALTY,+12267738095,+12266055008,+12266055008,"Thu, 18 Jun 2026 22:15:45 +0000","Hi Hunter, 
+
+Pleasure is mine. Of course, please let me know when you would like to come by.
+
+Thank you","Thu, 18 Jun 2026 17:00:35 +0000",+12266055008,"Hi Maher, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Mohammed Zafar,REMAX PREFERRED REALTY LTD. - 584,+15195774580,+12266055008,+12266055008,"Thu, 18 Jun 2026 22:03:19 +0000","Hello Hunter, I apologise,  I received an update. Please send me your business card or contact here on my phone or at zafar@realtywindsor.ca
+
+Our Brokerage polocies do not allow business cards for display. 
+Best wishes. ","Thu, 18 Jun 2026 20:30:44 +0000",+12266055008,"Hi Mohammed, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pers",,,,twilio_api,
+needs_reply_on_thread,false,Vu Ngo,REALTY ONE GROUP ICONIC BROKERAGE,+12263460230,+12266055008,+12266055008,"Thu, 18 Jun 2026 22:00:21 +0000","Hey Hunter, I appreciate the message about you and your moving business! Yes you may definitely pop by the office to drop off a few cards! My office is at 531 Pelissier Street","Thu, 18 Jun 2026 17:30:52 +0000",+12266055008,"Hi Vu, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally",,,,twilio_api,
+needs_reply_on_thread,false,Tom Hunter,DEERBROOK REALTY INC.,+15198194339,+12266055008,+12266055008,"Thu, 18 Jun 2026 21:38:12 +0000","Of course, my office is at 59 Eugeni street East","Thu, 18 Jun 2026 20:45:42 +0000",+12266055008,"Hi Tom, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personall",,,,twilio_api,
+needs_reply_on_thread,false,Jerry Seguin,DEERBROOK REALTY INC.,+15198187851,+12268870667,+12268870667,"Thu, 18 Jun 2026 21:02:50 +0000",Sure Hunter I'll keep you in mind ,"Thu, 18 Jun 2026 21:00:59 +0000",+12268870667,"Hi Jerry, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Mahir Al-Askary,CAPITAL WEALTH REALTY BROKERAGE,+15199913456,+12266055008,+12266055008,"Thu, 18 Jun 2026 20:55:33 +0000","Hi, 
+
+Thank you I will arrange with you next week. 
+
+
+Thank you ","Thu, 18 Jun 2026 19:30:42 +0000",+12266055008,"Hi Mahir, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Rob Benneian,DEERBROOK REALTY INC.,+15199774625,+12266055008,+12266055008,"Thu, 18 Jun 2026 20:48:16 +0000","sure, that'd be great ","Thu, 18 Jun 2026 20:45:44 +0000",+12266055008,"Hi Rob, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personall",,,,twilio_api,
+needs_reply_on_thread,false,Nick Foster,CONSIDER IT SOLD REALTY INC.,+15195758338,+12266055008,+12266055008,"Thu, 18 Jun 2026 19:36:05 +0000","For sure Hunter, it's saved in my address book Bro. 
+
+Cheers ","Thu, 18 Jun 2026 18:15:44 +0000",+12266055008,"Hi Nick, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Curtis Dufresne,CENTURY 21 LOCAL HOME TEAM REALTY INC.,+15195666103,+12266055008,+12266055008,"Thu, 18 Jun 2026 19:28:26 +0000","Hey Hunter. Happy to keep you in the loop
+","Thu, 18 Jun 2026 19:00:59 +0000",+12266055008,"Hi Curtis, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,Sami Hakkani,REMAX CAPITAL DIAMOND REALTY,+15199997991,+12266055008,+12266055008,"Thu, 18 Jun 2026 19:24:33 +0000","Hi Hunter, pleasure to meet you. 
+
+Yes of course. Message me next week ill let you know which day ill be there","Thu, 18 Jun 2026 18:45:11 +0000",+12266055008,"Hi Sami, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Shaun Cushing,PINNACLE PLUS REALTY LTD.,+15197919888,+12268870667,+12268870667,"Thu, 18 Jun 2026 19:03:22 +0000","Absolutely
+If you could add a couple referrals of recent clients, that would be great as well","Thu, 18 Jun 2026 18:01:32 +0000",+12268870667,"Hi Shaun, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,"Doug Wickham, Asa",MANOR WINDSOR REALTY LTD.,+15195640698,+12268870667,+12268870667,"Thu, 18 Jun 2026 19:02:33 +0000",OK,"Thu, 18 Jun 2026 19:01:20 +0000",+12268870667,"Hi Doug, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Joshua Shepley,REMAX PREFERRED REALTY LTD. - 585,+15199811032,+12268870667,+12268870667,"Thu, 18 Jun 2026 18:55:12 +0000","Hey Hunter, thanks for reaching out. Yes that sounds good","Thu, 18 Jun 2026 18:15:44 +0000",+12268870667,"Hi Joshua, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,Kevin Diluca,REMO VALENTE REAL ESTATE (1990) LIMITED,+15199198785,+12268870667,+12268870667,"Thu, 18 Jun 2026 18:48:25 +0000",You can drop off cards to reception at Valente Real Estate on Dougall. I have a different position at the company an not selling very much,"Thu, 18 Jun 2026 18:16:21 +0000",+12268870667,"Hi Kevin, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Natalie Lazzarin-Gignac,ROYAL LEPAGE BINDER REAL ESTATE,+15198194041,+12268870667,+12268870667,"Thu, 18 Jun 2026 18:40:56 +0000","Hey! Always open to new business and we always need movers! You certainly can. It's the Royal LePage on Provincial 
+Do you have a social media page ","Thu, 18 Jun 2026 18:02:12 +0000",+12268870667,"Hi Natalie, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to perso",,,,twilio_api,
+needs_reply_on_thread,false,Mustapha Sinjari,MANOR WINDSOR REALTY LTD.,+12267870577,+12266055008,+12266055008,"Thu, 18 Jun 2026 18:39:26 +0000",Hey absolutely leave them with the front desk ,"Thu, 18 Jun 2026 18:01:32 +0000",+12266055008,"Hi Mustapha, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pers",,,,twilio_api,
+needs_reply_on_thread,false,Maryanne Aitken,REMO VALENTE REAL ESTATE (1990) LIMITED,+15199908449,+12266055008,+12266055008,"Thu, 18 Jun 2026 18:37:12 +0000","Hi Hunter
+I am a Broker at Valente Real Estate, but you can check with our office manager I am sure she would be good with you dropping your information to our office.
+Just call my office 
+519-966-7777
+Ask for Ida Sproul","Thu, 18 Jun 2026 18:30:50 +0000",+12266055008,"Hi Maryanne, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pers",,,,twilio_api,
+needs_reply_on_thread,false,Michael Plunkett,REMAX CAPITAL DIAMOND REALTY,+15195627049,+12266055008,+12266055008,"Thu, 18 Jun 2026 18:36:54 +0000","Hi Hunter 
+you are welcome to stop by the office on Dougall . 
+Good luck .
+Cheers 
+. ","Thu, 18 Jun 2026 17:15:59 +0000",+12266055008,"Hi Michael, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to perso",,,,twilio_api,
+needs_reply_on_thread,false,Greg Barlow,ROYAL LEPAGE BINDER REAL ESTATE,+15199716228,+12266055008,+12266055008,"Thu, 18 Jun 2026 18:32:15 +0000",No need. Im a industrial realtor l dont sell houes. Thanks,"Thu, 18 Jun 2026 18:30:10 +0000",+12266055008,"Hi Greg, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Melissa Bloomfield,ROYAL LEPAGE BINDER REAL ESTATE,+15199915590,+12266055008,+12266055008,"Thu, 18 Jun 2026 18:24:13 +0000",Hi there sure you can reach out to my husband Mark 519 981 5221,"Thu, 18 Jun 2026 17:16:19 +0000",+12266055008,"Hi Melissa, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to perso",,,,twilio_api,
+needs_reply_on_thread,false,Mustafa Malik,LC PLATINUM REALTY INC.,+15195641155,+12268870667,+12268870667,"Thu, 18 Jun 2026 18:19:31 +0000",No problem Budd,"Thu, 18 Jun 2026 17:30:56 +0000",+12268870667,"Hi Mustafa, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to perso",,,,twilio_api,
+needs_reply_on_thread,false,Sai Namratha Ganapathiraju,JUMP REALTY INC.,+17827785881,+12266055008,+12266055008,"Thu, 18 Jun 2026 18:17:20 +0000","Hi Hunter, how are you doing? Thank you for reaching out. I will definitely let you know if my clients are looking for the services. Be in touch . I'm will not be in Windsor next week, I'm going to GTA. But no worries I ","Thu, 18 Jun 2026 18:01:34 +0000",+12266055008,"Hi Sai, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personall",,,,twilio_api,
+needs_reply_on_thread,false,Zoran Frank Puskaric,KW SIGNATURE,+15199997167,+12266055008,+12266055008,"Thu, 18 Jun 2026 18:16:46 +0000","Sure, tell the girls at the front desk. ","Thu, 18 Jun 2026 18:15:41 +0000",+12266055008,"Hi Zoran, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Jin Qian,REMAX PREFERRED REALTY LTD. - 585,+15195516805,+12268870667,+12268870667,"Thu, 18 Jun 2026 18:04:36 +0000",Office is located at 6505 Tecumseh Rd E,"Thu, 18 Jun 2026 17:15:38 +0000",+12268870667,"Hi Jin, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personall",,,,twilio_api,
+needs_reply_on_thread,false,Moe Fakih,REMAX CAPITAL DIAMOND REALTY,+15199844842,+12268870667,+12268870667,"Thu, 18 Jun 2026 18:03:35 +0000",Hey Hunter ya go ahead ,"Thu, 18 Jun 2026 17:15:42 +0000",+12268870667,"Hi Moe, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personall",,,,twilio_api,
+needs_reply_on_thread,false,Antonyo Shakir,LC PLATINUM REALTY INC.,+12262601283,+12268870667,+12268870667,"Thu, 18 Jun 2026 17:51:36 +0000","Thank you for reaching out, my personal Real Estate office where I get most of my work done is at home. Can you please send me a picture of your business card?","Thu, 18 Jun 2026 17:45:48 +0000",+12268870667,"Hi Antonyo, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to perso",,,,twilio_api,
+needs_reply_on_thread,false,Sunny Pabla,"HOMELIFE GOLD STAR REALTY INC., BROKERAGE",+12267390303,+12266055008,+12266055008,"Thu, 18 Jun 2026 17:39:54 +0000",Hey Hunter yeah absolutely drop them off over at 9300 Tecumseh Road E,"Thu, 18 Jun 2026 17:30:32 +0000",+12266055008,"Hi Sunny, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Corrine Bridger,JUMP REALTY INC.,+15199656361,+12266055008,+12266055008,"Thu, 18 Jun 2026 17:04:17 +0000","Hi Hunter, thanks for reaching out, I'll be in the office (Jump office at 22 King St. Harrow) Monday or Tuesday between 9:30am and noon feel free to stop in ","Thu, 18 Jun 2026 17:00:16 +0000",+12266055008,"Hi Corrine, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to perso",,,,twilio_api,
+needs_reply_on_thread,false,Simon Tan,MANOR WINDSOR REALTY LTD.,+15199715971,+12268870667,+12268870667,"Thu, 18 Jun 2026 17:02:14 +0000","Thank you for the information, I don't go to the office very often, you can just send me your business card through this number.  I will contact you when I need. ","Thu, 18 Jun 2026 16:46:40 +0000",+12268870667,"Hi Simon, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Mak Cole,REMAX PREFERRED REALTY LTD. - 585,+15199841037,+12268870667,+12268870667,"Thu, 18 Jun 2026 16:48:22 +0000","Good afternoon hunter, I hope all is well. Do you have anything I can send to clients over email/ info about your business? Thank you ","Thu, 18 Jun 2026 16:45:40 +0000",+12268870667,"Hi Mak, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personall",,,,twilio_api,
+needs_reply_on_thread,false,Louie Lisi,REMO VALENTE REAL ESTATE (1990) LIMITED,+15199714263,+12268870667,+12268870667,"Thu, 18 Jun 2026 16:47:20 +0000",Just text me your card thank you 😊 take a picture for me and send to me thanks,"Thu, 18 Jun 2026 16:45:38 +0000",+12268870667,"Hi Louie, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Dino Kasparis,EXP REALTY,+12269468090,+12266055008,+12266055008,"Thu, 18 Jun 2026 16:25:05 +0000","Hi Hunter - sure thing, send me your digital card and I will add you to my referrals list","Thu, 18 Jun 2026 16:15:25 +0000",+12266055008,"Hi Dino, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Pat Cosco,REMAX PREFERRED REALTY LTD. - 584,+15198174310,+12266055008,+12266055008,"Thu, 18 Jun 2026 16:24:32 +0000","Hi Hunter.  I never work through the office much.  If you want to send me a digital business card here or a good pic of yours, I'll keep it and pass along to anyone that's looking. 
+
+Pat Cosco ","Thu, 18 Jun 2026 14:45:09 +0000",+12266055008,"Hi Pat, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personall",,,,twilio_api,
+needs_reply_on_thread,false,Randy Holmes,MANOR WINDSOR REALTY LTD.,+15195625749,+12268870667,+12268870667,"Thu, 18 Jun 2026 16:19:33 +0000",Thank you ,"Thu, 18 Jun 2026 16:15:24 +0000",+12268870667,"Hi Randy, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,John Rossi,CENTURY 21 LOCAL HOME TEAM REALTY INC.,+15199847742,+12266055008,+12266055008,"Thu, 18 Jun 2026 16:16:18 +0000","Sure, no problem.","Thu, 18 Jun 2026 16:15:04 +0000",+12266055008,"Hi John, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,John Sapardanis,REMAX PREFERRED REALTY LTD. - 585,+15195669084,+12266055008,+12266055008,"Thu, 18 Jun 2026 16:05:46 +0000","Hi Hunter,
+Thanks for reaching out. Next week is a bit difficult for me, but I'd definitely like to meet. We're always looking for reliable movers to refer to our clients, so I'd be interested in learning more about your","Thu, 18 Jun 2026 16:00:58 +0000",+12266055008,"Hi John, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Noah Desantis,DEERBROOK REALTY INC.,+12263471599,+12268870667,+12268870667,"Thu, 18 Jun 2026 16:04:38 +0000","Hi Hunter, yes no problem","Thu, 18 Jun 2026 16:00:34 +0000",+12268870667,"Hi Noah, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Penny Peltier,DEERBROOK REALTY INC.,+15199801650,+12268870667,+12268870667,"Thu, 18 Jun 2026 16:02:47 +0000",Sure sounds good,"Thu, 18 Jun 2026 16:01:20 +0000",+12268870667,"Hi Penny, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Stacey Omstead,JUMP REALTY INC.,+15197963891,+12266055008,+12266055008,"Thu, 18 Jun 2026 15:55:59 +0000",You can stop into Kingsville office. I'll be on vacation ,"Thu, 18 Jun 2026 15:30:29 +0000",+12266055008,"Hi Stacey, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,Joan Charette,ROYAL LEPAGE BINDER REAL ESTATE,+15199198733,+12268870667,+12268870667,"Thu, 18 Jun 2026 15:48:15 +0000","Hi Hunter
+Sounds good
+1350 Provincial Rd
+The receptionist will put them in my mailbox for me. Thank you.","Thu, 18 Jun 2026 15:46:14 +0000",+12268870667,"Hi Joan, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,"Corey Beaudoin, B.a.",REMAX PREFERRED REALTY LTD. - 585,+15199902179,+12268870667,+12268870667,"Thu, 18 Jun 2026 15:46:00 +0000","Hi Hunter, you can definitely drop off some of your cards. My office is at 6505 Tecumseh Rd E. You can leave them with the receptionist and she will put them in my mailbox. 
+I appreciate you reaching out.","Thu, 18 Jun 2026 15:30:09 +0000",+12268870667,"Hi Corey, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,John Zuliani,BOB PEDLER REAL ESTATE LIMITED,+15199810585,+12268870667,+12268870667,"Thu, 18 Jun 2026 15:39:21 +0000",👍,"Thu, 18 Jun 2026 14:45:09 +0000",+12268870667,"Hi John, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Manjot Singh Sandhu,JUMP REALTY INC.,+12263476999,+12266055008,+12266055008,"Thu, 18 Jun 2026 15:32:38 +0000","Liked “Hi Manjot, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to","Thu, 18 Jun 2026 15:30:49 +0000",+12266055008,"Hi Manjot, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,Alex Mereby,CENTURY 21 TEAMS & ASSOCIATES LTD.,+15195671117,+12268870667,+12268870667,"Thu, 18 Jun 2026 15:20:15 +0000",Let me know when you'll be coming by as I'm not always at the office ,"Thu, 18 Jun 2026 15:00:59 +0000",+12268870667,"Hi Alex, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Lidia Kovacevic,DEERBROOK REALTY INC.,+15198167076,+12266055008,+12266055008,"Thu, 18 Jun 2026 15:17:21 +0000","Hi Hunter,
+Yes, you can drop off some cards.
+59 Eugenie E. ","Thu, 18 Jun 2026 15:15:08 +0000",+12266055008,"Hi Lidia, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Jeff Marsden,REMAX PREFERRED REALTY LTD. - 584,+15199953306,+12266055008,+12266055008,"Thu, 18 Jun 2026 15:00:59 +0000","I tried to call you back, but it's saying the number is not assigned","Thu, 18 Jun 2026 14:45:08 +0000",+12266055008,"Hi Jeff, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Aj Alrifai,CAPITAL WEALTH REALTY BROKERAGE,+15199874455,+12268870667,+12268870667,"Thu, 18 Jun 2026 14:51:32 +0000",Thank you . My pleasure ,"Thu, 18 Jun 2026 14:30:50 +0000",+12268870667,"Hi Aj, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally",,,,twilio_api,
+needs_reply_on_thread,false,James Jacobs,REMAX CARE REALTY,+12267742096,+12268870667,+12268870667,"Thu, 18 Jun 2026 14:49:50 +0000",Hi Hunter of course,"Thu, 18 Jun 2026 14:45:09 +0000",+12268870667,"Hi James, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Mary Lou Berthiaume,BUCKINGHAM REALTY (WINDSOR) LTD.,+15195666233,+12266055008,+12266055008,"Thu, 18 Jun 2026 14:37:07 +0000","My name is  Mary Lou , we do have  a Mary ?  But sure you could  put some in envelope for me and perhaps some attention to administrators  Amber and Mirna. Regards Mary Lou Berthiaume ","Thu, 18 Jun 2026 14:30:12 +0000",+12266055008,"Hi Mary, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Liana Montaleone,DEERBROOK REALTY INC.,+15198900707,+12268870667,+12268870667,"Thu, 18 Jun 2026 14:32:30 +0000","Hello. 
+I will keep your contact info on file. 
+No need to bring cards to office. 
+Best of luck in your business ","Thu, 18 Jun 2026 14:30:32 +0000",+12268870667,"Hi Liana, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Richard Joseph Meloche,DEERBROOK REALTY INC.,+12267242121,+12266055008,+12266055008,"Thu, 18 Jun 2026 02:26:10 +0000",If I get asked I will pass your info along! Thanks for reaching out. ,"Wed, 17 Jun 2026 17:15:18 +0000",+12266055008,"Hi Richard, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to perso",,,,twilio_api,
+needs_reply_on_thread,false,Abe Alhakim,REMAX CAPITAL DIAMOND REALTY,+12263446344,+12268870667,+12268870667,"Thu, 18 Jun 2026 01:09:21 +0000",Hey Hunter. Thanks for reaching out. Absolutely. Feel free to drop off your business cards anytime this week. ,"Wed, 17 Jun 2026 15:01:21 +0000",+12268870667,"Hi Abe, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personall",,,,twilio_api,
+needs_reply_on_thread,false,Elise Popa,REMAX PREFERRED REALTY LTD. - 585,+12263471615,+12268870667,+12268870667,"Thu, 18 Jun 2026 00:43:58 +0000",Hi. Awesome thanks. Sure! ,"Wed, 17 Jun 2026 18:45:36 +0000",+12268870667,"Hi Elise, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Ashley Mollard,REMAX PREFERRED REALTY LTD. - 584,+15198196815,+12268870667,+12268870667,"Wed, 17 Jun 2026 23:35:01 +0000",Hey Hunter! Sure you can. I'm usually on the road but the secretary will leave in my mailbox for me ,"Wed, 17 Jun 2026 19:45:29 +0000",+12268870667,"Hi Ashley, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,Kris Dalo,JUMP REALTY INC.,+12267870161,+12266055008,+12266055008,"Wed, 17 Jun 2026 22:36:32 +0000","Hi Hunter, I work out of my home office but you can drop them off at Jump Realty front desk on Walker rd. 
+
+Or if you let me know when you'll be there, I can arrange to meet with you and hand you some of my cards as well","Wed, 17 Jun 2026 15:01:20 +0000",+12266055008,"Hi Kris, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Ashish Soni,JUMP REALTY INC.,+14164142767,+12266055008,+12266055008,"Wed, 17 Jun 2026 22:02:26 +0000",You can send your business card on WhatsApp. ,"Wed, 17 Jun 2026 19:45:28 +0000",+12266055008,"Hi Ashish, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,Jeanette Tourond,BUCKINGHAM REALTY (WINDSOR) LTD.,+15198188543,+12266055008,+12266055008,"Wed, 17 Jun 2026 21:55:30 +0000","Yes Hunter. Please call first, I am not always in the office.You can6make $$$sitting in an office.
+Jeanette 519 818 8543","Wed, 17 Jun 2026 20:45:39 +0000",+12266055008,"Hi Jeanette, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pers",,,,twilio_api / sms_messages,
+needs_reply_on_thread,false,Jordan Silvester,KW SIGNATURE,+15195621717,+12268870667,+12268870667,"Wed, 17 Jun 2026 21:34:52 +0000",I am not usually in but I am sure you are welcome to drop off cards ,"Wed, 17 Jun 2026 20:30:35 +0000",+12268870667,"Hi Jordan, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,Abby Piche,DEERBROOK REALTY INC.,+15195648750,+12268870667,+12268870667,"Wed, 17 Jun 2026 21:32:20 +0000","ââðâ to ââHi Abby, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time","Wed, 17 Jun 2026 20:01:18 +0000",+12268870667,"Hi Abby, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Carol Kerr,REMAX PREFERRED REALTY LTD. - 585,+15197909091,+12266055008,+12266055008,"Wed, 17 Jun 2026 21:07:33 +0000","Sure - if I'm not in feel free to leave them with reception .
+Thanks Hunter","Wed, 17 Jun 2026 21:00:57 +0000",+12266055008,"Hi Carol, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Janice Lynn Branco,JUMP REALTY INC.,+15198094019,+12268870667,+12268870667,"Wed, 17 Jun 2026 21:05:40 +0000",Hi Hunter.  Thank you for reaching out. Send me a picture of your card I am not in my office often.  Maybe we can meet up another time when we are both in the same area some time.  Do you only service windsor essex? ,"Wed, 17 Jun 2026 21:01:15 +0000",+12268870667,"Hi Janice, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,Vic Pattenaude,KW SIGNATURE,+15199711102,+12268870667,+12268870667,"Wed, 17 Jun 2026 21:03:01 +0000","Hi Hunter, I no longer live in Windsor yet I'm still doing real estate so I'll keep your name on file. Vic","Wed, 17 Jun 2026 19:00:55 +0000",+12268870667,"Hi Vic, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personall",,,,twilio_api,
+needs_reply_on_thread,false,Glenn Genik,RESULTS REALTY INC.,+15197929933,+12266055008,+12266055008,"Wed, 17 Jun 2026 21:01:37 +0000",Sure.,"Wed, 17 Jun 2026 21:00:38 +0000",+12266055008,"Hi Glenn, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Mark Lalovich,REMAX PREFERRED REALTY LTD. - 585,+15192595434,+12266055008,+12266055008,"Wed, 17 Jun 2026 21:00:52 +0000","Hi Hunter,
+Monday be the best day to stop by ..before 4:30.
+11865 Tecumseh E","Wed, 17 Jun 2026 18:45:36 +0000",+12266055008,"Hi Mark, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Shadha Putrus,JUMP REALTY INC.,+15199653032,+12268870667,+12268870667,"Wed, 17 Jun 2026 20:56:05 +0000",Ok ill keep your number if any of my clients needs a mover will pass your number to them,"Wed, 17 Jun 2026 20:15:56 +0000",+12268870667,"Hi Shadha, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,Patricia Agnew,BUCKINGHAM REALTY (WINDSOR) LTD.,+15192579249,+12266055008,+12266055008,"Wed, 17 Jun 2026 20:51:19 +0000",Yes Hunter that would be fine. Please put a couple in an envelope and they will put it in my mailbox. I am not there often but always looking for good people to refer my clients to. Thanks for reaching out. ,"Wed, 17 Jun 2026 20:30:56 +0000",+12266055008,"Hi Patricia, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pers",,,,twilio_api,
+needs_reply_on_thread,false,Frances Enkin,JUMP REALTY INC.,+15199196918,+12268870667,+12268870667,"Wed, 17 Jun 2026 20:50:01 +0000",,"Wed, 17 Jun 2026 20:45:39 +0000",+12268870667,"Hi Frances, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to perso",,,,twilio_api,
+needs_reply_on_thread,false,Nate Emanuel,JUMP REALTY INC.,+15199874200,+12268870667,+12268870667,"Wed, 17 Jun 2026 20:49:16 +0000",You can stop by anytime you want but not sure if the brokerage would let you leave your cards there. You can try though. ,"Wed, 17 Jun 2026 20:45:37 +0000",+12268870667,"Hi Nate, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Rosemary Ojo,REMAX CARE REALTY,+12267742692,+12268870667,+12268870667,"Wed, 17 Jun 2026 20:48:18 +0000",Also if you have anyone with Real Estate need remember Team Goran,"Wed, 17 Jun 2026 20:45:36 +0000",+12268870667,"Hi Rosemary, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pers",,,,twilio_api,
+needs_reply_on_thread,false,Sarah Fleury,JUMP REALTY INC.,+15198905379,+12268870667,+12268870667,"Wed, 17 Jun 2026 20:46:59 +0000","Hi Hunter, thanks for reaching out!
+You sure can - if you don't mind just putting them in an envelope with my name on them, and giving them to the front desk, I can pick them up next Wednesday or Thursday when I am back ","Wed, 17 Jun 2026 20:30:36 +0000",+12268870667,"Hi Sarah, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Janet Labute,CENTURY 21 LOCAL HOME TEAM REALTY INC.,+15195640492,+12268870667,+12268870667,"Wed, 17 Jun 2026 20:46:47 +0000",Sure our office is open 9-5 pm daily,"Wed, 17 Jun 2026 20:45:37 +0000",+12268870667,"Hi Janet, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Blake Paul Mcginty,BUCKINGHAM REALTY (WINDSOR) LTD.,+15195648971,+12268870667,+12268870667,"Wed, 17 Jun 2026 20:46:39 +0000","Hi Hunter,
+
+Thank you for reaching out and introducing yourself. I appreciate it.
+
+You’re welcome to stop by our office anytime and drop off some business cards. It’s always great to connect with local businesses that ca","Wed, 17 Jun 2026 15:45:10 +0000",+12268870667,"Hi Blake, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Jim Broad,REMAX CAPITAL DIAMOND REALTY,+15195642724,+12266055008,+12266055008,"Wed, 17 Jun 2026 20:39:44 +0000",Hi Hunter . Absolutely ,"Wed, 17 Jun 2026 20:00:36 +0000",+12266055008,"Hi Jim, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personall",,,,twilio_api,
+needs_reply_on_thread,false,Michael Couture,DEERBROOK REALTY INC.,+15195664722,+12268870667,+12268870667,"Wed, 17 Jun 2026 20:36:32 +0000","Hello Hunter.  
+I will add you in my contacts for anyone looking for movers.   
+
+Do you have a social media page or anything?","Wed, 17 Jun 2026 20:00:38 +0000",+12268870667,"Hi Michael, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to perso",,,,twilio_api,
+needs_reply_on_thread,false,Jo-Anne Bertelli,REMAX PREFERRED REALTY LTD. - 585,+15195637213,+12268870667,+12268870667,"Wed, 17 Jun 2026 20:31:59 +0000",Sure.  Good luck.,"Wed, 17 Jun 2026 15:45:47 +0000",+12268870667,"Hi Jo-Anne, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to perso",,,,twilio_api,
+needs_reply_on_thread,false,Jeff Chapman,ROYAL LEPAGE BINDER REAL ESTATE,+15198186446,+12268870667,+12268870667,"Wed, 17 Jun 2026 20:29:11 +0000","Ok Hunter, you can drop off some cards for me!!","Wed, 17 Jun 2026 20:00:36 +0000",+12268870667,"Hi Jeff, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Radu Demian,PINNACLE PLUS REALTY LTD.,+15199998822,+12266055008,+12266055008,"Wed, 17 Jun 2026 20:14:08 +0000","Hi Hunter, I will keep you in mind. As for the office you have to ask the administrator,  I am not there every day. ","Wed, 17 Jun 2026 15:45:27 +0000",+12266055008,"Hi Radu, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Ivano Fregonese,REMAX PREFERRED REALTY LTD. - 585,+15195647137,+12268870667,+12268870667,"Wed, 17 Jun 2026 19:59:08 +0000","Sure Hunter, no problem","Wed, 17 Jun 2026 18:45:34 +0000",+12268870667,"Hi Ivano, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Zein Serhan,CAPITAL WEALTH REALTY BROKERAGE,+15195672105,+12266055008,+12266055008,"Wed, 17 Jun 2026 19:53:13 +0000",Hello there. You are welcome anytime. Please message me before u step by incase im not in the office.1504 pelisure ,"Wed, 17 Jun 2026 19:45:49 +0000",+12266055008,"Hi Zein, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Sarah Adams,DEERBROOK REALTY INC.,+15199805006,+12268870667,+12268870667,"Wed, 17 Jun 2026 19:46:52 +0000",Sure. ,"Wed, 17 Jun 2026 18:45:38 +0000",+12268870667,"Hi Sarah, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,James Patterson,MANOR WINDSOR REALTY LTD.,+15199809981,+12266055008,+12266055008,"Wed, 17 Jun 2026 19:45:12 +0000","Hi Hunter , by all means .  Im usually in the Manor office weekday mornings . If Im not there you can drop them off at reception ","Wed, 17 Jun 2026 15:45:29 +0000",+12266055008,"Hi James, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Darrin Prieur,DEERBROOK REALTY INC.,+15195639417,+12266055008,+12266055008,"Wed, 17 Jun 2026 19:29:02 +0000","Hi Hunter,  thanks for reaching out.  
+I currently have a moving company that I often refer my clients to,  but I can definitely keep your information on file in case they are busy and unable to do the move. ","Wed, 17 Jun 2026 15:45:47 +0000",+12266055008,"Hi Darrin, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,Steph Paterson,DEERBROOK REALTY INC.,+15199915534,+12266055008,+12266055008,"Wed, 17 Jun 2026 19:20:01 +0000",Yes that would be good. Tuesday morning would be best,"Wed, 17 Jun 2026 19:15:20 +0000",+12266055008,"Hi Steph, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Alice Nohra,DEERBROOK REALTY INC.,+15198904009,+12268870667,+12268870667,"Wed, 17 Jun 2026 19:09:22 +0000","Good afternoon,
+Sure you can definitely drop some cards off at our Kingsville office location. Just leave them in the mailbox if no one is there.
+Greatly appreciated","Wed, 17 Jun 2026 17:45:35 +0000",+12268870667,"Hi Alice, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Sam El-Houssami,REMAX CARE REALTY,+12267743304,+12266055008,+12266055008,"Wed, 17 Jun 2026 19:05:35 +0000",Hi Hunter — thanks for reaching out and introducing SSM | Saturn Star Movers. I’d be happy to have your information for referrals. You’re welcome to stop by next week to drop off cards — what day/time works best? Also pl,"Wed, 17 Jun 2026 19:00:36 +0000",+12266055008,"Hi Sam, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personall",,,,twilio_api,
+needs_reply_on_thread,false,Maria Franzoi,MANOR WINDSOR REALTY LTD.,+15199901396,+12266055008,+12266055008,"Wed, 17 Jun 2026 18:57:36 +0000",Sure,"Wed, 17 Jun 2026 17:00:16 +0000",+12266055008,"Hi Maria, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Scott Hamel,BUCKINGHAM REALTY (WINDSOR) LTD.,+15195601906,+12266055008,+12266055008,"Wed, 17 Jun 2026 18:52:12 +0000","Hey Hunter. Thanks for reaching out. Although I am still with Buckingham, my wife and I just moved up north so for the foreseeable future I will not be conducting any business in the area. 
+
+Good luck with your business!","Wed, 17 Jun 2026 18:30:56 +0000",+12266055008,"Hi Scott, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Wissam Ghazzawi,REMAX CARE REALTY,+12267738289,+12266055008,+12266055008,"Wed, 17 Jun 2026 18:51:40 +0000",Can you give me a call?,"Wed, 17 Jun 2026 18:31:55 +0000",+12266055008,"Hi Wissam, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,Angelica Galeana Cadena,ROYAL LEPAGE BINDER REAL ESTATE,+12263470763,+12266055008,+12266055008,"Wed, 17 Jun 2026 18:39:40 +0000","Sure. Thanks for the info. I will attend to an event this saturday. If you bring the cards before saturday, i will put it in my goodies bags. There are between 30 and 40 bags. ","Wed, 17 Jun 2026 18:15:56 +0000",+12266055008,"Hi Angelica, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pers",,,,twilio_api,
+needs_reply_on_thread,false,Eddie Yu,REMAX CAPITAL DIAMOND REALTY,+15199924188,+12268870667,+12268870667,"Wed, 17 Jun 2026 18:31:03 +0000",I will keep you in mind 👍 ,"Wed, 17 Jun 2026 18:16:15 +0000",+12268870667,"Hi Eddie, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Phil Kasurak,REMAX CAPITAL DIAMOND REALTY,+15199773402,+12268870667,+12268870667,"Wed, 17 Jun 2026 18:27:39 +0000",That would be ok but I only make random trips to the office on Dougall. I work from my home office in Amherstburg. ,"Wed, 17 Jun 2026 18:15:36 +0000",+12268870667,"Hi Phil, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Ali Haidar-Ahmad,LC PLATINUM REALTY INC.,+12267242021,+12268870667,+12268870667,"Wed, 17 Jun 2026 18:25:59 +0000",You would have to reach out to our office manager about handing out materials! I appreciate the hustle ,"Wed, 17 Jun 2026 17:30:36 +0000",+12268870667,"Hi Ali, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personall",,,,twilio_api,
+needs_reply_on_thread,false,Crystal Collard,JUMP REALTY INC.,+15195624745,+12268870667,+12268870667,"Wed, 17 Jun 2026 18:22:03 +0000","Hey! That would be wonderful, thanks! 😊 ","Wed, 17 Jun 2026 18:15:36 +0000",+12268870667,"Hi Crystal, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to perso",,,,twilio_api,
+needs_reply_on_thread,false,Shane Renaud,DEERBROOK REALTY INC.,+15198195577,+12266055008,+12266055008,"Wed, 17 Jun 2026 18:21:35 +0000",Sure. Stop in. We are located at 59 Eugenie St. East. Windsor,"Wed, 17 Jun 2026 17:45:37 +0000",+12266055008,"Hi Shane, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Adriana Perez,DEERBROOK REALTY INC.,+15195624595,+12268870667,+12268870667,"Wed, 17 Jun 2026 18:10:05 +0000","Hi Hunter. Sure. I don't have an office at Deerbrook, I'm working from home but I'm there sometimes. You can drop the cards and ask the receptionist to drop them in my locker.  Thanks","Wed, 17 Jun 2026 18:01:55 +0000",+12268870667,"Hi Adriana, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to perso",,,,twilio_api,
+needs_reply_on_thread,false,Rena Juna,REMAX CAPITAL DIAMOND REALTY,+15195665707,+12268870667,+12268870667,"Wed, 17 Jun 2026 18:05:23 +0000",Hi Hunter how much do you usually charge for your service?,"Wed, 17 Jun 2026 17:46:15 +0000",+12268870667,"Hi Rena, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Kumud Bhagirath,LC PLATINUM REALTY INC.,+15197929373,+12266055008,+12266055008,"Wed, 17 Jun 2026 18:04:22 +0000",I will definitely save your number. Will contact you as required. ,"Wed, 17 Jun 2026 18:01:15 +0000",+12266055008,"Hi Kumud, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Stephanie Ahlstedt,MANOR WINDSOR REALTY LTD.,+15199905735,+12268870667,+12268870667,"Wed, 17 Jun 2026 18:03:44 +0000",Hi sure that sounds good. I don't work from the office but the receptionist can pass them out to all the agents,"Wed, 17 Jun 2026 18:02:15 +0000",+12268870667,"Hi Stephanie, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to per",,,,twilio_api,
+needs_reply_on_thread,false,Guriqbal Jauhal,DEERBROOK REALTY INC.,+12048917820,+12268870667,+12268870667,"Wed, 17 Jun 2026 18:02:19 +0000","Liked “Hi Guriqbal, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted ","Wed, 17 Jun 2026 18:01:35 +0000",+12268870667,"Hi Guriqbal, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pers",,,,twilio_api,
+needs_reply_on_thread,false,Marina Abbas,PINNACLE PLUS REALTY LTD.,+15199917089,+12266055008,+12266055008,"Wed, 17 Jun 2026 17:51:53 +0000","Hi Hunter,  yes that would be great,  thank you ","Wed, 17 Jun 2026 17:30:15 +0000",+12266055008,"Hi Marina, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,Mary Ann Marietti,BUCKINGHAM REALTY (WINDSOR) LTD.,+15199807197,+12266055008,+12266055008,"Wed, 17 Jun 2026 17:50:52 +0000","Thank you for reaching out Hunter, I will add your company to the list. Do you have client references?","Wed, 17 Jun 2026 17:15:16 +0000",+12266055008,"Hi Mary, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,George Koehler,ROYAL LEPAGE BINDER REAL ESTATE,+15195648280,+12266055008,+12266055008,"Wed, 17 Jun 2026 17:46:37 +0000",Sure. Thank-you ,"Wed, 17 Jun 2026 17:45:18 +0000",+12266055008,"Hi George, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,Alfonso Teshuba,LC PLATINUM REALTY INC.,+15192599322,+12268870667,+12268870667,"Wed, 17 Jun 2026 17:45:57 +0000",Thanks for update ,"Wed, 17 Jun 2026 17:45:15 +0000",+12268870667,"Hi Alfonso, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to perso",,,,twilio_api,
+needs_reply_on_thread,false,Nawfal Al Jazrawi,REMAX PREFERRED REALTY LTD. - 585,+15199917987,+12268870667,+12268870667,"Wed, 17 Jun 2026 17:43:00 +0000","Hey my friend, sure you could do that ","Wed, 17 Jun 2026 15:45:07 +0000",+12268870667,"Hi Nawfal, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,Richard Benneian,DEERBROOK REALTY INC.,+15198184957,+12266055008,+12266055008,"Wed, 17 Jun 2026 17:34:02 +0000",that would be great,"Wed, 17 Jun 2026 17:31:17 +0000",+12266055008,"Hi Richard, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to perso",,,,twilio_api,
+needs_reply_on_thread,false,Denny Frattaroli,DEERBROOK REALTY INC.,+15199954970,+12268870667,+12268870667,"Wed, 17 Jun 2026 17:33:33 +0000","
+Sure ","Wed, 17 Jun 2026 17:30:16 +0000",+12268870667,"Hi Denny, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Prabhiqbal Singh,DEERBROOK REALTY INC.,+15193000048,+12266055008,+12266055008,"Wed, 17 Jun 2026 17:30:20 +0000",Hello Hunter thanks for reaching out Yea sure will save your contact number and if my client need will pass your number ,"Wed, 17 Jun 2026 17:00:58 +0000",+12266055008,"Hi Prabhiqbal, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pe",,,,twilio_api,
+needs_reply_on_thread,false,Waseem Kaleem,JUMP REALTY INC.,+12262463601,+12266055008,+12266055008,"Wed, 17 Jun 2026 17:07:46 +0000","Good Afternoon Thanks for your message, due to Low real estate activities I do it as a part time now, but you can drop your cards at my Trading Business Office at 2215 Howard where I go from morning to around 1pm
+You can","Wed, 17 Jun 2026 17:00:36 +0000",+12266055008,"Hi Waseem, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,Mitchell Demelo,JUMP REALTY INC.,+12263500534,+12268870667,+12268870667,"Wed, 17 Jun 2026 17:05:49 +0000","Hey Hunter, nice to meet you. Absolutely. Let me know your availability next week and I'll meet you at my office. ","Wed, 17 Jun 2026 16:30:42 +0000",+12268870667,"Hi Mitchell, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to pers",,,,twilio_api,
+needs_reply_on_thread,false,Sandra Webb,CENTURY 21 TEAMS & ASSOCIATES LTD.,+15199955530,+12268870667,+12268870667,"Wed, 17 Jun 2026 17:03:31 +0000",Sure. Please include your pricing ,"Wed, 17 Jun 2026 17:00:36 +0000",+12268870667,"Hi Sandra, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,Ahmad Iskandar,CAPITAL WEALTH REALTY BROKERAGE,+15199917333,+12268870667,+12268870667,"Wed, 17 Jun 2026 16:48:44 +0000","Hi Hunter,
+
+Thanks for reaching out and introducing yourself. I appreciate it.
+
+I’d be happy to keep Saturn Star Movers in mind as a local option for my clients. Thank you ","Wed, 17 Jun 2026 16:46:25 +0000",+12268870667,"Hi Ahmad, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Alan Saad,REMAX CAPITAL DIAMOND REALTY,+15195601546,+12266055008,+12266055008,"Wed, 17 Jun 2026 16:48:33 +0000",Hi Hunter we appreciate the message. At your convenience feel free to drop off business cards at our office Remax Capital Diamond Realty which is located on Dougall Thanks!,"Wed, 17 Jun 2026 16:45:26 +0000",+12266055008,"Hi Alan, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Justin Murer,PINNACLE PLUS REALTY LTD.,+15198175659,+12266055008,+12266055008,"Wed, 17 Jun 2026 16:47:47 +0000",Hey Hunter! I will add you to my contacts! Absolutely ,"Wed, 17 Jun 2026 15:45:08 +0000",+12266055008,"Hi Justin, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,"Greg Roy, Asa, Abr®",REMAX PREFERRED REALTY LTD. - 585,+15199822182,+12268870667,+12268870667,"Wed, 17 Jun 2026 16:44:30 +0000","Thanks for your message. However my clients , have returned the best, 
+exceptional moving service for many years.
+Have a good day.
+Best regards,
+Greg Roy 
+
+ ","Wed, 17 Jun 2026 16:01:35 +0000",+12268870667,"Hi Greg, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Nancy Vitella,LC PLATINUM REALTY INC.,+15195517653,+12268870667,+12268870667,"Wed, 17 Jun 2026 16:35:21 +0000","That sounds great ! What day are you thinking of coming to the office ?? I want to be there to meet you 
+","Wed, 17 Jun 2026 16:31:02 +0000",+12268870667,"Hi Nancy, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Kevin Mollard,REMAX PREFERRED REALTY LTD. - 584,+15195643014,+12266055008,+12266055008,"Wed, 17 Jun 2026 16:35:00 +0000",yes drop off remax dougall office ,"Wed, 17 Jun 2026 16:31:04 +0000",+12266055008,"Hi Kevin, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Jason Mantha,KW SIGNATURE,+15199960504,+12266055008,+12266055008,"Wed, 17 Jun 2026 16:30:00 +0000",Hey Hunter I appreciate the message and letting me know about your company. I'll check it out and if my clients are in need I'll definitely keep you in mind. I'm not always at the office but yeah you can drop some off an,"Wed, 17 Jun 2026 16:00:34 +0000",+12266055008,"Hi Jason, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Laurie Darocy,BOB PEDLER REAL ESTATE LIMITED,+15198167847,+12266055008,+12266055008,"Wed, 17 Jun 2026 16:27:22 +0000","Thank you for contacting me Hunter. Sure, when you are in the area of Bob Pedler Real Estate which is located at 280 Edinborough Street (Behind Jose's on Howard Ave) you can
+leave the cards with Mary Catherine at the fro","Wed, 17 Jun 2026 16:15:53 +0000",+12266055008,"Hi Laurie, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,Larry Pickle,PINNACLE PLUS REALTY LTD.,+15197919091,+12268870667,+12268870667,"Wed, 17 Jun 2026 16:17:03 +0000",Yes 5444 tecumseh rd e,"Wed, 17 Jun 2026 16:15:35 +0000",+12268870667,"Hi Larry, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Terri Hughes,REMAX PREFERRED REALTY LTD. - 585,+15198174428,+12268870667,+12268870667,"Wed, 17 Jun 2026 16:08:40 +0000","Hi, I think you sent Ryan Hughes this message as well. Yes go ahead and take some cards to our Remax office on Tecumseh Road and they will put them in our mailbox for us.","Wed, 17 Jun 2026 16:00:33 +0000",+12268870667,"Hi Terri, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Milan Miokovic,ROYAL LEPAGE BINDER REAL ESTATE,+15199036773,+12266055008,+12266055008,"Wed, 17 Jun 2026 16:06:24 +0000",Hi Hunter... I'll keep you in mind.... I almost never go to the office lol.,"Wed, 17 Jun 2026 16:00:33 +0000",+12266055008,"Hi Milan, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Dean Beliveau,MANOR WINDSOR REALTY LTD.,+15199197654,+12268870667,+12268870667,"Wed, 17 Jun 2026 16:06:08 +0000",Good afternoon Hunter. I tried calling you. The number is invalid. ,"Wed, 17 Jun 2026 15:45:47 +0000",+12268870667,"Hi Dean, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Mary Hrovat,REMAX PREFERRED REALTY LTD. - 584,+15199801734,+12268870667,+12268870667,"Wed, 17 Jun 2026 16:02:03 +0000","It’s Mary Hrovat at Remax. 
+My client is asking what your charge would be  to move small furniture from one unit at 150 Park W, Downtown, to another unit in the same building using the elevator.
+All she has to move is
+– ","Wed, 17 Jun 2026 16:00:35 +0000",+12268870667,"Hi Mary, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Robert Hunt,PINNACLE PLUS REALTY LTD.,+15198907355,+12268870667,+12268870667,"Wed, 17 Jun 2026 16:01:33 +0000",Yes,"Wed, 17 Jun 2026 16:00:17 +0000",+12268870667,"Hi Robert, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to person",,,,twilio_api,
+needs_reply_on_thread,false,Bird Bouchard,CENTURY 21 LOCAL HOME TEAM REALTY INC.,+12262609114,+12268870667,+12268870667,"Wed, 17 Jun 2026 15:49:37 +0000","Please do! Of I'm not there our receptionist Samantha will definitely put them on our wall! I'm always looking for good movers.
+
+Just one question for you...how did you get my contact information? I'm not mad. Genuinely ","Wed, 17 Jun 2026 15:46:28 +0000",+12268870667,"Hi Bird, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Hank Dupuis,REMAX PREFERRED REALTY LTD. - 584,+15199999677,+12266055008,+12266055008,"Wed, 17 Jun 2026 15:48:36 +0000",Yes please do.,"Wed, 17 Jun 2026 15:46:48 +0000",+12266055008,"Hi Hank, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Fadi Farran,REMAX CARE REALTY,+12267739136,+12268870667,+12268870667,"Wed, 17 Jun 2026 15:48:34 +0000",Hello Hunter. Thank you for reaching out and I would definitely like to meet. Are you able to give me a call between 8:45 and 9:00 a.m. on Monday so we can confirm a time?,"Wed, 17 Jun 2026 15:46:27 +0000",+12268870667,"Hi Fadi, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Sarah Renaud,ROYAL LEPAGE BINDER REAL ESTATE,+12895017963,+12268870667,+12268870667,"Wed, 17 Jun 2026 15:47:32 +0000",Hi Hunter! That would be great. I am out of town until next Wednesday so how about I give you a shout next week and we can coordinate a day? :),"Wed, 17 Jun 2026 15:45:27 +0000",+12268870667,"Hi Sarah, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Ryan Hughes,REMAX PREFERRED REALTY LTD. - 585,+15199843911,+12268870667,+12268870667,"Wed, 17 Jun 2026 15:25:17 +0000",Sure. The reception will put them in our mail box. Send website link as well please. ,"Wed, 17 Jun 2026 15:00:40 +0000",+12268870667,"Hi Ryan, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personal",,,,twilio_api,
+needs_reply_on_thread,false,Cindy Ross,JUMP REALTY INC.,+15199806044,+12268870667,+12268870667,"Wed, 17 Jun 2026 15:10:57 +0000",Sure Hunter pop in and drop cards! Everyone is so nice and we love helping out local people!,"Wed, 17 Jun 2026 15:01:40 +0000",+12268870667,"Hi Cindy, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Tanya Quick,REMAX PREFERRED REALTY LTD. - 584,+15195677437,+12268870667,+12268870667,"Wed, 17 Jun 2026 15:06:11 +0000","Hi Hunter, sure if I am not there you can leave them with the secretary ","Wed, 17 Jun 2026 15:00:19 +0000",+12268870667,"Hi Tanya, my name is Hunter. I run a local moving company serving the Windsor area....It's called SSM | Saturn Star Movers.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to persona",,,,twilio_api,
+needs_reply_on_thread,false,Brian Lanoue,Remax Preferred Realty Ltd. - 585 Brokerage,519-257-8235,+12268870667,+12268870667,"Wed, 17 Jun 2026 10:36:59 +0000",It would be better if we met in person. If you're ever in Belle River give me a text and we can meet up for a quick chat. ,"Tue, 16 Jun 2026 14:46:50 +0000",+12268870667,"Hey Brian, my name is John. I run Saturn Star Movers, a local moving company serving the Windsor area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myself ",,,,twilio_api,
+needs_reply_on_thread,false,Layla Di Meo,Royal Lepage Binder Real Estate Inc - 633 Brokerage,519-566-2412,+12268870667,+12268870667,"Tue, 16 Jun 2026 21:29:04 +0000",I added you to my contact and will refer you when needed. I'm never at the office so cards wouldn't be beneficial 😊,"Tue, 16 Jun 2026 14:47:08 +0000",+12268870667,"Hey Layla, my name is John. I run Saturn Star Movers, a local moving company serving the Windsor area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myself ",,,,twilio_api,
+needs_reply_on_thread,false,Jeff Godreau,Royal Lepage Peifer Realty Brokerage Brokerage,519-365-4852,+12268870667,+12268870667,"Tue, 16 Jun 2026 21:26:13 +0000",jeffgodreau@royallepage.ca,"Tue, 16 Jun 2026 14:41:30 +0000",+12268870667,"Hey Jeff, my name is John. I run Saturn Star Movers, a local moving company serving the Chatham Kent area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce mys",,,,twilio_api,
+needs_reply_on_thread,false,Scott Herman,Realty House Inc. Brokerage Brokerage,519-365-9025,+12268870667,+12268870667,"Tue, 16 Jun 2026 19:41:20 +0000",Yes no problem ,"Tue, 16 Jun 2026 14:48:28 +0000",+12268870667,"Hey Scott, my name is John. I run Saturn Star Movers, a local moving company serving the Chatham Kent area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce my",,,,twilio_api,
+needs_reply_on_thread,false,Shibu George Eipe,Royal Lepage Binder Real Estate Brokerage,519-980-7790,+12268870667,+12268870667,"Tue, 16 Jun 2026 17:59:40 +0000",Sure. Would love to meet you as well. Thank you ,"Tue, 16 Jun 2026 14:40:48 +0000",+12268870667,"Hey Shibu, my name is John. I run Saturn Star Movers, a local moving company serving the Windsor area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myself ",,,,twilio_api,
+needs_reply_on_thread,false,Jessie Collado,Key Solutions Realty Ltd. Brokerage,519-563-8698,+12268870667,+12268870667,"Tue, 16 Jun 2026 17:39:38 +0000","Hello John, thank you for reaching out.","Tue, 16 Jun 2026 14:51:28 +0000",+12268870667,"Hey Jessie, my name is John. I run Saturn Star Movers, a local moving company serving the Windsor area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myself",,,,twilio_api,
+needs_reply_on_thread,false,Deborah Koutoula,Remax Preferred Realty Ltd. - 585 Brokerage,519-919-9797,+12268870667,+12268870667,"Tue, 16 Jun 2026 17:29:45 +0000",Yes you can ...I'm not there often. But feel free to drop some off for me ,"Tue, 16 Jun 2026 14:48:50 +0000",+12268870667,"Hey Deborah, my name is John. I run Saturn Star Movers, a local moving company serving the Windsor area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce mysel",,,,twilio_api,
+needs_reply_on_thread,false,Fatima Sobh,Deerbrook Realty Inc. Brokerage,519-991-3532,+12268870667,+12268870667,"Tue, 16 Jun 2026 16:53:50 +0000","Hi John, thank you for reaching out. You can stop by at my office and tell the front desk you are dropping cards off for me. They will put them on display in our back office for everyone in the company to use. ","Tue, 16 Jun 2026 14:45:50 +0000",+12268870667,"Hey Fatima, my name is John. I run Saturn Star Movers, a local moving company serving the Windsor area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myself",,,,twilio_api,
+needs_reply_on_thread,false,Nanci Johnston,Remax Preferred Realty Ltd. - 584 Brokerage,519-818-5573,+12268870667,+12268870667,"Tue, 16 Jun 2026 16:29:04 +0000","Hello John
+Absolutely feel free to drop cards off anytime.
+My RE/MAX office is located at 3065 Dougall  Ave.","Tue, 16 Jun 2026 14:49:50 +0000",+12268870667,"Hey Nanci, my name is John. I run Saturn Star Movers, a local moving company serving the Windsor area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myself ",,,,twilio_api,
+needs_reply_on_thread,false,Pauline Lanoue,Deerbrook Realty Inc. Brokerage,519-796-5701,+12268870667,+12268870667,"Tue, 16 Jun 2026 16:28:53 +0000",Send me a picture of your business card front and back if pertinent. Thank you ,"Tue, 16 Jun 2026 14:42:30 +0000",+12268870667,"Hey Pauline, my name is John. I run Saturn Star Movers, a local moving company serving the Chatham Kent area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce ",,,,twilio_api,
+needs_reply_on_thread,false,Garnet Tulp,Realty House Inc. Brokerage Brokerage,519-359-4775,+12268870667,+12268870667,"Tue, 16 Jun 2026 16:07:38 +0000",Hey! Yes please drop some cards off,"Tue, 16 Jun 2026 14:48:33 +0000",+12268870667,"Hey Garnet, my name is John. I run Saturn Star Movers, a local moving company serving the Chatham Kent area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce m",,,,twilio_api,
+needs_reply_on_thread,false,Tim P. Campbell,Century 21 Teams & Associates Ltd. Brokerage,519-259-9999,+12268870667,+12268870667,"Tue, 16 Jun 2026 16:06:08 +0000",Sure ,"Tue, 16 Jun 2026 14:45:30 +0000",+12268870667,"Hey Tim, my name is John. I run Saturn Star Movers, a local moving company serving the Windsor area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myself in",,,,twilio_api,
+needs_reply_on_thread,false,Neil Jones,Remax Capital Diamond Realty Brokerage,519-980-7126,+12268870667,+12268870667,"Tue, 16 Jun 2026 16:02:03 +0000","Yes you can do that. My office is at 3080 Grand Marais Road East corner of Chandler, N8W 5A3. In the Bower Appraisal building. If I am not there leave your cards in the black mail box outside front of my building.","Tue, 16 Jun 2026 14:46:30 +0000",+12268870667,"Hey Neil, my name is John. I run Saturn Star Movers, a local moving company serving the Windsor area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myself i",,,,twilio_api,
+needs_reply_on_thread,false,Pamela Mcdonald,Century 21 Local Home Team Realty Inc. Brokerage,519-796-5774,+12268870667,+12268870667,"Tue, 16 Jun 2026 15:32:45 +0000","Thanks for the text message. Appreciate it. Currently our office is under construction as it was part of a fire in downtown Tilbury.  If you'd like to mail me some cards that would be terrific. My address is PO Box 2225,","Tue, 16 Jun 2026 14:49:28 +0000",+12268870667,"Hey Pamela, my name is John. I run Saturn Star Movers, a local moving company serving the Chatham Kent area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce m",,,,twilio_api,
+needs_reply_on_thread,false,Khadija Braddy,Royal Lepage Binder Real Estate Brokerage,519-300-3727,+12268870667,+12268870667,"Tue, 16 Jun 2026 15:30:01 +0000","Hi sure I will keep your number and reach out if any of my clients need you.
+
+Thank you 
+
+Have a good day ","Tue, 16 Jun 2026 14:48:48 +0000",+12268870667,"Hey Khadija, my name is John. I run Saturn Star Movers, a local moving company serving the Windsor area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce mysel",,,,twilio_api,
+needs_reply_on_thread,false,Leland  Mills,M.C. Homes Realty Inc. Brokerage Brokerage,226-922-0276,+12268870667,+12268870667,"Tue, 16 Jun 2026 15:29:56 +0000",Sure Our office is in Thamesville right,"Tue, 16 Jun 2026 14:49:13 +0000",+12268870667,"Hey Leland, my name is John. I run Saturn Star Movers, a local moving company serving the Chatham Kent area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce m",,,,twilio_api,
+needs_reply_on_thread,false,Cassandra Duquette,Deerbrook Realty Inc. Brokerage,519-566-3094,+12268870667,+12268870667,"Tue, 16 Jun 2026 15:28:55 +0000",Sounds good! Yes for sure ,"Tue, 16 Jun 2026 14:45:48 +0000",+12268870667,"Hey Cassandra, my name is John. I run Saturn Star Movers, a local moving company serving the Chatham Kent area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduc",,,,twilio_api,
+needs_reply_on_thread,false,Garrison Matte,Right At Home Realty Pro Brokerage,519-890-7096,+12268870667,+12268870667,"Tue, 16 Jun 2026 15:24:40 +0000",Thanks for reaching out. I'll save your contact info. Any prices?,"Tue, 16 Jun 2026 14:52:30 +0000",+12268870667,"Hey Garrison, my name is John. I run Saturn Star Movers, a local moving company serving the Lakeshore area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce my",,,,twilio_api,
+needs_reply_on_thread,false,Anthony Jraige,Deerbrook Realty Inc. Brokerage,519-992-3984,+12268870667,+12268870667,"Tue, 16 Jun 2026 15:19:47 +0000","Also, I run the spotted in Leamington platforms. If you're interested in some paid ad services on those platforms, feel free to let me know. We can talk about tailored content","Tue, 16 Jun 2026 14:49:08 +0000",+12268870667,"Hey Anthony, my name is John. I run Saturn Star Movers, a local moving company serving the Leamington area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce my",,,,twilio_api,
+needs_reply_on_thread,false,Arms Bumanlag,Bob Pedler Real Estate Limited Brokerage,519-987-4405,+12268870667,+12268870667,"Tue, 16 Jun 2026 15:13:02 +0000",John thx for reaching out sure my partner debbie will be in office tomorrw if not please leav in the mailbox ,"Tue, 16 Jun 2026 14:50:30 +0000",+12268870667,"Hey Arms, my name is John. I run Saturn Star Movers, a local moving company serving the Windsor area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myself i",,,,twilio_api,
+needs_reply_on_thread,false,Edward (Ed)  O'brien,O'brien Robertson Realty Inc. Brokerage Brokerage,519-355-4666,+12268870667,+12268870667,"Tue, 16 Jun 2026 15:05:31 +0000",Ur welcome to drop business cards. ,"Tue, 16 Jun 2026 14:45:33 +0000",+12268870667,"Hey Edward, my name is John. I run Saturn Star Movers, a local moving company serving the Chatham Kent area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce m",,,,twilio_api,
+needs_reply_on_thread,false,Jana Thompson,Nest Realty Inc. Brokerage,519-359-1337,+12268870667,+12268870667,"Tue, 16 Jun 2026 15:02:21 +0000","Hi John- that would be great if you could drop off some business cards. Clients ask all the time for mover options. I'll let our admin, Becca, know you will be popping in with some. ","Tue, 16 Jun 2026 14:53:28 +0000",+12268870667,"Hey Jana, my name is John. I run Saturn Star Movers, a local moving company serving the Chatham Kent area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce mys",,,,twilio_api,
+needs_reply_on_thread,false,Jake Klassen,Century 21 Local Home Team Realty Inc. Brokerage,519-819-9658,+12268870667,+12268870667,"Tue, 16 Jun 2026 15:00:51 +0000","Hey John, sounds good. You're welcome to drop some cards off the office. Thank you.","Tue, 16 Jun 2026 14:42:10 +0000",+12268870667,"Hey Jake, my name is John. I run Saturn Star Movers, a local moving company serving the Chatham Kent area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce mys",,,,twilio_api,
+needs_reply_on_thread,false,Norman Mickle,Buckingham Realty (Windsor) Ltd. Brokerage,519-816-7189,+12268870667,+12268870667,"Tue, 16 Jun 2026 14:59:00 +0000",Of course. Any time ,"Tue, 16 Jun 2026 14:53:48 +0000",+12268870667,"Hey Norman, my name is John. I run Saturn Star Movers, a local moving company serving the Windsor area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myself",,,,twilio_api,
+needs_reply_on_thread,false,Cristina Poljak,Realty One Group Iconic Brokerage Brokerage,519-796-9897,+12268870667,+12268870667,"Tue, 16 Jun 2026 14:55:23 +0000","Hi John,
+
+Thanks for reaching out. I am not usually at the office but one of the co-owners of the brokerage is in the office Mon - Fri from 9-4. His name is Chris . Our brokerage is located at 531 Pelissier.  Hope this h","Tue, 16 Jun 2026 14:50:30 +0000",+12268870667,"Hey Cristina, my name is John. I run Saturn Star Movers, a local moving company serving the Amherstburg area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce ",,,,twilio_api,
+needs_reply_on_thread,false,Gregory Moore,Deerbrook Realty Inc. Brokerage,519-817-2918,+12268870667,+12268870667,"Tue, 16 Jun 2026 14:55:15 +0000",Yessir,"Tue, 16 Jun 2026 14:46:13 +0000",+12268870667,"Hey Gregory, my name is John. I run Saturn Star Movers, a local moving company serving the Windsor area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce mysel",,,,twilio_api,
+needs_reply_on_thread,false,Rocco Urbano,Deerbrook Realty Inc. Brokerage,519-977-3890,+12268870667,+12268870667,"Tue, 16 Jun 2026 14:55:04 +0000",Sure. I may not be in but leave with the front desk. ,"Tue, 16 Jun 2026 14:48:08 +0000",+12268870667,"Hey Rocco, my name is John. I run Saturn Star Movers, a local moving company serving the Windsor area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myself ",,,,twilio_api,
+needs_reply_on_thread,false,Nadia Khalaf,Remax Capital Diamond Realty Brokerage,519-903-7212,+12268870667,+12268870667,"Tue, 16 Jun 2026 14:54:03 +0000",Hi John. Sure you can drop some off at my office at Remax diamond ,"Tue, 16 Jun 2026 14:40:50 +0000",+12268870667,"Hey Nadia, my name is John. I run Saturn Star Movers, a local moving company serving the Windsor area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myself ",,,,twilio_api,
+needs_reply_on_thread,false,Lisa  Wright,Re/Max Preferred Realty Ltd. Brokerage,519-859-9935,+12268870667,+12268870667,"Tue, 16 Jun 2026 14:52:55 +0000","Absolutely, we are located on St.Clair there is always someone who is there to accept your Business cards.
+Thank you ","Tue, 16 Jun 2026 14:50:50 +0000",+12268870667,"Hey Lisa, my name is John. I run Saturn Star Movers, a local moving company serving the Chatham Kent area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce mys",,,,twilio_api,
+needs_reply_on_thread,false,Caitlynn O'neil,Royal Lepage Binder Real Estate Brokerage,519-992-8717,+12268870667,+12268870667,"Tue, 16 Jun 2026 14:52:15 +0000","Hi John, thank you for the introduction. I will definitely keep you in mind. Can you please send me an email with all your information? My email is coneil@royallepage.ca. Thank you!","Tue, 16 Jun 2026 14:48:10 +0000",+12268870667,"Hey Caitlynn, my name is John. I run Saturn Star Movers, a local moving company serving the Windsor area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myse",,,,twilio_api / sms_messages,
+needs_reply_on_thread,false,Rachel Hu,Nu Stream Realty (Toronto) Inc Brokerage,226-246-7868,+12268870667,+12268870667,"Tue, 16 Jun 2026 14:51:58 +0000",no thanks ,"Tue, 16 Jun 2026 14:51:08 +0000",+12268870667,"Hey Rachel, my name is John. I run Saturn Star Movers, a local moving company serving the Windsor area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myself",,,,twilio_api,
+needs_reply_on_thread,false,Susan Liovas,Royal Lepage Binder Real Estate Brokerage,519-791-3032,+12268870667,+12268870667,"Tue, 16 Jun 2026 14:50:16 +0000",Sure ,"Tue, 16 Jun 2026 14:43:13 +0000",+12268870667,"Hey Susan, my name is John. I run Saturn Star Movers, a local moving company serving the Chatham Kent area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce my",,,,twilio_api,
+needs_reply_on_thread,false,Mario Demarco,Deerbrook Realty Inc. Brokerage,519-890-1517,+12268870667,+12268870667,"Tue, 16 Jun 2026 14:50:12 +0000",Got it,"Tue, 16 Jun 2026 14:47:30 +0000",+12268870667,"Hey Mario, my name is John. I run Saturn Star Movers, a local moving company serving the Windsor area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myself ",,,,twilio_api,
+needs_reply_on_thread,false,Brandon Bergen,H. Featherstone Realty Inc. Brokerage,226-280-4218,+12268870667,+12268870667,"Tue, 16 Jun 2026 14:49:59 +0000",Hi John! Absolutely. Happy to put a few cards out. ,"Tue, 16 Jun 2026 14:47:48 +0000",+12268870667,"Hey Brandon, my name is John. I run Saturn Star Movers, a local moving company serving the Leamington area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce my",,,,twilio_api,
+needs_reply_on_thread,false,Zi Haifa,Century 21 Local Home Team Realty Inc. Brokerage,519-816-4488,+12268870667,+12268870667,"Tue, 16 Jun 2026 14:48:33 +0000","Hello John… Best of luck with your new venture! Sure, no problem! Drop off cards anytime. Have a great day :-)","Tue, 16 Jun 2026 14:47:10 +0000",+12268870667,"Hey Zi, my name is John. I run Saturn Star Movers, a local moving company serving the Leamington area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myself ",,,,twilio_api,
+needs_reply_on_thread,false,Joey Kloostra,Latitude Realty Inc. Brokerage,519-365-2143,+12268870667,+12268870667,"Tue, 16 Jun 2026 14:48:25 +0000",Hey John we office from home . Feel free to stick them in our mailbox at 9525 River line ,"Tue, 16 Jun 2026 14:45:28 +0000",+12268870667,"Hey Joey, my name is John. I run Saturn Star Movers, a local moving company serving the Chatham Kent area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce mys",,,,twilio_api,
+needs_reply_on_thread,false,Tyler Knight,Jump Realty Inc. Brokerage,519-890-7287,+12268870667,+12268870667,"Tue, 16 Jun 2026 14:46:11 +0000","Hey John, pop by the Kingsville office any morning. We are always here 🤓","Tue, 16 Jun 2026 14:44:13 +0000",+12268870667,"Hey Tyler, my name is John. I run Saturn Star Movers, a local moving company serving the Amherstburg area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce mys",,,,twilio_api,
+needs_reply_on_thread,false,Bill  Myers,Advanced Realty Solutions Inc. Brokerage,519-365-2094,+12268870667,+12268870667,"Tue, 16 Jun 2026 14:45:34 +0000",Yes I already spoke to Hunter,"Tue, 16 Jun 2026 14:44:10 +0000",+12268870667,"Hey Bill, my name is John. I run Saturn Star Movers, a local moving company serving the Chatham Kent area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce mys",,,,twilio_api,
+needs_reply_on_thread,false,Doris Lapico,Remax Capital Diamond Realty Brokerage,519-796-0174,+12268870667,+12268870667,"Tue, 16 Jun 2026 14:45:12 +0000","Hi John ,  reach out to Julie I'm travelling she is my assistant and is at the office most of times.  She takes care of customer care for my clients.  Good luck and thank you for reaching out g out
+Julie 5199662368","Tue, 16 Jun 2026 14:41:08 +0000",+12268870667,"Hey Doris, my name is John. I run Saturn Star Movers, a local moving company serving the Chatham Kent area.
+
+I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce my",,,,twilio_api,

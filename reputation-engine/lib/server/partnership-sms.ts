@@ -1,9 +1,9 @@
-import { digitsOnly, normalizePhone } from '@/lib/sales-phones'
+import { digitsOnly, normalizePhone } from '../sales-phones'
 import {
   DEFAULT_PARTNERSHIP_SENDER_NUMBERS as SHARED_PARTNERSHIP_SENDER_NUMBERS,
   getPartnershipSenderNumbersForMarket,
   isPartnershipSenderNumber,
-} from '@/lib/partnership-lines'
+} from '../partnership-lines'
 
 export type PartnershipSmsCampaignConfig = {
   type: 'partnership_sms_campaign'
@@ -50,6 +50,44 @@ export const DEFAULT_PARTNERSHIP_SMS_TEMPLATE =
 
 export const DEFAULT_PARTNERSHIP_SENDER_NUMBERS = SHARED_PARTNERSHIP_SENDER_NUMBERS
 export { getPartnershipSenderNumbersForMarket }
+
+const GSM_BASIC_CHARS = new Set(Array.from(
+  '@\u00A3$\u00A5\u00E8\u00E9\u00F9\u00EC\u00F2\u00C7\n\u00D8\u00F8\r\u00C5\u00E5\u0394_\u03A6\u0393\u039B\u03A9\u03A0\u03A8\u03A3\u0398\u039E\u00C6\u00E6\u00DF\u00C9 ' +
+  "!\"#\u00A4%&'()*+,-./0123456789:;<=>?\u00A1" +
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZ\u00C4\u00D6\u00D1\u00DC`\u00BFabcdefghijklmnopqrstuvwxyz\u00E4\u00F6\u00F1\u00FC\u00E0'
+))
+const GSM_EXTENSION_CHARS = new Set(Array.from('^{}\\[~]|\u20AC'))
+
+export function isPlainGsmSms(value: string) {
+  return Array.from(value).every(char => GSM_BASIC_CHARS.has(char) || GSM_EXTENSION_CHARS.has(char))
+}
+
+export function normalizeSmsToGsm(value: string) {
+  const normalized = value
+    .replace(/[\u2018\u2019\u201A\u201B]/g, "'")
+    .replace(/[\u201C\u201D\u201E\u201F]/g, '"')
+    .replace(/[\u2010\u2011\u2012\u2013\u2014\u2212]/g, '-')
+    .replace(/\u2026/g, '...')
+    .replace(/[\u2022\u00B7]/g, '-')
+    .replace(/\u00A0/g, ' ')
+    .replace(/\u2122/g, 'TM')
+    .replace(/\u00AE/g, '(R)')
+    .replace(/\u00A9/g, '(C)')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+
+  return Array.from(normalized)
+    .map(char => {
+      if (GSM_BASIC_CHARS.has(char) || GSM_EXTENSION_CHARS.has(char)) return char
+      if (/\s/.test(char)) return ' '
+      return ''
+    })
+    .join('')
+    .split('\n')
+    .map(line => line.replace(/[ \t]+$/g, ''))
+    .join('\n')
+    .trim()
+}
 
 export function normalizeOutboundNumber(value?: string | null) {
   const normalized = normalizePhone(value)
@@ -137,7 +175,7 @@ export function parseSmsCampaignConfig(notes?: unknown): PartnershipSmsCampaignC
     .filter(Boolean)
   return {
     type: 'partnership_sms_campaign',
-    template: String(config.template || DEFAULT_PARTNERSHIP_SMS_TEMPLATE),
+    template: normalizeSmsToGsm(String(config.template || DEFAULT_PARTNERSHIP_SMS_TEMPLATE)),
     dailyCap: Math.max(1, Math.min(500, Number(config.dailyCap || 100))),
     senderNumbers: senderNumbers.length ? senderNumbers : DEFAULT_PARTNERSHIP_SENDER_NUMBERS,
     timezone: String(config.timezone || 'America/Toronto'),
@@ -208,8 +246,9 @@ export function mergePartnershipSmsTemplate(
   const title = String(contact.title || contact.position || 'realtor')
   const zone = String(contact.zone || city)
   const repName = String(contact.rep_name || contact.repName || 'Saturn Star Partnerships')
-  return template
+  const merged = template
     .replace(/\{\{firstName\}\}/gi, firstNameFromName(name))
+    .replace(/\{\{first_name\}\}/gi, firstNameFromName(name))
     .replace(/\{\{name\}\}/gi, name || 'there')
     .replace(/\{\{company\}\}/gi, company)
     .replace(/\{\{brokerage\}\}/gi, company)
@@ -220,10 +259,11 @@ export function mergePartnershipSmsTemplate(
     .replace(/\{\{zone\}\}/gi, zone)
     .replace(/\{\{repName\}\}/gi, repName)
     .replace(/\{\{rep_name\}\}/gi, repName)
+  return normalizeSmsToGsm(merged)
 }
 
 export function ensureSmsOptOutLine(message: string) {
-  return message.trim()
+  return normalizeSmsToGsm(message)
 }
 
 export function isOptOutText(value?: string | null) {

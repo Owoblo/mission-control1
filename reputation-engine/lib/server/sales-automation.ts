@@ -26,21 +26,25 @@ import {
   getExactAddressMissingFields,
   hasCompleteMoveAddress,
   hasCompleteRouteAddresses,
+  hasAnyAccessDetails,
+  leadNeedsAccessBeforeAutomatedQuote,
   hasMlsDraftInventoryNeedingConfirmation,
   hasStreetNumber,
 } from '@/lib/sales-automation-qualification'
 import { resolveInboundSalesContext } from '@/lib/sales-automation-context'
 import { logEvent } from '@/lib/server/analytics'
 import { analyzeListingPhotos } from '@/lib/server/inventory-enrichment'
-import { estimateRouteContext } from '@/lib/server/route-estimation'
+import { estimateRouteContext, suggestAddresses, type AddressSuggestion } from '@/lib/server/route-estimation'
 import { getAppBaseUrl, getWorkerSharedSecret, readEnv } from '@/lib/server/runtime'
 import {
   getAutomationJobByDedupeKey,
   getConversationThreadByIdentity,
+  claimAutomationJob,
   linkSmsMessagesToLead,
   listDueAutomationJobs,
   listSmsMessagesForContact,
   normalizeConversationContactValue,
+  patchAutomationJob,
   queueAutomationJob,
   saveAutomationJob,
   saveConversationThread,
@@ -213,6 +217,13 @@ type AutomationCopy = {
   missingFields?: string[]
 }
 
+type AddressVerificationField = 'originAddress' | 'destAddress'
+
+type AddressVerificationResult =
+  | { handled: true; status: 'completed'; sent: true; lead: CRMLead; thread: CRMConversationThread | null; message: string }
+  | { handled: true; sent: false; lead: CRMLead }
+  | null
+
 function getLeadAutomationSettings(lead: Pick<CRMLead, 'automationSettings'> | null | undefined) {
   return {
     ...DEFAULT_LEAD_AUTOMATION_SETTINGS,
@@ -286,6 +297,62 @@ function withoutMissingFields(state?: LeadQualificationState | null): Partial<Le
     ...rest
   } = state
   return rest
+}
+
+function getAddressVerificationPending(lead: CRMLead) {
+  return lead.qualificationState?.addressVerification?.pending
+}
+
+function isAddressConfirmationReply(message?: string) {
+  const text = (message || '').trim().toLowerCase()
+  if (!text) return false
+  return /^(yes|yeah|yep|correct|confirmed|confirm|that'?s right|thats right|right|looks right|that is right|it is right|that's correct|thats correct)\b/.test(text)
+}
+
+function isAddressRejectionReply(message?: string) {
+  const text = (message || '').trim().toLowerCase()
+  if (!text) return false
+  return /^(no|nope|incorrect|wrong|not right|not correct)\b/.test(text)
+}
+
+function recentlyPromptedAddressVerification(lead: CRMLead, field: AddressVerificationField, original: string) {
+  const pending = getAddressVerificationPending(lead)
+  if (!pending || pending.field !== field || pending.original !== original) return false
+  const promptedAt = new Date(pending.promptedAt).getTime()
+  if (Number.isNaN(promptedAt)) return false
+  return Date.now() - promptedAt < 24 * 60 * 60 * 1000
+}
+
+function buildAddressSuggestionQuery(lead: CRMLead, field: AddressVerificationField) {
+  const address = field === 'originAddress' ? lead.originAddress : lead.destAddress
+  const city = field === 'originAddress' ? lead.originCity : lead.destCity
+  const branchHint = lead.branch === 'waterloo' ? 'Kitchener Waterloo'
+    : lead.branch === 'london' ? 'London'
+    : lead.branch === 'ottawa' ? 'Ottawa'
+    : lead.branch === 'windsor' ? 'Windsor'
+    : ''
+  return [address, city, branchHint, 'Ontario, Canada']
+    .filter(Boolean)
+    .join(', ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function chooseAddressSuggestion(suggestions: AddressSuggestion[], partial: string) {
+  const normalizedPartial = partial.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+  const streetNumber = partial.match(/\b\d{1,6}\b/)?.[0]
+  return suggestions.find(suggestion => {
+    const label = suggestion.label.toLowerCase()
+    return !!streetNumber && label.includes(streetNumber) && normalizedPartial.split(' ').filter(Boolean).slice(1, 3).some(part => part.length >= 3 && label.includes(part))
+  }) || suggestions[0]
+}
+
+function addressVerificationCopy(firstName: string, field: AddressVerificationField, suggestion: string, channel: ConversationChannel) {
+  const label = field === 'originAddress' ? 'pickup' : 'dropoff'
+  if (channel === 'email') {
+    return `Hi ${firstName},\n\nI found this as the likely ${label} address:\n${suggestion}\n\nIs that correct?\n\nJohn\nSaturn Star Moving`
+  }
+  return `I found this as the likely ${label} address: ${suggestion}. Is that correct?`
 }
 
 export interface InboundAutomationEvent {
@@ -609,6 +676,13 @@ function isCompletedCustomerLead(lead: Pick<CRMLead, 'stage'>) {
   return lead.stage === 'completed' || lead.stage === 'customer_success'
 }
 
+function isMoveDateOver(lead: Pick<CRMLead, 'moveDate'>) {
+  if (!lead.moveDate) return false
+  const moveDayEnd = new Date(`${lead.moveDate}T23:59:59`)
+  if (Number.isNaN(moveDayEnd.getTime())) return false
+  return moveDayEnd.getTime() < Date.now()
+}
+
 function buildEstimateDateTime(lead: CRMLead) {
   if (!lead.estimateDate) return null
   const time = lead.estimateTime && /^\d{2}:\d{2}/.test(lead.estimateTime) ? lead.estimateTime : '12:00'
@@ -700,21 +774,35 @@ function zonedDateTimeToUtc(
   return new Date(utcGuess.getTime() - offset)
 }
 
+function isZonedBusinessDay(date: Date, timeZone = AUTOMATION_LOCAL_TIMEZONE) {
+  const weekday = new Intl.DateTimeFormat('en-CA', { timeZone, weekday: 'short' }).format(date)
+  return weekday !== 'Sat' && weekday !== 'Sun'
+}
+
 function isWithinAutomationBusinessHours(date: Date, timeZone = AUTOMATION_LOCAL_TIMEZONE) {
   const { hour } = getZonedParts(date, timeZone)
-  return hour >= 9 && hour < 20
+  return isZonedBusinessDay(date, timeZone) && hour >= 9 && hour < 17
 }
 
 function getNextAutomationBusinessTime(date: Date, timeZone = AUTOMATION_LOCAL_TIMEZONE) {
-  const parts = getZonedParts(date, timeZone)
-  if (parts.hour >= 9 && parts.hour < 20) return date
-  if (parts.hour < 9) {
-    return zonedDateTimeToUtc({ year: parts.year, month: parts.month, day: parts.day, hour: 9 }, timeZone)
+  if (isWithinAutomationBusinessHours(date, timeZone)) return date
+
+  let candidate = date
+  for (let i = 0; i < 8; i += 1) {
+    const parts = getZonedParts(candidate, timeZone)
+    const sameDayMorning = zonedDateTimeToUtc({ year: parts.year, month: parts.month, day: parts.day, hour: 9 }, timeZone)
+    if (isZonedBusinessDay(candidate, timeZone) && parts.hour < 9) return sameDayMorning
+
+    const nextDayNoonUtc = new Date(Date.UTC(parts.year, parts.month - 1, parts.day, 12, 0, 0))
+    nextDayNoonUtc.setUTCDate(nextDayNoonUtc.getUTCDate() + 1)
+    const next = getZonedParts(nextDayNoonUtc, timeZone)
+    candidate = zonedDateTimeToUtc({ year: next.year, month: next.month, day: next.day, hour: 9 }, timeZone)
+    if (isWithinAutomationBusinessHours(candidate, timeZone)) return candidate
   }
-  const tomorrowUtc = new Date(Date.UTC(parts.year, parts.month - 1, parts.day, 12, 0, 0))
-  tomorrowUtc.setUTCDate(tomorrowUtc.getUTCDate() + 1)
-  const tomorrow = getZonedParts(tomorrowUtc, timeZone)
-  return zonedDateTimeToUtc({ year: tomorrow.year, month: tomorrow.month, day: tomorrow.day, hour: 9 }, timeZone)
+
+  const fallback = new Date(date)
+  fallback.setDate(fallback.getDate() + 1)
+  return fallback
 }
 
 function clampAutomationDueAt(date: Date, timeZone = AUTOMATION_LOCAL_TIMEZONE) {
@@ -951,6 +1039,7 @@ function buildEstimateMissingReasons(lead: CRMLead) {
   else if (!hasCompleteMoveAddress(lead.destAddress)) reasons.push('destination_address')
   if (hasMlsDraftInventoryNeedingConfirmation(lead)) reasons.push('inventory_confirmation')
   if (!lead.totalCubicFeet && !(lead.inventory || []).length) reasons.push('inventory')
+  if (leadNeedsAccessBeforeAutomatedQuote(lead)) reasons.push('access')
   return reasons
 }
 
@@ -1290,12 +1379,7 @@ function buildQualificationState(lead: CRMLead, overrides: Partial<LeadQualifica
     routeKnown: hasCompleteRouteAddresses(lead),
     inventoryKnown: !!lead.totalItems || !!lead.totalCubicFeet || !!(lead.inventory || []).length || !!lead.surveyCompletedAt,
     accessKnown:
-      !!lead.originAccess ||
-      !!lead.destAccess ||
-      !!lead.jobFactors?.originFloors ||
-      !!lead.jobFactors?.destFloors ||
-      !!lead.jobFactors?.originHasElevator ||
-      !!lead.jobFactors?.destHasElevator,
+      hasAnyAccessDetails(lead),
     surveyRequested: !!lead.surveyRequestedAt,
     surveyCompleted: !!lead.surveyCompletedAt,
     quoteReady: missingFields.length === 0 || (missingFields.length === 1 && missingFields[0] === 'access'),
@@ -1776,14 +1860,14 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
   }
 
   if (isBookedOrPaidLead(lead) && kind === 'lead_response') {
-    if (isCompletedCustomerLead(lead)) {
+    if (isCompletedCustomerLead(lead) || isMoveDateOver(lead)) {
       return {
         reply:
           channel === 'sms'
-            ? `Thanks ${firstName}. I saved this message on your completed Saturn Star job file.`
-            : `Hi ${firstName},\n\nThanks. I saved this message on your completed Saturn Star job file.\n\nJohn\nSaturn Star Moving`,
+            ? `Thanks ${firstName}. I saved this message on your Saturn Star job file for manual review.`
+            : `Hi ${firstName},\n\nThanks. I saved this message on your Saturn Star job file for manual review.\n\nJohn\nSaturn Star Moving`,
         subject: channel === 'email' ? 'Re: Saturn Star Moving' : undefined,
-        capturedSummary: 'Completed customer replied. Automation acknowledged the existing customer file instead of restarting sales intake.',
+        capturedSummary: 'Post-move customer replied. Automation saved the message for manual review instead of restarting sales intake.',
         intent: 'lead_response',
         missingFields: [],
         moveReadiness: 'warm',
@@ -2113,6 +2197,7 @@ function shouldSkipAutomation(lead: CRMLead, job: CRMAutomationJob) {
   if (lead.automationPausedUntil && new Date(lead.automationPausedUntil).getTime() > Date.now()) return 'Automation is paused by recent human follow-up.'
   if (lead.automationStatus === 'handoff' && job.kind !== 'consultation_reminder' && job.kind !== 'move_reminder') return 'Lead is in human handoff mode.'
   if (lead.stage === 'lost' && job.kind !== 'lead_response' && job.kind !== 'lost_feedback') return 'Lead is already lost.'
+  if (job.kind === 'move_reminder' && isMoveDateOver(lead)) return 'Move date has already passed.'
   if (isBookedOrPaidLead(lead) && job.kind !== 'lead_response' && job.kind !== 'move_reminder') return 'Lead is already booked.'
   if (isNudgeJob(job.kind) && job.kind !== 'consultation_reminder' && hasRecentRepTouch(lead)) return 'Rep contacted this lead within the last 2 hours.'
   if (isNudgeJob(job.kind) && sameZonedDay(lead.lastAutomationOutboundAt, new Date().toISOString())) return 'An automated nudge already ran for this lead today.'
@@ -2195,6 +2280,150 @@ async function handoffLeadForManualReview(lead: CRMLead, reason: string, summary
   }).catch(() => {})
 
   return handedLead
+}
+
+async function maybeHandleAddressVerification(input: {
+  job: CRMAutomationJob
+  lead: CRMLead
+  contact: { channel: ConversationChannel; to: string }
+  existingThread: CRMConversationThread | null
+  inboundMessage?: string
+  inboundSubject?: string
+}): Promise<AddressVerificationResult> {
+  if (input.job.kind !== 'lead_response') return null
+  if (isBookedOrPaidLead(input.lead)) return null
+
+  const pending = getAddressVerificationPending(input.lead)
+  const now = new Date().toISOString()
+  if (pending && input.inboundMessage) {
+    if (isAddressConfirmationReply(input.inboundMessage)) {
+      const confirmedLead = await saveSalesLead({
+        ...input.lead,
+        [pending.field]: pending.suggestion,
+        qualificationState: buildQualificationState({
+          ...input.lead,
+          [pending.field]: pending.suggestion,
+        }, {
+          ...withoutMissingFields(input.lead.qualificationState),
+          addressVerification: {
+            confirmedAt: now,
+            lastConfirmedField: pending.field,
+            lastConfirmedAddress: pending.suggestion,
+          },
+          capturedSummary: `${pending.field === 'originAddress' ? 'Pickup' : 'Dropoff'} address verified from customer confirmation: ${pending.suggestion}`,
+          lastIntent: 'address_confirmed',
+        }),
+      })
+
+      await saveFollowUpLog({
+        id: uid('fu'),
+        leadId: confirmedLead.id,
+        type: 'note',
+        date: now,
+        createdAt: now,
+        notes: `Customer confirmed ${pending.field === 'originAddress' ? 'pickup' : 'dropoff'} address: ${pending.suggestion}`,
+      }).catch(() => {})
+
+      return { handled: true, sent: false, lead: confirmedLead }
+    }
+
+    if (isAddressRejectionReply(input.inboundMessage)) {
+      const firstName = (input.lead.name || 'there').split(' ')[0]
+      const label = pending.field === 'originAddress' ? 'pickup' : 'dropoff'
+      const body = input.contact.channel === 'email'
+        ? `Hi ${firstName},\n\nGot it. What is the full ${label} address, including city and postal code if you have it?\n\nJohn\nSaturn Star Moving`
+        : `Got it ${firstName}. What is the full ${label} address, including city and postal code if you have it?`
+      const savedLead = await saveSalesLead({
+        ...input.lead,
+        qualificationState: buildQualificationState(input.lead, {
+          ...withoutMissingFields(input.lead.qualificationState),
+          addressVerification: undefined,
+          capturedSummary: `Customer rejected the suggested ${label} address.`,
+          lastIntent: 'address_rejected',
+        }),
+      })
+      const sendResult = await sendSalesMessage({
+        actor: 'automation',
+        channel: input.contact.channel,
+        to: input.contact.to,
+        subject: input.contact.channel === 'email' ? input.inboundSubject || 'Confirming Your Move Address' : undefined,
+        body,
+        leadId: savedLead.id,
+        notes: `Automation asked for corrected ${label} address after customer rejected suggestion.`,
+      })
+      const thread = await saveAutomationThreadAfterOutbound({
+        lead: sendResult.lead || savedLead,
+        existingThread: input.existingThread,
+        channel: input.contact.channel,
+        contactValue: input.contact.to,
+        preview: body,
+        jobKind: input.job.kind,
+        intent: 'address_rejected',
+        inboundMessage: input.inboundMessage,
+      })
+      return { handled: true, status: 'completed', sent: true, lead: sendResult.lead || savedLead, thread, message: body }
+    }
+  }
+
+  const missing = getExactAddressMissingFields(input.lead)
+  const field: AddressVerificationField | null =
+    missing.includes('origin_address') && input.lead.originAddress && hasStreetNumber(input.lead.originAddress)
+      ? 'originAddress'
+      : missing.includes('destination_address') && input.lead.destAddress && hasStreetNumber(input.lead.destAddress)
+        ? 'destAddress'
+        : null
+  if (!field) return null
+
+  const partial = field === 'originAddress' ? input.lead.originAddress || '' : input.lead.destAddress || ''
+  if (!partial || hasCompleteMoveAddress(partial)) return null
+  if (recentlyPromptedAddressVerification(input.lead, field, partial)) return null
+
+  const suggestions = await suggestAddresses(buildAddressSuggestionQuery(input.lead, field)).catch(() => [])
+  const suggestion = chooseAddressSuggestion(suggestions, partial)
+  if (!suggestion?.label || suggestion.label.toLowerCase() === partial.toLowerCase()) return null
+
+  const firstName = (input.lead.name || 'there').split(' ')[0]
+  const body = addressVerificationCopy(firstName, field, suggestion.label, input.contact.channel)
+  const savedLead = await saveSalesLead({
+    ...input.lead,
+    qualificationState: buildQualificationState(input.lead, {
+      ...withoutMissingFields(input.lead.qualificationState),
+      addressVerification: {
+        pending: {
+          field,
+          original: partial,
+          suggestion: suggestion.label,
+          city: suggestion.city,
+          placeId: suggestion.placeId,
+          promptedAt: now,
+        },
+      },
+      capturedSummary: `Automation suggested a likely ${field === 'originAddress' ? 'pickup' : 'dropoff'} address for customer confirmation: ${suggestion.label}`,
+      lastIntent: 'address_verification_requested',
+      nextBestAction: 'confirm_address',
+    }),
+  })
+  const sendResult = await sendSalesMessage({
+    actor: 'automation',
+    channel: input.contact.channel,
+    to: input.contact.to,
+    subject: input.contact.channel === 'email' ? input.inboundSubject || 'Confirming Your Move Address' : undefined,
+    body,
+    leadId: savedLead.id,
+    notes: `Automation asked customer to confirm suggested ${field === 'originAddress' ? 'pickup' : 'dropoff'} address.`,
+  })
+  const thread = await saveAutomationThreadAfterOutbound({
+    lead: sendResult.lead || savedLead,
+    existingThread: input.existingThread,
+    channel: input.contact.channel,
+    contactValue: input.contact.to,
+    preview: body,
+    jobKind: input.job.kind,
+    intent: 'address_verification_requested',
+    inboundMessage: input.inboundMessage,
+  })
+
+  return { handled: true, status: 'completed', sent: true, lead: sendResult.lead || savedLead, thread, message: body }
 }
 
 function looksLikeInventoryConfirmationReply(message?: string) {
@@ -2423,22 +2652,22 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
   }
 
   if (job.kind === 'lead_response' && isBookedOrPaidLead(lead)) {
-    if (isCompletedCustomerLead(lead)) {
+    if (isCompletedCustomerLead(lead) || isMoveDateOver(lead)) {
       const nowIso = new Date().toISOString()
       const copy = fallbackCopy(job.kind, lead, contact.channel, inboundMessage)
       const handedLead = await saveSalesLead({
         ...lead,
         automationStatus: 'handoff',
         automationPausedUntil: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        automationPauseReason: 'completed_customer_reply',
+        automationPauseReason: isCompletedCustomerLead(lead) ? 'completed_customer_reply' : 'post_move_customer_reply',
         automationHandoffAt: nowIso,
-        automationHandoffReason: 'Completed customer replied. Rep should review before sending any customer-facing response.',
+        automationHandoffReason: 'Post-move customer replied. Rep should review before sending any customer-facing response.',
         automationLastJobAt: nowIso,
         inboundMessage: inboundMessage || lead.inboundMessage,
         qualificationState: buildQualificationState(lead, {
           ...withoutMissingFields(lead.qualificationState),
-          capturedSummary: `Completed customer replied. Saved for customer success review: ${inboundMessage}`,
-          lastIntent: 'completed_customer_reply',
+          capturedSummary: `Post-move customer replied. Saved for customer success review: ${inboundMessage}`,
+          lastIntent: isCompletedCustomerLead(lead) ? 'completed_customer_reply' : 'post_move_customer_reply',
           nextBestAction: 'customer_success_review',
           missingFields: [],
         }),
@@ -2450,7 +2679,7 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
         type: 'note',
         date: nowIso,
         createdAt: nowIso,
-        notes: `Completed customer replied. Automation did not send a response; rep should review: ${inboundMessage}`,
+        notes: `Post-move customer replied. Automation did not send a response; rep should review: ${inboundMessage}`,
       }).catch(() => {})
 
       const thread = await saveConversationThread({
@@ -2473,7 +2702,7 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
           ...(existingThread?.metadata || {}),
           lastJobKind: job.kind,
           lastIntent: copy.intent,
-          handoffReason: 'completed_customer_reply',
+          handoffReason: isCompletedCustomerLead(lead) ? 'completed_customer_reply' : 'post_move_customer_reply',
         },
         createdAt: existingThread?.createdAt || nowIso,
         updatedAt: nowIso,
@@ -2484,7 +2713,7 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
         sent: false,
         lead: handedLead,
         thread,
-        reason: 'Completed customer reply saved for manual review.',
+        reason: 'Post-move customer reply saved for manual review.',
       }
     }
 
@@ -2767,9 +2996,20 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
     }
   }
 
-  const inventorySmsResult = await maybeHandleMlsInventorySms({
+  const addressVerificationResult = await maybeHandleAddressVerification({
     job,
     lead,
+    contact,
+    existingThread,
+    inboundMessage,
+    inboundSubject,
+  }).catch(() => null)
+  if (addressVerificationResult?.sent) return addressVerificationResult
+  const addressCheckedLead = addressVerificationResult?.lead || lead
+
+  const inventorySmsResult = await maybeHandleMlsInventorySms({
+    job,
+    lead: addressCheckedLead,
     contact,
     existingThread,
     inboundMessage,
@@ -2778,8 +3018,8 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
 
   const quoteResult: AutomatedQuoteResult =
     job.kind === 'lead_response'
-      ? await maybeCreateAutomatedQuote(lead, contact.channel).catch(() => ({ sent: false, lead }))
-      : { sent: false, lead }
+      ? await maybeCreateAutomatedQuote(addressCheckedLead, contact.channel).catch(() => ({ sent: false, lead: addressCheckedLead }))
+      : { sent: false, lead: addressCheckedLead }
 
   const workingLead = quoteResult.lead || lead
 
@@ -3027,6 +3267,9 @@ async function handleMoveReminderJob(job: CRMAutomationJob, lead: CRMLead) {
   if (lead.stage !== 'booked' || !lead.moveDate) {
     return { status: 'cancelled' as const, reason: 'Lead is not booked for a dated move.' }
   }
+  if (isMoveDateOver(lead)) {
+    return { status: 'cancelled' as const, reason: 'Move date has already passed.' }
+  }
   return handleLeadResponseJob(job, lead)
 }
 
@@ -3054,14 +3297,8 @@ async function handleLostFeedbackJob(job: CRMAutomationJob, lead: CRMLead) {
 }
 
 export async function processAutomationJob(job: CRMAutomationJob) {
-  const now = new Date().toISOString()
-  const running = (await saveAutomationJob({
-    ...job,
-    status: 'running',
-    lockedAt: now,
-    attempts: (job.attempts || 0) + 1,
-    updatedAt: now,
-  })) || { ...job, status: 'running' as const, lockedAt: now, attempts: (job.attempts || 0) + 1, updatedAt: now }
+  const running = await claimAutomationJob(job)
+  if (!running) return job
 
   try {
     let lead = await getSalesLead(job.leadId)
@@ -3072,34 +3309,28 @@ export async function processAutomationJob(job: CRMAutomationJob) {
     const activeJob =
       lead.id === running.leadId
         ? running
-        : (await saveAutomationJob({
-            ...running,
+        : (await patchAutomationJob(running.id, {
             leadId: lead.id,
-            updatedAt: new Date().toISOString(),
           })) || { ...running, leadId: lead.id }
 
     if (isNudgeJob(activeJob.kind) && !isWithinAutomationBusinessHours(new Date())) {
       const deferredAt = getNextAutomationBusinessTime(new Date()).toISOString()
-      const deferred = await saveAutomationJob({
-        ...activeJob,
+      const deferred = await patchAutomationJob(activeJob.id, {
         status: 'pending',
         dueAt: deferredAt,
         lockedAt: null,
         result: { reason: 'Outside allowed auto-nudge hours. Deferred to next business window.' },
         lastError: null,
-        updatedAt: new Date().toISOString(),
       })
       return deferred || activeJob
     }
 
     const skipReason = shouldSkipAutomation(lead, activeJob)
     if (skipReason) {
-      const cancelled = await saveAutomationJob({
-        ...activeJob,
+      const cancelled = await patchAutomationJob(activeJob.id, {
         status: 'cancelled',
         result: { reason: skipReason },
         lastError: null,
-        updatedAt: new Date().toISOString(),
         completedAt: new Date().toISOString(),
       })
       return cancelled || activeJob
@@ -3125,22 +3356,20 @@ export async function processAutomationJob(job: CRMAutomationJob) {
                   : await handleLeadResponseJob(activeJob, lead)
 
     const status = outcome.status === 'cancelled' ? 'cancelled' : 'completed'
-    const saved = await saveAutomationJob({
-      ...activeJob,
+    const saved = await patchAutomationJob(activeJob.id, {
       status,
+      lockedAt: null,
       result: outcome as Record<string, unknown>,
       lastError: null,
-      updatedAt: new Date().toISOString(),
       completedAt: new Date().toISOString(),
     })
 
     return saved || activeJob
   } catch (error) {
-    const saved = await saveAutomationJob({
-      ...running,
+    const saved = await patchAutomationJob(running.id, {
       status: 'failed',
+      lockedAt: null,
       lastError: error instanceof Error ? error.message : 'Automation failed',
-      updatedAt: new Date().toISOString(),
     })
     return saved || running
   }
@@ -3361,8 +3590,10 @@ export async function scheduleSurveyFollowup(leadId: string) {
 export async function scheduleMoveReminder(leadId: string) {
   const lead = await getSalesLead(leadId)
   if (!lead?.moveDate || lead.stage !== 'booked') return null
+  if (isMoveDateOver(lead)) return null
 
   const moveDay = new Date(`${lead.moveDate}T10:00:00`)
+  if (moveDay.getTime() <= Date.now()) return null
   const firstName = (lead.name || 'there').split(' ')[0]
   const moveDateFormatted = moveDay.toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' })
   const channel = lead.phone ? 'sms' : lead.email ? 'email' : null

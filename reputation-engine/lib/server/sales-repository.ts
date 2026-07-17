@@ -23,6 +23,7 @@ import {
   mergeLeadRecords,
 } from '@/lib/server/lead-identity'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
+import { normalizePhone } from '@/lib/sales-phones'
 import type {
   CallLogEntry,
   CRMClient,
@@ -988,6 +989,28 @@ export async function getInboundLeadByPhone(phone: string) {
   if (!response.ok) return null
   const records = (await response.json()) as InboundLead[]
   return records[0] || null
+}
+
+export async function listInboundLeadsByPhone(phone: string) {
+  const { url, headers } = requireSupabase()
+  const normalizedPhone = normalizePhone(phone)
+  const digits10 = normalizedPhone ? normalizedPhone.replace(/^\+1/, '') : ''
+  const rawPhone = phone.trim()
+  const candidates = Array.from(new Set([rawPhone, normalizedPhone, digits10].filter(Boolean)))
+
+  if (candidates.length === 0) return []
+
+  const filter = candidates
+    .map(value => `phone.eq.${encodeURIComponent(value)}`)
+    .join(',')
+
+  const response = await fetch(
+    `${url}/rest/v1/inbound_leads?or=(${filter})&select=id,source,name,phone,email,message,raw_data,created_at,claimed,claimed_at&order=created_at.desc&limit=50`,
+    { headers, cache: 'no-store' }
+  )
+
+  if (!response.ok) return []
+  return (await response.json()) as InboundLead[]
 }
 
 export async function appendSmsToInboundLead(
