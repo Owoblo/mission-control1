@@ -5,10 +5,11 @@ import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 
 const MARKET_NAV = [
-  { href: '/marketing/partners?tab=queue',    label: 'SMS Queue', match: (p: string, tab: string | null) => p.startsWith('/marketing/partners') && (!tab || tab === 'queue') },
-  { href: '/marketing/partners?tab=phone',    label: 'Inbox',     match: (p: string, tab: string | null) => p.startsWith('/marketing/partners') && (tab === 'phone' || tab === 'replies') },
-  { href: '/marketing/partners?tab=pipeline', label: 'Pipeline',  match: (p: string, tab: string | null) => p.startsWith('/marketing/partners') && tab === 'pipeline' },
-  { href: '/marketing/signals',               label: 'Signals',   match: (p: string) => p.startsWith('/marketing/signals') },
+  { href: '/marketing/partners?tab=today',    label: 'Today',         match: (p: string, tab: string | null) => p.startsWith('/marketing/partners') && (!tab || tab === 'today') },
+  { href: '/marketing/partners?tab=phone',    label: 'Conversations', match: (p: string, tab: string | null) => p.startsWith('/marketing/partners') && (tab === 'phone' || tab === 'replies') },
+  { href: '/marketing/partners?tab=pipeline', label: 'Relationships', match: (p: string, tab: string | null) => p.startsWith('/marketing/partners') && tab === 'pipeline' },
+  { href: '/marketing/partners?tab=partners', label: 'Partners',      match: (p: string, tab: string | null) => p.startsWith('/marketing/partners') && tab === 'partners' },
+  { href: '/marketing/signals',               label: 'Signals',       match: (p: string) => p.startsWith('/marketing/signals') },
 ]
 
 function MarketingNav() {
@@ -18,17 +19,17 @@ function MarketingNav() {
   const partnershipInbox = pathname.startsWith('/marketing/partners') && (!tab || tab === 'phone' || tab === 'replies')
 
   return (
-    <div className={`${partnershipInbox ? 'hidden md:flex' : 'flex'} mb-6 items-center gap-1 overflow-x-auto rounded-2xl border border-[var(--app-line)] bg-[var(--app-panel)] p-1`}>
+    <div className={`${partnershipInbox ? 'hidden md:flex' : 'flex'} mb-6 items-center gap-1 overflow-x-auto border-b border-[var(--app-line)] bg-[var(--app-panel)] px-1`}>
       {MARKET_NAV.map(item => {
         const active = item.match(pathname, tab)
         return (
           <Link
             key={item.href}
             href={item.href}
-            className={`shrink-0 rounded-xl px-4 py-2 text-sm font-medium transition ${
+            className={`shrink-0 border-b-2 px-4 py-3 text-sm font-medium transition ${
               active
-                ? 'bg-[#1a2744] text-white'
-                : 'text-[var(--app-muted)] hover:bg-[var(--app-bg)] hover:text-[var(--app-ink)]'
+                ? 'border-[#b68a3a] text-[#14213d]'
+                : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-ink)]'
             }`}
           >
             {item.label}
@@ -41,12 +42,12 @@ function MarketingNav() {
 
 function MarketingNavFallback() {
   return (
-    <div className="mb-6 hidden items-center gap-1 overflow-x-auto rounded-2xl border border-[var(--app-line)] bg-[var(--app-panel)] p-1 md:flex">
+    <div className="mb-6 hidden items-center gap-1 overflow-x-auto border-b border-[var(--app-line)] bg-[var(--app-panel)] px-1 md:flex">
       {MARKET_NAV.map(item => (
         <Link
           key={item.href}
           href={item.href}
-          className="shrink-0 rounded-xl px-4 py-2 text-sm font-medium text-[var(--app-muted)] transition hover:bg-[var(--app-bg)] hover:text-[var(--app-ink)]"
+          className="shrink-0 border-b-2 border-transparent px-4 py-3 text-sm font-medium text-[var(--app-muted)] transition hover:text-[var(--app-ink)]"
         >
           {item.label}
         </Link>

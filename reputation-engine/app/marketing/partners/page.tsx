@@ -343,6 +343,22 @@ function getNextPartnerAction(contact: Contact) {
   return null
 }
 
+const RELATIONSHIP_STAGE_LABELS: Record<string, string> = {
+  target: 'Identified',
+  mail_sent: 'Prepared',
+  attempting_contact: 'Introduced',
+  follow_up_due: 'Introduced',
+  connected: 'Responsive',
+  qualified: 'Useful exchange',
+  partnership_active: 'Active partner',
+  dormant: 'Paused',
+  closed_lost: 'Closed respectfully',
+}
+
+function relationshipStageLabel(contact: Contact) {
+  return RELATIONSHIP_STAGE_LABELS[contact.normalized_stage || contact.stage || 'target'] || 'Identified'
+}
+
 function addDays(dateStr: string, days: number) {
   const d = new Date(dateStr + 'T12:00:00Z')
   d.setDate(d.getDate() + days)
@@ -1160,19 +1176,19 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
   return (
     <>
       <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed right-0 top-0 z-50 flex h-full w-full max-w-lg flex-col border-l border-slate-200 bg-white shadow-2xl">
+      <div className="fixed right-0 top-0 z-50 flex h-full w-full max-w-[1400px] flex-col border-l border-[var(--app-line)] bg-[#fffefb] shadow-xl">
 
         {/* Header */}
-        <div className="shrink-0 border-b border-slate-100 px-5 py-4">
+        <div className="shrink-0 border-b border-[var(--app-line)] bg-white px-5 py-4 md:px-7">
           <div className="flex items-start justify-between">
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-base font-semibold text-[#1a2744]">{contact.name}</span>
+                <span className="text-xl font-semibold text-[#14213d]">{contact.name}</span>
                 <TierBadge tier={contact.outreach_tier} />
                 <StageBadge stage={contact.normalized_stage} />
                 {contact.instantly_status && <InstantlyBadge status={contact.instantly_status} />}
               </div>
-              <div className="mt-0.5 text-sm text-slate-500">{partnerCompanyLabel(contact)}</div>
+              <div className="mt-1 text-sm text-slate-500">{contact.title ? `${contact.title} · ` : ''}{partnerCompanyLabel(contact)} · {relationshipStageLabel(contact)}</div>
               <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-slate-400">
                 {contact.phone && <a href={`tel:${contact.phone}`} className="hover:text-[#1a2744]">📞 {contact.phone}</a>}
                 {contact.email && <a href={`mailto:${contact.email}`} className="hover:text-[#1a2744]">✉️ {contact.email}</a>}
@@ -1220,7 +1236,7 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
             )}
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="hidden">
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
               <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Owner</div>
               <div className="mt-1 truncate text-xs font-semibold text-[#1a2744]">{owner}</div>
@@ -1258,7 +1274,40 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="crm-record-layout flex-1 overflow-y-auto">
+
+          <aside className="crm-record-context border-b border-[var(--app-line)] bg-[#fbfaf6] p-5 lg:border-b-0 xl:border-r xl:p-6">
+            <div className="sticky top-0 space-y-6">
+              <section>
+                <div className="crm-eyebrow">Identity & context</div>
+                <dl className="mt-4 space-y-3 text-sm">
+                  <div><dt className="text-xs text-[var(--app-muted)]">Organization</dt><dd className="mt-1 font-medium text-[#14213d]">{partnerCompanyLabel(contact)}</dd></div>
+                  {contact.title && <div><dt className="text-xs text-[var(--app-muted)]">Role</dt><dd className="mt-1 text-[#14213d]">{contact.title}</dd></div>}
+                  <div><dt className="text-xs text-[var(--app-muted)]">Market</dt><dd className="mt-1 capitalize text-[#14213d]">{contact.city || 'Not set'}</dd></div>
+                  <div><dt className="text-xs text-[var(--app-muted)]">Relationship owner</dt><dd className="mt-1 text-[#14213d]">{owner}</dd></div>
+                  <div><dt className="text-xs text-[var(--app-muted)]">Preferred channel</dt><dd className="mt-1 capitalize text-[#14213d]">{contact.preferred_channel || 'Not recorded'}</dd></div>
+                  <div><dt className="text-xs text-[var(--app-muted)]">Contact status</dt><dd className={`mt-1 ${contact.do_not_contact ? 'text-rose-700' : 'text-[#14213d]'}`}>{contact.do_not_contact ? 'Do not contact' : 'Contact permitted'}</dd></div>
+                </dl>
+              </section>
+              <section className="border-t border-[var(--app-line)] pt-5">
+                <div className="crm-eyebrow">Relationship</div>
+                <div className="mt-3 text-lg font-semibold text-[#14213d]">{relationshipStageLabel(contact)}</div>
+                <div className="mt-2 text-sm text-[var(--app-muted)]">{partnerTemperatureLabel(contact.relationship_temperature)} momentum</div>
+                {contact.tags && contact.tags.length > 0 && <div className="mt-4 flex flex-wrap gap-1.5">{contact.tags.map(tag => <span key={tag} className="rounded-full border border-[var(--app-line)] bg-white px-2 py-1 text-[10px] text-[var(--app-muted)]">{tag}</span>)}</div>}
+              </section>
+              <section className="border-t border-[var(--app-line)] pt-5 text-sm">
+                <div className="crm-eyebrow">Contact</div>
+                <div className="mt-3 space-y-2 break-words text-[#14213d]">{contact.phone && <a className="block hover:underline" href={`tel:${contact.phone}`}>{contact.phone}</a>}{contact.email && <a className="block hover:underline" href={`mailto:${contact.email}`}>{contact.email}</a>}{contact.address && <div>{contact.address}</div>}</div>
+              </section>
+            </div>
+          </aside>
+
+          <main className="crm-record-main bg-white">
+            <div className="border-b border-[var(--app-line)] px-5 py-5 md:px-7">
+              <div className="crm-eyebrow">Relationship narrative</div>
+              <h3 className="mt-2 text-xl font-semibold text-[#14213d]">What has happened</h3>
+              <p className="mt-1 text-sm text-[var(--app-muted)]">A human-readable history of exchanges, outcomes and commitments.</p>
+            </div>
 
           {/* Upcoming appointments */}
           {upcoming.length > 0 && (
@@ -1294,7 +1343,7 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
           </div>
 
           {/* Timeline */}
-          <div className="px-5 py-4">
+          <div className="px-5 py-5 md:px-7">
             <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Timeline</div>
             {loading ? (
               <div className="py-8 text-center text-xs text-slate-400">Loading…</div>
@@ -1306,9 +1355,9 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
                   const s = summarizeTouch(t.channel, t.direction, t.notes)
                   const isInbound = t.direction === 'inbound'
                   return (
-                    <div key={t.id} className="flex gap-3 rounded-[14px] border border-slate-100 bg-slate-50 p-3">
+                    <div key={t.id} className="crm-timeline-row flex gap-3 pb-5">
                       <div className="mt-0.5 text-base shrink-0"><ChannelIcon channel={t.channel} direction={t.direction} /></div>
-                      <div className="flex-1 min-w-0">
+                      <div className="crm-timeline-card min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-1.5">
                             <span className="text-xs font-semibold text-[#1a2744]">{s.label}</span>
@@ -1340,6 +1389,28 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
               </div>
             )}
           </div>
+          </main>
+
+          <aside className="crm-record-widget p-5 md:p-6">
+            <div className="sticky top-0 space-y-6">
+              <section className={`border-l-4 px-4 py-1 ${nextAction?.overdue ? 'border-amber-500' : 'border-[#b68a3a]'}`}>
+                <div className="crm-eyebrow">Next meaningful action</div>
+                <div className="mt-3 text-base font-semibold leading-6 text-[#14213d]">{nextAction?.label || 'Choose the next respectful action'}</div>
+                <div className={`mt-2 text-sm ${nextAction?.overdue ? 'text-amber-700' : 'text-[var(--app-muted)]'}`}>{nextAction?.due ? `${nextAction.overdue ? 'Due' : 'Scheduled'} ${fmtDate(nextAction.due)}` : 'No timing has been recorded'}</div>
+                <button onClick={() => setShowAppointment(true)} className="mt-4 text-sm font-semibold text-[#8a6828] hover:underline">Schedule a clear action</button>
+              </section>
+
+              <section className="border-t border-[var(--app-line)] pt-5">
+                <div className="crm-eyebrow">Promises</div>
+                {upcoming.length > 0 ? <div className="mt-3 space-y-3">{upcoming.map(item => <div key={item.id} className="border-b border-[var(--app-line)] pb-3"><div className="text-sm font-medium text-[#14213d]">{item.title}</div><div className="mt-1 text-xs text-[var(--app-muted)]">Due {fmtDateTime(item.scheduled_at)} · {item.channel}</div><button onClick={() => updateApptStatus(item.id, 'completed')} className="mt-2 text-xs font-semibold text-[#0f6a53]">Mark complete</button></div>)}</div> : <p className="mt-3 text-sm leading-6 text-[var(--app-muted)]">No open promise is recorded. Commitments should be explicit and evidenced here.</p>}
+              </section>
+
+              <section className="border-t border-[var(--app-line)] pt-5">
+                <div className="crm-eyebrow">Remembered context</div>
+                <dl className="mt-3 space-y-3 text-sm"><div className="flex justify-between gap-3"><dt className="text-[var(--app-muted)]">Category</dt><dd className="text-right text-[#14213d]">{contact.industry || contact.category || 'Not recorded'}</dd></div><div className="flex justify-between gap-3"><dt className="text-[var(--app-muted)]">Referrals</dt><dd className="font-medium text-[#14213d]">{referralCount}</dd></div><div className="flex justify-between gap-3"><dt className="text-[var(--app-muted)]">Referral code</dt><dd className="text-right font-medium text-[#14213d]">{referralCode || 'Not assigned'}</dd></div></dl>
+              </section>
+            </div>
+          </aside>
         </div>
       </div>
 
@@ -1616,6 +1687,137 @@ function CsvImportModal({ batch, onClose, onDone }: { batch: Batch; onClose: () 
 }
 
 // ─── Tab: Overview ────────────────────────────────────────────────────────────
+
+function RelationshipLobby({ contacts, loading, onSelect, onOpenInbox, onOpenPipeline }: {
+  contacts: Contact[]
+  loading: boolean
+  onSelect: (contact: Contact) => void
+  onOpenInbox: () => void
+  onOpenPipeline: () => void
+}) {
+  const now = Date.now()
+  const day = 86400000
+  const needsReply = contacts.filter(contact => getInboxStatus(contact) === 'needs_reply')
+  const promisesDue = contacts.filter(contact => {
+    const action = getNextPartnerAction(contact)
+    return action?.due && new Date(action.due).getTime() <= now + day
+  })
+  const warm = contacts.filter(contact => {
+    const temperature = String(contact.relationship_temperature || '').toLowerCase()
+    return temperature === 'warm' || temperature === 'active' || isUnhandledPositiveReply(contact)
+  })
+  const atRisk = contacts.filter(contact => {
+    const action = getNextPartnerAction(contact)
+    const age = contact.last_touch_at ? now - new Date(contact.last_touch_at).getTime() : 0
+    return Boolean(action?.overdue || (contact.normalized_stage === 'partnership_active' && age > 30 * day))
+  })
+  const recentProof = contacts
+    .filter(contact => (contact.partner_referral_count || contact.referred_lead_count || 0) > 0)
+    .sort((a, b) => (b.partner_referral_count || b.referred_lead_count || 0) - (a.partner_referral_count || a.referred_lead_count || 0))
+    .slice(0, 5)
+  const priority = [...needsReply, ...promisesDue, ...warm]
+    .filter((contact, index, all) => all.findIndex(item => item.id === contact.id) === index)
+    .slice(0, 7)
+  const markets = ['windsor', 'waterloo', 'london', 'ottawa'].map(market => {
+    const rows = contacts.filter(contact => marketForContact(contact) === market)
+    return {
+      market,
+      total: rows.length,
+      active: rows.filter(contact => contact.normalized_stage === 'partnership_active').length,
+      replies: rows.filter(contact => getInboxStatus(contact) === 'needs_reply').length,
+    }
+  })
+
+  return (
+    <div className="space-y-8">
+      <section className="border-b border-[var(--app-line)] pb-7">
+        <div className="flex flex-wrap items-end justify-between gap-5">
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#9a762f]">Relationship control room</div>
+            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-[#14213d]">What needs attention today?</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--app-muted)]">Promises, replies and relationships that need a thoughtful next step—already placed in working order.</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={onOpenInbox} className="crm-button">Open conversations</button>
+            <button onClick={onOpenPipeline} className="crm-button-dark">View relationships</button>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid gap-8 xl:grid-cols-[minmax(0,1.45fr)_minmax(310px,.75fr)]">
+        <div className="space-y-8">
+          <section>
+            <div className="mb-3 flex items-baseline justify-between border-b border-[var(--app-line)] pb-3">
+              <h3 className="text-lg font-semibold text-[#14213d]">Today</h3>
+              <span className="text-sm text-[var(--app-muted)]">{loading ? 'Loading' : `${priority.length} priorities`}</span>
+            </div>
+            {priority.length === 0 ? (
+              <div className="py-10 text-sm text-[var(--app-muted)]">Nothing urgent is floating. Review the relationship pipeline when you are ready.</div>
+            ) : (
+              <div className="divide-y divide-[var(--app-line)]">
+                {priority.map(contact => {
+                  const next = getNextPartnerAction(contact)
+                  const reply = getInboxStatus(contact) === 'needs_reply'
+                  return (
+                    <button key={contact.id} onClick={() => onSelect(contact)} className="grid w-full gap-2 py-4 text-left transition hover:bg-[#fbfaf6] sm:grid-cols-[minmax(0,1fr)_minmax(220px,.8fr)_auto] sm:items-center sm:px-2">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-[#14213d]">{contact.name}</div>
+                        <div className="mt-1 truncate text-xs text-[var(--app-muted)]">{partnerCompanyLabel(contact)} · {contact.city || 'Market not set'}</div>
+                      </div>
+                      <div className="min-w-0 text-sm text-[#4d5360]">
+                        <div className="truncate">{reply ? 'Reply thoughtfully to their latest message' : next?.label || 'Review and choose the next respectful action'}</div>
+                        <div className="mt-1 text-xs text-[var(--app-muted)]">{reply ? 'Conversation waiting' : next?.due ? `Due ${fmtDate(next.due)}` : relationshipStageLabel(contact)}</div>
+                      </div>
+                      <span className={`w-fit rounded-full border px-2.5 py-1 text-[10px] font-semibold ${next?.overdue ? 'border-amber-300 bg-amber-50 text-amber-800' : 'border-[#d8c28d] bg-[#fbf6e9] text-[#7c6025]'}`}>{reply ? 'Needs reply' : next?.overdue ? 'Promise due' : partnerTemperatureLabel(contact.relationship_temperature)}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+
+          <section>
+            <div className="mb-3 flex items-baseline justify-between border-b border-[var(--app-line)] pb-3">
+              <h3 className="text-lg font-semibold text-[#14213d]">Relationships at risk</h3>
+              <span className="text-sm text-[var(--app-muted)]">{atRisk.length}</span>
+            </div>
+            <div className="divide-y divide-[var(--app-line)]">
+              {atRisk.slice(0, 5).map(contact => (
+                <button key={contact.id} onClick={() => onSelect(contact)} className="flex w-full items-center justify-between gap-4 py-3 text-left">
+                  <div><div className="text-sm font-medium text-[#14213d]">{contact.name}</div><div className="mt-1 text-xs text-[var(--app-muted)]">{getNextPartnerAction(contact)?.overdue ? 'A commitment is overdue' : 'Active relationship has gone quiet'}</div></div>
+                  <span className="text-xs text-amber-700">Review</span>
+                </button>
+              ))}
+              {!atRisk.length && <div className="py-7 text-sm text-[var(--app-muted)]">No relationships currently show a clear risk signal.</div>}
+            </div>
+          </section>
+        </div>
+
+        <aside className="space-y-8 border-l-0 border-[var(--app-line)] xl:border-l xl:pl-8">
+          <section>
+            <div className="border-b border-[var(--app-line)] pb-3"><h3 className="text-lg font-semibold text-[#14213d]">Warm opportunities</h3><p className="mt-1 text-xs text-[var(--app-muted)]">Momentum worth protecting</p></div>
+            <div className="divide-y divide-[var(--app-line)]">
+              {warm.slice(0, 5).map(contact => <button key={contact.id} onClick={() => onSelect(contact)} className="w-full py-3 text-left"><div className="text-sm font-medium text-[#14213d]">{contact.name}</div><div className="mt-1 text-xs text-[var(--app-muted)]">{contact.latest_inbound_note || contact.latest_touch_note || relationshipStageLabel(contact)}</div></button>)}
+              {!warm.length && <div className="py-6 text-sm text-[var(--app-muted)]">No warm signals waiting.</div>}
+            </div>
+          </section>
+
+          <section>
+            <div className="border-b border-[var(--app-line)] pb-3"><h3 className="text-lg font-semibold text-[#14213d]">Recent proof</h3><p className="mt-1 text-xs text-[var(--app-muted)]">Relationships producing real outcomes</p></div>
+            <div className="divide-y divide-[var(--app-line)]">{recentProof.map(contact => <button key={contact.id} onClick={() => onSelect(contact)} className="flex w-full items-center justify-between py-3 text-left"><span className="text-sm text-[#14213d]">{contact.name}</span><span className="text-xs font-semibold text-[#9a762f]">{contact.partner_referral_count || contact.referred_lead_count} referrals</span></button>)}</div>
+          </section>
+        </aside>
+      </div>
+
+      <section className="border-t border-[var(--app-line)] pt-6">
+        <div className="mb-4"><h3 className="text-lg font-semibold text-[#14213d]">Market pulse</h3><p className="mt-1 text-xs text-[var(--app-muted)]">Relationship quality by city—not message volume.</p></div>
+        <div className="grid gap-px overflow-hidden border border-[var(--app-line)] bg-[var(--app-line)] sm:grid-cols-2 lg:grid-cols-4">
+          {markets.map(item => <div key={item.market} className="bg-white p-4"><div className="text-sm font-semibold capitalize text-[#14213d]">{item.market}</div><div className="mt-4 flex gap-5 text-xs text-[var(--app-muted)]"><span><strong className="block text-lg font-semibold text-[#14213d]">{item.active}</strong>active</span><span><strong className="block text-lg font-semibold text-[#14213d]">{item.replies}</strong>need reply</span><span><strong className="block text-lg font-semibold text-[#14213d]">{item.total}</strong>known</span></div></div>)}
+        </div>
+      </section>
+    </div>
+  )
+}
 
 function OverviewTab({ batches, contacts, loading, onRefresh, onTabChange }: {
   batches: Batch[]; contacts: Contact[]; loading: boolean; onRefresh: () => void; onTabChange: (t: Tab) => void
@@ -6206,22 +6408,23 @@ function AdminCommandCenter({
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-type Tab = 'command' | 'queue' | 'replies' | 'overview' | 'lists' | 'pipeline' | 'phone' | 'partners'
+type Tab = 'today' | 'command' | 'queue' | 'replies' | 'overview' | 'lists' | 'pipeline' | 'phone' | 'partners'
 
 const TABS: { key: Tab; label: string; icon: string }[] = [
-  { key: 'command',  label: 'Command',  icon: '🏙️' },
-  { key: 'queue',    label: 'Queue',    icon: '⚡' },
-  { key: 'phone',    label: 'Inbox',    icon: '💬' },
-  { key: 'overview', label: 'Overview', icon: '📊' },
-  { key: 'lists',    label: 'Lists',    icon: '📋' },
-  { key: 'pipeline', label: 'Pipeline', icon: '🎯' },
-  { key: 'partners', label: 'Partners', icon: '🤝' },
+  { key: 'today',    label: 'Today',         icon: '' },
+  { key: 'phone',    label: 'Conversations', icon: '' },
+  { key: 'pipeline', label: 'Relationships', icon: '' },
+  { key: 'partners', label: 'Partners',      icon: '' },
+  { key: 'queue',    label: 'Outreach',      icon: '' },
+  { key: 'overview', label: 'Campaigns',     icon: '' },
+  { key: 'lists',    label: 'Lists',         icon: '' },
+  { key: 'command',  label: 'Markets',       icon: '' },
 ]
 
 function PartnershipEngineInner() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const initialTab = (searchParams.get('tab') as Tab) || 'command'
+  const initialTab = (searchParams.get('tab') as Tab) || 'today'
   const [tab, setTab] = useState<Tab>(initialTab === 'replies' ? 'phone' : initialTab)
   const [currentUser, setCurrentUser] = useState<{ role?: string; branch?: string | null } | null>(null)
   const [contacts, setContacts] = useState<Contact[]>([])
@@ -6316,7 +6519,7 @@ function PartnershipEngineInner() {
   const canUseCommandCenter = currentUser?.role !== 'partnership_manager'
   const visibleTabs = useMemo(() => canUseCommandCenter
     ? TABS
-    : TABS.filter(t => ['phone', 'pipeline', 'partners'].includes(t.key)), [canUseCommandCenter])
+    : TABS.filter(t => ['today', 'phone', 'pipeline', 'partners'].includes(t.key)), [canUseCommandCenter])
   const needsReplyCount = contacts.filter(c => getInboxStatus(c) === 'needs_reply').length
   const queueCount = needsReplyCount + contacts.filter(c =>
     c.last_touch_at && Math.floor((Date.now() - new Date(c.last_touch_at).getTime()) / 86400000) >= 5
@@ -6325,7 +6528,7 @@ function PartnershipEngineInner() {
 
   useEffect(() => {
     if (currentUser?.role === 'partnership_manager' && !visibleTabs.some(item => item.key === tab)) {
-      handleTabChange('phone')
+      handleTabChange('today')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.role, tab, visibleTabs])
@@ -6335,7 +6538,7 @@ function PartnershipEngineInner() {
       <div className={inboxActive ? 'mx-0 max-w-none px-0 py-0 md:mx-auto md:max-w-[1280px] md:px-4 md:py-2' : 'mx-auto max-w-6xl px-4 py-8 sm:px-6'}>
         <div className={`${inboxActive ? 'hidden' : 'flex'} mb-6 items-center justify-between`}>
           <div>
-            <h1 className="text-2xl font-semibold text-[var(--app-ink)]">Partnership Engine</h1>
+            <h1 className="text-2xl font-semibold text-[#14213d]">Relationship CRM</h1>
             <p className="mt-0.5 text-sm text-[var(--app-muted)]">
               {batchesLoading ? '—' : batches.length} batch{batches.length !== 1 ? 'es' : ''} · {contactsLoading ? '—' : contacts.length} contacts
               {needsReplyCount > 0 && <span className="ml-2 rounded-full bg-[var(--app-accent-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--app-accent)]">{needsReplyCount} responded</span>}
@@ -6347,7 +6550,7 @@ function PartnershipEngineInner() {
           {visibleTabs.map(t => (
             <button key={t.key} onClick={() => handleTabChange(t.key)}
               className={`flex flex-1 items-center justify-center gap-2 rounded-[11px] ${inboxActive ? 'py-1.5 text-xs' : 'py-2.5 text-sm'} font-semibold transition ${tab === t.key ? 'bg-[var(--app-ink)] text-white shadow-sm' : 'text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}>
-              <span>{t.icon}</span>
+              {t.icon && <span>{t.icon}</span>}
               <span className="hidden sm:inline">{t.label}</span>
               {t.key === 'queue' && queueCount > 0 && (
                 <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${tab === t.key ? 'bg-white/20 text-white' : 'border border-[rgba(201,117,78,0.12)] bg-[#f5ece7] text-[#955941]'}`}>{queueCount}</span>
@@ -6359,6 +6562,15 @@ function PartnershipEngineInner() {
           ))}
         </div>
 
+        {tab === 'today' && (
+          <RelationshipLobby
+            contacts={contacts}
+            loading={contactsLoading}
+            onSelect={setSelectedContact}
+            onOpenInbox={() => handleOpenInbox()}
+            onOpenPipeline={() => handleOpenPipeline()}
+          />
+        )}
         {tab === 'command' && canUseCommandCenter && (
           <AdminCommandCenter
             contacts={contacts}
