@@ -170,7 +170,7 @@
     color: #73756e;
   }
   .crm-button {
-    @apply inline-flex min-h-11 items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex min-h-11 items-center justify-center rounded-[8px] border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
     border-color: var(--app-line);
     background: var(--app-panel);
     color: var(--app-ink);
@@ -178,14 +178,14 @@
     --tw-ring-offset-color: var(--app-bg);
   }
   .crm-button-dark {
-    @apply inline-flex min-h-11 items-center justify-center rounded-xl px-4 py-2 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex min-h-11 items-center justify-center rounded-[8px] px-4 py-2 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50;
     background: var(--app-accent);
     box-shadow: none;
     --tw-ring-color: var(--crm-focus-ring);
     --tw-ring-offset-color: var(--app-bg);
   }
   .crm-input {
-    @apply min-h-11 w-full rounded-xl border px-4 py-2.5 text-base outline-none transition-colors placeholder:text-stone-400 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-500 md:text-sm;
+    @apply min-h-11 w-full rounded-[8px] border px-4 py-2.5 text-base outline-none transition-colors placeholder:text-stone-400 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-500 md:text-sm;
     border-color: var(--app-line);
     background: var(--app-bg);
     color: var(--app-ink);

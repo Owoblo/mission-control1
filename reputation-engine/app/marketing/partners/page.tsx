@@ -4506,18 +4506,18 @@ function PhoneTab({
       {/* Contact list */}
       <div className={`${selected && !mobileListOpen ? 'hidden lg:flex' : 'flex'} w-full shrink-0 flex-col border-r-0 border-slate-200 bg-white lg:w-[340px] lg:border-r xl:w-[360px]`}>
         <div className="shrink-0 border-b border-slate-100 px-4 py-4">
-          <div className="mb-3 flex items-center justify-between lg:mb-2">
+          <div className="mb-3 lg:mb-2">
             <div>
               <div className="text-[22px] font-semibold tracking-tight text-[#111827] lg:text-xl">Partnership replies</div>
-              <div className="text-xs font-medium text-slate-500">
-                {filterCounts.context} context · {filterCounts.needs_reply} need reply · {filterCounts.responded} responded · {filterCounts.no_response} no response · {filterCounts.postcard} postcards · {filterCounts.appointment} appointments
-              </div>
+              <div className="mt-0.5 text-xs font-medium text-slate-500">{filterCounts.needs_reply} need reply · {filterCounts.appointment} appointments</div>
             </div>
-            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">{filterCounts.all}</span>
           </div>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search contacts…"
-            className="h-12 w-full rounded-full border border-slate-200 bg-slate-50 px-4 text-base leading-6 text-[#071421] outline-none focus:border-[#071421] lg:h-10 lg:text-sm" />
-          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className="flex gap-2">
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search contacts…"
+              className="h-12 min-w-0 flex-1 rounded-[9px] border border-slate-200 bg-slate-50 px-4 text-base leading-6 text-[#071421] outline-none focus:border-[#071421] lg:h-10 lg:text-sm" />
+            <details className="relative shrink-0">
+              <summary className="flex h-12 cursor-pointer list-none items-center rounded-[9px] border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 lg:h-10">Filters{hasSegmentFilter ? ' · On' : ''}</summary>
+              <div className="absolute right-0 z-30 mt-2 grid w-72 grid-cols-1 gap-2 rounded-[10px] border border-slate-200 bg-white p-3 shadow-lg sm:grid-cols-2">
             <select
               value={areaFilter}
               onChange={e => setAreaFilter(e.target.value)}
@@ -4558,15 +4558,18 @@ function PhoneTab({
                 <option key={batch.id} value={batch.id}>{batch.label} · {batch.name}</option>
               ))}
             </select>
+                {hasSegmentFilter ? <button onClick={() => { setAreaFilter(''); setCityFilter(''); setCategoryFilter(''); setBatchFilter('') }} className="col-span-full rounded-[7px] px-3 py-2 text-left text-xs font-semibold text-slate-500 hover:bg-slate-50">Clear filters</button> : null}
+              </div>
+            </details>
           </div>
           {hasSegmentFilter && (
-            <div className="mt-2 flex items-center justify-between gap-2 rounded-[12px] bg-slate-50 px-3 py-2">
+            <div className="mt-2 flex items-center justify-between gap-2 px-1 py-1">
               <span className="min-w-0 truncate text-[11px] font-semibold text-slate-500">
                 Showing {segmentContacts.length} of {inboxContacts.length} in this segment
               </span>
               <button
                 onClick={() => { setAreaFilter(''); setCityFilter(''); setCategoryFilter(''); setBatchFilter('') }}
-                className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 hover:text-[#071421]"
+                className="shrink-0 text-[11px] font-semibold text-slate-500 hover:text-[#071421]"
               >
                 Clear
               </button>
@@ -4799,29 +4802,23 @@ function PhoneTab({
                 </div>
               </div>
             )}
-            <div className="mb-2 flex items-center gap-2 overflow-x-auto">
-              <button
-                onClick={() => void handleAiReply()}
-                disabled={aiReplyLoading}
-                className="min-h-11 shrink-0 rounded-full bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50 lg:min-h-8 lg:text-xs"
-              >
-                {aiReplyLoading ? 'Drafting...' : 'Smart draft'}
-              </button>
-              <button onClick={() => setComposeChannel('sms')} className={`min-h-11 shrink-0 rounded-xl px-4 text-sm font-semibold transition lg:min-h-8 lg:text-xs ${composeChannel === 'sms' ? 'bg-[#071421] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+            <div className="mb-2 flex items-center gap-2">
+              <div className="flex shrink-0 rounded-[8px] border border-slate-200 bg-slate-50 p-1">
+              <button onClick={() => setComposeChannel('sms')} className={`min-h-11 shrink-0 rounded-[6px] px-4 text-sm font-semibold transition lg:min-h-8 lg:text-xs ${composeChannel === 'sms' ? 'bg-[#071421] text-white' : 'text-slate-600 hover:bg-white'}`}>
                 SMS {!selected.phone && <span className="ml-1 text-red-400">no #</span>}
               </button>
-              <button onClick={() => setComposeChannel('email')} className={`min-h-11 shrink-0 rounded-xl px-4 text-sm font-semibold transition lg:min-h-8 lg:text-xs ${composeChannel === 'email' ? 'bg-[#071421] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+              <button onClick={() => setComposeChannel('email')} className={`min-h-11 shrink-0 rounded-[6px] px-4 text-sm font-semibold transition lg:min-h-8 lg:text-xs ${composeChannel === 'email' ? 'bg-[#071421] text-white' : 'text-slate-600 hover:bg-white'}`}>
                 Email {!selected.email && <span className="ml-1 text-red-400">no email</span>}
               </button>
-              {composeChannel === 'sms' && (
-                <span
-                  className="flex min-h-11 shrink-0 items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-800 lg:min-h-8 lg:text-xs"
-                  title="Replies in this thread go from the partnership number."
-                >
-                  From Partner line · {displayReplyNumber(selectedThreadFromNumber)}
-                </span>
-              )}
-              <label className="flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white pl-3 pr-2 text-sm font-semibold text-slate-500 lg:min-h-8 lg:text-xs">
+              </div>
+              <button onClick={() => void handleAiReply()} disabled={aiReplyLoading} className="min-h-11 shrink-0 px-2 text-sm font-semibold text-emerald-700 transition hover:text-emerald-900 disabled:opacity-50 lg:min-h-8 lg:text-xs">
+                {aiReplyLoading ? 'Drafting…' : 'Suggest reply'}
+              </button>
+              <details className="relative ml-auto shrink-0">
+                <summary className="flex min-h-11 cursor-pointer list-none items-center px-2 text-sm font-semibold text-slate-500 lg:min-h-8 lg:text-xs">Options</summary>
+                <div className="absolute right-0 z-30 mt-1 grid w-72 gap-2 rounded-[10px] border border-slate-200 bg-white p-3 shadow-lg">
+              {composeChannel === 'sms' && <div className="text-xs leading-5 text-slate-500">Sending from {displayReplyNumber(selectedThreadFromNumber)}</div>}
+              <label className="flex min-h-11 items-center justify-between gap-2 rounded-[7px] border border-slate-200 bg-white pl-3 pr-2 text-sm font-semibold text-slate-500 lg:text-xs">
                 Stage
                 <select
                   value={selected.normalized_stage || 'target'}
@@ -4847,6 +4844,8 @@ function PhoneTab({
               <button onClick={() => onSelectContact(selected)} className="min-h-11 shrink-0 rounded-xl bg-slate-100 px-4 text-sm font-semibold text-slate-600 hover:bg-slate-200 xl:hidden">
                 Details
               </button>
+                </div>
+              </details>
             </div>
             {mediaUrls.length > 0 && (
               <div className="mb-2 flex gap-2 overflow-x-auto">
@@ -4869,22 +4868,22 @@ function PhoneTab({
             )}
             {composeChannel === 'sms' ? (
               <div className="space-y-2">
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-3">
                   <button
                     onClick={() => setScheduleMode(current => !current)}
-                    className={`min-h-11 rounded-full border px-4 text-sm font-semibold transition lg:min-h-8 lg:text-xs ${scheduleMode ? 'border-[#071421] bg-[#071421] text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+                    className={`min-h-11 text-sm font-semibold transition lg:min-h-8 lg:text-xs ${scheduleMode ? 'text-[#071421]' : 'text-slate-500 hover:text-[#071421]'}`}
                   >
                     {scheduleMode ? 'Scheduled' : 'Schedule'}
                   </button>
-                  <button
+                  {!scheduleMode && <button
                     onClick={() => {
                       setScheduleMode(true)
                       setScheduledAt(defaultScheduledReplyTime(aiSuggestion || selected.playbook))
                     }}
-                    className="min-h-11 rounded-full border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 lg:min-h-8 lg:text-xs"
+                    className="min-h-11 text-sm font-semibold text-emerald-700 transition hover:text-emerald-900 lg:min-h-8 lg:text-xs"
                   >
-                    Human timing
-                  </button>
+                    Choose suggested time
+                  </button>}
                   {scheduleMode && (
                     <input
                       type="datetime-local"

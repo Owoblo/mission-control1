@@ -507,11 +507,10 @@ function SalesPipelineContent() {
         </div>
       </section>
 
-      <section className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-4">
-        <div className="mb-3 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+      <section className="border-y border-[var(--app-line)] py-3">
+        <div className="mb-2 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">Simple Workflow</div>
-            <div className="mt-1 text-sm text-[var(--app-muted)]">Work from follow-up first, then drafts, then sent quotes. Accepted jobs stay visible without cluttering the chase list.</div>
+            <div className="text-sm font-semibold text-[var(--app-ink)]">Sales state</div>
           </div>
           {workflowFilter !== 'all' ? (
             <button onClick={() => setWorkflowFilter('all')} className="text-xs font-medium text-[var(--app-accent)] hover:underline">
@@ -519,7 +518,7 @@ function SalesPipelineContent() {
             </button>
           ) : null}
         </div>
-        <div className="grid gap-2 md:grid-cols-5">
+        <div className="flex gap-2 overflow-x-auto">
           {([
             ['follow_up', 'Follow Up Today', workflowCounts.follow_up],
             ['draft', 'Draft / Not Sent', workflowCounts.draft],
@@ -530,14 +529,14 @@ function SalesPipelineContent() {
             <button
               key={key}
               onClick={() => setWorkflowFilter(current => current === key ? 'all' : key)}
-              className={`rounded-[10px] border px-4 py-3 text-left transition ${
+              className={`flex min-h-11 shrink-0 items-center gap-2 rounded-[7px] border px-3 py-2 text-left transition ${
                 workflowFilter === key
                   ? 'border-[var(--app-accent)] bg-[var(--app-accent-soft)]'
                   : 'border-[var(--app-line)] bg-[var(--app-bg)] hover:border-[var(--app-ink)]'
               }`}
             >
-              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">{label}</div>
-              <div className="mt-2 text-2xl font-semibold text-[var(--app-ink)]">{count}</div>
+              <div className="text-xs font-semibold text-[var(--app-muted)]">{label}</div>
+              <div className="text-sm font-semibold text-[var(--app-ink)]">{count}</div>
             </button>
           ))}
         </div>

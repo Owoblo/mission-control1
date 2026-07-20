@@ -81,7 +81,7 @@ export default function SalesQuotesIndexPage() {
   }, [leadMap, query, quotes])
 
   return (
-    <div className="crm-shell space-y-8">
+    <div className="crm-shell space-y-6">
       <section className="flex items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-[28px] font-semibold tracking-tight text-[var(--app-ink)]">Quotes</h1>

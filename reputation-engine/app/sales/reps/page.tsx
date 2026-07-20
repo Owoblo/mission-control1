@@ -53,7 +53,7 @@ export default function RepsPage() {
   if (!data) return <div className="crm-shell"><h1 className="sr-only">Rep performance</h1><div role="alert" className="crm-panel p-16 text-center text-sm text-rose-500">Failed to load.</div></div>
 
   return (
-    <div className="crm-shell space-y-8">
+    <div className="crm-shell space-y-6">
       <div>
         <h1 className="font-display text-2xl font-bold text-[#071421]">Rep Performance</h1>
         <p className="mt-1 text-sm text-[var(--app-muted)]">Close rates, revenue, response time, and coaching signals per rep.</p>

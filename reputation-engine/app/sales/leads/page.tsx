@@ -296,33 +296,23 @@ function SalesLeadsIndexContent() {
             : 'No active leads match this filter.'
 
   return (
-    <div className="crm-shell space-y-8">
-      <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div className="crm-shell space-y-6">
+      <section className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="font-display text-[28px] font-semibold tracking-tight text-[var(--app-ink)]">Leads</h1>
-          <div className="mt-2 text-sm text-[var(--app-muted)]">
-            Focus mode keeps reps on leads that need action, while deleted leads stay recoverable for managers.
+          <div className="mt-1 text-sm text-[var(--app-muted)]">What needs a response or decision now.</div>
+        </div>
+        <details className="relative self-start lg:self-auto">
+          <summary className="crm-button cursor-pointer list-none">Tools</summary>
+          <div className="absolute right-0 z-30 mt-2 grid w-52 gap-1 rounded-[10px] border border-[var(--app-line)] bg-white p-2 shadow-lg">
+            <button onClick={() => void refresh({ includeDeleted: viewMode === 'deleted' })} className="rounded-[7px] px-3 py-2 text-left text-sm hover:bg-[var(--app-bg)]">Refresh data</button>
+            <button onClick={() => void syncCallHistory()} disabled={backfilling} className="rounded-[7px] px-3 py-2 text-left text-sm hover:bg-[var(--app-bg)] disabled:opacity-50">{backfilling ? 'Syncing…' : 'Sync call history'}</button>
+            <Link href="/sales/cleanup" className="rounded-[7px] px-3 py-2 text-sm text-[var(--app-muted)] hover:bg-[var(--app-bg)] hover:text-rose-700">Review junk leads</Link>
           </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button onClick={() => void refresh({ includeDeleted: viewMode === 'deleted' })} className="crm-button">Refresh</button>
-          <button
-            onClick={() => void syncCallHistory()}
-            disabled={backfilling}
-            className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] px-4 py-2 text-sm font-medium text-[var(--app-muted)] transition hover:border-[#071421] hover:text-[#071421] disabled:opacity-50"
-          >
-            {backfilling ? 'Syncing…' : 'Sync Call History'}
-          </button>
-          <Link
-            href="/sales/cleanup"
-            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-500 transition hover:border-red-300 hover:text-red-600"
-          >
-            🗑 Clean Up Junk Leads
-          </Link>
-        </div>
+        </details>
       </section>
 
-      <section className="rounded-[12px] border border-[var(--app-line)] bg-[var(--app-panel)] p-4">
+      <section className="border-b border-[var(--app-line)] pb-3">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap gap-2">
             {LEAD_VIEW_MODES.map(mode => {
@@ -342,7 +332,7 @@ function SalesLeadsIndexContent() {
                   key={mode.id}
                   type="button"
                   onClick={() => setViewMode(mode.id)}
-                  className={`rounded-full border px-3 py-2 text-sm font-semibold transition ${
+                  className={`rounded-[7px] border px-3 py-2 text-sm font-semibold transition ${
                     active
                       ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white'
                       : 'border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)]'
@@ -361,44 +351,33 @@ function SalesLeadsIndexContent() {
 
       {/* Today's Calls / Overdue Follow-ups */}
       {viewMode !== 'deleted' && viewMode !== 'booked' && todaysCallList.length > 0 && (
-        <section className="rounded-[10px] border border-amber-200 bg-amber-50">
-          <div className="flex items-center justify-between border-b border-amber-200 px-5 py-3">
-            <span className="text-sm font-semibold text-amber-800">
-              📞 {todaysCallList.filter(({ lead }) => (lead.followUpDate || '') < today).length > 0
+        <section className="overflow-hidden rounded-[10px] border border-[var(--app-line)] bg-white">
+          <div className="flex items-center justify-between border-b border-[var(--app-line)] px-5 py-3">
+            <span className="text-sm font-semibold text-[var(--app-ink)]">
+              {todaysCallList.filter(({ lead }) => (lead.followUpDate || '') < today).length > 0
                 ? `${todaysCallList.filter(({ lead }) => (lead.followUpDate || '') < today).length} overdue · `
                 : ''}{todaysCallList.filter(({ lead }) => lead.followUpDate === today).length} due today
             </span>
-            <span className="text-xs text-amber-600">Follow-ups that need a call today</span>
+            <span className="text-xs text-[var(--app-muted)]">Call queue</span>
           </div>
-          <div className="divide-y divide-amber-100">
-            {todaysCallList.map(({ lead, guidance }) => (
-              <div key={lead.id} className="flex items-center justify-between gap-4 px-5 py-3">
+          <div className="divide-y divide-[var(--app-line)]">
+            {todaysCallList.slice(0, 6).map(({ lead, guidance }) => (
+              <Link key={lead.id} href={`/sales/leads/${lead.id}`} className="group flex items-center justify-between gap-4 px-5 py-3 transition hover:bg-[var(--app-bg)]">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     {(lead.followUpDate || '') < today && (
                       <span className="h-2 w-2 rounded-full bg-rose-500" />
                     )}
                     <span className="font-medium text-[var(--app-ink)]">{lead.name || 'Unnamed'}</span>
-                    <span className="text-xs text-amber-600">{(lead.followUpDate || '') < today ? `Overdue since ${lead.followUpDate}` : 'Due today'}</span>
+                    <span className="text-xs text-[var(--app-muted)]">{(lead.followUpDate || '') < today ? `Overdue since ${lead.followUpDate}` : 'Due today'}</span>
                   </div>
                   <div className="mt-0.5 text-xs text-[var(--app-muted)]">{guidance.action.nextAction}</div>
                 </div>
-                <div className="flex shrink-0 gap-2">
-                  <Link href={`/sales/leads/${lead.id}`} className="rounded-[7px] border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-50">
-                    Open
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => void handleMarkNotInterested(lead)}
-                    disabled={rowActionId === lead.id}
-                    className="rounded-[7px] border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-60"
-                  >
-                    Not Interested
-                  </button>
-                </div>
-              </div>
+                <span className="shrink-0 text-sm font-semibold text-[var(--app-accent)] opacity-0 transition group-hover:opacity-100">Open →</span>
+              </Link>
             ))}
           </div>
+          {todaysCallList.length > 6 ? <div className="border-t border-[var(--app-line)] px-5 py-2 text-xs text-[var(--app-muted)]">Showing the 6 oldest. {todaysCallList.length - 6} remain in the Follow-Up queue.</div> : null}
         </section>
       )}
 

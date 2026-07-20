@@ -359,7 +359,7 @@ export default function FinancePage() {
     costs
 
   return (
-    <div className="crm-shell space-y-8">
+    <div className="crm-shell space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>

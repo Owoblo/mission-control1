@@ -1151,7 +1151,7 @@ function SalesInboxPageInner() {
           </div>
         ) : (
           <div className="flex-1 min-h-0 min-w-0 md:flex">
-            <section className={`${(selected || (viewMode === 'messages' && selectedThread) || (viewMode === 'email' && selectedEmailId)) ? 'hidden md:flex' : 'flex'} w-full flex-shrink-0 overflow-hidden border-r border-[var(--app-line)] bg-[var(--app-panel)] md:w-[470px] min-h-0`}>
+            <section className={`${(selected || (viewMode === 'messages' && selectedThread) || (viewMode === 'email' && selectedEmailId)) ? 'hidden md:flex' : 'flex'} w-full flex-shrink-0 overflow-hidden border-r border-[var(--app-line)] bg-[var(--app-panel)] md:w-[430px] min-h-0`}>
               <div className="flex min-h-0 flex-1 h-full">
                 <aside className="hidden w-[72px] shrink-0 flex-col border-r border-[var(--app-line)] bg-[var(--app-bg)] py-3 md:flex">
                   <div className="mb-3 px-3">
@@ -1181,7 +1181,7 @@ function SalesInboxPageInner() {
                         <span className="flex items-center justify-center">{tab.icon}</span>
                         <span className="text-[9px] font-semibold leading-none">{tab.label}</span>
                         {tab.count > 0 && (
-                          <span className={`absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold ${active ? 'bg-[var(--app-accent)] text-white' : 'bg-rose-500 text-white'}`}>
+                          <span className={`absolute right-0 top-1 text-[9px] font-semibold ${active ? 'text-[var(--app-accent)]' : 'text-[var(--app-muted)]'}`}>
                             {tab.count > 99 ? '99+' : tab.count}
                           </span>
                         )}
@@ -1194,27 +1194,13 @@ function SalesInboxPageInner() {
                   {/* ── Compact header ── */}
                   <div className="shrink-0 border-b border-[var(--app-line)] px-4 py-3 space-y-2.5">
 
-                    {/* Title row + today stats */}
+                    {/* Title row: one operational measure, utilities stay secondary. */}
                     <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-baseline gap-2">
                         <span className="text-base font-bold text-[var(--app-ink)]">Inbox</span>
-                        <span className="text-xs text-[var(--app-muted)]">
-                          {todayMetrics.inbound} today
-                          {todayMetrics.calls > 0 ? ` · ${todayMetrics.calls} calls` : ''}
-                          {todayMetrics.sms > 0 ? ` · ${todayMetrics.sms} SMS` : ''}
-                          {todayMetrics.forms > 0 ? ` · ${todayMetrics.forms} forms` : ''}
-                        </span>
+                        <span className="text-xs text-[var(--app-muted)]">{unreadVisibleCount > 0 ? `${unreadVisibleCount} need attention` : 'Caught up'}</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {unreadVisibleCount > 0 ? (
-                          <button onClick={() => void markVisibleAsRead()} className="rounded-xl border border-[var(--app-line)] bg-white px-2.5 py-1 text-[11px] font-semibold text-[var(--app-ink)] transition hover:border-[var(--app-ink)]">
-                            Mark all read
-                          </button>
-                        ) : null}
-                        <span className="text-xs font-semibold text-[var(--app-muted)]">
-                          {shownCount} shown{unreadVisibleCount > 0 ? ` · ${unreadVisibleCount} unread` : ''}
-                        </span>
-                      </div>
+                      {unreadVisibleCount > 0 ? <button onClick={() => void markVisibleAsRead()} className="text-[11px] font-semibold text-[var(--app-muted)] transition hover:text-[var(--app-ink)]">Mark read</button> : null}
                     </div>
 
                     {/* Mobile tab row */}
@@ -1740,7 +1726,12 @@ function SalesInboxPageInner() {
                   )
                 })()
               ) : !selected ? (
-                <div className="flex-1 overflow-y-auto p-16 text-center text-sm text-[var(--app-muted)]">Select an inbound lead.</div>
+                <div className="flex flex-1 items-center justify-center p-8">
+                  <div className="max-w-sm text-center">
+                    <div className="text-base font-semibold text-[var(--app-ink)]">Choose the next conversation</div>
+                    <p className="mt-2 text-sm leading-6 text-[var(--app-muted)]">Open an item to see its customer context, history, and the action that should happen next.</p>
+                  </div>
+                </div>
               ) : (
                 <div className="flex-1 overflow-y-auto">
                 <div className="min-h-full">
