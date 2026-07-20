@@ -6425,8 +6425,17 @@ function PartnershipEngineInner() {
 
   const loadContacts = useCallback(async () => {
     setContactsLoading(true)
-    const r = await fetch('/api/marketing/contacts?limit=2000&offset=0', { credentials: 'include' })
-    if (r.ok) { const d = await r.json() as { contacts?: Contact[] }; setContacts(d.contacts ?? []) }
+    const collected: Contact[] = []
+    const pageSize = 250
+    for (let offset = 0; offset < 2000; offset += pageSize) {
+      const r = await fetch(`/api/marketing/contacts?limit=${pageSize}&offset=${offset}`, { credentials: 'include' })
+      if (!r.ok) break
+      const d = await r.json() as { contacts?: Contact[]; total?: number }
+      const page = d.contacts ?? []
+      collected.push(...page)
+      if (page.length < pageSize || collected.length >= Number(d.total || 0)) break
+    }
+    setContacts(collected)
     setContactsLoading(false)
   }, [])
 

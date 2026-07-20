@@ -9,7 +9,8 @@ export async function GET() {
 
   try {
     // Manager/owner can see all jobs; crew sees only assigned ones
-    const allLeads = (await listBookedSalesLeads())
+    const [bookedLeads, quotes] = await Promise.all([listBookedSalesLeads(), listSalesQuotes()])
+    const allLeads = bookedLeads
       .filter(lead => isBookedLikeStage(lead.stage))
       .sort((a, b) => (a.moveDate || '9999').localeCompare(b.moveDate || '9999'))
 
@@ -22,11 +23,13 @@ export async function GET() {
         })
       : allLeads
 
-  // Get matching quotes
-    const quotes = await listSalesQuotes()
+    const quoteByLead = new Map(quotes
+      .filter(quote => quote.status !== 'declined')
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map(quote => [quote.leadId, quote] as const))
 
     const jobs = filtered.map(lead => {
-      const quote = quotes.find(q => q.leadId === lead.id && q.status !== 'declined') ?? null
+      const quote = quoteByLead.get(lead.id) ?? null
       return { lead, quote }
     })
 

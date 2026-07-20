@@ -11,7 +11,7 @@ import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { parseSalesAlertNote } from '@/lib/server/sales-alerts'
 import { isInboundLeadUnread, isSalesEmailUnread } from '@/lib/server/inbox-state'
 import { getSessionUser } from '@/lib/server/session'
-import { listAllInboundLeads, listFollowUpLogs, listSalesEmails, listSalesLeads } from '@/lib/server/sales-repository'
+import { listAllInboundLeads, listFollowUpLogs, listSalesEmails, listSalesLeadInboxSnapshots } from '@/lib/server/sales-repository'
 import { buildSmsThreads, listSmsMessages } from '@/lib/server/sms-threads'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { uid } from '@/lib/sales'
@@ -95,7 +95,7 @@ export async function GET() {
 
   const [allInboundLeads, crmLeads, allEmails, followUpLogs, smsMessages, acknowledgedKeys] = await Promise.all([
     listAllInboundLeads().catch(() => [] as Awaited<ReturnType<typeof listAllInboundLeads>>),
-    listSalesLeads().catch(() => [] as Awaited<ReturnType<typeof listSalesLeads>>),
+    listSalesLeadInboxSnapshots().catch(() => [] as Awaited<ReturnType<typeof listSalesLeadInboxSnapshots>>),
     listSalesEmails().catch(() => [] as Awaited<ReturnType<typeof listSalesEmails>>),
     listFollowUpLogs().catch(() => [] as Awaited<ReturnType<typeof listFollowUpLogs>>),
     listSmsMessages().catch(() => []),

@@ -49,6 +49,7 @@ type LeadLifecycleSnapshot = {
 }
 type LeadIdentityRow = {
   id: string
+  createdAt?: string | null
   name?: string | null
   stage?: string | null
   phone?: string | null
@@ -65,6 +66,10 @@ type LeadInboxRow = LeadIdentityRow & {
   moveType?: string | null
   totalCubicFeet?: number | string | null
   callLogs?: CallLogEntry[] | string | null
+  inboxState?: CRMLead['inboxState'] | string | null
+  assignedRep?: string | null
+  assignedRepName?: string | null
+  assignedRepUserId?: string | null
 }
 type LeadSearchRow = LeadIdentityRow & {
   originAddress?: string | null
@@ -74,10 +79,10 @@ type LeadSearchRow = LeadIdentityRow & {
   notes?: string | null
 }
 
-export type SalesLeadIdentitySnapshot = Pick<CRMLead, 'id' | 'name' | 'stage' | 'phone' | 'email' | 'inboundId' | 'mergedIntoLeadId'>
+export type SalesLeadIdentitySnapshot = Pick<CRMLead, 'id' | 'createdAt' | 'name' | 'stage' | 'phone' | 'email' | 'inboundId' | 'mergedIntoLeadId'>
 export type SalesLeadInboxSnapshot =
   SalesLeadIdentitySnapshot &
-  Pick<CRMLead, 'branch' | 'originAddress' | 'originCity' | 'destAddress' | 'destCity' | 'moveType' | 'totalCubicFeet' | 'callLogs'>
+  Pick<CRMLead, 'branch' | 'originAddress' | 'originCity' | 'destAddress' | 'destCity' | 'moveType' | 'totalCubicFeet' | 'callLogs' | 'inboxState' | 'assignedRep' | 'assignedRepName' | 'assignedRepUserId'>
 export type SalesLeadSearchSnapshot =
   SalesLeadIdentitySnapshot &
   Pick<CRMLead, 'originAddress' | 'originCity' | 'destAddress' | 'destCity' | 'notes'>
@@ -113,9 +118,18 @@ function normalizeProjectedCallLogs(value?: CallLogEntry[] | string | null) {
   return []
 }
 
+function normalizeProjectedObject<T>(value?: T | string | null): T | undefined {
+  if (value && typeof value === 'object') return value as T
+  if (typeof value === 'string' && value.trim()) {
+    try { return JSON.parse(value) as T } catch { return undefined }
+  }
+  return undefined
+}
+
 function normalizeLeadIdentitySnapshot(row: LeadIdentityRow): SalesLeadIdentitySnapshot {
   return {
     id: row.id,
+    createdAt: normalizeProjectedText(row.createdAt) || new Date(0).toISOString(),
     name: normalizeProjectedText(row.name) || 'Unknown Lead',
     stage: (normalizeProjectedText(row.stage) || 'new') as CRMLead['stage'],
     phone: normalizeProjectedText(row.phone),
@@ -137,6 +151,10 @@ function normalizeLeadInboxSnapshot(row: LeadInboxRow): SalesLeadInboxSnapshot {
     moveType: normalizeProjectedText(row.moveType) as CRMLead['moveType'] | undefined,
     totalCubicFeet: normalizeProjectedNumber(row.totalCubicFeet),
     callLogs: normalizeProjectedCallLogs(row.callLogs),
+    inboxState: normalizeProjectedObject<CRMLead['inboxState']>(row.inboxState),
+    assignedRep: normalizeProjectedText(row.assignedRep),
+    assignedRepName: normalizeProjectedText(row.assignedRepName),
+    assignedRepUserId: normalizeProjectedText(row.assignedRepUserId),
   }
 }
 
@@ -209,6 +227,7 @@ function filterDisplayDuplicateSalesLeads(leads: CRMLead[]) {
 
 const LEAD_IDENTITY_SELECT = [
   'id',
+  'createdAt:data->>createdAt',
   'name:data->>name',
   'stage:data->>stage',
   'phone:data->>phone',
@@ -219,6 +238,7 @@ const LEAD_IDENTITY_SELECT = [
 
 const LEAD_INBOX_SELECT = [
   'id',
+  'createdAt:data->>createdAt',
   'name:data->>name',
   'stage:data->>stage',
   'phone:data->>phone',
@@ -233,6 +253,10 @@ const LEAD_INBOX_SELECT = [
   'moveType:data->>moveType',
   'totalCubicFeet:data->>totalCubicFeet',
   'callLogs:data->callLogs',
+  'inboxState:data->inboxState',
+  'assignedRep:data->>assignedRep',
+  'assignedRepName:data->>assignedRepName',
+  'assignedRepUserId:data->>assignedRepUserId',
 ].join(',')
 
 const LEAD_SEARCH_SELECT = [

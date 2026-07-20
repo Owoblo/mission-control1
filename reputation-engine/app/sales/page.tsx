@@ -407,9 +407,9 @@ export default function SalesDashboardPage() {
 
         <section className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="font-display text-[2rem] font-semibold tracking-tight text-[var(--app-ink)] md:text-[28px]">
-              {dashboardMode === 'rep' ? 'Sales Rep Dashboard' : 'Sales environment'}
-            </h1>
+            {dashboardMode === 'rep'
+              ? <h1 className="font-display text-[2rem] font-semibold tracking-tight text-[var(--app-ink)] md:text-[28px]">Sales Rep Dashboard</h1>
+              : <h2 className="font-display text-[2rem] font-semibold tracking-tight text-[var(--app-ink)] md:text-[28px]">Sales environment</h2>}
             <div className="mt-2 text-sm text-[var(--app-muted)]">
               {dashboardMode === 'rep'
                 ? 'Start with the required actions queue. Everything else should help you close or unblock leads faster.'

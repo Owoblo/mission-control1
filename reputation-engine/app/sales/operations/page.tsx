@@ -80,13 +80,12 @@ const OPERATIONS_FILTERS: Array<{ key: OperationsFilterKey; label: string }> = [
 ]
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10)
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
 }
 
 function tomorrowISO() {
-  const next = new Date()
-  next.setDate(next.getDate() + 1)
-  return next.toISOString().slice(0, 10)
+  const [year, month, day] = todayISO().split('-').map(Number)
+  return new Date(Date.UTC(year, month - 1, day + 1)).toISOString().slice(0, 10)
 }
 
 function getJobMoveDate(job: Job) {
@@ -385,7 +384,7 @@ export default function OperationsPage() {
   const [viewMode, setViewMode] = useState<'cards' | 'calendar'>('calendar')
   const [branchFilter, setBranchFilter] = useState<string>('')
   const [activeFilters, setActiveFilters] = useState<OperationsFilterKey[]>([])
-  const [calMonth, setCalMonth] = useState(() => new Date().toISOString().slice(0, 7)) // YYYY-MM
+  const [calMonth, setCalMonth] = useState(() => todayISO().slice(0, 7)) // YYYY-MM
 
   const canManageCrew = currentUser?.role === 'owner' || currentUser?.role === 'manager' || currentUser?.role === 'operations_lead'
   const isOpsLead = currentUser?.role === 'operations_lead'
@@ -647,7 +646,7 @@ export default function OperationsPage() {
           <h1 className="font-display text-2xl font-bold text-[#1a2744]">Operations</h1>
           <p className="mt-1 text-sm text-slate-500">
             Dispatch Readiness ·{' '}
-            {new Date().toLocaleDateString('en-CA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            {new Date().toLocaleDateString('en-CA', { timeZone: 'America/Toronto', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             {isOpsLead && currentUser?.name ? ` · ${currentUser.name}` : ''}
           </p>
         </div>
@@ -998,7 +997,7 @@ function JobsCalendar({
   }
 
   const monthLabel = new Date(year, month - 1, 1).toLocaleDateString('en-CA', { month: 'long', year: 'numeric' })
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayISO()
   const selectedRoute = selectedJob ? getJobRoute(selectedJob) : null
   const selectedChecklist = selectedJob ? deriveOpsChecklist(selectedJob.lead) : null
   const selectedReadiness = selectedJob ? deriveDispatchReadiness(selectedJob) : null
