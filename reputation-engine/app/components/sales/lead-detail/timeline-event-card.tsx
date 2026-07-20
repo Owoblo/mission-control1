@@ -318,7 +318,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
             {!isOutbound && item.emailSubject && (
               <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] opacity-50">Re: {item.emailSubject}</div>
             )}
-            {item.text}
+            <span className="whitespace-pre-wrap">{cleanedText}</span>
           </div>
         </div>
         <div className={`flex items-center gap-1.5 px-9 text-[10px] text-[var(--app-muted)] ${isOutbound ? 'flex-row-reverse' : ''}`}>
