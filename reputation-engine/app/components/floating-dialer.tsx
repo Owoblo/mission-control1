@@ -14,6 +14,7 @@ import {
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import { getSaturnBranchLabel, isSaturnBranchPhoneNumber, normalizePhone as normalizeSharedPhone } from '@/lib/sales-phones'
 import { loadTwilioVoiceSdk } from '@/lib/twilio-voice-sdk'
+import type { CRMLead } from '@/lib/types'
 
 declare global {
   type TwilioCallLike = {
@@ -262,6 +263,7 @@ export function FloatingDialer() {
   const [errorCode, setErrorCode] = useState<number | null>(null)
   const [activeLeadId, setActiveLeadId] = useState<string | null>(null)
   const [activeLeadName, setActiveLeadName] = useState<string | null>(null)
+  const [activeLeadContext, setActiveLeadContext] = useState<CRMLead | null>(null)
   const [callerProfile, setCallerProfile] = useState<DialerCallerProfile | null>(null)
   const [callerProfileLoading, setCallerProfileLoading] = useState(false)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
@@ -446,13 +448,15 @@ export function FloatingDialer() {
     activeLeadPhoneRef.current = ''
     setActiveLeadId(null)
     setActiveLeadName(null)
+    setActiveLeadContext(null)
   }
 
-  function setLeadAssociation(leadId: string, name: string | null | undefined, associatedPhone: string) {
+  function setLeadAssociation(leadId: string, name: string | null | undefined, associatedPhone: string, context?: CRMLead | null) {
     activeLeadIdRef.current = leadId
     activeLeadPhoneRef.current = toE164(associatedPhone)
     setActiveLeadId(leadId)
     setActiveLeadName(name || null)
+    setActiveLeadContext(context || null)
   }
 
   function handlePhoneChange(nextPhone: string) {
@@ -1067,7 +1071,7 @@ export function FloatingDialer() {
       void matchLeadByPhone(from).then(lead => {
         if ((incomingCallRef.current !== call && activeCallRef.current !== call) || leadMatchSeqRef.current !== matchSeq) return
         if (lead) {
-          setLeadAssociation(lead.id, lead.name, from)
+          setLeadAssociation(lead.id, lead.name, from, lead)
           activeCallLeadIdRef.current = lead.id
         }
       }).catch(() => {})
@@ -1370,7 +1374,7 @@ export function FloatingDialer() {
           const matchSeq = ++leadMatchSeqRef.current
           void matchLeadByPhone(e164).then(lead => {
             if (lead && activeCallPhoneRef.current === e164 && leadMatchSeqRef.current === matchSeq) {
-              setLeadAssociation(lead.id, lead.name, e164)
+              setLeadAssociation(lead.id, lead.name, e164, lead)
               activeCallLeadIdRef.current = lead.id
             }
           }).catch(() => {})
@@ -1801,6 +1805,12 @@ export function FloatingDialer() {
       const nextLeadId = customEvent.detail?.leadId || null
       if (nextLeadId && customEvent.detail?.phone) {
         setLeadAssociation(nextLeadId, customEvent.detail?.name, customEvent.detail.phone)
+        const requestedPhone = customEvent.detail.phone
+        void matchLeadByPhone(requestedPhone).then(matched => {
+          if (matched?.id === nextLeadId && activeLeadIdRef.current === nextLeadId) {
+            setLeadAssociation(matched.id, matched.name, requestedPhone, matched)
+          }
+        }).catch(() => {})
       } else {
         clearLeadAssociation()
       }
@@ -2299,6 +2309,14 @@ export function FloatingDialer() {
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
   }
 
+  const activeLeadLastContact = activeLeadContext
+    ? [activeLeadContext.lastInboundAt, activeLeadContext.lastHumanOutboundAt, activeLeadContext.lastTouchedAt, activeLeadContext.createdAt].filter(Boolean).sort().at(-1)
+    : null
+  const activeLeadOwner = activeLeadContext?.assignedRepName || activeLeadContext?.assignedRep || 'Unassigned'
+  const activeLeadRoute = activeLeadContext
+    ? [activeLeadContext.originCity, activeLeadContext.destCity].filter(Boolean).join(' → ')
+    : ''
+
   // ── render ────────────────────────────────────────────────────────────────
 
   return (
@@ -2331,6 +2349,15 @@ export function FloatingDialer() {
                   {activeLeadName ? 'CRM lead matched' : 'Matched CRM lead'}
                 </div>
               )}
+              {activeLeadContext && <div className="mt-4 w-full rounded-[12px] border border-white/10 bg-white/5 p-3 text-left">
+                <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                  <div><div className="text-white/35">Stage</div><div className="mt-0.5 font-medium capitalize text-white/80">{activeLeadContext.stage.replaceAll('_', ' ')}</div></div>
+                  <div><div className="text-white/35">Owner</div><div className="mt-0.5 font-medium text-white/80">{activeLeadOwner}</div></div>
+                  <div><div className="text-white/35">Move</div><div className="mt-0.5 font-medium text-white/80">{activeLeadContext.moveDate || 'Date not confirmed'}</div></div>
+                  <div><div className="text-white/35">Route</div><div className="mt-0.5 font-medium text-white/80">{activeLeadRoute || activeLeadContext.branch || 'Not confirmed'}</div></div>
+                </div>
+                <div className="mt-2 border-t border-white/10 pt-2 text-xs text-white/55">Last contact: {activeLeadLastContact ? new Date(activeLeadLastContact).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'No contact recorded'}</div>
+              </div>}
               <button
                 onClick={() => void blockIncomingAsSpam()}
                 disabled={blockingIncoming}
@@ -2403,6 +2430,10 @@ export function FloatingDialer() {
                   {status === 'active' ? 'Live on' : 'Calling from'} {callerProfile.branchLabel || 'Primary'} · {callerProfile.fromNumber}
                 </div>
               )}
+              {activeLeadContext && <div className="mt-3 w-full rounded-[12px] border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/60">
+                <div className="flex flex-wrap justify-between gap-2"><span className="capitalize">{activeLeadContext.stage.replaceAll('_', ' ')}</span><span>{activeLeadContext.moveDate || 'Move date TBD'}</span><span>{activeLeadOwner}</span></div>
+                <div className="mt-1 truncate text-white/40">{activeLeadRoute || activeLeadContext.branch || 'Route not confirmed'} · Last contact {activeLeadLastContact ? new Date(activeLeadLastContact).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }) : 'not recorded'}</div>
+              </div>}
 
               <div className="mt-3 h-9 flex items-center">
                 {status === 'connecting' ? (

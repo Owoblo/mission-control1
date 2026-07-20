@@ -1,6 +1,6 @@
 'use client'
 
-import { type FormEvent, useEffect, useMemo, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import { formatDate, formatMoney } from '@/lib/sales'
 import type { CRMLead, CRMQuote, LeadMediaAsset } from '@/lib/types'
@@ -86,13 +86,13 @@ export default function CrewCalendarPage() {
     return !d || d < today
   })
 
-  function replaceLead(nextLead: CRMLead) {
+  const replaceLead = useCallback((nextLead: CRMLead) => {
     setJobs(current => current.map(job => (
       job.lead.id === nextLead.id
         ? { ...job, lead: nextLead }
         : job
     )))
-  }
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -173,23 +173,47 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [phaseBusy, setPhaseBusy] = useState(false)
   const [phaseError, setPhaseError] = useState<string | null>(null)
+  const [queuedPhase, setQueuedPhase] = useState<string | null>(null)
+  const queueKey = `saturn:crew-phase:${lead.id}`
+
+  const submitPhase = useCallback(async (phase: string) => {
+    const response = await fetch(`/api/crew/jobs/${lead.id}/execution`, {
+      method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phase }),
+    })
+    const payload = await response.json() as { lead?: CRMLead; error?: string }
+    if (!response.ok || !payload.lead) throw Object.assign(new Error(payload.error || 'Could not update job progress.'), { status: response.status })
+    onLeadUpdated(payload.lead)
+    window.localStorage.removeItem(queueKey)
+    setQueuedPhase(null)
+  }, [lead.id, onLeadUpdated, queueKey])
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem(queueKey)
+    if (stored) setQueuedPhase(stored)
+    const sync = () => {
+      const pending = window.localStorage.getItem(queueKey)
+      if (!pending || !navigator.onLine) return
+      setPhaseBusy(true)
+      void submitPhase(pending).catch(error => setPhaseError(error instanceof Error ? error.message : 'Queued update could not sync.')).finally(() => setPhaseBusy(false))
+    }
+    window.addEventListener('online', sync)
+    sync()
+    return () => window.removeEventListener('online', sync)
+  }, [queueKey, submitPhase])
 
   async function completeNextPhase() {
     if (!nextPhase) return
     setPhaseBusy(true)
     setPhaseError(null)
     try {
-      const response = await fetch(`/api/crew/jobs/${lead.id}/execution`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phase: nextPhase.phase }),
-      })
-      const payload = await response.json() as { lead?: CRMLead; error?: string }
-      if (!response.ok || !payload.lead) throw new Error(payload.error || 'Could not update job progress.')
-      onLeadUpdated(payload.lead)
+      await submitPhase(nextPhase.phase)
     } catch (error) {
-      setPhaseError(error instanceof Error ? error.message : 'Could not update job progress.')
+      const status = Number((error as { status?: number })?.status || 0)
+      if (!status && (!navigator.onLine || error instanceof TypeError)) {
+        window.localStorage.setItem(queueKey, nextPhase.phase)
+        setQueuedPhase(nextPhase.phase)
+        setPhaseError(null)
+      } else setPhaseError(error instanceof Error ? error.message : 'Could not update job progress.')
     } finally {
       setPhaseBusy(false)
     }
@@ -251,6 +275,7 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
         <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-[#C99700] transition-all" style={{ width: `${Math.round((completedPhaseCount / MOVE_EXECUTION_PHASES.length) * 100)}%` }} /></div>
         <div className="mt-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Next action</div>
         <div className="mt-1 text-lg font-semibold text-[#071421]">{nextPhase?.label || 'Move workflow complete'}</div>
+        {queuedPhase && <div role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">Saved on this device. It will sync automatically when the connection returns.</div>}
         {phaseError && <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{phaseError}</div>}
         {nextPhase && <button type="button" onClick={() => void completeNextPhase()} disabled={phaseBusy} className="mt-4 min-h-14 w-full rounded-xl bg-[#C99700] px-5 py-3 text-base font-bold text-[#071421] transition hover:bg-[#b88900] disabled:opacity-60">{phaseBusy ? 'Updating…' : `Mark: ${nextPhase.label}`}</button>}
       </section>
