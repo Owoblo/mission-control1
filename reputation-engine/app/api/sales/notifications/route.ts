@@ -13,6 +13,8 @@ import { isInboundLeadUnread, isSalesEmailUnread } from '@/lib/server/inbox-stat
 import { getSessionUser } from '@/lib/server/session'
 import { listAllInboundLeads, listFollowUpLogs, listSalesEmails, listSalesLeads } from '@/lib/server/sales-repository'
 import { buildSmsThreads, listSmsMessages } from '@/lib/server/sms-threads'
+import { requireSupabaseEnv } from '@/lib/server/runtime'
+import { uid } from '@/lib/sales'
 
 export interface NotificationItem {
   id: string
@@ -40,6 +42,16 @@ type NotificationsPayload = {
 
 const NOTIFICATIONS_CACHE_TTL_MS = 10_000
 const notificationsCache = new Map<string, { expiresAt: number; payload: NotificationsPayload }>()
+const NOTIFICATION_DISPOSITION_TYPE = 'notification_disposition'
+
+async function listAcknowledgedKeys(userId: string) {
+  const { url, headers } = requireSupabaseEnv()
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  const response = await fetch(`${url}/rest/v1/analytics_events?select=properties,ts&event_type=eq.${NOTIFICATION_DISPOSITION_TYPE}&rep_id=eq.${encodeURIComponent(userId)}&ts=gte.${encodeURIComponent(cutoff)}&order=ts.desc&limit=500`, { headers, cache: 'no-store' })
+  if (!response.ok) return new Set<string>()
+  const rows = await response.json() as Array<{ properties?: { dedupeKey?: string } }>
+  return new Set(rows.map(row => row.properties?.dedupeKey).filter((key): key is string => Boolean(key)))
+}
 
 const SOURCE_LABELS: Record<string, string> = {
   twilio_call:   'Inbound call',
@@ -69,7 +81,7 @@ function formatNotificationPhone(value?: string | null) {
 
 export async function GET() {
   const session = await getSessionUser()
-  if (!canAccessSalesWorkspace(session)) {
+  if (!session || !canAccessSalesWorkspace(session)) {
     return NextResponse.json({ items: [], totalCount: 0, breakdown: { leads: 0, sms: 0, emails: 0, alerts: 0 } })
   }
 
@@ -81,12 +93,13 @@ export async function GET() {
 
   const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000)
 
-  const [allInboundLeads, crmLeads, allEmails, followUpLogs, smsMessages] = await Promise.all([
+  const [allInboundLeads, crmLeads, allEmails, followUpLogs, smsMessages, acknowledgedKeys] = await Promise.all([
     listAllInboundLeads().catch(() => [] as Awaited<ReturnType<typeof listAllInboundLeads>>),
     listSalesLeads().catch(() => [] as Awaited<ReturnType<typeof listSalesLeads>>),
     listSalesEmails().catch(() => [] as Awaited<ReturnType<typeof listSalesEmails>>),
     listFollowUpLogs().catch(() => [] as Awaited<ReturnType<typeof listFollowUpLogs>>),
     listSmsMessages().catch(() => []),
+    listAcknowledgedKeys(session.userId || session.name || 'unknown').catch(() => new Set<string>()),
   ])
 
   // ── 1. Unclaimed inbound leads ──────────────────────────────────────────
@@ -250,6 +263,7 @@ export async function GET() {
   const seen = new Set<string>()
   const allItems = [...alertItems, ...leadItems, ...smsItems, ...emailItems]
     .filter(visibleToSession)
+    .filter(item => !acknowledgedKeys.has(item.dedupeKey))
     .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
     .filter(item => seen.has(item.dedupeKey) ? false : (seen.add(item.dedupeKey), true))
     .slice(0, 40)
@@ -262,4 +276,22 @@ export async function GET() {
   notificationsCache.set(cacheKey, { expiresAt: Date.now() + NOTIFICATIONS_CACHE_TTL_MS, payload })
 
   return NextResponse.json(payload)
+}
+
+export async function POST(request: Request) {
+  const session = await getSessionUser()
+  if (!session || !canAccessSalesWorkspace(session)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const body = await request.json().catch(() => ({})) as { dedupeKeys?: string[]; action?: 'acknowledged' | 'resolved' }
+  const dedupeKeys = Array.from(new Set((body.dedupeKeys || []).map(key => key.trim()).filter(Boolean))).slice(0, 100)
+  if (!dedupeKeys.length) return NextResponse.json({ error: 'At least one notification key is required' }, { status: 400 })
+  const now = new Date().toISOString()
+  const { url, headers } = requireSupabaseEnv()
+  const rows = dedupeKeys.map(dedupeKey => ({
+    id: uid('ev'), event_type: NOTIFICATION_DISPOSITION_TYPE, rep_id: session.userId || session.name,
+    ts: now, created_at: now, properties: { dedupeKey, action: body.action || 'acknowledged', userName: session.name },
+  }))
+  const response = await fetch(`${url}/rest/v1/analytics_events`, { method: 'POST', headers: { ...headers, Prefer: 'return=minimal' }, body: JSON.stringify(rows), cache: 'no-store' })
+  if (!response.ok) return NextResponse.json({ error: 'Notification acknowledgement could not be saved' }, { status: 502 })
+  notificationsCache.clear()
+  return NextResponse.json({ ok: true, count: rows.length })
 }

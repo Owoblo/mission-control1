@@ -116,9 +116,13 @@ export async function POST(
 
     const category = String(formData.get('category') || 'other').trim() || 'other'
     const rawNotes = String(formData.get('notes') || '').trim()
+    const submissionId = String(formData.get('submission_id') || '').trim()
+    if (submissionId && (lead.mediaAssets || []).some(asset => asset.notes?.includes(`[submission:${submissionId}]`))) {
+      return NextResponse.json({ ok: true, lead, uploadedCount: 0, createdCost: null, duplicate: true })
+    }
     const costDate = String(formData.get('cost_date') || '').trim() || new Date().toISOString().slice(0, 10)
     const amountCents = parseAmountToCents(formData.get('amount'))
-    const assetNotes = buildReceiptNotes(category, amountCents, rawNotes)
+    const assetNotes = `${buildReceiptNotes(category, amountCents, rawNotes)}${submissionId ? ` · [submission:${submissionId}]` : ''}`
 
     let createdCost: JobCostRow | null = null
     if (amountCents !== null) {
@@ -134,7 +138,7 @@ export async function POST(
 
     const uploadedAssets = await uploadLeadMediaAssets({
       leadId: lead.id,
-      namespace: `crew-receipt-${Date.now()}`,
+      namespace: `crew-receipt-${submissionId || Date.now()}`,
       files,
       room: 'Receipts',
       source: 'receipt_upload',

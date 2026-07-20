@@ -20,6 +20,57 @@ type ExpenseUploadResponse = {
   error?: string
 }
 
+type QueuedExpense = {
+  id: string
+  leadId: string
+  files: File[]
+  category: string
+  amount: string
+  costDate: string
+  notes: string
+  queuedAt: string
+}
+
+const CREW_QUEUE_DB = 'saturn-crew-offline-v1'
+const CREW_QUEUE_STORE = 'expense-uploads'
+
+function openCrewQueue() {
+  return new Promise<IDBDatabase>((resolve, reject) => {
+    const request = indexedDB.open(CREW_QUEUE_DB, 1)
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains(CREW_QUEUE_STORE)) request.result.createObjectStore(CREW_QUEUE_STORE, { keyPath: 'id' })
+    }
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+}
+
+async function crewQueueOperation<T>(mode: IDBTransactionMode, action: (store: IDBObjectStore) => IDBRequest<T>) {
+  const db = await openCrewQueue()
+  return new Promise<T>((resolve, reject) => {
+    const transaction = db.transaction(CREW_QUEUE_STORE, mode)
+    const request = action(transaction.objectStore(CREW_QUEUE_STORE))
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+    transaction.oncomplete = () => db.close()
+  })
+}
+
+const listQueuedExpenses = () => crewQueueOperation<QueuedExpense[]>('readonly', store => store.getAll())
+const saveQueuedExpense = (item: QueuedExpense) => crewQueueOperation<IDBValidKey>('readwrite', store => store.put(item))
+const removeQueuedExpense = (id: string) => crewQueueOperation<undefined>('readwrite', store => store.delete(id))
+
+function expenseFormData(item: Omit<QueuedExpense, 'queuedAt'>) {
+  const formData = new FormData()
+  item.files.forEach(file => formData.append('files', file))
+  formData.append('category', item.category)
+  formData.append('amount', item.amount)
+  formData.append('cost_date', item.costDate)
+  formData.append('notes', item.notes)
+  formData.append('submission_id', item.id)
+  return formData
+}
+
 const EXPENSE_CATEGORIES = [
   { value: 'fuel', label: 'Fuel / Gas', icon: '⛽' },
   { value: 'supplies', label: 'Supplies', icon: '📦' },
@@ -174,6 +225,7 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
   const [phaseBusy, setPhaseBusy] = useState(false)
   const [phaseError, setPhaseError] = useState<string | null>(null)
   const [queuedPhase, setQueuedPhase] = useState<string | null>(null)
+  const [queuedExpenseCount, setQueuedExpenseCount] = useState(0)
   const queueKey = `saturn:crew-phase:${lead.id}`
 
   const submitPhase = useCallback(async (phase: string) => {
@@ -200,6 +252,29 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
     sync()
     return () => window.removeEventListener('online', sync)
   }, [queueKey, submitPhase])
+
+  const syncQueuedExpenses = useCallback(async () => {
+    if (!navigator.onLine || !('indexedDB' in window)) return
+    const queued = (await listQueuedExpenses()).filter(item => item.leadId === lead.id)
+    setQueuedExpenseCount(queued.length)
+    for (const item of queued) {
+      const response = await fetch(`/api/crew/jobs/${lead.id}/expenses`, { method: 'POST', credentials: 'include', body: expenseFormData(item) })
+      const payload = await response.json() as ExpenseUploadResponse
+      if (!response.ok || !payload.ok) throw new Error(payload.error || 'Queued receipt could not sync.')
+      await removeQueuedExpense(item.id)
+      onLeadUpdated(payload.lead)
+      setQueuedExpenseCount(count => Math.max(0, count - 1))
+      setUploadMessage('Saved field evidence synced successfully.')
+    }
+  }, [lead.id, onLeadUpdated])
+
+  useEffect(() => {
+    const sync = () => void syncQueuedExpenses().catch(error => setUploadError(error instanceof Error ? error.message : 'Queued evidence could not sync.'))
+    window.addEventListener('online', sync)
+    void listQueuedExpenses().then(items => setQueuedExpenseCount(items.filter(item => item.leadId === lead.id).length)).catch(() => undefined)
+    sync()
+    return () => window.removeEventListener('online', sync)
+  }, [lead.id, syncQueuedExpenses])
 
   async function completeNextPhase() {
     if (!nextPhase) return
@@ -229,19 +304,21 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
     setUploading(true)
     setUploadError(null)
     setUploadMessage(null)
+    const queuedItem: QueuedExpense = { id: crypto.randomUUID(), leadId: lead.id, files, category, amount, costDate, notes, queuedAt: new Date().toISOString() }
 
     try {
-      const formData = new FormData()
-      files.forEach(file => formData.append('files', file))
-      formData.append('category', category)
-      formData.append('amount', amount)
-      formData.append('cost_date', costDate)
-      formData.append('notes', notes)
+      if (!navigator.onLine) {
+        await saveQueuedExpense(queuedItem)
+        setQueuedExpenseCount(count => count + 1)
+        setFiles([]); setAmount(''); setNotes(''); setShowExpenseForm(false)
+        setUploadMessage('Saved securely on this device. It will upload when the connection returns.')
+        return
+      }
 
       const response = await fetch(`/api/crew/jobs/${lead.id}/expenses`, {
         method: 'POST',
         credentials: 'include',
-        body: formData,
+        body: expenseFormData(queuedItem),
       })
 
       const payload = await response.json() as ExpenseUploadResponse
@@ -260,7 +337,12 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
           : 'Receipt uploaded. Finance can review and log the expense from the receipt inbox.'
       )
     } catch (error) {
-      setUploadError(error instanceof Error ? error.message : 'Upload failed.')
+      if (!navigator.onLine || error instanceof TypeError) {
+        await saveQueuedExpense(queuedItem).catch(() => undefined)
+        setQueuedExpenseCount(count => count + 1)
+        setFiles([]); setAmount(''); setNotes(''); setShowExpenseForm(false)
+        setUploadMessage('Connection lost. Evidence is saved on this device and will retry automatically.')
+      } else setUploadError(error instanceof Error ? error.message : 'Upload failed.')
     } finally {
       setUploading(false)
     }
@@ -269,6 +351,7 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
   return (
     <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
       <MoveBadge dateStr={moveDate} />
+      {queuedExpenseCount > 0 && <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{queuedExpenseCount} evidence upload{queuedExpenseCount === 1 ? '' : 's'} saved on this device · waiting to sync</div>}
 
       <section className="border-y border-[var(--app-line)] py-4">
         <div className="flex items-center justify-between gap-3 text-xs text-slate-500"><span>Move-day progress</span><span>{completedPhaseCount} of {MOVE_EXECUTION_PHASES.length}</span></div>

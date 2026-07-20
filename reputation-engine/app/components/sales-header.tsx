@@ -147,6 +147,8 @@ export function SalesHeader() {
 
   function markAllRead() {
     const now = Date.now()
+    const keys = notifItems.map(item => item.dedupeKey)
+    if (keys.length) void fetch('/api/sales/notifications', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dedupeKeys: keys, action: 'acknowledged' }) })
     setSnoozedBefore(now)
     writeLocalStorageItem('ss_notif_snoozed', String(now))
     setNotifOpen(false)
@@ -339,6 +341,9 @@ export function SalesHeader() {
   }
 
   function handleNotifClick(item: NotificationItem) {
+    void fetch('/api/sales/notifications', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dedupeKeys: [item.dedupeKey], action: 'acknowledged' }) })
+    setNotifItems(current => current.filter(candidate => candidate.dedupeKey !== item.dedupeKey))
+    setNotifTotal(current => Math.max(0, current - 1))
     setNotifOpen(false)
     router.push(item.href)
   }
