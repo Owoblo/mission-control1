@@ -330,3 +330,73 @@ Production inspection cannot reveal cognition and workarounds. Conduct five 45-m
 ## Final standard
 
 The software should feel calm because it is carrying state, dependencies, memory and recovery—not because it has fewer pixels. Every page must make the correct action easier than the wrong action and leave the user more organized than it found them.
+
+## Post-fix implementation and production verification — July 20, 2026
+
+The correction program was implemented through release `6ad2ab2` and deployed to `https://go.quote2move.com`. Vercel deployment `dpl_CTJf4utV41RDJLvjonkQLueoFYjF` reached `READY`, was aliased successfully, and uploaded matching Sentry source maps. The release passed TypeScript validation, a production Next.js build, and all 106 logic tests.
+
+### Corrections completed
+
+- Replaced ambiguous payment flags with a transparent money-state model covering not attempted, deposit received, partial, paid, overpaid, partial refund, full refund, and reconciliation required.
+- Added manager/owner-only refund recording with amount bounds, required reason, reference, audit history, and canonical lead-state reconciliation.
+- Removed the duplicated lead-record hierarchy shown in the original screenshot. The authoritative job header, state, owner, risk, and next action now have one visual source; destructive actions sit behind secondary disclosure.
+- Added a continuous job spine and readiness model shared by lead detail, Booked, Operations, and crew execution. A booked label alone can no longer represent operational readiness.
+- Redirected the legacy completion trigger into the canonical Operations completion flow.
+- Prevented move-day departure when readiness is incomplete unless an authorized manager records an override reason.
+- Repaired the `crm_leads` production failure path: operational endpoints now return a safe retryable response on upstream failure, query booked stages at the database, and query only operational quote states.
+- Added role-scoped sales queues, branch-aware operations access, owner/manager controls, crew-only assignment filtering, and per-user/branch notification scoping.
+- Added incoming-call customer/job context and a durable transfer packet containing sender, customer, reason, notes, stage, move date, route, owner, and lead reference. Transfer failure is visible instead of silently ignored.
+- Unified the Twilio Voice SDK loader and retained existing recovery, queue, warm-transfer, spam/unblock, recording, and diagnostics paths.
+- Added structured promises with action, reason, channel, due time, intended outcome, owner, and completion evidence. Due and overdue promises surface as operating exceptions.
+- Added durable per-user notification acknowledgment, consequence-based priority, reason, required action, owner/branch scoping, and deduplication.
+- Added offline move-phase persistence and IndexedDB evidence/receipt upload recovery with visible unsynced count, automatic replay, and idempotency keys.
+- Added stable page headings and loading/error semantics to the previously failing routes, accessible toggle names/states, 44px CRM control minimums, and bounded partnership queue rendering.
+- Replaced the partnership 2,000-record request with progressive 250-record paging and retained referral count, company referrals, booked revenue, owner, stage, temperature, and market reporting.
+- Removed Toronto/UTC server-client date drift from Operations and the resulting production hydration failure.
+
+### Production acceptance evidence
+
+An authenticated owner-session sweep covered Dashboard, Inbox, Leads, Pipeline, Follow-Up, Quotes, Booked, Operations, Finance, Analytics, Reps, Settings, and Partnerships.
+
+| Gate | Result |
+|---|---|
+| Page HTTP status | 13/13 returned 200 |
+| Programmatic page orientation | 13/13 exposed one visible `h1` |
+| Horizontal overflow at 1440px | 0px on every audited page |
+| React/runtime page errors | 0 across the final sweep |
+| Logic tests | 106 passed, 0 failed |
+| TypeScript | Passed |
+| Production build | Passed locally and on Vercel |
+| `/api/crew/jobs` | 200 in 563ms after query correction |
+| `/api/sales/operations/jobs` | 200 in 535ms after query correction |
+| `/api/sales/notifications` | 200 in 1,027ms cold acceptance check; 139ms warm check |
+| Partnership contacts | 1, 25, 100, and 250-row reads all returned 200; 250 rows in 711ms |
+
+The three remaining sub-44px controls reported per CRM page are the persistent compact shell utilities rather than record workflow controls. The prior Follow-Up result of 25 small controls fell to 3 after the global control contract. A separate 320px/390px and 200% zoom field matrix remains an ongoing release gate, not a claim inferred from desktop geometry.
+
+### Updated scorecard
+
+Scores reflect the implemented architecture plus the final authenticated production sweep. They do not substitute for contextual staff observation.
+
+| Module | Before | Post-fix | Band | Evidence-based change |
+|---|---:|---:|---|---|
+| Dashboard | 56 | 69 | Excellent | One company-health hierarchy, role queue, one `h1`, exception-first composition |
+| Inbox | 52 | 66 | Strong | Stable async states, coherent orientation, scoped/deduplicated action feed |
+| Lead / job record | 48 | 69 | Excellent | Tautology removed; job spine, readiness, promises, payment truth, next action |
+| Pipeline | 50 | 63 | Strong | Role ownership and next-action context retained with corrected global controls |
+| Follow-Up | 47 | 65 | Strong | Workflow controls normalized from 25 undersized targets to shell-only exceptions |
+| Quotes / payments | 49 | 68 | Excellent | Safe money state, receipts, refunds, reconciliation, explicit failure response |
+| Booked | 50 | 67 | Strong | Uses the canonical Operations feed, quote selection, and readiness contract |
+| Operations / dispatch | 54 | 69 | Excellent | Canonical job state, readiness enforcement, completion, stable Toronto date rendering |
+| Finance | 55 | 67 | Strong | Transparent captured/refunded/net/balance states and reconciliation warning |
+| Analytics | 49 | 62 | Strong | Stable orientation/loading and role-safe management surface |
+| Reps | 49 | 62 | Strong | Heading, role queue, ownership and coaching/performance context |
+| Settings | 44 | 64 | Strong | Named toggles, pressed state, time-field names, 44px contract, owner boundaries |
+| Floating dialer / active call | 60 | 70 | Excellent | Caller/job context, transfer packet, visible transfer failure, unified SDK |
+| Partnerships | 57 | 67 | Strong | Progressive data loading, bounded queue, ownership/referral/revenue/market evidence |
+| Crew calendar / live work | 55 | 68 | Excellent | Readiness gate, linear next action, offline phase and evidence recovery |
+| Notifications | 45 | 66 | Strong | Priority, reason, action, scope, dedupe, acknowledgment and durable disposition |
+
+### Evidence boundary
+
+Production verification used the owner session plus static permission-path inspection. No synthetic customer charges, refunds, live phone transfers, customer messages, or destructive record mutations were performed. Those paths are protected by server-side contracts and local regression coverage but require controlled sandbox/provider tests before each material provider change. Staff cognition, bright-light field use, glove use, screen reader behavior, and cross-device notification acknowledgment still require the contextual sessions defined above.
