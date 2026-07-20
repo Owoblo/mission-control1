@@ -157,11 +157,11 @@ export default function AnalyticsPage() {
   }, [queryString])
 
   if (loading) {
-    return <div className="crm-shell"><div className="crm-panel p-16 text-center text-sm text-[var(--app-muted)]">Loading analytics...</div></div>
+    return <div className="crm-shell"><h1 className="sr-only">Analytics</h1><div role="status" className="crm-panel p-16 text-center text-sm text-[var(--app-muted)]">Loading analytics...</div></div>
   }
 
   if (!data) {
-    return <div className="crm-shell"><div className="crm-panel p-16 text-center text-sm text-rose-600">Failed to load analytics.</div></div>
+    return <div className="crm-shell"><h1 className="sr-only">Analytics</h1><div role="alert" className="crm-panel p-16 text-center text-sm text-rose-600">Failed to load analytics.</div></div>
   }
 
   const utilizationHighlights = data.truckUtilizationDays

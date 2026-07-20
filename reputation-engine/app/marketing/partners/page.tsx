@@ -5995,6 +5995,7 @@ function QueueTab({ contacts, batches, onSelect, onScheduleCampaign }: {
   const [filterCategory, setFilterCategory] = useState('')
   const [filterCity, setFilterCity] = useState('')
   const [filterBatch, setFilterBatch] = useState('')
+  const [queueLimit, setQueueLimit] = useState(20)
 
   function handleCall(c: Contact) {
     if (!c.phone) return
@@ -6138,7 +6139,7 @@ function QueueTab({ contacts, batches, onSelect, onScheduleCampaign }: {
             <span className="rounded-full border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--app-accent)]">{responded.length}</span>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
-            {responded.map(c => <QueueContactCard key={c.id} contact={c} batchLabel={c.batch_id ? batchMeta.get(c.batch_id)?.label : undefined} onSelect={onSelect} onCall={handleCall} />)}
+            {responded.slice(0, queueLimit).map(c => <QueueContactCard key={c.id} contact={c} batchLabel={c.batch_id ? batchMeta.get(c.batch_id)?.label : undefined} onSelect={onSelect} onCall={handleCall} />)}
           </div>
         </div>
       )}
@@ -6152,7 +6153,7 @@ function QueueTab({ contacts, batches, onSelect, onScheduleCampaign }: {
             <span className="rounded-full border border-[rgba(201,117,78,0.12)] bg-[#f5ece7] px-2 py-0.5 text-[10px] font-bold text-[#955941]">{overdue.length}</span>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
-            {overdue.slice(0, 10).map(c => <QueueContactCard key={c.id} contact={c} batchLabel={c.batch_id ? batchMeta.get(c.batch_id)?.label : undefined} onSelect={onSelect} onCall={handleCall} />)}
+            {overdue.slice(0, Math.min(10, queueLimit)).map(c => <QueueContactCard key={c.id} contact={c} batchLabel={c.batch_id ? batchMeta.get(c.batch_id)?.label : undefined} onSelect={onSelect} onCall={handleCall} />)}
           </div>
         </div>
       )}
@@ -6166,7 +6167,7 @@ function QueueTab({ contacts, batches, onSelect, onScheduleCampaign }: {
             <span className="rounded-full border border-[var(--app-line)] bg-[var(--app-wash)] px-2 py-0.5 text-[10px] font-bold text-[var(--app-muted)]">{callFirst.length}</span>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
-            {callFirst.slice(0, 20).map(c => <QueueContactCard key={c.id} contact={c} batchLabel={c.batch_id ? batchMeta.get(c.batch_id)?.label : undefined} onSelect={onSelect} onCall={handleCall} />)}
+            {callFirst.slice(0, queueLimit).map(c => <QueueContactCard key={c.id} contact={c} batchLabel={c.batch_id ? batchMeta.get(c.batch_id)?.label : undefined} onSelect={onSelect} onCall={handleCall} />)}
           </div>
         </div>
       )}
@@ -6178,6 +6179,7 @@ function QueueTab({ contacts, batches, onSelect, onScheduleCampaign }: {
           <div className="mt-1 text-xs text-[var(--app-muted)]">Import a batch to start working contacts</div>
         </div>
       )}
+      {responded.length + overdue.length + callFirst.length > queueLimit && <div className="border-t border-[var(--app-line)] pt-4 text-center"><button type="button" onClick={() => setQueueLimit(value => value + 20)} className="crm-button">Show 20 more</button><div className="mt-2 text-xs text-[var(--app-muted)]">Rendering {Math.min(queueLimit, responded.length)} replies, {Math.min(10, queueLimit, overdue.length)} overdue, and {Math.min(queueLimit, callFirst.length)} call-first contacts.</div></div>}
     </div>
   )
 }

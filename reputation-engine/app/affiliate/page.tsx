@@ -94,12 +94,13 @@ function AffiliatePortal() {
 
   if (loading) return (
     <div className="min-h-screen bg-[#f4f6f8] flex items-center justify-center">
-      <div className="text-slate-500 text-sm">Loading your portal…</div>
+      <h1 className="sr-only">Saturn Star partner portal</h1><div role="status" className="text-slate-500 text-sm">Loading your portal…</div>
     </div>
   )
 
   if (error) return (
     <div className="min-h-screen bg-[#f4f6f8] flex items-center justify-center p-4">
+      <h1 className="sr-only">Saturn Star partner portal</h1>
       <div className="rounded-[20px] bg-white p-8 max-w-sm w-full text-center shadow-sm">
         <div className="text-3xl mb-4">🔒</div>
         <div className="text-sm font-semibold text-slate-800 mb-2">Access Required</div>
@@ -111,6 +112,7 @@ function AffiliatePortal() {
 
   return (
     <div className="min-h-screen bg-[#f4f6f8]">
+      <h1 className="sr-only">Saturn Star partner portal</h1>
       {/* Header */}
       <div style={{ background: 'linear-gradient(135deg, #1a2744 0%, #0f6a53 100%)' }} className="px-4 py-6">
         <div className="mx-auto max-w-lg">

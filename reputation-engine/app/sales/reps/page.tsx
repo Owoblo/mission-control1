@@ -49,8 +49,8 @@ export default function RepsPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  if (loading) return <div className="crm-shell"><div className="crm-panel p-16 text-center text-sm text-[var(--app-muted)]">Loading rep stats...</div></div>
-  if (!data) return <div className="crm-shell"><div className="crm-panel p-16 text-center text-sm text-rose-500">Failed to load.</div></div>
+  if (loading) return <div className="crm-shell"><h1 className="sr-only">Rep performance</h1><div role="status" className="crm-panel p-16 text-center text-sm text-[var(--app-muted)]">Loading rep stats...</div></div>
+  if (!data) return <div className="crm-shell"><h1 className="sr-only">Rep performance</h1><div role="alert" className="crm-panel p-16 text-center text-sm text-rose-500">Failed to load.</div></div>
 
   return (
     <div className="crm-shell space-y-8">

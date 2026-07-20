@@ -14,10 +14,12 @@ const DAYS: { key: keyof DialerSettings['businessHours']['schedule']; label: str
   { key: 'sun', label: 'Sunday' },
 ]
 
-function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+function Toggle({ checked, onChange, label = 'Toggle setting' }: { checked: boolean; onChange: (v: boolean) => void; label?: string }) {
   return (
     <button
       type="button"
+      aria-label={label}
+      aria-pressed={checked}
       onClick={() => onChange(!checked)}
       className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${checked ? 'bg-[#1a2744]' : 'bg-slate-200'}`}
     >
@@ -134,7 +136,7 @@ export default function DialerSettingsPage() {
   if (loading) {
     return (
       <div className="crm-shell">
-        <div className="crm-panel px-6 py-16 text-center text-sm text-[var(--app-muted)]">Loading settings…</div>
+        <h1 className="sr-only">Dialer settings</h1><div role="status" className="crm-panel px-6 py-16 text-center text-sm text-[var(--app-muted)]">Loading settings…</div>
       </div>
     )
   }
@@ -142,7 +144,7 @@ export default function DialerSettingsPage() {
   if (!settings) {
     return (
       <div className="crm-shell">
-        <div className="rounded-[10px] border border-rose-200 bg-rose-50 px-6 py-4 text-sm text-rose-700">{error || 'Could not load settings.'}</div>
+        <h1 className="sr-only">Dialer settings</h1><div role="alert" className="rounded-[10px] border border-rose-200 bg-rose-50 px-6 py-4 text-sm text-rose-700">{error || 'Could not load settings.'}</div>
       </div>
     )
   }
@@ -152,7 +154,7 @@ export default function DialerSettingsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-xl font-bold text-[var(--app-ink)]">Dialer Settings</div>
+          <h1 className="text-xl font-bold text-[var(--app-ink)]">Dialer Settings</h1>
           <div className="mt-1 text-sm text-[var(--app-muted)]">Configure call routing, business hours, notifications and more. Owner-only.</div>
         </div>
         <div className="flex items-center gap-3">
@@ -241,6 +243,7 @@ export default function DialerSettingsPage() {
                   <div className="text-sm text-[var(--app-ink)]">{label}</div>
                   <input
                     type="time"
+                    aria-label={`${label} opening time`}
                     value={sched?.open || '08:00'}
                     disabled={!sched || !isOwner}
                     onChange={e => patch('businessHours', {
@@ -251,6 +254,7 @@ export default function DialerSettingsPage() {
                   />
                   <input
                     type="time"
+                    aria-label={`${label} closing time`}
                     value={sched?.close || '21:00'}
                     disabled={!sched || !isOwner}
                     onChange={e => patch('businessHours', {

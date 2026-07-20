@@ -758,11 +758,11 @@ Saturn Star Movers`
   const isLD = lead?.moveType === 'long-distance' || quote?.moveType === 'long-distance'
 
   if (!params?.id) {
-    return <div className="crm-shell"><div className="crm-panel p-16 text-center text-sm text-stone-500">Loading quote...</div></div>
+    return <div className="crm-shell"><h1 className="sr-only">Quote record</h1><div role="status" className="crm-panel p-16 text-center text-sm text-stone-500">Loading quote...</div></div>
   }
 
   if (!quote) {
-    return <div className="crm-shell"><div className="crm-panel p-16 text-center text-sm text-stone-500">{error || 'Quote not found'}</div></div>
+    return <div className="crm-shell"><h1 className="sr-only">Quote record</h1><div role="alert" className="crm-panel p-16 text-center text-sm text-stone-500">{error || 'Quote not found'}</div></div>
   }
 
   const statusColors: Record<string, string> = {

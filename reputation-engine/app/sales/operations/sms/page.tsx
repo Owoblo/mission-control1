@@ -191,11 +191,12 @@ export default function OpsSmsPage() {
 
   return (
     <div className="flex h-[calc(100dvh-5.5rem)] min-h-0 overflow-hidden bg-white md:h-[calc(100dvh-7rem)]">
+      <h1 className="sr-only">Operations SMS</h1>
       {/* Thread list */}
       <div className={`${selected ? 'hidden md:flex' : 'flex'} w-full shrink-0 flex-col border-r border-slate-200 bg-white md:w-[340px] lg:w-[360px]`}>
         <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-4">
           <div>
-            <div className="text-xl font-semibold tracking-tight text-[#111827]">Operations SMS</div>
+            <div aria-hidden="true" className="text-xl font-semibold tracking-tight text-[#111827]">Operations SMS</div>
             <div className="text-xs font-medium text-slate-500">{formatPhone(OPS_NUMBER)}</div>
           </div>
           <button
