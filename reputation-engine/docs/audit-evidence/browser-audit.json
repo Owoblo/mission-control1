@@ -1,0 +1,5312 @@
+{
+  "generatedAt": "2026-07-20T00:27:04.984Z",
+  "baseUrl": "https://go.quote2move.com",
+  "pages": [
+    {
+      "route": "/sales",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales",
+      "durationMs": 2198,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-sales.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "What is happening, and what needs intervention?",
+          "Sales environment"
+        ],
+        "headingCount": 8,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 2,
+          "aside": 1
+        },
+        "activeNav": 1,
+        "buttons": 31,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 44,
+        "smallTargets": 27,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout SATURN STAR OPERATING SYSTEM What is happening, and what needs intervention? One operational view from incoming demand to prepared jobs, live execution and final care. Capture demand Open operations Now Live work and immediate operational state — No jobs are currently marked as dispatched or in progress. Today Jobs, estimates and callbacks already committed 0 Moving work · today and tomorrow No moves scheduled. Sales commitments No estimates or callbacks due. Attention needed Exceptions only; normal work stays quiet 0 No o"
+      }
+    },
+    {
+      "route": "/sales/inbox",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/inbox",
+      "durationMs": 2188,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-sales-inbox.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [],
+        "headingCount": 0,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 24,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 26,
+        "smallTargets": 23,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 40 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout Loading lead inbox... Dialer"
+      }
+    },
+    {
+      "route": "/sales/leads",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/leads",
+      "durationMs": 1624,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-sales-leads.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Leads"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 31,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 34,
+        "smallTargets": 31,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout Leads Focus mode keeps reps on leads that need action, while deleted leads stay recoverable for managers. Refresh Sync Call History 🗑 Clean Up Junk Leads Needs Follow-Up · 0 Booked · 0 All Active · 0 🏠 Realtor Opps · 0 Deleted · 0 Only leads with a live next action. Loading leads... Dialer"
+      }
+    },
+    {
+      "route": "/sales/leads/lead_9v9ehjgk4",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/leads/lead_9v9ehjgk4",
+      "durationMs": 1609,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-sales-leads-lead-9v9ehjgk4.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [],
+        "headingCount": 0,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 24,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 26,
+        "smallTargets": 23,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout Lead not found Dialer"
+      }
+    },
+    {
+      "route": "/sales/pipeline",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/pipeline",
+      "durationMs": 1513,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-sales-pipeline.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Pipeline"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 40,
+        "unnamedButtons": 0,
+        "inputs": 8,
+        "unnamedInputs": 7,
+        "controls": 50,
+        "smallTargets": 42,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout Pipeline 0 leads · 0 quotes · $0.00 pipeline value Sort: Heat / Next Action Sort: Move Date ↑ Sort: Gone Coldest Sort: Follow-up Due Sort: Newest First LISTBOARD Refresh + New Lead SIMPLE WORKFLOW Work from follow-up first, then drafts, then sent quotes. Accepted jobs stay visible without cluttering the chase list. FOLLOW UP TODAY 0 DRAFT / NOT SENT 0 QUOTE SENT 0 ACCEPTED / BOOKED 0 DECLINED / LOST 0 NEEDS ATTENTION: 🔴 Overdue Follow-up 🟡 Gone Cold 7d+ 🟠 No Quote Sent 🔵 New Today TeamMy LeadsUnassigned🗑 Trash All Sta"
+      }
+    },
+    {
+      "route": "/sales/follow-up",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/follow-up",
+      "durationMs": 1540,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-sales-follow-up.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Follow-Up Wall"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 34,
+        "unnamedButtons": 0,
+        "inputs": 2,
+        "unnamedInputs": 0,
+        "controls": 37,
+        "smallTargets": 34,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout Follow-Up Wall All caught up All Active Overdue Due Today This Week Gone Silent 5d+ All statuses Pending Following Up Followed Up No Response Loading leads... Dialer"
+      }
+    },
+    {
+      "route": "/sales/quotes",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/quotes",
+      "durationMs": 1537,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-sales-quotes.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Quotes"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 25,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 27,
+        "smallTargets": 24,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 40 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout Quotes 0 total quotes · 0 active · $0.00 accepted Refresh Loading quotes... Dialer"
+      }
+    },
+    {
+      "route": "/sales/quotes/qt_d6ndyub24",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/quotes/qt_d6ndyub24",
+      "durationMs": 1461,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-sales-quotes-qt-d6ndyub24.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [],
+        "headingCount": 0,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 24,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 26,
+        "smallTargets": 23,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 40 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout Quote not found Dialer"
+      }
+    },
+    {
+      "route": "/sales/booked",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/booked",
+      "durationMs": 1524,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-sales-booked.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Booked Jobs"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 25,
+        "unnamedButtons": 0,
+        "inputs": 2,
+        "unnamedInputs": 1,
+        "controls": 28,
+        "smallTargets": 25,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout Booked Jobs 0 upcoming · 0 completed Next 30 days Next 60 days Next 90 days All upcoming Refresh Loading booked jobs... Dialer"
+      }
+    },
+    {
+      "route": "/sales/operations",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/operations",
+      "durationMs": 1350,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-sales-operations.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Operations"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 35,
+        "unnamedButtons": 0,
+        "inputs": 2,
+        "unnamedInputs": 1,
+        "controls": 38,
+        "smallTargets": 35,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 40 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout Operations Dispatch Readiness · Sunday, July 19, 2026 All branches Windsor Waterloo / KW London Ottawa 📅 Calendar ☰ Cards Refresh Ready No crew No truck Deposit unpaid Tomorrow’s jobs Needs confirmation Needs equipment Needs briefing 0 of 0 booked jobs match the current readiness filters. READY TO DISPATCH 0 Booked upcoming moves with checklist complete NEEDS BRIEFING 0 Crew packet still needs to be generated or checked MISSING TRUCKS 0 Booked moves still waiting on a reservation MISSING CREW 0 Booked moves without an "
+      }
+    },
+    {
+      "route": "/sales/operations/sms",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/operations/sms",
+      "durationMs": 1496,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-sales-operations-sms.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [],
+        "headingCount": 0,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 29,
+        "unnamedButtons": 0,
+        "inputs": 2,
+        "unnamedInputs": 0,
+        "controls": 32,
+        "smallTargets": 24,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 40 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout Operations SMS +1 226-774-6581 + New +84285 58d ago U-Haul Account Verification Code: 977294 New +1 226-724-1730 61d ago Got it New +84285 Operations line · +1 226-774-6581 U-Haul Account Verification Code: 977294 58d ago 📎 Send Dialer"
+      }
+    },
+    {
+      "route": "/sales/finance",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/finance",
+      "durationMs": 1588,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-sales-finance.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Finance"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 25,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 27,
+        "smallTargets": 24,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout Finance Job P&L, cost tracking, and expense log. + Log Cost Loading... Dialer"
+      }
+    },
+    {
+      "route": "/sales/activity",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/activity",
+      "durationMs": 1798,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-sales-activity.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Live Activity Feed"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 29,
+        "unnamedButtons": 0,
+        "inputs": 2,
+        "unnamedInputs": 1,
+        "controls": 46,
+        "smallTargets": 43,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 40 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout Live Activity Feed Everything your team does — quotes, calls, texts, stage changes — in real time. Live Refresh 0 ACTIONS TODAY 0 CALLS 0 TEXTS SENT 0 QUOTES SENT 0 STAGE CHANGES 0 LEADS CLAIMED 0 BOOKINGS Today7 Days30 Days All Actions 📞 Calls 💰 Quotes Sent 💬 Texts Sent 🟢 Leads Claimed ↗️ Stage Changes 🎉 Bookings 18 events SUN, JUL 19 💬 John.O (Admin) sent a text Jackie Hammond — 17 chars London → Chatham Website-Chatham 1h ago 💬 John.O (Admin) sent a text Jackie Hammond — 58 chars London → Chatham Website-Chath"
+      }
+    },
+    {
+      "route": "/sales/analytics",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/analytics",
+      "durationMs": 1616,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-sales-analytics.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [],
+        "headingCount": 0,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 24,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 26,
+        "smallTargets": 23,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout Loading analytics... Dialer"
+      }
+    },
+    {
+      "route": "/sales/reps",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/reps",
+      "durationMs": 1971,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-sales-reps.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [],
+        "headingCount": 0,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 24,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 26,
+        "smallTargets": 23,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 40 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout Loading rep stats... Dialer"
+      }
+    },
+    {
+      "route": "/sales/settings",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/settings",
+      "durationMs": 1529,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-sales-settings.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [],
+        "headingCount": 0,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 38,
+        "unnamedButtons": 8,
+        "inputs": 13,
+        "unnamedInputs": 5,
+        "controls": 52,
+        "smallTargets": 48,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout Dialer Settings Configure call routing, business hours, notifications and more. Owner-only. Spam & Blocked Numbers Blocked callers are rejected by Twilio before any CRM browser, SIP phone, IVR, voicemail, or missed-call workflow rings. Tag & block No blocked callers yet. Business Hours Calls outside these hours go straight to voicemail. Enable business hours restriction Ring Timeout How long to ring reps before sending to voicemail or queue. 28s Currently ringing each inbound call for 28 seconds before triggering missed-ca"
+      }
+    },
+    {
+      "route": "/sales/academy",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/academy",
+      "durationMs": 1544,
+      "navigationError": null,
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 ()"
+      ],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-sales-academy.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Follow the path. Do not guess where to start."
+        ],
+        "headingCount": 3,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 33,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 37,
+        "smallTargets": 26,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 40 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout MISSION CONTROL ACADEMY Follow the path. Do not guess where to start. This should feel like a real training path: read the company context first, move through the core sales courses in order, then sharpen edge cases inside labs and coaching. STEP 1 Read First Brand, standards, locations, and how the company operates. STEP 2 Core Path STAR, estimating, closing, billing, tonality, and CRM rhythm. STEP 3 Labs Scenarios, reviews, drills, and future stress-test coaching. Resume path Read First System Map 0% Required path com"
+      }
+    },
+    {
+      "route": "/sales/read-first",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/read-first",
+      "durationMs": 1628,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-sales-read-first.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "What every Saturn Star rep should understand before touching live leads."
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 0,
+        "buttons": 24,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 28,
+        "smallTargets": 25,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 40 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout READ FIRST What every Saturn Star rep should understand before touching live leads. This is not the sales academy. This is the business layer: who we are, how we serve, what standard we protect, and how reps are expected to think before they ever start improvising on calls. Open academy Open leads WE OVER-SERVE Customers should feel more guided, more informed, and more cared for after every interaction. The goal is not to sound clever. The goal is to make the move feel handled. WE SELL WITH CALM AUTHORITY Saturn Star re"
+      }
+    },
+    {
+      "route": "/sales/dialer-health",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/dialer-health",
+      "durationMs": 1601,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-sales-dialer-health.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Dialer Health"
+        ],
+        "headingCount": 12,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 0,
+        "buttons": 36,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 38,
+        "smallTargets": 35,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout Dialer Health Browser diagnostics, Twilio device state, last 50 dialer events, and stress-test controls. Auto-refresh every 20s Pause ↻ Now Last checked 1s ago · 8:27:45 PM ✓ TwiML endpoint Valid TwiML · 399ms ✗ Telephony alerts 20 recent errors — Failed to fetch CALLS TODAY 2 MISSED 0 FAILED 0 53405 0 QUEUE CONNECTED 0 QUEUE REQUEUED 0 WARM HANDOFFS 0 WARM RETURNS 0 SYSTEM CHECKS Re-run ✓ WebRTC supported Supported ✓ Browser compatibility Google Chrome on macOS ✓ Network online Connected ✓ HTTPS secure context https: ⚠ Mi"
+      }
+    },
+    {
+      "route": "/sales/cleanup",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/cleanup",
+      "durationMs": 1611,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-sales-cleanup.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Lead Cleanup"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 0,
+        "buttons": 25,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 27,
+        "smallTargets": 24,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout Lead Cleanup Review and delete junk leads — unknown callers, no contact info, stale records. You choose what goes. ← Back to CRM Scanning leads… Dialer"
+      }
+    },
+    {
+      "route": "/admin/users",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/admin/users",
+      "durationMs": 1510,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-admin-users.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Team Access"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 38,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 40,
+        "smallTargets": 38,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 40 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout Team Access Manage who can log in and what they can see. + Add Team Member Owner Full access — CRM, operations, financials, settings Manager CRM + operations, assign crew, no financials Sales Rep Pipeline, leads, dialer, quotes only Partnership Manager Partnership CRM, partner SMS, partner dialer, tasks, and appointments only Operations Lead Operations calendar only — sees booked jobs, assigns crew for their branch Crew Crew calendar — sees their assigned jobs only JP John Paul Manager sanisanijaypee@gmail.com Edit Remo"
+      }
+    },
+    {
+      "route": "/marketing/partners?tab=today",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/marketing/partners?tab=today",
+      "durationMs": 1357,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-marketing-partners-tab-today.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Relationship CRM"
+        ],
+        "headingCount": 7,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 1
+        },
+        "activeNav": 1,
+        "buttons": 45,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 52,
+        "smallTargets": 25,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout Today Conversations Relationships Partners Signals Relationship CRM — batches · 2000 contacts Today Conversations Relationships Partners Outreach 1967 Campaigns Lists Markets RELATIONSHIP CONTROL ROOM What needs attention today? Promises, replies and relationships that need a thoughtful next step—already placed in working order. Open conversations View relationships Today 7 priorities Chris A. Brown EXIT EXCEL REALTY · Ottawa Follow up Due Jul 12, 2026 Promise due Marcia Nash RE/MAX DELTA REALTY TEAM · Ottawa Follow up Due"
+      }
+    },
+    {
+      "route": "/marketing/partners?tab=phone",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/marketing/partners?tab=phone",
+      "durationMs": 1381,
+      "navigationError": null,
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 ()"
+      ],
+      "failedRequests": [
+        {
+          "url": "https://media.twiliocdn.com/sdk/js/voice/v2.0/twilio.min.js",
+          "reason": "net::ERR_ABORTED"
+        }
+      ],
+      "screenshot": "screenshots/desktop-marketing-partners-tab-phone.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [],
+        "headingCount": 0,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 36,
+        "unnamedButtons": 0,
+        "inputs": 6,
+        "unnamedInputs": 4,
+        "controls": 48,
+        "smallTargets": 41,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 40 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout Today Conversations Relationships Partners Signals Partnership replies 0 context · 0 need reply · 0 responded · 2000 no response · 44 postcards · 0 appointments 2000 All areas Windsor / Essex / Chatham KWG area London / Sarnia / Woodstock Ottawa area All cities Kanata Manotick Ottawa Rockland All categories Realtors All batches Batch 3 · Ottawa area Realtor Outreach Context Needs reply Responded No response All Positive Digital sent Postcards Appointments Waiting Follow-up Partners Closed Loading replies... 📱 Select a "
+      }
+    },
+    {
+      "route": "/marketing/partners?tab=pipeline",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/marketing/partners?tab=pipeline",
+      "durationMs": 9648,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-marketing-partners-tab-pipeline.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Relationship CRM"
+        ],
+        "headingCount": 2,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 35,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 42,
+        "smallTargets": 27,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 40 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout Today Conversations Relationships Partners Signals Relationship CRM 3 batches · 2000 contacts Today Conversations Relationships Partners Outreach 1967 Campaigns Lists Markets Relationship Pipeline 2000 partner opportunities in play All Tier 1 Tier 2 Tier 3 Conversation Started 11 John O'Sullivan RE/MAX HALLMARK REALTY GROUP Ottawa 12d ago Follow up Jul 9, 2026 Positive Chandra Juneja A2Z REALTY INC. Ottawa 9d ago Follow up Jul 12, 2026 Positive Sunita Verma ROYAL LEPAGE TEAM REALTY Ottawa 12d ago Follow up Jul 9, 2026 P"
+      }
+    },
+    {
+      "route": "/marketing/partners?tab=partners",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/marketing/partners?tab=partners",
+      "durationMs": 1536,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-marketing-partners-tab-partners.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Relationship CRM"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 31,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 38,
+        "smallTargets": 31,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout Today Conversations Relationships Partners Signals Relationship CRM 3 batches · — contacts Today Conversations Relationships Partners Outreach Campaigns Lists Markets 🤝 No active partners yet Once a relationship becomes referral-ready, it appears here."
+      }
+    },
+    {
+      "route": "/marketing/partners?tab=queue",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/marketing/partners?tab=queue",
+      "durationMs": 2085,
+      "navigationError": null,
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 ()"
+      ],
+      "failedRequests": [
+        {
+          "url": "https://media.twiliocdn.com/sdk/js/voice/v2.0/twilio.min.js",
+          "reason": "net::ERR_ABORTED"
+        }
+      ],
+      "screenshot": "screenshots/desktop-marketing-partners-tab-queue.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Relationship CRM"
+        ],
+        "headingCount": 2,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 684,
+        "unnamedButtons": 0,
+        "inputs": 3,
+        "unnamedInputs": 1,
+        "controls": 693,
+        "smallTargets": 678,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout Today Conversations Relationships Partners Signals Relationship CRM 3 batches · 2000 contacts Today Conversations Relationships Partners Outreach 1967 Campaigns Lists Markets Outbound Queue 1975 need attention Schedule campaign All batches Batch 1 · Windsor Realtors – Batch 1 Batch 2 · Windsor Essex Realtor Partnership SMS Batch 3 · Ottawa area Realtor Outreach All batches Batch 1 180 Batch 2 1305 Batch 3 3711 All 📍 Ottawa 🏠 Realtor Responded — Act Now 119 Chris A. Brown BATCH 3 🏠 Realtor EXIT EXCEL REALTY · Ottawa · re"
+      }
+    },
+    {
+      "route": "/marketing/campaigns",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/marketing/campaigns",
+      "durationMs": 1673,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-marketing-campaigns.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Direct Mail ROI"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 27,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 34,
+        "smallTargets": 27,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout Today Conversations Relationships Partners Signals Direct Mail ROI Track every campaign batch and see what's converting. + Log Batch LETTERS SENT 5,196 RESPONSES 383 BOOKINGS 3 REVENUE $0 TOTAL ROI — Windsor Realtors – Batch 1 WR-B1-2026 Real Estate SENT 180 RESPONSES 52 (28.9%) BOOKINGS 2 (4%) REVENUE — Update results Top 26% Windsor-area realtors by listing volume. Canada Post mailed April 2026. Ottawa area Realtor Outreach sms_1783354056624 Sent Jul 6 real estate SENT 3,711 RESPONSES 204 (5.5%) BOOKINGS 0 (0%) REVENUE —"
+      }
+    },
+    {
+      "route": "/marketing/queue",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/marketing/queue",
+      "durationMs": 1625,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-marketing-queue.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Daily Partnership Queue"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 26,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 33,
+        "smallTargets": 26,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 40 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout Today Conversations Relationships Partners Signals Daily Partnership Queue Sunday, July 19 Today Upcoming All ✅ Queue is clear Nothing due today. Check Upcoming or move mailed / due accounts into the queue from Partnerships."
+      }
+    },
+    {
+      "route": "/marketing/signals",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/marketing/signals",
+      "durationMs": 1693,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-marketing-signals.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Signals"
+        ],
+        "headingCount": 2,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 126,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 133,
+        "smallTargets": 126,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "169x32"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Collapse sidebar",
+            "size": "28x28"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "115x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications — click to enable alert sounds",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "215x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "215x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS ‹‹ New Lead ⚡ 🔔 40 COMMAND Dashboard INTAKE Inbox Leads Partnerships SALES Pipeline Follow-Up Quotes Academy OPERATIONS Booked Operations LIVE Ops SMS CARE Finance MANAGEMENT Live Feed Analytics Reps Team Settings ⌕ AO Audit owner Owner Change PasswordLogout Today Conversations Relationships Partners Signals Signals Fast-response opportunities that should feed the partnership and corporate outreach queue. + Add Signal ACTIVE SIGNALS (26) GREENHOUSE EXPANSION Nature Fresh Farms 📍 Leamington New Continuous expansion - workers relocating from across Canada and internationally 👤 Dereck Pereira - VP Human Resources ⚡ MEDIUM - Ongoing Action: Partner with HR for seasonal and permanent worker moves 🚨 Hit All Channels 👁 Claim ✓ Mark Actioned Pass GREENHOUSE EXPANSION Mastronard"
+      }
+    },
+    {
+      "route": "/crew/calendar",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/crew/calendar",
+      "durationMs": 1408,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-crew-calendar.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Hey Audit 👋"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 0,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 0,
+        "buttons": 1,
+        "unnamedButtons": 0,
+        "inputs": 0,
+        "unnamedInputs": 0,
+        "controls": 1,
+        "smallTargets": 0,
+        "smallTargetExamples": [],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "S Saturn Star OS Crew Portal AO Audit owner Logout Sunday, July 19 Hey Audit 👋 No upcoming jobs assigned to you. Loading your schedule..."
+      }
+    },
+    {
+      "route": "/partners",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/partners",
+      "durationMs": 1577,
+      "navigationError": null,
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 ()"
+      ],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-partners.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Referral Partners"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 0,
+          "nav": 0,
+          "header": 0,
+          "aside": 0
+        },
+        "activeNav": 0,
+        "buttons": 2,
+        "unnamedButtons": 0,
+        "inputs": 0,
+        "unnamedInputs": 0,
+        "controls": 2,
+        "smallTargets": 2,
+        "smallTargetExamples": [
+          {
+            "tag": "BUTTON",
+            "name": "Add Partner",
+            "size": "134x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Add First Partner",
+            "size": "166x36"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Referral Partners Shared partner directory with live referral counts. Add Partner Cannot read properties of null (reading 'trim') No partners yet. Add the first referral partner to start tracking jobs and reward exposure. Add First Partner"
+      }
+    },
+    {
+      "route": "/partner",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/partner",
+      "durationMs": 1456,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-partner.png",
+      "metrics": {
+        "title": "SSM Local Partner Network",
+        "h1": [
+          "Refer a moving client without the back-and-forth."
+        ],
+        "headingCount": 2,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 0,
+          "header": 0,
+          "aside": 0
+        },
+        "activeNav": 0,
+        "buttons": 1,
+        "unnamedButtons": 0,
+        "inputs": 12,
+        "unnamedInputs": 0,
+        "controls": 13,
+        "smallTargets": 0,
+        "smallTargetExamples": [],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star Movers LOCAL PARTNER NETWORK Refer a moving client without the back-and-forth. Send us the client details. We contact them, quote the move, track attribution, and credit the partner only after a completed paid move. 01 Submit the client 02 SSM handles quote 03 Partner credited after completion Partner referral intake Use this for real estate, storage, senior living, HR, contractors, and local housing partners. PARTNER CODE PARTNER NAME PARTNER TYPE Select type Realtor / brokerage Mortgage broker Storage facility Property manager Senior living / downsizing Lawyer / estate professional Insurance broker HR / relocation Cleaner / junk removal Contractor / renovation Past customer Other MARKET / CITY CLIENT NAME CLIENT PHONE CLIENT EMAIL MOVING FROM MOVING TO MOVE DATE MOVE SIZE Sel"
+      }
+    },
+    {
+      "route": "/affiliate",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/affiliate",
+      "durationMs": 1487,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-affiliate.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [],
+        "headingCount": 0,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 0,
+          "nav": 0,
+          "header": 0,
+          "aside": 0
+        },
+        "activeNav": 0,
+        "buttons": 0,
+        "unnamedButtons": 0,
+        "inputs": 0,
+        "unnamedInputs": 0,
+        "controls": 1,
+        "smallTargets": 1,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "226-773-2993",
+            "size": "76x14"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "🔒 Access Required Invalid link — please contact Saturn Star Movers for your partner link. Contact us: 226-773-2993"
+      }
+    },
+    {
+      "route": "/trigger",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/trigger",
+      "durationMs": 1527,
+      "navigationError": null,
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 ()"
+      ],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-trigger.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Mark Job Complete"
+        ],
+        "headingCount": 4,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 0,
+          "nav": 0,
+          "header": 0,
+          "aside": 0
+        },
+        "activeNav": 0,
+        "buttons": 1,
+        "unnamedButtons": 0,
+        "inputs": 8,
+        "unnamedInputs": 8,
+        "controls": 10,
+        "smallTargets": 8,
+        "smallTargetExamples": [
+          {
+            "tag": "INPUT",
+            "name": "",
+            "size": "303x42"
+          },
+          {
+            "tag": "INPUT",
+            "name": "",
+            "size": "303x42"
+          },
+          {
+            "tag": "INPUT",
+            "name": "",
+            "size": "622x42"
+          },
+          {
+            "tag": "INPUT",
+            "name": "",
+            "size": "197x42"
+          },
+          {
+            "tag": "INPUT",
+            "name": "",
+            "size": "197x42"
+          },
+          {
+            "tag": "INPUT",
+            "name": "",
+            "size": "622x42"
+          },
+          {
+            "tag": "SELECT",
+            "name": "No referral / direct",
+            "size": "622x40"
+          },
+          {
+            "tag": "A",
+            "name": "Add one",
+            "size": "45x14"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Mark Job Complete Creates a shared review link customers can open from any device Cannot read properties of null (reading 'trim') 1 Customer Info FULL NAME * PHONE * EMAIL * 2 Move Details MOVE DATE * MOVING FROM * MOVING TO * CREW LEAD * 3 Referral Source (optional) WHO REFERRED THIS CUSTOMER? No referral / direct No partners yet. Add one Complete Job And Generate Review Link"
+      }
+    },
+    {
+      "route": "/login",
+      "device": "desktop",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/login",
+      "durationMs": 1512,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/desktop-login.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Sign in"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 0,
+          "nav": 0,
+          "header": 0,
+          "aside": 0
+        },
+        "activeNav": 0,
+        "buttons": 1,
+        "unnamedButtons": 0,
+        "inputs": 2,
+        "unnamedInputs": 0,
+        "controls": 3,
+        "smallTargets": 3,
+        "smallTargetExamples": [
+          {
+            "tag": "INPUT",
+            "name": "",
+            "size": "318x42"
+          },
+          {
+            "tag": "INPUT",
+            "name": "",
+            "size": "318x42"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Sign in",
+            "size": "318x36"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS Mission Control Sign in Enter your credentials to access the platform. EMAIL (optional for owner) PASSWORD Sign in Saturn Star Moving — Internal Platform"
+      }
+    },
+    {
+      "route": "/sales",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales",
+      "durationMs": 1557,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-sales.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "What is happening, and what needs intervention?",
+          "Sales environment"
+        ],
+        "headingCount": 8,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 2,
+          "aside": 1
+        },
+        "activeNav": 1,
+        "buttons": 30,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 43,
+        "smallTargets": 26,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ SATURN STAR OPERATING SYSTEM What is happening, and what needs intervention? One operational view from incoming demand to prepared jobs, live execution and final care. Capture demand Open operations Now Live work and immediate operational state — No jobs are currently marked as dispatched or in progress. Today Jobs, estimates and callbacks already committed 0 Moving work · today and tomorrow No moves scheduled. Sales commitments No estimates or callbacks due. Attention needed Exceptions only; normal work stays quiet 0 No operational exceptions are visible in the current records. Operating spine W"
+      }
+    },
+    {
+      "route": "/sales/inbox",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/inbox",
+      "durationMs": 1359,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-sales-inbox.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [],
+        "headingCount": 0,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 23,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 25,
+        "smallTargets": 22,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ Loading lead inbox... Dialer"
+      }
+    },
+    {
+      "route": "/sales/leads",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/leads",
+      "durationMs": 1448,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-sales-leads.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Leads"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 30,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 33,
+        "smallTargets": 30,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ Leads Focus mode keeps reps on leads that need action, while deleted leads stay recoverable for managers. Refresh Sync Call History 🗑 Clean Up Junk Leads Needs Follow-Up · 0 Booked · 0 All Active · 0 🏠 Realtor Opps · 0 Deleted · 0 Only leads with a live next action. Loading leads... Dialer"
+      }
+    },
+    {
+      "route": "/sales/leads/lead_9v9ehjgk4",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/leads/lead_9v9ehjgk4",
+      "durationMs": 1510,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-sales-leads-lead-9v9ehjgk4.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [],
+        "headingCount": 0,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 23,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 25,
+        "smallTargets": 22,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 40 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ Lead not found Dialer"
+      }
+    },
+    {
+      "route": "/sales/pipeline",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/pipeline",
+      "durationMs": 2397,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-sales-pipeline.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Pipeline"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 1771,
+        "unnamedButtons": 0,
+        "inputs": 9,
+        "unnamedInputs": 7,
+        "controls": 2215,
+        "smallTargets": 1774,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 40 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ Pipeline 433 leads · 174 quotes · $347,354.05 pipeline value Sort: Heat / Next Action Sort: Move Date ↑ Sort: Gone Coldest Sort: Follow-up Due Sort: Newest First LISTBOARD Refresh + New Lead SIMPLE WORKFLOW Work from follow-up first, then drafts, then sent quotes. Accepted jobs stay visible without cluttering the chase list. FOLLOW UP TODAY 15 DRAFT / NOT SENT 12 QUOTE SENT 68 ACCEPTED / BOOKED 26 DECLINED / LOST 388 NEEDS ATTENTION: 🔴 Overdue Follow-up 11 🟡 Gone Cold 7d+ 5 🟠 No Quote Sent 8 🔵 New Today TeamMy LeadsUnassigned🗑 Trash All Stages New Lead Contacted Est. Scheduled Est. Done B"
+      }
+    },
+    {
+      "route": "/sales/follow-up",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/follow-up",
+      "durationMs": 1379,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-sales-follow-up.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Follow-Up Wall"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 33,
+        "unnamedButtons": 0,
+        "inputs": 2,
+        "unnamedInputs": 0,
+        "controls": 36,
+        "smallTargets": 33,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ Follow-Up Wall All caught up All Active Overdue Due Today This Week Gone Silent 5d+ All statuses Pending Following Up Followed Up No Response Loading leads... Dialer"
+      }
+    },
+    {
+      "route": "/sales/quotes",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/quotes",
+      "durationMs": 1342,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-sales-quotes.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Quotes"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 24,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 26,
+        "smallTargets": 23,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 40 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ Quotes 0 total quotes · 0 active · $0.00 accepted Refresh Loading quotes... Dialer"
+      }
+    },
+    {
+      "route": "/sales/quotes/qt_d6ndyub24",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/quotes/qt_d6ndyub24",
+      "durationMs": 1469,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-sales-quotes-qt-d6ndyub24.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Quote FL-QT-2026-0717-RM"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 1
+        },
+        "activeNav": 1,
+        "buttons": 48,
+        "unnamedButtons": 0,
+        "inputs": 16,
+        "unnamedInputs": 0,
+        "controls": 65,
+        "smallTargets": 61,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 40 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ ← Rebecca Marchuk Pipeline Quote FL-QT-2026-0717-RM Sent Rebecca Marchuk Owner: Ommy Eshiet Copy Link More ▾ Preview & Send Update → MOVE DESCRIPTION on quote INTERNAL NOTES crew only PRICING Crew Size 1 mover · $100.00/hr 2 movers · $160.00/hr 3 movers · $200.00/hr 4 movers · $270.00/hr Estimated Hours Trucks Deposit % Payment Terms Deposit required Approve scope, invoice later Invoice Net 7 Invoice Net 15 Invoice Net 30 PO required Valid Days Weight (lbs) DISCOUNT 10% Off $100 $200 ADD PACKING Small Box $1.53 Medium Box $2.24 Large Box $2.73 TV Box · 32–54\" $29.95 TV Box · 55–65\" $39.95 TV B"
+      }
+    },
+    {
+      "route": "/sales/booked",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/booked",
+      "durationMs": 1332,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-sales-booked.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Booked Jobs"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 24,
+        "unnamedButtons": 0,
+        "inputs": 2,
+        "unnamedInputs": 1,
+        "controls": 27,
+        "smallTargets": 24,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ Booked Jobs 0 upcoming · 0 completed Next 30 days Next 60 days Next 90 days All upcoming Refresh Loading booked jobs... Dialer"
+      }
+    },
+    {
+      "route": "/sales/operations",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/operations",
+      "durationMs": 1346,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-sales-operations.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Operations"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 34,
+        "unnamedButtons": 0,
+        "inputs": 2,
+        "unnamedInputs": 1,
+        "controls": 37,
+        "smallTargets": 34,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ Operations Dispatch Readiness · Sunday, July 19, 2026 All branches Windsor Waterloo / KW London Ottawa 📅 Calendar ☰ Cards Refresh Ready No crew No truck Deposit unpaid Tomorrow’s jobs Needs confirmation Needs equipment Needs briefing 0 of 0 booked jobs match the current readiness filters. READY TO DISPATCH 0 Booked upcoming moves with checklist complete NEEDS BRIEFING 0 Crew packet still needs to be generated or checked MISSING TRUCKS 0 Booked moves still waiting on a reservation MISSING CREW 0 Booked moves without an assigned team Loading jobs... Dialer"
+      }
+    },
+    {
+      "route": "/sales/operations/sms",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/operations/sms",
+      "durationMs": 1340,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-sales-operations-sms.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [],
+        "headingCount": 0,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 26,
+        "unnamedButtons": 0,
+        "inputs": 2,
+        "unnamedInputs": 0,
+        "controls": 29,
+        "smallTargets": 22,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ ‹ +84285 Operations line · +1 226-774-6581 U-Haul Account Verification Code: 977294 58d ago 📎 Send Dialer"
+      }
+    },
+    {
+      "route": "/sales/finance",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/finance",
+      "durationMs": 1359,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-sales-finance.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Finance"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 24,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 26,
+        "smallTargets": 23,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ Finance Job P&L, cost tracking, and expense log. + Log Cost Loading... Dialer"
+      }
+    },
+    {
+      "route": "/sales/activity",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/activity",
+      "durationMs": 1385,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-sales-activity.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Live Activity Feed"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 28,
+        "unnamedButtons": 0,
+        "inputs": 2,
+        "unnamedInputs": 1,
+        "controls": 45,
+        "smallTargets": 42,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 40 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ Live Activity Feed Everything your team does — quotes, calls, texts, stage changes — in real time. Live Refresh 0 ACTIONS TODAY 0 CALLS 0 TEXTS SENT 0 QUOTES SENT 0 STAGE CHANGES 0 LEADS CLAIMED 0 BOOKINGS Today7 Days30 Days All Actions 📞 Calls 💰 Quotes Sent 💬 Texts Sent 🟢 Leads Claimed ↗️ Stage Changes 🎉 Bookings 18 events SUN, JUL 19 💬 John.O (Admin) sent a text Jackie Hammond — 17 chars London → Chatham Website-Chatham 1h ago 💬 John.O (Admin) sent a text Jackie Hammond — 58 chars London → Chatham Website-Chatham 3h ago 💬 John.O (Admin) sent a text Jackie Hammond — 272 chars London →"
+      }
+    },
+    {
+      "route": "/sales/analytics",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/analytics",
+      "durationMs": 1360,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-sales-analytics.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [],
+        "headingCount": 0,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 23,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 25,
+        "smallTargets": 22,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 40 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ Loading analytics... Dialer"
+      }
+    },
+    {
+      "route": "/sales/reps",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/reps",
+      "durationMs": 1329,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-sales-reps.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [],
+        "headingCount": 0,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 23,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 25,
+        "smallTargets": 22,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ Loading rep stats... Dialer"
+      }
+    },
+    {
+      "route": "/sales/settings",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/settings",
+      "durationMs": 1378,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-sales-settings.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [],
+        "headingCount": 0,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 37,
+        "unnamedButtons": 8,
+        "inputs": 13,
+        "unnamedInputs": 5,
+        "controls": 51,
+        "smallTargets": 47,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 40 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ Dialer Settings Configure call routing, business hours, notifications and more. Owner-only. Spam & Blocked Numbers Blocked callers are rejected by Twilio before any CRM browser, SIP phone, IVR, voicemail, or missed-call workflow rings. Tag & block No blocked callers yet. Business Hours Calls outside these hours go straight to voicemail. Enable business hours restriction Ring Timeout How long to ring reps before sending to voicemail or queue. 28s Currently ringing each inbound call for 28 seconds before triggering missed-call flow. Call Queue When all reps are busy, hold the caller instead of s"
+      }
+    },
+    {
+      "route": "/sales/academy",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/academy",
+      "durationMs": 1401,
+      "navigationError": null,
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 ()"
+      ],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-sales-academy.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Follow the path. Do not guess where to start."
+        ],
+        "headingCount": 3,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 32,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 36,
+        "smallTargets": 25,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 40 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ MISSION CONTROL ACADEMY Follow the path. Do not guess where to start. This should feel like a real training path: read the company context first, move through the core sales courses in order, then sharpen edge cases inside labs and coaching. STEP 1 Read First Brand, standards, locations, and how the company operates. STEP 2 Core Path STAR, estimating, closing, billing, tonality, and CRM rhythm. STEP 3 Labs Scenarios, reviews, drills, and future stress-test coaching. Resume path Read First System Map 0% Required path complete 0 Courses finished 0 Scenario wins WELCOME BACK Audit owner Next requ"
+      }
+    },
+    {
+      "route": "/sales/read-first",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/read-first",
+      "durationMs": 1418,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-sales-read-first.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "What every Saturn Star rep should understand before touching live leads."
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 0,
+        "buttons": 23,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 27,
+        "smallTargets": 24,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ READ FIRST What every Saturn Star rep should understand before touching live leads. This is not the sales academy. This is the business layer: who we are, how we serve, what standard we protect, and how reps are expected to think before they ever start improvising on calls. Open academy Open leads WE OVER-SERVE Customers should feel more guided, more informed, and more cared for after every interaction. The goal is not to sound clever. The goal is to make the move feel handled. WE SELL WITH CALM AUTHORITY Saturn Star reps do not mumble, chase, or argue. We lead the conversation, listen properly, "
+      }
+    },
+    {
+      "route": "/sales/dialer-health",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/dialer-health",
+      "durationMs": 1598,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-sales-dialer-health.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Dialer Health"
+        ],
+        "headingCount": 12,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 0,
+        "buttons": 35,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 37,
+        "smallTargets": 34,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 40 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ Dialer Health Browser diagnostics, Twilio device state, last 50 dialer events, and stress-test controls. Auto-refresh every 20s Pause ↻ Now Last checked 1s ago · 8:28:46 PM ✓ TwiML endpoint Valid TwiML · 459ms ✗ Telephony alerts 17 recent errors — Twilio device registration failed CALLS TODAY 2 MISSED 0 FAILED 0 53405 0 QUEUE CONNECTED 0 QUEUE REQUEUED 0 WARM HANDOFFS 0 WARM RETURNS 0 SYSTEM CHECKS Re-run ✓ WebRTC supported Supported ✓ Browser compatibility Google Chrome on macOS ✓ Network online Connected ✓ HTTPS secure context https: ⚠ Microphone permission prompt ✓ Audio input devices 1 mic"
+      }
+    },
+    {
+      "route": "/sales/cleanup",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/sales/cleanup",
+      "durationMs": 1391,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-sales-cleanup.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Lead Cleanup"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 0,
+        "buttons": 24,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 26,
+        "smallTargets": 23,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ Lead Cleanup Review and delete junk leads — unknown callers, no contact info, stale records. You choose what goes. ← Back to CRM Scanning leads… Dialer"
+      }
+    },
+    {
+      "route": "/admin/users",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/admin/users",
+      "durationMs": 1358,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-admin-users.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Team Access"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 37,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 39,
+        "smallTargets": 36,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ Team Access Manage who can log in and what they can see. + Add Team Member Owner Full access — CRM, operations, financials, settings Manager CRM + operations, assign crew, no financials Sales Rep Pipeline, leads, dialer, quotes only Partnership Manager Partnership CRM, partner SMS, partner dialer, tasks, and appointments only Operations Lead Operations calendar only — sees booked jobs, assigns crew for their branch Crew Crew calendar — sees their assigned jobs only JP John Paul Manager sanisanijaypee@gmail.com Edit Remove TU Thelma Ufot Manager thelma.ufot@starmovers.ca Edit Remove H Hunter Manag"
+      }
+    },
+    {
+      "route": "/marketing/partners?tab=today",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/marketing/partners?tab=today",
+      "durationMs": 1347,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-marketing-partners-tab-today.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Relationship CRM"
+        ],
+        "headingCount": 7,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 1
+        },
+        "activeNav": 1,
+        "buttons": 32,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 39,
+        "smallTargets": 32,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ Today Conversations Relationships Partners Signals Relationship CRM — batches · — contacts RELATIONSHIP CONTROL ROOM What needs attention today? Promises, replies and relationships that need a thoughtful next step—already placed in working order. Open conversations View relationships Today Loading Nothing urgent is floating. Review the relationship pipeline when you are ready. Relationships at risk 0 No relationships currently show a clear risk signal. Warm opportunities Momentum worth protecting No warm signals waiting. Recent proof Relationships producing real outcomes Market pulse Relationship"
+      }
+    },
+    {
+      "route": "/marketing/partners?tab=phone",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/marketing/partners?tab=phone",
+      "durationMs": 1459,
+      "navigationError": null,
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 ()"
+      ],
+      "failedRequests": [
+        {
+          "url": "https://media.twiliocdn.com/sdk/js/voice/v2.0/twilio.min.js",
+          "reason": "net::ERR_ABORTED"
+        }
+      ],
+      "screenshot": "screenshots/mobile-marketing-partners-tab-phone.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [],
+        "headingCount": 0,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 0,
+        "buttons": 13,
+        "unnamedButtons": 0,
+        "inputs": 5,
+        "unnamedInputs": 4,
+        "controls": 18,
+        "smallTargets": 4,
+        "smallTargetExamples": [
+          {
+            "tag": "SELECT",
+            "name": "All areasWindsor / Essex / ChathamKWG areaLondon / Sarnia / ",
+            "size": "358x40"
+          },
+          {
+            "tag": "SELECT",
+            "name": "All cities",
+            "size": "358x40"
+          },
+          {
+            "tag": "SELECT",
+            "name": "All categories",
+            "size": "358x40"
+          },
+          {
+            "tag": "SELECT",
+            "name": "All batches",
+            "size": "358x40"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Partnership replies 0 context · 0 need reply · 0 responded · 0 no response · 0 postcards · 0 appointments 0 All areas Windsor / Essex / Chatham KWG area London / Sarnia / Woodstock Ottawa area All cities All categories All batches Context Needs reply Responded No response All Positive Digital sent Postcards Appointments Waiting Follow-up Partners Closed Loading replies... 📱 Select a contact"
+      }
+    },
+    {
+      "route": "/marketing/partners?tab=pipeline",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/marketing/partners?tab=pipeline",
+      "durationMs": 4256,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-marketing-partners-tab-pipeline.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Relationship CRM"
+        ],
+        "headingCount": 2,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 34,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 41,
+        "smallTargets": 34,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ Today Conversations Relationships Partners Signals Relationship CRM 3 batches · 2000 contacts 1967 Relationship Pipeline 2000 partner opportunities in play All Tier 1 Tier 2 Tier 3 Conversation Started 11 John O'Sullivan RE/MAX HALLMARK REALTY GROUP Ottawa 12d ago Follow up Jul 9, 2026 Positive Chandra Juneja A2Z REALTY INC. Ottawa 9d ago Follow up Jul 12, 2026 Positive Sunita Verma ROYAL LEPAGE TEAM REALTY Ottawa 12d ago Follow up Jul 9, 2026 Positive Loucas Reklitis REMAX BOARDWALK REALTY Ottawa 4d ago Follow up Jul 17, 2026 Positive Cedric Meloche EXP REALTY Ottawa 9d ago Follow up Aug 8, 2026"
+      }
+    },
+    {
+      "route": "/marketing/partners?tab=partners",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/marketing/partners?tab=partners",
+      "durationMs": 1464,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-marketing-partners-tab-partners.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Relationship CRM"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 30,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 37,
+        "smallTargets": 30,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ Today Conversations Relationships Partners Signals Relationship CRM 3 batches · 2000 contacts 1967 🤝 No active partners yet Once a relationship becomes referral-ready, it appears here."
+      }
+    },
+    {
+      "route": "/marketing/partners?tab=queue",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/marketing/partners?tab=queue",
+      "durationMs": 2025,
+      "navigationError": null,
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 ()"
+      ],
+      "failedRequests": [
+        {
+          "url": "https://media.twiliocdn.com/sdk/js/voice/v2.0/twilio.min.js",
+          "reason": "net::ERR_ABORTED"
+        }
+      ],
+      "screenshot": "screenshots/mobile-marketing-partners-tab-queue.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Relationship CRM"
+        ],
+        "headingCount": 2,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 679,
+        "unnamedButtons": 0,
+        "inputs": 3,
+        "unnamedInputs": 1,
+        "controls": 688,
+        "smallTargets": 681,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 40 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ Today Conversations Relationships Partners Signals Relationship CRM — batches · 2000 contacts 1967 Outbound Queue 1975 need attention Schedule campaign All batches All 📍 Ottawa 🏠 Realtor Responded — Act Now 119 Chris A. Brown 🏠 Realtor EXIT EXCEL REALTY · Ottawa · real estate 9d ago 📞 Call 💬 SMS Open Log Marcia Nash 🏠 Realtor RE/MAX DELTA REALTY TEAM · Ottawa · real estate 13d ago 📞 Call 💬 SMS Open Log Nim Moussa 🏠 Realtor RE/MAX HALLMARK REALTY GROUP · Ottawa · real estate 13d ago 📞 Call 💬 SMS Open Log Roseli Quarti 🏠 Realtor ROYAL LEPAGE INTEGRITY REALTY · Ottawa · real estate 13"
+      }
+    },
+    {
+      "route": "/marketing/campaigns",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/marketing/campaigns",
+      "durationMs": 1444,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-marketing-campaigns.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Direct Mail ROI"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 26,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 33,
+        "smallTargets": 25,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 40 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ Today Conversations Relationships Partners Signals Direct Mail ROI Track every campaign batch and see what's converting. + Log Batch LETTERS SENT 5,196 RESPONSES 383 BOOKINGS 3 REVENUE $0 TOTAL ROI — Windsor Realtors – Batch 1 WR-B1-2026 Real Estate SENT 180 RESPONSES 52 (28.9%) BOOKINGS 2 (4%) REVENUE — Update results Top 26% Windsor-area realtors by listing volume. Canada Post mailed April 2026. Ottawa area Realtor Outreach sms_1783354056624 Sent Jul 6 real estate SENT 3,711 RESPONSES 204 (5.5%) BOOKINGS 0 (0%) REVENUE — Update results {\"type\":\"partnership_sms_campaign\",\"template\":\"Hey {{fir"
+      }
+    },
+    {
+      "route": "/marketing/queue",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/marketing/queue",
+      "durationMs": 1358,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-marketing-queue.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Daily Partnership Queue"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 25,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 32,
+        "smallTargets": 25,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 40 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ Today Conversations Relationships Partners Signals Daily Partnership Queue Sunday, July 19 Today Upcoming All ✅ Queue is clear Nothing due today. Check Upcoming or move mailed / due accounts into the queue from Partnerships."
+      }
+    },
+    {
+      "route": "/marketing/signals",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/marketing/signals",
+      "durationMs": 1562,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-marketing-signals.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Signals"
+        ],
+        "headingCount": 2,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 1,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 1,
+        "buttons": 125,
+        "unnamedButtons": 0,
+        "inputs": 1,
+        "unnamedInputs": 0,
+        "controls": 132,
+        "smallTargets": 124,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "Saturn Star OS",
+            "size": "44x30"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "New Lead",
+            "size": "56x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "MLS Quick Inventory Scan",
+            "size": "40x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Notifications",
+            "size": "36x36"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Dashboard",
+            "size": "97x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Inbox",
+            "size": "62x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Leads",
+            "size": "65x38"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Partnerships",
+            "size": "108x38"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS New Lead ⚡ 🔔 40 Change Password Log Out Dashboard Inbox Leads Partnerships Pipeline Follow-Up Quotes Academy Booked Operations Ops SMS Finance Live Feed Analytics Reps Team Settings ⌕ Today Conversations Relationships Partners Signals Signals Fast-response opportunities that should feed the partnership and corporate outreach queue. + Add Signal ACTIVE SIGNALS (26) GREENHOUSE EXPANSION Nature Fresh Farms 📍 Leamington New Continuous expansion - workers relocating from across Canada and internationally 👤 Dereck Pereira - VP Human Resources ⚡ MEDIUM - Ongoing Action: Partner with HR for seasonal and permanent worker moves 🚨 Hit All Channels 👁 Claim ✓ Mark Actioned Pass GREENHOUSE EXPANSION Mastronardi Produce (SUNSET) 📍 Leamington New Major employer 3500+ - constant hiring"
+      }
+    },
+    {
+      "route": "/crew/calendar",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/crew/calendar",
+      "durationMs": 1335,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-crew-calendar.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Hey Audit 👋"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 0,
+          "header": 1,
+          "aside": 0
+        },
+        "activeNav": 0,
+        "buttons": 1,
+        "unnamedButtons": 0,
+        "inputs": 0,
+        "unnamedInputs": 0,
+        "controls": 1,
+        "smallTargets": 0,
+        "smallTargetExamples": [],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "S Saturn Star OS Crew Portal AO Logout Sunday, July 19 Hey Audit 👋 No upcoming jobs assigned to you. Loading your schedule..."
+      }
+    },
+    {
+      "route": "/partners",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/partners",
+      "durationMs": 1402,
+      "navigationError": null,
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 ()"
+      ],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-partners.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Referral Partners"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 0,
+          "nav": 0,
+          "header": 0,
+          "aside": 0
+        },
+        "activeNav": 0,
+        "buttons": 2,
+        "unnamedButtons": 0,
+        "inputs": 0,
+        "unnamedInputs": 0,
+        "controls": 2,
+        "smallTargets": 1,
+        "smallTargetExamples": [
+          {
+            "tag": "BUTTON",
+            "name": "Add First Partner",
+            "size": "166x36"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Referral Partners Shared partner directory with live referral counts. Add Partner Cannot read properties of null (reading 'trim') No partners yet. Add the first referral partner to start tracking jobs and reward exposure. Add First Partner"
+      }
+    },
+    {
+      "route": "/partner",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/partner",
+      "durationMs": 1409,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-partner.png",
+      "metrics": {
+        "title": "SSM Local Partner Network",
+        "h1": [
+          "Refer a moving client without the back-and-forth."
+        ],
+        "headingCount": 2,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 1,
+          "nav": 0,
+          "header": 0,
+          "aside": 0
+        },
+        "activeNav": 0,
+        "buttons": 1,
+        "unnamedButtons": 0,
+        "inputs": 12,
+        "unnamedInputs": 0,
+        "controls": 13,
+        "smallTargets": 0,
+        "smallTargetExamples": [],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star Movers LOCAL PARTNER NETWORK Refer a moving client without the back-and-forth. Send us the client details. We contact them, quote the move, track attribution, and credit the partner only after a completed paid move. 01 Submit the client 02 SSM handles quote 03 Partner credited after completion Partner referral intake Use this for real estate, storage, senior living, HR, contractors, and local housing partners. PARTNER CODE PARTNER NAME PARTNER TYPE Select type Realtor / brokerage Mortgage broker Storage facility Property manager Senior living / downsizing Lawyer / estate professional Insurance broker HR / relocation Cleaner / junk removal Contractor / renovation Past customer Other MARKET / CITY CLIENT NAME CLIENT PHONE CLIENT EMAIL MOVING FROM MOVING TO MOVE DATE MOVE SIZE Sel"
+      }
+    },
+    {
+      "route": "/affiliate",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/affiliate",
+      "durationMs": 1351,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-affiliate.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [],
+        "headingCount": 0,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 0,
+          "nav": 0,
+          "header": 0,
+          "aside": 0
+        },
+        "activeNav": 0,
+        "buttons": 0,
+        "unnamedButtons": 0,
+        "inputs": 0,
+        "unnamedInputs": 0,
+        "controls": 1,
+        "smallTargets": 1,
+        "smallTargetExamples": [
+          {
+            "tag": "A",
+            "name": "226-773-2993",
+            "size": "76x14"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "🔒 Access Required Invalid link — please contact Saturn Star Movers for your partner link. Contact us: 226-773-2993"
+      }
+    },
+    {
+      "route": "/trigger",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/trigger",
+      "durationMs": 1341,
+      "navigationError": null,
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 ()"
+      ],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-trigger.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Mark Job Complete"
+        ],
+        "headingCount": 4,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 0,
+          "nav": 0,
+          "header": 0,
+          "aside": 0
+        },
+        "activeNav": 0,
+        "buttons": 1,
+        "unnamedButtons": 0,
+        "inputs": 8,
+        "unnamedInputs": 8,
+        "controls": 10,
+        "smallTargets": 8,
+        "smallTargetExamples": [
+          {
+            "tag": "INPUT",
+            "name": "",
+            "size": "340x42"
+          },
+          {
+            "tag": "INPUT",
+            "name": "",
+            "size": "340x42"
+          },
+          {
+            "tag": "INPUT",
+            "name": "",
+            "size": "340x42"
+          },
+          {
+            "tag": "INPUT",
+            "name": "",
+            "size": "340x42"
+          },
+          {
+            "tag": "INPUT",
+            "name": "",
+            "size": "340x42"
+          },
+          {
+            "tag": "INPUT",
+            "name": "",
+            "size": "340x42"
+          },
+          {
+            "tag": "SELECT",
+            "name": "No referral / direct",
+            "size": "340x40"
+          },
+          {
+            "tag": "A",
+            "name": "Add one",
+            "size": "45x14"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Mark Job Complete Creates a shared review link customers can open from any device Cannot read properties of null (reading 'trim') 1 Customer Info FULL NAME * PHONE * EMAIL * 2 Move Details MOVE DATE * MOVING FROM * MOVING TO * CREW LEAD * 3 Referral Source (optional) WHO REFERRED THIS CUSTOMER? No referral / direct No partners yet. Add one Complete Job And Generate Review Link"
+      }
+    },
+    {
+      "route": "/login",
+      "device": "mobile",
+      "status": 200,
+      "finalUrl": "https://go.quote2move.com/login",
+      "durationMs": 1351,
+      "navigationError": null,
+      "consoleErrors": [],
+      "failedRequests": [],
+      "screenshot": "screenshots/mobile-login.png",
+      "metrics": {
+        "title": "Saturn Star OS",
+        "h1": [
+          "Sign in"
+        ],
+        "headingCount": 1,
+        "headingSkips": [],
+        "landmarkCounts": {
+          "main": 0,
+          "nav": 0,
+          "header": 0,
+          "aside": 0
+        },
+        "activeNav": 0,
+        "buttons": 1,
+        "unnamedButtons": 0,
+        "inputs": 2,
+        "unnamedInputs": 0,
+        "controls": 3,
+        "smallTargets": 3,
+        "smallTargetExamples": [
+          {
+            "tag": "INPUT",
+            "name": "",
+            "size": "292x42"
+          },
+          {
+            "tag": "INPUT",
+            "name": "",
+            "size": "292x42"
+          },
+          {
+            "tag": "BUTTON",
+            "name": "Sign in",
+            "size": "292x36"
+          }
+        ],
+        "horizontalOverflow": false,
+        "overflowPixels": 0,
+        "duplicateIds": [],
+        "bodyText": "Saturn Star OS Mission Control Sign in Enter your credentials to access the platform. EMAIL (optional for owner) PASSWORD Sign in Saturn Star Moving — Internal Platform"
+      }
+    }
+  ],
+  "roles": [
+    {
+      "role": "owner",
+      "route": "/sales",
+      "status": 200,
+      "finalPath": "/sales"
+    },
+    {
+      "role": "owner",
+      "route": "/sales/operations",
+      "status": 200,
+      "finalPath": "/sales/operations"
+    },
+    {
+      "role": "owner",
+      "route": "/sales/finance",
+      "status": 200,
+      "finalPath": "/sales/finance"
+    },
+    {
+      "role": "owner",
+      "route": "/admin/users",
+      "status": 200,
+      "finalPath": "/admin/users"
+    },
+    {
+      "role": "owner",
+      "route": "/marketing",
+      "status": 307,
+      "finalPath": "/marketing"
+    },
+    {
+      "role": "manager",
+      "route": "/sales",
+      "status": 200,
+      "finalPath": "/sales"
+    },
+    {
+      "role": "manager",
+      "route": "/sales/operations",
+      "status": 200,
+      "finalPath": "/sales/operations"
+    },
+    {
+      "role": "manager",
+      "route": "/sales/finance",
+      "status": 200,
+      "finalPath": "/sales/finance"
+    },
+    {
+      "role": "manager",
+      "route": "/admin/users",
+      "status": 200,
+      "finalPath": "/sales"
+    },
+    {
+      "role": "manager",
+      "route": "/marketing",
+      "status": 307,
+      "finalPath": "/marketing"
+    },
+    {
+      "role": "sales_rep",
+      "route": "/sales",
+      "status": 200,
+      "finalPath": "/sales"
+    },
+    {
+      "role": "sales_rep",
+      "route": "/sales/operations",
+      "status": 200,
+      "finalPath": "/sales/operations"
+    },
+    {
+      "role": "sales_rep",
+      "route": "/sales/finance",
+      "status": 200,
+      "finalPath": "/sales/finance"
+    },
+    {
+      "role": "sales_rep",
+      "route": "/admin/users",
+      "status": 200,
+      "finalPath": "/sales"
+    },
+    {
+      "role": "sales_rep",
+      "route": "/marketing",
+      "status": 200,
+      "finalPath": "/sales"
+    },
+    {
+      "role": "operations_lead",
+      "route": "/sales",
+      "status": 200,
+      "finalPath": "/crew/calendar"
+    },
+    {
+      "role": "operations_lead",
+      "route": "/sales/operations",
+      "status": 200,
+      "finalPath": "/crew/calendar"
+    },
+    {
+      "role": "operations_lead",
+      "route": "/sales/finance",
+      "status": 200,
+      "finalPath": "/crew/calendar"
+    },
+    {
+      "role": "operations_lead",
+      "route": "/admin/users",
+      "status": 200,
+      "finalPath": "/crew/calendar"
+    },
+    {
+      "role": "operations_lead",
+      "route": "/marketing",
+      "status": 200,
+      "finalPath": "/crew/calendar"
+    },
+    {
+      "role": "operations_lead",
+      "route": "/crew/calendar",
+      "status": 200,
+      "finalPath": "/crew/calendar"
+    },
+    {
+      "role": "crew",
+      "route": "/sales",
+      "status": 200,
+      "finalPath": "/crew/calendar"
+    },
+    {
+      "role": "crew",
+      "route": "/sales/operations",
+      "status": 200,
+      "finalPath": "/crew/calendar"
+    },
+    {
+      "role": "crew",
+      "route": "/sales/finance",
+      "status": 200,
+      "finalPath": "/crew/calendar"
+    },
+    {
+      "role": "crew",
+      "route": "/admin/users",
+      "status": 200,
+      "finalPath": "/crew/calendar"
+    },
+    {
+      "role": "crew",
+      "route": "/marketing",
+      "status": 200,
+      "finalPath": "/crew/calendar"
+    },
+    {
+      "role": "crew",
+      "route": "/crew/calendar",
+      "status": 200,
+      "finalPath": "/crew/calendar"
+    },
+    {
+      "role": "partnership_manager",
+      "route": "/sales",
+      "status": 200,
+      "finalPath": "/marketing/partners?tab=phone"
+    },
+    {
+      "role": "partnership_manager",
+      "route": "/sales/operations",
+      "status": 200,
+      "finalPath": "/marketing/partners?tab=phone"
+    },
+    {
+      "role": "partnership_manager",
+      "route": "/sales/finance",
+      "status": 200,
+      "finalPath": "/marketing/partners?tab=phone"
+    },
+    {
+      "role": "partnership_manager",
+      "route": "/admin/users",
+      "status": 200,
+      "finalPath": "/marketing/partners?tab=phone"
+    },
+    {
+      "role": "partnership_manager",
+      "route": "/marketing/partners?tab=today",
+      "status": 200,
+      "finalPath": "/marketing/partners?tab=today"
+    }
+  ],
+  "journeys": {
+    "sample": {
+      "leadId": "lead_9v9ehjgk4",
+      "quoteId": "qt_d6ndyub24",
+      "bookedJobId": "lead_tmfzo47b9",
+      "counts": {
+        "leads": 433,
+        "quotes": 174,
+        "jobs": 24
+      }
+    }
+  },
+  "notes": []
+}

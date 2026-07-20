@@ -42,16 +42,21 @@ export function normalizeJob(input: Partial<Job> & Pick<Job, 'id' | 'customerNam
 }
 
 export function normalizePartner(input: Partial<Partner> & Pick<Partner, 'id' | 'name' | 'type' | 'email' | 'createdAt'>): Partner {
+  // Historical partner rows can contain database nulls even though the
+  // TypeScript model describes these fields as strings. Keep the shared
+  // directory available and make incomplete records repairable in the UI
+  // instead of failing the entire collection during normalization.
+  const text = (value: unknown) => typeof value === 'string' ? value.trim() : ''
   return {
-    id: input.id,
-    name: input.name.trim(),
-    type: input.type,
-    email: input.email.trim(),
-    phone: input.phone?.trim() || undefined,
-    company: input.company?.trim() || undefined,
+    id: text(input.id),
+    name: text(input.name) || 'Unnamed partner',
+    type: input.type || 'other',
+    email: text(input.email),
+    phone: text(input.phone) || undefined,
+    company: text(input.company) || undefined,
     totalJobsReferred: input.totalJobsReferred ?? 0,
     totalIncentiveOwed: input.totalIncentiveOwed ?? 0,
-    createdAt: input.createdAt,
+    createdAt: text(input.createdAt),
   }
 }
 

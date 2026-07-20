@@ -747,7 +747,10 @@ function useDialer() {
       if ((window as unknown as Record<string, unknown>).Twilio) { resolve(true); return }
       const s = document.createElement('script')
       const timeout = window.setTimeout(() => resolve(false), 10_000)
-      s.src = 'https://media.twiliocdn.com/sdk/js/voice/v2.0/twilio.min.js'
+      // Use the same supported SDK distribution as the global Saturn dialer.
+      // The legacy Twilio CDN path currently returns 404 and leaves the
+      // partnership phone workspace unable to initialize.
+      s.src = 'https://unpkg.com/@twilio/voice-sdk@2.11.0/dist/twilio.js'
       s.onload = () => {
         window.clearTimeout(timeout)
         resolve(true)
