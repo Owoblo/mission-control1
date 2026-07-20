@@ -3748,6 +3748,18 @@ export default function SalesLeadDetailPage() {
             <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8a6800]">What must happen next</div>
             <div className="mt-3 text-base font-semibold leading-6 text-[#071421]">{operatingExceptions[0]?.action || leadGuidance?.action.nextAction || 'Keep the operational record current'}</div>
             <p className="mt-2 text-sm leading-6 text-[var(--app-muted)]">{operatingExceptions[0]?.detail || leadGuidance?.salesLanguage || 'No blocking exception is visible from the current record.'}</p>
+            {leadGuidance ? <div className="mt-5 space-y-2">
+              <button type="button" onClick={() => void handleLeadCommandAction(leadGuidance.action.primaryCta.key)} className="crm-button-dark w-full">{leadGuidance.action.primaryCta.label}</button>
+              {leadGuidance.ownerLabel === 'Unassigned' ? <button type="button" onClick={() => void handleLeadCommandAction('assign_to_me')} className="crm-button w-full border-amber-300 bg-amber-50 text-amber-900">Assign to me</button> : null}
+              <details className="pt-1">
+                <summary className="min-h-11 cursor-pointer rounded-[4px] px-3 py-3 text-center text-sm font-medium text-[var(--app-muted)] hover:bg-white">More actions</summary>
+                <div className="mt-2 grid gap-2">
+                  {leadGuidance.action.secondaryCtas.slice(0, 2).map(cta => <button type="button" key={cta.key} onClick={() => void handleLeadCommandAction(cta.key)} className="crm-button w-full">{cta.label}</button>)}
+                  <button type="button" onClick={() => void handleLeadCommandAction('mark_lost')} className="crm-button w-full border-rose-200 text-rose-700">Mark lost</button>
+                  {canDeleteCurrentLead ? <button type="button" onClick={() => void removeLead()} disabled={deleteBusy} className="crm-button w-full border-rose-200 text-rose-700">{deleteBusy ? 'Deleting…' : 'Delete lead'}</button> : null}
+                </div>
+              </details>
+            </div> : null}
             {showJobReadiness && <div className="mt-5 border-t border-[var(--app-line)] pt-4"><div className="flex items-center justify-between gap-3"><span className="text-xs font-semibold text-[#344054]">Job readiness</span><span className={`text-xs font-semibold ${jobReadiness.status === 'fully_ready' ? 'text-emerald-700' : jobReadiness.status === 'at_risk' ? 'text-rose-700' : 'text-amber-700'}`}>{jobReadiness.label}</span></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-200"><div className={`h-full ${jobReadiness.status === 'fully_ready' ? 'bg-emerald-600' : jobReadiness.status === 'at_risk' ? 'bg-rose-600' : 'bg-amber-500'}`} style={{ width: `${jobReadiness.percent}%` }} /></div><div className="mt-2 text-xs text-[var(--app-muted)]">{jobReadiness.completed} of {jobReadiness.total} requirements complete</div></div>}
           </aside>
         </div>
@@ -3756,12 +3768,13 @@ export default function SalesLeadDetailPage() {
       {/* ── Sticky jump nav ─────────────────────────────────────────── */}
       <div className="sticky top-0 z-30 -mx-3 hidden overflow-x-auto border-b border-[var(--app-line)] bg-[var(--app-panel-strong)]/95 backdrop-blur-sm px-3 md:block">
         <div className="flex items-center gap-1 py-2">
+          <button type="button" onClick={handleBackNavigation} className="mr-2 min-h-11 shrink-0 rounded-[4px] border border-[var(--app-line)] bg-white px-3 text-xs font-semibold text-[var(--app-ink)]">← Back</button>
           {[
-            { label: '📋 Details', id: 'section-details' },
-            { label: '📦 Inventory', id: 'section-inventory' },
-            { label: '💰 Quote', id: 'section-quote' },
-            { label: '📸 Media', id: 'section-media' },
-            { label: '🕐 Timeline', id: 'section-timeline' },
+            { label: 'Details', id: 'section-details' },
+            { label: 'Inventory', id: 'section-inventory' },
+            { label: 'Quote', id: 'section-quote' },
+            { label: 'Media', id: 'section-media' },
+            { label: 'Timeline', id: 'section-timeline' },
           ].map(s => (
             <button
               key={s.id}
@@ -3771,11 +3784,6 @@ export default function SalesLeadDetailPage() {
               {s.label}
             </button>
           ))}
-          <div className="ml-auto flex items-center gap-2 text-xs text-[var(--app-muted)]">
-            <span className="font-semibold text-[var(--app-ink)]">{displayLeadName}</span>
-            <span>·</span>
-            <span className="capitalize">{lead.stage?.replace(/_/g, ' ')}</span>
-          </div>
         </div>
       </div>
 
@@ -3822,7 +3830,7 @@ export default function SalesLeadDetailPage() {
       ) : null}
 
       {leadGuidance ? (
-        <section className={`sticky top-[92px] z-30 rounded-[12px] border border-[var(--app-line)] bg-white transition-all ${leadCommandBarCompact ? 'shadow-md' : 'shadow-sm'}`}>
+        <section className="hidden" aria-hidden="true">
           <div className={`${guidancePanelCollapsed ? '' : 'border-b border-[var(--app-line)]'} ${guidancePanelCollapsed ? 'px-4 py-2.5' : leadCommandBarCompact ? 'px-4 py-3' : 'px-5 py-4'}`}>
             {guidancePanelCollapsed ? (
               <div className="flex items-center justify-between gap-3">
@@ -3956,7 +3964,7 @@ export default function SalesLeadDetailPage() {
 
       <div className="overflow-hidden rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)]">
         {/* Lead header bar */}
-        <div className="flex flex-wrap items-center gap-3 border-b border-[var(--app-line)] bg-white px-5 py-3">
+        <div className="flex flex-wrap items-center gap-3 border-b border-[var(--app-line)] bg-white px-5 py-3 md:hidden">
           <button
             type="button"
             onClick={handleBackNavigation}

@@ -331,17 +331,27 @@ async function selectProjectedLeadRows<T>(select: string): Promise<T[]> {
 
 async function selectAll<T>(table: TableName): Promise<T[]> {
   const { url, headers } = requireSupabase()
-  const response = await fetch(
-    `${url}/rest/v1/${table}?select=id,data,updated_at,deleted&deleted=eq.false&order=updated_at.desc`,
-    { headers, cache: 'no-store' }
-  )
-
-  if (!response.ok) {
-    throw new Error(`Failed to read ${table}`)
+  // crm_leads stores the complete record in JSONB. Asking PostgREST to also
+  // sort every row by updated_at made operational reads vulnerable to a
+  // database statement timeout as the table grew. Consumers already derive
+  // ordering from the record timestamps, so avoid that expensive sort and
+  // transfer only the JSONB payload for this high-volume table.
+  const query = table === 'crm_leads'
+    ? 'select=data&deleted=eq.false'
+    : 'select=id,data,updated_at,deleted&deleted=eq.false&order=updated_at.desc'
+  let lastError = ''
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const response = await fetch(`${url}/rest/v1/${table}?${query}`, { headers, cache: 'no-store' })
+    if (response.ok) {
+      const records = (await response.json()) as PersistedRecord<T>[]
+      return records.map(record => record.data)
+    }
+    const diagnostic = (await response.text().catch(() => '')).replace(/\s+/g, ' ').slice(0, 500)
+    lastError = `Supabase ${response.status}${diagnostic ? `: ${diagnostic}` : ''}`
+    if (response.status < 500 || attempt === 3) break
+    await new Promise(resolve => setTimeout(resolve, attempt * 200))
   }
-
-  const records = (await response.json()) as PersistedRecord<T>[]
-  return records.map(record => record.data)
+  throw new Error(`Failed to read ${table}. ${lastError}`)
 }
 
 async function selectAllRecords<T>(table: TableName): Promise<PersistedRecord<T>[]> {
