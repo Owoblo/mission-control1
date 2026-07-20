@@ -1,5 +1,6 @@
 import {
   buildSalesSummary,
+  BOOKED_LIKE_STAGES,
   isClosedLeadStage,
   normalizeClient,
   normalizeFollowUp,
@@ -437,6 +438,28 @@ export async function listSalesLeads() {
   const archivedLeadIds = getArchivedLeadIds(lifecycle)
   return filterDisplayDuplicateSalesLeads(leads
     .map(lead => normalizeLead(lead))
+    .filter(lead => isVisibleSalesLead(lead, archivedLeadIds)))
+}
+
+export async function listBookedSalesLeads() {
+  const { url, headers } = requireSupabase()
+  const query = new URLSearchParams({
+    select: 'data',
+    deleted: 'eq.false',
+    'data->>stage': `in.(${BOOKED_LIKE_STAGES.join(',')})`,
+  })
+  const [response, lifecycle] = await Promise.all([
+    fetchSupabaseWithRetry(`${url}/rest/v1/crm_leads?${query.toString()}`, { headers, cache: 'no-store' }),
+    selectLeadLifecycleSnapshots(),
+  ])
+  if (!response.ok) {
+    const diagnostic = (await response.text().catch(() => '')).replace(/\s+/g, ' ').slice(0, 500)
+    throw new Error(`Failed to read booked crm_leads. Supabase ${response.status}${diagnostic ? `: ${diagnostic}` : ''}`)
+  }
+  const records = await response.json() as Array<{ data: CRMLead }>
+  const archivedLeadIds = getArchivedLeadIds(lifecycle)
+  return filterDisplayDuplicateSalesLeads(records
+    .map(record => normalizeLead(record.data))
     .filter(lead => isVisibleSalesLead(lead, archivedLeadIds)))
 }
 

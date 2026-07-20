@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { isBookedLikeStage } from '@/lib/sales'
 import { canAccessOperationsWorkspace, canAccessSalesWorkspace, isLeadOwnedBySession } from '@/lib/server/sales-permissions'
 import { getSessionUser } from '@/lib/server/session'
-import { listSalesLeads, listSalesQuotes } from '@/lib/server/sales-repository'
+import { listBookedSalesLeads, listSalesQuotes } from '@/lib/server/sales-repository'
 
 export async function GET(request: Request) {
   const session = await getSessionUser()
@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const branchFilter = searchParams.get('branch') || session?.branch || null
 
-  const [leads, quotes] = await Promise.all([listSalesLeads(), listSalesQuotes()])
+  const [leads, quotes] = await Promise.all([listBookedSalesLeads(), listSalesQuotes()])
 
   const bookedLeads = leads.filter(l => {
     if (!isBookedLikeStage(l.stage)) return false
