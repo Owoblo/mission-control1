@@ -1138,10 +1138,17 @@ function SalesInboxPageInner() {
 
   return (
     <div className="crm-shell">
+      <h1 className="sr-only">Customer communication inbox</h1>
       <div className="h-[calc(100vh-40px)] overflow-hidden rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] flex flex-col">
-        {error ? <div className="border-b border-rose-200 bg-rose-50 px-5 py-3 text-sm text-rose-700 shrink-0">{error}</div> : null}
+        {error ? <div role="alert" className="flex shrink-0 items-center justify-between gap-3 border-b border-rose-200 bg-rose-50 px-5 py-3 text-sm text-rose-700"><span>{error}</span><button type="button" onClick={() => void refresh()} className="min-h-11 rounded border border-rose-300 bg-white px-4 font-semibold">Retry</button></div> : null}
         {loading ? (
-          <div className="flex-1 p-16 text-center text-sm text-[var(--app-muted)]">Loading lead inbox...</div>
+          <div role="status" aria-live="polite" className="flex flex-1 flex-col justify-center p-8 md:p-16">
+            <div className="mx-auto w-full max-w-3xl">
+              <p className="text-base font-semibold text-[var(--app-ink)]">Preparing your communication queue</p>
+              <p className="mt-1 text-sm text-[var(--app-muted)]">Replies, missed calls, forms and handoffs are being organized without changing your current selection.</p>
+              <div className="mt-6 space-y-3" aria-hidden="true">{[0, 1, 2].map(item => <div key={item} className="h-16 animate-pulse rounded-[8px] border border-[var(--app-line)] bg-stone-100" />)}</div>
+            </div>
+          </div>
         ) : (
           <div className="flex-1 min-h-0 min-w-0 md:flex">
             <section className={`${(selected || (viewMode === 'messages' && selectedThread) || (viewMode === 'email' && selectedEmailId)) ? 'hidden md:flex' : 'flex'} w-full flex-shrink-0 overflow-hidden border-r border-[var(--app-line)] bg-[var(--app-panel)] md:w-[470px] min-h-0`}>

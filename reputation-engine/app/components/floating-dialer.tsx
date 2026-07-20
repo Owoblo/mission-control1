@@ -13,6 +13,7 @@ import {
 } from '@/lib/dialer'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import { getSaturnBranchLabel, isSaturnBranchPhoneNumber, normalizePhone as normalizeSharedPhone } from '@/lib/sales-phones'
+import { loadTwilioVoiceSdk } from '@/lib/twilio-voice-sdk'
 
 declare global {
   type TwilioCallLike = {
@@ -235,25 +236,6 @@ function buildCallerProfile(number?: string | null, reason = 'preview'): DialerC
     reason,
     matchedLeadId: null,
   }
-}
-
-async function loadTwilioSdk() {
-  if (window.Twilio?.Device) return
-  await new Promise<void>((resolve, reject) => {
-    const existing = document.querySelector('script[data-twilio-voice="true"]') as HTMLScriptElement | null
-    if (existing) {
-      existing.addEventListener('load', () => resolve(), { once: true })
-      existing.addEventListener('error', () => reject(new Error('Failed to load Twilio SDK')), { once: true })
-      return
-    }
-    const script = document.createElement('script')
-    script.src = 'https://unpkg.com/@twilio/voice-sdk@2.11.0/dist/twilio.js'
-    script.async = true
-    script.dataset.twilioVoice = 'true'
-    script.onload = () => resolve()
-    script.onerror = () => reject(new Error('Failed to load Twilio SDK'))
-    document.head.appendChild(script)
-  })
 }
 
 function PhoneIcon({ className }: { className?: string }) {
@@ -891,7 +873,7 @@ export function FloatingDialer() {
   }
 
   async function buildDevice(existingPayload?: DialerTokenPayload) {
-    await loadTwilioSdk()
+    await loadTwilioVoiceSdk()
     const payload = existingPayload || await fetchDialerToken()
     if (payload.repName) repNameRef.current = payload.repName
     if (payload.identity) identityRef.current = payload.identity

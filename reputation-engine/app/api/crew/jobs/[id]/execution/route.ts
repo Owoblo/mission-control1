@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { buildDefaultMoveExecutionEntries, MOVE_EXECUTION_PHASES, normalizeMoveExecutionLog } from '@/lib/move-execution'
+import { deriveJobReadiness } from '@/lib/job-spine'
 import { getSessionUser } from '@/lib/server/session'
-import { getSalesLead, saveSalesLead } from '@/lib/server/sales-repository'
+import { getSalesLead, getSalesQuote, saveSalesLead } from '@/lib/server/sales-repository'
 import type { CRMLead, MoveExecutionPhase } from '@/lib/types'
 
 function canUpdateJob(lead: CRMLead, session: Awaited<ReturnType<typeof getSessionUser>>) {
@@ -20,9 +21,26 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     if (!lead) return NextResponse.json({ error: 'Job not found' }, { status: 404 })
     if (!canUpdateJob(lead, session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-    const body = await request.json() as { phase?: MoveExecutionPhase; note?: string }
+    const body = await request.json() as { phase?: MoveExecutionPhase; note?: string; readinessOverrideReason?: string }
     const phaseMeta = MOVE_EXECUTION_PHASES.find(item => item.phase === body.phase)
     if (!phaseMeta) return NextResponse.json({ error: 'Valid execution phase required' }, { status: 400 })
+
+    if (phaseMeta.phase === 'crew_depart_yard') {
+      const quote = lead.quoteId ? await getSalesQuote(lead.quoteId).catch(() => null) : null
+      const readiness = deriveJobReadiness(lead, quote)
+      const canOverride = session?.role === 'owner' || session?.role === 'manager' || session?.role === 'operations_lead'
+      const overrideReason = body.readinessOverrideReason?.trim()
+      if (readiness.status !== 'fully_ready' && !(canOverride && overrideReason)) {
+        return NextResponse.json({
+          error: 'This job is not fully ready to dispatch.',
+          code: 'JOB_NOT_READY',
+          readiness,
+          requiredAction: canOverride
+            ? 'Resolve the missing requirements or record a management override reason.'
+            : 'Ask Operations to resolve the missing requirements before departure.',
+        }, { status: 409 })
+      }
+    }
 
     const entries = buildDefaultMoveExecutionEntries(lead.moveExecutionLog?.entries)
     const targetIndex = entries.findIndex(entry => entry.phase === phaseMeta.phase)

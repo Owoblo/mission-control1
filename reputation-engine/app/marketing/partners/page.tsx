@@ -14,6 +14,7 @@ import {
   getPartnershipSenderNumbersForMarket,
 } from '@/lib/partnership-lines'
 import { formatCadFromCents } from '@/lib/partnership-constants'
+import { loadTwilioVoiceSdk } from '@/lib/twilio-voice-sdk'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -743,24 +744,7 @@ function useDialer() {
     if (deviceRef.current) return true
     setError(null)
     updateStatus('loading')
-    const sdkLoaded = await new Promise<boolean>(resolve => {
-      if ((window as unknown as Record<string, unknown>).Twilio) { resolve(true); return }
-      const s = document.createElement('script')
-      const timeout = window.setTimeout(() => resolve(false), 10_000)
-      // Use the same supported SDK distribution as the global Saturn dialer.
-      // The legacy Twilio CDN path currently returns 404 and leaves the
-      // partnership phone workspace unable to initialize.
-      s.src = 'https://unpkg.com/@twilio/voice-sdk@2.11.0/dist/twilio.js'
-      s.onload = () => {
-        window.clearTimeout(timeout)
-        resolve(true)
-      }
-      s.onerror = () => {
-        window.clearTimeout(timeout)
-        resolve(false)
-      }
-      document.head.appendChild(s)
-    })
+    const sdkLoaded = await loadTwilioVoiceSdk().then(() => true).catch(() => false)
     if (!sdkLoaded) {
       if (showError) setError('Browser voice could not load. Refresh and check network/ad blockers.')
       updateStatus('idle')

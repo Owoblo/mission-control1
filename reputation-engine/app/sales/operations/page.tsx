@@ -443,13 +443,18 @@ export default function OperationsPage() {
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({
+            leadId: job.lead.id,
             leadName: job.lead.name,
             leadEmail: job.lead.email,
             leadPhone: job.lead.phone,
             quoteNumber: job.quote?.number,
             channel: 'both',
           }),
-        }).catch(() => null)
+        }).then(async response => {
+          if (!response.ok) throw new Error('Job completed, but the customer-care follow-up needs attention.')
+          const payload = await response.json() as { lead?: CRMLead | null }
+          if (payload.lead) syncJobUpdate(payload.lead, job.quote)
+        }).catch(nextError => setError(nextError instanceof Error ? nextError.message : 'Customer-care follow-up needs attention.'))
       }
       setCompletedIds(prev => new Set(Array.from(prev).concat(job.lead.id)))
     } catch (err) {
