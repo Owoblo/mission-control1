@@ -38,6 +38,8 @@ export type DialerEventName =
   | 'warm_transfer_completed'
   | 'warm_transfer_returned'
   | 'warm_transfer_cancelled'
+  | 'transfer_context_created'
+  | 'transfer_context_received'
 
 export type DialerPresenceState =
   | 'registering'

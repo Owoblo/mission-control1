@@ -116,6 +116,20 @@ interface WarmTransferSession {
   startedAt: string
 }
 
+interface TransferContext {
+  id: string
+  leadId?: string | null
+  phone?: string | null
+  transferredBy?: string | null
+  customerName?: string | null
+  reason?: string | null
+  notes?: string | null
+  stage?: string | null
+  moveDate?: string | null
+  route?: string | null
+  owner?: string | null
+}
+
 interface DialerCallerProfile {
   fromNumber: string
   branchLabel: string
@@ -280,6 +294,7 @@ export function FloatingDialer() {
   const [warmTransferSession, setWarmTransferSession] = useState<WarmTransferSession | null>(null)
   const [internalDirectory, setInternalDirectory] = useState<InternalDirectoryEntry[]>([])
   const [internalDirectoryLoading, setInternalDirectoryLoading] = useState(false)
+  const [transferContext, setTransferContext] = useState<TransferContext | null>(null)
 
   // diagnostics state
   const [micPermission, setMicPermission] = useState<MicPermission>('unknown')
@@ -1061,11 +1076,27 @@ export function FloatingDialer() {
       clearLeadAssociation()
       setDialerStatus('incoming')
       setOpen(true)
+      setTransferContext(null)
       logCallEvent('incoming_call_received', {
         callDirection: 'inbound',
         phoneNumber: from,
       })
       pushPresence()
+
+      void fetch('/api/sales/dialer/transfer-context', { cache: 'no-store', credentials: 'include' })
+        .then(response => response.ok ? response.json() : { context: null })
+        .then(payload => {
+          const context = payload.context as TransferContext | null
+          if (!context || incomingCallRef.current !== call) return
+          setTransferContext(context)
+          logCallEvent('transfer_context_received', {
+            callDirection: 'inbound',
+            phoneNumber: from,
+            leadId: context.leadId || null,
+            extra: { contextId: context.id, transferredBy: context.transferredBy || null },
+          })
+        })
+        .catch(() => undefined)
 
       const matchSeq = ++leadMatchSeqRef.current
       void matchLeadByPhone(from).then(lead => {
@@ -2141,7 +2172,7 @@ export function FloatingDialer() {
     if (!callSidRef.current || !transferTarget.trim()) return
     setTransferring(true)
     try {
-      await fetch('/api/sales/dialer/transfer', {
+      const response = await fetch('/api/sales/dialer/transfer', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -2149,13 +2180,28 @@ export function FloatingDialer() {
           callSid: callSidRef.current,
           to: transferTarget.trim(),
           callerId: inferCurrentBusinessNumber(),
+          context: {
+            leadId: activeLeadIdRef.current,
+            customerName: activeLeadName,
+            phone: inferCurrentPhoneNumber(),
+            reason: activeLeadContext ? `Continue ${activeLeadContext.stage.replaceAll('_', ' ')} conversation` : 'Continue customer conversation',
+            notes: callNotes.trim() || null,
+            stage: activeLeadContext?.stage || null,
+            moveDate: activeLeadContext?.moveDate || null,
+            route: activeLeadRoute || null,
+            owner: activeLeadOwner,
+          },
         }),
       })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({})) as { error?: string }
+        throw new Error(payload.error || 'Transfer failed')
+      }
       setShowTransfer(false)
       setTransferTarget('')
       // Call will disconnect on our end as Twilio redirects
-    } catch {
-      // ignore
+    } catch (transferError) {
+      setError(transferError instanceof Error ? transferError.message : 'Transfer failed')
     } finally {
       setTransferring(false)
     }
@@ -2173,6 +2219,25 @@ export function FloatingDialer() {
         callSid: callSidRef.current,
         extra: { target, targetLabel },
       })
+      if (target.toLowerCase().startsWith('client:')) {
+        void postDialerTelemetry('event', {
+          event: 'transfer_context_created',
+          callSid: callSidRef.current,
+          leadId: activeLeadIdRef.current,
+          phoneNumber: inferCurrentPhoneNumber(),
+          extra: {
+            targetIdentity: target.slice(7),
+            transferredBy: currentUser?.name || repNameRef.current,
+            customerName: activeLeadName,
+            reason: activeLeadContext ? `Continue ${activeLeadContext.stage.replaceAll('_', ' ')} conversation` : 'Continue customer conversation',
+            notes: callNotes.trim() || null,
+            stage: activeLeadContext?.stage || null,
+            moveDate: activeLeadContext?.moveDate || null,
+            route: activeLeadRoute || null,
+            owner: activeLeadOwner,
+          },
+        })
+      }
       const res = await fetch('/api/sales/dialer/conference', {
         method: 'POST',
         credentials: 'include',
@@ -2347,6 +2412,18 @@ export function FloatingDialer() {
                 <div className="mt-1.5 flex items-center gap-1.5 text-xs text-emerald-400">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                   {activeLeadName ? 'CRM lead matched' : 'Matched CRM lead'}
+                </div>
+              )}
+              {transferContext && (
+                <div className="mt-4 w-full rounded-[12px] border border-amber-300/25 bg-amber-300/10 p-3 text-left text-xs">
+                  <div className="font-semibold text-amber-200">Transferred by {transferContext.transferredBy || 'Saturn Star team'}</div>
+                  <div className="mt-1 text-white/80">{transferContext.reason || 'Continue the customer conversation'}</div>
+                  {transferContext.notes && <div className="mt-2 border-t border-white/10 pt-2 text-white/55">{transferContext.notes}</div>}
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-white/45">
+                    <span>{transferContext.stage?.replaceAll('_', ' ') || 'Stage not recorded'}</span>
+                    <span>{transferContext.moveDate || 'Move date TBD'}</span>
+                    <span className="col-span-2">{transferContext.route || 'Route not confirmed'} · {transferContext.owner || 'Unassigned'}</span>
+                  </div>
                 </div>
               )}
               {activeLeadContext && <div className="mt-4 w-full rounded-[12px] border border-white/10 bg-white/5 p-3 text-left">

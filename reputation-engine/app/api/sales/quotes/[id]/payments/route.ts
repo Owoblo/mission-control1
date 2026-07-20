@@ -9,6 +9,7 @@ import { getReceiptBrand } from '@/lib/receipt-brand'
 import { getAppBaseUrl } from '@/lib/server/runtime'
 import { uid } from '@/lib/sales'
 import type { PaymentRecord, PaymentRecordKind, PaymentRecordMethod } from '@/lib/types'
+import { deriveMoneyState } from '@/lib/payment-state'
 
 const METHOD_LABELS: Record<PaymentRecordMethod, string> = {
   credit_card: 'Credit Card', debit: 'Debit', etransfer: 'Interac E-Transfer', cash: 'Cash',
@@ -142,5 +143,56 @@ export async function POST(request: Request, { params }: { params: { id: string 
     return NextResponse.json({ ok: true, quote: savedQuote, lead: savedLead, payment: deliveredPayment, ...delivery })
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Payment could not be recorded' }, { status: 500 })
+  }
+}
+
+export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+  const session = await getSessionUser()
+  if (!session || (session.role !== 'owner' && session.role !== 'manager')) {
+    return NextResponse.json({ error: 'Only an owner or manager can record a refund' }, { status: 403 })
+  }
+
+  try {
+    const body = await request.json() as { paymentId?: string; amount?: number; reference?: string; reason?: string }
+    const quote = await getSalesQuote(params.id)
+    if (!quote?.leadId) return NextResponse.json({ error: 'Quote or attached lead not found' }, { status: 404 })
+    const lead = await getSalesLead(quote.leadId)
+    if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
+    const payment = (quote.paymentRecords || []).find(item => item.id === body.paymentId)
+    if (!payment) return NextResponse.json({ error: 'Payment not found' }, { status: 404 })
+    const amount = Math.round(Number(body.amount || 0) * 100) / 100
+    const alreadyRefunded = payment.status === 'refunded' ? payment.amount : Number(payment.refundedAmount || 0)
+    const refundable = Math.max(0, Math.round((payment.amount - alreadyRefunded) * 100) / 100)
+    if (!Number.isFinite(amount) || amount <= 0 || amount > refundable) {
+      return NextResponse.json({ error: `Refund must be between $0.01 and ${money(refundable)}` }, { status: 400 })
+    }
+    if (!body.reason?.trim()) return NextResponse.json({ error: 'A refund reason is required' }, { status: 400 })
+
+    const now = new Date().toISOString()
+    const refundedAmount = Math.round((alreadyRefunded + amount) * 100) / 100
+    const updatedPayment: PaymentRecord = {
+      ...payment,
+      status: refundedAmount >= payment.amount ? 'refunded' : 'partially_refunded',
+      refundedAmount,
+      refundedAt: now,
+      refundReference: body.reference?.trim() || undefined,
+      note: [payment.note, `Refund: ${body.reason.trim()} (${money(amount)})`].filter(Boolean).join(' · '),
+    }
+    const savedQuote = await saveSalesQuote({
+      ...quote,
+      paymentRecords: (quote.paymentRecords || []).map(item => item.id === payment.id ? updatedPayment : item),
+    })
+    const moneyState = deriveMoneyState(savedQuote, { ...lead, paymentStatus: undefined })
+    const savedLead = await saveSalesLead({
+      ...lead,
+      paymentStatus: moneyState.balance <= 0 && moneyState.total > 0 ? 'paid_in_full' : moneyState.netPaid > 0 ? 'deposit_received' : 'pending',
+    })
+    await saveFollowUpLog({
+      id: uid('fu'), leadId: lead.id, quoteId: quote.id, type: 'status_change', date: now, createdAt: now,
+      notes: `${money(amount)} refund recorded against ${payment.receiptNumber} by ${session.name}. Reason: ${body.reason.trim()}${body.reference?.trim() ? ` Reference: ${body.reference.trim()}` : ''}`,
+    })
+    return NextResponse.json({ ok: true, quote: savedQuote, lead: savedLead, payment: updatedPayment, moneyState })
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Refund could not be recorded' }, { status: 500 })
   }
 }

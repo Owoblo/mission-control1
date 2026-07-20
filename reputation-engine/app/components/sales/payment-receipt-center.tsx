@@ -2,15 +2,17 @@
 
 import { useMemo, useState } from 'react'
 import type { CRMLead, CRMQuote, PaymentRecordKind, PaymentRecordMethod } from '@/lib/types'
+import { deriveMoneyState } from '@/lib/payment-state'
+import { useCurrentUser } from '@/lib/hooks/use-current-user'
 
 const money = (value: number) => new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(value)
 
 export function PaymentReceiptCenter({ lead, quote, canEdit, onUpdated }: { lead: CRMLead; quote: CRMQuote; canEdit: boolean; onUpdated: (lead: CRMLead, quote: CRMQuote) => void }) {
+  const currentUser = useCurrentUser()
   const records = useMemo(() => [...(quote.paymentRecords || [])].sort((a, b) => b.paidAt.localeCompare(a.paidAt)), [quote.paymentRecords])
-  const recordedPaid = records.reduce((sum, item) => sum + item.amount, 0)
-  const legacyPaid = Math.max(Number(quote.depositPaidAmount || 0), Number(lead.depositAmount || 0)) + Number(quote.balancePaidAmount || 0)
-  const paid = Math.max(recordedPaid, legacyPaid)
-  const owing = Math.max(0, quote.total - paid)
+  const moneyState = useMemo(() => deriveMoneyState(quote, lead), [quote, lead])
+  const paid = moneyState.netPaid
+  const owing = moneyState.balance
   const [open, setOpen] = useState(false)
   // Deliberately blank: a receipt must reflect a real transaction, never an
   // amount inferred from the quote or remaining balance.
@@ -57,6 +59,25 @@ export function PaymentReceiptCenter({ lead, quote, canEdit, onUpdated }: { lead
     finally { setBusy(false) }
   }
 
+  async function refund(paymentId: string, refundable: number) {
+    const amountText = window.prompt(`Refund amount (maximum ${money(refundable)})`)
+    if (!amountText) return
+    const reason = window.prompt('Reason for this refund (required)')
+    if (!reason?.trim()) return
+    const reference = window.prompt('Refund reference (optional)') || ''
+    setBusy(true); setMessage('')
+    try {
+      const response = await fetch(`/api/sales/quotes/${quote.id}/payments`, {
+        method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentId, amount: Number(amountText), reason, reference }),
+      })
+      const payload = await response.json() as { ok?: boolean; error?: string; lead?: CRMLead; quote?: CRMQuote }
+      if (!response.ok || !payload.ok || !payload.lead || !payload.quote) throw new Error(payload.error || 'Refund could not be recorded')
+      onUpdated(payload.lead, payload.quote); setMessage('Refund recorded with an audit note.')
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Refund could not be recorded') }
+    finally { setBusy(false) }
+  }
+
   return (
     <div className="overflow-hidden rounded-[18px] border border-[#E5E7EB] bg-white">
       <div className="bg-[#071421] p-4 text-white">
@@ -81,8 +102,8 @@ export function PaymentReceiptCenter({ lead, quote, canEdit, onUpdated }: { lead
 
       <div className="divide-y divide-[#E5E7EB]">
         {records.length === 0 ? <div className="p-4 text-center text-xs text-[#667085]">No modern receipt records yet. Record the next payment here.</div> : records.map(payment => <div key={payment.id} className="p-4">
-          <div className="flex items-start justify-between gap-3"><div><div className="text-sm font-bold text-[#071421]">{money(payment.amount)} · {payment.methodLabel}</div><div className="mt-1 text-[10px] text-[#667085]">{payment.receiptNumber} · {new Date(payment.paidAt).toLocaleDateString('en-CA')}</div></div><div className="rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-bold uppercase text-emerald-700">Received</div></div>
-          <div className="mt-3 flex flex-wrap gap-2"><a href={receiptLink(payment)} target="_blank" className="rounded-[8px] border border-[#E5E7EB] px-2.5 py-1.5 text-[10px] font-semibold text-[#071421]">Preview</a><button onClick={() => void resend(payment.id)} disabled={busy} className="rounded-[8px] border border-[#E5E7EB] px-2.5 py-1.5 text-[10px] font-semibold text-[#071421] disabled:opacity-50">Send again</button>{payment.emailSentAt && <span className="px-1 py-1.5 text-[9px] text-[#667085]">Email sent</span>}{payment.smsSentAt && <span className="px-1 py-1.5 text-[9px] text-[#667085]">SMS sent</span>}</div>
+          <div className="flex items-start justify-between gap-3"><div><div className="text-sm font-bold text-[#071421]">{money(payment.amount)} · {payment.methodLabel}</div><div className="mt-1 text-[10px] text-[#667085]">{payment.receiptNumber} · {new Date(payment.paidAt).toLocaleDateString('en-CA')}{payment.refundedAmount ? ` · ${money(payment.refundedAmount)} refunded` : ''}</div></div><div className={`rounded-full px-2 py-1 text-[9px] font-bold uppercase ${payment.status === 'refunded' ? 'bg-stone-100 text-stone-600' : payment.status === 'partially_refunded' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>{payment.status === 'refunded' ? 'Refunded' : payment.status === 'partially_refunded' ? 'Partial refund' : 'Received'}</div></div>
+          <div className="mt-3 flex flex-wrap gap-2"><a href={receiptLink(payment)} target="_blank" className="rounded-[8px] border border-[#E5E7EB] px-2.5 py-1.5 text-[10px] font-semibold text-[#071421]">Preview</a><button onClick={() => void resend(payment.id)} disabled={busy} className="rounded-[8px] border border-[#E5E7EB] px-2.5 py-1.5 text-[10px] font-semibold text-[#071421] disabled:opacity-50">Send again</button>{(currentUser?.role === 'owner' || currentUser?.role === 'manager') && payment.status !== 'refunded' && <button onClick={() => void refund(payment.id, Math.max(0, payment.amount - Number(payment.refundedAmount || 0)))} disabled={busy} className="rounded-[8px] border border-amber-300 px-2.5 py-1.5 text-[10px] font-semibold text-amber-800 disabled:opacity-50">Record refund</button>}{payment.emailSentAt && <span className="px-1 py-1.5 text-[9px] text-[#667085]">Email sent</span>}{payment.smsSentAt && <span className="px-1 py-1.5 text-[9px] text-[#667085]">SMS sent</span>}</div>
         </div>)}
       </div>
       {message && <div className="border-t border-[#E5E7EB] bg-[#F7F4ED] px-4 py-3 text-[10px] font-semibold text-[#667085]">{message}</div>}

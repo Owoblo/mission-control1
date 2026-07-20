@@ -1,7 +1,8 @@
 import { getTwilioCredentials } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
-import { hasInternalSession } from '@/lib/server/session'
+import { getSessionUser } from '@/lib/server/session'
 import { pickSaturnBranchPhoneNumber } from '@/lib/sales-phones'
+import { logDialerAnalyticsEvent } from '@/lib/server/telephony-monitoring'
 
 function buildTransferTwiml(to: string, callerId?: string | null): string {
   const lower = to.toLowerCase()
@@ -18,11 +19,26 @@ function buildTransferTwiml(to: string, callerId?: string | null): string {
 }
 
 export async function POST(request: Request) {
-  const authed = await hasInternalSession()
-  if (!authed) return new Response('Unauthorized', { status: 401 })
+  const session = await getSessionUser()
+  if (!session) return new Response('Unauthorized', { status: 401 })
 
   try {
-    const { callSid, to, callerId } = await request.json() as { callSid?: string; to?: string; callerId?: string | null }
+    const { callSid, to, callerId, context } = await request.json() as {
+      callSid?: string
+      to?: string
+      callerId?: string | null
+      context?: {
+        leadId?: string | null
+        customerName?: string | null
+        phone?: string | null
+        reason?: string | null
+        notes?: string | null
+        stage?: string | null
+        moveDate?: string | null
+        route?: string | null
+        owner?: string | null
+      }
+    }
     if (!callSid || !to) {
       return Response.json({ error: 'callSid and to are required' }, { status: 400 })
     }
@@ -45,6 +61,32 @@ export async function POST(request: Request) {
     if (!res.ok) {
       const body = await res.json().catch(() => ({})) as { message?: string }
       return Response.json({ error: body.message || 'Twilio transfer failed' }, { status: 502 })
+    }
+
+    const targetIdentity = to.trim().toLowerCase().startsWith('client:') ? to.trim().slice(7) : null
+    if (targetIdentity) {
+      await logDialerAnalyticsEvent({
+        userId: session.userId,
+        userName: session.name,
+        userRole: session.role,
+        payload: {
+          event: 'transfer_context_created',
+          callSid,
+          leadId: context?.leadId || null,
+          phoneNumber: context?.phone || undefined,
+          extra: {
+            targetIdentity,
+            transferredBy: session.name,
+            customerName: context?.customerName || null,
+            reason: context?.reason || null,
+            notes: context?.notes || null,
+            stage: context?.stage || null,
+            moveDate: context?.moveDate || null,
+            route: context?.route || null,
+            owner: context?.owner || null,
+          },
+        },
+      }).catch(() => undefined)
     }
 
     return Response.json({ ok: true })
