@@ -118,17 +118,17 @@ export function ConsultationBookingModal({ lead, salesUsers, onClose, onConfirm 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden"
+        className="w-full max-w-lg rounded-xl bg-white shadow-none overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-[#1a2744] px-6 py-5">
+        <div className="bg-[#071421] px-6 py-5">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-xs font-semibold uppercase tracking-wider text-white/50">New appointment</div>
               <div className="mt-1 text-lg font-bold text-white">In-Home Move Consultation</div>
             </div>
-            <button onClick={onClose} className="rounded-full p-1.5 text-white/40 hover:bg-white/10 hover:text-white transition-colors">✕</button>
+            <button onClick={onClose} className="rounded-xl p-1.5 text-white/40 hover:bg-white/10 hover:text-white transition-colors">✕</button>
           </div>
           {/* Step tabs */}
           <div className="mt-4 flex gap-2">
@@ -136,7 +136,7 @@ export function ConsultationBookingModal({ lead, salesUsers, onClose, onConfirm 
               <button
                 key={s}
                 onClick={() => setStep(s)}
-                className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${step === s ? 'bg-white text-[#1a2744]' : 'text-white/60 hover:text-white'}`}
+                className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${step === s ? 'bg-white text-[#071421]' : 'text-white/60 hover:text-white'}`}
               >
                 {s === 'book' ? '1. Book Appointment' : '2. Pre-Visit Brief'}
               </button>
@@ -190,9 +190,9 @@ export function ConsultationBookingModal({ lead, salesUsers, onClose, onConfirm 
 
             {lead.phone && (
               <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 cursor-pointer">
-                <input type="checkbox" checked={sendSms} onChange={e => setSendSms(e.target.checked)} className="h-4 w-4 rounded accent-[#1a2744]" />
+                <input type="checkbox" checked={sendSms} onChange={e => setSendSms(e.target.checked)} className="h-4 w-4 rounded accent-[#071421]" />
                 <div>
-                  <div className="text-sm font-medium text-[#1a2744]">Send confirmation SMS to customer</div>
+                  <div className="text-sm font-medium text-[#071421]">Send confirmation SMS to customer</div>
                   <div className="text-xs text-slate-500 mt-0.5">Premium In-Home Consultation language — date, time, and manager included</div>
                 </div>
               </label>
@@ -200,7 +200,7 @@ export function ConsultationBookingModal({ lead, salesUsers, onClose, onConfirm 
 
             <button
               onClick={() => setStep('brief')}
-              className="w-full rounded-[10px] bg-[#1a2744] py-2.5 text-sm font-semibold text-white hover:bg-[#0f1b2d] transition-colors"
+              className="w-full rounded-[10px] bg-[#071421] py-2.5 text-sm font-semibold text-white hover:bg-[#071421] transition-colors"
             >
               Preview Pre-Visit Brief →
             </button>
@@ -221,7 +221,7 @@ export function ConsultationBookingModal({ lead, salesUsers, onClose, onConfirm 
               <button
                 onClick={handleConfirm}
                 disabled={!date}
-                className="flex-2 flex-1 rounded-[10px] bg-[#f5a623] py-2.5 text-sm font-bold text-[#1a2744] hover:bg-[#e09420] disabled:opacity-50 transition-colors"
+                className="flex-2 flex-1 rounded-[10px] bg-[#C99700] py-2.5 text-sm font-bold text-[#071421] hover:bg-[#e09420] disabled:opacity-50 transition-colors"
               >
                 Book Consultation {sendSms ? '+ Send SMS' : ''}
               </button>

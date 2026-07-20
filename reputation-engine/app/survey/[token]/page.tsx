@@ -474,7 +474,7 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f0f2f5]">
         <div className="space-y-3 text-center">
-          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-[#1a2744] border-t-transparent" />
+          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-[#071421] border-t-transparent" />
           <p className="text-sm text-gray-500">Loading your inventory review...</p>
         </div>
       </div>
@@ -486,7 +486,7 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
       <div className="flex min-h-screen items-center justify-center bg-[#f0f2f5] p-6">
         <div className="w-full max-w-sm rounded-2xl bg-white p-8 text-center shadow-sm">
           <div className="text-4xl">😕</div>
-          <h1 className="mt-4 text-lg font-bold text-[#1a2744]">Review link unavailable</h1>
+          <h1 className="mt-4 text-lg font-bold text-[#071421]">Review link unavailable</h1>
           <p className="mt-2 text-sm text-gray-500">{loadError}</p>
           <p className="mt-3 text-xs text-gray-400">Call us at (226) 773-2993</p>
         </div>
@@ -499,13 +499,13 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
       <div className="flex min-h-screen items-center justify-center bg-[#f0f2f5] p-6">
         <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-sm">
           <div className="text-5xl">✅</div>
-          <h1 className="mt-4 text-xl font-bold text-[#1a2744]">
+          <h1 className="mt-4 text-xl font-bold text-[#071421]">
             Thanks{info?.customerName ? `, ${info.customerName}` : ''}. We have your inventory review.
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-gray-600">
             Our team will use this confirmed inventory and your photos to tighten up the quote and crew plan.
           </p>
-          <div className="mt-5 rounded-2xl bg-[#f4efe4] p-4 text-left text-sm text-[#1a2744]">
+          <div className="mt-5 rounded-2xl bg-[#f4efe4] p-4 text-left text-sm text-[#071421]">
             <div className="font-semibold">What we received</div>
             <div className="mt-2 text-gray-700">
               {formatRoomCount(totalPhotos, 'photo')} across {formatRoomCount(completedRooms.length, 'room')}
@@ -517,7 +517,7 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
               <div className="text-gray-700">{formatRoomCount(addedItems.length, 'added item')}</div>
             )}
           </div>
-          <div className="mt-5 rounded-xl bg-[#1a2744] p-4 text-sm text-white">
+          <div className="mt-5 rounded-xl bg-[#071421] p-4 text-sm text-white">
             <p className="font-semibold">Saturn Star Movers</p>
             <p className="text-xs opacity-70">Questions? Call (226) 773-2993</p>
           </div>
@@ -528,8 +528,8 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
 
   return (
     <div className="min-h-screen bg-[#f0f2f5]">
-      <div className="bg-[#1a2744] px-5 pb-6 pt-10 text-white">
-        <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#f5a623]">Saturn Star Movers</p>
+      <div className="bg-[#071421] px-5 pb-6 pt-10 text-white">
+        <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#C99700]">Saturn Star Movers</p>
         <h1 className="text-xl font-bold">
           {info?.customerName ? `Hi ${info.customerName}, let's verify your move.` : 'Let’s verify your move.'}
         </h1>
@@ -551,7 +551,7 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
         </div>
         <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
           <div
-            className="h-full rounded-full bg-[#f5a623] transition-all duration-500"
+            className="h-full rounded-full bg-[#C99700] transition-all duration-500"
             style={{ width: `${Math.min(100, ((completedRooms.length + reviewStats.reviewed) / Math.max(1, rooms.length + reviewItems.length)) * 100)}%` }}
           />
         </div>
@@ -568,7 +568,7 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Address check</p>
-              <h2 className="mt-1 text-base font-semibold text-[#1a2744]">Is this the right home and unit?</h2>
+              <h2 className="mt-1 text-base font-semibold text-[#071421]">Is this the right home and unit?</h2>
               <p className="mt-1 text-sm text-gray-600">
                 We matched your move to {info?.originAddress && info?.originCity && info.originAddress.toLowerCase().includes(info.originCity.toLowerCase()) ? info.originAddress : ([info?.originAddress, info?.originCity].filter(Boolean).join(', ') || 'your origin address')}.
               </p>
@@ -617,7 +617,7 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
             <textarea
               value={addressMismatchNote}
               onChange={event => setAddressMismatchNote(event.target.value)}
-              className="mt-3 min-h-[84px] w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#1a2744]"
+              className="mt-3 min-h-[84px] w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#071421]"
               placeholder="Tell us what is wrong. Example: this is unit 601, but the photos are for another unit."
             />
           )}
@@ -660,12 +660,12 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
           <button
             type="button"
             onClick={() => setShowUploadSection(true)}
-            className="w-full rounded-2xl border-2 border-dashed border-gray-200 bg-white p-4 text-left shadow-sm transition hover:border-[#1a2744]/40"
+            className="w-full rounded-2xl border-2 border-dashed border-gray-200 bg-white p-4 text-left shadow-sm transition hover:border-[#071421]/40"
           >
             <div className="flex items-center gap-3">
               <span className="text-2xl">📸</span>
               <div>
-                <div className="text-sm font-semibold text-[#1a2744]">Add room photos</div>
+                <div className="text-sm font-semibold text-[#071421]">Add room photos</div>
                 <div className="text-xs text-gray-500">Garage, basement, closets, packed boxes — tap to upload</div>
               </div>
             </div>
@@ -685,7 +685,7 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
               <div
                 key={room.id}
                 className={`relative rounded-2xl border-2 bg-white shadow-sm ${
-                  room.photoCount > 0 ? 'border-emerald-300 bg-emerald-50' : room.uploading ? 'border-[#1a2744]/30' : 'border-transparent'
+                  room.photoCount > 0 ? 'border-emerald-300 bg-emerald-50' : room.uploading ? 'border-[#071421]/30' : 'border-transparent'
                 }`}
               >
                 <input
@@ -719,7 +719,7 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
                   className="w-full p-4 text-left"
                 >
                   <div className="text-2xl">{roomEmoji(room.id)}</div>
-                  <div className="mt-2 text-sm font-semibold text-[#1a2744]">{room.label}</div>
+                  <div className="mt-2 text-sm font-semibold text-[#071421]">{room.label}</div>
                   <div className="mt-1 text-xs text-gray-500">
                     {room.uploading
                       ? 'Uploading...'
@@ -750,7 +750,7 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
                     type="button"
                     onClick={() => triggerGallery(room.id)}
                     disabled={room.uploading}
-                    className="w-full rounded-xl py-1.5 text-[11px] font-medium text-gray-500 transition hover:bg-gray-50 hover:text-[#1a2744] disabled:opacity-40"
+                    className="w-full rounded-xl py-1.5 text-[11px] font-medium text-gray-500 transition hover:bg-gray-50 hover:text-[#071421] disabled:opacity-40"
                   >
                     Choose from gallery
                   </button>
@@ -768,11 +768,11 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
                     onKeyDown={event => {
                       if (event.key === 'Enter') addCustomRoom()
                     }}
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#1a2744] focus:outline-none"
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#071421] focus:outline-none"
                     placeholder="Room name..."
                   />
                   <div className="mt-2 flex gap-2">
-                    <button type="button" onClick={addCustomRoom} className="flex-1 rounded-xl bg-[#1a2744] py-2 text-xs font-semibold text-white">Add room</button>
+                    <button type="button" onClick={addCustomRoom} className="flex-1 rounded-xl bg-[#071421] py-2 text-xs font-semibold text-white">Add room</button>
                     <button
                       type="button"
                       onClick={() => {
@@ -789,7 +789,7 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
                 <button
                   type="button"
                   onClick={() => setShowCustomInput(true)}
-                  className="w-full rounded-2xl border-2 border-dashed border-gray-200 bg-white p-4 text-left shadow-sm transition hover:border-[#1a2744]/40"
+                  className="w-full rounded-2xl border-2 border-dashed border-gray-200 bg-white p-4 text-left shadow-sm transition hover:border-[#071421]/40"
                 >
                   <div className="text-2xl">➕</div>
                   <div className="mt-2 text-sm font-semibold text-gray-500">Other room</div>
@@ -804,7 +804,7 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
         {(showInventoryReview || (info?.listingPhotos?.length ?? 0) > 0) && (
           <div className="rounded-2xl bg-white p-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Inventory review</p>
-            <h2 className="mt-1 text-base font-semibold text-[#1a2744]">Tell us what is moving.</h2>
+            <h2 className="mt-1 text-base font-semibold text-[#071421]">Tell us what is moving.</h2>
             <p className="mt-1 text-sm text-gray-600">
               We built your inventory from your home&apos;s listing. Review room by room — mark anything staying behind so we quote accurately.
             </p>
@@ -827,7 +827,7 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
                 <div key={room}>
                   {/* Room header */}
                   <div className="mb-1.5 flex items-center gap-2">
-                    <span className="text-sm font-bold text-[#1a2744]">{room}</span>
+                    <span className="text-sm font-bold text-[#071421]">{room}</span>
                     <span className="text-xs text-gray-400">· {items.length} item{items.length !== 1 ? 's' : ''}</span>
                   </div>
                   {/* Compact list */}
@@ -838,7 +838,7 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
                           {/* Bullet */}
                           <span className="text-gray-300 text-xs shrink-0">•</span>
                           {/* Name */}
-                          <span className="flex-1 text-sm text-[#1a2744] font-medium truncate">
+                          <span className="flex-1 text-sm text-[#071421] font-medium truncate">
                             {item.qty > 1 ? `${item.qty}× ` : ''}{item.name}
                             {item.size ? <span className="text-xs font-normal text-gray-400 ml-1">({item.size})</span> : null}
                           </span>
@@ -857,7 +857,7 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
                           <textarea
                             value={item.note || ''}
                             onChange={event => updateDecisionNote(item.key, event.target.value)}
-                            className="mt-2 min-h-[52px] w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-[#1a2744]"
+                            className="mt-2 min-h-[52px] w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-[#071421]"
                             placeholder={item.decision === 'not_going' ? 'Why staying? (optional)' : 'What needs review?'}
                           />
                         )}
@@ -868,7 +868,7 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
               ))}
 
               <div className="rounded-2xl border border-dashed border-gray-200 p-4">
-                <div className="text-sm font-semibold text-[#1a2744]">Missing something?</div>
+                <div className="text-sm font-semibold text-[#071421]">Missing something?</div>
                 <p className="mt-1 text-sm text-gray-600">
                   Add anything we missed, including garage items, patio furniture, packed boxes, storage lockers, or a second pickup stop.
                 </p>
@@ -877,20 +877,20 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
                   <input
                     value={missingItemName}
                     onChange={event => setMissingItemName(event.target.value)}
-                    className="rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#1a2744]"
+                    className="rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#071421]"
                     placeholder="Item name"
                   />
                   <input
                     value={missingItemQty}
                     onChange={event => setMissingItemQty(event.target.value)}
-                    className="rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#1a2744]"
+                    className="rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#071421]"
                     inputMode="numeric"
                     placeholder="Qty"
                   />
                   <select
                     value={missingItemRoom}
                     onChange={event => setMissingItemRoom(event.target.value)}
-                    className="rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#1a2744]"
+                    className="rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#071421]"
                   >
                     {roomLabels.map(label => (
                       <option key={label} value={label}>{label}</option>
@@ -900,13 +900,13 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
                 <textarea
                   value={missingItemNote}
                   onChange={event => setMissingItemNote(event.target.value)}
-                  className="mt-2 min-h-[68px] w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#1a2744]"
+                  className="mt-2 min-h-[68px] w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#071421]"
                   placeholder="Optional note: fragile, balcony item, disassembly needed, second origin, etc."
                 />
                 <button
                   type="button"
                   onClick={addMissingItem}
-                  className="mt-3 rounded-xl bg-[#1a2744] px-4 py-2 text-sm font-semibold text-white"
+                  className="mt-3 rounded-xl bg-[#071421] px-4 py-2 text-sm font-semibold text-white"
                 >
                   Add missing item
                 </button>
@@ -916,7 +916,7 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
                     {addedItems.map(item => (
                       <div key={item.id} className="flex items-start justify-between gap-3 rounded-xl border border-gray-100 bg-white px-3 py-2">
                         <div>
-                          <div className="text-sm font-semibold text-[#1a2744]">
+                          <div className="text-sm font-semibold text-[#071421]">
                             {item.qty > 1 ? `${item.qty} x ` : ''}{item.name}
                           </div>
                           <div className="text-xs text-gray-500">{item.room}{item.note ? ` · ${item.note}` : ''}</div>
@@ -947,7 +947,7 @@ export default function SurveyPage({ params }: { params: { token: string } }) {
           type="button"
           onClick={() => void submitSurvey()}
           disabled={submitting || rooms.some(room => room.uploading)}
-          className="w-full rounded-2xl bg-[#f5a623] py-4 text-base font-bold text-[#1a2744] shadow-sm transition disabled:opacity-60"
+          className="w-full rounded-2xl bg-[#C99700] py-4 text-base font-bold text-[#071421] shadow-sm transition disabled:opacity-60"
         >
           {submitting ? 'Submitting...' : 'Finish inventory review'}
         </button>

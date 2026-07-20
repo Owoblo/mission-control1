@@ -26,8 +26,8 @@ function buildPreMoveEmail(lead: CRMLead) {
   return {
     subject: `Move day tomorrow — Saturn Star Moving`,
     html: `<div style="font-family:system-ui,sans-serif;max-width:540px;margin:0 auto;color:#1a1a1a;">
-  <div style="background:#1a2744;padding:32px 24px;border-radius:12px 12px 0 0;text-align:center;">
-    <div style="color:#f5a623;font-size:22px;font-weight:700;">Saturn Star Moving</div>
+  <div style="background:#071421;padding:32px 24px;border-radius:12px 12px 0 0;text-align:center;">
+    <div style="color:#C99700;font-size:22px;font-weight:700;">Saturn Star Moving</div>
     <div style="color:#ffffff80;font-size:13px;margin-top:4px;">Your Trusted Moving Partner</div>
   </div>
   <div style="background:#fff;border:1px solid #e5e7eb;border-top:none;padding:32px 24px;border-radius:0 0 12px 12px;">
@@ -49,8 +49,8 @@ function buildPreMoveEmail(lead: CRMLead) {
       <li>Elevator reservations confirmed (if applicable)</li>
       <li>Any last-minute changes? Call us now</li>
     </ul>
-    <div style="background:#1a2744;border-radius:8px;padding:16px;text-align:center;">
-      <div style="color:#f5a623;font-weight:700;font-size:15px;">Questions? We're here.</div>
+    <div style="background:#071421;border-radius:8px;padding:16px;text-align:center;">
+      <div style="color:#C99700;font-weight:700;font-size:15px;">Questions? We're here.</div>
       <div style="color:#ffffffb0;font-size:13px;margin-top:4px;">${SATURN_PHONE} · business@starmovers.ca</div>
     </div>
   </div>

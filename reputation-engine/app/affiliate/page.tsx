@@ -114,7 +114,7 @@ function AffiliatePortal() {
     <div className="min-h-screen bg-[#f4f6f8]">
       <h1 className="sr-only">Saturn Star partner portal</h1>
       {/* Header */}
-      <div style={{ background: 'linear-gradient(135deg, #1a2744 0%, #0f6a53 100%)' }} className="px-4 py-6">
+      <div style={{ background: 'linear-gradient(135deg, #071421 0%, #0f6a53 100%)' }} className="px-4 py-6">
         <div className="mx-auto max-w-lg">
           <div className="text-white/60 text-[11px] font-semibold uppercase tracking-widest mb-1">Local Partner Network</div>
           <div className="text-white text-xl font-bold">Saturn Star Movers</div>
@@ -142,7 +142,7 @@ function AffiliatePortal() {
           ].map(s => (
             <div key={s.label} className="rounded-[16px] bg-white p-4 shadow-sm">
               <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{s.label}</div>
-              <div className="mt-1 text-2xl font-bold text-[#1a2744]">{s.value}</div>
+              <div className="mt-1 text-2xl font-bold text-[#071421]">{s.value}</div>
               <div className="text-[10px] text-slate-400 mt-0.5">{s.sub}</div>
             </div>
           ))}
@@ -156,14 +156,14 @@ function AffiliatePortal() {
             + Refer a Client
           </button>
           <button onClick={() => setView('history')}
-            className="rounded-[16px] bg-white py-4 text-sm font-semibold text-[#1a2744] shadow-sm border border-slate-200 hover:bg-slate-50 transition">
+            className="rounded-[16px] bg-white py-4 text-sm font-semibold text-[#071421] shadow-sm border border-slate-200 hover:bg-slate-50 transition">
             View History →
           </button>
         </div>
 
         {/* How it works */}
         <div className="rounded-[16px] bg-white p-5 shadow-sm">
-          <div className="text-sm font-semibold text-[#1a2744] mb-3">How the network works</div>
+          <div className="text-sm font-semibold text-[#071421] mb-3">How the network works</div>
           <div className="space-y-3">
             {[
               { n: '1', title: 'Introduce the client', desc: 'Send their name and contact details when moving help comes up.' },
@@ -173,7 +173,7 @@ function AffiliatePortal() {
               <div key={s.n} className="flex gap-3">
                 <div className="h-7 w-7 rounded-full bg-[#0f6a53] text-white text-xs font-bold flex items-center justify-center shrink-0">{s.n}</div>
                 <div>
-                  <div className="text-sm font-semibold text-[#1a2744]">{s.title}</div>
+                  <div className="text-sm font-semibold text-[#071421]">{s.title}</div>
                   <div className="text-[11px] text-slate-500">{s.desc}</div>
                 </div>
               </div>
@@ -189,7 +189,7 @@ function AffiliatePortal() {
       {/* Submit Lead Drawer */}
       {view === 'submit' && (
         <div className="fixed inset-0 z-50 flex flex-col bg-[#f4f6f8]">
-          <div style={{ background: 'linear-gradient(135deg, #1a2744 0%, #0f6a53 100%)' }} className="px-4 py-5 flex items-center gap-3">
+          <div style={{ background: 'linear-gradient(135deg, #071421 0%, #0f6a53 100%)' }} className="px-4 py-5 flex items-center gap-3">
             <button onClick={() => setView('home')} className="text-white/70 hover:text-white text-sm">← Back</button>
             <div className="text-white font-semibold">Refer a Client</div>
           </div>
@@ -198,7 +198,7 @@ function AffiliatePortal() {
             {submitted ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
                 <div className="text-5xl mb-4">🎉</div>
-                <div className="text-lg font-bold text-[#1a2744]">Referral submitted!</div>
+                <div className="text-lg font-bold text-[#071421]">Referral submitted!</div>
                 <div className="text-sm text-slate-500 mt-2">Our team will reach out to your client shortly.</div>
                 <div className="text-sm text-slate-500 mt-1">You'll see this lead in your history once we've made contact.</div>
                 <button onClick={() => setView('home')} className="mt-6 rounded-[12px] bg-[#0f6a53] px-6 py-2.5 text-sm font-semibold text-white">
@@ -208,55 +208,55 @@ function AffiliatePortal() {
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4 max-w-lg mx-auto">
                 <div className="rounded-[16px] bg-white p-5 shadow-sm space-y-4">
-                  <div className="text-sm font-semibold text-[#1a2744]">Client Information</div>
+                  <div className="text-sm font-semibold text-[#071421]">Client Information</div>
                   <div>
                     <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Full Name *</label>
                     <input value={form.customer_name} onChange={e => setForm(f => ({ ...f, customer_name: e.target.value }))} required
                       placeholder="Sarah Johnson"
-                      className="mt-1 block w-full rounded-[10px] border border-slate-200 px-3 py-2.5 text-sm text-[#1a2744] outline-none focus:border-[#0f6a53]" />
+                      className="mt-1 block w-full rounded-[10px] border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Phone</label>
                       <input type="tel" value={form.customer_phone} onChange={e => setForm(f => ({ ...f, customer_phone: e.target.value }))}
                         placeholder="519-555-0100"
-                        className="mt-1 block w-full rounded-[10px] border border-slate-200 px-3 py-2.5 text-sm text-[#1a2744] outline-none focus:border-[#0f6a53]" />
+                        className="mt-1 block w-full rounded-[10px] border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
                     </div>
                     <div>
                       <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Email</label>
                       <input type="email" value={form.customer_email} onChange={e => setForm(f => ({ ...f, customer_email: e.target.value }))}
                         placeholder="sarah@email.com"
-                        className="mt-1 block w-full rounded-[10px] border border-slate-200 px-3 py-2.5 text-sm text-[#1a2744] outline-none focus:border-[#0f6a53]" />
+                        className="mt-1 block w-full rounded-[10px] border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
                     </div>
                   </div>
                 </div>
 
                 <div className="rounded-[16px] bg-white p-5 shadow-sm space-y-4">
-                  <div className="text-sm font-semibold text-[#1a2744]">Move Details (optional but helpful)</div>
+                  <div className="text-sm font-semibold text-[#071421]">Move Details (optional but helpful)</div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Moving From</label>
                       <input value={form.origin_city} onChange={e => setForm(f => ({ ...f, origin_city: e.target.value }))}
                         placeholder="Windsor"
-                        className="mt-1 block w-full rounded-[10px] border border-slate-200 px-3 py-2.5 text-sm text-[#1a2744] outline-none focus:border-[#0f6a53]" />
+                        className="mt-1 block w-full rounded-[10px] border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
                     </div>
                     <div>
                       <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Moving To</label>
                       <input value={form.dest_city} onChange={e => setForm(f => ({ ...f, dest_city: e.target.value }))}
                         placeholder="Toronto"
-                        className="mt-1 block w-full rounded-[10px] border border-slate-200 px-3 py-2.5 text-sm text-[#1a2744] outline-none focus:border-[#0f6a53]" />
+                        className="mt-1 block w-full rounded-[10px] border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Move Date</label>
                       <input type="date" value={form.move_date} onChange={e => setForm(f => ({ ...f, move_date: e.target.value }))}
-                        className="mt-1 block w-full rounded-[10px] border border-slate-200 px-3 py-2.5 text-sm text-[#1a2744] outline-none focus:border-[#0f6a53]" />
+                        className="mt-1 block w-full rounded-[10px] border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
                     </div>
                     <div>
                       <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Home Size</label>
                       <select value={form.move_size} onChange={e => setForm(f => ({ ...f, move_size: e.target.value }))}
-                        className="mt-1 block w-full rounded-[10px] border border-slate-200 px-3 py-2.5 text-sm text-[#1a2744] outline-none focus:border-[#0f6a53]">
+                        className="mt-1 block w-full rounded-[10px] border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]">
                         <option value="">Select…</option>
                         {MOVE_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
@@ -266,7 +266,7 @@ function AffiliatePortal() {
                     <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Notes (anything else we should know?)</label>
                     <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3}
                       placeholder="e.g. They have a piano, elevator access, flexible on dates…"
-                      className="mt-1 block w-full resize-none rounded-[10px] border border-slate-200 px-3 py-2.5 text-sm text-[#1a2744] outline-none focus:border-[#0f6a53]" />
+                      className="mt-1 block w-full resize-none rounded-[10px] border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
                   </div>
                 </div>
 
@@ -286,7 +286,7 @@ function AffiliatePortal() {
       {/* History Drawer */}
       {view === 'history' && (
         <div className="fixed inset-0 z-50 flex flex-col bg-[#f4f6f8]">
-          <div style={{ background: 'linear-gradient(135deg, #1a2744 0%, #0f6a53 100%)' }} className="px-4 py-5 flex items-center gap-3">
+          <div style={{ background: 'linear-gradient(135deg, #071421 0%, #0f6a53 100%)' }} className="px-4 py-5 flex items-center gap-3">
             <button onClick={() => setView('home')} className="text-white/70 hover:text-white text-sm">← Back</button>
             <div className="text-white font-semibold">Your Referrals ({submissions.length})</div>
           </div>
@@ -304,7 +304,7 @@ function AffiliatePortal() {
                 <div key={s.id} className="rounded-[16px] bg-white p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="text-sm font-semibold text-[#1a2744] truncate">{s.customer_name}</div>
+                      <div className="text-sm font-semibold text-[#071421] truncate">{s.customer_name}</div>
                       {(s.origin_city || s.dest_city) && (
                         <div className="text-[11px] text-slate-500 mt-0.5">
                           {s.origin_city}{s.dest_city ? ` → ${s.dest_city}` : ''}

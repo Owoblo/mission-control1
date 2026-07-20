@@ -117,7 +117,7 @@ export default function ReviewPage() {
     return (
       <div className="mx-auto max-w-md py-20 text-center">
         <div className="mb-4 text-5xl">?</div>
-        <h2 className="mb-2 text-xl font-bold text-white">Link not found</h2>
+        <h2 className="mb-2 text-xl font-bold text-[var(--app-ink)]">Link not found</h2>
         <p className="text-sm text-slate-400">This review link is invalid or the job has not been synced yet.</p>
       </div>
     )
@@ -131,8 +131,8 @@ export default function ReviewPage() {
         <div className="inline-flex h-24 w-24 items-center justify-center rounded-full border-2 border-gold bg-gold/10 text-5xl">
           OK
         </div>
-        <h2 className="mt-6 text-2xl font-bold text-white">Thank you</h2>
-        <p className="mt-2 text-slate-300">
+        <h2 className="mt-6 text-2xl font-bold text-[var(--app-ink)]">Thank you</h2>
+        <p className="mt-2 text-[var(--app-muted)]">
           You confirmed all 4 review steps, <span className="font-semibold text-gold">{job?.customerName.split(' ')[0]}</span>.
         </p>
 
@@ -141,7 +141,7 @@ export default function ReviewPage() {
             <span className="text-sm text-slate-400">Reward status</span>
             <span className="text-lg font-bold text-gold">${INCENTIVE_AMOUNT}</span>
           </div>
-          <div className="h-px bg-[#2D4A6A]" />
+          <div className="h-px bg-[var(--app-line)]" />
           <p className="text-xs text-slate-500">
             Your reward is now marked for the office team to validate and apply back to your invoice.
           </p>
@@ -154,16 +154,16 @@ export default function ReviewPage() {
     return (
       <div className="mx-auto max-w-md py-12 animate-slide-up">
         <div className="mb-8 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-[#2D4A6A] bg-[#1A2940] text-3xl">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-[var(--app-line)] bg-white text-3xl text-[var(--app-ink)]">
             !
           </div>
-          <h2 className="mt-4 text-xl font-bold text-white">We want to fix this</h2>
+          <h2 className="mt-4 text-xl font-bold text-[var(--app-ink)]">We want to fix this</h2>
           <p className="mt-1 text-sm text-slate-400">Tell us what went wrong and a manager will follow up directly.</p>
         </div>
 
         {negSent ? (
           <div className="card space-y-3 p-6 text-center">
-            <p className="font-semibold text-white">We got your message</p>
+            <p className="font-semibold text-[var(--app-ink)]">We got your message</p>
             <p className="text-sm text-slate-400">Our manager will reach out within 24 hours.</p>
             <p className="text-xs text-slate-500">
               Need help now? Call <a href={`tel:${BRAND.phone}`} className="text-gold">{BRAND.phone}</a>
@@ -189,11 +189,11 @@ export default function ReviewPage() {
   if (step === 'rating') {
     return (
       <div className="mx-auto max-w-md py-12 text-center animate-slide-up">
-        {error && <div className="card mb-5 border-red-800/50 p-4 text-sm text-red-300">{error}</div>}
+        {error && <div className="card mb-5 border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
         <div className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-4 py-1.5 text-xs font-medium text-gold">
           Saturn Star Movers
         </div>
-        <h1 className="mt-4 text-2xl font-bold text-white">How was your move, {job?.customerName.split(' ')[0]}?</h1>
+        <h1 className="mt-4 text-2xl font-bold text-[var(--app-ink)]">How was your move, {job?.customerName.split(' ')[0]}?</h1>
         <p className="mt-2 text-sm text-slate-400">Start with a quick rating. If it was great, the review links unlock next.</p>
 
         <div className="my-10 flex justify-center gap-3">
@@ -216,10 +216,10 @@ export default function ReviewPage() {
 
   return (
     <div className="mx-auto max-w-lg py-8 animate-slide-up">
-      {error && <div className="card mb-5 border-red-800/50 p-4 text-sm text-red-300">{error}</div>}
+      {error && <div className="card mb-5 border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
 
       <div className="mb-6 text-center">
-        <h2 className="text-xl font-bold text-white">Review follow-up</h2>
+        <h2 className="text-xl font-bold text-[var(--app-ink)]">Review follow-up</h2>
         <p className="mt-1 text-sm text-slate-400">
           Complete each step, then come back here and confirm it. The office validates rewards before payout.
         </p>
@@ -232,8 +232,8 @@ export default function ReviewPage() {
             {count === 4 ? `$${INCENTIVE_AMOUNT} pending review` : `${4 - count} more for $${INCENTIVE_AMOUNT}`}
           </span>
         </div>
-        <div className="h-2 overflow-hidden rounded-full bg-[#0F1B2D]">
-          <div className="h-full rounded-full bg-[#f5a623] transition-all duration-500" style={{ width: `${(count / 4) * 100}%` }} />
+        <div className="h-2 overflow-hidden rounded-full bg-[#071421]">
+          <div className="h-full rounded-full bg-[#C99700] transition-all duration-500" style={{ width: `${(count / 4) * 100}%` }} />
         </div>
       </div>
 
@@ -245,7 +245,7 @@ export default function ReviewPage() {
           return (
             <div key={card.key} className={`card flex items-center gap-4 p-4 ${done ? 'opacity-60' : ''}`}>
               <div className="flex-1">
-                <p className="text-sm font-semibold text-white">{card.label}</p>
+                <p className="text-sm font-semibold text-[var(--app-ink)]">{card.label}</p>
                 <p className="text-xs text-slate-500">{card.desc}</p>
                 {unavailable && (
                   <p className="mt-1 text-xs text-red-300">This review link is not configured yet.</p>
@@ -274,7 +274,7 @@ export default function ReviewPage() {
       {pendingReview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
           <div className="card w-full max-w-sm space-y-4 p-6 animate-slide-up">
-            <h3 className="text-lg font-bold text-white">Confirm step</h3>
+            <h3 className="text-lg font-bold text-[var(--app-ink)]">Confirm step</h3>
             <p className="text-sm text-slate-400">
               Mark this only after you actually completed the {pendingReview === 'media' ? 'photo/video upload' : `${pendingReview} review`}.
             </p>

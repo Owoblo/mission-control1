@@ -31,7 +31,7 @@ const CARD_STYLE = {
   style: {
     base: {
       fontSize: '15px',
-      color: '#1a2744',
+      color: '#071421',
       fontFamily: 'ui-sans-serif, system-ui, sans-serif',
       fontWeight: '500',
       letterSpacing: '0.02em',
@@ -132,7 +132,7 @@ function CardForm({ lead, quote, onClose, onSuccess }: Omit<Props, 'open'>) {
 
   if (!clientSecret) return (
     <div className="flex flex-col items-center justify-center gap-3 px-6 py-10">
-      <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#1a2744] border-t-transparent" />
+      <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#071421] border-t-transparent" />
       <p className="text-xs text-slate-400">Connecting to Stripe…</p>
     </div>
   )
@@ -144,11 +144,11 @@ function CardForm({ lead, quote, onClose, onSuccess }: Omit<Props, 'open'>) {
 
       {/* Customer pill */}
       <div className="flex items-center gap-3 rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-slate-100">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#1a2744] text-xs font-bold text-white">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#071421] text-xs font-bold text-white">
           {lead.name?.slice(0, 2).toUpperCase() || 'CX'}
         </div>
         <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-[#1a2744]">{lead.name}</div>
+          <div className="truncate text-sm font-semibold text-[#071421]">{lead.name}</div>
           <div className="truncate text-xs text-slate-400">{[lead.email, lead.phone].filter(Boolean).join(' · ')}</div>
         </div>
       </div>
@@ -166,7 +166,7 @@ function CardForm({ lead, quote, onClose, onSuccess }: Omit<Props, 'open'>) {
           className={`rounded-xl border bg-white px-4 py-3.5 transition-all ${
             cardError
               ? 'border-red-300 ring-1 ring-red-200'
-              : 'border-slate-200 focus-within:border-[#f5a623] focus-within:ring-1 focus-within:ring-[#f5a623]/40'
+              : 'border-slate-200 focus-within:border-[#C99700] focus-within:ring-1 focus-within:ring-[#C99700]/40'
           }`}
         >
           <CardElement
@@ -185,15 +185,15 @@ function CardForm({ lead, quote, onClose, onSuccess }: Omit<Props, 'open'>) {
       {quote && (
         <label className={`flex cursor-pointer items-start gap-3 rounded-xl p-4 ring-1 transition-all ${
           chargeNow
-            ? 'bg-[#1a2744] ring-[#1a2744]'
+            ? 'bg-[#071421] ring-[#071421]'
             : 'bg-slate-50 ring-slate-100 hover:ring-slate-200'
         }`}>
           <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-all ${
-            chargeNow ? 'border-[#f5a623] bg-[#f5a623]' : 'border-slate-300 bg-white'
+            chargeNow ? 'border-[#C99700] bg-[#C99700]' : 'border-slate-300 bg-white'
           }`}>
             {chargeNow && (
               <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                <path d="M1 4l3 3 5-6" stroke="#1a2744" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M1 4l3 3 5-6" stroke="#071421" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             )}
           </div>
@@ -204,8 +204,8 @@ function CardForm({ lead, quote, onClose, onSuccess }: Omit<Props, 'open'>) {
               onChange={e => setChargeNow(e.target.checked)}
               className="sr-only"
             />
-            <div className={`text-sm font-semibold ${chargeNow ? 'text-white' : 'text-[#1a2744]'}`}>
-              Charge {depositPct}% deposit now — <span className={chargeNow ? 'text-[#f5a623]' : ''}>{formatMoney(quote.deposit)}</span>
+            <div className={`text-sm font-semibold ${chargeNow ? 'text-white' : 'text-[#071421]'}`}>
+              Charge {depositPct}% deposit now — <span className={chargeNow ? 'text-[#C99700]' : ''}>{formatMoney(quote.deposit)}</span>
             </div>
             <div className={`mt-0.5 text-xs ${chargeNow ? 'text-slate-300' : 'text-slate-400'}`}>
               {chargeNow
@@ -229,7 +229,7 @@ function CardForm({ lead, quote, onClose, onSuccess }: Omit<Props, 'open'>) {
         <button
           type="submit"
           disabled={busy || !stripe}
-          className="flex-1 rounded-xl bg-[#1a2744] py-2.5 text-sm font-semibold text-white hover:bg-[#243460] disabled:opacity-50 transition-colors"
+          className="flex-1 rounded-xl bg-[#071421] py-2.5 text-sm font-semibold text-white hover:bg-[#243460] disabled:opacity-50 transition-colors"
         >
           {busy
             ? (chargeNow ? 'Charging…' : 'Saving…')
@@ -250,12 +250,12 @@ export function CollectCardModal({ open, lead, quote, onClose, onSuccess }: Prop
       style={{ background: 'rgba(15,27,56,0.55)', backdropFilter: 'blur(2px)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="w-full max-w-[420px] overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div className="w-full max-w-[420px] overflow-hidden rounded-xl bg-white shadow-none">
 
         {/* Header — navy band */}
-        <div className="relative bg-[#1a2744] px-6 py-5">
+        <div className="relative bg-[#071421] px-6 py-5">
           {/* gold rule */}
-          <div className="absolute inset-x-0 bottom-0 h-[2px] bg-[#f5a623]" />
+          <div className="absolute inset-x-0 bottom-0 h-[2px] bg-[#C99700]" />
           <div className="flex items-start justify-between">
             <div>
               <h2 className="text-base font-bold text-white tracking-tight">Take Card By Phone</h2>

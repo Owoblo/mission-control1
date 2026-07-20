@@ -209,7 +209,7 @@ function ActivityFeedContent() {
         )}
 
         {(filterType || filterRep) && (
-          <button onClick={() => { setFilterType(''); setFilterRep('') }} className="flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-100">
+          <button onClick={() => { setFilterType(''); setFilterRep('') }} className="flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-100">
             Clear filters ✕
           </button>
         )}

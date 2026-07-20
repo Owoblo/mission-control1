@@ -341,7 +341,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
               <p className="mt-2 rounded-[6px] bg-[var(--app-bg)] px-3 py-2 text-xs font-medium text-[var(--app-ink)]">→ {item.aiSummary.nextAction}</p>
             )}
             {item.aiSummary.coachingTip && (
-              <p className="mt-2 rounded-[6px] bg-[#1a2744] px-3 py-2 text-xs text-white"><span className="font-semibold opacity-60">Coach:</span> {item.aiSummary.coachingTip}</p>
+              <p className="mt-2 rounded-[6px] bg-[#071421] px-3 py-2 text-xs text-white"><span className="font-semibold opacity-60">Coach:</span> {item.aiSummary.coachingTip}</p>
             )}
           </div>
         )}
@@ -371,7 +371,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
             {item.duration ? <span className="text-xs text-[var(--app-muted)]">· {item.duration}</span> : null}
             {item.phone ? <span className="text-xs text-[var(--app-muted)]">· {item.phone}</span> : null}
             {item.repName && item.kind === 'call' ? (
-              <span className="rounded-full border border-[#1a2744]/20 bg-[#1a2744]/8 px-2 py-0.5 text-[10px] font-semibold text-[#1a2744]">
+              <span className="rounded-full border border-[#071421]/20 bg-[#071421]/8 px-2 py-0.5 text-[10px] font-semibold text-[#071421]">
                 {item.repName}
               </span>
             ) : null}
@@ -391,10 +391,10 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
         </div>
         {/* Post-voicemail follow-up strip — always visible on voicemail cards */}
         {item.isVoicemail && (
-          <div className="rounded-[8px] border border-[#1a2744]/20 bg-[#1a2744]/5 px-4 py-3">
+          <div className="rounded-[8px] border border-[#071421]/20 bg-[#071421]/5 px-4 py-3">
             {vmSent ? (
               <div className="space-y-1">
-                <div className="flex items-center gap-2 text-sm font-semibold text-[#1a2744]">
+                <div className="flex items-center gap-2 text-sm font-semibold text-[#071421]">
                   <span className="text-emerald-600">✓</span>
                   <span>
                     {vmSent === 'both' ? 'SMS + Email sent' : vmSent === 'sms' ? 'Follow-up SMS sent' : 'Follow-up email sent'}
@@ -410,7 +410,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
             ) : vmFollowUpMode === null ? (
               <div className="space-y-2">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#1a2744]">Voicemail dropped</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#071421]">Voicemail dropped</span>
                   <span className="text-[10px] text-[var(--app-muted)]">— follow up while you're top of mind</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -418,21 +418,21 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
                     type="button"
                     onClick={() => void handleVmSend('both')}
                     disabled={vmSending}
-                    className="rounded-[6px] bg-[#1a2744] px-3 py-1.5 text-xs font-bold text-white hover:opacity-90 disabled:opacity-50"
+                    className="rounded-[6px] bg-[#071421] px-3 py-1.5 text-xs font-bold text-white hover:opacity-90 disabled:opacity-50"
                   >
                     {vmSending ? 'Sending…' : '🚀 Send SMS + Email'}
                   </button>
                   <button
                     type="button"
                     onClick={() => { setVmSmsText(buildVoicemailSms(lead)); setVmFollowUpMode('sms') }}
-                    className="rounded-[6px] border border-[#1a2744]/30 bg-white px-3 py-1.5 text-xs font-semibold text-[#1a2744] hover:bg-[#1a2744]/5"
+                    className="rounded-[6px] border border-[#071421]/30 bg-white px-3 py-1.5 text-xs font-semibold text-[#071421] hover:bg-[#071421]/5"
                   >
                     💬 SMS only
                   </button>
                   <button
                     type="button"
                     onClick={() => { const e = buildVoicemailEmail(lead); setVmEmailSubject(e.subject); setVmEmailBody(e.body); setVmFollowUpMode('email') }}
-                    className="rounded-[6px] border border-[#1a2744]/30 bg-white px-3 py-1.5 text-xs font-semibold text-[#1a2744] hover:bg-[#1a2744]/5"
+                    className="rounded-[6px] border border-[#071421]/30 bg-white px-3 py-1.5 text-xs font-semibold text-[#071421] hover:bg-[#071421]/5"
                   >
                     📧 Email only
                   </button>
@@ -448,14 +448,14 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
             ) : vmFollowUpMode === 'sms' ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#1a2744]">Follow-Up SMS → {lead?.phone}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#071421]">Follow-Up SMS → {lead?.phone}</span>
                   <button type="button" onClick={() => setVmFollowUpMode(null)} className="text-xs text-[var(--app-muted)]">✕</button>
                 </div>
                 <textarea
                   value={vmSmsText}
                   onChange={e => setVmSmsText(e.target.value)}
                   rows={3}
-                  className="w-full rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-sm text-stone-800 outline-none focus:border-[#1a2744]"
+                  className="w-full rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-sm text-stone-800 outline-none focus:border-[#071421]"
                 />
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] text-[var(--app-muted)]">{vmSmsText.length} chars</span>
@@ -463,7 +463,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
                     type="button"
                     onClick={() => void handleVmSend('sms')}
                     disabled={vmSending || !vmSmsText.trim()}
-                    className="rounded-[6px] bg-[#1a2744] px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                    className="rounded-[6px] bg-[#071421] px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
                   >
                     {vmSending ? 'Sending…' : 'Send SMS'}
                   </button>
@@ -472,27 +472,27 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
             ) : (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#1a2744]">Follow-Up Email → {lead?.email}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#071421]">Follow-Up Email → {lead?.email}</span>
                   <button type="button" onClick={() => setVmFollowUpMode(null)} className="text-xs text-[var(--app-muted)]">✕</button>
                 </div>
                 <input
                   value={vmEmailSubject}
                   onChange={e => setVmEmailSubject(e.target.value)}
                   placeholder="Subject"
-                  className="w-full rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-sm text-stone-800 outline-none focus:border-[#1a2744]"
+                  className="w-full rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-sm text-stone-800 outline-none focus:border-[#071421]"
                 />
                 <textarea
                   value={vmEmailBody}
                   onChange={e => setVmEmailBody(e.target.value)}
                   rows={5}
-                  className="w-full rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-sm text-stone-800 outline-none focus:border-[#1a2744]"
+                  className="w-full rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-sm text-stone-800 outline-none focus:border-[#071421]"
                 />
                 <div className="flex justify-end">
                   <button
                     type="button"
                     onClick={() => void handleVmSend('email')}
                     disabled={vmSending || !vmEmailBody.trim()}
-                    className="rounded-[6px] bg-[#1a2744] px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                    className="rounded-[6px] bg-[#071421] px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
                   >
                     {vmSending ? 'Sending…' : 'Send Email'}
                   </button>

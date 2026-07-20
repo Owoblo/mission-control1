@@ -135,10 +135,10 @@ export async function POST(request: Request) {
       `Price override approval needed — ${customer}`,
       `
 <div style="font-family:sans-serif;max-width:620px;margin:0 auto;padding:24px">
-  <div style="background:#1a2744;color:#d7f5e6;padding:14px 20px;border-radius:8px 8px 0 0;font-weight:700;font-size:16px">
+  <div style="background:#071421;color:#d7f5e6;padding:14px 20px;border-radius:8px 8px 0 0;font-weight:700;font-size:16px">
     Price Override Approval Requested
   </div>
-  <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:20px;color:#1a2744;font-size:14px;line-height:1.6">
+  <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:20px;color:#071421;font-size:14px;line-height:1.6">
     <div><strong>Lead:</strong> ${escapeHtml(customer)}</div>
     <div><strong>Quote:</strong> ${escapeHtml(quote.number)}</div>
     <div><strong>Requested by:</strong> ${escapeHtml(session?.name || 'Sales rep')}</div>
@@ -151,7 +151,7 @@ export async function POST(request: Request) {
     </div>
     <div style="margin-top:8px;color:#64748b;font-size:12px">Code expires ${escapeHtml(expiresAt.toLocaleString('en-CA', { dateStyle: 'medium', timeStyle: 'short' }))}. Give this code to the rep only if approved.</div>
     <div style="margin-top:18px">
-      <a href="${quoteUrl}" style="background:#1a2744;color:#d7f5e6;padding:10px 18px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:700">Open Quote</a>
+      <a href="${quoteUrl}" style="background:#071421;color:#d7f5e6;padding:10px 18px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:700">Open Quote</a>
     </div>
   </div>
 </div>`,

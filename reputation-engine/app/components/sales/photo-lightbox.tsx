@@ -41,7 +41,7 @@ export function PhotoLightbox({ photos, index, onClose, onNavigate, labels }: Pr
         <img
           src={photos[index]}
           alt={labels?.[index] || `Photo ${index + 1}`}
-          className="max-h-[80vh] max-w-[85vw] rounded-[10px] object-contain shadow-2xl"
+          className="max-h-[80vh] max-w-[85vw] rounded-[10px] object-contain shadow-none"
         />
 
         {/* Label + counter */}

@@ -1207,7 +1207,7 @@ function SalesInboxPageInner() {
                       </div>
                       <div className="flex items-center gap-2">
                         {unreadVisibleCount > 0 ? (
-                          <button onClick={() => void markVisibleAsRead()} className="rounded-full border border-[var(--app-line)] bg-white px-2.5 py-1 text-[11px] font-semibold text-[var(--app-ink)] transition hover:border-[var(--app-ink)]">
+                          <button onClick={() => void markVisibleAsRead()} className="rounded-xl border border-[var(--app-line)] bg-white px-2.5 py-1 text-[11px] font-semibold text-[var(--app-ink)] transition hover:border-[var(--app-ink)]">
                             Mark all read
                           </button>
                         ) : null}
@@ -1710,7 +1710,7 @@ function SalesInboxPageInner() {
                                 ) : (
                                   <div className="h-14 w-14 rounded-[6px] bg-[var(--app-bg)] flex items-center justify-center text-[9px] text-[var(--app-muted)] text-center px-1">{f.name.slice(0,10)}</div>
                                 )}
-                                <button onClick={() => setSmsMediaFiles(fs => fs.filter((_, j) => j !== i))} className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">×</button>
+                                <button onClick={() => setSmsMediaFiles(fs => fs.filter((_, j) => j !== i))} className="absolute -top-1 -right-1 h-4 w-4 rounded-xl bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">×</button>
                               </div>
                             ))}
                           </div>
@@ -1900,7 +1900,7 @@ function SalesInboxPageInner() {
                           <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3">
                             <div className="mb-2 flex items-center justify-between">
                               <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">SMS Reply</div>
-                              <button onClick={() => setScGoalOpen(scGoalOpen === 'sms' ? null : 'sms')} className="min-h-11 rounded-full px-3 text-sm font-semibold text-[var(--app-accent)] hover:bg-[var(--app-bg)] lg:min-h-8 lg:text-xs">✦ Smart Compose</button>
+                              <button onClick={() => setScGoalOpen(scGoalOpen === 'sms' ? null : 'sms')} className="min-h-11 rounded-xl px-3 text-sm font-semibold text-[var(--app-accent)] hover:bg-[var(--app-bg)] lg:min-h-8 lg:text-xs">✦ Smart Compose</button>
                             </div>
                             {scGoalOpen === 'sms' && (
                               <div className="mb-2 grid grid-cols-2 gap-1.5">
@@ -1915,7 +1915,7 @@ function SalesInboxPageInner() {
                             <textarea rows={2} value={compose.smsBody} onChange={e => setCompose(c => ({ ...c, smsBody: e.target.value }))}
                               onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void send('sms') }}
                               className="crm-input min-h-[88px] w-full resize-none rounded-[18px] px-4 py-3 text-base leading-[1.5] lg:text-sm" placeholder="Type a reply..." />
-                            <button onClick={() => void send('sms')} disabled={messageBusy || !compose.smsBody.trim()} className="mt-2 crm-button-dark min-h-11 rounded-full px-5 text-sm disabled:opacity-50">
+                            <button onClick={() => void send('sms')} disabled={messageBusy || !compose.smsBody.trim()} className="mt-2 crm-button-dark min-h-11 rounded-xl px-5 text-sm disabled:opacity-50">
                               {messageBusy ? 'Sending...' : 'Send SMS'}
                             </button>
                           </div>
@@ -2164,7 +2164,7 @@ function SalesInboxPageInner() {
                           <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
                             <div className="flex items-center justify-between">
                               <div className="crm-label">Email Reply</div>
-                              <button onClick={() => setScGoalOpen(scGoalOpen === 'email' ? null : 'email')} className="min-h-11 rounded-full px-3 text-sm font-semibold text-[var(--app-accent)] hover:bg-[var(--app-bg)] lg:min-h-8 lg:text-xs">✨ Smart Compose</button>
+                              <button onClick={() => setScGoalOpen(scGoalOpen === 'email' ? null : 'email')} className="min-h-11 rounded-xl px-3 text-sm font-semibold text-[var(--app-accent)] hover:bg-[var(--app-bg)] lg:min-h-8 lg:text-xs">✨ Smart Compose</button>
                             </div>
                             {scGoalOpen === 'email' ? (
                               <div className="mt-3 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
@@ -2190,7 +2190,7 @@ function SalesInboxPageInner() {
                               value={compose.emailBody}
                               onChange={event => setCompose(current => ({ ...current, emailBody: event.target.value }))}
                             />
-                            <button onClick={() => void send('email')} disabled={messageBusy} className="mt-4 crm-button-dark min-h-11 rounded-full px-5">
+                            <button onClick={() => void send('email')} disabled={messageBusy} className="mt-4 crm-button-dark min-h-11 rounded-xl px-5">
                               {messageBusy ? 'Sending...' : 'Send Email'}
                             </button>
                           </div>
@@ -2200,7 +2200,7 @@ function SalesInboxPageInner() {
                           <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
                             <div className="flex items-center justify-between">
                               <div className="crm-label">SMS Reply</div>
-                              <button onClick={() => setScGoalOpen(scGoalOpen === 'sms' ? null : 'sms')} className="min-h-11 rounded-full px-3 text-sm font-semibold text-[var(--app-accent)] hover:bg-[var(--app-bg)] lg:min-h-8 lg:text-xs">✨ Smart Compose</button>
+                              <button onClick={() => setScGoalOpen(scGoalOpen === 'sms' ? null : 'sms')} className="min-h-11 rounded-xl px-3 text-sm font-semibold text-[var(--app-accent)] hover:bg-[var(--app-bg)] lg:min-h-8 lg:text-xs">✨ Smart Compose</button>
                             </div>
                             {scGoalOpen === 'sms' ? (
                               <div className="mt-3 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
@@ -2221,7 +2221,7 @@ function SalesInboxPageInner() {
                               value={compose.smsBody}
                               onChange={event => setCompose(current => ({ ...current, smsBody: event.target.value }))}
                             />
-                            <button onClick={() => void send('sms')} disabled={messageBusy} className="mt-4 crm-button-dark min-h-11 rounded-full px-5">
+                            <button onClick={() => void send('sms')} disabled={messageBusy} className="mt-4 crm-button-dark min-h-11 rounded-xl px-5">
                               {messageBusy ? 'Sending...' : 'Send SMS'}
                             </button>
                           </div>

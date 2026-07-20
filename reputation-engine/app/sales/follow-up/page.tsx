@@ -124,7 +124,7 @@ function urgencyTone(lead: CRMLead) {
 
   if (overdue) {
     return {
-      card: 'border-[#e6d1ca] bg-[linear-gradient(180deg,#ffffff_0%,#fff8f6_100%)]',
+      card: 'border-red-200 bg-red-50/40',
       bar: 'bg-[#c9754e]',
       flag: 'border border-[rgba(201,117,78,0.12)] bg-[#f5ece7] text-[#955941]',
       label: 'Past due',
@@ -133,7 +133,7 @@ function urgencyTone(lead: CRMLead) {
 
   if (dueToday) {
     return {
-      card: 'border-[#eadfcb] bg-[linear-gradient(180deg,#ffffff_0%,#fffcf6_100%)]',
+      card: 'border-amber-200 bg-amber-50/40',
       bar: 'bg-[#d0a24d]',
       flag: 'border border-[rgba(217,119,6,0.12)] bg-[#fbf2e4] text-[#9a5a00]',
       label: 'Due today',
@@ -142,7 +142,7 @@ function urgencyTone(lead: CRMLead) {
 
   if (quietForDays >= 5) {
     return {
-      card: 'border-[#dbe7e1] bg-[linear-gradient(180deg,#ffffff_0%,#f8fbfa_100%)]',
+      card: 'border-[var(--app-line)] bg-white',
       bar: 'bg-[rgba(15,106,83,0.35)]',
       flag: 'border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]',
       label: 'Re-engage',
@@ -208,7 +208,7 @@ function NoteModal({ lead, onClose, onSaved }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-[16px] bg-white shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-md rounded-[16px] bg-white shadow-none" onClick={e => e.stopPropagation()}>
         <div className="px-5 py-4 border-b border-[var(--app-line)]">
           <div className="text-sm font-semibold text-[var(--app-ink)]">Log follow-up — {lead.name || lead.phone}</div>
           <div className="text-[11px] text-[var(--app-muted)] mt-0.5">What's the update on this lead?</div>
@@ -610,8 +610,8 @@ export default function FollowUpWallPage() {
 
         {/* Urgency banner */}
         {urgentCount > 0 && (
-          <div className="mt-4 overflow-hidden rounded-[16px] border border-[#dbe7e1] bg-[linear-gradient(135deg,#f7fbf9_0%,#fffbf3_100%)]">
-            <div className="h-1 bg-[linear-gradient(90deg,var(--app-accent)_0%,#c9754e_100%)]" />
+          <div className="mt-4 overflow-hidden rounded-xl border border-[var(--app-line)] bg-white">
+            <div className="h-1 bg-[var(--brand-gold)]" />
             <div className="flex items-start gap-4 px-5 py-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[rgba(15,106,83,0.12)] bg-white text-sm font-semibold text-[var(--app-accent)]">
                 {urgentCount}

@@ -868,25 +868,25 @@ function AppointmentModal({ contact, onClose, onDone }: {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-[24px] border border-slate-200 bg-white p-6 shadow-xl">
-        <h3 className="text-base font-semibold text-[#1a2744]">Book Appointment</h3>
+      <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-6 shadow-none">
+        <h3 className="text-base font-semibold text-[#071421]">Book Appointment</h3>
         <p className="mt-0.5 text-sm text-slate-500">{contact.name}</p>
         <form onSubmit={submit} className="mt-4 space-y-3">
           <div>
             <label className="text-xs font-semibold text-slate-500">Title</label>
             <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required
-              className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]" />
+              className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#071421] outline-none focus:border-[#071421]" />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs font-semibold text-slate-500">Date & Time</label>
               <input type="datetime-local" value={form.scheduled_at} onChange={e => setForm(f => ({ ...f, scheduled_at: e.target.value }))} required
-                className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]" />
+                className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#071421] outline-none focus:border-[#071421]" />
             </div>
             <div>
               <label className="text-xs font-semibold text-slate-500">Channel</label>
               <select value={form.channel} onChange={e => setForm(f => ({ ...f, channel: e.target.value }))}
-                className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]">
+                className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#071421] outline-none focus:border-[#071421]">
                 <option value="phone">📞 Phone</option>
                 <option value="in_person">🤝 In person</option>
                 <option value="email">✉️ Email</option>
@@ -897,11 +897,11 @@ function AppointmentModal({ contact, onClose, onDone }: {
           <div>
             <label className="text-xs font-semibold text-slate-500">Notes</label>
             <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2}
-              className="mt-1 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]" />
+              className="mt-1 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-[#071421] outline-none focus:border-[#071421]" />
           </div>
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={onClose} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
-            <button type="submit" disabled={saving} className="flex-1 rounded-xl bg-[#1a2744] py-2.5 text-sm font-semibold text-white disabled:opacity-50">{saving ? 'Saving…' : 'Book'}</button>
+            <button type="submit" disabled={saving} className="flex-1 rounded-xl bg-[#071421] py-2.5 text-sm font-semibold text-white disabled:opacity-50">{saving ? 'Saving…' : 'Book'}</button>
           </div>
         </form>
       </div>
@@ -950,15 +950,15 @@ function AddToInstantlyModal({ contact, onClose, onDone }: {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-[24px] border border-slate-200 bg-white p-6 shadow-xl">
-        <h3 className="text-base font-semibold text-[#1a2744]">Add to Instantly</h3>
+      <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-6 shadow-none">
+        <h3 className="text-base font-semibold text-[#071421]">Add to Instantly</h3>
         <p className="mt-0.5 text-sm text-slate-500">{contact.name} · {contact.email ?? 'no email'}</p>
         {!contact.email && <div className="mt-3 rounded-xl bg-rose-50 p-3 text-xs text-rose-700">This contact has no email address.</div>}
         <div className="mt-4 space-y-3">
           <div>
             <label className="text-xs font-semibold text-slate-500">Campaign</label>
             <select value={selectedId} onChange={e => setSelectedId(e.target.value)}
-              className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]">
+              className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#071421] outline-none focus:border-[#071421]">
               <option value="">— select campaign —</option>
               {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
@@ -998,19 +998,19 @@ function AddToListModal({ contact, lists, onClose, onDone }: {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-[24px] border border-slate-200 bg-white p-6 shadow-xl">
-        <h3 className="text-base font-semibold text-[#1a2744]">Add to List</h3>
+      <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-6 shadow-none">
+        <h3 className="text-base font-semibold text-[#071421]">Add to List</h3>
         <p className="mt-0.5 text-sm text-slate-500">{contact.name}</p>
         <div className="mt-4 space-y-3">
           <select value={selectedId} onChange={e => setSelectedId(e.target.value)}
-            className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]">
+            className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#071421] outline-none focus:border-[#071421]">
             <option value="">— select list —</option>
             {lists.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
           <div className="flex gap-2">
             <button onClick={onClose} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
             <button onClick={submit} disabled={saving || !selectedId}
-              className="flex-1 rounded-xl bg-[#1a2744] py-2.5 text-sm font-semibold text-white disabled:opacity-40">{saving ? 'Adding…' : 'Add'}</button>
+              className="flex-1 rounded-xl bg-[#071421] py-2.5 text-sm font-semibold text-white disabled:opacity-40">{saving ? 'Adding…' : 'Add'}</button>
           </div>
         </div>
       </div>
@@ -1041,22 +1041,22 @@ function DecisionModal({ contact, onClose, onDone }: { contact: Contact; onClose
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-[24px] border border-slate-200 bg-white p-6 shadow-xl">
-        <h3 className="text-base font-semibold text-[#1a2744]">Log Decision</h3>
+      <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-6 shadow-none">
+        <h3 className="text-base font-semibold text-[#071421]">Log Decision</h3>
         <p className="mt-0.5 text-sm text-slate-500">{contact.name}</p>
         <div className="mt-5 grid grid-cols-3 gap-2">
           {(['agreed', 'thinking', 'rejected'] as const).map(d => (
             <button key={d} onClick={() => setDecision(d)}
-              className={`rounded-[14px] border py-3 text-sm font-semibold capitalize transition ${decision === d ? 'border-[#1a2744] bg-[#1a2744] text-white' : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-[#1a2744]'}`}>
+              className={`rounded-[14px] border py-3 text-sm font-semibold capitalize transition ${decision === d ? 'border-[#071421] bg-[#071421] text-white' : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-[#071421]'}`}>
               {d === 'agreed' ? '✅ Won' : d === 'thinking' ? '🤔 Maybe' : '❌ Pass'}
             </button>
           ))}
         </div>
         <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes…"
-          className="mt-4 h-20 w-full resize-none rounded-[14px] border border-slate-200 bg-slate-50 p-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]" />
+          className="mt-4 h-20 w-full resize-none rounded-[14px] border border-slate-200 bg-slate-50 p-3 text-sm text-[#071421] outline-none focus:border-[#071421]" />
         <div className="mt-4 flex gap-2">
           <button onClick={onClose} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
-          <button onClick={submit} disabled={saving} className="flex-1 rounded-xl bg-[#1a2744] py-2.5 text-sm font-semibold text-white disabled:opacity-50">{saving ? 'Saving…' : 'Log'}</button>
+          <button onClick={submit} disabled={saving} className="flex-1 rounded-xl bg-[#071421] py-2.5 text-sm font-semibold text-white disabled:opacity-50">{saving ? 'Saving…' : 'Log'}</button>
         </div>
       </div>
     </div>
@@ -1163,7 +1163,7 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
   return (
     <>
       <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed right-0 top-0 z-50 flex h-full w-full max-w-[1400px] flex-col border-l border-[var(--app-line)] bg-[#fffefb] shadow-xl">
+      <div className="fixed right-0 top-0 z-50 flex h-full w-full max-w-[1400px] flex-col border-l border-[var(--app-line)] bg-[#fffefb] shadow-none">
 
         {/* Header */}
         <div className="shrink-0 border-b border-[var(--app-line)] bg-white px-5 py-4 md:px-7">
@@ -1177,18 +1177,18 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
               </div>
               <div className="mt-1 text-sm text-slate-500">{contact.title ? `${contact.title} · ` : ''}{partnerCompanyLabel(contact)} · {relationshipStageLabel(contact)}</div>
               <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-slate-400">
-                {contact.phone && <a href={`tel:${contact.phone}`} className="hover:text-[#1a2744]">📞 {contact.phone}</a>}
-                {contact.email && <a href={`mailto:${contact.email}`} className="hover:text-[#1a2744]">✉️ {contact.email}</a>}
+                {contact.phone && <a href={`tel:${contact.phone}`} className="hover:text-[#071421]">📞 {contact.phone}</a>}
+                {contact.email && <a href={`mailto:${contact.email}`} className="hover:text-[#071421]">✉️ {contact.email}</a>}
                 {contact.city && <span>📍 {contact.city}</span>}
               </div>
             </div>
-            <button onClick={onClose} className="ml-2 shrink-0 rounded-full p-2 text-slate-400 hover:bg-slate-100">✕</button>
+            <button onClick={onClose} className="ml-2 shrink-0 rounded-xl p-2 text-slate-400 hover:bg-slate-100">✕</button>
           </div>
 
           {/* Action buttons */}
           <div className="mt-3 flex flex-wrap gap-2">
             <button onClick={() => setShowAppointment(true)}
-              className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-[#1a2744] hover:text-[#1a2744] transition">
+              className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-[#071421] hover:text-[#071421] transition">
               📅 Book Appointment
             </button>
             {!contact.instantly_campaign_id && contact.email && (
@@ -1198,12 +1198,12 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
               </button>
             )}
             <button onClick={() => setShowAddToList(true)}
-              className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-[#1a2744] hover:text-[#1a2744] transition">
+              className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-[#071421] hover:text-[#071421] transition">
               + Add to List
             </button>
             {contact.sequence_paused && !contact.decision && (
               <button onClick={() => setShowDecision(true)}
-                className="rounded-xl bg-[#1a2744] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#243560] transition">
+                className="rounded-xl bg-[#071421] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#243560] transition">
                 Log Decision
               </button>
             )}
@@ -1226,25 +1226,25 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
           <div className="hidden">
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
               <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Owner</div>
-              <div className="mt-1 truncate text-xs font-semibold text-[#1a2744]">{owner}</div>
+              <div className="mt-1 truncate text-xs font-semibold text-[#071421]">{owner}</div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
               <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Category</div>
-              <div className="mt-1 truncate text-xs font-semibold text-[#1a2744]">{contact.industry || contact.category || 'Uncategorized'}</div>
+              <div className="mt-1 truncate text-xs font-semibold text-[#071421]">{contact.industry || contact.category || 'Uncategorized'}</div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
               <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Account</div>
-              <div className="mt-1 truncate text-xs font-semibold text-[#1a2744]">{partnerCompanyLabel(contact)}</div>
+              <div className="mt-1 truncate text-xs font-semibold text-[#071421]">{partnerCompanyLabel(contact)}</div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
               <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Temperature</div>
-              <div className="mt-1 truncate text-xs font-semibold text-[#1a2744]">{partnerTemperatureLabel(contact.relationship_temperature)}</div>
+              <div className="mt-1 truncate text-xs font-semibold text-[#071421]">{partnerTemperatureLabel(contact.relationship_temperature)}</div>
             </div>
             <div className={`col-span-2 rounded-xl border px-3 py-2 ${nextAction?.overdue ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-slate-50'}`}>
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Next Action</div>
-                  <div className="mt-1 truncate text-xs font-semibold text-[#1a2744]">{nextAction?.label || 'No next action set'}</div>
+                  <div className="mt-1 truncate text-xs font-semibold text-[#071421]">{nextAction?.label || 'No next action set'}</div>
                 </div>
                 <div className={`shrink-0 text-xs font-semibold ${nextAction?.overdue ? 'text-amber-700' : 'text-slate-500'}`}>{nextAction?.due ? fmtDate(nextAction.due) : '—'}</div>
               </div>
@@ -1255,7 +1255,7 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
             </div>
             <div className="rounded-xl border border-emerald-200 bg-white px-3 py-2">
               <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Referrals</div>
-              <div className="mt-1 text-xs font-bold text-[#1a2744]">{referralCount} captured</div>
+              <div className="mt-1 text-xs font-bold text-[#071421]">{referralCount} captured</div>
             </div>
           </div>
         </div>
@@ -1304,7 +1304,7 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
                 {upcoming.map(a => (
                   <div key={a.id} className="flex items-center justify-between rounded-[14px] border border-amber-200 bg-amber-50 px-3 py-2.5">
                     <div>
-                      <div className="text-sm font-semibold text-[#1a2744]">{a.title}</div>
+                      <div className="text-sm font-semibold text-[#071421]">{a.title}</div>
                       <div className="text-xs text-slate-500">{fmtDateTime(a.scheduled_at)} · {a.duration_minutes}min · {a.channel}</div>
                     </div>
                     <div className="flex gap-1">
@@ -1321,9 +1321,9 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
           <div className="border-b border-slate-100 px-5 py-4">
             <div className="flex gap-2">
               <textarea value={noteText} onChange={e => setNoteText(e.target.value)} rows={2} placeholder="Add a note…"
-                className="flex-1 resize-none rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]" />
+                className="flex-1 resize-none rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-[#071421] outline-none focus:border-[#071421]" />
               <button onClick={saveNote} disabled={savingNote || !noteText.trim()}
-                className="self-end rounded-[14px] bg-[#1a2744] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
+                className="self-end rounded-[14px] bg-[#071421] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
                 {savingNote ? '…' : 'Save'}
               </button>
             </div>
@@ -1347,7 +1347,7 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
                       <div className="crm-timeline-card min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-semibold text-[#1a2744]">{s.label}</span>
+                            <span className="text-xs font-semibold text-[#071421]">{s.label}</span>
                             {s.auto && <span className="rounded-full bg-slate-200 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500">Auto</span>}
                             {isInbound && <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-700">Inbound</span>}
                           </div>
@@ -1450,10 +1450,10 @@ function NewBatchModal({ onClose, onDone }: { onClose: () => void; onDone: (batc
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-[24px] border border-slate-200 bg-white p-6 shadow-xl">
+      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-none">
         <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold text-[#1a2744]">New Batch</h3>
-          <button onClick={onClose} className="rounded-full p-2 text-slate-400 hover:bg-slate-100">✕</button>
+          <h3 className="text-base font-semibold text-[#071421]">New Batch</h3>
+          <button onClick={onClose} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100">✕</button>
         </div>
         <form onSubmit={submit} className="mt-4 space-y-3">
 
@@ -1462,14 +1462,14 @@ function NewBatchModal({ onClose, onDone }: { onClose: () => void; onDone: (batc
             <div>
               <label className="text-xs font-semibold text-slate-500">City *</label>
               <select value={city} onChange={e => handleCityChange(e.target.value)}
-                className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]">
+                className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#071421] outline-none focus:border-[#071421]">
                 {SERVICE_AREAS.map(a => <option key={a.id} value={a.id}>{a.label}</option>)}
               </select>
             </div>
             <div>
               <label className="text-xs font-semibold text-slate-500">Category *</label>
               <select value={category} onChange={e => handleCategoryChange(e.target.value)}
-                className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]">
+                className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#071421] outline-none focus:border-[#071421]">
                 <option value="">— select —</option>
                 <optgroup label="Tier 1 — High Frequency">
                   {CATEGORY_LIST.filter(c => c.tier === 1).map(c => <option key={c.id} value={c.id}>{c.icon} {c.label}</option>)}
@@ -1486,7 +1486,7 @@ function NewBatchModal({ onClose, onDone }: { onClose: () => void; onDone: (batc
 
           {/* Suggested cold call script */}
           {category && PARTNER_CATEGORIES[category] && (
-            <div className="rounded-[10px] border border-[#1a2744]/10 bg-[#f8f9fc] px-3 py-2">
+            <div className="rounded-[10px] border border-[#071421]/10 bg-[#f8f9fc] px-3 py-2">
               <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1">Opening line</div>
               <div className="text-xs text-slate-600 italic">"{PARTNER_CATEGORIES[category].suggestedScript}"</div>
             </div>
@@ -1496,30 +1496,30 @@ function NewBatchModal({ onClose, onDone }: { onClose: () => void; onDone: (batc
             <label className="text-xs font-semibold text-slate-500">Batch Name *</label>
             <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
               placeholder={category && city ? suggestBatchName(city, category) || 'e.g. Windsor Realtors — Q2 2026' : 'e.g. Windsor Realtors — Q2 2026'}
-              required className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]" />
+              required className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#071421] outline-none focus:border-[#071421]" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-slate-500">Email delay (days)</label>
               <input type="number" min={1} max={30} value={form.email_delay_days} onChange={e => setForm(f => ({ ...f, email_delay_days: Number(e.target.value) }))}
-                className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]" />
+                className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#071421] outline-none focus:border-[#071421]" />
             </div>
             <div>
               <label className="text-xs font-semibold text-slate-500">SMS delay (days)</label>
               <input type="number" min={1} max={30} value={form.sms_delay_days} onChange={e => setForm(f => ({ ...f, sms_delay_days: Number(e.target.value) }))}
-                className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]" />
+                className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#071421] outline-none focus:border-[#071421]" />
             </div>
           </div>
           <div>
             <label className="text-xs font-semibold text-slate-500">Rep Name</label>
             <input value={form.rep_name} onChange={e => setForm(f => ({ ...f, rep_name: e.target.value }))}
-              className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]" />
+              className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#071421] outline-none focus:border-[#071421]" />
           </div>
           {error && <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{error}</div>}
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={onClose} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
-            <button type="submit" disabled={saving} className="flex-1 rounded-xl bg-[#1a2744] py-2.5 text-sm font-semibold text-white disabled:opacity-50">{saving ? 'Creating…' : 'Create'}</button>
+            <button type="submit" disabled={saving} className="flex-1 rounded-xl bg-[#071421] py-2.5 text-sm font-semibold text-white disabled:opacity-50">{saving ? 'Creating…' : 'Create'}</button>
           </div>
         </form>
       </div>
@@ -1549,29 +1549,29 @@ function MarkMailedModal({ batch, onClose, onDone }: { batch: Batch; onClose: ()
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-[24px] border border-slate-200 bg-white p-6 shadow-xl">
+      <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-6 shadow-none">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-base font-semibold text-[#1a2744]">Mark as Mailed</h3>
+            <h3 className="text-base font-semibold text-[#071421]">Mark as Mailed</h3>
             <p className="mt-0.5 text-sm text-slate-500">{batch.name}</p>
           </div>
-          <button onClick={onClose} className="rounded-full p-2 text-slate-400 hover:bg-slate-100">✕</button>
+          <button onClick={onClose} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100">✕</button>
         </div>
         <div className="mt-5 space-y-4">
           <div>
             <label className="text-xs font-semibold text-slate-500">Date Mailed</label>
             <input type="date" value={mailDate} max={new Date().toISOString().slice(0, 10)} onChange={e => setMailDate(e.target.value)}
-              className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]" />
+              className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#071421] outline-none focus:border-[#071421]" />
           </div>
           <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4 space-y-2 text-sm">
             <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Auto-sequence fires:</div>
-            <div className="flex justify-between"><span className="text-slate-600">✉️ Email</span><span className="font-semibold text-[#1a2744]">{fmtDate(emailDate)}</span></div>
-            <div className="flex justify-between"><span className="text-slate-600">💬 SMS</span><span className="font-semibold text-[#1a2744]">{fmtDate(smsDate)}</span></div>
+            <div className="flex justify-between"><span className="text-slate-600">✉️ Email</span><span className="font-semibold text-[#071421]">{fmtDate(emailDate)}</span></div>
+            <div className="flex justify-between"><span className="text-slate-600">💬 SMS</span><span className="font-semibold text-[#071421]">{fmtDate(smsDate)}</span></div>
           </div>
           {error && <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{error}</div>}
           <div className="flex gap-2">
             <button onClick={onClose} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
-            <button onClick={submit} disabled={saving} className="flex-1 rounded-xl bg-[#f5a623] py-2.5 text-sm font-semibold text-[#1a2744] disabled:opacity-50">{saving ? 'Saving…' : '✓ Confirm'}</button>
+            <button onClick={submit} disabled={saving} className="flex-1 rounded-xl bg-[#C99700] py-2.5 text-sm font-semibold text-[#071421] disabled:opacity-50">{saving ? 'Saving…' : '✓ Confirm'}</button>
           </div>
         </div>
       </div>
@@ -1628,18 +1628,18 @@ function CsvImportModal({ batch, onClose, onDone }: { batch: Batch; onClose: () 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-xl rounded-[24px] border border-slate-200 bg-white p-6 shadow-xl">
+      <div className="w-full max-w-xl rounded-xl border border-slate-200 bg-white p-6 shadow-none">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-base font-semibold text-[#1a2744]">Import Contacts</h3>
+            <h3 className="text-base font-semibold text-[#071421]">Import Contacts</h3>
             <p className="mt-0.5 text-sm text-slate-500">{batch.name}</p>
           </div>
-          <button onClick={onClose} className="rounded-full p-2 text-slate-400 hover:bg-slate-100">✕</button>
+          <button onClick={onClose} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100">✕</button>
         </div>
         {rows.length === 0 ? (
           <div className="mt-6">
             <div onClick={() => fileRef.current?.click()}
-              className="cursor-pointer rounded-[18px] border-2 border-dashed border-slate-300 p-10 text-center hover:border-[#1a2744]">
+              className="cursor-pointer rounded-[18px] border-2 border-dashed border-slate-300 p-10 text-center hover:border-[#071421]">
               <div className="text-2xl">📄</div>
               <div className="mt-2 text-sm font-medium text-slate-600">Click to upload CSV</div>
               <div className="mt-1 text-xs text-slate-400">Name, Email, Phone, Company, City…</div>
@@ -1654,7 +1654,7 @@ function CsvImportModal({ batch, onClose, onDone }: { batch: Batch; onClose: () 
                 <div key={field}>
                   <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{field}</label>
                   <select value={mapping[field] ?? ''} onChange={e => setMapping(m => ({ ...m, [field]: e.target.value }))}
-                    className="mt-0.5 h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-[#1a2744] outline-none">
+                    className="mt-0.5 h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-[#071421] outline-none">
                     <option value="">— skip —</option>
                     {headers.map(h => <option key={h} value={h}>{h}</option>)}
                   </select>
@@ -1664,7 +1664,7 @@ function CsvImportModal({ batch, onClose, onDone }: { batch: Batch; onClose: () 
             {error && <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{error}</div>}
             <div className="flex gap-2">
               <button onClick={onClose} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
-              <button onClick={doImport} disabled={importing} className="flex-1 rounded-xl bg-[#1a2744] py-2.5 text-sm font-semibold text-white disabled:opacity-50">{importing ? 'Importing…' : `Import ${rows.length}`}</button>
+              <button onClick={doImport} disabled={importing} className="flex-1 rounded-xl bg-[#071421] py-2.5 text-sm font-semibold text-white disabled:opacity-50">{importing ? 'Importing…' : `Import ${rows.length}`}</button>
             </div>
           </div>
         )}
@@ -1824,17 +1824,17 @@ function OverviewTab({ batches, contacts, loading, onRefresh, onTabChange }: {
   return (
     <div className="space-y-6">
       {toast && (
-        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-[14px] bg-[#1a2744] px-5 py-3 text-sm font-medium text-white shadow-xl">{toast}</div>
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-[14px] bg-[#071421] px-5 py-3 text-sm font-medium text-white shadow-none">{toast}</div>
       )}
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {[
-          { label: 'Total Mailed', value: totalMailed, color: 'text-[#1a2744]' },
+          { label: 'Total Mailed', value: totalMailed, color: 'text-[#071421]' },
           { label: 'Responded', value: totalResponded, color: 'text-violet-700' },
-          { label: 'Needs Reply', value: needsReply.length, color: needsReply.length > 0 ? 'text-amber-600' : 'text-[#1a2744]' },
+          { label: 'Needs Reply', value: needsReply.length, color: needsReply.length > 0 ? 'text-amber-600' : 'text-[#071421]' },
           { label: 'Partners Won', value: totalPartners, color: 'text-emerald-700' },
         ].map(s => (
-          <div key={s.label} className="rounded-[20px] border border-slate-200 bg-white p-5">
+          <div key={s.label} className="rounded-xl border border-slate-200 bg-white p-5">
             <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{s.label}</div>
             <div className={`mt-2 text-4xl font-bold tracking-tight ${s.color}`}>{loading ? '—' : s.value}</div>
           </div>
@@ -1843,7 +1843,7 @@ function OverviewTab({ batches, contacts, loading, onRefresh, onTabChange }: {
 
       {needsReply.length > 0 && (
         <button onClick={() => onTabChange('pipeline')}
-          className="w-full rounded-[20px] border-2 border-amber-300 bg-amber-50 p-4 text-left hover:bg-amber-100 transition">
+          className="w-full rounded-xl border-2 border-amber-300 bg-amber-50 p-4 text-left hover:bg-amber-100 transition">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="text-2xl">🔔</span>
@@ -1859,17 +1859,17 @@ function OverviewTab({ batches, contacts, loading, onRefresh, onTabChange }: {
 
       <div>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-[#1a2744]">Batches</h2>
-          <button onClick={() => setNewBatch(true)} className="rounded-xl bg-[#f5a623] px-4 py-2 text-sm font-semibold text-[#1a2744] hover:brightness-95 transition">+ New Batch</button>
+          <h2 className="text-base font-semibold text-[#071421]">Batches</h2>
+          <button onClick={() => setNewBatch(true)} className="rounded-xl bg-[#C99700] px-4 py-2 text-sm font-semibold text-[#071421] hover:brightness-95 transition">+ New Batch</button>
         </div>
 
         {loading ? (
-          <div className="rounded-[20px] border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">Loading…</div>
+          <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">Loading…</div>
         ) : batches.length === 0 ? (
-          <div className="rounded-[20px] border border-dashed border-slate-300 bg-white p-10 text-center">
+          <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
             <div className="text-3xl">📬</div>
             <div className="mt-3 text-sm font-semibold text-slate-600">No batches yet</div>
-            <button onClick={() => setNewBatch(true)} className="mt-4 rounded-xl bg-[#1a2744] px-5 py-2 text-sm font-semibold text-white">+ New Batch</button>
+            <button onClick={() => setNewBatch(true)} className="mt-4 rounded-xl bg-[#071421] px-5 py-2 text-sm font-semibold text-white">+ New Batch</button>
           </div>
         ) : (
           <div className="space-y-3">
@@ -1888,11 +1888,11 @@ function OverviewTab({ batches, contacts, loading, onRefresh, onTabChange }: {
               const emailDays = emailDate ? daysUntil(emailDate) : null
               const smsDays = smsDate ? daysUntil(smsDate) : null
               return (
-                <div key={batch.id} className="rounded-[22px] border border-slate-200 bg-white p-5">
+                <div key={batch.id} className="rounded-xl border border-slate-200 bg-white p-5">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-[#1a2744]">{batch.name}</span>
+                        <span className="font-semibold text-[#071421]">{batch.name}</span>
                         <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${batch.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{batch.status}</span>
                       </div>
                       <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-slate-400">
@@ -1905,7 +1905,7 @@ function OverviewTab({ batches, contacts, loading, onRefresh, onTabChange }: {
                     </div>
                     <div className="flex shrink-0 flex-col gap-2 items-end">
                       {!isSmsCampaign && !mailed && batch.total_contacts > 0 && (
-                        <button onClick={() => setMarkMailed(batch)} className="rounded-xl bg-[#f5a623] px-3 py-1.5 text-xs font-semibold text-[#1a2744] hover:brightness-95">Mark Mailed</button>
+                        <button onClick={() => setMarkMailed(batch)} className="rounded-xl bg-[#C99700] px-3 py-1.5 text-xs font-semibold text-[#071421] hover:brightness-95">Mark Mailed</button>
                       )}
                       {!isSmsCampaign && <button onClick={() => setCsvBatch(batch)} className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">+ Import</button>}
                     </div>
@@ -1926,11 +1926,11 @@ function OverviewTab({ batches, contacts, loading, onRefresh, onTabChange }: {
                         </div>
                         <div className="rounded-[14px] bg-slate-50 p-3">
                           <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Sent total</div>
-                          <div className="mt-1 text-xl font-bold text-[#1a2744]">{smsSent}</div>
+                          <div className="mt-1 text-xl font-bold text-[#071421]">{smsSent}</div>
                         </div>
                         <div className="rounded-[14px] bg-slate-50 p-3">
                           <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Remaining</div>
-                          <div className="mt-1 text-xl font-bold text-[#1a2744]">{smsPending}</div>
+                          <div className="mt-1 text-xl font-bold text-[#071421]">{smsPending}</div>
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-2 text-[11px] text-slate-500">
@@ -1947,16 +1947,16 @@ function OverviewTab({ batches, contacts, loading, onRefresh, onTabChange }: {
                     <div className="mt-4 grid grid-cols-3 gap-2">
                       <div className="rounded-[14px] bg-slate-50 p-3">
                         <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Mailed</div>
-                        <div className="mt-1 text-sm font-semibold text-[#1a2744]">{fmtDate(batch.mail_sent_date)}</div>
+                        <div className="mt-1 text-sm font-semibold text-[#071421]">{fmtDate(batch.mail_sent_date)}</div>
                       </div>
                       <div className={`rounded-[14px] p-3 ${emailDays !== null && emailDays <= 0 ? 'bg-emerald-50' : 'bg-slate-50'}`}>
                         <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">✉️ Email</div>
-                        <div className="mt-1 text-sm font-semibold text-[#1a2744]">{emailDays !== null && emailDays <= 0 ? '✅ Sent' : fmtDate(emailDate)}</div>
+                        <div className="mt-1 text-sm font-semibold text-[#071421]">{emailDays !== null && emailDays <= 0 ? '✅ Sent' : fmtDate(emailDate)}</div>
                         {emailDays !== null && emailDays > 0 && <div className="text-[10px] text-amber-600 font-semibold">in {emailDays}d</div>}
                       </div>
                       <div className={`rounded-[14px] p-3 ${smsDays !== null && smsDays <= 0 ? 'bg-emerald-50' : 'bg-slate-50'}`}>
                         <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">💬 SMS</div>
-                        <div className="mt-1 text-sm font-semibold text-[#1a2744]">{smsDays !== null && smsDays <= 0 ? '✅ Sent' : fmtDate(smsDate)}</div>
+                        <div className="mt-1 text-sm font-semibold text-[#071421]">{smsDays !== null && smsDays <= 0 ? '✅ Sent' : fmtDate(smsDate)}</div>
                         {smsDays !== null && smsDays > 0 && <div className="text-[10px] text-amber-600 font-semibold">in {smsDays}d</div>}
                       </div>
                     </div>
@@ -2061,12 +2061,12 @@ function ListsTab({ contacts, onSelectContact }: { contacts: Contact[]; onSelect
 
   return (
     <div className="space-y-4">
-      {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-[14px] bg-[#1a2744] px-5 py-3 text-sm font-medium text-white shadow-xl">{toast}</div>}
+      {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-[14px] bg-[#071421] px-5 py-3 text-sm font-medium text-white shadow-none">{toast}</div>}
 
-      <div className="rounded-[22px] border border-slate-200 bg-white p-4">
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-semibold text-[#1a2744]">Field visits</h2>
+            <h2 className="text-sm font-semibold text-[#071421]">Field visits</h2>
             <p className="text-xs text-slate-500">{fieldVisitContacts.length} contact{fieldVisitContacts.length !== 1 ? 's' : ''} marked for cards, flyers, or meetings</p>
           </div>
           <div className="hidden text-xs font-semibold text-slate-400 sm:block">{fieldVisitCities.slice(0, 4).join(' · ')}</div>
@@ -2075,10 +2075,10 @@ function ListsTab({ contacts, onSelectContact }: { contacts: Contact[]; onSelect
           <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
             {fieldVisitContacts.slice(0, 24).map(c => (
               <button key={c.id} onClick={() => onSelectContact(c)}
-                className="min-w-[220px] rounded-[16px] border border-slate-200 bg-slate-50 p-3 text-left transition hover:border-[#1a2744] hover:bg-white">
+                className="min-w-[220px] rounded-[16px] border border-slate-200 bg-slate-50 p-3 text-left transition hover:border-[#071421] hover:bg-white">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-[#1a2744]">{c.name}</div>
+                    <div className="truncate text-sm font-semibold text-[#071421]">{c.name}</div>
                     <div className="mt-0.5 truncate text-xs text-slate-500">{c.company || 'No brokerage'}</div>
                   </div>
                   <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">{c.city || 'No city'}</span>
@@ -2096,25 +2096,25 @@ function ListsTab({ contacts, onSelectContact }: { contacts: Contact[]; onSelect
 
       <div className="flex gap-5 h-[calc(100vh-380px)] min-h-[420px]">
       {/* Left: list directory */}
-      <div className="w-64 shrink-0 flex flex-col rounded-[22px] border border-slate-200 bg-white overflow-hidden">
+      <div className="w-64 shrink-0 flex flex-col rounded-xl border border-slate-200 bg-white overflow-hidden">
         <div className="p-4 border-b border-slate-100">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-semibold text-[#1a2744]">Lists</span>
-            <button onClick={() => setShowNewList(v => !v)} className="rounded-lg bg-[#1a2744] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#243560]">+ New</button>
+            <span className="text-sm font-semibold text-[#071421]">Lists</span>
+            <button onClick={() => setShowNewList(v => !v)} className="rounded-lg bg-[#071421] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#243560]">+ New</button>
           </div>
           {showNewList && (
             <div className="space-y-2">
               <input value={newListName} onChange={e => setNewListName(e.target.value)} placeholder="List name…" autoFocus
-                className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]" />
+                className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#071421] outline-none focus:border-[#071421]" />
               <select value={newListTier} onChange={e => setNewListTier(e.target.value)}
-                className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none">
+                className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#071421] outline-none">
                 <option value="">No tier</option>
                 <option value="1">Tier 1 — High freq</option>
                 <option value="2">Tier 2 — Commercial</option>
                 <option value="3">Tier 3 — Community</option>
               </select>
               <button onClick={createList} disabled={savingList || !newListName.trim()}
-                className="w-full rounded-xl bg-[#1a2744] py-2 text-xs font-semibold text-white disabled:opacity-40">{savingList ? 'Creating…' : 'Create'}</button>
+                className="w-full rounded-xl bg-[#071421] py-2 text-xs font-semibold text-white disabled:opacity-40">{savingList ? 'Creating…' : 'Create'}</button>
             </div>
           )}
         </div>
@@ -2125,7 +2125,7 @@ function ListsTab({ contacts, onSelectContact }: { contacts: Contact[]; onSelect
             <button key={list.id} onClick={() => loadListContacts(list)}
               className={`w-full text-left px-4 py-3 border-b border-slate-100 hover:bg-slate-50 transition ${selectedList?.id === list.id ? 'bg-slate-50' : ''}`}>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-[#1a2744] truncate">{list.name}</span>
+                <span className="text-sm font-semibold text-[#071421] truncate">{list.name}</span>
                 <div className="flex items-center gap-1">
                   {list.tier && <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold ${tierColors[list.tier]}`}>T{list.tier}</span>}
                   <button onClick={e => { e.stopPropagation(); deleteList(list.id) }}
@@ -2139,7 +2139,7 @@ function ListsTab({ contacts, onSelectContact }: { contacts: Contact[]; onSelect
       </div>
 
       {/* Right: contacts in list */}
-      <div className="flex-1 flex flex-col rounded-[22px] border border-slate-200 bg-white overflow-hidden">
+      <div className="flex-1 flex flex-col rounded-xl border border-slate-200 bg-white overflow-hidden">
         {!selectedList ? (
           <div className="flex flex-1 items-center justify-center text-slate-400">
             <div className="text-center">
@@ -2152,18 +2152,18 @@ function ListsTab({ contacts, onSelectContact }: { contacts: Contact[]; onSelect
             <div className="shrink-0 border-b border-slate-100 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <div className="font-semibold text-[#1a2744]">{selectedList.name}</div>
+                  <div className="font-semibold text-[#071421]">{selectedList.name}</div>
                   <div className="text-xs text-slate-400">{listContacts.length} contacts</div>
                 </div>
                 <div className="relative flex-1 max-w-xs">
                   <input value={addSearch} onChange={e => setAddSearch(e.target.value)} placeholder="Add contact by name…"
-                    className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]" />
+                    className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#071421] outline-none focus:border-[#071421]" />
                   {addSuggestions.length > 0 && (
                     <div className="absolute top-10 left-0 right-0 z-10 rounded-[14px] border border-slate-200 bg-white shadow-lg">
                       {addSuggestions.map(c => (
                         <button key={c.id} onClick={() => addContactToList(c)}
                           className="w-full px-3 py-2.5 text-left text-sm hover:bg-slate-50 border-b border-slate-100 last:border-0">
-                          <div className="font-medium text-[#1a2744]">{c.name}</div>
+                          <div className="font-medium text-[#071421]">{c.name}</div>
                           <div className="text-xs text-slate-400">{c.company ?? c.industry ?? ''}</div>
                         </button>
                       ))}
@@ -2172,7 +2172,7 @@ function ListsTab({ contacts, onSelectContact }: { contacts: Contact[]; onSelect
                 </div>
               </div>
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Filter list…"
-                className="mt-3 h-9 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]" />
+                className="mt-3 h-9 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#071421] outline-none focus:border-[#071421]" />
             </div>
             <div className="flex-1 overflow-y-auto">
               {loadingContacts ? (
@@ -2185,7 +2185,7 @@ function ListsTab({ contacts, onSelectContact }: { contacts: Contact[]; onSelect
                   <div key={c.id} className="flex items-center gap-3 border-b border-slate-100 px-4 py-3 hover:bg-slate-50">
                     <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onSelectContact(c)}>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-semibold text-[#1a2744] truncate">{c.name}</span>
+                        <span className="text-sm font-semibold text-[#071421] truncate">{c.name}</span>
                         <TierBadge tier={c.outreach_tier} />
                       </div>
                       <div className="text-xs text-slate-400 truncate">{c.company ?? c.industry ?? ''} {c.city ? `· ${c.city}` : ''}</div>
@@ -2240,9 +2240,9 @@ function PipelineTab({ contacts, onSelect, onStageChange }: {
 
   if (inPlay.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-[24px] border border-dashed border-slate-300 bg-white p-16 text-center">
+      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white p-16 text-center">
         <div className="text-4xl">📭</div>
-        <div className="mt-4 text-base font-semibold text-[#1a2744]">No partnership work in play yet</div>
+        <div className="mt-4 text-base font-semibold text-[#071421]">No partnership work in play yet</div>
         <div className="mt-2 text-sm text-slate-500">Replies, postcard requests, follow-ups, and active partners show up here.</div>
       </div>
     )
@@ -2252,13 +2252,13 @@ function PipelineTab({ contacts, onSelect, onStageChange }: {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h2 className="text-base font-semibold text-[#1a2744]">Relationship Pipeline</h2>
+          <h2 className="text-base font-semibold text-[#071421]">Relationship Pipeline</h2>
           <p className="text-sm text-slate-500">{filtered.length} partner opportunit{filtered.length === 1 ? 'y' : 'ies'} in play</p>
         </div>
         <div className="flex gap-1.5">
           {[null, 1, 2, 3].map(t => (
             <button key={t ?? 'all'} onClick={() => setTierFilter(t)}
-              className={`rounded-full px-3 py-1 text-xs font-semibold transition ${tierFilter === t ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+              className={`rounded-full px-3 py-1 text-xs font-semibold transition ${tierFilter === t ? 'bg-[#071421] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
               {t ? `Tier ${t}` : 'All'}
             </button>
           ))}
@@ -2281,14 +2281,14 @@ function PipelineTab({ contacts, onSelect, onStageChange }: {
                 setMovingId(contactId)
                 void onStageChange(contactId, col.key).finally(() => setMovingId(id => id === contactId ? null : id))
               }}
-              className={`rounded-[22px] border p-4 transition ${col.color} ${dropTarget === col.key ? 'ring-2 ring-[#1a2744] ring-offset-2 ring-offset-white' : ''}`}>
+              className={`rounded-xl border p-4 transition ${col.color} ${dropTarget === col.key ? 'ring-2 ring-[#071421] ring-offset-2 ring-offset-white' : ''}`}>
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-600">{col.label}</span>
                 <span className="rounded-full bg-white/80 px-2 py-0.5 text-[11px] font-semibold text-slate-600">{colContacts.length}</span>
               </div>
               <div className="space-y-2">
                 {colContacts.length === 0 ? (
-                  <div className={`rounded-[14px] border border-dashed border-slate-200 bg-white/50 p-4 text-center text-xs text-slate-400 transition ${dropTarget === col.key ? 'border-[#1a2744] bg-white text-[#1a2744]' : ''}`}>Drop here</div>
+                  <div className={`rounded-[14px] border border-dashed border-slate-200 bg-white/50 p-4 text-center text-xs text-slate-400 transition ${dropTarget === col.key ? 'border-[#071421] bg-white text-[#071421]' : ''}`}>Drop here</div>
                 ) : colContacts.map(c => {
                   const nextAction = getNextPartnerAction(c)
                   const referralCode = getPartnerReferralCode(c)
@@ -2300,7 +2300,7 @@ function PipelineTab({ contacts, onSelect, onStageChange }: {
                       onDragEnd={() => { setDraggingId(null); setDropTarget(null) }}
                       className={`w-full rounded-[16px] border border-white bg-white p-3 text-left shadow-sm transition hover:shadow-md ${draggingId === c.id ? 'cursor-grabbing opacity-50' : 'cursor-grab'} ${movingId === c.id ? 'pointer-events-none opacity-60' : ''}`}>
                       <div className="flex items-start justify-between gap-1">
-                        <div className="text-sm font-semibold text-[#1a2744] truncate">{c.name}</div>
+                        <div className="text-sm font-semibold text-[#071421] truncate">{c.name}</div>
                         <TierBadge tier={c.outreach_tier} />
                       </div>
                       <div className="mt-0.5 text-xs text-slate-500 truncate">{c.company ?? c.industry ?? ''}</div>
@@ -2494,7 +2494,7 @@ function RepliesTab({ onSelectContact, onOpenThread }: {
 
   return (
     <div className="space-y-4">
-      {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-[14px] bg-[#1a2744] px-5 py-3 text-sm font-medium text-white shadow-xl">{toast}</div>}
+      {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-[14px] bg-[#071421] px-5 py-3 text-sm font-medium text-white shadow-none">{toast}</div>}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-semibold text-[var(--app-ink)]">Reply Desk</h2>
@@ -2828,7 +2828,7 @@ function sheetUpdateFormHasChanges(form: SheetUpdateForm | null, contact: Contac
 }
 
 function quickActionClass(tone: 'green' | 'blue' | 'amber' | 'slate' | 'red', active: boolean) {
-  if (active) return 'border-[#1a2744] bg-[#1a2744] text-white'
+  if (active) return 'border-[#071421] bg-[#071421] text-white'
   if (tone === 'green') return 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
   if (tone === 'blue') return 'border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100'
   if (tone === 'amber') return 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'
@@ -4369,11 +4369,11 @@ function PhoneTab({
 
   return (
     <div className="flex h-[calc(100dvh-5.5rem)] min-h-0 overflow-hidden bg-white md:h-[calc(100dvh-7rem)] md:min-h-[680px] md:rounded-[16px] md:border md:border-slate-200 lg:h-[calc(100vh-7rem)]">
-      {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-[14px] bg-[#1a2744] px-5 py-3 text-sm font-medium text-white shadow-xl">{toast}</div>}
+      {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-[14px] bg-[#071421] px-5 py-3 text-sm font-medium text-white shadow-none">{toast}</div>}
       {dialer.status === 'ringing' && (
-        <div className="fixed left-1/2 top-6 z-[80] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-[16px] border border-emerald-200 bg-white p-4 shadow-2xl">
+        <div className="fixed left-1/2 top-6 z-[80] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-[16px] border border-emerald-200 bg-white p-4 shadow-none">
           <div className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Incoming partnership call</div>
-          <div className="mt-1 truncate text-sm font-semibold text-[#1a2744]">{dialer.incomingFrom || 'Unknown caller'}</div>
+          <div className="mt-1 truncate text-sm font-semibold text-[#071421]">{dialer.incomingFrom || 'Unknown caller'}</div>
           <div className="mt-3 flex gap-2">
             <button onClick={dialer.acceptIncoming} className="min-h-10 flex-1 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white">Accept</button>
             <button onClick={dialer.rejectIncoming} className="min-h-10 flex-1 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600">Decline</button>
@@ -4382,10 +4382,10 @@ function PhoneTab({
       )}
       {sheetUpdateOpen && selected && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-[20px] border border-slate-200 bg-white p-5 shadow-xl">
+          <div className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-xl border border-slate-200 bg-white p-5 shadow-none">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-base font-semibold text-[#1a2744]">Update partner record</h3>
+                <h3 className="text-base font-semibold text-[#071421]">Update partner record</h3>
                 <p className="mt-0.5 text-sm text-slate-500">
                   {selected.name}{selected.company ? ` · ${selected.company}` : ''}
                 </p>
@@ -4405,7 +4405,7 @@ function PhoneTab({
                     <select
                       value={sheetForm.action}
                       onChange={e => setSheetForm(form => form ? { ...form, action: e.target.value as SheetUpdateForm['action'] } : form)}
-                      className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-[#1a2744] outline-none focus:border-[#1a2744]"
+                      className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-[#071421] outline-none focus:border-[#071421]"
                     >
                       <option value="">No status change</option>
                       {INBOX_QUICK_ACTIONS.map(action => (
@@ -4419,7 +4419,7 @@ function PhoneTab({
                       value={sheetForm.sheetTarget}
                       onChange={e => setSheetForm(form => form ? { ...form, sheetTarget: e.target.value } : form)}
                       placeholder="Active partners, Field work, Windsor realtors..."
-                      className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]"
+                      className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#071421] outline-none focus:border-[#071421]"
                     />
                   </label>
                 </div>
@@ -4431,7 +4431,7 @@ function PhoneTab({
                     onChange={e => setSheetForm(form => form ? { ...form, sheetNote: e.target.value } : form)}
                     rows={3}
                     placeholder="Example: Send digital package, then drop cards at front desk next week. Prefers text."
-                    className="mt-1 w-full resize-none rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-3 text-sm leading-6 text-[#1a2744] outline-none focus:border-[#1a2744]"
+                    className="mt-1 w-full resize-none rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-3 text-sm leading-6 text-[#071421] outline-none focus:border-[#071421]"
                   />
                 </label>
 
@@ -4453,7 +4453,7 @@ function PhoneTab({
                         <input
                           value={value}
                           onChange={e => setSheetForm(form => form ? { ...form, [field]: e.target.value } as SheetUpdateForm : form)}
-                          className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]"
+                          className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#071421] outline-none focus:border-[#071421]"
                         />
                       </label>
                     ))}
@@ -4462,7 +4462,7 @@ function PhoneTab({
                       <input
                         value={sheetForm.address}
                         onChange={e => setSheetForm(form => form ? { ...form, address: e.target.value } : form)}
-                        className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#1a2744]"
+                        className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#071421] outline-none focus:border-[#071421]"
                       />
                     </label>
                   </div>
@@ -4475,7 +4475,7 @@ function PhoneTab({
                     onChange={e => setSheetInstruction(e.target.value)}
                     rows={3}
                     placeholder="Optional: explain where this should go if the list/status is not obvious."
-                    className="mt-1 w-full resize-none rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-3 text-sm leading-6 text-[#1a2744] outline-none focus:border-[#1a2744]"
+                    className="mt-1 w-full resize-none rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-3 text-sm leading-6 text-[#071421] outline-none focus:border-[#071421]"
                   />
                 </label>
               </div>
@@ -4494,7 +4494,7 @@ function PhoneTab({
               <button
                 onClick={() => void handleSheetUpdate()}
                 disabled={sheetUpdating || (!sheetInstruction.trim() && !sheetUpdateFormHasChanges(sheetForm, selected))}
-                className="flex-1 rounded-xl bg-[#1a2744] py-2.5 text-sm font-semibold text-white disabled:opacity-40"
+                className="flex-1 rounded-xl bg-[#071421] py-2.5 text-sm font-semibold text-white disabled:opacity-40"
               >
                 {sheetUpdating ? 'Updating...' : 'Save update'}
               </button>
@@ -4516,12 +4516,12 @@ function PhoneTab({
             <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">{filterCounts.all}</span>
           </div>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search contacts…"
-            className="h-12 w-full rounded-full border border-slate-200 bg-slate-50 px-4 text-base leading-6 text-[#1a2744] outline-none focus:border-[#1a2744] lg:h-10 lg:text-sm" />
+            className="h-12 w-full rounded-full border border-slate-200 bg-slate-50 px-4 text-base leading-6 text-[#071421] outline-none focus:border-[#071421] lg:h-10 lg:text-sm" />
           <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
             <select
               value={areaFilter}
               onChange={e => setAreaFilter(e.target.value)}
-              className="h-10 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#1a2744] lg:h-9 lg:text-[12px]"
+              className="h-10 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#071421] lg:h-9 lg:text-[12px]"
             >
               <option value="">All areas</option>
               {PARTNERSHIP_AREA_GROUPS.map(area => (
@@ -4531,7 +4531,7 @@ function PhoneTab({
             <select
               value={cityFilter}
               onChange={e => setCityFilter(e.target.value)}
-              className="h-10 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#1a2744] lg:h-9 lg:text-[12px]"
+              className="h-10 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#071421] lg:h-9 lg:text-[12px]"
             >
               <option value="">All cities</option>
               {cityOptions.map(city => (
@@ -4541,7 +4541,7 @@ function PhoneTab({
             <select
               value={categoryFilter}
               onChange={e => setCategoryFilter(e.target.value)}
-              className="h-10 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#1a2744] lg:h-9 lg:text-[12px]"
+              className="h-10 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#071421] lg:h-9 lg:text-[12px]"
             >
               <option value="">All categories</option>
               {categoryOptions.map(category => (
@@ -4551,7 +4551,7 @@ function PhoneTab({
             <select
               value={batchFilter}
               onChange={e => setBatchFilter(e.target.value)}
-              className="h-10 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#1a2744] lg:h-9 lg:text-[12px]"
+              className="h-10 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#071421] lg:h-9 lg:text-[12px]"
             >
               <option value="">All batches</option>
               {batchOptions.map(batch => (
@@ -4566,7 +4566,7 @@ function PhoneTab({
               </span>
               <button
                 onClick={() => { setAreaFilter(''); setCityFilter(''); setCategoryFilter(''); setBatchFilter('') }}
-                className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 hover:text-[#1a2744]"
+                className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 hover:text-[#071421]"
               >
                 Clear
               </button>
@@ -4577,7 +4577,7 @@ function PhoneTab({
               <button
                 key={filter.key}
                 onClick={() => setInboxFilter(filter.key)}
-                className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-semibold transition lg:min-h-8 lg:px-3 lg:text-[11px] ${inboxFilter === filter.key ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-semibold transition lg:min-h-8 lg:px-3 lg:text-[11px] ${inboxFilter === filter.key ? 'bg-[#071421] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
               >
                 {filter.label}
               </button>
@@ -4597,7 +4597,7 @@ function PhoneTab({
                   <div className="flex min-w-0 items-center gap-2">
                     <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold ${selectedId === c.id ? 'bg-[#111827] text-white' : 'bg-slate-100 text-slate-700'}`}>{c.name.charAt(0)}</span>
                     <div className="min-w-0">
-                      <div className={`truncate text-[15px] font-semibold ${selectedId === c.id ? 'text-[#111827]' : 'text-[#1a2744]'}`}>{c.name}</div>
+                      <div className={`truncate text-[15px] font-semibold ${selectedId === c.id ? 'text-[#111827]' : 'text-[#071421]'}`}>{c.name}</div>
                       <div className={`mt-0.5 truncate text-xs ${selectedId === c.id ? 'text-slate-600' : 'text-slate-400'}`}>{c.company ?? c.industry ?? c.city ?? 'Partner contact'}</div>
                     </div>
                     <TierBadge tier={c.outreach_tier} />
@@ -4637,13 +4637,13 @@ function PhoneTab({
           <div className="shrink-0 border-b border-slate-200 bg-white px-3 py-2.5 sm:px-5">
             <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2.5">
-              <button onClick={() => setMobileListOpen(true)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-2xl leading-none text-[#1a2744] lg:hidden">
+              <button onClick={() => setMobileListOpen(true)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-2xl leading-none text-[#071421] lg:hidden">
                 ‹
               </button>
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#1a2744] text-sm font-bold text-white">{selected.name.charAt(0)}</div>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#071421] text-sm font-bold text-white">{selected.name.charAt(0)}</div>
               <div className="min-w-0">
                 <div className="flex min-w-0 items-center gap-2">
-                  <div className="truncate font-semibold text-[#1a2744]">{selected.name}</div>
+                  <div className="truncate font-semibold text-[#071421]">{selected.name}</div>
                   <StageBadge stage={selected.normalized_stage} />
                 </div>
                 <div className="mt-0.5 truncate text-xs text-slate-400">{selected.phone || selected.company || selected.city || 'Partner contact'} · {partnershipManagerLabel(selected)}</div>
@@ -4670,15 +4670,15 @@ function PhoneTab({
               )}
               {selected.phone && (
                 dialer.status === 'connected' ? (
-                  <button onClick={dialer.hangup} className="min-h-11 rounded-full bg-rose-500 px-5 text-sm font-semibold text-white lg:min-h-10">End</button>
+                  <button onClick={dialer.hangup} className="min-h-11 rounded-xl bg-rose-500 px-5 text-sm font-semibold text-white lg:min-h-10">End</button>
                 ) : (
                   <button onClick={handleCall} disabled={dialer.status === 'connecting' || dialer.status === 'loading'}
-                    className="min-h-11 rounded-full border border-slate-200 bg-white px-5 text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50 disabled:opacity-50 lg:min-h-10">
+                    className="min-h-11 rounded-full border border-slate-200 bg-white px-5 text-sm font-semibold text-[#071421] transition hover:bg-slate-50 disabled:opacity-50 lg:min-h-10">
                     {dialer.status === 'connecting' ? 'Calling' : dialer.status === 'loading' ? 'Preparing' : 'Call'}
                   </button>
                 )
               )}
-              <button onClick={() => onSelectContact(selected)} className="min-h-11 rounded-full border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-600 hover:bg-slate-50 xl:hidden">Info</button>
+              <button onClick={() => onSelectContact(selected)} className="min-h-11 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-600 hover:bg-slate-50 xl:hidden">Info</button>
             </div>
             </div>
           </div>
@@ -4702,7 +4702,7 @@ function PhoneTab({
               if (reaction) {
                 return (
                   <div key={touch.id} className={`flex justify-end ${touchIndex === 0 ? '' : groupedWithPrevious ? 'mt-1' : 'mt-6'}`}>
-                    <div className="mr-10 flex max-w-[min(78%,640px)] items-center gap-2 rounded-full border border-rose-100 bg-white px-3 py-2 text-xs font-semibold text-[#1a2744] shadow-sm">
+                    <div className="mr-10 flex max-w-[min(78%,640px)] items-center gap-2 rounded-full border border-rose-100 bg-white px-3 py-2 text-xs font-semibold text-[#071421] shadow-sm">
                       <span className="flex h-6 w-6 items-center justify-center rounded-full bg-rose-50 text-sm text-rose-600">{reactionSymbol(reaction.kind)}</span>
                       <span className="truncate">{reaction.kind === 'loved' ? 'Loved' : reaction.kind} your SMS</span>
                     </div>
@@ -4720,7 +4720,7 @@ function PhoneTab({
               }
               return (
                 <div key={touch.id} className={`flex gap-3 ${touch.direction === 'outbound' ? 'flex-row-reverse' : ''} ${touchIndex === 0 ? '' : groupedWithPrevious ? 'mt-1' : 'mt-6'}`}>
-                  <div className={`hidden h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm sm:flex ${groupedWithPrevious ? 'invisible' : ''} ${touch.direction === 'outbound' ? 'bg-[#1a2744]' : 'bg-white border border-slate-200'}`}>
+                  <div className={`hidden h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm sm:flex ${groupedWithPrevious ? 'invisible' : ''} ${touch.direction === 'outbound' ? 'bg-[#071421]' : 'bg-white border border-slate-200'}`}>
                     <ChannelIcon channel={touch.channel} direction={touch.direction} />
                   </div>
                   <div className={`max-w-[min(78%,620px)] px-4 py-3 text-base leading-[1.5] lg:text-[15px] ${touch.direction === 'outbound' ? 'bg-[#0f6a53] text-white' : 'bg-[#f1f3f5] text-[#111827]'} ${touch.direction === 'outbound' ? `${groupedWithPrevious ? 'rounded-tr-md' : 'rounded-tr-[18px]'} ${groupedWithNext ? 'rounded-br-md' : 'rounded-br-[18px]'} rounded-l-[18px]` : `${groupedWithPrevious ? 'rounded-tl-md' : 'rounded-tl-[18px]'} ${groupedWithNext ? 'rounded-bl-md' : 'rounded-bl-[18px]'} rounded-r-[18px]`}`}>
@@ -4775,7 +4775,7 @@ function PhoneTab({
                   <button
                     onClick={() => openSheetUpdate(selected)}
                     disabled={sheetUpdating}
-                    className="min-h-11 rounded-full border border-[#1a2744] bg-[#1a2744] px-4 text-sm font-semibold text-white transition hover:bg-[#243560] disabled:opacity-50"
+                    className="min-h-11 rounded-full border border-[#071421] bg-[#071421] px-4 text-sm font-semibold text-white transition hover:bg-[#243560] disabled:opacity-50"
                   >
                     Update sheet
                   </button>
@@ -4807,10 +4807,10 @@ function PhoneTab({
               >
                 {aiReplyLoading ? 'Drafting...' : 'Smart draft'}
               </button>
-              <button onClick={() => setComposeChannel('sms')} className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-semibold transition lg:min-h-8 lg:text-xs ${composeChannel === 'sms' ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+              <button onClick={() => setComposeChannel('sms')} className={`min-h-11 shrink-0 rounded-xl px-4 text-sm font-semibold transition lg:min-h-8 lg:text-xs ${composeChannel === 'sms' ? 'bg-[#071421] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
                 SMS {!selected.phone && <span className="ml-1 text-red-400">no #</span>}
               </button>
-              <button onClick={() => setComposeChannel('email')} className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-semibold transition lg:min-h-8 lg:text-xs ${composeChannel === 'email' ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+              <button onClick={() => setComposeChannel('email')} className={`min-h-11 shrink-0 rounded-xl px-4 text-sm font-semibold transition lg:min-h-8 lg:text-xs ${composeChannel === 'email' ? 'bg-[#071421] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
                 Email {!selected.email && <span className="ml-1 text-red-400">no email</span>}
               </button>
               {composeChannel === 'sms' && (
@@ -4827,7 +4827,7 @@ function PhoneTab({
                   value={selected.normalized_stage || 'target'}
                   onChange={e => void handleStageChange(e.target.value)}
                   disabled={stageSaving !== null}
-                  className="max-w-[150px] bg-transparent text-sm font-semibold text-[#1a2744] outline-none disabled:opacity-50 lg:text-xs"
+                  className="max-w-[150px] bg-transparent text-sm font-semibold text-[#071421] outline-none disabled:opacity-50 lg:text-xs"
                 >
                   <option value="target">Target</option>
                   <option value="connected">Connected</option>
@@ -4840,11 +4840,11 @@ function PhoneTab({
               </label>
               <button
                 onClick={() => setActionPanelOpen(open => !open)}
-                className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-semibold transition xl:hidden ${actionPanelOpen ? 'bg-[#1a2744] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-semibold transition xl:hidden ${actionPanelOpen ? 'bg-[#071421] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
               >
                 Log
               </button>
-              <button onClick={() => onSelectContact(selected)} className="min-h-11 shrink-0 rounded-full bg-slate-100 px-4 text-sm font-semibold text-slate-600 hover:bg-slate-200 xl:hidden">
+              <button onClick={() => onSelectContact(selected)} className="min-h-11 shrink-0 rounded-xl bg-slate-100 px-4 text-sm font-semibold text-slate-600 hover:bg-slate-200 xl:hidden">
                 Details
               </button>
             </div>
@@ -4862,7 +4862,7 @@ function PhoneTab({
                         <span className="mt-0.5 line-clamp-2 text-[9px] font-semibold leading-3 text-slate-500">{mediaFileName(url)}</span>
                       </a>
                     )}
-                    <button onClick={() => setMediaUrls(current => current.filter(item => item !== url))} className="absolute right-1 top-1 rounded-full bg-black/60 px-1.5 text-[10px] text-white">x</button>
+                    <button onClick={() => setMediaUrls(current => current.filter(item => item !== url))} className="absolute right-1 top-1 rounded-xl bg-black/60 px-1.5 text-[10px] text-white">x</button>
                   </div>
                 ))}
               </div>
@@ -4872,7 +4872,7 @@ function PhoneTab({
                 <div className="flex items-center justify-between gap-2">
                   <button
                     onClick={() => setScheduleMode(current => !current)}
-                    className={`min-h-11 rounded-full border px-4 text-sm font-semibold transition lg:min-h-8 lg:text-xs ${scheduleMode ? 'border-[#1a2744] bg-[#1a2744] text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+                    className={`min-h-11 rounded-full border px-4 text-sm font-semibold transition lg:min-h-8 lg:text-xs ${scheduleMode ? 'border-[#071421] bg-[#071421] text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
                   >
                     {scheduleMode ? 'Scheduled' : 'Schedule'}
                   </button>
@@ -4890,7 +4890,7 @@ function PhoneTab({
                       type="datetime-local"
                       value={scheduledAt}
                       onChange={e => setScheduledAt(e.target.value)}
-                      className="min-h-11 min-w-0 flex-1 rounded-full border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-[#1a2744] outline-none focus:border-[#1a2744] lg:min-h-8 lg:text-xs"
+                      className="min-h-11 min-w-0 flex-1 rounded-full border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-[#071421] outline-none focus:border-[#071421] lg:min-h-8 lg:text-xs"
                     />
                   )}
                 </div>
@@ -4920,9 +4920,9 @@ function PhoneTab({
                     {voiceListening ? '■' : '🎙'}
                   </button>
                   <textarea value={smsBody} onChange={e => setSmsBody(e.target.value)} rows={3} placeholder={selected.phone ? 'Type SMS…' : 'No phone'} disabled={!selected.phone}
-                    className="max-h-36 min-h-[88px] flex-1 resize-y rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-base leading-[1.5] text-[#1a2744] outline-none focus:border-[#1a2744] disabled:opacity-40 lg:text-sm" />
+                    className="max-h-36 min-h-[88px] flex-1 resize-y rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-base leading-[1.5] text-[#071421] outline-none focus:border-[#071421] disabled:opacity-40 lg:text-sm" />
                   <button onClick={handleSend} disabled={sending || mediaUploading || !selected.phone || (!smsBody.trim() && mediaUrls.length === 0) || (scheduleMode && !scheduledAt)}
-                    className="mb-0.5 min-h-12 rounded-full bg-[#1a2744] px-5 text-sm font-semibold text-white disabled:opacity-40 lg:min-h-11">{sending ? '…' : scheduleMode ? 'Schedule' : 'Send'}</button>
+                    className="mb-0.5 min-h-12 rounded-full bg-[#071421] px-5 text-sm font-semibold text-white disabled:opacity-40 lg:min-h-11">{sending ? '…' : scheduleMode ? 'Schedule' : 'Send'}</button>
                 </div>
                 {(voiceListening || voiceError) && (
                   <div className={`pl-14 text-xs font-medium ${voiceError ? 'text-rose-600' : 'text-slate-500'}`}>
@@ -4933,7 +4933,7 @@ function PhoneTab({
             ) : (
               <div className="space-y-2">
                 <input value={emailSubject} onChange={e => setEmailSubject(e.target.value)} placeholder="Subject"
-                  className="min-h-12 w-full rounded-[14px] border border-slate-200 bg-slate-50 px-4 text-base leading-[1.5] text-[#1a2744] outline-none focus:border-[#1a2744] lg:min-h-10 lg:text-sm" />
+                  className="min-h-12 w-full rounded-[14px] border border-slate-200 bg-slate-50 px-4 text-base leading-[1.5] text-[#071421] outline-none focus:border-[#071421] lg:min-h-10 lg:text-sm" />
                 <div className="flex gap-2">
                   <button
                     onClick={toggleVoiceDictation}
@@ -4944,9 +4944,9 @@ function PhoneTab({
                     {voiceListening ? '■' : '🎙'}
                   </button>
                   <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={3} placeholder={selected.email ? 'Type email…' : 'No email'} disabled={!selected.email}
-                    className="min-h-[88px] flex-1 resize-none rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-base leading-[1.5] text-[#1a2744] outline-none focus:border-[#1a2744] disabled:opacity-40 lg:text-sm" />
+                    className="min-h-[88px] flex-1 resize-none rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-base leading-[1.5] text-[#071421] outline-none focus:border-[#071421] disabled:opacity-40 lg:text-sm" />
                   <button onClick={handleSend} disabled={sending || !selected.email || !emailBody.trim()}
-                    className="min-h-12 self-end rounded-full bg-[#1a2744] px-5 text-sm font-semibold text-white disabled:opacity-40 lg:min-h-11">{sending ? '…' : 'Send'}</button>
+                    className="min-h-12 self-end rounded-full bg-[#071421] px-5 text-sm font-semibold text-white disabled:opacity-40 lg:min-h-11">{sending ? '…' : 'Send'}</button>
                 </div>
                 {(voiceListening || voiceError) && (
                   <div className={`pl-14 text-xs font-medium ${voiceError ? 'text-rose-600' : 'text-slate-500'}`}>
@@ -4962,11 +4962,11 @@ function PhoneTab({
             <button
               onClick={() => setPartnerInfoCollapsed(false)}
               title="Expand partner info"
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-lg font-semibold text-[#1a2744] transition hover:bg-slate-50"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-lg font-semibold text-[#071421] transition hover:bg-slate-50"
             >
               ‹
             </button>
-            <div className="mt-4 flex h-9 w-9 items-center justify-center rounded-full bg-[#1a2744] text-sm font-bold text-white" title={selected.name}>
+            <div className="mt-4 flex h-9 w-9 items-center justify-center rounded-full bg-[#071421] text-sm font-bold text-white" title={selected.name}>
               {selected.name.charAt(0)}
             </div>
             <div className="mt-4 h-px w-8 bg-slate-100" />
@@ -4982,15 +4982,15 @@ function PhoneTab({
         <aside className="hidden w-[300px] shrink-0 flex-col border-l border-slate-200 bg-white xl:flex">
           <div className="border-b border-slate-100 px-4 py-4">
             <div className="flex items-start gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#1a2744] text-base font-bold text-white">{selected.name.charAt(0)}</div>
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#071421] text-base font-bold text-white">{selected.name.charAt(0)}</div>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-semibold text-[#1a2744]">{selected.name}</div>
+                <div className="truncate text-sm font-semibold text-[#071421]">{selected.name}</div>
                 <div className="truncate text-xs text-slate-400">{partnerCompanyLabel(selected)}</div>
               </div>
               <button
                 onClick={() => setPartnerInfoCollapsed(true)}
                 title="Collapse partner info"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-[#1a2744]"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-[#071421]"
               >
                 ›
               </button>
@@ -5002,15 +5002,15 @@ function PhoneTab({
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
             <div className="grid grid-cols-2 gap-2">
-              <button onClick={handleCall} disabled={!selected.phone} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#1a2744] disabled:opacity-40">Call</button>
-              <button onClick={() => setComposeChannel('sms')} disabled={!selected.phone} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#1a2744] disabled:opacity-40">Text</button>
-              <button onClick={() => setComposeChannel('email')} disabled={!selected.email} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#1a2744] disabled:opacity-40">Email</button>
-              <button onClick={() => onSelectContact(selected)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#1a2744]">Details</button>
+              <button onClick={handleCall} disabled={!selected.phone} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#071421] disabled:opacity-40">Call</button>
+              <button onClick={() => setComposeChannel('sms')} disabled={!selected.phone} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#071421] disabled:opacity-40">Text</button>
+              <button onClick={() => setComposeChannel('email')} disabled={!selected.email} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#071421] disabled:opacity-40">Email</button>
+              <button onClick={() => onSelectContact(selected)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#071421]">Details</button>
             </div>
             <button
               onClick={() => openSheetUpdate(selected)}
               disabled={sheetUpdating}
-              className="mt-2 w-full rounded-xl bg-[#1a2744] px-3 py-2.5 text-xs font-semibold text-white disabled:opacity-50"
+              className="mt-2 w-full rounded-xl bg-[#071421] px-3 py-2.5 text-xs font-semibold text-white disabled:opacity-50"
             >
               Update sheet
             </button>
@@ -5026,18 +5026,18 @@ function PhoneTab({
               <div>
                 <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Account</div>
                 <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3">
-                  <div className="text-sm font-semibold text-[#1a2744]">{partnerCompanyLabel(selected)}</div>
+                  <div className="text-sm font-semibold text-[#071421]">{partnerCompanyLabel(selected)}</div>
                   <div className="mt-1 text-xs text-slate-500">
                     {selected.partner_company?.city || selected.city || 'No city'} · {selected.partner_company?.industry || selected.industry || 'Partner account'}
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <div className="rounded-lg bg-slate-50 px-2 py-2">
                       <div className="text-[10px] font-semibold uppercase text-slate-400">Company referrals</div>
-                      <div className="mt-0.5 text-sm font-bold text-[#1a2744]">{selected.partner_company_referral_count ?? selected.partner_company?.total_referrals ?? 0}</div>
+                      <div className="mt-0.5 text-sm font-bold text-[#071421]">{selected.partner_company_referral_count ?? selected.partner_company?.total_referrals ?? 0}</div>
                     </div>
                     <div className="rounded-lg bg-slate-50 px-2 py-2">
                       <div className="text-[10px] font-semibold uppercase text-slate-400">Revenue</div>
-                      <div className="mt-0.5 text-sm font-bold text-[#1a2744]">{formatCadFromCents(selected.partner_company_booked_revenue_cents || selected.partner_company?.total_revenue_cents || 0)}</div>
+                      <div className="mt-0.5 text-sm font-bold text-[#071421]">{formatCadFromCents(selected.partner_company_booked_revenue_cents || selected.partner_company?.total_revenue_cents || 0)}</div>
                     </div>
                   </div>
                   {selected.partner_company?.website && (
@@ -5112,7 +5112,7 @@ function PhoneTab({
               ].map(([label, value]) => (
                 <div key={label} className="rounded-xl bg-slate-50 px-3 py-2">
                   <div className="text-[10px] font-semibold uppercase text-slate-400">{label}</div>
-                  <div className="mt-0.5 break-words text-sm font-medium text-[#1a2744]">{value}</div>
+                  <div className="mt-0.5 break-words text-sm font-medium text-[#071421]">{value}</div>
                 </div>
               ))}
             </div>
@@ -5174,9 +5174,9 @@ function PartnersTab({ contacts, onSelect }: { contacts: Contact[]; onSelect: (c
 
   if (partners.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-[24px] border border-dashed border-slate-300 bg-white p-16 text-center">
+      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white p-16 text-center">
         <div className="text-4xl">🤝</div>
-        <div className="mt-4 text-base font-semibold text-[#1a2744]">No active partners yet</div>
+        <div className="mt-4 text-base font-semibold text-[#071421]">No active partners yet</div>
         <div className="mt-2 text-sm text-slate-500">Once a relationship becomes referral-ready, it appears here.</div>
       </div>
     )
@@ -5186,7 +5186,7 @@ function PartnersTab({ contacts, onSelect }: { contacts: Contact[]; onSelect: (c
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-[#1a2744]">Partner Directory</h2>
+          <h2 className="text-base font-semibold text-[#071421]">Partner Directory</h2>
           <p className="text-sm text-slate-500">{partners.length} active · {warmPartners.length} warm · {fieldVisit.length} meeting or visit work</p>
         </div>
         <input
@@ -5206,7 +5206,7 @@ function PartnersTab({ contacts, onSelect }: { contacts: Contact[]; onSelect: (c
           <button
             key={item.key}
             onClick={() => setView(item.key as typeof view)}
-            className={`min-h-9 shrink-0 rounded-full px-3 text-xs font-semibold transition ${view === item.key ? 'bg-[#1a2744] text-white' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+            className={`min-h-9 shrink-0 rounded-full px-3 text-xs font-semibold transition ${view === item.key ? 'bg-[#071421] text-white' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
           >
             {item.label} <span className="ml-1 opacity-70">{item.count}</span>
           </button>
@@ -5221,12 +5221,12 @@ function PartnersTab({ contacts, onSelect }: { contacts: Contact[]; onSelect: (c
           const referralCode = getPartnerReferralCode(c)
           return (
             <button key={c.id} onClick={() => onSelect(c)}
-              className={`rounded-[22px] border bg-white p-5 text-left hover:shadow-md transition ${!warm ? 'border-amber-300' : 'border-slate-200'}`}>
+              className={`rounded-xl border bg-white p-5 text-left hover:shadow-md transition ${!warm ? 'border-amber-300' : 'border-slate-200'}`}>
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700">{c.name.charAt(0)}</div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="font-semibold text-[#1a2744] truncate">{c.name}</span>
+                    <span className="font-semibold text-[#071421] truncate">{c.name}</span>
                     <TierBadge tier={c.outreach_tier} />
                   </div>
                   <div className="text-xs text-slate-500 truncate">{c.company ?? c.industry ?? ''}</div>
@@ -5245,7 +5245,7 @@ function PartnersTab({ contacts, onSelect }: { contacts: Contact[]; onSelect: (c
               <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
                 <div className="rounded-[10px] bg-slate-50 p-2">
                   <div className="text-[9px] font-semibold uppercase text-slate-400">Next Action</div>
-                  <div className={`mt-0.5 truncate font-medium ${nextAction?.overdue ? 'text-amber-600' : 'text-[#1a2744]'}`}>{nextAction ? `${nextAction.label} · ${fmtDate(nextAction.due)}` : '—'}</div>
+                  <div className={`mt-0.5 truncate font-medium ${nextAction?.overdue ? 'text-amber-600' : 'text-[#071421]'}`}>{nextAction ? `${nextAction.label} · ${fmtDate(nextAction.due)}` : '—'}</div>
                 </div>
                 <div className="rounded-[10px] bg-slate-50 p-2">
                   <div className="text-[9px] font-semibold uppercase text-slate-400">Referral Code</div>
@@ -5253,13 +5253,13 @@ function PartnersTab({ contacts, onSelect }: { contacts: Contact[]; onSelect: (c
                 </div>
                 <div className="rounded-[10px] bg-slate-50 p-2">
                   <div className="text-[9px] font-semibold uppercase text-slate-400">Referrals</div>
-                  <div className="mt-0.5 font-medium text-[#1a2744]">{c.referred_lead_count ?? 0}</div>
+                  <div className="mt-0.5 font-medium text-[#071421]">{c.referred_lead_count ?? 0}</div>
                 </div>
-                {c.phone && <div className="rounded-[10px] bg-slate-50 p-2"><div className="text-[9px] font-semibold uppercase text-slate-400">Phone</div><div className="mt-0.5 font-medium text-[#1a2744]">{c.phone}</div></div>}
-                {c.email && <div className="rounded-[10px] bg-slate-50 p-2 col-span-2 truncate"><div className="text-[9px] font-semibold uppercase text-slate-400">Email</div><div className="mt-0.5 font-medium text-[#1a2744] truncate">{c.email}</div></div>}
+                {c.phone && <div className="rounded-[10px] bg-slate-50 p-2"><div className="text-[9px] font-semibold uppercase text-slate-400">Phone</div><div className="mt-0.5 font-medium text-[#071421]">{c.phone}</div></div>}
+                {c.email && <div className="rounded-[10px] bg-slate-50 p-2 col-span-2 truncate"><div className="text-[9px] font-semibold uppercase text-slate-400">Email</div><div className="mt-0.5 font-medium text-[#071421] truncate">{c.email}</div></div>}
                 <div className="rounded-[10px] bg-slate-50 p-2">
                   <div className="text-[9px] font-semibold uppercase text-slate-400">Last Touch</div>
-                  <div className={`mt-0.5 font-medium ${!warm ? 'text-amber-600' : 'text-[#1a2744]'}`}>{daysSince !== null ? `${daysSince}d ago` : '—'}{!warm && ' ⚠️'}</div>
+                  <div className={`mt-0.5 font-medium ${!warm ? 'text-amber-600' : 'text-[#071421]'}`}>{daysSince !== null ? `${daysSince}d ago` : '—'}{!warm && ' ⚠️'}</div>
                 </div>
               </div>
             </button>
@@ -5340,13 +5340,13 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-2xl rounded-[16px] bg-white shadow-2xl flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-2xl rounded-[16px] bg-white shadow-none flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between border-b border-[var(--app-line)] px-5 py-4">
           <div>
             <div className="text-sm font-semibold text-[var(--app-ink)]">Bulk SMS</div>
             <div className="text-[11px] text-[var(--app-muted)] mt-0.5">{selected.filter(c => c.phone).length} contacts with phone · from {fromNumber}</div>
           </div>
-          <button onClick={onClose} className="rounded-full p-2 text-[var(--app-muted)] hover:bg-[var(--app-bg)]">✕</button>
+          <button onClick={onClose} className="rounded-xl p-2 text-[var(--app-muted)] hover:bg-[var(--app-bg)]">✕</button>
         </div>
 
         {result ? (
@@ -5659,13 +5659,13 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4">
-      <div className="flex max-h-[96vh] w-full max-w-5xl flex-col rounded-t-[18px] bg-white shadow-2xl sm:rounded-[18px]">
+      <div className="flex max-h-[96vh] w-full max-w-5xl flex-col rounded-t-[18px] bg-white shadow-none sm:rounded-[18px]">
         <div className="flex items-center justify-between border-b border-[var(--app-line)] px-4 py-3 sm:px-5">
           <div>
             <div className="text-sm font-semibold text-[var(--app-ink)]">Schedule partnership SMS</div>
             <div className="mt-0.5 text-[11px] text-[var(--app-muted)]">Preview first. Nothing sends until you approve scheduling.</div>
           </div>
-          <button onClick={onClose} className="rounded-full p-2 text-[var(--app-muted)] hover:bg-[var(--app-bg)]">x</button>
+          <button onClick={onClose} className="rounded-xl p-2 text-[var(--app-muted)] hover:bg-[var(--app-bg)]">x</button>
         </div>
 
         {result ? (
@@ -5894,9 +5894,9 @@ function urgencyCardBorder(contact: Contact): string {
   const daysSince = contact.last_touch_at
     ? Math.floor((Date.now() - new Date(contact.last_touch_at).getTime()) / 86400000)
     : 999
-  if (contact.sequence_paused && !contact.decision) return 'border-[rgba(15,106,83,0.25)] bg-[linear-gradient(180deg,#ffffff_0%,#f7fbf9_100%)]'
-  if (daysSince >= 7) return 'border-[#e6d1ca] bg-[linear-gradient(180deg,#ffffff_0%,#fff8f6_100%)]'
-  if (daysSince >= 3) return 'border-[#eadfcb] bg-[linear-gradient(180deg,#ffffff_0%,#fffcf6_100%)]'
+  if (contact.sequence_paused && !contact.decision) return 'border-blue-200 bg-blue-50/40'
+  if (daysSince >= 7) return 'border-red-200 bg-red-50/40'
+  if (daysSince >= 3) return 'border-amber-200 bg-amber-50/40'
   return 'border-[var(--app-line)] bg-white'
 }
 
@@ -6052,7 +6052,7 @@ function QueueTab({ contacts, batches, onSelect, onScheduleCampaign }: {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Incoming partnership call</div>
-              <div className="mt-1 text-sm font-semibold text-[#1a2744]">{dialer.incomingFrom || 'Unknown caller'}</div>
+              <div className="mt-1 text-sm font-semibold text-[#071421]">{dialer.incomingFrom || 'Unknown caller'}</div>
             </div>
             <div className="flex gap-2">
               <button onClick={dialer.acceptIncoming} className="min-h-10 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white">Accept</button>

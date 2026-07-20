@@ -617,7 +617,7 @@ function SalesPipelineContent() {
         </select>
 
         {activeFilterCount > 0 && (
-          <button onClick={clearAllFilters} className="flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 transition hover:bg-rose-100">
+          <button onClick={clearAllFilters} className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 transition hover:bg-rose-100">
             Clear {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} ✕
           </button>
         )}
@@ -964,14 +964,14 @@ function SalesPipelineContent() {
       {/* Delete confirmation */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-2xl">
-            <h3 className="text-base font-semibold text-[#1a2744]">Delete lead?</h3>
-            <p className="mt-2 text-sm text-stone-500">Permanently removes <span className="font-semibold text-[#1a2744]">{deleteConfirm.lead.name}</span>. Type their name to confirm.</p>
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-none">
+            <h3 className="text-base font-semibold text-[#071421]">Delete lead?</h3>
+            <p className="mt-2 text-sm text-stone-500">Permanently removes <span className="font-semibold text-[#071421]">{deleteConfirm.lead.name}</span>. Type their name to confirm.</p>
             <input autoFocus type="text" value={deleteConfirm.typed}
               onChange={e => setDeleteConfirm({ ...deleteConfirm, typed: e.target.value })}
               onKeyDown={e => { if (e.key === 'Enter' && deleteConfirm.typed.trim().toLowerCase() === deleteConfirm.lead.name.trim().toLowerCase()) void confirmDelete(); if (e.key === 'Escape') setDeleteConfirm(null) }}
               placeholder={deleteConfirm.lead.name}
-              className="mt-4 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm outline-none focus:border-[#1a2744] focus:ring-1 focus:ring-[#1a2744]"
+              className="mt-4 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm outline-none focus:border-[#071421] focus:ring-1 focus:ring-[#071421]"
             />
             <div className="mt-4 flex justify-end gap-2">
               <button onClick={() => setDeleteConfirm(null)} className="rounded-lg border border-stone-200 px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-50">Cancel</button>
@@ -985,13 +985,13 @@ function SalesPipelineContent() {
       {showDeletedDrawer && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="absolute inset-0 bg-black/30" onClick={() => setShowDeletedDrawer(false)} />
-          <div className="relative flex w-full max-w-md flex-col bg-white shadow-2xl">
+          <div className="relative flex w-full max-w-md flex-col bg-white shadow-none">
             <div className="flex items-center justify-between border-b border-[var(--app-line)] px-5 py-4">
               <div>
                 <h2 className="text-base font-semibold text-[var(--app-ink)]">🗑 Recently Deleted</h2>
                 <p className="text-xs text-[var(--app-muted)]">Leads deleted in the last 30 days.</p>
               </div>
-              <button onClick={() => setShowDeletedDrawer(false)} className="rounded-full p-1.5 text-[var(--app-muted)] hover:bg-[var(--app-bg)]">✕</button>
+              <button onClick={() => setShowDeletedDrawer(false)} className="rounded-xl p-1.5 text-[var(--app-muted)] hover:bg-[var(--app-bg)]">✕</button>
             </div>
             <div className="flex-1 overflow-y-auto divide-y divide-[var(--app-line)]">
               {deletedLoading ? <div className="p-8 text-center text-sm text-[var(--app-muted)]">Loading…</div>

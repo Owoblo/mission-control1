@@ -108,7 +108,7 @@ function MoveBadge({ dateStr }: { dateStr?: string }) {
     'bg-emerald-100 text-emerald-800'
   return (
     <div className="flex items-center gap-2">
-      <span className="font-semibold text-[#1a2744]">{formatDate(dateStr)}</span>
+      <span className="font-semibold text-[#071421]">{formatDate(dateStr)}</span>
       <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${color}`}>{label}</span>
     </div>
   )
@@ -147,7 +147,7 @@ export default function CrewCalendarPage() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl bg-[#1a2744] px-6 py-5 text-white">
+      <div className="rounded-xl bg-[#071421] px-6 py-5 text-white">
         <div className="text-sm text-white/60">
           {new Date().toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' })}
         </div>
@@ -162,18 +162,18 @@ export default function CrewCalendarPage() {
       </div>
 
       {loading ? (
-        <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center text-sm text-slate-400">
+        <div className="rounded-xl border border-slate-100 bg-white p-12 text-center text-sm text-slate-400">
           Loading your schedule...
         </div>
       ) : jobs.length === 0 ? (
-        <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center text-sm text-slate-400">
+        <div className="rounded-xl border border-slate-100 bg-white p-12 text-center text-sm text-slate-400">
           No jobs assigned yet. Your manager will assign you to upcoming moves.
         </div>
       ) : (
         <>
           {upcoming.length > 0 && (
             <section className="space-y-3">
-              <h2 className="text-xs font-bold uppercase tracking-widest text-[#1a2744]">Upcoming Moves</h2>
+              <h2 className="text-xs font-bold uppercase tracking-widest text-[#071421]">Upcoming Moves</h2>
               {upcoming.map(job => (
                 <JobCard
                   key={job.lead.id}
@@ -349,7 +349,7 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
   }
 
   return (
-    <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+    <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
       <MoveBadge dateStr={moveDate} />
       {queuedExpenseCount > 0 && <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{queuedExpenseCount} evidence upload{queuedExpenseCount === 1 ? '' : 's'} saved on this device · waiting to sync</div>}
 
@@ -365,18 +365,18 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
 
       <div className="flex items-start gap-3 text-sm">
         <div className="mt-0.5 flex flex-col items-center gap-1">
-          <div className="h-2 w-2 rounded-full bg-[#f5a623]" />
+          <div className="h-2 w-2 rounded-full bg-[#C99700]" />
           <div className="w-px flex-1 bg-slate-200" style={{ minHeight: 20 }} />
-          <div className="h-2 w-2 rounded-full bg-[#1a2744]" />
+          <div className="h-2 w-2 rounded-full bg-[#071421]" />
         </div>
         <div className="flex-1 space-y-3">
           <div>
             <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">From</div>
-            <div className="font-medium text-[#1a2744]">{origin}</div>
+            <div className="font-medium text-[#071421]">{origin}</div>
           </div>
           <div>
             <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">To</div>
-            <div className="font-medium text-[#1a2744]">{dest}</div>
+            <div className="font-medium text-[#071421]">{dest}</div>
           </div>
         </div>
       </div>
@@ -393,13 +393,13 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
         <div className="space-y-1.5 rounded-xl border border-[var(--app-line)] bg-slate-50 px-3 py-2.5 text-xs text-slate-600">
           {lead.moveType && (
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-[#1a2744]">Move type:</span>
+              <span className="font-semibold text-[#071421]">Move type:</span>
               <span className="capitalize">{lead.moveType.replace(/_/g, ' ')}</span>
             </div>
           )}
           {lead.inventory && lead.inventory.length > 0 && (
             <div>
-              <span className="font-semibold text-[#1a2744]">Key items: </span>
+              <span className="font-semibold text-[#071421]">Key items: </span>
               {lead.inventory.slice(0, 6).map(item => item.name).join(', ')}
               {lead.inventory.length > 6 ? ` +${lead.inventory.length - 6} more` : ''}
             </div>
@@ -422,7 +422,7 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
         {(lead.originAddress || quote?.originAddress) && <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(lead.originAddress || quote?.originAddress || '')}`} target="_blank" rel="noreferrer" className="flex min-h-12 items-center justify-center rounded-xl bg-[#071421] px-3 text-center text-sm font-semibold text-white">Navigate to origin</a>}
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-slate-50/90 p-4">
+      <div className="rounded-xl border border-slate-200 bg-slate-50/90 p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Crew Expenses</div>
@@ -433,7 +433,7 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
           <button
             type="button"
             onClick={() => setShowExpenseForm(value => !value)}
-            className="rounded-full bg-[#1a2744] px-4 py-2 text-xs font-semibold text-white"
+            className="rounded-full bg-[#071421] px-4 py-2 text-xs font-semibold text-white"
           >
             {showExpenseForm ? 'Hide uploader' : 'Upload receipt'}
           </button>
@@ -442,17 +442,17 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-white bg-white px-3 py-2">
             <div className="text-[10px] uppercase tracking-[0.14em] text-slate-400">Receipts on file</div>
-            <div className="mt-1 text-lg font-semibold text-[#1a2744]">{receipts.length}</div>
+            <div className="mt-1 text-lg font-semibold text-[#071421]">{receipts.length}</div>
           </div>
           <div className="rounded-xl border border-white bg-white px-3 py-2">
             <div className="text-[10px] uppercase tracking-[0.14em] text-slate-400">Logged in finance</div>
-            <div className="mt-1 text-lg font-semibold text-[#1a2744]">
+            <div className="mt-1 text-lg font-semibold text-[#071421]">
               {receipts.filter(asset => asset.linkedCostId).length}
             </div>
           </div>
           <div className="rounded-xl border border-white bg-white px-3 py-2">
             <div className="text-[10px] uppercase tracking-[0.14em] text-slate-400">Need review</div>
-            <div className="mt-1 text-lg font-semibold text-[#1a2744]">
+            <div className="mt-1 text-lg font-semibold text-[#071421]">
               {receipts.filter(asset => !asset.linkedCostId).length}
             </div>
           </div>
@@ -557,7 +557,7 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
             {receipts.slice(0, 4).map((asset: LeadMediaAsset) => (
               <div key={asset.id} className="flex flex-col gap-2 rounded-xl border border-white bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <div className="text-sm font-medium text-[#1a2744]">
+                  <div className="text-sm font-medium text-[#071421]">
                     {asset.filename || 'Receipt upload'}
                   </div>
                   <div className="mt-1 text-xs text-slate-500">
@@ -578,7 +578,7 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
                     href={asset.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-[#1a2744]"
+                    className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-[#071421]"
                   >
                     View
                   </a>

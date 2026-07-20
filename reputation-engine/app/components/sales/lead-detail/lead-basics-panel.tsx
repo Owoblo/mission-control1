@@ -196,7 +196,7 @@ function AddressInput({
         </span>
       )}
       {open && suggestions.length > 0 && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-[8px] border border-[var(--app-line)] bg-white shadow-xl">
+        <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-[8px] border border-[var(--app-line)] bg-white shadow-none">
           {suggestions.map((s, i) => (
             <button
               key={i}
@@ -370,7 +370,7 @@ function PropertyIntelligenceCard({
         <button
           type="button"
           onClick={apply}
-          className="rounded-[6px] bg-[#1a2744] px-3 py-1 text-[10px] font-semibold text-white hover:bg-[#243460] transition"
+          className="rounded-[6px] bg-[#071421] px-3 py-1 text-[10px] font-semibold text-white hover:bg-[#243460] transition"
         >
           {applied ? '✓ Applied' : `Apply to ${field} access`}
         </button>
@@ -706,7 +706,7 @@ export function LeadBasicsPanel({
               type="checkbox"
               checked={moveDateFlexible}
               onChange={e => onMoveDateFlexibleChange(e.target.checked)}
-              className="h-3.5 w-3.5 rounded accent-[#1a2744]"
+              className="h-3.5 w-3.5 rounded accent-[#071421]"
             />
             <span className="text-xs font-medium text-[var(--app-muted)]">Date TBD — waiting on house closing / sale</span>
           </label>

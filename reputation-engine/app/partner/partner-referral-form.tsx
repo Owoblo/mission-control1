@@ -109,7 +109,7 @@ export function PartnerReferralForm({ pathCode = '' }: { pathCode?: string }) {
   }
 
   return (
-    <main className="min-h-screen bg-[#f6f8fb] text-[#1a2744]">
+    <main className="min-h-screen bg-[#f6f8fb] text-[#071421]">
       <section className="border-b border-slate-200 bg-white">
         <div className="mx-auto grid min-h-[92dvh] max-w-6xl gap-8 px-4 py-6 md:grid-cols-[0.9fr_1.1fr] md:px-8 md:py-10">
           <div className="flex flex-col justify-between gap-8">
@@ -155,7 +155,7 @@ export function PartnerReferralForm({ pathCode = '' }: { pathCode?: string }) {
                   </p>
                   <button
                     onClick={() => setSubmitted(null)}
-                    className="mt-6 min-h-11 rounded-full bg-[#1a2744] px-5 text-sm font-semibold text-white"
+                    className="mt-6 min-h-11 rounded-full bg-[#071421] px-5 text-sm font-semibold text-white"
                   >
                     Submit another referral
                   </button>
@@ -171,17 +171,17 @@ export function PartnerReferralForm({ pathCode = '' }: { pathCode?: string }) {
                     <label className="block">
                       <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Partner code</span>
                       <input value={form.partner_code} onChange={e => set('partner_code', e.target.value)} required placeholder="SARAH100"
-                        className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-[#1a2744] outline-none focus:border-[#0f6a53]" />
+                        className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-[#071421] outline-none focus:border-[#0f6a53]" />
                     </label>
                     <label className="block">
                       <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Partner name</span>
                       <input value={form.partner_name} onChange={e => set('partner_name', e.target.value)} placeholder="Sarah / Royal Windsor"
-                        className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#0f6a53]" />
+                        className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
                     </label>
                     <label className="block">
                       <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Partner type</span>
                       <select value={form.partner_type} onChange={e => set('partner_type', e.target.value)}
-                        className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#0f6a53]">
+                        className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#071421] outline-none focus:border-[#0f6a53]">
                         <option value="">Select type</option>
                         {PARTNER_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
                       </select>
@@ -189,7 +189,7 @@ export function PartnerReferralForm({ pathCode = '' }: { pathCode?: string }) {
                     <label className="block">
                       <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Market / city</span>
                       <input value={form.market} onChange={e => set('market', e.target.value)} placeholder="Windsor, London, Waterloo..."
-                        className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#1a2744] outline-none focus:border-[#0f6a53]" />
+                        className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
                     </label>
                   </div>
 
@@ -199,37 +199,37 @@ export function PartnerReferralForm({ pathCode = '' }: { pathCode?: string }) {
                     <label className="block sm:col-span-2">
                       <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Client name</span>
                       <input value={form.client_name} onChange={e => set('client_name', e.target.value)} required placeholder="Client full name"
-                        className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#1a2744] outline-none focus:border-[#0f6a53]" />
+                        className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
                     </label>
                     <label className="block">
                       <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Client phone</span>
                       <input value={form.client_phone} onChange={e => set('client_phone', e.target.value)} placeholder="519-555-0100"
-                        className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#1a2744] outline-none focus:border-[#0f6a53]" />
+                        className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
                     </label>
                     <label className="block">
                       <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Client email</span>
                       <input type="email" value={form.client_email} onChange={e => set('client_email', e.target.value)} placeholder="client@email.com"
-                        className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#1a2744] outline-none focus:border-[#0f6a53]" />
+                        className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
                     </label>
                     <label className="block">
                       <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Moving from</span>
                       <input value={form.moving_from} onChange={e => set('moving_from', e.target.value)} placeholder="Pickup city or address"
-                        className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#1a2744] outline-none focus:border-[#0f6a53]" />
+                        className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
                     </label>
                     <label className="block">
                       <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Moving to</span>
                       <input value={form.moving_to} onChange={e => set('moving_to', e.target.value)} placeholder="Destination city or address"
-                        className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#1a2744] outline-none focus:border-[#0f6a53]" />
+                        className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
                     </label>
                     <label className="block">
                       <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Move date</span>
                       <input type="date" value={form.move_date} onChange={e => set('move_date', e.target.value)}
-                        className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#1a2744] outline-none focus:border-[#0f6a53]" />
+                        className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
                     </label>
                     <label className="block">
                       <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Move size</span>
                       <select value={form.move_size} onChange={e => set('move_size', e.target.value)}
-                        className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#1a2744] outline-none focus:border-[#0f6a53]">
+                        className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#071421] outline-none focus:border-[#0f6a53]">
                         <option value="">Select size</option>
                         {MOVE_SIZES.map(size => <option key={size} value={size}>{size}</option>)}
                       </select>
@@ -238,7 +238,7 @@ export function PartnerReferralForm({ pathCode = '' }: { pathCode?: string }) {
                       <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Notes</span>
                       <textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={3}
                         placeholder="Context, timing, access, client preference, or how you introduced us."
-                        className="mt-1 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm leading-6 text-[#1a2744] outline-none focus:border-[#0f6a53]" />
+                        className="mt-1 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm leading-6 text-[#071421] outline-none focus:border-[#0f6a53]" />
                     </label>
                   </div>
 

@@ -112,7 +112,7 @@ export default function PartnersPage() {
     <div className="crm-shell animate-fade-in space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-2xl font-bold text-[#1a2744]">Referral Partners</h1>
+          <h1 className="font-display text-2xl font-bold text-[#071421]">Referral Partners</h1>
           <p className="mt-1 text-sm text-[var(--app-muted)]">Shared partner directory with live referral counts.</p>
         </div>
         <button onClick={openAdd} className="crm-button-dark gap-2">
@@ -125,10 +125,10 @@ export default function PartnersPage() {
 
       {partners.length === 0 ? (
         <div className="crm-panel p-16 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] text-[#1a2744]">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] text-[#071421]">
             <Plus className="h-5 w-5" />
           </div>
-          <p className="font-semibold text-[#1a2744]">No partners yet.</p>
+          <p className="font-semibold text-[#071421]">No partners yet.</p>
           <p className="mt-1 text-sm text-[var(--app-muted)]">Add the first referral partner to start tracking jobs and reward exposure.</p>
           <button onClick={openAdd} className="crm-button-dark mx-auto mt-5 gap-2">
             <Plus className="h-4 w-4" />
@@ -141,12 +141,12 @@ export default function PartnersPage() {
             <div key={partner.id} className="crm-panel space-y-4 transition hover:border-[#cfd6d1]">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="font-semibold text-[#1a2744]">{partner.name}</p>
+                  <p className="font-semibold text-[#071421]">{partner.name}</p>
                   {partner.company && <p className="mt-0.5 text-xs text-[var(--app-muted)]">{partner.company}</p>}
                   <span className="crm-chip mt-2">{TYPE_LABELS[partner.type]}</span>
                 </div>
                 <div className="flex gap-1">
-                  <button onClick={() => openEdit(partner)} className="rounded-[4px] p-2 text-[var(--app-muted)] transition hover:bg-[var(--app-bg)] hover:text-[#1a2744]" aria-label={`Edit ${partner.name}`}>
+                  <button onClick={() => openEdit(partner)} className="rounded-[4px] p-2 text-[var(--app-muted)] transition hover:bg-[var(--app-bg)] hover:text-[#071421]" aria-label={`Edit ${partner.name}`}>
                     <Edit3 className="h-4 w-4" />
                   </button>
                   <button onClick={() => void remove(partner.id)} className="rounded-[4px] p-2 text-[var(--app-muted)] transition hover:bg-rose-50 hover:text-rose-600" aria-label={`Delete ${partner.name}`}>
@@ -156,12 +156,12 @@ export default function PartnersPage() {
               </div>
 
               <div className="space-y-1">
-                <a href={`mailto:${partner.email}`} className="flex items-center gap-2 text-xs text-[var(--app-muted)] transition hover:text-[#1a2744]">
+                <a href={`mailto:${partner.email}`} className="flex items-center gap-2 text-xs text-[var(--app-muted)] transition hover:text-[#071421]">
                   <Mail className="h-3.5 w-3.5" />
                   {partner.email}
                 </a>
                 {partner.phone && (
-                  <a href={`tel:${partner.phone}`} className="flex items-center gap-2 text-xs text-[var(--app-muted)] transition hover:text-[#1a2744]">
+                  <a href={`tel:${partner.phone}`} className="flex items-center gap-2 text-xs text-[var(--app-muted)] transition hover:text-[#071421]">
                     <Phone className="h-3.5 w-3.5" />
                     {partner.phone}
                   </a>
@@ -170,11 +170,11 @@ export default function PartnersPage() {
 
               <div className="grid grid-cols-2 gap-2 border-t border-[var(--app-line)] pt-3">
                 <div className="rounded-[8px] bg-[var(--app-bg)] p-3 text-center">
-                  <p className="text-lg font-bold text-[#1a2744]">{partner.totalJobsReferred}</p>
+                  <p className="text-lg font-bold text-[#071421]">{partner.totalJobsReferred}</p>
                   <p className="text-xs text-[var(--app-muted)]">Jobs Sent</p>
                 </div>
                 <div className="rounded-[8px] bg-[var(--app-bg)] p-3 text-center">
-                  <p className="text-lg font-bold text-[#1a2744]">{formatCadFromCents(partner.totalIncentiveOwed * REFERRAL_INCENTIVE_PER_JOB_CENTS)}</p>
+                  <p className="text-lg font-bold text-[#071421]">{formatCadFromCents(partner.totalIncentiveOwed * REFERRAL_INCENTIVE_PER_JOB_CENTS)}</p>
                   <p className="text-xs text-[var(--app-muted)]">Reward Exposure</p>
                 </div>
               </div>
@@ -192,8 +192,8 @@ export default function PartnersPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">
           <div className="crm-panel w-full max-w-md space-y-5 animate-slide-up">
             <div className="flex items-center justify-between gap-3">
-              <h3 className="text-lg font-bold text-[#1a2744]">{editing ? 'Edit Partner' : 'Add Partner'}</h3>
-              <button type="button" onClick={() => setModal(false)} className="rounded-[4px] p-2 text-[var(--app-muted)] hover:bg-[var(--app-bg)] hover:text-[#1a2744]" aria-label="Close">
+              <h3 className="text-lg font-bold text-[#071421]">{editing ? 'Edit Partner' : 'Add Partner'}</h3>
+              <button type="button" onClick={() => setModal(false)} className="rounded-[4px] p-2 text-[var(--app-muted)] hover:bg-[var(--app-bg)] hover:text-[#071421]" aria-label="Close">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -237,9 +237,9 @@ export default function PartnersPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">
           <div className="crm-panel w-full max-w-lg space-y-4 animate-slide-up">
             <div>
-              <h3 className="text-lg font-bold text-[#1a2744]">Send Proof Package</h3>
+              <h3 className="text-lg font-bold text-[#071421]">Send Proof Package</h3>
               <p className="text-sm text-[var(--app-muted)]">
-                To: <span className="font-medium text-[#1a2744]">{proofModal.name}</span> · {proofModal.email}
+                To: <span className="font-medium text-[#071421]">{proofModal.name}</span> · {proofModal.email}
               </p>
             </div>
             <div>

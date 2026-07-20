@@ -48,7 +48,7 @@ async function notifyTeam(partnerName: string, customerName: string, phone: stri
       to: ['business@starmovers.ca'],
       subject: `New referral from ${partnerName}`,
       html: `
-        <div style="font-family:Arial,sans-serif;max-width:560px;color:#1a2744">
+        <div style="font-family:Arial,sans-serif;max-width:560px;color:#071421">
           <h2>New Referral Lead</h2>
           <p><strong>Partner:</strong> ${safePartnerName}</p>
           <p><strong>Customer:</strong> ${safeCustomerName}</p>

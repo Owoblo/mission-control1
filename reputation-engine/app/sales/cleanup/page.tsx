@@ -82,7 +82,7 @@ export default function CleanupPage() {
     <div className="mx-auto max-w-4xl p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#1a2744]">Lead Cleanup</h1>
+          <h1 className="text-2xl font-bold text-[#071421]">Lead Cleanup</h1>
           <p className="text-sm text-slate-500 mt-1">
             Review and delete junk leads — unknown callers, no contact info, stale records.
             <strong> You choose what goes.</strong>
@@ -106,7 +106,7 @@ export default function CleanupPage() {
       {loading ? (
         <div className="text-slate-400 text-sm py-8 text-center">Scanning leads…</div>
       ) : candidates.length === 0 ? (
-        <div className="rounded-2xl bg-slate-50 border border-slate-200 p-10 text-center text-slate-500">
+        <div className="rounded-xl bg-slate-50 border border-slate-200 p-10 text-center text-slate-500">
           <div className="text-3xl mb-2">✨</div>
           <div className="font-medium">Nothing to clean up</div>
           <div className="text-sm mt-1">No junk leads found.</div>
@@ -119,7 +119,7 @@ export default function CleanupPage() {
                 type="checkbox"
                 checked={allSelected}
                 onChange={toggleAll}
-                className="h-4 w-4 rounded border-slate-300 accent-[#1a2744] cursor-pointer"
+                className="h-4 w-4 rounded border-slate-300 accent-[#071421] cursor-pointer"
               />
               <span className="text-sm text-slate-600">
                 {selected.size > 0
@@ -150,11 +150,11 @@ export default function CleanupPage() {
                   type="checkbox"
                   checked={selected.has(c.id)}
                   onChange={() => toggle(c.id)}
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-[#1a2744] cursor-pointer flex-shrink-0"
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-[#071421] cursor-pointer flex-shrink-0"
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-[#1a2744] text-sm">{c.name}</span>
+                    <span className="font-semibold text-[#071421] text-sm">{c.name}</span>
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500 uppercase tracking-wide">
                       {SOURCE_LABELS[c.source] || c.source}
                     </span>

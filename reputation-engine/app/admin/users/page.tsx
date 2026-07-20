@@ -29,7 +29,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
 }
 
 const ROLE_COLORS: Record<UserRole, string> = {
-  owner: 'bg-[#1a2744] text-white',
+  owner: 'bg-[#071421] text-white',
   manager: 'bg-sky-100 text-sky-800',
   sales_rep: 'bg-emerald-100 text-emerald-800',
   partnership_manager: 'bg-teal-100 text-teal-800',
@@ -132,7 +132,7 @@ export default function AdminUsersPage() {
       {/* Page header */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-bold text-[#1a2744]">Team Access</h1>
+          <h1 className="font-display text-2xl font-bold text-[#071421]">Team Access</h1>
           <p className="mt-1 text-sm text-slate-500">Manage who can log in and what they can see.</p>
         </div>
         <button onClick={openAdd} className="crm-button-dark text-sm">+ Add Team Member</button>
@@ -168,12 +168,12 @@ export default function AdminUsersPage() {
             </div>
           ) : users.map(u => (
             <div key={u.id} className="flex items-center gap-4 px-5 py-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#1a2744] text-sm font-bold text-[#f5a623]">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#071421] text-sm font-bold text-[#C99700]">
                 {u.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold text-[#1a2744]">{u.name}</span>
+                  <span className="font-semibold text-[#071421]">{u.name}</span>
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${ROLE_COLORS[u.role]}`}>
                     {ROLE_LABELS[u.role]}
                   </span>
@@ -213,7 +213,7 @@ export default function AdminUsersPage() {
         >
           <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
             {/* Header */}
-            <div className="bg-[#1a2744] px-6 py-5" style={{ borderBottom: '2px solid #f5a623' }}>
+            <div className="bg-[#071421] px-6 py-5" style={{ borderBottom: '2px solid #C99700' }}>
               <h2 className="text-base font-bold text-white">
                 {editUser ? `Edit ${editUser.name}` : 'Add Team Member'}
               </h2>
@@ -303,7 +303,7 @@ export default function AdminUsersPage() {
                 <button
                   onClick={() => void submit()}
                   disabled={busy || !form.name || (!editUser && !form.email)}
-                  className="flex-1 rounded-xl bg-[#1a2744] px-4 py-2.5 text-sm font-bold text-white hover:opacity-90 transition disabled:opacity-60"
+                  className="flex-1 rounded-xl bg-[#071421] px-4 py-2.5 text-sm font-bold text-white hover:opacity-90 transition disabled:opacity-60"
                 >
                   {busy ? 'Saving...' : editUser ? 'Save Changes' : 'Add to Team'}
                 </button>

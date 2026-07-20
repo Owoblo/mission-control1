@@ -21,7 +21,7 @@ function Toggle({ checked, onChange, label = 'Toggle setting' }: { checked: bool
       aria-label={label}
       aria-pressed={checked}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${checked ? 'bg-[#1a2744]' : 'bg-slate-200'}`}
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${checked ? 'bg-[#071421]' : 'bg-slate-200'}`}
     >
       <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
     </button>
@@ -296,7 +296,7 @@ export default function DialerSettingsPage() {
             onChange={e => setSettings(s => s ? { ...s, ringTimeout: Number(e.target.value) } : s)}
             onMouseUp={e => patch('ringTimeout', Number((e.target as HTMLInputElement).value))}
             onTouchEnd={e => patch('ringTimeout', Number((e.target as HTMLInputElement).value))}
-            className="flex-1 accent-[#1a2744]"
+            className="flex-1 accent-[#071421]"
           />
           <span className="w-16 text-center text-sm font-semibold text-[var(--app-ink)]">{settings.ringTimeout}s</span>
         </div>

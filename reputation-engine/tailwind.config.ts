@@ -5,12 +5,12 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        navy:      '#0F1B2D',
-        'navy-2':  '#1A2940',
-        'navy-3':  '#243555',
-        'navy-4':  '#2D4A6A',
-        gold:      '#F5A623',
-        'gold-2':  '#FDB944',
+        navy:      '#071421',
+        'navy-2':  '#102638',
+        'navy-3':  '#183247',
+        'navy-4':  '#29465B',
+        gold:      '#C99700',
+        'gold-2':  '#D5A411',
       },
       animation: {
         'fade-in': 'fadeIn 0.3s ease-out',

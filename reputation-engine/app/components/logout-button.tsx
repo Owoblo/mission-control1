@@ -10,8 +10,8 @@ export function LogoutButton({ compact = false }: { compact?: boolean }) {
     <button
       onClick={() => void logout()}
       className={compact
-        ? 'rounded-2xl px-3 py-2 text-sm text-[var(--app-muted)] transition hover:bg-white hover:text-[var(--app-ink)]'
-        : 'w-full rounded-2xl px-4 py-3 text-left text-sm text-[var(--app-muted)] transition hover:bg-white hover:text-[var(--app-ink)]'}
+        ? 'rounded-xl px-3 py-2 text-sm text-[var(--app-muted)] transition hover:bg-white hover:text-[var(--app-ink)]'
+        : 'w-full rounded-xl px-4 py-3 text-left text-sm text-[var(--app-muted)] transition hover:bg-white hover:text-[var(--app-ink)]'}
     >
       {compact ? 'Log Out' : 'Logout'}
     </button>

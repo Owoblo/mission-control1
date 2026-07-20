@@ -658,7 +658,7 @@ export default function SalesDashboardPage() {
                 >
                   <div className="crm-label">Calls Today</div>
                   <div className="mt-2 text-4xl font-semibold leading-none text-[var(--app-ink)]">{telephonyHealth?.metrics?.totalCallsToday ?? 0}</div>
-                  <div className="mt-2 text-sm text-[var(--app-muted)]">{telephonyHealth?.browserPresence?.sessionCount ?? 0} browser sessions · <span className="text-[#1a2744] underline text-xs">view calls →</span></div>
+                  <div className="mt-2 text-sm text-[var(--app-muted)]">{telephonyHealth?.browserPresence?.sessionCount ?? 0} browser sessions · <span className="text-[#071421] underline text-xs">view calls →</span></div>
                 </button>
                 <button
                   type="button"
@@ -756,13 +756,13 @@ export default function SalesDashboardPage() {
                         </div>
                       )}
 
-                      <div className="mt-2 rounded-[6px] bg-[#1a2744]/5 px-2.5 py-2">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#1a2744]/50">Next Action</div>
-                        <div className="mt-0.5 text-xs font-semibold text-[#1a2744]">{guidance.action.nextAction}</div>
+                      <div className="mt-2 rounded-[6px] bg-[#071421]/5 px-2.5 py-2">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#071421]/50">Next Action</div>
+                        <div className="mt-0.5 text-xs font-semibold text-[#071421]">{guidance.action.nextAction}</div>
                       </div>
 
                       <div className="mt-2 flex flex-wrap gap-1.5">
-                        <button onClick={() => void handleActionCta(lead, quote, guidance.action.primaryCta.key)} className="rounded-[6px] bg-[var(--app-ink)] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0f1b2d]">
+                        <button onClick={() => void handleActionCta(lead, quote, guidance.action.primaryCta.key)} className="rounded-[6px] bg-[var(--app-ink)] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#071421]">
                           {guidance.action.primaryCta.label}
                         </button>
                         {guidance.action.secondaryCtas.slice(0, 2).map(cta => (
@@ -929,13 +929,13 @@ export default function SalesDashboardPage() {
       {drilldown && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="absolute inset-0 bg-black/30" onClick={() => setDrilldown(null)} />
-          <div className="relative flex w-full max-w-md flex-col bg-white shadow-2xl">
+          <div className="relative flex w-full max-w-md flex-col bg-white shadow-none">
             <div className="flex items-center justify-between border-b border-[var(--app-line)] px-5 py-4">
               <div>
                 <h2 className="text-base font-semibold text-[var(--app-ink)]">{drilldown.title}</h2>
                 <p className="text-xs text-[var(--app-muted)]">{drilldown.subtitle}</p>
               </div>
-              <button onClick={() => setDrilldown(null)} className="rounded-full p-1.5 text-[var(--app-muted)] hover:bg-[var(--app-bg)]">✕</button>
+              <button onClick={() => setDrilldown(null)} className="rounded-xl p-1.5 text-[var(--app-muted)] hover:bg-[var(--app-bg)]">✕</button>
             </div>
             <div className="flex-1 overflow-y-auto divide-y divide-[var(--app-line)]">
               {drilldownLoading ? (

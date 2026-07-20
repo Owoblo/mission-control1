@@ -12,7 +12,7 @@ import {
 export default function SalesReadFirstPage() {
   return (
     <div className="crm-shell space-y-6">
-      <section className="overflow-hidden rounded-[28px] border border-[rgba(15,106,83,0.16)] bg-[linear-gradient(135deg,#ffffff_0%,#f6fbf9_58%,#edf5f2_100%)] px-6 py-7 md:px-8">
+      <section className="overflow-hidden rounded-xl border border-[var(--app-line)] bg-white px-6 py-7 md:px-8">
         <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(15,106,83,0.18)] bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--app-accent)]">
           Read First
         </div>

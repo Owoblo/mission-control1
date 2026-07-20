@@ -278,7 +278,7 @@ function ModuleIllustration({
 }) {
   const visual = getModuleVisual(module.id)
   return (
-    <div className={`relative overflow-hidden rounded-[22px] border border-[var(--app-line)] ${visual.solidBg} ${compact ? 'h-24' : 'h-32'}`}>
+    <div className={`relative overflow-hidden rounded-xl border border-[var(--app-line)] ${visual.solidBg} ${compact ? 'h-24' : 'h-32'}`}>
       <div className="relative flex h-full items-end justify-between p-4">
         <div className="min-w-0">
           <div className={`text-[10px] font-semibold uppercase tracking-[0.16em] ${visual.accentClass}`}>{visual.eyebrow}</div>
@@ -418,7 +418,7 @@ function CoursePathRow({
     <button
       type="button"
       onClick={onOpen}
-      className="group w-full rounded-[24px] border border-[var(--app-line)] bg-[var(--app-panel)] p-4 text-left transition hover:border-[var(--app-ink)] hover:shadow-sm"
+      className="group w-full rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] p-4 text-left transition hover:border-[var(--app-ink)] hover:shadow-sm"
     >
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center">
         <div className="flex min-w-0 flex-1 items-start gap-4">
@@ -483,7 +483,7 @@ function LabShelfCard({
     <button
       type="button"
       onClick={onOpen}
-      className="group rounded-[22px] border border-[var(--app-line)] bg-[var(--app-panel)] p-4 text-left transition hover:border-[var(--app-ink)] hover:shadow-sm"
+      className="group rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] p-4 text-left transition hover:border-[var(--app-ink)] hover:shadow-sm"
     >
       <div className="flex items-start gap-4">
         <div className="w-[112px] shrink-0">
@@ -1022,7 +1022,7 @@ export default function SalesAcademyPage() {
       {academyView === 'library' ? (
         <>
           <section className="grid gap-4 xl:grid-cols-[1.25fr,0.75fr]">
-            <div className="overflow-hidden rounded-[26px] border border-[rgba(15,106,83,0.16)] bg-[linear-gradient(135deg,#ffffff_0%,#f5fbf8_52%,#eef6f3_100%)] px-6 py-6 md:px-8">
+            <div className="overflow-hidden rounded-xl border border-[var(--app-line)] bg-white px-6 py-6 md:px-8">
               <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(15,106,83,0.18)] bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--app-accent)]">
                 Mission Control Academy
               </div>

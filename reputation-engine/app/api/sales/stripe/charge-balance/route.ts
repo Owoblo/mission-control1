@@ -120,16 +120,16 @@ export async function POST(request: Request) {
     void sendRepAlertEmail(
       `💳 Balance charged — ${lead.name} — $${chargeAmount.toFixed(2)} CAD`,
       `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px">
-        <div style="background:#1a2744;color:#fff;padding:12px 20px;border-radius:8px 8px 0 0;font-weight:700;font-size:15px">
+        <div style="background:#071421;color:#fff;padding:12px 20px;border-radius:8px 8px 0 0;font-weight:700;font-size:15px">
           Balance charged — ${lead.name}
         </div>
-        <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:20px;font-size:14px;color:#1a2744">
+        <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:20px;font-size:14px;color:#071421">
           <p style="margin:0 0 12px"><strong>Amount charged:</strong> $${chargeAmount.toFixed(2)} CAD</p>
           <p style="margin:0 0 12px"><strong>Card:</strong> ${cardLabel}</p>
           <p style="margin:0 0 12px"><strong>Quote:</strong> ${quote.number}</p>
           <p style="margin:0 0 12px"><strong>Remaining balance:</strong> $${nextBalance.toFixed(2)} CAD${nextBalance <= 0 ? ' — <strong>Paid in full ✓</strong>' : ''}</p>
           <p style="margin:0 0 12px"><strong>Charged by:</strong> ${session?.name || 'CRM'}</p>
-          <p style="margin:0"><a href="https://go.quote2move.com/sales/leads/${leadId}" style="color:#1a2744;font-weight:600">View lead →</a></p>
+          <p style="margin:0"><a href="https://go.quote2move.com/sales/leads/${leadId}" style="color:#071421;font-weight:600">View lead →</a></p>
         </div>
       </div>`
     )

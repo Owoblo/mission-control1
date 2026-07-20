@@ -8,11 +8,11 @@ export function CrewHeader() {
   const initials = user?.name ? user.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : '?'
 
   return (
-    <header className="sticky top-0 z-40 border-b border-[var(--app-line)] bg-[#1a2744]">
+    <header className="sticky top-0 z-40 border-b border-[var(--app-line)] bg-[#071421]">
       <div className="mx-auto flex max-w-[800px] items-center justify-between px-4 py-4 md:px-8">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#f5a623]">
-            <span className="text-sm font-bold text-[#1a2744]">S</span>
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#C99700]">
+            <span className="text-sm font-bold text-[#071421]">S</span>
           </div>
           <div>
             <div className="text-sm font-semibold text-white">Saturn Star OS</div>

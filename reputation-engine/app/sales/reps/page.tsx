@@ -32,7 +32,7 @@ function formatMins(mins: number | null) {
 function StatPill({ value, label, accent }: { value: string | number; label: string; accent?: string }) {
   return (
     <div className="text-center">
-      <div className={`text-lg font-bold ${accent || 'text-[#1a2744]'}`}>{value}</div>
+      <div className={`text-lg font-bold ${accent || 'text-[#071421]'}`}>{value}</div>
       <div className="text-[10px] uppercase tracking-wider text-[var(--app-muted)]">{label}</div>
     </div>
   )
@@ -55,7 +55,7 @@ export default function RepsPage() {
   return (
     <div className="crm-shell space-y-8">
       <div>
-        <h1 className="font-display text-2xl font-bold text-[#1a2744]">Rep Performance</h1>
+        <h1 className="font-display text-2xl font-bold text-[#071421]">Rep Performance</h1>
         <p className="mt-1 text-sm text-[var(--app-muted)]">Close rates, revenue, response time, and coaching signals per rep.</p>
       </div>
 
@@ -65,11 +65,11 @@ export default function RepsPage() {
             {/* Header */}
             <div className="flex items-center justify-between border-b border-[var(--app-line)] p-5">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1a2744] text-sm font-bold text-white">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#071421] text-sm font-bold text-white">
                   {rep.repName === 'Unassigned' ? '?' : rep.repName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)}
                 </div>
                 <div>
-                  <div className="font-semibold text-[#1a2744]">{rep.repName}</div>
+                  <div className="font-semibold text-[#071421]">{rep.repName}</div>
                   <div className="text-xs text-[var(--app-muted)]">{rep.totalLeads} leads total</div>
                 </div>
                 {i === 0 && data.reps.length > 1 && rep.repName !== 'Unassigned' && (
@@ -89,10 +89,10 @@ export default function RepsPage() {
             <div className="grid grid-cols-3 divide-x divide-[var(--app-line)] border-b border-[var(--app-line)] md:grid-cols-6">
               <div className="p-4"><StatPill value={`${rep.closeRate}%`} label="Close Rate" accent={rep.closeRate >= 50 ? 'text-emerald-600' : rep.closeRate >= 30 ? 'text-amber-600' : 'text-rose-600'} /></div>
               <div className="p-4"><StatPill value={rep.bookedLeads} label="Booked" accent="text-emerald-600" /></div>
-              <div className="p-4"><StatPill value={rep.lostLeads} label="Lost" accent={rep.lostLeads > 5 ? 'text-rose-600' : 'text-[#1a2744]'} /></div>
+              <div className="p-4"><StatPill value={rep.lostLeads} label="Lost" accent={rep.lostLeads > 5 ? 'text-rose-600' : 'text-[#071421]'} /></div>
               <div className="p-4"><StatPill value={rep.avgDaysToClose !== null ? `${rep.avgDaysToClose}d` : '—'} label="Avg Days to Close" /></div>
               <div className="p-4"><StatPill value={rep.avgTouchpoints !== null ? rep.avgTouchpoints : '—'} label="Avg Touchpoints" /></div>
-              <div className="p-4"><StatPill value={formatMins(rep.avgResponseMins)} label="Avg Response" accent={rep.avgResponseMins !== null && rep.avgResponseMins < 30 ? 'text-emerald-600' : rep.avgResponseMins !== null && rep.avgResponseMins > 120 ? 'text-rose-600' : 'text-[#1a2744]'} /></div>
+              <div className="p-4"><StatPill value={formatMins(rep.avgResponseMins)} label="Avg Response" accent={rep.avgResponseMins !== null && rep.avgResponseMins < 30 ? 'text-emerald-600' : rep.avgResponseMins !== null && rep.avgResponseMins > 120 ? 'text-rose-600' : 'text-[#071421]'} /></div>
             </div>
 
             {/* Bottom row */}

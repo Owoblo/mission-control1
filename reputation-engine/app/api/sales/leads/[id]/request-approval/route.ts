@@ -63,8 +63,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
 <head><meta charset="utf-8"></head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f9fafb; margin: 0; padding: 32px;">
   <div style="max-width: 560px; margin: 0 auto; background: white; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden;">
-    <div style="background: #1a2744; padding: 24px 32px;">
-      <div style="color: #f5a623; font-size: 18px; font-weight: 700;">Saturn Star OS</div>
+    <div style="background: #071421; padding: 24px 32px;">
+      <div style="color: #C99700; font-size: 18px; font-weight: 700;">Saturn Star OS</div>
       <div style="color: #93c5fd; font-size: 13px; margin-top: 2px;">Manager Approval Required</div>
     </div>
     <div style="padding: 32px;">

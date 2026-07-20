@@ -157,11 +157,11 @@ export function LeadCommunicationsPanel({
         {lead.phone ? (
           <button
             onClick={() => onTabChange('sms')}
-            className={`-mb-px flex min-h-11 items-center gap-2 border-b-2 px-3 pb-3 pt-1 text-sm font-medium transition lg:min-h-9 ${activeTab === 'sms' ? 'border-[#f5a623] text-[#f5a623]' : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}
+            className={`-mb-px flex min-h-11 items-center gap-2 border-b-2 px-3 pb-3 pt-1 text-sm font-medium transition lg:min-h-9 ${activeTab === 'sms' ? 'border-[#C99700] text-[#C99700]' : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}
           >
             💬 SMS
             {inboundSmsCount > 0 ? (
-              <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold text-white" style={{ background: '#f5a623' }}>
+              <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold text-white" style={{ background: '#C99700' }}>
                 {inboundSmsCount}
               </span>
             ) : null}
@@ -294,7 +294,7 @@ export function LeadCommunicationsPanel({
         <div className="flex h-full flex-col overflow-hidden">
           <div className="flex items-center justify-between border-b border-[var(--app-line)] bg-[var(--app-panel)] px-5 py-3">
             <div>
-              <div className="text-sm font-semibold" style={{ color: '#1a2744' }}>SMS Conversation</div>
+              <div className="text-sm font-semibold" style={{ color: '#071421' }}>SMS Conversation</div>
               <div className="text-xs text-[var(--app-muted)]">
                 {lead.phone}
                 {smsThread.preferredBranchLabel ? ` • replying as ${smsThread.preferredBranchLabel}` : ''}
@@ -311,7 +311,7 @@ export function LeadCommunicationsPanel({
               <button
                 onClick={() => onOpenComposer('sms')}
                 className="min-h-11 rounded-full px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 lg:min-h-9 lg:text-xs"
-                style={{ background: '#1a2744' }}
+                style={{ background: '#071421' }}
               >
                 ✨ AI Draft
               </button>
@@ -324,7 +324,7 @@ export function LeadCommunicationsPanel({
             ) : smsThread.messages.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
                 <div className="text-4xl">💬</div>
-                <div className="text-sm font-semibold" style={{ color: '#1a2744' }}>No messages yet</div>
+                <div className="text-sm font-semibold" style={{ color: '#071421' }}>No messages yet</div>
                 <div className="text-xs text-[var(--app-muted)]">Send the first message to {lead.name || lead.phone} below.</div>
               </div>
             ) : (
@@ -374,7 +374,7 @@ export function LeadCommunicationsPanel({
                                       loading="lazy"
                                     />
                                   ) : (
-                                    <div className={`px-3 py-2 text-xs font-semibold ${isOutbound ? 'text-white' : 'text-[#1a2744]'}`}>
+                                    <div className={`px-3 py-2 text-xs font-semibold ${isOutbound ? 'text-white' : 'text-[#071421]'}`}>
                                       Open attachment
                                     </div>
                                   )}
@@ -407,7 +407,7 @@ export function LeadCommunicationsPanel({
                 <button
                   type="button"
                   onClick={() => onSmsChannelChange('sms')}
-                  className={`min-h-9 rounded-md px-3 text-xs font-semibold transition ${smsThread.channel === 'sms' ? 'bg-[#1a2744] text-white' : 'text-[var(--app-muted)]'}`}
+                  className={`min-h-9 rounded-md px-3 text-xs font-semibold transition ${smsThread.channel === 'sms' ? 'bg-[#071421] text-white' : 'text-[var(--app-muted)]'}`}
                 >
                   SMS
                 </button>
@@ -437,7 +437,7 @@ export function LeadCommunicationsPanel({
                   rows={1}
                   disabled={!canHandleCommunication || smsThread.sending}
                   className="min-h-12 flex-1 resize-none rounded-full border border-slate-200 bg-slate-100 px-5 py-3 text-base leading-[1.5] text-[#111827] placeholder:text-slate-400 outline-none transition focus:border-slate-300 focus:bg-white lg:text-sm"
-                  style={{ maxHeight: '120px', overflowY: 'auto', ['--tw-ring-color' as string]: '#f5a623' }}
+                  style={{ maxHeight: '120px', overflowY: 'auto', ['--tw-ring-color' as string]: '#C99700' }}
                   onInput={event => {
                     const field = event.currentTarget
                     field.style.height = 'auto'
@@ -475,7 +475,7 @@ export function LeadCommunicationsPanel({
 
       {composer.open ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 p-0 md:items-center md:p-4">
-          <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-[14px] border border-[var(--app-line)] bg-[var(--app-panel)] shadow-2xl md:max-w-2xl md:rounded-[10px]">
+          <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-[14px] border border-[var(--app-line)] bg-[var(--app-panel)] shadow-none md:max-w-2xl md:rounded-[10px]">
             <div className="flex items-center justify-between border-b border-[var(--app-line)] px-4 py-4 md:px-5">
               <div>
                 <div className="crm-label">{composer.channel === 'sms' ? 'SMS Composer' : 'Email Composer'}</div>

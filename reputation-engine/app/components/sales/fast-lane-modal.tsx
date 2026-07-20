@@ -119,7 +119,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-      <div className="flex w-full max-w-md flex-col rounded-[20px] border border-[var(--app-line)] bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div className="flex w-full max-w-md flex-col rounded-xl border border-[var(--app-line)] bg-white shadow-none max-h-[90vh] overflow-y-auto">
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[var(--app-line)] px-5 py-4 sticky top-0 bg-white z-10">
@@ -127,7 +127,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
             <h2 className="font-display text-base font-semibold text-[var(--app-ink)]">⚡ Fast Lane Quote</h2>
             <p className="mt-0.5 text-xs text-[var(--app-muted)]">{lead.name} · {lead.phone || 'No phone'}</p>
           </div>
-          <button onClick={onClose} className="rounded-full p-1.5 text-[var(--app-muted)] hover:bg-[var(--app-bg)]">✕</button>
+          <button onClick={onClose} className="rounded-xl p-1.5 text-[var(--app-muted)] hover:bg-[var(--app-bg)]">✕</button>
         </div>
 
         {result ? (
@@ -154,7 +154,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
 
             <div className="rounded-[10px] border border-[var(--app-line)] px-4 py-3">
               <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)] mb-1">Booking link</div>
-              <div className="text-xs text-[#1a2744] break-all">{result.bookingLink}</div>
+              <div className="text-xs text-[#071421] break-all">{result.bookingLink}</div>
               <button
                 onClick={() => void navigator.clipboard.writeText(result.bookingLink)}
                 className="mt-2 text-[10px] text-[var(--app-accent)] underline"
@@ -179,8 +179,8 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
                     onClick={() => setMoveType(val)}
                     className={`rounded-[10px] border py-3 text-sm font-semibold transition ${
                       moveType === val
-                        ? 'border-[#1a2744] bg-[#1a2744] text-white'
-                        : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-ink)] hover:border-[#1a2744]'
+                        ? 'border-[#071421] bg-[#071421] text-white'
+                        : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-ink)] hover:border-[#071421]'
                     }`}
                   >
                     {lbl}
@@ -200,8 +200,8 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
                     onClick={() => setCrew(n)}
                     className={`rounded-[10px] border py-3 text-sm font-semibold transition ${
                       crew === n
-                        ? 'border-[#f5a623] bg-[#f5a623] text-[#1a2744]'
-                        : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-ink)] hover:border-[#f5a623]'
+                        ? 'border-[#C99700] bg-[#C99700] text-[#071421]'
+                        : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-ink)] hover:border-[#C99700]'
                     }`}
                   >
                     {n} Movers
@@ -221,8 +221,8 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
                     onClick={() => setRangeIdx(i)}
                     className={`rounded-[10px] border py-2.5 text-sm font-semibold transition ${
                       rangeIdx === i
-                        ? 'border-[#1a2744] bg-[#1a2744]/5 text-[#1a2744]'
-                        : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-muted)] hover:border-[#1a2744]'
+                        ? 'border-[#071421] bg-[#071421]/5 text-[#071421]'
+                        : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-muted)] hover:border-[#071421]'
                     }`}
                   >
                     {r.label}
@@ -258,9 +258,9 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
             </div>
 
             {/* Rate preview */}
-            <div className="rounded-[10px] bg-[#1a2744]/5 px-4 py-3">
+            <div className="rounded-[10px] bg-[#071421]/5 px-4 py-3">
               <div className="flex items-baseline justify-between">
-                <span className="text-sm font-bold text-[#1a2744]">${rate}/hr</span>
+                <span className="text-sm font-bold text-[#071421]">${rate}/hr</span>
                 <span className="text-xs text-[var(--app-muted)]">{range.min}-hour minimum</span>
               </div>
               <div className="mt-1 text-xs text-[var(--app-muted)]">
@@ -301,7 +301,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
             <button
               onClick={() => void sendQuote()}
               disabled={sending || !lead.phone}
-              className="w-full rounded-[10px] bg-[#f5a623] py-3.5 text-sm font-bold text-[#1a2744] transition hover:opacity-90 disabled:opacity-60"
+              className="w-full rounded-[10px] bg-[#C99700] py-3.5 text-sm font-bold text-[#071421] transition hover:opacity-90 disabled:opacity-60"
             >
               {sending ? 'Sending...' : `⚡ Send Booking Link to ${lead.name?.split(' ')[0] || 'Customer'}`}
             </button>

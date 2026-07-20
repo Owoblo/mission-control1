@@ -224,7 +224,7 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="relative w-full max-w-sm rounded-[20px] border border-[var(--app-line)] bg-[var(--app-panel)] shadow-2xl">
+      <div className="relative w-full max-w-sm rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] shadow-none">
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[var(--app-line)] px-5 py-4">
@@ -232,7 +232,7 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
             <div className="text-[11px] font-semibold uppercase tracking-widest text-[var(--app-muted)]">Fast Lane</div>
             <h2 className="mt-0.5 text-lg font-semibold text-[var(--app-ink)]">MLS Quick Inventory Scan</h2>
           </div>
-          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-muted)] hover:bg-[var(--app-line)] hover:text-[var(--app-ink)] transition">✕</button>
+          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-xl text-[var(--app-muted)] hover:bg-[var(--app-line)] hover:text-[var(--app-ink)] transition">✕</button>
         </div>
 
         <div className="px-5 py-4">
@@ -292,7 +292,7 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
 
           {step === 'loading' && (
             <div className="flex flex-col items-center gap-3 py-8">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#1a2744] border-t-transparent" />
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#071421] border-t-transparent" />
               <p className="text-sm text-[var(--app-muted)]">Scanning address and generating link…</p>
             </div>
           )}
@@ -311,7 +311,7 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
                   setCopied(true)
                   setTimeout(() => setCopied(false), 2000)
                 }}
-                className={`w-full rounded-[8px] py-2.5 text-sm font-semibold transition ${copied ? 'bg-emerald-600 text-white' : 'bg-[#1a2744] text-white hover:bg-[#1a2744]/90'}`}
+                className={`w-full rounded-[8px] py-2.5 text-sm font-semibold transition ${copied ? 'bg-emerald-600 text-white' : 'bg-[#071421] text-white hover:bg-[#071421]/90'}`}
               >
                 {copied ? '✓ Copied!' : 'Copy Link'}
               </button>

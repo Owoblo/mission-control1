@@ -85,17 +85,17 @@ function StatCard({ label, value, sub, accent }: { label: string; value: string 
   return (
     <div className="crm-panel p-5">
       <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--app-muted)]">{label}</div>
-      <div className={`mt-2 text-2xl font-bold ${accent || 'text-[#1a2744]'}`}>{value}</div>
+      <div className={`mt-2 text-2xl font-bold ${accent || 'text-[#071421]'}`}>{value}</div>
       {sub ? <div className="mt-1 text-xs text-[var(--app-muted)]">{sub}</div> : null}
     </div>
   )
 }
 
-function MiniBarRow({ label, value, total, tone = 'bg-[#1a2744]' }: { label: string; value: number; total: number; tone?: string }) {
+function MiniBarRow({ label, value, total, tone = 'bg-[#071421]' }: { label: string; value: number; total: number; tone?: string }) {
   const pct = total > 0 ? Math.max(4, Math.round((value / total) * 100)) : 0
   return (
     <div className="flex items-center gap-3">
-      <div className="w-36 shrink-0 text-sm font-medium text-[#1a2744]">{label}</div>
+      <div className="w-36 shrink-0 text-sm font-medium text-[#071421]">{label}</div>
       <div className="h-2 flex-1 rounded-full bg-slate-100">
         <div className={`h-2 rounded-full ${tone}`} style={{ width: `${pct}%` }} />
       </div>
@@ -115,7 +115,7 @@ function TrendChart({ data, mode }: { data: AnalyticsSnapshot['trend']; mode: 'l
       {data.map(item => {
         const value = mode === 'revenue' ? item.revenue : mode === 'bookings' ? item.bookings : item.leads
         const height = `${Math.max(8, Math.round((value / max) * 100))}%`
-        const tone = mode === 'revenue' ? 'bg-emerald-500' : mode === 'bookings' ? 'bg-[#f5a623]' : 'bg-[#1a2744]'
+        const tone = mode === 'revenue' ? 'bg-emerald-500' : mode === 'bookings' ? 'bg-[#C99700]' : 'bg-[#071421]'
         return (
           <div key={`${mode}-${item.label}`} className="flex flex-1 flex-col items-center gap-2">
             <div className="text-[10px] font-medium text-[var(--app-muted)]">
@@ -175,14 +175,14 @@ export default function AnalyticsPage() {
     <div className="crm-shell space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-bold text-[#1a2744]">Analytics</h1>
+          <h1 className="font-display text-2xl font-bold text-[#071421]">Analytics</h1>
           <p className="mt-1 text-sm text-[var(--app-muted)]">
             Lead truth, booking pace, follow-up compliance, and next-30-day truck pressure.
           </p>
         </div>
         <a
           href={`/api/sales/analytics?${queryString}&format=csv`}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-[#1a2744] transition hover:bg-slate-50"
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-[#071421] transition hover:bg-slate-50"
         >
           Export CSV
         </a>
@@ -254,13 +254,13 @@ export default function AnalyticsPage() {
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Revenue vs Target</div>
-            <div className="mt-1 text-lg font-semibold text-[#1a2744]">{formatMoney(data.totals.confirmedRevenue)}</div>
+            <div className="mt-1 text-lg font-semibold text-[#071421]">{formatMoney(data.totals.confirmedRevenue)}</div>
           </div>
           <div className="text-sm font-semibold text-[var(--app-muted)]">{data.totals.monthlyProgressPct}%</div>
         </div>
         <div className="mt-4 h-3 rounded-full bg-slate-100">
           <div
-            className={`h-3 rounded-full ${data.totals.monthlyProgressPct >= 100 ? 'bg-emerald-500' : data.totals.monthlyProgressPct >= 70 ? 'bg-[#f5a623]' : 'bg-[#1a2744]'}`}
+            className={`h-3 rounded-full ${data.totals.monthlyProgressPct >= 100 ? 'bg-emerald-500' : data.totals.monthlyProgressPct >= 70 ? 'bg-[#C99700]' : 'bg-[#071421]'}`}
             style={{ width: `${Math.max(6, data.totals.monthlyProgressPct)}%` }}
           />
         </div>
@@ -268,7 +268,7 @@ export default function AnalyticsPage() {
 
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="crm-panel p-6 xl:col-span-2">
-          <h2 className="font-semibold text-[#1a2744]">Lead and Booking Trend</h2>
+          <h2 className="font-semibold text-[#071421]">Lead and Booking Trend</h2>
           <div className="mt-5 grid gap-5 lg:grid-cols-3">
             <div>
               <div className="mb-3 text-sm font-medium text-[var(--app-muted)]">New leads</div>
@@ -286,7 +286,7 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="crm-panel p-6">
-          <h2 className="font-semibold text-[#1a2744]">Truck Utilization</h2>
+          <h2 className="font-semibold text-[#071421]">Truck Utilization</h2>
           <p className="mt-1 text-xs text-[var(--app-muted)]">Next 30 days. Red means booked work is over branch capacity.</p>
           <div className="mt-4 space-y-3">
             {utilizationHighlights.length === 0 ? (
@@ -296,7 +296,7 @@ export default function AnalyticsPage() {
             ) : utilizationHighlights.map(day => (
               <div key={`${day.branch}-${day.date}`} className={`rounded-xl border px-3 py-3 ${day.risk === 'high' ? 'border-rose-200 bg-rose-50' : 'border-amber-200 bg-amber-50'}`}>
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-semibold text-[#1a2744]">{day.branch} · {day.date}</div>
+                  <div className="text-sm font-semibold text-[#071421]">{day.branch} · {day.date}</div>
                   <div className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] ${day.risk === 'high' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-800'}`}>
                     {day.risk}
                   </div>
@@ -312,7 +312,7 @@ export default function AnalyticsPage() {
 
       {data.branchBreakdown.length > 0 && (
         <div className="crm-panel p-6">
-          <h2 className="font-semibold text-[#1a2744]">Leads by City / Branch</h2>
+          <h2 className="font-semibold text-[#071421]">Leads by City / Branch</h2>
           <p className="mt-1 text-xs text-[var(--app-muted)]">Received, booked, and lost in the selected window.</p>
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-sm">
@@ -343,7 +343,7 @@ export default function AnalyticsPage() {
 
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="crm-panel p-6">
-          <h2 className="font-semibold text-[#1a2744]">Lead Sources</h2>
+          <h2 className="font-semibold text-[#071421]">Lead Sources</h2>
           <div className="mt-4 space-y-3">
             {data.sourceBreakdown.length === 0 ? (
               <div className="text-sm text-[var(--app-muted)]">No source data in this window.</div>
@@ -354,7 +354,7 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="crm-panel p-6">
-          <h2 className="font-semibold text-[#1a2744]">Lost / Declined Reasons</h2>
+          <h2 className="font-semibold text-[#071421]">Lost / Declined Reasons</h2>
           <div className="mt-4 space-y-3">
             {data.lostReasons.length === 0 ? (
               <div className="text-sm text-[var(--app-muted)]">No lost leads recorded in this window.</div>
@@ -365,7 +365,7 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="crm-panel p-6">
-          <h2 className="font-semibold text-[#1a2744]">Activity Breakdown</h2>
+          <h2 className="font-semibold text-[#071421]">Activity Breakdown</h2>
           <div className="mt-4 space-y-3">
             {data.activityBreakdown.length === 0 ? (
               <div className="text-sm text-[var(--app-muted)]">No follow-up activity recorded in this window.</div>

@@ -309,7 +309,7 @@ function SalesLeadsIndexContent() {
           <button
             onClick={() => void syncCallHistory()}
             disabled={backfilling}
-            className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] px-4 py-2 text-sm font-medium text-[var(--app-muted)] transition hover:border-[#1a2744] hover:text-[#1a2744] disabled:opacity-50"
+            className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] px-4 py-2 text-sm font-medium text-[var(--app-muted)] transition hover:border-[#071421] hover:text-[#071421] disabled:opacity-50"
           >
             {backfilling ? 'Syncing…' : 'Sync Call History'}
           </button>

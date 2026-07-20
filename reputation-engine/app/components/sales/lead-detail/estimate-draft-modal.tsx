@@ -91,7 +91,7 @@ function AddressAutocompleteInput({ value, placeholder, onSelect }: {
         placeholder={placeholder} autoComplete="off" />
       {fetching && <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 block h-3 w-3 animate-spin rounded-full border-2 border-[var(--app-accent)] border-t-transparent" />}
       {open && suggestions.length > 0 && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-52 overflow-y-auto rounded-[8px] border border-[var(--app-line)] bg-white shadow-xl">
+        <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-52 overflow-y-auto rounded-[8px] border border-[var(--app-line)] bg-white shadow-none">
           {suggestions.map((s, i) => (
             <button key={i} type="button" onMouseDown={() => select(s)}
               className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-[var(--app-bg)]">
@@ -2298,7 +2298,7 @@ export function EstimateDraftModal({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/35 px-0 py-0 md:px-4 md:py-6" onClick={onClose}>
       <div
-        className="mx-auto flex min-h-screen w-full max-w-6xl flex-col overflow-hidden rounded-none border border-[var(--app-line)] bg-[var(--app-panel)] shadow-2xl md:my-4 md:min-h-0 md:rounded-[12px]"
+        className="mx-auto flex min-h-screen w-full max-w-6xl flex-col overflow-hidden rounded-none border border-[var(--app-line)] bg-[var(--app-panel)] shadow-none md:my-4 md:min-h-0 md:rounded-[12px]"
         onClick={event => event.stopPropagation()}
       >
         {/* Header */}
@@ -2338,7 +2338,7 @@ export function EstimateDraftModal({
           <div className="overflow-y-auto p-4 md:p-6 space-y-6">
 
             {/* ── SMART INTAKE ── */}
-            <div className={`rounded-[10px] border ${intakeApplied ? 'border-emerald-300 bg-emerald-50' : 'border-[#1a2744]/20 bg-[#1a2744]/5'} overflow-hidden`}>
+            <div className={`rounded-[10px] border ${intakeApplied ? 'border-emerald-300 bg-emerald-50' : 'border-[#071421]/20 bg-[#071421]/5'} overflow-hidden`}>
               <button
                 type="button"
                 onClick={() => setIntakeOpen(v => !v)}
@@ -2347,10 +2347,10 @@ export function EstimateDraftModal({
                 <div className="flex items-center gap-2.5">
                   <span className="text-lg">🧠</span>
                   <div className="text-left">
-                    <div className="text-sm font-semibold text-[#1a2744]">
+                    <div className="text-sm font-semibold text-[#071421]">
                       Smart Intake {intakeApplied ? '· Applied ✓' : ''}
                     </div>
-                    <div className="text-[11px] text-[#1a2744]/50">
+                    <div className="text-[11px] text-[#071421]/50">
                       Describe the move in plain English — AI fills in the fields
                     </div>
                   </div>
@@ -2359,12 +2359,12 @@ export function EstimateDraftModal({
               </button>
 
               {intakeOpen && (
-                <div className="border-t border-[#1a2744]/10 px-4 pb-4 pt-3 space-y-3">
+                <div className="border-t border-[#071421]/10 px-4 pb-4 pt-3 space-y-3">
                   <textarea
                     rows={5}
                     value={intakeText}
                     onChange={e => setIntakeText(e.target.value)}
-                    className="w-full rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2.5 text-sm text-[var(--app-ink)] placeholder:text-[var(--app-muted)] focus:border-[#1a2744] focus:outline-none resize-none"
+                    className="w-full rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2.5 text-sm text-[var(--app-ink)] placeholder:text-[var(--app-muted)] focus:border-[#071421] focus:outline-none resize-none"
                     placeholder={`Describe the move — e.g.:\n\n"Lady moving 4-bed house in Greeley to storage first. Keys not available until 1pm. Needs full packing, has a piano and a large safe. Then 10 days later moving from storage to new house in Brockville. 2 kids helping on move day. Wants junk removal too."`}
                   />
 
@@ -2373,7 +2373,7 @@ export function EstimateDraftModal({
                       type="button"
                       onClick={() => void runSmartIntake()}
                       disabled={intakeBusy || !intakeText.trim()}
-                      className="flex-1 rounded-[8px] bg-[#1a2744] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+                      className="flex-1 rounded-[8px] bg-[#071421] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
                     >
                       {intakeBusy ? '🧠 Parsing…' : '🧠 Parse Move'}
                     </button>
@@ -2392,7 +2392,7 @@ export function EstimateDraftModal({
                     <div className="space-y-3">
                       {/* Summary */}
                       {intakeResult.summary && (
-                        <div className="rounded-[6px] border border-[#1a2744]/20 bg-white px-3 py-2.5 text-sm text-[#1a2744]">
+                        <div className="rounded-[6px] border border-[#071421]/20 bg-white px-3 py-2.5 text-sm text-[#071421]">
                           <span className="font-semibold">Understood: </span>{intakeResult.summary}
                         </div>
                       )}
@@ -2440,7 +2440,7 @@ export function EstimateDraftModal({
                             <div key={`${party.label}-${i}`} className="rounded-[6px] border border-slate-100 bg-slate-50 px-2.5 py-2">
                               <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0">
-                                  <div className="truncate text-[12px] font-semibold text-[#1a2744]">{party.label}</div>
+                                  <div className="truncate text-[12px] font-semibold text-[#071421]">{party.label}</div>
                                   <div className="truncate text-[11px] text-slate-500">{party.pickupAddress || party.pickupCity || 'Address pending'}</div>
                                 </div>
                                 <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ${party.missingInventory ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
@@ -2635,8 +2635,8 @@ export function EstimateDraftModal({
                       }), 0)
                     }}
                     className={quoteType === opt.id
-                      ? 'rounded-full px-4 py-1.5 text-sm font-semibold bg-[#1a2744] text-white'
-                      : 'rounded-full border border-slate-200 bg-white text-slate-500 px-4 py-1.5 text-sm hover:border-[#1a2744] transition'}
+                      ? 'rounded-full px-4 py-1.5 text-sm font-semibold bg-[#071421] text-white'
+                      : 'rounded-full border border-slate-200 bg-white text-slate-500 px-4 py-1.5 text-sm hover:border-[#071421] transition'}
                   >
                     {opt.label}
                   </button>
@@ -2759,7 +2759,7 @@ export function EstimateDraftModal({
               {/* Service chips */}
               <div className="flex flex-wrap gap-2">
                 {/* Moving — always active */}
-                <div className="flex items-center gap-1.5 rounded-full bg-[#1a2744] px-3 py-1.5 text-xs font-semibold text-white">
+                <div className="flex items-center gap-1.5 rounded-full bg-[#071421] px-3 py-1.5 text-xs font-semibold text-white">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                   Moving
                 </div>
@@ -2808,7 +2808,7 @@ export function EstimateDraftModal({
                   className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
                     packingLaborAdded || packingMaterialsAdded
                       ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
-                      : 'border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:border-[#1a2744] hover:text-[#1a2744]'
+                      : 'border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:border-[#071421] hover:text-[#071421]'
                   }`}
                 >
                   {packingLaborAdded || packingMaterialsAdded ? '✓' : '+'} Packing
@@ -2821,7 +2821,7 @@ export function EstimateDraftModal({
                   className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
                     junkAdded
                       ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
-                      : 'border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:border-[#1a2744] hover:text-[#1a2744]'
+                      : 'border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:border-[#071421] hover:text-[#071421]'
                   }`}
                 >
                   {junkAdded ? '✓' : '+'} Junk Removal
@@ -2834,7 +2834,7 @@ export function EstimateDraftModal({
                   className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
                     valuationAdded
                       ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
-                      : 'border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:border-[#1a2744] hover:text-[#1a2744]'
+                      : 'border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:border-[#071421] hover:text-[#071421]'
                   }`}
                 >
                   {valuationAdded ? '✓' : '+'} Valuation
@@ -2985,7 +2985,7 @@ export function EstimateDraftModal({
               {/* ── Junk photo SMS dialog ── */}
               {junkSmsDialogOpen && junkPhotoLink && (
                 <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-                  <div className="w-full max-w-md rounded-[16px] border border-[var(--app-line)] bg-white p-6 shadow-2xl">
+                  <div className="w-full max-w-md rounded-[16px] border border-[var(--app-line)] bg-white p-6 shadow-none">
                     <h3 className="text-base font-semibold text-[var(--app-ink)]">📷 Send junk photo request</h3>
                     <p className="mt-1 text-xs text-[var(--app-muted)]">Review and edit the message before sending to <span className="font-semibold text-[var(--app-ink)]">{lead.phone}</span></p>
                     <div className="mt-3 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2 text-[11px] font-medium text-[var(--app-muted)] break-all">
@@ -3058,7 +3058,7 @@ export function EstimateDraftModal({
                       if (conjointMode) onJobFactorsChange({ ...jobFactors, conjointMove: false })
                     }
                   }}
-                  className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${legsEnabled ? 'bg-[#1a2744] text-white' : 'bg-[var(--app-line)] text-[var(--app-muted)]'}`}
+                  className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${legsEnabled ? 'bg-[#071421] text-white' : 'bg-[var(--app-line)] text-[var(--app-muted)]'}`}
                 >
                   {legsEnabled ? 'On' : 'Off'}
                 </button>
@@ -3129,7 +3129,7 @@ export function EstimateDraftModal({
                     <div key={leg.id} className="rounded-[8px] border border-[var(--app-line)] bg-white p-3 space-y-2">
                       {/* Leg header */}
                       <div className="flex items-center gap-2">
-                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#1a2744] text-[9px] font-bold text-white shrink-0">{idx + 1}</span>
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#071421] text-[9px] font-bold text-white shrink-0">{idx + 1}</span>
                         <input
                           value={leg.label}
                           onChange={e => updateLeg(leg.id, { label: e.target.value })}
@@ -3300,8 +3300,8 @@ export function EstimateDraftModal({
                     type="button"
                     onClick={() => handleBranchChange(opt.id)}
                     className={selectedBranch === opt.id
-                      ? 'rounded-full px-4 py-1.5 text-sm font-semibold bg-[#1a2744] text-white'
-                      : 'rounded-full border border-slate-200 bg-white text-slate-500 px-4 py-1.5 text-sm hover:border-[#1a2744] transition'}
+                      ? 'rounded-full px-4 py-1.5 text-sm font-semibold bg-[#071421] text-white'
+                      : 'rounded-full border border-slate-200 bg-white text-slate-500 px-4 py-1.5 text-sm hover:border-[#071421] transition'}
                   >
                     {opt.label}
                   </button>
@@ -3348,7 +3348,7 @@ export function EstimateDraftModal({
                         key={t}
                         type="button"
                         onClick={() => onMoveTimeChange?.(t)}
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold transition-colors ${active ? 'bg-[#1a2744] text-white' : 'bg-white border border-[var(--app-line)] text-[var(--app-muted)] hover:border-[#1a2744]'}`}
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold transition-colors ${active ? 'bg-[#071421] text-white' : 'bg-white border border-[var(--app-line)] text-[var(--app-muted)] hover:border-[#071421]'}`}
                       >
                         {labels[t]}
                       </button>
@@ -3615,7 +3615,7 @@ export function EstimateDraftModal({
                                   <button
                                     type="button"
                                     onClick={() => addConjointCustomItem(selectedOwner)}
-                                    className="rounded-[6px] bg-[#1a2744] px-3 py-1.5 text-[10px] font-semibold text-white"
+                                    className="rounded-[6px] bg-[#071421] px-3 py-1.5 text-[10px] font-semibold text-white"
                                   >
                                     Add item
                                   </button>
@@ -4830,7 +4830,7 @@ export function EstimateDraftModal({
                     return (
                       <div>
                         <div className="mb-2 flex items-center gap-2">
-                          <span className="h-1.5 w-1.5 rounded-full bg-[#1a2744]" />
+                          <span className="h-1.5 w-1.5 rounded-full bg-[#071421]" />
                           <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--app-muted)]">Moving</span>
                         </div>
                         <div className="space-y-2">
@@ -5154,7 +5154,7 @@ export function EstimateDraftModal({
                   </div>}
 
                   {/* TOTAL — hourly for local, flat-rate guidance for long-distance */}
-                  <div className="px-3 py-3 bg-[#1a2744] text-white space-y-1">
+                  <div className="px-3 py-3 bg-[#071421] text-white space-y-1">
                     {quoteIsCustomerFacing && quote ? (
                       <>
                         <div className="flex justify-between font-semibold">
@@ -5163,7 +5163,7 @@ export function EstimateDraftModal({
                           </span>
                           <span>{quoteHasUnsavedPricingRevision ? (savedQuoteHours > 0 ? `${savedQuoteHours}h` : 'Revision') : 'Saved'}</span>
                         </div>
-                        <div className="flex justify-between text-sm font-bold text-[#f5a623]">
+                        <div className="flex justify-between text-sm font-bold text-[#C99700]">
                           <span>{quoteHasUnsavedPricingRevision ? 'Revision estimate' : 'Saved estimate'}</span>
                           <span>{formatMoney(quoteHasUnsavedPricingRevision ? quoteModalTotals.subtotal : (savedQuoteSubtotal || quoteModalTotals.subtotal))}</span>
                         </div>
@@ -5180,7 +5180,7 @@ export function EstimateDraftModal({
                           <span>{pricingBreakdown.crewSize} movers · {pricingBreakdown.truckCount} truck{pricingBreakdown.truckCount > 1 ? 's' : ''} · U-Haul one-way</span>
                           <span>{pricingBreakdown.loadHours + (pricingBreakdown.unloadHours || 0)}h labour</span>
                         </div>
-                        <div className="flex justify-between text-sm font-bold text-[#f5a623]">
+                        <div className="flex justify-between text-sm font-bold text-[#C99700]">
                           <span>Estimate</span>
                           <span className="text-xs font-normal text-white/70">Use Live Margin below ↓</span>
                         </div>
@@ -5191,7 +5191,7 @@ export function EstimateDraftModal({
                           <span>{pricingBreakdown.crewSize} movers · {pricingBreakdown.truckCount} truck{pricingBreakdown.truckCount > 1 ? 's' : ''} · ${pricingBreakdown.crewRatePerHour}/hr</span>
                           <span>{routeBusy ? '…' : `${pricingBreakdown.totalHours}h`}</span>
                         </div>
-                        <div className="flex justify-between text-sm font-bold text-[#f5a623]">
+                        <div className="flex justify-between text-sm font-bold text-[#C99700]">
                           <span>Estimate</span>
                           {routeBusy
                             ? <span className="text-xs font-normal text-white/60 animate-pulse">Calculating route…</span>
@@ -5491,7 +5491,7 @@ export function EstimateDraftModal({
                                   onClick={() => setUhaulSelectedStrategy(strategy)}
                                   className={`rounded-[6px] border px-2.5 py-2 text-left transition ${
                                     isActive
-                                      ? 'border-[#1a2744] bg-[#1a2744]/5 ring-1 ring-[#1a2744]/20'
+                                      ? 'border-[#071421] bg-[#071421]/5 ring-1 ring-[#071421]/20'
                                       : 'border-[var(--app-line)] hover:border-[var(--app-muted)]'
                                   }`}
                                 >
@@ -5524,7 +5524,7 @@ export function EstimateDraftModal({
                                     )}
                                   </div>
                                   <div className="text-[9px] mt-1 space-x-1">
-                                    {isActive && <span className="text-[#1a2744] font-semibold">● Active</span>}
+                                    {isActive && <span className="text-[#071421] font-semibold">● Active</span>}
                                     {!isActive && isCheaper && <span className="text-emerald-700 font-semibold">★ Lower truck cost</span>}
                                   </div>
                                 </button>
@@ -5913,7 +5913,7 @@ export function EstimateDraftModal({
                                   selectedOperatingPlan === option.id
                                     ? 'bg-emerald-600 text-white'
                                     : optionCanBeApplied
-                                      ? 'bg-[#1a2744] text-white hover:opacity-90'
+                                      ? 'bg-[#071421] text-white hover:opacity-90'
                                       : 'bg-slate-200 text-slate-500'
                                 } disabled:cursor-not-allowed`}
                               >
@@ -6303,7 +6303,7 @@ export function EstimateDraftModal({
                                     min={40} max={60} step={1}
                                     value={ldMarginTarget}
                                     onChange={e => setLdMarginTarget(Number(e.target.value))}
-                                    className="w-full accent-[#1a2744] h-1.5 cursor-pointer"
+                                    className="w-full accent-[#071421] h-1.5 cursor-pointer"
                                   />
                                   <div className="flex items-center justify-between">
                                     <div>
@@ -6319,7 +6319,7 @@ export function EstimateDraftModal({
                                       onSetLineItems([{ description: 'Long-Distance Moving Service — All Inclusive', details: `U-Haul one-way · ${ldTruckCount} truck${ldTruckCount === 1 ? '' : 's'} · ${ldDistKm} km · loading, transport, unloading · packing assistance + free boxes included`, amount: ldSelected }])
                                       setOverrideInput(String(ldSelected)); setOverrideApplied(true); setBookTodayActive(false); setTenPctActive(false)
                                     }}
-                                    className={`w-full rounded-[6px] px-3 py-2.5 text-[11px] font-semibold text-white transition ${selMargin >= 40 ? 'bg-[#1a2744] hover:bg-[#1a2744]/90' : 'bg-rose-500 hover:bg-rose-600'}`}
+                                    className={`w-full rounded-[6px] px-3 py-2.5 text-[11px] font-semibold text-white transition ${selMargin >= 40 ? 'bg-[#071421] hover:bg-[#071421]/90' : 'bg-rose-500 hover:bg-rose-600'}`}
                                   >Apply — {formatMoney(ldSelected)} + HST ({selMargin}% margin)</button>
                                 </div>
                               )

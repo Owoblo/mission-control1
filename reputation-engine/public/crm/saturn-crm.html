@@ -6,9 +6,9 @@
     <title>Saturn Star — CRM</title>
     <style>
         :root {
-            --navy: #1a2744;
+            --navy: #071421;
             --navy-light: #243358;
-            --gold: #f5a623;
+            --gold: #C99700;
             --gold-dark: #e8941f;
             --bg: #f0f2f5;
             --white: #ffffff;
@@ -2739,11 +2739,11 @@ function renderQuoteDetail(el, actions, id) {
                         <button class="btn btn-sm" style="background:#2e7d32;color:white;border:none;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer" onclick="copyAcceptLink('${id}')">Copy Accept Link</button>
                     </div>
                 </div>
-                ${quote.notes ? `<div style="margin-top:10px;padding:12px;background:#fff3cd;border-radius:8px;font-size:13px;color:#555;line-height:1.6;border-left:3px solid #f5a623">${quote.notes}</div>` : ''}
+                ${quote.notes ? `<div style="margin-top:10px;padding:12px;background:#fff3cd;border-radius:8px;font-size:13px;color:#555;line-height:1.6;border-left:3px solid #C99700">${quote.notes}</div>` : ''}
             </div>
 
             <div class="card" style="display:flex;flex-direction:column;gap:18px">
-                <div style="background:linear-gradient(135deg,#1a2744,#2d3a52);border-radius:10px;padding:18px;color:white;display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center">
+                <div style="background:linear-gradient(135deg,#071421,#2d3a52);border-radius:10px;padding:18px;color:white;display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center">
                     <div>
                         <div style="color:var(--gold);font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Origin</div>
                         <div style="font-weight:600;font-size:14px">${quote.origin.address || '—'}</div>
@@ -2830,33 +2830,33 @@ function printQuote(id) {
 <meta charset="UTF-8"><title>Quote ${quote.number}</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Segoe UI',sans-serif;color:#1a2744;line-height:1.6;background:#fff}
+body{font-family:'Segoe UI',sans-serif;color:#071421;line-height:1.6;background:#fff}
 .container{max-width:800px;margin:0 auto;padding:40px}
-.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:40px;padding-bottom:28px;border-bottom:3px solid #f5a623}
+.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:40px;padding-bottom:28px;border-bottom:3px solid #C99700}
 .logo-img{width:120px;height:auto}
 .company-info p{color:#666;font-size:13px;margin-top:4px}
 .quote-info{text-align:right}
 .quote-info h2{font-size:30px;font-weight:700}
 .quote-info p{color:#666;font-size:13px;margin-top:3px}
-.qnum{background:#f5a623;color:#1a2744;padding:4px 14px;border-radius:5px;font-weight:700;display:inline-block;margin-top:8px;font-size:13px}
+.qnum{background:#C99700;color:#071421;padding:4px 14px;border-radius:5px;font-weight:700;display:inline-block;margin-top:8px;font-size:13px}
 .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:36px}
-.info-box{background:#f8f9fa;padding:22px;border-radius:10px;border-left:4px solid #f5a623}
+.info-box{background:#f8f9fa;padding:22px;border-radius:10px;border-left:4px solid #C99700}
 .info-box h3{font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;font-weight:700}
 .info-box p{font-size:13px;margin-bottom:4px}
 .info-box .lbl{color:#888;font-size:11px;text-transform:uppercase}
-.locations{display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:center;margin-bottom:36px;padding:22px 26px;background:linear-gradient(135deg,#1a2744,#2d3a52);border-radius:14px;color:white}
-.loc h4{color:#f5a623;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:7px}
+.locations{display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:center;margin-bottom:36px;padding:22px 26px;background:linear-gradient(135deg,#071421,#2d3a52);border-radius:14px;color:white}
+.loc h4{color:#C99700;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:7px}
 .loc p{font-size:14px;font-weight:600}
 .loc .fl{font-size:12px;opacity:.8;margin-top:3px}
-.arr{font-size:32px;color:#f5a623}
+.arr{font-size:32px;color:#C99700}
 .sec{margin-bottom:32px}
 .sec h3{font-size:16px;font-weight:700;margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid #eee}
 .scope-list{list-style:none}
 .scope-list li{padding:9px 0;border-bottom:1px solid #eee;display:flex;align-items:flex-start;gap:12px;font-size:13px}
 .scope-list li:last-child{border-bottom:none}
-.chk{width:20px;height:20px;background:#f5a623;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:12px;flex-shrink:0;line-height:1}
+.chk{width:20px;height:20px;background:#C99700;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:12px;flex-shrink:0;line-height:1}
 .tbl{width:100%;border-collapse:collapse;margin-bottom:18px}
-.tbl th{background:#1a2744;color:white;padding:12px 14px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+.tbl th{background:#071421;color:white;padding:12px 14px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
 .tbl th:first-child{border-radius:8px 0 0 0}
 .tbl th:last-child{border-radius:0 8px 0 0;text-align:right}
 .tbl td{padding:12px 14px;border-bottom:1px solid #eee;font-size:13px}
@@ -2864,20 +2864,20 @@ body{font-family:'Segoe UI',sans-serif;color:#1a2744;line-height:1.6;background:
 .tbl tr:nth-child(even){background:#f8f9fa}
 .totals{background:#f8f9fa;padding:18px 22px;border-radius:10px;margin-bottom:32px}
 .tr{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #ddd;font-size:13px;color:#555}
-.tr.grand{border-bottom:none;border-top:2px solid #1a2744;padding-top:12px;margin-top:6px;font-size:20px;font-weight:800;color:#1a2744}
+.tr.grand{border-bottom:none;border-top:2px solid #071421;padding-top:12px;margin-top:6px;font-size:20px;font-weight:800;color:#071421}
 .tr.grand .amt{color:#e8941f}
-.pay{background:linear-gradient(135deg,#1a2744,#2d3a52);padding:22px;border-radius:10px;color:white;margin-bottom:32px}
-.pay h4{color:#f5a623;font-size:14px;margin-bottom:16px;text-transform:uppercase;letter-spacing:1px}
+.pay{background:linear-gradient(135deg,#071421,#2d3a52);padding:22px;border-radius:10px;color:white;margin-bottom:32px}
+.pay h4{color:#C99700;font-size:14px;margin-bottom:16px;text-transform:uppercase;letter-spacing:1px}
 .pay-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
 .pay-item{background:rgba(255,255,255,.1);padding:16px;border-radius:8px;text-align:center}
-.pay-item .am{font-size:24px;font-weight:800;color:#f5a623}
+.pay-item .am{font-size:24px;font-weight:800;color:#C99700}
 .pay-item .lb{font-size:11px;text-transform:uppercase;margin-top:3px;opacity:.9}
 .pay-item .nt{font-size:10px;opacity:.7;margin-top:5px}
 .methods{border-top:1px solid rgba(255,255,255,.2);padding-top:14px}
-.methods h5{font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:9px;color:#f5a623}
+.methods h5{font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:9px;color:#C99700}
 .methods-list{display:flex;flex-wrap:wrap;gap:7px}
-.mbadge{background:rgba(245,166,35,.2);border:1px solid #f5a623;padding:5px 13px;border-radius:20px;font-size:11px;font-weight:600}
-.incl{background:#e3f2fd;border:2px solid #1a2744;border-radius:10px;padding:18px;margin-bottom:32px}
+.mbadge{background:rgba(245,166,35,.2);border:1px solid #C99700;padding:5px 13px;border-radius:20px;font-size:11px;font-weight:600}
+.incl{background:#e3f2fd;border:2px solid #071421;border-radius:10px;padding:18px;margin-bottom:32px}
 .incl h4{font-size:12px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px}
 .incl-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
 .incl-item{display:flex;align-items:center;gap:7px;font-size:12px}
@@ -2886,21 +2886,21 @@ body{font-family:'Segoe UI',sans-serif;color:#1a2744;line-height:1.6;background:
 .ins-icon{width:42px;height:42px;background:#4caf50;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:20px;flex-shrink:0}
 .ins-text h5{color:#2e7d32;font-size:12px;text-transform:uppercase}
 .ins-text p{color:#555;font-size:12px;margin-top:3px}
-.notes-box{background:#fff3cd;padding:16px;border-radius:10px;border-left:4px solid #f5a623;margin-bottom:32px}
+.notes-box{background:#fff3cd;padding:16px;border-radius:10px;border-left:4px solid #C99700;margin-bottom:32px}
 .notes-box h4{font-size:12px;text-transform:uppercase;margin-bottom:9px}
 .notes-box ul{margin-left:16px;font-size:12px;color:#555}
 .notes-box li{margin-bottom:5px}
 .terms{font-size:11px;color:#555;padding:18px;background:#f8f9fa;border-radius:10px;margin-bottom:32px}
-.terms h4{font-size:12px;text-transform:uppercase;margin-bottom:10px;color:#1a2744}
+.terms h4{font-size:12px;text-transform:uppercase;margin-bottom:10px;color:#071421}
 .terms ol{margin-left:16px}
 .terms li{margin-bottom:7px;line-height:1.5}
 .sig{display:grid;grid-template-columns:1fr 1fr;gap:44px;margin-top:44px;padding-top:26px;border-top:2px solid #eee}
 .sig-box h4{font-size:10px;text-transform:uppercase;color:#888;margin-bottom:40px}
 .sig-line{border-bottom:1px solid #333;margin-bottom:7px}
 .sig-box p{font-size:10px;color:#888}
-.footer{text-align:center;padding-top:24px;border-top:3px solid #f5a623;margin-top:32px}
+.footer{text-align:center;padding-top:24px;border-top:3px solid #C99700;margin-top:32px}
 .footer p{color:#888;font-size:12px;margin-bottom:3px}
-.footer .tag{color:#f5a623;font-weight:700;font-size:12px;margin-top:10px}
+.footer .tag{color:#C99700;font-weight:700;font-size:12px;margin-top:10px}
 @media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
 </style></head><body><div class="container">
 
@@ -3116,11 +3116,11 @@ function copyQuoteLink(id) {
     navigator.clipboard.writeText(url).then(() => {
         toast('Quote link copied to clipboard!', 'success');
         const el = document.getElementById('quote-link-text');
-        if (el) { el.textContent = url; el.style.color = '#1a2744'; }
+        if (el) { el.textContent = url; el.style.color = '#071421'; }
     }).catch(() => {
         // fallback
         const el = document.getElementById('quote-link-text');
-        if (el) { el.textContent = url; el.style.color = '#1a2744'; }
+        if (el) { el.textContent = url; el.style.color = '#071421'; }
         toast('Link generated — copy it above', 'info');
     });
 }
@@ -3167,7 +3167,7 @@ function showSendEmailModal(id, type = 'initial') {
                         <textarea id="em-body" style="min-height:220px;font-size:13px;line-height:1.6">${tpl.body}</textarea>
                     </div>
                     <div style="background:var(--bg);border-radius:8px;padding:12px 14px;font-size:12px;color:#888">
-                        <strong style="color:#1a2744">Quote Link included:</strong><br>
+                        <strong style="color:#071421">Quote Link included:</strong><br>
                         <span style="word-break:break-all;color:#666">${url.substring(0, 80)}...</span>
                     </div>
                 </div>
@@ -3341,7 +3341,7 @@ function renderOpsActionNeeded(leads) {
     return `
     <div class="card" style="margin-bottom:22px;border:2px solid #4caf50;background:linear-gradient(135deg,#f1f8e9,#fff);">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-            <div style="font-weight:700;font-size:15px;color:#1a2744;">🚛 Operations — Upcoming Moves</div>
+            <div style="font-weight:700;font-size:15px;color:#071421;">🚛 Operations — Upcoming Moves</div>
             <div style="font-size:12px;color:#888;">systematize → scale</div>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;">
@@ -3426,7 +3426,7 @@ function renderSalesMachineDashboard(leads, quotes) {
     return `
     <div class="card" style="margin-bottom:22px;border:2px solid #ffd700;background:linear-gradient(135deg,#fffde7,#fff);">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-            <div style="font-weight:700;font-size:15px;color:#1a2744;">⚡ Sales Machine — Action Required</div>
+            <div style="font-weight:700;font-size:15px;color:#071421;">⚡ Sales Machine — Action Required</div>
             <div style="font-size:12px;color:#888;">Keep the machine running</div>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;">
@@ -3490,7 +3490,7 @@ function renderFollowUps(el, actions) {
                     const c = DB.getClient(q.clientId);
                     return `<div style="display:flex;align-items:center;justify-content:space-between;padding:14px;background:#fdecea;border-radius:10px;gap:12px">
                         <div>
-                            <div style="font-weight:700;cursor:pointer;color:#1a2744" onclick="nav('quote-detail','${q.id}')">${q.number} — ${c ? c.name : '—'}</div>
+                            <div style="font-weight:700;cursor:pointer;color:#071421" onclick="nav('quote-detail','${q.id}')">${q.number} — ${c ? c.name : '—'}</div>
                             <div style="font-size:13px;color:#c62828;margin-top:3px">${fu.label}</div>
                         </div>
                         <div style="display:flex;gap:8px;flex-shrink:0">
@@ -3503,14 +3503,14 @@ function renderFollowUps(el, actions) {
         </div>` : ''}
 
         ${warn.length > 0 ? `
-        <div class="card" style="margin-bottom:18px;border-left:4px solid #f5a623">
+        <div class="card" style="margin-bottom:18px;border-left:4px solid #C99700">
             <div style="font-size:15px;font-weight:700;color:#e65100;margin-bottom:16px">⚡ Follow-Up Recommended (${warn.length})</div>
             <div style="display:flex;flex-direction:column;gap:12px">
                 ${warn.map(({ quote: q, fu }) => {
                     const c = DB.getClient(q.clientId);
                     return `<div style="display:flex;align-items:center;justify-content:space-between;padding:14px;background:#fff8e1;border-radius:10px;gap:12px">
                         <div>
-                            <div style="font-weight:700;cursor:pointer;color:#1a2744" onclick="nav('quote-detail','${q.id}')">${q.number} — ${c ? c.name : '—'}</div>
+                            <div style="font-weight:700;cursor:pointer;color:#071421" onclick="nav('quote-detail','${q.id}')">${q.number} — ${c ? c.name : '—'}</div>
                             <div style="font-size:13px;color:#e65100;margin-top:3px">${fu.label}</div>
                         </div>
                         <div style="display:flex;gap:8px;flex-shrink:0">
@@ -4941,7 +4941,7 @@ function renderLeadConsultTab(lead) {
                     <span class="rec-timer" id="rec-timer">${isRec ? '00:00' : ''}</span>
                 </div>
                 <div style="background:var(--bg);border-radius:10px;padding:14px;font-size:12px;color:#888;line-height:1.8">
-                    <strong style="color:#1a2744;display:block;margin-bottom:4px">Tips:</strong>
+                    <strong style="color:#071421;display:block;margin-bottom:4px">Tips:</strong>
                     • Open on your phone before entering the client's home<br>
                     • Hit record before the walkthrough begins<br>
                     • Recording saves automatically when you stop<br>
@@ -5863,7 +5863,7 @@ function renderDialer(el, actions) {
 
     actions.innerHTML = `
         <div id="dialer-ready-badge" class="dialer-status ${dialerReady ? 'ready' : 'loading'}" style="margin-right:8px;">
-            <span style="width:8px;height:8px;border-radius:50%;background:${dialerReady ? '#4caf50' : '#f5a623'};display:inline-block;"></span>
+            <span style="width:8px;height:8px;border-radius:50%;background:${dialerReady ? '#4caf50' : '#C99700'};display:inline-block;"></span>
             ${dialerReady ? 'Ready' : 'Initialising...'}
         </div>
         <button class="btn btn-secondary btn-sm" onclick="initDialer().then(()=>render())">↺ Reconnect</button>`;

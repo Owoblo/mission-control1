@@ -166,7 +166,7 @@ export default function NewSalesLeadPage() {
         </p>
       </div>
 
-      {error && <div className="rounded-3xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div>}
+      {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div>}
 
       {duplicateWarning && (
         <div className="rounded-[10px] border border-amber-200 bg-amber-50 px-5 py-4 flex items-center gap-3">
@@ -256,7 +256,7 @@ export default function NewSalesLeadPage() {
             <span className="crm-label">Origin Address</span>
             <input className="crm-input mt-2" value={form.originAddress} onChange={e => setField('originAddress', e.target.value)} />
           </label>
-          <div className="md:col-span-2 rounded-[28px] border border-stone-200 bg-[linear-gradient(180deg,#fbf6ef,#f6efe6)] p-4">
+          <div className="rounded-xl border border-stone-200 bg-[var(--app-wash)] p-4 md:col-span-2">
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
               <button type="button" onClick={() => void lookupAddress(false)} disabled={lookupBusy} className="crm-button w-full justify-center disabled:opacity-60 sm:w-auto">
                 {lookupBusy ? 'Looking up...' : 'Lookup listing'}
@@ -269,7 +269,7 @@ export default function NewSalesLeadPage() {
             </div>
             <div className="mt-4 space-y-3">
               {listingMatch ? (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-800">
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-800">
                   Matched listing: {listingMatch.address}{listingMatch.city ? `, ${listingMatch.city}` : ''}
                   {listingMatch.furniture_scan_date ? ' · inventory scan available' : ''}
                 </div>
@@ -277,7 +277,7 @@ export default function NewSalesLeadPage() {
                 <div className="text-sm text-stone-500">No listing linked yet.</div>
               )}
               {inventoryDraft && (
-                <div className="rounded-2xl border border-stone-200 bg-white px-4 py-4">
+                <div className="rounded-xl border border-stone-200 bg-white px-4 py-4">
                   <div className="crm-label">Inventory Draft</div>
                   <div className="mt-3 grid gap-3 sm:grid-cols-4">
                     <div>

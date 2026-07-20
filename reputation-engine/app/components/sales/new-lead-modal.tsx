@@ -145,7 +145,7 @@ export function NewLeadModal({ open, onClose }: Props) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
 
-      <div className="relative w-full max-w-lg rounded-[20px] border border-[var(--app-line)] bg-[var(--app-panel)] shadow-2xl">
+      <div className="relative w-full max-w-lg rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] shadow-none">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[var(--app-line)] px-5 py-4">
           <div>

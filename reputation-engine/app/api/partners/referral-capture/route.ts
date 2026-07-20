@@ -295,8 +295,8 @@ export async function POST(request: Request) {
   void sendRepAlertEmail(
     `New partner referral: ${customerName || customerPhone || customerEmail || 'New lead'} from ${partnerName}`,
     `
-<div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:24px;color:#1a2744">
-  <div style="background:#1a2744;color:#f5a623;padding:14px 18px;border-radius:10px 10px 0 0;font-weight:800">New Partner Referral</div>
+<div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:24px;color:#071421">
+  <div style="background:#071421;color:#C99700;padding:14px 18px;border-radius:10px 10px 0 0;font-weight:800">New Partner Referral</div>
   <div style="border:1px solid #e2e8f0;border-top:0;border-radius:0 0 10px 10px;padding:18px">
     <p><strong>Partner:</strong> ${escapeHtml(partnerName)} (${escapeHtml(partnerCode)})</p>
     ${partnerType ? `<p><strong>Partner type:</strong> ${escapeHtml(partnerType)}</p>` : ''}
@@ -308,7 +308,7 @@ export async function POST(request: Request) {
     ${moveDate ? `<p><strong>Move date:</strong> ${escapeHtml(moveDate)}</p>` : ''}
     ${movingFrom || movingTo ? `<p><strong>Route:</strong> ${escapeHtml(movingFrom || '—')} ${movingTo ? `to ${escapeHtml(movingTo)}` : ''}</p>` : ''}
     ${notes ? `<div style="margin-top:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;white-space:pre-wrap">${escapeHtml(notes)}</div>` : ''}
-    <p style="margin-top:16px"><a href="https://go.quote2move.com/sales/leads/${encodeURIComponent(leadId)}" style="background:#1a2744;color:#f5a623;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:700">Open CRM Lead</a></p>
+    <p style="margin-top:16px"><a href="https://go.quote2move.com/sales/leads/${encodeURIComponent(leadId)}" style="background:#071421;color:#C99700;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:700">Open CRM Lead</a></p>
     <div style="margin-top:14px;font-size:11px;color:#94a3b8">Inbound ID: ${escapeHtml(inboundId)} · Lead ID: ${escapeHtml(leadId)}</div>
   </div>
 </div>`,

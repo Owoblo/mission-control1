@@ -79,7 +79,7 @@ export function InventoryVerificationPanel({
               <button
                 type="button"
                 onClick={copyLink}
-                className={`flex-1 rounded-[6px] py-2 text-xs font-semibold transition ${copied ? 'bg-emerald-600 text-white' : 'bg-[#1a2744] text-white hover:bg-[#1a2744]/90'}`}
+                className={`flex-1 rounded-[6px] py-2 text-xs font-semibold transition ${copied ? 'bg-emerald-600 text-white' : 'bg-[#071421] text-white hover:bg-[#071421]/90'}`}
               >
                 {copied ? '✓ Copied!' : 'Copy Link'}
               </button>
@@ -160,7 +160,7 @@ export function InventoryVerificationPanel({
             <button
               onClick={onRequestVerification}
               disabled={!canEditCurrentLead || surveyBusy}
-              className="flex-1 rounded-[6px] bg-[#1a2744] py-2 text-xs font-semibold text-white hover:bg-[#1a2744]/90 transition disabled:opacity-60"
+              className="flex-1 rounded-[6px] bg-[#071421] py-2 text-xs font-semibold text-white hover:bg-[#071421]/90 transition disabled:opacity-60"
             >
               {surveyBusy ? '⏳ Generating…' : '📤 Send via SMS'}
             </button>

@@ -19,14 +19,14 @@ export default function SurveyError({
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-xl font-bold text-amber-700">
           !
         </div>
-        <h1 className="mt-4 text-lg font-bold text-[#1a2744]">We could not keep this review open.</h1>
+        <h1 className="mt-4 text-lg font-bold text-[#071421]">We could not keep this review open.</h1>
         <p className="mt-2 text-sm leading-relaxed text-gray-500">
           Please try loading it again. If it still does not work, call Saturn Star Movers at (226) 773-2993.
         </p>
         <button
           type="button"
           onClick={() => reset()}
-          className="mt-5 w-full rounded-xl bg-[#1a2744] px-4 py-3 text-sm font-semibold text-white"
+          className="mt-5 w-full rounded-xl bg-[#071421] px-4 py-3 text-sm font-semibold text-white"
         >
           Try again
         </button>

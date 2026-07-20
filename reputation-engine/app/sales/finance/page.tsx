@@ -363,7 +363,7 @@ export default function FinancePage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="font-display text-2xl font-bold text-[#1a2744]">Finance</h1>
+          <h1 className="font-display text-2xl font-bold text-[#071421]">Finance</h1>
           <p className="mt-1 text-sm text-[var(--app-muted)]">Job P&L, cost tracking, and expense log.</p>
         </div>
         <button
@@ -386,7 +386,7 @@ export default function FinancePage() {
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             <div className="crm-panel p-5">
               <div className="text-xs font-bold uppercase tracking-wider text-[var(--app-muted)]">Booked Revenue</div>
-              <div className="mt-2 text-2xl font-bold text-[#1a2744]">{formatMoney(allRevenue)}</div>
+              <div className="mt-2 text-2xl font-bold text-[#071421]">{formatMoney(allRevenue)}</div>
               <div className="mt-0.5 text-xs text-[var(--app-muted)]">quote value, not cash</div>
             </div>
             <div className="crm-panel p-5">
@@ -396,7 +396,7 @@ export default function FinancePage() {
             </div>
             <div className="crm-panel p-5">
               <div className="text-xs font-bold uppercase tracking-wider text-[var(--app-muted)]">Cash Pending</div>
-              <div className={`mt-2 text-2xl font-bold ${cashPending > 0 ? 'text-amber-600' : 'text-[#1a2744]'}`}>{formatMoney(cashPending)}</div>
+              <div className={`mt-2 text-2xl font-bold ${cashPending > 0 ? 'text-amber-600' : 'text-[#071421]'}`}>{formatMoney(cashPending)}</div>
               <div className="mt-0.5 text-xs text-[var(--app-muted)]">uncollected quoted balance</div>
             </div>
             <div className="crm-panel p-5">
@@ -425,11 +425,11 @@ export default function FinancePage() {
           <div className="crm-panel overflow-hidden">
             <div className="flex items-center justify-between border-b border-[var(--app-line)] px-6 py-4">
               <div>
-                <h2 className="font-semibold text-[#1a2744]">Weekly Crew Payout Queue</h2>
+                <h2 className="font-semibold text-[#071421]">Weekly Crew Payout Queue</h2>
                 <p className="mt-1 text-xs text-[var(--app-muted)]">Submitted from Operations. Review here, then approve and mark paid manually.</p>
               </div>
               <div className="text-right text-xs text-[var(--app-muted)]">
-                <div>Pending: <span className="font-semibold text-[#1a2744]">{formatMoney(pendingPayoutTotal)}</span></div>
+                <div>Pending: <span className="font-semibold text-[#071421]">{formatMoney(pendingPayoutTotal)}</span></div>
                 <div>Approved: <span className="font-semibold text-emerald-700">{formatMoney(approvedPayoutTotal)}</span></div>
               </div>
             </div>
@@ -443,7 +443,7 @@ export default function FinancePage() {
                   <div key={row.entry.id} className="flex flex-col gap-3 px-6 py-4 lg:flex-row lg:items-center">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-[#1a2744]">{row.entry.workerName}</span>
+                        <span className="font-semibold text-[#071421]">{row.entry.workerName}</span>
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
                           {CREW_PAYOUT_STATUS_LABELS[row.entry.payoutStatus || 'submitted']}
                         </span>
@@ -464,7 +464,7 @@ export default function FinancePage() {
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-right">
-                        <div className="text-sm font-semibold text-[#1a2744]">{formatMoney(row.totalPay)}</div>
+                        <div className="text-sm font-semibold text-[#071421]">{formatMoney(row.totalPay)}</div>
                         <div className="text-[11px] text-[var(--app-muted)]">
                           labor {formatMoney(row.entry.laborPay || 0)}
                         </div>
@@ -482,7 +482,7 @@ export default function FinancePage() {
                         <button
                           onClick={() => void updatePayoutStatus(row, 'paid')}
                           disabled={payoutBusyId === row.entry.id}
-                          className="rounded-lg bg-[#1a2744] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                          className="rounded-lg bg-[#071421] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
                         >
                           {payoutBusyId === row.entry.id ? 'Saving...' : 'Mark Paid'}
                         </button>
@@ -497,11 +497,11 @@ export default function FinancePage() {
           <div className="crm-panel overflow-hidden">
             <div className="flex items-center justify-between border-b border-[var(--app-line)] px-6 py-4">
               <div>
-                <h2 className="font-semibold text-[#1a2744]">Receipt Inbox</h2>
+                <h2 className="font-semibold text-[#071421]">Receipt Inbox</h2>
                 <p className="mt-1 text-xs text-[var(--app-muted)]">Lead-uploaded receipts land here until finance links them to a job cost.</p>
               </div>
               <div className="text-right text-xs text-[var(--app-muted)]">
-                <div>Needs logging: <span className="font-semibold text-[#1a2744]">{unlinkedReceipts.length}</span></div>
+                <div>Needs logging: <span className="font-semibold text-[#071421]">{unlinkedReceipts.length}</span></div>
                 <div>Linked: <span className="font-semibold text-emerald-700">{linkedReceipts.length}</span></div>
               </div>
             </div>
@@ -515,7 +515,7 @@ export default function FinancePage() {
                   <div key={receipt.assetId} className="flex flex-col gap-3 px-6 py-4 lg:flex-row lg:items-center">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-[#1a2744]">{receipt.leadName}</span>
+                        <span className="font-semibold text-[#071421]">{receipt.leadName}</span>
                         <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${receipt.linkedCostId ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
                           {receipt.linkedCostId ? 'Linked' : 'Needs cost'}
                         </span>
@@ -542,14 +542,14 @@ export default function FinancePage() {
                         href={receipt.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="rounded-lg border border-[var(--app-line)] px-3 py-1.5 text-xs font-medium text-[var(--app-muted)] hover:border-[#1a2744] hover:text-[#1a2744]"
+                        className="rounded-lg border border-[var(--app-line)] px-3 py-1.5 text-xs font-medium text-[var(--app-muted)] hover:border-[#071421] hover:text-[#071421]"
                       >
                         View file
                       </a>
                       {!receipt.linkedCostId ? (
                         <button
                           onClick={() => openCostModalForReceipt(receipt)}
-                          className="rounded-lg bg-[#1a2744] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
+                          className="rounded-lg bg-[#071421] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
                         >
                           Log from receipt
                         </button>
@@ -565,7 +565,7 @@ export default function FinancePage() {
           {jobPL.length > 0 && (
             <div className="crm-panel overflow-hidden">
               <div className="border-b border-[var(--app-line)] px-6 py-4">
-                <h2 className="font-semibold text-[#1a2744]">Job P&L Breakdown</h2>
+                <h2 className="font-semibold text-[#071421]">Job P&L Breakdown</h2>
               </div>
               <div className="divide-y divide-[var(--app-line)]">
                 {jobPL.map(job => (
@@ -573,12 +573,12 @@ export default function FinancePage() {
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 flex-wrap">
-                          <span className="font-semibold text-[#1a2744]">{job.name}</span>
+                          <span className="font-semibold text-[#071421]">{job.name}</span>
                           {job.moveDate && <span className="text-xs text-[var(--app-muted)]">Move: {job.moveDate}</span>}
                           <span title={job.moneyState.explanation} className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${job.moneyState.requiresAttention ? 'border-amber-300 bg-amber-50 text-amber-800' : job.moneyState.status === 'paid_in_full' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>{job.moneyState.label}</span>
                         </div>
                         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                          <span className="text-[var(--app-muted)]">Quote: <span className="font-semibold text-[#1a2744]">{formatMoney(job.quoteAmount)}</span></span>
+                          <span className="text-[var(--app-muted)]">Quote: <span className="font-semibold text-[#071421]">{formatMoney(job.quoteAmount)}</span></span>
                           <span className="text-[var(--app-muted)]">Deposit collected: <span className={`font-semibold ${job.depositCollected > 0 ? 'text-emerald-600' : 'text-amber-600'}`}>{formatMoney(job.depositCollected)}</span></span>
                           <span className="text-[var(--app-muted)]">Balance pending: <span className={`font-semibold ${job.cashPending > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{formatMoney(job.cashPending)}</span></span>
                           <span className="text-[var(--app-muted)]">Costs: <span className="font-semibold text-rose-600">{formatMoney(job.totalCosts)}</span></span>
@@ -588,12 +588,12 @@ export default function FinancePage() {
                           )}
                         </div>
                         <div className="mt-2 grid grid-cols-2 gap-2 text-xs md:grid-cols-6">
-                          <div className="rounded-lg bg-[var(--app-bg)] px-2 py-1.5"><span className="text-[var(--app-muted)]">Truck</span><div className="font-semibold text-[#1a2744]">{formatMoney(job.truckCost)}</div></div>
-                          <div className="rounded-lg bg-[var(--app-bg)] px-2 py-1.5"><span className="text-[var(--app-muted)]">Labour</span><div className="font-semibold text-[#1a2744]">{formatMoney(job.laborCost)}</div></div>
-                          <div className="rounded-lg bg-[var(--app-bg)] px-2 py-1.5"><span className="text-[var(--app-muted)]">Fuel</span><div className="font-semibold text-[#1a2744]">{formatMoney(job.fuelCost)}</div></div>
-                          <div className="rounded-lg bg-[var(--app-bg)] px-2 py-1.5"><span className="text-[var(--app-muted)]">Supplies</span><div className="font-semibold text-[#1a2744]">{formatMoney(job.suppliesCost)}</div></div>
-                          <div className="rounded-lg bg-[var(--app-bg)] px-2 py-1.5"><span className="text-[var(--app-muted)]">Extra fees</span><div className="font-semibold text-[#1a2744]">{formatMoney(job.extraFees)}</div></div>
-                          <div className="rounded-lg bg-[var(--app-bg)] px-2 py-1.5"><span className="text-[var(--app-muted)]">Claims reserve</span><div className="font-semibold text-[#1a2744]">{formatMoney(job.claimsReserve)}</div></div>
+                          <div className="rounded-lg bg-[var(--app-bg)] px-2 py-1.5"><span className="text-[var(--app-muted)]">Truck</span><div className="font-semibold text-[#071421]">{formatMoney(job.truckCost)}</div></div>
+                          <div className="rounded-lg bg-[var(--app-bg)] px-2 py-1.5"><span className="text-[var(--app-muted)]">Labour</span><div className="font-semibold text-[#071421]">{formatMoney(job.laborCost)}</div></div>
+                          <div className="rounded-lg bg-[var(--app-bg)] px-2 py-1.5"><span className="text-[var(--app-muted)]">Fuel</span><div className="font-semibold text-[#071421]">{formatMoney(job.fuelCost)}</div></div>
+                          <div className="rounded-lg bg-[var(--app-bg)] px-2 py-1.5"><span className="text-[var(--app-muted)]">Supplies</span><div className="font-semibold text-[#071421]">{formatMoney(job.suppliesCost)}</div></div>
+                          <div className="rounded-lg bg-[var(--app-bg)] px-2 py-1.5"><span className="text-[var(--app-muted)]">Extra fees</span><div className="font-semibold text-[#071421]">{formatMoney(job.extraFees)}</div></div>
+                          <div className="rounded-lg bg-[var(--app-bg)] px-2 py-1.5"><span className="text-[var(--app-muted)]">Claims reserve</span><div className="font-semibold text-[#071421]">{formatMoney(job.claimsReserve)}</div></div>
                         </div>
                         {job.warnings.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -611,7 +611,7 @@ export default function FinancePage() {
                               <div key={c.id} className="flex items-center gap-1.5 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-2 py-1 text-xs">
                                 <span>{CAT_META[c.category]?.icon ?? '📋'}</span>
                                 <span className="text-[var(--app-muted)]">{CAT_META[c.category]?.label ?? c.category}</span>
-                                <span className="font-semibold text-[#1a2744]">{formatMoney(c.amount_cents / 100)}</span>
+                                <span className="font-semibold text-[#071421]">{formatMoney(c.amount_cents / 100)}</span>
                                 {c.description && <span className="text-[var(--app-muted)]">· {c.description}</span>}
                                 {c.linkedReceiptCount ? (
                                   <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
@@ -638,7 +638,7 @@ export default function FinancePage() {
                           setForm(f => ({ ...f, lead_id: job.id, description: '', amount: '' }))
                           setAddOpen(true)
                         }}
-                        className="shrink-0 rounded-lg border border-[var(--app-line)] px-3 py-1.5 text-xs font-medium text-[var(--app-muted)] hover:border-[#1a2744] hover:text-[#1a2744] transition"
+                        className="shrink-0 rounded-lg border border-[var(--app-line)] px-3 py-1.5 text-xs font-medium text-[var(--app-muted)] hover:border-[#071421] hover:text-[#071421] transition"
                       >
                         + Cost
                       </button>
@@ -652,7 +652,7 @@ export default function FinancePage() {
           {jobPL.length === 0 && (
             <div className="crm-panel p-10 text-center space-y-2">
               <div className="text-3xl">📊</div>
-              <div className="font-semibold text-[#1a2744]">No booked jobs yet</div>
+              <div className="font-semibold text-[#071421]">No booked jobs yet</div>
               <p className="text-sm text-[var(--app-muted)]">Once you book jobs in the CRM, they'll appear here with P&L tracking.</p>
             </div>
           )}
@@ -660,13 +660,13 @@ export default function FinancePage() {
           {/* Expense log */}
           <div className="crm-panel overflow-hidden">
             <div className="flex items-center justify-between border-b border-[var(--app-line)] px-6 py-4">
-              <h2 className="font-semibold text-[#1a2744]">Expense Log</h2>
+              <h2 className="font-semibold text-[#071421]">Expense Log</h2>
               <div className="flex gap-1">
                 {(['jobs', 'overhead', 'all'] as const).map(t => (
                   <button
                     key={t}
                     onClick={() => setTab(t)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-medium capitalize transition ${tab === t ? 'bg-[#1a2744] text-white' : 'text-[var(--app-muted)] hover:bg-[var(--app-bg)]'}`}
+                    className={`rounded-full px-3 py-1.5 text-xs font-medium capitalize transition ${tab === t ? 'bg-[#071421] text-white' : 'text-[var(--app-muted)] hover:bg-[var(--app-bg)]'}`}
                   >
                     {t === 'jobs' ? 'Job Costs' : t === 'overhead' ? 'Overhead' : 'All'}
                   </button>
@@ -688,7 +688,7 @@ export default function FinancePage() {
                         {CAT_META[c.category]?.icon ?? '📋'}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-[#1a2744]">
+                        <div className="text-sm font-medium text-[#071421]">
                           {CAT_META[c.category]?.label ?? c.category}
                           {c.description && <span className="ml-1 font-normal text-[var(--app-muted)]">— {c.description}</span>}
                         </div>
@@ -727,8 +727,8 @@ export default function FinancePage() {
             }
           }}
         >
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
-            <div className="bg-[#1a2744] px-6 py-5" style={{ borderBottom: '2px solid #f5a623' }}>
+          <div className="w-full max-w-md rounded-xl bg-white shadow-none overflow-hidden">
+            <div className="bg-[#071421] px-6 py-5" style={{ borderBottom: '2px solid #C99700' }}>
               <h2 className="font-bold text-white">Log a Cost</h2>
               <p className="mt-0.5 text-xs text-white/60">Track expenses per job or as general overhead.</p>
             </div>
@@ -816,7 +816,7 @@ export default function FinancePage() {
                 <button
                   onClick={() => void saveCost()}
                   disabled={saving || !form.amount || !form.cost_date}
-                  className="flex-1 rounded-xl bg-[#1a2744] py-2.5 text-sm font-bold text-white disabled:opacity-60"
+                  className="flex-1 rounded-xl bg-[#071421] py-2.5 text-sm font-bold text-white disabled:opacity-60"
                 >
                   {saving ? 'Saving...' : 'Log Cost'}
                 </button>

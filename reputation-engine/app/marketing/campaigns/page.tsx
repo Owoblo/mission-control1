@@ -126,7 +126,7 @@ export default function CampaignsPage() {
     <div className="crm-shell space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-bold text-[#1a2744]">Direct Mail ROI</h1>
+          <h1 className="font-display text-2xl font-bold text-[#071421]">Direct Mail ROI</h1>
           <p className="mt-1 text-sm text-slate-500">Track every campaign batch and see what's converting.</p>
         </div>
         <button onClick={() => setAddOpen(true)} className="crm-button-dark text-sm">+ Log Batch</button>
@@ -144,7 +144,7 @@ export default function CampaignsPage() {
           ].map(item => (
             <div key={item.label} className="crm-panel p-4">
               <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">{item.label}</div>
-              <div className="mt-1 text-2xl font-bold text-[#1a2744]">{item.val}</div>
+              <div className="mt-1 text-2xl font-bold text-[#071421]">{item.val}</div>
             </div>
           ))}
         </div>
@@ -156,7 +156,7 @@ export default function CampaignsPage() {
       ) : campaigns.length === 0 ? (
         <div className="crm-panel p-12 text-center space-y-3">
           <div className="text-4xl">✉️</div>
-          <div className="font-semibold text-[#1a2744]">No campaigns logged yet</div>
+          <div className="font-semibold text-[#071421]">No campaigns logged yet</div>
           <p className="text-sm text-slate-400">Every time you send a direct mail batch, log it here so you can track which codes are generating calls and bookings.</p>
         </div>
       ) : (
@@ -172,9 +172,9 @@ export default function CampaignsPage() {
               <div key={c.id} className="p-5 space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="font-semibold text-[#1a2744]">{c.name}</div>
+                    <div className="font-semibold text-[#071421]">{c.name}</div>
                     <div className="mt-0.5 flex flex-wrap gap-2 text-xs text-slate-400">
-                      <span className="rounded-full bg-[#1a2744]/10 px-2 py-0.5 font-bold text-[#1a2744]">{c.tracking_code}</span>
+                      <span className="rounded-full bg-[#071421]/10 px-2 py-0.5 font-bold text-[#071421]">{c.tracking_code}</span>
                       {c.sent_date && <span>Sent {new Date(c.sent_date + 'T12:00:00').toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })}</span>}
                       {c.industry && <span>{c.industry}</span>}
                     </div>
@@ -196,7 +196,7 @@ export default function CampaignsPage() {
                   ].map(item => (
                     <div key={item.label} className="rounded-lg bg-slate-50 p-2">
                       <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{item.label}</div>
-                      <div className="text-sm font-bold text-[#1a2744]">{item.val}</div>
+                      <div className="text-sm font-bold text-[#071421]">{item.val}</div>
                     </div>
                   ))}
                 </div>
@@ -229,7 +229,7 @@ export default function CampaignsPage() {
                       setEditId(c.id)
                       setEditForm({ responses: String(c.responses), bookings: String(c.bookings), revenue: String(c.revenue_cents / 100) })
                     }}
-                    className="text-xs font-medium text-[#1a2744] underline underline-offset-2"
+                    className="text-xs font-medium text-[#071421] underline underline-offset-2"
                   >
                     Update results
                   </button>
@@ -244,8 +244,8 @@ export default function CampaignsPage() {
       {/* Add modal */}
       {addOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(15,27,56,0.55)', backdropFilter: 'blur(2px)' }} onClick={e => { if (e.target === e.currentTarget) setAddOpen(false) }}>
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
-            <div className="bg-[#1a2744] px-6 py-5" style={{ borderBottom: '2px solid #f5a623' }}>
+          <div className="w-full max-w-md rounded-xl bg-white shadow-none overflow-hidden">
+            <div className="bg-[#071421] px-6 py-5" style={{ borderBottom: '2px solid #C99700' }}>
               <h2 className="font-bold text-white">Log Direct Mail Batch</h2>
               <p className="mt-0.5 text-xs text-white/60">Track how many letters you sent and to which audience.</p>
             </div>
@@ -276,7 +276,7 @@ export default function CampaignsPage() {
               </label>
               <div className="flex gap-3">
                 <button onClick={() => setAddOpen(false)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-600">Cancel</button>
-                <button onClick={() => void addCampaign()} disabled={busy} className="flex-1 rounded-xl bg-[#1a2744] py-2.5 text-sm font-bold text-white disabled:opacity-60">Save Batch</button>
+                <button onClick={() => void addCampaign()} disabled={busy} className="flex-1 rounded-xl bg-[#071421] py-2.5 text-sm font-bold text-white disabled:opacity-60">Save Batch</button>
               </div>
             </div>
           </div>

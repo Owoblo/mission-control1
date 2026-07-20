@@ -60,8 +60,8 @@ export function PWAInit() {
 
   return (
     <div className="fixed bottom-4 left-1/2 z-[9999] -translate-x-1/2 w-[calc(100%-32px)] max-w-sm">
-      <div className="flex items-center gap-3 rounded-2xl bg-[#1a2744] px-4 py-3.5 shadow-2xl ring-1 ring-white/10">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#f5a623]">
+      <div className="flex items-center gap-3 rounded-xl bg-[#071421] px-4 py-3.5 shadow-none ring-1 ring-white/10">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#C99700]">
           <span className="text-lg">🚛</span>
         </div>
         <div className="flex-1 min-w-0">
@@ -77,7 +77,7 @@ export function PWAInit() {
           </button>
           <button
             onClick={() => void install()}
-            className="rounded-lg bg-[#f5a623] px-3 py-1.5 text-xs font-bold text-[#1a2744] hover:opacity-90 transition-opacity"
+            className="rounded-lg bg-[#C99700] px-3 py-1.5 text-xs font-bold text-[#071421] hover:opacity-90 transition-opacity"
           >
             Install
           </button>

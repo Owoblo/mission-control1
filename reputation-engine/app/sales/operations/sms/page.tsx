@@ -219,8 +219,8 @@ export default function OpsSmsPage() {
               className="crm-input min-h-12 w-full rounded-full text-base md:min-h-10 md:text-sm"
             />
             <div className="flex gap-1.5">
-              <button onClick={startNewChat} className="min-h-11 flex-1 rounded-full bg-[#111827] px-3 text-sm font-semibold text-white md:min-h-9 md:text-xs">Start chat</button>
-              <button onClick={() => setNewChatOpen(false)} className="min-h-11 flex-1 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 md:min-h-9 md:text-xs">Cancel</button>
+              <button onClick={startNewChat} className="min-h-11 flex-1 rounded-xl bg-[#111827] px-3 text-sm font-semibold text-white md:min-h-9 md:text-xs">Start chat</button>
+              <button onClick={() => setNewChatOpen(false)} className="min-h-11 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 md:min-h-9 md:text-xs">Cancel</button>
             </div>
           </div>
         )}
@@ -252,13 +252,13 @@ export default function OpsSmsPage() {
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 text-3xl">💬</div>
             <div className="text-base font-semibold text-[#111827]">Start conversation</div>
             <div className="max-w-xs text-center text-sm">Choose a thread from the list, or start a new SMS from the operations line.</div>
-            <button onClick={() => setNewChatOpen(true)} className="rounded-full bg-[#111827] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800">New conversation</button>
+            <button onClick={() => setNewChatOpen(true)} className="rounded-xl bg-[#111827] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800">New conversation</button>
           </div>
         ) : (
           <>
             <div className="border-b border-slate-200 bg-white px-4 py-3 md:px-5">
               <div className="flex items-center gap-2">
-                <button onClick={() => setSelected(null)} className="flex h-11 w-11 items-center justify-center rounded-full text-2xl text-[#111827] md:hidden">‹</button>
+                <button onClick={() => setSelected(null)} className="flex h-11 w-11 items-center justify-center rounded-xl text-2xl text-[#111827] md:hidden">‹</button>
                 <div>
                   <div className="font-semibold text-[#111827]">{formatPhone(selected)}</div>
                   <div className="text-xs text-slate-500">Operations line · {formatPhone(OPS_NUMBER)}</div>
@@ -314,7 +314,7 @@ export default function OpsSmsPage() {
                     ) : (
                       <div className="h-16 w-16 rounded-[6px] bg-[var(--app-bg)] flex items-center justify-center text-[10px] text-[var(--app-muted)] text-center px-1">{f.name.slice(0,12)}</div>
                     )}
-                    <button onClick={() => setMediaFiles(fs => fs.filter((_, j) => j !== i))} className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">×</button>
+                    <button onClick={() => setMediaFiles(fs => fs.filter((_, j) => j !== i))} className="absolute -top-1 -right-1 h-4 w-4 rounded-xl bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">×</button>
                   </div>
                 ))}
               </div>

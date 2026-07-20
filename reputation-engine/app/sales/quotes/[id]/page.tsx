@@ -1166,7 +1166,7 @@ Saturn Star Movers`
           }}
         >
           <div
-            className="flex w-full max-w-3xl flex-col overflow-hidden rounded-[12px] bg-white shadow-2xl"
+            className="flex w-full max-w-3xl flex-col overflow-hidden rounded-[12px] bg-white shadow-none"
             style={{ maxHeight: '92vh' }}
             onMouseDown={event => event.stopPropagation()}
           >
@@ -1185,7 +1185,7 @@ Saturn Star Movers`
                 >
                   ← Fix Estimate
                 </button>
-                <button onClick={closePreviewModal} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-muted)] hover:bg-stone-100 hover:text-[var(--app-ink)]">✕</button>
+                <button onClick={closePreviewModal} className="flex h-8 w-8 items-center justify-center rounded-xl text-[var(--app-muted)] hover:bg-stone-100 hover:text-[var(--app-ink)]">✕</button>
               </div>
             </div>
 
@@ -1300,7 +1300,7 @@ Saturn Star Movers`
                   </div>
                   <div>
                     <div className="text-[10px] text-[var(--app-muted)]">Total incl. HST</div>
-                    <div className="text-base font-bold text-[#1a2744]">{formatMoney(quoteTotals.total)}</div>
+                    <div className="text-base font-bold text-[#071421]">{formatMoney(quoteTotals.total)}</div>
                   </div>
                 </div>
                 <div className="mt-2 pt-2 border-t border-[var(--app-line)] flex justify-between text-xs">

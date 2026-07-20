@@ -16,7 +16,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f9fafb; margin: 0; padding: 48px 16px; text-align: center;">
   <div style="max-width: 420px; margin: 0 auto; background: white; border-radius: 16px; border: 1px solid #e5e7eb; padding: 48px 32px;">
     <div style="font-size: 48px; margin-bottom: 16px;">${success ? '✅' : '❌'}</div>
-    <div style="color: #1a2744; font-size: 22px; font-weight: 700; margin-bottom: 8px;">${title}</div>
+    <div style="color: #071421; font-size: 22px; font-weight: 700; margin-bottom: 8px;">${title}</div>
     <div style="color: #6b7280; font-size: 14px; line-height: 1.6;">${message}</div>
     <div style="margin-top: 32px; color: #9ca3af; font-size: 12px;">Saturn Star OS · Mission Control</div>
   </div>

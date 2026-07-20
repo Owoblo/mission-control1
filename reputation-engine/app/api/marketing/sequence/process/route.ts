@@ -82,7 +82,7 @@ function buildEmail(contact: Record<string, unknown>, batch: Record<string, unkn
   ].join('\n')
 
   const html = `
-<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto;color:#1a2744;line-height:1.6">
+<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto;color:#071421;line-height:1.6">
   <p>Hi ${firstName},</p>
   <p>I'm ${repName}, Head of Partnerships at Saturn Star Movers.</p>
   <p>${realtorSpecific

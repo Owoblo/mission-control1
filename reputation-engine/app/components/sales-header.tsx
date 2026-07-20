@@ -357,7 +357,7 @@ export function SalesHeader() {
     <>
       {/* ── GLOBAL TOAST (fires on any page) ─────────────────────────────── */}
       {toast && (
-        <div className="fixed bottom-6 right-6 z-[60] flex max-w-sm items-start gap-3 rounded-[12px] border border-[var(--app-line)] bg-white p-4 shadow-2xl animate-in slide-in-from-bottom-4 fade-in duration-200">
+        <div className="fixed bottom-6 right-6 z-[60] flex max-w-sm items-start gap-3 rounded-[12px] border border-[var(--app-line)] bg-white p-4 shadow-none animate-in slide-in-from-bottom-4 fade-in duration-200">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[rgba(15,106,83,0.12)] text-xl">
               {toast.source ? SOURCE_ICON[toast.source] || TYPE_ICON[toast.type] : TYPE_ICON[toast.type]}
           </div>
@@ -371,7 +371,7 @@ export function SalesHeader() {
             </div>
             <button
               onClick={() => { setToast(null); router.push(toast.href) }}
-              className="mt-2 rounded-[6px] bg-[var(--app-ink)] px-3 py-1 text-xs font-semibold text-white hover:bg-[#0f1b2d]"
+              className="mt-2 rounded-[6px] bg-[var(--app-ink)] px-3 py-1 text-xs font-semibold text-white hover:bg-[#071421]"
             >
               View →
             </button>
@@ -484,7 +484,7 @@ export function SalesHeader() {
 
                 {/* ── Notification Panel — fixed so it clears the sidebar ── */}
                 {notifOpen && (
-                  <div className="fixed left-4 right-4 top-4 z-[60] mx-auto max-w-sm max-h-[80vh] overflow-hidden rounded-[12px] border border-[var(--app-line)] bg-white shadow-2xl flex flex-col lg:left-auto lg:right-6 lg:top-6 lg:w-[400px]">
+                  <div className="fixed left-4 right-4 top-4 z-[60] mx-auto max-w-sm max-h-[80vh] overflow-hidden rounded-[12px] border border-[var(--app-line)] bg-white shadow-none flex flex-col lg:left-auto lg:right-6 lg:top-6 lg:w-[400px]">
                     {/* Panel header */}
                     <div className="flex items-center justify-between border-b border-[var(--app-line)] px-4 py-3">
                       <div>
@@ -657,7 +657,7 @@ export function SalesHeader() {
                           onMouseDown={() => handleSelectLead(lead)}
                           className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-[var(--app-bg)] border-b border-[var(--app-line)] last:border-0"
                         >
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1a2744] text-[11px] font-bold text-white">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#071421] text-[11px] font-bold text-white">
                             {(lead.name || lead.phone || '?').slice(0, 2).toUpperCase()}
                           </div>
                           <div className="min-w-0">

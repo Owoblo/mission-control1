@@ -73,8 +73,8 @@ export default function CrewDispatchPage({ params }: { params: { token: string }
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-6">
       <div className="mx-auto max-w-2xl space-y-4">
-        <section className="rounded-2xl bg-[#1a2744] p-5 text-white shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[#f5a623]">Saturn Star Dispatch</div>
+        <section className="rounded-xl bg-[#071421] p-5 text-white shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[#C99700]">Saturn Star Dispatch</div>
           <h1 className="mt-2 text-2xl font-bold">{job.moveDate}</h1>
           <p className="mt-1 text-sm text-white/70">{ROLE_LABELS[job.crew.role] || job.crew.role} · {job.crew.workerName}</p>
           <div className="mt-3 inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold">
@@ -82,15 +82,15 @@ export default function CrewDispatchPage({ params }: { params: { token: string }
           </div>
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Route</div>
-          <div className="mt-3 space-y-3 text-sm text-[#1a2744]">
+          <div className="mt-3 space-y-3 text-sm text-[#071421]">
             <div><span className="font-semibold">From:</span> {job.origin}</div>
             <div><span className="font-semibold">To:</span> {job.destination}</div>
           </div>
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Plan</div>
           <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-3">
             <div>{job.job.crewSize || '-'} crew</div>
@@ -100,7 +100,7 @@ export default function CrewDispatchPage({ params }: { params: { token: string }
           {job.job.crewNote ? <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">{job.job.crewNote}</p> : null}
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Truck</div>
           <div className="mt-3 space-y-2 text-sm text-slate-600">
             <div>{job.truck.plan}</div>
@@ -113,7 +113,7 @@ export default function CrewDispatchPage({ params }: { params: { token: string }
           </div>
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Access</div>
           <div className="mt-3 space-y-2 text-sm text-slate-600">
             {job.access.origin ? <div>Origin: {job.access.origin}</div> : null}

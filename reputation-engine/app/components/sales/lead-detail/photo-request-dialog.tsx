@@ -49,7 +49,7 @@ export function PhotoRequestDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-[16px] border border-[var(--app-line)] bg-white p-6 shadow-2xl">
+      <div className="w-full max-w-md rounded-[16px] border border-[var(--app-line)] bg-white p-6 shadow-none">
         <h2 className="font-display text-base font-semibold text-[var(--app-ink)]">📦 Send inventory verification link</h2>
         <p className="mt-1 text-xs text-[var(--app-muted)]">
           {conjointMode

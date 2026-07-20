@@ -4,29 +4,31 @@
 
 @layer base {
   * { box-sizing: border-box; }
-  html, body {
-    background-color: #fcfcfc;
-    /* prevent horizontal overflow on mobile */
+  html {
+    background-color: #f7f4ed;
     overflow-x: hidden;
-    /* safe area support for notched iPhones */
-    padding-top: env(safe-area-inset-top);
-  }
-  /* Hide scrollbars on mobile touch scroll */
-  @media (pointer: coarse) {
-    * { scrollbar-width: none; -ms-overflow-style: none; }
-    *::-webkit-scrollbar { display: none; }
+    color-scheme: light;
   }
   :root {
-    --app-ink: #111111;
-    --app-muted: #666b72;
-    --app-line: #ebebeb;
-    --app-bg: #fcfcfc;
+    /* Saturn Star master brand tokens. Keep product colours semantic and finite. */
+    --brand-navy: #071421;
+    --brand-gold: #c99700;
+    --brand-gold-dark: #8a6800;
+    --brand-ivory: #f7f4ed;
+    --brand-white: #ffffff;
+    --brand-charcoal: #111827;
+    --brand-muted: #667085;
+    --brand-border: #e5e7eb;
+    --app-ink: var(--brand-charcoal);
+    --app-muted: var(--brand-muted);
+    --app-line: var(--brand-border);
+    --app-bg: var(--brand-ivory);
     --app-panel: #ffffff;
     --app-panel-strong: #ffffff;
-    --app-wash: #f7f7f7;
-    --app-accent: #0f6a53;
-    --app-accent-soft: #eef8f4;
-    --app-warm: #d97706;
+    --app-wash: #fbfaf7;
+    --app-accent: var(--brand-navy);
+    --app-accent-soft: #eef1f3;
+    --app-warm: var(--brand-gold-dark);
     --crm-space-0: 0;
     --crm-space-1: 4px;
     --crm-space-2: 8px;
@@ -37,9 +39,9 @@
     --crm-space-8: 32px;
     --crm-space-10: 40px;
     --crm-space-12: 48px;
-    --crm-radius-xs: 4px;
-    --crm-radius-sm: 6px;
-    --crm-radius-md: 8px;
+    --crm-radius-xs: 6px;
+    --crm-radius-sm: 8px;
+    --crm-radius-md: 10px;
     --crm-radius-lg: 12px;
     --crm-radius-message: 18px;
     --crm-shell-sidebar: 240px;
@@ -49,7 +51,7 @@
     --crm-record-context: minmax(240px, 25%);
     --crm-record-main: minmax(0, 50%);
     --crm-record-widget: minmax(260px, 25%);
-    --crm-focus-ring: rgba(15, 106, 83, 0.28);
+    --crm-focus-ring: rgba(201, 151, 0, 0.32);
     --crm-status-success-bg: #ecfdf3;
     --crm-status-success-text: #05603a;
     --crm-status-warning-bg: #fffaeb;
@@ -62,53 +64,78 @@
   body {
     background: var(--app-bg);
     color: var(--app-ink);
-    font-family: "SF Pro Display", "Helvetica Neue", "Segoe UI", sans-serif;
+    font-family: Inter, "Avenir Next", "Segoe UI", Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
     min-height: 100vh;
+    padding-top: env(safe-area-inset-top);
+  }
+  h1, h2, h3, h4, h5, h6, .font-display {
+    font-family: Manrope, Inter, "Avenir Next", "Segoe UI", Arial, sans-serif;
+  }
+  :where(button, a, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--brand-gold);
+    outline-offset: 2px;
   }
   ::selection {
-    background: rgba(31, 95, 82, 0.18);
+    background: rgba(201, 151, 0, 0.22);
   }
   ::-webkit-scrollbar { width: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: rgba(122, 109, 102, 0.35); border-radius: 999px; }
+  ::-webkit-scrollbar-thumb { background: rgba(102, 112, 133, 0.4); border-radius: 999px; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      scroll-behavior: auto !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }
 
 @layer components {
   .card {
-    @apply bg-[#1A2940] border border-[#2D4A6A] rounded-xl;
+    @apply rounded-xl border bg-white;
+    border-color: var(--app-line);
+    color: var(--app-ink);
   }
   .card-elevated {
-    @apply bg-[#243555] border border-[#2D4A6A] rounded-xl;
+    @apply rounded-xl border bg-white;
+    border-color: var(--app-line);
+    color: var(--app-ink);
   }
   .btn-gold {
-    @apply bg-[#F5A623] text-[#0F1B2D] font-semibold px-5 py-2.5 rounded-lg
-           hover:bg-[#FDB944] transition-all duration-150 active:scale-95 text-sm;
+    @apply rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors duration-150;
+    background: var(--brand-gold);
+    color: var(--brand-navy);
   }
+  .btn-gold:hover { background: #d5a411; }
   .btn-ghost {
-    @apply border border-[#2D4A6A] text-slate-300 font-medium px-5 py-2.5 rounded-lg
-           hover:bg-[#1A2940] hover:border-[#F5A623] hover:text-white transition-all duration-150 text-sm;
+    @apply rounded-xl border bg-white px-5 py-2.5 text-sm font-medium transition-colors duration-150;
+    border-color: var(--app-line);
+    color: var(--app-ink);
   }
+  .btn-ghost:hover { border-color: var(--brand-navy); }
   .btn-danger {
-    @apply bg-red-900/30 text-red-400 border border-red-800 font-medium px-4 py-2 rounded-lg
-           hover:bg-red-900/50 transition-all duration-150 text-sm;
+    @apply rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition-colors duration-150 hover:bg-red-100;
   }
   .input {
-    @apply bg-[#0F1B2D] border border-[#2D4A6A] rounded-lg px-3 py-2.5 text-sm text-white
-           placeholder-slate-500 focus:outline-none focus:border-[#F5A623] focus:ring-1 focus:ring-[#F5A623]/30
-           transition-all duration-150 w-full;
+    @apply w-full rounded-xl border bg-white px-3 py-2.5 text-sm transition-colors duration-150;
+    border-color: var(--app-line);
+    color: var(--app-ink);
   }
   .label {
-    @apply text-xs font-medium text-slate-400 uppercase tracking-wider mb-1.5 block;
+    @apply mb-1.5 block text-xs font-medium uppercase tracking-wider;
+    color: var(--app-muted);
   }
   .badge {
     @apply inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full;
   }
-  .badge-pending   { @apply badge bg-slate-700/60 text-slate-300; }
-  .badge-sent      { @apply badge bg-blue-900/60 text-blue-300; }
-  .badge-progress  { @apply badge bg-yellow-900/60 text-yellow-300; }
-  .badge-complete  { @apply badge bg-emerald-900/60 text-emerald-300; }
-  .badge-flagged   { @apply badge bg-red-900/60 text-red-300; }
+  .badge-pending   { @apply badge bg-slate-100 text-slate-700; }
+  .badge-sent      { @apply badge bg-blue-50 text-blue-700; }
+  .badge-progress  { @apply badge bg-amber-50 text-amber-800; }
+  .badge-complete  { @apply badge bg-emerald-50 text-emerald-700; }
+  .badge-flagged   { @apply badge bg-red-50 text-red-700; }
   .stat-card {
     @apply card p-5 flex flex-col gap-1;
   }
@@ -143,7 +170,7 @@
     color: #73756e;
   }
   .crm-button {
-    @apply inline-flex min-h-11 items-center justify-center rounded-[4px] border px-4 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex min-h-11 items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
     border-color: var(--app-line);
     background: var(--app-panel);
     color: var(--app-ink);
@@ -151,20 +178,20 @@
     --tw-ring-offset-color: var(--app-bg);
   }
   .crm-button-dark {
-    @apply inline-flex min-h-11 items-center justify-center rounded-[4px] px-4 py-2 text-sm font-medium text-white transition focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex min-h-11 items-center justify-center rounded-xl px-4 py-2 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50;
     background: var(--app-accent);
     box-shadow: none;
     --tw-ring-color: var(--crm-focus-ring);
     --tw-ring-offset-color: var(--app-bg);
   }
   .crm-input {
-    @apply min-h-11 w-full rounded-[4px] border px-4 py-2.5 text-base outline-none transition placeholder:text-stone-400 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-500 md:text-sm;
+    @apply min-h-11 w-full rounded-xl border px-4 py-2.5 text-base outline-none transition-colors placeholder:text-stone-400 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-500 md:text-sm;
     border-color: var(--app-line);
     background: var(--app-bg);
     color: var(--app-ink);
   }
   .crm-button:hover { border-color: var(--app-ink); background: #fff; }
-  .crm-button-dark:hover { background: #0a5b47; }
+  .crm-button-dark:hover { background: #102638; }
   .crm-input:focus {
     border-color: var(--app-accent);
     box-shadow: 0 0 0 3px var(--crm-focus-ring);
@@ -255,12 +282,12 @@
     color: var(--app-muted);
   }
   .crm-toggle {
-    @apply rounded-[4px] px-4 py-2 text-sm font-medium transition;
-    background: #f1f3f2;
-    color: #6a5d54;
+    @apply rounded-lg px-4 py-2 text-sm font-medium transition-colors;
+    background: var(--app-wash);
+    color: var(--app-muted);
   }
   .crm-toggle-active {
-    background: #224838;
+    background: var(--brand-navy);
     color: white;
     box-shadow: none;
   }

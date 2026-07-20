@@ -224,7 +224,7 @@ function MoveDateBadge({ dateStr }: { dateStr?: string }) {
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm font-semibold text-[#1a2744]">{formatDate(dateStr)}</span>
+      <span className="text-sm font-semibold text-[#071421]">{formatDate(dateStr)}</span>
       <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${color}`}>{label}</span>
     </div>
   )
@@ -507,7 +507,7 @@ export default function OperationsPage() {
     const truckAssigned = hasTruckAssigned(job)
 
     return (
-      <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-4">
+      <div className="rounded-xl border border-slate-100 bg-white p-5 shadow-sm space-y-4">
         {/* Header row */}
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
@@ -519,7 +519,7 @@ export default function OperationsPage() {
                 </span>
               )}
             </div>
-            <div className="text-base font-semibold text-[#1a2744]">{lead.name}</div>
+            <div className="text-base font-semibold text-[#071421]">{lead.name}</div>
           </div>
           <div className="flex flex-col items-end gap-1">
             <PaymentBadge lead={lead} />
@@ -551,19 +551,19 @@ export default function OperationsPage() {
         {quote && (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl bg-slate-50 px-3 py-2 text-xs">
             <span className="text-slate-500">Deposit: <span className={`font-semibold ${lead.paymentStatus === 'deposit_received' || lead.paymentStatus === 'paid_in_full' ? 'text-emerald-700' : 'text-amber-700'}`}>{formatMoney(quote.deposit)}{lead.paymentStatus === 'deposit_received' || lead.paymentStatus === 'paid_in_full' ? ' ✓' : ''}</span></span>
-            <span className="text-slate-500">Balance: <span className="font-semibold text-[#1a2744]">{formatMoney(quote.balance)}</span></span>
-            <span className="text-slate-500">Total: <span className="font-semibold text-[#1a2744]">{formatMoney(quote.total)}</span></span>
+            <span className="text-slate-500">Balance: <span className="font-semibold text-[#071421]">{formatMoney(quote.balance)}</span></span>
+            <span className="text-slate-500">Total: <span className="font-semibold text-[#071421]">{formatMoney(quote.total)}</span></span>
           </div>
         )}
 
         <div className="grid gap-2 sm:grid-cols-2">
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
             <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Quote amount</div>
-            <div className="mt-1 text-sm font-semibold text-[#1a2744]">{quote ? formatMoney(quote.total) : 'TBD'}</div>
+            <div className="mt-1 text-sm font-semibold text-[#071421]">{quote ? formatMoney(quote.total) : 'TBD'}</div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
             <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Estimated hours</div>
-            <div className="mt-1 text-sm font-semibold text-[#1a2744]">{estHours ? `~${estHours}h` : 'TBD'}</div>
+            <div className="mt-1 text-sm font-semibold text-[#071421]">{estHours ? `~${estHours}h` : 'TBD'}</div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
             Crew: <span className={`font-semibold ${crewAssigned ? 'text-emerald-700' : 'text-rose-600'}`}>{crewAssigned ? 'Assigned' : 'Missing'}</span>
@@ -580,7 +580,7 @@ export default function OperationsPage() {
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
-          <span className="font-semibold text-[#1a2744]">Dispatch notes:</span> {readiness.reasons.join(' · ')}
+          <span className="font-semibold text-[#071421]">Dispatch notes:</span> {readiness.reasons.join(' · ')}
         </div>
 
         {/* Assigned crew */}
@@ -590,7 +590,7 @@ export default function OperationsPage() {
               const member = crewPool.find(c => c.id === id)
               if (!member) return null
               return (
-                <span key={id} className="inline-flex items-center gap-1 rounded-full bg-[#1a2744]/10 px-2.5 py-1 text-xs font-medium text-[#1a2744]">
+                <span key={id} className="inline-flex items-center gap-1 rounded-full bg-[#071421]/10 px-2.5 py-1 text-xs font-medium text-[#071421]">
                   👤 {member.name}
                 </span>
               )
@@ -601,12 +601,12 @@ export default function OperationsPage() {
         {/* Contact + actions */}
         <div className="flex flex-wrap items-center gap-2">
           {lead.phone ? (
-            <a href={`tel:${lead.phone}`} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-[#1a2744] hover:bg-slate-50 transition">
+            <a href={`tel:${lead.phone}`} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-[#071421] hover:bg-slate-50 transition">
               📞 {lead.phone}
             </a>
           ) : null}
           {lead.email ? (
-            <a href={`mailto:${lead.email}`} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-[#1a2744] hover:bg-slate-50 transition">
+            <a href={`mailto:${lead.email}`} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-[#071421] hover:bg-slate-50 transition">
               📧 Email
             </a>
           ) : null}
@@ -614,14 +614,14 @@ export default function OperationsPage() {
             {canManageCrew && crewPool.length > 0 && (
               <button
                 onClick={() => setAssigningJob(job)}
-                className="rounded-lg border border-[#1a2744]/30 px-3 py-1.5 text-xs font-medium text-[#1a2744] hover:bg-[#1a2744]/5 transition"
+                className="rounded-lg border border-[#071421]/30 px-3 py-1.5 text-xs font-medium text-[#071421] hover:bg-[#071421]/5 transition"
               >
                 Pre-Move Checklist
               </button>
             )}
             <Link
               href={`/sales/leads/${lead.id}`}
-              className="rounded-lg bg-[#1a2744] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 transition"
+              className="rounded-lg bg-[#071421] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 transition"
             >
               View Lead
             </Link>
@@ -643,7 +643,7 @@ export default function OperationsPage() {
       {/* Page header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-bold text-[#1a2744]">Operations</h1>
+          <h1 className="font-display text-2xl font-bold text-[#071421]">Operations</h1>
           <p className="mt-1 text-sm text-slate-500">
             Dispatch Readiness ·{' '}
             {new Date().toLocaleDateString('en-CA', { timeZone: 'America/Toronto', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
@@ -669,13 +669,13 @@ export default function OperationsPage() {
           <div className="flex rounded-lg border border-slate-200 overflow-hidden">
             <button
               onClick={() => setViewMode('calendar')}
-              className={`px-3 py-1.5 text-sm font-medium transition ${viewMode === 'calendar' ? 'bg-[#1a2744] text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
+              className={`px-3 py-1.5 text-sm font-medium transition ${viewMode === 'calendar' ? 'bg-[#071421] text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
             >
               📅 Calendar
             </button>
             <button
               onClick={() => setViewMode('cards')}
-              className={`px-3 py-1.5 text-sm font-medium transition ${viewMode === 'cards' ? 'bg-[#1a2744] text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
+              className={`px-3 py-1.5 text-sm font-medium transition ${viewMode === 'cards' ? 'bg-[#071421] text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
             >
               ☰ Cards
             </button>
@@ -684,7 +684,7 @@ export default function OperationsPage() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-center gap-2">
           {OPERATIONS_FILTERS.map(filter => {
             const active = activeFilters.includes(filter.key)
@@ -695,7 +695,7 @@ export default function OperationsPage() {
                 onClick={() => toggleFilter(filter.key)}
                 className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                   active
-                    ? 'border-[#1a2744] bg-[#1a2744] text-white'
+                    ? 'border-[#071421] bg-[#071421] text-white'
                     : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                 }`}
               >
@@ -718,22 +718,22 @@ export default function OperationsPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Ready to dispatch</div>
           <div className={`mt-2 text-2xl font-bold ${readyCount > 0 ? 'text-emerald-600' : 'text-slate-500'}`}>{readyCount}</div>
           <div className="mt-1 text-xs text-slate-500">Booked upcoming moves with checklist complete</div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Needs briefing</div>
           <div className={`mt-2 text-2xl font-bold ${missingBriefingCount > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{missingBriefingCount}</div>
           <div className="mt-1 text-xs text-slate-500">Crew packet still needs to be generated or checked</div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Missing trucks</div>
           <div className={`mt-2 text-2xl font-bold ${missingTruckCount > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{missingTruckCount}</div>
           <div className="mt-1 text-xs text-slate-500">Booked moves still waiting on a reservation</div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Missing crew</div>
           <div className={`mt-2 text-2xl font-bold ${missingCrewCount > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{missingCrewCount}</div>
           <div className="mt-1 text-xs text-slate-500">Booked moves without an assigned team</div>
@@ -771,7 +771,7 @@ export default function OperationsPage() {
             <section>
               <div className="mb-4 flex items-center gap-3">
                 <div className="h-px flex-1 bg-slate-200" />
-                <span className="rounded-full bg-[#1a2744] px-3 py-1 text-xs font-semibold uppercase tracking-widest text-white">
+                <span className="rounded-full bg-[#071421] px-3 py-1 text-xs font-semibold uppercase tracking-widest text-white">
                   Upcoming Moves
                 </span>
                 <div className="h-px flex-1 bg-slate-200" />
@@ -1019,7 +1019,7 @@ function JobsCalendar({
       {/* Month navigation */}
       <div className="flex items-center justify-between">
         <button onClick={prevMonth} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm hover:bg-slate-50 transition">← Prev</button>
-        <h2 className="font-display text-lg font-bold text-[#1a2744]">{monthLabel}</h2>
+        <h2 className="font-display text-lg font-bold text-[#071421]">{monthLabel}</h2>
         <button onClick={nextMonth} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm hover:bg-slate-50 transition">Next →</button>
       </div>
 
@@ -1036,7 +1036,7 @@ function JobsCalendar({
       {/* Day headers */}
       <div className="grid grid-cols-7 gap-px rounded-t-xl overflow-hidden border border-slate-200">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-          <div key={d} className="bg-[#1a2744] px-2 py-2 text-center text-[11px] font-bold uppercase tracking-widest text-white">
+          <div key={d} className="bg-[#071421] px-2 py-2 text-center text-[11px] font-bold uppercase tracking-widest text-white">
             {d}
           </div>
         ))}
@@ -1059,11 +1059,11 @@ function JobsCalendar({
           return (
             <div
               key={i}
-              className={`min-h-[112px] p-1.5 ${dayTone} ${isToday ? 'ring-2 ring-inset ring-[#f5a623]' : ''}`}
+              className={`min-h-[112px] p-1.5 ${dayTone} ${isToday ? 'ring-2 ring-inset ring-[#C99700]' : ''}`}
             >
               {cell.day !== null && (
                 <div className="mb-1 flex items-center justify-between gap-2">
-                  <div className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${isToday ? 'bg-[#f5a623] text-white' : 'text-slate-500'}`}>
+                  <div className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${isToday ? 'bg-[#C99700] text-white' : 'text-slate-500'}`}>
                     {cell.day}
                   </div>
                   {dayJobs.length > 0 && (
@@ -1078,7 +1078,7 @@ function JobsCalendar({
               )}
               <div className="space-y-1">
                 {dayJobs.map(job => {
-                  const branchColor = job.lead.branch ? BRANCH_COLORS[job.lead.branch] : 'bg-[#1a2744]/10 text-[#1a2744]'
+                  const branchColor = job.lead.branch ? BRANCH_COLORS[job.lead.branch] : 'bg-[#071421]/10 text-[#071421]'
                   const readiness = deriveDispatchReadiness(job)
                   const crewNames = (job.lead.assignedCrew?.length ?? 0) > 0
                     ? `${job.lead.assignedCrew!.length} crew`
@@ -1111,11 +1111,11 @@ function JobsCalendar({
           className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/45 p-4 pt-10 backdrop-blur-sm"
           onClick={event => { if (event.target === event.currentTarget) setSelectedJob(null) }}
         >
-        <div className="max-h-[calc(100vh-5rem)] w-full max-w-5xl space-y-4 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+        <div className="max-h-[calc(100vh-5rem)] w-full max-w-5xl space-y-4 overflow-y-auto rounded-xl border border-slate-200 bg-white p-5 shadow-none">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-lg font-bold text-[#1a2744]">{selectedJob.lead.name}</span>
+                <span className="text-lg font-bold text-[#071421]">{selectedJob.lead.name}</span>
                 {selectedJob.lead.branch && (
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${BRANCH_COLORS[selectedJob.lead.branch] || 'bg-slate-100 text-slate-600'}`}>
                     {BRANCH_LABELS[selectedJob.lead.branch] || selectedJob.lead.branch}
@@ -1140,26 +1140,26 @@ function JobsCalendar({
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <div className="rounded-xl bg-slate-50 p-3">
               <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Move date</div>
-              <div className="mt-1 text-sm font-semibold text-[#1a2744]">
+              <div className="mt-1 text-sm font-semibold text-[#071421]">
                 {getJobMoveDate(selectedJob) ? formatDate(getJobMoveDate(selectedJob) || '') : 'TBD'}
               </div>
             </div>
             {selectedJob.quote?.crewSize && (
               <div className="rounded-xl bg-slate-50 p-3">
                 <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Crew size</div>
-                <div className="mt-1 text-sm font-semibold text-[#1a2744]">{selectedJob.quote.crewSize} movers</div>
+                <div className="mt-1 text-sm font-semibold text-[#071421]">{selectedJob.quote.crewSize} movers</div>
               </div>
             )}
             {getQuotedTruckCount(selectedJob.lead, selectedJob.quote) && (
               <div className="rounded-xl bg-slate-50 p-3">
                 <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Trucks</div>
-                <div className="mt-1 text-sm font-semibold text-[#1a2744]">{getTruckPlanLabel(selectedJob.lead, selectedJob.quote)}</div>
+                <div className="mt-1 text-sm font-semibold text-[#071421]">{getTruckPlanLabel(selectedJob.lead, selectedJob.quote)}</div>
               </div>
             )}
             {selectedJob.quote?.estimatedHours && (
               <div className="rounded-xl bg-slate-50 p-3">
                 <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Est. hours</div>
-                <div className="mt-1 text-sm font-semibold text-[#1a2744]">~{selectedJob.quote.estimatedHours}h</div>
+                <div className="mt-1 text-sm font-semibold text-[#071421]">~{selectedJob.quote.estimatedHours}h</div>
               </div>
             )}
           </div>
@@ -1167,15 +1167,15 @@ function JobsCalendar({
           {selectedJob.quote && (
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl bg-slate-50 px-3 py-2 text-xs">
               <span className="text-slate-500">Deposit: <span className={`font-semibold ${selectedJob.lead.paymentStatus === 'deposit_received' || selectedJob.lead.paymentStatus === 'paid_in_full' ? 'text-emerald-700' : 'text-amber-700'}`}>{formatMoney(selectedJob.quote.deposit)}{selectedJob.lead.paymentStatus === 'deposit_received' || selectedJob.lead.paymentStatus === 'paid_in_full' ? ' ✓' : ''}</span></span>
-              <span className="text-slate-500">Balance due: <span className="font-semibold text-[#1a2744]">{formatMoney(selectedJob.quote.balance)}</span></span>
-              <span className="text-slate-500">Total: <span className="font-semibold text-[#1a2744]">{formatMoney(selectedJob.quote.total)}</span></span>
+              <span className="text-slate-500">Balance due: <span className="font-semibold text-[#071421]">{formatMoney(selectedJob.quote.balance)}</span></span>
+              <span className="text-slate-500">Total: <span className="font-semibold text-[#071421]">{formatMoney(selectedJob.quote.total)}</span></span>
             </div>
           )}
 
           <div className="grid gap-3 md:grid-cols-2">
             <div className="rounded-xl border border-slate-200 bg-white p-4">
               <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Truck reservation</div>
-              <div className="mt-2 text-sm font-semibold text-[#1a2744]">{getTruckPlanLabel(selectedJob.lead, selectedJob.quote)}</div>
+              <div className="mt-2 text-sm font-semibold text-[#071421]">{getTruckPlanLabel(selectedJob.lead, selectedJob.quote)}</div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <TruckReservationBadge lead={selectedJob.lead} quote={selectedJob.quote} />
                 {selectedJob.lead.truckVendor && (
@@ -1185,10 +1185,10 @@ function JobsCalendar({
                 )}
               </div>
               <div className="mt-3 space-y-1 text-xs text-slate-500">
-                <div>Pickup: <span className="font-medium text-[#1a2744]">{selectedJob.lead.truckPickupLocation || 'TBD'}</span></div>
-                <div>Pickup time: <span className="font-medium text-[#1a2744]">{formatDateTime(selectedJob.lead.truckPickupTime)}</span></div>
-                <div>Return: <span className="font-medium text-[#1a2744]">{selectedJob.lead.truckReturnLocation || 'TBD'}</span></div>
-                <div>Reservation #: <span className="font-medium text-[#1a2744]">{selectedJob.lead.truckReservationNumber || 'TBD'}</span></div>
+                <div>Pickup: <span className="font-medium text-[#071421]">{selectedJob.lead.truckPickupLocation || 'TBD'}</span></div>
+                <div>Pickup time: <span className="font-medium text-[#071421]">{formatDateTime(selectedJob.lead.truckPickupTime)}</span></div>
+                <div>Return: <span className="font-medium text-[#071421]">{selectedJob.lead.truckReturnLocation || 'TBD'}</span></div>
+                <div>Reservation #: <span className="font-medium text-[#071421]">{selectedJob.lead.truckReservationNumber || 'TBD'}</span></div>
               </div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-4">
@@ -1224,7 +1224,7 @@ function JobsCalendar({
           {(selectedJob.lead.assignedCrew?.length ?? 0) > 0 && (
             <div>
               <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Assigned crew</div>
-              <div className="flex flex-wrap gap-1.5 text-xs text-[#1a2744]">
+              <div className="flex flex-wrap gap-1.5 text-xs text-[#071421]">
                 {getCrewNames(selectedJob.lead, crewPool).join(', ')}
               </div>
             </div>
@@ -1247,7 +1247,7 @@ function JobsCalendar({
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Crew pay sheet</div>
-                <div className="text-xs font-semibold text-[#1a2744]">{formatMoney(sumCrewPayoutTotal(selectedJob.lead.crewPayouts))}</div>
+                <div className="text-xs font-semibold text-[#071421]">{formatMoney(sumCrewPayoutTotal(selectedJob.lead.crewPayouts))}</div>
               </div>
               <div className="mt-3 space-y-2">
                 {selectedJob.lead.crewPayouts!.map(entry => {
@@ -1255,7 +1255,7 @@ function JobsCalendar({
                   return (
                     <div key={entry.id} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="font-semibold text-[#1a2744]">{entry.workerName}</div>
+                        <div className="font-semibold text-[#071421]">{entry.workerName}</div>
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
                           {CREW_PAYOUT_STATUS_LABELS[entry.payoutStatus || 'submitted']}
                         </span>
@@ -1268,7 +1268,7 @@ function JobsCalendar({
                         <span className="text-slate-500">
                           {entry.paymentMethod ? `${CREW_PAYOUT_METHOD_LABELS[entry.paymentMethod]}${entry.payoutDestination ? ` · ${entry.payoutDestination}` : ''}` : 'Payout details pending'}
                         </span>
-                        <span className="font-semibold text-[#1a2744]">{formatMoney(totalPay)}</span>
+                        <span className="font-semibold text-[#071421]">{formatMoney(totalPay)}</span>
                       </div>
                     </div>
                   )
@@ -1330,7 +1330,7 @@ function JobsCalendar({
               <button
                 onClick={() => void saveActuals()}
                 disabled={savingActuals || !actualHours}
-                className="rounded-lg bg-[#1a2744] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                className="rounded-lg bg-[#071421] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
               >
                 {savingActuals ? 'Saving...' : 'Save Actuals'}
               </button>
@@ -1362,18 +1362,18 @@ function JobsCalendar({
               {MOVE_EXECUTION_PHASES.map(({ phase, label }) => (
                 <div key={phase} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
                   <div className="flex items-center gap-2">
-                    <div className="min-w-0 flex-1 text-xs font-semibold text-[#1a2744]">{label}</div>
+                    <div className="min-w-0 flex-1 text-xs font-semibold text-[#071421]">{label}</div>
                     <input
                       type="datetime-local"
                       value={executionTimes[phase] || ''}
                       onChange={event => setExecutionTimes(prev => ({ ...prev, [phase]: event.target.value }))}
-                      className="w-40 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700 outline-none focus:border-[#1a2744]"
+                      className="w-40 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700 outline-none focus:border-[#071421]"
                     />
                   </div>
                   <input
                     value={executionNotes[phase] || ''}
                     onChange={event => setExecutionNotes(prev => ({ ...prev, [phase]: event.target.value }))}
-                    className="mt-2 w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700 outline-none focus:border-[#1a2744]"
+                    className="mt-2 w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700 outline-none focus:border-[#071421]"
                     placeholder="Phase note"
                   />
                 </div>
@@ -1461,7 +1461,7 @@ function JobsCalendar({
               <button
                 onClick={() => void saveExecutionLog()}
                 disabled={savingExecutionLog}
-                className="rounded-lg bg-[#1a2744] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                className="rounded-lg bg-[#071421] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
               >
                 {savingExecutionLog ? 'Saving...' : 'Save Move Log'}
               </button>
@@ -1470,19 +1470,19 @@ function JobsCalendar({
 
           <div className="flex gap-2">
             {selectedJob.lead.phone && (
-              <a href={`tel:${selectedJob.lead.phone}`} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-[#1a2744] hover:bg-slate-50 transition">
+              <a href={`tel:${selectedJob.lead.phone}`} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-[#071421] hover:bg-slate-50 transition">
                 📞 {selectedJob.lead.phone}
               </a>
             )}
             {canManageCrew && (
               <button
                 onClick={() => { onSelectJob(selectedJob); setSelectedJob(null) }}
-                className="rounded-lg border border-[#1a2744]/30 px-3 py-1.5 text-xs font-medium text-[#1a2744] hover:bg-[#1a2744]/5 transition"
+                className="rounded-lg border border-[#071421]/30 px-3 py-1.5 text-xs font-medium text-[#071421] hover:bg-[#071421]/5 transition"
               >
                 Pre-Move Checklist
               </button>
             )}
-            <Link href={`/sales/leads/${selectedJob.lead.id}`} className="ml-auto rounded-lg bg-[#1a2744] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 transition">
+            <Link href={`/sales/leads/${selectedJob.lead.id}`} className="ml-auto rounded-lg bg-[#071421] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 transition">
               View Full Lead →
             </Link>
           </div>
@@ -1719,18 +1719,18 @@ function CrewAssignModal({
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-6xl items-start">
-      <div className="w-full overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 bg-[#1a2744] px-6 py-5" style={{ borderBottom: '2px solid #f5a623' }}>
+      <div className="w-full overflow-hidden rounded-xl bg-white shadow-none">
+        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 bg-[#071421] px-6 py-5" style={{ borderBottom: '2px solid #C99700' }}>
           <div>
             <h2 className="text-base font-bold text-white">Pre-Move Checklist</h2>
             <p className="mt-0.5 text-xs text-white/60">{job.lead.name} — {getJobMoveDate(job) || 'Date TBD'}</p>
           </div>
-          <button onClick={onClose} className="rounded-full bg-white/10 px-3 py-1 text-sm font-semibold text-white hover:bg-white/20">Close</button>
+          <button onClick={onClose} className="rounded-xl bg-white/10 px-3 py-1 text-sm font-semibold text-white hover:bg-white/20">Close</button>
         </div>
         <div className="p-6 space-y-4">
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
             <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Quoted truck plan</div>
-            <div className="mt-1 text-sm font-semibold text-[#1a2744]">{getTruckPlanLabel(job.lead, job.quote)}</div>
+            <div className="mt-1 text-sm font-semibold text-[#071421]">{getTruckPlanLabel(job.lead, job.quote)}</div>
             <div className="mt-1 text-xs text-slate-500">Truck count is pulled directly from the quote and cannot be changed here.</div>
           </div>
 
@@ -1745,13 +1745,13 @@ function CrewAssignModal({
                         type="checkbox"
                         checked={selected.includes(member.id)}
                         onChange={() => toggle(member.id)}
-                        className="h-4 w-4 accent-[#1a2744]"
+                        className="h-4 w-4 accent-[#071421]"
                       />
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1a2744] text-xs font-bold text-[#f5a623]">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#071421] text-xs font-bold text-[#C99700]">
                         {member.name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)}
                       </div>
                       <div>
-                        <div className="text-sm font-medium text-[#1a2744]">{member.name}</div>
+                        <div className="text-sm font-medium text-[#071421]">{member.name}</div>
                         <div className="text-xs capitalize text-slate-400">{member.role.replace('_', ' ')}</div>
                       </div>
                     </label>
@@ -1781,7 +1781,7 @@ function CrewAssignModal({
                       return (
                         <div key={userId} className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3">
                           <div className="min-w-0 flex-1">
-                            <div className="text-sm font-medium text-[#1a2744]">{member?.name || `Crew #${userId.slice(-4)}`}</div>
+                            <div className="text-sm font-medium text-[#071421]">{member?.name || `Crew #${userId.slice(-4)}`}</div>
                             <div className="text-xs capitalize text-slate-400">{member?.role?.replace('_', ' ') || 'crew'}</div>
                           </div>
                           <input
@@ -1807,10 +1807,10 @@ function CrewAssignModal({
                     <div className="mt-1 text-xs text-slate-500">Submit the workers, hours, and reimbursement details for this move. Finance will review before payout.</div>
                   </div>
                   <div className="flex gap-2">
-                    <button type="button" onClick={addSelectedCrewToPaySheet} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-[#1a2744] hover:bg-slate-50 transition">
+                    <button type="button" onClick={addSelectedCrewToPaySheet} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-[#071421] hover:bg-slate-50 transition">
                       + Add selected crew
                     </button>
-                    <button type="button" onClick={addManualPayEntry} className="rounded-lg bg-[#1a2744] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 transition">
+                    <button type="button" onClick={addManualPayEntry} className="rounded-lg bg-[#071421] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 transition">
                       + Add contractor
                     </button>
                   </div>
@@ -1818,10 +1818,10 @@ function CrewAssignModal({
 
                 <div className="mt-3 grid gap-2 sm:grid-cols-3">
                   <div className="rounded-lg bg-white px-3 py-2 text-xs text-slate-600">
-                    Required crew: <span className="font-semibold text-[#1a2744]">{requiredCrewCount || 'TBD'}</span>
+                    Required crew: <span className="font-semibold text-[#071421]">{requiredCrewCount || 'TBD'}</span>
                   </div>
                   <div className="rounded-lg bg-white px-3 py-2 text-xs text-slate-600">
-                    Required drivers: <span className="font-semibold text-[#1a2744]">{requiredDriverCount}</span>
+                    Required drivers: <span className="font-semibold text-[#071421]">{requiredDriverCount}</span>
                   </div>
                   <div className="rounded-lg bg-white px-3 py-2 text-xs text-slate-600">
                     Assigned drivers: <span className={`font-semibold ${assignedDriverCount >= requiredDriverCount ? 'text-emerald-700' : 'text-rose-600'}`}>
@@ -1841,7 +1841,7 @@ function CrewAssignModal({
                     return (
                       <div key={entry.id} className="rounded-xl border border-slate-200 bg-white p-3 space-y-3">
                         <div className="flex items-center justify-between gap-3">
-                          <div className="text-xs font-semibold text-[#1a2744]">{entry.workerName || `Worker ${index + 1}`}</div>
+                          <div className="text-xs font-semibold text-[#071421]">{entry.workerName || `Worker ${index + 1}`}</div>
                           <div className="flex items-center gap-2">
                             <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                               entry.dispatchStatus === 'confirmed' ? 'bg-emerald-100 text-emerald-700' :
@@ -1987,7 +1987,7 @@ function CrewAssignModal({
                               <button
                                 type="button"
                                 onClick={() => void copyCrewDispatchLink(index)}
-                                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-[#1a2744] hover:bg-slate-50"
+                                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-[#071421] hover:bg-slate-50"
                               >
                                 Copy link
                               </button>
@@ -2006,10 +2006,10 @@ function CrewAssignModal({
 
                         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs">
                           <span className="text-slate-500">
-                            Labor: <span className="font-semibold text-[#1a2744]">{formatMoney(entry.laborPay || 0)}</span>
-                            {entry.reimbursementAmount ? <> · Reimb.: <span className="font-semibold text-[#1a2744]">{formatMoney(entry.reimbursementAmount)}</span></> : null}
+                            Labor: <span className="font-semibold text-[#071421]">{formatMoney(entry.laborPay || 0)}</span>
+                            {entry.reimbursementAmount ? <> · Reimb.: <span className="font-semibold text-[#071421]">{formatMoney(entry.reimbursementAmount)}</span></> : null}
                           </span>
-                          <span className="font-semibold text-[#1a2744]">Total payout: {formatMoney(totalPay)}</span>
+                          <span className="font-semibold text-[#071421]">Total payout: {formatMoney(totalPay)}</span>
                         </div>
                       </div>
                     )
@@ -2105,23 +2105,23 @@ function CrewAssignModal({
                     Truck reserved
                   </label>
                   <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700">
-                    <input type="checkbox" checked={accessConfirmed || accessAssessment.accessAutoClear} onChange={e => setAccessConfirmed(e.target.checked)} disabled={accessAssessment.accessAutoClear} className="h-4 w-4 accent-[#1a2744] disabled:opacity-70" />
+                    <input type="checkbox" checked={accessConfirmed || accessAssessment.accessAutoClear} onChange={e => setAccessConfirmed(e.target.checked)} disabled={accessAssessment.accessAutoClear} className="h-4 w-4 accent-[#071421] disabled:opacity-70" />
                     {accessAssessment.accessAutoClear ? 'Access auto-clear' : 'Access reviewed'}
                   </label>
                   <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700">
-                    <input type="checkbox" checked={parkingConfirmed || accessAssessment.parkingAutoClear} onChange={e => setParkingConfirmed(e.target.checked)} disabled={accessAssessment.parkingAutoClear} className="h-4 w-4 accent-[#1a2744] disabled:opacity-70" />
+                    <input type="checkbox" checked={parkingConfirmed || accessAssessment.parkingAutoClear} onChange={e => setParkingConfirmed(e.target.checked)} disabled={accessAssessment.parkingAutoClear} className="h-4 w-4 accent-[#071421] disabled:opacity-70" />
                     {accessAssessment.parkingAutoClear ? 'Parking auto-clear' : 'Parking reviewed'}
                   </label>
                   <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700">
-                    <input type="checkbox" checked={toolsReady} onChange={e => setToolsReady(e.target.checked)} className="h-4 w-4 accent-[#1a2744]" />
+                    <input type="checkbox" checked={toolsReady} onChange={e => setToolsReady(e.target.checked)} className="h-4 w-4 accent-[#071421]" />
                     Equipment / materials ready
                   </label>
                   <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700">
-                    <input type="checkbox" checked={jobPacketReady} onChange={e => setJobPacketReady(e.target.checked)} className="h-4 w-4 accent-[#1a2744]" />
+                    <input type="checkbox" checked={jobPacketReady} onChange={e => setJobPacketReady(e.target.checked)} className="h-4 w-4 accent-[#071421]" />
                     Crew briefing ready
                   </label>
                   <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 sm:col-span-2">
-                    <input type="checkbox" checked={finalWalkthroughComplete} onChange={e => setFinalWalkthroughComplete(e.target.checked)} className="h-4 w-4 accent-[#1a2744]" />
+                    <input type="checkbox" checked={finalWalkthroughComplete} onChange={e => setFinalWalkthroughComplete(e.target.checked)} className="h-4 w-4 accent-[#071421]" />
                     Final walkthrough complete
                   </label>
                 </div>
@@ -2140,7 +2140,7 @@ function CrewAssignModal({
             <button
               onClick={() => void save()}
               disabled={busy}
-              className="flex-1 rounded-xl bg-[#1a2744] px-4 py-2.5 text-sm font-bold text-white hover:opacity-90 transition disabled:opacity-60"
+              className="flex-1 rounded-xl bg-[#071421] px-4 py-2.5 text-sm font-bold text-white hover:opacity-90 transition disabled:opacity-60"
             >
               {busy ? 'Saving...' : 'Save Pre-Move Checklist'}
             </button>

@@ -234,7 +234,7 @@ export function LeadTimeline({
                 type="button"
                 onClick={onStopConsultation}
                 disabled={consultationSaving}
-                className="shrink-0 rounded-[8px] bg-[#1a2744] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#243560] disabled:opacity-50"
+                className="shrink-0 rounded-[8px] bg-[#071421] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#243560] disabled:opacity-50"
               >
                 {consultationSaving ? 'Saving…' : 'Stop + Save'}
               </button>
@@ -251,14 +251,14 @@ export function LeadTimeline({
                 }}
                 rows={1}
                 disabled={readOnly}
-                className="flex-1 resize-none rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2 text-sm leading-5 outline-none focus:border-[#1a2744] focus:ring-1 focus:ring-[#1a2744]"
+                className="flex-1 resize-none rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2 text-sm leading-5 outline-none focus:border-[#071421] focus:ring-1 focus:ring-[#071421]"
                 placeholder="Add a note…"
               />
               <button
                 type="button"
                 onClick={() => void handlePostNote()}
                 disabled={readOnly || postingNote || !quickNote.trim()}
-                className="shrink-0 rounded-[8px] bg-[#1a2744] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#243560] disabled:opacity-50"
+                className="shrink-0 rounded-[8px] bg-[#071421] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#243560] disabled:opacity-50"
               >
                 {postingNote ? 'Posting…' : 'Post'}
               </button>

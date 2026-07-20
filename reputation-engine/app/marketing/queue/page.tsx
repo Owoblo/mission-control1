@@ -117,7 +117,7 @@ export default function QueuePage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-bold text-[#1a2744]">Daily Partnership Queue</h1>
+          <h1 className="font-display text-2xl font-bold text-[#071421]">Daily Partnership Queue</h1>
           <p className="mt-1 text-sm text-[var(--app-muted)]">
             {new Date().toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' })}
             {total > 0 && ` · ${total} action${total !== 1 ? 's' : ''} waiting`}
@@ -128,7 +128,7 @@ export default function QueuePage() {
             <button
               key={v}
               onClick={() => setView(v)}
-              className={`rounded-full px-4 py-2 text-sm font-medium transition capitalize ${view === v ? 'bg-[#1a2744] text-white' : 'bg-[var(--app-bg)] border border-[var(--app-line)] text-[var(--app-muted)] hover:border-[var(--app-ink)]'}`}
+              className={`rounded-full px-4 py-2 text-sm font-medium transition capitalize ${view === v ? 'bg-[#071421] text-white' : 'bg-[var(--app-bg)] border border-[var(--app-line)] text-[var(--app-muted)] hover:border-[var(--app-ink)]'}`}
             >
               {v}
             </button>
@@ -141,7 +141,7 @@ export default function QueuePage() {
       ) : visible.length === 0 ? (
         <div className="crm-panel p-16 text-center space-y-3">
           <div className="text-5xl">✅</div>
-          <div className="text-lg font-bold text-[#1a2744]">Queue is clear</div>
+          <div className="text-lg font-bold text-[#071421]">Queue is clear</div>
           <p className="text-sm text-[var(--app-muted)]">
             {view === 'today'
               ? 'Nothing due today. Check Upcoming or move mailed / due accounts into the queue from Partnerships.'
@@ -170,7 +170,7 @@ export default function QueuePage() {
               {overdue.length > 0 && (
                 <div className="flex items-center gap-3">
                   <div className="h-px flex-1 bg-slate-200" />
-                  <span className="rounded-full bg-[#1a2744] px-3 py-1 text-xs font-bold text-white">
+                  <span className="rounded-full bg-[#071421] px-3 py-1 text-xs font-bold text-white">
                     Due Today — {today.length}
                   </span>
                   <div className="h-px flex-1 bg-slate-200" />
@@ -186,7 +186,7 @@ export default function QueuePage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">
           <div className="crm-panel w-full max-w-md space-y-4">
             <div>
-              <h2 className="text-lg font-semibold text-[#1a2744]">What happened?</h2>
+              <h2 className="text-lg font-semibold text-[#071421]">What happened?</h2>
               <p className="mt-1 text-sm text-[var(--app-muted)]">{outcomeItem.contact?.name ?? outcomeItem.label}</p>
             </div>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -201,7 +201,7 @@ export default function QueuePage() {
                 </button>
               ))}
             </div>
-            <button onClick={() => setOutcomeItem(null)} className="w-full text-sm font-medium text-[var(--app-muted)] hover:text-[#1a2744]">
+            <button onClick={() => setOutcomeItem(null)} className="w-full text-sm font-medium text-[var(--app-muted)] hover:text-[#071421]">
               Cancel
             </button>
           </div>
@@ -230,7 +230,7 @@ function ActionCard({
 
   if (done) {
     return (
-      <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4">
+      <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4">
         <span className="text-emerald-600">✓</span>
         <span className="text-sm font-medium text-emerald-700">{c?.name ?? item.label}</span>
         <span className="ml-auto text-xs text-emerald-500">{isSignalBlast ? 'Done' : 'Next step scheduled'}</span>
@@ -239,7 +239,7 @@ function ActionCard({
   }
 
   return (
-    <div className={`rounded-2xl border bg-white shadow-sm overflow-hidden transition-all ${item.overdue ? 'border-rose-200' : 'border-[var(--app-line)]'}`}>
+    <div className={`rounded-xl border bg-white shadow-sm overflow-hidden transition-all ${item.overdue ? 'border-rose-200' : 'border-[var(--app-line)]'}`}>
       {/* Card header — always visible */}
       <button
         className="w-full px-5 py-4 text-left"
@@ -254,7 +254,7 @@ function ActionCard({
           {/* Contact info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-[#1a2744]">
+              <span className="font-semibold text-[#071421]">
                 {isSignalBlast ? '🚨 Signal Blast' : (c?.name ?? 'Unknown')}
               </span>
               {item.overdue && (
@@ -263,7 +263,7 @@ function ActionCard({
                 </span>
               )}
               {!isSignalBlast && (
-                <span className="rounded-full bg-[#1a2744]/10 px-2 py-0.5 text-[10px] font-semibold text-[#1a2744]">
+                <span className="rounded-full bg-[#071421]/10 px-2 py-0.5 text-[10px] font-semibold text-[#071421]">
                   Tier {c?.tier} · Step {item.step_number}
                 </span>
               )}
@@ -278,7 +278,7 @@ function ActionCard({
 
           {/* Action label + chevron */}
           <div className="shrink-0 flex items-center gap-3">
-            <span className="hidden text-sm font-medium text-[#1a2744] sm:block">{ch.label}: {item.label}</span>
+            <span className="hidden text-sm font-medium text-[#071421] sm:block">{ch.label}: {item.label}</span>
             <span className={`text-[var(--app-muted)] transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▾</span>
           </div>
         </div>
@@ -288,27 +288,27 @@ function ActionCard({
       {isExpanded && (
         <div className="border-t border-[var(--app-line)] px-5 pb-5 pt-4 space-y-4">
           {/* What to do */}
-          <div className="rounded-xl bg-[#1a2744]/5 p-4">
-            <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-[#1a2744]">
+          <div className="rounded-xl bg-[#071421]/5 p-4">
+            <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-[#071421]">
               {ch.icon} What to do
             </div>
-            <div className="text-sm text-[#1a2744]">{item.message_draft ?? item.label}</div>
+            <div className="text-sm text-[#071421]">{item.message_draft ?? item.label}</div>
           </div>
 
           {/* Contact details */}
           <div className="grid grid-cols-2 gap-3 text-sm">
             {c?.phone && (
-              <a href={`tel:${c.phone}`} className="flex items-center gap-2 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2 font-medium text-[#1a2744] hover:bg-[var(--app-wash)] transition">
+              <a href={`tel:${c.phone}`} className="flex items-center gap-2 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2 font-medium text-[#071421] hover:bg-[var(--app-wash)] transition">
                 📞 {c.phone}
               </a>
             )}
             {c?.email && (
-              <a href={`mailto:${c.email}`} className="flex items-center gap-2 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2 font-medium text-[#1a2744] hover:bg-[var(--app-wash)] transition">
+              <a href={`mailto:${c.email}`} className="flex items-center gap-2 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2 font-medium text-[#071421] hover:bg-[var(--app-wash)] transition">
                 📧 {c.email}
               </a>
             )}
             {c?.website && (
-              <a href={c.website} target="_blank" rel="noopener" className="flex items-center gap-2 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-muted)] hover:text-[#1a2744] transition">
+              <a href={c.website} target="_blank" rel="noopener" className="flex items-center gap-2 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-muted)] hover:text-[#071421] transition">
                 🌐 Website
               </a>
             )}
@@ -335,7 +335,7 @@ function ActionCard({
             <button
               onClick={() => void onComplete(item)}
               disabled={busy === item.id}
-              className="flex-1 rounded-xl bg-[#1a2744] py-2.5 text-sm font-bold text-white hover:opacity-90 transition disabled:opacity-60"
+              className="flex-1 rounded-xl bg-[#071421] py-2.5 text-sm font-bold text-white hover:opacity-90 transition disabled:opacity-60"
             >
               {busy === item.id ? 'Saving...' : `✓ Done — ${ch.label} sent`}
             </button>
