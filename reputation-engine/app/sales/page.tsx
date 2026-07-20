@@ -9,6 +9,7 @@ import { compareLeadsByGuidance, formatRelativeTime, getLeadGuidance } from '@/l
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import type { CRMLead, CRMQuote, FollowUpLog, SalesDashboardSummary } from '@/lib/types'
 import type { DashboardDrilldownMetric, DashboardDrilldownResponse } from '@/lib/sales-api'
+import { OperatingSystemOverview } from '@/app/components/operating-system-overview'
 
 type TelephonyMetrics = {
   totalCallsToday: number
@@ -400,17 +401,19 @@ export default function SalesDashboardPage() {
   return (
     <div className="crm-shell">
       <div className="space-y-10">
+        {dashboardMode !== 'rep' && (
+          <OperatingSystemOverview leads={leads} quotes={quotes} loading={loading} />
+        )}
+
         <section className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h1 className="font-display text-[2rem] font-semibold tracking-tight text-[var(--app-ink)] md:text-[28px]">
-              {dashboardMode === 'rep' ? 'Sales Rep Dashboard' : dashboardMode === 'manager' ? 'Manager Dashboard' : 'Sales Command'}
+              {dashboardMode === 'rep' ? 'Sales Rep Dashboard' : 'Sales environment'}
             </h1>
             <div className="mt-2 text-sm text-[var(--app-muted)]">
               {dashboardMode === 'rep'
                 ? 'Start with the required actions queue. Everything else should help you close or unblock leads faster.'
-                : dashboardMode === 'manager'
-                  ? 'Watch team response speed, urgent actions, and close risk before looking at passive metrics.'
-                  : 'Use the queue first, then scan revenue, team urgency, and live customer movement.'}
+                : 'Focus on the customer decisions, response gaps and booking blockers inside the company-wide operating picture above.'}
             </div>
           </div>
           <div className="flex items-center gap-3">

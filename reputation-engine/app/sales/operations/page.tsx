@@ -19,6 +19,7 @@ import {
   TRUCK_VENDOR_LABELS,
 } from '@/lib/operations'
 import { deriveAccessComplexityAssessment } from '@/lib/access-intelligence'
+import { deriveJobReadiness } from '@/lib/job-spine'
 import { buildDefaultMoveExecutionEntries, MOVE_EXECUTION_PHASES } from '@/lib/move-execution'
 import { updateSalesLead } from '@/lib/sales-api'
 import { formatDate, formatDateTime, formatMoney, uid } from '@/lib/sales'
@@ -495,6 +496,7 @@ export default function OperationsPage() {
     const estHours = quote?.estimatedHours
     const isCompleting = completingId === lead.id
     const readiness = deriveDispatchReadiness(job)
+    const sharedReadiness = deriveJobReadiness(lead, quote)
     const customerConfirmed = hasCustomerConfirmation(job)
     const depositPaid = isDepositPaid(job)
     const crewAssigned = hasCrewRolePlan(job)
@@ -520,7 +522,7 @@ export default function OperationsPage() {
             <TruckReservationBadge lead={lead} quote={quote} />
             <OpsProgressBadge lead={lead} />
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${readinessBadgeClasses(readiness.level)}`}>
-              {readiness.label}
+              {sharedReadiness.label} · {sharedReadiness.percent}%
             </span>
           </div>
         </div>
@@ -995,6 +997,7 @@ function JobsCalendar({
   const selectedRoute = selectedJob ? getJobRoute(selectedJob) : null
   const selectedChecklist = selectedJob ? deriveOpsChecklist(selectedJob.lead) : null
   const selectedReadiness = selectedJob ? deriveDispatchReadiness(selectedJob) : null
+  const selectedJobReadiness = selectedJob ? deriveJobReadiness(selectedJob.lead, selectedJob.quote) : null
   const selectedAccessAssessment = selectedJob ? deriveAccessComplexityAssessment(selectedJob.lead) : null
 
   // Build 6-row grid
@@ -1117,9 +1120,9 @@ function JobsCalendar({
                 <PaymentBadge lead={selectedJob.lead} />
                 <TruckReservationBadge lead={selectedJob.lead} quote={selectedJob.quote} />
                 <OpsProgressBadge lead={selectedJob.lead} />
-                {selectedReadiness ? (
+                {selectedReadiness && selectedJobReadiness ? (
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${readinessBadgeClasses(selectedReadiness.level)}`}>
-                    {selectedReadiness.label}
+                    {selectedJobReadiness.label} · {selectedJobReadiness.percent}%
                   </span>
                 ) : null}
               </div>

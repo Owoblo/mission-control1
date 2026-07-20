@@ -81,6 +81,7 @@ import { confirmJob, createLeadQuote, deleteSalesLead, deleteSalesQuote, enrichS
 import { sanitizeInventoryRooms } from '@/lib/inventory-sanitizer'
 import { detectSpamLead } from '@/lib/spam-detector'
 import { displayEmailSubject } from '@/lib/email-display'
+import { deriveJobReadiness, deriveOperatingExceptions, deriveOperatingStage, OPERATING_STAGE_META } from '@/lib/job-spine'
 import { ConfirmDialog } from '@/app/components/sales/confirm-dialog'
 import type { UserRole } from '@/lib/auth'
 import type {
@@ -3704,9 +3705,54 @@ export default function SalesLeadDetailPage() {
     lead.leadKind === 'realtor_opportunity' && lead.primaryContactRole !== 'customer'
       ? getListingSideContactDisplayName(lead)
       : lead.name
+  const operatingStage = deriveOperatingStage(lead, quote)
+  const operatingStageMeta = OPERATING_STAGE_META[operatingStage]
+  const operatingExceptions = deriveOperatingExceptions(lead, quote)
+  const jobReadiness = deriveJobReadiness(lead, quote)
+  const showJobReadiness = ['booked', 'confirmed', 'prepared', 'dispatched', 'in_progress', 'completed', 'paid', 'reviewed'].includes(operatingStage)
 
   return (
     <div className="crm-shell space-y-6">
+      <section className="border border-[var(--app-line)] bg-white">
+        <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="p-5 md:p-7">
+            <div className="flex flex-wrap items-start justify-between gap-5">
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8a6800]">Authoritative job file</div>
+                <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-[#071421]">{displayLeadName}</h1>
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[var(--app-muted)]">
+                  <span>{lead.moveDate ? formatDate(lead.moveDate) : 'Move date not confirmed'}</span>
+                  <span>·</span>
+                  <span>{lead.originCity || quote?.originCity || 'Origin TBD'} → {lead.destCity || quote?.destCity || 'Destination TBD'}</span>
+                  <span>·</span>
+                  <span>{getSalesBranchLabel(lead.branch) || 'Branch not assigned'}</span>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">{operatingStageMeta.label}</span>
+                <span className="rounded-full border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-1 text-xs font-semibold text-[#344054]">Owner: {leadOwnerName}</span>
+                {quote && <span className="rounded-full border border-[var(--app-line)] bg-white px-3 py-1 text-xs font-semibold tabular-nums text-[#344054]">{formatMoney(quote.total)}</span>}
+                <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${lead.paymentStatus === 'paid_in_full' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : lead.paymentStatus === 'deposit_received' || quote?.depositPaidAt ? 'border-blue-200 bg-blue-50 text-blue-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>{lead.paymentStatus === 'paid_in_full' ? 'Paid in full' : lead.paymentStatus === 'deposit_received' || quote?.depositPaidAt ? 'Deposit received' : 'Payment pending'}</span>
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-px border border-[var(--app-line)] bg-[var(--app-line)] sm:grid-cols-4">
+              <div className="bg-white p-3"><div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Environment</div><div className="mt-1 text-sm font-semibold text-[#071421]">{operatingStageMeta.environment}</div></div>
+              <div className="bg-white p-3"><div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Last meaningful contact</div><div className="mt-1 text-sm font-semibold text-[#071421]">{leadGuidance?.latestActivity.at ? formatRelativeTime(leadGuidance.latestActivity.at) : 'No activity recorded'}</div></div>
+              <div className="bg-white p-3"><div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Source</div><div className="mt-1 text-sm font-semibold text-[#071421]">{lead.source || 'Not recorded'}</div></div>
+              <div className="bg-white p-3"><div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Risk</div><div className={`mt-1 text-sm font-semibold ${operatingExceptions.some(item => item.severity === 'urgent') ? 'text-rose-700' : operatingExceptions.length ? 'text-amber-700' : 'text-emerald-700'}`}>{operatingExceptions.some(item => item.severity === 'urgent') ? 'Intervention required' : operatingExceptions.length ? `${operatingExceptions.length} exception${operatingExceptions.length === 1 ? '' : 's'}` : 'No clear exception'}</div></div>
+            </div>
+          </div>
+
+          <aside className="border-t border-[var(--app-line)] bg-[#fbfaf6] p-5 xl:border-l xl:border-t-0 xl:p-6">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8a6800]">What must happen next</div>
+            <div className="mt-3 text-base font-semibold leading-6 text-[#071421]">{operatingExceptions[0]?.action || leadGuidance?.action.nextAction || 'Keep the operational record current'}</div>
+            <p className="mt-2 text-sm leading-6 text-[var(--app-muted)]">{operatingExceptions[0]?.detail || leadGuidance?.salesLanguage || 'No blocking exception is visible from the current record.'}</p>
+            {showJobReadiness && <div className="mt-5 border-t border-[var(--app-line)] pt-4"><div className="flex items-center justify-between gap-3"><span className="text-xs font-semibold text-[#344054]">Job readiness</span><span className={`text-xs font-semibold ${jobReadiness.status === 'fully_ready' ? 'text-emerald-700' : jobReadiness.status === 'at_risk' ? 'text-rose-700' : 'text-amber-700'}`}>{jobReadiness.label}</span></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-200"><div className={`h-full ${jobReadiness.status === 'fully_ready' ? 'bg-emerald-600' : jobReadiness.status === 'at_risk' ? 'bg-rose-600' : 'bg-amber-500'}`} style={{ width: `${jobReadiness.percent}%` }} /></div><div className="mt-2 text-xs text-[var(--app-muted)]">{jobReadiness.completed} of {jobReadiness.total} requirements complete</div></div>}
+          </aside>
+        </div>
+      </section>
+
       {/* ── Sticky jump nav ─────────────────────────────────────────── */}
       <div className="sticky top-0 z-30 -mx-3 hidden overflow-x-auto border-b border-[var(--app-line)] bg-[var(--app-panel-strong)]/95 backdrop-blur-sm px-3 md:block">
         <div className="flex items-center gap-1 py-2">

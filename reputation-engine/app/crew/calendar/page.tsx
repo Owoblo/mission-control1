@@ -4,6 +4,7 @@ import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import { formatDate, formatMoney } from '@/lib/sales'
 import type { CRMLead, CRMQuote, LeadMediaAsset } from '@/lib/types'
+import { buildDefaultMoveExecutionEntries, MOVE_EXECUTION_PHASES } from '@/lib/move-execution'
 
 type Job = { lead: CRMLead; quote: CRMQuote | null }
 
@@ -157,6 +158,9 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
     : lead.originAddress || lead.originCity || '—'
   const dest = quote?.destCity || lead.destCity || '—'
   const receipts = useMemo(() => getReceiptAssets(lead), [lead])
+  const executionEntries = useMemo(() => buildDefaultMoveExecutionEntries(lead.moveExecutionLog?.entries), [lead.moveExecutionLog?.entries])
+  const nextPhase = executionEntries.find(entry => !entry.timestamp)
+  const completedPhaseCount = executionEntries.filter(entry => entry.timestamp).length
 
   const [showExpenseForm, setShowExpenseForm] = useState(false)
   const [files, setFiles] = useState<File[]>([])
@@ -167,6 +171,29 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
   const [uploading, setUploading] = useState(false)
   const [uploadMessage, setUploadMessage] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [phaseBusy, setPhaseBusy] = useState(false)
+  const [phaseError, setPhaseError] = useState<string | null>(null)
+
+  async function completeNextPhase() {
+    if (!nextPhase) return
+    setPhaseBusy(true)
+    setPhaseError(null)
+    try {
+      const response = await fetch(`/api/crew/jobs/${lead.id}/execution`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phase: nextPhase.phase }),
+      })
+      const payload = await response.json() as { lead?: CRMLead; error?: string }
+      if (!response.ok || !payload.lead) throw new Error(payload.error || 'Could not update job progress.')
+      onLeadUpdated(payload.lead)
+    } catch (error) {
+      setPhaseError(error instanceof Error ? error.message : 'Could not update job progress.')
+    } finally {
+      setPhaseBusy(false)
+    }
+  }
 
   async function handleExpenseUpload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -216,8 +243,17 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
   }
 
   return (
-    <div className="space-y-3 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+    <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
       <MoveBadge dateStr={moveDate} />
+
+      <section className="border-y border-[var(--app-line)] py-4">
+        <div className="flex items-center justify-between gap-3 text-xs text-slate-500"><span>Move-day progress</span><span>{completedPhaseCount} of {MOVE_EXECUTION_PHASES.length}</span></div>
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-[#C99700] transition-all" style={{ width: `${Math.round((completedPhaseCount / MOVE_EXECUTION_PHASES.length) * 100)}%` }} /></div>
+        <div className="mt-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Next action</div>
+        <div className="mt-1 text-lg font-semibold text-[#071421]">{nextPhase?.label || 'Move workflow complete'}</div>
+        {phaseError && <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{phaseError}</div>}
+        {nextPhase && <button type="button" onClick={() => void completeNextPhase()} disabled={phaseBusy} className="mt-4 min-h-14 w-full rounded-xl bg-[#C99700] px-5 py-3 text-base font-bold text-[#071421] transition hover:bg-[#b88900] disabled:opacity-60">{phaseBusy ? 'Updating…' : `Mark: ${nextPhase.label}`}</button>}
+      </section>
 
       <div className="flex items-start gap-3 text-sm">
         <div className="mt-0.5 flex flex-col items-center gap-1">
@@ -273,14 +309,10 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
         </div>
       )}
 
-      {lead.phone && (
-        <a
-          href={`tel:${lead.phone}`}
-          className="flex items-center gap-2 text-sm font-medium text-[#1a2744] underline-offset-2 hover:underline"
-        >
-          📞 {lead.phone}
-        </a>
-      )}
+      <div className="grid grid-cols-2 gap-2">
+        {lead.phone && <a href={`tel:${lead.phone}`} className="flex min-h-12 items-center justify-center rounded-xl border border-slate-200 text-sm font-semibold text-[#071421]">Call customer</a>}
+        {(lead.originAddress || quote?.originAddress) && <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(lead.originAddress || quote?.originAddress || '')}`} target="_blank" rel="noreferrer" className="flex min-h-12 items-center justify-center rounded-xl bg-[#071421] px-3 text-center text-sm font-semibold text-white">Navigate to origin</a>}
+      </div>
 
       <div className="rounded-2xl border border-slate-200 bg-slate-50/90 p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

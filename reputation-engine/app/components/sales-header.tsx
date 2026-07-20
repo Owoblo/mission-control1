@@ -18,6 +18,7 @@ import type { NotificationItem } from '@/app/api/sales/notifications/route'
 const NAV_ICONS: Record<string, React.ReactNode> = {
   'Follow-Up':  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M10 2a8 8 0 100 16A8 8 0 0010 2z"/><path d="M10 6v5l3 2"/></svg>,
   Dashboard:    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><rect x="2" y="2" width="7" height="7" rx="1.5"/><rect x="11" y="2" width="7" height="7" rx="1.5"/><rect x="2" y="11" width="7" height="7" rx="1.5"/><rect x="11" y="11" width="7" height="7" rx="1.5"/></svg>,
+  Leads:        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><circle cx="7" cy="7" r="3"/><path d="M2 17a5 5 0 0110 0M14 6h4M16 4v4"/></svg>,
   Inbox:        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M2 13l3-7h10l3 7"/><path d="M2 13h4l1 2h6l1-2h4v3a1 1 0 01-1 1H3a1 1 0 01-1-1v-3z"/></svg>,
   Pipeline:     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><circle cx="4" cy="10" r="2"/><circle cx="10" cy="10" r="2"/><circle cx="16" cy="10" r="2"/><path d="M6 10h2M12 10h2"/></svg>,
   Quotes:       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M4 4h12a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V5a1 1 0 011-1z"/><path d="M7 8h6M7 11h4"/></svg>,
@@ -37,22 +38,23 @@ const NAV_ICONS: Record<string, React.ReactNode> = {
 const SALES_ROLES = ['owner', 'manager', 'sales_rep']
 
 const BASE_NAV = [
-  { href: '/sales', label: 'Dashboard', match: (p: string) => p === '/sales', roles: ['owner', 'manager', 'sales_rep'] },
-  { href: '/sales/follow-up', label: 'Follow-Up', match: (p: string) => p.startsWith('/sales/follow-up'), roles: ['owner', 'manager', 'sales_rep'] },
-  { href: '/sales/inbox', label: 'Inbox', match: (p: string) => p.startsWith('/sales/inbox'), roles: ['owner', 'manager', 'sales_rep'] },
-  { href: '/sales/pipeline', label: 'Pipeline', match: (p: string) => p.startsWith('/sales/pipeline'), roles: ['owner', 'manager', 'sales_rep'] },
-  { href: '/sales/quotes', label: 'Quotes', match: (p: string) => p.startsWith('/sales/quotes'), roles: ['owner', 'manager', 'sales_rep'] },
-  { href: '/sales/booked', label: 'Booked', match: (p: string) => p.startsWith('/sales/booked'), roles: ['owner', 'manager', 'sales_rep'] },
-  { href: '/sales/academy', label: 'Academy', match: (p: string) => p.startsWith('/sales/academy'), roles: ['owner', 'manager', 'sales_rep'] },
-  { href: '/sales/operations', label: 'Operations', match: (p: string) => p.startsWith('/sales/operations') && !p.startsWith('/sales/operations/sms'), roles: ['owner', 'manager', 'operations_lead'] },
-  { href: '/sales/operations/sms', label: 'Ops SMS', match: (p: string) => p.startsWith('/sales/operations/sms'), roles: ['owner', 'manager', 'operations_lead'] },
-  { href: '/sales/finance', label: 'Finance', match: (p: string) => p.startsWith('/sales/finance'), roles: ['owner', 'manager'] },
-  { href: '/sales/activity', label: 'Live Feed', match: (p: string) => p.startsWith('/sales/activity'), roles: ['owner', 'manager'] },
-  { href: '/sales/analytics', label: 'Analytics', match: (p: string) => p.startsWith('/sales/analytics'), roles: ['owner', 'manager'] },
-  { href: '/sales/reps', label: 'Reps', match: (p: string) => p.startsWith('/sales/reps'), roles: ['owner', 'manager'] },
-  { href: '/sales/settings', label: 'Settings', match: (p: string) => p.startsWith('/sales/settings'), roles: ['owner'] },
-  { href: '/admin/users', label: 'Team', match: (p: string) => p.startsWith('/admin'), roles: ['owner'] },
-  { href: '/marketing', label: 'Partnerships', match: (p: string) => p.startsWith('/marketing'), roles: ['owner', 'manager', 'partnership_manager'] },
+  { environment: 'Command', href: '/sales', label: 'Dashboard', match: (p: string) => p === '/sales', roles: ['owner', 'manager', 'sales_rep'] },
+  { environment: 'Intake', href: '/sales/inbox', label: 'Inbox', match: (p: string) => p.startsWith('/sales/inbox'), roles: ['owner', 'manager', 'sales_rep'] },
+  { environment: 'Intake', href: '/sales/leads', label: 'Leads', match: (p: string) => p.startsWith('/sales/leads'), roles: ['owner', 'manager', 'sales_rep'] },
+  { environment: 'Intake', href: '/marketing', label: 'Partnerships', match: (p: string) => p.startsWith('/marketing'), roles: ['owner', 'manager', 'partnership_manager'] },
+  { environment: 'Sales', href: '/sales/pipeline', label: 'Pipeline', match: (p: string) => p.startsWith('/sales/pipeline'), roles: ['owner', 'manager', 'sales_rep'] },
+  { environment: 'Sales', href: '/sales/follow-up', label: 'Follow-Up', match: (p: string) => p.startsWith('/sales/follow-up'), roles: ['owner', 'manager', 'sales_rep'] },
+  { environment: 'Sales', href: '/sales/quotes', label: 'Quotes', match: (p: string) => p.startsWith('/sales/quotes'), roles: ['owner', 'manager', 'sales_rep'] },
+  { environment: 'Sales', href: '/sales/academy', label: 'Academy', match: (p: string) => p.startsWith('/sales/academy'), roles: ['owner', 'manager', 'sales_rep'] },
+  { environment: 'Operations', href: '/sales/booked', label: 'Booked', match: (p: string) => p.startsWith('/sales/booked'), roles: ['owner', 'manager', 'sales_rep'] },
+  { environment: 'Operations', href: '/sales/operations', label: 'Operations', match: (p: string) => p.startsWith('/sales/operations') && !p.startsWith('/sales/operations/sms'), roles: ['owner', 'manager', 'operations_lead'] },
+  { environment: 'Live', href: '/sales/operations/sms', label: 'Ops SMS', match: (p: string) => p.startsWith('/sales/operations/sms'), roles: ['owner', 'manager', 'operations_lead'] },
+  { environment: 'Care', href: '/sales/finance', label: 'Finance', match: (p: string) => p.startsWith('/sales/finance'), roles: ['owner', 'manager'] },
+  { environment: 'Management', href: '/sales/activity', label: 'Live Feed', match: (p: string) => p.startsWith('/sales/activity'), roles: ['owner', 'manager'] },
+  { environment: 'Management', href: '/sales/analytics', label: 'Analytics', match: (p: string) => p.startsWith('/sales/analytics'), roles: ['owner', 'manager'] },
+  { environment: 'Management', href: '/sales/reps', label: 'Reps', match: (p: string) => p.startsWith('/sales/reps'), roles: ['owner', 'manager'] },
+  { environment: 'Management', href: '/admin/users', label: 'Team', match: (p: string) => p.startsWith('/admin'), roles: ['owner'] },
+  { environment: 'Management', href: '/sales/settings', label: 'Settings', match: (p: string) => p.startsWith('/sales/settings'), roles: ['owner'] },
 ]
 
 const TYPE_ICON: Record<string, string> = {
@@ -578,13 +580,18 @@ export function SalesHeader() {
           {/* ── Nav ───────────────────────────────────────────────────── */}
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between lg:flex-1 lg:flex-col lg:items-stretch lg:justify-start">
             <nav className={`-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1 md:gap-6 md:px-0 md:pb-0 lg:mx-0 lg:flex-col lg:items-stretch lg:gap-0.5 lg:overflow-visible lg:p-0 ${sidebarCollapsed ? 'lg:px-2' : 'lg:px-3'}`}>
-              {navItems.map(item => {
+              {navItems.map((item, index) => {
                 const active = item.match(pathname)
                 const showInboxDot = item.href === '/sales/inbox' && notifBreakdown.leads > 0 && !active
                 const showFollowUpDot = item.href === '/sales/follow-up' && notifBreakdown.leads > 0 && !active
                 return (
+                  <React.Fragment key={item.href}>
+                  {(!index || navItems[index - 1]?.environment !== item.environment) && !sidebarCollapsed && (
+                    <div className="hidden px-3 pb-1 pt-4 text-[9px] font-semibold uppercase tracking-[0.18em] text-[var(--app-muted)] first:pt-1 lg:block">
+                      {item.environment}
+                    </div>
+                  )}
                   <button
-                    key={item.href}
                     onClick={() => guardedNavigate(item.href, router)}
                     title={item.label}
                     className={`relative shrink-0 rounded-full border px-3 py-2 text-sm font-medium transition
@@ -614,21 +621,9 @@ export function SalesHeader() {
                       <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-rose-500 md:-right-2 md:-top-0.5 lg:right-1 lg:top-1" />
                     )}
                   </button>
+                  </React.Fragment>
                 )
               })}
-              {/* Mobile-only Leads link */}
-              {canUseSalesActions && (
-                <Link
-                  href="/sales/leads"
-                  className={`shrink-0 rounded-full border px-3 py-2 text-sm font-medium transition md:hidden ${
-                    pathname.startsWith('/sales/leads')
-                      ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white'
-                      : 'border-[var(--app-line)] text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)]'
-                  }`}
-                >
-                  Leads
-                </Link>
-              )}
             </nav>
 
             {canUseSalesActions && (
