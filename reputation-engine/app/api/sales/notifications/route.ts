@@ -26,6 +26,10 @@ export interface NotificationItem {
   branchLabel?: string
   trackingLabel?: string
   href: string
+  priority: 'interrupt' | 'today' | 'monitor' | 'record'
+  reason: string
+  requiredAction: string
+  dedupeKey: string
 }
 
 type NotificationsPayload = {
@@ -35,7 +39,7 @@ type NotificationsPayload = {
 }
 
 const NOTIFICATIONS_CACHE_TTL_MS = 10_000
-let notificationsCache: { expiresAt: number; payload: NotificationsPayload } | null = null
+const notificationsCache = new Map<string, { expiresAt: number; payload: NotificationsPayload }>()
 
 const SOURCE_LABELS: Record<string, string> = {
   twilio_call:   'Inbound call',
@@ -69,8 +73,10 @@ export async function GET() {
     return NextResponse.json({ items: [], totalCount: 0, breakdown: { leads: 0, sms: 0, emails: 0, alerts: 0 } })
   }
 
-  if (notificationsCache && notificationsCache.expiresAt > Date.now()) {
-    return NextResponse.json(notificationsCache.payload)
+  const cacheKey = [session?.userId || session?.name || 'user', session?.role || 'role', session?.branch || 'all'].join(':')
+  const cached = notificationsCache.get(cacheKey)
+  if (cached && cached.expiresAt > Date.now()) {
+    return NextResponse.json(cached.payload)
   }
 
   const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000)
@@ -143,6 +149,7 @@ export async function GET() {
           ?? (l.source === 'twilio_call' ? 'Unknown Caller' : l.source === 'twilio_sms' ? 'Unknown Contact' : 'New Inquiry')
       // Don't include branchLabel here — the component already prepends it to avoid duplication
       const previewParts = [getLeadPreviewLabel(l.source, raw), trackingLabel].filter(Boolean)
+      const missedCall = getLeadPreviewLabel(l.source, raw) === 'Missed call'
       return {
         id: l.id,
         type: 'lead' as const,
@@ -155,6 +162,10 @@ export async function GET() {
         branchLabel,
         trackingLabel,
         href: matchedLead?.id ? `/sales/leads/${matchedLead.id}` : '/sales/inbox',
+        priority: missedCall ? 'interrupt' as const : 'today' as const,
+        reason: missedCall ? 'A customer attempted to call and did not reach the team.' : 'New incoming demand has not been handled.',
+        requiredAction: missedCall ? 'Return the call' : 'Review and assign',
+        dedupeKey: `inbound:${l.id}`,
       }
     })
 
@@ -175,6 +186,10 @@ export async function GET() {
       branchLabel: thread.branchLabel || undefined,
       trackingLabel: thread.trackingLabel,
       href: thread.leadId ? `/sales/leads/${thread.leadId}` : `/sales/inbox?tab=sms&phone=${encodeURIComponent(thread.contactPhone)}`,
+      priority: 'today' as const,
+      reason: 'The latest customer message has no later team response.',
+      requiredAction: 'Reply to customer',
+      dedupeKey: `sms:${thread.contactPhone}`,
     }))
 
   // ── 3. Inbound emails from last 48 h ────────────────────────────────────
@@ -192,6 +207,10 @@ export async function GET() {
       leadId: em.leadId || null,
       phone: null,
       href: em.leadId ? `/sales/leads/${em.leadId}` : `/sales/inbox?tab=email&id=${encodeURIComponent(em.id)}`,
+      priority: 'today' as const,
+      reason: 'An unread customer email needs review.',
+      requiredAction: 'Review email',
+      dedupeKey: `email:${em.id}`,
     }))
 
   const alertItems: NotificationItem[] = followUpLogs
@@ -211,12 +230,28 @@ export async function GET() {
         phone: null,
         branchLabel: parsed.title.match(/—\s+(.+?)\s+line$/)?.[1],
         href: log.leadId ? `/sales/leads/${log.leadId}` : '/sales/inbox',
+        priority: 'interrupt' as const,
+        reason: parsed.preview,
+        requiredAction: 'Resolve alert',
+        dedupeKey: `alert:${log.id}`,
       }
     })
     .filter(Boolean) as NotificationItem[]
 
+  const leadById = new Map(crmLeads.map(lead => [lead.id, lead]))
+  const visibleToSession = (item: NotificationItem) => {
+    const lead = item.leadId ? leadById.get(item.leadId) : null
+    if (session?.branch && lead?.branch && lead.branch !== session.branch) return false
+    if (session?.role !== 'sales_rep' || !lead) return true
+    const ownerId = lead.assignedRepUserId
+    const ownerName = lead.assignedRepName || lead.assignedRep
+    return (!ownerId && !ownerName) || ownerId === session.userId || ownerName === session.name
+  }
+  const seen = new Set<string>()
   const allItems = [...alertItems, ...leadItems, ...smsItems, ...emailItems]
+    .filter(visibleToSession)
     .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+    .filter(item => seen.has(item.dedupeKey) ? false : (seen.add(item.dedupeKey), true))
     .slice(0, 40)
 
   const payload: NotificationsPayload = {
@@ -224,7 +259,7 @@ export async function GET() {
     breakdown: { leads: leadItems.length, sms: smsItems.length, emails: emailItems.length, alerts: alertItems.length },
     totalCount: leadItems.length + smsItems.length + emailItems.length + alertItems.length,
   }
-  notificationsCache = { expiresAt: Date.now() + NOTIFICATIONS_CACHE_TTL_MS, payload }
+  notificationsCache.set(cacheKey, { expiresAt: Date.now() + NOTIFICATIONS_CACHE_TTL_MS, payload })
 
   return NextResponse.json(payload)
 }

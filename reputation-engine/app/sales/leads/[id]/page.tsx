@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { PromiseTracker } from '@/app/components/sales/promise-tracker'
 import type {
   LeadEmailMessage,
   LeadSmsMessage,
@@ -3764,6 +3765,8 @@ export default function SalesLeadDetailPage() {
           </aside>
         </div>
       </section>
+
+      <PromiseTracker lead={lead} onUpdated={nextLead => applyLeadSnapshot(nextLead, { hydrateForm: false })} />
 
       {/* ── Sticky jump nav ─────────────────────────────────────────── */}
       <div className="sticky top-0 z-30 -mx-3 hidden overflow-x-auto border-b border-[var(--app-line)] bg-[var(--app-panel-strong)]/95 backdrop-blur-sm px-3 md:block">

@@ -190,6 +190,17 @@ export function deriveOperatingExceptions(lead: CRMLead, quote?: CRMQuote | null
     ...exception,
   })
   const activeSales = !['booked', 'completed', 'customer_success', 'lost'].includes(lead.stage)
+  const now = Date.now()
+  for (const promise of (lead.promises || []).filter(item => item.status === 'open')) {
+    const due = new Date(promise.dueAt).getTime()
+    if (Number.isFinite(due) && due <= now + 24 * 60 * 60 * 1000) add(`promise:${promise.id}`, {
+      severity: due < now ? 'urgent' : 'attention',
+      environment: activeSales ? 'Sales' : lead.stage === 'booked' ? 'Operations' : 'Completion & care',
+      title: due < now ? 'Promise overdue' : 'Promise due soon',
+      detail: `${promise.action} · ${promise.reason}`,
+      action: 'Complete or reschedule promise',
+    })
+  }
   if (activeSales && !lead.assignedRepUserId && !lead.assignedRepName && !lead.assignedRep) add('owner', { severity: 'urgent', environment: 'Intake', title: 'No owner assigned', detail: 'Incoming demand has no accountable person.', action: 'Assign an owner' })
   if (activeSales && ['estimate_completed', 'pricing'].includes(lead.stage) && !quote?.sentAt) add('quote', { severity: 'attention', environment: 'Sales', title: 'Quote has not been sent', detail: 'The estimate is far enough along to require a customer decision.', action: 'Finish and send quote' })
   if (activeSales && lead.lastInboundAt && (!lead.lastHumanOutboundAt || lead.lastInboundAt > lead.lastHumanOutboundAt)) add('reply', { severity: 'urgent', environment: 'Sales', title: 'Customer is waiting', detail: 'The latest inbound message has no later human response.', action: 'Respond now' })

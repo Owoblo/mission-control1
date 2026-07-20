@@ -50,6 +50,21 @@ export type SalesLeadStage = 'new' | 'contacted' | 'estimate_scheduled' | 'estim
 export type MoveType = 'residential' | 'long-distance' | 'commercial' | 'senior' | 'labor-only' | 'packing'
 export type QuoteStatus = 'draft' | 'sent' | 'viewed' | 'accepted' | 'declined' | 'invoiced'
 export type PaymentStatus = 'pending' | 'deposit_received' | 'paid_in_full'
+export type PromiseChannel = 'call' | 'sms' | 'email' | 'in_person' | 'internal'
+export interface CustomerPromise {
+  id: string
+  action: string
+  reason: string
+  channel: PromiseChannel
+  dueAt: string
+  intendedOutcome: string
+  ownerUserId?: string
+  ownerName: string
+  status: 'open' | 'completed' | 'cancelled'
+  createdAt: string
+  completedAt?: string
+  completionEvidence?: string
+}
 export type QuotePaymentTerms =
   | 'deposit_required'
   | 'approval_invoice'
@@ -860,6 +875,7 @@ export interface CRMLead {
   depositMethod?: string
   depositDate?: string
   paymentStatus?: PaymentStatus
+  promises?: CustomerPromise[]
   // Cancellation
   cancelledAt?: string
   cancelReason?: string
