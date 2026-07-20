@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
 import { isBookedLikeStage } from '@/lib/sales'
-import { canAccessOperationsWorkspace } from '@/lib/server/sales-permissions'
+import { canAccessOperationsWorkspace, canAccessSalesWorkspace, isLeadOwnedBySession } from '@/lib/server/sales-permissions'
 import { getSessionUser } from '@/lib/server/session'
 import { listSalesLeads, listSalesQuotes } from '@/lib/server/sales-repository'
 
 export async function GET(request: Request) {
   const session = await getSessionUser()
-  if (!canAccessOperationsWorkspace(session)) {
+  if (!canAccessOperationsWorkspace(session) && !canAccessSalesWorkspace(session)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -19,6 +19,7 @@ export async function GET(request: Request) {
     if (!isBookedLikeStage(l.stage)) return false
     // operations_lead: filter to their branch (from session or query param)
     if (branchFilter && l.branch && l.branch !== branchFilter) return false
+    if (session?.role === 'sales_rep' && !isLeadOwnedBySession(l, session)) return false
     return true
   })
 

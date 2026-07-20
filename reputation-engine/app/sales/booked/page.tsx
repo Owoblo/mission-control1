@@ -3,9 +3,10 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
-import { fetchSalesOverview, sendSalesMessage, updateSalesLead } from '@/lib/sales-api'
+import { sendSalesMessage, updateSalesLead } from '@/lib/sales-api'
 import { dateStamp, formatDate, formatMoney, getLeadAssignedRepName, isBookedLikeStage } from '@/lib/sales'
 import type { CRMLead, CRMQuote } from '@/lib/types'
+import { deriveJobReadiness } from '@/lib/job-spine'
 
 const SATURN_PHONE = '226-773-2993'
 
@@ -66,20 +67,6 @@ function buildPreMoveSms(lead: CRMLead) {
   return `Hi ${first}! Your Saturn Star move is TOMORROW (${dateLine}). Make sure access is clear at both addresses. Any last-minute questions? Call or text ${SATURN_PHONE}. See you then! – Saturn Star Moving`
 }
 
-function hasTruckReserved(lead: CRMLead) {
-  return lead.truckReservationStatus === 'reserved' || lead.truckReservationStatus === 'not_needed'
-}
-
-function hasPreMoveFollowUp(lead: CRMLead) {
-  const notes = `${lead.notes || ''}\n${lead.followUpNote || ''}`.toLowerCase()
-  if (notes.includes('48-hr reminder sent') || notes.includes('move day tomorrow')) return true
-  if (lead.followUpStatus === 'followed_up') return true
-  if (!lead.lastHumanOutboundAt || !lead.moveDate) return false
-  const outboundAt = new Date(lead.lastHumanOutboundAt).getTime()
-  const moveDateAt = new Date(`${lead.moveDate}T12:00:00`).getTime()
-  return outboundAt <= moveDateAt && outboundAt >= moveDateAt - 14 * 24 * 60 * 60 * 1000
-}
-
 export default function BookedJobsPage() {
   const currentUser = useCurrentUser()
   const [leads, setLeads] = useState<CRMLead[]>([])
@@ -93,9 +80,11 @@ export default function BookedJobsPage() {
   async function refresh() {
     try {
       setLoading(true)
-      const data = await fetchSalesOverview()
-      setLeads(data.leads)
-      setQuotes(data.quotes)
+      const response = await fetch('/api/sales/operations/jobs', { credentials: 'include', cache: 'no-store' })
+      const data = await response.json() as { jobs?: Array<{ lead: CRMLead; quote: CRMQuote | null }>; error?: string }
+      if (!response.ok || !data.jobs) throw new Error(data.error || 'Booked jobs could not be loaded')
+      setLeads(data.jobs.map(job => job.lead))
+      setQuotes(data.jobs.flatMap(job => job.quote ? [job.quote] : []))
       setError(null)
     } catch (err) {
       setError((err as Error).message)
@@ -108,6 +97,7 @@ export default function BookedJobsPage() {
 
   const today = dateStamp()
   const quoteMap = useMemo(() => new Map(quotes.map(q => [q.id, q])), [quotes])
+  const quoteByLead = useMemo(() => new Map(quotes.map(q => [q.leadId, q])), [quotes])
 
   const booked = useMemo(() => {
     const scopedLeads = currentUser?.role === 'sales_rep'
@@ -120,15 +110,17 @@ export default function BookedJobsPage() {
     return scopedLeads
       .filter(l => isBookedLikeStage(l.stage))
       .sort((a, b) => {
-        const aOpsGaps = Number(!hasTruckReserved(a)) + Number(!hasPreMoveFollowUp(a))
-        const bOpsGaps = Number(!hasTruckReserved(b)) + Number(!hasPreMoveFollowUp(b))
+        const aQuote = quoteByLead.get(a.id) || (a.quoteId ? quoteMap.get(a.quoteId) : undefined)
+        const bQuote = quoteByLead.get(b.id) || (b.quoteId ? quoteMap.get(b.quoteId) : undefined)
+        const aOpsGaps = deriveJobReadiness(a, aQuote).total - deriveJobReadiness(a, aQuote).completed
+        const bOpsGaps = deriveJobReadiness(b, bQuote).total - deriveJobReadiness(b, bQuote).completed
         if (aOpsGaps !== bOpsGaps) return bOpsGaps - aOpsGaps
         if (!a.moveDate && !b.moveDate) return 0
         if (!a.moveDate) return 1
         if (!b.moveDate) return -1
         return a.moveDate.localeCompare(b.moveDate)
       })
-  }, [currentUser, leads])
+  }, [currentUser, leads, quoteByLead, quoteMap])
 
   const upcoming = booked.filter(l => {
     if (l.moveDate && l.moveDate < today) return false
@@ -214,14 +206,13 @@ export default function BookedJobsPage() {
             ) : (
               <div className="space-y-3">
                 {upcoming.map(lead => {
-                  const quote = lead.quoteId ? quoteMap.get(lead.quoteId) : undefined
+                  const quote = quoteByLead.get(lead.id) || (lead.quoteId ? quoteMap.get(lead.quoteId) : undefined)
                   const days = daysUntil(lead.moveDate)
                   const sent = reminderSent.has(lead.id)
                   const canRemind = !!(lead.phone || lead.email)
-                  const truckReserved = hasTruckReserved(lead)
-                  const preMoveDone = hasPreMoveFollowUp(lead)
+                  const readiness = deriveJobReadiness(lead, quote)
                   const assignedRep = getLeadAssignedRepName(lead) || 'Unassigned'
-                  const needsOpsAttention = !truckReserved || !preMoveDone
+                  const needsOpsAttention = readiness.status !== 'fully_ready'
                   return (
                     <div
                       key={lead.id}
@@ -249,14 +240,7 @@ export default function BookedJobsPage() {
                             {lead.phone ? <span>{lead.phone}</span> : null}
                             <span>Rep: {assignedRep}</span>
                           </div>
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${truckReserved ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-700'}`}>
-                              Truck Reserved: {truckReserved ? (lead.truckReservationStatus === 'not_needed' ? 'Not Needed' : 'Yes') : 'No'}
-                            </span>
-                            <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${preMoveDone ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
-                              Pre-Move Follow-Up: {preMoveDone ? 'Done' : 'Pending'}
-                            </span>
-                          </div>
+                          <div className="mt-3 flex items-center gap-3 text-xs"><span className={`font-semibold ${readiness.status === 'fully_ready' ? 'text-emerald-700' : readiness.status === 'at_risk' ? 'text-rose-700' : 'text-amber-700'}`}>{readiness.label} · {readiness.percent}%</span>{readiness.status !== 'fully_ready' && <span className="truncate text-[var(--app-muted)]">{readiness.dimensions.flatMap(item => item.missing).slice(0, 3).join(' · ')}</span>}</div>
                           {lead.contextFlag ? (
                             <div className="mt-2 text-xs text-amber-700">{lead.contextFlag}</div>
                           ) : null}
@@ -305,7 +289,7 @@ export default function BookedJobsPage() {
               </div>
               <div className="space-y-2">
                 {past.map(lead => {
-                  const quote = lead.quoteId ? quoteMap.get(lead.quoteId) : undefined
+                  const quote = quoteByLead.get(lead.id) || (lead.quoteId ? quoteMap.get(lead.quoteId) : undefined)
                   return (
                     <Link
                       key={lead.id}
