@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { computeCrewPayoutAmounts, CREW_PAYOUT_METHOD_LABELS, CREW_PAYOUT_STATUS_LABELS } from '@/lib/operations'
 import { updateSalesLead } from '@/lib/sales-api'
 import { formatMoney, isBookedLikeStage } from '@/lib/sales'
+import { deriveMoneyState } from '@/lib/payment-state'
 import type { CRMLead, CRMQuote, CrewPayoutEntry } from '@/lib/types'
 
 interface JobCost {
@@ -282,6 +283,7 @@ export default function FinancePage() {
     const quoteAmount = Number(job.quote?.total || job.revenue || 0)
     const depositRequired = Number(job.quote?.deposit || 0)
     const paid = getPaidSoFar(job)
+    const moneyState = deriveMoneyState(job.quote, job.lead)
     const cashPending = Math.max(0, Math.round((quoteAmount - paid.cashCollected) * 100) / 100)
     const margin = quoteAmount > 0 ? profit / quoteAmount : 0
     const truckCost = costByCategory(jobCosts, 'truck')
@@ -299,6 +301,7 @@ export default function FinancePage() {
       estimatedLaborBudget > 0 && laborCost > estimatedLaborBudget * 1.15 ? 'Labour cost exceeded estimate' : '',
       quoteAmount > 0 && totalCosts === 0 ? 'No actual costs logged' : '',
       profit < 0 ? 'Job profitable on quote but losing after actual costs' : '',
+      moneyState.requiresAttention ? moneyState.explanation : '',
     ].filter(Boolean)
     return {
       ...job,
@@ -308,6 +311,7 @@ export default function FinancePage() {
       balanceCollected: paid.balanceCollected,
       cashCollected: paid.cashCollected,
       cashPending,
+      moneyState,
       jobCosts,
       totalCosts,
       truckCost,
@@ -571,6 +575,7 @@ export default function FinancePage() {
                         <div className="flex items-center gap-3 flex-wrap">
                           <span className="font-semibold text-[#1a2744]">{job.name}</span>
                           {job.moveDate && <span className="text-xs text-[var(--app-muted)]">Move: {job.moveDate}</span>}
+                          <span title={job.moneyState.explanation} className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${job.moneyState.requiresAttention ? 'border-amber-300 bg-amber-50 text-amber-800' : job.moneyState.status === 'paid_in_full' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>{job.moneyState.label}</span>
                         </div>
                         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm">
                           <span className="text-[var(--app-muted)]">Quote: <span className="font-semibold text-[#1a2744]">{formatMoney(job.quoteAmount)}</span></span>

@@ -118,7 +118,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       paidAfterPayment, balanceAfterPayment, paidAt: body.paidAt ? new Date(body.paidAt).toISOString() : now,
       note: body.note?.trim() || undefined, reference: body.reference?.trim() || undefined,
       cardLast4: body.cardLast4?.replace(/\D/g, '').slice(-4) || undefined, recordedBy: session?.name,
-      recordedByUserId: session?.userId,
+      recordedByUserId: session?.userId, status: 'captured',
     }
     let savedQuote = await saveSalesQuote({
       ...quote, status: quote.status === 'declined' ? quote.status : 'accepted', acceptedAt: quote.acceptedAt || now,

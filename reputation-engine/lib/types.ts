@@ -1050,6 +1050,10 @@ export interface PaymentRecord {
   recordedByUserId?: string
   emailSentAt?: string
   smsSentAt?: string
+  status?: 'captured' | 'refunded' | 'partially_refunded'
+  refundedAmount?: number
+  refundedAt?: string
+  refundReference?: string
 }
 
 export interface FollowUpLog {
