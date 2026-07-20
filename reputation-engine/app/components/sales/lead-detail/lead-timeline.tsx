@@ -82,7 +82,7 @@ export function LeadTimeline({
   onNoteAdded,
   readOnly,
 }: Props) {
-  const [filter, setFilter] = useState<TimelineFilter>('sales')
+  const [filter, setFilter] = useState<TimelineFilter>('engagement')
   const [quickNote, setQuickNote] = useState('')
   const [postingNote, setPostingNote] = useState(false)
   const [syncing, setSyncing] = useState(false)
@@ -167,11 +167,10 @@ export function LeadTimeline({
   }, [filter, timeline])
 
   return (
-    <section className="flex min-h-[760px] flex-col bg-[var(--app-bg)]">
-      <div className="flex items-center justify-between border-b border-[var(--app-line)] bg-[var(--app-bg)] px-5 py-4">
-        <div className="flex items-center gap-3">
-          <h2 className="font-display text-lg font-semibold text-[var(--app-ink)]">Sales Timeline</h2>
-          <span className="rounded-full bg-[rgba(228,226,220,1)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--app-ink)]">Recent First</span>
+    <section className="flex min-h-[680px] flex-col bg-[var(--app-bg)]">
+      <div className="flex flex-col gap-3 border-b border-[var(--app-line)] bg-[var(--app-bg)] px-5 py-4 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="font-display text-lg font-semibold text-[var(--app-ink)]">Job narrative</h2>
           <button
             type="button"
             onClick={() => void syncCalls()}
@@ -193,10 +192,10 @@ export function LeadTimeline({
             </button>
           ) : null}
         </div>
-        <div className="flex items-center gap-2 text-[var(--app-muted)]">
+        <div className="flex flex-wrap items-center gap-1.5 text-[var(--app-muted)]">
           {[
-            ['sales', 'Sales Timeline'],
-            ['engagement', 'Customer Engagement'],
+            ['engagement', 'Meaningful activity'],
+            ['sales', 'Sales history'],
             ['audit', 'System Audit'],
             ['all', 'All'],
           ].map(([value, label]) => (

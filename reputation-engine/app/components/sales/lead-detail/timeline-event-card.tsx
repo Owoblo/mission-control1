@@ -37,6 +37,16 @@ function isFailedOrMissedCallText(text: string) {
   )
 }
 
+function cleanTimelineText(text: string) {
+  const normalized = text.replace(/\r/g, '').trim()
+  const replyBreak = normalized.search(/\n\s*(?:On .+wrote:|From:|Sent:|>{2,})/i)
+  const currentMessage = replyBreak > 0 ? normalized.slice(0, replyBreak) : normalized
+  return currentMessage
+    .replace(/^>+\s?/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 function eventTone(item: TimelineItem) {
   const kind = item.kind.toLowerCase()
   const text = item.text.toLowerCase()
@@ -98,12 +108,19 @@ function eventTone(item: TimelineItem) {
           panel: 'border-emerald-200 bg-emerald-50/30',
           accent: 'text-emerald-700',
         }
-      : {
-          dot: 'border-rose-300 text-rose-700 bg-rose-50',
-          badge: 'bg-rose-50 text-rose-700 border-rose-200',
-          panel: 'border-rose-200 bg-rose-50/30',
-          accent: 'text-rose-700',
-        }
+      : isFailedOrMissedCallText(text)
+        ? {
+            dot: 'border-amber-300 text-amber-700 bg-amber-50',
+            badge: 'bg-amber-50 text-amber-700 border-amber-200',
+            panel: 'border-amber-200 bg-amber-50/30',
+            accent: 'text-amber-700',
+          }
+        : {
+            dot: 'border-slate-300 text-slate-600 bg-white',
+            badge: 'bg-white text-slate-600 border-slate-200',
+            panel: 'border-slate-200 bg-white',
+            accent: 'text-slate-700',
+          }
   }
   if (kind.includes('status_change')) {
     return {
@@ -275,7 +292,8 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
   const isMessage = item.kind === 'sms' || item.kind === 'email'
   const isOutbound = item.actor === 'rep' || item.actor === 'system'
 
-  const previewText = (!isMessage && (item.aiSummary?.summary || item.transcript)) || item.text
+  const cleanedText = cleanTimelineText(item.text)
+  const previewText = cleanTimelineText((!isMessage && (item.aiSummary?.summary || item.transcript)) || cleanedText)
   const hasDetails = !!(isCallKind || item.recordingUrl || item.transcript || item.aiSummary || (quote && item.id === `quote-created-${quote.id}`))
 
   if (isMessage) {
@@ -503,7 +521,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
         )}
 
         <div className={`rounded-[8px] border p-4 ${tone.panel}`}>
-          <div className="text-sm leading-6 text-[var(--app-ink)]">{expanded ? item.text : previewText}</div>
+          <div className="whitespace-pre-wrap text-sm leading-6 text-[var(--app-ink)]">{expanded ? cleanedText : previewText}</div>
 
           {expanded && isCallKind && recordingUnavailable && !hasRecording && !item.transcript && !item.aiSummary ? (
             <div className="mt-3 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-3">

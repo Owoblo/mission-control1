@@ -1040,6 +1040,9 @@ export default function SalesLeadDetailPage() {
 
   const aiNudge = useMemo(() => {
     if (!lead) return null
+    // Sales nudges expire when the work has crossed into completion. Historical
+    // follow-up dates must never make a paid or completed job look operationally late.
+    if (['completed', 'customer_success', 'lost'].includes(lead.stage) || lead.paymentStatus === 'paid_in_full') return null
     const now = Date.now()
     const dayMs = 86400000
 
@@ -3710,17 +3713,17 @@ export default function SalesLeadDetailPage() {
   const operatingStageMeta = OPERATING_STAGE_META[operatingStage]
   const operatingExceptions = deriveOperatingExceptions(lead, quote)
   const jobReadiness = deriveJobReadiness(lead, quote)
-  const showJobReadiness = ['booked', 'confirmed', 'prepared', 'dispatched', 'in_progress', 'completed', 'paid', 'reviewed'].includes(operatingStage)
+  const showJobReadiness = ['booked', 'confirmed', 'prepared', 'dispatched', 'in_progress'].includes(operatingStage)
 
   return (
-    <div className="crm-shell space-y-6">
+    <div className="crm-shell space-y-4">
       <section className="border border-[var(--app-line)] bg-white">
         <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="p-5 md:p-7">
+          <div className="p-5 md:px-7 md:py-6">
             <div className="flex flex-wrap items-start justify-between gap-5">
               <div>
                 <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8a6800]">Authoritative job file</div>
-                <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-[#071421]">{displayLeadName}</h1>
+                <h1 className="mt-1.5 font-display text-3xl font-semibold tracking-tight text-[#071421]">{displayLeadName}</h1>
                 <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[var(--app-muted)]">
                   <span>{lead.moveDate ? formatDate(lead.moveDate) : 'Move date not confirmed'}</span>
                   <span>·</span>
@@ -3737,7 +3740,7 @@ export default function SalesLeadDetailPage() {
               </div>
             </div>
 
-            <div className="mt-6 grid gap-px border border-[var(--app-line)] bg-[var(--app-line)] sm:grid-cols-4">
+            <div className="mt-5 grid gap-px border border-[var(--app-line)] bg-[var(--app-line)] sm:grid-cols-4">
               <div className="bg-white p-3"><div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Environment</div><div className="mt-1 text-sm font-semibold text-[#071421]">{operatingStageMeta.environment}</div></div>
               <div className="bg-white p-3"><div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Last meaningful contact</div><div className="mt-1 text-sm font-semibold text-[#071421]">{leadGuidance?.latestActivity.at ? formatRelativeTime(leadGuidance.latestActivity.at) : 'No activity recorded'}</div></div>
               <div className="bg-white p-3"><div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Source</div><div className="mt-1 text-sm font-semibold text-[#071421]">{lead.source || 'Not recorded'}</div></div>
@@ -3745,10 +3748,10 @@ export default function SalesLeadDetailPage() {
             </div>
           </div>
 
-          <aside className="border-t border-[var(--app-line)] bg-[#fbfaf6] p-5 xl:border-l xl:border-t-0 xl:p-6">
+          <aside className="border-t border-[var(--app-line)] bg-[#fbfaf6] p-5 xl:border-l xl:border-t-0">
             <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8a6800]">What must happen next</div>
             <div className="mt-3 text-base font-semibold leading-6 text-[#071421]">{operatingExceptions[0]?.action || leadGuidance?.action.nextAction || 'Keep the operational record current'}</div>
-            <p className="mt-2 text-sm leading-6 text-[var(--app-muted)]">{operatingExceptions[0]?.detail || leadGuidance?.salesLanguage || 'No blocking exception is visible from the current record.'}</p>
+            <p className="mt-2 text-sm leading-5 text-[var(--app-muted)]">{operatingExceptions[0]?.detail || leadGuidance?.salesLanguage || 'No blocking exception is visible from the current record.'}</p>
             {leadGuidance ? <div className="mt-5 space-y-2">
               <button type="button" onClick={() => void handleLeadCommandAction(leadGuidance.action.primaryCta.key)} className="crm-button-dark w-full">{leadGuidance.action.primaryCta.label}</button>
               {leadGuidance.ownerLabel === 'Unassigned' ? <button type="button" onClick={() => void handleLeadCommandAction('assign_to_me')} className="crm-button w-full border-amber-300 bg-amber-50 text-amber-900">Assign to me</button> : null}
@@ -3769,7 +3772,7 @@ export default function SalesLeadDetailPage() {
       <PromiseTracker lead={lead} onUpdated={nextLead => applyLeadSnapshot(nextLead, { hydrateForm: false })} />
 
       {/* ── Sticky jump nav ─────────────────────────────────────────── */}
-      <div className="sticky top-0 z-30 -mx-3 hidden overflow-x-auto border-b border-[var(--app-line)] bg-[var(--app-panel-strong)]/95 backdrop-blur-sm px-3 md:block">
+      <div className="sticky top-0 z-30 hidden overflow-x-auto border-y border-[var(--app-line)] bg-[var(--app-panel-strong)] px-3 md:block">
         <div className="flex items-center gap-1 py-2">
           <button type="button" onClick={handleBackNavigation} className="mr-2 min-h-11 shrink-0 rounded-[4px] border border-[var(--app-line)] bg-white px-3 text-xs font-semibold text-[var(--app-ink)]">← Back</button>
           {[

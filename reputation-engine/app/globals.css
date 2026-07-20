@@ -48,9 +48,9 @@
     --crm-shell-sidebar-collapsed: 64px;
     --crm-shell-topbar: 56px;
     --crm-viewport-max: 1400px;
-    --crm-record-context: minmax(240px, 25%);
-    --crm-record-main: minmax(0, 50%);
-    --crm-record-widget: minmax(260px, 25%);
+    --crm-record-context: minmax(260px, 19%);
+    --crm-record-main: minmax(0, 1fr);
+    --crm-record-widget: minmax(280px, 21%);
     --crm-focus-ring: rgba(201, 151, 0, 0.32);
     --crm-status-success-bg: #ecfdf3;
     --crm-status-success-text: #05603a;
@@ -227,8 +227,9 @@
   }
   .crm-record-layout {
     display: grid;
-    min-height: 760px;
+    min-height: 680px;
     grid-template-columns: minmax(0, 1fr);
+    scroll-margin-top: 64px;
   }
   @media (min-width: 1024px) {
     .crm-record-layout {
