@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { isBookedLikeStage } from '@/lib/sales'
 import { getSessionUser } from '@/lib/server/session'
-import { listBookedSalesLeads, listSalesQuotes } from '@/lib/server/sales-repository'
+import { listBookedSalesLeads, listOperationalSalesQuotes } from '@/lib/server/sales-repository'
 
 export async function GET() {
   const session = await getSessionUser()
@@ -9,7 +9,7 @@ export async function GET() {
 
   try {
     // Manager/owner can see all jobs; crew sees only assigned ones
-    const [bookedLeads, quotes] = await Promise.all([listBookedSalesLeads(), listSalesQuotes()])
+    const [bookedLeads, quotes] = await Promise.all([listBookedSalesLeads(), listOperationalSalesQuotes()])
     const allLeads = bookedLeads
       .filter(lead => isBookedLikeStage(lead.stage))
       .sort((a, b) => (a.moveDate || '9999').localeCompare(b.moveDate || '9999'))
@@ -24,7 +24,6 @@ export async function GET() {
       : allLeads
 
     const quoteByLead = new Map(quotes
-      .filter(quote => quote.status !== 'declined')
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .map(quote => [quote.leadId, quote] as const))
 

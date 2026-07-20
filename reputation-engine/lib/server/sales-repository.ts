@@ -487,6 +487,22 @@ export async function listBookedSalesLeads() {
     .filter(lead => isVisibleSalesLead(lead, archivedLeadIds)))
 }
 
+export async function listOperationalSalesQuotes() {
+  const { url, headers } = requireSupabase()
+  const query = new URLSearchParams({
+    select: 'data',
+    deleted: 'eq.false',
+    'data->>status': 'in.(accepted,sent,invoiced)',
+  })
+  const response = await fetchSupabaseWithRetry(`${url}/rest/v1/crm_quotes?${query.toString()}`, { headers, cache: 'no-store' })
+  if (!response.ok) {
+    const diagnostic = (await response.text().catch(() => '')).replace(/\s+/g, ' ').slice(0, 500)
+    throw new Error(`Failed to read operational crm_quotes. Supabase ${response.status}${diagnostic ? `: ${diagnostic}` : ''}`)
+  }
+  const records = await response.json() as Array<{ data: CRMQuote }>
+  return records.map(record => normalizeQuote(record.data))
+}
+
 export async function listSalesLeadIdentitySnapshots() {
   const [rows, lifecycle] = await Promise.all([
     selectProjectedLeadRows<LeadIdentityRow>(LEAD_IDENTITY_SELECT),
