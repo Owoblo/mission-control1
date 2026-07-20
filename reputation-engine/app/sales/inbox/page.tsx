@@ -643,11 +643,11 @@ function SalesInboxPageInner() {
     })
     if (deferredViewMode === 'calls') {
       base = base.filter(item => item.source === 'twilio_call')
-      if (channelScope === 'action') base = base.filter(item => (item.inboxStatus || getInboundStatus(item, parseRawData(item.raw_data))) === 'needs_action')
+      if (channelScope === 'action') base = base.filter(item => (item.inboxStatus || getInboundStatus(item, parseRawData(item.raw_data))) === 'needs_action' && isInboundItemUnread(item))
     } else if (deferredViewMode === 'webforms') {
       base = base.filter(item => {
         const status = item.inboxStatus || getInboundStatus(item, parseRawData(item.raw_data))
-        return (item.source === 'website_form' || item.source === 'zapier') && (channelScope === 'history' || status === 'needs_action')
+        return (item.source === 'website_form' || item.source === 'zapier') && (channelScope === 'history' || (status === 'needs_action' && isInboundItemUnread(item)))
       })
     } else if (deferredViewMode === 'handoffs') {
       base = base.filter(item => (item.inboxStatus || getInboundStatus(item, parseRawData(item.raw_data))) === 'recent_handoff')
@@ -659,7 +659,7 @@ function SalesInboxPageInner() {
         return status === 'closed' && (deferredClosedFilter === 'all' || disposition === deferredClosedFilter)
       })
     } else {
-      base = base.filter(item => (item.inboxStatus || getInboundStatus(item, parseRawData(item.raw_data))) === 'needs_action')
+      base = base.filter(item => (item.inboxStatus || getInboundStatus(item, parseRawData(item.raw_data))) === 'needs_action' && isInboundItemUnread(item))
     }
     if (deferredViewMode === 'queue') {
       base = base.filter(item => matchesInboundFocusFilter(item, deferredFocusFilter, parseRawData(item.raw_data)))
@@ -803,14 +803,15 @@ function SalesInboxPageInner() {
       if ((item.message || '').toLowerCase().includes('lead flow health')) return false
       return true
     })
-    const live = probeFiltered.filter(item => (item.inboxStatus || getInboundStatus(item, parseRawData(item.raw_data))) === 'needs_action').length
+    const actionable = probeFiltered.filter(item => (item.inboxStatus || getInboundStatus(item, parseRawData(item.raw_data))) === 'needs_action' && isInboundItemUnread(item))
+    const live = actionable.length
     const calls = probeFiltered.filter(item => {
       const raw = parseRawData(item.raw_data)
-      return (item.inboxStatus || getInboundStatus(item, raw)) === 'needs_action' && item.source === 'twilio_call'
+      return (item.inboxStatus || getInboundStatus(item, raw)) === 'needs_action' && isInboundItemUnread(item) && item.source === 'twilio_call'
     }).length
     const forms = probeFiltered.filter(item => {
       const status = item.inboxStatus || getInboundStatus(item, parseRawData(item.raw_data))
-      return (item.source === 'website_form' || item.source === 'zapier') && (status === 'needs_action' || status === 'recent_handoff')
+      return (item.source === 'website_form' || item.source === 'zapier') && status === 'needs_action' && isInboundItemUnread(item)
     }).length
     const inboundEmails = emailList.filter(isUnreadEmail).length
     const smsUnread = smsThreads.filter(item => item.unread).length
@@ -824,6 +825,19 @@ function SalesInboxPageInner() {
       closed: summary.closed,
     }
   }, [emailList, items, smsThreads, summary.closed, summary.recentHandoffs])
+  const queueFocusCounts = useMemo(() => {
+    const actionable = items.filter(item => {
+      const digits = (item.phone || '').replace(/\D/g, '')
+      if (digits === '10000000000' || (digits.length >= 10 && new Set(digits).size <= 2)) return false
+      return (item.inboxStatus || getInboundStatus(item, parseRawData(item.raw_data))) === 'needs_action' && isInboundItemUnread(item)
+    })
+    return {
+      needs_action: actionable.length,
+      web_qr: actionable.filter(item => isWebInquiryLead(item, parseRawData(item.raw_data)) || isQrOrDirectMailLead(item, parseRawData(item.raw_data))).length,
+      calls: actionable.filter(item => item.source === 'twilio_call').length,
+      high_intent: actionable.filter(item => isHighPriorityLead(item, parseRawData(item.raw_data))).length,
+    }
+  }, [items])
   const todayMetrics = useMemo(() => {
     const start = new Date()
     start.setHours(0, 0, 0, 0)
@@ -1209,7 +1223,7 @@ function SalesInboxPageInner() {
                       >
                         <span className="flex items-center justify-center">{tab.icon}</span>
                         <span className="text-[9px] font-semibold leading-none">{tab.label}</span>
-                        {tab.count > 0 && (
+                        {tab.count > 0 && tab.id !== 'handoffs' && tab.id !== 'closed' && (
                           <span className={`absolute right-0 top-1 text-[9px] font-semibold ${active ? 'text-[var(--app-accent)]' : 'text-[var(--app-muted)]'}`}>
                             {tab.count > 9 ? '9+' : tab.count}
                           </span>
@@ -1254,11 +1268,10 @@ function SalesInboxPageInner() {
                     {viewMode === 'queue' && (
                       <div className="flex gap-1.5 overflow-x-auto pb-0.5">
                         {([
-                          { id: 'needs_action', label: 'Needs action', count: summary.focus.needs_action },
-                          { id: 'web_qr',       label: 'Web / QR',    count: summary.focus.web_qr },
-                          { id: 'calls',        label: 'Calls',       count: summary.focus.calls },
-                          { id: 'high_intent',  label: 'High intent', count: summary.focus.high_intent },
-                          { id: 'answered',     label: 'Answered',    count: summary.focus.answered },
+                          { id: 'needs_action', label: 'Needs action', count: queueFocusCounts.needs_action },
+                          { id: 'web_qr',       label: 'Web / QR',    count: queueFocusCounts.web_qr },
+                          { id: 'calls',        label: 'Calls',       count: queueFocusCounts.calls },
+                          { id: 'high_intent',  label: 'High intent', count: queueFocusCounts.high_intent },
                         ] as const).map(f => (
                           <button key={f.id} onClick={() => setFocusFilter(f.id)}
                             className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium transition ${focusFilter === f.id ? 'border-[var(--app-accent)] bg-[rgba(15,106,83,0.08)] text-[var(--app-accent)]' : 'border-[var(--app-line)] text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}>
