@@ -30,7 +30,7 @@ function canAccessAssignedCrewJob(lead: CRMLead, session: Awaited<ReturnType<typ
 function categoryLabel(value: string) {
   return value
     .replaceAll('_', ' ')
-    .replace(/\b\w/g, char => char.toUpperCase())
+    .replace(/\b\w/g, char => char.toUpperCase());
 }
 
 function buildReceiptNotes(category: string, amountCents: number | null, notes?: string) {
@@ -89,10 +89,8 @@ async function createJobCost(input: {
   return row
 }
 
-export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const session = await getSessionUser()
     if (!session) {

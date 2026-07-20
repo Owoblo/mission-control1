@@ -14,7 +14,8 @@ function formatDuration(seconds: number) {
   return `${minutes}m ${safe % 60}s`
 }
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const session = await getSessionUser()
     if (!canAccessSalesWorkspace(session)) {

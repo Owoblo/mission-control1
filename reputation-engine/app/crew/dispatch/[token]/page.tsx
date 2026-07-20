@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, use } from 'react';
 
 type DispatchJob = {
   customerName: string
@@ -28,7 +28,8 @@ const ROLE_LABELS: Record<string, string> = {
   other: 'Crew',
 }
 
-export default function CrewDispatchPage({ params }: { params: { token: string } }) {
+export default function CrewDispatchPage(props: { params: Promise<{ token: string }> }) {
+  const params = use(props.params);
   const [job, setJob] = useState<DispatchJob | null>(null)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')

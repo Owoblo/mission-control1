@@ -77,7 +77,8 @@ function isTokenValid(token: string | null, expected?: string) {
   return !!token && !!expected && token === expected
 }
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const searchParams = new URL(request.url).searchParams
     const token = searchParams.get('token')
@@ -209,7 +210,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
   }
 }
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const body = (await request.json()) as {
       token?: string

@@ -28,7 +28,8 @@ function buildRoomBreakdown(items: ReturnType<typeof normalizeLead>['inventory']
   }, {})
 }
 
-export async function POST(_: Request, { params }: { params: { id: string } }) {
+export async function POST(_: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const session = await getSessionUser()
     if (!canAccessSalesWorkspace(session)) {

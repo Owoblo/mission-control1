@@ -142,10 +142,8 @@ async function saveVerificationUpdate(
   return saveSalesLead(updatedLead)
 }
 
-export async function GET(
-  _request: Request,
-  { params }: { params: { token: string } }
-) {
+export async function GET(_request: Request, props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   try {
     const result = await loadLeadByToken(params.token)
     if (!result) return NextResponse.json({ error: 'Invalid or expired survey link' }, { status: 404 })
@@ -157,10 +155,8 @@ export async function GET(
   }
 }
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: { token: string } }
-) {
+export async function PATCH(request: Request, props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   try {
     const result = await loadLeadByToken(params.token)
     if (!result) return NextResponse.json({ error: 'Invalid or expired survey link' }, { status: 404 })
@@ -187,10 +183,8 @@ export async function PATCH(
   }
 }
 
-export async function POST(
-  _request: Request,
-  { params }: { params: { token: string } }
-) {
+export async function POST(_request: Request, props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   try {
     const result = await loadLeadByToken(params.token)
     if (!result) return NextResponse.json({ error: 'Invalid or expired survey link' }, { status: 404 })

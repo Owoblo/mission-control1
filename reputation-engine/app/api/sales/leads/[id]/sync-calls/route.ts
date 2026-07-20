@@ -43,7 +43,8 @@ async function readTwilioCalls(result: PromiseSettledResult<Response>): Promise<
   }
 }
 
-export async function POST(_req: Request, { params }: { params: { id: string } }) {
+export async function POST(_req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const lead = await getSalesLead(params.id)
     if (!lead?.phone) return NextResponse.json({ ok: true, synced: 0 })
@@ -207,7 +208,7 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
     if (synced > 0) {
       // Only save if we added new logs (patches to existing logs were already saved inline)
       const hasNewLogs = (updatedLead.callLogs || []).length > (lead.callLogs || []).length
-      const saved = hasNewLogs ? await saveSalesLead(updatedLead) : await getSalesLead(params.id) ?? updatedLead
+      const saved = hasNewLogs ? await saveSalesLead(updatedLead) : (await getSalesLead(params.id)) ?? updatedLead
       // Create callSid mappings for any new logs
       if (hasNewLogs) {
         for (const log of (saved.callLogs || []).filter((c: any) => (c as any).callSid)) {

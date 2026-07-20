@@ -4,7 +4,8 @@ import { hasInternalSession } from '@/lib/server/session'
 
 export const dynamic = 'force-dynamic'
 
-export async function DELETE(_: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     if (!(await hasInternalSession())) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

@@ -20,7 +20,8 @@ function canManageOutcome(session: Awaited<ReturnType<typeof getSessionUser>>, l
   return canAccessOperationsWorkspace(session)
 }
 
-export async function GET(_: Request, { params }: { params: { id: string } }) {
+export async function GET(_: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const session = await getSessionUser()
     const lead = await getSalesLead(params.id)
@@ -39,7 +40,8 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
   }
 }
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const session = await getSessionUser()
     const body = (await request.json()) as {

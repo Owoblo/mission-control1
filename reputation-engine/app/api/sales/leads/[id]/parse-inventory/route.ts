@@ -63,7 +63,7 @@ ${text.slice(0, 3000)}`
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params: _params }: { params: Promise<{ id: string }> }
 ) {
   const session = await hasInternalSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

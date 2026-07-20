@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { getSalesLead, getSalesQuote } from '@/lib/server/sales-repository'
 import { getReceiptBrand } from '@/lib/receipt-brand'
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const token = new URL(request.url).searchParams.get('token') || ''
   const quote = await getSalesQuote(params.id)
   const payment = quote?.paymentRecords?.find(item => item.publicToken === token)

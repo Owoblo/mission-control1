@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, use } from 'react';
 import {
   DEFAULT_SURVEY_ROOMS,
   buildSurveyRoomId,
@@ -166,7 +166,8 @@ async function readUploadResponse(response: Response) {
   return { error: text.trim() || `Upload failed (${response.status})` }
 }
 
-export default function SurveyPage({ params }: { params: { token: string } }) {
+export default function SurveyPage(props: { params: Promise<{ token: string }> }) {
+  const params = use(props.params);
   const [info, setInfo] = useState<SurveyVerificationPayload | null>(null)
   const [loadError, setLoadError] = useState('')
   const [loading, setLoading] = useState(true)

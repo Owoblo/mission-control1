@@ -4815,47 +4815,47 @@ export default function SalesLeadDetailPage() {
               </div>
             ) : null}
 
-            <div className="space-y-3 border-b border-[var(--app-line)] p-5">
-              {lead.phone ? <button onClick={openDialer} disabled={!canHandleCurrentLeadCommunication} className="crm-button-dark w-full justify-center disabled:opacity-60">Call Lead</button> : null}
-              <div className="grid grid-cols-2 gap-3">
-                {lead.phone ? <button onClick={() => openComposer('sms')} disabled={!canHandleCurrentLeadCommunication} className="crm-button justify-center disabled:opacity-60">Send SMS</button> : <div />}
-                {lead.email ? <button onClick={() => openComposer('email')} disabled={!canHandleCurrentLeadCommunication} className="crm-button justify-center disabled:opacity-60">Email</button> : <div />}
+            <div className="space-y-2 border-b border-[var(--app-line)] p-4">
+              <div className="grid grid-cols-3 gap-2">
+                {lead.phone ? <button onClick={openDialer} disabled={!canHandleCurrentLeadCommunication} className="crm-button-dark justify-center px-2 disabled:opacity-60">Call</button> : <div />}
+                {lead.phone ? <button onClick={() => openComposer('sms')} disabled={!canHandleCurrentLeadCommunication} className="crm-button justify-center px-2 disabled:opacity-60">SMS</button> : <div />}
+                {lead.email ? <button onClick={() => openComposer('email')} disabled={!canHandleCurrentLeadCommunication} className="crm-button justify-center px-2 disabled:opacity-60">Email</button> : <div />}
               </div>
-              <button
-                onClick={() => void startConsultation()}
-                disabled={!canHandleCurrentLeadCommunication || consultationActive || consultationSaving}
-                className="crm-button w-full justify-center"
-              >
-                {consultationActive ? `Recording Consultation • ${formatSeconds(consultationSeconds)}` : consultationSaving ? 'Saving Consultation...' : 'Record Consultation'}
-              </button>
-              <button
-                onClick={() => setFastLaneOpen(true)}
-                disabled={!canEditCurrentLead || (!lead.phone && !lead.email)}
-                className="crm-button w-full justify-center border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 disabled:opacity-60"
-                title="Send a quick quote by SMS or email — no inventory scan needed"
-              >
-                ⚡ Fast Lane Quote
-              </button>
-
-              {/* In-Home Move Consultation */}
-              {!isClosedLeadStage(lead.stage) && canEditCurrentLead && (
-                <button
-                  onClick={() => setShowConsultationModal(true)}
-                  className="crm-button w-full justify-center border-violet-200 bg-violet-50 text-violet-700 hover:border-violet-400 disabled:opacity-60"
-                >
-                  🏠 Book In-Home Consultation
-                </button>
-              )}
-
-              {quote ? (
-                <button onClick={() => void openQuoteBuilder()} disabled={!canEditCurrentLead} className="crm-button w-full justify-center border-[rgba(34,72,56,0.2)] bg-[rgba(34,72,56,0.08)] text-[var(--app-accent)] disabled:opacity-60">
-                  Build Estimate
-                </button>
-              ) : (
+              {!quote ? (
                 <button onClick={() => void openQuoteBuilder()} disabled={!canEditCurrentLead || creatingQuote} className="crm-button w-full justify-center border-[rgba(34,72,56,0.2)] bg-[rgba(34,72,56,0.08)] text-[var(--app-accent)] disabled:opacity-60">
                   {creatingQuote ? 'Building...' : 'Build Estimate'}
                 </button>
-              )}
+              ) : null}
+              <details className="group rounded-xl border border-[var(--app-line)] bg-white">
+                <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[var(--app-ink)]">
+                  <span className="flex items-center justify-between">More sales actions <span className="text-[var(--app-muted)] group-open:rotate-180">⌄</span></span>
+                </summary>
+                <div className="space-y-2 border-t border-[var(--app-line)] p-3">
+                  <button
+                    onClick={() => void startConsultation()}
+                    disabled={!canHandleCurrentLeadCommunication || consultationActive || consultationSaving}
+                    className="crm-button w-full justify-center"
+                  >
+                    {consultationActive ? `Recording • ${formatSeconds(consultationSeconds)}` : consultationSaving ? 'Saving Consultation...' : 'Record Consultation'}
+                  </button>
+                  <button
+                    onClick={() => setFastLaneOpen(true)}
+                    disabled={!canEditCurrentLead || (!lead.phone && !lead.email)}
+                    className="crm-button w-full justify-center disabled:opacity-60"
+                    title="Send a quick quote by SMS or email — no inventory scan needed"
+                  >
+                    Fast Lane Quote
+                  </button>
+                  {!isClosedLeadStage(lead.stage) && canEditCurrentLead && (
+                    <button onClick={() => setShowConsultationModal(true)} className="crm-button w-full justify-center">
+                      Book In-Home Consultation
+                    </button>
+                  )}
+                  {quote ? (
+                    <button onClick={() => void openQuoteBuilder()} disabled={!canEditCurrentLead} className="crm-button w-full justify-center disabled:opacity-60">
+                      Edit Estimate
+                    </button>
+                  ) : null}
               {/* Add a second job for the same contact (e.g. residential + commercial) */}
               {quote && (
                 <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
@@ -4872,6 +4872,8 @@ export default function SalesLeadDetailPage() {
                   </div>
                 </div>
               )}
+                </div>
+              </details>
               {/* Linked jobs panel */}
               {additionalQuotes.length > 0 && (
                 <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3 space-y-1.5">

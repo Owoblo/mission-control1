@@ -14,7 +14,8 @@ function canUpdateJob(lead: CRMLead, session: Awaited<ReturnType<typeof getSessi
   return (lead.assignedCrew || []).some(member => keys.has(member))
 }
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const session = await getSessionUser()
     const lead = await getSalesLead(params.id)

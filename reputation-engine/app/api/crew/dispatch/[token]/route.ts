@@ -50,7 +50,8 @@ function publicJobPayload(lead: CRMLead, quote: CRMQuote | null, entry: CrewPayo
   }
 }
 
-export async function GET(_: Request, { params }: { params: { token: string } }) {
+export async function GET(_: Request, props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   const token = params.token?.trim()
   if (!token) return NextResponse.json({ error: 'Invalid dispatch link' }, { status: 400 })
 
@@ -62,7 +63,8 @@ export async function GET(_: Request, { params }: { params: { token: string } })
   return NextResponse.json({ job: publicJobPayload(match.lead, quote, match.entry) })
 }
 
-export async function POST(request: Request, { params }: { params: { token: string } }) {
+export async function POST(request: Request, props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   const token = params.token?.trim()
   if (!token) return NextResponse.json({ error: 'Invalid dispatch link' }, { status: 400 })
 

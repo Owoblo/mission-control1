@@ -4,10 +4,8 @@ import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { getSessionUser } from '@/lib/server/session'
 import { getSalesLead, saveSalesLead } from '@/lib/server/sales-repository'
 
-export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const session = await getSessionUser()
     if (!canAccessSalesWorkspace(session)) {

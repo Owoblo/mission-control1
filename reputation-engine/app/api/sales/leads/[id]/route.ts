@@ -289,7 +289,8 @@ async function sendAppointmentSms(lead: import('@/lib/types').CRMLead) {
   }
 }
 
-export async function GET(_: Request, { params }: { params: { id: string } }) {
+export async function GET(_: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const session = await getSessionUser()
     if (!canAccessSalesWorkspace(session)) {
@@ -310,7 +311,8 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
   }
 }
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const session = await getSessionUser()
 
@@ -518,7 +520,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(_: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const session = await getSessionUser()
     if (!canDeleteLead(session)) {

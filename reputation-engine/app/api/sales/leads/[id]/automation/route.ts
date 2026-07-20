@@ -138,7 +138,8 @@ async function listLeadAutomationJobs(leadId: string) {
   })
 }
 
-export async function GET(_: Request, { params }: { params: { id: string } }) {
+export async function GET(_: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const session = await getSessionUser()
     if (!canAccessSalesWorkspace(session)) {
@@ -168,7 +169,8 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
   }
 }
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const session = await getSessionUser()
     if (!canAccessSalesWorkspace(session)) {

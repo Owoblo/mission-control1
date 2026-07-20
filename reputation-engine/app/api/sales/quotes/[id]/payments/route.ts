@@ -21,7 +21,7 @@ function money(value: number) {
 }
 
 function receiptNumber(quoteNumber: string, count: number) {
-  return `SSR-${new Date().getFullYear()}-${quoteNumber.replace(/[^A-Z0-9]/gi, '').slice(-8).toUpperCase()}-${String(count + 1).padStart(2, '0')}`
+  return `SSR-${new Date().getFullYear()}-${quoteNumber.replace(/[^A-Z0-9]/gi, '').slice(-8).toUpperCase()}-${String(count + 1).padStart(2, '0')}`;
 }
 
 function paymentKindLabel(kind: PaymentRecordKind) {
@@ -80,7 +80,8 @@ async function deliverReceipt(input: {
   return { emailSent, smsSent, emailError, smsError, publicUrl }
 }
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getSessionUser()
   if (!canAccessSalesWorkspace(session)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -146,7 +147,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
   }
 }
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getSessionUser()
   if (!session || (session.role !== 'owner' && session.role !== 'manager')) {
     return NextResponse.json({ error: 'Only an owner or manager can record a refund' }, { status: 403 })

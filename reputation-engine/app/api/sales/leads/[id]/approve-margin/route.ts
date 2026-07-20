@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getSalesLead, saveSalesLead } from '@/lib/server/sales-repository'
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { searchParams } = new URL(request.url)
   const token = searchParams.get('token')
 

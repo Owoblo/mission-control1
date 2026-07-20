@@ -6,8 +6,9 @@ import { normalizeLead } from '@/lib/sales'
 
 export async function POST(
   _request: Request,
-  { params }: { params: { id: string; assetId: string } }
+  props: { params: Promise<{ id: string; assetId: string }> }
 ) {
+  const params = await props.params;
   try {
     const session = await getSessionUser()
     if (!canAccessSalesWorkspace(session)) {

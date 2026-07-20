@@ -6,7 +6,8 @@ import type { CustomerPromise, PromiseChannel } from '@/lib/types'
 
 const CHANNELS = new Set<PromiseChannel>(['call', 'sms', 'email', 'in_person', 'internal'])
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getSessionUser()
   if (!canAccessSalesWorkspace(session)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const lead = await getSalesLead(params.id)

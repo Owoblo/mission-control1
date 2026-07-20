@@ -16,7 +16,8 @@ import type { InventoryItem } from '@/lib/types'
 export const runtime = 'nodejs'
 export const maxDuration = 300
 
-export async function POST(_req: Request, { params }: { params: { id: string } }) {
+export async function POST(_req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const authed = await hasInternalSession()
   if (!authed) return new Response('Unauthorized', { status: 401 })
 

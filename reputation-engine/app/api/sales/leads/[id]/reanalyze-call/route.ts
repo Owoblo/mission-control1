@@ -5,7 +5,8 @@ import { getSalesLead, saveSalesLead, updateLeadCallLogEntry } from '@/lib/serve
 import { applyPhoneCallSummaryToLead, transcribeFromUrl, transcribeConsultationRecording, summarizePhoneCall, summarizeConsultation } from '@/lib/server/call-intelligence'
 import { getTwilioCredentials } from '@/lib/server/runtime'
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const { callLogId } = (await request.json()) as { callLogId?: string }
 

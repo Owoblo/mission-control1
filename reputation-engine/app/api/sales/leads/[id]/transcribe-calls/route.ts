@@ -10,7 +10,8 @@ import { getSalesLead, saveSalesLead } from '@/lib/server/sales-repository'
 import { applyPhoneCallSummaryToLead, transcribeFromUrl, summarizePhoneCall } from '@/lib/server/call-intelligence'
 import { getTwilioCredentials } from '@/lib/server/runtime'
 
-export async function POST(_req: Request, { params }: { params: { id: string } }) {
+export async function POST(_req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const lead = await getSalesLead(params.id)
     if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })

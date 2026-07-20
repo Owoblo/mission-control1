@@ -4,7 +4,8 @@ import { getSessionUser } from '@/lib/server/session'
 import { LOST_REASONS } from '@/lib/sales'
 import { readEnv } from '@/lib/server/runtime'
 
-export async function GET(_: Request, { params }: { params: { id: string } }) {
+export async function GET(_: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getSessionUser()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

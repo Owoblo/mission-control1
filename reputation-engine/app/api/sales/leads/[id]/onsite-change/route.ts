@@ -26,7 +26,8 @@ async function sendSms(accountSid: string, authToken: string, to: string, body: 
   })
 }
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const session = await getSessionUser()
     if (!canAccessSalesWorkspace(session)) {

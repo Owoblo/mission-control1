@@ -28,7 +28,7 @@ function money(value?: number | null) {
 }
 
 function firstName(name?: string | null) {
-  return String(name || '').trim().split(/\s+/)[0] || 'there'
+  return String(name || '').trim().split(/\s+/)[0] || 'there';
 }
 
 function buildQuoteUrl(quote: CRMQuote) {
@@ -46,7 +46,8 @@ function buildReceiptSms(lead: CRMLead, quote: CRMQuote, amount: number, balance
   ].filter(Boolean).join(' ')
 }
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getSessionUser()
   if (!canAccessSalesWorkspace(session)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -217,7 +218,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
   }
 }
 
-export async function DELETE(_: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getSessionUser()
   if (!canAccessSalesWorkspace(session)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
