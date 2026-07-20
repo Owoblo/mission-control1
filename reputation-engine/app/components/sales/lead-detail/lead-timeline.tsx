@@ -42,6 +42,8 @@ type TimelineFilter = 'sales' | 'engagement' | 'audit' | 'all'
 function isCustomerEngagementItem(item: TimelineItem) {
   return (
     item.actor === 'customer' ||
+    item.kind === 'call' ||
+    item.kind === 'consultation' ||
     item.kind === 'sms' ||
     item.kind === 'email' ||
     item.kind === 'view' ||
