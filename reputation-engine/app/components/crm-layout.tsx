@@ -4,8 +4,8 @@ export function CRMAppFrame({ children }: { children: ReactNode }) {
   return <div className="crm-app-frame">{children}</div>
 }
 
-export function CRMMainViewport({ children }: { children: ReactNode }) {
-  return <div className="crm-main-viewport">{children}</div>
+export function CRMMainViewport({ children, fixed = false }: { children: ReactNode; fixed?: boolean }) {
+  return <div className={fixed ? 'crm-main-viewport-fixed' : 'crm-main-viewport'}>{children}</div>
 }
 
 export function CRMMainContent({

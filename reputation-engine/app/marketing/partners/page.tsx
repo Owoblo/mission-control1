@@ -4368,7 +4368,7 @@ function PhoneTab({
   }
 
   return (
-    <div className="flex h-[calc(100dvh-5.5rem)] min-h-0 overflow-hidden bg-white md:h-[calc(100dvh-7rem)] md:min-h-[680px] md:rounded-[16px] md:border md:border-slate-200 lg:h-[calc(100vh-7rem)]">
+    <div className="flex h-full min-h-0 overflow-hidden bg-white md:border-x md:border-slate-200">
       {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-[14px] bg-[#071421] px-5 py-3 text-sm font-medium text-white shadow-none">{toast}</div>}
       {dialer.status === 'ringing' && (
         <div className="fixed left-1/2 top-6 z-[80] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-[16px] border border-emerald-200 bg-white p-4 shadow-none">
@@ -4918,8 +4918,8 @@ function PhoneTab({
                   >
                     {voiceListening ? '■' : '🎙'}
                   </button>
-                  <textarea value={smsBody} onChange={e => setSmsBody(e.target.value)} rows={3} placeholder={selected.phone ? 'Type SMS…' : 'No phone'} disabled={!selected.phone}
-                    className="max-h-36 min-h-[88px] flex-1 resize-y rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-base leading-[1.5] text-[#071421] outline-none focus:border-[#071421] disabled:opacity-40 lg:text-sm" />
+                  <textarea value={smsBody} onChange={e => setSmsBody(e.target.value)} rows={2} placeholder={selected.phone ? 'Type SMS…' : 'No phone'} disabled={!selected.phone}
+                    className="max-h-28 min-h-[72px] flex-1 resize-none rounded-[12px] border border-slate-200 bg-slate-50 px-4 py-3 text-base leading-[1.5] text-[#071421] outline-none focus:border-[#071421] disabled:opacity-40 lg:text-sm" />
                   <button onClick={handleSend} disabled={sending || mediaUploading || !selected.phone || (!smsBody.trim() && mediaUrls.length === 0) || (scheduleMode && !scheduledAt)}
                     className="mb-0.5 min-h-12 rounded-full bg-[#071421] px-5 text-sm font-semibold text-white disabled:opacity-40 lg:min-h-11">{sending ? '…' : scheduleMode ? 'Schedule' : 'Send'}</button>
                 </div>
@@ -4942,8 +4942,8 @@ function PhoneTab({
                   >
                     {voiceListening ? '■' : '🎙'}
                   </button>
-                  <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={3} placeholder={selected.email ? 'Type email…' : 'No email'} disabled={!selected.email}
-                    className="min-h-[88px] flex-1 resize-none rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-base leading-[1.5] text-[#071421] outline-none focus:border-[#071421] disabled:opacity-40 lg:text-sm" />
+                  <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={2} placeholder={selected.email ? 'Type email…' : 'No email'} disabled={!selected.email}
+                    className="max-h-28 min-h-[72px] flex-1 resize-none rounded-[12px] border border-slate-200 bg-slate-50 px-4 py-3 text-base leading-[1.5] text-[#071421] outline-none focus:border-[#071421] disabled:opacity-40 lg:text-sm" />
                   <button onClick={handleSend} disabled={sending || !selected.email || !emailBody.trim()}
                     className="min-h-12 self-end rounded-full bg-[#071421] px-5 text-sm font-semibold text-white disabled:opacity-40 lg:min-h-11">{sending ? '…' : 'Send'}</button>
                 </div>
@@ -6531,8 +6531,8 @@ function PartnershipEngineInner() {
   }, [currentUser?.role, tab, visibleTabs])
 
   return (
-    <div className={inboxActive ? 'min-h-screen bg-white md:bg-[var(--app-bg,#f0f2f5)]' : 'min-h-screen bg-[var(--app-bg,#f0f2f5)]'}>
-      <div className={inboxActive ? 'mx-0 max-w-none px-0 py-0 md:mx-auto md:max-w-[1280px] md:px-4 md:py-2' : 'mx-auto max-w-6xl px-4 py-8 sm:px-6'}>
+    <div className={inboxActive ? 'h-full overflow-hidden bg-white' : 'min-h-screen bg-[var(--app-bg,#f0f2f5)]'}>
+      <div className={inboxActive ? 'mx-0 h-full max-w-none overflow-hidden px-0 py-0' : 'mx-auto max-w-6xl px-4 py-8 sm:px-6'}>
         <div className={`${inboxActive ? 'hidden' : 'flex'} mb-6 items-center justify-between`}>
           <div>
             <h1 className="text-2xl font-semibold text-[#14213d]">Relationship CRM</h1>

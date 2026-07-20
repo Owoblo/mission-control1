@@ -31,7 +31,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return (
       <CRMAppFrame>
         <SalesHeader />
-        <CRMMainViewport>
+        <CRMMainViewport fixed={partnershipInbox}>
           <CRMMainContent flush={partnershipInbox}>
             <CRMViewport flush={partnershipInbox}>
               {children}

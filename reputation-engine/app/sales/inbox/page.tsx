@@ -340,6 +340,11 @@ function SalesInboxPageInner() {
   const deferredClosedFilter = useDeferredValue(closedFilter)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [sortOrder, setSortOrder] = useState<'priority' | 'recent' | 'oldest'>('recent')
+  const [channelScope, setChannelScope] = useState<'action' | 'history'>('action')
+  const [smsScope, setSmsScope] = useState<'action' | 'all' | 'waiting'>('action')
+  const [smsBranch, setSmsBranch] = useState('')
+  const [smsStage, setSmsStage] = useState('')
+  const [smsRecency, setSmsRecency] = useState<'7' | '30' | 'all'>('30')
   const deferredSortOrder = useDeferredValue(sortOrder)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -629,17 +634,20 @@ function SalesInboxPageInner() {
     let base = [...items]
     // Filter out internal health probes
     base = base.filter(item => {
-      if (item.phone === '+15550001111' || item.phone === '5550001111') return false
+      const digits = (item.phone || '').replace(/\D/g, '')
+      if (item.phone === '+15550001111' || item.phone === '5550001111' || digits === '10000000000') return false
+      if (digits.length >= 10 && new Set(digits).size <= 2) return false
       if (item.email?.includes('system.invalid')) return false
       if ((item.message || '').toLowerCase().includes('lead flow health')) return false
       return true
     })
     if (deferredViewMode === 'calls') {
       base = base.filter(item => item.source === 'twilio_call')
+      if (channelScope === 'action') base = base.filter(item => (item.inboxStatus || getInboundStatus(item, parseRawData(item.raw_data))) === 'needs_action')
     } else if (deferredViewMode === 'webforms') {
       base = base.filter(item => {
         const status = item.inboxStatus || getInboundStatus(item, parseRawData(item.raw_data))
-        return (item.source === 'website_form' || item.source === 'zapier') && (status === 'needs_action' || status === 'recent_handoff')
+        return (item.source === 'website_form' || item.source === 'zapier') && (channelScope === 'history' || status === 'needs_action')
       })
     } else if (deferredViewMode === 'handoffs') {
       base = base.filter(item => (item.inboxStatus || getInboundStatus(item, parseRawData(item.raw_data))) === 'recent_handoff')
@@ -697,13 +705,22 @@ function SalesInboxPageInner() {
       const rightRaw = parseRawData(right.raw_data)
       return new Date(getInboundActionTimestamp(right, rightRaw)).getTime() - new Date(getInboundActionTimestamp(left, leftRaw)).getTime()
     })
-  }, [deferredClosedFilter, deferredFocusFilter, items, deferredSearch, deferredViewMode, deferredSortOrder])
+  }, [channelScope, deferredClosedFilter, deferredFocusFilter, items, deferredSearch, deferredViewMode, deferredSortOrder])
 
   // Filter + sort SMS threads
   // Customer-initiated (has inbound messages) shown first, outbound-only at bottom
   const filteredSmsThreads = useMemo(() => {
     const q = deferredSearch.trim().toLowerCase()
-    let threads = smsThreads
+    let threads = smsThreads.filter(thread => {
+      const digits = (thread.contactPhone || '').replace(/\D/g, '')
+      if (digits.length < 10 || digits === '10000000000' || new Set(digits).size <= 2) return false
+      if (smsScope === 'action' && !thread.unread) return false
+      if (smsScope === 'waiting' && (thread.unread || thread.lastDirection !== 'outbound')) return false
+      if (smsBranch && thread.branchLabel !== smsBranch) return false
+      if (smsStage && thread.leadStage !== smsStage) return false
+      if (smsRecency !== 'all' && Date.now() - new Date(thread.lastAt).getTime() > Number(smsRecency) * 86400000) return false
+      return true
+    })
     if (q && deferredViewMode === 'messages') {
       threads = threads.filter(thread => {
         const text = [thread.leadName, thread.contactPhone, thread.lastMessage, thread.branchLabel]
@@ -719,7 +736,10 @@ function SalesInboxPageInner() {
       if (!aHasInbound && bHasInbound) return 1
       return new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime()
     })
-  }, [smsThreads, deferredSearch, deferredViewMode])
+  }, [smsThreads, deferredSearch, deferredViewMode, smsBranch, smsRecency, smsScope, smsStage])
+
+  const smsBranchOptions = useMemo(() => Array.from(new Set(smsThreads.map(thread => thread.branchLabel).filter(Boolean))).sort(), [smsThreads])
+  const smsStageOptions = useMemo(() => Array.from(new Set(smsThreads.map(thread => thread.leadStage).filter(Boolean))).sort(), [smsThreads])
 
   const selected = useMemo(() => filteredItems.find(item => item.id === selectedId) || null, [filteredItems, selectedId])
   const selectedRaw = useMemo(() => parseRawData(selected?.raw_data), [selected?.raw_data])
@@ -776,7 +796,9 @@ function SalesInboxPageInner() {
   const shownCount = viewMode === 'messages' ? filteredSmsThreads.length : viewMode === 'email' ? emailList.length : filteredItems.length
   const sectionCounts = useMemo(() => {
     const probeFiltered = items.filter(item => {
-      if (item.phone === '+15550001111' || item.phone === '5550001111') return false
+      const digits = (item.phone || '').replace(/\D/g, '')
+      if (item.phone === '+15550001111' || item.phone === '5550001111' || digits === '10000000000') return false
+      if (digits.length >= 10 && new Set(digits).size <= 2) return false
       if (item.email?.includes('system.invalid')) return false
       if ((item.message || '').toLowerCase().includes('lead flow health')) return false
       return true
@@ -829,6 +851,13 @@ function SalesInboxPageInner() {
     if (viewMode === 'email') return emailList.filter(isUnreadEmail).length
     return filteredItems.filter(item => isInboundItemUnread(item)).length
   }, [emailList, filteredItems, filteredSmsThreads, viewMode])
+  const inboxMeasure = viewMode === 'messages'
+    ? smsScope === 'action' ? `${shownCount} need reply` : `${shownCount} conversations`
+    : (viewMode === 'calls' || viewMode === 'webforms') && channelScope === 'history'
+      ? `${shownCount} records`
+      : viewMode === 'closed'
+        ? `${shownCount} closed`
+        : `${shownCount} need attention`
   const selectedRoute = useMemo(
     () => ({
       origin:
@@ -1182,7 +1211,7 @@ function SalesInboxPageInner() {
                         <span className="text-[9px] font-semibold leading-none">{tab.label}</span>
                         {tab.count > 0 && (
                           <span className={`absolute right-0 top-1 text-[9px] font-semibold ${active ? 'text-[var(--app-accent)]' : 'text-[var(--app-muted)]'}`}>
-                            {tab.count > 99 ? '99+' : tab.count}
+                            {tab.count > 9 ? '9+' : tab.count}
                           </span>
                         )}
                       </button>
@@ -1198,7 +1227,7 @@ function SalesInboxPageInner() {
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-baseline gap-2">
                         <span className="text-base font-bold text-[var(--app-ink)]">Inbox</span>
-                        <span className="text-xs text-[var(--app-muted)]">{unreadVisibleCount > 0 ? `${unreadVisibleCount} need attention` : 'Caught up'}</span>
+                        <span className="text-xs text-[var(--app-muted)]">{shownCount > 0 ? inboxMeasure : 'Caught up'}</span>
                       </div>
                       {unreadVisibleCount > 0 ? <button onClick={() => void markVisibleAsRead()} className="text-[11px] font-semibold text-[var(--app-muted)] transition hover:text-[var(--app-ink)]">Mark read</button> : null}
                     </div>
@@ -1253,6 +1282,28 @@ function SalesInboxPageInner() {
                             {f.label} <span className="opacity-60">{f.count}</span>
                           </button>
                         ))}
+                      </div>
+                    )}
+
+                    {(viewMode === 'calls' || viewMode === 'webforms') && (
+                      <div className="flex gap-1.5">
+                        <button onClick={() => setChannelScope('action')} className={`rounded-[7px] border px-3 py-1.5 text-xs font-semibold ${channelScope === 'action' ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white' : 'border-[var(--app-line)] text-[var(--app-muted)]'}`}>Needs action</button>
+                        <button onClick={() => setChannelScope('history')} className={`rounded-[7px] border px-3 py-1.5 text-xs font-semibold ${channelScope === 'history' ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white' : 'border-[var(--app-line)] text-[var(--app-muted)]'}`}>History</button>
+                      </div>
+                    )}
+
+                    {viewMode === 'messages' && (
+                      <div className="flex items-center gap-1.5">
+                        {([['action', 'Needs reply'], ['all', 'All'], ['waiting', 'Waiting']] as const).map(([value, label]) => <button key={value} onClick={() => setSmsScope(value)} className={`rounded-[7px] border px-2.5 py-1.5 text-xs font-semibold ${smsScope === value ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white' : 'border-[var(--app-line)] text-[var(--app-muted)]'}`}>{label}</button>)}
+                        <details className="relative ml-auto">
+                          <summary className="cursor-pointer list-none rounded-[7px] border border-[var(--app-line)] px-2.5 py-1.5 text-xs font-semibold text-[var(--app-muted)]">Filters{smsBranch || smsStage || smsRecency !== '30' ? ' · On' : ''}</summary>
+                          <div className="absolute right-0 z-30 mt-2 grid w-64 gap-2 rounded-[9px] border border-[var(--app-line)] bg-white p-3 shadow-lg">
+                            <select value={smsBranch} onChange={event => setSmsBranch(event.target.value)} className="crm-input text-xs"><option value="">All cities / branches</option>{smsBranchOptions.map(branch => <option key={branch} value={branch}>{branch}</option>)}</select>
+                            <select value={smsStage} onChange={event => setSmsStage(event.target.value)} className="crm-input text-xs"><option value="">All stages</option>{smsStageOptions.map(stage => <option key={stage} value={stage}>{String(stage).replace(/_/g, ' ')}</option>)}</select>
+                            <select value={smsRecency} onChange={event => setSmsRecency(event.target.value as typeof smsRecency)} className="crm-input text-xs"><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="all">All history</option></select>
+                            <button onClick={() => { setSmsBranch(''); setSmsStage(''); setSmsRecency('30') }} className="text-left text-xs font-semibold text-[var(--app-muted)]">Reset filters</button>
+                          </div>
+                        </details>
                       </div>
                     )}
 
@@ -1793,18 +1844,13 @@ function SalesInboxPageInner() {
                             {restoreBusy ? 'Restoring...' : 'Restore'}
                           </button>
                         ) : selected.linkedLeadId ? (
-                          <>
-                            <button onClick={() => router.push(`/sales/leads/${selected.linkedLeadId}`)} className="crm-button">
-                              Open Lead
-                            </button>
-                            <button
-                              onClick={() => void markSelectedHandled()}
-                              disabled={handledBusy}
-                              className="crm-button"
-                            >
-                              {handledBusy ? 'Saving...' : 'Handled ✓'}
-                            </button>
-                          </>
+                          <button
+                            onClick={() => void markSelectedHandled()}
+                            disabled={handledBusy}
+                            className="crm-button"
+                          >
+                            {handledBusy ? 'Saving...' : 'Mark handled'}
+                          </button>
                         ) : (
                           <>
                             <button

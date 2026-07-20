@@ -197,10 +197,13 @@
     box-shadow: 0 0 0 3px var(--crm-focus-ring);
   }
   .crm-app-frame {
-    @apply min-h-screen bg-[var(--app-bg)] lg:flex;
+    @apply min-h-screen bg-[var(--app-bg)] lg:flex lg:h-screen lg:overflow-hidden;
   }
   .crm-main-viewport {
-    @apply min-w-0 flex-1;
+    @apply min-w-0 flex-1 lg:h-screen lg:overflow-y-auto;
+  }
+  .crm-main-viewport-fixed {
+    @apply min-w-0 flex-1 overflow-hidden lg:h-screen;
   }
   .crm-main-content {
     @apply px-3 py-4 pb-24 md:px-8 md:py-8 md:pb-8 lg:px-8;
@@ -212,7 +215,7 @@
     min-width: 44px;
   }
   .crm-main-content-flush {
-    @apply px-0 py-0 pb-0 md:px-8 md:py-8 md:pb-8 lg:px-8;
+    @apply h-full overflow-hidden px-0 py-0 pb-0;
   }
   .crm-viewport {
     max-width: var(--crm-viewport-max);
@@ -220,8 +223,7 @@
     margin-right: auto;
   }
   .crm-viewport-flush {
-    @apply mx-0 max-w-none md:mx-auto;
-    max-width: var(--crm-viewport-max);
+    @apply mx-0 h-full max-w-none overflow-hidden;
   }
   .crm-record-layout {
     display: grid;

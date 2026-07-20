@@ -381,7 +381,7 @@ export function SalesHeader() {
       )}
 
       <header className={`sticky top-0 z-40 border-b border-[var(--app-line)] bg-[var(--app-panel-strong)] lg:h-screen lg:shrink-0 lg:border-b-0 lg:border-r ${partnershipInbox ? 'hidden lg:block' : ''} ${sidebarCollapsed ? 'lg:w-[var(--crm-shell-sidebar-collapsed)]' : 'lg:w-[var(--crm-shell-sidebar)]'}`}>
-        <div className="mx-auto flex max-w-[1400px] flex-col gap-4 px-4 py-4 md:px-8 lg:h-full lg:max-w-none lg:px-0">
+        <div className="mx-auto flex max-w-[1400px] flex-col gap-4 px-4 py-4 md:px-8 lg:h-full lg:max-w-none lg:overflow-hidden lg:px-0">
 
           {/* ── Brand strip — slim full-width horizontal ───────────────── */}
           <div className={`hidden lg:flex items-center border-b border-[var(--app-line)] ${sidebarCollapsed ? 'h-14 justify-center px-0' : 'h-14 gap-2.5 px-4'}`}>
@@ -438,7 +438,7 @@ export function SalesHeader() {
                   🔔
                   {notifTotal > 0 && (
                     <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white">
-                      {notifTotal > 99 ? '99+' : notifTotal}
+                      {notifTotal > 9 ? '9+' : notifTotal}
                     </span>
                   )}
                 </button>
@@ -477,7 +477,7 @@ export function SalesHeader() {
                 🔔
                 {notifTotal > 0 && (
                   <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white">
-                    {notifTotal > 99 ? '99+' : notifTotal}
+                    {notifTotal > 9 ? '9+' : notifTotal}
                   </span>
                 )}
               </button>
@@ -583,8 +583,8 @@ export function SalesHeader() {
             </div>
 
           {/* ── Nav ───────────────────────────────────────────────────── */}
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between lg:flex-1 lg:flex-col lg:items-stretch lg:justify-start">
-            <nav className={`-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1 md:gap-6 md:px-0 md:pb-0 lg:mx-0 lg:flex-col lg:items-stretch lg:gap-0.5 lg:overflow-visible lg:p-0 ${sidebarCollapsed ? 'lg:px-2' : 'lg:px-3'}`}>
+          <div className="flex min-h-0 flex-col gap-3 md:flex-row md:items-center md:justify-between lg:flex-1 lg:flex-col lg:items-stretch lg:justify-start">
+            <nav className={`-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1 md:gap-6 md:px-0 md:pb-0 lg:mx-0 lg:min-h-0 lg:flex-1 lg:flex-col lg:items-stretch lg:gap-0.5 lg:overflow-y-auto lg:p-0 ${sidebarCollapsed ? 'lg:px-2' : 'lg:px-3'}`}>
               {navItems.map((item, index) => {
                 const active = item.match(pathname)
                 const showInboxDot = item.href === '/sales/inbox' && notifBreakdown.leads > 0 && !active

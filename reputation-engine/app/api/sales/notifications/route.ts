@@ -91,6 +91,7 @@ export async function GET() {
     return NextResponse.json(cached.payload)
   }
 
+  // Notifications are a current work surface, not an archive counter.
   const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000)
 
   const [allInboundLeads, crmLeads, allEmails, followUpLogs, smsMessages, acknowledgedKeys] = await Promise.all([
@@ -139,6 +140,7 @@ export async function GET() {
   const leadItems: NotificationItem[] = hydratedInbound
     .filter(l => getInboundStatus(l) === 'needs_action' && isRealCustomerPhone(l.phone))
     .filter(l => isInboundLeadUnread(l))
+    .filter(l => new Date(l.created_at) > cutoff)
     .map(l => {
       const raw = parseInboundRawData(l.raw_data)
       const matchedLead = findMatchingActiveLead(crmLeads, l.phone, l.email)
@@ -185,7 +187,7 @@ export async function GET() {
   // ── 2. SMS threads where last message is inbound (customer awaiting reply) ─
   const smsItems: NotificationItem[] = buildSmsThreads(smsMessages, crmLeads, allInboundLeads)
     .filter(thread => thread.unread)
-    .filter(thread => Date.now() - new Date(thread.lastAt).getTime() <= 7 * 24 * 60 * 60 * 1000)
+    .filter(thread => new Date(thread.lastAt) > cutoff)
     .filter(thread => !openSmsLeadPhones.has((thread.contactPhone || '').replace(/\D/g, '')))
     .map(thread => ({
       id: `sms-${thread.contactPhone}`,
@@ -270,8 +272,13 @@ export async function GET() {
 
   const payload: NotificationsPayload = {
     items: allItems,
-    breakdown: { leads: leadItems.length, sms: smsItems.length, emails: emailItems.length, alerts: alertItems.length },
-    totalCount: leadItems.length + smsItems.length + emailItems.length + alertItems.length,
+    breakdown: {
+      leads: allItems.filter(item => item.type === 'lead').length,
+      sms: allItems.filter(item => item.type === 'sms').length,
+      emails: allItems.filter(item => item.type === 'email').length,
+      alerts: allItems.filter(item => item.type === 'alert').length,
+    },
+    totalCount: allItems.length,
   }
   notificationsCache.set(cacheKey, { expiresAt: Date.now() + NOTIFICATIONS_CACHE_TTL_MS, payload })
 
