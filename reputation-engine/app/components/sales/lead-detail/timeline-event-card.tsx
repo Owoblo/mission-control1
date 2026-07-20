@@ -39,7 +39,7 @@ function isFailedOrMissedCallText(text: string) {
 
 function cleanTimelineText(text: string) {
   const normalized = text.replace(/\r/g, '').trim()
-  const replyBreak = normalized.search(/\n\s*(?:On .+wrote:|From:|Sent:|>{2,})/i)
+  const replyBreak = normalized.search(/(?:\n\s*(?:On .+wrote:|From:|Sent:)|(?:>\s*){2,})/i)
   const currentMessage = replyBreak > 0 ? normalized.slice(0, replyBreak) : normalized
   return currentMessage
     .replace(/^>+\s?/gm, '')

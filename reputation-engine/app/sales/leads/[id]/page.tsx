@@ -1042,7 +1042,9 @@ export default function SalesLeadDetailPage() {
     if (!lead) return null
     // Sales nudges expire when the work has crossed into completion. Historical
     // follow-up dates must never make a paid or completed job look operationally late.
-    if (['completed', 'customer_success', 'lost'].includes(lead.stage) || lead.paymentStatus === 'paid_in_full') return null
+    const financiallySettled = lead.paymentStatus === 'paid_in_full' || Boolean(quote?.balancePaidAt) || (Boolean(quote) && Number(quote?.balance || 0) <= 0)
+    const moveHasPassed = Boolean(lead.moveDate && lead.moveDate.slice(0, 10) < new Date().toISOString().slice(0, 10))
+    if (['completed', 'customer_success', 'lost'].includes(lead.stage) || financiallySettled || (moveHasPassed && quote?.acceptedAt)) return null
     const now = Date.now()
     const dayMs = 86400000
 
@@ -3713,7 +3715,8 @@ export default function SalesLeadDetailPage() {
   const operatingStageMeta = OPERATING_STAGE_META[operatingStage]
   const operatingExceptions = deriveOperatingExceptions(lead, quote)
   const jobReadiness = deriveJobReadiness(lead, quote)
-  const showJobReadiness = ['booked', 'confirmed', 'prepared', 'dispatched', 'in_progress'].includes(operatingStage)
+  const moveDateIsCurrent = !lead.moveDate || lead.moveDate.slice(0, 10) >= new Date().toISOString().slice(0, 10)
+  const showJobReadiness = moveDateIsCurrent && ['booked', 'confirmed', 'prepared', 'dispatched', 'in_progress'].includes(operatingStage)
 
   return (
     <div className="crm-shell space-y-4">
