@@ -5,8 +5,10 @@
  * purely for accounting/revenue tracking so the books stay clean.
  */
 import { NextResponse } from 'next/server'
-import { hasInternalSession } from '@/lib/server/session'
+import { getSessionUser } from '@/lib/server/session'
 import { readEnv } from '@/lib/server/runtime'
+import { getSalesLead } from '@/lib/server/sales-repository'
+import { canHandleLeadPayments } from '@/lib/server/sales-permissions'
 
 async function stripePost(path: string, key: string, body: URLSearchParams) {
   const res = await fetch(`https://api.stripe.com/v1/${path}`, {
@@ -21,8 +23,8 @@ async function stripePost(path: string, key: string, body: URLSearchParams) {
 }
 
 export async function POST(request: Request) {
-  const authed = await hasInternalSession()
-  if (!authed) return new Response('Unauthorized', { status: 401 })
+  const session = await getSessionUser()
+  if (!session) return new Response('Unauthorized', { status: 401 })
 
   const stripeKey = readEnv('STRIPE_SECRET_KEY')
   if (!stripeKey) return NextResponse.json({ error: 'Stripe not configured' }, { status: 503 })
@@ -40,6 +42,11 @@ export async function POST(request: Request) {
       amount: number          // dollars
       method: 'cash' | 'etransfer' | 'cheque'
       description?: string
+    }
+
+    const lead = await getSalesLead(leadId)
+    if (!lead || !canHandleLeadPayments(session, lead)) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
     const methodLabel = { cash: 'Cash', etransfer: 'Interac E-Transfer', cheque: 'Cheque' }[method]

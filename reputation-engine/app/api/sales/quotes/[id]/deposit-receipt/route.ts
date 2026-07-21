@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { sendDepositReceipt } from '@/lib/server/deposit-receipts'
 import { getSessionUser } from '@/lib/server/session'
-import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
+import { canAccessSalesWorkspace, canHandleLeadPayments } from '@/lib/server/sales-permissions'
 import { getSalesLead, getSalesQuote, saveFollowUpLog, saveSalesLead } from '@/lib/server/sales-repository'
 import { getQuotePaidSoFar } from '@/lib/server/job-billing'
 import { getAppBaseUrl } from '@/lib/server/runtime'
@@ -63,6 +63,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
 
     const lead = await getSalesLead(quote.leadId)
     if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
+    if (!canHandleLeadPayments(session, lead)) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
     const body = (await request.json().catch(() => ({}))) as {
       toEmail?: string

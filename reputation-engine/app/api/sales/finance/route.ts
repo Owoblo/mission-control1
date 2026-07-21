@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { getSalesLead, listSalesLeads, saveSalesLead } from '@/lib/server/sales-repository'
+import { isBranchScopedManager, leadMatchesSessionBranch } from '@/lib/server/sales-permissions'
 import type { CRMLead, LeadMediaAsset } from '@/lib/types'
 
 interface JobCost {
@@ -154,10 +155,27 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const leadId = searchParams.get('lead_id')
-    const [costs, receiptUploads] = await Promise.all([
+    if (leadId) {
+      const requestedLead = await getSalesLead(leadId)
+      if (!requestedLead || !leadMatchesSessionBranch(requestedLead, session)) {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 })
+      }
+    }
+
+    const [rawCosts, rawReceiptUploads, scopedLeads] = await Promise.all([
       fetchJobCosts(leadId),
       loadReceiptUploads(leadId),
+      isBranchScopedManager(session) ? listSalesLeads() : Promise.resolve([]),
     ])
+    const allowedLeadIds = new Set(
+      scopedLeads.filter(lead => leadMatchesSessionBranch(lead, session)).map(lead => lead.id)
+    )
+    const costs = isBranchScopedManager(session)
+      ? rawCosts.filter(cost => cost.lead_id !== 'overhead' && allowedLeadIds.has(cost.lead_id))
+      : rawCosts
+    const receiptUploads = isBranchScopedManager(session)
+      ? rawReceiptUploads.filter(receipt => allowedLeadIds.has(receipt.leadId))
+      : rawReceiptUploads
 
     const linkedReceiptCountByCostId = new Map<string, number>()
     receiptUploads.forEach(receipt => {
@@ -202,6 +220,15 @@ export async function POST(request: Request) {
   }
 
   try {
+    if (isBranchScopedManager(session)) {
+      if (!body.lead_id || body.lead_id === 'overhead') {
+        return NextResponse.json({ error: 'Branch managers can only record costs against an Ottawa job.' }, { status: 403 })
+      }
+      const lead = await getSalesLead(body.lead_id)
+      if (!lead || !leadMatchesSessionBranch(lead, session)) {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 })
+      }
+    }
     const { url, headers } = requireSupabaseEnv()
     const res = await fetch(`${url}/rest/v1/job_costs`, {
       method: 'POST',
@@ -254,6 +281,16 @@ export async function DELETE(request: Request) {
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
 
   const existingCost = await fetchJobCostById(id).catch(() => null)
+  if (!existingCost) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  if (isBranchScopedManager(session)) {
+    if (existingCost.lead_id === 'overhead') {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+    const lead = await getSalesLead(existingCost.lead_id)
+    if (!lead || !leadMatchesSessionBranch(lead, session)) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+  }
   await clearReceiptLinksForCost(existingCost)
 
   const { url, headers } = requireSupabaseEnv()

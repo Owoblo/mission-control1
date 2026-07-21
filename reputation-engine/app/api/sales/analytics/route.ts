@@ -3,6 +3,7 @@ import { formatMoney } from '@/lib/sales'
 import { buildCRMAnalyticsSnapshot, resolveAnalyticsFilters } from '@/lib/server/crm-analytics'
 import { listFollowUpLogs, listSalesLeads, listSalesQuotes } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
+import { isBranchScopedManager, leadMatchesSessionBranch } from '@/lib/server/sales-permissions'
 
 function toCsv(snapshot: ReturnType<typeof buildCRMAnalyticsSnapshot>) {
   const lines = [
@@ -36,11 +37,21 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url)
   const filters = resolveAnalyticsFilters(url.searchParams)
-  const [leads, quotes, followUps] = await Promise.all([
+  if (isBranchScopedManager(session)) filters.branch = session.branch
+  const [allLeads, allQuotes, allFollowUps] = await Promise.all([
     listSalesLeads().catch(() => []),
     listSalesQuotes().catch(() => []),
     listFollowUpLogs().catch(() => []),
   ])
+
+  const leads = allLeads.filter(lead => leadMatchesSessionBranch(lead, session))
+  const allowedLeadIds = new Set(leads.map(lead => lead.id))
+  const quotes = isBranchScopedManager(session)
+    ? allQuotes.filter(quote => Boolean(quote.leadId && allowedLeadIds.has(quote.leadId)))
+    : allQuotes
+  const followUps = isBranchScopedManager(session)
+    ? allFollowUps.filter(followUp => Boolean(followUp.leadId && allowedLeadIds.has(followUp.leadId)))
+    : allFollowUps
 
   const snapshot = buildCRMAnalyticsSnapshot(leads, quotes, followUps, filters)
 

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
+import { canAccessSalesWorkspace, canHandleLeadPayments } from '@/lib/server/sales-permissions'
 import { getSessionUser } from '@/lib/server/session'
 import { getSalesLead, getSalesQuote, saveFollowUpLog, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
 import { sendDepositReceipt } from '@/lib/server/deposit-receipts'
@@ -94,6 +94,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     if (!quote?.leadId) return NextResponse.json({ error: 'Quote or attached lead not found' }, { status: 404 })
     const lead = await getSalesLead(quote.leadId)
     if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
+    if (!canHandleLeadPayments(session, lead)) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
     if (body.paymentId) {
       const payment = (quote.paymentRecords || []).find(item => item.id === body.paymentId)
@@ -160,6 +161,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     if (!quote?.leadId) return NextResponse.json({ error: 'Quote or attached lead not found' }, { status: 404 })
     const lead = await getSalesLead(quote.leadId)
     if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
+    if (!canHandleLeadPayments(session, lead)) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     const payment = (quote.paymentRecords || []).find(item => item.id === body.paymentId)
     if (!payment) return NextResponse.json({ error: 'Payment not found' }, { status: 404 })
     const amount = Math.round(Number(body.amount || 0) * 100) / 100
