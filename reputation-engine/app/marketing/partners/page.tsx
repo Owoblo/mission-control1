@@ -2868,7 +2868,13 @@ function partnershipManagerLabel(contact: Contact) {
   const assigned = assignedPartnerOwner(contact)
   if (assigned !== 'Unassigned') return assigned
   const market = PARTNERSHIP_MARKET_COMMANDS.find(item => item.id === marketForContact(contact))
-  return market?.manager && market.manager !== 'Unassigned' ? market.manager : 'Saturn Star Partnerships'
+  return market?.manager && market.manager !== 'Unassigned'
+    ? market.manager
+    : marketForContact(contact) === 'ottawa' ? 'Dexa Partnerships' : 'Saturn Star Partnerships'
+}
+
+function partnershipBrandName(contact: Contact) {
+  return marketForContact(contact) === 'ottawa' ? 'Dexa Movers' : 'Saturn Star Movers'
 }
 
 function partnerCompanyLabel(contact: Contact) {
@@ -2911,7 +2917,7 @@ function partnerQuoteUrl(contact: Contact) {
 }
 
 function partnerPackageMessage(contact: Contact) {
-  return `Here is your Saturn Star Movers partner package: ${partnerPackageUrl(contact)}`
+  return `Here is your ${partnershipBrandName(contact)} partner package: ${partnerPackageUrl(contact)}`
 }
 
 function hasDigitalPackageTouch(contact: Contact) {
@@ -3760,6 +3766,15 @@ function PhoneTab({
     }, {} as Record<InboxFilter, number>)
   }, [segmentContacts])
 
+  useEffect(() => {
+    // Never strand a market manager on an empty action filter with no composer.
+    // If there is work in the market but nothing currently needs a reply, show
+    // the full relationship list so a record and its text box remain available.
+    if (inboxFilter === 'needs_reply' && sorted.length === 0 && segmentContacts.length > 0) {
+      setInboxFilter('all')
+    }
+  }, [inboxFilter, segmentContacts.length, sorted.length])
+
   const selected = segmentContacts.find(c => c.id === selectedId) ?? null
   const selectedFromQuery = searchParams.get('contact')
   const selectedThreadFromNumber = selected
@@ -3968,7 +3983,7 @@ function PhoneTab({
     const line = partnerPackageMessage(selected)
     if (composeChannel === 'email') {
       setEmailBody(current => current.trim() ? `${current.trim()}\n\n${line}` : line)
-      if (!emailSubject.trim()) setEmailSubject('Saturn Star Movers partner package')
+      if (!emailSubject.trim()) setEmailSubject(`${partnershipBrandName(selected)} partner package`)
     } else {
       setSmsBody(current => current.trim() ? `${current.trim()}\n\n${line}` : line)
     }
@@ -5510,6 +5525,12 @@ const PARTNERSHIP_SMS_TEMPLATE = [
   'Would it be okay if I stopped by your office next week to drop off a few cards?',
 ].join('\n')
 
+function partnershipSmsTemplate(market: PartnershipMarketKey) {
+  return market === 'ottawa'
+    ? PARTNERSHIP_SMS_TEMPLATE.replace('SSM | Saturn Star Movers', 'Dexa Movers')
+    : PARTNERSHIP_SMS_TEMPLATE
+}
+
 function mapCsvRealtor(row: Record<string, string>) {
   return {
     name: row.name || '',
@@ -5554,8 +5575,8 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
   const [segmentMode, setSegmentMode] = useState<'all' | 'zone' | 'city'>('all')
   const [segment, setSegment] = useState(initialMarketConfig.defaultSegment)
   const [name, setName] = useState(initialMarketConfig.defaultName)
-  const [repName, setRepName] = useState(initialMarketConfig.manager === 'Unassigned' ? 'Saturn Star Partnerships' : initialMarketConfig.manager)
-  const [template, setTemplate] = useState(PARTNERSHIP_SMS_TEMPLATE)
+  const [repName, setRepName] = useState(initialMarketConfig.manager === 'Unassigned' ? (initialMarketConfig.id === 'ottawa' ? 'Dexa Partnerships' : 'Saturn Star Partnerships') : initialMarketConfig.manager)
+  const [template, setTemplate] = useState(partnershipSmsTemplate(initialMarketConfig.id))
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10))
   const [dailyCap, setDailyCap] = useState(400)
   const [startHour, setStartHour] = useState(10)
@@ -5594,7 +5615,8 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
     setSegment('')
     setSegmentMode('all')
     setName(config.defaultName)
-    setRepName(config.manager === 'Unassigned' ? 'Saturn Star Partnerships' : config.manager)
+    setRepName(config.manager === 'Unassigned' ? (config.id === 'ottawa' ? 'Dexa Partnerships' : 'Saturn Star Partnerships') : config.manager)
+    setTemplate(partnershipSmsTemplate(config.id))
     setPreview(null)
     setResult(null)
     setError('')
@@ -6414,7 +6436,7 @@ function PartnershipEngineInner() {
   const router = useRouter()
   const initialTab = (searchParams.get('tab') as Tab) || 'today'
   const [tab, setTab] = useState<Tab>(initialTab === 'replies' ? 'phone' : initialTab)
-  const [currentUser, setCurrentUser] = useState<{ role?: string; branch?: string | null } | null>(null)
+  const [currentUser, setCurrentUser] = useState<{ role?: string; branch?: string | null; name?: string; userId?: string | null } | null>(null)
   const [contacts, setContacts] = useState<Contact[]>([])
   const [batches, setBatches] = useState<Batch[]>([])
   const [lists, setLists] = useState<List[]>([])
@@ -6453,7 +6475,7 @@ function PartnershipEngineInner() {
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
-      .then(data => setCurrentUser(data as { role?: string; branch?: string | null } | null))
+      .then(data => setCurrentUser(data as { role?: string; branch?: string | null; name?: string; userId?: string | null } | null))
       .catch(() => setCurrentUser(null))
   }, [])
   useEffect(() => { void loadContacts() }, [loadContacts])
@@ -6479,6 +6501,8 @@ function PartnershipEngineInner() {
     setTab('phone')
     router.replace(`/marketing/partners?tab=phone&contact=${contact.id}`, { scroll: false })
   }
+
+  const isDexaOttawaView = currentUser?.branch === 'ottawa'
 
   function handleContactUpdated(contact: Contact) {
     const normalized = {
@@ -6530,12 +6554,18 @@ function PartnershipEngineInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.role, tab, visibleTabs])
 
+  useEffect(() => {
+    if (!isDexaOttawaView || searchParams.get('tab')) return
+    setTab('phone')
+    router.replace('/marketing/partners?tab=phone&market=ottawa', { scroll: false })
+  }, [isDexaOttawaView, router, searchParams])
+
   return (
     <div className={inboxActive ? 'h-full overflow-hidden bg-white' : 'min-h-screen bg-[var(--app-bg,#f0f2f5)]'}>
       <div className={inboxActive ? 'mx-0 h-full max-w-none overflow-hidden px-0 py-0' : 'mx-auto max-w-6xl px-4 py-8 sm:px-6'}>
         <div className={`${inboxActive ? 'hidden' : 'flex'} mb-6 items-center justify-between`}>
           <div>
-            <h1 className="text-2xl font-semibold text-[#14213d]">Relationship CRM</h1>
+            <h1 className="text-2xl font-semibold text-[#14213d]">{isDexaOttawaView ? 'Dexa Relationship CRM' : 'Relationship CRM'}</h1>
             <p className="mt-0.5 text-sm text-[var(--app-muted)]">
               {batchesLoading ? '—' : batches.length} batch{batches.length !== 1 ? 'es' : ''} · {contactsLoading ? '—' : contacts.length} contacts
               {needsReplyCount > 0 && <span className="ml-2 rounded-full bg-[var(--app-accent-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--app-accent)]">{needsReplyCount} responded</span>}
@@ -6595,7 +6625,7 @@ function PartnershipEngineInner() {
               const market = searchParams.get('market') as PartnershipMarketKey | null
               return !market || marketForContact(contact) === market
             })}
-            onSelect={setSelectedContact}
+            onSelect={handleOpenThread}
             onStageChange={handlePipelineStageChange}
           />
         )}
@@ -6603,7 +6633,7 @@ function PartnershipEngineInner() {
           <PhoneTab contacts={contacts} batches={batches} lists={lists} onSelectContact={setSelectedContact} onContactUpdated={handleContactUpdated} onContactDeleted={handleContactDeleted} />
         )}
         {tab === 'partners' && (
-          <PartnersTab contacts={contacts} onSelect={setSelectedContact} />
+          <PartnersTab contacts={contacts} onSelect={handleOpenThread} />
         )}
 
         {selectedContact && (

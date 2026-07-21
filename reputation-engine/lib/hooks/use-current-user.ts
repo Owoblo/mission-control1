@@ -7,6 +7,7 @@ export interface CurrentUser {
   role: UserRole
   name: string
   userId: string | null
+  branch: string | null
 }
 
 let cached: CurrentUser | null = null

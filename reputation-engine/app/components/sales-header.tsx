@@ -114,6 +114,7 @@ export function SalesHeader() {
   const router = useRouter()
   const user = useCurrentUser()
   const role = user?.role ?? 'owner'
+  const isDexaView = user?.branch === 'ottawa'
   const canUseSalesActions = SALES_ROLES.includes(role)
   const homeHref = role === 'partnership_manager' ? '/marketing/partners?tab=phone' : role === 'crew' ? '/crew/calendar' : role === 'operations_lead' ? '/sales/operations' : '/sales'
   const [tab, setTab] = useState<string | null | undefined>(undefined)
@@ -254,7 +255,7 @@ export function SalesHeader() {
             playChime()
             // 📱 Browser push notification
             showPushNotification(
-              '🌟 Saturn Star — New Lead',
+              isDexaView ? 'Dexa — New Lead' : '🌟 Saturn Star — New Lead',
               newest.title || 'New activity'
             )
           }
@@ -290,7 +291,7 @@ export function SalesHeader() {
       if (interval) clearInterval(interval)
       document.removeEventListener('visibilitychange', schedule)
     }
-  }, [])
+  }, [isDexaView])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -386,9 +387,9 @@ export function SalesHeader() {
           {/* ── Brand strip — slim full-width horizontal ───────────────── */}
           <div className={`hidden lg:flex items-center border-b border-[var(--app-line)] ${sidebarCollapsed ? 'h-14 justify-center px-0' : 'h-14 gap-2.5 px-4'}`}>
             <Link href={homeHref} className={`flex min-w-0 items-center ${sidebarCollapsed ? 'justify-center' : 'gap-2.5 flex-1 min-w-0'}`}>
-              <Image src="/brand/saturn-star-icon-full-color.png" alt="Saturn Star" width={32} height={32} className="shrink-0 object-contain" priority />
+              {isDexaView ? <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] bg-[#071421] text-[9px] font-black tracking-tight text-white" aria-label="Dexa Movers">DEXA</span> : <Image src="/brand/saturn-star-icon-full-color.png" alt="Saturn Star" width={32} height={32} className="shrink-0 object-contain" priority />}
               {!sidebarCollapsed && (
-                <span className="truncate text-sm font-bold tracking-tight text-[var(--app-ink)]">Saturn Star OS</span>
+                <span className="truncate text-sm font-bold tracking-tight text-[var(--app-ink)]">{isDexaView ? 'Dexa OS' : 'Saturn Star OS'}</span>
               )}
             </Link>
             {!sidebarCollapsed && (
@@ -419,8 +420,8 @@ export function SalesHeader() {
           {/* ── Mobile/tablet top bar ─────────────────────────────────── */}
           <div className="flex items-center justify-between gap-4 lg:hidden">
             <Link href={homeHref} className="flex min-w-0 items-center gap-2.5">
-              <Image src="/brand/saturn-star-icon-full-color.png" alt="Saturn Star" width={30} height={30} className="shrink-0 object-contain" priority />
-              <div className="truncate font-semibold tracking-tight text-[var(--app-ink)]">Saturn Star OS</div>
+              {isDexaView ? <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[6px] bg-[#071421] text-[8px] font-black tracking-tight text-white" aria-label="Dexa Movers">DEXA</span> : <Image src="/brand/saturn-star-icon-full-color.png" alt="Saturn Star" width={30} height={30} className="shrink-0 object-contain" priority />}
+              <div className="truncate font-semibold tracking-tight text-[var(--app-ink)]">{isDexaView ? 'Dexa OS' : 'Saturn Star OS'}</div>
             </Link>
             <div className="flex items-center gap-2">
               {canUseSalesActions && (

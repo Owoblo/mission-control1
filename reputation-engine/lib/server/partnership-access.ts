@@ -1,12 +1,14 @@
-import type { SessionPayload } from '@/lib/auth'
-import { getPartnershipLinesForMarket, normalizePartnershipCityKey } from '@/lib/partnership-lines'
+import type { SessionPayload } from '../auth'
+import { getPartnershipLinesForMarket, normalizePartnershipCityKey } from '../partnership-lines'
 
 export function canSeeAllPartnershipMarkets(session?: SessionPayload | null) {
-  return session?.role === 'owner' || session?.role === 'manager'
+  // A branch-scoped manager owns a market, not the entire partnership database.
+  // Owners and unscoped central managers retain company-wide visibility.
+  return session?.role === 'owner' || (session?.role === 'manager' && !session?.branch)
 }
 
 export function isPartnershipManager(session?: SessionPayload | null) {
-  return session?.role === 'partnership_manager'
+  return session?.role === 'partnership_manager' || (session?.role === 'manager' && Boolean(session?.branch))
 }
 
 export function partnershipMarketKeysForSession(session?: SessionPayload | null) {
