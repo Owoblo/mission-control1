@@ -113,6 +113,55 @@ export function getAutomationMissingFields(lead: CRMLead) {
   return missing
 }
 
+export type FastLaneReadinessIssue =
+  | 'move_date'
+  | 'origin_address'
+  | 'origin_city'
+  | 'destination_address'
+  | 'destination_city'
+  | 'route_confirmation'
+  | 'inventory'
+  | 'access'
+
+function normalizedRouteValue(value?: string) {
+  return (value || '').toLowerCase().replace(/\b(?:on|ontario|canada)\b/g, '').replace(/[^a-z0-9]/g, '')
+}
+
+function addressContainsScheduleText(value?: string) {
+  return /\b(today|tomorrow|tonight|january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(value || '')
+}
+
+export function getFastLaneReadinessIssues(lead: CRMLead, now = new Date()) {
+  const issues: FastLaneReadinessIssue[] = []
+  const moveDate = lead.moveDate ? new Date(`${lead.moveDate}T12:00:00`) : null
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  if (!moveDate || Number.isNaN(moveDate.getTime()) || moveDate < today) issues.push('move_date')
+  if (!hasCompleteMoveAddress(lead.originAddress) || addressContainsScheduleText(lead.originAddress)) issues.push('origin_address')
+  if (!lead.originCity?.trim()) issues.push('origin_city')
+  if (!hasCompleteMoveAddress(lead.destAddress) || addressContainsScheduleText(lead.destAddress)) issues.push('destination_address')
+  if (!lead.destCity?.trim()) issues.push('destination_city')
+
+  const origin = normalizedRouteValue(`${lead.originAddress || ''}${lead.originCity || ''}`)
+  const destination = normalizedRouteValue(`${lead.destAddress || ''}${lead.destCity || ''}`)
+  if (origin && destination && origin === destination) issues.push('route_confirmation')
+
+  const inventoryKnown = !!lead.totalItems || !!lead.totalCubicFeet || !!(lead.inventory || []).length || !!lead.surveyCompletedAt
+  if (!inventoryKnown || hasMlsDraftInventoryNeedingConfirmation(lead)) issues.push('inventory')
+  if (!hasAnyAccessDetails(lead)) issues.push('access')
+  return Array.from(new Set(issues))
+}
+
+export const FAST_LANE_ISSUE_LABELS: Record<FastLaneReadinessIssue, string> = {
+  move_date: 'Confirm a current move date',
+  origin_address: 'Confirm the exact pickup address',
+  origin_city: 'Confirm the pickup city',
+  destination_address: 'Confirm the exact destination address',
+  destination_city: 'Confirm the destination city',
+  route_confirmation: 'Confirm that pickup and destination are different, or document a same-site move',
+  inventory: 'Record the items and quantities being moved',
+  access: 'Confirm stairs, elevators, parking, and carrying distance',
+}
+
 export function buildLeadQualificationState(
   lead: CRMLead,
   overrides: Partial<LeadQualificationState> = {}

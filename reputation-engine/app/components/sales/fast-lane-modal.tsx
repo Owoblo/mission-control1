@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { CRMLead } from '@/lib/types'
+import { FAST_LANE_ISSUE_LABELS, getFastLaneReadinessIssues } from '@/lib/sales-automation-qualification'
 
 const RATES: Record<string, Record<number, number>> = {
   truck:  { 2: 160, 3: 200, 4: 315 },
@@ -52,6 +53,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
   const range = HOUR_RANGES[rangeIdx]
   const minTotal = Math.round(rate * range.min * 1.13) + surcharge
   const maxTotal = Math.round(rate * range.max * 1.13) + surcharge
+  const readinessIssues = getFastLaneReadinessIssues(lead)
 
   function toggleSpecialty(id: string) {
     setSpecialtyItems(prev =>
@@ -167,6 +169,16 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
           </div>
         ) : (
           <div className="space-y-4 px-5 py-4">
+
+            {readinessIssues.length > 0 && (
+              <div className="rounded-[10px] border border-amber-300 bg-amber-50 px-4 py-3">
+                <div className="text-sm font-semibold text-amber-950">Confirm the move before quoting</div>
+                <p className="mt-1 text-xs leading-5 text-amber-900">Fast Lane stays locked until pricing has enough operational context.</p>
+                <ul className="mt-2 space-y-1 text-xs text-amber-950">
+                  {readinessIssues.map(issue => <li key={issue}>• {FAST_LANE_ISSUE_LABELS[issue]}</li>)}
+                </ul>
+              </div>
+            )}
 
             {/* Move Type */}
             <div>
@@ -300,7 +312,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
             {/* Send button */}
             <button
               onClick={() => void sendQuote()}
-              disabled={sending || !lead.phone}
+              disabled={sending || !lead.phone || readinessIssues.length > 0}
               className="w-full rounded-[10px] bg-[#C99700] py-3.5 text-sm font-bold text-[#071421] transition hover:opacity-90 disabled:opacity-60"
             >
               {sending ? 'Sending...' : `⚡ Send Booking Link to ${lead.name?.split(' ')[0] || 'Customer'}`}

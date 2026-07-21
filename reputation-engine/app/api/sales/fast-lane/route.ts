@@ -19,6 +19,7 @@ import {
   normalizeQuote,
   uid,
 } from '@/lib/sales'
+import { FAST_LANE_ISSUE_LABELS, getFastLaneReadinessIssues } from '@/lib/sales-automation-qualification'
 
 const HST = 0.13
 const DEPOSIT = 100
@@ -74,6 +75,15 @@ export async function POST(request: Request) {
     if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
     if (!lead.phone && !lead.email) {
       return NextResponse.json({ error: 'Add a phone number or email before sending a Fast Lane quote.' }, { status: 400 })
+    }
+
+    const readinessIssues = getFastLaneReadinessIssues(lead)
+    if (readinessIssues.length > 0) {
+      return NextResponse.json({
+        error: 'Fast Lane is locked until the move scope is confirmed.',
+        missingFields: readinessIssues,
+        requirements: readinessIssues.map(issue => FAST_LANE_ISSUE_LABELS[issue]),
+      }, { status: 409 })
     }
 
     const rate = RATES[moveType]?.[crew] ?? RATES.truck[3]

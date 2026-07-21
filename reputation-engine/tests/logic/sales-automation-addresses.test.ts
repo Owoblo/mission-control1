@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   getAutomationMissingFields,
+  getFastLaneReadinessIssues,
   hasCompleteMoveAddress,
   leadNeedsAccessBeforeAutomatedQuote,
 } from '../../lib/sales-automation-qualification'
@@ -112,4 +113,36 @@ test('automation does not call customer-provided inventory an MLS scan', () => {
 
   assert.equal(missing.includes('inventory_confirmation'), false)
   assert.equal(missing.includes('inventory'), false)
+})
+
+test('fast lane blocks malformed and incomplete intake even when a rep tries to send', () => {
+  const issues = getFastLaneReadinessIssues(lead({
+    moveDate: '2023-10-13',
+    moveType: 'labor-only',
+    originAddress: '2-12 high st',
+    originCity: 'Waterloo',
+    destAddress: '2-12 high st, Waterloo ontario n2l3x6 July 22',
+    inventory: [],
+  }), new Date('2026-07-21T12:00:00'))
+
+  assert.equal(issues.includes('move_date'), true)
+  assert.equal(issues.includes('destination_address'), true)
+  assert.equal(issues.includes('destination_city'), true)
+  assert.equal(issues.includes('inventory'), true)
+  assert.equal(issues.includes('access'), true)
+})
+
+test('fast lane unlocks only for a current, fully scoped move', () => {
+  const issues = getFastLaneReadinessIssues(lead({
+    moveDate: '2026-07-24',
+    moveType: 'labor-only',
+    originAddress: '12 High St',
+    originCity: 'Waterloo',
+    destAddress: '88 King St W',
+    destCity: 'Kitchener',
+    inventory: [{ name: 'Sofa', qty: 1, source: 'customer_verification' }],
+    originAccess: 'Ground floor; curb parking confirmed',
+  }), new Date('2026-07-21T12:00:00'))
+
+  assert.deepEqual(issues, [])
 })
