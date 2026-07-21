@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
+import { canAccessSalesWorkspace, canEditLead } from '@/lib/server/sales-permissions'
 import { getSessionUser } from '@/lib/server/session'
 import { randomToken } from '@/lib/server/security'
 import {
@@ -73,6 +73,7 @@ export async function POST(request: Request) {
 
     const lead = await getSalesLead(leadId)
     if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
+    if (!canEditLead(session, lead)) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     if (!lead.phone && !lead.email) {
       return NextResponse.json({ error: 'Add a phone number or email before sending a Fast Lane quote.' }, { status: 400 })
     }

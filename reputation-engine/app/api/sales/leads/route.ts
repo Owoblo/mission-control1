@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { applyDetectedBranch } from '@/lib/server/sales-opportunities'
 import { calculateLeadScore, getLeadAssignedRepName, normalizeLead, uid } from '@/lib/sales'
-import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
+import { canAccessSalesWorkspace, isBranchScopedManager, leadMatchesSessionBranch } from '@/lib/server/sales-permissions'
 import { recordLeadCreatedAudit, recordLeadUpdateAudit } from '@/lib/server/sales-audit'
-import { collapseDuplicateSalesLeadsByIdentity, listSalesLeadsPaginated, saveSalesLead } from '@/lib/server/sales-repository'
+import { collapseDuplicateSalesLeadsByIdentity, listSalesLeads, listSalesLeadsPaginated, saveSalesLead } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
 import { validateLeadPayload } from '@/lib/server/sales-validation'
 import type { CRMLead } from '@/lib/types'
@@ -19,8 +19,16 @@ export async function GET(request: Request) {
     const page = Math.max(0, parseInt(url.searchParams.get('page') || '0'))
     const limit = Math.min(100, Math.max(10, parseInt(url.searchParams.get('limit') || '50')))
 
-    const result = await listSalesLeadsPaginated(page, limit)
-    return NextResponse.json(result)
+    const result = isBranchScopedManager(session)
+      ? (() => {
+          return listSalesLeads().then(allLeads => {
+            const scoped = allLeads.filter(lead => leadMatchesSessionBranch(lead, session))
+            const start = page * limit
+            return { leads: scoped.slice(start, start + limit), total: scoped.length, page, limit, hasMore: start + limit < scoped.length }
+          })
+        })()
+      : listSalesLeadsPaginated(page, limit)
+    return NextResponse.json(await result)
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to list leads' },
@@ -45,7 +53,7 @@ export async function POST(request: Request) {
     const assignedRepName = requestedAssignedRepName || (creatorOwnsLead ? session?.name?.trim() : undefined)
     const assignedRepUserId = requestedAssignedRepUserId || (creatorOwnsLead ? session?.userId : undefined)
     const actor = { userId: session?.userId, name: session?.name?.trim() }
-    const existingLead = payload.forceNew
+    const possibleExistingLead = payload.forceNew
       || payload.leadKind === 'realtor_opportunity'
       ? null
       : await collapseDuplicateSalesLeadsByIdentity({
@@ -53,6 +61,7 @@ export async function POST(request: Request) {
         email: validated.email,
         inboundId: payload.inboundId,
       }, actor, { includeClosed: true })
+    const existingLead = possibleExistingLead && leadMatchesSessionBranch(possibleExistingLead, session) ? possibleExistingLead : null
 
     if (existingLead) {
       // Placeholder names created by auto-routing should be overwritten by real names
@@ -88,11 +97,11 @@ export async function POST(request: Request) {
       return NextResponse.json(saved)
     }
 
-    const lead = applyDetectedBranch(normalizeLead({
+    const detectedLead = applyDetectedBranch(normalizeLead({
       id: payload.id || uid('lead'),
       name: validated.name,
       stage: payload.stage || 'new',
-      branch: payload.branch,
+      branch: isBranchScopedManager(session) ? session?.branch as CRMLead['branch'] : payload.branch,
       leadKind: payload.leadKind || 'customer',
       primaryContactRole: payload.primaryContactRole || 'customer',
       source: payload.source || 'other',
@@ -133,6 +142,10 @@ export async function POST(request: Request) {
       createdAt: payload.createdAt || new Date().toISOString().slice(0, 10),
       leadScore: 0,
     }))
+
+    const lead = isBranchScopedManager(session)
+      ? normalizeLead({ ...detectedLead, branch: session?.branch as CRMLead['branch'] })
+      : detectedLead
 
     const saved = await saveSalesLead({
       ...lead,

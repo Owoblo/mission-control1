@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { isBookedLikeStage } from '@/lib/sales'
 import { getSessionUser } from '@/lib/server/session'
+import { leadMatchesSessionBranch } from '@/lib/server/sales-permissions'
 import { listBookedSalesLeads, listOperationalSalesQuotes } from '@/lib/server/sales-repository'
 
 export async function GET() {
@@ -12,6 +13,7 @@ export async function GET() {
     const [bookedLeads, quotes] = await Promise.all([listBookedSalesLeads(), listOperationalSalesQuotes()])
     const allLeads = bookedLeads
       .filter(lead => isBookedLikeStage(lead.stage))
+      .filter(lead => leadMatchesSessionBranch(lead, session))
       .sort((a, b) => (a.moveDate || '9999').localeCompare(b.moveDate || '9999'))
 
   // For crew members — filter to only their assigned jobs

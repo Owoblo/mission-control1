@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url)
-  const branchFilter = searchParams.get('branch') || session?.branch || null
+  const branchFilter = session?.branch || searchParams.get('branch') || null
 
   const [leads, quotes] = await Promise.all([listBookedSalesLeads(), listOperationalSalesQuotes()])
 

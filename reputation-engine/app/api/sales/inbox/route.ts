@@ -9,7 +9,7 @@ import {
   getSaturnTrackingLabel,
   getSaturnTrackingSource,
 } from '@/lib/sales-phones'
-import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
+import { canAccessSalesWorkspace, isBranchScopedManager, leadMatchesSessionBranch } from '@/lib/server/sales-permissions'
 import { recordLeadCreatedAudit, recordLeadUpdateAudit } from '@/lib/server/sales-audit'
 import { findMatchingActiveLead } from '@/lib/server/lead-identity'
 import { getInboxChannelForInboundSource } from '@/lib/server/inbox-state'
@@ -257,6 +257,11 @@ export async function GET(request: Request) {
             : fallbackName,
         raw_data: mergeInboxRawData(ensured, matchedLead || linkedLead || undefined),
       })
+    }).filter(item => {
+      if (!isBranchScopedManager(session)) return true
+      const matchedLead = item.matchedLeadId ? leads.find(lead => lead.id === item.matchedLeadId) : null
+      if (matchedLead) return leadMatchesSessionBranch(matchedLead as CRMLead, session)
+      return inferLeadBranchFromInbound(item) === session?.branch
     })
 
     return NextResponse.json({
@@ -299,6 +304,7 @@ export async function POST(request: Request) {
 
     const existingLead = await getSalesLeadByInboundId(payload.inboundId)
     if (existingLead) {
+      if (!leadMatchesSessionBranch(existingLead, session)) return NextResponse.json({ error: 'Not found' }, { status: 404 })
       await markInboundLeadClaimed(payload.inboundId, actor)
       await markLeadInboxChannelActioned(existingLead.id, getInboxChannelForInboundSource(existingLead.source), actor).catch(() => {})
       return NextResponse.json(existingLead)
@@ -307,6 +313,9 @@ export async function POST(request: Request) {
     const inbound = await getInboundLead(payload.inboundId)
     if (!inbound) {
       return NextResponse.json({ error: 'Inbound lead not found' }, { status: 404 })
+    }
+    if (isBranchScopedManager(session) && inferLeadBranchFromInbound(inbound) !== session?.branch) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
     const validated = validateLeadPayload({
@@ -441,6 +450,9 @@ export async function PATCH(request: Request) {
 
     const actor = { userId: session?.userId, name: session?.name?.trim() }
     const inbound = await getInboundLead(payload.inboundId)
+    if (inbound && isBranchScopedManager(session) && inferLeadBranchFromInbound(inbound) !== session?.branch) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
     const linkedLead = inbound?.linkedLeadId
       ? await getSalesLead(inbound.linkedLeadId).catch(() => null)
       : payload.action === 'restore'

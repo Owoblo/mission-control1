@@ -8,6 +8,7 @@ interface SalesUser {
   id: string
   name: string
   role: UserRole
+  branch?: string | null
 }
 
 const SALES_VISIBLE_ROLES: UserRole[] = ['owner', 'manager', 'sales_rep']
@@ -21,7 +22,7 @@ export async function GET() {
   const { url, headers } = requireSupabaseEnv()
   const visibleRoles = SALES_VISIBLE_ROLES.join(',')
   const response = await fetch(
-    `${url}/rest/v1/app_users?select=id,name,role&role=in.(${visibleRoles})&order=name.asc`,
+    `${url}/rest/v1/app_users?select=id,name,role,branch&role=in.(${visibleRoles})&order=name.asc`,
     { headers, cache: 'no-store' }
   )
 
@@ -31,7 +32,7 @@ export async function GET() {
 
   const users = (await response.json()) as SalesUser[]
   return NextResponse.json(
-    users.filter(user => user.id && user.name).map(user => ({
+    users.filter(user => user.id && user.name && (!session?.branch || user.branch === session.branch)).map(user => ({
       id: user.id,
       name: user.name,
       role: user.role,

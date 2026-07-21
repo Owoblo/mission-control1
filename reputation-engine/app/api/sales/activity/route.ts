@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
-import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
+import { canAccessSalesWorkspace, isBranchScopedManager, leadMatchesSessionBranch } from '@/lib/server/sales-permissions'
+import type { CRMLead } from '@/lib/types'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 
 export const dynamic = 'force-dynamic'
@@ -23,6 +24,11 @@ interface LeadRow {
     lastTouchedByUserId?: string
     assignedRepName?: string
     assignedRepUserId?: string
+    branch?: CRMLead['branch']
+    originCity?: string
+    originAddress?: string
+    destCity?: string
+    destAddress?: string
   } | null
 }
 
@@ -197,6 +203,7 @@ export async function GET(request: Request) {
     const leadIds = Array.from(new Set(visibleEvents.map(e => e.lead_id).filter(Boolean) as string[]))
     const nameMap = new Map<string, string>()
     const leadActorMap = new Map<string, { userId?: string; name?: string }>()
+    const scopedLeadIds = new Set<string>()
     if (leadIds.length > 0) {
       const leadsRes = await fetch(
         `${sbUrl}/rest/v1/crm_leads?id=in.(${leadIds.map(id => `"${id}"`).join(',')})&select=id,data&deleted=eq.false`,
@@ -209,6 +216,9 @@ export async function GET(request: Request) {
           userId: r.data?.lastTouchedByUserId || r.data?.assignedRepUserId,
           name: r.data?.lastTouchedByName || r.data?.assignedRepName,
         })
+        if (r.data && leadMatchesSessionBranch({ id: r.id, name: r.data.name || '', stage: 'new', createdAt: '', inventory: [], mediaAssets: [], callLogs: [], ...r.data }, session)) {
+          scopedLeadIds.add(r.id)
+        }
       })
     }
 
@@ -226,7 +236,9 @@ export async function GET(request: Request) {
     })
 
     // Format events
-    const items = visibleEvents.map(ev => {
+    const items = visibleEvents
+      .filter(ev => !isBranchScopedManager(session) || Boolean(ev.lead_id && scopedLeadIds.has(ev.lead_id)))
+      .map(ev => {
       const leadName = ev.lead_id ? (nameMap.get(ev.lead_id) || null) : null
       const props    = ev.properties || {}
       const leadActor = ev.lead_id ? leadActorMap.get(ev.lead_id) : null

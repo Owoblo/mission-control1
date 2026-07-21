@@ -7,7 +7,7 @@ import { queueLeadIntelligenceRefresh } from '@/lib/server/lead-intelligence-ref
 import { scheduleMoveReminder, scheduleConsultationReminder, scheduleLostFeedback } from '@/lib/server/sales-automation'
 import { getBookedJobFieldDiffs, recordLeadArchivedAudit, recordLeadUpdateAudit, sendBookedJobChangeNotice } from '@/lib/server/sales-audit'
 import { applyDetectedBranch, maybeCreateDestinationOpportunityLead } from '@/lib/server/sales-opportunities'
-import { canAccessOperationsWorkspace, canAccessSalesWorkspace, canDeleteLead, canReassignLead, isLeadOwnedBySession } from '@/lib/server/sales-permissions'
+import { canAccessOperationsWorkspace, canAccessSalesWorkspace, canDeleteLead, canReassignLead, isLeadOwnedBySession, leadMatchesSessionBranch } from '@/lib/server/sales-permissions'
 import { sendSalesMessage } from '@/lib/server/sales-messaging'
 import { getSessionUser } from '@/lib/server/session'
 import { validateLeadPatchPayload } from '@/lib/server/sales-validation'
@@ -301,6 +301,9 @@ export async function GET(_: Request, props: { params: Promise<{ id: string }> }
     if (!lead) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
     }
+    if (!leadMatchesSessionBranch(lead, session)) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
 
     return NextResponse.json(lead)
   } catch (error) {
@@ -319,6 +322,9 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     const current = await getSalesLead(params.id)
     if (!current) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
+    }
+    if (!leadMatchesSessionBranch(current, session)) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
     const rawBody = (await request.json()) as Partial<typeof current> & { sendAppointmentSms?: boolean }
@@ -531,6 +537,9 @@ export async function DELETE(_: Request, props: { params: Promise<{ id: string }
     const current = await getSalesLead(params.id)
     if (!current) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
+    }
+    if (!leadMatchesSessionBranch(current, session)) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
     await deleteSalesLead(params.id)

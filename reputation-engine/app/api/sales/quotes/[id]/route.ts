@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { dateStamp, isClosedLeadStage, normalizeQuote, syncLeadFromQuoteStatus, uid } from '@/lib/sales'
 import { getAcceptedQuoteLockedFieldChanges, ACCEPTED_QUOTE_LOCKED_KEYS, recordQuoteUpdatedAudit } from '@/lib/server/sales-audit'
-import { canAccessSalesWorkspace, canReviseExistingQuote, validateQuotePricingPermissions } from '@/lib/server/sales-permissions'
+import { canAccessSalesWorkspace, canReviseExistingQuote, leadMatchesSessionBranch, validateQuotePricingPermissions } from '@/lib/server/sales-permissions'
 import { scheduleQuoteExpiryFollowup, scheduleQuoteFollowup, scheduleQuoteViewedFollowup } from '@/lib/server/sales-automation'
 import { getSessionUser } from '@/lib/server/session'
 import { deleteSalesQuote, getSalesClient, getSalesLead, getSalesQuote, listFollowUpLogs, listFollowUpLogsForLead, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
@@ -25,6 +25,9 @@ export async function GET(_: Request, props: { params: Promise<{ id: string }> }
       quote.leadId ? getSalesLead(quote.leadId) : Promise.resolve(null),
       getSalesClient(quote.clientId),
     ])
+    if (lead && !leadMatchesSessionBranch(lead, session)) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
     const followUps = quote.leadId
       ? await listFollowUpLogsForLead(quote.leadId, [quote.id])
       : await listFollowUpLogs()

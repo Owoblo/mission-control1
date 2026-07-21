@@ -1,6 +1,6 @@
-import type { SessionPayload, UserRole } from '@/lib/auth'
-import { getLeadAssignedRepKey, getLeadAssignedRepName } from '@/lib/sales'
-import type { CRMLead, CRMQuote } from '@/lib/types'
+import type { SessionPayload, UserRole } from '../auth'
+import { detectSalesBranchFromLocation, getLeadAssignedRepKey, getLeadAssignedRepName } from '../sales'
+import type { CRMLead, CRMQuote } from '../types'
 
 export const SALES_REP_MAX_DISCOUNT_PCT = 0.1
 export const MANAGER_MAX_DISCOUNT_PCT = 0.2
@@ -13,6 +13,21 @@ export function isSalesWorkspaceRole(role?: UserRole | null): role is SalesWorks
 
 export function canAccessSalesWorkspace(session: SessionPayload | null | undefined) {
   return !!session && isSalesWorkspaceRole(session.role)
+}
+
+export function isBranchScopedManager(session: SessionPayload | null | undefined) {
+  return session?.role === 'manager' && Boolean(session.branch)
+}
+
+export function leadMatchesSessionBranch(lead: CRMLead, session: SessionPayload | null | undefined) {
+  if (!isBranchScopedManager(session)) return true
+  const detected = lead.branch || detectSalesBranchFromLocation(
+    lead.originCity,
+    lead.originAddress,
+    lead.destCity,
+    lead.destAddress
+  )
+  return detected === session?.branch
 }
 
 export function canAccessOperationsWorkspace(session: SessionPayload | null | undefined) {
@@ -40,12 +55,13 @@ export function isLeadOwnedBySession(lead: CRMLead, session: SessionPayload | nu
 
 export function canEditLead(session: SessionPayload | null | undefined, lead: CRMLead) {
   if (!canAccessSalesWorkspace(session)) return false
+  if (!leadMatchesSessionBranch(lead, session)) return false
   if (session?.role === 'owner' || session?.role === 'manager') return true
   return !getLeadAssignedRepKey(lead) || isLeadOwnedBySession(lead, session)
 }
 
-export function canHandleLeadCommunications(session: SessionPayload | null | undefined, _lead: CRMLead) {
-  return canAccessSalesWorkspace(session)
+export function canHandleLeadCommunications(session: SessionPayload | null | undefined, lead: CRMLead) {
+  return canAccessSalesWorkspace(session) && leadMatchesSessionBranch(lead, session)
 }
 
 export function canHandleLeadPayments(session: SessionPayload | null | undefined, lead: CRMLead) {
@@ -62,12 +78,14 @@ export function canDeleteLead(session: SessionPayload | null | undefined) {
 
 export function canControlAutomation(session: SessionPayload | null | undefined, lead: CRMLead) {
   if (!canAccessSalesWorkspace(session)) return false
+  if (!leadMatchesSessionBranch(lead, session)) return false
   if (session?.role === 'owner' || session?.role === 'manager') return true
   return isLeadOwnedBySession(lead, session)
 }
 
 export function canEditQuote(session: SessionPayload | null | undefined, lead: CRMLead | null) {
   if (!canAccessSalesWorkspace(session)) return false
+  if (lead && !leadMatchesSessionBranch(lead, session)) return false
   if (!lead) return session?.role === 'owner' || session?.role === 'manager'
   if (session?.role === 'owner' || session?.role === 'manager') return true
   return !getLeadAssignedRepKey(lead) || isLeadOwnedBySession(lead, session)

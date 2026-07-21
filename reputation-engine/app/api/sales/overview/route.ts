@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { getSalesOverview, listSalesLeadSearchSnapshots } from '@/lib/server/sales-repository'
 import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { getSessionUser } from '@/lib/server/session'
+import { buildSalesSummary } from '@/lib/sales'
+import { isBranchScopedManager, leadMatchesSessionBranch } from '@/lib/server/sales-permissions'
 
 const OVERVIEW_CACHE_TTL_MS = 10_000
 let overviewCache: {
@@ -18,7 +20,7 @@ export async function GET(request: Request) {
 
     if (new URL(request.url).searchParams.get('mode') === 'search') {
       const leads = await listSalesLeadSearchSnapshots()
-      return NextResponse.json({ leads })
+      return NextResponse.json({ leads: leads.filter(lead => leadMatchesSessionBranch(lead, session)) })
     }
 
     const now = Date.now()
@@ -31,6 +33,19 @@ export async function GET(request: Request) {
         expiresAt: now + OVERVIEW_CACHE_TTL_MS,
         payload: overview,
       }
+    }
+
+    if (isBranchScopedManager(session)) {
+      const leads = overview.leads.filter(lead => leadMatchesSessionBranch(lead, session))
+      const leadIds = new Set(leads.map(lead => lead.id))
+      const quotes = overview.quotes.filter(quote => Boolean(quote.leadId && leadIds.has(quote.leadId)))
+      const quoteIds = new Set(quotes.map(quote => quote.id))
+      const clientIds = new Set(quotes.map(quote => quote.clientId).filter(Boolean))
+      const clients = overview.clients.filter(client => clientIds.has(client.id))
+      const followUps = overview.followUps.filter(log =>
+        Boolean((log.leadId && leadIds.has(log.leadId)) || (log.quoteId && quoteIds.has(log.quoteId)))
+      )
+      return NextResponse.json({ leads, quotes, clients, followUps, summary: buildSalesSummary(leads, quotes) })
     }
 
     return NextResponse.json(overview)
