@@ -23,6 +23,8 @@ import {
 import { buildAutomationQuoteSmsSummary } from '@/lib/sales-quote-sms'
 import {
   getAutomationMissingFields,
+  hasConfirmedAutomatedEstimateScope,
+  isEstimateScopeConfirmation,
   getExactAddressMissingFields,
   hasCompleteMoveAddress,
   hasCompleteRouteAddresses,
@@ -1065,6 +1067,21 @@ function describeInventorySnapshot(lead: CRMLead) {
     .join(' | ')
 }
 
+function buildEstimateScopeConfirmation(lead: CRMLead, channel: ConversationChannel) {
+  const firstName = (lead.name || 'there').trim().split(/\s+/)[0]
+  const route = `${lead.originAddress || lead.originCity || 'pickup'} → ${lead.destAddress || lead.destCity || 'destination'}`
+  const moveDate = lead.moveDate
+    ? new Date(`${lead.moveDate}T12:00:00`).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })
+    : 'flexible date'
+  const inventory = describeInventorySnapshot(lead)
+  const access = describeAccessSnapshot(lead)
+  const question = 'Are these details accurate, and would you like me to prepare the written estimate?'
+  if (channel === 'sms') {
+    return `Thanks ${firstName}. Before pricing: ${moveDate}; ${route}; ${inventory}; ${access}. ${question}`
+  }
+  return `Hi ${firstName},\n\nBefore we prepare pricing, please confirm the scope we have:\n\nDate: ${moveDate}\nRoute: ${route}\nInventory: ${inventory}\nAccess: ${access}\n\n${question}\n\nSaturn Star Moving`
+}
+
 function describeAccessSnapshot(lead: CRMLead) {
   const details = [
     lead.originAccess ? `origin access: ${lead.originAccess}` : '',
@@ -1164,6 +1181,9 @@ async function maybeCreateAutomatedQuote(lead: CRMLead, preferredChannel?: Conve
 
   const missing = buildEstimateMissingReasons(lead)
   if (missing.length > 0) {
+    return { sent: false, lead }
+  }
+  if (!hasConfirmedAutomatedEstimateScope(lead)) {
     return { sent: false, lead }
   }
 
@@ -3019,10 +3039,66 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
   }).catch(() => null)
   if (inventorySmsResult) return inventorySmsResult
 
+  let quoteCandidateLead = addressCheckedLead
+  const estimateMissing = buildEstimateMissingReasons(quoteCandidateLead)
+  if (job.kind === 'lead_response' && estimateMissing.length === 0 && !hasConfirmedAutomatedEstimateScope(quoteCandidateLead)) {
+    const awaitingConfirmation = quoteCandidateLead.qualificationState?.lastIntent === 'awaiting_estimate_scope_confirmation'
+    if (awaitingConfirmation && isEstimateScopeConfirmation(inboundMessage)) {
+      quoteCandidateLead = await saveSalesLead({
+        ...quoteCandidateLead,
+        qualificationState: buildQualificationState(quoteCandidateLead, {
+          ...withoutMissingFields(quoteCandidateLead.qualificationState),
+          lastIntent: 'estimate_scope_confirmed',
+          capturedSummary: 'Customer confirmed the move scope and asked Saturn Star to prepare the written estimate.',
+          nextBestAction: 'prepare_estimate',
+          missingFields: [],
+        }),
+      })
+    } else {
+      const confirmationMessage = buildEstimateScopeConfirmation(quoteCandidateLead, contact.channel)
+      const pendingLead = await saveSalesLead({
+        ...quoteCandidateLead,
+        qualificationState: buildQualificationState(quoteCandidateLead, {
+          ...withoutMissingFields(quoteCandidateLead.qualificationState),
+          lastIntent: 'awaiting_estimate_scope_confirmation',
+          capturedSummary: 'Intake is complete. Waiting for the customer to confirm the scope before pricing.',
+          nextBestAction: 'confirm_estimate_scope',
+          missingFields: [],
+        }),
+      })
+      const sendResult = await sendSalesMessage({
+        actor: 'automation',
+        channel: contact.channel,
+        to: contact.to,
+        subject: contact.channel === 'email' ? 'Please confirm your moving details' : undefined,
+        body: confirmationMessage,
+        leadId: pendingLead.id,
+        notes: `Automation requested explicit scope confirmation before preparing an estimate for ${contact.to}.`,
+      })
+      const thread = await saveAutomationThreadAfterOutbound({
+        lead: sendResult.lead || pendingLead,
+        existingThread,
+        channel: contact.channel,
+        contactValue: contact.to,
+        preview: confirmationMessage,
+        jobKind: job.kind,
+        intent: 'lead_response',
+        inboundMessage,
+      })
+      return {
+        status: 'completed' as const,
+        sent: true,
+        lead: sendResult.lead || pendingLead,
+        thread,
+        message: 'Scope confirmation requested before pricing.',
+      }
+    }
+  }
+
   const quoteResult: AutomatedQuoteResult =
     job.kind === 'lead_response'
-      ? await maybeCreateAutomatedQuote(addressCheckedLead, contact.channel).catch(() => ({ sent: false, lead: addressCheckedLead }))
-      : { sent: false, lead: addressCheckedLead }
+      ? await maybeCreateAutomatedQuote(quoteCandidateLead, contact.channel).catch(() => ({ sent: false, lead: quoteCandidateLead }))
+      : { sent: false, lead: quoteCandidateLead }
 
   const workingLead = quoteResult.lead || lead
 

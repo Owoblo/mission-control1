@@ -162,6 +162,17 @@ export const FAST_LANE_ISSUE_LABELS: Record<FastLaneReadinessIssue, string> = {
   access: 'Confirm stairs, elevators, parking, and carrying distance',
 }
 
+export function hasConfirmedAutomatedEstimateScope(lead: Pick<CRMLead, 'qualificationState'>) {
+  return lead.qualificationState?.lastIntent === 'estimate_scope_confirmed'
+}
+
+export function isEstimateScopeConfirmation(message?: string) {
+  const text = String(message || '').trim().toLowerCase().replace(/[.!?]+$/g, '').trim()
+  if (!text) return false
+  if (/^(yes|yep|yeah|yup|correct|confirmed|accurate|that'?s right|looks right|sounds right|all correct|go ahead|please do|send it|send the estimate|send the quote)$/.test(text)) return true
+  return /\b(details|information|scope|addresses|inventory|access).{0,30}\b(correct|accurate|right|confirmed)\b|\b(yes|correct|confirmed).{0,30}\b(send|prepare|create).{0,20}\b(estimate|quote)\b/.test(text)
+}
+
 export function buildLeadQualificationState(
   lead: CRMLead,
   overrides: Partial<LeadQualificationState> = {}

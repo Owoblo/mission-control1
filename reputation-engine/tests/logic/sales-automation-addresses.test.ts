@@ -3,7 +3,9 @@ import test from 'node:test'
 import {
   getAutomationMissingFields,
   getFastLaneReadinessIssues,
+  hasConfirmedAutomatedEstimateScope,
   hasCompleteMoveAddress,
+  isEstimateScopeConfirmation,
   leadNeedsAccessBeforeAutomatedQuote,
 } from '../../lib/sales-automation-qualification'
 import type { CRMLead } from '../../lib/types'
@@ -145,4 +147,12 @@ test('fast lane unlocks only for a current, fully scoped move', () => {
   }), new Date('2026-07-21T12:00:00'))
 
   assert.deepEqual(issues, [])
+})
+
+test('automated pricing requires an explicit confirmed-scope threshold', () => {
+  assert.equal(hasConfirmedAutomatedEstimateScope(lead({ qualificationState: { lastIntent: 'awaiting_estimate_scope_confirmation' } })), false)
+  assert.equal(hasConfirmedAutomatedEstimateScope(lead({ qualificationState: { lastIntent: 'estimate_scope_confirmed' } })), true)
+  assert.equal(isEstimateScopeConfirmation('96 Scott Road to 456 Lorne Ave'), false)
+  assert.equal(isEstimateScopeConfirmation('Yes, those details are correct. Send the estimate.'), true)
+  assert.equal(isEstimateScopeConfirmation('The destination unit is 201'), false)
 })
