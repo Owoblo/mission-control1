@@ -23,6 +23,7 @@ import {
 import { buildAutomationQuoteSmsSummary } from '@/lib/sales-quote-sms'
 import {
   getAutomationMissingFields,
+  automatedEstimateSendingIsPaused,
   hasConfirmedAutomatedEstimateScope,
   isEstimateScopeConfirmation,
   getExactAddressMissingFields,
@@ -1075,7 +1076,7 @@ function buildEstimateScopeConfirmation(lead: CRMLead, channel: ConversationChan
     : 'flexible date'
   const inventory = describeInventorySnapshot(lead)
   const access = describeAccessSnapshot(lead)
-  const question = 'Are these details accurate, and would you like me to prepare the written estimate?'
+  const question = 'Is anything missing—especially fragile or oversized items, packing, or disassembly?'
   if (channel === 'sms') {
     return `Thanks ${firstName}. Before pricing: ${moveDate}; ${route}; ${inventory}; ${access}. ${question}`
   }
@@ -1170,6 +1171,9 @@ function buildAutomatedQuoteEmail(lead: CRMLead, quoteId: string, acceptToken: s
 }
 
 async function maybeCreateAutomatedQuote(lead: CRMLead, preferredChannel?: ConversationChannel): Promise<AutomatedQuoteResult> {
+  if (automatedEstimateSendingIsPaused()) {
+    return { sent: false, lead }
+  }
   const repWorkflowReason = estimateWorkflowOwnsLead(lead)
   if (repWorkflowReason) {
     return { sent: false, lead }
@@ -1771,6 +1775,7 @@ HARD RULES — NEVER DO THESE
 - Never guess on parking, access, furniture handling, crew arrival, or mover count. If the answer is not explicit in the lead context, say the coordinator will confirm and ask for one specific missing detail if needed.
 - Never interpret a date written inside an address as a confirmed move date. Never reuse an old or past move date for a new inquiry.
 - Never describe the customer as ready to book while route, date, inventory, or access remains missing.
+- Automated estimate sending is paused. Never generate, promise, announce, or send a price or estimate. Continue discovery and preserve the details for a human coordinator.
 
 ALWAYS DO THESE
 - Open with context that proves you remember them (their route, date, what was said).
@@ -1794,6 +1799,7 @@ SPECIAL CASES
 - If the person opts out, set doNotContact=true and leave reply empty.
 - If a quote was already sent (automatedQuoteSentAt is set) and customer is asking about price, reference the exact total and deposit from the quote context — don't ask them to wait.
 - If the customer says yes/book/confirm and a quote is pending, that is handled automatically — do not write a confirmation reply yourself.
+- When core intake is complete, ask one useful planning question about fragile or oversized items, packing, disassembly, elevators, parking, timing constraints, or items staying behind. Do not force all of these into one message.
 
 Return JSON only:
 {
@@ -2160,8 +2166,8 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
   } else {
     reply =
       channel === 'sms'
-        ? `Hi ${firstName}, thanks for reaching out to Saturn Star Moving. I've got your message. What's the best move date and route so I can point you in the right direction?`
-        : `Hi ${firstName},\n\nThanks for reaching out to Saturn Star Moving. I've got your message. What's the best move date and route so I can point you in the right direction?\n\nJohn\nSaturn Star Moving`
+        ? `Thanks ${firstName}. I have the main move details. Are there any fragile or oversized pieces, or anything needing disassembly, that we should plan around?`
+        : `Hi ${firstName},\n\nI have the main move details. Are there any fragile or oversized pieces, or anything needing disassembly, that we should plan around?\n\nJohn\nSaturn Star Moving`
   }
 
   return {

@@ -173,6 +173,10 @@ export function isEstimateScopeConfirmation(message?: string) {
   return /\b(details|information|scope|addresses|inventory|access).{0,30}\b(correct|accurate|right|confirmed)\b|\b(yes|correct|confirmed).{0,30}\b(send|prepare|create).{0,20}\b(estimate|quote)\b/.test(text)
 }
 
+export function automatedEstimateSendingIsPaused() {
+  return true
+}
+
 export function buildLeadQualificationState(
   lead: CRMLead,
   overrides: Partial<LeadQualificationState> = {}

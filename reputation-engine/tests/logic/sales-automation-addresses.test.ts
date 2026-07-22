@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  automatedEstimateSendingIsPaused,
   getAutomationMissingFields,
   getFastLaneReadinessIssues,
   hasConfirmedAutomatedEstimateScope,
@@ -150,6 +151,7 @@ test('fast lane unlocks only for a current, fully scoped move', () => {
 })
 
 test('automated pricing requires an explicit confirmed-scope threshold', () => {
+  assert.equal(automatedEstimateSendingIsPaused(), true)
   assert.equal(hasConfirmedAutomatedEstimateScope(lead({ qualificationState: { lastIntent: 'awaiting_estimate_scope_confirmation' } })), false)
   assert.equal(hasConfirmedAutomatedEstimateScope(lead({ qualificationState: { lastIntent: 'estimate_scope_confirmed' } })), true)
   assert.equal(isEstimateScopeConfirmation('96 Scott Road to 456 Lorne Ave'), false)
