@@ -19,7 +19,7 @@ import {
   normalizeQuote,
   uid,
 } from '@/lib/sales'
-import { FAST_LANE_ISSUE_LABELS, getFastLaneReadinessIssues } from '@/lib/sales-automation-qualification'
+import { FAST_LANE_ISSUE_LABELS, getFastLaneBlockingIssues } from '@/lib/sales-automation-qualification'
 
 const HST = 0.13
 const DEPOSIT = 100
@@ -78,12 +78,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Add a phone number or email before sending a Fast Lane quote.' }, { status: 400 })
     }
 
-    const readinessIssues = getFastLaneReadinessIssues(lead)
-    if (readinessIssues.length > 0) {
+    const blockingIssues = getFastLaneBlockingIssues(lead, moveType)
+    if (blockingIssues.length > 0) {
       return NextResponse.json({
-        error: 'Fast Lane is locked until the move scope is confirmed.',
-        missingFields: readinessIssues,
-        requirements: readinessIssues.map(issue => FAST_LANE_ISSUE_LABELS[issue]),
+        error: moveType === 'labor'
+          ? 'Add a current service date and work location before sending the hourly booking link.'
+          : 'Fast Lane is locked until the move scope is confirmed.',
+        missingFields: blockingIssues,
+        requirements: blockingIssues.map(issue => FAST_LANE_ISSUE_LABELS[issue]),
       }, { status: 409 })
     }
 
@@ -232,13 +234,13 @@ export async function POST(request: Request) {
     const maxTotal = Math.round(rate * maxHours * (1 + HST)) + surcharge
 
     const smsBody = [
-      `Hi ${firstName}! Here's your moving quote from Saturn Star. ⭐`,
+      `Hi ${firstName}! Here are your hourly booking terms from Saturn Star. ⭐`,
       ``,
       `${crewLabel}`,
       `$${rate}/hr · ${fastLaneTerms.smsSummary}`,
       `Minimum charge: ${minHours} hour${minHours === 1 ? '' : 's'} · ${formatMoney(minTotal)} incl. HST`,
       surcharge > 0 ? `⚡ Emergency/short-notice surcharge: $${surcharge} (applied to this booking)` : '',
-      maxHours > minHours ? `If the move runs longer, the same hourly rate continues up to about ${maxHours} hours in this lane.` : '',
+      maxHours > minHours ? `${rangeLabel} is a planning window, not a fixed total. Billing is based on the actual time worked after the minimum.` : '',
       specialtyNote ? `📋 Note: ${specialtyItems.includes('piano') ? 'Piano/Safe' : ''}${specialtyItems.includes('pool_table') ? ' Pool Table' : ''}${specialtyItems.includes('hot_tub') ? ' Hot Tub' : ''} — see booking page for details.` : '',
       ``,
       `Important: this lane has a ${minHours}-hour minimum. If the crew finishes sooner, the minimum still applies. After that, time bills in 15-minute increments at the same rate.`,
@@ -259,7 +261,7 @@ export async function POST(request: Request) {
         body: smsBody,
         leadId: lead.id,
         quoteId: quote.id,
-        notes: `⚡ Fast Lane Quote sent — ${crewLabel} · $${rate}/hr · ${rangeLabel}`,
+        notes: `Hourly booking link sent — ${crewLabel} · $${rate}/hr · ${rangeLabel}`,
         actor: 'human',
         actorName: session?.name,
         actorUserId: session?.userId,
@@ -268,11 +270,11 @@ export async function POST(request: Request) {
       await sendSalesMessage({
         channel: 'email',
         to: lead.email,
-        subject: 'Your Saturn Star moving quote',
+        subject: 'Your Saturn Star hourly booking terms',
         body: smsBody,
         leadId: lead.id,
         quoteId: quote.id,
-        notes: `⚡ Fast Lane Quote emailed — ${crewLabel} · $${rate}/hr · ${rangeLabel}`,
+        notes: `Hourly booking link emailed — ${crewLabel} · $${rate}/hr · ${rangeLabel}`,
         actor: 'human',
         actorName: session?.name,
         actorUserId: session?.userId,

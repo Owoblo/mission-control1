@@ -2,7 +2,11 @@
 
 import { useState } from 'react'
 import type { CRMLead } from '@/lib/types'
-import { FAST_LANE_ISSUE_LABELS, getFastLaneReadinessIssues } from '@/lib/sales-automation-qualification'
+import {
+  FAST_LANE_ISSUE_LABELS,
+  getFastLaneBlockingIssues,
+  getFastLaneReadinessIssues,
+} from '@/lib/sales-automation-qualification'
 
 const RATES: Record<string, Record<number, number>> = {
   truck:  { 2: 160, 3: 200, 4: 315 },
@@ -54,6 +58,8 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
   const minTotal = Math.round(rate * range.min * 1.13) + surcharge
   const maxTotal = Math.round(rate * range.max * 1.13) + surcharge
   const readinessIssues = getFastLaneReadinessIssues(lead)
+  const blockingIssues = getFastLaneBlockingIssues(lead, moveType)
+  const bookingNotes = readinessIssues.filter(issue => !blockingIssues.includes(issue))
 
   function toggleSpecialty(id: string) {
     setSpecialtyItems(prev =>
@@ -137,14 +143,14 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
           <div className="flex flex-col gap-4 px-5 py-6">
             <div className="rounded-[12px] bg-emerald-50 border border-emerald-200 p-4 text-center">
               <div className="text-3xl mb-2">✅</div>
-              <div className="text-sm font-semibold text-emerald-800">Quote + booking link sent!</div>
+              <div className="text-sm font-semibold text-emerald-800">Hourly booking link sent</div>
               <div className="mt-1 text-xs text-emerald-700">
                 {result.channel === 'email' ? 'Email sent to' : 'SMS delivered to'} {result.recipient}
               </div>
             </div>
 
             <div className="rounded-[10px] bg-[var(--app-bg)] px-4 py-3 space-y-1">
-              <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Quote summary</div>
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Booking terms</div>
               <div className="text-sm font-semibold text-[var(--app-ink)]">{result.crewLabel} · ${result.rate}/hr</div>
               <div className="text-xs text-[var(--app-muted)]">
                 {result.minimumHours}-hour minimum
@@ -170,12 +176,28 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
         ) : (
           <div className="space-y-4 px-5 py-4">
 
-            {readinessIssues.length > 0 && (
+            {blockingIssues.length > 0 && (
               <div className="rounded-[10px] border border-amber-300 bg-amber-50 px-4 py-3">
-                <div className="text-sm font-semibold text-amber-950">Confirm the move before quoting</div>
-                <p className="mt-1 text-xs leading-5 text-amber-900">Fast Lane stays locked until pricing has enough operational context.</p>
+                <div className="text-sm font-semibold text-amber-950">Add the booking essentials</div>
+                <p className="mt-1 text-xs leading-5 text-amber-900">
+                  {moveType === 'labor'
+                    ? 'An hourly labour booking only needs a current service date and work location.'
+                    : 'Truck pricing stays locked until the move has enough operational context.'}
+                </p>
                 <ul className="mt-2 space-y-1 text-xs text-amber-950">
-                  {readinessIssues.map(issue => <li key={issue}>• {FAST_LANE_ISSUE_LABELS[issue]}</li>)}
+                  {blockingIssues.map(issue => <li key={issue}>• {FAST_LANE_ISSUE_LABELS[issue]}</li>)}
+                </ul>
+              </div>
+            )}
+
+            {moveType === 'labor' && blockingIssues.length === 0 && bookingNotes.length > 0 && (
+              <div className="rounded-[10px] border border-sky-200 bg-sky-50 px-4 py-3">
+                <div className="text-sm font-semibold text-sky-950">Hourly booking is available</div>
+                <p className="mt-1 text-xs leading-5 text-sky-900">
+                  These details can be confirmed after booking and before dispatch:
+                </p>
+                <ul className="mt-2 space-y-1 text-xs text-sky-950">
+                  {bookingNotes.map(issue => <li key={issue}>• {FAST_LANE_ISSUE_LABELS[issue]}</li>)}
                 </ul>
               </div>
             )}
@@ -312,13 +334,13 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
             {/* Send button */}
             <button
               onClick={() => void sendQuote()}
-              disabled={sending || !lead.phone || readinessIssues.length > 0}
+              disabled={sending || (!lead.phone && !lead.email) || blockingIssues.length > 0}
               className="w-full rounded-[10px] bg-[#C99700] py-3.5 text-sm font-bold text-[#071421] transition hover:opacity-90 disabled:opacity-60"
             >
-              {sending ? 'Sending...' : `⚡ Send Booking Link to ${lead.name?.split(' ')[0] || 'Customer'}`}
+              {sending ? 'Sending...' : `Send Hourly Booking Link to ${lead.name?.split(' ')[0] || 'Customer'}`}
             </button>
-            {!lead.phone && (
-              <p className="text-center text-xs text-rose-500">No phone number on this lead — add it first</p>
+            {!lead.phone && !lead.email && (
+              <p className="text-center text-xs text-rose-500">Add a phone number or email first</p>
             )}
           </div>
         )}

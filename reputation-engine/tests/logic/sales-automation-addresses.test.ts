@@ -4,6 +4,7 @@ import {
   automatedEstimateSendingIsPaused,
   getAutomationMissingFields,
   getFastLaneReadinessIssues,
+  getFastLaneBlockingIssues,
   hasConfirmedAutomatedEstimateScope,
   hasCompleteMoveAddress,
   isEstimateScopeConfirmation,
@@ -148,6 +149,37 @@ test('fast lane unlocks only for a current, fully scoped move', () => {
   }), new Date('2026-07-21T12:00:00'))
 
   assert.deepEqual(issues, [])
+})
+
+test('labour-only hourly booking can proceed with a date and work location', () => {
+  const candidate = lead({
+    moveDate: '2026-07-24',
+    moveType: 'labor-only',
+    originAddress: '12 High St',
+    originCity: 'Waterloo',
+    inventory: [],
+  })
+
+  const readiness = getFastLaneReadinessIssues(candidate, new Date('2026-07-21T12:00:00'))
+  const blocking = getFastLaneBlockingIssues(candidate, 'labor', new Date('2026-07-21T12:00:00'))
+
+  assert.equal(readiness.includes('inventory'), true)
+  assert.equal(readiness.includes('access'), true)
+  assert.deepEqual(blocking, [])
+})
+
+test('truck booking retains the full operational readiness gate', () => {
+  const candidate = lead({
+    moveDate: '2026-07-24',
+    originAddress: '12 High St',
+    originCity: 'Waterloo',
+    inventory: [],
+  })
+
+  const blocking = getFastLaneBlockingIssues(candidate, 'truck', new Date('2026-07-21T12:00:00'))
+  assert.equal(blocking.includes('destination_address'), true)
+  assert.equal(blocking.includes('inventory'), true)
+  assert.equal(blocking.includes('access'), true)
 })
 
 test('automated pricing requires an explicit confirmed-scope threshold', () => {
