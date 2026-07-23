@@ -24,7 +24,7 @@ test('move policy keeps safes included as priced specialty handling', () => {
   assert.match(pricedItem.notes || '', /safe handling/i)
 })
 
-test('move policy still blocks hot tubs from normal moving scope', () => {
+test('move policy keeps hot tubs included as subcontractor-supported specialty handling', () => {
   const item: InventoryItem = {
     name: 'Hot Tub',
     room: 'Backyard',
@@ -37,6 +37,7 @@ test('move policy still blocks hot tubs from normal moving scope', () => {
 
   const [pricedItem] = applyMovePolicyToInventory([item])
 
-  assert.equal(pricedItem.included, false)
-  assert.equal(pricedItem.exclusionReason, 'Hot tubs are not included. A separate specialty mover is required.')
+  assert.equal(pricedItem.included, true)
+  assert.notEqual(pricedItem.status, 'excluded')
+  assert.match(pricedItem.notes || '', /specialty subcontractor/i)
 })

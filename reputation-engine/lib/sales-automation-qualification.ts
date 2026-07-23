@@ -174,6 +174,12 @@ export const FAST_LANE_ISSUE_LABELS: Record<FastLaneReadinessIssue, string> = {
   access: 'Confirm stairs, elevators, parking, and carrying distance',
 }
 
+export function getFastLaneTruckSize(crew: 2 | 3 | 4) {
+  if (crew === 2) return '15ft'
+  if (crew === 3) return '20ft'
+  return '26ft'
+}
+
 export function hasConfirmedAutomatedEstimateScope(lead: Pick<CRMLead, 'qualificationState'>) {
   return lead.qualificationState?.lastIntent === 'estimate_scope_confirmed'
 }

@@ -21,9 +21,9 @@ const HOUR_RANGES = [
 ]
 
 const SPECIALTY_ITEMS = [
-  { id: 'piano', label: '🎹 Piano & Safe', note: 'Extra care required — confirmed at booking' },
-  { id: 'pool_table', label: '🎱 Pool Table', note: 'Disassembly required — quoted separately' },
-  { id: 'hot_tub', label: '🛁 Hot Tub / Swim Spa', note: 'Specialty equipment — quoted separately' },
+  { id: 'piano', label: '🎹 Piano & Safe', note: 'Supported with specialty crew and equipment' },
+  { id: 'pool_table', label: '🎱 Pool Table', note: 'Supported with specialty disassembly and reassembly' },
+  { id: 'hot_tub', label: '🛁 Hot Tub / Swim Spa', note: 'Supported through our specialty subcontractor lane' },
 ]
 
 interface Props {
@@ -39,6 +39,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
   const [rangeIdx, setRangeIdx] = useState(1) // default 3–5 hrs
   const [specialtyItems, setSpecialtyItems] = useState<string[]>([])
   const [surcharge, setSurcharge] = useState(0)
+  const [specialtyCharge, setSpecialtyCharge] = useState(0)
   const [sending, setSending] = useState(false)
   const [result, setResult] = useState<{
     bookingLink: string
@@ -55,8 +56,8 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
 
   const rate = RATES[moveType]?.[crew] ?? RATES.truck[3]
   const range = HOUR_RANGES[rangeIdx]
-  const minTotal = Math.round(rate * range.min * 1.13) + surcharge
-  const maxTotal = Math.round(rate * range.max * 1.13) + surcharge
+  const minTotal = Math.round(rate * range.min * 1.13) + surcharge + specialtyCharge
+  const maxTotal = Math.round(rate * range.max * 1.13) + surcharge + specialtyCharge
   const readinessIssues = getFastLaneReadinessIssues(lead)
   const blockingIssues = getFastLaneBlockingIssues(lead, moveType)
   const bookingNotes = readinessIssues.filter(issue => !blockingIssues.includes(issue))
@@ -82,6 +83,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
           maxHours: range.max,
           specialtyItems,
           surchargeAmount: surcharge > 0 ? surcharge : undefined,
+          specialtyChargeAmount: specialtyCharge > 0 ? specialtyCharge : undefined,
         }),
       })
       const data = await res.json() as {
@@ -328,6 +330,31 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
                 ))}
               </div>
             </div>
+
+            {specialtyItems.length > 0 && (
+              <div>
+                <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Specialty Handling Charge</div>
+                <div className="grid grid-cols-4 gap-2">
+                  {([0, 150, 250, 500] as const).map(amt => (
+                    <button
+                      key={amt}
+                      type="button"
+                      onClick={() => setSpecialtyCharge(amt)}
+                      className={`rounded-[10px] border py-2.5 text-sm font-semibold transition ${
+                        specialtyCharge === amt
+                          ? 'border-[#C99700] bg-[#C99700] text-[#071421]'
+                          : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-muted)] hover:border-[#C99700]'
+                      }`}
+                    >
+                      {amt === 0 ? 'Set later' : `+$${amt}`}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1.5 text-[10px] text-[var(--app-muted)]">
+                  Confirm the subcontractor scope and select the agreed handling charge. “Set later” keeps it noted for follow-up.
+                </p>
+              </div>
+            )}
 
             {/* Send button */}
             <button

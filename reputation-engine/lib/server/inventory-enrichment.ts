@@ -536,7 +536,7 @@ REQUIREMENTS:
 4. Estimate realistic cubic feet and weight for movers
 5. Real weights: king bed frame 160 lbs, queen mattress 90 lbs, 3-seat sofa 220 lbs, 6-drawer dresser 130 lbs, 65" TV 90 lbs
 6. If a hazardous or non-transport item is clearly visible (propane tank, gas can, fireworks, oxygen tank, chemical container), still list it with included:false and notes "Hazardous / non-transport item — customer must move separately"
-7. If a blocked item is visible (hot tub, pool table), list it with included:false and notes "We do not move this item — special arrangement required"
+7. If a specialty item is visible (hot tub, pool table, piano, safe), list it with included:true and notes "Specialty subcontractor, equipment, access confirmation, and handling charge required"
 8. If a commercial item is visible (server rack, copier, restaurant equipment, pallet racking), list it with included:false and notes "Commercial equipment — management review required"
 9. If a likely fixture is visible but you think it might be removable (custom cabinetry, island, built-in storage system), list it with included:false and notes "Likely built-in fixture — confirm separately if customer is removing it"
 10. Every item needs a confidence score from 0.00 to 1.00
@@ -714,7 +714,7 @@ export async function analyzePhotoBatch(
                 'WALL-MOUNTED TVs: If a TV appears to be mounted on the wall, add notes "Wall-mounted — dismount/remount service may be needed". ' +
                 'EXCLUDED BY DEFAULT (set included:false): washer, dryer, vanity cabinets, bathroom vanities, stove, gas cooker, range, oven, dishwasher, kitchen islands, kitchen countertops, built-in wardrobes/closets, wall-mounted items, hardwired appliances. Add note "Excluded by default — add manually if customer is taking it." ' +
                 'Fridges and freezers: included:false, notes "Standard fridge / freezer — excluded by default; add manually if customer is taking it." ' +
-                'DO NOT MOVE (set included:false): hot tubs, pool tables, built-in items. Note "We do not move this item — special arrangement required." ' +
+                'SPECIALTY SUPPORTED (set included:true): hot tubs, pool tables, pianos, and safes. Note "Specialty subcontractor/equipment, access confirmation, and handling charge required." Built-in items remain excluded. ' +
                 'APARTMENT / CONDO AMENITIES (set included:false): building lobby, shared lounge, gym, pool, party room, rooftop, mail room, corridors, or other common-area furniture/equipment. Note "Apartment amenity/common area — not customer unit inventory." ' +
                 'HAZARDOUS / NON-TRANSPORT (set included:false): propane tanks, gas cans, gasoline, fireworks, oxygen tanks, chemical containers, pool chemicals. Note "Hazardous / non-transport item — customer must move separately." ' +
                 'COMMERCIAL / MANUAL REVIEW (set included:false): server racks, copiers, restaurant equipment, pallet racking, vending machines. Note "Commercial equipment — management review required." ' +
@@ -849,7 +849,7 @@ export async function analyzeListingPhotos(
                 'Washer / dryer / stove / cooker / dishwasher rule: set included: false with notes "Excluded by default — add manually if customer is taking it." ' +
                 'MIRROR DRESSERS: If a dresser has an attached mirror, name it "Mirror Dresser" — notes "Requires mirror disassembly/reassembly". ' +
                 'WALL-MOUNTED TVs: If a TV appears to be mounted on wall, notes "Wall-mounted — dismount/remount service may be needed". ' +
-                'DO NOT MOVE (set included:false): hot tubs, pool tables. Note "We do not move this item — special arrangement required." ' +
+                'SPECIALTY SUPPORTED (set included:true): hot tubs, pool tables, pianos, and safes. Note "Specialty subcontractor/equipment, access confirmation, and handling charge required." ' +
                 'APARTMENT / CONDO AMENITIES (set included:false): building lobby, shared lounge, gym, pool, party room, rooftop, mail room, corridors, or other common-area furniture/equipment. Note "Apartment amenity/common area — not customer unit inventory." ' +
                 'HAZARDOUS / NON-TRANSPORT (set included:false): propane tanks, gas cans, gasoline, fireworks, oxygen tanks, chemical containers, pool chemicals. Note "Hazardous / non-transport item — customer must move separately." ' +
                 'COMMERCIAL / MANUAL REVIEW (set included:false): server racks, copiers, restaurant equipment, pallet racking, vending machines. Note "Commercial equipment — management review required." ' +

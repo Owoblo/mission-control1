@@ -992,12 +992,12 @@ export function computeJobPenalties(factors: JobFactors): {
     })
   }
 
-  // Items we do NOT move — flag only
+  // Subcontractor-supported specialty items — included after scope and charge confirmation.
   if (factors.hasHotTub) {
-    penalties.push({ label: '⚠ Hot tub flagged – Saturn Star does not move hot tubs', hours: 0, isFlagOnly: true, category: 'warning' })
+    penalties.push({ label: 'Hot tub – specialty subcontractor and handling charge required', hours: 0, isFlagOnly: true, category: 'warning' })
   }
   if (factors.hasPoolTable) {
-    penalties.push({ label: '⚠ Pool table flagged – Saturn Star does not move pool tables', hours: 0, isFlagOnly: true, category: 'warning' })
+    penalties.push({ label: 'Pool table – specialty disassembly/reassembly charge required', hours: 0, isFlagOnly: true, category: 'warning' })
   }
 
   const extraHours = penalties.filter(p => !p.isFlagOnly).reduce((sum, p) => sum + p.hours, 0)

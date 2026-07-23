@@ -5,6 +5,7 @@ import {
   getAutomationMissingFields,
   getFastLaneReadinessIssues,
   getFastLaneBlockingIssues,
+  getFastLaneTruckSize,
   hasConfirmedAutomatedEstimateScope,
   hasCompleteMoveAddress,
   isEstimateScopeConfirmation,
@@ -178,6 +179,12 @@ test('hourly truck booking also proceeds while remaining scope is confirmed befo
 
   const blocking = getFastLaneBlockingIssues(candidate, 'truck', new Date('2026-07-21T12:00:00'))
   assert.deepEqual(blocking, [])
+})
+
+test('fast lane truck size follows the selected crew size', () => {
+  assert.equal(getFastLaneTruckSize(2), '15ft')
+  assert.equal(getFastLaneTruckSize(3), '20ft')
+  assert.equal(getFastLaneTruckSize(4), '26ft')
 })
 
 test('automated pricing requires an explicit confirmed-scope threshold', () => {

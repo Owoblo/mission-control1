@@ -19,7 +19,11 @@ import {
   normalizeQuote,
   uid,
 } from '@/lib/sales'
-import { FAST_LANE_ISSUE_LABELS, getFastLaneBlockingIssues } from '@/lib/sales-automation-qualification'
+import {
+  FAST_LANE_ISSUE_LABELS,
+  getFastLaneBlockingIssues,
+  getFastLaneTruckSize,
+} from '@/lib/sales-automation-qualification'
 
 const HST = 0.13
 const DEPOSIT = 100
@@ -64,10 +68,12 @@ export async function POST(request: Request) {
       maxHours: number
       specialtyItems?: string[]
       surchargeAmount?: number
+      specialtyChargeAmount?: number
     }
 
-    const { leadId, moveType = 'truck', crew = 2, minHours = 3, maxHours = 5, specialtyItems = [], surchargeAmount } = body
+    const { leadId, moveType = 'truck', crew = 2, minHours = 3, maxHours = 5, specialtyItems = [], surchargeAmount, specialtyChargeAmount } = body
     const surcharge = Math.max(0, Math.round(Number(surchargeAmount || 0) * 100) / 100)
+    const specialtyCharge = Math.max(0, Math.round(Number(specialtyChargeAmount || 0) * 100) / 100)
 
     if (!leadId) return NextResponse.json({ error: 'leadId required' }, { status: 400 })
 
@@ -91,22 +97,23 @@ export async function POST(request: Request) {
     const quotedHours = minHours
     const subtotal = Math.round(rate * quotedHours * 100) / 100
     const hst = Math.round(subtotal * HST * 100) / 100
-    const total = Math.round((subtotal + hst + surcharge) * 100) / 100
+    const total = Math.round((subtotal + hst + surcharge + specialtyCharge) * 100) / 100
     const balance = Math.round((total - DEPOSIT) * 100) / 100
 
+    const truckSize = moveType === 'truck' ? getFastLaneTruckSize(crew) : undefined
     const crewLabel = moveType === 'truck'
-      ? `${crew} movers + 26ft truck`
+      ? `${crew} movers + ${truckSize} truck`
       : `${crew} movers (labour only)`
 
     const fastLaneTerms = buildFastLaneTerms(minHours, maxHours)
     const rangeLabel = fastLaneTerms.rangeLabel
-    const fastLaneSignature = `Fast Lane quote · ${crewLabel} · $${rate}/hr · ${rangeLabel}${surcharge > 0 ? ` · +$${surcharge} surcharge` : ''}`
+    const fastLaneSignature = `Fast Lane quote · ${crewLabel} · $${rate}/hr · ${rangeLabel}${surcharge > 0 ? ` · +$${surcharge} surcharge` : ''}${specialtyCharge > 0 ? ` · +$${specialtyCharge} specialty handling` : ''}`
 
     // Specialty notes
     const specialtyMap: Record<string, string> = {
       piano: 'Piano & Safe — requires extra care (discussed at time of booking)',
       pool_table: 'Pool Table — requires disassembly, quoted separately',
-      hot_tub: 'Hot Tub / Swim Spa — specialty item, quoted separately',
+      hot_tub: 'Hot Tub / Swim Spa — supported through a specialty subcontractor; scope and handling must be confirmed',
     }
     const specialtyNote = specialtyItems
       .map(k => specialtyMap[k])
@@ -197,10 +204,15 @@ export async function POST(request: Request) {
           details: 'Applied for same-day or short-notice booking',
           amount: surcharge,
         }] : []),
+        ...(specialtyCharge > 0 ? [{
+          description: 'Specialty Handling Charge',
+          details: specialtyNote || 'Specialty subcontractor handling',
+          amount: specialtyCharge,
+        }] : []),
       ],
       discountAmount: 0,
       discountLabel: '',
-      subtotal: Math.round((subtotal + surcharge) * 100) / 100,
+      subtotal: Math.round((subtotal + surcharge + specialtyCharge) * 100) / 100,
       hst,
       total,
       deposit: DEPOSIT,
@@ -214,6 +226,7 @@ export async function POST(request: Request) {
     // Update lead stage to quoted + link the quote
     await saveSalesLead({
       ...lead,
+      truckSize: moveType === 'truck' ? truckSize : lead.truckSize,
       stage: lead.stage === 'new' || lead.stage === 'contacted' ? 'quoted' : lead.stage,
       quoteId: quote.id,
       quoteIds: Array.from(new Set([...(lead.quoteIds || []), quote.id])),
@@ -228,8 +241,8 @@ export async function POST(request: Request) {
 
     // Build and send SMS
     const firstName = lead.name?.split(' ')[0] || 'there'
-    const minTotal = Math.round(rate * minHours * (1 + HST)) + surcharge
-    const maxTotal = Math.round(rate * maxHours * (1 + HST)) + surcharge
+    const minTotal = Math.round(rate * minHours * (1 + HST)) + surcharge + specialtyCharge
+    const maxTotal = Math.round(rate * maxHours * (1 + HST)) + surcharge + specialtyCharge
 
     const smsBody = [
       `Hi ${firstName}! Here are your hourly booking terms from Saturn Star. ⭐`,
@@ -238,8 +251,9 @@ export async function POST(request: Request) {
       `$${rate}/hr · ${fastLaneTerms.smsSummary}`,
       `Minimum charge: ${minHours} hour${minHours === 1 ? '' : 's'} · ${formatMoney(minTotal)} incl. HST`,
       surcharge > 0 ? `⚡ Emergency/short-notice surcharge: $${surcharge} (applied to this booking)` : '',
+      specialtyCharge > 0 ? `Specialty handling charge: $${specialtyCharge}` : '',
       maxHours > minHours ? `${rangeLabel} is a planning window, not a fixed total. Billing is based on the actual time worked after the minimum.` : '',
-      specialtyNote ? `📋 Note: ${specialtyItems.includes('piano') ? 'Piano/Safe' : ''}${specialtyItems.includes('pool_table') ? ' Pool Table' : ''}${specialtyItems.includes('hot_tub') ? ' Hot Tub' : ''} — see booking page for details.` : '',
+      specialtyNote ? `📋 Specialty item: ${specialtyItems.includes('piano') ? 'Piano/Safe' : ''}${specialtyItems.includes('pool_table') ? ' Pool Table' : ''}${specialtyItems.includes('hot_tub') ? ' Hot Tub' : ''} — supported subject to final access, equipment, and subcontractor confirmation.` : '',
       ``,
       `Important: this lane has a ${minHours}-hour minimum. If the crew finishes sooner, the minimum still applies. After that, time bills in 15-minute increments at the same rate.`,
       ``,
