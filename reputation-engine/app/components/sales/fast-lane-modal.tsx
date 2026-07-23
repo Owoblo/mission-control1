@@ -132,7 +132,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[var(--app-line)] px-5 py-4 sticky top-0 bg-white z-10">
           <div>
-            <h2 className="font-display text-base font-semibold text-[var(--app-ink)]">⚡ Fast Lane Quote</h2>
+            <h2 className="font-display text-base font-semibold text-[var(--app-ink)]">Fast Lane Hourly Booking</h2>
             <p className="mt-0.5 text-xs text-[var(--app-muted)]">{lead.name} · {lead.phone || 'No phone'}</p>
           </div>
           <button onClick={onClose} className="rounded-xl p-1.5 text-[var(--app-muted)] hover:bg-[var(--app-bg)]">✕</button>
@@ -180,9 +180,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
               <div className="rounded-[10px] border border-amber-300 bg-amber-50 px-4 py-3">
                 <div className="text-sm font-semibold text-amber-950">Add the booking essentials</div>
                 <p className="mt-1 text-xs leading-5 text-amber-900">
-                  {moveType === 'labor'
-                    ? 'An hourly labour booking only needs a current service date and work location.'
-                    : 'Truck pricing stays locked until the move has enough operational context.'}
+                  An hourly booking only needs a current service date and pickup or work location.
                 </p>
                 <ul className="mt-2 space-y-1 text-xs text-amber-950">
                   {blockingIssues.map(issue => <li key={issue}>• {FAST_LANE_ISSUE_LABELS[issue]}</li>)}
@@ -190,7 +188,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
               </div>
             )}
 
-            {moveType === 'labor' && blockingIssues.length === 0 && bookingNotes.length > 0 && (
+            {blockingIssues.length === 0 && bookingNotes.length > 0 && (
               <div className="rounded-[10px] border border-sky-200 bg-sky-50 px-4 py-3">
                 <div className="text-sm font-semibold text-sky-950">Hourly booking is available</div>
                 <p className="mt-1 text-xs leading-5 text-sky-900">

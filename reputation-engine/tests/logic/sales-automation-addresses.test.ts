@@ -168,7 +168,7 @@ test('labour-only hourly booking can proceed with a date and work location', () 
   assert.deepEqual(blocking, [])
 })
 
-test('truck booking retains the full operational readiness gate', () => {
+test('hourly truck booking also proceeds while remaining scope is confirmed before dispatch', () => {
   const candidate = lead({
     moveDate: '2026-07-24',
     originAddress: '12 High St',
@@ -177,9 +177,7 @@ test('truck booking retains the full operational readiness gate', () => {
   })
 
   const blocking = getFastLaneBlockingIssues(candidate, 'truck', new Date('2026-07-21T12:00:00'))
-  assert.equal(blocking.includes('destination_address'), true)
-  assert.equal(blocking.includes('inventory'), true)
-  assert.equal(blocking.includes('access'), true)
+  assert.deepEqual(blocking, [])
 })
 
 test('automated pricing requires an explicit confirmed-scope threshold', () => {

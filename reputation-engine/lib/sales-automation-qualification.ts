@@ -153,15 +153,13 @@ export function getFastLaneReadinessIssues(lead: CRMLead, now = new Date()) {
 
 export function getFastLaneBlockingIssues(
   lead: CRMLead,
-  moveType: 'truck' | 'labor',
+  _moveType: 'truck' | 'labor',
   now = new Date()
-) {
+): FastLaneReadinessIssue[] {
   const issues = getFastLaneReadinessIssues(lead, now)
-  if (moveType === 'truck') return issues
-
-  // Labour-only is an hourly booking, not a fixed-scope estimate. Once the
-  // service date and work location are known, remaining scope details can be
-  // confirmed before dispatch without preventing the customer from booking.
+  // Fast Lane is an hourly booking in both truck and labour-only modes, not a
+  // fixed-scope estimate. Once the service date and pickup/work location are
+  // known, remaining scope details can be confirmed before dispatch.
   return issues.filter(issue => issue === 'move_date' || issue === 'origin_address' || issue === 'origin_city')
 }
 

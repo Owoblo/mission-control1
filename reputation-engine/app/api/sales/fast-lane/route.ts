@@ -81,9 +81,7 @@ export async function POST(request: Request) {
     const blockingIssues = getFastLaneBlockingIssues(lead, moveType)
     if (blockingIssues.length > 0) {
       return NextResponse.json({
-        error: moveType === 'labor'
-          ? 'Add a current service date and work location before sending the hourly booking link.'
-          : 'Fast Lane is locked until the move scope is confirmed.',
+        error: 'Add a current service date and pickup or work location before sending the hourly booking link.',
         missingFields: blockingIssues,
         requirements: blockingIssues.map(issue => FAST_LANE_ISSUE_LABELS[issue]),
       }, { status: 409 })
