@@ -400,35 +400,45 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 function PhotoGallery({ photos }: { photos: string[] }) {
   const [active, setActive] = useState(0)
+  const [expanded, setExpanded] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   if (photos.length === 0) return null
 
   return (
     <div className="mb-16">
-      <div className="group relative overflow-hidden rounded-2xl bg-[#071421]/5 shadow-[0_24px_70px_rgba(7,20,33,0.13)]" style={{ aspectRatio: '16/9' }}>
-        <img
-          src={photos[active]}
-          alt="Your home"
-          className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.025]"
-          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#071421]/60 via-transparent to-transparent" />
-        <div className="absolute bottom-6 left-7">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/60">Your home</div>
-          <div className="mt-1 text-sm font-semibold text-white">Prepared from {photos.length} property photos</div>
-        </div>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="group relative block w-full overflow-hidden rounded-2xl bg-[#071421] text-left shadow-[0_24px_70px_rgba(7,20,33,0.13)]"
+          aria-label="Open property photo at full size"
+        >
+          <img
+            src={photos[active]}
+            alt={`Property photo ${active + 1} of ${photos.length}`}
+            className="mx-auto block max-h-[720px] min-h-[360px] w-full object-contain [image-rendering:auto]"
+            decoding="async"
+            fetchPriority={active === 0 ? 'high' : 'auto'}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+          />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#071421]/65 via-transparent to-transparent" />
+          <div className="absolute bottom-6 left-7">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70">Property photo {active + 1} of {photos.length}</div>
+            <div className="mt-1 text-sm font-semibold text-white">Select to view full resolution</div>
+          </div>
+        </button>
         {photos.length > 1 && (
           <>
             <button
               onClick={() => setActive(a => Math.max(0, a - 1))}
               disabled={active === 0}
-              className="absolute left-4 top-1/2 -translate-y-1/2 rounded-xl bg-[#071421]/70 px-3 py-2 text-sm font-bold text-white disabled:opacity-20 hover:bg-[#071421]"
+              className="absolute left-4 top-1/2 z-10 -translate-y-1/2 rounded-xl bg-[#071421]/80 px-3 py-2 text-sm font-bold text-white disabled:opacity-20 hover:bg-[#071421]"
             >‹</button>
             <button
               onClick={() => setActive(a => Math.min(photos.length - 1, a + 1))}
               disabled={active === photos.length - 1}
-              className="absolute right-4 top-1/2 -translate-y-1/2 rounded-xl bg-[#071421]/70 px-3 py-2 text-sm font-bold text-white disabled:opacity-20 hover:bg-[#071421]"
+              className="absolute right-4 top-1/2 z-10 -translate-y-1/2 rounded-xl bg-[#071421]/80 px-3 py-2 text-sm font-bold text-white disabled:opacity-20 hover:bg-[#071421]"
             >›</button>
           </>
         )}
@@ -440,11 +450,35 @@ function PhotoGallery({ photos }: { photos: string[] }) {
               key={i}
               onClick={() => setActive(i)}
               className={`shrink-0 overflow-hidden rounded-lg border transition ${active === i ? 'border-[#071421]' : 'border-transparent opacity-50 hover:opacity-80'}`}
-              style={{ width: 60, height: 44 }}
+              style={{ width: 96, height: 64 }}
             >
               <img src={photo} alt="" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).parentElement!.style.display = 'none' }} />
             </button>
           ))}
+        </div>
+      )}
+      {expanded && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-[#071421]/95 p-4 sm:p-8"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Full-resolution property photo"
+          onClick={() => setExpanded(false)}
+        >
+          <button
+            type="button"
+            onClick={() => setExpanded(false)}
+            className="absolute right-5 top-5 rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20"
+          >
+            Close
+          </button>
+          <img
+            src={photos[active]}
+            alt={`Property photo ${active + 1} of ${photos.length}`}
+            className="max-h-full max-w-full object-contain [image-rendering:auto]"
+            decoding="async"
+            onClick={(event) => event.stopPropagation()}
+          />
         </div>
       )}
     </div>
