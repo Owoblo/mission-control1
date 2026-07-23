@@ -4411,11 +4411,16 @@ export default function SalesLeadDetailPage() {
                   onClick={() => setOnsiteChangeOpen(o => !o)}
                   className="w-full rounded-[8px] bg-rose-600 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-700 transition-colors"
                 >
-                  🚨 Report On-Site Change
+                  Report Scope Change
                 </button>
                 {onsiteChangeOpen && (
                   <div className="rounded-[10px] border border-rose-200 bg-rose-50 p-4 space-y-3">
-                    <div className="crm-label text-rose-800">On-Site Change Report</div>
+                    <div className="crm-label text-rose-800">Change Order</div>
+                    {quote?.billingModel === 'binding' && (
+                      <div className="rounded-[6px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-900">
+                        The accepted flat rate stays in force. Record the additional scope and proposed flat-rate adjustment; do not perform extra work until the customer approves it.
+                      </div>
+                    )}
                     <select
                       value={onsiteChangeType}
                       onChange={e => setOnsiteChangeType(e.target.value as typeof onsiteChangeType)}
@@ -4440,24 +4445,24 @@ export default function SalesLeadDetailPage() {
                     />
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-rose-700">Extra Hours</label>
+                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-rose-700">Internal Time Impact</label>
                         <input type="number" min="0" step="0.5" value={onsiteDeltaHours} onChange={e => setOnsiteDeltaHours(e.target.value)} className="crm-input w-full text-xs" placeholder="e.g. 1.5" />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-rose-700">Est. Extra Cost ($)</label>
+                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-rose-700">Flat-Rate Adjustment ($)</label>
                         <input type="number" min="0" value={onsiteExtraCost} onChange={e => setOnsiteExtraCost(e.target.value)} className="crm-input w-full text-xs" placeholder="e.g. 250" />
                       </div>
                     </div>
                     <label className="flex items-center gap-2 text-xs text-rose-800 cursor-pointer">
                       <input type="checkbox" checked={onsiteNotifyCustomer} onChange={e => setOnsiteNotifyCustomer(e.target.checked)} className="rounded" />
-                      Also notify customer by SMS
+                      Send customer a change-order notice by SMS
                     </label>
                     <button
                       onClick={() => void submitOnsiteChange()}
                       disabled={onsiteBusy || !onsiteReason.trim()}
                       className="w-full rounded-[6px] bg-rose-700 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-800 disabled:opacity-50"
                     >
-                      {onsiteDone ? '✓ Logged & Office Notified' : onsiteBusy ? 'Logging…' : 'Log Change + Notify Office'}
+                      {onsiteDone ? '✓ Change Order Recorded' : onsiteBusy ? 'Recording…' : 'Create Pending Change Order'}
                     </button>
                   </div>
                 )}
@@ -4478,6 +4483,9 @@ export default function SalesLeadDetailPage() {
                             <span>{formatMoney(entry.previousTotal)} → {formatMoney(entry.newTotal)}</span>
                           )}
                           {entry.deltaHours && <span>+{entry.deltaHours}h</span>}
+                          {entry.approvalStatus === 'pending' && <span>Awaiting customer approval</span>}
+                          {entry.approvalStatus === 'approved' && <span>Approved ✓</span>}
+                          {entry.approvalStatus === 'declined' && <span>Declined</span>}
                           {entry.customerNotified && <span>Customer notified ✓</span>}
                           {entry.changedBy && <span>By {entry.changedBy}</span>}
                         </div>

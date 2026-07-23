@@ -3,7 +3,8 @@
  *
  * Crew or rep flags a change discovered on-site.
  * → Logs to timeline, SMS to John, appends to quote changeLog
- * → If quote was binding, converts to hourly_actuals (non-binding)
+ * → Flat-rate jobs remain flat-rate. Extra work requires a documented change
+ *   order and customer approval before the crew proceeds beyond original scope.
  */
 
 import { NextResponse } from 'next/server'
@@ -63,18 +64,25 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
       reason: body.reason.trim(),
       changeType: body.changeType || 'onsite_addition',
       previousTotal: quote?.total,
+      newTotal: quote && body.estimatedExtraCost
+        ? Math.round((quote.total + body.estimatedExtraCost) * 100) / 100
+        : quote?.total,
+      estimatedExtraCost: body.estimatedExtraCost,
       deltaHours: body.deltaHours,
       note: body.note?.trim() || undefined,
       customerNotified: false,
+      approvalRequired: quote?.billingModel === 'binding',
+      approvalStatus: quote?.billingModel === 'binding' ? 'pending' : 'not_required',
+      originalBillingModel: quote?.billingModel,
     }
 
-    // Append to quote changeLog + convert binding → non-binding
+    // Append the proposed change without changing the accepted price or billing
+    // model. Approval is a separate threshold and must remain auditable.
     let updatedQuote = quote
     if (quote) {
       updatedQuote = await saveSalesQuote({
         ...quote,
         changeLog: [...(quote.changeLog || []), changeEntry],
-        billingModel: quote.billingModel === 'binding' ? 'hourly_actuals' : quote.billingModel,
       })
     }
 
@@ -91,7 +99,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
       body.note ? body.note : null,
       body.deltaHours ? `~${body.deltaHours}h extra` : null,
       body.estimatedExtraCost ? `est. extra ~$${body.estimatedExtraCost}` : null,
-      quote?.billingModel === 'binding' ? 'Quote converted from binding to non-binding (hourly actuals).' : null,
+      quote?.billingModel === 'binding' ? 'Flat rate remains unchanged. Extra work is paused pending customer approval of the change order.' : null,
       `Reported by ${reporterName}.`,
     ].filter(Boolean).join(' · ')
 
@@ -121,7 +129,10 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
       // Optionally notify customer
       if (body.notifyCustomer && lead.phone) {
         const firstName = (lead.name || 'there').split(' ')[0]
-        const customerMsg = `Hi ${firstName}, Saturn Star Moving here. Our crew noted a change on site: ${body.reason}. We'll follow up with an updated estimate shortly. Questions? Call 226-773-2993.`
+        const priceLine = body.estimatedExtraCost
+          ? ` The proposed flat-rate adjustment is $${body.estimatedExtraCost.toFixed(2)}.`
+          : ''
+        const customerMsg = `Hi ${firstName}, Saturn Star Moving here. Our crew noted a scope change: ${body.reason}.${priceLine} Your original flat rate remains unchanged and no extra work will proceed until the change is reviewed and approved. Questions? Call 226-773-2993.`
         await sendSms(accountSid, authToken, lead.phone, customerMsg).catch(() => {})
         if (updatedQuote?.changeLog) {
           const idx = updatedQuote.changeLog.findIndex(e => e.id === changeEntry.id)

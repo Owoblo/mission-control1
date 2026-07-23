@@ -926,9 +926,16 @@ export interface QuoteChangeEntry {
   changeType: 'onsite_addition' | 'price_revision' | 'scope_change' | 'customer_request' | 'correction'
   previousTotal?: number
   newTotal?: number
+  estimatedExtraCost?: number
   deltaHours?: number
   note?: string
   customerNotified?: boolean
+  approvalStatus?: 'pending' | 'approved' | 'declined' | 'not_required'
+  approvalRequired?: boolean
+  approvedAt?: string
+  approvedBy?: string
+  approvalMethod?: 'signed_link' | 'sms' | 'email' | 'in_person' | 'phone'
+  originalBillingModel?: 'binding' | 'hourly_actuals' | 'hourly_minimum'
 }
 
 export interface QuoteLeg {
