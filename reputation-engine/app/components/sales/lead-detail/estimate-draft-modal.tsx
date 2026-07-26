@@ -154,6 +154,7 @@ type QuoteWorkspaceSendOptions = QuoteWorkspaceSaveOptions & {
 }
 
 type QuoteReadinessItem = {
+  category: 'evidence' | 'inventory' | 'logistics' | 'commercial'
   label: string
   ready: boolean
   critical?: boolean
@@ -2008,15 +2009,6 @@ export function EstimateDraftModal({
     setMarginGateAck(false)
   }, [quoteLineItems, pricingBreakdown])
 
-  const accessConfirmed = Boolean(
-    originAccess ||
-    destAccess ||
-    parkingNotes ||
-    jobFactors.originParkingOk !== undefined ||
-    jobFactors.destParkingOk !== undefined ||
-    jobFactors.originHasElevator !== undefined ||
-    jobFactors.destHasElevator !== undefined
-  )
   const accessAssessment = useMemo(() => deriveAccessComplexityAssessment({
     jobFactors,
     parkingNotes,
@@ -2029,6 +2021,56 @@ export function EstimateDraftModal({
     Number(jobFactors.estimatedBoxes || 0) > 0 ||
     packingMaterialsEstimate?.plannedBoxes ||
     effectiveInventoryMetrics.inventory.some(item => getInventoryDisplayLabel(item).toLowerCase().includes('box'))
+  )
+  const includedInventory = useMemo(
+    () => effectiveInventoryMetrics.inventory.filter(item => item.included !== false && item.status !== 'excluded'),
+    [effectiveInventoryMetrics.inventory]
+  )
+  const unknownVolumeItems = useMemo(
+    () => includedInventory.filter(item => Number(item.cubicFeet || 0) <= 0),
+    [includedInventory]
+  )
+  const unresolvedInventoryItems = useMemo(
+    () => includedInventory.filter(item => item.status === 'needs_confirmation'),
+    [includedInventory]
+  )
+  const excludedInventoryCount = useMemo(
+    () => effectiveInventoryMetrics.inventory.filter(item => item.included === false || item.status === 'excluded').length,
+    [effectiveInventoryMetrics.inventory]
+  )
+  const evidenceSources = useMemo(() => {
+    const sources = new Set<string>()
+    if (lead.supabaseListing || lead.listingScanSnapshot || includedInventory.some(item => item.source === 'mls')) sources.add('MLS')
+    if ((mediaAssets || []).some(asset => asset.kind === 'image' && !asset.removed)) sources.add('Photos')
+    if (
+      includedInventory.some(item => item.source === 'survey_ai') ||
+      (mediaAssets || []).some(asset => asset.kind === 'video' && !asset.removed)
+    ) sources.add('Video')
+    if (includedInventory.some(item => item.source === 'manual')) sources.add('Rep / phone list')
+    if (lead.surveyCompletedAt || lead.inventoryVerification?.completedAt || includedInventory.some(item => item.source === 'customer_verification')) {
+      sources.add('Customer confirmed')
+    }
+    return Array.from(sources)
+  }, [includedInventory, lead.inventoryVerification?.completedAt, lead.listingScanSnapshot, lead.supabaseListing, lead.surveyCompletedAt, mediaAssets])
+  const customerInventoryConfirmed = Boolean(
+    lead.surveyCompletedAt ||
+    lead.inventoryVerification?.completedAt ||
+    (includedInventory.length > 0 && unresolvedInventoryItems.length === 0 && includedInventory.every(item => item.status === 'confirmed'))
+  )
+  const hiddenAreaEvidence = Boolean(
+    customerInventoryConfirmed ||
+    includedInventory.some(item => /garage|basement|storage|shed|attic|outdoor|patio|closet/i.test(item.room || '')) ||
+    (mediaAssets || []).some(asset => /garage|basement|storage|shed|attic|outdoor|patio|closet/i.test(asset.room || ''))
+  )
+  const originAccessConfirmed = Boolean(
+    originAccess ||
+    jobFactors.originParkingOk !== undefined ||
+    jobFactors.originHasElevator !== undefined
+  )
+  const destinationAccessConfirmed = Boolean(
+    destAccess ||
+    jobFactors.destParkingOk !== undefined ||
+    jobFactors.destHasElevator !== undefined
   )
   const quoteExplanation = useMemo(() => {
     if (!pricingBreakdown || quoteModalTotals.total <= 0) {
@@ -2063,17 +2105,15 @@ export function EstimateDraftModal({
   }, [effectiveInventoryMetrics.inventory, effectiveInventoryMetrics.totalCubicFeet, effectiveInventoryMetrics.totalItems, includedDisassemblyItems, pricingBreakdown, quoteModalTotals.deposit, quoteModalTotals.total, route?.billableDistanceKm, route?.originToDestination?.distanceKm])
   const readinessItems = useMemo<QuoteReadinessItem[]>(() => {
     const items: QuoteReadinessItem[] = [
-      { label: 'Customer name', ready: Boolean(lead.name.trim()), critical: true, detail: 'Customer name is missing.' },
-      { label: 'Phone', ready: Boolean((lead.phone || '').trim()), critical: true, detail: 'Phone number is missing.' },
-      { label: 'Email or SMS available', ready: Boolean((lead.email || '').trim() || (lead.phone || '').trim()), critical: true, detail: 'No email or SMS delivery path is available.' },
-      { label: 'Origin address', ready: Boolean(originFull.trim()), critical: true, detail: 'Origin address is missing.' },
-      { label: 'Destination address', ready: Boolean(destFull.trim()), critical: true, detail: 'Destination address is missing.' },
-      { label: 'Origin geocoded', ready: Boolean(originFull.trim() && !routeError && route?.originResolved), critical: true, detail: originFull.trim() ? 'Origin address could not be located.' : 'Origin address is missing.' },
-      { label: 'Destination geocoded', ready: Boolean(destFull.trim() && !routeError && route?.destResolved), critical: true, detail: destFull.trim() ? 'Destination address could not be located.' : 'Destination address is missing.' },
-      { label: 'Move date', ready: Boolean(selectedMoveDate), critical: true, detail: 'Move date is missing.' },
-      { label: 'Inventory', ready: effectiveInventoryMetrics.totalItems > 0, critical: true, detail: 'Inventory is still empty.' },
+      { category: 'evidence', label: 'Evidence source on file', ready: evidenceSources.length > 0, critical: true, detail: 'No MLS, photo, video, customer-confirmed, or rep inventory evidence is on file.' },
+      { category: 'evidence', label: 'Customer scope confirmation', ready: customerInventoryConfirmed, critical: quoteType !== 'labor_only', detail: 'Ask the customer to verify what is moving, staying, missing, and decision-pending.' },
+      { category: 'evidence', label: 'Garage / hidden areas checked', ready: hiddenAreaEvidence, detail: 'Confirm garage, basement, storage, closets, shed, attic, and outdoor items.' },
+      { category: 'inventory', label: 'Inventory captured', ready: effectiveInventoryMetrics.totalItems > 0, critical: true, detail: 'Inventory is still empty.' },
+      { category: 'inventory', label: 'Item decisions resolved', ready: unresolvedInventoryItems.length === 0, critical: unresolvedInventoryItems.length > 0, detail: `${unresolvedInventoryItems.length} included item${unresolvedInventoryItems.length === 1 ? '' : 's'} still need a moving, staying, or decision-pending answer.` },
+      { category: 'inventory', label: 'Volume / dimensions complete', ready: unknownVolumeItems.length === 0, critical: unknownVolumeItems.length > 0, detail: `${unknownVolumeItems.length} included item${unknownVolumeItems.length === 1 ? '' : 's'} still have unknown cubic feet.` },
       ...(conjointMode
         ? [{
+          category: 'inventory' as const,
           label: `${conjointPendingLabel} inventory`,
           ready: !conjointInventoryPending,
           critical: true,
@@ -2082,21 +2122,28 @@ export function EstimateDraftModal({
         : []),
       ...(conjointVolumePending
         ? [{
+          category: 'inventory' as const,
           label: `${conjointVolumePendingLabel} volume`,
           ready: false,
           critical: false,
           detail: `${conjointVolumePendingLabel} has tagged inventory, but cubic feet are still unknown. Timing, truck plan, and margin are provisional until the items are measured.`,
         }]
         : []),
-      // Long-distance: customer should verify inventory before we lock in a flat rate
-      ...(route?.category === 'long-distance' || quoteType === 'long_distance'
-        ? [{ label: 'Inventory verified by customer', ready: Boolean(lead.surveyCompletedAt), detail: 'Long-distance: ask customer to confirm inventory on the verification link before pricing.' }]
-        : []),
-      { label: 'Access / parking', ready: accessConfirmed, detail: 'Access or parking is still unknown.' },
-      { label: 'Packing status', ready: Boolean(jobFactors.packingStatus), detail: 'Packing status is not confirmed.' },
-      { label: 'Boxes asked', ready: boxesAsked, detail: 'Boxes were not confirmed.' },
-      { label: 'Crew / truck recommendation', ready: Boolean(pricingBreakdown?.crewSize && pricingBreakdown?.truckCount), critical: true, detail: 'Crew or truck recommendation is missing.' },
+      { category: 'logistics', label: 'Customer name', ready: Boolean(lead.name.trim()), critical: true, detail: 'Customer name is missing.' },
+      { category: 'logistics', label: 'Phone', ready: Boolean((lead.phone || '').trim()), critical: true, detail: 'Phone number is missing.' },
+      { category: 'logistics', label: 'Email or SMS available', ready: Boolean((lead.email || '').trim() || (lead.phone || '').trim()), critical: true, detail: 'No email or SMS delivery path is available.' },
+      { category: 'logistics', label: 'Origin address', ready: Boolean(originFull.trim()), critical: true, detail: 'Origin address is missing.' },
+      { category: 'logistics', label: 'Destination address', ready: Boolean(destFull.trim()), critical: true, detail: 'Destination address is missing.' },
+      { category: 'logistics', label: 'Origin geocoded', ready: Boolean(originFull.trim() && !routeError && route?.originResolved), critical: true, detail: originFull.trim() ? 'Origin address could not be located.' : 'Origin address is missing.' },
+      { category: 'logistics', label: 'Destination geocoded', ready: Boolean(destFull.trim() && !routeError && route?.destResolved), critical: true, detail: destFull.trim() ? 'Destination address could not be located.' : 'Destination address is missing.' },
+      { category: 'logistics', label: 'Move date', ready: Boolean(selectedMoveDate), critical: true, detail: 'Move date is missing.' },
+      { category: 'logistics', label: 'Origin access / parking', ready: originAccessConfirmed, detail: 'Origin stairs, elevator, parking, doorway, and carry distance are still unknown.' },
+      { category: 'logistics', label: 'Destination access / parking', ready: destinationAccessConfirmed, detail: 'Destination stairs, elevator, parking, doorway, and carry distance are still unknown.' },
+      { category: 'logistics', label: 'Packing status', ready: Boolean(jobFactors.packingStatus), detail: 'Packing status is not confirmed.' },
+      { category: 'logistics', label: 'Boxes asked', ready: boxesAsked, detail: 'Boxes were not confirmed.' },
+      { category: 'commercial', label: 'Crew / truck recommendation', ready: Boolean(pricingBreakdown?.crewSize && pricingBreakdown?.truckCount), critical: true, detail: 'Crew or truck recommendation is missing.' },
       {
+        category: 'commercial',
         label: 'Final price confidence',
         ready: Boolean(pricingBreakdown && quoteModalTotals.total > 0 && !conjointInventoryPending),
         critical: conjointInventoryPending,
@@ -2106,11 +2153,12 @@ export function EstimateDraftModal({
             ? `Price is provisional because ${conjointVolumePendingLabel} has inventory items with unknown cubic feet.`
           : 'Price has not been generated yet.',
       },
-      { label: 'Deposit amount', ready: quoteModalTotals.deposit > 0, critical: true, detail: 'Deposit amount is missing.' },
-      { label: 'Quote explanation available', ready: Boolean(quoteExplanation.detailed.trim()), detail: 'Customer-facing price explanation is not ready.' },
+      { category: 'commercial', label: 'Margin reviewed', ready: Boolean(liveMarginSummary && liveMarginSummary.liveMargin >= 50), critical: Boolean(liveMarginSummary && liveMarginSummary.actualRevenue > 0 && liveMarginSummary.liveMargin < 40), detail: liveMarginSummary ? `Current margin is ${liveMarginSummary.liveMargin.toFixed(1)}%; manager review may be required.` : 'Margin has not been calculated.' },
+      { category: 'commercial', label: 'Deposit amount', ready: quoteModalTotals.deposit > 0, critical: true, detail: 'Deposit amount is missing.' },
+      { category: 'commercial', label: 'Quote explanation available', ready: Boolean(quoteExplanation.detailed.trim()), detail: 'Customer-facing price explanation is not ready.' },
     ]
     return items
-  }, [accessConfirmed, boxesAsked, conjointInventoryPending, conjointMode, conjointPendingLabel, conjointVolumePending, conjointVolumePendingLabel, destFull, effectiveInventoryMetrics.totalItems, jobFactors.packingStatus, lead.email, lead.name, lead.phone, lead.surveyCompletedAt, originFull, pricingBreakdown, quoteExplanation.detailed, quoteModalTotals.deposit, quoteModalTotals.total, route?.category, route?.destResolved, route?.originResolved, routeError, selectedMoveDate, quoteType])
+  }, [boxesAsked, conjointInventoryPending, conjointMode, conjointPendingLabel, conjointVolumePending, conjointVolumePendingLabel, customerInventoryConfirmed, destFull, destinationAccessConfirmed, effectiveInventoryMetrics.totalItems, evidenceSources.length, hiddenAreaEvidence, jobFactors.packingStatus, lead.email, lead.name, lead.phone, liveMarginSummary, originAccessConfirmed, originFull, pricingBreakdown, quoteExplanation.detailed, quoteModalTotals.deposit, quoteModalTotals.total, route?.category, route?.destResolved, route?.originResolved, routeError, selectedMoveDate, quoteType, unknownVolumeItems.length, unresolvedInventoryItems.length])
   const blockingReadiness = useMemo(
     () => readinessItems.filter(item => !item.ready && item.critical),
     [readinessItems]
@@ -6384,20 +6432,52 @@ export function EstimateDraftModal({
               <div className="mt-4 space-y-3">
                 <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3">
                   <div className="flex items-center justify-between gap-3">
-                    <div className="text-xs font-semibold text-[var(--app-ink)]">Quote Readiness</div>
+                    <div>
+                      <div className="text-xs font-semibold text-[var(--app-ink)]">Estimate Readiness Workspace</div>
+                      <div className="mt-0.5 text-[10px] text-[var(--app-muted)]">Evidence → confirmed scope → logistics → fixed-price promise</div>
+                    </div>
                     <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
                       {readinessItems.filter(item => item.ready).length}/{readinessItems.length} ready
                     </div>
                   </div>
-                  <div className="mt-3 space-y-1.5">
-                    {readinessItems.map(item => (
-                      <div key={item.label} className="flex items-start justify-between gap-2 text-xs">
-                        <span className={item.ready ? 'text-[var(--app-ink)]' : item.critical ? 'text-rose-700' : 'text-amber-700'}>{item.label}</span>
-                        <span className={`font-semibold ${item.ready ? 'text-emerald-700' : item.critical ? 'text-rose-700' : 'text-amber-700'}`}>
-                          {item.ready ? 'Ready' : item.critical ? 'Missing' : 'Confirm'}
-                        </span>
-                      </div>
-                    ))}
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {evidenceSources.length > 0
+                      ? evidenceSources.map(source => <span key={source} className="rounded-full bg-sky-50 px-2 py-1 text-[9px] font-semibold text-sky-700">{source}</span>)
+                      : <span className="rounded-full bg-rose-50 px-2 py-1 text-[9px] font-semibold text-rose-700">No evidence source</span>}
+                  </div>
+                  <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
+                    <div className="rounded-[6px] bg-emerald-50 px-2 py-1.5"><div className="text-sm font-semibold text-emerald-800">{includedInventory.length - unresolvedInventoryItems.length}</div><div className="text-[8px] uppercase tracking-wide text-emerald-700">Moving / confirmed</div></div>
+                    <div className="rounded-[6px] bg-amber-50 px-2 py-1.5"><div className="text-sm font-semibold text-amber-800">{unresolvedInventoryItems.length}</div><div className="text-[8px] uppercase tracking-wide text-amber-700">Decision pending</div></div>
+                    <div className="rounded-[6px] bg-slate-100 px-2 py-1.5"><div className="text-sm font-semibold text-slate-700">{excludedInventoryCount}</div><div className="text-[8px] uppercase tracking-wide text-slate-600">Staying / excluded</div></div>
+                  </div>
+                  <div className="mt-3 space-y-3">
+                    {([
+                      ['evidence', '1 · Evidence collected'],
+                      ['inventory', '2 · Inventory reconciled'],
+                      ['logistics', '3 · Route & access'],
+                      ['commercial', '4 · Commercial promise'],
+                    ] as const).map(([category, heading]) => {
+                      const categoryItems = readinessItems.filter(item => item.category === category)
+                      const categoryReady = categoryItems.filter(item => item.ready).length
+                      return (
+                        <div key={category} className="rounded-[7px] bg-[var(--app-bg)] p-2.5">
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--app-muted)]">{heading}</span>
+                            <span className="text-[9px] font-semibold text-[var(--app-muted)]">{categoryReady}/{categoryItems.length}</span>
+                          </div>
+                          <div className="space-y-1.5">
+                            {categoryItems.map(item => (
+                              <div key={item.label} className="flex items-start justify-between gap-2 text-[11px]" title={item.ready ? undefined : item.detail}>
+                                <span className={item.ready ? 'text-[var(--app-ink)]' : item.critical ? 'text-rose-700' : 'text-amber-700'}>{item.label}</span>
+                                <span className={`shrink-0 font-semibold ${item.ready ? 'text-emerald-700' : item.critical ? 'text-rose-700' : 'text-amber-700'}`}>
+                                  {item.ready ? '✓' : item.critical ? 'Required' : 'Confirm'}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
                   {blockingReadiness.length > 0 && (
                     <div className="mt-3 rounded-[6px] border border-rose-200 bg-rose-50 px-2.5 py-2 text-[10px] text-rose-800">
