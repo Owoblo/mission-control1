@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   const session = await authorizedSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = await request.json() as { phone?: string; tag?: string; note?: string }
+  const body = await request.json() as { phone?: string; tag?: string; displayName?: string; note?: string }
   const phone = normalizeBlockedCallerPhone(body.phone)
   if (!phone) return NextResponse.json({ error: 'Enter a valid phone number.' }, { status: 400 })
 
@@ -34,6 +34,7 @@ export async function POST(request: Request) {
   const entry: BlockedCaller = {
     phone,
     tag: (body.tag || 'Spam').trim().slice(0, 60) || 'Spam',
+    displayName: (body.displayName || '').trim().slice(0, 100) || undefined,
     note: (body.note || '').trim().slice(0, 240) || undefined,
     blockedAt: new Date().toISOString(),
     blockedBy: session.name || session.userId || 'CRM user',

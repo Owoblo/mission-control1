@@ -37,6 +37,24 @@ type AnalyticsSnapshot = {
     bookings: number
     revenue: number
   }>
+  serviceBreakdown: Array<{
+    category: string
+    label: string
+    quoteCount: number
+    bookedCount: number
+    quotedRevenue: number
+    bookedRevenue: number
+    conversionRate: number
+  }>
+  reservationFunnel: {
+    total: number
+    active: number
+    converted: number
+    released: number
+    expired: number
+    conversionRate: number
+    reasons: Array<{ reason: string; label: string; count: number }>
+  }
   sourceBreakdown: Array<{
     source: string
     label: string
@@ -340,6 +358,76 @@ export default function AnalyticsPage() {
           </div>
         </div>
       )}
+
+      <div className="crm-panel p-6">
+        <h2 className="font-semibold text-[#071421]">Service Mix</h2>
+        <p className="mt-1 text-xs text-[var(--app-muted)]">Which parts of the customer journey are being quoted and booked. Revenue excludes HST.</p>
+        <div className="mt-4 overflow-x-auto">
+          {data.serviceBreakdown.length === 0 ? (
+            <div className="text-sm text-[var(--app-muted)]">No quote service data in this window.</div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--app-line)]">
+                  <th className="pb-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Service</th>
+                  <th className="pb-2 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Quoted</th>
+                  <th className="pb-2 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Booked</th>
+                  <th className="pb-2 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Quoted value</th>
+                  <th className="pb-2 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Booked value</th>
+                  <th className="pb-2 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Conversion</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--app-line)]">
+                {data.serviceBreakdown.map(row => (
+                  <tr key={row.category}>
+                    <td className="py-2.5 font-medium text-[var(--app-ink)]">{row.label}</td>
+                    <td className="py-2.5 text-right">{row.quoteCount}</td>
+                    <td className="py-2.5 text-right">{row.bookedCount}</td>
+                    <td className="py-2.5 text-right">{formatMoney(row.quotedRevenue)}</td>
+                    <td className="py-2.5 text-right font-medium text-emerald-700">{formatMoney(row.bookedRevenue)}</td>
+                    <td className={`py-2.5 text-right font-semibold ${row.conversionRate >= 30 ? 'text-emerald-700' : row.conversionRate >= 15 ? 'text-amber-700' : 'text-rose-600'}`}>{row.conversionRate}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      <div className="crm-panel p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-semibold text-[#071421]">Tentative Reservation Funnel</h2>
+            <p className="mt-1 text-xs text-[var(--app-muted)]">Courtesy holds created in this window and what happened next.</p>
+          </div>
+          <div className="rounded-full bg-orange-100 px-3 py-1 text-sm font-semibold text-orange-800">
+            {data.reservationFunnel.conversionRate}% converted
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
+          {[
+            ['Created', data.reservationFunnel.total],
+            ['Active', data.reservationFunnel.active],
+            ['Booked', data.reservationFunnel.converted],
+            ['Released', data.reservationFunnel.released],
+            ['Expired', data.reservationFunnel.expired],
+          ].map(([label, value]) => (
+            <div key={String(label)} className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">{label}</div>
+              <div className="mt-1 text-xl font-bold text-[var(--app-ink)]">{value}</div>
+            </div>
+          ))}
+        </div>
+        {data.reservationFunnel.reasons.length > 0 ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {data.reservationFunnel.reasons.map(item => (
+              <span key={item.reason} className="rounded-full border border-[var(--app-line)] bg-white px-2.5 py-1 text-xs text-[var(--app-muted)]">
+                {item.label} · {item.count}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
 
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="crm-panel p-6">

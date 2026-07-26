@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { applyLeadMediaAnalysis, uploadLeadMediaAssets } from '@/lib/server/lead-media'
+import { appendLeadMediaAssetsAtomic, applyLeadMediaAnalysis, uploadLeadMediaAssets } from '@/lib/server/lead-media'
 import { getSalesLead, saveSalesLead } from '@/lib/server/sales-repository'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { sendRepAlertEmail, surveyPhotosUploadedEmail } from '@/lib/server/internal-notifications'
@@ -63,12 +63,20 @@ export async function POST(request: Request, props: { params: Promise<{ token: s
     })
 
     // Save assets to lead (no inventory changes yet — scan happens later)
-    const updatedLead = applyLeadMediaAnalysis(lead, {
+    // Append inside Postgres so simultaneous room/device uploads cannot overwrite
+    // one another. Fall back during a rolling deploy until the RPC migration lands.
+    const updatedLead = (await appendLeadMediaAssetsAtomic(
+      lead.id,
       assets,
-      detectedItems: [],   // empty — AI runs on the rep side, not here
-      source: 'survey',
-    })
-    await saveSalesLead(updatedLead)
+      assets.filter(asset => asset.kind === 'image').length
+    ).catch(async () => {
+      const fallback = applyLeadMediaAnalysis(lead, {
+        assets,
+        detectedItems: [],   // empty — AI runs on the rep side, not here
+        source: 'survey',
+      })
+      return saveSalesLead(fallback)
+    })) || lead
 
     // Notify team — customer uploaded photos
     if (lead.name && assets.length > 0) {

@@ -15,6 +15,7 @@ const PUBLIC_API_PATHS = new Set([
   '/api/sales/emails/backfill',
   '/api/sales/stripe/checkout',
   '/api/sales/stripe/webhook',
+  '/api/sales/stripe/webhook/dexa',
   '/api/partners/referral-capture',
 ])
 

@@ -57,7 +57,11 @@ export function isClosedLeadStage(stage?: SalesLeadStage | string | null) {
 export const LOST_REASONS: Array<{ id: string; label: string }> = [
   { id: 'price', label: 'Price — Too Expensive' },
   { id: 'timing', label: 'Timing — Not Ready Yet' },
+  { id: 'availability', label: 'Date / Availability Did Not Work' },
   { id: 'competitor', label: 'Went with Competitor' },
+  { id: 'service_scope', label: 'Needed a Service We Did Not Cover' },
+  { id: 'customer_experience', label: 'Communication / Experience Concern' },
+  { id: 'trust', label: 'Trust / Confidence Concern' },
   { id: 'no_response', label: 'No Response / Ghost' },
   { id: 'not_a_fit', label: 'Not a Fit' },
   { id: 'cancelled_move', label: 'Cancelled Move' },
@@ -1040,6 +1044,12 @@ export function syncLeadFromQuoteStatus(lead: CRMLead, quote: CRMQuote): CRMLead
     ...lead,
     quoteId: quote.id,
     stage: nextStage,
+    tentativeReservationStatus:
+      lead.tentativeReservationStatus === 'active' && nextStage === 'booked'
+        ? 'converted'
+        : lead.tentativeReservationStatus === 'active' && nextStage === 'lost'
+          ? 'released'
+          : lead.tentativeReservationStatus,
   })
 }
 

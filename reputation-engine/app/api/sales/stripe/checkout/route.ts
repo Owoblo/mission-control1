@@ -1,17 +1,13 @@
 import { NextResponse } from 'next/server'
 import { ensureStripeCustomerForLead } from '@/lib/server/stripe-payments'
 import { getSalesLead, getSalesQuote } from '@/lib/server/sales-repository'
-import { getAppBaseUrl, readEnv } from '@/lib/server/runtime'
+import { getAppBaseUrl } from '@/lib/server/runtime'
 import { isInvoiceStylePaymentTerms } from '@/lib/sales'
+import { appendStripeAccountMetadata, assertQuoteStripeAccount, requireStripeAccountForLead, reusableStripeCustomerId, stripeErrorStatus } from '@/lib/server/stripe-accounts'
 
 const CURRENT_QUOTE_TERMS_VERSION = '2026-06-07-basic-moving-terms'
 
 export async function POST(request: Request) {
-  const stripeKey = readEnv('STRIPE_SECRET_KEY')
-  if (!stripeKey) {
-    return NextResponse.json({ error: 'Stripe is not configured.' }, { status: 503 })
-  }
-
   try {
     const { quoteId, token, successUrl, cancelUrl, termsAccepted, termsVersion } = (await request.json()) as {
       quoteId: string
@@ -73,6 +69,10 @@ export async function POST(request: Request) {
 
     // Find the linked lead for customer info + leadId in metadata
     const lead = quote.leadId ? await getSalesLead(quote.leadId).catch(() => null) : null
+    if (!lead) return NextResponse.json({ error: 'Quote lead not found' }, { status: 404 })
+    const stripeAccount = requireStripeAccountForLead(lead)
+    assertQuoteStripeAccount(quote, stripeAccount.key)
+    const stripeKey = stripeAccount.secretKey
 
     const appUrl = getAppBaseUrl('https://mission-control1-reputation-engine.vercel.app')
     const returnBase = `${appUrl}/quote-accept?id=${encodeURIComponent(quote.id)}&token=${encodeURIComponent(quote.acceptToken || '')}`
@@ -97,16 +97,17 @@ export async function POST(request: Request) {
     params.set('payment_intent_data[metadata][quoteId]', quote.id)
     params.set('payment_intent_data[metadata][quoteNumber]', quote.number)
     if (lead?.id) params.set('payment_intent_data[metadata][leadId]', lead.id)
+    appendStripeAccountMetadata(params, stripeAccount, 'payment_intent_data[metadata]')
 
     if (lead) {
-      const { customerId } = await ensureStripeCustomerForLead(stripeKey, lead, quote.depositStripeCustomerId)
+      const { customerId } = await ensureStripeCustomerForLead(stripeKey, lead, reusableStripeCustomerId(quote, stripeAccount.key), stripeAccount)
       if (customerId) {
         params.set('customer', customerId)
       }
     }
 
     params.set('line_items[0][price_data][currency]', 'cad')
-    params.set('line_items[0][price_data][product_data][name]', `Saturn Star Moving — ${quote.number} Deposit`)
+    params.set('line_items[0][price_data][product_data][name]', `${stripeAccount.brandName} — ${quote.number} Deposit`)
     params.set(
       'line_items[0][price_data][product_data][description]',
       `Booking deposit (${quote.originCity || 'Origin'} → ${quote.destCity || 'Destination'}). Card saved on file for balance after move.`
@@ -118,6 +119,7 @@ export async function POST(request: Request) {
     params.set('metadata[quoteId]', quote.id)
     params.set('metadata[quoteNumber]', quote.number)
     if (lead?.id) params.set('metadata[leadId]', lead.id)
+    appendStripeAccountMetadata(params, stripeAccount)
 
     params.set('success_url', safeRedirectUrl(successUrl, `${returnBase}&paid=1`))
     params.set('cancel_url', safeRedirectUrl(cancelUrl, returnBase))
@@ -141,8 +143,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: session.error?.message || 'Stripe session creation failed' }, { status: 502 })
     }
 
-    return NextResponse.json({ url: session.url, sessionId: session.id })
+    return NextResponse.json({ url: session.url, sessionId: session.id, stripeAccountKey: stripeAccount.key })
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Stripe error' }, { status: 500 })
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Stripe error' }, { status: stripeErrorStatus(err) })
   }
 }

@@ -265,6 +265,21 @@ export async function saveConversationThread(thread: CRMConversationThread): Pro
   return rows[0] ? normalizeThread(rows[0]) : thread
 }
 
+export async function listRecentConversationThreads(limit = 200): Promise<CRMConversationThread[]> {
+  const { url, headers } = requireSupabaseEnv()
+  const safeLimit = Math.max(1, Math.min(limit, 500))
+  const response = await fetch(
+    `${url}/rest/v1/crm_conversation_threads?select=${encodeURIComponent(THREAD_SELECT)}&order=updated_at.desc&limit=${safeLimit}`,
+    { headers, cache: 'no-store' }
+  )
+  if (!response.ok) {
+    const detail = await readError(response)
+    if (isMissingRelationError(detail)) return []
+    throw new Error(`Failed to list crm_conversation_threads: ${detail}`)
+  }
+  return ((await response.json()) as ConversationThreadRow[]).map(normalizeThread)
+}
+
 export async function getAutomationJobByDedupeKey(dedupeKey: string): Promise<CRMAutomationJob | null> {
   const { url, headers } = requireSupabaseEnv()
   const response = await fetch(

@@ -5,6 +5,14 @@
       "schedule": "0 */12 * * *"
     },
     {
+      "path": "/api/ops/media-reconciliation",
+      "schedule": "30 6 * * *"
+    },
+    {
+      "path": "/api/ops/tentative-reservations",
+      "schedule": "15 7 * * *"
+    },
+    {
       "path": "/api/marketing/sequence/process",
       "schedule": "*/15 * * * *"
     },
@@ -23,6 +31,10 @@
     {
       "path": "/api/sales/recordings/cleanup",
       "schedule": "15 3 * * *"
+    },
+    {
+      "path": "/api/ops/video-survey-analysis",
+      "schedule": "* * * * *"
     }
   ]
 }

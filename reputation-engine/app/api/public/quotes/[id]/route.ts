@@ -157,6 +157,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
         crewSize: quote.crewSize,
         estimatedHours: quote.estimatedHours,
         truckCount: quote.truckCount,
+        truckSize: lead?.truckSize,
         estimatedWeightLbs: quote.estimatedWeightLbs,
         billingModel: quote.billingModel,
         paymentTerms: quote.paymentTerms || getDefaultPaymentTerms(quote.moveType),
@@ -199,6 +200,14 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
           .slice(0, 12)
           .map((p: { url: string } | string) => typeof p === 'string' ? p : p.url)
           .filter(Boolean),
+        listingSummary: lead.supabaseListing ? {
+          address: lead.supabaseListing.address,
+          bedrooms: lead.supabaseListing.bedrooms ?? lead.supabaseListing.beds,
+          bathrooms: lead.supabaseListing.bathrooms ?? lead.supabaseListing.baths,
+          livingArea: lead.supabaseListing.livingArea,
+          yearBuilt: lead.supabaseListing.yearBuilt,
+          scanConfidence: lead.listingScanSnapshot?.confidence,
+        } : null,
         jobFactors: lead.jobFactors || null,
       } : null,
     })

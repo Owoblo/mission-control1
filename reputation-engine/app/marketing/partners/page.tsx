@@ -1675,12 +1675,21 @@ function CsvImportModal({ batch, onClose, onDone }: { batch: Batch; onClose: () 
 
 // ─── Tab: Overview ────────────────────────────────────────────────────────────
 
-function RelationshipLobby({ contacts, loading, onSelect, onOpenInbox, onOpenPipeline }: {
+type RelationshipMarketSummary = Record<PartnershipMarketKey, {
+  known: number
+  active: number
+  needsReply: number
+  conversations: number
+}>
+
+function RelationshipLobby({ contacts, marketSummary, loading, onSelect, onOpenInbox, onOpenPipeline, onOpenMarket }: {
   contacts: Contact[]
+  marketSummary: RelationshipMarketSummary | null
   loading: boolean
   onSelect: (contact: Contact) => void
   onOpenInbox: () => void
   onOpenPipeline: () => void
+  onOpenMarket: (market: PartnershipMarketKey) => void
 }) {
   const now = Date.now()
   const day = 86400000
@@ -1707,11 +1716,13 @@ function RelationshipLobby({ contacts, loading, onSelect, onOpenInbox, onOpenPip
     .slice(0, 7)
   const markets = ['windsor', 'waterloo', 'london', 'ottawa'].map(market => {
     const rows = contacts.filter(contact => marketForContact(contact) === market)
+    const summary = marketSummary?.[market as PartnershipMarketKey]
     return {
       market,
-      total: rows.length,
-      active: rows.filter(contact => contact.normalized_stage === 'partnership_active').length,
-      replies: rows.filter(contact => getInboxStatus(contact) === 'needs_reply').length,
+      total: summary?.known ?? rows.length,
+      active: summary?.active ?? rows.filter(contact => contact.normalized_stage === 'partnership_active').length,
+      replies: summary?.needsReply ?? rows.filter(contact => getInboxStatus(contact) === 'needs_reply').length,
+      conversations: summary?.conversations ?? rows.filter(contact => Boolean(contact.latest_inbound_at)).length,
     }
   })
 
@@ -1799,7 +1810,25 @@ function RelationshipLobby({ contacts, loading, onSelect, onOpenInbox, onOpenPip
       <section className="border-t border-[var(--app-line)] pt-6">
         <div className="mb-4"><h3 className="text-lg font-semibold text-[#14213d]">Market pulse</h3><p className="mt-1 text-xs text-[var(--app-muted)]">Relationship quality by city—not message volume.</p></div>
         <div className="grid gap-px overflow-hidden border border-[var(--app-line)] bg-[var(--app-line)] sm:grid-cols-2 lg:grid-cols-4">
-          {markets.map(item => <div key={item.market} className="bg-white p-4"><div className="text-sm font-semibold capitalize text-[#14213d]">{item.market}</div><div className="mt-4 flex gap-5 text-xs text-[var(--app-muted)]"><span><strong className="block text-lg font-semibold text-[#14213d]">{item.active}</strong>active</span><span><strong className="block text-lg font-semibold text-[#14213d]">{item.replies}</strong>need reply</span><span><strong className="block text-lg font-semibold text-[#14213d]">{item.total}</strong>known</span></div></div>)}
+          {markets.map(item => (
+            <button
+              key={item.market}
+              type="button"
+              onClick={() => onOpenMarket(item.market as PartnershipMarketKey)}
+              className="bg-white p-4 text-left transition hover:bg-[#fbfaf6] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#9a762f]"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-sm font-semibold capitalize text-[#14213d]">{item.market}</div>
+                <span className="text-[10px] font-semibold text-[#9a762f]">View conversations →</span>
+              </div>
+              <div className="mt-4 grid grid-cols-4 gap-3 text-xs text-[var(--app-muted)]">
+                <span><strong className="block text-lg font-semibold text-[#14213d]">{item.active}</strong>active</span>
+                <span><strong className="block text-lg font-semibold text-[#14213d]">{item.replies}</strong>need reply</span>
+                <span><strong className="block text-lg font-semibold text-[#14213d]">{item.conversations}</strong>convos</span>
+                <span><strong className="block text-lg font-semibold text-[#14213d]">{item.total}</strong>known</span>
+              </div>
+            </button>
+          ))}
         </div>
       </section>
     </div>
@@ -6232,6 +6261,7 @@ function AdminCommandCenter({
     const referrals = marketContacts.reduce((sum, contact) => sum + (contact.partner_referral_count || contact.referred_lead_count || 0), 0)
     const bookedRevenueCents = marketContacts.reduce((sum, contact) => sum + (contact.partner_booked_revenue_cents || 0), 0)
     const sentToday = marketBatches.reduce((sum, batch) => sum + (batch.sms_sent_today || 0), 0)
+    const sentTotal = marketBatches.reduce((sum, batch) => sum + (batch.sms_sent_total || 0), 0)
     const pendingToday = marketBatches.reduce((sum, batch) => sum + (batch.sms_pending_today || 0), 0)
     const queued = marketBatches.reduce((sum, batch) => sum + (batch.sms_pending_total || 0), 0)
     const failed = marketBatches.reduce((sum, batch) => sum + (batch.sms_failed_total || 0), 0)
@@ -6256,6 +6286,7 @@ function AdminCommandCenter({
       referrals,
       bookedRevenueCents,
       sentToday,
+      sentTotal,
       pendingToday,
       queued,
       failed,
@@ -6270,11 +6301,12 @@ function AdminCommandCenter({
     needsReply: acc.needsReply + item.needsReply,
     unhandledPositive: acc.unhandledPositive + item.unhandledPositive,
     sentToday: acc.sentToday + item.sentToday,
+    sentTotal: acc.sentTotal + item.sentTotal,
     queued: acc.queued + item.queued,
     activePartners: acc.activePartners + item.activePartners,
     referrals: acc.referrals + item.referrals,
     bookedRevenueCents: acc.bookedRevenueCents + item.bookedRevenueCents,
-  }), { contacts: 0, needsReply: 0, unhandledPositive: 0, sentToday: 0, queued: 0, activePartners: 0, referrals: 0, bookedRevenueCents: 0 })
+  }), { contacts: 0, needsReply: 0, unhandledPositive: 0, sentToday: 0, sentTotal: 0, queued: 0, activePartners: 0, referrals: 0, bookedRevenueCents: 0 })
 
   return (
     <div className="space-y-6">
@@ -6304,8 +6336,8 @@ function AdminCommandCenter({
             <div className="mt-1 text-xl font-semibold text-amber-800">{loading ? '-' : totals.needsReply}</div>
           </div>
           <div className="rounded-[12px] border border-emerald-200 bg-emerald-50 p-3">
-            <div className="text-[10px] font-bold uppercase text-emerald-700">Sent today</div>
-            <div className="mt-1 text-xl font-semibold text-emerald-800">{loading ? '-' : totals.sentToday}</div>
+            <div className="text-[10px] font-bold uppercase text-emerald-700">SMS sent / today</div>
+            <div className="mt-1 text-xl font-semibold text-emerald-800">{loading ? '-' : `${totals.sentTotal} / ${totals.sentToday}`}</div>
           </div>
           <div className="rounded-[12px] border border-sky-200 bg-sky-50 p-3">
             <div className="text-[10px] font-bold uppercase text-sky-700">Queued</div>
@@ -6393,6 +6425,7 @@ function AdminCommandCenter({
 
             <div className="mt-4 rounded-[12px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
               <div className="grid gap-2 text-xs text-[var(--app-muted)] sm:grid-cols-2">
+                <div><span className="font-semibold text-[var(--app-ink)]">{item.sentTotal}</span> sent all-time</div>
                 <div><span className="font-semibold text-[var(--app-ink)]">{item.sentToday}</span> sent today</div>
                 <div><span className="font-semibold text-[var(--app-ink)]">{item.pendingToday}</span> pending today</div>
                 <div><span className="font-semibold text-[var(--app-ink)]">{item.queued}</span> queued total</div>
@@ -6442,14 +6475,18 @@ function PartnershipEngineInner() {
   const [lists, setLists] = useState<List[]>([])
   const [contactsLoading, setContactsLoading] = useState(true)
   const [batchesLoading, setBatchesLoading] = useState(true)
+  const [relationshipSummary, setRelationshipSummary] = useState<RelationshipMarketSummary | null>(null)
+  const [relationshipSummaryLoading, setRelationshipSummaryLoading] = useState(true)
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
 
   const loadContacts = useCallback(async () => {
     setContactsLoading(true)
     const collected: Contact[] = []
-    const pageSize = 250
-    for (let offset = 0; offset < 2000; offset += pageSize) {
-      const r = await fetch(`/api/marketing/contacts?limit=${pageSize}&offset=${offset}`, { credentials: 'include' })
+    const pageSize = 500
+    // Load the complete scoped directory. The old 2,000-row ceiling made owner
+    // totals and search silently omit contacts once a market crossed that size.
+    for (let offset = 0; ; offset += pageSize) {
+      const r = await fetch(`/api/marketing/contacts?mode=directory&limit=${pageSize}&offset=${offset}`, { credentials: 'include' })
       if (!r.ok) break
       const d = await r.json() as { contacts?: Contact[]; total?: number }
       const page = d.contacts ?? []
@@ -6472,6 +6509,16 @@ function PartnershipEngineInner() {
     if (r.ok) setLists(await r.json() as List[])
   }, [])
 
+  const loadRelationshipSummary = useCallback(async () => {
+    setRelationshipSummaryLoading(true)
+    const response = await fetch('/api/marketing/relationship-summary', { credentials: 'include' })
+    if (response.ok) {
+      const payload = await response.json() as { markets?: RelationshipMarketSummary }
+      setRelationshipSummary(payload.markets || null)
+    }
+    setRelationshipSummaryLoading(false)
+  }, [])
+
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
@@ -6481,6 +6528,7 @@ function PartnershipEngineInner() {
   useEffect(() => { void loadContacts() }, [loadContacts])
   useEffect(() => { void loadBatches() }, [loadBatches])
   useEffect(() => { void loadLists() }, [loadLists])
+  useEffect(() => { void loadRelationshipSummary() }, [loadRelationshipSummary])
 
   function handleTabChange(t: Tab) {
     setTab(t)
@@ -6592,10 +6640,12 @@ function PartnershipEngineInner() {
         {tab === 'today' && (
           <RelationshipLobby
             contacts={contacts}
-            loading={contactsLoading}
+            marketSummary={relationshipSummary}
+            loading={relationshipSummaryLoading}
             onSelect={setSelectedContact}
             onOpenInbox={() => handleOpenInbox()}
             onOpenPipeline={() => handleOpenPipeline()}
+            onOpenMarket={handleOpenInbox}
           />
         )}
         {tab === 'command' && canUseCommandCenter && (

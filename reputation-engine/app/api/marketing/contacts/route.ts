@@ -125,6 +125,7 @@ export async function GET(request: Request) {
   const tier = searchParams.get('tier')
   const industry = searchParams.get('industry')
   const q = searchParams.get('q')
+  const mode = searchParams.get('mode')
   const limit = parseInt(searchParams.get('limit') ?? '50')
   const offset = parseInt(searchParams.get('offset') ?? '0')
 
@@ -153,6 +154,21 @@ export async function GET(request: Request) {
 
   if (contacts.length === 0) {
     return NextResponse.json({ contacts: [], total })
+  }
+
+  // Directory mode is used when the browser needs the searchable company-wide
+  // contact index. Enriching every page with touches, queue rows, companies and
+  // referrals creates enormous IN() URLs and stalls once the CRM reaches thousands
+  // of contacts. Conversation/detail screens fetch that context on demand.
+  if (mode === 'directory') {
+    return NextResponse.json({
+      contacts: contacts.map(contact => ({
+        ...contact,
+        normalized_stage: normalizePartnershipStage(contact.stage),
+        pipeline: getPipelineBucket(contact.tier, contact.industry),
+      })),
+      total,
+    })
   }
 
   const contactIds = contacts.map(contact => `"${contact.id}"`).join(',')

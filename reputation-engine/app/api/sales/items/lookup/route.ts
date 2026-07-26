@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { hasInternalSession } from '@/lib/server/session'
-import { lookupItemDimensions } from '@/lib/server/item-dimensions'
+import { approveItemDimensions, lookupItemDimensions } from '@/lib/server/item-dimensions'
 import { matchInventoryPreset } from '@/lib/item-presets'
+import { getSessionUser } from '@/lib/server/session'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,4 +38,35 @@ export async function GET(request: Request) {
     item,
     ...dims,
   })
+}
+
+export async function POST(request: Request) {
+  const session = await getSessionUser()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const body = await request.json() as {
+    item?: string
+    cubicFeet?: number
+    weightLbs?: number
+    notes?: string
+  }
+  const item = body.item?.trim()
+  const cubicFeet = Number(body.cubicFeet)
+  const weightLbs = Number(body.weightLbs)
+  if (!item || !Number.isFinite(cubicFeet) || cubicFeet <= 0 || !Number.isFinite(weightLbs) || weightLbs <= 0) {
+    return NextResponse.json({ error: 'Valid item, cubic feet, and weight are required.' }, { status: 400 })
+  }
+
+  try {
+    const result = await approveItemDimensions({
+      itemName: item,
+      cubicFeet,
+      weightLbs,
+      notes: body.notes?.trim().slice(0, 300),
+      reviewedBy: session.name || session.userId,
+    })
+    return NextResponse.json({ ok: true, source: 'operator_catalog', item, ...result })
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not save item dimensions.' }, { status: 500 })
+  }
 }

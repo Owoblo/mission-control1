@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 
-const POLL_MS = 15_000
+const POLL_MS = 30_000
 
 type ActivityItem = {
   id: string
@@ -86,7 +86,7 @@ function ActivityFeedContent() {
   const fetchActivity = useCallback(async (showLoader = false) => {
     if (showLoader) setLoading(true)
     try {
-      const params = new URLSearchParams({ days: String(days), limit: '300' })
+      const params = new URLSearchParams({ days: String(days), limit: '150' })
       if (filterRep) params.set('repId', filterRep)
       if (filterType) params.set('type', filterType)
       const res = await fetch(`/api/sales/activity?${params}`, { credentials: 'include', cache: 'no-store' })
@@ -131,7 +131,7 @@ function ActivityFeedContent() {
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="font-display text-[28px] font-semibold tracking-tight text-[var(--app-ink)]">Live Activity Feed</h1>
-          <p className="mt-1 text-sm text-[var(--app-muted)]">Everything your team does — quotes, calls, texts, stage changes — in real time.</p>
+          <p className="mt-1 text-sm text-[var(--app-muted)]">Customer and sales milestones—deduplicated and refreshed while this page is visible.</p>
         </div>
         <div className="flex items-center gap-2">
           {/* Live indicator */}
@@ -154,7 +154,7 @@ function ActivityFeedContent() {
           <StatCard label="Texts Sent" value={summary.sms_sent} />
           <StatCard label="Quotes Sent" value={summary.quotes_sent} />
           <StatCard label="Stage Changes" value={summary.stage_changes} />
-          <StatCard label="Leads Claimed" value={summary.leads_claimed} />
+          <StatCard label="New Leads" value={summary.leads_claimed} />
           <StatCard label="Bookings" value={summary.bookings} highlight />
         </div>
       )}

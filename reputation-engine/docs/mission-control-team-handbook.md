@@ -2,6 +2,8 @@
 
 Date: 2026-04-30
 
+> Superseded for current CRM training by `docs/saturn-star-crm-operating-playbook.md`. Keep this document only as historical operations context.
+
 Visual map:
 - Browser version: `/SOPs/mission-control-map.html`
 
@@ -352,4 +354,3 @@ flowchart LR
   C --> D[Reservation details saved]
   D --> E[Crew sees same job plan]
 ```
-

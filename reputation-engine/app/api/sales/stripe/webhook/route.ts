@@ -4,38 +4,42 @@ import { sendDepositReceipt } from '@/lib/server/deposit-receipts'
 import { buildPaymentRecord } from '@/lib/payment-records'
 import { scheduleMoveReminder } from '@/lib/server/sales-automation'
 import { getAppBaseUrl, readEnv } from '@/lib/server/runtime'
-import { getReceiptBrand } from '@/lib/receipt-brand'
+import { getReceiptBrand, type ReceiptBrand } from '@/lib/receipt-brand'
 import { getSalesLead, getSalesQuote, saveSalesLead, saveSalesQuote, saveFollowUpLog } from '@/lib/server/sales-repository'
 import { sendRepAlertEmail } from '@/lib/server/internal-notifications'
 import { sendSalesMessage } from '@/lib/server/sales-messaging'
 import { uid } from '@/lib/sales'
 import { deriveLeadBranch, generateCrewBrief, mergeCrewBrief, pickAutoAssignedCrewIds } from '@/lib/server/crew-dispatch'
 import { deriveOpsChecklist, getQuotedTruckCount } from '@/lib/operations'
+import { assertQuoteStripeAccount, requireStripeWebhookAccount, resolveStripeAccountKeyForLead, webhookMetadataMatchesAccount, type StripeAccountKey } from '@/lib/server/stripe-accounts'
 
-const SATURN_STAR_PHONE = '+12267732993'
-const SATURN_STAR_EMAIL = 'business@starmovers.ca'
-
-function buildBookingConfirmationSms(name: string, moveDate?: string) {
+function buildBookingConfirmationSms(name: string, brand: ReceiptBrand, moveDate?: string) {
   const first = (name || 'there').split(' ')[0]
   const dateLine = moveDate ? ` on ${new Date(moveDate).toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' })}` : ''
-  return `Hi ${first}! Your move with Saturn Star Moving is CONFIRMED${dateLine}. We're excited to take care of you. Questions? Call or text us at ${SATURN_STAR_PHONE}. – The Saturn Star Team`
+  return `Hi ${first}! Your move with ${brand.fullName} is CONFIRMED${dateLine}. We're excited to take care of you. Questions? Call or text us at ${brand.phone}. – The ${brand.name} Team`
 }
 
-function buildBookingConfirmationEmail(name: string, moveDate?: string, originCity?: string, destCity?: string) {
+function buildBookingConfirmationEmail(name: string, brand: ReceiptBrand, moveDate?: string, originCity?: string, destCity?: string) {
   const first = (name || 'there').split(' ')[0]
   const dateLine = moveDate ? new Date(moveDate).toLocaleDateString('en-CA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'TBD'
   const route = originCity && destCity ? `${originCity} → ${destCity}` : originCity || destCity || 'TBD'
   return {
-    subject: `Your Move is Confirmed — Saturn Star Moving`,
-    html: `<div style="font-family:system-ui,sans-serif;max-width:540px;margin:0 auto;color:#1a1a1a;"><div style="background:#071421;padding:32px 24px;border-radius:12px 12px 0 0;text-align:center;"><div style="color:#C99700;font-size:24px;font-weight:700;">Saturn Star Moving</div></div><div style="background:#fff;border:1px solid #e5e7eb;border-top:none;padding:32px 24px;border-radius:0 0 12px 12px;"><h1 style="font-size:20px;font-weight:700;margin:0 0 8px;">Hi ${first} — your move is confirmed!</h1><p style="color:#555;margin:0 0 24px;line-height:1.6;">We have everything locked in. Move date: <strong>${dateLine}</strong> · Route: <strong>${route}</strong>.</p><p style="color:#555;font-size:14px;line-height:1.6;">Our team will reach out 48 hours before your move with crew details. Questions? <strong>${SATURN_STAR_PHONE}</strong></p></div></div>`,
-    text: `Hi ${first}, your move with Saturn Star Moving is confirmed for ${dateLine} (${route}). We'll reach out 48 hours before. Questions? ${SATURN_STAR_PHONE}`,
+    subject: `Your Move is Confirmed — ${brand.fullName}`,
+    html: `<div style="font-family:system-ui,sans-serif;max-width:540px;margin:0 auto;color:#1a1a1a;"><div style="background:#071421;padding:32px 24px;border-radius:12px 12px 0 0;text-align:center;"><div style="color:#C99700;font-size:24px;font-weight:700;">${brand.fullName}</div></div><div style="background:#fff;border:1px solid #e5e7eb;border-top:none;padding:32px 24px;border-radius:0 0 12px 12px;"><h1 style="font-size:20px;font-weight:700;margin:0 0 8px;">Hi ${first} — your move is confirmed!</h1><p style="color:#555;margin:0 0 24px;line-height:1.6;">We have everything locked in. Move date: <strong>${dateLine}</strong> · Route: <strong>${route}</strong>.</p><p style="color:#555;font-size:14px;line-height:1.6;">Our team will reach out 48 hours before your move with crew details. Questions? <strong>${brand.phone}</strong></p></div></div>`,
+    text: `Hi ${first}, your move with ${brand.fullName} is confirmed for ${dateLine} (${route}). We'll reach out 48 hours before. Questions? ${brand.phone}`,
   }
 }
 
 export async function POST(request: Request) {
-  const stripeKey = readEnv('STRIPE_SECRET_KEY')
-  const webhookSecret = readEnv('STRIPE_WEBHOOK_SECRET')
-  if (!stripeKey) return new Response('Stripe not configured', { status: 503 })
+  const webhookAccountKey: StripeAccountKey = new URL(request.url).pathname.endsWith('/dexa') ? 'dexa' : 'saturn'
+  let stripeAccount
+  try {
+    stripeAccount = requireStripeWebhookAccount(webhookAccountKey)
+  } catch (error) {
+    return new Response(error instanceof Error ? error.message : 'Stripe webhook not configured', { status: 503 })
+  }
+  const stripeKey = stripeAccount.secretKey
+  const webhookSecret = stripeAccount.webhookSecret
 
   const body = await request.text()
   const sig = request.headers.get('stripe-signature') || ''
@@ -54,11 +58,26 @@ export async function POST(request: Request) {
     const session = event.data.object as Stripe.Checkout.Session
     const quoteId = session.metadata?.quoteId
     const leadId = session.metadata?.leadId
+    const metadataAccount = session.metadata?.stripeAccountKey
+    if (!webhookMetadataMatchesAccount(metadataAccount, stripeAccount.key)) {
+      return new Response('Webhook account metadata mismatch', { status: 400 })
+    }
 
     if (quoteId) {
       try {
         const stripe = new Stripe(stripeKey, { apiVersion: '2026-02-25.clover', httpClient: Stripe.createNodeHttpClient() })
         const now = new Date().toISOString()
+
+        const quote = await getSalesQuote(quoteId)
+        if (!quote) throw new Error('Webhook quote not found')
+        assertQuoteStripeAccount(quote, stripeAccount.key)
+        const targetLeadId = leadId || quote.leadId
+        if (!targetLeadId) throw new Error('Webhook lead context missing')
+        const lead = await getSalesLead(targetLeadId)
+        if (!lead) throw new Error('Webhook lead not found')
+        if (resolveStripeAccountKeyForLead(lead) !== stripeAccount.key) {
+          throw new Error('Webhook branch/account mismatch')
+        }
 
         // Retrieve payment intent — source of truth for actual amount charged
         let paymentMethodId: string | undefined
@@ -77,7 +96,6 @@ export async function POST(request: Request) {
         const actualDepositPaid = piAmountPaid ?? (session.amount_total ? session.amount_total / 100 : undefined)
 
         // Update the quote with deposit payment info
-        const quote = await getSalesQuote(quoteId)
         const receiptAlreadyRecorded = quote?.depositStripeSessionId === session.id && !!quote.depositPaidAt
         const paymentRecord = quote && !receiptAlreadyRecorded
           ? buildPaymentRecord({ quote, amount: actualDepositPaid ?? quote.deposit, kind: 'deposit', method: 'credit_card', paidAt: now, reference: typeof session.payment_intent === 'string' ? session.payment_intent : session.id, recordedBy: 'Stripe Checkout' })
@@ -92,16 +110,16 @@ export async function POST(request: Request) {
             depositStripePaymentIntentId: typeof session.payment_intent === 'string' ? session.payment_intent : undefined,
             depositStripeCustomerId: customerId,
             depositStripePaymentMethodId: paymentMethodId,
+            stripeAccountKey: stripeAccount.key,
             paymentRecords: paymentRecord ? [...(quote.paymentRecords || []), paymentRecord] : quote.paymentRecords,
           })
         }
 
         // Update the lead: auto-book + mark deposit received
-        const targetLeadId = leadId || quote?.leadId
         if (targetLeadId) {
-          const lead = await getSalesLead(targetLeadId)
           if (lead) {
             const alreadyBooked = lead.stage === 'booked' || lead.stage === 'completed'
+            const paymentBrand = getReceiptBrand(lead, quote)
             const depositAmt = actualDepositPaid ?? quote?.deposit
             const branch = deriveLeadBranch(lead)
             const autoAssignedCrew = (lead.assignedCrew?.length ?? 0) > 0 ? lead.assignedCrew! : await pickAutoAssignedCrewIds(branch).catch(() => [] as string[])
@@ -111,6 +129,7 @@ export async function POST(request: Request) {
             await saveSalesLead({
               ...lead,
               stage: alreadyBooked ? lead.stage : 'booked',
+              tentativeReservationStatus: lead.tentativeReservationStatus === 'active' ? 'converted' : lead.tentativeReservationStatus,
               bookedAt: alreadyBooked ? lead.bookedAt : now,
               paymentStatus: 'deposit_received',
               depositAmount: depositAmt,
@@ -139,11 +158,11 @@ export async function POST(request: Request) {
 
               // Send booking confirmation to customer
               if (lead.phone) {
-                void sendSalesMessage({ channel: 'sms', to: lead.phone, body: buildBookingConfirmationSms(lead.name, lead.moveDate), leadId: targetLeadId, actor: 'automation', actorName: 'Saturn Star', notes: 'Booking confirmation SMS (auto on deposit)' }).catch(() => {})
+                void sendSalesMessage({ channel: 'sms', to: lead.phone, body: buildBookingConfirmationSms(lead.name, paymentBrand, lead.moveDate), leadId: targetLeadId, actor: 'automation', actorName: paymentBrand.name, notes: 'Booking confirmation SMS (auto on deposit)' }).catch(() => {})
               }
               if (lead.email && quote) {
-                const emailContent = buildBookingConfirmationEmail(lead.name, lead.moveDate, lead.originCity, lead.destCity)
-                void sendSalesMessage({ channel: 'email', to: lead.email, subject: emailContent.subject, body: emailContent.text, htmlBody: emailContent.html, leadId: targetLeadId, actor: 'automation', actorName: 'Saturn Star', notes: 'Booking confirmation email (auto on deposit)' }).catch(() => {})
+                const emailContent = buildBookingConfirmationEmail(lead.name, paymentBrand, lead.moveDate, lead.originCity, lead.destCity)
+                void sendSalesMessage({ channel: 'email', to: lead.email, subject: emailContent.subject, body: emailContent.text, htmlBody: emailContent.html, leadId: targetLeadId, actor: 'automation', actorName: paymentBrand.name, notes: 'Booking confirmation email (auto on deposit)' }).catch(() => {})
               }
             }
 
@@ -196,7 +215,10 @@ export async function POST(request: Request) {
         }
       } catch (err) {
         console.error('Stripe webhook processing error:', err)
-        // Don't fail — Stripe will retry if we return non-200
+        // Non-2xx is intentional: Stripe retries transient processing failures.
+        // Returning 200 here previously acknowledged events even when CRM booking
+        // or payment persistence failed.
+        return new Response('Webhook processing failed', { status: 500 })
       }
     }
   }

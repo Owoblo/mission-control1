@@ -3,6 +3,7 @@ import {
   getSaturnBranchLabel,
   normalizePhone,
 } from '@/lib/sales-phones'
+import { sameNormalizedSmsBody } from '@/lib/booked-customer-support'
 import { summarizeMessage } from '@/lib/server/call-intelligence'
 import { logEvent } from '@/lib/server/analytics'
 import { getTwilioCredentials, readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
@@ -19,6 +20,7 @@ import type { CRMEmail, CRMLead, FollowUpLog } from '@/lib/types'
 
 const DEFAULT_HUMAN_PAUSE_HOURS = 12
 const OUTBOUND_SMS_DEDUPE_WINDOW_MS = 60 * 1000
+const AUTOMATION_SAME_BODY_DEDUPE_WINDOW_MS = 24 * 60 * 60 * 1000
 
 // ── SMS number safety guard ───────────────────────────────────────────────────
 // Blocks sends to numbers that will always fail: shortcodes, OTP senders,
@@ -118,6 +120,7 @@ type SmsHistoryMessage = {
   direction: 'inbound' | 'outbound'
   from_number: string
   to_number: string
+  body?: string | null
   created_at: string
 }
 
@@ -125,7 +128,7 @@ async function querySmsMessagesByFilter(filter: string) {
   try {
     const { url, headers } = requireSupabaseEnv()
     const response = await fetch(
-      `${url}/rest/v1/sms_messages?select=direction,from_number,to_number,created_at&${filter}&order=created_at.desc&limit=50`,
+      `${url}/rest/v1/sms_messages?select=direction,from_number,to_number,body,created_at&${filter}&order=created_at.desc&limit=50`,
       { headers, cache: 'no-store' }
     )
     if (!response.ok) return []
@@ -140,6 +143,7 @@ export async function outboundSmsRecentlySent(input: {
   from?: string
   leadId?: string
   windowMs?: number
+  body?: string
 }) {
   const to = normalizePhone(input.to)
   const from = normalizePhone(input.from)
@@ -161,7 +165,11 @@ export async function outboundSmsRecentlySent(input: {
   }
 
   const matches = await querySmsMessagesByFilter(filters.join('&'))
-  return matches.some(message => message.direction === 'outbound')
+  return matches.some(message => {
+    if (message.direction !== 'outbound') return false
+    if (!input.body) return true
+    return sameNormalizedSmsBody(message.body, input.body)
+  })
 }
 
 async function resolveSmsFromNumber(input: SendSalesMessageInput) {
@@ -269,7 +277,14 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
       from: rawFrom,
       leadId: input.leadId,
     })
-    if (duplicateOutbound) {
+    const duplicateAutomationBody = actor === 'automation' && !duplicateOutbound && await outboundSmsRecentlySent({
+      to: rawTo,
+      from: rawFrom,
+      leadId: input.leadId,
+      windowMs: AUTOMATION_SAME_BODY_DEDUPE_WINDOW_MS,
+      body: input.body,
+    })
+    if (duplicateOutbound || duplicateAutomationBody) {
       const now = new Date().toISOString()
       const dedupeLog: FollowUpLog = {
         id: uid('fu'),
@@ -278,7 +293,9 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
         type: 'note',
         date: now,
         createdAt: now,
-        notes: `${isWhatsApp ? 'WhatsApp' : 'SMS'} blocked by duplicate guard — another outbound to ${rawTo} was logged in the last 60 seconds.`,
+        notes: duplicateAutomationBody
+          ? `${isWhatsApp ? 'WhatsApp' : 'SMS'} blocked by semantic duplicate guard — automation already sent the same message to ${rawTo} within 24 hours.`
+          : `${isWhatsApp ? 'WhatsApp' : 'SMS'} blocked by duplicate guard — another outbound to ${rawTo} was logged in the last 60 seconds.`,
       }
 
       return {

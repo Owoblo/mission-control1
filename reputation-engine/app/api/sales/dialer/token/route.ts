@@ -87,6 +87,12 @@ export async function GET() {
     }
 
     // Each rep gets a unique identity so all active browsers can ring simultaneously on inbound calls.
+    if (!sessionUser.userId) {
+      return NextResponse.json(
+        { error: 'Your session predates multi-rep calling. Sign out and back in to reconnect the dialer safely.' },
+        { status: 409 },
+      )
+    }
     const identity = `${IDENTITY_PREFIX}-${sessionUser.userId}`
     const { token, expiresAt } = await buildVoiceToken(accountSid, apiKeySid, apiKeySecret, twimlAppSid, identity)
 

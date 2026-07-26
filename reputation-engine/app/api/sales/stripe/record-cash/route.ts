@@ -6,9 +6,9 @@
  */
 import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
-import { readEnv } from '@/lib/server/runtime'
 import { getSalesLead } from '@/lib/server/sales-repository'
 import { canHandleLeadPayments } from '@/lib/server/sales-permissions'
+import { appendStripeAccountMetadata, requireStripeAccountForLead, stripeErrorStatus } from '@/lib/server/stripe-accounts'
 
 async function stripePost(path: string, key: string, body: URLSearchParams) {
   const res = await fetch(`https://api.stripe.com/v1/${path}`, {
@@ -25,9 +25,6 @@ async function stripePost(path: string, key: string, body: URLSearchParams) {
 export async function POST(request: Request) {
   const session = await getSessionUser()
   if (!session) return new Response('Unauthorized', { status: 401 })
-
-  const stripeKey = readEnv('STRIPE_SECRET_KEY')
-  if (!stripeKey) return NextResponse.json({ error: 'Stripe not configured' }, { status: 503 })
 
   try {
     const {
@@ -48,6 +45,8 @@ export async function POST(request: Request) {
     if (!lead || !canHandleLeadPayments(session, lead)) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
+    const stripeAccount = requireStripeAccountForLead(lead)
+    const stripeKey = stripeAccount.secretKey
 
     const methodLabel = { cash: 'Cash', etransfer: 'Interac E-Transfer', cheque: 'Cheque' }[method]
 
@@ -67,6 +66,7 @@ export async function POST(request: Request) {
         if (leadEmail) custParams.set('email', leadEmail)
         if (leadPhone) custParams.set('phone', leadPhone)
         custParams.set('metadata[leadId]', leadId)
+        appendStripeAccountMetadata(custParams, stripeAccount)
         const cust = await stripePost('customers', stripeKey, custParams) as { id?: string }
         customerId = cust.id!
       }
@@ -75,6 +75,7 @@ export async function POST(request: Request) {
       custParams.set('name', leadName)
       if (leadPhone) custParams.set('phone', leadPhone)
       custParams.set('metadata[leadId]', leadId)
+      appendStripeAccountMetadata(custParams, stripeAccount)
       const cust = await stripePost('customers', stripeKey, custParams) as { id?: string }
       customerId = cust.id!
     }
@@ -88,6 +89,7 @@ export async function POST(request: Request) {
     itemParams.set('metadata[leadId]', leadId)
     itemParams.set('metadata[quoteNumber]', quoteNumber)
     itemParams.set('metadata[method]', method)
+    appendStripeAccountMetadata(itemParams, stripeAccount)
     await stripePost('invoiceitems', stripeKey, itemParams)
 
     // 3 — Create invoice
@@ -95,10 +97,11 @@ export async function POST(request: Request) {
     invParams.set('customer', customerId)
     invParams.set('collection_method', 'send_invoice')
     invParams.set('days_until_due', '0')
-    invParams.set('description', `Saturn Star Moving — Quote ${quoteNumber}`)
+    invParams.set('description', `${stripeAccount.brandName} — Quote ${quoteNumber}`)
     invParams.set('metadata[leadId]', leadId)
     invParams.set('metadata[quoteNumber]', quoteNumber)
     invParams.set('metadata[paymentMethod]', methodLabel)
+    appendStripeAccountMetadata(invParams, stripeAccount)
     const inv = await stripePost('invoices', stripeKey, invParams) as { id?: string; error?: { message?: string } }
     if (!inv.id) return NextResponse.json({ error: inv.error?.message || 'Invoice creation failed' }, { status: 502 })
 
@@ -116,8 +119,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: paid.error?.message || 'Could not mark invoice paid' }, { status: 502 })
     }
 
-    return NextResponse.json({ ok: true, invoiceId: inv.id, customerId, method: methodLabel })
+    return NextResponse.json({ ok: true, invoiceId: inv.id, customerId, method: methodLabel, stripeAccountKey: stripeAccount.key })
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Record failed' }, { status: 500 })
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Record failed' }, { status: stripeErrorStatus(err) })
   }
 }

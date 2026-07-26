@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server'
 import { recordLeadPaymentAudit, recordQuoteUpdatedAudit } from '@/lib/server/sales-audit'
 import { canHandleLeadPayments } from '@/lib/server/sales-permissions'
 import { ensureStripeCustomerForLead, stripeGet, stripePost } from '@/lib/server/stripe-payments'
-import { readEnv } from '@/lib/server/runtime'
 import { getSalesLead, getSalesQuote, saveSalesQuote } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
+import { appendStripeAccountMetadata, assertQuoteStripeAccount, requireStripeAccountForLead, reusableStripeCustomerId, stripeErrorStatus } from '@/lib/server/stripe-accounts'
 
 function appendInternalNote(existing: string | undefined, nextLine: string) {
   const trimmed = (existing || '').trim()
@@ -15,9 +15,6 @@ function appendInternalNote(existing: string | undefined, nextLine: string) {
 
 export async function POST(request: Request) {
   const session = await getSessionUser()
-
-  const stripeKey = readEnv('STRIPE_SECRET_KEY')
-  if (!stripeKey) return NextResponse.json({ error: 'Stripe not configured' }, { status: 503 })
 
   try {
     const { leadId, quoteId, amountOverride, description, dueDays } = (await request.json()) as {
@@ -44,6 +41,9 @@ export async function POST(request: Request) {
     if (!lead.email) {
       return NextResponse.json({ error: 'Customer email is required before sending an invoice.' }, { status: 400 })
     }
+    const stripeAccount = requireStripeAccountForLead(lead)
+    assertQuoteStripeAccount(quote, stripeAccount.key)
+    const stripeKey = stripeAccount.secretKey
 
     const amount = Math.round(Number(amountOverride ?? quote.balance) * 100) / 100
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
 
     const note = (description || '').trim() || `Remaining balance - ${quote.number} - ${lead.name}`
 
-    const { customerId } = await ensureStripeCustomerForLead(stripeKey, lead, quote.depositStripeCustomerId)
+    const { customerId } = await ensureStripeCustomerForLead(stripeKey, lead, reusableStripeCustomerId(quote, stripeAccount.key), stripeAccount)
 
     const itemParams = new URLSearchParams()
     itemParams.set('customer', customerId)
@@ -63,6 +63,7 @@ export async function POST(request: Request) {
     itemParams.set('metadata[quoteId]', quote.id)
     itemParams.set('metadata[quoteNumber]', quote.number)
     itemParams.set('metadata[type]', 'manual_invoice')
+    appendStripeAccountMetadata(itemParams, stripeAccount)
     const invoiceItem = await stripePost('invoiceitems', stripeKey, itemParams) as { id?: string; error?: { message?: string } }
     if (!invoiceItem.id) {
       return NextResponse.json({ error: invoiceItem.error?.message || 'Could not create invoice item.' }, { status: 502 })
@@ -72,10 +73,11 @@ export async function POST(request: Request) {
     invoiceParams.set('customer', customerId)
     invoiceParams.set('collection_method', 'send_invoice')
     invoiceParams.set('days_until_due', String(Math.max(0, Number(dueDays || 0))))
-    invoiceParams.set('description', `Saturn Star Moving - ${quote.number}`)
+    invoiceParams.set('description', `${stripeAccount.brandName} - ${quote.number}`)
     invoiceParams.set('metadata[leadId]', lead.id)
     invoiceParams.set('metadata[quoteId]', quote.id)
     invoiceParams.set('metadata[quoteNumber]', quote.number)
+    appendStripeAccountMetadata(invoiceParams, stripeAccount)
     const invoice = await stripePost('invoices', stripeKey, invoiceParams) as { id?: string; error?: { message?: string } }
     if (!invoice.id) {
       return NextResponse.json({ error: invoice.error?.message || 'Could not create invoice.' }, { status: 502 })
@@ -110,6 +112,7 @@ export async function POST(request: Request) {
       balance: amount,
       status: 'invoiced',
       depositStripeCustomerId: customerId,
+      stripeAccountKey: stripeAccount.key,
       internalNotes: appendInternalNote(
         quote.internalNotes,
         `Manual Stripe invoice sent on ${timestamp.slice(0, 10)} for $${amount.toFixed(2)}.`
@@ -135,6 +138,6 @@ export async function POST(request: Request) {
       quote: savedQuote,
     })
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Invoice send failed' }, { status: 500 })
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Invoice send failed' }, { status: stripeErrorStatus(err) })
   }
 }

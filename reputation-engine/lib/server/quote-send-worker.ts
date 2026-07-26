@@ -3,6 +3,7 @@ import { getSalesLead, getSalesQuote, saveSalesLead, saveSalesQuote } from '@/li
 import { normalizeQuote } from '@/lib/sales'
 import { claimQuoteSendJob, listDueQuoteSendJobs, patchQuoteSendJob } from '@/lib/server/quote-send-jobs'
 import { scheduleQuoteExpiryFollowup, scheduleQuoteFollowup } from '@/lib/server/sales-automation'
+import { createSalesSystemAlert } from '@/lib/server/sales-alerts'
 import type { QuoteSendJob } from '@/lib/quote-send-jobs'
 
 function nextRetryAt(attempts: number) {
@@ -85,7 +86,7 @@ export async function processQuoteSendJob(job: QuoteSendJob) {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Quote send failed'
     const failed = attempts >= claimed.maxAttempts
-    return await patchQuoteSendJob(claimed.id, {
+    const updated = await patchQuoteSendJob(claimed.id, {
       status: failed ? 'failed' : 'pending',
       lockedAt: null,
       dueAt: failed ? claimed.dueAt : nextRetryAt(attempts),
@@ -95,6 +96,16 @@ export async function processQuoteSendJob(job: QuoteSendJob) {
         lastFailureAt: new Date().toISOString(),
       },
     })
+    if (failed) {
+      await createSalesSystemAlert({
+        title: `Quote ${claimed.channel.toUpperCase()} delivery failed`,
+        leadId: claimed.leadId,
+        quoteId: claimed.quoteId,
+        severity: 'critical',
+        details: `Delivery failed after ${attempts} attempts. Recipient: ${claimed.recipient}. Provider error: ${message}`,
+      }).catch(() => null)
+    }
+    return updated
   }
 }
 

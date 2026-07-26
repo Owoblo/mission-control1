@@ -123,6 +123,8 @@ export function validateQuotePricingPermissions(
   if (session?.role === 'sales_rep' && overrideLineItem) {
     const overrideAmount = Math.round(Number(overrideLineItem.amount || 0) * 100) / 100
     const approvedAmount = Math.round(Number(current.priceOverrideApprovalAmount || 0) * 100) / 100
+    const currentBaseAmount = Math.round(Number(current.subtotal || 0) * 100) / 100
+    const isUpwardOverride = currentBaseAmount > 0 && overrideAmount >= currentBaseAmount
     const details = String(overrideLineItem.details || updates.priceOverrideReason || '')
     const marginMatch = details.match(/Projected margin:\s*(-?\d+(?:\.\d+)?)%/i)
     const projectedMargin = marginMatch ? Number(marginMatch[1]) : null
@@ -134,7 +136,9 @@ export function validateQuotePricingPermissions(
     if (!hasMeaningfulNote) {
       return 'Sales reps must add a quick note explaining every manual price override.'
     }
-    if ((projectedMargin === null || projectedMargin < 55) && !hasApproval) {
+    // Raising the base price cannot create the discount/margin risk this gate is
+    // designed to prevent. Keep the audit note, but never block an upward revision.
+    if (!isUpwardOverride && (projectedMargin === null || projectedMargin < 55) && !hasApproval) {
       return 'Sales reps need an owner/manager approval code before applying a manual price override.'
     }
   }

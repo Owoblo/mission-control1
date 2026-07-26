@@ -38,6 +38,9 @@ export type DialerEventName =
   | 'warm_transfer_completed'
   | 'warm_transfer_returned'
   | 'warm_transfer_cancelled'
+  | 'conference_lifecycle'
+  | 'customer_hold_started'
+  | 'customer_hold_ended'
   | 'transfer_context_created'
   | 'transfer_context_received'
 

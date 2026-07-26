@@ -7,6 +7,7 @@ import { collapseDuplicateSalesLeadsByIdentity, listSalesLeads, listSalesLeadsPa
 import { getSessionUser } from '@/lib/server/session'
 import { validateLeadPayload } from '@/lib/server/sales-validation'
 import type { CRMLead } from '@/lib/types'
+import { logEvent } from '@/lib/server/analytics'
 
 export async function GET(request: Request) {
   try {
@@ -45,7 +46,18 @@ export async function POST(request: Request) {
     }
 
     const now = new Date().toISOString()
-    const payload = (await request.json()) as Partial<CRMLead> & { forceNew?: boolean }
+    const payload = (await request.json()) as Partial<CRMLead> & {
+      forceNew?: boolean
+      intakeAnalytics?: {
+        schemaVersion?: number
+        durationSeconds?: number
+        interactionCount?: number
+        submitIntent?: 'save' | 'build_estimate'
+        listingLookupAttempted?: boolean
+        listingMatched?: boolean
+        inventoryAnalysisCompleted?: boolean
+      }
+    }
     const validated = validateLeadPayload(payload)
     const creatorOwnsLead = session?.role === 'sales_rep'
     const requestedAssignedRepName = payload.assignedRepName?.trim() || payload.assignedRep?.trim()
@@ -153,6 +165,28 @@ export async function POST(request: Request) {
       leadScore: calculateLeadScore(lead),
     })
     await recordLeadCreatedAudit(saved)
+    void logEvent('lead_created', {
+      leadId: saved.id,
+      lead: saved,
+      actorName: session?.name,
+      actorUserId: session?.userId,
+      properties: {
+        intake_schema_version: payload.intakeAnalytics?.schemaVersion || 1,
+        intake_duration_seconds: payload.intakeAnalytics?.durationSeconds,
+        intake_interaction_count: payload.intakeAnalytics?.interactionCount,
+        intake_submit_intent: payload.intakeAnalytics?.submitIntent,
+        listing_lookup_attempted: payload.intakeAnalytics?.listingLookupAttempted,
+        listing_matched_during_intake: payload.intakeAnalytics?.listingMatched,
+        inventory_analysis_completed_during_intake: payload.intakeAnalytics?.inventoryAnalysisCompleted,
+      },
+    })
+    void logEvent('intake_completed', {
+      leadId: saved.id,
+      lead: saved,
+      actorName: session?.name,
+      actorUserId: session?.userId,
+      properties: payload.intakeAnalytics || {},
+    })
 
     return NextResponse.json(saved)
   } catch (error) {

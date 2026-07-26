@@ -14,13 +14,20 @@ import {
 } from '@/lib/sales'
 import { getListingPropertyContext, shouldPreferListingSnapshot } from '@/lib/listing'
 import {
+  listingInventoryFallbackAllowed,
+  listingInventoryScanDedupeKey,
+  listingInventoryScanInProgress,
+} from '@/lib/listing-inventory-discovery'
+import {
   buildInventorySmsReference,
   buildMlsInventoryConfirmationSms,
+  buildPhotoSurveyFallbackMessage,
   buildVerifiedInventorySms,
   mergeInventorySmsUpdate,
   type InventorySmsUpdate,
 } from '@/lib/sales-automation-inventory-sms'
 import { buildAutomationQuoteSmsSummary } from '@/lib/sales-quote-sms'
+import { compactCustomerLink } from '@/lib/customer-links'
 import {
   getAutomationMissingFields,
   automatedEstimateSendingIsPaused,
@@ -35,10 +42,24 @@ import {
   hasStreetNumber,
 } from '@/lib/sales-automation-qualification'
 import { resolveInboundSalesContext } from '@/lib/sales-automation-context'
+import {
+  buildConversationMemory,
+  conversationGuidance,
+  detectCustomerEmotion,
+  evaluateConversationMessage,
+  type ConversationMemory,
+} from '@/lib/conversation-experience'
+import {
+  customerReplyRequiresHuman,
+  detectBookedCustomerSupportIntent,
+} from '@/lib/booked-customer-support'
 import { logEvent } from '@/lib/server/analytics'
+import { createSalesSystemAlert } from '@/lib/server/sales-alerts'
 import { analyzeListingPhotos } from '@/lib/server/inventory-enrichment'
 import { estimateRouteContext, suggestAddresses, type AddressSuggestion } from '@/lib/server/route-estimation'
 import { getAppBaseUrl, getWorkerSharedSecret, readEnv } from '@/lib/server/runtime'
+import { randomToken } from '@/lib/server/security'
+import { appendStripeAccountMetadata, assertQuoteStripeAccount, requireStripeAccountForLead } from '@/lib/server/stripe-accounts'
 import {
   getAutomationJobByDedupeKey,
   getConversationThreadByIdentity,
@@ -147,8 +168,9 @@ function buildSmsQuoteSummary(
 }
 
 async function createDepositCheckoutUrl(lead: CRMLead, quote: CRMQuote): Promise<string | null> {
-  const stripeKey = readEnv('STRIPE_SECRET_KEY')
-  if (!stripeKey) return null
+  const stripeAccount = requireStripeAccountForLead(lead)
+  assertQuoteStripeAccount(quote, stripeAccount.key)
+  const stripeKey = stripeAccount.secretKey
   const appUrl = getAppBaseUrl('https://mission-control1-reputation-engine.vercel.app')
   const returnBase = `${appUrl}/quote-accept?id=${encodeURIComponent(quote.id)}&token=${encodeURIComponent(quote.acceptToken || '')}`
   const params = new URLSearchParams()
@@ -158,14 +180,16 @@ async function createDepositCheckoutUrl(lead: CRMLead, quote: CRMQuote): Promise
   params.set('payment_intent_data[description]', `Deposit – ${quote.number} – ${lead.name || 'Customer'}`)
   params.set('payment_intent_data[metadata][quoteId]', quote.id)
   params.set('payment_intent_data[metadata][leadId]', lead.id)
+  appendStripeAccountMetadata(params, stripeAccount, 'payment_intent_data[metadata]')
   params.set('line_items[0][price_data][currency]', 'cad')
-  params.set('line_items[0][price_data][product_data][name]', `Saturn Star Moving — ${quote.number} Deposit`)
+  params.set('line_items[0][price_data][product_data][name]', `${stripeAccount.brandName} — ${quote.number} Deposit`)
   params.set('line_items[0][price_data][product_data][description]',
     `Booking deposit (${quote.originCity || 'Origin'} → ${quote.destCity || 'Destination'}). Card saved for balance after move.`)
   params.set('line_items[0][price_data][unit_amount]', String(Math.round((quote.deposit || 0) * 100)))
   params.set('line_items[0][quantity]', '1')
   params.set('metadata[quoteId]', quote.id)
   if (lead.id) params.set('metadata[leadId]', lead.id)
+  appendStripeAccountMetadata(params, stripeAccount)
   params.set('success_url', `${returnBase}&paid=1`)
   params.set('cancel_url', returnBase)
   try {
@@ -739,6 +763,16 @@ function latestHumanFieldTouch(lead: CRMLead) {
   return all.sort().slice(-1)[0]
 }
 
+function humanConversationOwnershipReason(lead: CRMLead) {
+  if (lead.automationStatus === 'handoff') return lead.automationHandoffReason || 'Conversation is assigned for human handling.'
+  if (lead.lastHumanOutboundAt) return 'A representative has already replied to this customer.'
+  const hasManualConversation = (lead.callLogs || []).some(
+    entry => entry.source === 'consultation' || entry.source === 'manual' || entry.type === 'visit' || entry.type === 'consultation'
+  )
+  if (hasManualConversation) return 'A representative has already handled a call or consultation for this customer.'
+  return estimateWorkflowOwnsLead(lead)
+}
+
 function getZonedParts(date: Date, timeZone = AUTOMATION_LOCAL_TIMEZONE) {
   const formatter = new Intl.DateTimeFormat('en-CA', {
     timeZone,
@@ -997,19 +1031,11 @@ function mergeExtractedSignals(lead: CRMLead, signals: ExtractedLeadSignals | nu
 async function hydrateLeadFromAddressAndInventory(lead: CRMLead) {
   let next = lead
 
-  if (lead.originAddress && hasStreetNumber(lead.originAddress) && (!lead.supabaseListing || !(lead.inventory || []).length)) {
+  if (lead.originAddress && hasCompleteMoveAddress(lead.originAddress) && (!lead.supabaseListing || !(lead.inventory || []).length)) {
     const listings = await lookupListingsByAddress(lead.originAddress).catch(() => [])
     const listing = listings[0]
     if (listing) {
-      let scan = await getListingInventoryScan(listing.zpid).catch(() => null)
-      const analysisAvailable = Array.isArray(listing.carouselphotos) && listing.carouselphotos.length > 0 && !!process.env.OPENAI_API_KEY
-
-      if (!scan && analysisAvailable) {
-        scan = await analyzeListingPhotos(listing, getListingPropertyContext(listing)).catch(() => null)
-        if (scan) {
-          await saveListingInventoryScan(listing.zpid, scan).catch(() => {})
-        }
-      }
+      const scan = await getListingInventoryScan(listing.zpid).catch(() => null)
 
       next = normalizeLead({
         ...next,
@@ -1023,7 +1049,7 @@ async function hydrateLeadFromAddressAndInventory(lead: CRMLead) {
           next.roomBreakdown && Object.keys(next.roomBreakdown).length > 0
             ? next.roomBreakdown
             : scan?.roomBreakdown || next.roomBreakdown || {},
-        lastAutoEnrichmentAt: new Date().toISOString(),
+        lastAutoEnrichmentAt: scan ? new Date().toISOString() : next.lastAutoEnrichmentAt,
       })
     }
   }
@@ -1058,7 +1084,9 @@ function describeInventorySnapshot(lead: CRMLead) {
   }
 
   return [
-    lead.lastAutoEnrichmentAt ? 'MLS photo scan available' : 'Inventory on file',
+    lead.listingScanSnapshot || (lead.inventory || []).some(item =>
+      ['mls', 'mls_photo_ai', 'existing_scan', 'fallback_scan'].includes(String(item.source || ''))
+    ) ? 'Stored listing inventory scan available' : 'Inventory on file',
     lead.totalItems ? `${lead.totalItems} items` : inventoriedPieces ? `${inventoriedPieces} inventoried pieces` : '',
     lead.totalCubicFeet ? `${Math.round(lead.totalCubicFeet)} cu ft` : '',
     lead.totalWeightLbs ? `${Math.round(lead.totalWeightLbs)} lbs` : '',
@@ -1075,12 +1103,11 @@ function buildEstimateScopeConfirmation(lead: CRMLead, channel: ConversationChan
     ? new Date(`${lead.moveDate}T12:00:00`).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })
     : 'flexible date'
   const inventory = describeInventorySnapshot(lead)
-  const access = describeAccessSnapshot(lead)
-  const question = 'Is anything missing—especially fragile or oversized items, packing, or disassembly?'
+  const question = 'Does that cover the main furniture, aside from boxes you are still packing?'
   if (channel === 'sms') {
-    return `Thanks ${firstName}. Before pricing: ${moveDate}; ${route}; ${inventory}; ${access}. ${question}`
+    return `Thanks, ${firstName} — that helps. I have ${moveDate}, ${route}, and ${inventory}. ${question}`
   }
-  return `Hi ${firstName},\n\nBefore we prepare pricing, please confirm the scope we have:\n\nDate: ${moveDate}\nRoute: ${route}\nInventory: ${inventory}\nAccess: ${access}\n\n${question}\n\nSaturn Star Moving`
+  return `Hi ${firstName},\n\nThanks — that gives us a useful starting point. I have the move for ${moveDate}, from ${route}, with ${inventory}.\n\n${question}\n\nSaturn Star Moving`
 }
 
 function describeAccessSnapshot(lead: CRMLead) {
@@ -1174,7 +1201,7 @@ async function maybeCreateAutomatedQuote(lead: CRMLead, preferredChannel?: Conve
   if (automatedEstimateSendingIsPaused()) {
     return { sent: false, lead }
   }
-  const repWorkflowReason = estimateWorkflowOwnsLead(lead)
+  const repWorkflowReason = humanConversationOwnershipReason(lead)
   if (repWorkflowReason) {
     return { sent: false, lead }
   }
@@ -1625,7 +1652,7 @@ async function upsertConversationThreadForInbound(
   receivedAt: string
 ) {
   const existing = await getConversationThreadByIdentity(lead.id, channel, contactValue)
-  const repWorkflowReason = estimateWorkflowOwnsLead(lead)
+  const repWorkflowReason = humanConversationOwnershipReason(lead)
   const isHumanOwned = lead.automationStatus === 'handoff' || !!repWorkflowReason
   const thread: CRMConversationThread = {
     id: existing?.id || uid('thread'),
@@ -1682,6 +1709,24 @@ async function saveAutomationThreadAfterOutbound(input: {
 }) {
   const now = new Date().toISOString()
   const handoff = input.lead.automationStatus === 'handoff'
+  const previousExperience = input.existingThread?.metadata?.conversationExperience as Partial<ConversationMemory> | undefined
+  const missingFields = input.lead.qualificationState?.missingFields || getMissingFields(input.lead)
+  const conversationExperience = buildConversationMemory({
+    previous: previousExperience,
+    lead: input.lead,
+    missingFields,
+    inboundMessage: input.inboundMessage,
+    outboundMessage: input.preview,
+    now,
+  })
+  const quality = evaluateConversationMessage(input.preview, previousExperience)
+  const previousOutboundAt = input.existingThread?.lastAutomationOutboundAt
+  const currentInboundAt = input.lead.lastInboundAt || input.existingThread?.lastInboundAt
+  const respondedToPreviousAutomation = !!(
+    previousOutboundAt &&
+    currentInboundAt &&
+    new Date(currentInboundAt).getTime() > new Date(previousOutboundAt).getTime()
+  )
 
   return saveConversationThread({
     id: input.existingThread?.id || uid('thread'),
@@ -1703,6 +1748,39 @@ async function saveAutomationThreadAfterOutbound(input: {
       ...(input.existingThread?.metadata || {}),
       lastJobKind: input.jobKind,
       lastIntent: input.intent,
+      conversationExperience,
+      conversationQuality: quality,
+      conversationQualityHistory: [
+        ...(
+          Array.isArray(input.existingThread?.metadata?.conversationQualityHistory)
+            ? input.existingThread.metadata.conversationQualityHistory as unknown[]
+            : []
+        ),
+        { at: now, score: quality.score, violations: quality.violations, stage: conversationExperience.stage },
+      ].slice(-20),
+      shadowEvaluation: {
+        evaluatedAt: now,
+        wouldSend: quality.score >= 64 && !quality.bundledQuestion && !quality.repeatedQuestion,
+        recommendation: quality.violations.length
+          ? `Improve before future send: ${quality.violations.join(', ')}`
+          : 'Response contract satisfied.',
+      },
+      conversationInteractionHistory: [
+        ...(
+          Array.isArray(input.existingThread?.metadata?.conversationInteractionHistory)
+            ? input.existingThread.metadata.conversationInteractionHistory as unknown[]
+            : []
+        ),
+        {
+          outboundAt: now,
+          inboundAt: currentInboundAt,
+          respondedToPreviousAutomation,
+          stage: conversationExperience.stage,
+          emotion: conversationExperience.emotion,
+          questionTopic: conversationExperience.questionsAsked.at(-1),
+          qualityScore: quality.score,
+        },
+      ].slice(-30),
     },
     createdAt: input.existingThread?.createdAt || now,
     updatedAt: now,
@@ -1742,6 +1820,7 @@ async function generateAutomationCopy(input: {
   channel: ConversationChannel
   inboundMessage?: string
   inboundSubject?: string
+  conversationMemory?: ConversationMemory
 }) {
   const apiKey = readEnv('OPENAI_API_KEY')
   if (!apiKey) return null
@@ -1763,7 +1842,7 @@ async function generateAutomationCopy(input: {
     .join('\n')
 
 const systemPrompt = `ROLE
-You write automated messages for Saturn Star Moving. For unbooked leads, help sales move the customer toward a clear next step. For booked or deposit-paid customers, act like operations support: acknowledge the booked move, answer only from known facts, and route uncertain details to a coordinator.
+You are Saturn Star Moving's conversational guide. During intake, act as a calm moving advisor who makes the customer feel understood and more organized after every message. After qualification, become a confident moving expert. Only use closing language after an estimate exists. For booked customers, act as operations support.
 
 HARD RULES — NEVER DO THESE
 - Never write "feel free to reach out," "let me know how I can help," "just checking in," "no pressure," or any passive service-desk phrasing.
@@ -1776,6 +1855,8 @@ HARD RULES — NEVER DO THESE
 - Never interpret a date written inside an address as a confirmed move date. Never reuse an old or past move date for a new inquiry.
 - Never describe the customer as ready to book while route, date, inventory, or access remains missing.
 - Automated estimate sending is paused. Never generate, promise, announce, or send a price or estimate. Continue discovery and preserve the details for a human coordinator.
+- Never behave like a form. Do not ask two addresses, two locations, or multiple inventory/logistics categories in one turn.
+- Never move directly from the customer's answer to another demand. First acknowledge it and explain why it helps or reduce their uncertainty.
 
 ALWAYS DO THESE
 - Open with context that proves you remember them (their route, date, what was said).
@@ -1783,6 +1864,7 @@ ALWAYS DO THESE
 - Create one honest reason to act now. Never manufacture false urgency.
 - Close with ONE easy yes/no or either/or question the customer can answer in seconds.
 - SMS: 3-5 short sentences, max 240 characters. Direct and warm.
+- Follow this rhythm: acknowledge → interpret/reassure/recommend → ask one easy question.
 - Email: Slightly fuller but still closing-oriented. Include a specific subject line.
 
 SPECIAL CASES
@@ -1792,6 +1874,8 @@ SPECIAL CASES
 - Treat city-only route details as incomplete. A usable moving route needs the exact pickup address and exact dropoff address. If either exact address is missing, ask for the missing address before asking about inventory, parking, access, or email.
 - Before asking for an address or inventory, read RECENT THREAD and LATEST MESSAGE for customer corrections. If the customer gives two addresses separated by "to", treat the first as pickup and the second as dropoff. If the customer says "that is the pickup" or "the other one is dropoff", do not repeat the same address question.
 - Ask for one missing fact at a time. Do not repeat the immediately previous question; if the answer is ambiguous, briefly clarify the specific ambiguous field.
+- Acknowledge what the customer just told you before asking the next question. Do not dump the CRM scope back at them or combine date, route, inventory, packing, disassembly, parking, stairs, and fragile-item questions in one message.
+- Treat access intelligence as a confirmation tool. Do not ask generic parking/access questions for ordinary detached houses unless property/listing data suggests a constraint. For condos, apartments, commercial sites, storage, or an address with a unit marker, ask one specific access question at a time.
 - If inventory came from listing photos or MLS, do not treat it as final until the customer confirms what is going, what is staying, boxes, and hidden garage/basement/storage items.
 - For packing-only leads, ask packing scope questions, not standard moving inventory questions: whether packing is for all rooms or only listed items, whether Saturn Star supplies boxes/materials, and whether fragile kitchen/glass items are included.
 - If email is missing but move is qualified AND lead has no phone, ask for email so the estimate can be sent. If they have a phone, the SMS estimate was already sent or will be sent.
@@ -1832,6 +1916,11 @@ Return JSON only:
     })}`,
     `INVENTORY SNAPSHOT: ${inventorySummary}`,
     `ACCESS SNAPSHOT: ${accessSummary}`,
+    `CONVERSATION EXPERIENCE:\n${conversationGuidance(input.conversationMemory || buildConversationMemory({
+      lead: input.lead,
+      missingFields: qualification.missingFields || [],
+      inboundMessage: input.inboundMessage,
+    }))}`,
     `AUTO ESTIMATE READINESS: ${JSON.stringify({
       missingForAutomatedEstimate: estimateMissingFields,
       automatedQuoteSentAt: input.lead.automatedQuoteSentAt,
@@ -1889,41 +1978,16 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
   }
 
   if (isBookedOrPaidLead(lead) && kind === 'lead_response') {
-    if (isCompletedCustomerLead(lead) || isMoveDateOver(lead)) {
-      return {
-        reply:
-          channel === 'sms'
-            ? `Thanks ${firstName}. I saved this message on your Saturn Star job file for manual review.`
-            : `Hi ${firstName},\n\nThanks. I saved this message on your Saturn Star job file for manual review.\n\nJohn\nSaturn Star Moving`,
-        subject: channel === 'email' ? 'Re: Saturn Star Moving' : undefined,
-        capturedSummary: 'Post-move customer replied. Automation saved the message for manual review instead of restarting sales intake.',
-        intent: 'lead_response',
-        missingFields: [],
-        moveReadiness: 'warm',
-        nextBestAction: 'customer_success_review',
-      }
-    }
-
-    const moveDate = lead.moveDate
-      ? new Date(`${lead.moveDate}T12:00:00`).toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' })
-      : 'your move day'
-    const route = bookedSupportRoute(lead)
-    const hasLogisticsDetail = /\b(park|parking|truck|entrance|door|elevator|stairs|loading|access|hall|unit|apartment|furniture|wrap|blanket|box|packing|pack)\b/i.test(inboundMessage || '')
+    const supportIntent = detectBookedCustomerSupportIntent(inboundMessage)
     return {
-      reply:
-        channel === 'sms'
-          ? hasLogisticsDetail
-            ? `Thanks ${firstName}. Your move${route ? ` from ${route}` : ''} is already booked for ${moveDate}, and I saved this logistics note for the crew briefing.`
-            : `Thanks ${firstName}. Your move${route ? ` from ${route}` : ''} is already booked for ${moveDate}. I saved your message on the job file.`
-          : hasLogisticsDetail
-            ? `Hi ${firstName},\n\nThanks. Your move${route ? ` from ${route}` : ''} is already booked for ${moveDate}, and I saved this logistics note for the crew briefing.\n\nJohn\nSaturn Star Moving`
-            : `Hi ${firstName},\n\nThanks. Your move${route ? ` from ${route}` : ''} is already booked for ${moveDate}. I saved your message on the job file.\n\nJohn\nSaturn Star Moving`,
-      subject: channel === 'email' ? 'Re: Your Booked Move' : undefined,
-      capturedSummary: 'Booked customer sent a post-booking question. Automation acknowledged and routed the note to operations.',
-      intent: 'lead_response',
+      capturedSummary: `Booked customer sent a ${supportIntent.replace(/_/g, ' ')} request. No customer-facing automation is permitted; a representative must respond.`,
+      intent: `booked_support_${supportIntent}`,
       missingFields: [],
       moveReadiness: 'hot',
-      nextBestAction: 'operations_review',
+      nextBestAction: isCompletedCustomerLead(lead) || isMoveDateOver(lead)
+        ? 'customer_success_review'
+        : 'rep_reply_required',
+      shouldHandoff: true,
     }
   }
 
@@ -2097,34 +2161,43 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
   }
 
   let reply: string
+  const emotion = detectCustomerEmotion(inboundMessage)
+  const reassurance =
+    emotion === 'overwhelmed'
+      ? `No problem, ${firstName}—we'll take this one step at a time.`
+      : emotion === 'uncertain'
+        ? `That's completely fine, ${firstName}. We can start with what you know.`
+        : emotion === 'frustrated'
+          ? `I understand, ${firstName}. I have your correction and won't make you repeat it.`
+          : `Thanks, ${firstName}—that helps.`
   if (missing[0] === 'move_date') {
     reply =
       channel === 'sms'
-        ? `Hi ${firstName}, thanks for reaching out to Saturn Star Moving. What move date are you aiming for, and what are the exact pickup and dropoff addresses?`
-        : `Hi ${firstName},\n\nThanks for reaching out to Saturn Star Moving. What move date are you aiming for, and what are the exact pickup and dropoff addresses?\n\nJohn\nSaturn Star Moving`
+        ? `Hi ${firstName}, thanks for reaching out. I can help you organize this one step at a time. What move date are you aiming for?`
+        : `Hi ${firstName},\n\nThanks for reaching out. I can help you organize this one step at a time.\n\nWhat move date are you aiming for?\n\nJohn\nSaturn Star Moving`
   } else if (missing[0] === 'origin_address' && missing[1] === 'destination_address') {
     const routeHint = [lead.originCity, lead.destCity].filter(Boolean).join(' to ')
     reply =
       channel === 'sms'
-        ? `Hi ${firstName}, I have${routeHint ? ` ${routeHint}` : ' the cities'} on file. What are the exact pickup and dropoff addresses so we can price the route properly?`
-        : `Hi ${firstName},\n\nI have${routeHint ? ` ${routeHint}` : ' the cities'} on file. What are the exact pickup and dropoff addresses so we can price the route properly?\n\nJohn\nSaturn Star Moving`
+        ? `Thanks, ${firstName}. I have${routeHint ? ` the ${routeHint} route` : ' the move cities'} started. What is the exact pickup address?`
+        : `Hi ${firstName},\n\nThanks. I have${routeHint ? ` the ${routeHint} route` : ' the move cities'} started.\n\nWhat is the exact pickup address?\n\nJohn\nSaturn Star Moving`
   } else if (missing[0] === 'origin_address') {
     const destinationHint = lead.destAddress || lead.destCity
     reply =
       channel === 'sms'
-        ? `Hi ${firstName}, I have the destination${destinationHint ? ` as ${destinationHint}` : ''}. What is the exact pickup address?`
+        ? `Thanks, ${firstName}. I have the destination${destinationHint ? ` as ${destinationHint}` : ''}, so the route is taking shape. What is the exact pickup address?`
         : `Hi ${firstName},\n\nI have the destination${destinationHint ? ` as ${destinationHint}` : ''}. What is the exact pickup address?\n\nJohn\nSaturn Star Moving`
   } else if (missing[0] === 'destination_address') {
     const originHint = lead.originAddress || lead.originCity
     reply =
       channel === 'sms'
-        ? `Hi ${firstName}, I have the pickup${originHint ? ` as ${originHint}` : ''}. What is the exact dropoff address?`
+        ? `Thanks, ${firstName}. I have the pickup${originHint ? ` as ${originHint}` : ''}, which gives me the starting point. What is the exact dropoff address?`
         : `Hi ${firstName},\n\nI have the pickup${originHint ? ` as ${originHint}` : ''}. What is the exact dropoff address?\n\nJohn\nSaturn Star Moving`
   } else if (missing[0] === 'origin' && missing[1] === 'destination') {
     reply =
       channel === 'sms'
-        ? `Hi ${firstName}, thanks for reaching out. What are the exact pickup and dropoff addresses for the move?`
-        : `Hi ${firstName},\n\nThanks for reaching out. What are the exact pickup and dropoff addresses for the move?\n\nJohn\nSaturn Star Moving`
+        ? `Hi ${firstName}, thanks for reaching out. I'll build the route with you one step at a time. What is the pickup address?`
+        : `Hi ${firstName},\n\nThanks for reaching out. I'll build the route with you one step at a time.\n\nWhat is the pickup address?\n\nJohn\nSaturn Star Moving`
   } else if (missing[0] === 'origin') {
     reply =
       channel === 'sms'
@@ -2138,36 +2211,42 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
   } else if (missing[0] === 'inventory_confirmation') {
     reply =
       channel === 'sms'
-        ? buildMlsInventoryConfirmationSms(lead)
-        : `Hi ${firstName},\n\nI pulled a starter inventory from the listing photos. Please reply with anything staying behind, missing items, and boxes/garage/basement/storage items we cannot see.\n\nJohn\nSaturn Star Moving`
+        ? `Thanks, ${firstName}. I built a starter inventory from the photos so you don't have to begin from scratch. Is anything on that list staying behind?`
+        : `Hi ${firstName},\n\nThanks. I built a starter inventory from the photos so you don't have to begin from scratch.\n\nIs anything on that list staying behind?\n\nJohn\nSaturn Star Moving`
   } else if (missing[0] === 'inventory') {
     reply =
       lead.moveType === 'packing'
         ? channel === 'sms'
-          ? `Hi ${firstName}, for packing, are we packing all rooms or only specific items? Also, do you need us to supply boxes/materials, and are there fragile kitchen or glass items?`
-          : `Hi ${firstName},\n\nFor packing, are we packing all rooms or only specific items? Also, do you need us to supply boxes/materials, and are there fragile kitchen or glass items?\n\nJohn\nSaturn Star Moving`
+          ? `${reassurance} To size the packing help properly, are we packing every room or only specific rooms?`
+          : `Hi ${firstName},\n\n${reassurance} To size the packing help properly, are we packing every room or only specific rooms?\n\nJohn\nSaturn Star Moving`
         : channel === 'sms'
-          ? `Hi ${firstName}, I couldn't pull a clear listing inventory for that address. Please text the main items room by room, plus boxes, garage, basement, storage, and any specialty items.`
-          : `Hi ${firstName},\n\nI couldn't pull a clear listing inventory for that address. Please send the main items room by room, plus boxes, garage, basement, storage, and any specialty items.\n\nJohn\nSaturn Star Moving`
+          ? `${reassurance} You don't need an exact box count yet—the larger furniture is enough to start. What are the main pieces moving?`
+          : `Hi ${firstName},\n\n${reassurance} You don't need an exact box count yet—the larger furniture is enough to start.\n\nWhat are the main pieces moving?\n\nJohn\nSaturn Star Moving`
   } else if (missing[0] === 'customer_email') {
     reply =
       channel === 'sms'
         ? `I can tighten this up into a proper estimate. What's the best email address to send the quote to?`
         : `Hi ${firstName},\n\nI can turn this into a proper estimate now. What's the best email address to send the quote to?\n\nJohn\nSaturn Star Moving`
   } else if (missing[0] === 'access') {
+    const locationContext = `${lead.originAddress || ''} ${lead.destAddress || ''} ${lead.propertyType || ''}`
+    const apartmentLike = /\b(apt|apartment|condo|unit|suite)\b/i.test(locationContext)
     reply =
       lead.moveType === 'packing'
         ? channel === 'sms'
-          ? `Thanks ${firstName}. For the packing quote, should we pack everything or only the listed items, and do you want us to bring boxes/materials?`
-          : `Hi ${firstName},\n\nThanks. For the packing quote, should we pack everything or only the listed items, and do you want us to bring boxes/materials?\n\nJohn\nSaturn Star Moving`
+          ? `Thanks, ${firstName}—the packing scope is taking shape. Would you like us to supply the boxes and materials?`
+          : `Hi ${firstName},\n\nThanks—the packing scope is taking shape.\n\nWould you like us to supply the boxes and materials?\n\nJohn\nSaturn Star Moving`
         : channel === 'sms'
-          ? `Hi ${firstName}, one quick thing so we plan this properly: are there stairs, elevators, or tight parking at either location?`
-          : `Hi ${firstName},\n\nOne quick thing so we plan this properly: are there stairs, elevators, or tight parking at either location?\n\nJohn\nSaturn Star Moving`
+          ? apartmentLike
+            ? `Thanks, ${firstName}—I have the main move details now. Will the crew have elevator access at the apartment?`
+            : `Thanks, ${firstName}—the route looks straightforward. Is there anything unusual at the pickup, such as a restricted driveway or long carry?`
+          : apartmentLike
+            ? `Hi ${firstName},\n\nThanks—I have the main move details now. Will the crew have elevator access at the apartment?\n\nJohn\nSaturn Star Moving`
+            : `Hi ${firstName},\n\nThanks—the route looks straightforward. Is there anything unusual at the pickup, such as a restricted driveway or long carry?\n\nJohn\nSaturn Star Moving`
   } else {
     reply =
       channel === 'sms'
-        ? `Thanks ${firstName}. I have the main move details. Are there any fragile or oversized pieces, or anything needing disassembly, that we should plan around?`
-        : `Hi ${firstName},\n\nI have the main move details. Are there any fragile or oversized pieces, or anything needing disassembly, that we should plan around?\n\nJohn\nSaturn Star Moving`
+        ? `Great, ${firstName}—I have a solid starting plan for the move. Is there one fragile or oversized piece you want us to pay special attention to?`
+        : `Hi ${firstName},\n\nGreat—I have a solid starting plan for the move.\n\nIs there one fragile or oversized piece you want us to pay special attention to?\n\nJohn\nSaturn Star Moving`
   }
 
   return {
@@ -2180,7 +2259,7 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
   }
 }
 
-async function buildCopyForJob(job: CRMAutomationJob, lead: CRMLead, channel: ConversationChannel, inboundMessage?: string, inboundSubject?: string) {
+async function buildCopyForJob(job: CRMAutomationJob, lead: CRMLead, channel: ConversationChannel, inboundMessage?: string, inboundSubject?: string, existingThread?: CRMConversationThread | null) {
   if (detectOptOut(inboundMessage)) {
     return fallbackCopy(job.kind, lead, channel, inboundMessage)
   }
@@ -2196,15 +2275,27 @@ async function buildCopyForJob(job: CRMAutomationJob, lead: CRMLead, channel: Co
     return fallbackCopy(job.kind, lead, channel, inboundMessage)
   }
 
+  const previousMemory = existingThread?.metadata?.conversationExperience as Partial<ConversationMemory> | undefined
+  const conversationMemory = buildConversationMemory({
+    previous: previousMemory,
+    lead,
+    missingFields: lead.qualificationState?.missingFields || getMissingFields(lead),
+    inboundMessage,
+  })
   const ai = await generateAutomationCopy({
     kind: job.kind,
     lead,
     channel,
     inboundMessage,
     inboundSubject,
+    conversationMemory,
   }).catch(() => null)
 
-  return ai && ai.reply ? ai : fallbackCopy(job.kind, lead, channel, inboundMessage)
+  if (ai?.reply) {
+    const quality = evaluateConversationMessage(ai.reply, previousMemory)
+    if (quality.score >= 64 && !quality.bundledQuestion && !quality.repeatedQuestion) return ai
+  }
+  return fallbackCopy(job.kind, lead, channel, inboundMessage)
 }
 
 async function resolveCanonicalLeadForAutomationJob(job: CRMAutomationJob, lead: CRMLead) {
@@ -2221,10 +2312,13 @@ function shouldSkipAutomation(lead: CRMLead, job: CRMAutomationJob) {
   if (lead.automationStatus === 'do_not_contact') return 'Lead is marked do-not-contact.'
   const settingsReason = disabledNudgeReason(lead, job.kind)
   if (settingsReason) return settingsReason
-  const repWorkflowReason = estimateWorkflowOwnsLead(lead)
-  if (repWorkflowReason && job.kind !== 'consultation_reminder' && job.kind !== 'move_reminder') return repWorkflowReason
-  if (lead.automationPausedUntil && new Date(lead.automationPausedUntil).getTime() > Date.now()) return 'Automation is paused by recent human follow-up.'
-  if (lead.automationStatus === 'handoff' && job.kind !== 'consultation_reminder' && job.kind !== 'move_reminder') return 'Lead is in human handoff mode.'
+  const repWorkflowReason = humanConversationOwnershipReason(lead)
+  // Inbound replies on human-owned files still reach the lead-response handler so
+  // it can create a visible internal alert. That handler never sends the customer
+  // an automated reply.
+  if (repWorkflowReason && job.kind !== 'lead_response' && job.kind !== 'consultation_reminder' && job.kind !== 'move_reminder') return repWorkflowReason
+  if (lead.automationPausedUntil && new Date(lead.automationPausedUntil).getTime() > Date.now() && job.kind !== 'lead_response') return 'Automation is paused by recent human follow-up.'
+  if (lead.automationStatus === 'handoff' && job.kind !== 'lead_response' && job.kind !== 'consultation_reminder' && job.kind !== 'move_reminder') return 'Lead is in human handoff mode.'
   if (lead.stage === 'lost' && job.kind !== 'lead_response' && job.kind !== 'lost_feedback') return 'Lead is already lost.'
   if (job.kind === 'move_reminder' && isMoveDateOver(lead)) return 'Move date has already passed.'
   if (isBookedOrPaidLead(lead) && job.kind !== 'lead_response' && job.kind !== 'move_reminder') return 'Lead is already booked.'
@@ -2561,8 +2655,12 @@ async function maybeHandleMlsInventorySms(input: {
         notes: `Automation updated inventory from SMS reply: ${parsed.summary || input.inboundMessage}`,
       }).catch(() => {})
 
+      const locationContext = `${savedLead.originAddress || ''} ${savedLead.destAddress || ''} ${savedLead.propertyType || ''}`
+      const apartmentLike = /\b(apt|apartment|condo|unit|suite)\b/i.test(locationContext)
       const message = parsed.complete
-        ? `${buildVerifiedInventorySms(savedLead)} Also, are there stairs, elevators, or tight parking at either address?`
+        ? apartmentLike
+          ? `${buildVerifiedInventorySms(savedLead)} That gives me a solid inventory. Will the crew have elevator access at the apartment?`
+          : `${buildVerifiedInventorySms(savedLead)} That gives me a solid inventory. Is there anything unusual about the pickup driveway or carrying distance?`
         : buildVerifiedInventorySms(savedLead)
 
       const sendResult = await sendSalesMessage({
@@ -2638,6 +2736,280 @@ async function maybeHandleMlsInventorySms(input: {
   return { status: 'completed' as const, sent: true, lead: sendResult.lead || draftLead, thread, message }
 }
 
+async function ensureAutomationPhotoSurvey(lead: CRMLead) {
+  const existingExpiry = lead.surveyTokenExpiresAt ? Date.parse(lead.surveyTokenExpiresAt) : 0
+  const token = lead.surveyToken && existingExpiry > Date.now() ? lead.surveyToken : randomToken('surv')
+  const expiresAt = token === lead.surveyToken
+    ? lead.surveyTokenExpiresAt!
+    : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+  const now = new Date().toISOString()
+  const savedLead = await saveSalesLead({
+    ...lead,
+    surveyToken: token,
+    surveyTokenExpiresAt: expiresAt,
+    surveyRequestedAt: lead.surveyRequestedAt || now,
+    surveyCompletedAt: token === lead.surveyToken ? lead.surveyCompletedAt : undefined,
+    surveyPhotoCount: token === lead.surveyToken ? lead.surveyPhotoCount : 0,
+    qualificationState: buildQualificationState(lead, {
+      ...withoutMissingFields(lead.qualificationState),
+      capturedSummary: 'No usable stored listing inventory was found. Customer was offered a choice to text the main furniture or upload room photos.',
+      lastIntent: 'photo_inventory_options_offered',
+      nextBestAction: 'await_inventory_or_photos',
+    }),
+  })
+  return {
+    lead: savedLead,
+    surveyUrl: compactCustomerLink(`${getAppBaseUrl('https://go.quote2move.com')}/survey/${token}`),
+  }
+}
+
+async function maybeHandleInventoryDiscoveryFallback(input: {
+  job: CRMAutomationJob
+  lead: CRMLead
+  contact: { channel: ConversationChannel; to: string }
+  existingThread: CRMConversationThread | null
+  inboundMessage: string
+  inboundSubject?: string
+}) {
+  if (input.job.kind !== 'lead_response') return null
+  if (isBookedOrPaidLead(input.lead)) return null
+  if (!hasCompleteMoveAddress(input.lead.originAddress)) return null
+  if (!listingInventoryFallbackAllowed(input.lead)) return null
+
+  const { lead: surveyLead, surveyUrl } = await ensureAutomationPhotoSurvey(input.lead)
+  const message = buildPhotoSurveyFallbackMessage(surveyLead, surveyUrl, input.contact.channel)
+  const sendResult = await sendSalesMessage({
+    actor: 'automation',
+    channel: input.contact.channel,
+    to: input.contact.to,
+    subject: input.contact.channel === 'email' ? input.inboundSubject || 'An easier way to build your moving inventory' : undefined,
+    body: message,
+    leadId: surveyLead.id,
+    notes: 'Automation offered text-or-photo inventory options after stored listing discovery returned no usable inventory.',
+  })
+
+  await saveFollowUpLog({
+    id: uid('fu'),
+    leadId: surveyLead.id,
+    type: 'note',
+    date: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    notes: 'No usable stored listing inventory found. Customer received a photo survey link and the option to text their main furniture.',
+  }).catch(() => {})
+
+  const thread = await saveAutomationThreadAfterOutbound({
+    lead: sendResult.lead || surveyLead,
+    existingThread: input.existingThread,
+    channel: input.contact.channel,
+    contactValue: input.contact.to,
+    preview: message,
+    jobKind: input.job.kind,
+    intent: 'photo_inventory_options_offered',
+    inboundMessage: input.inboundMessage,
+  })
+
+  return { status: 'completed' as const, sent: true, lead: sendResult.lead || surveyLead, thread, message }
+}
+
+async function maybeQueueListingInventoryScan(input: {
+  job: CRMAutomationJob
+  lead: CRMLead
+  contact: { channel: ConversationChannel; to: string }
+  existingThread: CRMConversationThread | null
+  inboundMessage: string
+  inboundSubject?: string
+}) {
+  if (input.job.kind !== 'lead_response') return null
+  if (isBookedOrPaidLead(input.lead)) return null
+  if ((input.lead.inventory || []).length > 0 || input.lead.listingScanSnapshot) return null
+
+  const listing = input.lead.supabaseListing
+  const photos = Array.isArray(listing?.carouselphotos) ? listing.carouselphotos : []
+  if (!listing?.zpid || photos.length === 0 || !readEnv('OPENAI_API_KEY')) return null
+
+  if (listingInventoryScanInProgress(input.lead)) {
+    return { status: 'completed' as const, sent: false, lead: input.lead, reason: 'Listing inventory scan is already in progress.' }
+  }
+
+  const now = new Date().toISOString()
+  const queuedLead = await saveSalesLead({
+    ...input.lead,
+    qualificationState: buildQualificationState(input.lead, {
+      ...withoutMissingFields(input.lead.qualificationState),
+      inventoryDiscovery: {
+        status: 'queued',
+        listingId: listing.zpid,
+        queuedAt: now,
+      },
+      capturedSummary: 'Stored listing matched. Room-by-room inventory scan queued in the background.',
+      lastIntent: 'listing_inventory_scan_queued',
+      nextBestAction: 'await_listing_inventory_scan',
+    }),
+  })
+
+  const queued = await queueAutomationJob({
+    leadId: queuedLead.id,
+    conversationId: input.existingThread?.id || null,
+    kind: 'lead_response',
+    channel: input.contact.channel,
+    dueAt: now,
+    dedupeKey: listingInventoryScanDedupeKey(queuedLead.id, listing.zpid),
+    payload: {
+      task: 'listing_inventory_scan',
+      listingId: listing.zpid,
+      contactValue: input.contact.to,
+      inboundSubject: input.inboundSubject,
+    },
+  })
+
+  if (!queued) throw new Error('Could not queue stored listing inventory scan.')
+
+  const firstName = (queuedLead.name || 'there').split(' ')[0]
+  const message = input.contact.channel === 'email'
+    ? `Hi ${firstName},\n\nThanks—I have the pickup details. I'm building a room-by-room starter inventory from the property information in our system now, so you don't have to type everything out. It can take a minute or two, and I'll send you what I find to review.\n\nJohn\nSaturn Star Moving`
+    : `Thanks, ${firstName}—I have the pickup details. I'm building a room-by-room starter inventory from the property information in our system now, so you don't have to type everything out. It can take a minute or two, and I'll text you what I find to review.`
+  const sendResult = await sendSalesMessage({
+    actor: 'automation',
+    channel: input.contact.channel,
+    to: input.contact.to,
+    subject: input.contact.channel === 'email' ? input.inboundSubject || 'Building your starter moving inventory' : undefined,
+    body: message,
+    leadId: queuedLead.id,
+    notes: 'Automation acknowledged the lead while the stored listing inventory scan runs in the background.',
+  })
+  const thread = await saveAutomationThreadAfterOutbound({
+    lead: sendResult.lead || queuedLead,
+    existingThread: input.existingThread,
+    channel: input.contact.channel,
+    contactValue: input.contact.to,
+    preview: message,
+    jobKind: input.job.kind,
+    intent: 'listing_inventory_scan_queued',
+    inboundMessage: input.inboundMessage,
+  })
+
+  return { status: 'completed' as const, sent: true, lead: sendResult.lead || queuedLead, thread, message }
+}
+
+async function handleListingInventoryScanJob(job: CRMAutomationJob, lead: CRMLead) {
+  if (isBookedOrPaidLead(lead)) return { status: 'cancelled' as const, reason: 'Lead is already booked.' }
+  const listing = lead.supabaseListing
+  const expectedListingId = String(job.payload?.listingId || '')
+  if (!listing?.zpid || (expectedListingId && listing.zpid !== expectedListingId)) {
+    return { status: 'cancelled' as const, reason: 'Stored listing is no longer attached to this lead.' }
+  }
+
+  const contactValue = String(job.payload?.contactValue || '')
+  const contact = contactValue
+    ? { channel: (job.channel || 'sms') as ConversationChannel, to: contactValue }
+    : chooseContactChannel(lead, job.channel)
+  if (!contact) return { status: 'cancelled' as const, reason: 'Lead has no reachable contact.' }
+
+  const now = new Date().toISOString()
+  const scanningLead = await saveSalesLead({
+    ...lead,
+    qualificationState: buildQualificationState(lead, {
+      ...withoutMissingFields(lead.qualificationState),
+      inventoryDiscovery: {
+        ...(lead.qualificationState?.inventoryDiscovery || {}),
+        status: 'scanning',
+        listingId: listing.zpid,
+        startedAt: now,
+      },
+      capturedSummary: 'Stored listing inventory scan is running.',
+      lastIntent: 'listing_inventory_scanning',
+      nextBestAction: 'await_listing_inventory_scan',
+    }),
+  })
+
+  const cached = await getListingInventoryScan(listing.zpid).catch(() => null)
+  const scan = cached || await analyzeListingPhotos(listing, getListingPropertyContext(listing)).catch(() => null)
+  if (scan && scan.inventory.length > 0) {
+    if (!cached) await saveListingInventoryScan(listing.zpid, scan).catch(() => {})
+    const completedAt = new Date().toISOString()
+    const completedLead = await saveSalesLead(normalizeLead({
+      ...scanningLead,
+      listingScanSnapshot: scan,
+      inventory: scan.inventory,
+      totalItems: scan.totalItems,
+      totalCubicFeet: scan.totalCubicFeet,
+      totalWeightLbs: scan.totalWeightLbs || 0,
+      roomBreakdown: scan.roomBreakdown || {},
+      lastAutoEnrichmentAt: completedAt,
+      inventoryVerification: {
+        ...(scanningLead.inventoryVerification || {}),
+        startedAt: scanningLead.inventoryVerification?.startedAt || completedAt,
+        lastUpdatedAt: completedAt,
+      },
+      qualificationState: buildQualificationState({
+        ...scanningLead,
+        inventory: scan.inventory,
+        totalItems: scan.totalItems,
+        totalCubicFeet: scan.totalCubicFeet,
+      }, {
+        ...withoutMissingFields(scanningLead.qualificationState),
+        inventoryDiscovery: {
+          ...(scanningLead.qualificationState?.inventoryDiscovery || {}),
+          status: 'completed',
+          listingId: listing.zpid,
+          completedAt,
+        },
+        capturedSummary: 'Stored listing scan completed and produced a room-by-room starter inventory for customer confirmation.',
+        lastIntent: 'listing_inventory_discovered',
+        nextBestAction: 'confirm_inventory',
+      }),
+    }))
+    const message = buildMlsInventoryConfirmationSms(completedLead)
+    const sendResult = await sendSalesMessage({
+      actor: 'automation',
+      channel: contact.channel,
+      to: contact.to,
+      subject: contact.channel === 'email' ? 'Your starter moving inventory is ready' : undefined,
+      body: message,
+      leadId: completedLead.id,
+      notes: 'Automation sent the completed room-by-room stored listing inventory for customer confirmation.',
+    })
+    const existingThread = await getConversationThreadByIdentity(completedLead.id, contact.channel, contact.to)
+    const thread = await saveAutomationThreadAfterOutbound({
+      lead: sendResult.lead || completedLead,
+      existingThread,
+      channel: contact.channel,
+      contactValue: contact.to,
+      preview: message,
+      jobKind: 'lead_response',
+      intent: 'inventory_sms_confirmation_requested',
+    })
+    return { status: 'completed' as const, sent: true, lead: sendResult.lead || completedLead, thread, itemCount: scan.totalItems }
+  }
+
+  const failedAt = new Date().toISOString()
+  const unavailableLead = await saveSalesLead({
+    ...scanningLead,
+    qualificationState: buildQualificationState(scanningLead, {
+      ...withoutMissingFields(scanningLead.qualificationState),
+      inventoryDiscovery: {
+        ...(scanningLead.qualificationState?.inventoryDiscovery || {}),
+        status: 'unavailable',
+        listingId: listing.zpid,
+        failedAt,
+        error: 'Scan completed without usable inventory.',
+      },
+      capturedSummary: 'Stored listing scan completed without usable inventory.',
+      lastIntent: 'listing_inventory_unavailable',
+      nextBestAction: 'offer_photo_inventory',
+    }),
+  })
+  const fallback = await maybeHandleInventoryDiscoveryFallback({
+    job,
+    lead: unavailableLead,
+    contact,
+    existingThread: await getConversationThreadByIdentity(unavailableLead.id, contact.channel, contact.to),
+    inboundMessage: '',
+    inboundSubject: String(job.payload?.inboundSubject || ''),
+  })
+  return fallback || { status: 'completed' as const, sent: false, lead: unavailableLead }
+}
+
 async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
   const preferredChannel = (job.channel || chooseContactChannel(lead)?.channel || 'sms') as ConversationChannel
   const contact = chooseContactChannel(lead, preferredChannel)
@@ -2680,105 +3052,84 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
     }
   }
 
-  if (job.kind === 'lead_response' && isBookedOrPaidLead(lead)) {
-    if (isCompletedCustomerLead(lead) || isMoveDateOver(lead)) {
-      const nowIso = new Date().toISOString()
-      const copy = fallbackCopy(job.kind, lead, contact.channel, inboundMessage)
-      const handedLead = await saveSalesLead({
-        ...lead,
-        automationStatus: 'handoff',
-        automationPausedUntil: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        automationPauseReason: isCompletedCustomerLead(lead) ? 'completed_customer_reply' : 'post_move_customer_reply',
-        automationHandoffAt: nowIso,
-        automationHandoffReason: 'Post-move customer replied. Rep should review before sending any customer-facing response.',
-        automationLastJobAt: nowIso,
-        inboundMessage: inboundMessage || lead.inboundMessage,
-        qualificationState: buildQualificationState(lead, {
-          ...withoutMissingFields(lead.qualificationState),
-          capturedSummary: `Post-move customer replied. Saved for customer success review: ${inboundMessage}`,
-          lastIntent: isCompletedCustomerLead(lead) ? 'completed_customer_reply' : 'post_move_customer_reply',
-          nextBestAction: 'customer_success_review',
-          missingFields: [],
-        }),
-      }).catch(() => lead)
+  const repWorkflowReason = humanConversationOwnershipReason(lead)
+  if (job.kind === 'lead_response' && customerReplyRequiresHuman({
+    isBookedCustomer: isBookedOrPaidLead(lead),
+    repWorkflowReason,
+  })) {
+    const nowIso = new Date().toISOString()
+    const supportIntent = detectBookedCustomerSupportIntent(inboundMessage)
+    const isBookedCustomer = isBookedOrPaidLead(lead)
+    const handoffReason = isBookedCustomer
+      ? 'Booked customer replied. Customer-facing automation is disabled after booking.'
+      : `A representative owns this conversation${repWorkflowReason ? `: ${repWorkflowReason}` : '.'}`
+    const nextBestAction = isCompletedCustomerLead(lead) || isMoveDateOver(lead)
+      ? 'customer_success_review'
+      : 'rep_reply_required'
+    const handedLead = await saveSalesLead({
+      ...lead,
+      automationStatus: 'handoff',
+      automationPausedUntil: undefined,
+      automationPauseReason: isBookedCustomer ? 'booked_customer_human_only' : 'rep_owned_conversation',
+      automationHandoffAt: nowIso,
+      automationHandoffReason: handoffReason,
+      automationLastJobAt: nowIso,
+      inboundMessage: inboundMessage || lead.inboundMessage,
+      followUpStatus: 'following_up',
+      followUpDate: nowIso.slice(0, 10),
+      followUpNote: `Reply to ${lead.name || 'customer'}: ${previewText(inboundMessage, 140)}`,
+      qualificationState: buildQualificationState(lead, {
+        ...withoutMissingFields(lead.qualificationState),
+        capturedSummary: `Human response required (${supportIntent.replace(/_/g, ' ')}): ${inboundMessage}`,
+        lastIntent: isBookedCustomer ? `booked_support_${supportIntent}` : 'rep_owned_customer_reply',
+        nextBestAction,
+        missingFields: [],
+      }),
+    }).catch(() => lead)
 
-      await saveFollowUpLog({
-        id: uid('fu'),
-        leadId: handedLead.id,
-        type: 'note',
-        date: nowIso,
-        createdAt: nowIso,
-        notes: `Post-move customer replied. Automation did not send a response; rep should review: ${inboundMessage}`,
-      }).catch(() => {})
-
-      const thread = await saveConversationThread({
-        id: existingThread?.id || uid('thread'),
-        leadId: handedLead.id,
-        channel: contact.channel,
-        contactValue: normalizeConversationContactValue(contact.channel, contact.to),
-        contactName: existingThread?.contactName || handedLead.name,
-        status: 'human_handoff',
-        automationStatus: 'handoff',
-        automationOwner: 'mixed',
-        lastInboundAt: handedLead.lastInboundAt || existingThread?.lastInboundAt,
-        lastOutboundAt: existingThread?.lastOutboundAt,
-        lastHumanOutboundAt: existingThread?.lastHumanOutboundAt,
-        lastAutomationOutboundAt: existingThread?.lastAutomationOutboundAt,
-        lastInboundPreview: previewText(inboundMessage) || existingThread?.lastInboundPreview,
-        lastOutboundPreview: existingThread?.lastOutboundPreview,
-        qualificationState: handedLead.qualificationState,
-        metadata: {
-          ...(existingThread?.metadata || {}),
-          lastJobKind: job.kind,
-          lastIntent: copy.intent,
-          handoffReason: isCompletedCustomerLead(lead) ? 'completed_customer_reply' : 'post_move_customer_reply',
-        },
-        createdAt: existingThread?.createdAt || nowIso,
-        updatedAt: nowIso,
-      })
-
-      return {
-        status: 'completed' as const,
-        sent: false,
-        lead: handedLead,
-        thread,
-        reason: 'Post-move customer reply saved for manual review.',
-      }
-    }
-
-    const copy = fallbackCopy(job.kind, lead, contact.channel, inboundMessage)
-    const sendResult = await sendSalesMessage({
-      actor: 'automation',
-      channel: contact.channel,
-      to: contact.to,
-      subject: contact.channel === 'email' ? copy.subject || inboundSubject || 'Re: Your Booked Move' : undefined,
-      body: copy.reply || fallbackCopy(job.kind, lead, contact.channel, inboundMessage).reply || '',
-      leadId: lead.id,
-      notes: `Automation booked-customer support reply sent to ${contact.to}`,
-    })
-
-    const updatedLead = await updateLeadAfterAutomation(sendResult.lead || lead, copy)
-    await saveFollowUpLog({
-      id: uid('fu'),
-      leadId: updatedLead.id,
-      type: 'note',
-      date: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      notes: `Booked customer asked an operations/support question. Automation acknowledged and handed off if needed: ${inboundMessage}`,
+    await createSalesSystemAlert({
+      title: 'Customer reply needs human response',
+      leadId: handedLead.id,
+      severity: supportIntent === 'damage_or_complaint' ? 'critical' : 'warning',
+      details: `${handedLead.name || contact.to}: ${previewText(inboundMessage, 220)}`,
+      occurredAt: nowIso,
     }).catch(() => {})
 
-    const thread = await saveAutomationThreadAfterOutbound({
-      lead: updatedLead,
-      existingThread,
+    const thread = await saveConversationThread({
+      id: existingThread?.id || uid('thread'),
+      leadId: handedLead.id,
       channel: contact.channel,
-      contactValue: contact.to,
-      preview: copy.reply || '',
-      jobKind: job.kind,
-      intent: copy.intent,
-      inboundMessage,
+      contactValue: normalizeConversationContactValue(contact.channel, contact.to),
+      contactName: existingThread?.contactName || handedLead.name,
+      status: 'human_handoff',
+      automationStatus: 'handoff',
+      automationOwner: 'human',
+      lastInboundAt: handedLead.lastInboundAt || existingThread?.lastInboundAt,
+      lastOutboundAt: existingThread?.lastOutboundAt,
+      lastHumanOutboundAt: existingThread?.lastHumanOutboundAt || handedLead.lastHumanOutboundAt,
+      lastAutomationOutboundAt: existingThread?.lastAutomationOutboundAt,
+      lastInboundPreview: previewText(inboundMessage) || existingThread?.lastInboundPreview,
+      lastOutboundPreview: existingThread?.lastOutboundPreview,
+      qualificationState: handedLead.qualificationState,
+      metadata: {
+        ...(existingThread?.metadata || {}),
+        lastJobKind: job.kind,
+        lastIntent: handedLead.qualificationState?.lastIntent,
+        handoffReason,
+        responseRequired: true,
+        supportIntent,
+      },
+      createdAt: existingThread?.createdAt || nowIso,
+      updatedAt: nowIso,
     })
 
-    return { status: 'completed' as const, sent: true, lead: updatedLead, thread, message: copy.reply }
+    return {
+      status: 'completed' as const,
+      sent: false,
+      lead: handedLead,
+      thread,
+      reason: 'Customer-facing automation is disabled; a human-response alert was created.',
+    }
   }
 
   if (job.kind === 'lead_response' && lead.stage === 'lost' && inboundMessage && detectRenewedMoveInterest(inboundMessage)) {
@@ -3034,7 +3385,23 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
     inboundSubject,
   }).catch(() => null)
   if (addressVerificationResult?.sent) return addressVerificationResult
-  const addressCheckedLead = addressVerificationResult?.lead || lead
+  let addressCheckedLead = addressVerificationResult?.lead || lead
+  if (addressVerificationResult?.handled && addressVerificationResult.lead) {
+    const hydratedLead = await hydrateLeadFromAddressAndInventory(addressCheckedLead).catch(() => addressCheckedLead)
+    if (hydratedLead !== addressCheckedLead) {
+      addressCheckedLead = await saveSalesLead({
+        ...hydratedLead,
+        qualificationState: buildQualificationState(hydratedLead, {
+          ...withoutMissingFields(hydratedLead.qualificationState),
+          capturedSummary: hydratedLead.listingScanSnapshot
+            ? 'Verified pickup address matched stored listing information and produced a starter room-by-room inventory.'
+            : 'Verified pickup address was checked for stored listing inventory; no usable scan was available.',
+          lastIntent: hydratedLead.listingScanSnapshot ? 'listing_inventory_discovered' : 'listing_inventory_unavailable',
+          nextBestAction: hydratedLead.listingScanSnapshot ? 'confirm_inventory' : 'offer_photo_inventory',
+        }),
+      })
+    }
+  }
 
   const inventorySmsResult = await maybeHandleMlsInventorySms({
     job,
@@ -3044,6 +3411,26 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
     inboundMessage,
   }).catch(() => null)
   if (inventorySmsResult) return inventorySmsResult
+
+  const inventoryScanResult = await maybeQueueListingInventoryScan({
+    job,
+    lead: addressCheckedLead,
+    contact,
+    existingThread,
+    inboundMessage,
+    inboundSubject,
+  })
+  if (inventoryScanResult) return inventoryScanResult
+
+  const inventoryFallbackResult = await maybeHandleInventoryDiscoveryFallback({
+    job,
+    lead: addressCheckedLead,
+    contact,
+    existingThread,
+    inboundMessage,
+    inboundSubject,
+  }).catch(() => null)
+  if (inventoryFallbackResult) return inventoryFallbackResult
 
   let quoteCandidateLead = addressCheckedLead
   const estimateMissing = buildEstimateMissingReasons(quoteCandidateLead)
@@ -3060,6 +3447,52 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
           missingFields: [],
         }),
       })
+    } else if (awaitingConfirmation) {
+      const firstName = (quoteCandidateLead.name || 'there').trim().split(/\s+/)[0]
+      const correctionLike = /\b(no|not|don'?t|do not|correction|instead|oversized|fragile|pack|disassembl|staying|leaving)\b/i.test(inboundMessage || '')
+      const acknowledgement = correctionLike
+        ? `Thanks, ${firstName} — I updated that detail on your move file. A coordinator will use the corrected scope when preparing the estimate.`
+        : `Thanks, ${firstName} — I added that to your move file. A coordinator will review the scope before preparing the estimate.`
+      const acknowledgedLead = await saveSalesLead({
+        ...quoteCandidateLead,
+        qualificationState: buildQualificationState(quoteCandidateLead, {
+          ...withoutMissingFields(quoteCandidateLead.qualificationState),
+          lastIntent: 'awaiting_estimate_scope_confirmation',
+          capturedSummary: inboundMessage
+            ? `Customer added or corrected scope: ${inboundMessage}`
+            : 'Customer added a scope clarification.',
+          nextBestAction: 'coordinator_scope_review',
+          missingFields: [],
+        }),
+      })
+      const sendResult = await sendSalesMessage({
+        actor: 'automation',
+        channel: contact.channel,
+        to: contact.to,
+        subject: contact.channel === 'email' ? 'Your moving details were updated' : undefined,
+        body: contact.channel === 'email'
+          ? `Hi ${firstName},\n\n${acknowledgement.replace(`Thanks, ${firstName} — `, '')}\n\nSaturn Star Moving`
+          : acknowledgement,
+        leadId: acknowledgedLead.id,
+        notes: `Automation acknowledged a scope clarification without repeating the full intake summary.`,
+      })
+      const thread = await saveAutomationThreadAfterOutbound({
+        lead: sendResult.lead || acknowledgedLead,
+        existingThread,
+        channel: contact.channel,
+        contactValue: contact.to,
+        preview: acknowledgement,
+        jobKind: job.kind,
+        intent: 'lead_response',
+        inboundMessage,
+      })
+      return {
+        status: 'completed' as const,
+        sent: true,
+        lead: sendResult.lead || acknowledgedLead,
+        thread,
+        message: 'Scope clarification acknowledged without repeating the confirmation request.',
+      }
     } else {
       const confirmationMessage = buildEstimateScopeConfirmation(quoteCandidateLead, contact.channel)
       const pendingLead = await saveSalesLead({
@@ -3210,7 +3643,7 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
           missingFields: workingLead.qualificationState?.missingFields || getMissingFields(workingLead),
           moveReadiness: 'hot' as const,
         }
-      : await buildCopyForJob(job, workingLead, contact.channel, inboundMessage, inboundSubject)
+      : await buildCopyForJob(job, workingLead, contact.channel, inboundMessage, inboundSubject, existingThread)
 
   if (copy.doNotContact) {
     const updatedLead = await updateLeadAfterAutomation(workingLead, copy)
@@ -3422,7 +3855,9 @@ export async function processAutomationJob(job: CRMAutomationJob) {
     }
 
     const outcome =
-      activeJob.kind === 'quote_followup'
+      activeJob.payload?.task === 'listing_inventory_scan'
+        ? await handleListingInventoryScanJob(activeJob, lead)
+        : activeJob.kind === 'quote_followup'
         ? await handleQuoteFollowupJob(activeJob, lead)
         : activeJob.kind === 'quote_viewed_followup'
           ? await handleQuoteViewedFollowupJob(activeJob, lead)
@@ -3465,6 +3900,7 @@ export async function processDueAutomationJobs(limit = 25) {
   const results: CRMAutomationJob[] = []
   for (const job of jobs) {
     results.push(await processAutomationJob(job))
+    if (job.payload?.task === 'listing_inventory_scan') break
   }
   return results
 }

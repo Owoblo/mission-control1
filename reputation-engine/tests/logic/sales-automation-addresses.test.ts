@@ -7,6 +7,7 @@ import {
   getFastLaneBlockingIssues,
   getFastLaneTruckSize,
   hasConfirmedAutomatedEstimateScope,
+  hasAnyAccessDetails,
   hasCompleteMoveAddress,
   isEstimateScopeConfirmation,
   leadNeedsAccessBeforeAutomatedQuote,
@@ -82,6 +83,21 @@ test('automation blocks auto-quote for apartment-style addresses until access is
     }),
     false
   )
+})
+
+test('null access placeholders are not treated as confirmed access intelligence', () => {
+  const candidate = lead({
+    originAddress: '27 Conroy Crescent',
+    destAddress: '335 Speedvale Avenue East',
+    jobFactors: {
+      originHasElevator: null as unknown as boolean,
+      destHasElevator: null as unknown as boolean,
+      hasPiano: null as unknown as boolean,
+      hasSafe: null as unknown as boolean,
+    },
+  })
+
+  assert.equal(hasAnyAccessDetails(candidate), false)
 })
 
 test('automation requires confirmation before treating MLS inventory as ready', () => {

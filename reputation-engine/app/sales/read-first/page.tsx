@@ -30,6 +30,12 @@ export default function SalesReadFirstPage() {
           <Link href="/sales/leads" className="crm-button">
             Open leads
           </Link>
+          <a href="/api/sales/playbook?document=full" className="crm-button">
+            Download CRM playbook PDF
+          </a>
+          <a href="/api/sales/playbook?document=desk" className="crm-button">
+            Download desk reference PDF
+          </a>
         </div>
       </section>
 

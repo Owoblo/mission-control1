@@ -2,6 +2,8 @@ import { readEnv } from './runtime'
 
 export const CRON_API_PATHS = new Set([
   '/api/ops/lead-flow-health',
+  '/api/ops/media-reconciliation',
+  '/api/ops/tentative-reservations',
   '/api/marketing/sequence/process',
   '/api/sales/inbox/resend-poll',
   '/api/sales/automation/process',

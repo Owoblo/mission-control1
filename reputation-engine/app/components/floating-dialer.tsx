@@ -109,10 +109,13 @@ interface InternalDirectoryEntry {
 
 interface WarmTransferSession {
   conferenceName: string
+  customerCallSid?: string | null
   target: string
   targetLabel: string
   targetCallSid?: string | null
   repCallSid?: string | null
+  mode?: 'hold' | 'consult'
+  customerOnHold?: boolean
   startedAt: string
 }
 
@@ -282,6 +285,7 @@ export function FloatingDialer() {
   const [callerProfileLoading, setCallerProfileLoading] = useState(false)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [muted, setMuted] = useState(false)
+  const [customerOnHold, setCustomerOnHold] = useState(false)
   const [callNotes, setCallNotes] = useState('')
   const [showTransfer, setShowTransfer] = useState(false)
   const [transferTarget, setTransferTarget] = useState('')
@@ -735,6 +739,7 @@ export function FloatingDialer() {
     warmTransferBridgePendingRef.current = false
     clearWarmTransferBridgeTimer()
     setWarmTransferState(null)
+    setCustomerOnHold(false)
     setShowConference(false)
     setConferenceTarget('')
   }
@@ -2172,34 +2177,9 @@ export function FloatingDialer() {
     if (!callSidRef.current || !transferTarget.trim()) return
     setTransferring(true)
     try {
-      const response = await fetch('/api/sales/dialer/transfer', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          callSid: callSidRef.current,
-          to: transferTarget.trim(),
-          callerId: inferCurrentBusinessNumber(),
-          context: {
-            leadId: activeLeadIdRef.current,
-            customerName: activeLeadName,
-            phone: inferCurrentPhoneNumber(),
-            reason: activeLeadContext ? `Continue ${activeLeadContext.stage.replaceAll('_', ' ')} conversation` : 'Continue customer conversation',
-            notes: callNotes.trim() || null,
-            stage: activeLeadContext?.stage || null,
-            moveDate: activeLeadContext?.moveDate || null,
-            route: activeLeadRoute || null,
-            owner: activeLeadOwner,
-          },
-        }),
-      })
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({})) as { error?: string }
-        throw new Error(payload.error || 'Transfer failed')
-      }
+      await initiateConference(transferTarget.trim())
       setShowTransfer(false)
       setTransferTarget('')
-      // Call will disconnect on our end as Twilio redirects
     } catch (transferError) {
       setError(transferError instanceof Error ? transferError.message : 'Transfer failed')
     } finally {
@@ -2207,11 +2187,12 @@ export function FloatingDialer() {
     }
   }
 
-  async function initiateConference() {
-    if (!callSidRef.current || !conferenceTarget.trim()) return
+  async function initiateConference(targetOverride?: string) {
+    const selectedTarget = targetOverride?.trim() || conferenceTarget.trim()
+    if (!callSidRef.current || !selectedTarget) return
     setConferencing(true)
     try {
-      const target = conferenceTarget.trim()
+      const target = selectedTarget
       const targetLabel = internalDirectory.find(entry => entry.target === target)?.label || target
       logCallEvent('warm_transfer_started', {
         callDirection: activeCallDirectionRef.current || 'outbound',
@@ -2243,32 +2224,39 @@ export function FloatingDialer() {
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          customerCallSid: callSidRef.current,
+          activeCallSid: callSidRef.current,
           addTarget: target,
-          repIdentity: identityRef.current,
           callerId: inferCurrentBusinessNumber(),
         }),
       })
-      if (res.ok) {
-        const payload = await res.json() as {
+      const payload = await res.json().catch(() => ({})) as {
+          error?: string
           conferenceName?: string
+          customerCallSid?: string | null
           targetCallSid?: string | null
           repCallSid?: string | null
-        }
-        expectWarmTransferBridge()
+          customerOnHold?: boolean
+      }
+      if (!res.ok) throw new Error(payload.error || 'Could not start transfer consultation')
+      {
         setWarmTransferState({
           conferenceName: payload.conferenceName || `saturn-conf-${Date.now()}`,
+          customerCallSid: payload.customerCallSid || null,
           target,
           targetLabel,
           targetCallSid: payload.targetCallSid || null,
           repCallSid: payload.repCallSid || null,
+          mode: 'consult',
+          customerOnHold: payload.customerOnHold !== false,
           startedAt: new Date().toISOString(),
         })
+        setCustomerOnHold(payload.customerOnHold !== false)
         setShowConference(false)
         setConferenceTarget('')
       }
-    } catch {
-      // ignore
+    } catch (conferenceError) {
+      setError(conferenceError instanceof Error ? conferenceError.message : 'Could not start transfer consultation')
+      throw conferenceError
     } finally {
       setConferencing(false)
     }
@@ -2285,6 +2273,7 @@ export function FloatingDialer() {
         body: JSON.stringify({
           action: 'complete',
           conferenceName: warmTransferSessionRef.current.conferenceName,
+          customerCallSid: warmTransferSessionRef.current.customerCallSid,
           targetCallSid: warmTransferSessionRef.current.targetCallSid,
           repCallSid: warmTransferSessionRef.current.repCallSid,
         }),
@@ -2295,6 +2284,7 @@ export function FloatingDialer() {
         callSid: callSidRef.current,
         extra: { target: warmTransferSessionRef.current.targetLabel },
       })
+      setCustomerOnHold(false)
     } catch {
       // ignore
     } finally {
@@ -2313,6 +2303,7 @@ export function FloatingDialer() {
         body: JSON.stringify({
           action: 'return',
           conferenceName: warmTransferSessionRef.current.conferenceName,
+          customerCallSid: warmTransferSessionRef.current.customerCallSid,
           targetCallSid: warmTransferSessionRef.current.targetCallSid,
           repCallSid: warmTransferSessionRef.current.repCallSid,
         }),
@@ -2323,9 +2314,84 @@ export function FloatingDialer() {
         callSid: callSidRef.current,
         extra: { target: warmTransferSessionRef.current.targetLabel },
       })
+      setCustomerOnHold(false)
       clearWarmTransferState()
     } catch {
       // ignore
+    } finally {
+      setConferencing(false)
+    }
+  }
+
+  async function toggleCustomerHold() {
+    if (!callSidRef.current && !warmTransferSessionRef.current) return
+    setConferencing(true)
+    try {
+      let session = warmTransferSessionRef.current
+      if (!session) {
+        const response = await fetch('/api/sales/dialer/conference', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            activeCallSid: callSidRef.current,
+            holdOnly: true,
+            callerId: inferCurrentBusinessNumber(),
+          }),
+        })
+        const payload = await response.json().catch(() => ({})) as {
+          error?: string
+          conferenceName?: string
+          customerCallSid?: string | null
+          repCallSid?: string | null
+        }
+        if (!response.ok) throw new Error(payload.error || 'Could not place customer on hold')
+        session = {
+          conferenceName: payload.conferenceName || '',
+          customerCallSid: payload.customerCallSid || null,
+          target: '',
+          targetLabel: 'Customer hold',
+          targetCallSid: null,
+          repCallSid: payload.repCallSid || null,
+          mode: 'hold',
+          customerOnHold: true,
+          startedAt: new Date().toISOString(),
+        }
+        setWarmTransferState(session)
+        setCustomerOnHold(true)
+        logCallEvent('customer_hold_started', {
+          callSid: callSidRef.current,
+          callDirection: activeCallDirectionRef.current || 'outbound',
+        })
+        return
+      }
+
+      const action = customerOnHold ? 'resume' : 'hold'
+      const response = await fetch('/api/sales/dialer/conference', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action,
+          conferenceName: session.conferenceName,
+          customerCallSid: session.customerCallSid,
+        }),
+      })
+      const payload = await response.json().catch(() => ({})) as { error?: string }
+      if (!response.ok) throw new Error(payload.error || `Could not ${action} customer`)
+      const nextHeld = !customerOnHold
+      setCustomerOnHold(nextHeld)
+      if (!nextHeld && session.mode === 'hold') {
+        clearWarmTransferState()
+      } else {
+        setWarmTransferState({ ...session, customerOnHold: nextHeld })
+      }
+      logCallEvent(nextHeld ? 'customer_hold_started' : 'customer_hold_ended', {
+        callSid: callSidRef.current,
+        callDirection: activeCallDirectionRef.current || 'outbound',
+      })
+    } catch (holdError) {
+      setError(holdError instanceof Error ? holdError.message : 'Hold control failed')
     } finally {
       setConferencing(false)
     }
@@ -2551,6 +2617,23 @@ export function FloatingDialer() {
                     <span className="text-xs text-white/35">{muted ? 'Unmute' : 'Mute'}</span>
                   </div>
                 )}
+                {status === 'active' && (
+                  <div className="flex flex-col items-center gap-2.5">
+                    <button
+                      onClick={() => void toggleCustomerHold()}
+                      disabled={conferencing}
+                      className={`flex h-14 w-14 items-center justify-center rounded-full text-lg font-semibold transition active:scale-95 disabled:opacity-50 ${
+                        customerOnHold
+                          ? 'bg-sky-500 shadow-[0_6px_20px_rgba(14,165,233,0.35)] hover:bg-sky-400'
+                          : 'bg-white/10 hover:bg-white/15'
+                      }`}
+                      aria-label={customerOnHold ? 'Resume customer' : 'Place customer on hold'}
+                    >
+                      {customerOnHold ? '▶' : 'Ⅱ'}
+                    </button>
+                    <span className="text-xs text-white/35">{customerOnHold ? 'Resume' : 'Hold'}</span>
+                  </div>
+                )}
                 <div className="flex flex-col items-center gap-2.5">
                   <button onClick={hangUp} className="flex h-16 w-16 items-center justify-center rounded-full bg-rose-500 shadow-[0_8px_24px_rgba(239,68,68,0.4)] transition hover:bg-rose-400 active:scale-95">
                     <svg className="h-7 w-7 rotate-[135deg] text-white" fill="currentColor" viewBox="0 0 24 24">
@@ -2642,27 +2725,33 @@ export function FloatingDialer() {
                   {warmTransferSession ? (
                     <div className="space-y-2 rounded-[10px] border border-sky-400/20 bg-sky-400/8 px-3 py-3 text-xs text-sky-100">
                       <div className="font-semibold text-sky-200">
-                        Warm transfer live with {warmTransferSession.targetLabel}
+                        {warmTransferSession.mode === 'hold'
+                          ? (customerOnHold ? 'Customer is on hold' : 'Customer is back on the line')
+                          : `Private consultation with ${warmTransferSession.targetLabel}`}
                       </div>
                       <div className="text-[11px] text-sky-100/80">
-                        Keep the customer on the line, talk to the teammate, then either hand the call off or pull it back.
+                        {warmTransferSession.mode === 'hold'
+                          ? 'Use the Hold control above to resume or hold the customer without disconnecting the call.'
+                          : 'The customer hears hold music while you brief the teammate. Complete the handoff or return to the customer.'}
                       </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => void completeWarmTransfer()}
-                          disabled={conferencing}
-                          className="flex-1 rounded-[10px] bg-emerald-500/90 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-                        >
-                          {conferencing ? 'Working…' : 'Complete handoff'}
-                        </button>
-                        <button
-                          onClick={() => void returnWarmTransferToCaller()}
-                          disabled={conferencing}
-                          className="flex-1 rounded-[10px] border border-white/10 bg-white/5 py-1.5 text-xs font-semibold text-white/80 disabled:opacity-50"
-                        >
-                          Return caller
-                        </button>
-                      </div>
+                      {warmTransferSession.mode !== 'hold' && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => void completeWarmTransfer()}
+                            disabled={conferencing}
+                            className="flex-1 rounded-[10px] bg-emerald-500/90 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                          >
+                            {conferencing ? 'Working…' : 'Complete handoff'}
+                          </button>
+                          <button
+                            onClick={() => void returnWarmTransferToCaller()}
+                            disabled={conferencing}
+                            className="flex-1 rounded-[10px] border border-white/10 bg-white/5 py-1.5 text-xs font-semibold text-white/80 disabled:opacity-50"
+                          >
+                            Return caller
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ) : !showConference ? (
                     <button

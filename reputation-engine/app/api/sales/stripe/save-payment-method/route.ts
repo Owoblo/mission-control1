@@ -7,15 +7,12 @@ import { NextResponse } from 'next/server'
 import { recordLeadPaymentAudit, recordQuoteUpdatedAudit } from '@/lib/server/sales-audit'
 import { canHandleLeadPayments } from '@/lib/server/sales-permissions'
 import { ensureStripeCustomerForLead, stripeGet, stripePost } from '@/lib/server/stripe-payments'
-import { readEnv } from '@/lib/server/runtime'
 import { getSalesLead, getSalesQuote, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
+import { appendStripeAccountMetadata, assertQuoteStripeAccount, requireStripeAccountForLead, reusableStripeCustomerId, stripeErrorStatus } from '@/lib/server/stripe-accounts'
 
 export async function POST(request: Request) {
   const session = await getSessionUser()
-
-  const stripeKey = readEnv('STRIPE_SECRET_KEY')
-  if (!stripeKey) return NextResponse.json({ error: 'Stripe not configured' }, { status: 503 })
 
   try {
     const { leadId, quoteId, setupIntentId, customerId, chargeDepositNow } = (await request.json()) as {
@@ -26,7 +23,21 @@ export async function POST(request: Request) {
       chargeDepositNow?: boolean
     }
 
-    // Verify SetupIntent succeeded and get payment method
+    const lead = await getSalesLead(leadId)
+    if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
+    if (!canHandleLeadPayments(session, lead)) {
+      return NextResponse.json({ error: 'You do not have permission to charge or save cards for this lead.' }, { status: 403 })
+    }
+    const quote = quoteId ? await getSalesQuote(quoteId) : null
+    if (quoteId && !quote) return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
+    if (quote && quote.leadId && quote.leadId !== leadId) {
+      return NextResponse.json({ error: 'Quote does not belong to this lead.' }, { status: 400 })
+    }
+    const stripeAccount = requireStripeAccountForLead(lead)
+    if (quote) assertQuoteStripeAccount(quote, stripeAccount.key)
+    const stripeKey = stripeAccount.secretKey
+
+    // Verify SetupIntent inside the selected branch account.
     const si = await stripeGet<{
       status?: string
       payment_method?: string
@@ -39,6 +50,9 @@ export async function POST(request: Request) {
     }
     if ((si.metadata?.leadId || '') !== leadId) {
       return NextResponse.json({ error: 'This card collection session does not belong to the selected lead.' }, { status: 400 })
+    }
+    if (si.metadata?.stripeAccountKey !== stripeAccount.key) {
+      return NextResponse.json({ error: 'Card session belongs to a different Stripe account.' }, { status: 409 })
     }
 
     const paymentMethodId = si.payment_method
@@ -53,22 +67,11 @@ export async function POST(request: Request) {
     const cardBrand = pm.card?.brand || 'card'
     const cardLast4 = pm.card?.last4 || '????'
 
-    const lead = await getSalesLead(leadId)
-    if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
-    if (!canHandleLeadPayments(session, lead)) {
-      return NextResponse.json({ error: 'You do not have permission to charge or save cards for this lead.' }, { status: 403 })
-    }
-
-    const quote = quoteId ? await getSalesQuote(quoteId) : null
-    if (quoteId && !quote) return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
-    if (quote && quote.leadId && quote.leadId !== leadId) {
-      return NextResponse.json({ error: 'Quote does not belong to this lead.' }, { status: 400 })
-    }
-
     const { customerId: resolvedCustomerId } = await ensureStripeCustomerForLead(
       stripeKey,
       lead,
-      si.customer || customerId || quote?.depositStripeCustomerId || ''
+      si.customer || customerId || reusableStripeCustomerId(quote, stripeAccount.key),
+      stripeAccount,
     )
 
     let depositCharged = false
@@ -88,6 +91,7 @@ export async function POST(request: Request) {
         piParams.set('metadata[quoteId]', quote.id)
         piParams.set('metadata[leadId]', leadId)
         piParams.set('metadata[type]', 'deposit')
+        appendStripeAccountMetadata(piParams, stripeAccount)
 
         const pi = await stripePost('payment_intents', stripeKey, piParams) as {
           id?: string; status?: string; error?: { message?: string }
@@ -107,6 +111,7 @@ export async function POST(request: Request) {
             depositStripePaymentMethodId: paymentMethodId,
             depositStripeCardBrand: cardBrand,
             depositStripeCardLast4: cardLast4,
+            stripeAccountKey: stripeAccount.key,
           })
         } else if (pi.error?.message) {
           return NextResponse.json({ error: pi.error.message }, { status: 402 })
@@ -120,6 +125,7 @@ export async function POST(request: Request) {
           depositStripePaymentMethodId: paymentMethodId,
           depositStripeCardBrand: cardBrand,
           depositStripeCardLast4: cardLast4,
+          stripeAccountKey: stripeAccount.key,
         })
       }
     }
@@ -157,10 +163,11 @@ export async function POST(request: Request) {
       cardLast4,
       paymentMethodId,
       customerId: resolvedCustomerId,
+      stripeAccountKey: stripeAccount.key,
       lead: updatedLead,
       quote: updatedQuote,
     })
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Save failed' }, { status: 500 })
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Save failed' }, { status: stripeErrorStatus(err) })
   }
 }

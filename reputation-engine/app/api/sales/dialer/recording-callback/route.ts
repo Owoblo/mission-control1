@@ -195,7 +195,9 @@ export async function POST(request: Request) {
     }
 
     const formData = new URLSearchParams(rawBody)
-    const callSid = formData.get('CallSid')?.trim()
+    // Conference recordings do not consistently include the original customer CallSid.
+    // The signed callback URL carries it so the recording remains attached to the same CRM call.
+    const callSid = (formData.get('CallSid') || new URL(request.url).searchParams.get('callSid'))?.trim()
     const recordingUrl = formData.get('RecordingUrl')?.trim()
     const recordingSid = normalizeTwilioRecordingSid(formData.get('RecordingSid'))
     const recordingStatus = (formData.get('RecordingStatus') || '').trim().toLowerCase()

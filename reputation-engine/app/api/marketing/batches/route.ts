@@ -18,30 +18,66 @@ function dateKeyInZone(value: string | null | undefined, timeZone = 'America/Tor
   return `${mapped.year}-${mapped.month}-${mapped.day}`
 }
 
+async function fetchAllRows<T>(
+  baseUrl: string,
+  headers: Record<string, string>,
+  pageSize = 1000,
+): Promise<T[]> {
+  const rows: T[] = []
+  for (let offset = 0; ; offset += pageSize) {
+    const separator = baseUrl.includes('?') ? '&' : '?'
+    const response = await fetch(`${baseUrl}${separator}limit=${pageSize}&offset=${offset}`, {
+      headers,
+      cache: 'no-store',
+    })
+    if (!response.ok) throw new Error(`Supabase list failed (${response.status})`)
+    const page = await response.json() as T[]
+    rows.push(...page)
+    if (page.length < pageSize) return rows
+  }
+}
+
 export async function GET() {
   const session = await getSessionUser()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { url, headers } = requireSupabaseEnv()
 
-  const [batchRes, contactRes, jobsRes] = await Promise.all([
-    fetch(`${url}/rest/v1/market_campaigns?select=*&order=created_at.desc${partnershipScopeFilter(session, ['city', 'name'])}`, { headers, cache: 'no-store' }),
-    fetch(`${url}/rest/v1/market_contacts?select=batch_id,stage,sequence_paused,pipeline_phase,decision&batch_id=not.is.null${partnershipScopeFilter(session)}`, { headers, cache: 'no-store' }),
-    fetch(`${url}/rest/v1/sequence_jobs?select=batch_id,channel,status,scheduled_at,sent_at&batch_id=not.is.null&channel=eq.sms`, { headers, cache: 'no-store' }),
-  ])
-
-  if (!batchRes.ok) return NextResponse.json({ error: 'Failed to load batches' }, { status: 500 })
-
-  const batches = await batchRes.json() as Record<string, unknown>[]
-  const visibleBatchIds = new Set(batches.map(batch => String(batch.id || '')).filter(Boolean))
-  const contacts = (contactRes.ok ? await contactRes.json() : []) as Record<string, unknown>[]
-  const jobs = (jobsRes.ok ? await jobsRes.json() : []) as Array<{
+  let batches: Record<string, unknown>[]
+  let contacts: Record<string, unknown>[]
+  let jobs: Array<{
     batch_id: string | null
     channel: string | null
     status: string | null
     scheduled_at: string | null
     sent_at: string | null
   }>
+  try {
+    [batches, contacts, jobs] = await Promise.all([
+      fetchAllRows<Record<string, unknown>>(
+        `${url}/rest/v1/market_campaigns?select=*&order=created_at.desc${partnershipScopeFilter(session, ['city', 'name'])}`,
+        headers,
+      ),
+      fetchAllRows<Record<string, unknown>>(
+        `${url}/rest/v1/market_contacts?select=batch_id,stage,sequence_paused,pipeline_phase,decision&batch_id=not.is.null${partnershipScopeFilter(session)}`,
+        headers,
+      ),
+      fetchAllRows<{
+        batch_id: string | null
+        channel: string | null
+        status: string | null
+        scheduled_at: string | null
+        sent_at: string | null
+      }>(
+        `${url}/rest/v1/sequence_jobs?select=batch_id,channel,status,scheduled_at,sent_at&batch_id=not.is.null&channel=eq.sms&order=created_at.asc`,
+        headers,
+      ),
+    ])
+  } catch {
+    return NextResponse.json({ error: 'Failed to load complete batch metrics' }, { status: 500 })
+  }
+
+  const visibleBatchIds = new Set(batches.map(batch => String(batch.id || '')).filter(Boolean))
   const today = dateKeyInZone(new Date().toISOString())
 
   const byBatch = new Map<string, Record<string, unknown>[]>()

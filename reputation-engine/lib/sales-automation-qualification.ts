@@ -56,18 +56,19 @@ export function hasMlsDraftInventoryNeedingConfirmation(
 export function hasAnyAccessDetails(
   lead: Pick<CRMLead, 'originAccess' | 'destAccess' | 'parkingNotes' | 'jobFactors'>
 ) {
+  const known = (value: unknown) => value !== undefined && value !== null && value !== ''
   return (
     !!lead.originAccess ||
     !!lead.destAccess ||
     !!lead.parkingNotes ||
-    lead.jobFactors?.originFloors !== undefined ||
-    lead.jobFactors?.destFloors !== undefined ||
-    lead.jobFactors?.originHasElevator !== undefined ||
-    lead.jobFactors?.destHasElevator !== undefined ||
-    lead.jobFactors?.originParkingOk !== undefined ||
-    lead.jobFactors?.destParkingOk !== undefined ||
-    lead.jobFactors?.originElevatorReserved !== undefined ||
-    lead.jobFactors?.destElevatorReserved !== undefined
+    known(lead.jobFactors?.originFloors) ||
+    known(lead.jobFactors?.destFloors) ||
+    known(lead.jobFactors?.originHasElevator) ||
+    known(lead.jobFactors?.destHasElevator) ||
+    known(lead.jobFactors?.originParkingOk) ||
+    known(lead.jobFactors?.destParkingOk) ||
+    known(lead.jobFactors?.originElevatorReserved) ||
+    known(lead.jobFactors?.destElevatorReserved)
   )
 }
 

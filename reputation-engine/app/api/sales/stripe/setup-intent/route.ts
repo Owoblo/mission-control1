@@ -6,16 +6,13 @@
  */
 import { NextResponse } from 'next/server'
 import { canHandleLeadPayments } from '@/lib/server/sales-permissions'
-import { readEnv } from '@/lib/server/runtime'
 import { ensureStripeCustomerForLead, stripePost } from '@/lib/server/stripe-payments'
+import { appendStripeAccountMetadata, assertQuoteStripeAccount, requireStripeAccountForLead, reusableStripeCustomerId, stripeErrorStatus } from '@/lib/server/stripe-accounts'
 import { getLatestSalesQuoteByLeadId, getSalesLead, getSalesQuote } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
 
 export async function POST(request: Request) {
   const session = await getSessionUser()
-
-  const stripeKey = readEnv('STRIPE_SECRET_KEY')
-  if (!stripeKey) return NextResponse.json({ error: 'Stripe not configured' }, { status: 503 })
 
   try {
     const { leadId, quoteId } = (await request.json()) as { leadId: string; quoteId?: string }
@@ -36,8 +33,11 @@ export async function POST(request: Request) {
     }
 
     const latestQuote = scopedQuote || await getLatestSalesQuoteByLeadId(leadId).catch(() => null)
-    const preferredCustomerId = latestQuote?.depositStripeCustomerId || ''
-    const { customerId } = await ensureStripeCustomerForLead(stripeKey, lead, preferredCustomerId)
+    const stripeAccount = requireStripeAccountForLead(lead)
+    if (latestQuote) assertQuoteStripeAccount(latestQuote, stripeAccount.key)
+    const stripeKey = stripeAccount.secretKey
+    const preferredCustomerId = reusableStripeCustomerId(latestQuote, stripeAccount.key)
+    const { customerId } = await ensureStripeCustomerForLead(stripeKey, lead, preferredCustomerId, stripeAccount)
 
     // Create SetupIntent
     const siParams = new URLSearchParams()
@@ -46,6 +46,7 @@ export async function POST(request: Request) {
     siParams.set('usage', 'off_session')
     siParams.set('metadata[leadId]', leadId)
     if (quoteId) siParams.set('metadata[quoteId]', quoteId)
+    appendStripeAccountMetadata(siParams, stripeAccount)
 
     const si = await stripePost('setup_intents', stripeKey, siParams) as { id?: string; client_secret?: string; error?: { message?: string } }
     if (!si.client_secret) {
@@ -56,8 +57,10 @@ export async function POST(request: Request) {
       clientSecret: si.client_secret,
       customerId,
       setupIntentId: si.id,
+      publishableKey: stripeAccount.publishableKey,
+      stripeAccountKey: stripeAccount.key,
     })
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Setup failed' }, { status: 500 })
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Setup failed' }, { status: stripeErrorStatus(err) })
   }
 }

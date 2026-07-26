@@ -15,6 +15,7 @@ import { getSessionUser } from '@/lib/server/session'
 import { getTwilioCredentials } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
 import type { QuoteChangeEntry } from '@/lib/types'
+import { logEvent } from '@/lib/server/analytics'
 
 const JOHN_CELL     = '+12267241730'
 const SATURN_NUMBER = '+12267732993'
@@ -143,6 +144,21 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
         }
       }
     } catch { /* SMS failure is non-fatal — log is already saved */ }
+
+    void logEvent('scope_change_requested', {
+      leadId: lead.id,
+      lead,
+      quote: updatedQuote || undefined,
+      actorName: reporterName,
+      actorUserId: session?.userId,
+      properties: {
+        change_type: changeEntry.changeType,
+        delta_hours: changeEntry.deltaHours,
+        estimated_extra_cost: changeEntry.estimatedExtraCost,
+        approval_required: changeEntry.approvalRequired,
+        customer_notified: changeEntry.customerNotified,
+      },
+    })
 
     return NextResponse.json({ ok: true, log, changeEntry, quote: updatedQuote })
   } catch (error) {

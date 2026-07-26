@@ -65,7 +65,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid password' }, { status: 401 })
     }
 
-    const token = await createSessionToken({ role: 'owner', name: 'John.O (Admin)' })
+    // Keep the legacy owner identity stable. Omitting userId produced the Twilio
+    // identity "saturn-rep-undefined", collapsing presence and call ownership.
+    const token = await createSessionToken({ userId: 'legacy-owner', role: 'owner', name: 'John.O (Admin)' })
     const response = NextResponse.json({ ok: true, role: 'owner', name: 'John.O (Admin)' })
     response.cookies.set(getSessionCookieName(), token, cookieOptions())
     return response

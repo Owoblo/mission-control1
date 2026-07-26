@@ -10,6 +10,9 @@ import { SALES_BRANCHES } from '@/lib/sales'
 type AddressSuggestion = {
   label: string
   city?: string
+  region?: string
+  country?: string
+  countryCode?: 'ca' | 'us'
   placeType?: 'house' | 'apartment' | 'commercial' | 'unknown'
 }
 
@@ -165,8 +168,9 @@ function AddressInput({
   function select(s: AddressSuggestion) {
     setRaw(s.label)
     onChange(s.label)
-    // Only auto-fill city when the field is empty — never silently overwrite a rep's entered city
-    if (s.city && onCityChange && !currentCity) onCityChange(s.city)
+    // Replace empty or obviously partial city values (for example a previously
+    // persisted "W"). A complete rep-entered city is still preserved.
+    if (s.city && onCityChange && (!currentCity || currentCity.trim().length < 3)) onCityChange(s.city)
     setSuggestions([])
     setOpen(false)
     if (onApartmentDetected) onApartmentDetected(s.placeType === 'apartment')
@@ -196,7 +200,7 @@ function AddressInput({
         </span>
       )}
       {open && suggestions.length > 0 && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-[8px] border border-[var(--app-line)] bg-white shadow-none">
+        <div className="absolute left-0 top-full z-50 mt-1 max-h-64 w-[min(42rem,calc(100vw-2rem))] overflow-y-auto rounded-[8px] border border-[var(--app-line)] bg-white shadow-lg">
           {suggestions.map((s, i) => (
             <button
               key={i}
@@ -207,7 +211,10 @@ function AddressInput({
               <span className="text-[10px]">
                 {s.placeType === 'apartment' ? '🏢' : s.placeType === 'commercial' ? '🏬' : '🏠'}
               </span>
-              <span className="min-w-0 flex-1 truncate text-[var(--app-ink)]">{s.label}</span>
+              <span className="min-w-0 flex-1 whitespace-normal break-words leading-5 text-[var(--app-ink)]">{s.label}</span>
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${s.countryCode === 'ca' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                {s.countryCode === 'ca' ? 'Canada' : s.countryCode === 'us' ? 'USA' : s.country || 'Address'}
+              </span>
             </button>
           ))}
         </div>
@@ -708,15 +715,31 @@ export function LeadBasicsPanel({
               onChange={e => onMoveDateFlexibleChange(e.target.checked)}
               className="h-3.5 w-3.5 rounded accent-[#071421]"
             />
-            <span className="text-xs font-medium text-[var(--app-muted)]">Date TBD — waiting on house closing / sale</span>
+            <span className="text-xs font-medium text-[var(--app-muted)]">Exact date not decided yet</span>
           </label>
           {moveDateFlexible && (
-            <input
-              value={moveDateFlexibleReason}
-              onChange={e => onMoveDateFlexibleReasonChange(e.target.value)}
-              className="crm-input text-xs"
-              placeholder="Context (e.g. Waiting on buyer, new house not closed yet)"
-            />
+            <div className="rounded-[8px] border border-amber-200 bg-amber-50 p-3">
+              <label className="block">
+                <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-amber-900">Best timing window + reason</span>
+                <input
+                  value={moveDateFlexibleReason}
+                  onChange={e => onMoveDateFlexibleReasonChange(e.target.value)}
+                  className="crm-input bg-white text-xs"
+                  list={`move-window-${lead.id}`}
+                  placeholder="e.g. First week of August — waiting for the house to sell"
+                />
+                <datalist id={`move-window-${lead.id}`}>
+                  <option value="First week of August" />
+                  <option value="Mid-August — exact date pending" />
+                  <option value="Waiting for the house to sell" />
+                  <option value="Waiting for closing / possession date" />
+                  <option value="Destination home not selected yet" />
+                </datalist>
+              </label>
+              <p className="mt-2 text-[10px] leading-4 text-amber-900">
+                Keep building the estimate. The CRM will treat the timing as an assumption and nudge the owner to finalize it later.
+              </p>
+            </div>
           )}
           <select value={moveType} onChange={event => onMoveTypeChange(event.target.value as CRMLead['moveType'])} className="crm-input">
             <option value="residential">Residential</option>

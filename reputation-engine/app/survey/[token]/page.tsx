@@ -380,21 +380,19 @@ export default function SurveyPage(props: { params: Promise<{ token: string }> }
     setRooms(prev => prev.map(entry => entry.id === roomId ? { ...entry, uploading: true } : entry))
 
     try {
-      let uploadedCount = 0
+      const form = new FormData()
+      form.append('room', room.label)
       for (const file of fileArr) {
         const preparedFile = await prepareSurveyUploadFile(file)
-        const form = new FormData()
-        form.append('room', room.label)
         form.append('photos', preparedFile)
-
-        const response = await fetch(`/api/survey/${params.token}/upload`, {
-          method: 'POST',
-          body: form,
-        })
-        const data = await readUploadResponse(response)
-        if (!response.ok || data.error) throw new Error(data.error || data.detail || 'Upload failed')
-        uploadedCount += data.uploadedCount || 1
       }
+      const response = await fetch(`/api/survey/${params.token}/upload`, {
+        method: 'POST',
+        body: form,
+      })
+      const data = await readUploadResponse(response)
+      if (!response.ok || data.error) throw new Error(data.error || data.detail || 'Upload failed')
+      const uploadedCount = data.uploadedCount || fileArr.length
 
       if (!mountedRef.current) return
       setRooms(prev => prev.map(entry =>

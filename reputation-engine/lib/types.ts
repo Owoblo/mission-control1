@@ -218,6 +218,15 @@ export interface LeadQualificationState {
     lastConfirmedField?: 'originAddress' | 'destAddress'
     lastConfirmedAddress?: string
   }
+  inventoryDiscovery?: {
+    status: 'queued' | 'scanning' | 'completed' | 'unavailable' | 'failed'
+    listingId?: string
+    queuedAt?: string
+    startedAt?: string
+    completedAt?: string
+    failedAt?: string
+    error?: string
+  }
 }
 
 export interface CallLogEntry {
@@ -569,6 +578,18 @@ export interface JobFactors {
   preferredOperatingPlan?: 'one_truck_sequence' | 'one_truck_shuttle' | 'two_trucks_parallel' | 'split_day_storage' | 'needs_review'
   moveConstraintNotes?: string
 
+  // Consultative customer journey — models the whole transition, including
+  // uncertain dates, instead of forcing every customer into a single move day.
+  destinationTiming?: 'same_day' | 'known_gap' | 'unknown'
+  temporaryStorageNeeded?: boolean
+  storageDurationKnown?: boolean
+  storageEstimatedMonths?: number
+  storageMonthlyAllowance?: number
+  packingPreference?: 'self' | 'partial_help' | 'full_service' | 'undecided'
+  cleaningPreference?: 'none' | 'move_out' | 'move_in' | 'both' | 'undecided'
+  protectionPreference?: 'standard' | 'enhanced' | 'undecided'
+  consultationNotes?: string
+
   // Commercial scope controls
   commercialJobCategory?: 'office' | 'retail' | 'warehouse' | 'government' | 'building_internal' | 'commercial_labor_only' | 'commercial_junk'
   commercialCompanyName?: string
@@ -831,6 +852,14 @@ export interface CRMLead {
   lostReason?: string
   lostNotes?: string
   lostAt?: string
+  tentativeReservationStatus?: 'active' | 'converted' | 'released' | 'expired'
+  tentativeReservedAt?: string
+  tentativeHoldDate?: string
+  tentativeDecisionDate?: string
+  tentativeExpiresAt?: string
+  tentativeReason?: 'reviewing_estimate' | 'comparing_options' | 'waiting_for_sale' | 'waiting_for_closing' | 'partner_decision' | 'date_uncertain' | 'other'
+  tentativeNotes?: string
+  tentativeCustomerNotifiedAt?: string
   // Context + assignment
   contextFlag?: string
   assignedRep?: string
@@ -1018,6 +1047,7 @@ export interface CRMQuote {
   depositPaidMethod?: 'stripe' | 'etransfer' | 'cash' | 'cheque' | 'other'
   depositPaidNote?: string
   depositStripeSessionId?: string
+  stripeAccountKey?: 'saturn' | 'dexa'
   depositStripePaymentIntentId?: string
   depositStripeCustomerId?: string
   depositStripePaymentMethodId?: string

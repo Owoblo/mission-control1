@@ -37,14 +37,14 @@ type LiveFeedEvent = {
 function buildLiveFeedEvents(lead: CRMLead, quote?: CRMQuote, followUps?: FollowUpLog[]): LiveFeedEvent[] {
   const events: LiveFeedEvent[] = []
   ;(lead.callLogs || []).forEach(item => {
-    const label = item.isVoicemail ? 'Voicemail dropped' : item.aiSummary?.summary || item.notes || 'Call logged'
+    const label = item.isVoicemail ? 'Voicemail received.' : 'Customer call completed.'
     events.push({ text: label, date: item.date, tone: 'neutral' })
   })
-  // Include follow-up logs (SMS, email, notes) for this lead
+  // Keep the dashboard calm: show meaningful channel activity without leaking
+  // message bodies or unreliable AI summaries into the company-wide feed.
   ;(followUps || []).filter(f => f.leadId === lead.id && f.type !== 'note').forEach(f => {
-    const prefix = f.type === 'sms' ? 'SMS sent' : f.type === 'email' ? 'Email sent' : f.type
-    const preview = f.notes ? ` — "${f.notes.slice(0, 60)}${f.notes.length > 60 ? '…' : ''}"` : ''
-    events.push({ text: `${prefix}${preview}`, date: f.date || f.createdAt, tone: 'neutral' })
+    const label = f.type === 'sms' ? 'Customer text activity.' : f.type === 'email' ? 'Customer email activity.' : 'Follow-up completed.'
+    events.push({ text: label, date: f.date || f.createdAt, tone: 'neutral' })
   })
   if (quote?.status === 'declined') events.push({ text: `${quote.number} declined.`, date: quote.respondedAt || quote.createdAt, tone: 'neutral' })
   if (quote?.acceptedAt) events.push({ text: `${quote.number} accepted.`, date: quote.acceptedAt, tone: 'accepted' })
@@ -855,10 +855,11 @@ export default function SalesDashboardPage() {
               <div className="grid grid-cols-12 gap-8">
                 <section className="col-span-12 lg:col-span-8">
                   <div className="mb-4 flex items-center justify-between border-b border-[var(--app-line)] pb-2">
-                    <h2 className="font-display text-[1.4rem] font-semibold tracking-tight text-[var(--app-ink)]">Live Feed</h2>
+                    <h2 className="font-display text-[1.4rem] font-semibold tracking-tight text-[var(--app-ink)]">Recent Customer Activity</h2>
                     <div className="flex items-center gap-2 text-sm text-[var(--app-muted)]">
-                      <span className="inline-block h-2 w-2 rounded-full bg-[var(--app-accent)]" />
-                      Real-time sync
+                      <span className="inline-block h-2 w-2 rounded-full bg-stone-300" />
+                      Refreshes every minute
+                      <Link href="/sales/activity" className="font-semibold text-[var(--app-ink)] hover:underline">Open activity</Link>
                     </div>
                   </div>
                   <div className="relative ml-2 before:absolute before:bottom-0 before:left-[15px] before:top-0 before:w-px before:bg-[var(--app-line)]">

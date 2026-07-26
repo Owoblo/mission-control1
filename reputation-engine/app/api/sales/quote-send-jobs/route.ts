@@ -3,7 +3,7 @@ import { canAccessSalesWorkspace, canHandleLeadCommunications } from '@/lib/serv
 import { getSessionUser } from '@/lib/server/session'
 import { getSalesLead, getSalesQuote } from '@/lib/server/sales-repository'
 import { enqueueQuoteSendJob, getQuoteSendJob, listQuoteSendJobsForQuote } from '@/lib/server/quote-send-jobs'
-import { processDueQuoteSendJobs } from '@/lib/server/quote-send-worker'
+import { processQuoteSendJob } from '@/lib/server/quote-send-worker'
 import { normalizeQuoteSendRecipient } from '@/lib/quote-send-jobs'
 import type { QuoteSendJobChannel } from '@/lib/quote-send-jobs'
 
@@ -20,6 +20,8 @@ type EnqueuePayload = {
     notes?: string
   }>
 }
+
+export const maxDuration = 60
 
 function recipientMatchesLead(channel: QuoteSendJobChannel, recipient: string, lead: Awaited<ReturnType<typeof getSalesLead>>) {
   if (!lead) return false
@@ -80,11 +82,14 @@ export async function POST(request: Request) {
       }))
     }
 
-    void processDueQuoteSendJobs(Math.max(5, jobs.length)).catch(error => {
-      console.error('[quote-send-jobs] background processor failed', error)
-    })
+    // Complete the first delivery attempt before telling the rep it was sent.
+    // Previously the UI navigated away on "queued", so a provider failure looked
+    // identical to success and encouraged a second click/send.
+    const processedJobs = await Promise.all(
+      jobs.map(job => job.status === 'pending' ? processQuoteSendJob(job) : job)
+    )
 
-    return NextResponse.json({ ok: true, jobs })
+    return NextResponse.json({ ok: true, jobs: processedJobs })
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to queue quote send jobs' },

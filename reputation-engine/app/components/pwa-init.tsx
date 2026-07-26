@@ -14,6 +14,7 @@ export function PWAInit() {
   const [showBanner, setShowBanner] = useState(false)
   const isCustomerFacingRoute =
     pathname?.startsWith('/survey') ||
+    pathname?.startsWith('/video-survey') ||
     pathname?.startsWith('/quote-accept') ||
     pathname?.startsWith('/review') ||
     pathname?.startsWith('/affiliate')

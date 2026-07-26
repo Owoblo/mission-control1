@@ -3,6 +3,9 @@ import { isAutomationRequestAuthorized } from '@/lib/server/automation-auth'
 import { isAuthorizedCronRequest } from '@/lib/server/cron-auth'
 import { processDueAutomationJobs } from '@/lib/server/sales-automation'
 
+export const runtime = 'nodejs'
+export const maxDuration = 300
+
 async function runProcessor(limit = 25) {
   const jobs = await processDueAutomationJobs(limit)
   return NextResponse.json({ ok: true, count: jobs.length, jobs })

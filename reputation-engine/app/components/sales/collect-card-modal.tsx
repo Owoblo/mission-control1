@@ -1,17 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { formatMoney } from '@/lib/sales'
 import type { CRMLead, CRMQuote } from '@/lib/types'
-
-// Only initialise Stripe when a real publishable key exists — calling loadStripe('') with
-// an empty string still fetches js.stripe.com and causes unhandled rejections on browsers
-// that block third-party scripts (e.g. iOS Safari with content blockers).
-const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
-  : null
 
 type Props = {
   open: boolean
@@ -41,37 +34,19 @@ const CARD_STYLE = {
   },
 }
 
-function CardForm({ lead, quote, onClose, onSuccess }: Omit<Props, 'open'>) {
+type CardSetup = {
+  clientSecret: string
+  setupIntentId: string
+  customerId: string
+}
+
+function CardForm({ lead, quote, onClose, onSuccess, setup }: Omit<Props, 'open'> & { setup: CardSetup }) {
   const stripe = useStripe()
   const elements = useElements()
-  const [clientSecret, setClientSecret] = useState('')
-  const [setupIntentId, setSetupIntentId] = useState('')
-  const [customerId, setCustomerId] = useState('')
   const [chargeNow, setChargeNow] = useState(true)
   const [busy, setBusy] = useState(false)
-  const [initError, setInitError] = useState('')
   const [cardError, setCardError] = useState('')
-
-  useEffect(() => {
-    async function init() {
-      try {
-        const r = await fetch('/api/sales/stripe/setup-intent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ leadId: lead.id, quoteId: quote?.id }),
-        })
-        const data = await r.json() as { clientSecret?: string; setupIntentId?: string; customerId?: string; error?: string }
-        if (!r.ok || !data.clientSecret) throw new Error(data.error || 'Could not init card collection')
-        setClientSecret(data.clientSecret)
-        setSetupIntentId(data.setupIntentId || '')
-        setCustomerId(data.customerId || '')
-      } catch (err) {
-        setInitError(err instanceof Error ? err.message : 'Setup failed')
-      }
-    }
-    void init()
-  }, [lead.id])
+  const { clientSecret, setupIntentId, customerId } = setup
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -120,22 +95,6 @@ function CardForm({ lead, quote, onClose, onSuccess }: Omit<Props, 'open'>) {
       setBusy(false)
     }
   }
-
-  if (initError) return (
-    <div className="px-6 py-8 text-center">
-      <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-red-50">
-        <span className="text-lg">⚠</span>
-      </div>
-      <p className="text-sm font-medium text-red-600">{initError}</p>
-    </div>
-  )
-
-  if (!clientSecret) return (
-    <div className="flex flex-col items-center justify-center gap-3 px-6 py-10">
-      <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#071421] border-t-transparent" />
-      <p className="text-xs text-slate-400">Connecting to Stripe…</p>
-    </div>
-  )
 
   const depositPct = quote ? Math.round((quote.deposit / quote.total) * 100) : 20
 
@@ -242,6 +201,57 @@ function CardForm({ lead, quote, onClose, onSuccess }: Omit<Props, 'open'>) {
   )
 }
 
+function AccountScopedCardForm(props: Omit<Props, 'open'>) {
+  const [setup, setSetup] = useState<(CardSetup & { publishableKey: string }) | null>(null)
+  const [initError, setInitError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    async function init() {
+      try {
+        const response = await fetch('/api/sales/stripe/setup-intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ leadId: props.lead.id, quoteId: props.quote?.id }),
+        })
+        const data = await response.json() as Partial<CardSetup> & { publishableKey?: string; error?: string }
+        if (!response.ok || !data.clientSecret || !data.setupIntentId || !data.customerId || !data.publishableKey) {
+          throw new Error(data.error || 'Could not initialize the branch payment account.')
+        }
+        if (!cancelled) setSetup(data as CardSetup & { publishableKey: string })
+      } catch (error) {
+        if (!cancelled) setInitError(error instanceof Error ? error.message : 'Setup failed')
+      }
+    }
+    void init()
+    return () => { cancelled = true }
+  }, [props.lead.id, props.quote?.id])
+
+  const stripePromise = useMemo(
+    () => setup?.publishableKey ? loadStripe(setup.publishableKey) : null,
+    [setup?.publishableKey]
+  )
+
+  if (initError) return (
+    <div className="px-6 py-8 text-center">
+      <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-red-50"><span className="text-lg">⚠</span></div>
+      <p className="text-sm font-medium text-red-600">{initError}</p>
+    </div>
+  )
+  if (!setup || !stripePromise) return (
+    <div className="flex flex-col items-center justify-center gap-3 px-6 py-10">
+      <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#071421] border-t-transparent" />
+      <p className="text-xs text-slate-400">Connecting to the branch Stripe account…</p>
+    </div>
+  )
+  return (
+    <Elements stripe={stripePromise}>
+      <CardForm {...props} setup={setup} />
+    </Elements>
+  )
+}
+
 export function CollectCardModal({ open, lead, quote, onClose, onSuccess }: Props) {
   if (!open) return null
   return (
@@ -275,9 +285,7 @@ export function CollectCardModal({ open, lead, quote, onClose, onSuccess }: Prop
         </div>
 
         {/* Body */}
-        <Elements stripe={stripePromise}>
-          <CardForm lead={lead} quote={quote} onClose={onClose} onSuccess={onSuccess} />
-        </Elements>
+        <AccountScopedCardForm lead={lead} quote={quote} onClose={onClose} onSuccess={onSuccess} />
       </div>
     </div>
   )

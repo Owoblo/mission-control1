@@ -30,7 +30,8 @@ test('MLS inventory SMS is grouped by room for customer confirmation', () => {
 
   assert.match(body, /Living Room: Sofa/)
   assert.match(body, /Bedroom 1: Queen Bed/)
-  assert.match(body, /Please text anything staying behind/i)
+  assert.match(body, /anything shown staying behind/i)
+  assert.match(body, /don't have to list everything from scratch/i)
   assert.doesNotMatch(body, /reply yes/i)
 })
 
@@ -41,7 +42,7 @@ test('MLS inventory SMS does not claim a scan when only customer inventory exist
     ],
   }))
 
-  assert.match(body, /couldn't pull a clear listing inventory/i)
+  assert.match(body, /couldn't build a clear starter inventory from the property information in our system/i)
   assert.doesNotMatch(body, /pulled a starter inventory/i)
   assert.doesNotMatch(body, /reply yes/i)
 })

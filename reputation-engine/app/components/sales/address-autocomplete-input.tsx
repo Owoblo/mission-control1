@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from 'react'
 type Suggestion = {
   label: string
   city?: string
+  country?: string
+  countryCode?: 'ca' | 'us'
   placeType?: string
 }
 
@@ -110,7 +112,7 @@ export function SalesAddressAutocompleteInput({
         </span>
       )}
       {open && suggestions.length > 0 && (
-        <div className="absolute left-0 right-0 top-full z-[60] mt-1 max-h-52 overflow-y-auto rounded-[8px] border border-[var(--app-line)] bg-white shadow-none">
+        <div className="absolute left-0 top-full z-[60] mt-1 max-h-64 w-[min(42rem,calc(100vw-2rem))] overflow-y-auto rounded-[8px] border border-[var(--app-line)] bg-white shadow-lg">
           {suggestions.map((suggestion, index) => (
             <button
               key={`${suggestion.label}-${index}`}
@@ -121,7 +123,10 @@ export function SalesAddressAutocompleteInput({
               <span className="text-[11px] shrink-0">
                 {suggestion.placeType === 'apartment' ? '🏢' : suggestion.placeType === 'commercial' ? '🏬' : '🏠'}
               </span>
-              <span className="min-w-0 flex-1 truncate text-sm text-[var(--app-ink)]">{suggestion.label}</span>
+              <span className="min-w-0 flex-1 whitespace-normal break-words text-sm leading-5 text-[var(--app-ink)]">{suggestion.label}</span>
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${suggestion.countryCode === 'ca' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                {suggestion.countryCode === 'ca' ? 'Canada' : suggestion.countryCode === 'us' ? 'USA' : suggestion.country || 'Address'}
+              </span>
             </button>
           ))}
         </div>

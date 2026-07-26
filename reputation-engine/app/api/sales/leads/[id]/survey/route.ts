@@ -6,11 +6,12 @@ import { getAppBaseUrl } from '@/lib/server/runtime'
 import { getSalesLead, saveSalesLead } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
 import { randomToken } from '@/lib/server/security'
+import { compactCustomerLink } from '@/lib/customer-links'
 
 const APP_URL = getAppBaseUrl('https://go.quote2move.com')
 
 function generateToken(): string {
-  return randomToken('surv')
+  return randomToken('p', 16)
 }
 
 export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
@@ -35,7 +36,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
 
     const token = generateToken()
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-    const surveyUrl = `${APP_URL}/survey/${token}`
+    const surveyUrl = compactCustomerLink(`${APP_URL}/survey/${token}`)
 
     if (isPartyB) {
       await saveSalesLead({
@@ -61,7 +62,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
         const phone = lead.phone.replace(/\D/g, '')
         const e164 = phone.startsWith('1') ? `+${phone}` : `+1${phone}`
         const firstName = (lead.name || '').split(' ')[0] || 'there'
-        const defaultMsg = `Hi ${firstName}! Saturn Star Movers here. To tighten up your moving quote, please review your inventory, flag anything staying behind, and add a few photos for any missing rooms here: ${surveyUrl}. Takes about 2 minutes.`
+        const defaultMsg = `Hi ${firstName}, please review your moving inventory and add any missing room photos.\n\n${surveyUrl}\n\nIt takes about 2 minutes.`
         const smsBody = body.customMessage || defaultMsg
         await sendSalesMessage({
           channel: 'sms',
@@ -82,7 +83,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
 
     const firstName = (lead.name || '').split(' ')[0] || 'there'
     const defaultSmsTemplate = lead.phone
-      ? `Hi ${firstName}! Saturn Star Movers here. To tighten up your moving quote, please review your inventory, flag anything staying behind, and add a few photos for any missing rooms here: ${surveyUrl}. Takes about 2 minutes.`
+      ? `Hi ${firstName}, please review your moving inventory and add any missing room photos.\n\n${surveyUrl}\n\nIt takes about 2 minutes.`
       : null
 
     return NextResponse.json({ token, surveyUrl, expiresAt, defaultSmsTemplate })

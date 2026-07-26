@@ -47,6 +47,9 @@ type GeocodeResult = {
 export type AddressSuggestion = {
   label: string
   city?: string
+  region?: string
+  country?: string
+  countryCode?: 'ca' | 'us'
   placeType?: 'house' | 'apartment' | 'commercial' | 'unknown'
   placeId?: string
 }
@@ -244,9 +247,16 @@ async function suggestWithNominatim(query: string): Promise<AddressSuggestion[]>
         result.type === 'house' || result.type === 'residential' ? 'house'
         : result.type === 'apartments' || result.type === 'flat' ? 'apartment'
         : detectApartmentFromText(result.display_name)
+      const normalizedCountryCode: AddressSuggestion['countryCode'] =
+        result.address?.country_code?.toLowerCase() === 'ca' ? 'ca'
+        : result.address?.country_code?.toLowerCase() === 'us' ? 'us'
+        : undefined
       return {
         label: result.display_name,
         city: extractAddressLocality(result.address),
+        region: result.address?.state,
+        country: result.address?.country,
+        countryCode: normalizedCountryCode,
         placeType,
       }
     })
@@ -257,6 +267,60 @@ async function suggestWithNominatim(query: string): Promise<AddressSuggestion[]>
     })
 }
 
+type GoogleAddressPrediction = {
+  description: string
+  place_id: string
+  types?: string[]
+  structured_formatting?: {
+    main_text?: string
+    secondary_text?: string
+  }
+}
+
+function googlePredictionToSuggestion(
+  prediction: GoogleAddressPrediction,
+  countryCode: 'ca' | 'us'
+): AddressSuggestion {
+  const types = prediction.types || []
+  const placeType: AddressSuggestion['placeType'] =
+    types.includes('subpremise') ? 'apartment'
+    : types.includes('establishment') || types.includes('point_of_interest') ? 'commercial'
+    : detectApartmentFromText(prediction.description)
+  const parts = prediction.description.split(',').map(part => part.trim())
+  const regionIndex = parts.findIndex(part => countryCode === 'ca'
+    ? /^(ON|Ontario|QC|Quebec|Québec|BC|British Columbia|AB|Alberta|MB|Manitoba|SK|Saskatchewan|NS|Nova Scotia|NB|New Brunswick|NL|Newfoundland and Labrador|PE|Prince Edward Island|YT|Yukon|NT|Northwest Territories|NU|Nunavut)$/i.test(part)
+    : /^[A-Z]{2}$/i.test(part))
+  return {
+    label: prediction.description,
+    city: regionIndex > 0 ? parts[regionIndex - 1] : undefined,
+    region: regionIndex >= 0 ? parts[regionIndex] : undefined,
+    country: countryCode === 'ca' ? 'Canada' : 'United States',
+    countryCode,
+    placeType,
+    placeId: prediction.place_id,
+  }
+}
+
+async function suggestWithGoogle(
+  query: string,
+  apiKey: string,
+  countryCode: 'ca' | 'us'
+): Promise<AddressSuggestion[]> {
+  const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json` +
+    `?input=${encodeURIComponent(query)}` +
+    `&types=address` +
+    `&components=country:${countryCode}` +
+    `&key=${apiKey}`
+  const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(5000) })
+  if (!res.ok) return []
+  const data = (await res.json()) as {
+    status: string
+    predictions?: GoogleAddressPrediction[]
+  }
+  if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') return []
+  return (data.predictions || []).map(prediction => googlePredictionToSuggestion(prediction, countryCode))
+}
+
 export async function suggestAddresses(query: string): Promise<AddressSuggestion[]> {
   const trimmed = query.trim()
   if (trimmed.length < 5) return []
@@ -265,39 +329,11 @@ export async function suggestAddresses(query: string): Promise<AddressSuggestion
   const apiKey = getGoogleMapsApiKey()
   if (apiKey) {
     try {
-      const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json` +
-        `?input=${encodeURIComponent(trimmed)}` +
-        `&types=address` +
-        `&components=country:ca|country:us` +
-        `&key=${apiKey}`
-      const res = await fetch(url, { cache: 'no-store' })
-      if (res.ok) {
-        const data = (await res.json()) as {
-          status: string
-          predictions?: Array<{
-            description: string
-            place_id: string
-            types?: string[]
-          }>
-        }
-        if (data.status === 'OK' || data.status === 'ZERO_RESULTS') {
-          return (data.predictions || []).map(p => {
-            const types = p.types || []
-            const placeType: AddressSuggestion['placeType'] =
-              types.includes('subpremise') ? 'apartment'
-              : types.includes('establishment') || types.includes('point_of_interest') ? 'commercial'
-              : types.includes('street_address') || types.includes('premise') ? detectApartmentFromText(p.description)
-              : detectApartmentFromText(p.description)
-            const cityMatch = p.description.match(/,\s*([^,]+),\s*ON|,\s*([^,]+),\s*MI/)
-            return {
-              label: p.description,
-              city: cityMatch?.[1] || cityMatch?.[2] || undefined,
-              placeType,
-              placeId: p.place_id,
-            }
-          })
-        }
-      }
+      // Canadian results are deliberately fetched and ranked first. Asking Google
+      // for CA and US in one request lets similarly named US streets outrank Ontario.
+      const canadian = await suggestWithGoogle(trimmed, apiKey, 'ca')
+      const american = canadian.length >= 5 ? [] : await suggestWithGoogle(trimmed, apiKey, 'us')
+      return [...canadian, ...american].slice(0, 8)
     } catch { /* fall through to Nominatim */ }
   }
 

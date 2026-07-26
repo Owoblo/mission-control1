@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { SalesAddressAutocompleteInput } from '@/app/components/sales/address-autocomplete-input'
@@ -26,6 +26,8 @@ const MOVE_REASONS = [
 
 export default function NewSalesLeadPage() {
   const router = useRouter()
+  const intakeStartedAtRef = useRef(Date.now())
+  const interactionCountRef = useRef(0)
   const [form, setForm] = useState({
     name: '',
     source: 'other',
@@ -62,6 +64,7 @@ export default function NewSalesLeadPage() {
   const [analysisAvailable, setAnalysisAvailable] = useState(false)
 
   function setField<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
+    interactionCountRef.current += 1
     setForm(current => ({ ...current, [key]: value }))
   }
 
@@ -79,7 +82,7 @@ export default function NewSalesLeadPage() {
     } catch { /* non-critical */ }
   }
 
-  async function buildPayload() {
+  async function buildPayload(submitIntent: 'save' | 'build_estimate') {
     const resolvedCity = listingMatch?.city || form.originCity || ''
     const resolvedReason = form.moveReason === 'Other' ? form.moveReasonCustom : form.moveReason
     return createSalesLead({
@@ -103,14 +106,23 @@ export default function NewSalesLeadPage() {
       totalCubicFeet: inventoryDraft?.totalCubicFeet || 0,
       totalWeightLbs: inventoryDraft?.totalWeightLbs || 0,
       roomBreakdown: inventoryDraft?.roomBreakdown || {},
+      intakeAnalytics: {
+        schemaVersion: 1,
+        durationSeconds: Math.max(1, Math.round((Date.now() - intakeStartedAtRef.current) / 1000)),
+        interactionCount: interactionCountRef.current,
+        submitIntent,
+        listingLookupAttempted: Boolean(listingMatch || analysisAvailable),
+        listingMatched: Boolean(listingMatch),
+        inventoryAnalysisCompleted: Boolean(inventoryDraft),
+      },
       forceNew: true,
-    } as Partial<CRMLead> & { forceNew: boolean })
+    } as Partial<CRMLead> & { forceNew: boolean; intakeAnalytics: Record<string, unknown> })
   }
 
   async function submit() {
     try {
       setSaving(true)
-      const lead = await buildPayload()
+      const lead = await buildPayload('save')
       router.push(`/sales/leads/${lead.id}`)
     } catch (err) {
       setError((err as Error).message)
@@ -122,7 +134,7 @@ export default function NewSalesLeadPage() {
   async function submitAndEstimate() {
     try {
       setSaving(true)
-      const lead = await buildPayload()
+      const lead = await buildPayload('build_estimate')
       router.push(`/sales/leads/${lead.id}?estimate=1`)
     } catch (err) {
       setError((err as Error).message)
@@ -252,10 +264,18 @@ export default function NewSalesLeadPage() {
               ))}
             </select>
           </label>
-          <label className="md:col-span-2">
+          <div className="md:col-span-2">
             <span className="crm-label">Origin Address</span>
-            <input className="crm-input mt-2" value={form.originAddress} onChange={e => setField('originAddress', e.target.value)} />
-          </label>
+            <SalesAddressAutocompleteInput
+              value={form.originAddress}
+              placeholder="Start typing the full Canadian address"
+              className="crm-input mt-2"
+              onSelect={(address, city) => {
+                setField('originAddress', address)
+                if (city) setField('originCity', city)
+              }}
+            />
+          </div>
           <div className="rounded-xl border border-stone-200 bg-[var(--app-wash)] p-4 md:col-span-2">
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
               <button type="button" onClick={() => void lookupAddress(false)} disabled={lookupBusy} className="crm-button w-full justify-center disabled:opacity-60 sm:w-auto">

@@ -9,16 +9,13 @@ import { recordLeadPaymentAudit, recordQuoteUpdatedAudit } from '@/lib/server/sa
 import { canHandleLeadPayments } from '@/lib/server/sales-permissions'
 import { fetchStripeCardSummary, stripePost } from '@/lib/server/stripe-payments'
 import { buildPaymentRecord } from '@/lib/payment-records'
-import { readEnv } from '@/lib/server/runtime'
 import { getSalesLead, getSalesQuote, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
 import { sendRepAlertEmail } from '@/lib/server/internal-notifications'
+import { appendStripeAccountMetadata, assertQuoteStripeAccount, requireStripeAccountForLead, stripeErrorStatus } from '@/lib/server/stripe-accounts'
 
 export async function POST(request: Request) {
   const session = await getSessionUser()
-
-  const stripeKey = readEnv('STRIPE_SECRET_KEY')
-  if (!stripeKey) return NextResponse.json({ error: 'Stripe not configured' }, { status: 503 })
 
   try {
     const { leadId, quoteId, amountOverride } = (await request.json()) as {
@@ -41,6 +38,12 @@ export async function POST(request: Request) {
     if (!canHandleLeadPayments(session, lead)) {
       return NextResponse.json({ error: 'You do not have permission to charge cards for this lead.' }, { status: 403 })
     }
+    const stripeAccount = requireStripeAccountForLead(lead)
+    assertQuoteStripeAccount(quote, stripeAccount.key)
+    if (!quote.stripeAccountKey && stripeAccount.key === 'dexa' && (quote.depositStripePaymentMethodId || quote.depositStripeCustomerId)) {
+      return NextResponse.json({ error: 'Legacy card belongs to the Saturn account. Collect a new card in Dexa Stripe.' }, { status: 409 })
+    }
+    const stripeKey = stripeAccount.secretKey
 
     const quoteRecord = quote as typeof quote & {
       depositStripePaymentMethodId?: string
@@ -74,6 +77,7 @@ export async function POST(request: Request) {
     piParams.set('metadata[quoteId]', quote.id)
     piParams.set('metadata[leadId]', lead.id)
     piParams.set('metadata[type]', 'balance')
+    appendStripeAccountMetadata(piParams, stripeAccount)
 
     const pi = await stripePost<{
       id?: string
@@ -96,6 +100,7 @@ export async function POST(request: Request) {
       balancePaidAt: paidAt,
       balancePaidAmount: Math.round((paid.balancePaid + chargeAmount) * 100) / 100,
       balancePaidMethod: 'stripe',
+      stripeAccountKey: stripeAccount.key,
       paymentRecords: [...(quote.paymentRecords || []), paymentRecord],
     })
 
@@ -146,6 +151,6 @@ export async function POST(request: Request) {
       quote: updatedQuote,
     })
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Charge failed' }, { status: 500 })
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Charge failed' }, { status: stripeErrorStatus(err) })
   }
 }

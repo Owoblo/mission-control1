@@ -24,6 +24,8 @@ export type LeadQueueCategory =
   | 'missing_required_info'
   | 'unassigned_lead'
   | 'no_quote_sent'
+  | 'finalize_flexible_date'
+  | 'finalize_destination'
   | 'dormant'
 
 export type LeadCtaKey =
@@ -679,6 +681,55 @@ export function getLeadActionSummary(lead: CRMLead, quote: CRMQuote | null, foll
       primaryCta: { key: 'assign_to_me', label: 'Assign to me' },
       secondaryCtas: [{ key: 'open_lead', label: 'Open Lead' }],
       supportingSignals: [`Stage: ${getStageLabel(lead.stage)}`],
+    })
+  }
+
+  if (
+    lead.moveDateFlexible &&
+    !isClosedLeadStage(lead.stage) &&
+    lead.tentativeReservationStatus !== 'converted'
+  ) {
+    add({
+      category: 'finalize_flexible_date',
+      priority: lead.followUpDate ? 61 : 57,
+      reason: lead.moveDateFlexibleReason
+        ? `Timing is still flexible: ${lead.moveDateFlexibleReason}`
+        : 'The customer still needs an exact move date',
+      nextAction: lead.followUpDate
+        ? 'Finalize the move date at the agreed check-in'
+        : 'Agree on a check-in milestone for the move date',
+      dueAt: lead.followUpDate || lead.tentativeDecisionDate || lead.createdAt,
+      primaryCta: { key: 'confirm_move_date', label: 'Confirm Move Date' },
+      secondaryCtas: quote
+        ? [{ key: 'open_quote', label: 'Review Estimate' }, { key: 'send_sms', label: 'Send SMS' }]
+        : [{ key: 'open_lead', label: 'Open Lead' }, { key: 'send_sms', label: 'Send SMS' }],
+      supportingSignals: dedupe([
+        lead.moveDateFlexibleReason || 'Date TBD',
+        lead.tentativeReason === 'waiting_for_sale' ? 'Waiting for home sale' : '',
+        lead.followUpDate ? `Check-in ${formatDate(lead.followUpDate)}` : 'No check-in date set',
+      ]),
+    })
+  }
+
+  if (
+    !lead.destAddress &&
+    Boolean(lead.destCity) &&
+    !isClosedLeadStage(lead.stage)
+  ) {
+    add({
+      category: 'finalize_destination',
+      priority: lead.propertyType ? 49 : 55,
+      reason: `Destination city is known, but the ${lead.propertyType ? 'exact property' : 'property type and address'} are not`,
+      nextAction: lead.propertyType
+        ? 'Confirm the destination address when selected'
+        : 'Confirm whether the destination will be a house, apartment, condo, or storage',
+      dueAt: lead.followUpDate || lead.tentativeDecisionDate || lead.createdAt,
+      primaryCta: { key: 'open_lead', label: 'Complete Destination' },
+      secondaryCtas: [{ key: 'send_sms', label: 'Ask Naturally' }],
+      supportingSignals: dedupe([
+        `Destination market: ${lead.destCity}`,
+        lead.propertyType ? `Expected property: ${lead.propertyType.replaceAll('_', ' ')}` : 'Property type unknown',
+      ]),
     })
   }
 

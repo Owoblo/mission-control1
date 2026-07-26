@@ -25,6 +25,7 @@ type PublicQuote = {
   crewSize?: number
   estimatedHours?: number
   truckCount?: number
+  truckSize?: string
   billingModel?: 'binding' | 'hourly_actuals' | 'hourly_minimum'
   paymentTerms?: QuotePaymentTerms
   minimumBillableHours?: number
@@ -398,6 +399,112 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
+type PublicListingSummary = {
+  address?: string
+  bedrooms?: number | string | null
+  bathrooms?: number | string | null
+  livingArea?: number | string | null
+  yearBuilt?: number | string | null
+  scanConfidence?: 'low' | 'medium' | 'high'
+}
+
+function inventoryConfidence(items: InventoryItem[], scanConfidence?: PublicListingSummary['scanConfidence']) {
+  const scored = items.map(item => Number(item.confidence)).filter(value => Number.isFinite(value) && value > 0)
+  if (scored.length > 0) return Math.round(scored.reduce((sum, value) => sum + value, 0) / scored.length * 100)
+  if (scanConfidence === 'high') return 90
+  if (scanConfidence === 'medium') return 78
+  if (scanConfidence === 'low') return 62
+  return null
+}
+
+function InventoryIntelligence({
+  inventory,
+  roomGroups,
+  listingSummary,
+}: {
+  inventory: InventoryItem[]
+  roomGroups: Map<string, InventoryItem[]>
+  listingSummary: PublicListingSummary | null
+}) {
+  const confidence = inventoryConfidence(inventory, listingSummary?.scanConfidence)
+  const totalUnits = inventory.reduce((sum, item) => sum + Math.max(1, Number(item.qty || 1)), 0)
+  return (
+    <div className="mb-16">
+      <SectionLabel>Here&apos;s what we found</SectionLabel>
+      <div className="mb-8 grid gap-5 lg:grid-cols-[1fr_280px] lg:items-end">
+        <div>
+          <div className="max-w-2xl text-3xl font-bold tracking-tight text-[#071421] sm:text-4xl">Your home, room by room.</div>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-[#667085]">Review the items below. Your flat rate is built from this known scope.</p>
+        </div>
+        <div className="rounded-2xl border border-[#071421]/10 bg-white p-5">
+          <div className="flex items-end justify-between gap-4">
+            <div><div className="text-3xl font-bold text-[#071421]">{totalUnits}</div><div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#667085]">Detected items</div></div>
+            {confidence !== null && <div className="text-right"><div className="text-xl font-bold text-[#071421]">{confidence}%</div><div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#667085]">Confidence</div></div>}
+          </div>
+          {confidence !== null && <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-[#071421]/8"><div className="h-full rounded-full bg-[#C99700]" style={{ width: `${confidence}%` }} /></div>}
+        </div>
+      </div>
+      <div className="grid gap-5 sm:grid-cols-2">
+        {Array.from(roomGroups.entries()).map(([room, items]) => (
+          <div key={room} className="rounded-2xl bg-white p-7 shadow-[0_10px_35px_rgba(7,20,33,0.045)]">
+            <div className="mb-5 text-lg font-bold text-[#071421]">{room}</div>
+            <div className="space-y-3">
+              {items.map((item, index) => {
+                const name = item.name || item.item || 'Item'
+                const qty = Number(item.qty || 1)
+                return <div key={`${name}-${index}`} className="flex items-center justify-between gap-4 text-sm"><span className="text-[#071421]/75"><span className="mr-2 text-[#C99700]">✓</span>{name}</span>{qty > 1 && <span className="text-xs font-semibold text-[#667085]">×{qty}</span>}</div>
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-5 rounded-2xl border border-[#C99700]/25 bg-[#fffaf0] p-6">
+        <div className="text-sm font-bold text-[#071421]">Anything missing?</div>
+        <p className="mt-1 text-xs leading-5 text-[#667085]">Please flag anything not visible in the listing—especially a piano, safe, treadmill, pool table, hot tub, aquarium, large plants, garage items, basement storage, or packed boxes.</p>
+      </div>
+    </div>
+  )
+}
+
+function RecommendationReasoning({ quote, inventory, listingSummary, crewSize, trucks, hours }: {
+  quote: PublicQuote
+  inventory: InventoryItem[]
+  listingSummary: PublicListingSummary | null
+  crewSize: number
+  trucks: number
+  hours: string | null
+}) {
+  const cubicFeet = inventory.reduce((sum, item) => sum + Number(item.cubicFeet || 0) * Math.max(1, Number(item.qty || 1)), 0)
+  const truckSize = quote.truckSize || (cubicFeet > 700 ? '26ft' : cubicFeet > 250 ? '20ft' : '15ft')
+  const capacity = truckSize === '15ft' ? 760 : truckSize === '20ft' ? 1016 : 1682
+  const fill = cubicFeet > 0 ? Math.min(100, Math.round(cubicFeet / capacity * 100)) : null
+  const itemUnits = inventory.reduce((sum, item) => sum + Math.max(1, Number(item.qty || 1)), 0)
+  const accessReasons = [
+    quote.jobFactors?.originHasElevator ? 'origin elevator' : null,
+    quote.jobFactors?.destHasElevator ? 'destination elevator' : null,
+    (quote.jobFactors?.originFloors || 0) > 1 ? `${quote.jobFactors?.originFloors} origin floors` : null,
+    (quote.jobFactors?.destFloors || 0) > 1 ? `${quote.jobFactors?.destFloors} destination floors` : null,
+  ].filter(Boolean)
+  return (
+    <div className="mb-16">
+      <SectionLabel>Recommended move plan</SectionLabel>
+      <div className="grid gap-5 md:grid-cols-2">
+        <div className="rounded-2xl bg-[#071421] p-8 text-white">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">Crew recommendation</div>
+          <div className="mt-3 text-4xl font-bold">{crewSize} movers</div>
+          <p className="mt-4 text-sm leading-6 text-white/65">Selected for approximately {itemUnits} inventory items{listingSummary?.livingArea ? ` across ${listingSummary.livingArea} sq ft` : ''}{hours ? ` and a ${hours}-hour planning window` : ''}{accessReasons.length ? `, including ${accessReasons.join(' and ')}` : ''}.</p>
+        </div>
+        <div className="rounded-2xl border border-[#071421]/10 bg-white p-8">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#667085]">Truck recommendation</div>
+          <div className="mt-3 text-4xl font-bold text-[#071421]">{trucks > 1 ? `${trucks} × ` : ''}{truckSize} truck{trucks > 1 ? 's' : ''}</div>
+          <p className="mt-4 text-sm leading-6 text-[#667085]">{fill !== null ? `The detected inventory uses approximately ${fill}% of the planning capacity for this truck size.` : 'Selected from the current room inventory and move scope.'} Final loading order is confirmed before moving day.</p>
+          {fill !== null && <div className="mt-5 h-2 overflow-hidden rounded-full bg-[#071421]/8"><div className="h-full rounded-full bg-[#C99700]" style={{ width: `${fill}%` }} /></div>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function PhotoGallery({ photos }: { photos: string[] }) {
   const [active, setActive] = useState(0)
   const [expanded, setExpanded] = useState(false)
@@ -406,7 +513,7 @@ function PhotoGallery({ photos }: { photos: string[] }) {
   if (photos.length === 0) return null
 
   return (
-    <div className="mb-16">
+    <div className="mx-auto mb-16 max-w-3xl">
       <div className="relative">
         <button
           type="button"
@@ -417,7 +524,7 @@ function PhotoGallery({ photos }: { photos: string[] }) {
           <img
             src={photos[active]}
             alt={`Property photo ${active + 1} of ${photos.length}`}
-            className="mx-auto block max-h-[720px] min-h-[360px] w-full object-contain [image-rendering:auto]"
+            className="mx-auto block max-h-[520px] min-h-[280px] max-w-full object-contain [image-rendering:auto]"
             decoding="async"
             fetchPriority={active === 0 ? 'high' : 'auto'}
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
@@ -733,6 +840,7 @@ function QuoteAcceptPageInner() {
   const [clientPhone, setClientPhone] = useState('')
   const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [listingPhotos, setListingPhotos] = useState<string[]>([])
+  const [listingSummary, setListingSummary] = useState<PublicListingSummary | null>(null)
   const [jobFactors, setJobFactors] = useState<JobFactors | null>(null)
   const [loading, setLoading] = useState(true)
   const [accepting, setAccepting] = useState(false)
@@ -764,6 +872,7 @@ function QuoteAcceptPageInner() {
         setClientPhone(payload.client?.phone || '')
         setInventory(payload.lead?.inventory || [])
         setListingPhotos(payload.lead?.listingPhotos || [])
+        setListingSummary(payload.lead?.listingSummary || null)
         setJobFactors(payload.lead?.jobFactors || null)
         setAccepted(payload.quote.status === 'accepted' || payload.quote.status === 'invoiced')
         setTermsAccepted(Boolean(payload.quote.termsAcceptedAt))
@@ -1070,10 +1179,18 @@ function QuoteAcceptPageInner() {
       <div className="mx-auto max-w-4xl px-5 py-12 sm:px-8 sm:py-16 print:px-0 print:py-4 print:max-w-none">
 
         {/* ── Hero ── */}
-        <div className="mb-16 overflow-hidden rounded-2xl bg-[#071421] shadow-[0_30px_90px_rgba(7,20,33,0.18)]">
+        <div className="relative mb-16 overflow-hidden rounded-2xl bg-[#071421] shadow-[0_30px_90px_rgba(7,20,33,0.18)]">
+          {listingPhotos[0] && (
+            <>
+              <img src={listingPhotos[0]} alt="" className="absolute inset-0 h-full w-full object-cover" aria-hidden="true" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#071421]/95 via-[#071421]/78 to-[#071421]/35" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#071421]/80 via-transparent to-[#071421]/20" />
+            </>
+          )}
           {/* Gold top accent bar */}
-          <div className="h-1 bg-[#C99700]" />
-          <div className="px-7 py-12 sm:px-12 sm:py-16">
+          <div className="relative z-10 h-1 bg-[#C99700]" />
+          <div className="relative z-10 flex min-h-[620px] flex-col justify-between px-7 py-12 sm:px-12 sm:py-16">
+            <div>
             {/* Logo + brand */}
             <div className="mb-12 flex items-center gap-4">
               <LogoMark size={64} dark brand={brand} />
@@ -1084,9 +1201,13 @@ function QuoteAcceptPageInner() {
             </div>
 
             <h1 className="mb-4 max-w-2xl text-4xl font-bold leading-[1.08] tracking-[-0.035em] text-white sm:text-6xl">
-              Hi {firstName}.<br />Your move is ready.
+              Your move.<br />Prepared for {firstName}.
             </h1>
-            <p className={`text-base leading-7 text-white/55 ${quoteOptionLabel ? 'mb-3' : 'mb-10'}`}>A personal relocation proposal prepared for your home and moving day.</p>
+            <p className={`max-w-xl text-base leading-7 text-white/70 ${quoteOptionLabel ? 'mb-3' : 'mb-10'}`}>
+              {listingPhotos.length > 0
+                ? 'Built from your home’s listing, detected inventory, and the move details shared with our team.'
+                : 'A personal relocation plan prepared for your home and moving day.'}
+            </p>
             {quoteOptionLabel && (
               <div className="mb-8 inline-flex rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold text-white/80">
                 {quoteOptionLabel}
@@ -1108,6 +1229,7 @@ function QuoteAcceptPageInner() {
                 <span className="text-xs font-bold text-white">Move Day is TODAY</span>
               </div>
             )}
+            </div>
 
             {/* Route */}
             <div className="grid grid-cols-[1fr_44px_1fr] items-center gap-3 rounded-2xl px-5 py-6" style={{ background: 'rgba(255,255,255,0.06)' }}>
@@ -1178,6 +1300,21 @@ function QuoteAcceptPageInner() {
             </div>
           </div>
         </div>
+
+        {hasInventory && (
+          <InventoryIntelligence inventory={inventory} roomGroups={roomGroups} listingSummary={listingSummary} />
+        )}
+
+        {hasInventory && (
+          <RecommendationReasoning
+            quote={quote}
+            inventory={inventory}
+            listingSummary={listingSummary}
+            crewSize={crewSize}
+            trucks={trucks}
+            hours={hours}
+          />
+        )}
 
         {/* ── Multi-leg Move Plan ── */}
         {(quote.legs?.length ?? 0) > 1 && (
@@ -1417,41 +1554,6 @@ function QuoteAcceptPageInner() {
             </div>
             <div className="px-5 py-4 text-sm text-[#071421]/70 leading-6">
               {quote.conditionalClause}
-            </div>
-          </div>
-        )}
-
-        {/* ── What's moving ── */}
-        {hasInventory && (
-          <div className="mb-16">
-            <SectionLabel>Your home inventory</SectionLabel>
-            <div className="mb-8 max-w-2xl text-3xl font-bold tracking-tight text-[#071421] sm:text-4xl">Everything we&apos;re preparing to move.</div>
-            <div className="grid gap-5 sm:grid-cols-2">
-              {Array.from(roomGroups.entries()).map(([room, items]) => (
-                <div key={room} className="overflow-hidden rounded-2xl bg-white p-7 shadow-[0_10px_35px_rgba(7,20,33,0.045)]">
-                  <div className="mb-5">
-                    <div className="text-lg font-bold text-[#071421]">{room}</div>
-                  </div>
-                  <div className="space-y-3.5">
-                    {items.map((item, i) => {
-                      const name = item.name || item.item || 'Item'
-                      const qty = Number(item.qty || 1)
-                      return (
-                        <div key={i} className="flex items-center justify-between gap-4">
-                          <span className="text-sm text-[#071421]/75"><span className="mr-2 text-[#667085]">✓</span>{name}</span>
-                          <div className="flex items-center gap-3">
-                            {item.size && <span className="text-[10px] text-[#071421]/30">{item.size}</span>}
-                            {qty > 1 && <span className="text-[10px] font-semibold text-[#667085]">×{qty}</span>}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-5 rounded-2xl bg-white/60 p-5 text-xs leading-6 text-[#667085]">
-              <span className="font-bold text-[#071421]/70">Note:</span> This estimate covers the items listed. If items are added on move day, the crew will do a brief walk-through and adjust the time before starting.
             </div>
           </div>
         )}

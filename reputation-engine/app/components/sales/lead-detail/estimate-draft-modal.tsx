@@ -18,6 +18,8 @@ import { prepareUploadFile } from '@/lib/browser-media'
 import { PhotoLightbox } from '@/app/components/sales/photo-lightbox'
 import { DEFAULT_ROOM_OPTIONS } from './helpers'
 import type { EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, LeadMediaAsset, PricingBreakdown, QuoteLineItem, QuoteLeg, QuoteLegType } from '@/lib/types'
+import { buildServiceProfitabilityPlan } from '@/lib/service-profitability'
+import { buildConsultativeMovePlan } from '@/lib/consultative-move-plan'
 import {
   calcUHaulCost, compareStrategies, truckSizeFromCubicFeet, calcStrategyTiming, calcLongDistanceUHaul,
   DEFAULT_BLANKET_BAGS, DEFAULT_GAS_PRICE_PER_L, DEFAULT_MISC_BUFFER,
@@ -31,7 +33,7 @@ function AddressAutocompleteInput({ value, placeholder, onSelect }: {
   onSelect: (address: string, city?: string, placeType?: string, placeId?: string) => void
 }) {
   const [raw, setRaw] = useState(value)
-  const [suggestions, setSuggestions] = useState<Array<{ label: string; city?: string; placeType?: string; placeId?: string }>>([])
+  const [suggestions, setSuggestions] = useState<Array<{ label: string; city?: string; country?: string; countryCode?: 'ca' | 'us'; placeType?: string; placeId?: string }>>([])
   const [open, setOpen] = useState(false)
   const [fetching, setFetching] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -61,7 +63,7 @@ function AddressAutocompleteInput({ value, placeholder, onSelect }: {
       setFetching(true)
       try {
         const res = await fetch(`/api/sales/address-suggest?q=${encodeURIComponent(val)}`, { credentials: 'include' })
-        const data = (await res.json()) as { suggestions?: Array<{ label: string; city?: string; placeType?: string; placeId?: string }> }
+        const data = (await res.json()) as { suggestions?: Array<{ label: string; city?: string; country?: string; countryCode?: 'ca' | 'us'; placeType?: string; placeId?: string }> }
         if (latestQueryRef.current !== val) return
         const list = data.suggestions || []
         setSuggestions(list)
@@ -73,7 +75,7 @@ function AddressAutocompleteInput({ value, placeholder, onSelect }: {
       }
     }, 350)
   }
-  function select(s: { label: string; city?: string; placeType?: string; placeId?: string }) {
+  function select(s: { label: string; city?: string; country?: string; countryCode?: 'ca' | 'us'; placeType?: string; placeId?: string }) {
     setRaw(s.label); setSuggestions([]); setOpen(false); onSelect(s.label, s.city, s.placeType, s.placeId)
   }
   return (
@@ -91,12 +93,15 @@ function AddressAutocompleteInput({ value, placeholder, onSelect }: {
         placeholder={placeholder} autoComplete="off" />
       {fetching && <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 block h-3 w-3 animate-spin rounded-full border-2 border-[var(--app-accent)] border-t-transparent" />}
       {open && suggestions.length > 0 && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-52 overflow-y-auto rounded-[8px] border border-[var(--app-line)] bg-white shadow-none">
+        <div className="absolute left-0 top-full z-50 mt-1 max-h-64 w-[min(42rem,calc(100vw-2rem))] overflow-y-auto rounded-[8px] border border-[var(--app-line)] bg-white shadow-lg">
           {suggestions.map((s, i) => (
             <button key={i} type="button" onMouseDown={() => select(s)}
               className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-[var(--app-bg)]">
               <span className="text-[10px]">{s.placeType === 'apartment' ? '🏢' : '🏠'}</span>
-              <span className="min-w-0 flex-1 truncate text-sm text-[var(--app-ink)]">{s.label}</span>
+              <span className="min-w-0 flex-1 whitespace-normal break-words text-sm leading-5 text-[var(--app-ink)]">{s.label}</span>
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${s.countryCode === 'ca' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                {s.countryCode === 'ca' ? 'Canada' : s.countryCode === 'us' ? 'USA' : s.country || 'Address'}
+              </span>
             </button>
           ))}
         </div>
@@ -1554,8 +1559,12 @@ export function EstimateDraftModal({
   const packingMaterialsEstimate = flags?.packingMaterialsEstimate || null
   const packingLaborLineDescription = 'Professional Packing Service (Day Before Move)'
   const packingMaterialsLineDescription = 'Packing Materials Allowance'
+  const cleaningLineDescription = 'Move-In / Move-Out Cleaning'
+  const containerHandlingLineDescription = 'Storage Container Loading / Unloading'
   const packingLaborAdded = quoteLineItems.some(item => item.description === packingLaborLineDescription)
   const packingMaterialsAdded = quoteLineItems.some(item => item.description === packingMaterialsLineDescription)
+  const cleaningAdded = quoteLineItems.some(item => item.description === cleaningLineDescription)
+  const containerHandlingAdded = quoteLineItems.some(item => item.description === containerHandlingLineDescription)
   const needsTwoTrucks = flags?.twoTruckRequired ?? false
   const includedDisassemblyItems = pricingBreakdown
     ? getIncludedDisassemblyItems(pricingBreakdown.disassemblyItems, excludedDisassemblyItems)
@@ -1925,6 +1934,43 @@ export function EstimateDraftModal({
       marginBg: liveMargin >= 65 ? 'bg-emerald-500' : liveMargin >= 55 ? 'bg-amber-500' : 'bg-rose-500',
     }
   }, [pricingBreakdown, quoteLineItems, quoteModalTotals.subtotal])
+  const serviceProfitabilityPlan = useMemo(() => buildServiceProfitabilityPlan({
+    lineItems: quoteLineItems,
+    legs: legsEnabled ? legs : undefined,
+    jobFactors,
+    pricingBreakdown,
+  }), [jobFactors, legs, legsEnabled, pricingBreakdown, quoteLineItems])
+  const consultativeMovePlan = useMemo(() => buildConsultativeMovePlan({
+    factors: jobFactors,
+    lineItems: quoteLineItems,
+    destinationKnown: Boolean(destFull),
+    lead: {
+      moveDate: lead.moveDate,
+      moveDateFlexible: lead.moveDateFlexible,
+      moveDateFlexibleReason: lead.moveDateFlexibleReason,
+      originAddress,
+      originCity,
+      destAddress,
+      destCity,
+      propertyType,
+      tentativeReason: lead.tentativeReason,
+      followUpDate: lead.followUpDate,
+    },
+  }), [
+    destAddress,
+    destCity,
+    destFull,
+    jobFactors,
+    lead.followUpDate,
+    lead.moveDate,
+    lead.moveDateFlexible,
+    lead.moveDateFlexibleReason,
+    lead.tentativeReason,
+    originAddress,
+    originCity,
+    propertyType,
+    quoteLineItems,
+  ])
   const bookTodayProjectedMargin = useMemo(() => {
     if (!liveMarginSummary) return null
     const projectedRevenue = Math.max(0, quoteModalTotals.subtotal - (bookTodayActive ? 0 : 150))
@@ -1944,7 +1990,8 @@ export function EstimateDraftModal({
     return Math.round(((overrideAmount - liveMarginSummary.totalCost) / overrideAmount) * 1000) / 10
   }, [liveMarginSummary, overrideInput])
   const overrideAmount = useMemo(() => Math.round(Number(overrideInput || 0) * 100) / 100, [overrideInput])
-  const overrideNeedsApproval = currentUser?.role === 'sales_rep' && (overrideProjectedMargin === null || overrideProjectedMargin < 55)
+  const overrideIsIncrease = baseQuoteSubtotal > 0 && overrideAmount >= baseQuoteSubtotal
+  const overrideNeedsApproval = currentUser?.role === 'sales_rep' && !overrideIsIncrease && (overrideProjectedMargin === null || overrideProjectedMargin < 55)
   const overrideApprovalMatches = useMemo(() => {
     if (!overrideNeedsApproval) return true
     if (overrideAmount <= 0) return false
@@ -2258,11 +2305,19 @@ export function EstimateDraftModal({
     }
     const marginText = overrideProjectedMargin === null ? 'Projected margin: unknown' : `Projected margin: ${overrideProjectedMargin.toFixed(1)}%`
     const approvalText = overrideNeedsApproval ? `Approval code verified: ${quote?.priceOverrideApprovalCode || overrideApprovalCode.trim().toUpperCase()}` : 'Approval not required: healthy margin'
+    const separateServices = quoteLineItems.filter(item => [
+      packingLaborLineDescription,
+      packingMaterialsLineDescription,
+      junkLineDescription,
+      valuationLineDescription,
+      cleaningLineDescription,
+      containerHandlingLineDescription,
+    ].includes(item.description))
     onSetLineItems([{
       description: 'Moving Services — Agreed Rate',
       details: `${getOverrideReasonLabel(overrideReason)} — ${note}. ${marginText}. ${approvalText}.`,
       amount,
-    }])
+    }, ...separateServices])
     setOverrideApplied(true)
     setBookTodayActive(false)
     setTenPctActive(false)
@@ -2330,6 +2385,34 @@ export function EstimateDraftModal({
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             {quote ? <Link href={`/sales/quotes/${quote.id}`} className="crm-button w-full sm:w-auto">Open Full Workspace</Link> : null}
             <button onClick={onClose} className="crm-button w-full sm:w-auto">Close</button>
+          </div>
+        </div>
+
+        <div className="sticky top-0 z-30 border-b border-[var(--app-line)] bg-white/95 px-4 py-2 backdrop-blur md:px-6">
+          <div className="flex items-center gap-2 overflow-x-auto">
+            {[
+              { id: 'estimate-route', label: '1 Route', ready: Boolean(originFull && destFull && selectedMoveDate) },
+              { id: 'estimate-services', label: '2 Services', ready: true },
+              { id: 'estimate-inventory', label: '3 Inventory', ready: effectiveInventoryMetrics.totalItems > 0 && effectiveInventoryMetrics.totalCubicFeet > 0 },
+              { id: 'estimate-operations', label: '4 Crew & access', ready: Boolean(pricingBreakdown?.crewSize && pricingBreakdown?.truckCount) },
+              { id: 'estimate-price', label: '5 Price & send', ready: blockingReadiness.length === 0 && quoteModalTotals.total > 0 },
+            ].map(step => (
+              <button
+                key={step.id}
+                type="button"
+                onClick={() => document.getElementById(step.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold ${
+                  step.ready
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : 'border-amber-200 bg-amber-50 text-amber-800'
+                }`}
+              >
+                {step.ready ? '✓ ' : '○ '}{step.label}
+              </button>
+            ))}
+            <span className="ml-auto shrink-0 text-[10px] text-[var(--app-muted)]">
+              {blockingReadiness.length ? `${blockingReadiness.length} required item${blockingReadiness.length === 1 ? '' : 's'} left` : 'Ready for review'}
+            </span>
           </div>
         </div>
 
@@ -2508,7 +2591,7 @@ export function EstimateDraftModal({
 
             {/* Origin → Destination quick edit — hidden when multi-stop is on (legs ARE the route) */}
             {(onOriginAddressChange || onDestAddressChange) && !legsEnabled && (
-              <div ref={routeSectionRef} className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
+              <div id="estimate-route" ref={routeSectionRef} className="scroll-mt-16 rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
                 <div className="crm-label mb-3">Move Route</div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
@@ -2644,6 +2727,53 @@ export function EstimateDraftModal({
               </div>
             </div>
 
+            {effectiveInventoryMetrics.totalCubicFeet > 0 && (
+              <div className="rounded-[10px] border border-sky-200 bg-sky-50 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-sky-700">Recommended operating setup</div>
+                    <div className="mt-1 text-sm font-semibold text-sky-950">
+                      {suggestTruckCount(
+                        effectiveInventoryMetrics.totalCubicFeet,
+                        effectiveInventoryMetrics.totalWeightLbs,
+                        lead.moveType,
+                      )} company truck{suggestTruckCount(effectiveInventoryMetrics.totalCubicFeet, effectiveInventoryMetrics.totalWeightLbs, lead.moveType) > 1 ? 's' : ''}
+                      {' · '}{pricingBreakdown?.crewSize || 3} movers
+                    </div>
+                    <div className="mt-1 text-xs leading-5 text-sky-800">
+                      Based on {effectiveInventoryMetrics.totalCubicFeet.toLocaleString()} cu ft / {effectiveInventoryMetrics.totalWeightLbs.toLocaleString()} lbs.
+                      {effectiveInventoryMetrics.totalCubicFeet >= 1200 && effectiveInventoryMetrics.totalCubicFeet <= 1600
+                        ? ' This is close to practical capacity; safer fallback is one main truck plus a 10-ft overflow truck.'
+                        : effectiveInventoryMetrics.totalCubicFeet > 1600
+                          ? ' Inventory exceeds one-truck safe capacity; do not plan this as a single-load job.'
+                          : ` If using a rental for labor-only or container support, the inventory-equivalent size is ${truckSizeFromCubicFeet(effectiveInventoryMetrics.totalCubicFeet)}.`}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFactors({
+                        ...jobFactors,
+                        truckCountOverride: suggestTruckCount(effectiveInventoryMetrics.totalCubicFeet, effectiveInventoryMetrics.totalWeightLbs, lead.moveType),
+                      })}
+                      className="rounded-[6px] bg-sky-900 px-3 py-1.5 text-[11px] font-semibold text-white"
+                    >
+                      Use recommendation
+                    </button>
+                    {effectiveInventoryMetrics.totalCubicFeet >= 1200 && effectiveInventoryMetrics.totalCubicFeet <= 1600 && (
+                      <button
+                        type="button"
+                        onClick={() => setFactors({ ...jobFactors, truckCountOverride: 2, crewSizeOverride: Math.max(jobFactors.crewSizeOverride || 0, 4) })}
+                        className="rounded-[6px] border border-sky-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-sky-900"
+                      >
+                        Use safer 2-truck plan
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {lead.moveType === 'commercial' && (
               <div className="rounded-[8px] border border-sky-200 bg-sky-50/70 p-4 space-y-3">
                 <div className="flex items-start justify-between gap-3">
@@ -2750,11 +2880,136 @@ export function EstimateDraftModal({
             )}
 
             {/* ── ADD-ON SERVICES ── */}
-            <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 space-y-3">
+            <div id="estimate-services" className="scroll-mt-16 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 space-y-3">
               <div>
-                <div className="crm-label">Add-on Services</div>
-                <div className="mt-0.5 text-[11px] text-[var(--app-muted)]">Toggle services to include on this quote. Each appears as its own line item.</div>
+                <div className="crm-label">Customer Move Plan</div>
+                <div className="mt-0.5 text-[11px] text-[var(--app-muted)]">Start with the core move, then shape the complete transition around what this customer actually needs.</div>
               </div>
+
+              <div className={`rounded-[8px] border p-3 ${
+                consultativeMovePlan.estimateMode === 'firm'
+                  ? 'border-emerald-200 bg-emerald-50'
+                  : consultativeMovePlan.estimateMode === 'locked_scope'
+                    ? 'border-amber-200 bg-amber-50'
+                    : 'border-sky-200 bg-sky-50'
+              }`}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--app-muted)]">
+                    {consultativeMovePlan.estimateMode === 'firm'
+                      ? 'Firm estimate ready'
+                      : consultativeMovePlan.estimateMode === 'locked_scope'
+                        ? 'Lock the known scope now'
+                        : 'Planning estimate'}
+                  </div>
+                  {lead.moveDateFlexible ? (
+                    <span className="rounded-full border border-amber-300 bg-white px-2 py-1 text-[10px] font-semibold text-amber-900">
+                      Date remains flexible
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-1 text-xs leading-5 text-[var(--app-ink)]">{consultativeMovePlan.estimateMessage}</p>
+                {(consultativeMovePlan.knownNow.length > 0 || consultativeMovePlan.finalizeLater.length > 0) ? (
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <div className="text-[10px] font-bold uppercase tracking-wide text-emerald-800">Known and priceable now</div>
+                      <div className="mt-1 space-y-1 text-[11px] leading-4 text-[var(--app-ink)]">
+                        {consultativeMovePlan.knownNow.map(item => <div key={item}>✓ {item}</div>)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold uppercase tracking-wide text-amber-800">Finalize without restarting</div>
+                      <div className="mt-1 space-y-1 text-[11px] leading-4 text-[var(--app-ink)]">
+                        {consultativeMovePlan.finalizeLater.map(item => <div key={item}>○ {item}</div>)}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-3">
+                <label className="block">
+                  <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Closing / possession timing</span>
+                  <select value={jobFactors.destinationTiming || ''} onChange={e => setFactor('destinationTiming', (e.target.value || undefined) as never)} className="crm-input bg-white text-xs">
+                    <option value="">Ask customer</option>
+                    <option value="same_day">Dates line up</option>
+                    <option value="known_gap">Known gap</option>
+                    <option value="unknown">New home/date unknown</option>
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Packing preference</span>
+                  <select value={jobFactors.packingPreference || ''} onChange={e => setFactor('packingPreference', (e.target.value || undefined) as never)} className="crm-input bg-white text-xs">
+                    <option value="">Ask customer</option>
+                    <option value="self">Self-pack</option>
+                    <option value="partial_help">Help with selected rooms</option>
+                    <option value="full_service">Full packing service</option>
+                    <option value="undecided">Undecided</option>
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Cleaning preference</span>
+                  <select value={jobFactors.cleaningPreference || ''} onChange={e => setFactor('cleaningPreference', (e.target.value || undefined) as never)} className="crm-input bg-white text-xs">
+                    <option value="">Ask customer</option>
+                    <option value="none">No cleaning needed</option>
+                    <option value="move_out">Move-out cleaning</option>
+                    <option value="move_in">Move-in cleaning</option>
+                    <option value="both">Both homes</option>
+                    <option value="undecided">Undecided</option>
+                  </select>
+                </label>
+              </div>
+
+              {(jobFactors.destinationTiming === 'known_gap' || jobFactors.destinationTiming === 'unknown') && (
+                <div className="grid gap-2 rounded-[7px] border border-indigo-200 bg-indigo-50 p-3 sm:grid-cols-3">
+                  <label className="flex items-center gap-2 text-xs font-semibold text-indigo-900">
+                    <input type="checkbox" checked={jobFactors.temporaryStorageNeeded !== false} onChange={e => setFactor('temporaryStorageNeeded', e.target.checked)} />
+                    Temporary storage
+                  </label>
+                  <label className="flex items-center gap-2 text-xs font-semibold text-indigo-900">
+                    <input type="checkbox" checked={Boolean(jobFactors.storageDurationKnown)} onChange={e => setFactor('storageDurationKnown', e.target.checked)} />
+                    End date is known
+                  </label>
+                  <label className="flex items-center gap-2 text-xs text-indigo-900">
+                    <span>Model</span>
+                    <input type="number" min={1} max={24} value={jobFactors.storageEstimatedMonths || 2} onChange={e => setFactor('storageEstimatedMonths', Math.max(1, Number(e.target.value || 2)))} className="crm-input w-16 bg-white text-xs" />
+                    <span>month(s)</span>
+                  </label>
+                </div>
+              )}
+
+              <div className="grid gap-2 sm:grid-cols-5">
+                {consultativeMovePlan.phases.map(phase => (
+                  <div key={phase.id} className={`rounded-[7px] border p-2 ${
+                    phase.status === 'included' ? 'border-emerald-200 bg-emerald-50' : phase.status === 'pending' ? 'border-amber-200 bg-amber-50' : 'border-[var(--app-line)] bg-white'
+                  }`}>
+                    <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--app-muted)]">{phase.label}</div>
+                    <div className="mt-1 text-[10px] leading-4 text-[var(--app-ink)]">{phase.summary}</div>
+                  </div>
+                ))}
+              </div>
+
+              {consultativeMovePlan.questions.length > 0 && (
+                <div className="rounded-[7px] border border-sky-200 bg-sky-50 p-3">
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-sky-800">Ask naturally—one at a time</div>
+                  <div className="mt-1.5 space-y-1 text-xs text-sky-950">
+                    {consultativeMovePlan.questions.map(question => <div key={question}>• {question}</div>)}
+                  </div>
+                </div>
+              )}
+
+              {consultativeMovePlan.nudges.length > 0 ? (
+                <div className="rounded-[7px] border border-violet-200 bg-violet-50 p-3">
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-violet-800">CRM follow-through</div>
+                  <div className="mt-1.5 space-y-1.5 text-xs text-violet-950">
+                    {consultativeMovePlan.nudges.map(nudge => (
+                      <div key={nudge.key}>
+                        <span className="font-semibold">{nudge.label}</span>
+                        <span className="text-violet-700"> · {nudge.trigger}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               {/* Service chips */}
               <div className="flex flex-wrap gap-2">
@@ -2838,6 +3093,51 @@ export function EstimateDraftModal({
                   }`}
                 >
                   {valuationAdded ? '✓' : '+'} Valuation
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (cleaningAdded) {
+                      onSetLineItems(quoteLineItems.filter(item => item.description !== cleaningLineDescription))
+                    } else {
+                      onSetLineItems([...quoteLineItems, {
+                        description: cleaningLineDescription,
+                        details: 'Cleaning scope and price to be confirmed with the customer',
+                        amount: 0,
+                      }])
+                    }
+                  }}
+                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    cleaningAdded
+                      ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                      : 'border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:border-[#071421] hover:text-[#071421]'
+                  }`}
+                >
+                  {cleaningAdded ? '✓' : '+'} Cleaning
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (containerHandlingAdded) {
+                      onSetLineItems(quoteLineItems.filter(item => item.description !== containerHandlingLineDescription))
+                    } else {
+                      onSetLineItems([...quoteLineItems, {
+                        description: containerHandlingLineDescription,
+                        details: 'Labor-only loading or unloading of customer-supplied storage container; truck not included',
+                        amount: 0,
+                      }])
+                      setQuoteType('labor_only')
+                    }
+                  }}
+                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    containerHandlingAdded
+                      ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                      : 'border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:border-[#071421] hover:text-[#071421]'
+                  }`}
+                >
+                  {containerHandlingAdded ? '✓' : '+'} Storage Container Labor
                 </button>
 
                 {/* TV Box — auto-surfaces when ANY TV detected, $20/box, not in free boxes */}
@@ -3383,7 +3683,7 @@ export function EstimateDraftModal({
             </div>
 
             {/* Inventory + Photos */}
-            <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+            <div id="estimate-inventory" className="scroll-mt-16 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
               <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="crm-label">Inventory Snapshot</div>
@@ -4241,7 +4541,7 @@ export function EstimateDraftModal({
             </div>
 
             {/* ── JOB FACTORS ── */}
-            <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
+            <div id="estimate-operations" className="scroll-mt-16 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <div className="crm-label">Job Factors</div>
@@ -4807,7 +5107,7 @@ export function EstimateDraftModal({
             </div>
 
             {/* Line Items — grouped by service */}
-            <div>
+            <div id="estimate-price" className="scroll-mt-16">
               <div className="mb-4 crm-label">Estimate Line Items</div>
               {quoteLineItems.length === 0 ? (
                 <div className="rounded-[8px] border border-dashed border-[var(--app-line)] px-4 py-12 text-center text-sm text-[var(--app-muted)]">
@@ -4822,6 +5122,8 @@ export function EstimateDraftModal({
                       packingMaterialsLineDescription,
                       junkLineDescription,
                       valuationLineDescription,
+                      cleaningLineDescription,
+                      containerHandlingLineDescription,
                     ])
                     const movingItems = quoteLineItems
                       .map((item, index) => ({ item, index }))
@@ -4921,6 +5223,31 @@ export function EstimateDraftModal({
                       </div>
                     )
                   })()}
+
+                  {/* ── Cleaning / container handling items ── */}
+                  {(cleaningAdded || containerHandlingAdded) && (() => {
+                    const additionalItems = quoteLineItems
+                      .map((item, index) => ({ item, index }))
+                      .filter(({ item }) => item.description === cleaningLineDescription || item.description === containerHandlingLineDescription)
+                    return (
+                      <div>
+                        <div className="mb-2 flex items-center gap-2">
+                          <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
+                          <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--app-muted)]">Additional Services</span>
+                        </div>
+                        <div className="space-y-2">
+                          {additionalItems.map(({ item, index }) => (
+                            <div key={`${item.description}-${index}`} className="grid gap-2 rounded-[8px] border border-sky-200 bg-sky-50 p-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_130px_36px]">
+                              <input value={item.description} onChange={e => onUpdateLineItem(index, 'description', e.target.value)} className="crm-input text-xs" placeholder="Line item" />
+                              <input value={item.details || ''} onChange={e => onUpdateLineItem(index, 'details', e.target.value)} className="crm-input text-xs" placeholder="Details" />
+                              <input type="number" value={item.amount} onChange={e => onUpdateLineItem(index, 'amount', e.target.value)} className="crm-input text-right text-xs" placeholder="Amount" />
+                              <button onClick={() => onRemoveLineItem(index)} className="crm-button justify-center text-rose-700 hover:bg-rose-50 text-sm">×</button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
               )}
             </div>
@@ -4928,6 +5255,53 @@ export function EstimateDraftModal({
 
           {/* Sidebar */}
           <aside className="border-t border-[var(--app-line)] bg-[var(--app-bg)] p-4 md:p-6 xl:border-l xl:border-t-0 space-y-6">
+
+            <details className="rounded-[8px] border border-[var(--app-line)] bg-white" open={serviceProfitabilityPlan.status !== 'healthy'}>
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-3">
+                <div>
+                  <div className="crm-label">Service & Margin Check</div>
+                  <div className="mt-1 text-xs text-[var(--app-muted)]">
+                    {serviceProfitabilityPlan.packages.length} service{serviceProfitabilityPlan.packages.length === 1 ? '' : 's'} · {serviceProfitabilityPlan.grossMarginPct}% projected margin
+                  </div>
+                </div>
+                <span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase ${
+                  serviceProfitabilityPlan.status === 'healthy'
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : serviceProfitabilityPlan.status === 'watch'
+                      ? 'bg-amber-100 text-amber-800'
+                      : 'bg-rose-100 text-rose-800'
+                }`}>
+                  {serviceProfitabilityPlan.status}
+                </span>
+              </summary>
+              <div className="border-t border-[var(--app-line)] px-3 py-3 text-xs">
+                <div className="space-y-2">
+                  {serviceProfitabilityPlan.packages.map(item => (
+                    <div key={item.id} className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-semibold text-[var(--app-ink)]">{item.label}</div>
+                        <div className="text-[10px] uppercase tracking-wide text-[var(--app-muted)]">
+                          {item.category.replace('_', ' ')} · est. cost {formatMoney(item.allocatedDirectCost)} · {item.grossMarginPct}% margin
+                        </div>
+                      </div>
+                      <span className={item.needsReview ? 'font-semibold text-rose-700' : 'font-semibold text-[var(--app-ink)]'}>
+                        {formatMoney(item.revenue)}
+                      </span>
+                    </div>
+                  ))}
+                  {serviceProfitabilityPlan.packages.length === 0 ? (
+                    <div className="text-[var(--app-muted)]">Add the services included in this job.</div>
+                  ) : null}
+                </div>
+                {serviceProfitabilityPlan.protections.length > 0 ? (
+                  <div className="mt-3 space-y-1 rounded-[7px] bg-amber-50 p-2.5 text-amber-900">
+                    {serviceProfitabilityPlan.protections.map(item => <div key={item}>• {item}</div>)}
+                  </div>
+                ) : (
+                  <div className="mt-3 rounded-[7px] bg-emerald-50 p-2.5 text-emerald-900">Scope and margin checks are clear.</div>
+                )}
+              </div>
+            </details>
 
             {/* ── MOVE BREAKDOWN ── */}
             {pricingBreakdown ? (

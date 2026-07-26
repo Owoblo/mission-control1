@@ -5,6 +5,7 @@ export interface DaySchedule { open: string; close: string }
 export interface BlockedCaller {
   phone: string
   tag: string
+  displayName?: string
   note?: string
   blockedAt: string
   blockedBy?: string

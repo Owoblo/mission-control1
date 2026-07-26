@@ -351,3 +351,25 @@ export function applyLeadMediaAnalysis(
     surveyCompletedAt: input.surveyCompletedAt || lead.surveyCompletedAt,
   })
 }
+
+export async function appendLeadMediaAssetsAtomic(
+  leadId: string,
+  assets: LeadMediaAsset[],
+  surveyPhotoIncrement = 0
+) {
+  const { url, headers } = requireSupabaseEnv()
+  const response = await fetch(`${url}/rest/v1/rpc/append_crm_lead_media`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      p_lead_id: leadId,
+      p_assets: assets,
+      p_survey_increment: Math.max(0, surveyPhotoIncrement),
+    }),
+  })
+  if (!response.ok) {
+    throw new Error(`Atomic media append failed: ${response.status}`)
+  }
+  const data = await response.json() as CRMLead | null
+  return data ? normalizeLead(data) : null
+}

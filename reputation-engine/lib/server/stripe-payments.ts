@@ -31,6 +31,7 @@ export async function ensureStripeCustomerForLead(
   stripeKey: string,
   lead: CRMLead,
   preferredCustomerId?: string | null,
+  account?: { key: 'saturn' | 'dexa'; brandName: string },
 ) {
   const trimmedPreferred = (preferredCustomerId || '').trim()
   if (trimmedPreferred) {
@@ -54,6 +55,10 @@ export async function ensureStripeCustomerForLead(
     if (lead.email) customerParams.set('email', lead.email)
     if (lead.phone) customerParams.set('phone', lead.phone)
     customerParams.set('metadata[leadId]', lead.id)
+    if (account) {
+      customerParams.set('metadata[stripeAccountKey]', account.key)
+      customerParams.set('metadata[paymentBrand]', account.brandName)
+    }
 
     const customer = await stripePost<{ id?: string } & StripeErrorPayload>('customers', stripeKey, customerParams)
     if (!customer.id) {

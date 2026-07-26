@@ -38,6 +38,29 @@ const HIDDEN_ACTIVITY_TYPES = new Set([
   'telephony_call_outcome',
 ])
 
+const VISIBLE_ACTIVITY_TYPES = new Set([
+  'lead_created',
+  'lead_stage_changed',
+  'lead_lost',
+  'lead_assigned',
+  'job_booked',
+  'call_completed',
+  'voicemail_left',
+  'consultation_completed',
+  'quote_created',
+  'quote_sent',
+  'quote_viewed',
+  'quote_accepted',
+  'quote_declined',
+  'sms_sent',
+  'sms_received',
+  'email_sent',
+  'follow_up_scheduled',
+  'job_outcome_recorded',
+  'quote_revised',
+  'scope_change_requested',
+])
+
 const CUSTOMER_ACTIVITY_TYPES = new Set([
   'quote_viewed',
   'quote_accepted',
@@ -79,6 +102,8 @@ const EVENT_LABELS: Record<string, string> = {
   note_added:             'added a note',
   follow_up_scheduled:    'scheduled a follow-up',
   job_outcome_recorded:   'recorded job outcome',
+  quote_revised:          'revised an estimate',
+  scope_change_requested: 'recorded a scope change',
 }
 
 const EVENT_ICONS: Record<string, string> = {
@@ -101,6 +126,8 @@ const EVENT_ICONS: Record<string, string> = {
   note_added:             '📝',
   follow_up_scheduled:    '📅',
   job_outcome_recorded:   '📊',
+  quote_revised:          '🧾',
+  scope_change_requested: '⚠️',
 }
 
 function buildDetail(type: string, props: Record<string, unknown>): string {
@@ -195,9 +222,26 @@ export async function GET(request: Request) {
 
     const eventsRes = await fetch(query, { headers })
     const events: AnalyticsEvent[] = await eventsRes.json().catch(() => [])
-    const visibleEvents = type
+    const candidateEvents = type
       ? events
-      : events.filter(event => !HIDDEN_ACTIVITY_TYPES.has(event.event_type))
+      : events.filter(event => !HIDDEN_ACTIVITY_TYPES.has(event.event_type) && VISIBLE_ACTIVITY_TYPES.has(event.event_type))
+    // Logging paths can retry. Collapse only effectively-identical events within a
+    // five-second window; legitimate repeat calls/texts remain separate.
+    const seenFingerprints = new Map<string, number>()
+    const visibleEvents = candidateEvents.filter(event => {
+      const properties = event.properties || {}
+      const timestamp = new Date(event.ts).getTime()
+      const fingerprint = [
+        event.event_type,
+        event.lead_id || '',
+        event.rep_id || '',
+        String(properties.quote_id || ''),
+        String(properties.message_sid || properties.call_sid || ''),
+      ].join(':')
+      const prior = seenFingerprints.get(fingerprint)
+      seenFingerprints.set(fingerprint, timestamp)
+      return prior === undefined || Math.abs(prior - timestamp) > 5_000
+    })
 
     // Batch-fetch lead names
     const leadIds = Array.from(new Set(visibleEvents.map(e => e.lead_id).filter(Boolean) as string[]))

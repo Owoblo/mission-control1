@@ -52,7 +52,10 @@ export default function DialerSettingsPage() {
   const [newEmail, setNewEmail] = useState('')
   const [newSipUser, setNewSipUser] = useState('')
   const [newBlockedPhone, setNewBlockedPhone] = useState('')
+  const [newBlockedName, setNewBlockedName] = useState('')
   const [newBlockedTag, setNewBlockedTag] = useState('Spam')
+  const [newBlockedNote, setNewBlockedNote] = useState('')
+  const [blockedSearch, setBlockedSearch] = useState('')
 
   const isOwner = currentUser?.role === 'owner'
 
@@ -106,13 +109,20 @@ export default function DialerSettingsPage() {
     try {
       const response = await fetch('/api/sales/dialer/blocked-callers', {
         method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: newBlockedPhone, tag: newBlockedTag }),
+        body: JSON.stringify({
+          phone: newBlockedPhone,
+          displayName: newBlockedName,
+          tag: newBlockedTag,
+          note: newBlockedNote,
+        }),
       })
       const payload = await response.json() as { blockedCallers?: DialerSettings['blockedCallers']; error?: string }
       if (!response.ok) throw new Error(payload.error || 'Could not block number')
       setSettings(current => current ? { ...current, blockedCallers: payload.blockedCallers || [] } : current)
       setNewBlockedPhone('')
+      setNewBlockedName('')
       setNewBlockedTag('Spam')
+      setNewBlockedNote('')
       setSaved(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not block number')
@@ -202,19 +212,40 @@ export default function DialerSettingsPage() {
 
       {/* Business Hours */}
       <SectionCard title="Spam & Blocked Numbers" description="Blocked callers are rejected by Twilio before any CRM browser, SIP phone, IVR, voicemail, or missed-call workflow rings.">
-        <div className="grid gap-2 sm:grid-cols-[1fr_160px_auto]">
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_160px_1.4fr_auto]">
           <input value={newBlockedPhone} onChange={event => setNewBlockedPhone(event.target.value)} placeholder="Phone number" className="crm-input" />
+          <input value={newBlockedName} onChange={event => setNewBlockedName(event.target.value)} placeholder="Caller or company (optional)" className="crm-input" />
           <input value={newBlockedTag} onChange={event => setNewBlockedTag(event.target.value)} placeholder="Tag (Spam, Robocall…)" className="crm-input" />
+          <input value={newBlockedNote} onChange={event => setNewBlockedNote(event.target.value)} placeholder="Reason / context (optional)" className="crm-input" />
           <button onClick={() => void addBlockedCaller()} disabled={!newBlockedPhone.trim() || saving} className="rounded-[8px] bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500 disabled:opacity-40">Tag & block</button>
         </div>
+        {(settings.blockedCallers || []).length > 0 ? (
+          <div className="mt-4 flex items-center gap-3">
+            <input
+              value={blockedSearch}
+              onChange={event => setBlockedSearch(event.target.value)}
+              placeholder="Search blocked phone, company, tag, or note"
+              className="crm-input max-w-xl"
+            />
+            <span className="shrink-0 text-xs text-[var(--app-muted)]">{settings.blockedCallers.length} blocked</span>
+          </div>
+        ) : null}
         <div className="mt-4 space-y-2">
           {(settings.blockedCallers || []).length === 0 ? (
             <div className="rounded-[8px] bg-[var(--app-bg)] px-4 py-5 text-center text-sm text-[var(--app-muted)]">No blocked callers yet.</div>
-          ) : (settings.blockedCallers || []).map(entry => (
+          ) : (settings.blockedCallers || []).filter(entry => {
+            const query = blockedSearch.trim().toLowerCase()
+            if (!query) return true
+            return [entry.phone, entry.displayName, entry.tag, entry.note, entry.blockedBy]
+              .filter(Boolean)
+              .some(value => String(value).toLowerCase().includes(query))
+          }).map(entry => (
             <div key={entry.phone} className="flex items-center justify-between gap-4 rounded-[8px] border border-[var(--app-line)] px-4 py-3">
               <div className="min-w-0">
-                <div className="font-semibold text-[var(--app-ink)]">{entry.phone}</div>
+                <div className="font-semibold text-[var(--app-ink)]">{entry.displayName || entry.phone}</div>
+                {entry.displayName ? <div className="mt-0.5 text-xs text-[var(--app-muted)]">{entry.phone}</div> : null}
                 <div className="mt-0.5 text-xs text-[var(--app-muted)]"><span className="font-semibold text-rose-600">{entry.tag}</span> · Blocked {new Date(entry.blockedAt).toLocaleDateString()}{entry.blockedBy ? ` by ${entry.blockedBy}` : ''}</div>
+                {entry.note ? <div className="mt-1 text-xs leading-5 text-[var(--app-muted)]">{entry.note}</div> : null}
               </div>
               <button onClick={() => void unblockCaller(entry.phone)} className="shrink-0 rounded-[7px] border border-[var(--app-line)] px-3 py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:bg-[var(--app-bg)]">Unblock</button>
             </div>

@@ -1,150 +1,316 @@
-import { getTwilioCredentials } from '@/lib/server/runtime'
+import { getAppBaseUrl, getTwilioCredentials } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
-import { hasInternalSession } from '@/lib/server/session'
+import { getSessionUser } from '@/lib/server/session'
 import { pickSaturnBranchPhoneNumber } from '@/lib/sales-phones'
+import {
+  escapeTwiml,
+  isSafeConferenceName,
+  isTwilioCallSid,
+  makeConferenceName,
+  normalizeInternalTransferTarget,
+  resolveTwilioCallLegs,
+  type TwilioCallLeg,
+} from '@/lib/twilio-call-control'
 
-type ConferenceAction = 'start' | 'complete' | 'return' | 'end'
+type ConferenceAction = 'start' | 'complete' | 'return' | 'end' | 'hold' | 'resume'
 
 type StartConferenceBody = {
   action?: 'start'
-  customerCallSid?: string
+  activeCallSid?: string
+  customerCallSid?: string // backwards-compatible client field
   addTarget?: string
-  repIdentity?: string
+  holdOnly?: boolean
   callerId?: string | null
 }
 
 type UpdateConferenceBody = {
-  action: 'complete' | 'return' | 'end'
+  action: Exclude<ConferenceAction, 'start'>
   conferenceName?: string
   targetCallSid?: string
   repCallSid?: string
+  customerCallSid?: string
 }
 
 type ConferenceRequestBody = StartConferenceBody | UpdateConferenceBody
 
-function conferenceTwiml(conferenceName: string, options?: { announce?: string }) {
-  const announce = options?.announce
-    ? `<Say voice="alice">${options.announce}</Say>`
+function conferenceTwiml(input: {
+  conferenceName: string
+  participantLabel: string
+  callSidForRecording?: string
+  announce?: string
+}) {
+  const appUrl = getAppBaseUrl()
+  const callbackUrl = `${appUrl}/api/sales/dialer/conference/events`
+  const recordingCallback = input.callSidForRecording
+    ? `${appUrl}/api/sales/dialer/recording-callback?callSid=${encodeURIComponent(input.callSidForRecording)}`
     : ''
-  return `<?xml version="1.0" encoding="UTF-8"?><Response>${announce}<Dial><Conference endConferenceOnExit="false" startConferenceOnEnter="true" beep="false" muted="false">${conferenceName}</Conference></Dial></Response>`
+  const announce = input.announce
+    ? `<Say voice="alice">${escapeTwiml(input.announce)}</Say>`
+    : ''
+  const conferenceAttrs = [
+    `endConferenceOnExit="false"`,
+    `startConferenceOnEnter="true"`,
+    `beep="false"`,
+    `muted="false"`,
+    `participantLabel="${escapeTwiml(input.participantLabel)}"`,
+    `statusCallback="${escapeTwiml(callbackUrl)}"`,
+    `statusCallbackMethod="POST"`,
+    `statusCallbackEvent="start end join leave mute hold modify"`,
+    input.callSidForRecording ? `record="record-from-start"` : '',
+    recordingCallback ? `recordingStatusCallback="${escapeTwiml(recordingCallback)}"` : '',
+    recordingCallback ? `recordingStatusCallbackMethod="POST"` : '',
+    recordingCallback ? `recordingStatusCallbackEvent="completed absent"` : '',
+  ].filter(Boolean).join(' ')
+  return `<?xml version="1.0" encoding="UTF-8"?><Response>${announce}<Dial><Conference ${conferenceAttrs}>${escapeTwiml(input.conferenceName)}</Conference></Dial></Response>`
 }
 
-async function twilioPost(accountSid: string, authToken: string, path: string, body: Record<string, string>) {
-  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}${path}`, {
-    method: 'POST',
+async function twilioRequest(
+  accountSid: string,
+  authToken: string,
+  path: string,
+  options?: { method?: 'GET' | 'POST'; body?: Record<string, string> },
+) {
+  const method = options?.method || 'GET'
+  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}${path}`, {
+    method,
     headers: {
       Authorization: twilioAuth(accountSid, authToken),
-      'Content-Type': 'application/x-www-form-urlencoded',
+      ...(method === 'POST' ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
     },
-    body: new URLSearchParams(body).toString(),
+    ...(method === 'POST' ? { body: new URLSearchParams(options?.body || {}).toString() } : {}),
+    cache: 'no-store',
   })
-  const payload = await res.json().catch(() => ({})) as Record<string, unknown>
-  if (!res.ok) throw new Error(String(payload.message || `Twilio error ${res.status}`))
+  const payload = await response.json().catch(() => ({})) as Record<string, unknown>
+  if (!response.ok) throw new Error(String(payload.message || `Twilio error ${response.status}`))
   return payload
 }
 
-function normalizeDialTarget(value: string) {
-  const trimmed = value.trim()
-  if (trimmed.toLowerCase().startsWith('client:')) {
-    return { kind: 'client' as const, target: trimmed.slice(7) }
+async function resolveActiveCallLegs(accountSid: string, authToken: string, activeCallSid: string) {
+  if (!isTwilioCallSid(activeCallSid)) throw new Error('Invalid active Call SID')
+  const active = await twilioRequest(accountSid, authToken, `/Calls/${activeCallSid}.json`) as TwilioCallLeg
+  const related: TwilioCallLeg[] = []
+
+  if (active.parent_call_sid && isTwilioCallSid(active.parent_call_sid)) {
+    related.push(
+      await twilioRequest(accountSid, authToken, `/Calls/${active.parent_call_sid}.json`) as TwilioCallLeg,
+    )
+  } else {
+    const query = new URLSearchParams({ ParentCallSid: activeCallSid, PageSize: '20' })
+    const result = await twilioRequest(accountSid, authToken, `/Calls.json?${query.toString()}`) as {
+      calls?: TwilioCallLeg[]
+    }
+    related.push(...(result.calls || []))
   }
-  if (trimmed.toLowerCase().startsWith('sip:')) {
-    return { kind: 'sip' as const, target: trimmed }
+
+  return resolveTwilioCallLegs(active, related)
+}
+
+async function updateCall(
+  accountSid: string,
+  authToken: string,
+  callSid: string,
+  body: Record<string, string>,
+) {
+  if (!isTwilioCallSid(callSid)) throw new Error('Invalid Call SID')
+  return twilioRequest(accountSid, authToken, `/Calls/${callSid}.json`, { method: 'POST', body })
+}
+
+async function findConferenceSid(
+  accountSid: string,
+  authToken: string,
+  conferenceName: string,
+) {
+  if (!isSafeConferenceName(conferenceName)) throw new Error('Invalid conference name')
+  const query = new URLSearchParams({ FriendlyName: conferenceName, Status: 'in-progress', PageSize: '1' })
+  const result = await twilioRequest(accountSid, authToken, `/Conferences.json?${query.toString()}`) as {
+    conferences?: Array<{ sid?: string }>
   }
-  if (trimmed.startsWith('+') || /^\d{10,}$/.test(trimmed)) {
-    return { kind: 'number' as const, target: trimmed }
+  const sid = result.conferences?.[0]?.sid
+  if (!sid) throw new Error('Conference is not active yet')
+  return sid
+}
+
+async function setParticipantHold(input: {
+  accountSid: string
+  authToken: string
+  conferenceName: string
+  customerCallSid: string
+  hold: boolean
+}) {
+  if (!isTwilioCallSid(input.customerCallSid)) throw new Error('Invalid customer Call SID')
+  const conferenceSid = await findConferenceSid(input.accountSid, input.authToken, input.conferenceName)
+  const body: Record<string, string> = { Hold: input.hold ? 'true' : 'false' }
+  if (input.hold) {
+    body.HoldUrl = `${getAppBaseUrl()}/api/sales/dialer/conference/hold`
+    body.HoldMethod = 'GET'
   }
-  return { kind: 'client' as const, target: trimmed }
+  await twilioRequest(
+    input.accountSid,
+    input.authToken,
+    `/Conferences/${conferenceSid}/Participants/${input.customerCallSid}.json`,
+    { method: 'POST', body },
+  )
 }
 
 async function completeCall(accountSid: string, authToken: string, callSid?: string | null) {
-  if (!callSid) return null
-  return twilioPost(accountSid, authToken, `/Calls/${callSid}.json`, {
-    Status: 'completed',
-  }).catch(() => null)
+  if (!callSid || !isTwilioCallSid(callSid)) return null
+  return updateCall(accountSid, authToken, callSid, { Status: 'completed' }).catch(() => null)
 }
 
 async function handleStartConference(body: StartConferenceBody) {
-  const { customerCallSid, addTarget, repIdentity } = body
-  if (!customerCallSid || !addTarget) {
-    return Response.json({ error: 'customerCallSid and addTarget required' }, { status: 400 })
+  const activeCallSid = body.activeCallSid || body.customerCallSid
+  if (!activeCallSid || (!body.addTarget && !body.holdOnly)) {
+    return Response.json({ error: 'activeCallSid and a transfer target or holdOnly are required' }, { status: 400 })
   }
 
   const { accountSid, authToken } = getTwilioCredentials()
+  const legs = await resolveActiveCallLegs(accountSid, authToken, activeCallSid)
+  const conferenceName = makeConferenceName(legs.rootCallSid)
   const callerId = pickSaturnBranchPhoneNumber(body.callerId)
-  const conferenceName = `saturn-conf-${Date.now()}`
-  const moveCustomerTwiml = conferenceTwiml(conferenceName)
 
-  await twilioPost(accountSid, authToken, `/Calls/${customerCallSid}.json`, {
-    Twiml: moveCustomerTwiml,
+  // Move the rep first so the customer never loses the live call while the original
+  // <Dial> bridge is being replaced. Then move the customer into the same room.
+  await updateCall(accountSid, authToken, legs.repCallSid, {
+    Twiml: conferenceTwiml({
+      conferenceName,
+      participantLabel: `rep_${legs.repCallSid}`,
+      callSidForRecording: legs.customerCallSid,
+    }),
+  })
+  await updateCall(accountSid, authToken, legs.customerCallSid, {
+    Twiml: conferenceTwiml({
+      conferenceName,
+      participantLabel: `customer_${legs.customerCallSid}`,
+    }),
   })
 
-  const normalizedTarget = normalizeDialTarget(addTarget)
-  const targetCall = await twilioPost(accountSid, authToken, '/Calls.json', {
-    From: callerId,
-    To: normalizedTarget.kind === 'client' ? `client:${normalizedTarget.target}` : normalizedTarget.target,
-    Twiml: conferenceTwiml(conferenceName),
-  })
-
-  let repCallSid: string | null = null
-  if (repIdentity?.trim()) {
-    const repCall = await twilioPost(accountSid, authToken, '/Calls.json', {
-      From: callerId,
-      To: `client:${repIdentity.trim()}`,
-      Twiml: conferenceTwiml(conferenceName, { announce: 'Joining transfer bridge.' }),
-    }).catch(() => null)
-    repCallSid = typeof repCall?.sid === 'string' ? repCall.sid : null
+  let targetCallSid: string | null = null
+  if (body.addTarget) {
+    const normalizedTarget = normalizeInternalTransferTarget(body.addTarget)
+    const targetCall = await twilioRequest(accountSid, authToken, '/Calls.json', {
+      method: 'POST',
+      body: {
+        From: callerId,
+        To: normalizedTarget.kind === 'client' ? `client:${normalizedTarget.target}` : normalizedTarget.target,
+        Twiml: conferenceTwiml({
+          conferenceName,
+          participantLabel: `manager_${Date.now()}`,
+          announce: 'You are joining a private transfer consultation.',
+        }),
+        StatusCallback: `${getAppBaseUrl()}/api/sales/dialer/conference/events`,
+        StatusCallbackMethod: 'POST',
+        StatusCallbackEvent: 'initiated ringing answered completed',
+      },
+    })
+    targetCallSid = typeof targetCall.sid === 'string' ? targetCall.sid : null
   }
+
+  // The customer hears hold music while the original rep privately briefs the manager.
+  // A short retry handles the conference taking a moment to become queryable.
+  let held = false
+  for (let attempt = 0; attempt < 3 && !held; attempt += 1) {
+    try {
+      await setParticipantHold({
+        accountSid,
+        authToken,
+        conferenceName,
+        customerCallSid: legs.customerCallSid,
+        hold: true,
+      })
+      held = true
+    } catch {
+      if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 250 * (attempt + 1)))
+    }
+  }
+  if (!held) throw new Error('Transfer bridge started, but the customer could not be placed on hold')
 
   return Response.json({
     ok: true,
     conferenceName,
-    customerCallSid,
-    targetCallSid: typeof targetCall.sid === 'string' ? targetCall.sid : null,
-    repCallSid,
+    customerCallSid: legs.customerCallSid,
+    targetCallSid,
+    repCallSid: legs.repCallSid,
+    customerOnHold: true,
+    mode: body.holdOnly ? 'hold' : 'consult',
   })
 }
 
 async function handleUpdateConference(body: UpdateConferenceBody) {
   const { accountSid, authToken } = getTwilioCredentials()
-  const action: ConferenceAction = body.action
+  const action = body.action
+  if (!body.conferenceName || !isSafeConferenceName(body.conferenceName)) {
+    return Response.json({ error: 'A valid conferenceName is required' }, { status: 400 })
+  }
+
+  if (action === 'hold' || action === 'resume') {
+    if (!body.customerCallSid) {
+      return Response.json({ error: 'customerCallSid is required' }, { status: 400 })
+    }
+    await setParticipantHold({
+      accountSid,
+      authToken,
+      conferenceName: body.conferenceName,
+      customerCallSid: body.customerCallSid,
+      hold: action === 'hold',
+    })
+    return Response.json({ ok: true, action })
+  }
 
   if (action === 'complete') {
+    if (body.customerCallSid) {
+      await setParticipantHold({
+        accountSid,
+        authToken,
+        conferenceName: body.conferenceName,
+        customerCallSid: body.customerCallSid,
+        hold: false,
+      })
+    }
     await completeCall(accountSid, authToken, body.repCallSid)
     return Response.json({ ok: true, action })
   }
 
   if (action === 'return') {
     await completeCall(accountSid, authToken, body.targetCallSid)
+    if (body.customerCallSid) {
+      await setParticipantHold({
+        accountSid,
+        authToken,
+        conferenceName: body.conferenceName,
+        customerCallSid: body.customerCallSid,
+        hold: false,
+      })
+    }
     return Response.json({ ok: true, action })
   }
 
   await Promise.all([
     completeCall(accountSid, authToken, body.repCallSid),
     completeCall(accountSid, authToken, body.targetCallSid),
+    completeCall(accountSid, authToken, body.customerCallSid),
   ])
   return Response.json({ ok: true, action })
 }
 
 export async function GET() {
-  return Response.json({ ok: true, route: 'dialer-conference' })
+  return Response.json({ ok: true, route: 'dialer-conference', actions: ['start', 'hold', 'resume', 'complete', 'return', 'end'] })
 }
 
 export async function POST(request: Request) {
-  const authed = await hasInternalSession()
-  if (!authed) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const session = await getSessionUser()
+  if (!session || !['owner', 'manager', 'sales_rep'].includes(session.role || '')) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
   try {
     const body = await request.json() as ConferenceRequestBody
-    const action = body.action || 'start'
-    if (action === 'start') {
-      return handleStartConference(body as StartConferenceBody)
-    }
-    return handleUpdateConference(body as UpdateConferenceBody)
-  } catch (err) {
+    return (body.action || 'start') === 'start'
+      ? handleStartConference(body as StartConferenceBody)
+      : handleUpdateConference(body as UpdateConferenceBody)
+  } catch (error) {
     return Response.json(
-      { error: err instanceof Error ? err.message : 'Conference failed' },
-      { status: 500 }
+      { error: error instanceof Error ? error.message : 'Conference call control failed' },
+      { status: 502 },
     )
   }
 }

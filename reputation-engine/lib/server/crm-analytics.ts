@@ -11,6 +11,7 @@ import {
 import { BRANCH_CAPACITY_ESTIMATES, computeBranchCapacitySnapshot } from '../operations-capacity'
 import type { CRMLead, CRMQuote, FollowUpLog } from '../types'
 import { readEnv } from './runtime'
+import { classifyServiceLine, type ServiceCategory } from '../service-profitability'
 
 export type AnalyticsRange = 'week' | 'month' | 'ytd'
 
@@ -162,6 +163,19 @@ export function buildCRMAnalyticsSnapshot(
   const leadsReceived = scopedLeads.filter(lead => isWithinRange(lead.createdAt, filters.dateFrom, filters.dateTo))
   const bookedLeads = scopedLeads.filter(lead => isBookedLikeStage(lead.stage) && isWithinRange(lead.bookedAt || getQuoteForLead(quotesByLead, lead.id)?.acceptedAt, filters.dateFrom, filters.dateTo))
   const tentativeLeads = scopedLeads.filter(lead => lead.stage === 'tentative' && isWithinRange(lead.createdAt, filters.dateFrom, filters.dateTo))
+  const reservationLeads = scopedLeads.filter(lead =>
+    Boolean(lead.tentativeReservedAt && isWithinRange(lead.tentativeReservedAt, filters.dateFrom, filters.dateTo))
+  )
+  const reservationStatusCounts = reservationLeads.reduce<Record<string, number>>((counts, lead) => {
+    const status = lead.tentativeReservationStatus || 'unknown'
+    counts[status] = (counts[status] || 0) + 1
+    return counts
+  }, {})
+  const reservationReasonCounts = reservationLeads.reduce<Record<string, number>>((counts, lead) => {
+    const reason = lead.tentativeReason || 'unspecified'
+    counts[reason] = (counts[reason] || 0) + 1
+    return counts
+  }, {})
   const lostLeads = scopedLeads.filter(lead => lead.stage === 'lost' && isWithinRange(lead.lostAt || lead.createdAt, filters.dateFrom, filters.dateTo))
   const quotesInRange = quotes.filter(quote => quote.leadId && scopedLeadIds.has(quote.leadId) && isWithinRange(quote.createdAt, filters.dateFrom, filters.dateTo))
   const followUpsInRange = followUps.filter(entry => entry.leadId && scopedLeadIds.has(entry.leadId) && isWithinRange(entry.date || entry.createdAt, filters.dateFrom, filters.dateTo))
@@ -189,6 +203,31 @@ export function buildCRMAnalyticsSnapshot(
     quotesInRange.length > 0
       ? Math.round(quotesInRange.reduce((sum, quote) => sum + Number(quote.total || 0), 0) / quotesInRange.length)
       : 0
+  const serviceMix = new Map<ServiceCategory, {
+    quoteIds: Set<string>
+    bookedQuoteIds: Set<string>
+    quotedRevenue: number
+    bookedRevenue: number
+  }>()
+  for (const quote of quotesInRange) {
+    const booked = quote.status === 'accepted' || quote.status === 'invoiced'
+    for (const line of quote.lineItems || []) {
+      const category = classifyServiceLine(line.description || '')
+      const current = serviceMix.get(category) || {
+        quoteIds: new Set<string>(),
+        bookedQuoteIds: new Set<string>(),
+        quotedRevenue: 0,
+        bookedRevenue: 0,
+      }
+      current.quoteIds.add(quote.id)
+      current.quotedRevenue += Number(line.amount || 0)
+      if (booked) {
+        current.bookedQuoteIds.add(quote.id)
+        current.bookedRevenue += Number(line.amount || 0)
+      }
+      serviceMix.set(category, current)
+    }
+  }
 
   const lostReasonCounts: Record<string, number> = {}
   for (const lead of lostLeads) {
@@ -279,6 +318,30 @@ export function buildCRMAnalyticsSnapshot(
       monthlyProgressPct,
     },
     trend,
+    reservationFunnel: {
+      total: reservationLeads.length,
+      active: reservationStatusCounts.active || 0,
+      converted: reservationStatusCounts.converted || 0,
+      released: reservationStatusCounts.released || 0,
+      expired: reservationStatusCounts.expired || 0,
+      conversionRate: reservationLeads.length > 0
+        ? Math.round(((reservationStatusCounts.converted || 0) / reservationLeads.length) * 100)
+        : 0,
+      reasons: Object.entries(reservationReasonCounts)
+        .sort(([, a], [, b]) => b - a)
+        .map(([reason, count]) => ({ reason, label: reason.replace(/_/g, ' '), count })),
+    },
+    serviceBreakdown: [...serviceMix.entries()]
+      .map(([category, values]) => ({
+        category,
+        label: category.replace(/^./, char => char.toUpperCase()),
+        quoteCount: values.quoteIds.size,
+        bookedCount: values.bookedQuoteIds.size,
+        quotedRevenue: Math.round(values.quotedRevenue * 100) / 100,
+        bookedRevenue: Math.round(values.bookedRevenue * 100) / 100,
+        conversionRate: values.quoteIds.size > 0 ? Math.round((values.bookedQuoteIds.size / values.quoteIds.size) * 100) : 0,
+      }))
+      .sort((a, b) => b.quotedRevenue - a.quotedRevenue),
     sourceBreakdown: Object.entries(sourceCounts)
       .sort(([, a], [, b]) => b - a)
       .map(([source, count]) => ({

@@ -14,6 +14,7 @@ import { getLeadAssignedRepName } from '@/lib/sales'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { uid } from '@/lib/sales'
 import type { CRMLead, CRMQuote } from '@/lib/types'
+import { buildLeadLearningProfile } from '@/lib/learning-profile'
 
 export type EventType =
   | 'lead_created'
@@ -35,6 +36,13 @@ export type EventType =
   | 'note_added'
   | 'follow_up_scheduled'
   | 'job_outcome_recorded'
+  | 'intake_completed'
+  | 'estimate_opened'
+  | 'estimate_recalculated'
+  | 'quote_revised'
+  | 'scope_change_requested'
+  | 'inventory_evidence_added'
+  | 'experiment_exposure'
 
 interface EventProperties {
   actor_name?: string
@@ -178,6 +186,7 @@ export async function logEvent(
       enriched.has_elevator = l.jobFactors?.originHasElevator || l.jobFactors?.destHasElevator
       enriched.inventory_item_count = l.totalItems
       enriched.total_cubic_feet = l.totalCubicFeet
+      enriched.learning_profile = buildLeadLearningProfile(l, options.quote)
       enriched.actor_name = options.actorName || (allowLeadActorFallback ? (l.lastTouchedByName || getLeadAssignedRepName(l)) : undefined)
       enriched.actor_user_id = options.actorUserId || (allowLeadActorFallback ? (l.lastTouchedByUserId || l.assignedRepUserId) : undefined)
 
@@ -200,6 +209,7 @@ export async function logEvent(
       enriched.estimated_hours = q.estimatedHours
       enriched.truck_count = q.truckCount
       enriched.discount_amount = q.discountAmount
+      if (!options.lead) enriched.learning_profile = { quote: buildLeadLearningProfile({ id: q.leadId || 'unknown', name: '', stage: 'new', inventory: [], mediaAssets: [], callLogs: [], createdAt: '' }, q).quote }
       if (q.discountAmount && q.subtotal) {
         enriched.discount_pct = Math.round((q.discountAmount / q.subtotal) * 100)
       }

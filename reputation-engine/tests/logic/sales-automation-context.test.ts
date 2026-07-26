@@ -66,3 +66,27 @@ test('inventory extractor ignores address-only messages', () => {
   const items = extractCustomerInventoryItems('225 Wyandotte Street West, Windsor to 4755 Walker Road')
   assert.equal(items.length, 0)
 })
+
+test('customer inventory uses known moving dimensions instead of zero-value placeholders', () => {
+  const items = extractCustomerInventoryItems('couch, dining table, four night tables, TV console')
+  const knownItems = items.filter(item => ['Couch', 'Dining Table', 'Night Tables', 'Television Console'].includes(item.name || ''))
+
+  assert.equal(knownItems.length, 4)
+  assert.ok(knownItems.every(item => Number(item.cubicFeet) > 0))
+  assert.ok(knownItems.every(item => Number(item.weightLbs) > 0))
+  assert.equal(knownItems.find(item => item.name === 'Night Tables')?.qty, 4)
+})
+
+test('customer inventory separates adjacent counted items from conversational prose', () => {
+  const items = extractCustomerInventoryItems(
+    "I can't count boxes yet because nothing is packed. I have three beds two couches, dining table, patio furniture, four night tables, storage furniture midsize. One TV console."
+  )
+  const byName = new Map(items.map(item => [item.name, item]))
+
+  assert.equal(byName.get('Beds')?.qty, 3)
+  assert.equal(byName.get('Couches')?.qty, 2)
+  assert.equal(byName.get('Night Tables')?.qty, 4)
+  assert.equal(byName.get('Television Console')?.qty, 1)
+  assert.ok(items.every(item => Number(item.cubicFeet) > 0))
+  assert.ok(items.every(item => Number(item.weightLbs) > 0))
+})

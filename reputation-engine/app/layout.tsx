@@ -8,9 +8,12 @@ export const metadata: Metadata = {
   description: 'Sales CRM, quotes, operations, and reviews for Saturn Star Moving',
   manifest: '/manifest.webmanifest',
   icons: {
-    icon: '/brand/saturn-star-icon-full-color.png?v=2',
-    apple: '/icon-192.png?v=2',
-    shortcut: '/brand/saturn-star-icon-full-color.png?v=2',
+    icon: [
+      { url: '/icon-192.png?v=3', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png?v=3', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: '/icon-192.png?v=3',
+    shortcut: '/icon-192.png?v=3',
   },
   appleWebApp: {
     capable: true,
@@ -33,7 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700&display=swap" rel="stylesheet" />
-        <link rel="apple-touch-icon" href="/icon-192.png?v=2" />
+        <link rel="apple-touch-icon" href="/icon-192.png?v=3" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body className="min-h-screen">

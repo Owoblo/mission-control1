@@ -7,6 +7,7 @@ import { getSessionUser } from '@/lib/server/session'
 import { deleteSalesQuote, getSalesClient, getSalesLead, getSalesQuote, listFollowUpLogs, listFollowUpLogsForLead, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
 import { sendRepAlertEmail, quoteViewedEmail, quoteAcceptedEmail } from '@/lib/server/internal-notifications'
 import type { QuoteChangeEntry } from '@/lib/types'
+import { logEvent } from '@/lib/server/analytics'
 
 export async function GET(_: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
@@ -137,6 +138,22 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       })
     )
     await recordQuoteUpdatedAudit(current, savedQuote, session?.name)
+    void logEvent('quote_revised', {
+      leadId: savedQuote.leadId,
+      lead: currentLead || undefined,
+      quote: savedQuote,
+      actorName: session?.name,
+      actorUserId: session?.userId,
+      properties: {
+        previous_total: current.total,
+        new_total: savedQuote.total,
+        total_delta: Math.round((savedQuote.total - current.total) * 100) / 100,
+        previous_status: current.status,
+        new_status: savedQuote.status,
+        revision_after_acceptance: isAccepted,
+        changed_fields: Object.keys(updates).sort(),
+      },
+    })
 
     let lead = null
     if (savedQuote.leadId) {
