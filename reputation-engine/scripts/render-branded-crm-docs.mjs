@@ -12,8 +12,8 @@ const documents = [
     output: path.join(outputDir, 'Saturn-Star-CRM-Operating-Playbook.pdf'),
     title: 'CRM Operating Playbook',
     eyebrow: 'SATURN STAR MOVING',
-    subtitle: 'The complete operating guide—from first inquiry through quoting, booking, execution, payment, and customer care.',
-    edition: 'Version 1.0 · July 2026',
+    subtitle: 'The complete Saturn Star experience and operating standard—from first inquiry through final care.',
+    edition: 'Version 1.1 · July 2026',
     toc: true,
     compact: false,
   },
@@ -22,8 +22,8 @@ const documents = [
     output: path.join(outputDir, 'Saturn-Star-CRM-Desk-Reference.pdf'),
     title: 'CRM Desk Reference',
     eyebrow: 'SATURN STAR MOVING',
-    subtitle: 'A practical live-work guide for calls, estimates, edge cases, booking, and escalation.',
-    edition: 'Team edition · July 2026',
+    subtitle: 'A practical live-work guide for calm conversations, clear recommendations, responsible estimates, and continuity of care.',
+    edition: 'Version 1.1 · July 2026',
     toc: false,
     compact: true,
   },
@@ -261,8 +261,8 @@ function documentHtml(doc, markdown, logoDataUrl) {
         .toc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 22px; margin-top: 24px; }
         .toc-grid a { color: var(--navy); display: flex; gap: 10px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--border); text-decoration: none; font-size: 9px; font-weight: 650; }
         .toc-grid span { color: var(--gold-dark); font-size: 8px; font-weight: 800; }
-        article > h2 { break-before: ${doc.compact ? 'auto' : 'page'}; }
-        article > h2:first-child { break-before: auto; }
+        article > h2 { break-before: auto; margin-top: ${doc.compact ? '24px' : '32px'}; }
+        article > h2:first-child { margin-top: 0; }
         h2 {
           color: var(--navy);
           font-size: ${doc.compact ? '18px' : '22px'};
@@ -298,8 +298,10 @@ function documentHtml(doc, markdown, logoDataUrl) {
         code { color: var(--navy); background: #EEF1F3; padding: 1px 4px; border-radius: 3px; font-family: "SFMono-Regular", Consolas, monospace; font-size: .86em; }
         hr { border: 0; border-top: 1px solid var(--border); margin: 22px 0; }
         a { color: var(--gold-dark); text-decoration-color: rgba(138,104,0,.35); }
-        .table-wrap { margin: 14px 0 20px; break-inside: avoid; }
+        .table-wrap { margin: 14px 0 20px; }
         table { width: 100%; border-collapse: collapse; font-size: 8.5px; }
+        thead { display: table-header-group; }
+        tr { break-inside: avoid; }
         th { background: var(--navy); color: white; padding: 8px; text-align: left; font-weight: 700; }
         td { border: 1px solid var(--border); padding: 7px 8px; vertical-align: top; }
         tbody tr:nth-child(even) { background: #FBFAF7; }

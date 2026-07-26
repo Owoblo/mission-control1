@@ -2,20 +2,27 @@
 
 Keep this beside the CRM during live work.
 
-Version: 1.0  
-Effective date: July 25, 2026  
+Version: 1.1
+Effective date: July 26, 2026
 Owner: Mission Control operations
+
+## The governing standard
+
+> **The customer should feel more organized after every interaction.**
+
+Make them feel heard, oriented, understood, guided, protected, remembered, prepared, and cared for. The customer should experience a calm conversation—not the CRM’s field structure.
 
 ## The call flow
 
 1. Connect: acknowledge the person and their situation.
-2. Capture: name, phone, email, branch.
-3. Context: date, closing/possession timing, origin, destination, goal.
-4. Evidence: stored listing scan, photos, video, in-home, or verbal inventory.
-5. Plan: Prepare → Move out → Hold → Move in → Settle.
-6. Confirm: inventory, meaningful access risks, services, constraints.
-7. Price: route, crew, truck, hours, direct costs, margin.
-8. Next step: confirmation, quote, tentative hold, follow-up, deposit, or manager.
+2. Understand: what is changing and what is already decided?
+3. Orient: explain how Saturn Star will organize the transition.
+4. Verify: gather the minimum evidence required.
+5. Recommend: propose the simplest responsible plan and explain why.
+6. Confirm: play back what was understood and let the customer correct it.
+7. Commit: agree on their next step, our next step, and when they will hear from us.
+
+Capture identity, branch, route, access, price inputs, and CRM controls quietly during that flow.
 
 ## Ask one question at a time
 
@@ -29,11 +36,25 @@ Bad:
 
 ## Evidence path
 
-- Stored listing match: scan, review, send room list for confirmation.
+- Choose one primary path; add corroborating evidence only when a readiness gate reveals a material gap.
+- Stored listing match: identify it as the property’s public listing, review it, and send a room list for confirmation.
 - No listing: request photos.
 - Complex/hidden context: video survey.
 - High-risk or commercial: in-home consultation.
 - Small/simple: verbal inventory with known dimensions.
+
+Say:
+
+> “To save you from listing every room from scratch, I pulled together a starting inventory from the property’s public listing. You can remove anything staying and add anything the photos did not show.”
+
+## Signature moments
+
+1. **Playback:** “Let me play this back so I make sure we have organized it correctly.”
+2. **Transition map:** Prepare → Move out → Hold → Move in → Settle. Mark each phase confirmed, optional, pending, or not required.
+3. **Intelligent start:** use existing evidence to reduce customer effort.
+4. **Recommendation:** “Based on everything you told me, here is the plan I recommend and why.”
+5. **Clean commitment:** “Your next step is X. Our next step is Y. You will hear from us by Z.”
+6. **Warm handoff:** introduce the operations owner by name and promise the customer will not repeat the move.
 
 ## Do not send a final price when
 
@@ -141,6 +162,14 @@ Do not let MLS, AI, photos, or a phone list act as the complete source of truth 
 - Tentative hold converted
 - Operations handoff initialized
 
+## Warm handoff
+
+- Introduce the operations owner by name the same staffed day.
+- Transfer the quote, transition map, evidence, priorities, promises, and unresolved decisions.
+- Tell the customer they will not need to repeat the move.
+- Operations acknowledges the primary concern and confirms the preparation timeline.
+- Sales owns the relationship until operations explicitly accepts it.
+
 ## Before move day
 
 - Customer details
@@ -154,12 +183,52 @@ Do not let MLS, AI, photos, or a phone list act as the complete source of truth 
 
 ## After move
 
+- Priority furniture and large items placed
+- Immediate missed item/instruction check
+- Remaining unpacking, pickup, storage, or delivery explained
 - Actual hours and crew
 - Scope changes/issues
 - Payment reconciliation
-- Review request
+- Completion summary and care check
+- Review request only after concerns are resolved
 - Referral/partnership context
 - Estimate-versus-actual learning
+
+## Recovery
+
+1. Acknowledge the failure without defensiveness.
+2. Own Saturn Star’s responsibility—even when a crew, partner, or system caused it.
+3. Explain only useful facts, not excuses.
+4. Resolve with a named action, owner, and deadline.
+5. Confirm afterward that it was completed.
+6. Record and correct the root cause.
+
+Say:
+
+> “We own the extra work this created. I am your owner for the correction, and I will update you by [time].”
+
+Never blame “the office,” a subcontractor, automation, or the system.
+
+## Service tempo
+
+- Fresh staffed-hours inquiry: acknowledge within 10 minutes.
+- Missed staffed-hours call: return attempt within 15 minutes.
+- Simple verified estimate: send or update the customer the same staffed day.
+- Complex estimate: commit to a delivery time; target one staffed day after evidence is complete.
+- Media received: acknowledge promptly; review or state review time within four staffed hours.
+- Viewed estimate: contextual follow-up within one staffed day unless another milestone was agreed.
+- Booked handoff: named introduction the same staffed day.
+- Complaint: acknowledge within 30 minutes during staffed hours; give owner and next update time.
+- Move-day delay: notify before the arrival window passes.
+- Post-move check: same day or by noon the next staffed day.
+
+If a standard cannot be met, update the customer before the deadline passes.
+
+## Specialty policy
+
+- Pianos and hot tubs: excluded from ordinary scope; qualified-partner referral only when available.
+- Safes, pool tables, heavy gym equipment, oversized art/glass, antiques, and mounted items: manager-approved specialty service or qualified-partner referral after full evidence.
+- Unsafe, prohibited, or unsupported work: decline clearly.
 
 ## Loss reasons
 

@@ -1,7 +1,7 @@
 # Saturn Star CRM Operating Playbook
 
-Version: 1.0  
-Effective date: July 25, 2026  
+Version: 1.1
+Effective date: July 26, 2026
 Applies to: Saturn Star Moving, Dexa Moving, sales representatives, managers, operations leads, and customer-care staff
 Document owner: Mission Control operations
 
@@ -14,6 +14,101 @@ It is not a script that should make conversations robotic. It is a decision syst
 The goal is simple:
 
 > Make the customer feel understood, reduce uncertainty, recommend the right moving plan, record the commercial promise accurately, and leave every conversation with a clear next step.
+
+## Saturn Star Sales Experience Standard
+
+> **Our job is to make the customer’s transition feel more organized than it did before they contacted us.**
+
+Every interaction should leave the customer feeling heard, clearer, more prepared, less responsible for coordinating everything alone, and confident about what happens next.
+
+We do this by:
+
+1. asking one useful question at a time;
+2. explaining why information is needed;
+3. making a recommendation instead of presenting a confusing menu;
+4. separating what is confirmed from what remains uncertain;
+5. never making the customer repeat information Saturn Star already has;
+6. owning the next action and its deadline;
+7. correcting mistakes without defensiveness;
+8. ensuring the experience remains recognizably Saturn Star from first inquiry through final care.
+
+Technology and checklists should create intelligence behind the scenes. The customer should experience a calm conversation—not Saturn Star’s database structure.
+
+### The emotional journey
+
+| Stage | The customer may feel | Saturn Star must make them feel |
+|---|---|---|
+| First inquiry | Overwhelmed or suspicious | Heard |
+| Discovery | Unsure where to begin | Oriented |
+| Inventory review | Worried something will be missed | Understood |
+| Recommendation | Confused by options | Guided |
+| Estimate | Afraid of hidden charges | Clear and protected |
+| Decision | Nervous about committing | Unpressured but supported |
+| Booking | Worried they chose incorrectly | Confident |
+| Handoff | Afraid of repeating everything | Remembered |
+| Move preparation | Anxious about readiness | Prepared |
+| Problem or mistake | Angry or abandoned | Taken seriously |
+| Completion | Exhausted | Relieved and cared for |
+
+### Six signature Saturn Star moments
+
+#### 1. The Saturn Star playback
+
+Before recommending or pricing, say:
+
+> “Let me play this back so I make sure we have organized it correctly.”
+
+Restate the date or timing window, route, major inventory, priorities, uncertain pieces, and evidence still required. Let the customer correct the plan.
+
+#### 2. The visual transition map
+
+Organize the move as **Prepare → Move out → Hold → Move in → Settle**. Mark each phase **confirmed**, **optional**, **pending**, or **not required**. Use the same map in the consultation, estimate, customer communications, handoff, and job plan.
+
+#### 3. The intelligent inventory start
+
+Use public listing information, photos, video, or prior customer details to reduce the work the customer must do. Explain the source, benefit, limitation, and customer control.
+
+#### 4. The recommendation
+
+Say:
+
+> “Based on everything you told me, here is the plan I recommend and why.”
+
+Do not make the customer assemble a service plan from an undifferentiated menu. Present alternatives only when they meaningfully change cost, responsibility, timing, or risk.
+
+#### 5. The clean commitment
+
+End every meaningful interaction with:
+
+> “Your next step is [X]. Our next step is [Y]. You will hear from us by [Z].”
+
+Record the owner and deadline in Mission Control.
+
+#### 6. The warm handoff
+
+After booking, introduce the operations owner by name:
+
+> “I have transferred everything we discussed to [Name], who will coordinate the operational side. You will not need to repeat the move. The one item still pending is [item], and we will confirm it by [date].”
+
+The operations owner must acknowledge the customer’s primary concern and confirm the preparation timeline.
+
+### Default service tempo
+
+These are normal company standards, not promises to fabricate an answer before the work is ready. If a deadline cannot be met, contact the customer before it passes, explain the new owner and time, and record the exception.
+
+| Moment | Default standard |
+|---|---|
+| Fresh inquiry during staffed hours | Human acknowledgement within 10 minutes |
+| Missed call during staffed hours | Return attempt within 15 minutes |
+| Inquiry outside staffed hours | Acknowledge automatically; human response by 10:00 a.m. next staffed day |
+| Simple, verified estimate | Send or give a specific readiness update the same staffed day |
+| Complex estimate | Confirm owner and delivery time before ending the consultation; target within one staffed day after evidence is complete |
+| Customer-submitted inventory or media | Acknowledge receipt promptly; review or state review time within four staffed hours |
+| Viewed estimate | Contextual human follow-up within one staffed day unless another milestone was agreed |
+| Booked-customer handoff | Named introduction the same staffed day as booking |
+| Material escalation or complaint | Human acknowledgement within 30 minutes during staffed hours; named owner and next update time |
+| Move-day delay or material change | Notify as soon as known; never let the promised arrival window pass silently |
+| Post-move care check | Same day or by noon the next staffed day |
 
 ## 2. The five operating rules
 
@@ -155,11 +250,23 @@ Prepare and execute accepted work. Assign crew, reserve the quoted truck plan, v
 
 Use the assigned job packet and dispatch information. Report scope differences or move-day changes rather than privately agreeing to unrecorded work.
 
+Every assigned crew—including a qualified subcontractor—delivers the Saturn Star experience:
+
+- introduce the team as Saturn Star and use the customer’s name;
+- arrive in approved uniform and presentation with no visible competitor branding;
+- do not distribute personal business cards, solicit private work, or discuss internal subcontractor arrangements;
+- do not blame “the office” or renegotiate price onsite;
+- return every material scope or price change to Mission Control;
+- begin with a customer walkthrough and end with a placement/completion check;
+- communicate delays, damage, or concerns immediately through the named operational owner.
+
+Saturn Star owns the promise regardless of who performs the physical work.
+
 ### Owner
 
 Controls company-wide access, financial exceptions, branch configuration, pricing policy, payment accounts, and final escalations.
 
-## 5. The end-to-end lifecycle
+> The lifecycle below turns the Saturn Star experience standard into controlled work from first inquiry through final care.
 
 ## Stage 1 — Inquiry and ownership
 
@@ -247,7 +354,7 @@ Use when Mission Control has a matched stored listing.
 
 Suggested language:
 
-> “We keep a structured property-review process to make quoting easier. I found a starting inventory from the property information already in our system. I’ll send it by room so you can correct anything that changed.”
+> “To save you from listing every room from scratch, I pulled together a starting inventory from the property’s public listing. I’ll send it room by room so you can quickly remove anything staying behind and add anything the photos did not show.”
 
 ### Path B: customer photo request
 
@@ -328,7 +435,7 @@ The Estimate Readiness Workspace is the controlled drafting point between collec
 
 Do not treat any single evidence source as complete by itself. MLS may miss garages, storage, boxes, renovations, recently purchased furniture, and items the customer plans to sell. Photos may miss closets or access conditions. Video and AI may misidentify, duplicate, or overlook items. Phone and SMS lists depend on what the customer remembers.
 
-Use the available sources together:
+Choose one primary evidence path at a time to keep the experience simple. Add corroborating evidence where the readiness gates reveal a material gap. Use the available sources together when needed:
 
 - MLS or stored listing scan;
 - customer photos;
@@ -584,7 +691,13 @@ Do not call an optional protection product “insurance” unless the actual pol
 
 Flag pianos, safes, pool tables, hot tubs, gym equipment, antiques, oversized art, fragile glass, mounted televisions, and other unusual items.
 
-Do not assume the normal crew can perform specialist work. Use the move-policy guidance and manager review.
+Current service policy:
+
+- **Pianos and hot tubs:** excluded from the ordinary Saturn Star moving scope. Offer a clearly identified qualified-partner referral when available; do not imply Saturn Star’s normal crew will perform the work.
+- **Safes, pool tables, heavy gym equipment, oversized art, fragile glass, antiques, and mounted items:** manager-approved specialty service or qualified-partner referral only after dimensions, weight, path, equipment, and responsibility are confirmed.
+- **Unsafe, prohibited, or unsupported work:** decline clearly.
+
+Do not use “manager review” as language that suggests an excluded item is likely to be approved.
 
 ## 8. Crew, truck, and timing decisions
 
@@ -646,6 +759,26 @@ Upward estimate revisions are allowed when scope or evidence supports them. Reco
 
 ## 10. Sending the estimate
 
+The estimate is a customer-facing product, not merely a link. It must answer immediately:
+
+1. What is Saturn Star recommending?
+2. Why is this the right plan?
+3. What exactly is included?
+4. What remains optional, pending, or provisional?
+5. What happens next?
+
+Present information in this order:
+
+1. **Our recommendation** and its reason;
+2. the visual transition map;
+3. confirmed inclusions;
+4. optional services;
+5. pending decisions and written assumptions;
+6. the fixed price, deposit, and payment structure;
+7. acceptance and the next customer/Saturn Star actions.
+
+Offer a short review call for a complex estimate. When revising, identify what changed, why it changed, the price effect, and what did not change. Never make the customer compare two documents line by line to discover the revision.
+
 Before sending:
 
 - verify the customer name and contact;
@@ -664,6 +797,8 @@ Suggested message:
 > [short link]”
 
 Use one short introduction, a blank line, and the link. Avoid dense paragraphs.
+
+After delivery, verify the send status. If the estimate is opened, follow up using the customer’s actual decision context rather than a generic “just following up.”
 
 ## 11. Tentative reservations
 
@@ -840,6 +975,19 @@ Offer a later call, photo link, video survey, or clear follow-up time. Do not ke
 
 Use the follow-up queue. Do not send duplicate quotes because the first send is uncertain. Check timeline status and quote delivery before resending.
 
+Follow up from the last known context:
+
+- **Viewed estimate:** ask what part needs clarification or whether a short review would help.
+- **Waiting for sale, closing, possession, or a partner:** refer to that milestone specifically.
+- **Date approaching:** confirm availability and the unresolved decision without manufacturing urgency.
+- **Price concern:** compare scope and responsibility before discussing a reduction.
+- **Overwhelmed customer:** offer one simple next step, not another questionnaire.
+- **No engagement:** use a respectful cadence, then move to nurture rather than pursuing indefinitely.
+
+Say:
+
+> “When we spoke, you were waiting to confirm the possession date. Has that piece become clearer, or would it help if we keep the plan flexible for now?”
+
 ## 13. Booking and payment
 
 A booking should have:
@@ -858,6 +1006,17 @@ Payment records—not stale lead flags—control financial truth. If lead status
 Never resend payment links repeatedly without checking whether a payment session or payment already exists.
 
 ## 14. Operations handoff
+
+The customer must never restart the story after booking. Sales owns a warm transfer; operations owns explicit acceptance.
+
+### Customer-facing choreography
+
+1. Sales introduces the operations owner by name the same staffed day.
+2. Sales transfers the accepted quote, transition map, evidence, priorities, promises, and unresolved decisions.
+3. Operations acknowledges the customer’s primary concern in its first contact.
+4. Operations confirms the preparation timeline, next action, owner, and deadline.
+5. Any question already answered is verified from the record rather than asked again.
+6. If information conflicts, explain what is being reconciled; do not make the customer mediate between departments.
 
 After booking, confirm:
 
@@ -899,6 +1058,8 @@ After booking, confirm:
 - storage details;
 - services by phase.
 
+Ownership must never be ambiguous. Sales remains responsible until operations explicitly accepts the handoff.
+
 ## 15. Move-day changes
 
 If the customer changes scope onsite:
@@ -927,6 +1088,14 @@ Examples:
 
 ## 16. Completion, payment, and customer care
 
+The **Settle** phase is part of the service. Before the team leaves:
+
+- confirm priority furniture and large items are placed correctly;
+- ask whether any immediate room, item, or instruction was missed;
+- explain remaining unpacking, debris/material pickup, storage, or later-delivery work;
+- identify any issue and its named owner;
+- confirm that the customer knows what happens next.
+
 After the move:
 
 1. record actual start/end and hours;
@@ -940,6 +1109,25 @@ After the move:
 9. identify realtor, property manager, storage, employer, or other legitimate partnership context when naturally provided.
 
 Do not turn customer care into aggressive data extraction.
+
+Send a calm completion summary showing completed work, remaining action if any, payment status, issue owner, and care contact. Check for unresolved concerns before asking for a review.
+
+## 16A. Saturn Star service recovery
+
+When Saturn Star is late, wrong, unclear, duplicated, unavailable, or has created extra work for the customer:
+
+1. **Acknowledge:** state what happened and its effect without defensiveness.
+2. **Own:** Saturn Star owns the customer outcome, including failures by a crew, partner, or system.
+3. **Explain:** provide only useful facts, not internal excuses.
+4. **Resolve:** name the action, owner, and deadline.
+5. **Confirm:** contact the customer after the action to verify completion.
+6. **Learn:** record the root cause and correct the process, data, or control.
+
+Say:
+
+> “You should not have had to repeat that, and we own the extra work it created. I am correcting the move plan now. I am your owner for this, and I will update you by 3:00 p.m. today.”
+
+Never blame a subcontractor, another department, automation, or “the system.” Escalate damage, safety, payment, legal, or trust concerns immediately, but remain the customer’s visible owner until a named person accepts responsibility.
 
 ## 17. Lost, declined, and nurture outcomes
 
@@ -1044,7 +1232,7 @@ Do not experiment by secretly giving equivalent customers arbitrary exploitative
 
 1. Work fresh inbound first.
 2. Update the lead while context is fresh.
-3. Use one evidence path.
+3. Choose one primary evidence path; add corroborating evidence where a readiness gate reveals a gap.
 4. End with a next step.
 5. Verify messages and quote sends before retrying.
 
