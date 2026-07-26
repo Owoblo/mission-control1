@@ -50,12 +50,25 @@ Bad:
 - Two pickups → one destination: conjoint move.
 - Multiple operational stops: quote legs.
 - House → storage → future house: move-out, hold, move-in phases.
-- Customer container/truck: labour-only.
-- Packing only: packing labour + materials.
+- Customer container/truck: scoped job price or labour-only package; confirm fill, density, contents, access, and placement.
+- Packing only: one customer package with internal labour and material assumptions.
 - Junk: separate service/leg + disposal.
 - Cleaning: separate service with square footage/condition.
 - Unknown date: flexible date + follow-up/tentative reservation.
 - Unknown destination: quote known work; keep delivery provisional.
+
+## Fixed-price white-glove
+
+- Sell the confirmed outcome as one clear job price; keep crew hours, trucks, materials, access, risk, and margin visible internally.
+- Absorb ordinary variation that stays within the verified scope and capacity band.
+- Revise for material changes such as added rooms, major volume, specialty items, extra stops, packing, access, or route changes.
+- If items are removed, update and recalculate. Reduce only when the required resources or cost band genuinely changes.
+- For a 20-foot container, confirm fill level, density, contents evidence, loose versus boxed goods, access, placement/assembly, travel, and whether Saturn Star supplies transportation.
+- “All boxes included” means standard boxes and ordinary packing materials reasonably required for the verified household scope—not specialty crates, extraordinary/hazardous volume, unused take-home stock, or later scope additions.
+
+Say:
+
+> “We price the complete move you described. Let us know what changes; if it changes the resources required, we will revise the price fairly.”
 
 ## Uncertain but quoteable
 
@@ -94,16 +107,31 @@ It is a courtesy hold—not a booking or deposit.
 
 ## Before sending
 
+- Open the **Estimate Readiness Workspace**
+- Evidence: MLS, photos, video, list, rep intake, or customer confirmation visible
+- Inventory: moving, staying, and decision-pending items reconciled
+- No included item with unknown cubic feet
+- Customer confirmed the proposed fixed-price scope
 - Correct customer and branch
 - Correct full addresses
 - Date or explicit flexible-date assumption
-- Inventory evidence reviewed
+- Origin and destination access checked separately
+- Garage, basement, storage, closets, shed, attic, patio, and boxes asked where relevant
 - Services visible
 - Crew/truck plausible
 - Price and margin safe
 - Customer-facing explanation clean
 - Deposit/billing model correct
 - No internal notes exposed
+
+The four gates are:
+
+1. Evidence collected
+2. Inventory reconciled
+3. Route and access
+4. Commercial promise
+
+Do not let MLS, AI, photos, or a phone list act as the complete source of truth by itself. Combine the evidence and use the customer’s latest confirmed decision.
 
 ## Before booking
 

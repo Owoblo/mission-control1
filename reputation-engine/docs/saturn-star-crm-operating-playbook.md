@@ -272,18 +272,21 @@ Use for complex homes, unclear inventory, garages, wardrobes, storage, commercia
 
 Workflow:
 
-1. Create one survey session.
+1. Open the lead’s video survey. Reuse the lead’s existing customer link when one is already available.
 2. Review the customer message.
 3. Send by SMS or email.
 4. Customer accepts recording and AI-analysis consent.
-5. Recording begins through the session lifecycle when the customer joins.
-6. Guide the customer room by room.
-7. Use the back camera on mobile where possible.
-8. Mark rooms, staying-behind items, oversized pieces, access, or notes.
-9. End the call normally.
-10. Wait for recording processing and AI analysis.
-11. Review duplicates and spoken dispositions.
-12. A person confirms the final inventory before pricing.
+5. Watch for the **Customer waiting** notice and join the room.
+6. Confirm both people are present before beginning the walkthrough.
+7. Start face-to-face when practical, then ask the customer to select **Show room · wide view**. The system prefers an exposed Ultra Wide/0.5× rear lens and falls back to the available back camera.
+8. Recording begins through the session lifecycle when the customer joins.
+9. Guide the customer room by room.
+10. Mark rooms, staying-behind items, decision-pending items, oversized pieces, access, or notes.
+11. End the call normally.
+12. Follow the visible recording, video-preparation, AI-analysis, inventory-draft, and human-review stages.
+13. Watch the recording or use timestamps when evidence needs clarification.
+14. Review duplicates and spoken dispositions.
+15. A person confirms the final inventory before pricing.
 
 The AI must listen for statements such as:
 
@@ -318,6 +321,91 @@ Say:
 > “No problem—we’ll keep it visible in the plan for now. If you sell or donate it, let us know and we’ll update the inventory and explain whether that changes the price.”
 
 Never promise a lower price merely because one item may disappear. Recalculate the complete plan first; under a package or capacity band, the price may reasonably remain unchanged.
+
+## Stage 4A — Use the Estimate Readiness Workspace
+
+The Estimate Readiness Workspace is the controlled drafting point between collecting information and making a fixed-price promise. It is part of the estimate draft—not a separate dashboard.
+
+Do not treat any single evidence source as complete by itself. MLS may miss garages, storage, boxes, renovations, recently purchased furniture, and items the customer plans to sell. Photos may miss closets or access conditions. Video and AI may misidentify, duplicate, or overlook items. Phone and SMS lists depend on what the customer remembers.
+
+Use the available sources together:
+
+- MLS or stored listing scan;
+- customer photos;
+- live video walkthrough and recording;
+- SMS or written list;
+- representative or phone inventory;
+- customer verification decisions;
+- in-home consultation when required.
+
+The workspace has four gates.
+
+### Gate 1: Evidence collected
+
+Confirm that at least one defensible inventory source is on file. Then ask whether the source covers the complete move, including:
+
+- garage, basement, attic, shed, patio, storage locker, and closets;
+- packed and unpacked boxes;
+- recently added items;
+- furniture being sold, donated, discarded, or left behind;
+- specialty items and mounted items.
+
+For fixed-price work, the customer must confirm the proposed scope. Labour-only work may use the simpler confirmation appropriate to the service.
+
+### Gate 2: Inventory reconciled
+
+Every material item should be classified as:
+
+- **moving / confirmed**;
+- **staying / excluded**;
+- **decision pending**;
+- **missing or needs clarification**.
+
+Resolve contradictory evidence. Do not silently let MLS override the customer, let AI override a person, or let a later source erase earlier evidence. Preserve the sources and use the newest confirmed decision.
+
+Included items must have usable volume or dimensions. Unknown cubic feet and unresolved included-item decisions block a final fixed-price estimate.
+
+### Gate 3: Route and access
+
+Confirm separately for origin and destination:
+
+- complete address and route;
+- unit, floor, and property type;
+- stairs and elevator;
+- elevator reservation or booking window;
+- loading area, parking, and long carry;
+- narrow doors, hallways, turns, or restricted access;
+- extra pickups, drop-offs, storage, and other move legs;
+- packing status and estimated boxes.
+
+The existence of an address does not prove that access is understood.
+
+### Gate 4: Commercial promise
+
+Before sending, confirm:
+
+- crew and truck recommendation reflects the reconciled inventory;
+- route, access, specialty work, packing, and move legs are priced;
+- estimated internal hours and direct costs support the fixed price;
+- margin is reviewed and any required approval is complete;
+- deposit and payment account are correct;
+- the customer explanation states what is included and what remains conditional.
+
+The customer does not need to see internal hourly costing for fixed-price work. The team uses it to test whether the price is operationally safe and fair.
+
+### What blocks sending
+
+A final fixed-price estimate is not ready when:
+
+- there is no evidence source;
+- the customer has not confirmed the proposed scope;
+- an included item remains decision-pending or needs confirmation;
+- an included item has unknown cubic feet;
+- route or required identity data is missing;
+- crew, truck, price, or deposit is missing;
+- a critical margin exception is unresolved.
+
+Non-critical warnings—such as an unchecked hidden area, packing status, box count, or an access detail—must still be confirmed or deliberately addressed before sending. Do not click past warnings without understanding their effect.
 
 ## Stage 5 — Build the customer move plan
 
@@ -362,6 +450,35 @@ If the destination or storage duration is unknown, state a revisable assumption:
 
 Do not fabricate a precise future-delivery price when the route is unknown. Quote what can be known, show an allowance or provisional range where appropriate, and schedule the update.
 
+### Fixed-price white-glove posture
+
+Sell the customer a complete, clearly defined outcome—not a debate about hourly rates. Internally, still model the crew hours, truck capacity, materials, route, access, specialty handling, uncertainty reserve, and target margin that make the fixed price responsible.
+
+A confident white-glove price should account for:
+
+- the verified inventory and expected capacity;
+- crew size and internal production time;
+- trucks, travel, stops, tolls, parking, and disposal;
+- packing materials and protection;
+- stairs, elevators, carries, narrow access, and booking windows;
+- disassembly, reassembly, specialty items, and placement;
+- a reasonable reserve for normal variation within the confirmed scope;
+- the required service and margin check.
+
+Say:
+
+> “We price the complete move you described, including the normal work required to deliver it properly. We still plan the labour, trucks, materials, and access behind the scenes, but you receive one clear price for the confirmed scope.”
+
+### Ordinary variation versus material change
+
+Absorb ordinary variation that remains inside the confirmed scope and capacity band: a few additional standard boxes, routine disassembly, or small differences in how a room was described. Revise the estimate when the job materially changes—for example, an added room, storage container, major specialty item, extra stop, difficult access, packing service, substantially greater volume, or a different route.
+
+When a customer sells or removes items, update the inventory and recalculate the operational plan. Reduce the price when the change genuinely lowers the crew, truck, material, route, specialty, or risk requirement. If the work remains in the same cost and capacity band, explain why the package price does not change rather than inventing a line-item refund.
+
+Say:
+
+> “Let us know what changes and we will update the scope fairly. If it changes the resources required for your move, we will revise the price; if the same crew, truck, and service plan are still required, the package may remain unchanged.”
+
 ## 6. Estimate paths and edge cases
 
 | Situation | CRM setup | Pricing posture | Required confirmation |
@@ -369,14 +486,14 @@ Do not fabricate a precise future-delivery price when the route is unknown. Quot
 | Standard house-to-house move | Standard quote, one move leg | Binding-style only when route, inventory, and material access are confirmed | Inventory, addresses, date, access exceptions |
 | Apartment or condo | Standard quote plus unit/access data | Include meaningful elevator, carry, booking-window risks | Unit, elevator reservation, loading area |
 | Labour-only loading/unloading | Labour-only quote | Hourly/minimum or scoped job price | Work location, container/truck size, crew, stairs, customer equipment |
-| Customer-supplied storage container | Labour-only service line | Truck excluded unless separately added | Container size, load/unload/both, access |
+| Customer-supplied storage container | Container service line | Scoped job price or labour-only package; truck excluded unless added | Container size/fill, load/unload/both, contents, access, placement |
 | Move into storage | Storage leg | Price pickup, loading, travel, storage handling | Facility address, unit/access, duration |
 | Storage then later delivery | Storage plus storage-delivery legs | Treat as separate operational days inside one journey | Delivery date/route may remain pending |
 | Unknown new home | Move-out plus flexible hold | Use a stated storage allowance; later delivery provisional | Decision/check-in date |
 | Multi-stop | One quote with multiple legs | Price each operational leg | Stop order, inventory share, route |
 | Two pickups to one destination | Conjoint move | Do not duplicate the combined unload | Inventory ownership for each pickup |
 | Split delivery to two destinations | Multiple delivery legs | Price route and unloading for each destination | Which items go where |
-| Packing only | Packing-only quote | Labour and materials separated | Rooms, contents, box estimate, pack date |
+| Packing only | Packing-only quote | One customer package; retain internal labour/material assumptions | Rooms, contents, box estimate, pack date |
 | Partial packing | Add packing labour/materials | Price selected rooms or remaining work | What customer packs versus Saturn Star |
 | Move-out cleaning | Cleaning service line | Use confirmed scope/area or supplier price | Square footage, condition, empty/occupied |
 | Junk removal | Junk leg/service | Include handling and disposal | Photos/volume, weight, prohibited waste |
@@ -399,7 +516,28 @@ Determine:
 - packing day versus move day;
 - unopened-material return or actual-usage policy.
 
-Packing labour and materials should be separate line items.
+Externally, packing may be presented as one complete package. Internally, retain separate labour, material-usage, delivery, and reserve assumptions so the package remains measurable and profitable.
+
+If the offer says **all boxes included**, define it as all standard moving boxes and ordinary packing materials reasonably required for the verified household scope. It does not automatically include specialty art or TV crates, hazardous or commercial contents, extraordinary dense volume, unused take-home materials, or new scope added after confirmation. Build a material reserve into the package and track actual usage.
+
+### Customer-supplied containers and storage boxes
+
+Do not price a 20-foot container from its length alone. Confirm:
+
+- container length and estimated fill level;
+- loading, unloading, transportation, or a combination;
+- a contents description, photos, video walkthrough, or manifest;
+- ordinary household goods versus dense books, tools, gym equipment, safes, or specialty items;
+- loose contents versus boxed or wrapped contents;
+- door position, parking, carry distance, stairs, elevator, and weather exposure;
+- destination placement, assembly, debris removal, and extra stops;
+- whether Saturn Star supplies a truck or only the crew and equipment.
+
+If the container cannot be opened before quoting, use a documented scope band with an uncertainty reserve and clearly state the assumptions. A binding-style price requires enough evidence to confirm that the contents and access remain inside that band.
+
+Say:
+
+> “We do not need to catalogue every small item, but we do need enough visibility to confirm the container’s fill, density, specialty pieces, access, and placement. That lets us give you one responsible job price instead of surprising you later.”
 
 ### Cleaning
 
