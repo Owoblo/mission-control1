@@ -2804,7 +2804,7 @@ function defaultScheduledReplyTime(suggestion?: PartnershipAiSuggestion | null) 
 }
 
 type InboxQuickAction = 'active_partner' | 'drop_cards' | 'meeting_requested' | 'needs_follow_up' | 'not_interested' | 'wrong_number'
-type InboxFilter = 'context' | 'needs_reply' | 'responded' | 'no_response' | 'promising' | 'package_sent' | 'postcard' | 'appointment' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'all'
+type InboxFilter = 'inbound' | 'context' | 'needs_reply' | 'responded' | 'no_response' | 'promising' | 'package_sent' | 'postcard' | 'appointment' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'all'
 type InboxStatus = 'context' | 'needs_reply' | 'promising' | 'package_sent' | 'postcard' | 'appointment' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'review'
 
 const INBOX_QUICK_ACTIONS: Array<{ key: InboxQuickAction; label: string; tone: 'green' | 'blue' | 'amber' | 'slate' | 'red' }> = [
@@ -2870,11 +2870,12 @@ function quickActionClass(tone: 'green' | 'blue' | 'amber' | 'slate' | 'red', ac
 }
 
 const INBOX_FILTERS: Array<{ key: InboxFilter; label: string }> = [
-  { key: 'context', label: 'Context' },
+  { key: 'inbound', label: 'Inbound' },
   { key: 'needs_reply', label: 'Needs reply' },
   { key: 'responded', label: 'Responded' },
   { key: 'no_response', label: 'No response' },
   { key: 'all', label: 'All' },
+  { key: 'context', label: 'Context' },
   { key: 'promising', label: 'Positive' },
   { key: 'package_sent', label: 'Digital sent' },
   { key: 'postcard', label: 'Postcards' },
@@ -3220,6 +3221,7 @@ function inboxUrgencyRank(contact: Contact) {
 function matchesInboxFilter(contact: Contact, filter: InboxFilter) {
   const status = getInboxStatus(contact)
   if (filter === 'all') return true
+  if (filter === 'inbound') return hasPartnerInbound(contact)
   if (filter === 'context') return status === 'context'
   if (filter === 'responded') return hasRepResponded(contact)
   if (filter === 'no_response') return hasNoPartnerResponse(contact)
@@ -3645,7 +3647,7 @@ function PhoneTab({
   const requestedMarket = (searchParams.get('market') as PartnershipMarketKey | null)
   const requestedAreaId = requestedMarket ? marketCommandForKey(requestedMarket).areaId : ''
   const [search, setSearch] = useState('')
-  const [inboxFilter, setInboxFilter] = useState<InboxFilter>('needs_reply')
+  const [inboxFilter, setInboxFilter] = useState<InboxFilter>('inbound')
   const [areaFilter, setAreaFilter] = useState(requestedAreaId)
   const [cityFilter, setCityFilter] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
@@ -3767,6 +3769,10 @@ function PhoneTab({
     .sort((a, b) => {
       const urgency = inboxUrgencyRank(a) - inboxUrgencyRank(b)
       if (urgency !== 0) return urgency
+      if (inboxFilter === 'inbound') {
+        const inboundRecency = (b.latest_inbound_at || '').localeCompare(a.latest_inbound_at || '')
+        if (inboundRecency !== 0) return inboundRecency
+      }
       return (b.last_touch_at || b.latest_inbound_at || '').localeCompare(a.last_touch_at || a.latest_inbound_at || '')
     })
     .filter(c => {
@@ -3801,10 +3807,9 @@ function PhoneTab({
   }, [segmentContacts])
 
   useEffect(() => {
-    // Never strand a market manager on an empty action filter with no composer.
-    // If there is work in the market but nothing currently needs a reply, show
-    // the full relationship list so a record and its text box remain available.
-    if (inboxFilter === 'needs_reply' && sorted.length === 0 && segmentContacts.length > 0) {
+    // Never strand a market manager on an empty inbound queue with no composer.
+    // New markets can still open the full directory before the first reply arrives.
+    if (inboxFilter === 'inbound' && sorted.length === 0 && segmentContacts.length > 0) {
       setInboxFilter('all')
     }
   }, [inboxFilter, segmentContacts.length, sorted.length])
@@ -4571,7 +4576,7 @@ function PhoneTab({
           <div className="mb-3 lg:mb-2">
             <div>
               <div className="text-[22px] font-semibold tracking-tight text-[#111827] lg:text-xl">Partnership replies</div>
-              <div className="mt-0.5 text-xs font-medium text-slate-500">{filterCounts.needs_reply} need reply · {filterCounts.appointment} appointments</div>
+              <div className="mt-0.5 text-xs font-medium text-slate-500">{filterCounts.inbound} inbound · {filterCounts.needs_reply} need reply</div>
             </div>
           </div>
           <div className="flex gap-2">
@@ -4627,7 +4632,7 @@ function PhoneTab({
           {hasSegmentFilter && (
             <div className="mt-2 flex items-center justify-between gap-2 px-1 py-1">
               <span className="min-w-0 truncate text-[11px] font-semibold text-slate-500">
-                Showing {segmentContacts.length} of {inboxContacts.length} in this segment
+                {segmentContacts.length.toLocaleString()} contacts in this market · {inboxContacts.length.toLocaleString()} company-wide
               </span>
               <button
                 onClick={() => { setAreaFilter(''); setCityFilter(''); setCategoryFilter(''); setBatchFilter('') }}
