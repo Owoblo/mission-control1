@@ -4624,7 +4624,7 @@ function PhoneTab({
               <div className="mt-0.5 text-xs font-medium text-slate-500">{filterCounts.inbound} inbound · {filterCounts.needs_reply} need reply</div>
             </div>
           </div>
-          <div className="-mx-1 mb-3 flex gap-1 overflow-x-auto px-1 pb-1">
+          <div className="scrollbar-hidden -mx-1 mb-2 flex gap-1 overflow-x-auto px-1">
             <button
               onClick={() => selectMarket()}
               className={`shrink-0 border-b-2 px-2 py-1.5 text-xs font-semibold ${!areaFilter ? 'border-[#071421] text-[#071421]' : 'border-transparent text-slate-500 hover:text-[#071421]'}`}
@@ -4716,7 +4716,7 @@ function PhoneTab({
               )}
             </div>
           )}
-          <div className="mt-3 flex gap-5 overflow-x-auto border-b border-slate-100">
+          <div className="scrollbar-hidden mt-2 flex gap-5 overflow-x-auto border-b border-slate-100">
             {INBOX_FILTERS.map(filter => (
               <button
                 key={filter.key}
@@ -4810,7 +4810,7 @@ function PhoneTab({
           </div>
 
           {/* Thread */}
-          <div ref={threadRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white px-3 py-6 sm:px-6">
+          <div ref={threadRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white px-3 py-4 sm:px-6">
             {touchLoading && <div className="py-8 text-center text-sm text-slate-500">Loading…</div>}
             {!touchLoading && touches.length === 0 && <div className="py-8 text-center text-sm text-slate-500">No history yet.</div>}
             {(() => {
@@ -4851,8 +4851,8 @@ function PhoneTab({
                 )
               }
               return (
-                <div key={touch.id} className={`flex ${touch.direction === 'outbound' ? 'justify-end' : 'justify-start'} ${touchIndex === 0 ? '' : groupedWithPrevious ? 'mt-1.5' : 'mt-5'}`}>
-                  <div className={`max-w-[min(76%,560px)] px-4 py-3 text-[15px] leading-6 ${touch.direction === 'outbound' ? 'bg-[#14213d] text-white' : 'bg-[#f0f2f4] text-[#172033]'} ${touch.direction === 'outbound' ? `${groupedWithPrevious ? 'rounded-tr-md' : 'rounded-tr-[18px]'} ${groupedWithNext ? 'rounded-br-md' : 'rounded-br-[18px]'} rounded-l-[18px]` : `${groupedWithPrevious ? 'rounded-tl-md' : 'rounded-tl-[18px]'} ${groupedWithNext ? 'rounded-bl-md' : 'rounded-bl-[18px]'} rounded-r-[18px]`}`}>
+                <div key={touch.id} className={`flex ${touch.direction === 'outbound' ? 'justify-end' : 'justify-start'} ${touchIndex === 0 ? '' : groupedWithPrevious ? 'mt-1' : 'mt-4'}`}>
+                  <div className={`max-w-[min(70%,520px)] px-4 py-2.5 text-[15px] leading-[1.45] ${touch.direction === 'outbound' ? 'bg-[#14213d] text-white' : 'bg-[#f0f2f4] text-[#172033]'} ${touch.direction === 'outbound' ? `${groupedWithPrevious ? 'rounded-tr-md' : 'rounded-tr-[18px]'} ${groupedWithNext ? 'rounded-br-md' : 'rounded-br-[18px]'} rounded-l-[18px]` : `${groupedWithPrevious ? 'rounded-tl-md' : 'rounded-tl-[18px]'} ${groupedWithNext ? 'rounded-bl-md' : 'rounded-bl-[18px]'} rounded-r-[18px]`}`}>
                     {!groupedWithPrevious && touch.channel !== 'sms' && (
                       <div className={`mb-1 text-xs font-medium ${touch.direction === 'outbound' ? 'text-white/65' : 'text-slate-500'}`}>
                         {s.label}{s.auto ? ' · Automated' : ''}
@@ -4863,7 +4863,7 @@ function PhoneTab({
                         Automated SMS
                       </div>
                     )}
-                    {bubbleText && <div className="whitespace-pre-wrap break-words leading-relaxed">{bubbleText}</div>}
+                    {bubbleText && <div className="whitespace-pre-wrap break-words">{bubbleText}</div>}
                     {touchMedia.length > 0 && (
                       <div className="mt-2 grid gap-2">
                         {touchMedia.map(url => (
@@ -4887,21 +4887,20 @@ function PhoneTab({
           </div>
 
           {/* Compose */}
-          <div className="shrink-0 border-t border-slate-200 bg-white px-3 py-3 pb-[max(1rem,calc(env(safe-area-inset-bottom)+0.75rem))] shadow-[0_-8px_24px_rgba(7,20,33,0.06)] sm:px-5">
+          <div className="shrink-0 border-t border-slate-200 bg-white px-3 py-2 pb-[max(0.65rem,calc(env(safe-area-inset-bottom)+0.5rem))] shadow-[0_-6px_18px_rgba(7,20,33,0.04)] sm:px-5">
             {appointmentSuggestion && (
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-[16px] border border-indigo-100 bg-indigo-50 px-3 py-2">
-                <div className="min-w-0">
-                  <div className="text-xs font-semibold text-indigo-900">{appointmentSuggestion.title} detected</div>
-                  <div className="truncate text-xs font-medium text-indigo-700">
-                    {new Date(appointmentSuggestion.scheduledAtLocal).toLocaleString('en-CA', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                  </div>
+              <div className="mb-1.5 flex items-center justify-between gap-2 rounded-lg bg-indigo-50 px-2.5 py-1.5">
+                <div className="min-w-0 truncate text-xs font-medium text-indigo-800">
+                  <span className="font-semibold">{appointmentSuggestion.title}</span>
+                  {' · '}
+                  {new Date(appointmentSuggestion.scheduledAtLocal).toLocaleString('en-CA', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                 </div>
                 <button
                   onClick={() => void handleCreateAppointmentFromSuggestion()}
                   disabled={appointmentSaving}
-                  className="min-h-9 shrink-0 rounded-full bg-indigo-600 px-3 text-xs font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+                  className="shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-50"
                 >
-                  {appointmentSaving ? 'Saving...' : 'Save reminder'}
+                  {appointmentSaving ? 'Saving…' : 'Save'}
                 </button>
               </div>
             )}
@@ -4935,25 +4934,25 @@ function PhoneTab({
                 </div>
               </div>
             )}
-            <div className="mb-2 flex items-center gap-4 border-b border-slate-100 pb-2">
+            <div className="mb-1.5 flex items-center gap-4 border-b border-slate-100">
               <div className="flex shrink-0 gap-4">
-              <button onClick={() => setComposeChannel('sms')} className={`min-h-9 shrink-0 border-b-2 px-0 text-sm font-medium transition ${composeChannel === 'sms' ? 'border-[#071421] text-[#071421]' : 'border-transparent text-slate-500'}`}>
+              <button onClick={() => setComposeChannel('sms')} className={`min-h-8 shrink-0 border-b-2 px-0 text-[13px] font-medium transition ${composeChannel === 'sms' ? 'border-[#071421] text-[#071421]' : 'border-transparent text-slate-500'}`}>
                 SMS {!selected.phone && <span className="ml-1 text-red-400">no #</span>}
               </button>
-              <button onClick={() => setComposeChannel('email')} className={`min-h-9 shrink-0 border-b-2 px-0 text-sm font-medium transition ${composeChannel === 'email' ? 'border-[#071421] text-[#071421]' : 'border-transparent text-slate-500'}`}>
+              <button onClick={() => setComposeChannel('email')} className={`min-h-8 shrink-0 border-b-2 px-0 text-[13px] font-medium transition ${composeChannel === 'email' ? 'border-[#071421] text-[#071421]' : 'border-transparent text-slate-500'}`}>
                 Email {!selected.email && <span className="ml-1 text-red-400">no email</span>}
               </button>
               </div>
-              <button onClick={() => void handleAiReply()} disabled={aiReplyLoading} className="min-h-9 shrink-0 text-sm font-medium text-slate-600 transition hover:text-[#071421] disabled:opacity-50">
+              <button onClick={() => void handleAiReply()} disabled={aiReplyLoading} className="min-h-8 shrink-0 text-[13px] font-medium text-slate-600 transition hover:text-[#071421] disabled:opacity-50">
                 {aiReplyLoading ? 'Drafting…' : 'Suggest reply'}
               </button>
               {composeChannel === 'sms' && (
-                <button onClick={() => setScheduleMode(current => !current)} className={`min-h-9 text-sm font-medium ${scheduleMode ? 'text-[#071421]' : 'text-slate-500'}`}>
+                <button onClick={() => setScheduleMode(current => !current)} className={`min-h-8 text-[13px] font-medium ${scheduleMode ? 'text-[#071421]' : 'text-slate-500'}`}>
                   {scheduleMode ? 'Cancel schedule' : 'Schedule'}
                 </button>
               )}
               <details className="relative ml-auto shrink-0">
-                <summary className="flex min-h-9 cursor-pointer list-none items-center text-sm font-medium text-slate-500">More</summary>
+                <summary className="flex min-h-8 cursor-pointer list-none items-center text-[13px] font-medium text-slate-500">More</summary>
                 <div className="absolute right-0 z-30 mt-1 grid w-72 gap-2 rounded-[10px] border border-slate-200 bg-white p-3 shadow-lg">
               {composeChannel === 'sms' && <div className="text-xs leading-5 text-slate-500">Sending from {displayReplyNumber(selectedThreadFromNumber)}</div>}
               <label className="flex min-h-11 items-center justify-between gap-2 rounded-[7px] border border-slate-200 bg-white pl-3 pr-2 text-sm font-semibold text-slate-500 lg:text-xs">
@@ -4986,7 +4985,7 @@ function PhoneTab({
               </details>
             </div>
             {mediaUrls.length > 0 && (
-              <div className="mb-2 flex gap-2 overflow-x-auto">
+              <div className="scrollbar-hidden mb-2 flex gap-2 overflow-x-auto">
                 {mediaUrls.map(url => (
                   <div key={url} className="relative h-16 w-16 shrink-0 overflow-hidden rounded-[12px] border border-slate-200 bg-slate-50">
                     {isVideoUrl(url) ? (
@@ -5017,7 +5016,7 @@ function PhoneTab({
                     <button onClick={() => setScheduledAt(defaultScheduledReplyTime(aiSuggestion || selected.playbook))} className="min-h-10 text-sm font-medium text-slate-600">Use suggested time</button>
                   </div>
                 )}
-                <div className="flex items-end gap-2">
+                <div className="flex items-end gap-1.5 rounded-[24px] bg-[#f1f3f5] p-1">
                   <input
                     ref={mediaInputRef}
                     type="file"
@@ -5029,7 +5028,7 @@ function PhoneTab({
                   <button
                     onClick={() => mediaInputRef.current?.click()}
                     disabled={mediaUploading}
-                    className="mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-xl text-slate-500 hover:bg-slate-50 disabled:opacity-50"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xl text-slate-600 hover:bg-white/80 disabled:opacity-50"
                     title="Attach file"
                   >
                     {mediaUploading ? '…' : '+'}
@@ -5037,15 +5036,15 @@ function PhoneTab({
                   <button
                     onClick={toggleVoiceDictation}
                     type="button"
-                    className={`mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-lg font-semibold transition ${voiceListening ? 'bg-rose-50 text-rose-700' : 'text-slate-500 hover:bg-slate-50'}`}
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-base font-semibold transition ${voiceListening ? 'bg-rose-50 text-rose-700' : 'text-slate-600 hover:bg-white/80'}`}
                     title={voiceListening ? 'Stop voice typing' : 'Voice type'}
                   >
                     {voiceListening ? '■' : '🎙'}
                   </button>
-                  <textarea value={smsBody} onChange={e => setSmsBody(e.target.value)} rows={2} placeholder={selected.phone ? 'Message…' : 'No phone'} disabled={!selected.phone}
-                    className="max-h-48 min-h-[72px] flex-1 resize-y rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-base leading-6 text-[#071421] outline-none focus:border-[#071421] disabled:opacity-40" />
+                  <textarea value={smsBody} onChange={e => setSmsBody(e.target.value)} rows={1} placeholder={selected.phone ? 'Message…' : 'No phone'} disabled={!selected.phone}
+                    className="max-h-28 min-h-10 flex-1 resize-none border-0 bg-transparent px-2 py-2 text-[15px] leading-6 text-[#071421] outline-none placeholder:text-slate-400 disabled:opacity-40" />
                   <button onClick={handleSend} disabled={sending || mediaUploading || !selected.phone || (!smsBody.trim() && mediaUrls.length === 0) || (scheduleMode && !scheduledAt)}
-                    className="mb-0.5 min-h-11 rounded-lg bg-[#071421] px-4 text-sm font-semibold text-white disabled:opacity-40">{sending ? '…' : scheduleMode ? 'Schedule' : 'Send'}</button>
+                    className="min-h-10 shrink-0 rounded-full bg-[#071421] px-4 text-[13px] font-semibold text-white disabled:opacity-35">{sending ? '…' : scheduleMode ? 'Schedule' : 'Send'}</button>
                 </div>
                 {(voiceListening || voiceError) && (
                   <div className={`pl-14 text-xs font-medium ${voiceError ? 'text-rose-600' : 'text-slate-500'}`}>
