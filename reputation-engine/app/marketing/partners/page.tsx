@@ -691,6 +691,7 @@ type TwilioVoiceCall = {
   accept?: () => void
   reject?: () => void
   disconnect?: () => void
+  mute?: (value: boolean) => void
   on: (event: string, cb: (error?: unknown) => void) => void
   parameters?: Record<string, string>
 }
@@ -730,10 +731,40 @@ function useDialer() {
   const callRef = useRef<unknown>(null)
   const statusRef = useRef<DialStatus>('idle')
   const [incomingFrom, setIncomingFrom] = useState<string | null>(null)
+  const [connectedAt, setConnectedAt] = useState<number | null>(null)
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const [muted, setMuted] = useState(false)
 
   function updateStatus(next: DialStatus) {
     statusRef.current = next
     setStatus(next)
+  }
+
+  useEffect(() => {
+    if (status !== 'connected' || !connectedAt) {
+      if (status !== 'connected') setElapsedSeconds(0)
+      return
+    }
+    const updateElapsed = () => setElapsedSeconds(Math.max(0, Math.floor((Date.now() - connectedAt) / 1000)))
+    updateElapsed()
+    const timer = window.setInterval(updateElapsed, 1000)
+    return () => window.clearInterval(timer)
+  }, [status, connectedAt])
+
+  function markConnected() {
+    setConnectedAt(Date.now())
+    setElapsedSeconds(0)
+    setMuted(false)
+    setError(null)
+    updateStatus('connected')
+  }
+
+  function markCallEnded() {
+    setConnectedAt(null)
+    setElapsedSeconds(0)
+    setMuted(false)
+    updateStatus('ready')
+    callRef.current = null
   }
 
   function handleDialerError(errorValue: unknown, scope: 'device' | 'call' | 'incoming') {
@@ -779,10 +810,10 @@ function useDialer() {
       setError(null)
       setIncomingFrom(incomingCall.parameters?.From || 'Incoming partnership call')
       updateStatus('ringing')
-      incomingCall.on('accept', () => { setIncomingFrom(null); setError(null); updateStatus('connected') })
-      incomingCall.on('disconnect', () => { setIncomingFrom(null); updateStatus('ready'); callRef.current = null })
-      incomingCall.on('cancel', () => { setIncomingFrom(null); updateStatus('ready'); callRef.current = null })
-      incomingCall.on('reject', () => { setIncomingFrom(null); updateStatus('ready'); callRef.current = null })
+      incomingCall.on('accept', () => { setIncomingFrom(null); markConnected() })
+      incomingCall.on('disconnect', () => { setIncomingFrom(null); markCallEnded() })
+      incomingCall.on('cancel', () => { setIncomingFrom(null); markCallEnded() })
+      incomingCall.on('reject', () => { setIncomingFrom(null); markCallEnded() })
       incomingCall.on('error', errorValue => handleDialerError(errorValue, 'incoming'))
     })
     try {
@@ -815,10 +846,10 @@ function useDialer() {
     try {
       const conn = await device.connect({ params: { To: phoneNumber, City: city || '' } } as unknown) as TwilioVoiceCall
       callRef.current = conn
-      conn.on('accept', () => { setError(null); updateStatus('connected') })
-      conn.on('disconnect', () => { updateStatus('ready'); callRef.current = null })
-      conn.on('cancel', () => { updateStatus('ready'); callRef.current = null })
-      conn.on('reject', () => { updateStatus('ready'); callRef.current = null })
+      conn.on('accept', markConnected)
+      conn.on('disconnect', markCallEnded)
+      conn.on('cancel', markCallEnded)
+      conn.on('reject', markCallEnded)
       conn.on('error', errorValue => handleDialerError(errorValue, 'call'))
       window.setTimeout(() => {
         if (statusRef.current === 'connecting' && Date.now() - startedAt >= 45000) {
@@ -836,6 +867,14 @@ function useDialer() {
     conn?.disconnect?.()
   }
 
+  function toggleMute() {
+    const conn = callRef.current as TwilioVoiceCall | null
+    if (!conn?.mute) return
+    const next = !muted
+    conn.mute(next)
+    setMuted(next)
+  }
+
   function acceptIncoming() {
     const conn = callRef.current as TwilioVoiceCall | null
     conn?.accept?.()
@@ -849,7 +888,7 @@ function useDialer() {
     callRef.current = null
   }
 
-  return { status, error, incomingFrom, call, hangup, acceptIncoming, rejectIncoming, ensureReady }
+  return { status, error, incomingFrom, elapsedSeconds, muted, call, hangup, toggleMute, acceptIncoming, rejectIncoming, ensureReady }
 }
 
 // ─── Appointment Modal ────────────────────────────────────────────────────────
@@ -4835,6 +4874,41 @@ function PhoneTab({
             </div>
             </div>
           </div>
+
+          {(dialer.status === 'connecting' || dialer.status === 'connected') && (
+            <div className="shrink-0 border-b border-emerald-200 bg-emerald-50 px-3 py-2 sm:px-5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className={`h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500 ${dialer.status === 'connecting' ? 'animate-pulse' : ''}`} />
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold text-emerald-950">
+                      {dialer.status === 'connecting' ? `Calling ${selected.name}…` : `On call with ${selected.name}`}
+                    </div>
+                    <div className="text-xs text-emerald-800">
+                      {selected.phone}
+                      {dialer.status === 'connected'
+                        ? ` · ${String(Math.floor(dialer.elapsedSeconds / 60)).padStart(2, '0')}:${String(dialer.elapsedSeconds % 60).padStart(2, '0')}`
+                        : ' · Waiting for answer'}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  {dialer.status === 'connected' && (
+                    <button
+                      type="button"
+                      onClick={dialer.toggleMute}
+                      className={`min-h-9 rounded-full px-3 text-xs font-semibold transition ${dialer.muted ? 'bg-amber-100 text-amber-900' : 'bg-white text-emerald-900 hover:bg-emerald-100'}`}
+                    >
+                      {dialer.muted ? 'Unmute' : 'Mute'}
+                    </button>
+                  )}
+                  <button type="button" onClick={dialer.hangup} className="min-h-9 rounded-full bg-rose-500 px-4 text-xs font-semibold text-white hover:bg-rose-600">
+                    End call
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Thread */}
           <div ref={threadRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white px-3 py-4 sm:px-6">
