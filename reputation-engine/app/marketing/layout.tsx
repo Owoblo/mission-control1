@@ -58,7 +58,7 @@ function MarketingNavFallback() {
 
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="space-y-0">
+    <div className="flex h-full min-h-0 flex-col">
       <Suspense fallback={<MarketingNavFallback />}>
         <MarketingNav />
       </Suspense>

@@ -4679,7 +4679,7 @@ function PhoneTab({
         </div>
       ) : (
         <>
-        <div className={`${mobileListOpen ? 'hidden lg:flex' : 'flex'} min-w-0 flex-1 flex-col bg-white`}>
+        <div className={`${mobileListOpen ? 'hidden lg:flex' : 'flex'} min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white`}>
           {/* Header */}
           <div className="shrink-0 border-b border-slate-200 bg-white px-3 py-2.5 sm:px-5">
             <div className="flex items-center justify-between gap-3">
@@ -4693,7 +4693,7 @@ function PhoneTab({
                   <div className="truncate font-semibold text-[#071421]">{selected.name}</div>
                   <StageBadge stage={selected.normalized_stage} />
                 </div>
-                <div className="mt-0.5 truncate text-xs text-slate-400">{selected.phone || selected.company || selected.city || 'Partner contact'} · {partnershipManagerLabel(selected)}</div>
+                <div className="mt-0.5 truncate text-sm text-slate-500">{selected.phone || selected.company || selected.city || 'Partner contact'} · {partnershipManagerLabel(selected)}</div>
                 <div className="mt-2 hidden max-w-[62vw] items-center gap-1.5 overflow-x-auto md:flex">
                   {REPLY_DESK_STAGE_ACTIONS.slice(0, 4).map(stage => (
                     <button
@@ -4731,9 +4731,9 @@ function PhoneTab({
           </div>
 
           {/* Thread */}
-          <div ref={threadRef} className="min-h-0 flex-1 overflow-y-auto bg-white px-3 py-6 sm:px-6">
-            {touchLoading && <div className="text-center text-xs text-slate-400 py-8">Loading…</div>}
-            {!touchLoading && touches.length === 0 && <div className="text-center text-xs text-slate-400 py-8">No history yet.</div>}
+          <div ref={threadRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white px-3 py-6 sm:px-6">
+            {touchLoading && <div className="py-8 text-center text-sm text-slate-500">Loading…</div>}
+            {!touchLoading && touches.length === 0 && <div className="py-8 text-center text-sm text-slate-500">No history yet.</div>}
             {(() => {
               const threadTouches = [...touches].reverse()
               return threadTouches.map((touch, touchIndex) => {
@@ -4759,7 +4759,7 @@ function PhoneTab({
               if (touch.channel === 'note' || touch.channel === 'appointment') {
                 return (
                   <div key={touch.id} className={`flex justify-center ${touchIndex === 0 ? '' : 'mt-6'}`}>
-                    <div className="max-w-[min(82%,640px)] rounded-full bg-white/80 px-3 py-2 text-center text-xs font-medium leading-[1.5] text-slate-500 shadow-sm ring-1 ring-slate-200">
+                    <div className="max-w-[min(86%,680px)] rounded-full bg-white/80 px-4 py-2.5 text-center text-sm font-medium leading-[1.5] text-slate-600 shadow-sm ring-1 ring-slate-200">
                       {s.label}: {truncateText(bubbleText || 'Updated', 120)}
                     </div>
                   </div>
@@ -4770,8 +4770,8 @@ function PhoneTab({
                   <div className={`hidden h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm sm:flex ${groupedWithPrevious ? 'invisible' : ''} ${touch.direction === 'outbound' ? 'bg-[#071421]' : 'bg-white border border-slate-200'}`}>
                     <ChannelIcon channel={touch.channel} direction={touch.direction} />
                   </div>
-                  <div className={`max-w-[min(78%,620px)] px-4 py-3 text-base leading-[1.5] lg:text-[15px] ${touch.direction === 'outbound' ? 'bg-[#0f6a53] text-white' : 'bg-[#f1f3f5] text-[#111827]'} ${touch.direction === 'outbound' ? `${groupedWithPrevious ? 'rounded-tr-md' : 'rounded-tr-[18px]'} ${groupedWithNext ? 'rounded-br-md' : 'rounded-br-[18px]'} rounded-l-[18px]` : `${groupedWithPrevious ? 'rounded-tl-md' : 'rounded-tl-[18px]'} ${groupedWithNext ? 'rounded-bl-md' : 'rounded-bl-[18px]'} rounded-r-[18px]`}`}>
-                    <div className={`mb-1 flex items-center gap-2 text-[10px] font-semibold ${touch.direction === 'outbound' ? 'text-white/70' : 'text-slate-400'}`}>
+                  <div className={`max-w-[min(84%,680px)] px-4 py-3 text-base leading-[1.6] ${touch.direction === 'outbound' ? 'bg-[#0f6a53] text-white' : 'bg-[#f1f3f5] text-[#111827]'} ${touch.direction === 'outbound' ? `${groupedWithPrevious ? 'rounded-tr-md' : 'rounded-tr-[18px]'} ${groupedWithNext ? 'rounded-br-md' : 'rounded-br-[18px]'} rounded-l-[18px]` : `${groupedWithPrevious ? 'rounded-tl-md' : 'rounded-tl-[18px]'} ${groupedWithNext ? 'rounded-bl-md' : 'rounded-bl-[18px]'} rounded-r-[18px]`}`}>
+                    <div className={`mb-1 flex items-center gap-2 text-xs font-semibold ${touch.direction === 'outbound' ? 'text-white/75' : 'text-slate-500'}`}>
                       {s.label}
                       {s.auto && <span className={`rounded-full px-1.5 py-0.5 text-[9px] ${touch.direction === 'outbound' ? 'bg-white/15 text-white/90' : 'bg-slate-100 text-slate-500'}`}>Auto</span>}
                     </div>
@@ -4789,7 +4789,7 @@ function PhoneTab({
                         ))}
                       </div>
                     )}
-                    <div className={`mt-1 text-[10px] ${touch.direction === 'outbound' ? 'text-white/50' : 'text-slate-400'}`}>{fmtDate(touch.created_at)} {fmtTime(touch.created_at)}</div>
+                    <div className={`mt-1.5 text-xs ${touch.direction === 'outbound' ? 'text-white/65' : 'text-slate-500'}`}>{fmtDate(touch.created_at)} {fmtTime(touch.created_at)}</div>
                   </div>
                 </div>
               )
@@ -4798,7 +4798,7 @@ function PhoneTab({
           </div>
 
           {/* Compose */}
-          <div className="shrink-0 border-t border-slate-200 bg-white px-3 py-3 pb-[max(1rem,calc(env(safe-area-inset-bottom)+0.75rem))] sm:px-5">
+          <div className="shrink-0 border-t border-slate-200 bg-white px-3 py-3 pb-[max(1rem,calc(env(safe-area-inset-bottom)+0.75rem))] shadow-[0_-8px_24px_rgba(7,20,33,0.06)] sm:px-5">
             {appointmentSuggestion && (
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-[16px] border border-indigo-100 bg-indigo-50 px-3 py-2">
                 <div className="min-w-0">
@@ -4962,8 +4962,8 @@ function PhoneTab({
                   >
                     {voiceListening ? '■' : '🎙'}
                   </button>
-                  <textarea value={smsBody} onChange={e => setSmsBody(e.target.value)} rows={2} placeholder={selected.phone ? 'Type SMS…' : 'No phone'} disabled={!selected.phone}
-                    className="max-h-28 min-h-[72px] flex-1 resize-none rounded-[12px] border border-slate-200 bg-slate-50 px-4 py-3 text-base leading-[1.5] text-[#071421] outline-none focus:border-[#071421] disabled:opacity-40 lg:text-sm" />
+                  <textarea value={smsBody} onChange={e => setSmsBody(e.target.value)} rows={3} placeholder={selected.phone ? 'Write a clear partnership reply…' : 'No phone'} disabled={!selected.phone}
+                    className="max-h-56 min-h-[104px] flex-1 resize-y rounded-[12px] border border-slate-200 bg-slate-50 px-4 py-3 text-base leading-[1.6] text-[#071421] outline-none focus:border-[#071421] disabled:opacity-40" />
                   <button onClick={handleSend} disabled={sending || mediaUploading || !selected.phone || (!smsBody.trim() && mediaUrls.length === 0) || (scheduleMode && !scheduledAt)}
                     className="mb-0.5 min-h-12 rounded-full bg-[#071421] px-5 text-sm font-semibold text-white disabled:opacity-40 lg:min-h-11">{sending ? '…' : scheduleMode ? 'Schedule' : 'Send'}</button>
                 </div>
@@ -4986,8 +4986,8 @@ function PhoneTab({
                   >
                     {voiceListening ? '■' : '🎙'}
                   </button>
-                  <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={2} placeholder={selected.email ? 'Type email…' : 'No email'} disabled={!selected.email}
-                    className="max-h-28 min-h-[72px] flex-1 resize-none rounded-[12px] border border-slate-200 bg-slate-50 px-4 py-3 text-base leading-[1.5] text-[#071421] outline-none focus:border-[#071421] disabled:opacity-40 lg:text-sm" />
+                  <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={4} placeholder={selected.email ? 'Write a clear partnership email…' : 'No email'} disabled={!selected.email}
+                    className="max-h-64 min-h-[120px] flex-1 resize-y rounded-[12px] border border-slate-200 bg-slate-50 px-4 py-3 text-base leading-[1.6] text-[#071421] outline-none focus:border-[#071421] disabled:opacity-40" />
                   <button onClick={handleSend} disabled={sending || !selected.email || !emailBody.trim()}
                     className="min-h-12 self-end rounded-full bg-[#071421] px-5 text-sm font-semibold text-white disabled:opacity-40 lg:min-h-11">{sending ? '…' : 'Send'}</button>
                 </div>
@@ -5709,13 +5709,13 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4">
-      <div className="flex max-h-[96vh] w-full max-w-5xl flex-col rounded-t-[18px] bg-white shadow-none sm:rounded-[18px]">
-        <div className="flex items-center justify-between border-b border-[var(--app-line)] px-4 py-3 sm:px-5">
+      <div className="flex h-[96dvh] w-full max-w-6xl flex-col overflow-hidden rounded-t-[18px] bg-white shadow-none sm:h-[min(92dvh,900px)] sm:rounded-[18px]">
+        <div className="flex shrink-0 items-center justify-between border-b border-[var(--app-line)] px-4 py-4 sm:px-6">
           <div>
-            <div className="text-sm font-semibold text-[var(--app-ink)]">Schedule partnership SMS</div>
-            <div className="mt-0.5 text-[11px] text-[var(--app-muted)]">Preview first. Nothing sends until you approve scheduling.</div>
+            <div className="text-lg font-semibold text-[var(--app-ink)]">Prepare partnership outreach</div>
+            <div className="mt-1 text-sm text-[var(--app-muted)]">Upload, review the message, preview every safeguard, then approve scheduling.</div>
           </div>
-          <button onClick={onClose} className="rounded-xl p-2 text-[var(--app-muted)] hover:bg-[var(--app-bg)]">x</button>
+          <button onClick={onClose} aria-label="Close campaign setup" className="flex h-11 w-11 items-center justify-center rounded-xl text-xl text-[var(--app-muted)] hover:bg-[var(--app-bg)]">×</button>
         </div>
 
         {result ? (
@@ -5727,13 +5727,13 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
           </div>
         ) : (
           <>
-            <div className="grid flex-1 gap-0 overflow-y-auto md:grid-cols-[360px_1fr]">
-              <div className="space-y-4 border-b border-[var(--app-line)] p-4 md:border-b-0 md:border-r sm:p-5">
+            <div className="grid min-h-0 flex-1 gap-0 overflow-y-auto overscroll-contain md:grid-cols-[400px_1fr] md:overflow-hidden">
+              <div className="space-y-5 overflow-visible border-b border-[var(--app-line)] p-4 md:overflow-y-auto md:overscroll-contain md:border-b-0 md:border-r sm:p-6">
                 <div>
                   <label className="crm-label">CSV file</label>
                   <input type="file" accept=".csv,text/csv" onChange={e => { void handleFile(e.target.files?.[0] || null) }}
                     className="mt-1 block w-full text-sm text-[var(--app-muted)] file:mr-3 file:rounded-[10px] file:border-0 file:bg-[var(--app-ink)] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white" />
-                  <div className="mt-1 text-[11px] text-[var(--app-muted)]">{fileName || 'Upload the realtor CSV.'}</div>
+                  <div className="mt-2 text-sm leading-5 text-[var(--app-muted)]">{fileName || 'Upload the London or Kitchener–Waterloo realtor CSV.'}</div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -5804,7 +5804,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
                   <label className="crm-label">Partnership manager name</label>
                   <input value={repName} onChange={e => { setRepName(e.target.value); setPreview(null) }}
                     className="crm-input mt-1 text-sm" />
-                  <div className="mt-1 text-[11px] text-[var(--app-muted)]">Use <span className="font-semibold">{'{{repName}}'}</span> in the message template.</div>
+                  <div className="mt-2 text-sm leading-5 text-[var(--app-muted)]">Use <span className="font-semibold">{'{{repName}}'}</span> in the message template.</div>
                 </div>
 
                 <div>
@@ -5849,12 +5849,20 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
                 )}
               </div>
 
-              <div className="space-y-4 p-4 sm:p-5">
-                <div>
-                  <label className="crm-label">Message</label>
+              <div className="min-h-0 space-y-5 overflow-visible p-4 md:overflow-y-auto md:overscroll-contain sm:p-6">
+                <div className="sticky top-0 z-10 -mx-2 rounded-[14px] border border-[var(--app-line)] bg-white p-4 shadow-[0_8px_24px_rgba(7,20,33,0.06)]">
+                  <div className="flex flex-wrap items-end justify-between gap-2">
+                    <div>
+                      <label className="text-base font-semibold text-[var(--app-ink)]">Message</label>
+                      <div className="mt-1 text-sm text-[var(--app-muted)]">Write it as a real introduction, then preview the personalized result.</div>
+                    </div>
+                    <div className="rounded-full bg-[var(--app-bg)] px-3 py-1 text-xs font-semibold text-[var(--app-muted)]">
+                      {template.length} characters
+                    </div>
+                  </div>
                   <textarea value={template} onChange={e => { setTemplate(e.target.value); setPreview(null) }} rows={9}
-                    className="crm-input mt-1 resize-none text-sm leading-5" />
-                  <div className="mt-1 text-[11px] text-[var(--app-muted)]">City comes from each CSV row, even when scheduling a whole area. Tecumseh rows say Tecumseh; Windsor rows say Windsor.</div>
+                    className="crm-input mt-3 min-h-[230px] max-h-[420px] resize-y bg-white text-base leading-7" />
+                  <div className="mt-2 text-sm leading-5 text-[var(--app-muted)]">The city is personalized from each CSV row. London contacts say London; Kitchener and Waterloo contacts keep their correct city.</div>
                 </div>
 
                 {error && <div className="rounded-[10px] border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
@@ -5897,11 +5905,11 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
                       <div className="space-y-2">
                         {(preview.preview || []).map((item, index) => (
                           <div key={`${item.phone}-${index}`} className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
-                            <div className="flex flex-wrap justify-between gap-2 text-[11px] font-semibold text-[var(--app-muted)]">
+                            <div className="flex flex-wrap justify-between gap-2 text-sm font-semibold text-[var(--app-muted)]">
                               <span>{item.name} · {item.city || segmentLabel} · {item.phone}</span>
                               <span>{item.from_number} · {fmtDateTime(item.scheduled_at)}</span>
                             </div>
-                            <div className="mt-2 whitespace-pre-wrap text-sm leading-5 text-[var(--app-ink)]">{item.message}</div>
+                            <div className="mt-3 whitespace-pre-wrap text-base leading-7 text-[var(--app-ink)]">{item.message}</div>
                           </div>
                         ))}
                       </div>
@@ -5911,13 +5919,13 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
               </div>
             </div>
 
-            <div className="flex gap-2 border-t border-[var(--app-line)] p-4">
-              <button onClick={onClose} className="crm-button flex-1">Cancel</button>
+            <div className="grid shrink-0 grid-cols-3 gap-2 border-t border-[var(--app-line)] bg-white p-4 sm:px-6">
+              <button onClick={onClose} className="crm-button min-h-12">Cancel</button>
               <button onClick={() => void submit(true)} disabled={loading || contacts.length === 0 || !template.trim()} className="crm-button flex-1 disabled:opacity-50">
                 {loading ? 'Previewing...' : `Preview ${contacts.length || ''}`}
               </button>
               <button onClick={() => { if (preview && confirm(`Schedule ${preview.would_schedule} SMS jobs?`)) void submit(false) }} disabled={scheduling || !preview || preview.would_schedule === 0}
-                className="crm-button-dark flex-1 disabled:opacity-50">
+                className="crm-button-dark min-h-12 disabled:opacity-50">
                 {scheduling ? 'Scheduling...' : 'Approve schedule'}
               </button>
             </div>
