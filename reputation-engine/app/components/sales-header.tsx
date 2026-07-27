@@ -128,6 +128,8 @@ export function SalesHeader() {
   const [quickScanOpen, setQuickScanOpen] = useState(false)
   const [allLeads, setAllLeads] = useState<CRMLead[]>([])
   const [showDropdown, setShowDropdown] = useState(false)
+  const [blockingPhone, setBlockingPhone] = useState('')
+  const [blockNotice, setBlockNotice] = useState<string | null>(null)
   const searchRef = useRef<HTMLDivElement>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
@@ -335,6 +337,33 @@ export function SalesHeader() {
     setQuery('')
     setShowDropdown(false)
     router.push(`/sales/leads/${lead.id}`)
+  }
+
+  async function blockPhoneNumber(phone: string, displayName?: string | null) {
+    const digits = digitsOnly(phone)
+    if (digits.length < 8 || blockingPhone) return
+    setBlockingPhone(phone)
+    setBlockNotice(null)
+    try {
+      const response = await fetch('/api/sales/dialer/blocked-callers', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone,
+          displayName: displayName || undefined,
+          tag: 'Blocked',
+          note: 'Blocked proactively from CRM search.',
+        }),
+      })
+      const payload = await response.json() as { error?: string; blockedCaller?: { phone?: string } }
+      if (!response.ok) throw new Error(payload.error || 'Could not block number')
+      setBlockNotice(`${payload.blockedCaller?.phone || phone} is blocked`)
+    } catch (err) {
+      setBlockNotice(err instanceof Error ? err.message : 'Could not block number')
+    } finally {
+      setBlockingPhone('')
+    }
   }
 
   function handleNotifClick(item: NotificationItem) {
@@ -645,34 +674,70 @@ export function SalesHeader() {
                 />
                 {showDropdown && (
                   <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-[10px] border border-[var(--app-line)] bg-white shadow-lg">
+                    {digitsOnly(query).length >= 8 && (
+                      <div className="flex items-center justify-between gap-3 border-b border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-2.5">
+                        <div className="min-w-0">
+                          <div className="truncate text-xs font-semibold text-[var(--app-ink)]">{query.trim()}</div>
+                          <div className="text-[11px] text-[var(--app-muted)]">{blockNotice || 'Block this number before it calls'}</div>
+                        </div>
+                        <button
+                          type="button"
+                          onMouseDown={event => {
+                            event.preventDefault()
+                            void blockPhoneNumber(query.trim())
+                          }}
+                          disabled={Boolean(blockingPhone)}
+                          className="shrink-0 rounded-[7px] border border-rose-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:opacity-50"
+                        >
+                          {blockingPhone ? 'Blocking…' : 'Block'}
+                        </button>
+                      </div>
+                    )}
                     {searchResults.length === 0 ? (
                       <div className="px-4 py-3 text-sm text-[var(--app-muted)]">No leads found for &ldquo;{query}&rdquo;</div>
                     ) : (
                       searchResults.map(lead => (
-                        <button
+                        <div
                           key={lead.id}
-                          onMouseDown={() => handleSelectLead(lead)}
                           className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-[var(--app-bg)] border-b border-[var(--app-line)] last:border-0"
                         >
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#071421] text-[11px] font-bold text-white">
-                            {(lead.name || lead.phone || '?').slice(0, 2).toUpperCase()}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold text-[var(--app-ink)]">{lead.name || lead.phone}</div>
-                            <div className="flex flex-wrap gap-x-2 text-xs text-[var(--app-muted)]">
-                              {lead.phone && <span>{lead.phone}</span>}
-                              {lead.email && <span>{lead.email}</span>}
-                          </div>
-                          {(lead.originCity || lead.destCity) && (
-                            <div className="text-xs text-[var(--app-muted)]">
-                              {lead.originCity || '—'} → {lead.destCity || '—'}
+                          <button type="button" onMouseDown={() => handleSelectLead(lead)} className="flex min-w-0 flex-1 items-start gap-3 text-left">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#071421] text-[11px] font-bold text-white">
+                              {(lead.name || lead.phone || '?').slice(0, 2).toUpperCase()}
                             </div>
-                          )}
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-semibold text-[var(--app-ink)]">{lead.name || lead.phone}</div>
+                              <div className="flex flex-wrap gap-x-2 text-xs text-[var(--app-muted)]">
+                                {lead.phone && <span>{lead.phone}</span>}
+                                {lead.email && <span>{lead.email}</span>}
+                              </div>
+                              {(lead.originCity || lead.destCity) && (
+                                <div className="text-xs text-[var(--app-muted)]">
+                                  {lead.originCity || '—'} → {lead.destCity || '—'}
+                                </div>
+                              )}
+                            </div>
+                          </button>
+                          <div className="ml-auto flex shrink-0 flex-col items-end gap-1.5">
+                            <div className="rounded-full border border-[var(--app-line)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">
+                              {lead.stage}
+                            </div>
+                            {lead.phone && (
+                              <button
+                                type="button"
+                                onMouseDown={event => {
+                                  event.preventDefault()
+                                  event.stopPropagation()
+                                  void blockPhoneNumber(lead.phone || '', lead.name)
+                                }}
+                                disabled={Boolean(blockingPhone)}
+                                className="text-[11px] font-semibold text-rose-700 hover:underline disabled:opacity-50"
+                              >
+                                {blockingPhone === lead.phone ? 'Blocking…' : 'Block number'}
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <div className="ml-auto shrink-0 rounded-full border border-[var(--app-line)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">
-                          {lead.stage}
-                        </div>
-                      </button>
                     ))
                   )}
                 </div>

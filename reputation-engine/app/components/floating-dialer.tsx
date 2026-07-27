@@ -313,6 +313,7 @@ export function FloatingDialer() {
   const [tokenExpiresAt, setTokenExpiresAt] = useState<string | null>(null)
   const [preCallWarning, setPreCallWarning] = useState<string | null>(null)
   const [blockingIncoming, setBlockingIncoming] = useState(false)
+  const [blockingDialedNumber, setBlockingDialedNumber] = useState(false)
   const [outboundCallStarting, setOutboundCallStarting] = useState(false)
 
   // refs
@@ -1721,6 +1722,33 @@ export function FloatingDialer() {
     }
   }
 
+  async function blockDialedNumber() {
+    const number = phone.trim()
+    if (!number || blockingDialedNumber) return
+    setBlockingDialedNumber(true)
+    setError(null)
+    try {
+      const response = await fetch('/api/sales/dialer/blocked-callers', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: number,
+          displayName: activeLeadName || undefined,
+          tag: 'Blocked',
+          note: 'Blocked proactively from the dialer.',
+        }),
+      })
+      const payload = await response.json() as { error?: string; blockedCaller?: { phone?: string } }
+      if (!response.ok) throw new Error(payload.error || 'Could not block number')
+      setPreCallWarning(`${payload.blockedCaller?.phone || number} is now blocked.`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not block number')
+    } finally {
+      setBlockingDialedNumber(false)
+    }
+  }
+
   async function finalizeCall(
     direction: 'inbound' | 'outbound',
     options: {
@@ -3021,7 +3049,7 @@ export function FloatingDialer() {
               </button>
 
               {/* Quick links */}
-              <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="mt-3 grid grid-cols-3 gap-2">
                 <a
                   href={phone.trim() ? `sms:${phone.trim()}` : '#'}
                   className="flex h-10 items-center justify-center rounded-[12px] bg-white/8 text-sm font-medium text-white/60 transition hover:bg-white/12 hover:text-white/80"
@@ -3031,6 +3059,14 @@ export function FloatingDialer() {
                 <Link href="/sales/new" className="flex h-10 items-center justify-center rounded-[12px] bg-white/8 text-sm font-medium text-white/60 transition hover:bg-white/12 hover:text-white/80">
                   New lead
                 </Link>
+                <button
+                  type="button"
+                  onClick={() => void blockDialedNumber()}
+                  disabled={!phone.trim() || blockingDialedNumber}
+                  className="flex h-10 items-center justify-center rounded-[12px] border border-rose-400/20 bg-rose-400/8 text-sm font-medium text-rose-300 transition hover:bg-rose-400/15 disabled:cursor-not-allowed disabled:opacity-35"
+                >
+                  {blockingDialedNumber ? 'Blocking…' : 'Block'}
+                </button>
               </div>
 
               {/* Diagnostics link */}
