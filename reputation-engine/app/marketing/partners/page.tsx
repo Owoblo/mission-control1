@@ -734,6 +734,7 @@ function useDialer() {
   const [connectedAt, setConnectedAt] = useState<number | null>(null)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [muted, setMuted] = useState(false)
+  const [activeContact, setActiveContact] = useState<{ id?: string; name: string; phone: string } | null>(null)
 
   function updateStatus(next: DialStatus) {
     statusRef.current = next
@@ -763,6 +764,7 @@ function useDialer() {
     setConnectedAt(null)
     setElapsedSeconds(0)
     setMuted(false)
+    setActiveContact(null)
     updateStatus('ready')
     callRef.current = null
   }
@@ -774,6 +776,7 @@ function useDialer() {
       message: twilioErrorMessage(errorValue),
     })
     setIncomingFrom(null)
+    setActiveContact(null)
     callRef.current = null
     updateStatus('error')
     setError(message)
@@ -836,10 +839,15 @@ function useDialer() {
     }
   }
 
-  async function call(phoneNumber: string, city?: string | null) {
+  async function call(phoneNumber: string, city?: string | null, contact?: { id?: string; name?: string }) {
     const ready = await ensureReady({ showError: true })
     if (!ready || !deviceRef.current) return
     setError(null)
+    setActiveContact({
+      id: contact?.id,
+      name: contact?.name?.trim() || phoneNumber,
+      phone: phoneNumber,
+    })
     updateStatus('connecting')
     const startedAt = Date.now()
     const device = deviceRef.current as { connect: (opts?: unknown) => Promise<unknown> }
@@ -854,10 +862,12 @@ function useDialer() {
       window.setTimeout(() => {
         if (statusRef.current === 'connecting' && Date.now() - startedAt >= 45000) {
           callRef.current = null
+          setActiveContact(null)
           updateStatus('ready')
         }
       }, 45000)
     } catch (errorValue) {
+      setActiveContact(null)
       handleDialerError(errorValue, 'call')
     }
   }
@@ -888,7 +898,7 @@ function useDialer() {
     callRef.current = null
   }
 
-  return { status, error, incomingFrom, elapsedSeconds, muted, call, hangup, toggleMute, acceptIncoming, rejectIncoming, ensureReady }
+  return { status, error, incomingFrom, elapsedSeconds, muted, activeContact, call, hangup, toggleMute, acceptIncoming, rejectIncoming, ensureReady }
 }
 
 // ─── Appointment Modal ────────────────────────────────────────────────────────
@@ -3732,7 +3742,6 @@ function PhoneTab({
   const mediaInputRef = useRef<HTMLInputElement>(null)
   const smsTextareaRef = useRef<HTMLTextAreaElement>(null)
   const smsDraftRef = useRef('')
-  const smsCommitTimerRef = useRef<number | null>(null)
   const speechRecognitionRef = useRef<BrowserSpeechRecognition | null>(null)
   const touchRequestRef = useRef(0)
   const dialer = useDialer()
@@ -4030,16 +4039,10 @@ function PhoneTab({
   }, [smsBody])
   useEffect(() => () => {
     speechRecognitionRef.current?.abort()
-    if (smsCommitTimerRef.current) window.clearTimeout(smsCommitTimerRef.current)
   }, [])
 
   function handleSmsDraftChange(value: string) {
     smsDraftRef.current = value
-    if (smsCommitTimerRef.current) window.clearTimeout(smsCommitTimerRef.current)
-    smsCommitTimerRef.current = window.setTimeout(() => {
-      setSmsBody(value)
-      smsCommitTimerRef.current = null
-    }, 180)
   }
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(null), 3000) }
@@ -4501,7 +4504,7 @@ function PhoneTab({
 
   async function handleCall() {
     if (!selected?.phone) return
-    await dialer.call(selected.phone, selected.city)
+    await dialer.call(selected.phone, selected.city, { id: selected.id, name: selected.name })
     await fetch('/api/marketing/touches', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
       body: JSON.stringify({ contact_id: selected.id, channel: 'phone', direction: 'outbound', notes: 'Outbound call via partnership dialer', schedule_follow_up_days: 2 }),
@@ -4882,10 +4885,12 @@ function PhoneTab({
                   <span className={`h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500 ${dialer.status === 'connecting' ? 'animate-pulse' : ''}`} />
                   <div className="min-w-0">
                     <div className="truncate text-sm font-semibold text-emerald-950">
-                      {dialer.status === 'connecting' ? `Calling ${selected.name}…` : `On call with ${selected.name}`}
+                      {dialer.status === 'connecting'
+                        ? `Calling ${dialer.activeContact?.name || selected.name}…`
+                        : `On call with ${dialer.activeContact?.name || selected.name}`}
                     </div>
                     <div className="text-xs text-emerald-800">
-                      {selected.phone}
+                      {dialer.activeContact?.phone || selected.phone}
                       {dialer.status === 'connected'
                         ? ` · ${String(Math.floor(dialer.elapsedSeconds / 60)).padStart(2, '0')}:${String(dialer.elapsedSeconds % 60).padStart(2, '0')}`
                         : ' · Waiting for answer'}
@@ -5148,8 +5153,6 @@ function PhoneTab({
                     defaultValue={smsBody}
                     onChange={e => handleSmsDraftChange(e.target.value)}
                     onBlur={e => {
-                      if (smsCommitTimerRef.current) window.clearTimeout(smsCommitTimerRef.current)
-                      smsCommitTimerRef.current = null
                       smsDraftRef.current = e.target.value
                       setSmsBody(e.target.value)
                     }}
@@ -5157,7 +5160,7 @@ function PhoneTab({
                     placeholder={selected.phone ? 'Message…' : 'No phone'}
                     disabled={!selected.phone}
                     className="max-h-28 min-h-10 flex-1 resize-none border-0 bg-transparent px-2 py-2 text-[15px] leading-6 text-[#071421] outline-none placeholder:text-slate-400 disabled:opacity-40" />
-                  <button onClick={handleSend} disabled={sending || mediaUploading || !selected.phone || (!smsBody.trim() && mediaUrls.length === 0) || (scheduleMode && !scheduledAt)}
+                  <button onClick={handleSend} disabled={sending || mediaUploading || !selected.phone || (scheduleMode && !scheduledAt)}
                     className="min-h-10 shrink-0 rounded-full bg-[#071421] px-4 text-[13px] font-semibold text-white disabled:opacity-35">{sending ? '…' : scheduleMode ? 'Schedule' : 'Send'}</button>
                 </div>
                 {(voiceListening || voiceError) && (
@@ -6272,7 +6275,7 @@ function QueueTab({ contacts, batches, onSelect, onScheduleCampaign }: {
 
   function handleCall(c: Contact) {
     if (!c.phone) return
-    void dialer.call(c.phone)
+    void dialer.call(c.phone, c.city, { id: c.id, name: c.name })
   }
 
   useEffect(() => {

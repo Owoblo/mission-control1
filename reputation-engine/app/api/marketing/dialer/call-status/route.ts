@@ -4,6 +4,13 @@ import { PARTNERSHIP_LINES, isPartnershipSenderNumber, normalizePartnershipCityK
 
 export const dynamic = 'force-dynamic'
 
+function twimlCompleteResponse() {
+  return new Response('<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>', {
+    status: 200,
+    headers: { 'Content-Type': 'text/xml; charset=utf-8' },
+  })
+}
+
 function partnershipLineForNumber(value?: string | null) {
   const normalized = String(value || '').replace(/\D/g, '')
   const e164 = normalized.length === 10 ? `+1${normalized}` : normalized.length === 11 && normalized.startsWith('1') ? `+${normalized}` : value || ''
@@ -39,7 +46,7 @@ export async function POST(request: Request) {
   const partnershipNumber = normalizePhone(isOutbound ? from : to)
 
   if (!contactPhone || !isPartnershipSenderNumber(partnershipNumber) || callStatus === 'initiated' || callStatus === 'ringing') {
-    return new Response(null, { status: 204 })
+    return twimlCompleteResponse()
   }
 
   const { url, headers } = requireSupabaseEnv()
@@ -54,7 +61,7 @@ export async function POST(request: Request) {
   const exactMatches = contacts.filter(item => normalizePhone(item.phone) === contactPhone && contactMatchesLine(item, partnershipNumber))
   const contact = exactMatches.length === 1 ? exactMatches[0] : null
 
-  if (!contact) return new Response(null, { status: 204 })
+  if (!contact) return twimlCompleteResponse()
 
   const durationSec = parseInt(callDuration, 10)
   const connected = callStatus === 'completed' && durationSec > 5
@@ -95,5 +102,8 @@ export async function POST(request: Request) {
     }).catch(() => {})
   }
 
-  return new Response(null, { status: 204 })
+  // This route is also the <Dial action>. Twilio expects valid TwiML here;
+  // an empty 204 makes it announce "An application error has occurred"
+  // after an otherwise successful call.
+  return twimlCompleteResponse()
 }
