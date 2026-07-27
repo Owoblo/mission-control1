@@ -3651,6 +3651,7 @@ function PhoneTab({
   const [areaFilter, setAreaFilter] = useState(requestedAreaId)
   const [cityFilter, setCityFilter] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
+  const [brokerageFilter, setBrokerageFilter] = useState('')
   const [batchFilter, setBatchFilter] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [replyContacts, setReplyContacts] = useState<Contact[]>([])
@@ -3727,17 +3728,27 @@ function PhoneTab({
     }
     if (cityFilter && cityKey !== cityFilter) return false
     if (categoryFilter && getContactCategoryKey(contact) !== categoryFilter) return false
+    if (brokerageFilter && String(contact.company || '').trim() !== brokerageFilter) return false
     if (batchFilter && contact.batch_id !== batchFilter) return false
     return true
-  }), [inboxContacts, areaFilter, cityFilter, categoryFilter, batchFilter])
+  }), [inboxContacts, areaFilter, cityFilter, categoryFilter, brokerageFilter, batchFilter])
 
   const cityOptions = useMemo(() => {
     const area = PARTNERSHIP_AREA_GROUPS.find(item => item.id === areaFilter)
-    return Array.from(new Set(inboxContacts
+    const keys = Array.from(new Set(inboxContacts
       .map(contact => normalizeInboxCity(contact.city))
       .filter(Boolean)
       .filter(cityKey => !area || area.cityKeys.includes(cityKey))))
-      .map(cityKey => ({ key: cityKey, label: inboxCityLabel(cityKey) }))
+    return keys
+      .map(cityKey => {
+        const rows = inboxContacts.filter(contact => normalizeInboxCity(contact.city) === cityKey)
+        return {
+          key: cityKey,
+          label: inboxCityLabel(cityKey),
+          total: rows.length,
+          inbound: rows.filter(hasPartnerInbound).length,
+        }
+      })
       .sort((a, b) => a.label.localeCompare(b.label))
   }, [inboxContacts, areaFilter])
 
@@ -3755,6 +3766,28 @@ function PhoneTab({
       return aLabel.localeCompare(bLabel)
     }), [inboxContacts])
 
+  const brokerageOptions = useMemo(() => {
+    const area = PARTNERSHIP_AREA_GROUPS.find(item => item.id === areaFilter)
+    const marketRows = inboxContacts
+      .filter(contact => !area || area.cityKeys.includes(normalizeInboxCity(contact.city)))
+    return Array.from(new Set(marketRows
+      .map(contact => String(contact.company || '').trim())
+      .filter(Boolean)))
+      .map(name => {
+        const rows = marketRows.filter(contact => String(contact.company || '').trim() === name)
+        return {
+          name,
+          total: rows.length,
+          inbound: rows.filter(hasPartnerInbound).length,
+        }
+      })
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [inboxContacts, areaFilter])
+
+  useEffect(() => {
+    if (brokerageFilter && !brokerageOptions.some(brokerage => brokerage.name === brokerageFilter)) setBrokerageFilter('')
+  }, [brokerageFilter, brokerageOptions])
+
   const batchOptions = useMemo(() => {
     const usedBatchIds = new Set(inboxContacts.map(contact => contact.batch_id).filter(Boolean))
     return Array.from(batchMeta.entries())
@@ -3762,7 +3795,19 @@ function PhoneTab({
       .map(([id, meta]) => ({ id, ...meta }))
   }, [batchMeta, inboxContacts])
 
-  const hasSegmentFilter = Boolean(areaFilter || cityFilter || categoryFilter || batchFilter)
+  const hasSegmentFilter = Boolean(areaFilter || cityFilter || categoryFilter || brokerageFilter || batchFilter)
+  const activeArea = PARTNERSHIP_AREA_GROUPS.find(item => item.id === areaFilter)
+
+  function selectMarket(market?: PartnershipMarketCommand) {
+    setAreaFilter(market?.areaId || '')
+    setCityFilter('')
+    setBrokerageFilter('')
+    setBatchFilter('')
+    const params = new URLSearchParams(searchParams.toString())
+    if (market) params.set('market', market.id)
+    else params.delete('market')
+    router.replace(`/marketing/partners?${params.toString()}`, { scroll: false })
+  }
 
   const sorted = useMemo(() => [...segmentContacts]
     .filter(c => matchesInboxFilter(c, inboxFilter))
@@ -4579,6 +4624,23 @@ function PhoneTab({
               <div className="mt-0.5 text-xs font-medium text-slate-500">{filterCounts.inbound} inbound · {filterCounts.needs_reply} need reply</div>
             </div>
           </div>
+          <div className="-mx-1 mb-3 flex gap-1 overflow-x-auto px-1 pb-1">
+            <button
+              onClick={() => selectMarket()}
+              className={`shrink-0 border-b-2 px-2 py-1.5 text-xs font-semibold ${!areaFilter ? 'border-[#071421] text-[#071421]' : 'border-transparent text-slate-500 hover:text-[#071421]'}`}
+            >
+              All markets
+            </button>
+            {PARTNERSHIP_MARKET_COMMANDS.map(market => (
+              <button
+                key={market.id}
+                onClick={() => selectMarket(market)}
+                className={`shrink-0 border-b-2 px-2 py-1.5 text-xs font-semibold ${areaFilter === market.areaId ? 'border-[#071421] text-[#071421]' : 'border-transparent text-slate-500 hover:text-[#071421]'}`}
+              >
+                {market.id === 'waterloo' ? 'Kitchener / Waterloo' : market.id === 'windsor' ? 'Windsor / Essex' : market.label}
+              </button>
+            ))}
+          </div>
           <div className="flex gap-2">
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search contacts…"
               className="h-12 min-w-0 flex-1 rounded-[9px] border border-slate-200 bg-slate-50 px-4 text-base leading-6 text-[#071421] outline-none focus:border-[#071421] lg:h-10 lg:text-sm" />
@@ -4602,7 +4664,7 @@ function PhoneTab({
             >
               <option value="">All cities</option>
               {cityOptions.map(city => (
-                <option key={city.key} value={city.key}>{city.label}</option>
+                <option key={city.key} value={city.key}>{city.label} · {city.inbound} replied / {city.total}</option>
               ))}
             </select>
             <select
@@ -4625,21 +4687,33 @@ function PhoneTab({
                 <option key={batch.id} value={batch.id}>{batch.label} · {batch.name}</option>
               ))}
             </select>
-                {hasSegmentFilter ? <button onClick={() => { setAreaFilter(''); setCityFilter(''); setCategoryFilter(''); setBatchFilter('') }} className="col-span-full rounded-[7px] px-3 py-2 text-left text-xs font-semibold text-slate-500 hover:bg-slate-50">Clear filters</button> : null}
+            <select
+              value={brokerageFilter}
+              onChange={e => setBrokerageFilter(e.target.value)}
+              className="h-10 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#071421] lg:h-9 lg:text-[12px]"
+            >
+              <option value="">All brokerages</option>
+              {brokerageOptions.map(brokerage => (
+                <option key={brokerage.name} value={brokerage.name}>{brokerage.name} · {brokerage.inbound} replied / {brokerage.total}</option>
+              ))}
+            </select>
+                {hasSegmentFilter ? <button onClick={() => { selectMarket(); setCategoryFilter('') }} className="col-span-full rounded-[7px] px-3 py-2 text-left text-xs font-semibold text-slate-500 hover:bg-slate-50">Clear filters</button> : null}
               </div>
             </details>
           </div>
-          {hasSegmentFilter && (
+          {(hasSegmentFilter || segmentContacts.length > 0) && (
             <div className="mt-2 flex items-center justify-between gap-2 px-1 py-1">
               <span className="min-w-0 truncate text-[11px] font-semibold text-slate-500">
-                {segmentContacts.length.toLocaleString()} contacts in this market · {inboxContacts.length.toLocaleString()} company-wide
+                {activeArea?.label || 'All partnership markets'} · {segmentContacts.length.toLocaleString()} contacts
               </span>
-              <button
-                onClick={() => { setAreaFilter(''); setCityFilter(''); setCategoryFilter(''); setBatchFilter('') }}
-                className="shrink-0 text-[11px] font-semibold text-slate-500 hover:text-[#071421]"
-              >
-                Clear
-              </button>
+              {hasSegmentFilter && (
+                <button
+                  onClick={() => { selectMarket(); setCategoryFilter('') }}
+                  className="shrink-0 text-[11px] font-semibold text-slate-500 hover:text-[#071421]"
+                >
+                  Clear
+                </button>
+              )}
             </div>
           )}
           <div className="mt-3 flex gap-5 overflow-x-auto border-b border-slate-100">
