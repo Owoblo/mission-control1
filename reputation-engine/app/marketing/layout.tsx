@@ -19,7 +19,7 @@ function MarketingNav() {
   const partnershipInbox = pathname.startsWith('/marketing/partners') && (!tab || tab === 'phone' || tab === 'replies')
 
   return (
-    <div className={`${partnershipInbox ? 'hidden md:flex' : 'flex'} mb-6 items-center gap-1 overflow-x-auto border-b border-[var(--app-line)] bg-[var(--app-panel)] px-1`}>
+    <div className={`${partnershipInbox ? 'hidden' : 'flex'} mb-6 items-center gap-1 overflow-x-auto border-b border-[var(--app-line)] bg-[var(--app-panel)] px-1`}>
       {MARKET_NAV.map(item => {
         const active = item.match(pathname, tab)
         return (

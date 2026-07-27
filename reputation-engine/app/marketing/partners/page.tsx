@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { PARTNERSHIP_STAGE_META } from '@/lib/marketing'
 import { sendSalesMessage } from '@/lib/sales-api'
@@ -628,6 +628,10 @@ function StageBadge({ stage }: { stage: string }) {
   const meta = PARTNERSHIP_STAGE_META[stage as keyof typeof PARTNERSHIP_STAGE_META]
   if (!meta) return <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-semibold text-slate-500">{stage}</span>
   return <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${meta.color}`}>{meta.label}</span>
+}
+
+function stageLabel(stage?: string | null) {
+  return PARTNERSHIP_STAGE_META[String(stage || '') as keyof typeof PARTNERSHIP_STAGE_META]?.label || String(stage || 'Conversation').replace(/_/g, ' ')
 }
 
 function TierBadge({ tier }: { tier?: number | null }) {
@@ -3677,6 +3681,7 @@ function PhoneTab({
   const [appointmentSaving, setAppointmentSaving] = useState(false)
   const [stageSaving, setStageSaving] = useState<string | null>(null)
   const threadRef = useRef<HTMLDivElement>(null)
+  const threadEndRef = useRef<HTMLDivElement>(null)
   const mediaInputRef = useRef<HTMLInputElement>(null)
   const speechRecognitionRef = useRef<BrowserSpeechRecognition | null>(null)
   const touchRequestRef = useRef(0)
@@ -3905,7 +3910,20 @@ function PhoneTab({
     setScheduledAt(defaultScheduledReplyTime())
   }, [selected?.id])
 
-  useEffect(() => { if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight }, [touches])
+  useLayoutEffect(() => {
+    if (!selectedId || touchLoading) return
+    const scrollToLatest = () => {
+      if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight
+      threadEndRef.current?.scrollIntoView({ block: 'end' })
+    }
+    scrollToLatest()
+    const frame = window.requestAnimationFrame(scrollToLatest)
+    const timer = window.setTimeout(scrollToLatest, 160)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.clearTimeout(timer)
+    }
+  }, [selectedId, touchLoading, touches])
   useEffect(() => { writeLocalStorageFlag('ss_partner_inbox_info_collapsed', partnerInfoCollapsed) }, [partnerInfoCollapsed])
   useEffect(() => () => speechRecognitionRef.current?.abort(), [])
 
@@ -4619,12 +4637,12 @@ function PhoneTab({
               </button>
             </div>
           )}
-          <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5">
+          <div className="mt-3 flex gap-5 overflow-x-auto border-b border-slate-100">
             {INBOX_FILTERS.map(filter => (
               <button
                 key={filter.key}
                 onClick={() => setInboxFilter(filter.key)}
-                className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-semibold transition lg:min-h-8 lg:px-3 lg:text-[11px] ${inboxFilter === filter.key ? 'bg-[#071421] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                className={`min-h-10 shrink-0 border-b-2 px-0 text-sm font-medium transition ${inboxFilter === filter.key ? 'border-[#071421] text-[#071421]' : 'border-transparent text-slate-500 hover:text-[#071421]'}`}
               >
                 {filter.label}
               </button>
@@ -4655,16 +4673,11 @@ function PhoneTab({
                   </div>
                 </div>
                 {p?.body && <div className={`mt-2 line-clamp-2 text-sm leading-[1.5] lg:text-[13px] ${selectedId === c.id ? 'text-slate-700' : 'text-slate-600'}`}>{truncateText(p.body, 150)}</div>}
-                <div className="mt-2 flex items-center gap-1.5 overflow-hidden pl-12">
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${inboxStatusClass(status)}`}>{inboxStatusLabel(status)}</span>
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${selectedId === c.id ? 'bg-white text-slate-600' : 'bg-slate-100 text-slate-500'}`}>{sourceBadge(c)}</span>
-                  <StageBadge stage={c.normalized_stage} />
-                  {c.instantly_status && <InstantlyBadge status={c.instantly_status} />}
-                  {c.playbook?.intent && (
-                    <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                      {c.playbook.intent.replace(/_/g, ' ')}
-                    </span>
-                  )}
+                <div className="mt-2 flex items-center gap-2 overflow-hidden pl-12 text-xs">
+                  <span className={`shrink-0 font-semibold ${status === 'context' ? 'text-rose-700' : status === 'needs_reply' ? 'text-amber-700' : 'text-slate-600'}`}>{inboxStatusLabel(status)}</span>
+                  <span className="text-slate-300">·</span>
+                  <span className="shrink-0 text-slate-500">{sourceBadge(c)}</span>
+                  {c.playbook?.intent && <span className="truncate text-slate-400">{c.playbook.intent.replace(/_/g, ' ')}</span>}
                 </div>
               </button>
             )
@@ -4681,32 +4694,19 @@ function PhoneTab({
         <>
         <div className={`${mobileListOpen ? 'hidden lg:flex' : 'flex'} min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white`}>
           {/* Header */}
-          <div className="shrink-0 border-b border-slate-200 bg-white px-3 py-2.5 sm:px-5">
+          <div className="shrink-0 border-b border-slate-200 bg-white px-3 py-2 sm:px-5">
             <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2.5">
               <button onClick={() => setMobileListOpen(true)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-2xl leading-none text-[#071421] lg:hidden">
                 ‹
               </button>
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#071421] text-sm font-bold text-white">{selected.name.charAt(0)}</div>
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#071421] text-sm font-bold text-white">{selected.name.charAt(0)}</div>
               <div className="min-w-0">
                 <div className="flex min-w-0 items-center gap-2">
                   <div className="truncate font-semibold text-[#071421]">{selected.name}</div>
-                  <StageBadge stage={selected.normalized_stage} />
+                  <span className="truncate text-xs font-medium text-slate-500">{stageLabel(selected.normalized_stage)}</span>
                 </div>
                 <div className="mt-0.5 truncate text-sm text-slate-500">{selected.phone || selected.company || selected.city || 'Partner contact'} · {partnershipManagerLabel(selected)}</div>
-                <div className="mt-2 hidden max-w-[62vw] items-center gap-1.5 overflow-x-auto md:flex">
-                  {REPLY_DESK_STAGE_ACTIONS.slice(0, 4).map(stage => (
-                    <button
-                      key={stage.key}
-                      onClick={() => void handleStageChange(stage.key)}
-                      disabled={stageSaving !== null}
-                      title={stage.helper}
-                      className={`min-h-8 shrink-0 rounded-full border px-3 text-[11px] font-semibold transition disabled:opacity-50 ${selected.normalized_stage === stage.key ? quickActionClass(stage.tone, true) : quickActionClass(stage.tone, stageSaving === stage.key)}`}
-                    >
-                      {stageSaving === stage.key ? 'Saving...' : stage.label}
-                    </button>
-                  ))}
-                </div>
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -4717,10 +4717,10 @@ function PhoneTab({
               )}
               {selected.phone && (
                 dialer.status === 'connected' ? (
-                  <button onClick={dialer.hangup} className="min-h-11 rounded-xl bg-rose-500 px-5 text-sm font-semibold text-white lg:min-h-10">End</button>
+                  <button onClick={dialer.hangup} className="min-h-10 rounded-lg bg-rose-500 px-4 text-sm font-semibold text-white">End</button>
                 ) : (
                   <button onClick={handleCall} disabled={dialer.status === 'connecting' || dialer.status === 'loading'}
-                    className="min-h-11 rounded-full border border-slate-200 bg-white px-5 text-sm font-semibold text-[#071421] transition hover:bg-slate-50 disabled:opacity-50 lg:min-h-10">
+                    className="min-h-10 rounded-lg px-3 text-sm font-semibold text-[#071421] transition hover:bg-slate-50 disabled:opacity-50">
                     {dialer.status === 'connecting' ? 'Calling' : dialer.status === 'loading' ? 'Preparing' : 'Call'}
                   </button>
                 )
@@ -4756,25 +4756,34 @@ function PhoneTab({
                   </div>
                 )
               }
-              if (touch.channel === 'note' || touch.channel === 'appointment') {
+              if (
+                touch.channel === 'note' ||
+                touch.channel === 'appointment' ||
+                touch.channel === 'direct_mail' ||
+                (touch.channel === 'email' && s.auto && /opened|clicked/i.test(s.label))
+              ) {
                 return (
-                  <div key={touch.id} className={`flex justify-center ${touchIndex === 0 ? '' : 'mt-6'}`}>
-                    <div className="max-w-[min(86%,680px)] rounded-full bg-white/80 px-4 py-2.5 text-center text-sm font-medium leading-[1.5] text-slate-600 shadow-sm ring-1 ring-slate-200">
-                      {s.label}: {truncateText(bubbleText || 'Updated', 120)}
+                  <div key={touch.id} className={`flex justify-center ${touchIndex === 0 ? '' : 'mt-5'}`}>
+                    <div className="flex max-w-[min(88%,680px)] items-center gap-2 text-center text-xs leading-5 text-slate-500">
+                      <span aria-hidden="true" className="text-sm"><ChannelIcon channel={touch.channel} direction={touch.direction} /></span>
+                      <span><strong className="font-semibold text-slate-600">{s.label}</strong> · {truncateText(bubbleText || 'Updated', 100)} · {fmtDate(touch.created_at)}</span>
                     </div>
                   </div>
                 )
               }
               return (
-                <div key={touch.id} className={`flex gap-3 ${touch.direction === 'outbound' ? 'flex-row-reverse' : ''} ${touchIndex === 0 ? '' : groupedWithPrevious ? 'mt-1' : 'mt-6'}`}>
-                  <div className={`hidden h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm sm:flex ${groupedWithPrevious ? 'invisible' : ''} ${touch.direction === 'outbound' ? 'bg-[#071421]' : 'bg-white border border-slate-200'}`}>
-                    <ChannelIcon channel={touch.channel} direction={touch.direction} />
-                  </div>
-                  <div className={`max-w-[min(84%,680px)] px-4 py-3 text-base leading-[1.6] ${touch.direction === 'outbound' ? 'bg-[#0f6a53] text-white' : 'bg-[#f1f3f5] text-[#111827]'} ${touch.direction === 'outbound' ? `${groupedWithPrevious ? 'rounded-tr-md' : 'rounded-tr-[18px]'} ${groupedWithNext ? 'rounded-br-md' : 'rounded-br-[18px]'} rounded-l-[18px]` : `${groupedWithPrevious ? 'rounded-tl-md' : 'rounded-tl-[18px]'} ${groupedWithNext ? 'rounded-bl-md' : 'rounded-bl-[18px]'} rounded-r-[18px]`}`}>
-                    <div className={`mb-1 flex items-center gap-2 text-xs font-semibold ${touch.direction === 'outbound' ? 'text-white/75' : 'text-slate-500'}`}>
-                      {s.label}
-                      {s.auto && <span className={`rounded-full px-1.5 py-0.5 text-[9px] ${touch.direction === 'outbound' ? 'bg-white/15 text-white/90' : 'bg-slate-100 text-slate-500'}`}>Auto</span>}
-                    </div>
+                <div key={touch.id} className={`flex ${touch.direction === 'outbound' ? 'justify-end' : 'justify-start'} ${touchIndex === 0 ? '' : groupedWithPrevious ? 'mt-1.5' : 'mt-5'}`}>
+                  <div className={`max-w-[min(76%,560px)] px-4 py-3 text-[15px] leading-6 ${touch.direction === 'outbound' ? 'bg-[#14213d] text-white' : 'bg-[#f0f2f4] text-[#172033]'} ${touch.direction === 'outbound' ? `${groupedWithPrevious ? 'rounded-tr-md' : 'rounded-tr-[18px]'} ${groupedWithNext ? 'rounded-br-md' : 'rounded-br-[18px]'} rounded-l-[18px]` : `${groupedWithPrevious ? 'rounded-tl-md' : 'rounded-tl-[18px]'} ${groupedWithNext ? 'rounded-bl-md' : 'rounded-bl-[18px]'} rounded-r-[18px]`}`}>
+                    {!groupedWithPrevious && touch.channel !== 'sms' && (
+                      <div className={`mb-1 text-xs font-medium ${touch.direction === 'outbound' ? 'text-white/65' : 'text-slate-500'}`}>
+                        {s.label}{s.auto ? ' · Automated' : ''}
+                      </div>
+                    )}
+                    {s.auto && touch.channel === 'sms' && !groupedWithPrevious && (
+                      <div className={`mb-1 text-xs font-medium ${touch.direction === 'outbound' ? 'text-white/65' : 'text-slate-500'}`}>
+                        Automated SMS
+                      </div>
+                    )}
                     {bubbleText && <div className="whitespace-pre-wrap break-words leading-relaxed">{bubbleText}</div>}
                     {touchMedia.length > 0 && (
                       <div className="mt-2 grid gap-2">
@@ -4789,12 +4798,13 @@ function PhoneTab({
                         ))}
                       </div>
                     )}
-                    <div className={`mt-1.5 text-xs ${touch.direction === 'outbound' ? 'text-white/65' : 'text-slate-500'}`}>{fmtDate(touch.created_at)} {fmtTime(touch.created_at)}</div>
+                    {!groupedWithNext && <div className={`mt-1.5 text-[11px] ${touch.direction === 'outbound' ? 'text-white/55' : 'text-slate-500'}`}>{fmtDate(touch.created_at)} · {fmtTime(touch.created_at)}</div>}
                   </div>
                 </div>
               )
               })
             })()}
+            <div ref={threadEndRef} aria-hidden="true" className="h-1" />
           </div>
 
           {/* Compose */}
@@ -4846,20 +4856,25 @@ function PhoneTab({
                 </div>
               </div>
             )}
-            <div className="mb-2 flex items-center gap-2">
-              <div className="flex shrink-0 rounded-[8px] border border-slate-200 bg-slate-50 p-1">
-              <button onClick={() => setComposeChannel('sms')} className={`min-h-11 shrink-0 rounded-[6px] px-4 text-sm font-semibold transition lg:min-h-8 lg:text-xs ${composeChannel === 'sms' ? 'bg-[#071421] text-white' : 'text-slate-600 hover:bg-white'}`}>
+            <div className="mb-2 flex items-center gap-4 border-b border-slate-100 pb-2">
+              <div className="flex shrink-0 gap-4">
+              <button onClick={() => setComposeChannel('sms')} className={`min-h-9 shrink-0 border-b-2 px-0 text-sm font-medium transition ${composeChannel === 'sms' ? 'border-[#071421] text-[#071421]' : 'border-transparent text-slate-500'}`}>
                 SMS {!selected.phone && <span className="ml-1 text-red-400">no #</span>}
               </button>
-              <button onClick={() => setComposeChannel('email')} className={`min-h-11 shrink-0 rounded-[6px] px-4 text-sm font-semibold transition lg:min-h-8 lg:text-xs ${composeChannel === 'email' ? 'bg-[#071421] text-white' : 'text-slate-600 hover:bg-white'}`}>
+              <button onClick={() => setComposeChannel('email')} className={`min-h-9 shrink-0 border-b-2 px-0 text-sm font-medium transition ${composeChannel === 'email' ? 'border-[#071421] text-[#071421]' : 'border-transparent text-slate-500'}`}>
                 Email {!selected.email && <span className="ml-1 text-red-400">no email</span>}
               </button>
               </div>
-              <button onClick={() => void handleAiReply()} disabled={aiReplyLoading} className="min-h-11 shrink-0 px-2 text-sm font-semibold text-emerald-700 transition hover:text-emerald-900 disabled:opacity-50 lg:min-h-8 lg:text-xs">
+              <button onClick={() => void handleAiReply()} disabled={aiReplyLoading} className="min-h-9 shrink-0 text-sm font-medium text-slate-600 transition hover:text-[#071421] disabled:opacity-50">
                 {aiReplyLoading ? 'Drafting…' : 'Suggest reply'}
               </button>
+              {composeChannel === 'sms' && (
+                <button onClick={() => setScheduleMode(current => !current)} className={`min-h-9 text-sm font-medium ${scheduleMode ? 'text-[#071421]' : 'text-slate-500'}`}>
+                  {scheduleMode ? 'Cancel schedule' : 'Schedule'}
+                </button>
+              )}
               <details className="relative ml-auto shrink-0">
-                <summary className="flex min-h-11 cursor-pointer list-none items-center px-2 text-sm font-semibold text-slate-500 lg:min-h-8 lg:text-xs">Options</summary>
+                <summary className="flex min-h-9 cursor-pointer list-none items-center text-sm font-medium text-slate-500">More</summary>
                 <div className="absolute right-0 z-30 mt-1 grid w-72 gap-2 rounded-[10px] border border-slate-200 bg-white p-3 shadow-lg">
               {composeChannel === 'sms' && <div className="text-xs leading-5 text-slate-500">Sending from {displayReplyNumber(selectedThreadFromNumber)}</div>}
               <label className="flex min-h-11 items-center justify-between gap-2 rounded-[7px] border border-slate-200 bg-white pl-3 pr-2 text-sm font-semibold text-slate-500 lg:text-xs">
@@ -4912,31 +4927,17 @@ function PhoneTab({
             )}
             {composeChannel === 'sms' ? (
               <div className="space-y-2">
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setScheduleMode(current => !current)}
-                    className={`min-h-11 text-sm font-semibold transition lg:min-h-8 lg:text-xs ${scheduleMode ? 'text-[#071421]' : 'text-slate-500 hover:text-[#071421]'}`}
-                  >
-                    {scheduleMode ? 'Scheduled' : 'Schedule'}
-                  </button>
-                  {!scheduleMode && <button
-                    onClick={() => {
-                      setScheduleMode(true)
-                      setScheduledAt(defaultScheduledReplyTime(aiSuggestion || selected.playbook))
-                    }}
-                    className="min-h-11 text-sm font-semibold text-emerald-700 transition hover:text-emerald-900 lg:min-h-8 lg:text-xs"
-                  >
-                    Choose suggested time
-                  </button>}
-                  {scheduleMode && (
+                {scheduleMode && (
+                  <div className="flex items-center gap-3">
                     <input
                       type="datetime-local"
                       value={scheduledAt}
                       onChange={e => setScheduledAt(e.target.value)}
-                      className="min-h-11 min-w-0 flex-1 rounded-full border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-[#071421] outline-none focus:border-[#071421] lg:min-h-8 lg:text-xs"
+                      className="min-h-10 min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-[#071421] outline-none focus:border-[#071421]"
                     />
-                  )}
-                </div>
+                    <button onClick={() => setScheduledAt(defaultScheduledReplyTime(aiSuggestion || selected.playbook))} className="min-h-10 text-sm font-medium text-slate-600">Use suggested time</button>
+                  </div>
+                )}
                 <div className="flex items-end gap-2">
                   <input
                     ref={mediaInputRef}
@@ -4949,7 +4950,7 @@ function PhoneTab({
                   <button
                     onClick={() => mediaInputRef.current?.click()}
                     disabled={mediaUploading}
-                    className="mb-0.5 flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-xl text-slate-500 disabled:opacity-50 lg:h-11 lg:w-11"
+                    className="mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-xl text-slate-500 hover:bg-slate-50 disabled:opacity-50"
                     title="Attach file"
                   >
                     {mediaUploading ? '…' : '+'}
@@ -4957,15 +4958,15 @@ function PhoneTab({
                   <button
                     onClick={toggleVoiceDictation}
                     type="button"
-                    className={`mb-0.5 flex h-12 w-12 shrink-0 items-center justify-center rounded-full border text-lg font-semibold transition lg:h-11 lg:w-11 ${voiceListening ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'}`}
+                    className={`mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-lg font-semibold transition ${voiceListening ? 'bg-rose-50 text-rose-700' : 'text-slate-500 hover:bg-slate-50'}`}
                     title={voiceListening ? 'Stop voice typing' : 'Voice type'}
                   >
                     {voiceListening ? '■' : '🎙'}
                   </button>
-                  <textarea value={smsBody} onChange={e => setSmsBody(e.target.value)} rows={3} placeholder={selected.phone ? 'Write a clear partnership reply…' : 'No phone'} disabled={!selected.phone}
-                    className="max-h-56 min-h-[104px] flex-1 resize-y rounded-[12px] border border-slate-200 bg-slate-50 px-4 py-3 text-base leading-[1.6] text-[#071421] outline-none focus:border-[#071421] disabled:opacity-40" />
+                  <textarea value={smsBody} onChange={e => setSmsBody(e.target.value)} rows={2} placeholder={selected.phone ? 'Message…' : 'No phone'} disabled={!selected.phone}
+                    className="max-h-48 min-h-[72px] flex-1 resize-y rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-base leading-6 text-[#071421] outline-none focus:border-[#071421] disabled:opacity-40" />
                   <button onClick={handleSend} disabled={sending || mediaUploading || !selected.phone || (!smsBody.trim() && mediaUrls.length === 0) || (scheduleMode && !scheduledAt)}
-                    className="mb-0.5 min-h-12 rounded-full bg-[#071421] px-5 text-sm font-semibold text-white disabled:opacity-40 lg:min-h-11">{sending ? '…' : scheduleMode ? 'Schedule' : 'Send'}</button>
+                    className="mb-0.5 min-h-11 rounded-lg bg-[#071421] px-4 text-sm font-semibold text-white disabled:opacity-40">{sending ? '…' : scheduleMode ? 'Schedule' : 'Send'}</button>
                 </div>
                 {(voiceListening || voiceError) && (
                   <div className={`pl-14 text-xs font-medium ${voiceError ? 'text-rose-600' : 'text-slate-500'}`}>
