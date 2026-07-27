@@ -23,6 +23,13 @@ function contactMatchesLine(contact: { city?: string | null }, partnershipNumber
   return line.cityKeys.some(city => normalizePartnershipCityKey(city) === cityKey)
 }
 
+function normalizePhone(value?: string | null) {
+  const digits = String(value || '').replace(/\D/g, '')
+  if (digits.length === 10) return `+1${digits}`
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`
+  return ''
+}
+
 async function transcribeRecording(recordingUrl: string, authHeader: string): Promise<string | null> {
   const apiKey = readEnv('OPENAI_API_KEY')
   if (!apiKey) return null
@@ -108,6 +115,7 @@ export async function POST(request: Request) {
     const recordingSid = formData.get('RecordingSid') || ''
     const recordingUrl = formData.get('RecordingUrl') || ''
     const recordingDuration = parseInt(formData.get('RecordingDuration') || '0', 10)
+    const callbackUrl = new URL(request.url)
     const from = formData.get('From') || ''
     const to = formData.get('To') || ''
 
@@ -120,17 +128,29 @@ export async function POST(request: Request) {
     const authToken = readEnv('TWILIO_AUTH_TOKEN')
     const authHeader = `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`
 
+    const signedCustomerNumber = normalizePhone(callbackUrl.searchParams.get('customer'))
+    const signedPartnershipNumber = normalizePhone(callbackUrl.searchParams.get('line'))
+    const signedDirection = callbackUrl.searchParams.get('direction')
     const fromIsPartnership = isPartnershipSenderNumber(from)
     const toIsPartnership = isPartnershipSenderNumber(to)
-    const partnershipNumber = fromIsPartnership ? from : toIsPartnership ? to : ''
-    const customerNumber = fromIsPartnership ? to : from
-    const contactPhone = customerNumber.replace(/\D/g, '').replace(/^1/, '')
+    const partnershipNumber = signedPartnershipNumber || (fromIsPartnership ? normalizePhone(from) : toIsPartnership ? normalizePhone(to) : '')
+    const customerNumber = signedCustomerNumber || normalizePhone(fromIsPartnership ? to : from)
+    const isOutbound = signedDirection === 'outbound' || (!signedDirection && fromIsPartnership)
+
+    // Twilio may omit From/To on a child recording callback. Never allow an
+    // empty phone search to select the first partnership contact in the table.
+    if (!customerNumber || !partnershipNumber || !isPartnershipSenderNumber(partnershipNumber)) {
+      return new Response(null, { status: 204 })
+    }
+
+    const contactPhone = customerNumber.replace(/\D/g, '').slice(-10)
     const contactRes = await fetch(
-      `${url}/rest/v1/market_contacts?phone=ilike.*${contactPhone}&select=id,name,company,city&limit=20`,
+      `${url}/rest/v1/market_contacts?phone=ilike.*${contactPhone}&select=id,name,company,city,phone&limit=20`,
       { headers, cache: 'no-store' }
     )
-    const contacts = contactRes.ok ? await contactRes.json() as Array<{ id: string; name: string; company: string; city: string | null }> : []
-    const contact = contacts.find(item => contactMatchesLine(item, partnershipNumber)) || (partnershipNumber ? null : contacts[0])
+    const contacts = contactRes.ok ? await contactRes.json() as Array<{ id: string; name: string; company: string; city: string | null; phone?: string | null }> : []
+    const exactMatches = contacts.filter(item => normalizePhone(item.phone) === customerNumber && contactMatchesLine(item, partnershipNumber))
+    const contact = exactMatches.length === 1 ? exactMatches[0] : null
 
     if (!contact) return new Response(null, { status: 204 })
 
@@ -156,7 +176,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         contact_id: contact.id,
         channel: 'phone',
-        direction: fromIsPartnership ? 'outbound' : 'inbound',
+        direction: isOutbound ? 'outbound' : 'inbound',
         notes,
         outcome_code: aiSummary?.toLowerCase().includes('voicemail') ? 'voicemail' :
           aiSummary?.toLowerCase().includes('not interested') ? 'not_interested' :
@@ -164,7 +184,14 @@ export async function POST(request: Request) {
           aiSummary?.toLowerCase().includes('interested') ? 'replied_positive' : 'call_connected',
         created_by: 'System',
         created_at: now,
-        metadata: { call_sid: callSid, recording_sid: recordingSid, recording_url: recordingUrl, duration_seconds: recordingDuration, from, to },
+        metadata: {
+          call_sid: callSid,
+          recording_sid: recordingSid,
+          recording_url: recordingUrl,
+          duration_seconds: recordingDuration,
+          from: from || (isOutbound ? partnershipNumber : customerNumber),
+          to: to || (isOutbound ? customerNumber : partnershipNumber),
+        },
       }),
     })
 

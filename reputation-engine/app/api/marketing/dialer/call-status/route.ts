@@ -17,6 +17,13 @@ function contactMatchesLine(contact: { city?: string | null }, dialedNumber?: st
   return line.cityKeys.some(city => normalizePartnershipCityKey(city) === cityKey)
 }
 
+function normalizePhone(value?: string | null) {
+  const digits = String(value || '').replace(/\D/g, '')
+  if (digits.length === 10) return `+1${digits}`
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`
+  return ''
+}
+
 export async function POST(request: Request) {
   const formData = await request.formData()
   const callStatus = (formData.get('CallStatus') as string | null) ?? ''
@@ -28,23 +35,24 @@ export async function POST(request: Request) {
 
   const now = new Date().toISOString()
   const isOutbound = direction === 'outbound-api' || direction === 'outbound-dial'
-  const contactPhone = isOutbound ? to : from
-  const partnershipNumber = isOutbound ? from : to
+  const contactPhone = normalizePhone(isOutbound ? to : from)
+  const partnershipNumber = normalizePhone(isOutbound ? from : to)
 
-  if (!contactPhone || callStatus === 'initiated' || callStatus === 'ringing') {
+  if (!contactPhone || !isPartnershipSenderNumber(partnershipNumber) || callStatus === 'initiated' || callStatus === 'ringing') {
     return new Response(null, { status: 204 })
   }
 
   const { url, headers } = requireSupabaseEnv()
 
   // Find the contact by phone
-  const digits = contactPhone.replace(/\D/g, '').replace(/^1/, '')
+  const digits = contactPhone.replace(/\D/g, '').slice(-10)
   const contactRes = await fetch(
-    `${url}/rest/v1/market_contacts?phone=ilike.*${digits}&select=id,name,city,stage,sequence_paused&limit=20`,
+    `${url}/rest/v1/market_contacts?phone=ilike.*${digits}&select=id,name,phone,city,stage,sequence_paused&limit=20`,
     { headers, cache: 'no-store' }
   )
-  const contacts = (contactRes.ok ? await contactRes.json() : []) as Array<{ id: string; name: string; city: string | null; stage: string; sequence_paused: boolean }>
-  const contact = contacts.find(item => contactMatchesLine(item, partnershipNumber)) || (isPartnershipSenderNumber(partnershipNumber) ? null : contacts[0])
+  const contacts = (contactRes.ok ? await contactRes.json() : []) as Array<{ id: string; name: string; phone: string | null; city: string | null; stage: string; sequence_paused: boolean }>
+  const exactMatches = contacts.filter(item => normalizePhone(item.phone) === contactPhone && contactMatchesLine(item, partnershipNumber))
+  const contact = exactMatches.length === 1 ? exactMatches[0] : null
 
   if (!contact) return new Response(null, { status: 204 })
 

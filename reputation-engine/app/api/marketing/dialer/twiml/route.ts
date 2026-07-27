@@ -37,6 +37,14 @@ function xmlResponse(twiml: string) {
   return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } })
 }
 
+function recordingCallbackUrl(baseUrl: string, customerNumber: string, partnershipNumber: string, direction: 'inbound' | 'outbound') {
+  const url = new URL(`${baseUrl}/api/marketing/dialer/recording-callback`)
+  url.searchParams.set('customer', normalizePhone(customerNumber) || customerNumber)
+  url.searchParams.set('line', normalizePhone(partnershipNumber) || partnershipNumber)
+  url.searchParams.set('direction', direction)
+  return url.toString()
+}
+
 function dialDestinations(forwardPhone?: string | null, clientIdentity?: string | null) {
   const destinations: string[] = []
   if (clientIdentity?.trim()) {
@@ -103,14 +111,13 @@ export async function POST(request: Request) {
     const fromBrowser = from.toLowerCase().startsWith('client:')
 
     const appUrl = getAppBaseUrl('https://mission-control1-reputation-engine.vercel.app')
-    const recordingCallback = `${appUrl}/api/marketing/dialer/recording-callback`
-
     if (!fromBrowser) {
       const dialedNumber = normalizePhone(to) || DEFAULT_PARTNERSHIP_NUMBER
       const marketClientIdentity = await clientIdentityForPartnershipLine(dialedNumber)
       const forwardClientIdentity = marketClientIdentity || readEnv('PARTNERSHIP_FORWARD_CLIENT_IDENTITY')
       const forwardPhone = configuredForwardPhoneForLine(dialedNumber)
       const inboundPhone = normalizePhone(from) || from
+      const recordingCallback = recordingCallbackUrl(appUrl, inboundPhone, dialedNumber, 'inbound')
       const callSid = (formData.get('CallSid') as string | null)?.trim() || null
       const statusCallback = `${appUrl}/api/marketing/dialer/call-status`
 
@@ -133,6 +140,7 @@ export async function POST(request: Request) {
 
     const dialTarget = normalizeDialTarget(to)
     const callerId = getPartnershipPrimaryNumberForMarket(city) || DEFAULT_PARTNERSHIP_NUMBER
+    const recordingCallback = recordingCallbackUrl(appUrl, dialTarget, callerId, 'outbound')
 
     const dialAttrs = [
       `callerId="${xmlAttr(callerId)}"`,
