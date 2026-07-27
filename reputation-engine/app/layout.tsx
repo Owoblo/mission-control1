@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { Suspense } from 'react'
 import { AppShell } from '@/app/components/app-shell'
 import { PWAInit } from '@/app/components/pwa-init'
 import './globals.css'
@@ -40,7 +41,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body className="min-h-screen">
-        <AppShell>{children}</AppShell>
+        <Suspense fallback={children}>
+          <AppShell>{children}</AppShell>
+        </Suspense>
         <PWAInit />
       </body>
     </html>

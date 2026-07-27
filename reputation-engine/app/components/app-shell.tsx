@@ -1,8 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useEffect, useState } from 'react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { SalesHeader } from '@/app/components/sales-header'
 import { CrewHeader } from '@/app/components/crew-header'
 import { CRMAppFrame, CRMMainContent, CRMMainViewport, CRMViewport } from '@/app/components/crm-layout'
@@ -15,14 +14,10 @@ const FloatingDialer = dynamic(
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const user = useCurrentUser()
-  const [tab, setTab] = useState<string | null | undefined>(undefined)
-
-  useEffect(() => {
-    setTab(new URLSearchParams(window.location.search).get('tab'))
-  }, [pathname])
-
-  const partnershipInbox = tab !== undefined && pathname.startsWith('/marketing/partners') && (!tab || tab === 'phone' || tab === 'replies')
+  const tab = searchParams.get('tab')
+  const partnershipInbox = pathname.startsWith('/marketing/partners') && (!tab || tab === 'phone' || tab === 'replies')
   const shouldMountDialer =
     pathname.startsWith('/sales') &&
     (user?.role === 'owner' || user?.role === 'manager' || user?.role === 'sales_rep')

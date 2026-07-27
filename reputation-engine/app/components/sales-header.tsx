@@ -4,7 +4,7 @@ import React from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { ChangePasswordButton } from '@/app/components/change-password-button'
 import { LogoutButton } from '@/app/components/logout-button'
 import { NewLeadModal } from '@/app/components/sales/new-lead-modal'
@@ -112,18 +112,14 @@ function writeLocalStorageItem(key: string, value: string) {
 export function SalesHeader() {
   const pathname = usePathname()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const user = useCurrentUser()
   const role = user?.role ?? 'owner'
   const isDexaView = user?.branch === 'ottawa'
   const canUseSalesActions = SALES_ROLES.includes(role)
   const homeHref = role === 'partnership_manager' ? '/marketing/partners?tab=phone' : role === 'crew' ? '/crew/calendar' : role === 'operations_lead' ? '/sales/operations' : '/sales'
-  const [tab, setTab] = useState<string | null | undefined>(undefined)
-
-  useEffect(() => {
-    setTab(new URLSearchParams(window.location.search).get('tab'))
-  }, [pathname])
-
-  const partnershipInbox = tab !== undefined && pathname.startsWith('/marketing/partners') && (!tab || tab === 'phone' || tab === 'replies')
+  const tab = searchParams.get('tab')
+  const partnershipInbox = pathname.startsWith('/marketing/partners') && (!tab || tab === 'phone' || tab === 'replies')
 
   const [query, setQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
