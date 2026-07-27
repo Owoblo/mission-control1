@@ -323,6 +323,12 @@ function detectIntent(text: string, contact: PartnershipAssistantContact, touche
   const decision = cleanText(contact.decision).toLowerCase()
   const stage = cleanText(contact.stage).toLowerCase()
 
+  if (
+    /\b(this|the) number (?:does not|doesn'?t|cannot|can'?t) (?:accept|receive|support) (?:sms|text) messages?\b/i.test(text) ||
+    /\b(?:sms|text) messages? (?:are|is) not (?:accepted|supported|available)\b/i.test(text)
+  ) {
+    return { intent: 'wrong_number', confidence: 0.98, risk_flags: ['automated_carrier_reply', 'sms_unavailable'] }
+  }
   if (decision === 'opted_out' || isOptOutText(text)) return { intent: 'stop_opt_out', confidence: 0.98, risk_flags }
   if (CONTEXT_CLARIFICATION_RE.test(text)) {
     return { intent: 'asks_context', confidence: 0.9, risk_flags: [...risk_flags, 'resend_previous_context'] }

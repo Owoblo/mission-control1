@@ -81,12 +81,16 @@ function touchPartnershipSender(touch: { channel?: string | null; direction?: st
 
 function classifyReply(touch: MarketTouch, contact?: MarketContact | null) {
   const outcome = String(touch.outcome_code || '').toLowerCase()
+  if (outcome === 'sms_unavailable') return 'closed'
   if (['opt_out', 'wrong_number', 'replied_negative'].includes(outcome)) return 'opt_out'
   if (['postcard_requested', 'drop_cards', 'gives_address', 'gives_time_window'].includes(outcome)) return 'postcard'
   if (['meeting_requested'].includes(outcome)) return 'appointment'
   if (['package_requested', 'media_requested', 'digital_only', 'asks_contact_info', 'asks_for_email', 'asks_pricing', 'asks_referral_program', 'asks_social_media', 'asks_references', 'secondary_contact_referral', 'lead_disposition_update'].includes(outcome)) return 'needs_reply'
 
   const note = String(touch.notes || '').toLowerCase()
+  if (/\b(this|the) number (?:does not|doesn'?t|cannot|can'?t) (?:accept|receive|support) (?:sms|text) messages?\b/i.test(note)) {
+    return 'closed'
+  }
   const stage = normalizePartnershipStage(contact?.stage)
   const decision = String(contact?.decision || '').toLowerCase()
 

@@ -534,8 +534,13 @@ function summarizeTouch(channel: string, direction?: string | null, notes?: stri
 }
 
 function getContactPreview(contact: Contact) {
+  if (contact.latest_touch_note) {
+    const preview = summarizeTouch(contact.latest_touch_channel || 'note', contact.latest_touch_direction, contact.latest_touch_note)
+    return contact.latest_touch_direction === 'outbound'
+      ? { ...preview, body: `You: ${preview.body}` }
+      : preview
+  }
   if (contact.latest_inbound_note) return summarizeTouch(contact.latest_touch_channel || 'sms', 'inbound', contact.latest_inbound_note)
-  if (contact.latest_touch_note) return summarizeTouch(contact.latest_touch_channel || 'note', contact.latest_touch_direction, contact.latest_touch_note)
   return null
 }
 
@@ -3686,6 +3691,9 @@ function PhoneTab({
   const threadRef = useRef<HTMLDivElement>(null)
   const threadEndRef = useRef<HTMLDivElement>(null)
   const mediaInputRef = useRef<HTMLInputElement>(null)
+  const smsTextareaRef = useRef<HTMLTextAreaElement>(null)
+  const smsDraftRef = useRef('')
+  const smsCommitTimerRef = useRef<number | null>(null)
   const speechRecognitionRef = useRef<BrowserSpeechRecognition | null>(null)
   const touchRequestRef = useRef(0)
   const dialer = useDialer()
@@ -3975,7 +3983,25 @@ function PhoneTab({
     }
   }, [selectedId, touchLoading, touches])
   useEffect(() => { writeLocalStorageFlag('ss_partner_inbox_info_collapsed', partnerInfoCollapsed) }, [partnerInfoCollapsed])
-  useEffect(() => () => speechRecognitionRef.current?.abort(), [])
+  useEffect(() => {
+    smsDraftRef.current = smsBody
+    if (smsTextareaRef.current && smsTextareaRef.current.value !== smsBody) {
+      smsTextareaRef.current.value = smsBody
+    }
+  }, [smsBody])
+  useEffect(() => () => {
+    speechRecognitionRef.current?.abort()
+    if (smsCommitTimerRef.current) window.clearTimeout(smsCommitTimerRef.current)
+  }, [])
+
+  function handleSmsDraftChange(value: string) {
+    smsDraftRef.current = value
+    if (smsCommitTimerRef.current) window.clearTimeout(smsCommitTimerRef.current)
+    smsCommitTimerRef.current = window.setTimeout(() => {
+      setSmsBody(value)
+      smsCommitTimerRef.current = null
+    }, 180)
+  }
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(null), 3000) }
 
@@ -4139,6 +4165,7 @@ function PhoneTab({
 
   async function handleSend() {
     if (!selected) return
+    const currentSmsBody = smsDraftRef.current
     setSending(true)
     const replyFromNumber = selectedThreadFromNumber
     try {
@@ -4148,7 +4175,7 @@ function PhoneTab({
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({
-            body: smsBody,
+            body: currentSmsBody,
             scheduled_at: new Date(scheduledAt).toISOString(),
             from_number: replyFromNumber,
             media_urls: mediaUrls,
@@ -4175,7 +4202,7 @@ function PhoneTab({
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({
-            body: smsBody,
+            body: currentSmsBody,
             from_number: replyFromNumber,
             media_urls: mediaUrls,
           }),
@@ -4200,7 +4227,7 @@ function PhoneTab({
         ...selected,
         latest_touch_direction: 'outbound',
         latest_touch_channel: composeChannel,
-        latest_touch_note: composeChannel === 'sms' ? smsBody : emailBody,
+        latest_touch_note: composeChannel === 'sms' ? currentSmsBody : emailBody,
         last_touch_at: outboundAt,
         sequence_paused: false,
         needs_follow_up: true,
@@ -5041,7 +5068,20 @@ function PhoneTab({
                   >
                     {voiceListening ? '■' : '🎙'}
                   </button>
-                  <textarea value={smsBody} onChange={e => setSmsBody(e.target.value)} rows={1} placeholder={selected.phone ? 'Message…' : 'No phone'} disabled={!selected.phone}
+                  <textarea
+                    key={selected.id}
+                    ref={smsTextareaRef}
+                    defaultValue={smsBody}
+                    onChange={e => handleSmsDraftChange(e.target.value)}
+                    onBlur={e => {
+                      if (smsCommitTimerRef.current) window.clearTimeout(smsCommitTimerRef.current)
+                      smsCommitTimerRef.current = null
+                      smsDraftRef.current = e.target.value
+                      setSmsBody(e.target.value)
+                    }}
+                    rows={1}
+                    placeholder={selected.phone ? 'Message…' : 'No phone'}
+                    disabled={!selected.phone}
                     className="max-h-28 min-h-10 flex-1 resize-none border-0 bg-transparent px-2 py-2 text-[15px] leading-6 text-[#071421] outline-none placeholder:text-slate-400 disabled:opacity-40" />
                   <button onClick={handleSend} disabled={sending || mediaUploading || !selected.phone || (!smsBody.trim() && mediaUrls.length === 0) || (scheduleMode && !scheduledAt)}
                     className="min-h-10 shrink-0 rounded-full bg-[#071421] px-4 text-[13px] font-semibold text-white disabled:opacity-35">{sending ? '…' : scheduleMode ? 'Schedule' : 'Send'}</button>

@@ -118,6 +118,17 @@ function metadataMediaUrls(metadata?: Record<string, unknown>) {
   return raw.map(url => String(url || '').trim()).filter(Boolean).slice(0, 10)
 }
 
+export function isAutomatedSmsUnavailableReply(channel: InboundChannel, notes?: string | null) {
+  if (channel !== 'sms') return false
+  const text = String(notes || '').toLowerCase()
+  return (
+    /\b(this|the) number (?:does not|doesn'?t|cannot|can'?t) (?:accept|receive|support) (?:sms|text) messages?\b/.test(text) ||
+    /\b(?:sms|text) messages? (?:are|is) not (?:accepted|supported|available)\b/.test(text) ||
+    /\bmessage (?:could not|can'?t|cannot) be delivered to (?:this|the) (?:landline|number)\b/.test(text) ||
+    /\b(?:landline|wireline) (?:number|phone).{0,24}\b(?:sms|text)\b/.test(text)
+  )
+}
+
 function classifyInboundWorkflow(
   playbook: Awaited<ReturnType<typeof suggestPartnershipReply>>,
   currentStage: ReturnType<typeof normalizePartnershipStage>,
@@ -175,6 +186,53 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
 
   const occurredAt = input.occurredAt || new Date().toISOString()
   const { url, headers } = requireSupabaseEnv()
+  if (isAutomatedSmsUnavailableReply(input.channel, input.notes)) {
+    const nextChannel = contact.email ? 'email' : 'phone'
+    const touchNotes = input.notes?.trim() || 'This number does not accept SMS messages.'
+    await Promise.all([
+      fetch(`${url}/rest/v1/market_contacts?id=eq.${contact.id}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          sequence_paused: true,
+          sequence_paused_reason: 'sms_unavailable',
+          preferred_channel: nextChannel,
+          pipeline_phase: 'alternate_channel',
+          last_touch_at: occurredAt,
+          next_follow_up: occurredAt.slice(0, 10),
+        }),
+      }),
+      fetch(`${url}/rest/v1/sequence_jobs?contact_id=eq.${contact.id}&status=eq.pending&channel=eq.sms`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          status: 'cancelled',
+          error: 'SMS unavailable; use email or phone.',
+        }),
+      }),
+      fetch(`${url}/rest/v1/market_touches`, {
+        method: 'POST',
+        headers: { ...headers, Prefer: 'return=minimal' },
+        body: JSON.stringify({
+          contact_id: contact.id,
+          channel: 'sms',
+          direction: 'system',
+          notes: touchNotes,
+          created_by: 'Carrier',
+          created_at: occurredAt,
+          outcome_code: 'sms_unavailable',
+          next_step: contact.email ? 'Continue by email.' : 'Call the contact.',
+          metadata: {
+            ...(input.metadata ?? {}),
+            automatedCarrierReply: true,
+            nextChannel,
+          },
+        }),
+      }),
+    ])
+    return { matched: true as const, contactId: contact.id, automatedCarrierReply: true as const }
+  }
+
   const currentStage = normalizePartnershipStage(contact.stage)
   const optedOut = isOptOutText(input.notes)
   const touchNotes = input.notes?.trim() || (optedOut ? 'Inbound opt-out received' : `Inbound ${input.channel} reply received`)
