@@ -7,6 +7,7 @@ import { twilioAuth } from '@/lib/server/twilio-recordings'
 import { partnershipRecordMatchesSession } from '@/lib/server/partnership-access'
 import {
   DEFAULT_PARTNERSHIP_FROM_NUMBER,
+  getPartnershipMessagingServiceSidForNumber,
   getPartnershipPrimaryNumberForMarket,
   isPartnershipSenderNumber,
 } from '@/lib/partnership-lines'
@@ -101,10 +102,11 @@ export async function POST(
     DEFAULT_PARTNERSHIP_FROM_NUMBER
 
   const { accountSid, authToken } = getTwilioCredentials()
+  const messagingServiceSid = getPartnershipMessagingServiceSidForNumber(fromNumber)
   const twilioBody = new URLSearchParams({
-    From: fromNumber,
     To: toNumber,
     Body: smsBody || ' ',
+    ...(messagingServiceSid ? { MessagingServiceSid: messagingServiceSid } : { From: fromNumber }),
   })
   for (const mediaUrl of mediaUrls) twilioBody.append('MediaUrl', mediaUrl)
 

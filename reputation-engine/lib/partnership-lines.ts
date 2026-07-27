@@ -267,6 +267,15 @@ export const DEFAULT_PARTNERSHIP_FROM_NUMBER =
 
 export const DEFAULT_PARTNERSHIP_EMAIL = 'partnerships@starmovers.ca'
 
+const PARTNERSHIP_MESSAGING_SERVICE_BY_NUMBER: Record<string, string> = {
+  '+12262419853': 'MGd5a83e63bb6dec9869788e5c1e9b128b',
+  '+15486391428': 'MG340c67baa0824a8880ad0bb91c8701df',
+}
+
+export function getPartnershipMessagingServiceSidForNumber(number?: string | null) {
+  return number ? PARTNERSHIP_MESSAGING_SERVICE_BY_NUMBER[number] || null : null
+}
+
 export function normalizePartnershipCityKey(value?: string | null) {
   return (value || '')
     .toLowerCase()

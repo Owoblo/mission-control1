@@ -14,6 +14,7 @@ import {
 import {
   DEFAULT_PARTNERSHIP_EMAIL,
   DEFAULT_PARTNERSHIP_FROM_NUMBER,
+  getPartnershipMessagingServiceSidForNumber,
   getPartnershipPrimaryNumberForMarket,
   isPartnershipSenderNumber,
 } from '@/lib/partnership-lines'
@@ -291,10 +292,11 @@ async function processScheduledReply(params: {
     payload.fromNumber || scheduled.fromNumber,
     contact.city as string | null,
   )
+  const messagingServiceSid = getPartnershipMessagingServiceSidForNumber(fromNumber)
   const paramsBody = new URLSearchParams({
-    From: fromNumber,
     To: contact.phone as string,
     Body: payload.body || ' ',
+    ...(messagingServiceSid ? { MessagingServiceSid: messagingServiceSid } : { From: fromNumber }),
   })
   payload.mediaUrls.forEach(mediaUrl => paramsBody.append('MediaUrl', mediaUrl))
 
@@ -618,6 +620,7 @@ export async function POST(request: Request) {
           continue
         }
 
+        const messagingServiceSid = getPartnershipMessagingServiceSidForNumber(fromNumber)
         const twilioRes = await fetch(
           `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
           {
@@ -627,9 +630,9 @@ export async function POST(request: Request) {
               'Content-Type': 'application/x-www-form-urlencoded',
             },
             body: new URLSearchParams({
-              From: fromNumber,
               To: contact.phone as string,
               Body: smsBody,
+              ...(messagingServiceSid ? { MessagingServiceSid: messagingServiceSid } : { From: fromNumber }),
             }),
           }
         )

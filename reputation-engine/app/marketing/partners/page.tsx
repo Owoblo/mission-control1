@@ -5639,7 +5639,29 @@ function partnershipSmsTemplate(market: PartnershipMarketKey) {
     : PARTNERSHIP_SMS_TEMPLATE
 }
 
-function mapCsvRealtor(row: Record<string, string>) {
+function inferCsvCity(row: Record<string, string>, market: PartnershipMarketCommand) {
+  const explicit = row.city_scraped || row.city
+  if (explicit) return explicit
+  const searchable = [
+    row.brokerage_address,
+    row.address,
+    row.profile_url,
+    row.website,
+    row.zone,
+  ].filter(Boolean).join(' ').toLowerCase()
+  const cityMatch = market.cityKeys
+    .filter(city => city.length > 2)
+    .sort((a, b) => b.length - a.length)
+    .find(city => searchable.includes(city.toLowerCase()))
+  if (cityMatch) return cityMatch
+  if (market.id === 'waterloo') return 'Kitchener–Waterloo'
+  if (market.id === 'london') return 'London'
+  if (market.id === 'windsor') return 'Windsor'
+  return market.label.split('/')[0].trim()
+}
+
+function mapCsvRealtor(row: Record<string, string>, market: PartnershipMarketCommand) {
+  const city = inferCsvCity(row, market)
   return {
     name: row.name || '',
     company: row.brokerage || row.company || '',
@@ -5649,8 +5671,8 @@ function mapCsvRealtor(row: Record<string, string>) {
     phone2: row.phone2 || '',
     phone3: row.phone3 || '',
     address: row.brokerage_address || row.address || '',
-    city: row.city_scraped || row.city || row.zone || '',
-    zone: row.zone || row.city_scraped || row.city || '',
+    city,
+    zone: row.zone || city,
     industry: 'real estate',
     website: row.website || '',
     category: 'realtor',
@@ -5695,17 +5717,17 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
   const [result, setResult] = useState<{ campaign_id?: string; scheduled?: number; days_to_finish?: number } | null>(null)
   const [error, setError] = useState('')
 
+  const selectedMarketConfig = marketCommandForKey(selectedMarket)
   const availableZones = Array.from(new Set(rows.map(row => row.zone).filter(Boolean))).sort((a, b) => a.localeCompare(b))
-  const availableCities = Array.from(new Set(rows.map(row => row.city_scraped || row.city).filter(Boolean))).sort((a, b) => a.localeCompare(b))
+  const availableCities = Array.from(new Set(rows.map(row => inferCsvCity(row, selectedMarketConfig)).filter(Boolean))).sort((a, b) => a.localeCompare(b))
   const selectedRows = rows.filter(row => {
     if (segmentMode === 'all') return true
     if (!segment) return true
-    const value = segmentMode === 'zone' ? row.zone : (row.city_scraped || row.city)
+    const value = segmentMode === 'zone' ? row.zone : inferCsvCity(row, selectedMarketConfig)
     return (value || '').toLowerCase() === segment.toLowerCase()
   })
-  const selectedMarketConfig = marketCommandForKey(selectedMarket)
   const contacts = selectedRows.map(row => {
-    const mapped = mapCsvRealtor(row)
+    const mapped = mapCsvRealtor(row, selectedMarketConfig)
     const categoryMeta = getCategoryMeta(category)
     return {
       ...mapped,
@@ -5713,7 +5735,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
       industry: category === 'realtor' ? 'real estate' : (categoryMeta?.label || category),
     }
   })
-  const selectedCities = Array.from(new Set(selectedRows.map(row => row.city_scraped || row.city).filter(Boolean))).sort((a, b) => a.localeCompare(b))
+  const selectedCities = Array.from(new Set(selectedRows.map(row => inferCsvCity(row, selectedMarketConfig)).filter(Boolean))).sort((a, b) => a.localeCompare(b))
   const segmentLabel = segmentMode === 'zone' ? labelFromZone(segment) : segment
   const senderNumbers = senderNumbersForPartnershipSegment(selectedMarket)
 
@@ -5888,7 +5910,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
 
                 <div>
                   <label className="crm-label">Daily cap</label>
-                  <input type="number" min={1} max={500} value={dailyCap} onChange={e => { setDailyCap(Number(e.target.value)); setPreview(null) }} className="crm-input mt-1 text-sm" />
+                  <input type="number" min={1} max={1000} value={dailyCap} onChange={e => { setDailyCap(Number(e.target.value)); setPreview(null) }} className="crm-input mt-1 text-sm" />
                 </div>
 
                 <div>
@@ -5912,7 +5934,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
                 </div>
 
                 <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3 text-xs leading-5 text-[var(--app-muted)]">
-                  Sends from {selectedMarketConfig.label}: {senderNumbers.map(formatPhoneDisplay).join(', ')}. Uses primary phone only, duplicate checks, and Toronto working hours.
+                  Sends from {selectedMarketConfig.label}: {senderNumbers.map(formatPhoneDisplay).join(', ')}. Smart Encoding is active. Uses primary phone only, duplicate checks, and Toronto working hours.
                 </div>
 
                 {selectedCities.length > 0 && (
@@ -5928,8 +5950,8 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
                 )}
               </div>
 
-              <div className="min-h-0 space-y-5 overflow-visible p-4 md:overflow-y-auto md:overscroll-contain sm:p-6">
-                <div className="sticky top-0 z-10 -mx-2 rounded-[14px] border border-[var(--app-line)] bg-white p-4 shadow-[0_8px_24px_rgba(7,20,33,0.06)]">
+              <div className="min-h-0 space-y-4 overflow-visible p-4 pb-8 md:overflow-y-auto md:overscroll-contain sm:p-6 sm:pb-10">
+                <div className="rounded-[14px] border border-[var(--app-line)] bg-white p-4">
                   <div className="flex flex-wrap items-end justify-between gap-2">
                     <div>
                       <label className="text-base font-semibold text-[var(--app-ink)]">Message</label>
@@ -5939,8 +5961,8 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
                       {template.length} characters
                     </div>
                   </div>
-                  <textarea value={template} onChange={e => { setTemplate(e.target.value); setPreview(null) }} rows={9}
-                    className="crm-input mt-3 min-h-[230px] max-h-[420px] resize-y bg-white text-base leading-7" />
+                  <textarea value={template} onChange={e => { setTemplate(e.target.value); setPreview(null) }} rows={6}
+                    className="crm-input mt-3 min-h-[160px] max-h-[280px] resize-y bg-white text-[15px] leading-6" />
                   <div className="mt-2 text-sm leading-5 text-[var(--app-muted)]">The city is personalized from each CSV row. London contacts say London; Kitchener and Waterloo contacts keep their correct city.</div>
                 </div>
 

@@ -161,7 +161,7 @@ export async function POST(request: Request) {
 
   const template = ensureSmsOptOutLine(body.template || DEFAULT_PARTNERSHIP_SMS_TEMPLATE)
   const repName = cleanText(body.rep_name) || 'Saturn Star Partnerships'
-  const dailyCap = Math.max(1, Math.min(500, Number(body.daily_cap || 100)))
+  const dailyCap = Math.max(1, Math.min(1000, Number(body.daily_cap || 100)))
   const startHour = Math.max(7, Math.min(20, Number(body.start_hour || 10)))
   const endHour = Math.max(startHour + 1, Math.min(21, Number(body.end_hour || 17)))
   const timezone = String(body.timezone || 'America/Toronto')
