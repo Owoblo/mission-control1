@@ -135,11 +135,30 @@ function classifyInboundWorkflow(
   contact: MarketContactMatch,
   optedOut: boolean
 ) {
-  if (optedOut || playbook.quick_action === 'not_interested' || playbook.quick_action === 'wrong_number') {
+  if (optedOut) {
     return {
-      stage: playbook.quick_action === 'wrong_number' ? 'closed_lost' : 'dnc',
+      stage: 'dnc',
       pipeline_phase: 'closed',
-      decision: playbook.quick_action === 'wrong_number' ? 'bad_number' : 'opted_out',
+      decision: 'opted_out',
+    }
+  }
+
+  if (playbook.quick_action === 'wrong_number') {
+    return {
+      stage: 'closed_lost',
+      pipeline_phase: 'closed',
+      decision: 'bad_number',
+    }
+  }
+
+  if (playbook.intent === 'not_interested') {
+    return {
+      // A courteous "not interested" pauses automation, but it is not consent
+      // to label the relationship DNC/lost. Preserve the human relationship
+      // state so an operator can respond appropriately if needed.
+      stage: contact.stage,
+      pipeline_phase: 'respectful_pause',
+      decision: contact.decision,
     }
   }
 
