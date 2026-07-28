@@ -1,5 +1,6 @@
 import type { InventoryItem, InventoryScanDraft, ListingMatch } from '@/lib/types'
 import { matchInventoryPreset } from '@/lib/item-presets'
+import { normalizeDetectedInventoryDimensions } from '@/lib/inventory-dimension-safety'
 import { applyMovePolicyToInventory, summarizeMovePolicy } from '@/lib/move-policy'
 import { readEnv } from '@/lib/server/runtime'
 
@@ -419,6 +420,14 @@ function buildInventoryItemFromDetection(
   if (GENERIC_LOW_SIGNAL_LABELS.has(normalizedName) && confidence < REVIEW_CONFIDENCE_THRESHOLD) return null
 
   const preset = matchInventoryPreset(itemName)
+  const qty = Math.max(1, Number(detection.qty || 1))
+  const safeDimensions = normalizeDetectedInventoryDimensions({
+    name: itemName,
+    qty,
+    cubicFeet: Number(detection.cubicFeet || preset?.item.cubicFeet || 10),
+    weightLbs: Number(detection.weightLbs || detection.weight || preset?.item.weightLbs || 0) ||
+      Math.round(Number(detection.cubicFeet || preset?.item.cubicFeet || 10) * 7),
+  })
   const looksLikeFixture = includesKeyword(combinedText, FIXTURE_KEYWORDS)
   const fixtureNeedsExplicitConfirmation = includesKeyword(combinedText, FIXTURE_CONFIRMATION_KEYWORDS)
   const ambiguousMoveability = includesKeyword(combinedText, AMBIGUOUS_MOVEABILITY_KEYWORDS)
@@ -428,13 +437,13 @@ function buildInventoryItemFromDetection(
     sourcePhotoRoom: effectiveRoom,
     name: itemName,
     item: itemName,
-    qty: Math.max(1, Number(detection.qty || 1)),
-    cubicFeet: Number(detection.cubicFeet || preset?.item.cubicFeet || 10),
-    weightLbs: Number(detection.weightLbs || detection.weight || preset?.item.weightLbs || 0) || Math.round(Number(detection.cubicFeet || preset?.item.cubicFeet || 10) * 7),
+    qty,
+    cubicFeet: safeDimensions.cubicFeet,
+    weightLbs: safeDimensions.weightLbs,
     included: detection.included !== false,
     confidence,
     size: detection.size ? String(detection.size) : preset?.item.size,
-    notes: itemNotes || preset?.item.notes,
+    notes: [itemNotes || preset?.item.notes, safeDimensions.reason].filter(Boolean).join(' ') || undefined,
   }
 
   if (looksLikeFixture) {

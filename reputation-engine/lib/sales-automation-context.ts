@@ -8,6 +8,7 @@ const PICKUP_RE = /\b(pick\s*up|pickup|origin|from)\b/i
 const DROPOFF_RE = /\b(drop\s*off|dropoff|destination|to)\b/i
 const ADDRESS_HINT_RE = /\b(st|street|ave|avenue|rd|road|dr|drive|blvd|boulevard|cres|crescent|ct|court|ln|lane|way|pkwy|parkway|pl|place|terrace|trail|circle|cir|sq|square|hwy|highway|unit|suite|apt|apartment|#)\b/i
 const INVENTORY_HINT_RE = /\b(sofa|couch|recliner|chair|table|tv|television|computer|desk|dishwasher|microwave|bicycle|bike|closet|bed|mattress|dresser|nightstand|bookshelf|shelf|boxes|box|wardrobe|fridge|freezer|stove|washer|dryer|cabinet)\b/i
+const INVENTORY_ITEM_RE = /\b(sofas?|couch(?:es)?|recliners?|chairs?|tables?|stands?|lamps?|tvs?|televisions?|monitors?|computers?|desks?|dishwashers?|microwaves?|bicycles?|bikes?|closets?|beds?|headboards?|mattresses?|dressers?|drawers?|nightstands?|night\s+tables?|bookshelves?|shelves?|boxes?|bins?|wardrobes?|fridges?|freezers?|stoves?|washers?|dryers?|cabinets?|pinball|pianos?|benches?|stools?|ottomans?|loveseats?|sectionals?|consoles?|appliances?|suitcases?|hampers?|baskets?|racks?|machines?)\b/i
 const QUANTITY_WORDS: Record<string, number> = {
   one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
 }
@@ -16,6 +17,14 @@ const COUNTABLE_ITEM_TOKEN = '(?:beds?|mattresses?|sofas?|couches?|recliners?|ch
 
 function cleanLine(value?: string | null) {
   return String(value || '').replace(/\s+/g, ' ').trim()
+}
+
+function cleanInventoryText(value?: string | null) {
+  return String(value || '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .trim()
 }
 
 function trimAddressCandidate(value: string) {
@@ -86,22 +95,29 @@ function matchCustomerInventoryPreset(name: string) {
 }
 
 function parseInventoryCandidate(value: string) {
-  const trimmed = value.trim()
-  const quantityMatch = trimmed.match(/^(?:i (?:have|am moving)\s+)?(one|two|three|four|five|six|seven|eight|nine|ten|\d{1,2})\b\s*/i)
-  const rawQuantity = quantityMatch?.[1]?.toLowerCase()
+  const trimmed = value
+    .replace(/^(?:>+\s*)+/, '')
+    .replace(/^[•●▪◦*-]\s*/, '')
+    .replace(/^(?:i (?:have|am moving)\s+)/i, '')
+    .trim()
+  const quantityMatch = trimmed.match(
+    /^(one|two|three|four|five|six|seven|eight|nine|ten)\b\s+|^(\d{1,2})\s*[x×]\s*|^(\d{1,2})\s+(?=(?:beds?|mattresses?|sofas?|couches?|recliners?|chairs?|tables?|nightstands?|desks?|dressers?|bookshelves?|boxes?|bins?|televisions?|tvs?|consoles?|cabinets?|pinball\s+machines?|lamps?|stools?|suitcases?|baskets?|racks?)\b)/i
+  )
+  const rawQuantity = (quantityMatch?.[1] || quantityMatch?.[2] || quantityMatch?.[3])?.toLowerCase()
   const qty = rawQuantity ? (QUANTITY_WORDS[rawQuantity] || Number(rawQuantity) || 1) : 1
   const name = normalizeInventoryName(quantityMatch ? trimmed.slice(quantityMatch[0].length) : trimmed)
   return { name, qty: Math.max(1, qty) }
 }
 
 export function extractCustomerInventoryItems(message?: string | null): InventoryItem[] {
-  const text = cleanLine(message)
+  const text = cleanInventoryText(message)
   if (!text || !INVENTORY_HINT_RE.test(text)) return []
   if (/\b(address|pick\s*up|pickup|drop\s*off|dropoff|postal|zip)\b/i.test(text) && !/\b(sofa|couch|chair|table|boxes|closet|packing|pack)\b/i.test(text)) return []
 
   const inventoryFocused = text
     .replace(new RegExp(`^[\\s\\S]*?\\bi (?:have|am moving)\\s+(?=${QUANTITY_TOKEN}\\s+${COUNTABLE_ITEM_TOKEN})`, 'i'), '')
   const normalized = inventoryFocused
+    .replace(/\b(\d{1,3})\s*["”]\b/g, '$1 inch ')
     .replace(/\bcoffee\s*,\s*table\b/gi, 'coffee table')
     .replace(/\bstudy\s*,\s*chair\b/gi, 'study chair')
     .replace(/\band\b/gi, ',')
@@ -109,7 +125,12 @@ export function extractCustomerInventoryItems(message?: string | null): Inventor
 
   const seen = new Set<string>()
   return normalized
-    .split(/[,;\n.]+/)
+    .split(/[,;\n]+|(?:\s+>\s+)|(?:\s+[•●▪◦]\s*)/)
+    .map(part => part
+      .replace(/\b(?:approx(?:imately)?\.?|standard size|freestanding|fabric upholstery|includes? attached cushions?)\b[\s\S]*$/i, '')
+      .replace(/^[\s>:;—–.-]+|[\s>:;—–.-]+$/g, '')
+      .trim())
+    .filter(part => INVENTORY_ITEM_RE.test(part))
     .map(parseInventoryCandidate)
     .filter(candidate => {
       const key = candidate.name.toLowerCase()

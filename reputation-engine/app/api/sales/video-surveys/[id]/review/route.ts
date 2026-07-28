@@ -14,6 +14,7 @@ import {
 import { normalizeLead, uid } from '@/lib/sales'
 import { videoInventoryDedupeKey } from '@/lib/video-survey-analysis'
 import type { InventoryItem } from '@/lib/types'
+import { normalizeDetectedInventoryDimensions } from '@/lib/inventory-dimension-safety'
 import { randomToken } from '@/lib/server/security'
 import { getAppBaseUrl } from '@/lib/server/runtime'
 
@@ -107,6 +108,13 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
       index,
     ]))
     for (const row of approved) {
+      const quantity = Math.max(1, Number(row.quantity || 1))
+      const safeDimensions = normalizeDetectedInventoryDimensions({
+        name: String(row.item_name || 'Item'),
+        qty: quantity,
+        cubicFeet: Number(row.estimated_cubic_feet || 0),
+        weightLbs: Number(row.estimated_weight_lbs || 0),
+      })
       const key = videoInventoryDedupeKey({
         room: String(row.room || 'Unassigned'),
         itemName: String(row.item_name || ''),
@@ -114,14 +122,14 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
       const item: InventoryItem = {
         id: uid('inv_video'),
         name: String(row.item_name || 'Item'),
-        qty: Math.max(1, Number(row.quantity || 1)),
+        qty: quantity,
         room: String(row.room || 'Unassigned'),
-        cubicFeet: Math.max(0, Number(row.estimated_cubic_feet || 0)),
-        weightLbs: Math.max(0, Number(row.estimated_weight_lbs || 0)),
+        cubicFeet: safeDimensions.cubicFeet,
+        weightLbs: safeDimensions.weightLbs,
         included: true,
         confidence: Number(row.confidence || 0),
         source: 'survey_ai',
-        notes: `Video survey evidence ${String(row.id)}`,
+        notes: [`Video survey evidence ${String(row.id)}`, safeDimensions.reason].filter(Boolean).join(' · '),
       }
       const existingIndex = byKey.get(key)
       if (existingIndex == null) {

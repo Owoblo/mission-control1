@@ -14,6 +14,7 @@ import {
   clusterVideoInventoryCandidates,
   type VideoInventoryCandidate,
 } from '@/lib/video-survey-analysis'
+import { normalizeDetectedInventoryDimensions } from '@/lib/inventory-dimension-safety'
 
 type GeminiVideoResult = {
   summary?: string
@@ -175,11 +176,18 @@ function resultCandidates(result: GeminiVideoResult): VideoInventoryCandidate[] 
   for (const room of result.rooms || []) {
     for (const item of room.items || []) {
       if (!item.name?.trim()) continue
+      const quantity = Math.max(1, Math.round(Number(item.quantity || 1)))
+      const safeDimensions = normalizeDetectedInventoryDimensions({
+        name: item.name.trim(),
+        qty: quantity,
+        cubicFeet: item.cubicFeet,
+        weightLbs: item.weightLbs,
+      })
       candidates.push({
         id: `raw_${crypto.randomUUID()}`,
         room: room.room?.trim() || 'Unassigned',
         itemName: item.name.trim(),
-        quantity: Math.max(1, Math.round(Number(item.quantity || 1))),
+        quantity,
         disposition: ['moving', 'staying', 'uncertain'].includes(String(item.disposition))
           ? item.disposition!
           : 'uncertain',
@@ -187,8 +195,8 @@ function resultCandidates(result: GeminiVideoResult): VideoInventoryCandidate[] 
         sourceKind: item.transcriptEvidence ? 'transcript' : 'video',
         offsetMs: Math.max(0, Math.round(Number(item.offsetSeconds || 0) * 1000)),
         transcriptExcerpt: item.transcriptEvidence?.slice(0, 500),
-        estimatedCubicFeet: Math.max(0, Number(item.cubicFeet || 0)),
-        estimatedWeightLbs: Math.max(0, Number(item.weightLbs || 0)),
+        estimatedCubicFeet: safeDimensions.cubicFeet,
+        estimatedWeightLbs: safeDimensions.weightLbs,
       })
     }
   }

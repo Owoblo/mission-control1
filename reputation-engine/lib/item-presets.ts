@@ -393,10 +393,33 @@ export function createInventoryItemFromPreset(preset: InventoryPreset): Inventor
 
 export function matchInventoryPreset(name?: string) {
   if (!name) return null
-  const normalized = name.toLowerCase().trim()
-  return (
-    INVENTORY_PRESETS.find(preset => normalized.includes((preset.item.name?.toLowerCase() || '').split(' ·')[0])) ||
-    INVENTORY_PRESETS.find(preset => preset.label.toLowerCase().includes(normalized)) ||
-    null
-  )
+  const normalize = (value: string) => value
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+  const normalized = normalize(name)
+  if (!normalized) return null
+
+  // These are accessories, not pianos. A broad substring match on "piano"
+  // previously assigned a collapsible keyboard stand 55 cu ft / 450 lb.
+  if (/\b(?:piano|keyboard)\s+(?:stand|rack)\b/.test(normalized)) return null
+
+  const candidates = INVENTORY_PRESETS
+    .map(preset => {
+      const itemName = normalize((preset.item.name || '').split(' ·')[0])
+      const label = normalize(preset.label.split(' ·')[0])
+      const aliases = Array.from(new Set([itemName, label].filter(Boolean)))
+      const exact = aliases.some(alias => normalized === alias)
+      const contained = aliases
+        .filter(alias => alias.length >= 4)
+        .filter(alias => new RegExp(`(?:^| )${alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?: |$)`).test(normalized))
+        .sort((a, b) => b.length - a.length)[0]
+      return { preset, exact, matchedLength: contained?.length || 0 }
+    })
+    .filter(candidate => candidate.exact || candidate.matchedLength > 0)
+    .sort((a, b) => Number(b.exact) - Number(a.exact) || b.matchedLength - a.matchedLength)
+
+  return candidates[0]?.preset || null
 }

@@ -6,6 +6,7 @@
 import { readEnv } from '@/lib/server/runtime'
 import type { InventoryItem } from '@/lib/types'
 import { uid } from '@/lib/sales'
+import { normalizeDetectedInventoryDimensions } from '@/lib/inventory-dimension-safety'
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1'
 const GEMINI_MODEL = 'gemini-2.5-flash'
@@ -114,17 +115,26 @@ export async function analyzeVideoForInventory(
 
     const items: InventoryItem[] = parsed.items
       .filter(item => item.name && item.cubicFeet > 0)
-      .map(item => ({
-        id: uid('inv'),
-        name: String(item.name),
-        qty: Math.max(1, Math.round(Number(item.qty) || 1)),
-        cubicFeet: Number(item.cubicFeet) || 0,
-        lbs: Number(item.weightLbs) || 0,
-        room: String(item.room || 'Unassigned'),
-        notes: item.notes ? String(item.notes) : undefined,
-        included: true,
-        source: 'rep_upload' as const,
-      }))
+      .map(item => {
+        const qty = Math.max(1, Math.round(Number(item.qty) || 1))
+        const safeDimensions = normalizeDetectedInventoryDimensions({
+          name: String(item.name),
+          qty,
+          cubicFeet: item.cubicFeet,
+          weightLbs: item.weightLbs,
+        })
+        return {
+          id: uid('inv'),
+          name: String(item.name),
+          qty,
+          cubicFeet: safeDimensions.cubicFeet,
+          weightLbs: safeDimensions.weightLbs,
+          room: String(item.room || 'Unassigned'),
+          notes: [item.notes ? String(item.notes) : '', safeDimensions.reason].filter(Boolean).join(' ') || undefined,
+          included: true,
+          source: 'rep_upload' as const,
+        }
+      })
 
     return {
       items,
