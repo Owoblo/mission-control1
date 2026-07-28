@@ -49,6 +49,24 @@ const QUOTE_TYPES = new Set<NonNullable<CRMLead['quoteType']>>([
   'storage',
 ])
 
+const PROPERTY_BEDROOMS = new Set<NonNullable<CRMLead['propertyBedrooms']>>([
+  'studio',
+  '1_bedroom',
+  '2_bedrooms',
+  '3_bedrooms',
+  '4_bedrooms',
+  '5_plus',
+])
+
+const PROPERTY_TYPES = new Set<NonNullable<CRMLead['propertyType']>>([
+  'apartment',
+  'condo',
+  'townhouse',
+  'detached_house',
+  'commercial',
+  'storage_unit',
+])
+
 const REALTOR_LOOKUP_STATUSES = new Set<NonNullable<CRMLead['realtorLookupStatus']>>([
   'not_checked',
   'matched',
@@ -300,6 +318,8 @@ const ALLOWED_LEAD_PATCH_FIELDS = new Set<string>([
   'primaryContactRole',
   'moveDate',
   'moveType',
+  'propertyBedrooms',
+  'propertyType',
   'quoteType',
   'realtorLookupStatus',
   'realtorWarmth',
@@ -483,6 +503,16 @@ export function validateLeadPatchPayload(payload: Partial<CRMLead>) {
 
     if (key === 'quoteType') {
       updates.quoteType = rawValue == null ? undefined : validateEnum(rawValue, 'quote type', QUOTE_TYPES)
+      continue
+    }
+
+    if (key === 'propertyBedrooms') {
+      updates.propertyBedrooms = rawValue == null ? undefined : validateEnum(rawValue, 'property bedrooms', PROPERTY_BEDROOMS)
+      continue
+    }
+
+    if (key === 'propertyType') {
+      updates.propertyType = rawValue == null ? undefined : validateEnum(rawValue, 'property type', PROPERTY_TYPES)
       continue
     }
 

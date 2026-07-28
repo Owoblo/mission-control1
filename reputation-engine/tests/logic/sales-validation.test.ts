@@ -11,6 +11,32 @@ import { validateLeadPatchPayload } from '../../lib/server/sales-validation'
 
 {
   const updates = validateLeadPatchPayload({
+    propertyBedrooms: '3_bedrooms',
+    propertyType: 'detached_house',
+  })
+
+  assert.equal(updates.propertyBedrooms, '3_bedrooms')
+  assert.equal(updates.propertyType, 'detached_house')
+}
+
+{
+  assert.throws(
+    () => validateLeadPatchPayload({
+      propertyBedrooms: '12_bedrooms',
+    } as never),
+    /Invalid property bedrooms/,
+  )
+
+  assert.throws(
+    () => validateLeadPatchPayload({
+      propertyType: 'castle',
+    } as never),
+    /Invalid property type/,
+  )
+}
+
+{
+  const updates = validateLeadPatchPayload({
     opportunityContext: {
       position: 'collecting_inventory',
       bookingConfidence: 60,
