@@ -17,6 +17,10 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/api/marketing/recent-sales/digest",
+      "schedule": "30 8 * * *"
+    },
+    {
       "path": "/api/sales/inbox/resend-poll",
       "schedule": "*/2 * * * *"
     },

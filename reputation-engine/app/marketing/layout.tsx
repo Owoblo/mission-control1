@@ -9,6 +9,7 @@ const MARKET_NAV = [
   { href: '/marketing/partners?tab=phone',    label: 'Conversations', match: (p: string, tab: string | null) => p.startsWith('/marketing/partners') && (tab === 'phone' || tab === 'replies') },
   { href: '/marketing/partners?tab=pipeline', label: 'Relationships', match: (p: string, tab: string | null) => p.startsWith('/marketing/partners') && tab === 'pipeline' },
   { href: '/marketing/partners?tab=partners', label: 'Partners',      match: (p: string, tab: string | null) => p.startsWith('/marketing/partners') && tab === 'partners' },
+  { href: '/marketing/recent-sales',          label: 'Recent Sales',  match: (p: string) => p.startsWith('/marketing/recent-sales') },
   { href: '/marketing/signals',               label: 'Signals',       match: (p: string) => p.startsWith('/marketing/signals') },
 ]
 
