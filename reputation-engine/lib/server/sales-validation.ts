@@ -271,6 +271,8 @@ const ARRAY_FIELDS = [
   'callLogs',
   'crewHours',
   'crewPayouts',
+  'attributionSignals',
+  'moveRelationships',
 ] satisfies Array<keyof CRMLead>
 
 const OBJECT_FIELDS = [
@@ -285,6 +287,7 @@ const OBJECT_FIELDS = [
   'jobFactors',
   'intelligence',
   'opsChecklist',
+  'opportunityContext',
 ] satisfies Array<keyof CRMLead>
 
 const ALLOWED_LEAD_PATCH_FIELDS = new Set<string>([

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { PromiseTracker } from '@/app/components/sales/promise-tracker'
+import { OpportunityNetworkWorkspace } from '@/app/components/sales/opportunity-network-workspace'
 import type {
   LeadEmailMessage,
   LeadSmsMessage,
@@ -3851,11 +3852,19 @@ export default function SalesLeadDetailPage() {
 
       <PromiseTracker lead={lead} onUpdated={nextLead => applyLeadSnapshot(nextLead, { hydrateForm: false })} />
 
+      <OpportunityNetworkWorkspace
+        key={`${lead.id}:${lead.opportunityContext?.updatedAt || 'new'}`}
+        lead={lead}
+        disabled={!canEditCurrentLead}
+        onUpdated={nextLead => applyLeadSnapshot(nextLead, { hydrateForm: false })}
+      />
+
       {/* ── Sticky jump nav ─────────────────────────────────────────── */}
       <div className="sticky top-0 z-30 hidden overflow-x-auto border-y border-[var(--app-line)] bg-[var(--app-panel-strong)] px-3 md:block">
         <div className="flex items-center gap-1 py-2">
           <button type="button" onClick={handleBackNavigation} className="mr-2 min-h-11 shrink-0 rounded-[4px] border border-[var(--app-line)] bg-white px-3 text-xs font-semibold text-[var(--app-ink)]">← Back</button>
           {[
+            { label: 'Opportunity & network', id: 'section-opportunity-network' },
             { label: 'Details', id: 'section-details' },
             { label: 'Inventory', id: 'section-inventory' },
             { label: 'Quote', id: 'section-quote' },

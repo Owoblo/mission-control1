@@ -296,6 +296,14 @@ export function mergeLeadRecords(
     [...(primary.callLogs || []), ...(duplicate.callLogs || [])],
     entry => entry.callSid || entry.recordingSid || entry.id || `${entry.type}:${entry.date}:${entry.notes || ''}`,
   )
+  const mergedAttributionSignals = dedupeByKey(
+    [...(primary.attributionSignals || []), ...(duplicate.attributionSignals || [])],
+    signal => signal.id || `${signal.channel}:${signal.detail || ''}:${signal.influence}`,
+  )
+  const mergedMoveRelationships = dedupeByKey(
+    [...(primary.moveRelationships || []), ...(duplicate.moveRelationships || [])],
+    relationship => relationship.id || `${relationship.contactId || relationship.name}:${relationship.role}`,
+  )
 
   return normalizeLead({
     ...duplicate,
@@ -308,6 +316,9 @@ export function mergeLeadRecords(
     identityEmail: normalizeLeadIdentityEmail(primary.identityEmail || primary.email || duplicate.identityEmail || duplicate.email),
     inboundId: primary.inboundId || duplicate.inboundId,
     inboundMessage: mergeDistinctText(primary.inboundMessage, duplicate.inboundMessage),
+    opportunityContext: primary.opportunityContext || duplicate.opportunityContext,
+    attributionSignals: mergedAttributionSignals.length ? mergedAttributionSignals : undefined,
+    moveRelationships: mergedMoveRelationships.length ? mergedMoveRelationships : undefined,
     source: primary.source || duplicate.source,
     referralCustomerName: choosePreferredText(primary.referralCustomerName, duplicate.referralCustomerName),
     partnerReferralContactId: choosePreferredText(primary.partnerReferralContactId, duplicate.partnerReferralContactId),

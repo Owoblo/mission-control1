@@ -65,6 +65,76 @@ export interface CustomerPromise {
   completedAt?: string
   completionEvidence?: string
 }
+
+export type OpportunityPosition =
+  | 'discovery'
+  | 'collecting_inventory'
+  | 'estimate_in_progress'
+  | 'reviewing_estimate'
+  | 'comparing_options'
+  | 'internal_decision'
+  | 'date_uncertain'
+  | 'ready_to_book'
+  | 'deposit_promised'
+  | 'temporarily_unresponsive'
+  | 'long_term_nurture'
+
+export interface LeadOpportunityContext {
+  position: OpportunityPosition
+  bookingConfidence: number
+  summary?: string
+  waitingFor?: string
+  hesitation?: string
+  nextAction?: string
+  nextActionDueAt?: string
+  nextActionOwner?: string
+  updatedAt: string
+  updatedBy?: string
+}
+
+export type AttributionInfluence = 'first_touch' | 'assisted' | 'last_touch' | 'self_reported'
+
+export interface LeadAttributionSignal {
+  id: string
+  channel: string
+  detail?: string
+  influence: AttributionInfluence
+  confidence: 'confirmed' | 'likely' | 'possible'
+  observedAt: string
+}
+
+export type MoveRelationshipRole =
+  | 'referring_realtor'
+  | 'listing_realtor'
+  | 'buyer_realtor'
+  | 'brokerage'
+  | 'property_manager'
+  | 'building_manager'
+  | 'mortgage_broker'
+  | 'lender'
+  | 'employer'
+  | 'storage_facility'
+  | 'retirement_residence'
+  | 'insurance'
+  | 'customer_referrer'
+  | 'other'
+
+export interface MoveRelationship {
+  id: string
+  contactId?: string
+  name: string
+  company?: string
+  role: MoveRelationshipRole
+  category?: string
+  email?: string
+  phone?: string
+  socialHandle?: string
+  preferredChannel?: 'phone' | 'email' | 'sms' | 'instagram' | 'linkedin' | 'in_person' | 'unknown'
+  confidence: 'confirmed' | 'likely' | 'possible'
+  discoverySource?: string
+  notes?: string
+  createdAt: string
+}
 export type QuotePaymentTerms =
   | 'deposit_required'
   | 'approval_invoice'
@@ -747,6 +817,9 @@ export interface CRMLead {
   inboundId?: string
   inboundMessage?: string
   source?: string
+  opportunityContext?: LeadOpportunityContext
+  attributionSignals?: LeadAttributionSignal[]
+  moveRelationships?: MoveRelationship[]
   referralCustomerName?: string
   partnerReferralContactId?: string
   partnerReferralName?: string

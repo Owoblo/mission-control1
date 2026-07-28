@@ -849,7 +849,8 @@ function SalesPipelineContent() {
                           <div className="font-semibold text-[var(--app-ink)] truncate">{lead.name}</div>
                           {guidance ? <HeatTag label={guidance.heat.label} score={guidance.heat.score} tone={guidance.heat.tone} /> : null}
                         </div>
-                        <div className="mt-1 text-xs text-[var(--app-muted)]">{guidance?.action.nextAction || lead.phone}</div>
+                        <div className="mt-1 text-xs text-[var(--app-muted)]">{lead.opportunityContext?.nextAction || guidance?.action.nextAction || lead.phone}</div>
+                        {lead.opportunityContext?.waitingFor ? <div className="mt-1 text-[11px] text-[#8a6800]">Waiting for: {lead.opportunityContext.waitingFor}</div> : null}
                       </div>
                       <span className={`shrink-0 rounded-[6px] px-2 py-1 text-[10px] font-semibold ${STAGE_COLORS[lead.stage] || 'bg-gray-50 text-gray-600'}`}>
                         {COLUMN_LABELS[lead.stage]}
@@ -924,9 +925,11 @@ function SalesPipelineContent() {
                             <span>{lead.originAddress || lead.originCity || 'Origin TBD'} → {lead.destAddress || lead.destCity || 'Destination TBD'}</span>
                             <span>{quote ? formatMoney(quote.total) : 'Est. pending'}</span>
                           </div>
+                          {lead.opportunityContext?.summary ? <div className="mt-3 border-l-2 border-[#C99700] pl-2 text-[11px] leading-4 text-[#344054]">{lead.opportunityContext.summary}</div> : null}
                           <div className="mt-2 text-[11px] text-[var(--app-ink)]">
-                            <span className="font-semibold">Next:</span> {guidance?.action.nextAction || lead.intelligence?.nextAction || 'Review lead'}
+                            <span className="font-semibold">Next:</span> {lead.opportunityContext?.nextAction || guidance?.action.nextAction || lead.intelligence?.nextAction || 'Review lead'}
                           </div>
+                          {lead.opportunityContext?.waitingFor ? <div className="mt-1 truncate text-[10px] text-[#8a6800]">Waiting for: {lead.opportunityContext.waitingFor}</div> : null}
                           {guidance?.action.reason ? <div className="mt-1 truncate text-[10px] text-[var(--app-muted)]">{guidance.action.reason}</div> : null}
                           <div className="mt-3 flex items-center justify-between border-t border-[var(--app-line)] pt-3 text-xs text-[var(--app-muted)]">
                             <span>{guidance?.latestActivity.at ? `${guidance.latestActivity.text} · ${formatRelativeTime(guidance.latestActivity.at)}` : lead.followUpDate ? `Follow up ${formatDate(lead.followUpDate)}` : 'No follow-up set'}</span>
