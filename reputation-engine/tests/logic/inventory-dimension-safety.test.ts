@@ -56,4 +56,5 @@ test('common customer furniture language matches the existing catalog', () => {
   assert.equal(matchInventoryPreset('Single Bed')?.id, 'single-bed')
   assert.equal(matchInventoryPreset('Chairs')?.id, 'dining-chair')
   assert.equal(matchInventoryPreset('56 Inch Plasma Television')?.id, 'tv-flat-med')
+  assert.equal(matchInventoryPreset('2× Pinball Machines (Which I Might Move Myself)')?.id, 'pinball-machine')
 })

@@ -409,6 +409,7 @@ export function matchInventoryPreset(name?: string) {
     .replace(/\bnight stands\b/g, 'nightstand')
     .replace(/\bchairs\b/g, 'chair')
     .replace(/\btelevisions?\b/g, 'tv')
+    .replace(/\bpinball machines\b/g, 'pinball machine')
     .trim()
   const normalized = normalize(name)
   if (!normalized) return null

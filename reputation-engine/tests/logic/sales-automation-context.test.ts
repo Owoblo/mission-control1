@@ -108,6 +108,12 @@ Nearly all of the small stuff has already been moved`
   assert.equal(television?.qty, 1)
   assert.match(television?.name || '', /56 Inch Plasma Television/i)
   assert.equal(pinball?.qty, 2)
+  assert.equal(pinball?.name, 'Pinball Machines')
+  assert.equal(pinball?.cubicFeet, 25)
+  assert.equal(pinball?.weightLbs, 250)
+  assert.equal(pinball?.status, 'needs_confirmation')
+  assert.match(pinball?.confirmReason || '', /confirm whether/i)
+  assert.match(pinball?.notes || '', /might move myself/i)
   assert.ok(items.every(item => !/Nearly All|Will Be Disassembled/i.test(item.name || '')))
 })
 

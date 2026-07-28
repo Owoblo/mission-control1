@@ -7,7 +7,7 @@ const ADDRESS_SPLIT_RE = /\s+(?:to|->|→|drop\s*off\s*(?:is|:)?|dropoff\s*(?:is
 const PICKUP_RE = /\b(pick\s*up|pickup|origin|from)\b/i
 const DROPOFF_RE = /\b(drop\s*off|dropoff|destination|to)\b/i
 const ADDRESS_HINT_RE = /\b(st|street|ave|avenue|rd|road|dr|drive|blvd|boulevard|cres|crescent|ct|court|ln|lane|way|pkwy|parkway|pl|place|terrace|trail|circle|cir|sq|square|hwy|highway|unit|suite|apt|apartment|#)\b/i
-const INVENTORY_HINT_RE = /\b(sofa|couch|recliner|chair|table|tv|television|computer|desk|dishwasher|microwave|bicycle|bike|closet|bed|mattress|dresser|nightstand|bookshelf|shelf|boxes|box|wardrobe|fridge|freezer|stove|washer|dryer|cabinet)\b/i
+const INVENTORY_HINT_RE = /\b(sofa|couch|recliner|chair|table|tv|television|computer|desk|dishwasher|microwave|bicycle|bike|closet|bed|mattress|dresser|nightstand|bookshelf|shelf|boxes|box|wardrobe|fridge|freezer|stove|washer|dryer|cabinet|pinball)\b/i
 const INVENTORY_ITEM_RE = /\b(sofas?|couch(?:es)?|recliners?|chairs?|tables?|stands?|lamps?|tvs?|televisions?|monitors?|computers?|desks?|dishwashers?|microwaves?|bicycles?|bikes?|closets?|beds?|headboards?|mattresses?|dressers?|drawers?|nightstands?|night\s+tables?|bookshelves?|shelves?|boxes?|bins?|wardrobes?|fridges?|freezers?|stoves?|washers?|dryers?|cabinets?|pinball|pianos?|benches?|stools?|ottomans?|loveseats?|sectionals?|consoles?|appliances?|suitcases?|hampers?|baskets?|racks?|machines?)\b/i
 const QUANTITY_WORDS: Record<string, number> = {
   one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
@@ -105,8 +105,23 @@ function parseInventoryCandidate(value: string) {
   )
   const rawQuantity = (quantityMatch?.[1] || quantityMatch?.[2] || quantityMatch?.[3])?.toLowerCase()
   const qty = rawQuantity ? (QUANTITY_WORDS[rawQuantity] || Number(rawQuantity) || 1) : 1
-  const name = normalizeInventoryName(quantityMatch ? trimmed.slice(quantityMatch[0].length) : trimmed)
-  return { name, qty: Math.max(1, qty) }
+  const rawName = quantityMatch ? trimmed.slice(quantityMatch[0].length) : trimmed
+  const parentheticalNotes = Array.from(rawName.matchAll(/\(([^)]+)\)/g))
+    .map(match => match[1]?.trim())
+    .filter(Boolean)
+  const name = normalizeInventoryName(rawName.replace(/\s*\([^)]+\)\s*/g, ' '))
+  const uncertainDisposition = parentheticalNotes.some(note =>
+    /\b(?:might|may|maybe|not sure|unsure|possibly|probably)\b.*\b(?:move|take|carry|keep|sell|leave)\b/i.test(note)
+  )
+  return {
+    name,
+    qty: Math.max(1, qty),
+    notes: parentheticalNotes.join(' — '),
+    status: uncertainDisposition ? 'needs_confirmation' as const : undefined,
+    confirmReason: uncertainDisposition
+      ? 'Confirm whether the customer wants Saturn Star to move this item.'
+      : undefined,
+  }
 }
 
 export function extractCustomerInventoryItems(message?: string | null): InventoryItem[] {
@@ -138,7 +153,7 @@ export function extractCustomerInventoryItems(message?: string | null): Inventor
       seen.add(key)
       return true
     })
-    .map(({ name, qty }, index) => ({
+    .map(({ name, qty, notes, status, confirmReason }, index) => ({
       ...(() => {
         const preset = matchCustomerInventoryPreset(name)
         return preset
@@ -150,13 +165,17 @@ export function extractCustomerInventoryItems(message?: string | null): Inventor
               notes: [
                 preset.item.notes,
                 'Dimensions matched from Saturn Star inventory presets; confirm size if atypical.',
+                notes,
               ].filter(Boolean).join(' '),
             }
           : {
               cubicFeet: 0,
               weightLbs: 0,
               room: 'Packing scope',
-              notes: 'Captured from customer SMS; dimensions still need enrichment.',
+              notes: [
+                'Captured from customer SMS; dimensions still need enrichment.',
+                notes,
+              ].filter(Boolean).join(' '),
             }
       })(),
       id: `customer-sms-${Date.now()}-${index}`,
@@ -164,6 +183,8 @@ export function extractCustomerInventoryItems(message?: string | null): Inventor
       item: name,
       qty,
       included: true,
+      status,
+      confirmReason,
       source: 'customer_verification' as const,
     }))
 }

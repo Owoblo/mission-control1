@@ -15,6 +15,9 @@ interface ParsedItem {
   name: string
   qty: number
   room?: string
+  notes?: string
+  status?: 'confirmed' | 'needs_confirmation'
+  confirmReason?: string
 }
 
 async function extractItemsFromText(text: string): Promise<ParsedItem[]> {
@@ -80,6 +83,9 @@ export async function POST(
       name: item.name || item.item || '',
       qty: Math.max(1, Number(item.qty || 1)),
       room: item.room || 'Unassigned',
+      notes: item.notes,
+      status: item.status === 'needs_confirmation' ? 'needs_confirmation' as const : undefined,
+      confirmReason: item.confirmReason,
     }))
     .filter(item => item.name)
   const extractedRaw = deterministicItems.length > 0
@@ -107,7 +113,10 @@ export async function POST(
           cubicFeet: preset.item.cubicFeet,
           weightLbs: preset.item.weightLbs || Math.round(preset.item.cubicFeet * 7),
           room,
+          notes: [preset.item.notes, parsed.notes].filter(Boolean).join(' — ') || undefined,
           included: true,
+          status: parsed.status,
+          confirmReason: parsed.confirmReason,
           source: 'manual' as const,
           _source: 'preset',
         }
