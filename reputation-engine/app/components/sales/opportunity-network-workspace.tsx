@@ -8,6 +8,7 @@ import {
   OPPORTUNITY_POSITION_LABELS,
   normalizeAttributionSignals,
   normalizeMoveRelationships,
+  moveRelationshipLifecycleGaps,
   opportunityHealthLabel,
 } from '@/lib/move-relationship'
 import { updateSalesLead } from '@/lib/sales-api'
@@ -60,8 +61,13 @@ export function OpportunityNetworkWorkspace({ lead, disabled, onUpdated }: Props
   const [preferredChannel, setPreferredChannel] = useState<MoveRelationship['preferredChannel']>('unknown')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
+  const [expanded, setExpanded] = useState(false)
 
   const health = useMemo(() => opportunityHealthLabel(context), [context])
+  const lifecycleGaps = useMemo(
+    () => moveRelationshipLifecycleGaps({ context, signals }),
+    [context, signals],
+  )
 
   function addSignal() {
     const next = normalizeAttributionSignals(signals.concat({
@@ -101,25 +107,29 @@ export function OpportunityNetworkWorkspace({ lead, disabled, onUpdated }: Props
   }
 
   async function save() {
-    if (!context.nextAction?.trim() || !context.nextActionDueAt) {
-      setMessage('Add the next action and when it is due.')
-      return
-    }
     setSaving(true)
     setMessage('')
     try {
-      const dueAt = new Date(context.nextActionDueAt).toISOString()
+      const dueAt = context.nextActionDueAt ? new Date(context.nextActionDueAt).toISOString() : undefined
+      const nextContext = {
+        ...context,
+        nextActionDueAt: dueAt,
+        updatedAt: new Date().toISOString(),
+        lifecycleCompletedAt: lifecycleGaps.length === 0 ? (context.lifecycleCompletedAt || new Date().toISOString()) : undefined,
+      }
       const saved = await updateSalesLead(lead.id, {
-        opportunityContext: { ...context, nextActionDueAt: dueAt, updatedAt: new Date().toISOString() },
+        opportunityContext: nextContext,
         attributionSignals: normalizeAttributionSignals(signals),
         moveRelationships: normalizeMoveRelationships(relationships),
-        followUpDate: dueAt.slice(0, 10),
-        followUpStatus: 'pending',
-        followUpNote: context.nextAction.trim(),
+        ...(dueAt && context.nextAction?.trim() ? {
+          followUpDate: dueAt.slice(0, 10),
+          followUpStatus: 'pending' as const,
+          followUpNote: context.nextAction.trim(),
+        } : {}),
       })
       onUpdated(saved)
       setContext(saved.opportunityContext || context)
-      setMessage('Opportunity and network updated.')
+      setMessage(lifecycleGaps.length === 0 ? 'Lifecycle context completed.' : 'Progress saved. You can finish the remaining items later.')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Could not save the workspace.')
     } finally {
@@ -129,20 +139,24 @@ export function OpportunityNetworkWorkspace({ lead, disabled, onUpdated }: Props
 
   return (
     <section id="section-opportunity-network" className="border border-[var(--app-line)] bg-white">
-      <div className="border-b border-[var(--app-line)] bg-[#071421] px-5 py-5 text-white md:px-7">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#d6b53a]">Move Relationship OS</div>
-        <div className="mt-1 flex flex-wrap items-end justify-between gap-3">
+      <button type="button" onClick={() => setExpanded(current => !current)} className={`block w-full bg-[#071421] px-5 text-left text-white md:px-7 ${expanded ? 'py-5' : 'py-4'}`} aria-expanded={expanded}>
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h2 className="font-display text-2xl font-semibold">Opportunity &amp; network</h2>
-            <p className="mt-1 max-w-3xl text-sm leading-5 text-slate-300">What the customer is deciding, what must happen next, every source that influenced the lead, and every relationship surrounding the move.</p>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#d6b53a]">Move Relationship OS</div>
+            <h2 className={`mt-0.5 font-display font-semibold ${expanded ? 'text-2xl' : 'text-lg'}`}>Opportunity &amp; network</h2>
+            {expanded ? <p className="mt-1 max-w-3xl text-sm leading-5 text-slate-300">Complete this progressively at intake, during estimating, or before customer success—not necessarily when the lead first opens.</p> : null}
           </div>
-          <div className="border border-white/20 bg-white/5 px-3 py-2 text-right">
-            <div className="text-[9px] uppercase tracking-[0.18em] text-slate-400">Opportunity health</div>
-            <div className="mt-0.5 text-sm font-semibold text-white">{health}</div>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <div className="text-[9px] uppercase tracking-[0.18em] text-slate-400">{lifecycleGaps.length === 0 ? 'Lifecycle context' : `${lifecycleGaps.length} item${lifecycleGaps.length === 1 ? '' : 's'} remaining`}</div>
+              <div className="mt-0.5 text-sm font-semibold text-white">{lifecycleGaps.length === 0 ? 'Complete' : health}</div>
+            </div>
+            <span className="flex h-9 w-9 items-center justify-center border border-white/20 text-lg" aria-hidden="true">{expanded ? '−' : '+'}</span>
           </div>
         </div>
-      </div>
+      </button>
 
+      {expanded ? <>
       <div className="grid gap-px bg-[var(--app-line)] xl:grid-cols-2">
         <div className="space-y-5 bg-white p-5 md:p-7">
           <div>
@@ -263,15 +277,40 @@ export function OpportunityNetworkWorkspace({ lead, disabled, onUpdated }: Props
                 <input className="crm-input md:col-span-2" value={relationshipSource} disabled={disabled} onChange={event => setRelationshipSource(event.target.value)} placeholder="How was this connection confirmed or discovered?" />
               </div>
               <button type="button" onClick={addRelationship} disabled={disabled || !selectedPartner} className="crm-button-dark w-full disabled:opacity-50">Connect to this move</button>
+              <div className="border-t border-[var(--app-line)] pt-3">
+                <label className="flex items-start gap-2 text-xs leading-5 text-[#344054]">
+                  <input
+                    type="checkbox"
+                    className="mt-1 accent-[#C99700]"
+                    checked={context.relationshipReviewStatus === 'complete'}
+                    disabled={disabled}
+                    onChange={event => setContext(current => ({
+                      ...current,
+                      relationshipReviewStatus: event.target.checked ? 'complete' : 'open',
+                      lifecycleCompletedAt: undefined,
+                    }))}
+                  />
+                  <span>I reviewed the people and organizations around this move. The connections above are complete for now, or none could reasonably be identified.</span>
+                </label>
+                <input className="crm-input mt-2 w-full" value={context.relationshipReviewNote || ''} disabled={disabled} onChange={event => setContext(current => ({ ...current, relationshipReviewNote: event.target.value }))} placeholder="Optional note when no relationship was identified" />
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--app-line)] bg-[#fbfaf6] px-5 py-4 md:px-7">
-        <div className="text-xs text-[var(--app-muted)]">{message || 'Saving also aligns the lead’s follow-up task with the required next commitment.'}</div>
+        <div className="text-xs text-[var(--app-muted)]">{message || (lifecycleGaps.length ? `Progress can be saved now. Before customer success: ${lifecycleGaps.join(', ')}.` : 'All lifecycle context requirements are complete.')}</div>
         <button type="button" onClick={() => void save()} disabled={disabled || saving} className="crm-button-dark min-w-44 disabled:opacity-60">{saving ? 'Saving…' : 'Save opportunity & network'}</button>
       </div>
+      </> : (
+        <div className="grid gap-px border-t border-[var(--app-line)] bg-[var(--app-line)] sm:grid-cols-4">
+          <div className="bg-white px-4 py-3"><div className="text-[9px] uppercase tracking-[0.14em] text-[var(--app-muted)]">Position</div><div className="mt-1 truncate text-sm font-semibold text-[#071421]">{OPPORTUNITY_POSITION_LABELS[context.position]}</div></div>
+          <div className="bg-white px-4 py-3"><div className="text-[9px] uppercase tracking-[0.14em] text-[var(--app-muted)]">Next action</div><div className="mt-1 truncate text-sm font-semibold text-[#071421]">{context.nextAction || 'Not set'}</div></div>
+          <div className="bg-white px-4 py-3"><div className="text-[9px] uppercase tracking-[0.14em] text-[var(--app-muted)]">Acquisition evidence</div><div className="mt-1 text-sm font-semibold text-[#071421]">{signals.length} touchpoint{signals.length === 1 ? '' : 's'}</div></div>
+          <div className="bg-white px-4 py-3"><div className="text-[9px] uppercase tracking-[0.14em] text-[var(--app-muted)]">Connected network</div><div className="mt-1 text-sm font-semibold text-[#071421]">{relationships.length} relationship{relationships.length === 1 ? '' : 's'}</div></div>
+        </div>
+      )}
     </section>
   )
 }

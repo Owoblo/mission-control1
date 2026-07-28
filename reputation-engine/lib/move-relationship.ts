@@ -61,6 +61,26 @@ export function opportunityHealthLabel(context?: LeadOpportunityContext) {
   return 'Early opportunity'
 }
 
+export function moveRelationshipLifecycleGaps(input: {
+  context?: LeadOpportunityContext
+  signals?: LeadAttributionSignal[]
+}) {
+  const gaps: string[] = []
+  if (!input.context?.position) gaps.push('customer position')
+  if (!input.context?.summary?.trim()) gaps.push('sales summary')
+  if (!input.context?.nextAction?.trim() || !input.context?.nextActionDueAt) gaps.push('owned next step')
+  if (!input.signals?.length) gaps.push('acquisition evidence')
+  if (input.context?.relationshipReviewStatus !== 'complete') gaps.push('relationship review')
+  return gaps
+}
+
+export function isMoveRelationshipLifecycleComplete(input: {
+  context?: LeadOpportunityContext
+  signals?: LeadAttributionSignal[]
+}) {
+  return moveRelationshipLifecycleGaps(input).length === 0
+}
+
 export function normalizeAttributionSignals(signals?: LeadAttributionSignal[]) {
   const seen = new Set<string>()
   return (signals || []).filter(signal => {

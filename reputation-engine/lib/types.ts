@@ -90,6 +90,9 @@ export interface LeadOpportunityContext {
   nextActionOwner?: string
   updatedAt: string
   updatedBy?: string
+  relationshipReviewStatus?: 'open' | 'complete'
+  relationshipReviewNote?: string
+  lifecycleCompletedAt?: string
 }
 
 export type AttributionInfluence = 'first_touch' | 'assisted' | 'last_touch' | 'self_reported'

@@ -1,4 +1,5 @@
 import { deriveOpsChecklist, getQuotedTruckCount, isTruckReservationComplete } from './operations'
+import { moveRelationshipLifecycleGaps } from './move-relationship'
 import type { CRMLead, CRMQuote } from './types'
 
 export type OperatingStage =
@@ -214,5 +215,18 @@ export function deriveOperatingExceptions(lead: CRMLead, quote?: CRMQuote | null
   for (const issue of openIssues) add(`issue:${issue.id}`, { severity: issue.severity === 'high' ? 'urgent' : 'attention', environment: 'Live execution', title: `${issue.category.replaceAll('_', ' ')} issue`, detail: issue.note, action: 'Review live issue' })
   if ((lead.stage === 'completed' || lead.stage === 'customer_success') && !isPaid(lead, quote)) add('balance', { severity: 'urgent', environment: 'Completion & care', title: 'Completed but unpaid', detail: 'The job is complete and a balance remains open.', action: 'Resolve final payment' })
   if ((lead.stage === 'completed' || lead.stage === 'customer_success') && !lead.reviewSentAt) add('review', { severity: 'attention', environment: 'Completion & care', title: 'Care follow-up not sent', detail: 'The completed job has no recorded review request.', action: 'Complete customer follow-up' })
+  if (lead.stage === 'completed' || lead.stage === 'customer_success') {
+    const lifecycleGaps = moveRelationshipLifecycleGaps({
+      context: lead.opportunityContext,
+      signals: lead.attributionSignals,
+    })
+    if (lifecycleGaps.length) add('relationship-lifecycle', {
+      severity: 'attention',
+      environment: 'Completion & care',
+      title: 'Relationship context unfinished',
+      detail: `Complete before closing the customer lifecycle: ${lifecycleGaps.join(', ')}.`,
+      action: 'Finish opportunity & network review',
+    })
+  }
   return items
 }

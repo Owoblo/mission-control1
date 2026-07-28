@@ -3,6 +3,7 @@ import { uid } from '@/lib/sales'
 import { sendSalesMessage } from '@/lib/server/sales-messaging'
 import { getSalesLead, saveFollowUpLog, saveSalesLead } from '@/lib/server/sales-repository'
 import { hasInternalSession } from '@/lib/server/session'
+import { isMoveRelationshipLifecycleComplete } from '@/lib/move-relationship'
 
 const GOOGLE_REVIEW_URL = process.env.NEXT_PUBLIC_GOOGLE_REVIEW_URL || 'https://g.page/r/YOUR_GOOGLE_REVIEW_LINK'
 const YELP_URL = process.env.NEXT_PUBLIC_YELP_REVIEW_URL || 'https://yelp.com/biz/saturn-star-moving'
@@ -59,7 +60,10 @@ export async function POST(request: Request) {
     if (lead) {
       savedLead = await saveSalesLead({
         ...lead,
-        stage: 'customer_success',
+        stage: isMoveRelationshipLifecycleComplete({
+          context: lead.opportunityContext,
+          signals: lead.attributionSignals,
+        }) ? 'customer_success' : 'completed',
         reviewSentAt: new Date().toISOString(),
       }).catch(() => null)
       if (savedLead) {
@@ -70,7 +74,7 @@ export async function POST(request: Request) {
           type: 'status_change',
           date: now,
           createdAt: now,
-          notes: `Stage: ${lead.stage.replace(/_/g, ' ')} -> Customer Success. Review request sent.`,
+          notes: `Stage: ${lead.stage.replace(/_/g, ' ')} -> ${savedLead.stage === 'customer_success' ? 'Customer Success' : 'Completed (relationship context still open)'}. Review request sent.`,
         }).catch(() => null)
       }
     }

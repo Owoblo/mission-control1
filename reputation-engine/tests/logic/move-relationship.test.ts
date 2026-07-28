@@ -3,6 +3,8 @@ import test from 'node:test'
 import {
   normalizeAttributionSignals,
   normalizeMoveRelationships,
+  isMoveRelationshipLifecycleComplete,
+  moveRelationshipLifecycleGaps,
   opportunityHealthLabel,
 } from '../../lib/move-relationship'
 
@@ -13,6 +15,22 @@ test('opportunity health requires an owned, dated next step', () => {
     bookingConfidence: 70,
     updatedAt: '2026-07-28T00:00:00.000Z',
   }), 'Needs next step')
+})
+
+test('lifecycle completion requires context, acquisition evidence and an explicit relationship review', () => {
+  const context = {
+    position: 'ready_to_book' as const,
+    bookingConfidence: 90,
+    summary: 'Customer approved the scope.',
+    nextAction: 'Collect deposit',
+    nextActionDueAt: '2026-07-29T14:00:00.000Z',
+    updatedAt: '2026-07-28T14:00:00.000Z',
+  }
+  assert.deepEqual(moveRelationshipLifecycleGaps({ context, signals: [] }), ['acquisition evidence', 'relationship review'])
+  assert.equal(isMoveRelationshipLifecycleComplete({
+    context: { ...context, relationshipReviewStatus: 'complete' },
+    signals: [{ id: '1', channel: 'Google search', influence: 'first_touch', confidence: 'confirmed', observedAt: '2026-07-28' }],
+  }), true)
 })
 
 test('multi-touch attribution deduplicates exact evidence without collapsing distinct influence', () => {

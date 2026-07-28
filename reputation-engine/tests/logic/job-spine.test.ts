@@ -33,4 +33,5 @@ test('completion exception exposes unpaid balance and missing care follow-up', (
   const exceptions = deriveOperatingExceptions(lead({ stage: 'completed', paymentStatus: 'deposit_received' }), quote({ balance: 800 }))
   assert.ok(exceptions.some(item => item.title === 'Completed but unpaid'))
   assert.ok(exceptions.some(item => item.title === 'Care follow-up not sent'))
+  assert.ok(exceptions.some(item => item.title === 'Relationship context unfinished'))
 })
