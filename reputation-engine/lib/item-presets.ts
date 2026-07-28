@@ -401,7 +401,7 @@ export function matchInventoryPreset(name?: string) {
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, ' ')
-    .replace(/\b(?:la\s*z\s*boy|lazyboy|lazy boy)\s+(?:couch|chair|recliner)?\b/g, 'recliner chair')
+    .replace(/\b(?:la\s*z\s*boy|lay\s*z\s*boy|lazyboy|lazy boy)\s+(?:couch|chair|recliner)?\b/g, 'recliner chair')
     .replace(/\bchest(?:s)?\s+of\s+drawers\b/g, 'dresser')
     .replace(/\bsingle\s+bed\b/g, 'bed frame single')
     .replace(/\bend tables\b/g, 'end table')

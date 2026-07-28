@@ -831,6 +831,12 @@ export interface CRMLead {
   partnerReferralEmail?: string
   partnerReferralPhone?: string
   partnerReferralLinkedAt?: string
+  relationshipContactId?: string
+  relationshipContactName?: string
+  relationshipContactCompany?: string
+  relationshipContactCategory?: string
+  relationshipContactLinkedAt?: string
+  relationshipContactReason?: 'partner_became_customer'
   attribution?: LeadAttribution
   phone?: string
   email?: string

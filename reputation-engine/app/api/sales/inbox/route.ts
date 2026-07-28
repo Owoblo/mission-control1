@@ -13,6 +13,7 @@ import { canAccessSalesWorkspace, isBranchScopedManager, leadMatchesSessionBranc
 import { recordLeadCreatedAudit, recordLeadUpdateAudit } from '@/lib/server/sales-audit'
 import { findMatchingActiveLead } from '@/lib/server/lead-identity'
 import { getInboxChannelForInboundSource } from '@/lib/server/inbox-state'
+import { findUniqueRelationshipContactByPhone } from '@/lib/server/relationship-contact-link'
 import {
   collapseDuplicateSalesLeadsByIdentity,
   getInboundLead,
@@ -324,6 +325,17 @@ export async function POST(request: Request) {
       email: payload.email || inbound.email,
       moveType: payload.moveType || 'residential',
     })
+    const relationshipContact = await findUniqueRelationshipContactByPhone(validated.phone || inbound.phone)
+    const relationshipMetadata = relationshipContact
+      ? {
+          relationshipContactId: relationshipContact.id,
+          relationshipContactName: relationshipContact.name?.trim() || undefined,
+          relationshipContactCompany: relationshipContact.company?.trim() || undefined,
+          relationshipContactCategory: relationshipContact.category?.trim() || undefined,
+          relationshipContactLinkedAt: now,
+          relationshipContactReason: 'partner_became_customer' as const,
+        }
+      : {}
     const duplicateLead = await collapseDuplicateSalesLeadsByIdentity({
       phone: validated.phone || inbound.phone,
       email: validated.email || inbound.email,
@@ -347,12 +359,15 @@ export async function POST(request: Request) {
 
       const mergedLead = normalizeLead({
         ...duplicateLead,
+        ...relationshipMetadata,
         name: duplicateLead.name || payload.name.trim(),
         inboundId: duplicateLead.inboundId || payload.inboundId,
         inboundMessage: duplicateLead.inboundMessage || inbound.message?.trim() || payload.notes?.trim() || '',
         phone: duplicateLead.phone || validated.phone || inbound.phone || undefined,
         email: duplicateLead.email || validated.email || inbound.email || undefined,
-        source: duplicateLead.source || payload.source || inbound.source || 'other',
+        source: relationshipContact && (!duplicateLead.source || duplicateLead.source === 'other')
+          ? 'relationship_contact'
+          : duplicateLead.source || payload.source || inbound.source || 'other',
         moveType: duplicateLead.moveType || validated.moveType || 'residential',
         branch: duplicateLead.branch || inferLeadBranchFromInbound(inbound),
         notes: duplicateLead.notes || payload.notes?.trim() || inbound.message?.trim() || '',
@@ -389,7 +404,10 @@ export async function POST(request: Request) {
       inboundMessage: inbound.message?.trim() || payload.notes?.trim() || '',
       phone: validated.phone || inbound.phone || undefined,
       email: validated.email || inbound.email || undefined,
-      source: payload.source || inbound.source || 'other',
+      source: relationshipContact && (!payload.source || payload.source === 'other')
+        ? 'relationship_contact'
+        : payload.source || inbound.source || 'other',
+      ...relationshipMetadata,
       stage: payload.stage || inferStageFromInbound(inbound),
       moveType: validated.moveType || 'residential',
       branch: inferLeadBranchFromInbound(inbound),

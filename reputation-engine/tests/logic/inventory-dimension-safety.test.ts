@@ -52,6 +52,8 @@ test('piano accessories do not match a full piano preset', () => {
 test('common customer furniture language matches the existing catalog', () => {
   assert.equal(matchInventoryPreset('End Tables')?.id, 'end-table-sm')
   assert.equal(matchInventoryPreset('Lazy Boy Couch')?.id, 'recliner')
+  assert.equal(matchInventoryPreset('lazyboy recliner couch')?.id, 'recliner')
+  assert.equal(matchInventoryPreset('Lay-Z-Boy recliner')?.id, 'recliner')
   assert.equal(matchInventoryPreset('Chest Of Drawers')?.id, 'dresser-sm')
   assert.equal(matchInventoryPreset('Single Bed')?.id, 'single-bed')
   assert.equal(matchInventoryPreset('Chairs')?.id, 'dining-chair')

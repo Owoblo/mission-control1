@@ -9,6 +9,7 @@ import { validateLeadPayload } from '@/lib/server/sales-validation'
 import type { CRMLead } from '@/lib/types'
 import { logEvent } from '@/lib/server/analytics'
 import { syncLeadPartnerReferral } from '@/lib/server/partner-referral-link'
+import { findUniqueRelationshipContactByPhone } from '@/lib/server/relationship-contact-link'
 
 export async function GET(request: Request) {
   try {
@@ -63,6 +64,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Select or create the referring partnership record.' }, { status: 400 })
     }
     const validated = validateLeadPayload(payload)
+    const relationshipContact = payload.leadKind === 'realtor_opportunity'
+      ? null
+      : await findUniqueRelationshipContactByPhone(validated.phone)
+    const relationshipMetadata = relationshipContact
+      ? {
+          relationshipContactId: relationshipContact.id,
+          relationshipContactName: relationshipContact.name?.trim() || undefined,
+          relationshipContactCompany: relationshipContact.company?.trim() || undefined,
+          relationshipContactCategory: relationshipContact.category?.trim() || undefined,
+          relationshipContactLinkedAt: payload.relationshipContactLinkedAt || now,
+          relationshipContactReason: 'partner_became_customer' as const,
+        }
+      : {}
     const creatorOwnsLead = session?.role === 'sales_rep'
     const requestedAssignedRepName = payload.assignedRepName?.trim() || payload.assignedRep?.trim()
     const requestedAssignedRepUserId = payload.assignedRepUserId?.trim()
@@ -85,12 +99,15 @@ export async function POST(request: Request) {
       const isPlaceholderName = PLACEHOLDER_NAMES.has((existingLead.name || '').trim())
       const mergedLead = normalizeLead({
         ...existingLead,
+        ...relationshipMetadata,
         // Prefer real name over placeholder; otherwise keep existing
         name: isPlaceholderName && validated.name ? validated.name : (existingLead.name || validated.name),
         // Always fill in missing contact details
         phone: existingLead.phone || validated.phone,
         email: existingLead.email || validated.email,
-        source: existingLead.source || payload.source || 'other',
+        source: relationshipContact && (!existingLead.source || existingLead.source === 'other')
+          ? 'relationship_contact'
+          : existingLead.source || payload.source || 'other',
         referralCustomerName: payload.source === 'customer_referral'
           ? payload.referralCustomerName?.trim() || existingLead.referralCustomerName
           : existingLead.referralCustomerName,
@@ -133,7 +150,10 @@ export async function POST(request: Request) {
       branch: isBranchScopedManager(session) ? session?.branch as CRMLead['branch'] : payload.branch,
       leadKind: payload.leadKind || 'customer',
       primaryContactRole: payload.primaryContactRole || 'customer',
-      source: payload.source || 'other',
+      source: relationshipContact && (!payload.source || payload.source === 'other')
+        ? 'relationship_contact'
+        : payload.source || 'other',
+      ...relationshipMetadata,
       referralCustomerName: payload.source === 'customer_referral' ? payload.referralCustomerName?.trim() : undefined,
       partnerReferralContactId: payload.source === 'partner_referral' ? payload.partnerReferralContactId?.trim() : undefined,
       partnerReferralName: payload.source === 'partner_referral' ? payload.partnerReferralName?.trim() : undefined,

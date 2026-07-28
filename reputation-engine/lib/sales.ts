@@ -92,6 +92,7 @@ export const CRM_LEAD_SOURCES: Array<{ id: string; label: string }> = [
   { id: 'review_marketplace', label: 'Yelp / HomeAdvisor / Thumbtack' },
   { id: 'customer_referral', label: 'Customer Referral' },
   { id: 'partner_referral', label: 'Realtor / Partnership Referral' },
+  { id: 'relationship_contact', label: 'Existing Partnership Contact' },
   { id: 'repeat_customer', label: 'Repeat Customer' },
   { id: 'walk_in', label: 'Walk-In' },
   { id: 'cold_call', label: 'Cold Call' },

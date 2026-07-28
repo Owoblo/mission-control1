@@ -265,6 +265,12 @@ export function buildLeadDraftPayload(
     partnerReferralLinkedAt: draft.leadSource === 'partner_referral' && draft.partnerReferral
       ? lead.partnerReferralLinkedAt || new Date().toISOString()
       : '',
+    relationshipContactId: lead.relationshipContactId,
+    relationshipContactName: lead.relationshipContactName,
+    relationshipContactCompany: lead.relationshipContactCompany,
+    relationshipContactCategory: lead.relationshipContactCategory,
+    relationshipContactLinkedAt: lead.relationshipContactLinkedAt,
+    relationshipContactReason: lead.relationshipContactReason,
     originAddress: draft.originAddress || undefined,
     originCity: draft.originCity || undefined,
     originAccess: draft.originAccess || undefined,
