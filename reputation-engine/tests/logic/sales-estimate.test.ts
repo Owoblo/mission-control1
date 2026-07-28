@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { computeJobPenalties, estimateLeadQuote } from '../../lib/sales'
+import { computeJobPenalties, estimateLeadQuote, reconcileEstimatedQuoteLineItems } from '../../lib/sales'
 import type { CRMLead, JobFactors, QuoteLeg } from '../../lib/types'
 
 function makeLead(overrides: Partial<CRMLead> = {}): CRMLead {
@@ -30,6 +30,48 @@ function makeLead(overrides: Partial<CRMLead> = {}): CRMLead {
     ...overrides,
   }
 }
+
+test('quote line-item reconciliation is stable when the estimate is unchanged', () => {
+  const current = [
+    { description: 'Full-Service Moving', details: '4 professional movers', amount: 3552.5 },
+  ]
+
+  const reconciled = reconcileEstimatedQuoteLineItems(current, [
+    { description: 'Full-Service Moving', details: '4 professional movers', amount: 3552.5 },
+  ])
+
+  assert.equal(reconciled, current, 'an unchanged estimate must preserve the state reference')
+})
+
+test('quote line-item reconciliation updates calculated rows and preserves manual rows', () => {
+  const manual = { description: 'Piano handling', details: 'Upright piano', amount: 250 }
+  const current = [
+    { description: 'Full-Service Moving', details: '3 professional movers', amount: 2400 },
+    manual,
+  ]
+
+  const reconciled = reconcileEstimatedQuoteLineItems(current, [
+    { description: 'Full-Service Moving', details: '4 professional movers', amount: 3552.5 },
+  ])
+
+  assert.deepEqual(reconciled, [
+    { description: 'Full-Service Moving', details: '4 professional movers', amount: 3552.5 },
+    manual,
+  ])
+})
+
+test('quote line-item reconciliation protects local and long-distance locked prices', () => {
+  for (const description of [
+    'Moving Services — Agreed Rate',
+    'Long-Distance Moving Service — All Inclusive',
+  ]) {
+    const current = [{ description, details: 'Rep-approved fixed price', amount: 3000 }]
+    const reconciled = reconcileEstimatedQuoteLineItems(current, [
+      { description: 'Full-Service Moving', details: 'Calculated price', amount: 5000 },
+    ])
+    assert.equal(reconciled, current)
+  }
+})
 
 test('estimateLeadQuote prices storage, storage delivery, and secondary stop legs distinctly', () => {
   const lead = makeLead()
