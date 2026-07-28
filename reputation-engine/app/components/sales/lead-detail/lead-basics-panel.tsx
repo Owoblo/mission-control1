@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { formatListingContextSummary, formatListingPropertySummary, getListingDescription, getListingOperationalHighlights } from '@/lib/listing'
 import { getListingSideContactDisplayName } from '@/lib/realtor-opportunity'
 import { CRM_LEAD_SOURCES, formatDate, getSalesBranchLabel } from '@/lib/sales'
+import { PartnerReferralSelector } from '@/app/components/sales/partner-referral-selector'
+import type { PartnerDirectoryEntry } from '@/lib/partner-directory'
 import type { CRMLead } from '@/lib/types'
 import { SALES_BRANCHES } from '@/lib/sales'
 
@@ -34,6 +36,7 @@ type Props = {
   leadEmail: string
   leadSource: string
   referralCustomerName?: string
+  partnerReferral?: PartnerDirectoryEntry | null
   moveDate: string
   branch?: CRMLead['branch']
   moveType: CRMLead['moveType']
@@ -58,6 +61,7 @@ type Props = {
   onLeadEmailChange: (value: string) => void
   onLeadSourceChange: (value: string) => void
   onReferralCustomerNameChange?: (value: string) => void
+  onPartnerReferralChange?: (value: PartnerDirectoryEntry | null) => void
   moveDateFlexible: boolean
   moveDateFlexibleReason: string
   onCustomerPriorityChange?: (value: string) => void
@@ -450,6 +454,7 @@ export function LeadBasicsPanel({
   leadEmail,
   leadSource,
   referralCustomerName,
+  partnerReferral,
   moveDate,
   branch,
   moveDateFlexible,
@@ -470,6 +475,7 @@ export function LeadBasicsPanel({
   onLeadEmailChange,
   onLeadSourceChange,
   onReferralCustomerNameChange,
+  onPartnerReferralChange,
   onCustomerPriorityChange,
   onMoveDateChange,
   onMoveDateFlexibleChange,
@@ -699,6 +705,13 @@ export function LeadBasicsPanel({
               onChange={event => onReferralCustomerNameChange?.(event.target.value)}
               className="crm-input"
               placeholder="Referring customer name"
+            />
+          ) : null}
+          {leadSource === 'partner_referral' ? (
+            <PartnerReferralSelector
+              value={partnerReferral}
+              disabled={disabled}
+              onChange={value => onPartnerReferralChange?.(value)}
             />
           ) : null}
         </fieldset>

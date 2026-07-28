@@ -133,6 +133,12 @@ export function buildLeadSignature(payload: {
   followUpDate: string
   followUpStatus?: string
   referralCustomerName?: string
+  partnerReferralContactId?: string
+  partnerReferralName?: string
+  partnerReferralCompany?: string
+  partnerReferralCategory?: string
+  partnerReferralEmail?: string
+  partnerReferralPhone?: string
   assignedRepName?: string
   assignedRepUserId?: string
   estimateDate?: string

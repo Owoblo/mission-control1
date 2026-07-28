@@ -130,6 +130,13 @@ const CONSULTATION_STATUSES = new Set<NonNullable<CRMLead['consultationStatus']>
 const OPTIONAL_TEXT_FIELDS = [
   'source',
   'referralCustomerName',
+  'partnerReferralContactId',
+  'partnerReferralName',
+  'partnerReferralCompany',
+  'partnerReferralCategory',
+  'partnerReferralEmail',
+  'partnerReferralPhone',
+  'partnerReferralLinkedAt',
   'identityPhone',
   'identityEmail',
   'followUpDate',

@@ -1,5 +1,6 @@
 import { buildLeadSignature } from './helpers'
 import { getLeadAssignedRepName } from '../../../../lib/sales'
+import type { PartnerDirectoryEntry } from '../../../../lib/partner-directory'
 import type { CRMLead, InventoryItem, JobFactors } from '../../../../lib/types'
 
 export type LeadDraftState = {
@@ -22,6 +23,7 @@ export type LeadDraftState = {
   branch?: CRMLead['branch']
   leadSource: string
   referralCustomerName: string
+  partnerReferral: PartnerDirectoryEntry | null
   originAddress: string
   originCity: string
   originAccess: string
@@ -86,6 +88,14 @@ export function createLeadDraftState(lead: CRMLead): LeadDraftState {
     branch: lead.branch,
     leadSource: lead.source || '',
     referralCustomerName: lead.referralCustomerName || '',
+    partnerReferral: lead.partnerReferralContactId ? {
+      id: lead.partnerReferralContactId,
+      name: lead.partnerReferralName || 'Linked partner',
+      company: lead.partnerReferralCompany,
+      category: lead.partnerReferralCategory,
+      email: lead.partnerReferralEmail,
+      phone: lead.partnerReferralPhone,
+    } : null,
     originAddress: lead.originAddress || '',
     originCity: lead.originCity || '',
     originAccess: lead.originAccess || '',
@@ -141,6 +151,12 @@ export function buildSavedLeadSignature(lead: CRMLead) {
     followUpDate: lead.followUpDate || '',
     followUpStatus: lead.followUpStatus || '',
     referralCustomerName: lead.referralCustomerName || '',
+    partnerReferralContactId: lead.partnerReferralContactId || '',
+    partnerReferralName: lead.partnerReferralName || '',
+    partnerReferralCompany: lead.partnerReferralCompany || '',
+    partnerReferralCategory: lead.partnerReferralCategory || '',
+    partnerReferralEmail: lead.partnerReferralEmail || '',
+    partnerReferralPhone: lead.partnerReferralPhone || '',
     assignedRepName: getLeadAssignedRepName(lead) || '',
     assignedRepUserId: lead.assignedRepUserId || '',
     estimateDate: lead.estimateDate || '',
@@ -184,6 +200,12 @@ export function buildDraftLeadSignature(draft: LeadDraftState) {
     followUpDate: draft.followUpDate,
     followUpStatus: draft.followUpStatus,
     referralCustomerName: draft.referralCustomerName,
+    partnerReferralContactId: draft.partnerReferral?.id || '',
+    partnerReferralName: draft.partnerReferral?.name || '',
+    partnerReferralCompany: draft.partnerReferral?.company || '',
+    partnerReferralCategory: draft.partnerReferral?.category || '',
+    partnerReferralEmail: draft.partnerReferral?.email || '',
+    partnerReferralPhone: draft.partnerReferral?.phone || '',
     assignedRepName: draft.assignedRep,
     assignedRepUserId: draft.assignedRepUserId,
     estimateDate: draft.estimateDate,
@@ -218,8 +240,31 @@ export function buildLeadDraftPayload(
     originElevatorAccess: draft.originElevatorAccess,
     destElevatorAccess: draft.destElevatorAccess,
     branch: draft.branch || undefined,
-    source: draft.leadSource || undefined,
+    source: draft.leadSource === 'partner_referral' && !draft.partnerReferral
+      ? lead.source || undefined
+      : draft.leadSource || undefined,
     referralCustomerName: draft.leadSource === 'customer_referral' ? (draft.referralCustomerName || '') : '',
+    partnerReferralContactId: draft.leadSource === 'partner_referral'
+      ? (draft.partnerReferral?.id || lead.partnerReferralContactId || '')
+      : '',
+    partnerReferralName: draft.leadSource === 'partner_referral'
+      ? (draft.partnerReferral?.name || lead.partnerReferralName || '')
+      : '',
+    partnerReferralCompany: draft.leadSource === 'partner_referral'
+      ? (draft.partnerReferral?.company || lead.partnerReferralCompany || '')
+      : '',
+    partnerReferralCategory: draft.leadSource === 'partner_referral'
+      ? (draft.partnerReferral?.category || lead.partnerReferralCategory || '')
+      : '',
+    partnerReferralEmail: draft.leadSource === 'partner_referral'
+      ? (draft.partnerReferral?.email || lead.partnerReferralEmail || '')
+      : '',
+    partnerReferralPhone: draft.leadSource === 'partner_referral'
+      ? (draft.partnerReferral?.phone || lead.partnerReferralPhone || '')
+      : '',
+    partnerReferralLinkedAt: draft.leadSource === 'partner_referral' && draft.partnerReferral
+      ? lead.partnerReferralLinkedAt || new Date().toISOString()
+      : '',
     originAddress: draft.originAddress || undefined,
     originCity: draft.originCity || undefined,
     originAccess: draft.originAccess || undefined,

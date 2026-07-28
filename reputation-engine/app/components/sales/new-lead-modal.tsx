@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { SalesAddressAutocompleteInput } from '@/app/components/sales/address-autocomplete-input'
+import { PartnerReferralSelector } from '@/app/components/sales/partner-referral-selector'
 import { createSalesLead } from '@/lib/sales-api'
 import { CRM_LEAD_SOURCES } from '@/lib/sales'
+import type { PartnerDirectoryEntry } from '@/lib/partner-directory'
 import type { CRMLead } from '@/lib/types'
 
 function digitsOnly(v: string) { return v.replace(/\D/g, '') }
@@ -49,6 +51,7 @@ export function NewLeadModal({ open, onClose }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [existingLead, setExistingLead] = useState<CRMLead | null>(null)
   const [lookingUp, setLookingUp] = useState(false)
+  const [partnerReferral, setPartnerReferral] = useState<PartnerDirectoryEntry | null>(null)
   const phoneDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const firstInputRef = useRef<HTMLInputElement>(null)
 
@@ -58,6 +61,7 @@ export function NewLeadModal({ open, onClose }: Props) {
       setError(null)
       setSaving(false)
       setExistingLead(null)
+      setPartnerReferral(null)
       setTimeout(() => firstInputRef.current?.focus(), 80)
     }
   }, [open])
@@ -106,6 +110,10 @@ export function NewLeadModal({ open, onClose }: Props) {
       setError('Add at least a name or phone number.')
       return
     }
+    if (form.source === 'partner_referral' && !partnerReferral) {
+      setError('Select or create the referring realtor / partnership record.')
+      return
+    }
     try {
       setSaving(true)
       setError(null)
@@ -114,6 +122,13 @@ export function NewLeadModal({ open, onClose }: Props) {
         name: form.name,
         source: form.source,
         referralCustomerName: form.source === 'customer_referral' ? form.referralCustomerName : undefined,
+        partnerReferralContactId: form.source === 'partner_referral' ? partnerReferral?.id : undefined,
+        partnerReferralName: form.source === 'partner_referral' ? partnerReferral?.name : undefined,
+        partnerReferralCompany: form.source === 'partner_referral' ? partnerReferral?.company : undefined,
+        partnerReferralCategory: form.source === 'partner_referral' ? partnerReferral?.category : undefined,
+        partnerReferralEmail: form.source === 'partner_referral' ? partnerReferral?.email : undefined,
+        partnerReferralPhone: form.source === 'partner_referral' ? partnerReferral?.phone : undefined,
+        partnerReferralLinkedAt: form.source === 'partner_referral' && partnerReferral ? new Date().toISOString() : undefined,
         phone: form.phone,
         email: form.email,
         moveDate: form.moveDate || undefined,
@@ -214,7 +229,10 @@ export function NewLeadModal({ open, onClose }: Props) {
             </label>
             <label>
               <span className="crm-label">Source</span>
-              <select className="crm-input mt-1.5" value={form.source} onChange={e => set('source', e.target.value)}>
+              <select className="crm-input mt-1.5" value={form.source} onChange={e => {
+                set('source', e.target.value)
+                if (e.target.value !== 'partner_referral') setPartnerReferral(null)
+              }}>
                 {CRM_LEAD_SOURCES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
               </select>
             </label>
@@ -228,6 +246,14 @@ export function NewLeadModal({ open, onClose }: Props) {
                   onChange={e => set('referralCustomerName', e.target.value)}
                 />
               </label>
+            ) : null}
+            {form.source === 'partner_referral' ? (
+              <div className="col-span-2">
+                <span className="crm-label">Referring Realtor / Partner</span>
+                <div className="mt-1.5">
+                  <PartnerReferralSelector value={partnerReferral} onChange={setPartnerReferral} />
+                </div>
+              </div>
             ) : null}
           </div>
 

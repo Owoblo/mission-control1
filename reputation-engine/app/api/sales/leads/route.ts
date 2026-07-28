@@ -8,6 +8,7 @@ import { getSessionUser } from '@/lib/server/session'
 import { validateLeadPayload } from '@/lib/server/sales-validation'
 import type { CRMLead } from '@/lib/types'
 import { logEvent } from '@/lib/server/analytics'
+import { syncLeadPartnerReferral } from '@/lib/server/partner-referral-link'
 
 export async function GET(request: Request) {
   try {
@@ -58,6 +59,9 @@ export async function POST(request: Request) {
         inventoryAnalysisCompleted?: boolean
       }
     }
+    if (payload.source === 'partner_referral' && !payload.partnerReferralContactId?.trim()) {
+      return NextResponse.json({ error: 'Select or create the referring partnership record.' }, { status: 400 })
+    }
     const validated = validateLeadPayload(payload)
     const creatorOwnsLead = session?.role === 'sales_rep'
     const requestedAssignedRepName = payload.assignedRepName?.trim() || payload.assignedRep?.trim()
@@ -87,6 +91,16 @@ export async function POST(request: Request) {
         phone: existingLead.phone || validated.phone,
         email: existingLead.email || validated.email,
         source: existingLead.source || payload.source || 'other',
+        referralCustomerName: payload.source === 'customer_referral'
+          ? payload.referralCustomerName?.trim() || existingLead.referralCustomerName
+          : existingLead.referralCustomerName,
+        partnerReferralContactId: payload.source === 'partner_referral' ? payload.partnerReferralContactId : existingLead.partnerReferralContactId,
+        partnerReferralName: payload.source === 'partner_referral' ? payload.partnerReferralName : existingLead.partnerReferralName,
+        partnerReferralCompany: payload.source === 'partner_referral' ? payload.partnerReferralCompany : existingLead.partnerReferralCompany,
+        partnerReferralCategory: payload.source === 'partner_referral' ? payload.partnerReferralCategory : existingLead.partnerReferralCategory,
+        partnerReferralEmail: payload.source === 'partner_referral' ? payload.partnerReferralEmail : existingLead.partnerReferralEmail,
+        partnerReferralPhone: payload.source === 'partner_referral' ? payload.partnerReferralPhone : existingLead.partnerReferralPhone,
+        partnerReferralLinkedAt: payload.source === 'partner_referral' ? payload.partnerReferralLinkedAt || now : existingLead.partnerReferralLinkedAt,
         moveDate: existingLead.moveDate || payload.moveDate,
         moveType: existingLead.moveType || validated.moveType || 'residential',
         originAddress: existingLead.originAddress || payload.originAddress?.trim(),
@@ -105,6 +119,9 @@ export async function POST(request: Request) {
         ...mergedLead,
         leadScore: calculateLeadScore(mergedLead),
       }))
+      if (saved.source === 'partner_referral' || existingLead.source === 'partner_referral') {
+        await syncLeadPartnerReferral(saved, existingLead.partnerReferralContactId)
+      }
       await recordLeadUpdateAudit(existingLead, saved)
       return NextResponse.json(saved)
     }
@@ -117,6 +134,14 @@ export async function POST(request: Request) {
       leadKind: payload.leadKind || 'customer',
       primaryContactRole: payload.primaryContactRole || 'customer',
       source: payload.source || 'other',
+      referralCustomerName: payload.source === 'customer_referral' ? payload.referralCustomerName?.trim() : undefined,
+      partnerReferralContactId: payload.source === 'partner_referral' ? payload.partnerReferralContactId?.trim() : undefined,
+      partnerReferralName: payload.source === 'partner_referral' ? payload.partnerReferralName?.trim() : undefined,
+      partnerReferralCompany: payload.source === 'partner_referral' ? payload.partnerReferralCompany?.trim() : undefined,
+      partnerReferralCategory: payload.source === 'partner_referral' ? payload.partnerReferralCategory?.trim() : undefined,
+      partnerReferralEmail: payload.source === 'partner_referral' ? payload.partnerReferralEmail?.trim() : undefined,
+      partnerReferralPhone: payload.source === 'partner_referral' ? payload.partnerReferralPhone?.trim() : undefined,
+      partnerReferralLinkedAt: payload.source === 'partner_referral' && payload.partnerReferralContactId ? payload.partnerReferralLinkedAt || now : undefined,
       inboundId: payload.inboundId,
       inboundMessage: payload.inboundMessage?.trim(),
       phone: validated.phone,
@@ -164,6 +189,7 @@ export async function POST(request: Request) {
       assignedRep: getLeadAssignedRepName(lead),
       leadScore: calculateLeadScore(lead),
     })
+    if (saved.source === 'partner_referral') await syncLeadPartnerReferral(saved)
     await recordLeadCreatedAudit(saved)
     void logEvent('lead_created', {
       leadId: saved.id,

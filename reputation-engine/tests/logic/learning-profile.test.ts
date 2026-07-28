@@ -50,3 +50,13 @@ test('unknown dimensions lower binding-price confidence', () => {
   assert.equal(profile.scope.unknown_dimension_count, 1)
   assert.equal(profile.confidence.ready_for_binding_price, false)
 })
+
+test('linked partnership referrals count as named acquisition attribution', () => {
+  const profile = buildLeadLearningProfile(lead({
+    source: 'partner_referral',
+    partnerReferralContactId: 'contact_1',
+    partnerReferralName: 'Avery Agent',
+  }))
+
+  assert.equal(profile.acquisition.referral_named, true)
+})

@@ -48,3 +48,44 @@ test('lead draft autosave ignores inventory changes handled by dedicated invento
   assert.equal(Object.prototype.hasOwnProperty.call(payload, 'roomBreakdown'), false)
   assert.equal(Object.prototype.hasOwnProperty.call(payload, 'totalCubicFeet'), false)
 })
+
+test('lead draft persists structured partnership attribution and clears it when source changes', () => {
+  const lead = makeLead([])
+  const draft = {
+    ...createLeadDraftState(lead),
+    leadSource: 'partner_referral',
+    partnerReferral: {
+      id: 'contact_realtor_1',
+      name: 'Alex Realtor',
+      company: 'North Star Realty',
+      category: 'realtor',
+      email: 'alex@example.com',
+      city: 'London',
+    },
+  }
+
+  const linked = buildLeadDraftPayload(lead, draft)
+  assert.equal(linked.source, 'partner_referral')
+  assert.equal(linked.partnerReferralContactId, 'contact_realtor_1')
+  assert.equal(linked.partnerReferralName, 'Alex Realtor')
+  assert.equal(linked.partnerReferralCompany, 'North Star Realty')
+
+  const cleared = buildLeadDraftPayload(
+    { ...lead, ...linked } as CRMLead,
+    { ...draft, leadSource: 'google_online_search', partnerReferral: null }
+  )
+  assert.equal(cleared.partnerReferralContactId, '')
+  assert.equal(cleared.partnerReferralName, '')
+})
+
+test('lead draft does not persist an incomplete partnership source while selection is in progress', () => {
+  const lead = makeLead([])
+  const draft = {
+    ...createLeadDraftState(lead),
+    leadSource: 'partner_referral',
+    partnerReferral: null,
+  }
+  const payload = buildLeadDraftPayload(lead, draft)
+  assert.equal(payload.source, lead.source)
+  assert.equal(payload.partnerReferralContactId, '')
+})

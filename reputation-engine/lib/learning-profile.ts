@@ -40,7 +40,7 @@ export function buildLeadLearningProfile(lead: CRMLead, quote?: CRMQuote | null)
       source: lead.source || 'unknown',
       normalized_source: lead.attribution?.normalizedSource || null,
       campaign: lead.attribution?.utmCampaign || null,
-      referral_named: Boolean(lead.referralCustomerName),
+      referral_named: Boolean(lead.referralCustomerName || lead.partnerReferralContactId || lead.partnerReferralName),
       realtor_linked: Boolean(lead.realtorContactId || lead.realtorEmail || lead.realtorPhone),
     },
     property: {

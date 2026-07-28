@@ -4,9 +4,11 @@ import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { SalesAddressAutocompleteInput } from '@/app/components/sales/address-autocomplete-input'
+import { PartnerReferralSelector } from '@/app/components/sales/partner-referral-selector'
 import { createSalesLead, enrichSalesAddress } from '@/lib/sales-api'
 import { CRM_LEAD_SOURCES } from '@/lib/sales'
 import type { CRMLead } from '@/lib/types'
+import type { PartnerDirectoryEntry } from '@/lib/partner-directory'
 
 const MOVE_TYPES: CRMLead['moveType'][] = ['residential', 'long-distance', 'commercial', 'senior', 'labor-only', 'packing']
 
@@ -62,6 +64,7 @@ export default function NewSalesLeadPage() {
     notes?: string
   } | null>(null)
   const [analysisAvailable, setAnalysisAvailable] = useState(false)
+  const [partnerReferral, setPartnerReferral] = useState<PartnerDirectoryEntry | null>(null)
 
   function setField<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     interactionCountRef.current += 1
@@ -83,12 +86,22 @@ export default function NewSalesLeadPage() {
   }
 
   async function buildPayload(submitIntent: 'save' | 'build_estimate') {
+    if (form.source === 'partner_referral' && !partnerReferral) {
+      throw new Error('Select or create the referring realtor / partnership record.')
+    }
     const resolvedCity = listingMatch?.city || form.originCity || ''
     const resolvedReason = form.moveReason === 'Other' ? form.moveReasonCustom : form.moveReason
     return createSalesLead({
       name: form.name,
       source: form.source,
       referralCustomerName: form.source === 'customer_referral' ? form.referralCustomerName : undefined,
+      partnerReferralContactId: form.source === 'partner_referral' ? partnerReferral?.id : undefined,
+      partnerReferralName: form.source === 'partner_referral' ? partnerReferral?.name : undefined,
+      partnerReferralCompany: form.source === 'partner_referral' ? partnerReferral?.company : undefined,
+      partnerReferralCategory: form.source === 'partner_referral' ? partnerReferral?.category : undefined,
+      partnerReferralEmail: form.source === 'partner_referral' ? partnerReferral?.email : undefined,
+      partnerReferralPhone: form.source === 'partner_referral' ? partnerReferral?.phone : undefined,
+      partnerReferralLinkedAt: form.source === 'partner_referral' && partnerReferral ? new Date().toISOString() : undefined,
       phone: form.phone,
       email: form.email,
       moveDate: form.moveDate || undefined,
@@ -222,7 +235,10 @@ export default function NewSalesLeadPage() {
           </label>
           <label>
             <span className="crm-label">Source</span>
-            <select className="crm-input mt-2" value={form.source} onChange={e => setField('source', e.target.value)}>
+            <select className="crm-input mt-2" value={form.source} onChange={e => {
+              setField('source', e.target.value)
+              if (e.target.value !== 'partner_referral') setPartnerReferral(null)
+            }}>
               {CRM_LEAD_SOURCES.map(source => (
                 <option key={source.id} value={source.id}>{source.label}</option>
               ))}
@@ -233,6 +249,14 @@ export default function NewSalesLeadPage() {
               <span className="crm-label">Referring Customer Name</span>
               <input className="crm-input mt-2" value={form.referralCustomerName} onChange={e => setField('referralCustomerName', e.target.value)} />
             </label>
+          ) : null}
+          {form.source === 'partner_referral' ? (
+            <div className="md:col-span-2">
+              <span className="crm-label">Referring Realtor / Partner</span>
+              <div className="mt-2">
+                <PartnerReferralSelector value={partnerReferral} onChange={setPartnerReferral} />
+              </div>
+            </div>
           ) : null}
           <label>
             <span className="crm-label">Phone</span>

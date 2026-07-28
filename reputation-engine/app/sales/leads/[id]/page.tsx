@@ -90,6 +90,7 @@ import { displayEmailSubject } from '@/lib/email-display'
 import { deriveJobReadiness, deriveOperatingExceptions, deriveOperatingStage, OPERATING_STAGE_META } from '@/lib/job-spine'
 import { ConfirmDialog } from '@/app/components/sales/confirm-dialog'
 import type { UserRole } from '@/lib/auth'
+import type { PartnerDirectoryEntry } from '@/lib/partner-directory'
 import type {
   CRMAutomationJob,
   CRMLead,
@@ -209,6 +210,7 @@ export default function SalesLeadDetailPage() {
   const [branch, setBranch] = useState<CRMLead['branch']>()
   const [leadSource, setLeadSource] = useState('')
   const [referralCustomerName, setReferralCustomerName] = useState('')
+  const [partnerReferral, setPartnerReferral] = useState<PartnerDirectoryEntry | null>(null)
   const [originAddress, setOriginAddress] = useState('')
   const [originCity, setOriginCity] = useState('')
   const [originAccess, setOriginAccess] = useState('')
@@ -563,6 +565,7 @@ export default function SalesLeadDetailPage() {
     setBranch(draftState.branch)
     setLeadSource(draftState.leadSource)
     setReferralCustomerName(draftState.referralCustomerName)
+    setPartnerReferral(draftState.partnerReferral)
     setOriginAddress(draftState.originAddress)
     setOriginCity(draftState.originCity)
     setOriginAccess(draftState.originAccess)
@@ -1170,6 +1173,7 @@ export default function SalesLeadDetailPage() {
     branch,
     leadSource,
     referralCustomerName,
+    partnerReferral,
     originAddress,
     originCity,
     originAccess,
@@ -1208,6 +1212,7 @@ export default function SalesLeadDetailPage() {
     leadPhone,
     leadSource,
     referralCustomerName,
+    partnerReferral,
     lostNotes,
     lostReason,
     moveDate,
@@ -4159,6 +4164,7 @@ export default function SalesLeadDetailPage() {
             leadEmail={leadEmail}
             leadSource={leadSource}
             referralCustomerName={referralCustomerName}
+            partnerReferral={partnerReferral}
             moveDate={moveDate}
             branch={branch}
             moveDateFlexible={moveDateFlexible}
@@ -4187,8 +4193,10 @@ export default function SalesLeadDetailPage() {
             onLeadSourceChange={value => {
               setLeadSource(value)
               if (value !== 'customer_referral') setReferralCustomerName('')
+              if (value !== 'partner_referral') setPartnerReferral(null)
             }}
             onReferralCustomerNameChange={setReferralCustomerName}
+            onPartnerReferralChange={setPartnerReferral}
             onCustomerPriorityChange={setCustomerPriority}
             onMoveDateChange={setMoveDate}
             onMoveDateFlexibleChange={v => {

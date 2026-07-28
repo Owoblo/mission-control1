@@ -748,6 +748,13 @@ export interface CRMLead {
   inboundMessage?: string
   source?: string
   referralCustomerName?: string
+  partnerReferralContactId?: string
+  partnerReferralName?: string
+  partnerReferralCompany?: string
+  partnerReferralCategory?: string
+  partnerReferralEmail?: string
+  partnerReferralPhone?: string
+  partnerReferralLinkedAt?: string
   attribution?: LeadAttribution
   phone?: string
   email?: string

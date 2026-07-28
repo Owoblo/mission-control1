@@ -20,6 +20,7 @@ import {
   saveSalesLead,
   saveSalesQuote,
 } from '@/lib/server/sales-repository'
+import { syncLeadPartnerReferral } from '@/lib/server/partner-referral-link'
 
 function normalizeOptional(value?: string) {
   const trimmed = value?.trim()
@@ -330,6 +331,12 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     const rawBody = (await request.json()) as Partial<typeof current> & { sendAppointmentSms?: boolean }
     const { sendAppointmentSms: sendApptSmsFlag, ...rawUpdates } = rawBody
     const updates = validateLeadPatchPayload(rawUpdates)
+    if (
+      updates.source === 'partner_referral' &&
+      !(updates.partnerReferralContactId || current.partnerReferralContactId)
+    ) {
+      return NextResponse.json({ error: 'Select or create the referring partnership record.' }, { status: 400 })
+    }
     const salesWorkspaceUser = canAccessSalesWorkspace(session)
     const operationsOnlyUpdate = isOperationsOnlyUpdate(updates)
 
@@ -418,6 +425,13 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     }
 
     const saved = await saveSalesLead(nextLead)
+    if (
+      saved.source === 'partner_referral' ||
+      current.source === 'partner_referral' ||
+      saved.partnerReferralContactId !== current.partnerReferralContactId
+    ) {
+      await syncLeadPartnerReferral(saved, current.partnerReferralContactId)
+    }
     await recordLeadUpdateAudit(current, saved)
     const syncedOpportunityLead = await maybeCreateDestinationOpportunityLead(current, saved)
     if (syncedOpportunityLead.id === saved.id && JSON.stringify(syncedOpportunityLead) !== JSON.stringify(saved)) {

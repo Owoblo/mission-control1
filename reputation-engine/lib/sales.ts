@@ -91,6 +91,7 @@ export const CRM_LEAD_SOURCES: Array<{ id: string; label: string }> = [
   { id: 'facebook_instagram_ad', label: 'Facebook / Instagram Ad' },
   { id: 'review_marketplace', label: 'Yelp / HomeAdvisor / Thumbtack' },
   { id: 'customer_referral', label: 'Customer Referral' },
+  { id: 'partner_referral', label: 'Realtor / Partnership Referral' },
   { id: 'repeat_customer', label: 'Repeat Customer' },
   { id: 'walk_in', label: 'Walk-In' },
   { id: 'cold_call', label: 'Cold Call' },
@@ -268,7 +269,7 @@ export function validUntil(quote: CRMQuote) {
 
 export function calculateLeadScore(lead: CRMLead) {
   let score = 0
-  if (lead.source === 'customer_referral' || lead.source === 'referral') score += 25
+  if (lead.source === 'customer_referral' || lead.source === 'partner_referral' || lead.source === 'referral') score += 25
   else if (lead.source === 'google_online_search' || lead.source === 'google') score += 20
   else if (lead.source === 'direct_mail') score += 15
   else if (lead.source === 'repeat_customer' || lead.source === 'repeat') score += 30
