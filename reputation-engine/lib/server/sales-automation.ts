@@ -3315,56 +3315,46 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
 
   if (job.kind === 'lead_response' && inboundMessage && detectMovedOnIntent(inboundMessage) && !isBookedOrPaidLead(lead)) {
     const nowIso = new Date().toISOString()
-    const lostLead = await saveSalesLead({
+    // Loss is a manual CRM decision. A classifier can confuse a pause, a
+    // promised callback, or quoted speech with a final rejection. Preserve the
+    // current stage, stop customer-facing automation, and ask a rep to review.
+    const reviewLead = await saveSalesLead({
       ...lead,
-      stage: 'lost',
-      followUpStatus: 'followed_up',
+      followUpStatus: 'pending',
+      followUpDate: lead.followUpDate || nowIso.slice(0, 10),
+      automationStatus: 'handoff',
+      automationHandoffAt: nowIso,
+      automationHandoffReason: 'Possible closed/lost language requires manual review.',
+      automationPauseReason: 'manual_loss_review',
       qualificationState: buildQualificationState(lead, {
         ...withoutMissingFields(lead.qualificationState),
-        capturedSummary: 'Customer said they moved on, booked someone else, or no longer need movers.',
-        lastIntent: 'lost_feedback_requested',
-        nextBestAction: 'capture_lost_reason',
+        capturedSummary: 'Possible moved-on language detected. Lead remains active until a representative confirms the outcome.',
+        lastIntent: 'possible_loss_requires_review',
+        nextBestAction: 'rep_review_outcome',
         missingFields: [],
       }),
       notes: [
         lead.notes,
-        `Lost feedback requested ${nowIso}: ${inboundMessage}`,
+        `Possible loss signal flagged for manual review ${nowIso}: ${inboundMessage}`,
       ].filter(Boolean).join('\n\n'),
     }).catch(() => lead)
 
     await saveFollowUpLog({
       id: uid('fu'),
-      leadId: lostLead.id,
+      leadId: reviewLead.id,
       type: 'note',
       date: nowIso,
       createdAt: nowIso,
-      notes: `Customer moved on. Automation asked for lost-lead feedback. Message: ${inboundMessage}`,
+      notes: `Manual outcome review required. Automation did not mark this lead lost or send loss-feedback copy. Message: ${inboundMessage}`,
     }).catch(() => {})
 
-    const copy = fallbackCopy(job.kind, lostLead, contact.channel, inboundMessage)
-    const sendResult = await sendSalesMessage({
-      actor: 'automation',
-      channel: contact.channel,
-      to: contact.to,
-      subject: contact.channel === 'email' ? copy.subject || inboundSubject || 'Quick Feedback Question' : undefined,
-      body: copy.reply || '',
-      leadId: lostLead.id,
-      notes: `Automation asked lost lead for feedback at ${contact.to}`,
-    })
-
-    const updatedLead = await updateLeadAfterAutomation(sendResult.lead || lostLead, copy)
-    const thread = await saveAutomationThreadAfterOutbound({
-      lead: updatedLead,
-      existingThread,
-      channel: contact.channel,
-      contactValue: contact.to,
-      preview: copy.reply || '',
-      jobKind: job.kind,
-      intent: copy.intent,
-      inboundMessage,
-    })
-
-    return { status: 'completed' as const, sent: true, lead: updatedLead, thread, message: copy.reply }
+    return {
+      status: 'completed' as const,
+      sent: false,
+      lead: reviewLead,
+      thread: existingThread,
+      message: 'Possible loss signal queued for manual review. No automatic stage change or reply was made.',
+    }
   }
 
   // ── Phase 2: Booking acceptance — detect YES/book before trying to generate a new quote ──

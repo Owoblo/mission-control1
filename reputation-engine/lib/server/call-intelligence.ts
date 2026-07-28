@@ -1,10 +1,11 @@
 import { dateStamp, detectSalesBranchFromLocation, normalizeLead } from '@/lib/sales'
-import type { AISummary, CRMLead, LeadIntelligence, LeadIntelligenceFollowUp, LeadPersonaBadge, SalesLeadStage } from '@/lib/types'
+import type { AISummary, CRMLead, LeadIntelligence, LeadIntelligenceFollowUp, LeadPersonaBadge } from '@/lib/types'
 import { SATURN_STAR_SALES_PROCESS } from '@/lib/server/sales-training'
 import { readEnv } from '@/lib/server/runtime'
 import { downloadTwilioRecording } from '@/lib/server/twilio-recordings'
 import { extractRecordingObjectKey } from '@/lib/server/recording-archive'
 import { getStorageService } from '@/lib/server/storage-service'
+import { sanitizeAutomatedStageSuggestion } from '@/lib/lead-stage-safety'
 
 function getOpenAIKey() {
   return readEnv('OPENAI_API_KEY')
@@ -654,6 +655,9 @@ IMPORTANT RULES:
 - followUpSchedule: generate the next 2-3 specific touches following Saturn Star's cadence. Include the exact script or talking points for each. Mark isCloseAttempt true for any tentative reservation follow-up.
 - If email is missing from the lead profile — that is ALWAYS a processGap ("Email not captured — no follow-up path if they go cold").
 - Today's date is ${today}.
+- LOST IS MANUAL ONLY: never return "lost" as stageSuggestion. If the customer
+  appears to have declined, booked elsewhere, paused, or promised to reply
+  later, preserve the active stage and recommend a human follow-up/review.
 
 Return JSON only — no explanation outside the JSON:
 {
@@ -695,7 +699,7 @@ Return JSON only — no explanation outside the JSON:
   "suggestedSalesLanguage": "<1-2 sentences telling the rep how to speak to this customer right now>"
 }
 
-Valid stages: new, contacted, estimate_scheduled, estimate_completed, pricing, quoted, nurture, booked, lost`
+Valid suggested stages: new, contacted, estimate_scheduled, estimate_completed, pricing, quoted, nurture, booked`
 
   const response = await fetchWithRetry(() =>
     fetch('https://api.openai.com/v1/chat/completions', {
@@ -748,7 +752,7 @@ Valid stages: new, contacted, estimate_scheduled, estimate_completed, pricing, q
     return {
       temperature: (['hot', 'warm', 'cold'].includes(String(parsed.temperature)) ? parsed.temperature : 'cold') as LeadIntelligence['temperature'],
       bookingProbability: typeof parsed.bookingProbability === 'number' ? Math.min(100, Math.max(0, parsed.bookingProbability)) : 10,
-      stageSuggestion: parsed.stageSuggestion ? parsed.stageSuggestion as SalesLeadStage : undefined,
+      stageSuggestion: sanitizeAutomatedStageSuggestion(parsed.stageSuggestion),
       stageSuggestionReason: parsed.stageSuggestionReason ? String(parsed.stageSuggestionReason) : undefined,
       followUpAt: parsed.followUpAt ? String(parsed.followUpAt) : undefined,
       followUpNote: parsed.followUpNote ? String(parsed.followUpNote) : undefined,
