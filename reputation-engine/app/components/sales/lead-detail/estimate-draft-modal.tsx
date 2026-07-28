@@ -20,6 +20,7 @@ import { DEFAULT_ROOM_OPTIONS } from './helpers'
 import type { EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, LeadMediaAsset, PricingBreakdown, QuoteLineItem, QuoteLeg, QuoteLegType } from '@/lib/types'
 import { buildServiceProfitabilityPlan } from '@/lib/service-profitability'
 import { buildConsultativeMovePlan } from '@/lib/consultative-move-plan'
+import { qualifyMoveAddress } from '@/lib/route-address'
 import {
   calcUHaulCost, compareStrategies, truckSizeFromCubicFeet, calcStrategyTiming, calcLongDistanceUHaul,
   DEFAULT_BLANKET_BAGS, DEFAULT_GAS_PRICE_PER_L, DEFAULT_MISC_BUFFER,
@@ -1236,15 +1237,7 @@ export function EstimateDraftModal({
   )
 
   function buildRouteAddress(address?: string, city?: string) {
-    const addr = (address || '').trim()
-    const cityText = (city || '').trim()
-    if (!addr && !cityText) return ''
-    const alreadyQualified = /,\s*(ON|Ontario|[A-Z]{2})\b|Canada|United States/i.test(addr)
-    const hasCity = cityText.length >= 3 && addr.toLowerCase().includes(cityText.toLowerCase())
-    const parts = [addr]
-    if (cityText && !hasCity) parts.push(cityText)
-    if (!alreadyQualified) parts.push('Ontario', 'Canada')
-    return parts.filter(Boolean).join(', ')
+    return qualifyMoveAddress(address, city)
   }
 
   // Auto-calculate route when both origin and destination are present.

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { findNearestRouteBranch, normalizeDrivingRoute, resolveRouteBranchForEstimate } from '../../lib/server/route-estimation'
+import { inferAddressCountryContext, qualifyMoveAddress } from '../../lib/route-address'
+import { findNearestRouteBranch, isDrivingRoutePlausible, normalizeDrivingRoute, resolveRouteBranchForEstimate } from '../../lib/server/route-estimation'
 
 test('route estimate infers Waterloo/KW branch from Waterloo to Kitchener addresses', () => {
   const branch = resolveRouteBranchForEstimate({
@@ -47,4 +48,26 @@ test('route estimate still allows true same-address routes to be zero', () => {
 
   assert.equal(route.distanceKm, 0)
   assert.equal(route.driveHours, 0)
+})
+
+test('cross-border Michigan destinations are not coerced into Ontario', () => {
+  assert.equal(
+    qualifyMoveAddress('43175 Londonderry Court, Canton, Michigan, USA', 'Michigan'),
+    '43175 Londonderry Court, Canton, Michigan, USA'
+  )
+  assert.equal(inferAddressCountryContext('Canton Township, Michigan'), 'us')
+})
+
+test('unqualified local addresses retain the Ontario default', () => {
+  assert.equal(
+    qualifyMoveAddress('666 Chippawa Street', 'Windsor'),
+    '666 Chippawa Street, Windsor, Ontario, Canada'
+  )
+})
+
+test('route sanity guard rejects a wrong-country distance mismatch', () => {
+  const windsor = { lat: 42.3149, lng: -83.0364 }
+  const cantonMichigan = { lat: 42.3086, lng: -83.4822 }
+  assert.equal(isDrivingRoutePlausible(windsor, cantonMichigan, 65), true)
+  assert.equal(isDrivingRoutePlausible(windsor, cantonMichigan, 400), false)
 })

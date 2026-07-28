@@ -1,4 +1,5 @@
 import type { EstimateRouteContext } from '@/lib/types'
+import { inferAddressCountryContext } from '../route-address'
 import { getGoogleMapsApiKey } from './runtime'
 
 const BRANCH_YARDS: Record<string, string> = {
@@ -367,16 +368,33 @@ export async function suggestAddresses(query: string): Promise<AddressSuggestion
   const apiKey = getGoogleMapsApiKey()
   if (apiKey) {
     try {
-      // Canadian results are deliberately fetched and ranked first. Asking Google
-      // for CA and US in one request lets similarly named US streets outrank Ontario.
-      const canadian = await suggestWithGoogle(trimmed, apiKey, 'ca')
-      const american = canadian.length >= 5 ? [] : await suggestWithGoogle(trimmed, apiKey, 'us')
-      return [...canadian, ...american].slice(0, 8)
+      // Explicit state/country context wins. A Michigan destination must not be
+      // hidden behind similarly named Canadian autocomplete results.
+      const preferredCountry = inferAddressCountryContext(trimmed)
+      const firstCountry = preferredCountry === 'us' ? 'us' : 'ca'
+      const secondCountry = firstCountry === 'us' ? 'ca' : 'us'
+      const first = await suggestWithGoogle(trimmed, apiKey, firstCountry)
+      const second = first.length >= 5 && preferredCountry
+        ? []
+        : await suggestWithGoogle(trimmed, apiKey, secondCountry)
+      return [...first, ...second].slice(0, 8)
     } catch { /* fall through to Nominatim */ }
   }
 
   // Fallback: Nominatim (OpenStreetMap) — always works, no API key needed
   return suggestWithNominatim(trimmed)
+}
+
+export function isDrivingRoutePlausible(
+  origin: Pick<GeocodeResult, 'lat' | 'lng'>,
+  destination: Pick<GeocodeResult, 'lat' | 'lng'>,
+  routeDistanceKm: number
+) {
+  const meanLatitudeRadians = ((origin.lat + destination.lat) / 2) * (Math.PI / 180)
+  const latKm = (origin.lat - destination.lat) * 111.32
+  const lngKm = (origin.lng - destination.lng) * 111.32 * Math.cos(meanLatitudeRadians)
+  const straightLineKm = Math.hypot(latKm, lngKm)
+  return routeDistanceKm <= Math.max(150, straightLineKm * 3.5)
 }
 
 export async function getDrivingRoute(
@@ -515,6 +533,12 @@ export async function estimateRouteContext(input: {
 	  if (!originToDestination || !returnToOrigin) {
 	    throw new Error('Could not calculate driving route between these addresses')
 	  }
+
+  if (!isDrivingRoutePlausible(originGeo, destGeo, originToDestination.distanceKm)) {
+    throw new Error(
+      `Route estimate looks inconsistent with the selected locations (${originGeo.displayName} → ${destGeo.displayName}). Please reselect the addresses.`
+    )
+  }
 
   const originCity = extractRouteCity(input.origin)
   const destCity = extractRouteCity(input.destination)
