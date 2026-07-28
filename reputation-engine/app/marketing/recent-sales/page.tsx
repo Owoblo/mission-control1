@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Check, Clock3, MapPin, MessageSquareText, Search, Send, X } from 'lucide-react'
+import { Check, MapPin, MessageSquareText, Search, X } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 type SaleSignal = {
   id: string
@@ -46,6 +47,7 @@ function dateLabel(value?: string | null) {
 }
 
 export default function RecentSalesPage() {
+  const router = useRouter()
   const [sales, setSales] = useState<SaleSignal[]>([])
   const [loading, setLoading] = useState(true)
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -143,6 +145,10 @@ export default function RecentSalesPage() {
       setNotice('Match this Realtor to a partnership contact before sending.')
       return
     }
+    if (active.relationship_tier === 'cold' || active.relationship_tier === 'unmatched') {
+      setNotice('This Realtor has no established relationship context. Open the partnership conversation and complete the normal introduction first.')
+      return
+    }
     setBusy('send')
     try {
       await patch(active.id, { status: 'ready', suggested_message: draft })
@@ -166,6 +172,10 @@ export default function RecentSalesPage() {
   async function schedule() {
     if (!active?.contact_id || !scheduleAt) {
       setNotice('Choose a matched contact and schedule time.')
+      return
+    }
+    if (active.relationship_tier === 'cold' || active.relationship_tier === 'unmatched') {
+      setNotice('This Realtor has no established relationship context. Complete the normal partnership introduction before scheduling a sale message.')
       return
     }
     setBusy('schedule')
@@ -204,6 +214,9 @@ export default function RecentSalesPage() {
     match: sales.filter(s => s.status === 'needs_match').length,
     ready: sales.filter(s => s.status === 'ready').length,
   }
+  const activeContactSales = active?.contact_id
+    ? sales.filter(sale => sale.contact_id === active.contact_id && sale.status !== 'dismissed')
+    : []
 
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden border border-[var(--app-line)] bg-white">
@@ -265,10 +278,23 @@ export default function RecentSalesPage() {
                   <span className="rounded-full bg-[#14213d] px-2.5 py-1 text-xs font-medium text-white">{active.relationship_tier.replace('_', ' ')}</span>
                 </div>
                 <p className="mt-1 text-sm text-slate-500">{active.realtor_brokerage || 'Brokerage unavailable'} · {active.realtor_role || 'listing agent'}</p>
+                {activeContactSales.length > 1 && (
+                  <p className="mt-1 text-xs font-medium text-amber-800">{activeContactSales.length} verified sales are attached to this same relationship.</p>
+                )}
               </div>
-              <button onClick={() => void dismiss()} disabled={busy !== null} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
-                <X className="h-4 w-4" /> Dismiss
-              </button>
+              <div className="flex flex-wrap gap-2">
+                {active.contact_id && (
+                  <button
+                    onClick={() => router.push(`/marketing/partners?tab=phone&contact=${encodeURIComponent(active.contact_id || '')}&recent_sale=1`)}
+                    className="inline-flex items-center gap-2 rounded-lg bg-[#071421] px-4 py-2 text-sm font-semibold text-white"
+                  >
+                    <MessageSquareText className="h-4 w-4" /> Review full conversation
+                  </button>
+                )}
+                <button onClick={() => void dismiss()} disabled={busy !== null} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
+                  <X className="h-4 w-4" /> Dismiss
+                </button>
+              </div>
             </div>
 
             <section className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -321,22 +347,23 @@ export default function RecentSalesPage() {
                 <MessageSquareText className="h-5 w-5 text-[#14213d]" />
                 <div>
                   <h3 className="font-semibold text-[#111827]">Relationship message</h3>
-                  <p className="text-xs text-slate-500">Review-first. Nothing is sent automatically.</p>
+                  <p className="text-xs text-slate-500">Use only after reviewing the established partnership conversation. Nothing is sent automatically.</p>
                 </div>
               </div>
               <div className="p-5">
                 <textarea value={draft} onChange={event => setDraft(event.target.value)} className="min-h-40 w-full resize-y rounded-xl border border-slate-200 p-4 text-[16px] leading-7 text-[#111827] outline-none focus:border-[#14213d]" />
                 <div className="mt-4 flex flex-wrap items-center gap-2">
                   <button onClick={() => void approve()} disabled={busy !== null || !active.contact_id} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-[#14213d] disabled:opacity-40">
-                    <Check className="h-4 w-4" /> {busy === 'approve' ? 'Saving…' : 'Approve'}
+                    <Check className="h-4 w-4" /> {busy === 'approve' ? 'Saving…' : 'Save relationship draft'}
                   </button>
-                  <button onClick={() => void sendNow()} disabled={busy !== null || !active.contact_id || !draft.trim()} className="inline-flex items-center gap-2 rounded-lg bg-[#071421] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40">
-                    <Send className="h-4 w-4" /> {busy === 'send' ? 'Sending…' : 'Send now'}
-                  </button>
-                  <input type="datetime-local" value={scheduleAt} onChange={event => setScheduleAt(event.target.value)} className="ml-auto rounded-lg border border-slate-200 px-3 py-2 text-sm" />
-                  <button onClick={() => void schedule()} disabled={busy !== null || !active.contact_id || !scheduleAt} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium disabled:opacity-40">
-                    <Clock3 className="h-4 w-4" /> Schedule
-                  </button>
+                  {active.contact_id && (
+                    <button
+                      onClick={() => router.push(`/marketing/partners?tab=phone&contact=${encodeURIComponent(active.contact_id || '')}&recent_sale=1`)}
+                      className="inline-flex items-center gap-2 rounded-lg bg-[#071421] px-4 py-2.5 text-sm font-semibold text-white"
+                    >
+                      <MessageSquareText className="h-4 w-4" /> Continue in conversation
+                    </button>
+                  )}
                 </div>
                 {notice && <div className="mt-3 rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-700">{notice}</div>}
               </div>

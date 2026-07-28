@@ -121,6 +121,17 @@ interface Contact {
   playbook?: PartnershipAiSuggestion | null
 }
 
+interface RecentSaleContext {
+  id: string
+  contact_id?: string | null
+  address: string
+  city?: string | null
+  sold_verified_at?: string | null
+  suggested_message?: string | null
+  status: string
+  relationship_tier?: string | null
+}
+
 interface SheetUpdateForm {
   action: InboxQuickAction | ''
   sheetNote: string
@@ -2858,7 +2869,7 @@ function defaultScheduledReplyTime(suggestion?: PartnershipAiSuggestion | null) 
 }
 
 type InboxQuickAction = 'active_partner' | 'drop_cards' | 'meeting_requested' | 'needs_follow_up' | 'not_interested' | 'wrong_number'
-type InboxFilter = 'inbound' | 'context' | 'needs_reply' | 'responded' | 'no_response' | 'promising' | 'package_sent' | 'postcard' | 'appointment' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'all'
+type InboxFilter = 'inbound' | 'recent_sales' | 'context' | 'needs_reply' | 'responded' | 'no_response' | 'promising' | 'package_sent' | 'postcard' | 'appointment' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'all'
 type InboxStatus = 'context' | 'needs_reply' | 'promising' | 'package_sent' | 'postcard' | 'appointment' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'review'
 
 const INBOX_QUICK_ACTIONS: Array<{ key: InboxQuickAction; label: string; tone: 'green' | 'blue' | 'amber' | 'slate' | 'red' }> = [
@@ -2925,6 +2936,7 @@ function quickActionClass(tone: 'green' | 'blue' | 'amber' | 'slate' | 'red', ac
 
 const INBOX_FILTERS: Array<{ key: InboxFilter; label: string }> = [
   { key: 'inbound', label: 'Inbound' },
+  { key: 'recent_sales', label: 'Recent sales' },
   { key: 'needs_reply', label: 'Needs reply' },
   { key: 'responded', label: 'Responded' },
   { key: 'no_response', label: 'No response' },
@@ -3709,6 +3721,7 @@ function PhoneTab({
   const [batchFilter, setBatchFilter] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [replyContacts, setReplyContacts] = useState<Contact[]>([])
+  const [recentSales, setRecentSales] = useState<RecentSaleContext[]>([])
   const [replyLoading, setReplyLoading] = useState(false)
   const [touches, setTouches] = useState<Touch[]>([])
   const [touchLoading, setTouchLoading] = useState(false)
@@ -3745,6 +3758,23 @@ function PhoneTab({
   const speechRecognitionRef = useRef<BrowserSpeechRecognition | null>(null)
   const touchRequestRef = useRef(0)
   const dialer = useDialer()
+
+  useEffect(() => {
+    fetch('/api/marketing/recent-sales?limit=500', { credentials: 'include' })
+      .then(response => response.ok ? response.json() : [])
+      .then(rows => setRecentSales(Array.isArray(rows) ? rows as RecentSaleContext[] : []))
+      .catch(() => setRecentSales([]))
+  }, [])
+
+  const recentSalesByContact = useMemo(() => {
+    const grouped = new Map<string, RecentSaleContext[]>()
+    recentSales.forEach(sale => {
+      if (!sale.contact_id || sale.status === 'dismissed') return
+      grouped.set(sale.contact_id, [...(grouped.get(sale.contact_id) || []), sale])
+    })
+    grouped.forEach(rows => rows.sort((a, b) => (b.sold_verified_at || '').localeCompare(a.sold_verified_at || '')))
+    return grouped
+  }, [recentSales])
 
   useEffect(() => {
     if (!requestedAreaId) return
@@ -3866,7 +3896,7 @@ function PhoneTab({
   }
 
   const sorted = useMemo(() => [...segmentContacts]
-    .filter(c => matchesInboxFilter(c, inboxFilter))
+    .filter(c => inboxFilter === 'recent_sales' ? recentSalesByContact.has(c.id) : matchesInboxFilter(c, inboxFilter))
     .sort((a, b) => {
       const urgency = inboxUrgencyRank(a) - inboxUrgencyRank(b)
       if (urgency !== 0) return urgency
@@ -3898,14 +3928,16 @@ function PhoneTab({
         preview,
         status,
       ].filter(Boolean).join(' ').toLowerCase().includes(q)
-    }), [segmentContacts, inboxFilter, search, batchMeta])
+    }), [segmentContacts, inboxFilter, search, batchMeta, recentSalesByContact])
 
   const filterCounts = useMemo(() => {
     return INBOX_FILTERS.reduce((acc, filter) => {
-      acc[filter.key] = segmentContacts.filter(contact => matchesInboxFilter(contact, filter.key)).length
+      acc[filter.key] = filter.key === 'recent_sales'
+        ? segmentContacts.filter(contact => recentSalesByContact.has(contact.id)).length
+        : segmentContacts.filter(contact => matchesInboxFilter(contact, filter.key)).length
       return acc
     }, {} as Record<InboxFilter, number>)
-  }, [segmentContacts])
+  }, [segmentContacts, recentSalesByContact])
 
   useEffect(() => {
     // Never strand a market manager on an empty inbound queue with no composer.
@@ -4814,6 +4846,9 @@ function PhoneTab({
                       <div className={`mt-0.5 truncate text-xs ${selectedId === c.id ? 'text-slate-600' : 'text-slate-400'}`}>{c.company ?? c.industry ?? c.city ?? 'Partner contact'}</div>
                     </div>
                     <TierBadge tier={c.outreach_tier} />
+                    {recentSalesByContact.has(c.id) && (
+                      <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800">Recent sale</span>
+                    )}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     {unread && selectedId !== c.id && <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />}
@@ -4877,6 +4912,35 @@ function PhoneTab({
             </div>
             </div>
           </div>
+
+          {selected && recentSalesByContact.has(selected.id) && (
+            <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-3 py-3 sm:px-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-xs font-bold uppercase tracking-[0.14em] text-amber-800">Recent sale context</div>
+                  <div className="mt-1 text-sm font-semibold text-[#071421]">
+                    {recentSalesByContact.get(selected.id)?.[0]?.address}
+                    {(recentSalesByContact.get(selected.id)?.length || 0) > 1
+                      ? ` · ${recentSalesByContact.get(selected.id)?.length} verified sales on file`
+                      : ''}
+                  </div>
+                  <div className="mt-0.5 text-xs text-amber-900/70">Review the conversation below before deciding whether this moment deserves a message.</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const message = recentSalesByContact.get(selected.id)?.[0]?.suggested_message || ''
+                    smsDraftRef.current = message
+                    setSmsBody(message)
+                    if (smsTextareaRef.current) smsTextareaRef.current.value = message
+                  }}
+                  className="rounded-full border border-amber-300 bg-white px-4 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+                >
+                  Use relationship draft
+                </button>
+              </div>
+            </div>
+          )}
 
           {(dialer.status === 'connecting' || dialer.status === 'connected') && (
             <div className="shrink-0 border-b border-emerald-200 bg-emerald-50 px-3 py-2 sm:px-5">
