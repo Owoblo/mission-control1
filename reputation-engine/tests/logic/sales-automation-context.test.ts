@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { resolveInboundSalesContext, extractCustomerInventoryItems } from '../../lib/sales-automation-context'
+import {
+  extractCustomerInventoryItems,
+  extractDeterministicReplyFields,
+  extractStructuredInboundLeadFields,
+  resolveInboundSalesContext,
+} from '../../lib/sales-automation-context'
 import { getAutomationMissingFields } from '../../lib/sales-automation-qualification'
 import type { CRMLead } from '../../lib/types'
 
@@ -21,6 +26,57 @@ function lead(overrides: Partial<CRMLead> = {}): CRMLead {
     ...overrides,
   }
 }
+
+test('website form fields map directly into canonical CRM fields without AI', () => {
+  const fields = extractStructuredInboundLeadFields({
+    move_from: '1 Cutting Drive, Elora, Ontario N0B 1S0',
+    move_to: '1349 Queen Street, New Dundee, Ontario N0B 2E0',
+    move_date: '2026-08-01',
+    home_size: '3 bedrooms',
+    service_type: 'Local Moving',
+    message: 'Stairs,',
+  })
+
+  assert.equal(fields.originAddress, '1 Cutting Drive, Elora, Ontario N0B 1S0')
+  assert.equal(fields.destAddress, '1349 Queen Street, New Dundee, Ontario N0B 2E0')
+  assert.equal(fields.moveDate, '2026-08-01')
+  assert.equal(fields.propertyBedrooms, '3_bedrooms')
+  assert.equal(fields.moveType, 'residential')
+  assert.match(fields.originAccess || '', /Stairs reported/)
+})
+
+test('legacy pipe-delimited website summaries recover route, date, and home size', () => {
+  const fields = extractStructuredInboundLeadFields(
+    {},
+    'Service: Local Moving | From: 1 Cutting Drive, Elora, Ontario N0B 1S0 | To: 1349 Queen Street, New Dundee, Ontario N0B 2E0 | Date: 2026-08-01 | Home size: 3 bedrooms | Notes: Stairs,',
+  )
+
+  assert.equal(fields.originAddress, '1 Cutting Drive, Elora, Ontario N0B 1S0')
+  assert.equal(fields.destAddress, '1349 Queen Street, New Dundee, Ontario N0B 2E0')
+  assert.equal(fields.moveDate, '2026-08-01')
+  assert.equal(fields.propertyBedrooms, '3_bedrooms')
+})
+
+test('city-only form locations populate city fields and ignore destination placeholders', () => {
+  const fields = extractStructuredInboundLeadFields({
+    move_from: 'Chatham, Ontario',
+    move_to: 'To be confirmed',
+  })
+
+  assert.equal(fields.originCity, 'Chatham, Ontario')
+  assert.equal(fields.originAddress, undefined)
+  assert.equal(fields.destCity, undefined)
+  assert.equal(fields.destAddress, undefined)
+})
+
+test('flexible scheduling replies advance qualification without AI extraction', () => {
+  const fields = extractDeterministicReplyFields(
+    'Date is flexible, asap though, weekend is preferred. Mondays or Fridays work best.',
+  )
+
+  assert.equal(fields.moveDateFlexible, true)
+  assert.match(fields.moveDateFlexibleReason || '', /weekend is preferred/i)
+})
 
 test('inbound context resolver splits two customer addresses and overwrites stale partial pickup', () => {
   const updated = resolveInboundSalesContext(

@@ -19,6 +19,97 @@ function cleanLine(value?: string | null) {
   return String(value || '').replace(/\s+/g, ' ').trim()
 }
 
+function rawText(raw: Record<string, unknown> | undefined, ...keys: string[]) {
+  for (const key of keys) {
+    const value = raw?.[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return ''
+}
+
+function normalizeFormDate(value: string) {
+  const iso = value.match(/\b(20\d{2})-(\d{2})-(\d{2})\b/)
+  if (iso) return iso[0]
+  const parsed = Date.parse(value)
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString().slice(0, 10) : undefined
+}
+
+function normalizeFormBedrooms(value: string): CRMLead['propertyBedrooms'] {
+  const count = Number(value.match(/\d+/)?.[0])
+  if (/\bstudio\b/i.test(value)) return 'studio'
+  if (count === 1) return '1_bedroom'
+  if (count === 2) return '2_bedrooms'
+  if (count === 3) return '3_bedrooms'
+  if (count === 4) return '4_bedrooms'
+  if (count >= 5) return '5_plus'
+  return undefined
+}
+
+/**
+ * Converts website form fields into canonical CRM fields without relying on AI.
+ * The message fallbacks cover legacy integrations that only forward a formatted
+ * summary while preserving raw_data separately in inbound_leads.
+ */
+export function extractStructuredInboundLeadFields(
+  raw?: Record<string, unknown>,
+  message?: string | null,
+): Partial<CRMLead> {
+  const text = String(message || '')
+  const originAddress =
+    rawText(raw, 'move_from', 'moveFrom', 'originAddress', 'origin_address', 'pickup_address') ||
+    text.match(/(?:^|\|)\s*(?:from|pickup|origin)\s*:\s*(.*?)(?=\s*\||$)/i)?.[1]?.trim() ||
+    ''
+  const destAddress =
+    rawText(raw, 'move_to', 'moveTo', 'destAddress', 'destination_address', 'dropoff_address') ||
+    text.match(/(?:^|\|)\s*(?:to|dropoff|destination)\s*:\s*(.*?)(?=\s*\||$)/i)?.[1]?.trim() ||
+    ''
+  const moveDateText =
+    rawText(raw, 'move_date', 'moveDate', 'date') ||
+    text.match(/(?:^|\|)\s*(?:move\s*)?date\s*:\s*(.*?)(?=\s*\||$)/i)?.[1]?.trim() ||
+    ''
+  const homeSize =
+    rawText(raw, 'home_size', 'homeSize', 'propertyBedrooms', 'bedrooms') ||
+    text.match(/(?:^|\|)\s*(?:home|property)\s*size\s*:\s*(.*?)(?=\s*\||$)/i)?.[1]?.trim() ||
+    ''
+  const serviceType =
+    rawText(raw, 'service_type', 'serviceType', 'service') ||
+    text.match(/(?:^|\|)\s*service\s*:\s*(.*?)(?=\s*\||$)/i)?.[1]?.trim() ||
+    ''
+  const notes =
+    rawText(raw, 'message', 'notes', 'additional_notes') ||
+    text.match(/(?:^|\|)\s*notes?\s*:\s*(.*?)(?=\s*\||$)/i)?.[1]?.trim() ||
+    ''
+  const propertyBedrooms = normalizeFormBedrooms(homeSize)
+  const hasStairs = /\bstairs?\b/i.test(notes)
+  const usableOrigin = originAddress && !/\b(?:tbd|to be confirmed|unknown|not sure)\b/i.test(originAddress)
+  const usableDestination = destAddress && !/\b(?:tbd|to be confirmed|unknown|not sure)\b/i.test(destAddress)
+  const originIsStreetAddress = usableOrigin && /\d/.test(originAddress)
+  const destinationIsStreetAddress = usableDestination && /\d/.test(destAddress)
+
+  return {
+    ...(originIsStreetAddress ? { originAddress } : usableOrigin ? { originCity: originAddress } : {}),
+    ...(destinationIsStreetAddress ? { destAddress } : usableDestination ? { destCity: destAddress } : {}),
+    ...(moveDateText && normalizeFormDate(moveDateText) ? { moveDate: normalizeFormDate(moveDateText) } : {}),
+    ...(propertyBedrooms ? { propertyBedrooms } : {}),
+    ...(/\b(local|residential)\b/i.test(serviceType) ? { moveType: 'residential' as const } : {}),
+    ...(hasStairs ? {
+      originAccess: 'Stairs reported on website form; flight count to confirm',
+    } : {}),
+  }
+}
+
+export function extractDeterministicReplyFields(message?: string | null): Partial<CRMLead> {
+  const text = cleanLine(message)
+  if (!text) return {}
+  const flexible = /\b(date|day|timing)\b.{0,35}\b(flexible|any day|whenever)\b|\b(any day|weekend|monday|friday)\b/i.test(text)
+  return flexible
+    ? {
+        moveDateFlexible: true,
+        moveDateFlexibleReason: text.slice(0, 240),
+      }
+    : {}
+}
+
 function cleanInventoryText(value?: string | null) {
   return String(value || '')
     .replace(/\r\n?/g, '\n')

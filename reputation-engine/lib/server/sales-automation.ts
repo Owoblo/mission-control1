@@ -41,7 +41,11 @@ import {
   hasMlsDraftInventoryNeedingConfirmation,
   hasStreetNumber,
 } from '@/lib/sales-automation-qualification'
-import { resolveInboundSalesContext } from '@/lib/sales-automation-context'
+import {
+  extractDeterministicReplyFields,
+  extractStructuredInboundLeadFields,
+  resolveInboundSalesContext,
+} from '@/lib/sales-automation-context'
 import {
   buildConversationMemory,
   conversationGuidance,
@@ -73,6 +77,7 @@ import {
   saveAutomationJob,
   saveConversationThread,
 } from '@/lib/server/sales-automation-repository'
+import { wasSalesMessageDelivered } from '@/lib/sales-message-delivery'
 import { sendSalesMessage } from '@/lib/server/sales-messaging'
 import {
   getInboundLead,
@@ -1584,6 +1589,44 @@ async function ensureLeadForInbound(event: InboundAutomationEvent): Promise<CRML
     return lead
   }
 
+  const inboundRaw =
+    inbound?.raw_data && typeof inbound.raw_data === 'object'
+      ? inbound.raw_data as Record<string, unknown>
+      : {}
+  const structuredFields = extractStructuredInboundLeadFields(
+    { ...inboundRaw, ...(event.raw || {}) },
+    event.message || inbound?.message,
+  )
+  const deterministicReplyFields = extractDeterministicReplyFields(event.message || inbound?.message)
+  const structuredOrigin = structuredFields.originAddress
+  const structuredDestination = structuredFields.destAddress
+  lead = normalizeLead({
+    ...lead,
+    ...deterministicReplyFields,
+    moveDate: lead.moveDate || structuredFields.moveDate,
+    moveType: lead.moveType || structuredFields.moveType,
+    propertyBedrooms: lead.propertyBedrooms || structuredFields.propertyBedrooms,
+    originAddress:
+      structuredOrigin && (!lead.originAddress || !hasCompleteMoveAddress(lead.originAddress))
+        ? structuredOrigin
+        : lead.originAddress,
+    destAddress:
+      structuredDestination && (!lead.destAddress || !hasCompleteMoveAddress(lead.destAddress))
+        ? structuredDestination
+        : lead.destAddress,
+    originCity: lead.originCity || structuredFields.originCity,
+    destCity: lead.destCity || structuredFields.destCity,
+    originAccess: lead.originAccess || structuredFields.originAccess,
+    branch: lead.branch || detectSalesBranchFromLocation(
+      structuredOrigin,
+      structuredDestination,
+      structuredFields.originCity,
+      structuredFields.destCity,
+      lead.originCity,
+      lead.destCity,
+    ),
+  })
+
   const extractedSignals = await extractLeadSignals(lead, {
     ...event,
     message: event.message || inbound?.message,
@@ -2295,7 +2338,17 @@ async function buildCopyForJob(job: CRMAutomationJob, lead: CRMLead, channel: Co
     const quality = evaluateConversationMessage(ai.reply, previousMemory)
     if (quality.score >= 64 && !quality.bundledQuestion && !quality.repeatedQuestion) return ai
   }
-  return fallbackCopy(job.kind, lead, channel, inboundMessage)
+  const fallback = fallbackCopy(job.kind, lead, channel, inboundMessage)
+  if (fallback.reply && evaluateConversationMessage(fallback.reply, previousMemory).repeatedQuestion) {
+    return {
+      ...fallback,
+      reply: undefined,
+      shouldHandoff: true,
+      nextBestAction: 'rep_review_repeated_question',
+      capturedSummary: 'Automation withheld a repeated intake question and routed the conversation for human review.',
+    }
+  }
+  return fallback
 }
 
 async function resolveCanonicalLeadForAutomationJob(job: CRMAutomationJob, lead: CRMLead) {
@@ -3666,6 +3719,40 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
     return { status: 'completed' as const, lead: updatedLead, sent: false, reason: 'Lead opted out.' }
   }
 
+  if (copy.shouldHandoff && !copy.reply) {
+    const updatedLead = await updateLeadAfterAutomation(workingLead, copy)
+    const nowIso = new Date().toISOString()
+    const thread = existingThread
+      ? await saveConversationThread({
+          ...existingThread,
+          status: 'human_handoff',
+          automationStatus: 'handoff',
+          automationOwner: 'mixed',
+          qualificationState: updatedLead.qualificationState,
+          metadata: {
+            ...(existingThread.metadata || {}),
+            handoffReason: copy.capturedSummary,
+            responseRequired: true,
+          },
+          updatedAt: nowIso,
+        })
+      : existingThread
+    await createSalesSystemAlert({
+      title: 'Automation withheld a repeated question',
+      leadId: updatedLead.id,
+      severity: 'warning',
+      details: `${updatedLead.name || contact.to}: ${copy.capturedSummary || 'Human review required.'}`,
+      occurredAt: nowIso,
+    }).catch(() => {})
+    return {
+      status: 'completed' as const,
+      sent: false,
+      lead: updatedLead,
+      thread,
+      reason: copy.capturedSummary || 'Automation routed the conversation for human review.',
+    }
+  }
+
   const sendResult = await sendSalesMessage({
     actor: 'automation',
     channel: contact.channel,
@@ -3675,6 +3762,19 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
     leadId: workingLead.id,
     notes: `Automation ${job.kind} sent to ${contact.to}`,
   })
+
+  if (!wasSalesMessageDelivered(sendResult)) {
+    return {
+      status: 'completed' as const,
+      sent: false,
+      lead: sendResult.lead || workingLead,
+      thread: existingThread,
+      reason: sendResult.deduped
+        ? 'Automation message was suppressed by the duplicate guard.'
+        : 'Automation message was blocked before delivery.',
+      delivery: sendResult.result,
+    }
+  }
 
   const updatedLead = await updateLeadAfterAutomation(sendResult.lead || workingLead, copy)
 
