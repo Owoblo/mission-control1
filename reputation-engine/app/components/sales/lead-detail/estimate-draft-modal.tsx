@@ -111,6 +111,7 @@ function AddressAutocompleteInput({ value, placeholder, onSelect }: {
 }
 
 type RouteResult = {
+  branch?: 'windsor' | 'waterloo' | 'london' | 'ottawa'
   pricingStatus: 'ready' | 'provisional'
   category: 'local' | 'medium' | 'long-distance'
   originResolved: string
@@ -491,10 +492,13 @@ export function EstimateDraftModal({
   const [route, setRoute] = useState<RouteResult | null>(null)
   const [routeBusy, setRouteBusy] = useState(false)
   const [routeError, setRouteError] = useState<string | null>(null)
+  const branchManuallySelectedRef = useRef(false)
   const [quoteType, setQuoteType] = useState<'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'>(
     lead.quoteType || 'standard'
   )
-  const [localBranch, setLocalBranch] = useState<'windsor' | 'waterloo' | 'london' | 'ottawa'>(lead.branch || 'windsor')
+  const [localBranch, setLocalBranch] = useState<'windsor' | 'waterloo' | 'london' | 'ottawa'>(
+    detectSalesBranchFromLocation(lead.originAddress, lead.originCity) || lead.branch || 'windsor'
+  )
   const [distanceKm, setDistanceKm] = useState<number>(0)
   const [bookTodayActive, setBookTodayActive] = useState(false)
   const [tenPctActive, setTenPctActive] = useState(false)
@@ -1128,7 +1132,11 @@ export function EstimateDraftModal({
       const res = await fetch('/api/sales/route-estimate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ origin, destination: dest, branch: selectedBranch }),
+        body: JSON.stringify({
+          origin,
+          destination: dest,
+          branch: branchManuallySelectedRef.current ? selectedBranch : undefined,
+        }),
         credentials: 'include',
       })
       if (!res.ok) return
@@ -1248,7 +1256,7 @@ export function EstimateDraftModal({
   const destFull = (() => {
     return buildRouteAddress(destAddress || lead.destAddress, destCity || lead.destCity)
   })()
-  const selectedBranch = (branch || localBranch || lead.branch || 'windsor') as 'windsor' | 'waterloo' | 'london' | 'ottawa'
+  const selectedBranch = (localBranch || branch || lead.branch || 'windsor') as 'windsor' | 'waterloo' | 'london' | 'ottawa'
   const baseQuoteSubtotal = useMemo(
     () => quoteLineItems.reduce((sum, item) => {
       const amount = Number(item.amount || 0)
@@ -1302,18 +1310,26 @@ export function EstimateDraftModal({
   }, [quote?.priceOverrideApprovalAmount, quote?.priceOverrideApprovalStatus])
 
   useEffect(() => {
-    if (!open) return
-    // Auto-detect branch from origin address — don't override if already explicitly set
+    if (!open) {
+      branchManuallySelectedRef.current = false
+      return
+    }
+    // Address evidence corrects stale/default branch data. A rep's selection
+    // during the current workspace session remains authoritative.
     const detected = detectSalesBranchFromLocation(
       originAddress || lead.originAddress,
       originCity || lead.originCity
     )
-    const resolved = (branch || lead.branch || detected || 'windsor') as 'windsor' | 'waterloo' | 'london' | 'ottawa'
+    const resolved = (
+      branchManuallySelectedRef.current
+        ? (branch || localBranch || lead.branch)
+        : (detected || branch || lead.branch)
+    || 'windsor') as 'windsor' | 'waterloo' | 'london' | 'ottawa'
     setLocalBranch(resolved)
-    if (detected && detected !== (branch || lead.branch) && !branch) {
+    if (!branchManuallySelectedRef.current && detected && detected !== (branch || lead.branch)) {
       onBranchChange?.(detected as 'windsor' | 'waterloo' | 'london' | 'ottawa')
     }
-  }, [branch, lead.branch, open, originAddress, originCity, lead.originAddress, lead.originCity, onBranchChange])
+  }, [branch, lead.branch, localBranch, open, originAddress, originCity, lead.originAddress, lead.originCity, onBranchChange])
 
   useEffect(() => {
     const hasBookTodayDiscount = quoteLineItems.some(item => item.description === 'Early Booking Discount')
@@ -1396,7 +1412,7 @@ export function EstimateDraftModal({
       body: JSON.stringify({
         origin: originFull,
         destination: destFull || undefined,
-        branch: selectedBranch,
+        branch: branchManuallySelectedRef.current ? selectedBranch : undefined,
         originPlaceId,
         destPlaceId,
       }),
@@ -1406,7 +1422,13 @@ export function EstimateDraftModal({
       .then((data: RouteResult & { error?: string }) => {
         if (cancelled) return
         if (data.error) { setRouteError(data.error); setRoute(null) }
-        else setRoute(data)
+        else {
+          setRoute(data)
+          if (!branchManuallySelectedRef.current && data.branch && data.branch !== selectedBranch) {
+            setLocalBranch(data.branch)
+            onBranchChange?.(data.branch)
+          }
+        }
       })
       .catch(() => { if (!cancelled) setRouteError('Could not calculate route') })
       .finally(() => { if (!cancelled) setRouteBusy(false) })
@@ -1587,6 +1609,7 @@ export function EstimateDraftModal({
   }, [effectiveInventoryMetrics.inventory])
 
   function handleBranchChange(nextBranch: 'windsor' | 'waterloo' | 'london' | 'ottawa') {
+    branchManuallySelectedRef.current = true
     setLocalBranch(nextBranch)
     onBranchChange?.(nextBranch)
   }

@@ -129,7 +129,11 @@ export const FOLLOW_UP_STATUSES: Array<{ id: LeadFollowUpStatus; label: string }
 
 const SALES_BRANCH_AREAS: Record<SalesBranch, string[]> = {
   windsor: ['windsor', 'tecumseh', 'lasalle', 'la salle', 'amherstburg', 'essex', 'lakeshore', 'belle river', 'leamington', 'kingsville', 'chatham', 'chatham kent'],
-  waterloo: ['waterloo', 'kitchener', 'cambridge', 'guelph', 'elmira', 'st jacobs', 'st. jacobs', 'baden', 'kw', 'k w'],
+  waterloo: [
+    'waterloo', 'kitchener', 'cambridge', 'guelph', 'elmira', 'st jacobs', 'st. jacobs',
+    'baden', 'wilmot', 'new hamburg', 'wellesley', 'elora', 'fergus', 'centre wellington',
+    'conestogo', 'breslau', 'ayr', 'kw', 'k w',
+  ],
   london: ['london', 'st thomas', 'st. thomas', 'woodstock', 'strathroy', 'dorchester', 'ingersoll', 'komoka', 'lambeth'],
   ottawa: ['ottawa', 'kanata', 'orleans', 'orleans', 'orléans', 'nepean', 'barrhaven', 'gloucester', 'stittsville', 'manotick'],
 }

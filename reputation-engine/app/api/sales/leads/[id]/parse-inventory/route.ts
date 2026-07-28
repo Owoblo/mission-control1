@@ -4,6 +4,7 @@ import { readEnv } from '@/lib/server/runtime'
 import { INVENTORY_PRESETS, matchInventoryPreset } from '@/lib/item-presets'
 import { lookupItemDimensions } from '@/lib/server/item-dimensions'
 import { uid } from '@/lib/sales'
+import { extractCustomerInventoryItems } from '@/lib/sales-automation-context'
 import type { InventoryItem } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -71,8 +72,18 @@ export async function POST(
   const body = await request.json() as { text?: string }
   if (!body.text?.trim()) return NextResponse.json({ error: 'text required' }, { status: 400 })
 
-  // Step 1: AI extracts items + quantities from raw text
-  const extracted = await extractItemsFromText(body.text)
+  // Parse clear lists locally so a valid paste never depends on an external
+  // AI response. Use AI only for prose the deterministic parser cannot parse.
+  const deterministicItems = extractCustomerInventoryItems(body.text)
+    .map(item => ({
+      name: item.name || item.item || '',
+      qty: Math.max(1, Number(item.qty || 1)),
+      room: item.room || 'Unassigned',
+    }))
+    .filter(item => item.name)
+  const extracted = deterministicItems.length > 0
+    ? deterministicItems
+    : await extractItemsFromText(body.text)
   if (extracted.length === 0) {
     return NextResponse.json({ items: [], matched: 0, looked_up: 0, total: 0 })
   }

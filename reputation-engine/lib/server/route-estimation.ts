@@ -16,7 +16,6 @@ const BRANCH_YARD_COORDS: Record<string, GeocodeResult> = {
   ottawa:   { lat: 45.4215, lng: -75.6972, displayName: 'Ottawa, ON (Saturn Star base)' },
 }
 
-const BASE_YARD_ADDRESS = BRANCH_YARDS.windsor
 const ROUTE_BRANCH_ALIASES: Record<string, string[]> = {
   waterloo: [
     'waterloo',
@@ -27,6 +26,15 @@ const ROUTE_BRANCH_ALIASES: Record<string, string[]> = {
     'st jacobs',
     'st. jacobs',
     'baden',
+    'wilmot',
+    'new hamburg',
+    'wellesley',
+    'elora',
+    'fergus',
+    'centre wellington',
+    'conestogo',
+    'breslau',
+    'ayr',
     'preston',
     'hespeler',
     'doon',
@@ -101,6 +109,16 @@ export function resolveRouteBranchForEstimate(input: {
   originDisplayName?: string
   destDisplayName?: string
 }): keyof typeof BRANCH_YARDS {
+  return inferRouteBranchForEstimate(input) || 'windsor'
+}
+
+function inferRouteBranchForEstimate(input: {
+  branch?: string
+  origin?: string
+  destination?: string
+  originDisplayName?: string
+  destDisplayName?: string
+}): keyof typeof BRANCH_YARDS | undefined {
   const explicitBranch = normalizeRouteBranch(input.branch)
   if (explicitBranch) return explicitBranch
 
@@ -117,7 +135,27 @@ export function resolveRouteBranchForEstimate(input: {
     }
   }
 
-  return 'windsor'
+  return undefined
+}
+
+export function findNearestRouteBranch(origin: Pick<GeocodeResult, 'lat' | 'lng'>): keyof typeof BRANCH_YARDS {
+  let nearest: keyof typeof BRANCH_YARDS = 'windsor'
+  let nearestDistance = Number.POSITIVE_INFINITY
+
+  for (const [branch, yard] of Object.entries(BRANCH_YARD_COORDS) as Array<
+    [keyof typeof BRANCH_YARDS, GeocodeResult]
+  >) {
+    const latDistance = (origin.lat - yard.lat) * 111.32
+    const meanLatitudeRadians = ((origin.lat + yard.lat) / 2) * (Math.PI / 180)
+    const lngDistance = (origin.lng - yard.lng) * 111.32 * Math.cos(meanLatitudeRadians)
+    const straightLineDistance = Math.hypot(latDistance, lngDistance)
+    if (straightLineDistance < nearestDistance) {
+      nearest = branch
+      nearestDistance = straightLineDistance
+    }
+  }
+
+  return nearest
 }
 
 export function normalizeDrivingRoute(distanceMeters: number, durationSeconds: number) {
@@ -398,11 +436,9 @@ export async function estimateRouteContext(input: {
   originResolved?: string
   destResolved?: string
   yardResolved?: string
+  branch?: keyof typeof BRANCH_YARDS
 }> {
-  const routeBranch = resolveRouteBranchForEstimate(input)
-  const yardAddress = BRANCH_YARDS[routeBranch] || BASE_YARD_ADDRESS
-  // Use hardcoded coords for known branches — no geocoding needed, never fails
-  const yardGeoHardcoded = BRANCH_YARD_COORDS[routeBranch] || BRANCH_YARD_COORDS.windsor
+  let routeBranch = inferRouteBranchForEstimate(input)
 
   // Geocode with fallback: if full address fails, try stripping the last token
   // Also handles pre-resolved "lat,lng" format passed from place_id resolution
@@ -426,13 +462,18 @@ export async function estimateRouteContext(input: {
     input.destination?.trim() ? geocodeWithFallback(input.destination.trim()) : Promise.resolve(null),
   ])
 
-  // Yard: always use hardcoded branch coords for routing
-  // U-Haul pickup distance is handled separately in the Live Margin — keeps pricing engine clean
-  const yardGeo = yardGeoHardcoded
-
   if (!originGeo) {
     throw new Error(`Could not locate: "${input.origin}"`)
   }
+
+  // Unknown cities must never silently inherit Windsor. Once the origin is
+  // geocoded, choose the closest yard. Explicit staff selection still wins.
+  routeBranch ||= findNearestRouteBranch(originGeo)
+  const yardGeoHardcoded = BRANCH_YARD_COORDS[routeBranch] || BRANCH_YARD_COORDS.windsor
+
+  // Yard: always use hardcoded branch coords for routing
+  // U-Haul pickup distance is handled separately in the Live Margin — keeps pricing engine clean
+  const yardGeo = yardGeoHardcoded
 
   const yardToOrigin = await getDrivingRoute(yardGeo, originGeo)
   if (!yardToOrigin) {
@@ -458,6 +499,7 @@ export async function estimateRouteContext(input: {
       missingRequirements: ['Destination address or city needed for travel estimate'],
       originResolved: originGeo.displayName,
       yardResolved: yardGeo.displayName,
+      branch: routeBranch,
     }
   }
 
@@ -529,5 +571,6 @@ export async function estimateRouteContext(input: {
     originResolved: originGeo.displayName,
     destResolved: destGeo.displayName,
     yardResolved: yardGeo.displayName,
+    branch: routeBranch,
   }
 }
