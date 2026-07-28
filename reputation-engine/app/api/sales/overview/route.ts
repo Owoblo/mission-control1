@@ -50,9 +50,15 @@ export async function GET(request: Request) {
 
     return NextResponse.json(overview)
   } catch (error) {
+    if (overviewCache) {
+      return NextResponse.json(
+        { ...overviewCache.payload, stale: true, warning: 'Live data is temporarily unavailable.' },
+        { headers: { 'X-Saturn-Data': 'stale', 'Retry-After': '5' } }
+      )
+    }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to load sales overview' },
-      { status: 500 }
+      { error: 'CRM data is temporarily unavailable. Please retry.', retryable: true },
+      { status: 503, headers: { 'Retry-After': '5' } }
     )
   }
 }

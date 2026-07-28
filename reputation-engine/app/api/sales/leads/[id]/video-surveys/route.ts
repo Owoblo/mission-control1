@@ -8,6 +8,7 @@ import {
   listVideoSurveySessionsForLead,
   updateVideoSurveySession,
   appendVideoSurveyEvent,
+  isVideoSurveyDatabaseUnavailable,
 } from '@/lib/server/video-survey-repository'
 import {
   getVideoSurveyProvider,
@@ -24,19 +25,36 @@ import { compactCustomerLink } from '@/lib/customer-links'
 export const dynamic = 'force-dynamic'
 
 export async function GET(_request: Request, props: { params: Promise<{ id: string }> }) {
-  const sessionUser = await getSessionUser()
-  if (!canAccessSalesWorkspace(sessionUser)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const sessionUser = await getSessionUser()
+    if (!canAccessSalesWorkspace(sessionUser)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (!isVideoSurveyFeatureEnabled()) {
+      return NextResponse.json({ enabled: false, configured: isVideoSurveyProviderConfigured(), sessions: [] })
+    }
+    const { id } = await props.params
+    return NextResponse.json({
+      enabled: isVideoSurveyFeatureEnabled(),
+      configured: isVideoSurveyProviderConfigured(),
+      sessions: await listVideoSurveySessionsForLead(id),
+    })
+  } catch (error) {
+    if (isVideoSurveyDatabaseUnavailable(error)) {
+      console.warn('[video-survey/list] database temporarily unavailable')
+      return NextResponse.json(
+        {
+          enabled: true,
+          configured: isVideoSurveyProviderConfigured(),
+          sessions: [],
+          retryable: true,
+          error: 'Video surveys are temporarily unavailable. Please try again.',
+        },
+        { status: 503, headers: { 'Retry-After': '5' } }
+      )
+    }
+    throw error
   }
-  if (!isVideoSurveyFeatureEnabled()) {
-    return NextResponse.json({ enabled: false, configured: isVideoSurveyProviderConfigured(), sessions: [] })
-  }
-  const { id } = await props.params
-  return NextResponse.json({
-    enabled: isVideoSurveyFeatureEnabled(),
-    configured: isVideoSurveyProviderConfigured(),
-    sessions: await listVideoSurveySessionsForLead(id),
-  })
 }
 
 export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
@@ -148,6 +166,13 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
       }),
     })
   } catch (error) {
+    if (isVideoSurveyDatabaseUnavailable(error)) {
+      console.warn('[video-survey/create] database temporarily unavailable')
+      return NextResponse.json(
+        { error: 'Video surveys are temporarily unavailable. Please try again.', retryable: true },
+        { status: 503, headers: { 'Retry-After': '5' } }
+      )
+    }
     console.error('[video-survey/create]', error)
     return NextResponse.json({ error: 'Could not create the video survey.' }, { status: 500 })
   }

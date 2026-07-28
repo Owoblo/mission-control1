@@ -5,6 +5,7 @@ import { getSessionUser } from '@/lib/server/session'
 import { processNextVideoSurveyAnalysis } from '@/lib/server/video-survey-analysis-worker'
 import { isVideoSurveyFeatureEnabled } from '@/lib/server/video-survey-provider'
 import { reconcileOpenVideoSurveySessions } from '@/lib/server/video-survey-reconciliation'
+import { isVideoSurveyDatabaseUnavailable } from '@/lib/server/video-survey-repository'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
@@ -17,9 +18,20 @@ async function authorized(request: Request) {
 async function run(request: Request) {
   if (!(await authorized(request))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (!isVideoSurveyFeatureEnabled()) return NextResponse.json({ processed: false, reason: 'disabled' })
-  const reconciliation = await reconcileOpenVideoSurveySessions()
-  const analysis = await processNextVideoSurveyAnalysis()
-  return NextResponse.json({ reconciliation, analysis })
+  try {
+    const reconciliation = await reconcileOpenVideoSurveySessions()
+    const analysis = await processNextVideoSurveyAnalysis()
+    return NextResponse.json({ reconciliation, analysis })
+  } catch (error) {
+    if (isVideoSurveyDatabaseUnavailable(error)) {
+      console.warn('[video-survey/analysis] database temporarily unavailable')
+      return NextResponse.json(
+        { processed: false, retryable: true, reason: 'database_unavailable' },
+        { status: 503, headers: { 'Retry-After': '15' } }
+      )
+    }
+    throw error
+  }
 }
 
 export const GET = run

@@ -27,6 +27,44 @@ type SessionRow = {
   updated_at: string
 }
 
+const DATABASE_READ_ATTEMPTS = 3
+const DATABASE_REQUEST_TIMEOUT_MS = 12_000
+const TRANSIENT_DATABASE_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504, 520, 521, 522, 523, 524])
+
+export class VideoSurveyDatabaseUnavailableError extends Error {
+  readonly status?: number
+
+  constructor(status?: number, cause?: unknown) {
+    super('Video survey database is temporarily unavailable.', { cause })
+    this.name = 'VideoSurveyDatabaseUnavailableError'
+    this.status = status
+  }
+}
+
+export function isVideoSurveyDatabaseUnavailable(error: unknown) {
+  return error instanceof VideoSurveyDatabaseUnavailableError
+}
+
+function isSafeDatabaseRead(init: RequestInit) {
+  const method = String(init.method || 'GET').toUpperCase()
+  return method === 'GET' || method === 'HEAD'
+}
+
+function isTransientFetchError(error: unknown) {
+  if (!(error instanceof Error)) return false
+  const code = String((error.cause as { code?: unknown } | undefined)?.code || '')
+  return error.name === 'AbortError' ||
+    error.name === 'TimeoutError' ||
+    code === 'UND_ERR_HEADERS_TIMEOUT' ||
+    code === 'UND_ERR_CONNECT_TIMEOUT' ||
+    code === 'UND_ERR_SOCKET'
+}
+
+async function waitBeforeDatabaseRetry(attempt: number) {
+  const delayMs = 150 * (2 ** attempt) + Math.floor(Math.random() * 100)
+  await new Promise(resolve => setTimeout(resolve, delayMs))
+}
+
 function mapSession(row: SessionRow): VideoSurveySession {
   return {
     id: row.id,
@@ -55,24 +93,52 @@ function mapSession(row: SessionRow): VideoSurveySession {
 
 async function supabaseRequest<T>(path: string, init: RequestInit = {}) {
   const { url, headers } = requireSupabaseEnv()
-  const response = await fetch(`${url}/rest/v1/${path}`, {
-    ...init,
-    headers: {
-      ...headers,
-      'Content-Type': 'application/json',
-      ...(init.headers || {}),
-    },
-    cache: 'no-store',
-  })
-  if (!response.ok) {
-    const detail = await response.text().catch(() => '')
-    throw new Error(`Video survey database request failed: ${response.status}${detail ? ` ${detail}` : ''}`)
+  const attempts = isSafeDatabaseRead(init) ? DATABASE_READ_ATTEMPTS : 1
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const response = await fetch(`${url}/rest/v1/${path}`, {
+        ...init,
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+          ...(init.headers || {}),
+        },
+        cache: 'no-store',
+        signal: AbortSignal.timeout(DATABASE_REQUEST_TIMEOUT_MS),
+      })
+      if (!response.ok) {
+        const transient = TRANSIENT_DATABASE_STATUSES.has(response.status)
+        if (transient && attempt + 1 < attempts) {
+          await response.body?.cancel().catch(() => undefined)
+          await waitBeforeDatabaseRetry(attempt)
+          continue
+        }
+        if (transient) throw new VideoSurveyDatabaseUnavailableError(response.status)
+
+        // Never include upstream HTML or response bodies in logs/Sentry. They can be
+        // extremely large and may contain infrastructure details that are not useful
+        // to an operator.
+        throw new Error(`Video survey database request failed (${response.status}).`)
+      }
+      // PostgREST may return an empty 200/201 response for `Prefer: return=minimal`;
+      // do not assume that only 204 responses have no JSON body.
+      const body = await response.text()
+      if (!body.trim()) return undefined as T
+      return JSON.parse(body) as T
+    } catch (error) {
+      if (isVideoSurveyDatabaseUnavailable(error)) throw error
+      const transient = isTransientFetchError(error)
+      if (transient && attempt + 1 < attempts) {
+        await waitBeforeDatabaseRetry(attempt)
+        continue
+      }
+      if (transient) throw new VideoSurveyDatabaseUnavailableError(undefined, error)
+      throw error
+    }
   }
-  // PostgREST may return an empty 200/201 response for `Prefer: return=minimal`;
-  // do not assume that only 204 responses have no JSON body.
-  const body = await response.text()
-  if (!body.trim()) return undefined as T
-  return JSON.parse(body) as T
+
+  throw new VideoSurveyDatabaseUnavailableError()
 }
 
 export async function createVideoSurveySession(input: {

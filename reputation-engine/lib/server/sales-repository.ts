@@ -282,7 +282,18 @@ const LEAD_LIFECYCLE_SELECT = [
 ].join(',')
 
 function isRetryableSupabaseStatus(status: number) {
-  return status === 408 || status === 429 || status === 502 || status === 503 || status === 504
+  return status === 408 ||
+    status === 425 ||
+    status === 429 ||
+    status === 500 ||
+    status === 502 ||
+    status === 503 ||
+    status === 504 ||
+    status === 520 ||
+    status === 521 ||
+    status === 522 ||
+    status === 523 ||
+    status === 524
 }
 
 async function fetchSupabaseWithRetry(input: string, init?: RequestInit) {
@@ -291,10 +302,14 @@ async function fetchSupabaseWithRetry(input: string, init?: RequestInit) {
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      const response = await fetch(input, init)
+      const response = await fetch(input, {
+        ...init,
+        signal: AbortSignal.timeout(12_000),
+      })
       if (!isRetryableSupabaseStatus(response.status) || attempt === maxAttempts) {
         return response
       }
+      await response.body?.cancel().catch(() => undefined)
     } catch (error) {
       lastError = error
       if (attempt === maxAttempts) throw error
@@ -309,7 +324,7 @@ async function fetchSupabaseWithRetry(input: string, init?: RequestInit) {
 async function selectLeadLifecycleSnapshots() {
   try {
     const { url, headers } = requireSupabase()
-    const response = await fetch(
+    const response = await fetchSupabaseWithRetry(
       `${url}/rest/v1/crm_followup_logs?select=${encodeURIComponent(LEAD_LIFECYCLE_SELECT)}&deleted=eq.false&order=updated_at.desc`,
       { headers, cache: 'no-store' }
     )
@@ -342,7 +357,7 @@ async function selectLeadLifecycleSnapshots() {
 
 async function selectProjectedLeadRows<T>(select: string): Promise<T[]> {
   const { url, headers } = requireSupabase()
-  const response = await fetch(
+  const response = await fetchSupabaseWithRetry(
     `${url}/rest/v1/crm_leads?select=${encodeURIComponent(select)}&deleted=eq.false&order=updated_at.desc`,
     { headers, cache: 'no-store' }
   )
@@ -364,24 +379,20 @@ async function selectAll<T>(table: TableName): Promise<T[]> {
   const query = table === 'crm_leads'
     ? 'select=data&deleted=eq.false'
     : 'select=id,data,updated_at,deleted&deleted=eq.false&order=updated_at.desc'
-  let lastError = ''
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    const response = await fetch(`${url}/rest/v1/${table}?${query}`, { headers, cache: 'no-store' })
-    if (response.ok) {
-      const records = (await response.json()) as PersistedRecord<T>[]
-      return records.map(record => record.data)
-    }
-    const diagnostic = (await response.text().catch(() => '')).replace(/\s+/g, ' ').slice(0, 500)
-    lastError = `Supabase ${response.status}${diagnostic ? `: ${diagnostic}` : ''}`
-    if (response.status < 500 || attempt === 3) break
-    await new Promise(resolve => setTimeout(resolve, attempt * 200))
+  const response = await fetchSupabaseWithRetry(
+    `${url}/rest/v1/${table}?${query}`,
+    { headers, cache: 'no-store' }
+  )
+  if (response.ok) {
+    const records = (await response.json()) as PersistedRecord<T>[]
+    return records.map(record => record.data)
   }
-  throw new Error(`Failed to read ${table}. ${lastError}`)
+  throw new Error(`Failed to read ${table}. Supabase ${response.status}`)
 }
 
 async function selectAllRecords<T>(table: TableName): Promise<PersistedRecord<T>[]> {
   const { url, headers } = requireSupabase()
-  const response = await fetch(
+  const response = await fetchSupabaseWithRetry(
     `${url}/rest/v1/${table}?select=id,data,updated_at,deleted&deleted=eq.false&order=updated_at.desc`,
     { headers, cache: 'no-store' }
   )
@@ -496,8 +507,7 @@ export async function listOperationalSalesQuotes() {
   })
   const response = await fetchSupabaseWithRetry(`${url}/rest/v1/crm_quotes?${query.toString()}`, { headers, cache: 'no-store' })
   if (!response.ok) {
-    const diagnostic = (await response.text().catch(() => '')).replace(/\s+/g, ' ').slice(0, 500)
-    throw new Error(`Failed to read operational crm_quotes. Supabase ${response.status}${diagnostic ? `: ${diagnostic}` : ''}`)
+    throw new Error(`Failed to read operational crm_quotes. Supabase ${response.status}`)
   }
   const records = await response.json() as Array<{ data: CRMQuote }>
   return records.map(record => normalizeQuote(record.data))
