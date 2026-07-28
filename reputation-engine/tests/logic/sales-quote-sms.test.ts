@@ -12,7 +12,8 @@ test('manual quote SMS sends customer to estimate link without price or deposit'
     acceptUrl: 'https://go.quote2move.com/quote-accept?id=qt_123',
   })
 
-  assert.match(body, /estimate QT-2026-0706-LM is ready/)
+  assert.match(body, /estimate is ready/)
+  assert.doesNotMatch(body, /QT-2026-0706-LM/)
   assert.match(body, /Please review the full estimate here/)
   assert.doesNotMatch(body, /\$\d/)
   assert.doesNotMatch(body, /deposit/i)

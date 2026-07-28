@@ -1196,7 +1196,7 @@ function QuoteAcceptPageInner() {
               <LogoMark size={64} dark brand={brand} />
               <div>
                 <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white">{brand.name}</div>
-                <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-white/40">Estimate {quote.number} · {marketLabel}</div>
+                <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-white/40">Your moving estimate · {marketLabel}</div>
               </div>
             </div>
 
@@ -1665,7 +1665,7 @@ function QuoteAcceptPageInner() {
               {brand.email ? <>{' · '}<a href={`mailto:${brand.email}`} className="text-white/50 hover:text-white">{brand.email}</a></> : null}
               {brand.website ? <>{' · '}<a href={`https://${brand.website}`} className="text-white/50 hover:text-white">{brand.website}</a></> : null}
             </div>
-            <div className="mt-2 text-[9px] text-white/20">Quote {quote.number} · Valid until {expiryDate(quote)}</div>
+            <div className="mt-2 text-[9px] text-white/20">Valid until {expiryDate(quote)}</div>
           </div>
         </div>
 

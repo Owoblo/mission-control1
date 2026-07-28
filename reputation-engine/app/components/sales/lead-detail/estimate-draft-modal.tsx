@@ -7,7 +7,7 @@ import { formatListingContextSummary, getListingDescription, getListingOperation
 import { getQuotedTruckCount } from '@/lib/operations'
 import { fetchSalesOverview, requestPriceOverrideApproval, verifyPriceOverrideApproval } from '@/lib/sales-api'
 import { estimateLeadQuote, deriveInventoryMetrics, formatMoney, getSalesBranchLabel, isBookedLikeStage, suggestTruckCount, detectSalesBranchFromLocation } from '@/lib/sales'
-import { INVENTORY_PRESETS, createInventoryItemFromPreset } from '@/lib/item-presets'
+import { INVENTORY_PRESETS, createInventoryItemFromPreset, matchInventoryPreset } from '@/lib/item-presets'
 import { getDisassemblyServiceLabel, getIncludedDisassemblyItems } from '@/lib/move-scope'
 import { formatMovePolicyCategoryLabel, getMovePolicyFinding, summarizeMovePolicy } from '@/lib/move-policy'
 import { getTvBoxMaterialPresetForSize } from '@/lib/packing-materials'
@@ -378,6 +378,7 @@ type Props = {
   onAddInventoryItems: (items: InventoryItem[]) => void
   onApplyStarterInventory?: () => number
   onUpdateInventoryItem: (index: number, field: keyof InventoryItem, value: string) => void
+  onConfirmInventory: () => Promise<void>
   onToggleInventoryItem: (index: number) => void
   onRemoveInventoryItem: (index: number) => void
 }
@@ -480,6 +481,7 @@ export function EstimateDraftModal({
   onAddInventoryItems,
   onApplyStarterInventory,
   onUpdateInventoryItem,
+  onConfirmInventory,
   onToggleInventoryItem,
   onRemoveInventoryItem,
   onOriginAddressChange,
@@ -547,6 +549,7 @@ export function EstimateDraftModal({
   const [junkSmsDialogOpen, setJunkSmsDialogOpen] = useState(false)
   const [junkSmsDraft, setJunkSmsDraft] = useState('')
   const [junkSmsSending, setJunkSmsSending] = useState(false)
+  const [inventoryConfirmBusy, setInventoryConfirmBusy] = useState(false)
   const [activeConjointOwner, setActiveConjointOwner] = useState<'person_a' | 'person_b' | 'combined'>('person_a')
   const [conjointCustomItem, setConjointCustomItem] = useState('')
   const [valuationAmount, setValuationAmount] = useState('149')
@@ -1225,11 +1228,16 @@ export function EstimateDraftModal({
   const presetSearchResults = useMemo(() => {
     const q = presetSearch.trim().toLowerCase()
     if (!q) return []
-    return INVENTORY_PRESETS.filter(p =>
+    const direct = INVENTORY_PRESETS.filter(p =>
       p.label.toLowerCase().includes(q) ||
       getInventoryDisplayLabel(p.item).toLowerCase().includes(q) ||
-        (p.room || '').toLowerCase().includes(q)
-    ).slice(0, 12)
+      (p.room || '').toLowerCase().includes(q)
+    )
+    const aliasMatch = matchInventoryPreset(q)
+    return [
+      ...(aliasMatch ? [aliasMatch] : []),
+      ...direct.filter(item => item.id !== aliasMatch?.id),
+    ].slice(0, 12)
   }, [presetSearch])
   const starterPlan = useMemo(
     () => buildStarterInventoryPlan({ bedrooms: propertyBedrooms, propertyType }),
@@ -2376,6 +2384,9 @@ export function EstimateDraftModal({
     }
     const marginText = overrideProjectedMargin === null ? 'Projected margin: unknown' : `Projected margin: ${overrideProjectedMargin.toFixed(1)}%`
     const approvalText = overrideNeedsApproval ? `Approval code verified: ${quote?.priceOverrideApprovalCode || overrideApprovalCode.trim().toUpperCase()}` : 'Approval not required: healthy margin'
+    const calculatedContext = pricingBreakdown
+      ? `Calculated baseline before override: ${formatMoney(baseQuoteSubtotal)} pre-tax; operational estimate: ${pricingBreakdown.crewSize} movers, ${pricingBreakdown.truckCount} truck${pricingBreakdown.truckCount === 1 ? '' : 's'}, about ${pricingBreakdown.totalHours}h at ${formatMoney(pricingBreakdown.crewRatePerHour)}/hr`
+      : `Calculated baseline before override: ${formatMoney(baseQuoteSubtotal)} pre-tax`
     const separateServices = quoteLineItems.filter(item => [
       packingLaborLineDescription,
       packingMaterialsLineDescription,
@@ -2386,7 +2397,7 @@ export function EstimateDraftModal({
     ].includes(item.description))
     onSetLineItems([{
       description: 'Moving Services — Agreed Rate',
-      details: `${getOverrideReasonLabel(overrideReason)} — ${note}. ${marginText}. ${approvalText}.`,
+      details: `${getOverrideReasonLabel(overrideReason)} — ${note}. ${calculatedContext}. ${marginText}. ${approvalText}.`,
       amount,
     }, ...separateServices])
     setOverrideApplied(true)
@@ -3778,6 +3789,19 @@ export function EstimateDraftModal({
                     </div>
                   </div>
                 ) : null}
+                {includedInventory.length > 0 && !customerInventoryConfirmed ? (
+                  <button
+                    type="button"
+                    disabled={inventoryConfirmBusy}
+                    onClick={() => {
+                      setInventoryConfirmBusy(true)
+                      void onConfirmInventory().finally(() => setInventoryConfirmBusy(false))
+                    }}
+                    className="mt-3 rounded-[6px] bg-[#071421] px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
+                  >
+                    {inventoryConfirmBusy ? 'Saving confirmation…' : 'Customer confirmed this full inventory'}
+                  </button>
+                ) : null}
                 <div className="mt-4 grid gap-3 sm:grid-cols-4">
                   <div className="crm-kpi">
                     <div className="crm-label">Items</div>
@@ -4923,6 +4947,15 @@ export function EstimateDraftModal({
                     <Toggle label="Elevator reserved?" value={jobFactors.originElevatorReserved} onChange={v => setFactor('originElevatorReserved', v)} />
                   )}
                   <Toggle label="Direct truck access?" value={jobFactors.originParkingOk} onChange={v => setFactor('originParkingOk', v)} />
+                  {!originAccessConfirmed ? (
+                    <button
+                      type="button"
+                      onClick={() => onJobFactorsChange({ ...jobFactors, originFloors: 1, originHasElevator: false, originParkingOk: true })}
+                      className="w-full rounded-[6px] border border-[#071421] bg-white px-3 py-2 text-[10px] font-semibold text-[#071421]"
+                    >
+                      Confirm standard house access
+                    </button>
+                  ) : null}
                 </div>
 
                 {/* Person B Origin Access (conjoint only) */}
@@ -4949,6 +4982,15 @@ export function EstimateDraftModal({
                     <Toggle label="Elevator reserved?" value={jobFactors.destElevatorReserved} onChange={v => setFactor('destElevatorReserved', v)} />
                   )}
                   <Toggle label="Direct truck access?" value={jobFactors.destParkingOk} onChange={v => setFactor('destParkingOk', v)} />
+                  {!destinationAccessConfirmed ? (
+                    <button
+                      type="button"
+                      onClick={() => onJobFactorsChange({ ...jobFactors, destFloors: 1, destHasElevator: false, destParkingOk: true })}
+                      className="w-full rounded-[6px] border border-[#071421] bg-white px-3 py-2 text-[10px] font-semibold text-[#071421]"
+                    >
+                      Confirm standard house access
+                    </button>
+                  ) : null}
                 </div>
 
                 <div className={`space-y-2 rounded-[8px] border px-4 py-3 lg:col-span-1 ${
@@ -6835,18 +6877,30 @@ export function EstimateDraftModal({
 
                 {/* Price Override */}
                 {overrideApplied && (
-                  <div className="rounded-[8px] border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 flex items-center justify-between gap-2">
-                    <span>⚠ Override active — {formatMoney(Number(overrideInput) || 0)} + HST = {formatMoney(Math.round(Number(overrideInput) * 1.13 * 100) / 100)} total</span>
+                  <div className="rounded-[8px] border border-amber-300 bg-amber-50 px-3 py-3 text-xs text-[var(--app-ink)]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="font-semibold">Customer price override active</div>
+                        <div className="mt-1 text-[11px] text-[var(--app-muted)]">
+                          Customer price: {formatMoney(Number(overrideInput) || 0)} pre-tax · {formatMoney(Math.round(Number(overrideInput) * 1.13 * 100) / 100)} with HST
+                        </div>
+                        {pricingBreakdown ? (
+                          <div className="mt-1 text-[11px] text-[var(--app-muted)]">
+                            Current operating model: {pricingBreakdown.crewSize} movers · {pricingBreakdown.truckCount} truck{pricingBreakdown.truckCount === 1 ? '' : 's'} · about {pricingBreakdown.totalHours}h · {formatMoney(pricingBreakdown.totalHours * pricingBreakdown.crewRatePerHour)} calculated labour
+                          </div>
+                        ) : null}
+                      </div>
                     <button
                       type="button"
                       onClick={() => {
                         setOverrideApplied(false)
                         setOverrideInput('')
                       }}
-                      className="text-[10px] underline"
+                        className="shrink-0 text-[10px] underline"
                     >
                       Clear
                     </button>
+                    </div>
                   </div>
                 )}
 

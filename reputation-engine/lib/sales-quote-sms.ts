@@ -11,13 +11,13 @@ export function buildManualQuoteSmsDraft(input: {
   const acceptUrl = compactCustomerLink(input.acceptUrl)
   if (input.commercial) {
     return input.isRevision
-      ? `Hi ${firstName}, your updated commercial estimate ${input.quoteNumber} is ready.\n\nPlease review the full estimate here:\n${acceptUrl}\n\nThe pricing and payment terms are included.`
-      : `Hi ${firstName}, your commercial estimate ${input.quoteNumber} is ready.\n\nPlease review the full estimate here:\n${acceptUrl}\n\nApprove it when you’re ready.`
+      ? `Hi ${firstName}, your updated commercial estimate is ready.\n\nPlease review the full estimate here:\n${acceptUrl}\n\nThe pricing and payment terms are included.`
+      : `Hi ${firstName}, your commercial estimate is ready.\n\nPlease review the full estimate here:\n${acceptUrl}\n\nApprove it when you’re ready.`
   }
 
   return input.isRevision
-    ? `Hi ${firstName}, your updated Saturn Star estimate ${input.quoteNumber} is ready.\n\nPlease review the full estimate here:\n${acceptUrl}\n\nThe latest changes are included.`
-    : `Hi ${firstName}, your Saturn Star estimate ${input.quoteNumber} is ready.\n\nPlease review the full estimate here:\n${acceptUrl}`
+    ? `Hi ${firstName}, your updated Saturn Star estimate is ready.\n\nPlease review the full estimate here:\n${acceptUrl}\n\nThe latest changes are included.`
+    : `Hi ${firstName}, your Saturn Star estimate is ready.\n\nPlease review the full estimate here:\n${acceptUrl}`
 }
 
 export function buildAutomationQuoteSmsSummary(input: {

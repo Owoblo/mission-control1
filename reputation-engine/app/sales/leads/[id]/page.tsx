@@ -1608,9 +1608,18 @@ export default function SalesLeadDetailPage() {
     quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'
     distanceKm?: number
     routeContext?: EstimateRouteContext
-  }) {
+  }, allowCustomerFacingRevision = false) {
     if (!lead) return
-    if (isCustomerFacingQuote(quote)) return
+    const quoteIsFinalized =
+      Boolean(quote?.acceptedAt) ||
+      quote?.status === 'accepted' ||
+      quote?.status === 'invoiced' ||
+      lead.stage === 'booked'
+    const quoteHasProtectedSnapshot =
+      isCustomerFacingQuote(quote) &&
+      Number(quote?.total || 0) > 0 &&
+      (quote?.lineItems || []).some(item => Number(item.amount || 0) > 0)
+    if (quoteIsFinalized || (!allowCustomerFacingRevision && quoteHasProtectedSnapshot)) return
     // Never auto-recalculate when an override is active — it would stack old + new price
     if (quoteLineItemsRef.current.some(li =>
       li.description === 'Moving Services — Agreed Rate' ||
@@ -1659,7 +1668,7 @@ export default function SalesLeadDetailPage() {
     distanceKm?: number
     routeContext?: EstimateRouteContext
   }) => {
-    recalculateEstimate(options)
+    recalculateEstimate(options, true)
   }, [lead, inventory, inventoryMetrics.totalCubicFeet, inventoryMetrics.totalWeightLbs, moveType, jobFactors, quoteLegs])
 
   // Keep ref in sync so auto-recalculate can read latest line items without stale closure
@@ -1669,7 +1678,7 @@ export default function SalesLeadDetailPage() {
   // This keeps Draft Summary in sync with the live breakdown whenever factors are toggled
   useEffect(() => {
     if (!quoteModalOpen || !lead) return
-    if (isCustomerFacingQuote(quote)) return
+    if (isCustomerFacingQuote(quote) && Number(quote?.total || 0) > 0 && (quote?.lineItems || []).some(item => Number(item.amount || 0) > 0)) return
     // Use ref (not state) to avoid stale closure — always reads the latest line items
     if (quoteLineItemsRef.current.some(li =>
       li.description === 'Moving Services — Agreed Rate' ||
@@ -2369,10 +2378,13 @@ export default function SalesLeadDetailPage() {
         total: totals.total,
         deposit: totals.deposit,
         balance: totals.balance,
-        crewSize: preserveCustomerFacingPricing ? quote.crewSize : pricingMetaRef.current.crewSize,
-        estimatedHours: preserveCustomerFacingPricing ? quote.estimatedHours : pricingMetaRef.current.estimatedHours,
-        truckCount: preserveCustomerFacingPricing ? quote.truckCount : pricingMetaRef.current.truckCount,
-        estimatedWeightLbs: preserveCustomerFacingPricing ? quote.estimatedWeightLbs : pricingMetaRef.current.estimatedWeightLbs,
+        // Pricing and operations are separate snapshots. A customer-facing fixed
+        // price remains protected while inventory edits refresh the internal
+        // crew, truck, duration, and weight model used to judge that price.
+        crewSize: pricingMetaRef.current.crewSize || quote.crewSize,
+        estimatedHours: pricingMetaRef.current.estimatedHours || quote.estimatedHours,
+        truckCount: pricingMetaRef.current.truckCount || quote.truckCount,
+        estimatedWeightLbs: pricingMetaRef.current.estimatedWeightLbs ?? quote.estimatedWeightLbs,
         longDistanceDistanceKm: preserveCustomerFacingPricing ? quote.longDistanceDistanceKm : pricingMetaRef.current.longDistanceDistanceKm,
         longDistanceTruckCost: preserveCustomerFacingPricing ? quote.longDistanceTruckCost : pricingMetaRef.current.longDistanceTruckCost,
         longDistanceGasCost: preserveCustomerFacingPricing ? quote.longDistanceGasCost : pricingMetaRef.current.longDistanceGasCost,
@@ -3503,6 +3515,33 @@ export default function SalesLeadDetailPage() {
     })
   }
 
+  async function confirmCustomerInventory() {
+    if (!lead || !ensureLeadEditable()) return
+    const confirmedAt = new Date().toISOString()
+    const confirmedInventory = inventory.map(item =>
+      item.included === false || item.status === 'excluded'
+        ? item
+        : { ...item, status: 'confirmed' as const, confirmReason: undefined }
+    )
+    const metrics = deriveInventoryMetrics(confirmedInventory)
+    const saved = await updateSalesLead(lead.id, {
+      inventory: metrics.inventory,
+      totalItems: metrics.totalItems,
+      totalCubicFeet: metrics.totalCubicFeet,
+      totalWeightLbs: metrics.totalWeightLbs,
+      roomBreakdown: buildRoomBreakdown(metrics.inventory),
+      inventoryVerification: {
+        ...(lead.inventoryVerification || {}),
+        startedAt: lead.inventoryVerification?.startedAt || confirmedAt,
+        lastUpdatedAt: confirmedAt,
+        completedAt: confirmedAt,
+      },
+    })
+    setInventory(metrics.inventory)
+    applyLeadSnapshot(saved, { hydrateForm: false })
+    setQuoteModalDirty(true)
+  }
+
   function inventoryItemKey(item: InventoryItem) {
     return inventoryItemKeys(item)[0]
   }
@@ -3857,6 +3896,29 @@ export default function SalesLeadDetailPage() {
           </aside>
         </div>
       </section>
+
+      {lead.relationshipContactId ? (
+        <section className="border border-[var(--app-line)] bg-[var(--app-panel-strong)] px-5 py-4">
+          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+            <div>
+              <div className="crm-label">Existing Saturn Star relationship</div>
+              <p className="mt-1 text-sm font-semibold text-[var(--app-ink)]">
+                {lead.relationshipContactName || lead.name} is both a partnership contact and a moving customer.
+              </p>
+              <p className="mt-1 text-xs leading-5 text-[var(--app-muted)]">
+                {lead.relationshipContactCompany ? `${lead.relationshipContactCompany} · ` : ''}
+                This Sales record owns the move; the Partnership record keeps the professional relationship history. Messages remain one continuous conversation because both roles use the same phone number.
+              </p>
+            </div>
+            <Link
+              href={`/marketing/partners?tab=phone&contact=${encodeURIComponent(lead.relationshipContactId)}`}
+              className="crm-button shrink-0 text-center"
+            >
+              Open partnership record
+            </Link>
+          </div>
+        </section>
+      ) : null}
 
       <PromiseTracker lead={lead} onUpdated={nextLead => applyLeadSnapshot(nextLead, { hydrateForm: false })} />
 
@@ -4996,7 +5058,14 @@ export default function SalesLeadDetailPage() {
                     {consultationActive ? `Recording • ${formatSeconds(consultationSeconds)}` : consultationSaving ? 'Saving Consultation...' : 'Record Consultation'}
                   </button>
                   {lead.phone ? (
-                    <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
+                    <details className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)]">
+                      <summary className="cursor-pointer list-none px-3 py-2 text-[11px] font-semibold text-[var(--app-muted)]">
+                        Safety &amp; abuse controls
+                      </summary>
+                      <div className="border-t border-[var(--app-line)] p-3">
+                        <p className="mb-2 text-[11px] leading-4 text-[var(--app-muted)]">
+                          Only use this for abusive, fraudulent, or unwanted callers.
+                        </p>
                       <button
                         type="button"
                         onClick={() => void blockCurrentLeadNumber()}
@@ -5006,7 +5075,8 @@ export default function SalesLeadDetailPage() {
                         {blockLeadBusy ? 'Blocking number…' : 'Block this number'}
                       </button>
                       {blockLeadNotice ? <p className="mt-2 text-[11px] text-[var(--app-muted)]">{blockLeadNotice}</p> : null}
-                    </div>
+                      </div>
+                    </details>
                   ) : null}
                   <VideoSurveyPanel
                     leadId={lead.id}
@@ -6078,6 +6148,7 @@ export default function SalesLeadDetailPage() {
         })}
         onApplyStarterInventory={applyStarterInventory}
         onUpdateInventoryItem={updateInventoryItem}
+        onConfirmInventory={confirmCustomerInventory}
         onToggleInventoryItem={toggleInventoryItem}
         onRemoveInventoryItem={removeInventoryItem}
       />
@@ -6094,25 +6165,18 @@ export default function SalesLeadDetailPage() {
           setCollectCardOpen(false)
           if (depositCharged) {
             setError(null)
-            // Send receipt email after card deposit
+            // Send from the server-recorded transaction. Never build a receipt
+            // amount from client-side quote fields.
             const receiptQuote = updatedQuote || quote
             if (updatedLead.email && receiptQuote) {
-              void fetch('/api/sales/deposit-receipt', {
+              void fetch(`/api/sales/quotes/${encodeURIComponent(receiptQuote.id)}/deposit-receipt`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify({
                   toEmail: updatedLead.email,
-                  toName: updatedLead.name,
-                  quoteNumber: receiptQuote.number,
-                  moveDate: receiptQuote.moveDate,
-                  originCity: receiptQuote.originCity,
-                  destCity: receiptQuote.destCity,
-                  depositAmount: receiptQuote.depositPaidAmount || receiptQuote.deposit,
-                  balanceAmount: receiptQuote.balance,
-                  totalAmount: receiptQuote.total,
-                  paymentMethod: 'Credit Card',
-                  cardLast4,
+                  sendEmail: true,
+                  sendSms: false,
                 }),
               }).catch(() => null)
             }

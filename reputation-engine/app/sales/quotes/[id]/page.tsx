@@ -21,7 +21,6 @@ function plusDays(days: number) {
 
 function buildQuoteEmailHtml({
   customerName,
-  quoteNumber,
   moveDate,
   originCity,
   destCity,
@@ -34,7 +33,6 @@ function buildQuoteEmailHtml({
   isRevision,
 }: {
   customerName: string
-  quoteNumber: string
   moveDate?: string
   originCity?: string
   destCity?: string
@@ -67,8 +65,8 @@ function buildQuoteEmailHtml({
       <div style="padding:28px 32px;">
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:24px;">
           <div style="padding:16px;border:1px solid #eee7da;border-radius:14px;background:#fcfbf8;">
-            <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8a8478;font-weight:700;">Quote</div>
-            <div style="margin-top:8px;font-size:18px;font-weight:700;color:#171717;">${quoteNumber}</div>
+            <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8a8478;font-weight:700;">Your Move</div>
+            <div style="margin-top:8px;font-size:18px;font-weight:700;color:#171717;">Moving estimate</div>
             <div style="margin-top:4px;font-size:14px;color:#57534e;">${originCity || 'Origin TBD'} to ${destCity || 'Destination TBD'}</div>
           </div>
           <div style="padding:16px;border:1px solid #eee7da;border-radius:14px;background:#fcfbf8;">
@@ -322,7 +320,7 @@ export default function SalesQuoteDetailPage() {
   const emailDraft = useMemo(() => {
     if (!quote) return { subject: '', body: '', htmlBody: '', href: '#' }
     const firstName = (client?.name || lead?.name || 'there').split(' ')[0]
-    const subject = isRevision ? `Updated moving quote from Saturn Star (${quote.number})` : `Your moving quote from Saturn Star (${quote.number})`
+    const subject = isRevision ? 'Your updated moving estimate from Saturn Star' : 'Your moving estimate from Saturn Star'
     const total = quoteTotals.total || quote.total
     const subtotalForEmail = quoteTotals.subtotal || quote.subtotal
     const deposit = quoteTotals.deposit || quote.deposit
@@ -338,7 +336,6 @@ export default function SalesQuoteDetailPage() {
 
 ${introLine}
 
-Quote #: ${quote.number}
 Move Date: ${formatDate(quote.moveDate)}
 Total: ${formatMoney(total)}
 ${invoiceStyleTerms ? `Payment terms: ${paymentTermsLabel(paymentTerms)}` : `Deposit to book: ${formatMoney(deposit)}`}
@@ -358,7 +355,6 @@ Saturn Star Movers`
       body,
       htmlBody: buildQuoteEmailHtml({
         customerName: firstName,
-        quoteNumber: quote.number,
         moveDate: formatDate(quote.moveDate),
         originCity: quote.originCity,
         destCity: quote.destCity,
@@ -460,7 +456,16 @@ Saturn Star Movers`
 
   async function persistQuotePricingBeforeDelivery() {
     if (!quote) return null
+    if (quoteTotals.total <= 0 || quoteTotals.lineItems.length === 0 || !quoteTotals.lineItems.some(item => Number(item.amount || 0) > 0)) {
+      throw new Error('Quote delivery blocked: save a positive price and at least one priced line item before sending.')
+    }
     const result = await updateSalesQuote(quote.id, buildQuotePricingUpdates({ status: quote.status }))
+    if (
+      Math.abs(Number(result.quote.total || 0) - quoteTotals.total) > 0.01 ||
+      !result.quote.lineItems?.some(item => Number(item.amount || 0) > 0)
+    ) {
+      throw new Error('Quote delivery blocked because the saved price does not match the preview. Reopen the estimate and save it again.')
+    }
     setQuote(result.quote)
     if (result.lead) setLead(result.lead)
     setStatus(result.quote.status)

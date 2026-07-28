@@ -6,6 +6,7 @@ import { enqueueQuoteSendJob, getQuoteSendJob, listQuoteSendJobsForQuote } from 
 import { processQuoteSendJob } from '@/lib/server/quote-send-worker'
 import { normalizeQuoteSendRecipient } from '@/lib/quote-send-jobs'
 import type { QuoteSendJobChannel } from '@/lib/quote-send-jobs'
+import { hasDeliverableQuotePricing } from '@/lib/quote-pricing-safety'
 
 type EnqueuePayload = {
   quoteId?: string
@@ -45,6 +46,12 @@ export async function POST(request: Request) {
 
     const quote = await getSalesQuote(payload.quoteId)
     if (!quote) return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
+    if (!hasDeliverableQuotePricing(quote)) {
+      return NextResponse.json(
+        { error: 'Quote delivery blocked: save a positive price and at least one priced line item before sending.' },
+        { status: 409 },
+      )
+    }
 
     const leadId = payload.leadId || quote.leadId || null
     const lead = leadId ? await getSalesLead(leadId) : null

@@ -8,6 +8,7 @@ import { deleteSalesQuote, getSalesClient, getSalesLead, getSalesQuote, listFoll
 import { sendRepAlertEmail, quoteViewedEmail, quoteAcceptedEmail } from '@/lib/server/internal-notifications'
 import type { QuoteChangeEntry } from '@/lib/types'
 import { logEvent } from '@/lib/server/analytics'
+import { hasDeliverableQuotePricing, quotePricingUpdateWouldEraseSnapshot } from '@/lib/quote-pricing-safety'
 
 export async function GET(_: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
@@ -79,6 +80,22 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     const currentLead = current.leadId ? await getSalesLead(current.leadId) : null
     if (!canReviseExistingQuote(session)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    }
+
+    if (quotePricingUpdateWouldEraseSnapshot(current, updates)) {
+      return NextResponse.json(
+        { error: 'This quote already has customer-facing pricing. An empty or zero-dollar update cannot erase the saved price.' },
+        { status: 409 },
+      )
+    }
+
+    const proposedStatus = updates.status || current.status
+    const proposedQuote = { ...current, ...updates }
+    if (['sent', 'viewed'].includes(proposedStatus) && !hasDeliverableQuotePricing(proposedQuote)) {
+      return NextResponse.json(
+        { error: 'This quote cannot be marked sent or viewed without a positive saved price and at least one priced line item.' },
+        { status: 409 },
+      )
     }
 
     const pricingError = validateQuotePricingPermissions(session, current, updates)
