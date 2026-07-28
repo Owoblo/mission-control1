@@ -4535,7 +4535,7 @@ export function EstimateDraftModal({
                                   )}
                                 </span>
                                 <span className={`text-[10px] font-semibold ${(item.cubicFeet ?? 0) === 0 ? 'text-amber-600' : 'text-emerald-700'}`}>
-                                  {(item.cubicFeet ?? 0) > 0 ? `${item.cubicFeet} cu ft` : '⚠ set manually'}
+                                  {(item.cubicFeet ?? 0) > 0 ? `${item.cubicFeet} cu ft` : 'Needs size/photo'}
                                   {(item as InventoryItem & { _source?: string })._source === 'preset' ? ' ✓' : (item as InventoryItem & { _source?: string })._source === 'ai_lookup' ? ' ~AI' : ''}
                                 </span>
                               </div>
@@ -4544,7 +4544,7 @@ export function EstimateDraftModal({
                           <p className="text-[10px] text-[var(--app-muted)]">
                             {pastePreview.filter(i => (i as InventoryItem & { _source?: string })._source === 'preset').length} from library ·{' '}
                             {pastePreview.filter(i => (i as InventoryItem & { _source?: string })._source === 'ai_lookup').length} AI estimated
-                            {pastePreview.filter(i => i.cubicFeet === 0).length > 0 && ` · ${pastePreview.filter(i => i.cubicFeet === 0).length} need manual cu ft`}
+                            {pastePreview.filter(i => i.cubicFeet === 0).length > 0 && ` · ${pastePreview.filter(i => i.cubicFeet === 0).length} need verification`}
                           </p>
                           <button type="button" onClick={addAllParsed}
                             className="crm-button-dark w-full text-xs">

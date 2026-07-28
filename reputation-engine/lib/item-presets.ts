@@ -60,6 +60,9 @@ export const INVENTORY_PRESETS: InventoryPreset[] = [
   p('tv-stand-sm',        'TV Stand · Small (3ft)',    '📺', 'Living Room',  15,  40),
   p('tv-stand-med',       'TV Stand · Medium (4ft)',   '📺', 'Living Room',  20,  55),
   p('tv-stand-lg',        'TV Stand · Large (6ft+)',   '📺', 'Living Room',  35,  85),
+  p('tv-flat-sm',         'TV · Flat Screen 32–49"',   '📺', 'Living Room',   5,  25,  'TV box or screen protection required'),
+  p('tv-flat-med',        'TV · Flat Screen 50–65"',   '📺', 'Living Room',   8,  45,  'TV box or screen protection required'),
+  p('tv-flat-lg',         'TV · Flat Screen 66–86"',   '📺', 'Living Room',  12,  75,  'Large TV box and two-person handling recommended'),
   p('tv-console-large',   'Entertainment Center · Large','📺','Living Room', 60, 150,  'Often requires disassembly'),
   p('entertainment-sm',   'Entertainment Center · 4ft','📺', 'Living Room',  35,  90),
   p('entertainment-med',  'Entertainment Center · 5ft','📺', 'Living Room',  45, 120),
@@ -398,9 +401,30 @@ export function matchInventoryPreset(name?: string) {
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\b(?:la\s*z\s*boy|lazyboy|lazy boy)\s+(?:couch|chair|recliner)?\b/g, 'recliner chair')
+    .replace(/\bchest(?:s)?\s+of\s+drawers\b/g, 'dresser')
+    .replace(/\bsingle\s+bed\b/g, 'bed frame single')
+    .replace(/\bend tables\b/g, 'end table')
+    .replace(/\bside tables\b/g, 'side table')
+    .replace(/\bnight stands\b/g, 'nightstand')
+    .replace(/\bchairs\b/g, 'chair')
+    .replace(/\btelevisions?\b/g, 'tv')
     .trim()
   const normalized = normalize(name)
   if (!normalized) return null
+
+  const tvSize = normalized.match(/\b(\d{2,3})\s*(?:inch|inches|in)?\s*(?:plasma\s+)?tv\b/)
+  if (tvSize && !/\b(?:stand|box|console|center)\b/.test(normalized)) {
+    const inches = Number(tvSize[1])
+    const id = inches < 50 ? 'tv-flat-sm' : inches <= 65 ? 'tv-flat-med' : 'tv-flat-lg'
+    return INVENTORY_PRESETS.find(preset => preset.id === id) || null
+  }
+  if (/^(?:plasma |flat screen |smart )?tv$/.test(normalized)) {
+    return INVENTORY_PRESETS.find(preset => preset.id === 'tv-flat-med') || null
+  }
+  if (normalized === 'chair') {
+    return INVENTORY_PRESETS.find(preset => preset.id === 'dining-chair') || null
+  }
 
   // These are accessories, not pianos. A broad substring match on "piano"
   // previously assigned a collapsible keyboard stand 55 cu ft / 450 lb.

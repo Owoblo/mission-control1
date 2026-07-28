@@ -5,6 +5,7 @@ import { INVENTORY_PRESETS, matchInventoryPreset } from '@/lib/item-presets'
 import { lookupItemDimensions } from '@/lib/server/item-dimensions'
 import { uid } from '@/lib/sales'
 import { extractCustomerInventoryItems } from '@/lib/sales-automation-context'
+import { expandCompoundInventoryPhrases } from '@/lib/inventory-parse-normalization'
 import type { InventoryItem } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -81,9 +82,10 @@ export async function POST(
       room: item.room || 'Unassigned',
     }))
     .filter(item => item.name)
-  const extracted = deterministicItems.length > 0
+  const extractedRaw = deterministicItems.length > 0
     ? deterministicItems
     : await extractItemsFromText(body.text)
+  const extracted = expandCompoundInventoryPhrases(extractedRaw)
   if (extracted.length === 0) {
     return NextResponse.json({ items: [], matched: 0, looked_up: 0, total: 0 })
   }
@@ -129,7 +131,8 @@ export async function POST(
         }
       }
 
-      // Fallback — add with zero cu ft for manual review
+      // Truly unusual items remain unresolved. Ask for a photo or dimensions;
+      // never imply that an operator should guess a cubic-foot value.
       return {
         id: uid('inv'),
         name: parsed.name,
@@ -138,7 +141,7 @@ export async function POST(
         cubicFeet: 0,
         weightLbs: 0,
         room,
-        notes: 'Could not estimate — please set cu ft manually',
+        notes: 'Unusual item — request a photo or basic dimensions before final pricing',
         included: true,
         source: 'manual' as const,
         _source: 'manual',
