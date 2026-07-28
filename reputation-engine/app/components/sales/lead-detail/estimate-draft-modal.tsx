@@ -2050,6 +2050,13 @@ export function EstimateDraftModal({
     () => includedInventory.filter(item => item.status === 'needs_confirmation'),
     [includedInventory]
   )
+  const textParsedInventoryItems = useMemo(
+    () => unresolvedInventoryItems.filter(item =>
+      item.source === 'customer_verification' &&
+      /automatically parsed from customer sms/i.test(item.notes || '')
+    ),
+    [unresolvedInventoryItems]
+  )
   const excludedInventoryCount = useMemo(
     () => effectiveInventoryMetrics.inventory.filter(item => item.included === false || item.status === 'excluded').length,
     [effectiveInventoryMetrics.inventory]
@@ -2063,7 +2070,7 @@ export function EstimateDraftModal({
       (mediaAssets || []).some(asset => asset.kind === 'video' && !asset.removed)
     ) sources.add('Video')
     if (includedInventory.some(item => item.source === 'manual')) sources.add('Rep / phone list')
-    if (lead.surveyCompletedAt || lead.inventoryVerification?.completedAt || includedInventory.some(item => item.source === 'customer_verification')) {
+    if (lead.surveyCompletedAt || lead.inventoryVerification?.completedAt) {
       sources.add('Customer confirmed')
     }
     return Array.from(sources)
@@ -3759,6 +3766,18 @@ export function EstimateDraftModal({
                     {inventoryCopyNotice || 'Copy list'}
                   </button>
                 </div>
+                {textParsedInventoryItems.length > 0 ? (
+                  <div className="mt-3 border-l-2 border-[#C99700] bg-white px-3 py-3">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8a6800]">Inventory parsed from customer text · review required</div>
+                    <p className="mt-1 text-xs leading-5 text-[var(--app-muted)]">
+                      The system captured {textParsedInventoryItems.length} item{textParsedInventoryItems.length === 1 ? '' : 's'} automatically. Confirm the names, quantities, rooms and dimensions before relying on the estimate.
+                    </p>
+                    <div className="mt-2 text-xs font-medium text-[#071421]">
+                      {textParsedInventoryItems.slice(0, 5).map(item => `${Math.max(1, Number(item.qty || 1))}× ${getInventoryDisplayLabel(item)}`).join(' · ')}
+                      {textParsedInventoryItems.length > 5 ? ` · +${textParsedInventoryItems.length - 5} more` : ''}
+                    </div>
+                  </div>
+                ) : null}
                 <div className="mt-4 grid gap-3 sm:grid-cols-4">
                   <div className="crm-kpi">
                     <div className="crm-label">Items</div>
@@ -4209,6 +4228,15 @@ export function EstimateDraftModal({
                                     {' '}— {el.item.owner === 'person_b' ? (jobFactors.personBLabel || 'Person B') : (jobFactors.personALabel || 'Person A')}
                                   </button>
                                 )}
+                                {el.item.status === 'needs_confirmation' ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => onUpdateInventoryItem(el.index, 'status', 'confirmed')}
+                                    className="rounded-[6px] bg-[#071421] px-2.5 py-1 text-[10px] font-semibold text-white"
+                                  >
+                                    Confirm parsed item
+                                  </button>
+                                ) : null}
                                 <button
                                   type="button"
                                   disabled={policyFinding?.category === 'blocked' || policyFinding?.category === 'hazardous' || policyFinding?.category === 'manual_review'}

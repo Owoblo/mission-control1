@@ -1154,6 +1154,14 @@ export default function SalesLeadDetailPage() {
   }, [consultationActive])
 
   const inventoryMetrics = useMemo(() => deriveInventoryMetrics(inventory), [inventory])
+  const textParsedInventoryReviewItems = useMemo(
+    () => inventory.filter(item =>
+      item.status === 'needs_confirmation' &&
+      item.source === 'customer_verification' &&
+      /automatically parsed from customer sms/i.test(item.notes || '')
+    ),
+    [inventory],
+  )
   const leadDraftState = useMemo(() => ({
     stage,
     followUpDate,
@@ -3881,6 +3889,22 @@ export default function SalesLeadDetailPage() {
           ))}
         </div>
       </div>
+
+      {textParsedInventoryReviewItems.length > 0 ? (
+        <div className="border-l-2 border-[#C99700] bg-white px-5 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8a6800]">Inventory parsed from customer text · review required</div>
+              <p className="mt-1 text-sm text-[var(--app-muted)]">
+                {textParsedInventoryReviewItems.length} automatically captured item{textParsedInventoryReviewItems.length === 1 ? '' : 's'} must be checked before the inventory is treated as confirmed.
+              </p>
+            </div>
+            <button type="button" onClick={() => setQuoteModalOpen(true)} className="crm-button-dark">
+              Review parsed inventory
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {error && <div className="rounded-[8px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{typeof error === 'string' ? error : JSON.stringify(error)}</div>}
       {scanProgress && (

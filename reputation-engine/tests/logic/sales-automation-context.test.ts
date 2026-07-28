@@ -147,6 +147,38 @@ test('customer inventory separates adjacent counted items from conversational pr
   assert.ok(items.every(item => Number(item.weightLbs) > 0))
 })
 
+test('customer inventory separates SMS corrections across rooms and preserves quantities', () => {
+  const items = extractCustomerInventoryItems(
+    'In the living room, there are 2 end tables, and the lazy boy recliner couch was missed. The bedroom also has an armoire/chest of drawers.',
+  )
+  const byName = new Map(items.map(item => [item.name, item]))
+
+  assert.equal(byName.get('End Tables')?.qty, 2)
+  assert.equal(byName.get('Lazy Boy Recliner Couch')?.qty, 1)
+  assert.equal(byName.get('Armoire/Chest Of Drawers')?.qty, 1)
+  assert.equal(items.length, 3)
+  assert.ok(items.every(item => !/\bmissed\b.*\bbedroom\b/i.test(item.name || '')))
+})
+
+test('inbound inventory recomputes totals after a customer correction', () => {
+  const updated = resolveInboundSalesContext(
+    lead({
+      inventory: [{ id: 'existing', name: 'Coffee Table', qty: 1, cubicFeet: 10, weightLbs: 35, room: 'Living Room', included: true }],
+      totalCubicFeet: 999,
+      totalWeightLbs: 9999,
+    }),
+    'The bedroom has an armoire.',
+  )
+
+  assert.equal(updated.totalCubicFeet, 50)
+  assert.equal(updated.totalWeightLbs, 195)
+  assert.equal(updated.inventory?.find(item => item.name === 'Armoire')?.status, 'needs_confirmation')
+  assert.match(
+    updated.inventory?.find(item => item.name === 'Armoire')?.confirmReason || '',
+    /automatically parsed from customer text/i,
+  )
+})
+
 test('customer inventory does not interpret TV dimensions as quantities', () => {
   const items = extractCustomerInventoryItems(
     `Oak furniture - queen bed+ headboard, dresser, chest of drawers, end table.

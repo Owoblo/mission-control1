@@ -1,19 +1,20 @@
 import { deriveInventoryMetrics } from './sales'
 import { hasCanadianPostalCode, hasCompleteMoveAddress, hasStreetType } from './sales-automation-qualification'
-import { matchInventoryPreset } from './item-presets'
+import { INVENTORY_PRESETS, matchInventoryPreset } from './item-presets'
 import type { CRMLead, InventoryItem } from './types'
 
 const ADDRESS_SPLIT_RE = /\s+(?:to|->|→|drop\s*off\s*(?:is|:)?|dropoff\s*(?:is|:)?)\s+/i
 const PICKUP_RE = /\b(pick\s*up|pickup|origin|from)\b/i
 const DROPOFF_RE = /\b(drop\s*off|dropoff|destination|to)\b/i
 const ADDRESS_HINT_RE = /\b(st|street|ave|avenue|rd|road|dr|drive|blvd|boulevard|cres|crescent|ct|court|ln|lane|way|pkwy|parkway|pl|place|terrace|trail|circle|cir|sq|square|hwy|highway|unit|suite|apt|apartment|#)\b/i
-const INVENTORY_HINT_RE = /\b(sofa|couch|recliner|chair|table|tv|television|computer|desk|dishwasher|microwave|bicycle|bike|closet|bed|mattress|dresser|nightstand|bookshelf|shelf|boxes|box|wardrobe|fridge|freezer|stove|washer|dryer|cabinet|pinball)\b/i
-const INVENTORY_ITEM_RE = /\b(sofas?|couch(?:es)?|recliners?|chairs?|tables?|stands?|lamps?|tvs?|televisions?|monitors?|computers?|desks?|dishwashers?|microwaves?|bicycles?|bikes?|closets?|beds?|headboards?|mattresses?|dressers?|drawers?|nightstands?|night\s+tables?|bookshelves?|shelves?|boxes?|bins?|wardrobes?|fridges?|freezers?|stoves?|washers?|dryers?|cabinets?|pinball|pianos?|benches?|stools?|ottomans?|loveseats?|sectionals?|consoles?|appliances?|suitcases?|hampers?|baskets?|racks?|machines?)\b/i
+const INVENTORY_HINT_RE = /\b(sofa|couch|recliner|chair|table|tv|television|computer|desk|dishwasher|microwave|bicycle|bike|closet|bed|mattress|dresser|armoire|nightstand|bookshelf|shelf|boxes|box|wardrobe|fridge|freezer|stove|washer|dryer|cabinet|pinball)\b/i
+const INVENTORY_ITEM_RE = /\b(sofas?|couch(?:es)?|recliners?|chairs?|tables?|stands?|lamps?|tvs?|televisions?|monitors?|computers?|desks?|dishwashers?|microwaves?|bicycles?|bikes?|closets?|beds?|headboards?|mattresses?|dressers?|armoires?|drawers?|nightstands?|night\s+tables?|bookshelves?|shelves?|boxes?|bins?|wardrobes?|fridges?|freezers?|stoves?|washers?|dryers?|cabinets?|pinball|pianos?|benches?|stools?|ottomans?|loveseats?|sectionals?|consoles?|appliances?|suitcases?|hampers?|baskets?|racks?|machines?)\b/i
 const QUANTITY_WORDS: Record<string, number> = {
   one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
 }
 const QUANTITY_TOKEN = '(?:one|two|three|four|five|six|seven|eight|nine|ten|\\d{1,2})'
-const COUNTABLE_ITEM_TOKEN = '(?:beds?|mattresses?|sofas?|couches?|recliners?|chairs?|tables?|nightstands?|night\\s+tables?|desks?|dressers?|bookshelves?|boxes?|televisions?|tvs?|consoles?|cabinets?)'
+const COUNTABLE_ITEM_TOKEN = '(?:beds?|mattresses?|sofas?|couches?|recliners?|chairs?|(?:end|side|coffee|dining|kitchen|night|study|patio)\\s+tables?|tables?|nightstands?|desks?|dressers?|armoires?|bookshelves?|boxes?|bins?|televisions?|tvs?|consoles?|cabinets?|pinball\\s+machines?|lamps?|stools?|suitcases?|baskets?|racks?)'
+const INVENTORY_ROOM_TOKEN = '(?:(?:living|dining|family|bed)\\s+room|bedroom|kitchen|office|basement|garage|outdoor|patio)'
 
 function cleanLine(value?: string | null) {
   return String(value || '').replace(/\s+/g, ' ').trim()
@@ -163,6 +164,7 @@ function normalizeInventoryName(value: string) {
     .toLowerCase()
     .replace(/\b(recline)\b/g, 'recliner')
     .replace(/\b(tv)\b/g, 'television')
+    .replace(/\b(?:was|were)\s+(?:missed|forgotten|left off|not included)\b/g, ' ')
     .replace(/\bthere are\b|\bthere is\b|\bsome\b|\bitems?\b|\balso\b|\bthe\b|\ba\b|\ban\b/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
@@ -173,6 +175,11 @@ function normalizeInventoryName(value: string) {
 }
 
 function matchCustomerInventoryPreset(name: string) {
+  // A reclining couch is still a multi-seat sofa. Generic fuzzy matching sees
+  // "recliner" first and otherwise misclassifies it as a one-seat chair.
+  if (/\b(?:recliner|reclining|lazy\s*boy|la-z-boy)\b.*\b(?:couch|sofa)\b|\b(?:couch|sofa)\b.*\b(?:recliner|reclining)\b/i.test(name)) {
+    return INVENTORY_PRESETS.find(preset => preset.id === 'sofa-standard')
+  }
   const aliases = name
     .replace(/\bbeds?\b/i, 'bed frame queen')
     .replace(/\bcouch(?:es)?\b/i, 'sofa')
@@ -190,10 +197,15 @@ function parseInventoryCandidate(value: string) {
     .replace(/^(?:>+\s*)+/, '')
     .replace(/^[•●▪◦*-]\s*/, '')
     .replace(/^(?:i (?:have|am moving)\s+)/i, '')
+    .replace(new RegExp(`^(?:in|from)\\s+(?:the\\s+)?${INVENTORY_ROOM_TOKEN}\\s*[:—-]?\\s*`, 'i'), '')
+    .replace(new RegExp(`^(?:the\\s+)?${INVENTORY_ROOM_TOKEN}\\s+(?:also\\s+)?has\\s+`, 'i'), '')
+    .replace(/^(?:there\s+(?:are|is)|(?:it|this room)\s+(?:also\s+)?has|(?:we|i)\s+(?:also\s+)?have)\s+/i, '')
+    .replace(/^(?:also\s+)?has\s+/i, '')
     .trim()
-  const quantityMatch = trimmed.match(
-    /^(one|two|three|four|five|six|seven|eight|nine|ten)\b\s+|^(\d{1,2})\s*[x×]\s*|^(\d{1,2})\s+(?=(?:beds?|mattresses?|sofas?|couches?|recliners?|chairs?|tables?|nightstands?|desks?|dressers?|bookshelves?|boxes?|bins?|televisions?|tvs?|consoles?|cabinets?|pinball\s+machines?|lamps?|stools?|suitcases?|baskets?|racks?)\b)/i
-  )
+  const quantityMatch = trimmed.match(new RegExp(
+    `^(one|two|three|four|five|six|seven|eight|nine|ten)\\b\\s+|^(\\d{1,2})\\s*[x×]\\s*|^(\\d{1,2})\\s+(?=${COUNTABLE_ITEM_TOKEN}\\b)`,
+    'i',
+  ))
   const rawQuantity = (quantityMatch?.[1] || quantityMatch?.[2] || quantityMatch?.[3])?.toLowerCase()
   const qty = rawQuantity ? (QUANTITY_WORDS[rawQuantity] || Number(rawQuantity) || 1) : 1
   const rawName = quantityMatch ? trimmed.slice(quantityMatch[0].length) : trimmed
@@ -226,6 +238,10 @@ export function extractCustomerInventoryItems(message?: string | null): Inventor
     .replace(/\b(\d{1,3})\s*["”]\b/g, '$1 inch ')
     .replace(/\bcoffee\s*,\s*table\b/gi, 'coffee table')
     .replace(/\bstudy\s*,\s*chair\b/gi, 'study chair')
+    // Customer corrections are frequently written as prose. A sentence
+    // boundary must never allow two furniture items to become one inventory
+    // name (and therefore inherit one item's dimensions).
+    .replace(/[.!?]+(?=\s|$)/g, ',')
     .replace(/\band\b/gi, ',')
     .replace(new RegExp(`\\s+(?=${QUANTITY_TOKEN}\\s+${COUNTABLE_ITEM_TOKEN}\\b)`, 'gi'), ', ')
 
@@ -305,7 +321,15 @@ export function resolveInboundSalesContext(lead: CRMLead, inboundMessage?: strin
       else if (lead.destAddress && !hasCompleteMoveAddress(lead.destAddress)) route = { destAddress: singleAddress }
     }
   }
-  const parsedInventory = extractCustomerInventoryItems(message)
+  const parsedInventory = extractCustomerInventoryItems(message).map(item => ({
+    ...item,
+    status: 'needs_confirmation' as const,
+    confirmReason: 'Automatically parsed from customer text. A rep must confirm the item, quantity, room, and dimensions before relying on it.',
+    notes: [
+      item.notes,
+      'Automatically parsed from customer SMS; rep review required.',
+    ].filter(Boolean).join(' '),
+  }))
   const nextInventory = mergeInventory(lead.inventory, parsedInventory)
   const inventoryMetrics = parsedInventory.length ? deriveInventoryMetrics(nextInventory) : null
 
@@ -316,8 +340,8 @@ export function resolveInboundSalesContext(lead: CRMLead, inboundMessage?: strin
     ...(parsedInventory.length ? {
       inventory: inventoryMetrics!.inventory,
       totalItems: inventoryMetrics!.totalItems,
-      totalCubicFeet: lead.totalCubicFeet || inventoryMetrics!.totalCubicFeet,
-      totalWeightLbs: lead.totalWeightLbs || inventoryMetrics!.totalWeightLbs,
+      totalCubicFeet: inventoryMetrics!.totalCubicFeet,
+      totalWeightLbs: inventoryMetrics!.totalWeightLbs,
       roomBreakdown: {
         ...(lead.roomBreakdown || {}),
         'Packing scope': inventoryMetrics!.inventory
