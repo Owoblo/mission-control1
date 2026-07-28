@@ -2,8 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   buildRecentSaleEventKey,
+  buildRecentSaleListingUrl,
   buildRecentSaleMessage,
   classifyRecentSaleRelationship,
+  RECENT_SALE_MESSAGE_TEMPLATE,
   scoreRecentSaleContact,
 } from '../../lib/recent-sale-opportunity'
 
@@ -23,7 +25,7 @@ test('event keys deduplicate the same MLS and Realtor', () => {
   )
 })
 
-test('active partners receive the warmer relationship message', () => {
+test('recent-sale drafts use the approved relationship template', () => {
   const relationship = classifyRecentSaleRelationship({
     id: '1',
     name: 'Trudy Enns',
@@ -36,6 +38,29 @@ test('active partners receive the warmer relationship message', () => {
     relationship,
   })
   assert.equal(relationship, 'active_partner')
-  assert.match(message, /10 Main Street/)
-  assert.match(message, /always happy/)
+  assert.equal(
+    message,
+    `Hi Trudy, congratulations on the sale of 10 Main Street.
+
+I wanted to reach out in case your client still needs help with their move. We’d be happy to provide them with a straightforward estimate and make the process as easy as possible.
+
+No pressure at all, but would you be comfortable passing along our number to them?`
+  )
+  assert.match(RECENT_SALE_MESSAGE_TEMPLATE, /\{\{name\}\}/)
+  assert.match(RECENT_SALE_MESSAGE_TEMPLATE, /\{\{address\}\}/)
+})
+
+test('recent-sale listing links prefer the stored source and fall back to a targeted search', () => {
+  assert.equal(
+    buildRecentSaleListingUrl({
+      address: '37 Kintail Cres, London, ON',
+      city: 'London',
+      metadata: { ListingURL: 'https://www.zillow.com/homedetails/example/' },
+    }),
+    'https://www.zillow.com/homedetails/example/'
+  )
+  assert.match(
+    buildRecentSaleListingUrl({ address: '10 Main Street, Windsor', city: 'Windsor' }),
+    /google\.com\/search/
+  )
 })

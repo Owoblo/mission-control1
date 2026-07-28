@@ -73,7 +73,16 @@ export async function GET(request: Request) {
     const details = await response.text()
     return NextResponse.json({ error: 'Could not load recent sales', details }, { status: 500 })
   }
-  return NextResponse.json(await response.json())
+  const rows = await response.json() as Array<Record<string, unknown>>
+  return NextResponse.json(rows.map(row => ({
+    ...row,
+    suggested_message: buildRecentSaleMessage({
+      realtorName: String(row.realtor_name || ''),
+      address: String(row.address || ''),
+      city: typeof row.city === 'string' ? row.city : null,
+      relationship: (row.relationship_tier || 'unmatched') as ReturnType<typeof classifyRecentSaleRelationship>,
+    }),
+  })))
 }
 
 export async function POST(request: Request) {

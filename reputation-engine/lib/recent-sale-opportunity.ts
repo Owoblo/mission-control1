@@ -128,23 +128,62 @@ function streetOnly(address: string) {
   return compact(address).split(',')[0] || 'your recent sale'
 }
 
+export const RECENT_SALE_MESSAGE_TEMPLATE = `Hi {{name}}, congratulations on the sale of {{address}}.
+
+I wanted to reach out in case your client still needs help with their move. We’d be happy to provide them with a straightforward estimate and make the process as easy as possible.
+
+No pressure at all, but would you be comfortable passing along our number to them?`
+
 export function buildRecentSaleMessage(input: {
   realtorName: string
   address: string
   city?: string | null
   relationship: RecentSaleRelationship
 }) {
-  const salutation = firstName(input.realtorName)
-  const location =
-    input.relationship === 'active_partner' || input.relationship === 'warm'
-      ? `on ${streetOnly(input.address)}`
-      : `in ${compact(input.city) || 'the area'}`
+  return RECENT_SALE_MESSAGE_TEMPLATE
+    .replaceAll('{{name}}', firstName(input.realtorName))
+    .replaceAll('{{address}}', streetOnly(input.address))
+}
 
-  if (input.relationship === 'active_partner') {
-    return `Hi ${salutation}, congratulations on your recent sale ${location}. Nice work getting it across the finish line. If your clients need any help organizing the move, I’m always happy to make the transition easier for them.`
+function httpUrl(value: unknown) {
+  if (typeof value !== 'string' || !value.trim()) return ''
+  try {
+    const parsed = new URL(value.trim())
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:' ? parsed.toString() : ''
+  } catch {
+    return ''
   }
-  if (input.relationship === 'warm' || input.relationship === 'known') {
-    return `Hi ${salutation}, congratulations on your recent sale ${location}. I wanted to wish you and your clients a smooth closing. If moving support would make the transition easier, I’m happy to help.`
+}
+
+export function buildRecentSaleListingUrl(input: {
+  address: string
+  city?: string | null
+  verificationSource?: string | null
+  metadata?: Record<string, unknown> | null
+}) {
+  const metadata = input.metadata || {}
+  const directCandidates = [
+    metadata.listing_url,
+    metadata.listingUrl,
+    metadata.ListingURL,
+    metadata.source_url,
+    metadata.sourceUrl,
+    metadata.realtor_url,
+    metadata.realtorUrl,
+    metadata.zillow_url,
+    metadata.zillowUrl,
+    metadata.property_url,
+    metadata.propertyUrl,
+    metadata.url,
+    input.verificationSource,
+  ]
+  for (const candidate of directCandidates) {
+    const url = httpUrl(candidate)
+    if (url) return url
   }
-  return `Hi ${salutation}, congratulations on your recent sale ${location}. Wishing you and your clients a smooth closing. If they need moving support, Saturn Star would be happy to help make the transition easier.`
+
+  const query = [`"${streetOnly(input.address)}"`, compact(input.city), 'Ontario']
+    .filter(Boolean)
+    .join(' ')
+  return `https://www.google.com/search?q=${encodeURIComponent(`site:realtor.ca/real-estate OR site:zillow.com/homedetails ${query}`)}`
 }

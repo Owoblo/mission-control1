@@ -15,6 +15,7 @@ import {
 } from '@/lib/partnership-lines'
 import { formatCadFromCents } from '@/lib/partnership-constants'
 import { loadTwilioVoiceSdk } from '@/lib/twilio-voice-sdk'
+import { buildRecentSaleListingUrl } from '@/lib/recent-sale-opportunity'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -127,6 +128,8 @@ interface RecentSaleContext {
   address: string
   city?: string | null
   sold_verified_at?: string | null
+  verification_source?: string | null
+  metadata?: Record<string, unknown> | null
   suggested_message?: string | null
   status: string
   relationship_tier?: string | null
@@ -747,6 +750,25 @@ function useDialer() {
   const [muted, setMuted] = useState(false)
   const [activeContact, setActiveContact] = useState<{ id?: string; name: string; phone: string } | null>(null)
 
+  async function refreshDeviceToken(device: { updateToken?: (token: string) => void }) {
+    try {
+      const response = await fetch('/api/marketing/dialer/token', {
+        credentials: 'include',
+        cache: 'no-store',
+      })
+      if (!response.ok) throw new Error('Could not refresh browser voice')
+      const { token } = await response.json() as { token: string }
+      device.updateToken?.(token)
+      setError(null)
+      return true
+    } catch (errorValue) {
+      console.warn('[PartnershipDialer] token refresh failed', {
+        message: twilioErrorMessage(errorValue),
+      })
+      return false
+    }
+  }
+
   function updateStatus(next: DialStatus) {
     statusRef.current = next
     setStatus(next)
@@ -811,8 +833,14 @@ function useDialer() {
     const device = new TwilioSDK.Device(token) as {
       on?: (event: string, cb: (value: unknown) => void) => void
       register?: () => Promise<void>
+      updateToken?: (token: string) => void
     }
+    device.on?.('tokenWillExpire', () => { void refreshDeviceToken(device) })
     device.on?.('error', errorValue => {
+      if (twilioErrorCode(errorValue) === 20104) {
+        void refreshDeviceToken(device)
+        return
+      }
       handleDialerError(errorValue, 'device')
     })
     device.on?.('unregistered', () => {
@@ -3722,6 +3750,7 @@ function PhoneTab({
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [replyContacts, setReplyContacts] = useState<Contact[]>([])
   const [recentSales, setRecentSales] = useState<RecentSaleContext[]>([])
+  const [selectedRecentSaleId, setSelectedRecentSaleId] = useState<string | null>(null)
   const [replyLoading, setReplyLoading] = useState(false)
   const [touches, setTouches] = useState<Touch[]>([])
   const [touchLoading, setTouchLoading] = useState(false)
@@ -3750,6 +3779,7 @@ function PhoneTab({
   const [voiceError, setVoiceError] = useState<string | null>(null)
   const [appointmentSaving, setAppointmentSaving] = useState(false)
   const [stageSaving, setStageSaving] = useState<string | null>(null)
+  const [prioritySaving, setPrioritySaving] = useState(false)
   const threadRef = useRef<HTMLDivElement>(null)
   const threadEndRef = useRef<HTMLDivElement>(null)
   const mediaInputRef = useRef<HTMLInputElement>(null)
@@ -3775,6 +3805,11 @@ function PhoneTab({
     grouped.forEach(rows => rows.sort((a, b) => (b.sold_verified_at || '').localeCompare(a.sold_verified_at || '')))
     return grouped
   }, [recentSales])
+
+  useEffect(() => {
+    const sales = selectedId ? recentSalesByContact.get(selectedId) || [] : []
+    setSelectedRecentSaleId(current => sales.some(sale => sale.id === current) ? current : sales[0]?.id || null)
+  }, [recentSalesByContact, selectedId])
 
   useEffect(() => {
     if (!requestedAreaId) return
@@ -3898,6 +3933,8 @@ function PhoneTab({
   const sorted = useMemo(() => [...segmentContacts]
     .filter(c => inboxFilter === 'recent_sales' ? recentSalesByContact.has(c.id) : matchesInboxFilter(c, inboxFilter))
     .sort((a, b) => {
+      const priorityRank = Number(b.priority === 'high') - Number(a.priority === 'high')
+      if (priorityRank !== 0) return priorityRank
       const urgency = inboxUrgencyRank(a) - inboxUrgencyRank(b)
       if (urgency !== 0) return urgency
       if (inboxFilter === 'inbound') {
@@ -4435,6 +4472,39 @@ function PhoneTab({
     }
   }
 
+  async function togglePriority() {
+    if (!selected || prioritySaving) return
+    const previous = selected
+    const priority = selected.priority === 'high' ? 'normal' : 'high'
+    const optimistic = { ...selected, priority }
+    setPrioritySaving(true)
+    setReplyContacts(curr => curr.some(contact => contact.id === optimistic.id)
+      ? curr.map(contact => contact.id === optimistic.id ? { ...contact, ...optimistic } : contact)
+      : [optimistic, ...curr]
+    )
+    onContactUpdated(optimistic)
+    try {
+      const response = await fetch('/api/marketing/contacts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: selected.id, priority }),
+      })
+      const data = await response.json().catch(() => null) as { contact?: Contact; error?: string } | null
+      if (!response.ok || !data?.contact) throw new Error(data?.error || 'Could not update priority')
+      const updated = { ...optimistic, ...data.contact }
+      setReplyContacts(curr => curr.map(contact => contact.id === updated.id ? { ...contact, ...updated } : contact))
+      onContactUpdated(updated)
+      showToast(priority === 'high' ? 'Added to Priority' : 'Removed from Priority')
+    } catch (errorValue) {
+      setReplyContacts(curr => curr.map(contact => contact.id === previous.id ? previous : contact))
+      onContactUpdated(previous)
+      showToast(errorValue instanceof Error ? errorValue.message : 'Could not update priority')
+    } finally {
+      setPrioritySaving(false)
+    }
+  }
+
   async function handleCreateAppointmentFromSuggestion() {
     if (!selected || !appointmentSuggestion || appointmentSaving) return
     setAppointmentSaving(true)
@@ -4849,6 +4919,7 @@ function PhoneTab({
                     {recentSalesByContact.has(c.id) && (
                       <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800">Recent sale</span>
                     )}
+                    {c.priority === 'high' && <span className="shrink-0 text-sm text-[#b88a25]" title="Priority relationship">★</span>}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     {unread && selectedId !== c.id && <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />}
@@ -4889,10 +4960,24 @@ function PhoneTab({
                   <div className="truncate font-semibold text-[#071421]">{selected.name}</div>
                   <span className="truncate text-xs font-medium text-slate-500">{stageLabel(selected.normalized_stage)}</span>
                 </div>
-                <div className="mt-0.5 truncate text-sm text-slate-500">{selected.phone || selected.company || selected.city || 'Partner contact'} · {partnershipManagerLabel(selected)}</div>
+                <div className="mt-0.5 truncate text-sm text-slate-500">{selected.phone || selected.company || selected.city || 'Partner contact'} · Assigned: {partnershipManagerLabel(selected)}</div>
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={togglePriority}
+                disabled={prioritySaving}
+                className={`flex h-10 w-10 items-center justify-center rounded-lg border text-lg transition disabled:opacity-50 ${
+                  selected.priority === 'high'
+                    ? 'border-[#d5b45f] bg-[#fffaf0] text-[#9a7014]'
+                    : 'border-slate-200 bg-white text-slate-400 hover:border-slate-400 hover:text-[#071421]'
+                }`}
+                title={selected.priority === 'high' ? 'Remove from Priority' : 'Add to Priority'}
+                aria-label={selected.priority === 'high' ? 'Remove from Priority' : 'Add to Priority'}
+              >
+                {selected.priority === 'high' ? '★' : '☆'}
+              </button>
               {dialer.error && (
                 <div className="hidden max-w-[220px] rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 lg:block">
                   {dialer.error}
@@ -4914,31 +4999,65 @@ function PhoneTab({
           </div>
 
           {selected && recentSalesByContact.has(selected.id) && (
-            <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-3 py-3 sm:px-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-xs font-bold uppercase tracking-[0.14em] text-amber-800">Recent sale context</div>
-                  <div className="mt-1 text-sm font-semibold text-[#071421]">
-                    {recentSalesByContact.get(selected.id)?.[0]?.address}
-                    {(recentSalesByContact.get(selected.id)?.length || 0) > 1
-                      ? ` · ${recentSalesByContact.get(selected.id)?.length} verified sales on file`
-                      : ''}
+            <div className="shrink-0 border-b border-slate-200 bg-[#fbfaf7] px-3 py-3 sm:px-5">
+              {(() => {
+                const sales = recentSalesByContact.get(selected.id) || []
+                const activeSale = sales.find(sale => sale.id === selectedRecentSaleId) || sales[0]
+                const listingUrl = buildRecentSaleListingUrl({
+                  address: activeSale.address,
+                  city: activeSale.city,
+                  verificationSource: activeSale.verification_source,
+                  metadata: activeSale.metadata,
+                })
+                return <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#8d6116]">Recent sale context</div>
+                    {sales.length > 1 && (
+                      <div className="mt-2 flex max-w-full gap-2 overflow-x-auto pb-1">
+                        {sales.map((sale, index) => (
+                          <button
+                            key={sale.id}
+                            type="button"
+                            onClick={() => setSelectedRecentSaleId(sale.id)}
+                            className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                              sale.id === activeSale.id
+                                ? 'border-[#071421] bg-[#071421] text-white'
+                                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-400'
+                            }`}
+                          >
+                            {index + 1}. {sale.address.split(',')[0]}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <a
+                      href={listingUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1 inline-flex max-w-full items-center gap-1.5 text-sm font-semibold text-[#071421] underline decoration-slate-300 underline-offset-4 hover:decoration-[#071421]"
+                      title="Open the property listing"
+                    >
+                      <span className="truncate">{activeSale.address}</span>
+                      <span aria-hidden="true">↗</span>
+                    </a>
+                    <div className="mt-0.5 text-xs text-slate-500">
+                      {sales.length > 1 ? `${sales.length} verified sales on file · ` : ''}
+                      Review the conversation before deciding whether this moment deserves a message.
+                    </div>
                   </div>
-                  <div className="mt-0.5 text-xs text-amber-900/70">Review the conversation below before deciding whether this moment deserves a message.</div>
-                </div>
                 <button
                   type="button"
                   onClick={() => {
-                    const message = recentSalesByContact.get(selected.id)?.[0]?.suggested_message || ''
+                    const message = activeSale.suggested_message || ''
                     smsDraftRef.current = message
                     setSmsBody(message)
                     if (smsTextareaRef.current) smsTextareaRef.current.value = message
                   }}
-                  className="rounded-full border border-amber-300 bg-white px-4 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-[#071421] hover:bg-slate-50"
                 >
                   Use relationship draft
                 </button>
-              </div>
+              </div>})()}
             </div>
           )}
 

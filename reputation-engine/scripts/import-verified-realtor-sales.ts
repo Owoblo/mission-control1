@@ -164,6 +164,7 @@ async function main() {
           metadata: {
             import_file: basename(file),
             directory_individual_id: directoryMatch?.individual_id || null,
+            listing_url: sale.ListingURL || sale.detailurl || sale.url || null,
           },
         })
       }
