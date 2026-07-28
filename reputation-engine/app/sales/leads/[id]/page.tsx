@@ -250,6 +250,8 @@ export default function SalesLeadDetailPage() {
   const [consultationSummary, setConsultationSummary] = useState('')
   const [consultationSeconds, setConsultationSeconds] = useState(0)
   const [deleteBusy, setDeleteBusy] = useState(false)
+  const [blockLeadBusy, setBlockLeadBusy] = useState(false)
+  const [blockLeadNotice, setBlockLeadNotice] = useState<string | null>(null)
   const [leadCommandBarCompact, setLeadCommandBarCompact] = useState(false)
   const [guidancePanelCollapsed, setGuidancePanelCollapsed] = useState(() => {
     try {
@@ -1006,6 +1008,7 @@ export default function SalesLeadDetailPage() {
         actor: item.source === 'consultation' ? 'rep' : item.type === 'call' ? 'rep' : 'system',
         recordingUrl: item.recordingUrl,
         recordingSid: item.recordingSid,
+        recordingStatus: item.recordingStatus,
         recordingUnavailable: item.recordingUnavailable,
         recordingUnavailableReason: item.recordingUnavailableReason,
         transcript: item.transcript,
@@ -3032,6 +3035,33 @@ export default function SalesLeadDetailPage() {
     window.dispatchEvent(new CustomEvent('crm:open-dialer', { detail: { phone: lead.phone, leadId: lead.id, name: lead.name } }))
   }
 
+  async function blockCurrentLeadNumber() {
+    if (!lead?.phone || blockLeadBusy) return
+    if (!window.confirm(`Block ${lead.name || lead.phone} from calling this business line?`)) return
+    setBlockLeadBusy(true)
+    setBlockLeadNotice(null)
+    try {
+      const response = await fetch('/api/sales/dialer/blocked-callers', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: lead.phone,
+          displayName: lead.name || undefined,
+          tag: 'Blocked',
+          note: `Blocked from lead detail ${lead.id}.`,
+        }),
+      })
+      const payload = await response.json() as { error?: string }
+      if (!response.ok) throw new Error(payload.error || 'Could not block number')
+      setBlockLeadNotice('This number is blocked from inbound calls.')
+    } catch (error) {
+      setBlockLeadNotice(error instanceof Error ? error.message : 'Could not block number')
+    } finally {
+      setBlockLeadBusy(false)
+    }
+  }
+
   async function fetchLeadEmails(leadId: string) {
     if (emailFetchInFlightRef.current) return
     emailFetchInFlightRef.current = true
@@ -4888,30 +4918,30 @@ export default function SalesLeadDetailPage() {
                 </summary>
                 <div className="space-y-2 border-t border-[var(--app-line)] p-3">
                   {!isClosedLeadStage(lead.stage) && (
-                    <details className="rounded-[8px] border border-orange-200 bg-orange-50">
-                      <summary className="cursor-pointer list-none px-3 py-2 text-xs font-semibold text-orange-900">
+                    <details className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)]">
+                      <summary className="cursor-pointer list-none px-3 py-2 text-xs font-semibold text-[var(--app-ink)]">
                         <span className="flex items-center justify-between">
                           {lead.tentativeReservationStatus === 'active' ? 'Tentative reservation active' : 'Create tentative reservation'}
                           <span>⌄</span>
                         </span>
                       </summary>
-                      <div className="space-y-2 border-t border-orange-200 p-3">
+                      <div className="space-y-2 border-t border-[var(--app-line)] p-3">
                         <label className="block">
-                          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-orange-800">Decision / check-in date</span>
+                          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Decision / check-in date</span>
                           <input type="date" min={new Date().toISOString().slice(0, 10)} value={tentativeDecisionDate} onChange={event => setTentativeDecisionDate(event.target.value)} className="crm-input bg-white text-xs" />
                         </label>
                         <label className="block">
-                          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-orange-800">Why tentative?</span>
+                          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Why tentative?</span>
                           <select value={tentativeReason} onChange={event => setTentativeReason(event.target.value as typeof tentativeReason)} className="crm-input bg-white text-xs">
                             {Object.entries(TENTATIVE_REASON_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                           </select>
                         </label>
                         <textarea value={tentativeNotes} onChange={event => setTentativeNotes(event.target.value)} rows={2} className="crm-input resize-none bg-white text-xs" placeholder="What needs to be true before they can confirm?" />
-                        <label className="flex items-start gap-2 text-[11px] leading-4 text-orange-900">
+                        <label className="flex items-start gap-2 text-[11px] leading-4 text-[var(--app-muted)]">
                           <input type="checkbox" checked={tentativeSendSms} onChange={event => setTentativeSendSms(event.target.checked)} disabled={!lead.phone} className="mt-0.5" />
                           Send a clear courtesy-hold SMS. It explains that this is not a confirmed booking or deposit.
                         </label>
-                        <button onClick={() => void createTentativeReservation()} disabled={tentativeSaving || !tentativeDecisionDate || !canEditCurrentLead} className="crm-button w-full justify-center border-orange-300 bg-white text-orange-900 disabled:opacity-60">
+                        <button onClick={() => void createTentativeReservation()} disabled={tentativeSaving || !tentativeDecisionDate || !canEditCurrentLead} className="crm-button w-full justify-center disabled:opacity-60">
                           {tentativeSaving ? 'Saving...' : lead.tentativeReservationStatus === 'active' ? 'Update tentative reservation' : 'Hold tentatively + schedule follow-up'}
                         </button>
                       </div>
@@ -4924,6 +4954,19 @@ export default function SalesLeadDetailPage() {
                   >
                     {consultationActive ? `Recording • ${formatSeconds(consultationSeconds)}` : consultationSaving ? 'Saving Consultation...' : 'Record Consultation'}
                   </button>
+                  {lead.phone ? (
+                    <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
+                      <button
+                        type="button"
+                        onClick={() => void blockCurrentLeadNumber()}
+                        disabled={blockLeadBusy || !canEditCurrentLead}
+                        className="text-xs font-semibold text-[var(--app-ink)] underline decoration-[var(--app-line)] underline-offset-4 disabled:opacity-50"
+                      >
+                        {blockLeadBusy ? 'Blocking number…' : 'Block this number'}
+                      </button>
+                      {blockLeadNotice ? <p className="mt-2 text-[11px] text-[var(--app-muted)]">{blockLeadNotice}</p> : null}
+                    </div>
+                  ) : null}
                   <VideoSurveyPanel
                     leadId={lead.id}
                     leadName={lead.name}

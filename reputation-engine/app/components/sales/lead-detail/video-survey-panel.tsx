@@ -130,7 +130,7 @@ export function VideoSurveyPanel({ leadId, leadName, phone, email, canEdit }: Pr
   }
 
   return (
-    <div className="rounded-xl border border-[var(--app-line)] bg-[rgba(11,112,85,0.04)] p-3">
+    <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">Video Estimate</div>
@@ -163,19 +163,19 @@ export function VideoSurveyPanel({ leadId, leadName, phone, email, canEdit }: Pr
           )}
 
           {!created && (
-            <button onClick={() => void createSurvey()} disabled={!canEdit || creating} className="crm-button mt-3 w-full justify-center border-[rgba(11,112,85,0.25)] bg-white text-[#0b7055] disabled:opacity-50">
+            <button onClick={() => void createSurvey()} disabled={!canEdit || creating} className="crm-button mt-3 w-full justify-center bg-white text-[var(--app-ink)] disabled:opacity-50">
               {creating ? 'Preparing private room…' : `Create Video Survey${leadName ? ` for ${leadName.split(' ')[0]}` : ''}`}
             </button>
           )}
 
           {created && (
-            <div className="mt-3 space-y-3 rounded-xl border border-emerald-200 bg-white p-3">
+            <div className="mt-3 space-y-3 rounded-xl border border-[var(--app-line)] bg-white p-3">
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700">Private room ready</div>
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--app-ink)]">Private room ready</div>
                   <div className="mt-0.5 text-[10px] text-[var(--app-muted)]">Review the invitation before sending.</div>
                 </div>
-                <span aria-hidden className="text-emerald-600">✓</span>
+                <span aria-hidden className="text-[var(--app-muted)]">✓</span>
               </div>
               <textarea aria-label="Video survey invitation" value={message} onChange={event => setMessage(event.target.value)} rows={6} className="crm-input w-full resize-y text-xs" />
               <div className="break-all rounded-lg bg-[var(--app-bg)] p-2 text-[10px] leading-4 text-[var(--app-muted)]">{created.url}</div>

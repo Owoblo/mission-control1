@@ -10,6 +10,7 @@ export type TimelineItem = {
   quoteId?: string
   recordingUrl?: string
   recordingSid?: string
+  recordingStatus?: 'received' | 'uploaded' | 'verified' | 'transcribed' | 'failed' | 'twilio_deleted' | 'unavailable'
   recordingUnavailable?: boolean
   recordingUnavailableReason?: string
   transcript?: string

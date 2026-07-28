@@ -185,7 +185,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
   const hasRecording = !!(item.recordingUrl || item.recordingSid)
   const recordingUnavailable = !!item.recordingUnavailable
   const failedOrMissedCall = isCallKind && !item.duration && isFailedOrMissedCallText(item.text)
-  const needsTranscription = isCallKind && hasRecording && !item.aiSummary
+  const needsTranscription = isCallKind && hasRecording && !item.transcript
   const [fetchingRec, setFetchingRec] = useState(false)
   const [fetchRecError, setFetchRecError] = useState<string | null>(null)
 
@@ -297,23 +297,19 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
   const hasDetails = !!(isCallKind || item.recordingUrl || item.transcript || item.aiSummary || (quote && item.id === `quote-created-${quote.id}`))
 
   if (isMessage) {
-    const sentimentColor = item.aiSummary?.sentiment === 'positive' ? 'text-emerald-600' : item.aiSummary?.sentiment === 'negative' ? 'text-rose-500' : 'text-amber-500'
+    const sentimentColor = 'text-[var(--app-muted)]'
     return (
       <div className={`flex flex-col gap-1 ${isOutbound ? 'items-end' : 'items-start'}`}>
         <div className={`flex items-end gap-2 ${isOutbound ? 'flex-row-reverse' : 'flex-row'}`}>
           <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[9px] font-bold uppercase tracking-wide ${
-            isOutbound ? 'bg-[#0b84ff] text-white' : 'bg-[#d1d1d6] text-[#3a3a3c]'
+            isOutbound ? 'bg-[var(--app-ink)] text-white' : 'bg-[#d1d1d6] text-[#3a3a3c]'
           }`}>
             {isOutbound ? 'SS' : item.actor?.slice(0, 1).toUpperCase() || 'C'}
           </div>
           <div className={`relative max-w-[75%] rounded-[18px] px-4 py-2.5 text-sm leading-[1.5] shadow-sm ${
             isOutbound
-              ? item.kind === 'sms'
-                ? 'rounded-br-[4px] bg-[#0b84ff] text-white'
-                : 'rounded-br-[4px] bg-violet-600 text-white'
-              : item.kind === 'sms'
-                ? 'rounded-bl-[4px] bg-[#e9e9eb] text-[#1c1c1e]'
-                : 'rounded-bl-[4px] bg-[#f0edf8] text-[#2c1f4a]'
+              ? 'rounded-br-[4px] bg-[var(--app-ink)] text-white'
+              : 'rounded-bl-[4px] bg-[#e9e9eb] text-[#1c1c1e]'
           }`}>
             {!isOutbound && item.emailSubject && (
               <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] opacity-50">Re: {item.emailSubject}</div>
@@ -326,7 +322,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
             {item.kind === 'sms' ? 'SMS' : 'Email'}
           </span>
           <span>{formatDateTime(item.date)}</span>
-          {isOutbound ? <span className="text-[#0b84ff]">Sent ✓</span> : <span className="text-stone-400">Received</span>}
+          {isOutbound ? <span className="text-[var(--app-muted)]">Sent ✓</span> : <span className="text-stone-400">Received</span>}
           {item.aiSummary && (
             <button
               type="button"
@@ -341,9 +337,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
           <div className={`w-full max-w-[90%] rounded-[10px] border border-[var(--app-line)] bg-white p-4 ${isOutbound ? 'self-end' : 'self-start'}`}>
             <div className="mb-2 flex items-center gap-2">
               <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Message Intelligence</span>
-              {item.aiSummary.moveReadiness === 'hot' && <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700">🔥 Hot</span>}
-              {item.aiSummary.moveReadiness === 'warm' && <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">⚡ Warm</span>}
-              {item.aiSummary.moveReadiness === 'cold' && <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-500">❄ Cold</span>}
+              {item.aiSummary.moveReadiness && <span className="rounded-full border border-[var(--app-line)] bg-[var(--app-bg)] px-2 py-0.5 text-[10px] font-semibold capitalize text-[var(--app-muted)]">{item.aiSummary.moveReadiness}</span>}
               {item.aiSummary.sentiment && (
                 <span className={`text-[10px] font-semibold capitalize ${sentimentColor}`}>● {item.aiSummary.sentiment}</span>
               )}
@@ -353,7 +347,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
               <p className="mt-1 text-xs text-[var(--app-muted)]"><span className="font-semibold">Intent:</span> {item.aiSummary.intent}</p>
             )}
             {item.aiSummary.leadConcern && (
-              <p className="mt-1 text-xs text-rose-600"><span className="font-semibold">Concern:</span> {item.aiSummary.leadConcern}</p>
+              <p className="mt-1 text-xs text-[var(--app-warm)]"><span className="font-semibold">Concern:</span> {item.aiSummary.leadConcern}</p>
             )}
             {item.aiSummary.nextAction && (
               <p className="mt-2 rounded-[6px] bg-[var(--app-bg)] px-3 py-2 text-xs font-medium text-[var(--app-ink)]">→ {item.aiSummary.nextAction}</p>
@@ -574,8 +568,28 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
               transcript={item.transcript}
               summary={item.aiSummary?.summary}
               moveReadiness={item.aiSummary?.moveReadiness}
-              processingMessage={needsTranscription ? 'Transcribing recording... check back in a moment.' : undefined}
+              processingMessage={needsTranscription
+                ? item.recordingStatus === 'failed'
+                  ? 'The automatic transcript failed. The recording is safe and can be retried.'
+                  : 'Recording saved. Transcript is not ready yet.'
+                : undefined}
             />
+          ) : null}
+          {expanded && needsTranscription ? (
+            <div className="mt-3 flex flex-wrap items-center gap-3 rounded-[8px] border border-[var(--app-line)] bg-white px-4 py-3">
+              <button
+                type="button"
+                onClick={() => void handleRetranscribe()}
+                disabled={transcribing || !leadId}
+                className="rounded-[6px] bg-[var(--app-ink)] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+              >
+                {transcribing ? 'Transcribing…' : 'Retry transcript'}
+              </button>
+              <span className="text-xs text-[var(--app-muted)]">
+                The audio remains available while transcription runs.
+              </span>
+              {transcribeError ? <span className="w-full text-xs text-[var(--app-warm)]">{transcribeError}</span> : null}
+            </div>
           ) : null}
 
           {expanded && quote && item.id === `quote-created-${quote.id}` ? (
