@@ -12,7 +12,7 @@ import {
   type TwilioCallLeg,
 } from '@/lib/twilio-call-control'
 
-type ConferenceAction = 'start' | 'complete' | 'return' | 'end' | 'hold' | 'resume'
+type ConferenceAction = 'start' | 'join' | 'complete' | 'return' | 'end' | 'hold' | 'resume'
 
 type StartConferenceBody = {
   action?: 'start'
@@ -184,6 +184,27 @@ async function handleStartConference(body: StartConferenceBody) {
     }),
   })
 
+  // The customer hears hold music while the original rep privately briefs the manager.
+  // A short retry handles the conference taking a moment to become queryable.
+  let held = false
+  for (let attempt = 0; attempt < 3 && !held; attempt += 1) {
+    try {
+      await setParticipantHold({
+        accountSid,
+        authToken,
+        conferenceName,
+        customerCallSid: legs.customerCallSid,
+        hold: true,
+      })
+      held = true
+    } catch {
+      if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 250 * (attempt + 1)))
+    }
+  }
+  if (!held) throw new Error('Transfer bridge started, but the customer could not be placed on hold')
+
+  // Only ring the teammate after hold is confirmed. This prevents the customer
+  // from hearing the consultation invitation or the beginning of the private brief.
   let targetCallSid: string | null = null
   if (body.addTarget) {
     const normalizedTarget = normalizeInternalTransferTarget(body.addTarget)
@@ -204,25 +225,6 @@ async function handleStartConference(body: StartConferenceBody) {
     })
     targetCallSid = typeof targetCall.sid === 'string' ? targetCall.sid : null
   }
-
-  // The customer hears hold music while the original rep privately briefs the manager.
-  // A short retry handles the conference taking a moment to become queryable.
-  let held = false
-  for (let attempt = 0; attempt < 3 && !held; attempt += 1) {
-    try {
-      await setParticipantHold({
-        accountSid,
-        authToken,
-        conferenceName,
-        customerCallSid: legs.customerCallSid,
-        hold: true,
-      })
-      held = true
-    } catch {
-      if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 250 * (attempt + 1)))
-    }
-  }
-  if (!held) throw new Error('Transfer bridge started, but the customer could not be placed on hold')
 
   return Response.json({
     ok: true,
@@ -252,6 +254,20 @@ async function handleUpdateConference(body: UpdateConferenceBody) {
       conferenceName: body.conferenceName,
       customerCallSid: body.customerCallSid,
       hold: action === 'hold',
+    })
+    return Response.json({ ok: true, action })
+  }
+
+  if (action === 'join') {
+    if (!body.customerCallSid) {
+      return Response.json({ error: 'customerCallSid is required' }, { status: 400 })
+    }
+    await setParticipantHold({
+      accountSid,
+      authToken,
+      conferenceName: body.conferenceName,
+      customerCallSid: body.customerCallSid,
+      hold: false,
     })
     return Response.json({ ok: true, action })
   }
@@ -293,7 +309,7 @@ async function handleUpdateConference(body: UpdateConferenceBody) {
 }
 
 export async function GET() {
-  return Response.json({ ok: true, route: 'dialer-conference', actions: ['start', 'hold', 'resume', 'complete', 'return', 'end'] })
+  return Response.json({ ok: true, route: 'dialer-conference', actions: ['start', 'hold', 'resume', 'join', 'complete', 'return', 'end'] })
 }
 
 export async function POST(request: Request) {

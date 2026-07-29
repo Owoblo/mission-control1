@@ -35,6 +35,7 @@ export type DialerEventName =
   | 'queue_call_requeued'
   | 'warm_transfer_started'
   | 'warm_transfer_bridge_ready'
+  | 'warm_transfer_joined'
   | 'warm_transfer_completed'
   | 'warm_transfer_returned'
   | 'warm_transfer_cancelled'

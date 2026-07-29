@@ -114,7 +114,7 @@ interface WarmTransferSession {
   targetLabel: string
   targetCallSid?: string | null
   repCallSid?: string | null
-  mode?: 'hold' | 'consult'
+  mode?: 'hold' | 'consult' | 'conference'
   customerOnHold?: boolean
   startedAt: string
 }
@@ -287,9 +287,6 @@ export function FloatingDialer() {
   const [muted, setMuted] = useState(false)
   const [customerOnHold, setCustomerOnHold] = useState(false)
   const [callNotes, setCallNotes] = useState('')
-  const [showTransfer, setShowTransfer] = useState(false)
-  const [transferTarget, setTransferTarget] = useState('')
-  const [transferring, setTransferring] = useState(false)
   const [queueSize, setQueueSize] = useState(0)
   const [acceptingQueue, setAcceptingQueue] = useState(false)
   const [showConference, setShowConference] = useState(false)
@@ -412,7 +409,7 @@ export function FloatingDialer() {
   }
 
   useEffect(() => {
-    if (status !== 'active' || (!showTransfer && !showConference)) {
+    if (status !== 'active' || !showConference) {
       return
     }
 
@@ -437,7 +434,7 @@ export function FloatingDialer() {
     return () => {
       cancelled = true
     }
-  }, [showConference, showTransfer, status])
+  }, [showConference, status])
 
   async function postDialerTelemetry(
     kind: 'event' | 'presence',
@@ -1062,7 +1059,6 @@ export function FloatingDialer() {
           finalizedCallRef.current = false
           setMuted(false)
           setCallNotes('')
-          setShowTransfer(false)
           clearWarmTransferState()
           setDialerStatus('ready')
           pushPresence()
@@ -1219,7 +1215,6 @@ export function FloatingDialer() {
     finalizedCallRef.current = false
     setMuted(false)
     setCallNotes('')
-    setShowTransfer(false)
     clearWarmTransferState()
     setActiveLeadName(null)
     clearStuckTimer()
@@ -1454,7 +1449,6 @@ export function FloatingDialer() {
         finalizedCallRef.current = false
         setMuted(false)
         setCallNotes('')
-        setShowTransfer(false)
         clearWarmTransferState()
         setDialerStatus('ready')
         pushPresence()
@@ -1482,7 +1476,6 @@ export function FloatingDialer() {
         finalizedCallRef.current = false
         setMuted(false)
         setCallNotes('')
-        setShowTransfer(false)
         clearWarmTransferState()
         setDialerStatus('ready')
         pushPresence()
@@ -1523,7 +1516,6 @@ export function FloatingDialer() {
           finalizedCallRef.current = false
           setMuted(false)
           setCallNotes('')
-          setShowTransfer(false)
           clearWarmTransferState()
           audioConnectedRef.current = false
           activeLocalCallIdRef.current = undefined
@@ -1556,7 +1548,6 @@ export function FloatingDialer() {
         finalizedCallRef.current = false
         setMuted(false)
         setCallNotes('')
-        setShowTransfer(false)
         clearWarmTransferState()
         audioConnectedRef.current = false
         activeLocalCallIdRef.current = undefined
@@ -1679,7 +1670,6 @@ export function FloatingDialer() {
       finalizedCallRef.current = false
       setMuted(false)
       setCallNotes('')
-      setShowTransfer(false)
       clearWarmTransferState()
       setDialerStatus('ready')
       pushPresence()
@@ -2201,20 +2191,6 @@ export function FloatingDialer() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, status, isCallActive, phone])
 
-  async function initiateTransfer() {
-    if (!callSidRef.current || !transferTarget.trim()) return
-    setTransferring(true)
-    try {
-      await initiateConference(transferTarget.trim())
-      setShowTransfer(false)
-      setTransferTarget('')
-    } catch (transferError) {
-      setError(transferError instanceof Error ? transferError.message : 'Transfer failed')
-    } finally {
-      setTransferring(false)
-    }
-  }
-
   async function initiateConference(targetOverride?: string) {
     const selectedTarget = targetOverride?.trim() || conferenceTarget.trim()
     if (!callSidRef.current || !selectedTarget) return
@@ -2291,61 +2267,104 @@ export function FloatingDialer() {
   }
 
   async function completeWarmTransfer() {
-    if (!warmTransferSessionRef.current) return
+    const session = warmTransferSessionRef.current
+    if (!session) return
     setConferencing(true)
     try {
-      await fetch('/api/sales/dialer/conference', {
+      const response = await fetch('/api/sales/dialer/conference', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'complete',
-          conferenceName: warmTransferSessionRef.current.conferenceName,
-          customerCallSid: warmTransferSessionRef.current.customerCallSid,
-          targetCallSid: warmTransferSessionRef.current.targetCallSid,
-          repCallSid: warmTransferSessionRef.current.repCallSid,
+          conferenceName: session.conferenceName,
+          customerCallSid: session.customerCallSid,
+          targetCallSid: session.targetCallSid,
+          repCallSid: session.repCallSid,
         }),
       })
+      const payload = await response.json().catch(() => ({})) as { error?: string }
+      if (!response.ok) throw new Error(payload.error || 'Could not complete the transfer')
       logCallEvent('warm_transfer_completed', {
         callDirection: activeCallDirectionRef.current || 'outbound',
         phoneNumber: inferCurrentPhoneNumber(),
         callSid: callSidRef.current,
-        extra: { target: warmTransferSessionRef.current.targetLabel },
+        extra: { target: session.targetLabel },
       })
       setCustomerOnHold(false)
-    } catch {
-      // ignore
+    } catch (transferError) {
+      setError(transferError instanceof Error ? transferError.message : 'Could not complete the transfer')
+    } finally {
+      setConferencing(false)
+    }
+  }
+
+  async function joinWarmTransferParticipants() {
+    const session = warmTransferSessionRef.current
+    if (!session?.customerCallSid) return
+    setConferencing(true)
+    try {
+      const response = await fetch('/api/sales/dialer/conference', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'join',
+          conferenceName: session.conferenceName,
+          customerCallSid: session.customerCallSid,
+        }),
+      })
+      const payload = await response.json().catch(() => ({})) as { error?: string }
+      if (!response.ok) throw new Error(payload.error || 'Could not bring everyone onto the call')
+      const joinedSession: WarmTransferSession = {
+        ...session,
+        mode: 'conference',
+        customerOnHold: false,
+      }
+      setWarmTransferState(joinedSession)
+      setCustomerOnHold(false)
+      logCallEvent('warm_transfer_joined', {
+        callDirection: activeCallDirectionRef.current || 'outbound',
+        phoneNumber: inferCurrentPhoneNumber(),
+        callSid: callSidRef.current,
+        extra: { target: session.targetLabel },
+      })
+    } catch (joinError) {
+      setError(joinError instanceof Error ? joinError.message : 'Could not bring everyone onto the call')
     } finally {
       setConferencing(false)
     }
   }
 
   async function returnWarmTransferToCaller() {
-    if (!warmTransferSessionRef.current) return
+    const session = warmTransferSessionRef.current
+    if (!session) return
     setConferencing(true)
     try {
-      await fetch('/api/sales/dialer/conference', {
+      const response = await fetch('/api/sales/dialer/conference', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'return',
-          conferenceName: warmTransferSessionRef.current.conferenceName,
-          customerCallSid: warmTransferSessionRef.current.customerCallSid,
-          targetCallSid: warmTransferSessionRef.current.targetCallSid,
-          repCallSid: warmTransferSessionRef.current.repCallSid,
+          conferenceName: session.conferenceName,
+          customerCallSid: session.customerCallSid,
+          targetCallSid: session.targetCallSid,
+          repCallSid: session.repCallSid,
         }),
       })
+      const payload = await response.json().catch(() => ({})) as { error?: string }
+      if (!response.ok) throw new Error(payload.error || 'Could not return to the caller')
       logCallEvent('warm_transfer_returned', {
         callDirection: activeCallDirectionRef.current || 'outbound',
         phoneNumber: inferCurrentPhoneNumber(),
         callSid: callSidRef.current,
-        extra: { target: warmTransferSessionRef.current.targetLabel },
+        extra: { target: session.targetLabel },
       })
       setCustomerOnHold(false)
       clearWarmTransferState()
-    } catch {
-      // ignore
+    } catch (returnError) {
+      setError(returnError instanceof Error ? returnError.message : 'Could not return to the caller')
     } finally {
       setConferencing(false)
     }
@@ -2687,66 +2706,6 @@ export function FloatingDialer() {
                 </div>
               )}
 
-              {/* Transfer UI */}
-              {status === 'active' && (
-                <div className="mt-3 px-1">
-                  {!showTransfer ? (
-                    <button
-                      onClick={() => setShowTransfer(true)}
-                      className="w-full rounded-[10px] border border-white/10 bg-white/5 py-2 text-xs font-medium text-white/50 transition hover:bg-white/10 hover:text-white/80"
-                    >
-                      Transfer call
-                    </button>
-                  ) : (
-                    <div className="space-y-2">
-                      <input
-                        value={transferTarget}
-                        onChange={e => setTransferTarget(e.target.value)}
-                        placeholder="+1... or sip:john@saturn.sip.twilio.com"
-                        className="w-full rounded-[10px] border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/80 placeholder:text-white/25 outline-none focus:border-white/20"
-                      />
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => void initiateTransfer()}
-                          disabled={!transferTarget.trim() || transferring}
-                          className="flex-1 rounded-[10px] bg-amber-500/80 py-1.5 text-xs font-semibold text-white disabled:opacity-50 transition hover:bg-amber-500"
-                        >
-                          {transferring ? 'Transferring…' : 'Transfer'}
-                        </button>
-                        <button
-                          onClick={() => { setShowTransfer(false); setTransferTarget('') }}
-                          className="rounded-[10px] border border-white/10 px-3 py-1.5 text-xs text-white/50 transition hover:text-white/80"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/30">Internal targets</div>
-                        {internalDirectoryLoading ? (
-                          <div className="text-[10px] text-white/25">Loading available reps…</div>
-                        ) : internalDirectory.length === 0 ? (
-                          <div className="text-[10px] text-white/25">No live browser reps detected. SIP fallbacks still work.</div>
-                        ) : (
-                          <div className="flex flex-wrap gap-1.5">
-                            {internalDirectory.slice(0, 8).map(entry => (
-                              <button
-                                key={entry.id}
-                                type="button"
-                                onClick={() => setTransferTarget(entry.target)}
-                                className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] text-white/70 transition hover:bg-white/10"
-                              >
-                                {entry.label} · {entry.kind}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-[10px] text-white/25">Quick: sip:john@saturn.sip.twilio.com · sip:salesrep1@saturn.sip.twilio.com</div>
-                    </div>
-                  )}
-                </div>
-              )}
-
               {/* Warm transfer bridge */}
               {status === 'active' && (
                 <div className="mt-2 px-1">
@@ -2755,28 +2714,41 @@ export function FloatingDialer() {
                       <div className="font-semibold text-sky-200">
                         {warmTransferSession.mode === 'hold'
                           ? (customerOnHold ? 'Customer is on hold' : 'Customer is back on the line')
+                          : warmTransferSession.mode === 'conference'
+                            ? `Three-way call with ${warmTransferSession.targetLabel}`
                           : `Private consultation with ${warmTransferSession.targetLabel}`}
                       </div>
                       <div className="text-[11px] text-sky-100/80">
                         {warmTransferSession.mode === 'hold'
                           ? 'Use the Hold control above to resume or hold the customer without disconnecting the call.'
+                          : warmTransferSession.mode === 'conference'
+                            ? 'Everyone can hear one another. You can leave the customer with your teammate or remove the teammate.'
                           : 'The customer hears hold music while you brief the teammate. Complete the handoff or return to the customer.'}
                       </div>
                       {warmTransferSession.mode !== 'hold' && (
-                        <div className="flex gap-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          {warmTransferSession.mode === 'consult' && (
+                            <button
+                              onClick={() => void joinWarmTransferParticipants()}
+                              disabled={conferencing}
+                              className="col-span-2 rounded-[10px] bg-white py-2 text-xs font-semibold text-[#071421] disabled:opacity-50"
+                            >
+                              {conferencing ? 'Connecting…' : 'Bring everyone together'}
+                            </button>
+                          )}
                           <button
                             onClick={() => void completeWarmTransfer()}
                             disabled={conferencing}
-                            className="flex-1 rounded-[10px] bg-emerald-500/90 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                            className="rounded-[10px] bg-emerald-500/90 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
                           >
-                            {conferencing ? 'Working…' : 'Complete handoff'}
+                            {conferencing ? 'Working…' : warmTransferSession.mode === 'conference' ? 'Leave call' : 'Transfer & leave'}
                           </button>
                           <button
                             onClick={() => void returnWarmTransferToCaller()}
                             disabled={conferencing}
-                            className="flex-1 rounded-[10px] border border-white/10 bg-white/5 py-1.5 text-xs font-semibold text-white/80 disabled:opacity-50"
+                            className="rounded-[10px] border border-white/10 bg-white/5 py-1.5 text-xs font-semibold text-white/80 disabled:opacity-50"
                           >
-                            Return caller
+                            {warmTransferSession.mode === 'conference' ? 'Remove teammate' : 'Cancel transfer'}
                           </button>
                         </div>
                       )}
@@ -2786,14 +2758,14 @@ export function FloatingDialer() {
                       onClick={() => setShowConference(true)}
                       className="w-full rounded-[10px] border border-white/10 bg-white/5 py-2 text-xs font-medium text-white/50 transition hover:bg-white/10 hover:text-white/80"
                     >
-                      Warm transfer / consult
+                      Transfer or add teammate
                     </button>
                   ) : (
                     <div className="space-y-2">
                       <input
                         value={conferenceTarget}
                         onChange={e => setConferenceTarget(e.target.value)}
-                        placeholder="+1... or sip:john@saturn.sip.twilio.com"
+                        placeholder="Choose a teammate below"
                         className="w-full rounded-[10px] border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/80 placeholder:text-white/25 outline-none focus:border-white/20"
                       />
                       <div className="flex gap-2">
@@ -2802,7 +2774,7 @@ export function FloatingDialer() {
                           disabled={!conferenceTarget.trim() || conferencing}
                           className="flex-1 rounded-[10px] bg-sky-500/80 py-1.5 text-xs font-semibold text-white disabled:opacity-50 transition hover:bg-sky-500"
                         >
-                          {conferencing ? 'Connecting…' : 'Start consult'}
+                          {conferencing ? 'Connecting…' : 'Call teammate privately'}
                         </button>
                         <button
                           onClick={() => { setShowConference(false); setConferenceTarget('') }}
@@ -2816,7 +2788,7 @@ export function FloatingDialer() {
                         {internalDirectoryLoading ? (
                           <div className="text-[10px] text-white/25">Loading available reps…</div>
                         ) : internalDirectory.length === 0 ? (
-                          <div className="text-[10px] text-white/25">No live browser reps detected. SIP fallbacks still work.</div>
+                          <div className="text-[10px] text-white/25">No available browser or mobile extensions were detected.</div>
                         ) : (
                           <div className="flex flex-wrap gap-1.5">
                             {internalDirectory.slice(0, 8).map(entry => (
@@ -2826,7 +2798,7 @@ export function FloatingDialer() {
                                 onClick={() => setConferenceTarget(entry.target)}
                                 className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] text-white/70 transition hover:bg-white/10"
                               >
-                                {entry.label} · {entry.kind}
+                                {entry.label}{entry.status === 'available' ? ' · available' : ' · mobile'}
                               </button>
                             ))}
                           </div>
