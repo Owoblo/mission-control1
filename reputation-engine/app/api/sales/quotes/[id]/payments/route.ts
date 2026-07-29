@@ -10,6 +10,7 @@ import { getAppBaseUrl } from '@/lib/server/runtime'
 import { uid } from '@/lib/sales'
 import type { PaymentRecord, PaymentRecordKind, PaymentRecordMethod } from '@/lib/types'
 import { deriveMoneyState } from '@/lib/payment-state'
+import { buildDepositConfirmationSms } from '@/lib/deposit-confirmation'
 
 const METHOD_LABELS: Record<PaymentRecordMethod, string> = {
   credit_card: 'Credit Card', debit: 'Debit', etransfer: 'Interac E-Transfer', cash: 'Cash',
@@ -67,10 +68,16 @@ async function deliverReceipt(input: {
 
   if (input.sendSms && lead.phone) {
     try {
-      const firstName = lead.name?.trim().split(/\s+/)[0] || 'there'
       await sendSalesMessage({
         channel: 'sms', to: lead.phone,
-        body: `Hi ${firstName}, ${brand.name} received your ${money(payment.amount)} ${paymentKindLabel(payment.kind)} payment. Receipt ${payment.receiptNumber}: ${publicUrl} Balance: ${money(payment.balanceAfterPayment)}.`,
+        body: payment.kind === 'deposit'
+          ? buildDepositConfirmationSms({
+              customerName: lead.name,
+              brandName: brand.name,
+              amount: payment.amount,
+              receiptUrl: publicUrl,
+            })
+          : `Hi ${lead.name?.trim().split(/\s+/)[0] || 'there'}, ${brand.name} received your ${money(payment.amount)} ${paymentKindLabel(payment.kind)} payment. Receipt ${payment.receiptNumber}: ${publicUrl} Balance: ${money(payment.balanceAfterPayment)}.`,
         leadId: lead.id, quoteId: quote.id, actor: 'human', actorName: input.actorName || brand.name,
         actorUserId: input.actorUserId, notes: `Payment receipt ${payment.receiptNumber} sent by SMS.`,
       })
@@ -137,7 +144,16 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
       depositAmount: kind === 'deposit' ? amount : lead.depositAmount, depositMethod: kind === 'deposit' ? METHOD_LABELS[method] : lead.depositMethod,
       depositDate: kind === 'deposit' ? payment.paidAt.slice(0, 10) : lead.depositDate,
     })
-    const delivery = await deliverReceipt({ payment, quote: savedQuote, lead: savedLead, email: body.email || savedLead.email, sendEmail: body.sendEmail !== false, sendSms: body.sendSms === true, actorName: session?.name, actorUserId: session?.userId })
+    const delivery = await deliverReceipt({
+      payment,
+      quote: savedQuote,
+      lead: savedLead,
+      email: body.email || savedLead.email,
+      sendEmail: body.sendEmail !== false,
+      sendSms: kind === 'deposit' ? body.sendSms !== false : body.sendSms === true,
+      actorName: session?.name,
+      actorUserId: session?.userId,
+    })
     const deliveredAt = new Date().toISOString()
     const deliveredPayment = { ...payment, emailSentAt: delivery.emailSent ? deliveredAt : undefined, smsSentAt: delivery.smsSent ? deliveredAt : undefined }
     savedQuote = await saveSalesQuote({ ...savedQuote, paymentRecords: [...(savedQuote.paymentRecords || []).filter(item => item.id !== payment.id), deliveredPayment] })

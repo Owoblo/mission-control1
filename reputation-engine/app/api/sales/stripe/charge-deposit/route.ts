@@ -7,6 +7,11 @@ import { getSessionUser } from '@/lib/server/session'
 import { sendRepAlertEmail } from '@/lib/server/internal-notifications'
 import { buildPaymentRecord } from '@/lib/payment-records'
 import { appendStripeAccountMetadata, assertQuoteStripeAccount, requireStripeAccountForLead, stripeErrorStatus } from '@/lib/server/stripe-accounts'
+import { sendDepositReceipt } from '@/lib/server/deposit-receipts'
+import { sendSalesMessage } from '@/lib/server/sales-messaging'
+import { getReceiptBrand } from '@/lib/receipt-brand'
+import { getAppBaseUrl } from '@/lib/server/runtime'
+import { buildDepositConfirmationSms } from '@/lib/deposit-confirmation'
 
 export async function POST(request: Request) {
   const session = await getSessionUser()
@@ -88,7 +93,7 @@ export async function POST(request: Request) {
 
     const now = new Date().toISOString()
     const paymentRecord = buildPaymentRecord({ quote, lead, amount: chargeAmount, kind: 'deposit', method: 'credit_card', paidAt: now, reference: pi.id, cardLast4, recordedBy: session?.name, recordedByUserId: session?.userId })
-    const updatedQuote = await saveSalesQuote({
+    let updatedQuote = await saveSalesQuote({
       ...quote,
       depositPaidAt: now,
       depositPaidAmount: chargeAmount,
@@ -120,6 +125,57 @@ export async function POST(request: Request) {
       cardBrand,
       cardLast4,
       note: 'Charged a saved card on file through the CRM.',
+    })
+
+    const brand = getReceiptBrand(updatedLead, updatedQuote)
+    const receiptUrl = `${getAppBaseUrl('https://go.quote2move.com')}/receipt?id=${encodeURIComponent(updatedQuote.id)}&token=${encodeURIComponent(paymentRecord.publicToken)}`
+    const [emailDelivery, smsDelivery] = await Promise.allSettled([
+      updatedLead.email
+        ? sendDepositReceipt({
+            toEmail: updatedLead.email,
+            toName: updatedLead.name,
+            quoteNumber: updatedQuote.number,
+            moveDate: updatedQuote.moveDate,
+            originCity: updatedQuote.originCity,
+            destCity: updatedQuote.destCity,
+            depositAmount: chargeAmount,
+            balanceAmount: paymentRecord.balanceAfterPayment,
+            totalAmount: updatedQuote.total,
+            paymentMethod: paymentRecord.methodLabel,
+            receiptNumber: paymentRecord.receiptNumber,
+            receiptUrl,
+            paidAt: paymentRecord.paidAt,
+            reference: paymentRecord.reference,
+            brand,
+          })
+        : Promise.resolve(null),
+      updatedLead.phone
+        ? sendSalesMessage({
+            channel: 'sms',
+            to: updatedLead.phone,
+            body: buildDepositConfirmationSms({
+              customerName: updatedLead.name,
+              brandName: brand.name,
+              amount: chargeAmount,
+              receiptUrl,
+            }),
+            leadId: updatedLead.id,
+            quoteId: updatedQuote.id,
+            actor: 'automation',
+            actorName: brand.name,
+            notes: 'Deposit confirmation and receipt SMS (automatic)',
+          })
+        : Promise.resolve(null),
+    ])
+    const deliveredAt = new Date().toISOString()
+    const deliveredPayment = {
+      ...paymentRecord,
+      emailSentAt: updatedLead.email && emailDelivery.status === 'fulfilled' ? deliveredAt : undefined,
+      smsSentAt: updatedLead.phone && smsDelivery.status === 'fulfilled' ? deliveredAt : undefined,
+    }
+    updatedQuote = await saveSalesQuote({
+      ...updatedQuote,
+      paymentRecords: (updatedQuote.paymentRecords || []).map(item => item.id === paymentRecord.id ? deliveredPayment : item),
     })
 
     const cardLabel = cardBrand && cardLast4 ? `${cardBrand} ••••${cardLast4}` : 'card on file'

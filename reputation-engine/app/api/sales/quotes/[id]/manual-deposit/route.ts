@@ -8,6 +8,8 @@ import { sendSalesMessage } from '@/lib/server/sales-messaging'
 import { uid } from '@/lib/sales'
 import { buildPaymentRecord } from '@/lib/payment-records'
 import type { CRMLead, CRMQuote } from '@/lib/types'
+import { buildDepositConfirmationSms } from '@/lib/deposit-confirmation'
+import { getReceiptBrand } from '@/lib/receipt-brand'
 
 const MANUAL_METHOD_LABELS = {
   cash: 'Cash',
@@ -39,11 +41,12 @@ function buildQuoteUrl(quote: CRMQuote) {
 
 function buildReceiptSms(lead: CRMLead, quote: CRMQuote, amount: number, balanceAmount: number) {
   const quoteUrl = buildQuoteUrl(quote)
-  return [
-    `Hi ${firstName(lead.name)}, Saturn Star Moving received your ${money(amount)} deposit for ${quote.number}.`,
-    `Your move is confirmed. Balance due after the move: ${money(balanceAmount)}.`,
-    quoteUrl ? `Receipt/quote: ${quoteUrl}` : '',
-  ].filter(Boolean).join(' ')
+  return buildDepositConfirmationSms({
+    customerName: lead.name,
+    brandName: getReceiptBrand(lead, quote).name,
+    amount,
+    receiptUrl: quoteUrl,
+  })
 }
 
 export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {

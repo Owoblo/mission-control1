@@ -10,6 +10,13 @@ import { ensureStripeCustomerForLead, stripeGet, stripePost } from '@/lib/server
 import { getSalesLead, getSalesQuote, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
 import { appendStripeAccountMetadata, assertQuoteStripeAccount, requireStripeAccountForLead, reusableStripeCustomerId, stripeErrorStatus } from '@/lib/server/stripe-accounts'
+import { buildPaymentRecord } from '@/lib/payment-records'
+import { sendDepositReceipt } from '@/lib/server/deposit-receipts'
+import { sendSalesMessage } from '@/lib/server/sales-messaging'
+import { getReceiptBrand } from '@/lib/receipt-brand'
+import { getAppBaseUrl } from '@/lib/server/runtime'
+import { buildDepositConfirmationSms } from '@/lib/deposit-confirmation'
+import type { PaymentRecord } from '@/lib/types'
 
 export async function POST(request: Request) {
   const session = await getSessionUser()
@@ -77,6 +84,7 @@ export async function POST(request: Request) {
     let depositCharged = false
     let depositAmount = 0
     let updatedQuote = quote
+    let depositPaymentRecord: PaymentRecord | null = null
 
     if (chargeDepositNow && quoteId) {
       if (quote && quote.deposit > 0) {
@@ -101,6 +109,18 @@ export async function POST(request: Request) {
           depositCharged = true
           depositAmount = quote.deposit
           const now = new Date().toISOString()
+          depositPaymentRecord = buildPaymentRecord({
+            quote,
+            lead,
+            amount: quote.deposit,
+            kind: 'deposit',
+            method: 'credit_card',
+            paidAt: now,
+            reference: pi.id,
+            cardLast4,
+            recordedBy: session?.name,
+            recordedByUserId: session?.userId,
+          })
           updatedQuote = await saveSalesQuote({
             ...quote,
             depositPaidAt: now,
@@ -112,6 +132,7 @@ export async function POST(request: Request) {
             depositStripeCardBrand: cardBrand,
             depositStripeCardLast4: cardLast4,
             stripeAccountKey: stripeAccount.key,
+            paymentRecords: [...(quote.paymentRecords || []), depositPaymentRecord],
           })
         } else if (pi.error?.message) {
           return NextResponse.json({ error: pi.error.message }, { status: 402 })
@@ -154,6 +175,59 @@ export async function POST(request: Request) {
         ? 'Customer card was taken over the phone and charged immediately.'
         : 'Customer card was taken over the phone and saved on file.',
     })
+
+    if (depositCharged && updatedQuote && depositPaymentRecord) {
+      const brand = getReceiptBrand(updatedLead, updatedQuote)
+      const receiptUrl = `${getAppBaseUrl('https://go.quote2move.com')}/receipt?id=${encodeURIComponent(updatedQuote.id)}&token=${encodeURIComponent(depositPaymentRecord.publicToken)}`
+      const [emailDelivery, smsDelivery] = await Promise.allSettled([
+        updatedLead.email
+          ? sendDepositReceipt({
+              toEmail: updatedLead.email,
+              toName: updatedLead.name,
+              quoteNumber: updatedQuote.number,
+              moveDate: updatedQuote.moveDate,
+              originCity: updatedQuote.originCity,
+              destCity: updatedQuote.destCity,
+              depositAmount,
+              balanceAmount: depositPaymentRecord.balanceAfterPayment,
+              totalAmount: updatedQuote.total,
+              paymentMethod: depositPaymentRecord.methodLabel,
+              receiptNumber: depositPaymentRecord.receiptNumber,
+              receiptUrl,
+              paidAt: depositPaymentRecord.paidAt,
+              reference: depositPaymentRecord.reference,
+              brand,
+            })
+          : Promise.resolve(null),
+        updatedLead.phone
+          ? sendSalesMessage({
+              channel: 'sms',
+              to: updatedLead.phone,
+              body: buildDepositConfirmationSms({
+                customerName: updatedLead.name,
+                brandName: brand.name,
+                amount: depositAmount,
+                receiptUrl,
+              }),
+              leadId: updatedLead.id,
+              quoteId: updatedQuote.id,
+              actor: 'automation',
+              actorName: brand.name,
+              notes: 'Deposit confirmation and receipt SMS (automatic)',
+            })
+          : Promise.resolve(null),
+      ])
+      const deliveredAt = new Date().toISOString()
+      const deliveredPayment = {
+        ...depositPaymentRecord,
+        emailSentAt: updatedLead.email && emailDelivery.status === 'fulfilled' ? deliveredAt : undefined,
+        smsSentAt: updatedLead.phone && smsDelivery.status === 'fulfilled' ? deliveredAt : undefined,
+      }
+      updatedQuote = await saveSalesQuote({
+        ...updatedQuote,
+        paymentRecords: (updatedQuote.paymentRecords || []).map(item => item.id === depositPaymentRecord?.id ? deliveredPayment : item),
+      })
+    }
 
     return NextResponse.json({
       ok: true,

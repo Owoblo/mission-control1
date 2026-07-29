@@ -12,12 +12,7 @@ import { uid } from '@/lib/sales'
 import { deriveLeadBranch, generateCrewBrief, mergeCrewBrief, pickAutoAssignedCrewIds } from '@/lib/server/crew-dispatch'
 import { deriveOpsChecklist, getQuotedTruckCount } from '@/lib/operations'
 import { assertQuoteStripeAccount, requireStripeWebhookAccount, resolveStripeAccountKeyForLead, webhookMetadataMatchesAccount, type StripeAccountKey } from '@/lib/server/stripe-accounts'
-
-function buildBookingConfirmationSms(name: string, brand: ReceiptBrand, moveDate?: string) {
-  const first = (name || 'there').split(' ')[0]
-  const dateLine = moveDate ? ` on ${new Date(moveDate).toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' })}` : ''
-  return `Hi ${first}! Your move with ${brand.fullName} is CONFIRMED${dateLine}. We're excited to take care of you. Questions? Call or text us at ${brand.phone}. – The ${brand.name} Team`
-}
+import { buildDepositConfirmationSms } from '@/lib/deposit-confirmation'
 
 function buildBookingConfirmationEmail(name: string, brand: ReceiptBrand, moveDate?: string, originCity?: string, destCity?: string) {
   const first = (name || 'there').split(' ')[0]
@@ -92,19 +87,24 @@ export async function POST(request: Request) {
           // amount_received is in cents — this is what was actually charged, not the quote deposit
           if (pi.amount_received) piAmountPaid = pi.amount_received / 100
         }
-        // Priority: PI amount_received > session amount_total > quote deposit
-        const actualDepositPaid = piAmountPaid ?? (session.amount_total ? session.amount_total / 100 : undefined)
+        // Stripe is the only source of truth here. Never turn a quoted amount
+        // into a receipt when the provider event omits the captured amount.
+        const providerAmount = piAmountPaid ?? (session.amount_total ? session.amount_total / 100 : undefined)
+        const actualDepositPaid = typeof providerAmount === 'number' ? providerAmount : Number.NaN
+        if (!Number.isFinite(actualDepositPaid) || actualDepositPaid <= 0) {
+          throw new Error('Stripe webhook did not include a positive captured amount')
+        }
 
         // Update the quote with deposit payment info
         const receiptAlreadyRecorded = quote?.depositStripeSessionId === session.id && !!quote.depositPaidAt
         const paymentRecord = quote && !receiptAlreadyRecorded
-          ? buildPaymentRecord({ quote, amount: actualDepositPaid ?? quote.deposit, kind: 'deposit', method: 'credit_card', paidAt: now, reference: typeof session.payment_intent === 'string' ? session.payment_intent : session.id, recordedBy: 'Stripe Checkout' })
+          ? buildPaymentRecord({ quote, amount: actualDepositPaid, kind: 'deposit', method: 'credit_card', paidAt: now, reference: typeof session.payment_intent === 'string' ? session.payment_intent : session.id, recordedBy: 'Stripe Checkout' })
           : null
         if (quote) {
           await saveSalesQuote({
             ...quote,
             depositPaidAt: now,
-            depositPaidAmount: actualDepositPaid ?? quote.deposit,
+            depositPaidAmount: actualDepositPaid,
             depositPaidMethod: 'stripe',
             depositStripeSessionId: session.id,
             depositStripePaymentIntentId: typeof session.payment_intent === 'string' ? session.payment_intent : undefined,
@@ -120,7 +120,7 @@ export async function POST(request: Request) {
           if (lead) {
             const alreadyBooked = lead.stage === 'booked' || lead.stage === 'completed'
             const paymentBrand = getReceiptBrand(lead, quote)
-            const depositAmt = actualDepositPaid ?? quote?.deposit
+            const depositAmt = actualDepositPaid
             const branch = deriveLeadBranch(lead)
             const autoAssignedCrew = (lead.assignedCrew?.length ?? 0) > 0 ? lead.assignedCrew! : await pickAutoAssignedCrewIds(branch).catch(() => [] as string[])
             const autoCrewBrief = await generateCrewBrief({ lead: { ...lead, branch }, quote: quote ?? null }).catch(() => '')
@@ -156,10 +156,6 @@ export async function POST(request: Request) {
                 notes: `Job auto-confirmed via Stripe deposit payment ($${(depositAmt || 0).toFixed(2)}).`,
               }).catch(() => {})
 
-              // Send booking confirmation to customer
-              if (lead.phone) {
-                void sendSalesMessage({ channel: 'sms', to: lead.phone, body: buildBookingConfirmationSms(lead.name, paymentBrand, lead.moveDate), leadId: targetLeadId, actor: 'automation', actorName: paymentBrand.name, notes: 'Booking confirmation SMS (auto on deposit)' }).catch(() => {})
-              }
               if (lead.email && quote) {
                 const emailContent = buildBookingConfirmationEmail(lead.name, paymentBrand, lead.moveDate, lead.originCity, lead.destCity)
                 void sendSalesMessage({ channel: 'email', to: lead.email, subject: emailContent.subject, body: emailContent.text, htmlBody: emailContent.html, leadId: targetLeadId, actor: 'automation', actorName: paymentBrand.name, notes: 'Booking confirmation email (auto on deposit)' }).catch(() => {})
@@ -171,7 +167,7 @@ export async function POST(request: Request) {
             // Notify the team — deposit paid
             if (!receiptAlreadyRecorded) {
               const customerName = lead.name || 'Customer'
-              const depositAmt = (actualDepositPaid ?? quote?.deposit) || 0
+              const depositAmt = actualDepositPaid
               const quoteNum = quote?.number || ''
               const crmUrl = `${readEnv('NEXT_PUBLIC_APP_URL') || 'https://go.quote2move.com'}/sales/leads/${lead.id}`
               void sendRepAlertEmail(
@@ -197,10 +193,10 @@ export async function POST(request: Request) {
                 moveDate: quote.moveDate,
                 originCity: quote.originCity,
                 destCity: quote.destCity,
-                depositAmount: actualDepositPaid ?? quote.deposit,
+                depositAmount: actualDepositPaid,
                 balanceAmount: Math.max(
                   0,
-                  Math.round(((quote.total || 0) - (actualDepositPaid ?? quote.deposit)) * 100) / 100
+                  Math.round(((quote.total || 0) - actualDepositPaid) * 100) / 100
                 ),
                 totalAmount: quote.total,
                 paymentMethod: 'Credit Card',
@@ -209,6 +205,25 @@ export async function POST(request: Request) {
                 paidAt: paymentRecord?.paidAt,
                 reference: paymentRecord?.reference,
                 brand: getReceiptBrand(lead, quote),
+              }).catch(() => null)
+            }
+
+            if (!receiptAlreadyRecorded && lead.phone && quote && paymentRecord) {
+              const receiptUrl = `${getAppBaseUrl('https://go.quote2move.com')}/receipt?id=${encodeURIComponent(quote.id)}&token=${encodeURIComponent(paymentRecord.publicToken)}`
+              void sendSalesMessage({
+                channel: 'sms',
+                to: lead.phone,
+                body: buildDepositConfirmationSms({
+                  customerName: lead.name,
+                  brandName: paymentBrand.name,
+                  amount: actualDepositPaid,
+                  receiptUrl,
+                }),
+                leadId: targetLeadId,
+                quoteId: quote.id,
+                actor: 'automation',
+                actorName: paymentBrand.name,
+                notes: 'Deposit confirmation and receipt SMS (automatic)',
               }).catch(() => null)
             }
           }
