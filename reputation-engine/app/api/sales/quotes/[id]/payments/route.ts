@@ -11,6 +11,7 @@ import { uid } from '@/lib/sales'
 import type { PaymentRecord, PaymentRecordKind, PaymentRecordMethod } from '@/lib/types'
 import { deriveMoneyState } from '@/lib/payment-state'
 import { buildDepositConfirmationSms } from '@/lib/deposit-confirmation'
+import { buildPaymentConfirmationSms } from '@/lib/payment-confirmation'
 
 const METHOD_LABELS: Record<PaymentRecordMethod, string> = {
   credit_card: 'Credit Card', debit: 'Debit', etransfer: 'Interac E-Transfer', cash: 'Cash',
@@ -77,7 +78,13 @@ async function deliverReceipt(input: {
               amount: payment.amount,
               receiptUrl: publicUrl,
             })
-          : `Hi ${lead.name?.trim().split(/\s+/)[0] || 'there'}, ${brand.name} received your ${money(payment.amount)} ${paymentKindLabel(payment.kind)} payment. Receipt ${payment.receiptNumber}: ${publicUrl} Balance: ${money(payment.balanceAfterPayment)}.`,
+          : buildPaymentConfirmationSms({
+              customerName: lead.name,
+              brandName: brand.name,
+              amount: payment.amount,
+              balanceAfterPayment: payment.balanceAfterPayment,
+              receiptUrl: publicUrl,
+            }),
         leadId: lead.id, quoteId: quote.id, actor: 'human', actorName: input.actorName || brand.name,
         actorUserId: input.actorUserId, notes: `Payment receipt ${payment.receiptNumber} sent by SMS.`,
       })
