@@ -13,7 +13,10 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const branchFilter = session?.branch || searchParams.get('branch') || null
 
-  const [leads, quotes] = await Promise.all([listBookedSalesLeads(), listOperationalSalesQuotes()])
+  const leads = await listBookedSalesLeads()
+  // Fetch every quote attached to booked leads. Payment/manual booking can move a
+  // lead into Operations before an otherwise valid primary quote's status catches up.
+  const quotes = await listOperationalSalesQuotes(leads.map(lead => lead.id))
 
   const bookedLeads = leads.filter(l => {
     if (!isBookedLikeStage(l.stage)) return false

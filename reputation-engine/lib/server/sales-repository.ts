@@ -498,13 +498,17 @@ export async function listBookedSalesLeads() {
     .filter(lead => isVisibleSalesLead(lead, archivedLeadIds)))
 }
 
-export async function listOperationalSalesQuotes() {
+export async function listOperationalSalesQuotes(bookedLeadIds?: string[]) {
   const { url, headers } = requireSupabase()
   const query = new URLSearchParams({
     select: 'data',
     deleted: 'eq.false',
-    'data->>status': 'in.(accepted,sent,invoiced)',
   })
+  if (bookedLeadIds?.length) {
+    query.set('data->>leadId', `in.(${bookedLeadIds.join(',')})`)
+  } else {
+    query.set('data->>status', 'in.(accepted,sent,invoiced)')
+  }
   const response = await fetchSupabaseWithRetry(`${url}/rest/v1/crm_quotes?${query.toString()}`, { headers, cache: 'no-store' })
   if (!response.ok) {
     throw new Error(`Failed to read operational crm_quotes. Supabase ${response.status}`)
