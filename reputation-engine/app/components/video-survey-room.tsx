@@ -38,6 +38,7 @@ export default function VideoSurveyRoom({ authToken, roomName, eventEndpoint, pa
   const [left, setLeft] = useState(false)
   const initialized = useRef(false)
   const initialCustomerCameraSelected = useRef(false)
+  const finishing = useRef(false)
 
   useEffect(() => {
     if (initialized.current) return
@@ -155,7 +156,12 @@ export default function VideoSurveyRoom({ authToken, roomName, eventEndpoint, pa
   }
 
   async function leaveAndClose() {
+    if (finishing.current) return
+    finishing.current = true
     try {
+      if (eventEndpoint && participantRole === 'customer') {
+        await emitEvent(eventEndpoint, 'customer.finished')
+      }
       if (!left) await meeting?.leave()
     } catch {
       // The SDK may already have closed the room; navigation must still work.
@@ -221,8 +227,12 @@ export default function VideoSurveyRoom({ authToken, roomName, eventEndpoint, pa
           )}
           {error && <div className="mt-2 max-w-xs rounded-xl bg-red-600/90 px-3 py-2 text-xs text-white">{error}</div>}
         </div>
-        <button aria-label={left ? 'Close video survey' : 'Leave video survey'} onClick={() => void leaveAndClose()} className="pointer-events-auto grid h-11 w-11 place-items-center rounded-full bg-black/75 text-xl font-semibold text-white shadow-lg backdrop-blur hover:bg-black">
-          ×
+        <button
+          aria-label={left ? 'Finish video survey' : 'Finish video survey'}
+          onClick={() => void leaveAndClose()}
+          className="pointer-events-auto rounded-full bg-black/80 px-4 py-3 text-xs font-semibold text-white shadow-lg backdrop-blur hover:bg-black"
+        >
+          Finish walkthrough
         </button>
       </div>
       {left && (

@@ -3,7 +3,12 @@ import { appendVideoSurveyEvent, getVideoSurveySessionByTokenHash, updateVideoSu
 import { hashVideoSurveyToken } from '@/lib/server/video-survey-provider'
 import { ensureAutomaticVideoSurveyRecording } from '@/lib/server/video-survey-recording-lifecycle'
 import { finishAutomaticVideoSurveyRecording } from '@/lib/server/video-survey-recording-lifecycle'
-import { isVideoSurveyParticipantPresent, videoSurveyPresence } from '@/lib/video-survey'
+import {
+  isVideoSurveyParticipantPresent,
+  statusAfterVideoSurveyCustomerEvent,
+  type VideoSurveyCustomerPresenceEvent,
+  videoSurveyPresence,
+} from '@/lib/video-survey'
 
 const CUSTOMER_EVENTS = new Set([
   'device_check.started',
@@ -14,6 +19,7 @@ const CUSTOMER_EVENTS = new Set([
   'customer.reconnecting',
   'customer.reconnected',
   'customer.left',
+  'customer.finished',
   'customer.heartbeat',
 ])
 
@@ -43,9 +49,9 @@ export async function POST(request: Request, props: { params: Promise<{ token: s
       ? 'joining'
       : body.type === 'customer.joined' || body.type === 'customer.reconnected' || body.type === 'customer.heartbeat'
         ? 'joined'
-        : body.type === 'customer.reconnecting'
+      : body.type === 'customer.reconnecting'
           ? 'reconnecting'
-          : body.type === 'customer.left'
+          : body.type === 'customer.left' || body.type === 'customer.finished'
             ? 'left'
             : presence.customer?.state
     const nextPresence = {
@@ -53,13 +59,11 @@ export async function POST(request: Request, props: { params: Promise<{ token: s
       customer: customerState ? { state: customerState, at: now } : presence.customer,
     }
     const representativePresent = isVideoSurveyParticipantPresent(presence.representative)
-    const status = body.type === 'customer.joined'
-      ? representativePresent ? 'live' : 'waiting'
-      : body.type === 'customer.reconnecting'
-        ? 'reconnecting'
-        : body.type === 'customer.reconnected'
-          ? representativePresent ? 'live' : 'waiting'
-          : undefined
+    const status = statusAfterVideoSurveyCustomerEvent(
+      session.status,
+      body.type as VideoSurveyCustomerPresenceEvent,
+      representativePresent,
+    )
     await updateVideoSurveySession(session.id, {
       last_heartbeat_at: now,
       metadata: { ...(session.metadata || {}), presence: nextPresence },
@@ -75,7 +79,7 @@ export async function POST(request: Request, props: { params: Promise<{ token: s
     const recording = body.type === 'customer.joined' || body.type === 'customer.heartbeat'
       ? await ensureAutomaticVideoSurveyRecording(session.id, 'customer_joined')
       : null
-    const finishing = body.type === 'customer.left'
+    const finishing = body.type === 'customer.finished'
       ? await finishAutomaticVideoSurveyRecording(session.id, 'customer')
       : null
     return NextResponse.json({ ok: true, recording, finishing })

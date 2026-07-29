@@ -3,6 +3,7 @@ import test from 'node:test'
 import {
   canJoinVideoSurvey,
   isVideoSurveyParticipantPresent,
+  statusAfterVideoSurveyCustomerEvent,
   videoSurveyPresence,
   videoSurveyProcessingStages,
 } from '../../lib/video-survey'
@@ -14,6 +15,14 @@ test('only pre-call and live survey states can be joined', () => {
   assert.equal(canJoinVideoSurvey('recording_processing'), false)
   assert.equal(canJoinVideoSurvey('review_required'), false)
   assert.equal(canJoinVideoSurvey('confirmed'), false)
+})
+
+test('temporary customer exits remain resumable until explicitly finished', () => {
+  assert.equal(statusAfterVideoSurveyCustomerEvent('live', 'customer.left', true), 'reconnecting')
+  assert.equal(statusAfterVideoSurveyCustomerEvent('waiting', 'customer.reconnecting', false), 'reconnecting')
+  assert.equal(statusAfterVideoSurveyCustomerEvent('reconnecting', 'customer.reconnected', true), 'live')
+  assert.equal(statusAfterVideoSurveyCustomerEvent('reconnecting', 'customer.reconnected', false), 'waiting')
+  assert.equal(statusAfterVideoSurveyCustomerEvent('recording_processing', 'customer.left', false), undefined)
 })
 
 test('presence metadata distinguishes joined participants from stale states', () => {

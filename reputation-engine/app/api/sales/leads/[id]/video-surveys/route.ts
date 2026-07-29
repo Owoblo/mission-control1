@@ -78,6 +78,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     const existingSessions = await listVideoSurveySessionsForLead(leadId)
     const activeSession = existingSessions.find(session =>
       canJoinVideoSurvey(session.status) &&
+      Boolean(session.providerMeetingId) &&
       new Date(session.customerTokenExpiresAt).getTime() > Date.now() &&
       typeof session.metadata?.portalToken === 'string'
     )

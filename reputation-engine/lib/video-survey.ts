@@ -84,6 +84,30 @@ export function canJoinVideoSurvey(status: VideoSurveyStatus) {
   return ['draft', 'ready', 'waiting', 'live', 'reconnecting'].includes(status)
 }
 
+export type VideoSurveyCustomerPresenceEvent =
+  | 'customer.joining'
+  | 'customer.joined'
+  | 'customer.reconnecting'
+  | 'customer.reconnected'
+  | 'customer.left'
+  | 'customer.finished'
+  | 'customer.heartbeat'
+
+export function statusAfterVideoSurveyCustomerEvent(
+  currentStatus: VideoSurveyStatus,
+  event: VideoSurveyCustomerPresenceEvent,
+  representativePresent: boolean,
+): VideoSurveyStatus | undefined {
+  if (!canJoinVideoSurvey(currentStatus)) return undefined
+  if (event === 'customer.joined' || event === 'customer.reconnected') {
+    return representativePresent ? 'live' : 'waiting'
+  }
+  if (event === 'customer.reconnecting' || event === 'customer.left') {
+    return 'reconnecting'
+  }
+  return undefined
+}
+
 export function videoSurveyPresence(session: Pick<VideoSurveySession, 'metadata'>): VideoSurveyPresence {
   const raw = session.metadata?.presence
   if (!raw || typeof raw !== 'object') return { customer: null, representative: null }
