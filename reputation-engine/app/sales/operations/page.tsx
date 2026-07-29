@@ -21,6 +21,11 @@ import {
 import { deriveAccessComplexityAssessment } from '@/lib/access-intelligence'
 import { deriveJobReadiness } from '@/lib/job-spine'
 import { buildDefaultMoveExecutionEntries, MOVE_EXECUTION_PHASES } from '@/lib/move-execution'
+import {
+  getOperationsCalendarOccurrences,
+  hasOperationsOccurrenceOnDate,
+  type OperationsCalendarOccurrence,
+} from '@/lib/operations-calendar'
 import { updateSalesLead } from '@/lib/sales-api'
 import { formatDate, formatDateTime, formatMoney, uid } from '@/lib/sales'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
@@ -159,9 +164,9 @@ function readinessBadgeClasses(level: DispatchReadinessLevel) {
   return 'bg-emerald-100 text-emerald-700'
 }
 
-function deriveDispatchReadiness(job: Job): { level: DispatchReadinessLevel; label: string; reasons: string[] } {
+function deriveDispatchReadiness(job: Job, operationalDate?: string): { level: DispatchReadinessLevel; label: string; reasons: string[] } {
   const checklist = deriveOpsChecklist(job.lead)
-  const moveDate = getJobMoveDate(job)
+  const moveDate = operationalDate || getJobMoveDate(job)
   const days = daysUntilMove(moveDate)
   const reasons: string[] = []
 
@@ -198,7 +203,7 @@ function matchesOperationsFilter(job: Job, filter: OperationsFilterKey) {
   if (filter === 'no_crew') return !hasCrewRolePlan(job)
   if (filter === 'no_truck') return requiresTruck(job) && !hasTruckAssigned(job)
   if (filter === 'deposit_unpaid') return !isDepositPaid(job)
-  if (filter === 'tomorrow') return getJobMoveDate(job) === tomorrowISO()
+  if (filter === 'tomorrow') return hasOperationsOccurrenceOnDate(job.lead, job.quote, tomorrowISO())
   if (filter === 'needs_confirmation') return !hasCustomerConfirmation(job)
   if (filter === 'needs_equipment') return !checklist.toolsReady
   if (filter === 'needs_briefing') return !checklist.jobPacketReady
@@ -470,12 +475,12 @@ export default function OperationsPage() {
       : jobs.filter(job => activeFilters.every(filter => matchesOperationsFilter(job, filter)))
   ), [activeFilters, jobs])
   const upcomingJobs = filteredJobs.filter(j => {
-    const d = getJobMoveDate(j)
-    return d && d >= today && !completedIds.has(j.lead.id)
+    const dates = getOperationsCalendarOccurrences(j.lead, j.quote).map(item => item.date)
+    return dates.some(date => date >= today) && !completedIds.has(j.lead.id)
   })
   const otherJobs = filteredJobs.filter(j => {
-    const d = getJobMoveDate(j)
-    return (!d || d < today) && !completedIds.has(j.lead.id)
+    const dates = getOperationsCalendarOccurrences(j.lead, j.quote).map(item => item.date)
+    return (dates.length === 0 || dates.every(date => date < today)) && !completedIds.has(j.lead.id)
   })
   const readyCount = upcomingJobs.filter(job => deriveDispatchReadiness(job).level === 'ready').length
   const missingTruckCount = upcomingJobs.filter(job => requiresTruck(job) && !hasTruckAssigned(job)).length
@@ -844,6 +849,7 @@ function JobsCalendar({
   canManageCrew: boolean
 }) {
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
+  const [selectedOccurrence, setSelectedOccurrence] = useState<OperationsCalendarOccurrence | null>(null)
   const [actualHours, setActualHours] = useState('')
   const [actualCrew, setActualCrew] = useState('')
   const [actualNotes, setActualNotes] = useState('')
@@ -880,6 +886,7 @@ function JobsCalendar({
   useEffect(() => {
     if (selectedJob && !jobs.some(job => job.lead.id === selectedJob.lead.id)) {
       setSelectedJob(null)
+      setSelectedOccurrence(null)
     }
   }, [jobs, selectedJob])
 
@@ -975,13 +982,13 @@ function JobsCalendar({
   const totalDays = lastDay.getDate()
 
   const jobsByDate = useMemo(() => {
-    const map = new Map<string, Job[]>()
+    const map = new Map<string, Array<{ job: Job; occurrence: OperationsCalendarOccurrence }>>()
     for (const job of jobs) {
-      const d = getJobMoveDate(job)
-      if (!d) continue
-      const list = map.get(d) || []
-      list.push(job)
-      map.set(d, list)
+      for (const occurrence of getOperationsCalendarOccurrences(job.lead, job.quote)) {
+        const list = map.get(occurrence.date) || []
+        list.push({ job, occurrence })
+        map.set(occurrence.date, list)
+      }
     }
     return map
   }, [jobs])
@@ -1047,8 +1054,8 @@ function JobsCalendar({
         {cells.map((cell, i) => {
           const dayJobs = cell.date ? (jobsByDate.get(cell.date) || []) : []
           const isToday = cell.date === today
-          const hasReadinessGap = dayJobs.some(job =>
-            deriveDispatchReadiness(job).level !== 'ready'
+          const hasReadinessGap = dayJobs.some(({ job, occurrence }) =>
+            deriveDispatchReadiness(job, occurrence.date).level !== 'ready'
           )
           const dayTone =
             !cell.date ? 'bg-slate-50' :
@@ -1077,16 +1084,20 @@ function JobsCalendar({
                 </div>
               )}
               <div className="space-y-1">
-                {dayJobs.map(job => {
+                {dayJobs.map(({ job, occurrence }) => {
                   const branchColor = job.lead.branch ? BRANCH_COLORS[job.lead.branch] : 'bg-[#071421]/10 text-[#071421]'
-                  const readiness = deriveDispatchReadiness(job)
+                  const readiness = deriveDispatchReadiness(job, occurrence.date)
                   const crewNames = (job.lead.assignedCrew?.length ?? 0) > 0
                     ? `${job.lead.assignedCrew!.length} crew`
                     : 'No crew'
                   return (
                     <button
-                      key={job.lead.id}
-                      onClick={() => setSelectedJob(selectedJob?.lead.id === job.lead.id ? null : job)}
+                      key={occurrence.key}
+                      onClick={() => {
+                        const isSelected = selectedOccurrence?.key === occurrence.key
+                        setSelectedJob(isSelected ? null : job)
+                        setSelectedOccurrence(isSelected ? null : occurrence)
+                      }}
                       className={`w-full rounded-md px-1.5 py-1 text-left text-[10px] font-semibold leading-tight transition hover:opacity-80 ${branchColor}`}
                     >
                       <div className="flex items-center justify-between gap-1">
@@ -1096,6 +1107,9 @@ function JobsCalendar({
                         </span>
                       </div>
                       <div className="truncate font-normal opacity-75">{crewNames} · {job.quote?.estimatedHours ? `~${job.quote.estimatedHours}h` : 'TBD'}</div>
+                      {occurrence.legLabel && (
+                        <div className="mt-0.5 truncate font-bold opacity-90">{occurrence.legLabel}</div>
+                      )}
                     </button>
                   )
                 })}
@@ -1109,7 +1123,12 @@ function JobsCalendar({
       {selectedJob && (
         <div
           className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/45 p-4 pt-10 backdrop-blur-sm"
-          onClick={event => { if (event.target === event.currentTarget) setSelectedJob(null) }}
+          onClick={event => {
+            if (event.target === event.currentTarget) {
+              setSelectedJob(null)
+              setSelectedOccurrence(null)
+            }
+          }}
         >
         <div className="max-h-[calc(100vh-5rem)] w-full max-w-5xl space-y-4 overflow-y-auto rounded-xl border border-slate-200 bg-white p-5 shadow-none">
           <div className="flex items-start justify-between gap-3">
@@ -1131,17 +1150,31 @@ function JobsCalendar({
                 ) : null}
               </div>
               <div className="mt-1 text-sm text-slate-500">
-                {selectedRoute?.origin || '—'} → {selectedRoute?.destination || '—'}
+                {selectedOccurrence?.originAddress || selectedRoute?.origin || '—'} → {selectedOccurrence?.destinationAddress || selectedRoute?.destination || '—'}
               </div>
             </div>
-            <button onClick={() => setSelectedJob(null)} className="text-slate-400 hover:text-slate-600">✕</button>
+            <button
+              onClick={() => {
+                setSelectedJob(null)
+                setSelectedOccurrence(null)
+              }}
+              className="text-slate-400 hover:text-slate-600"
+            >
+              ✕
+            </button>
           </div>
 
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <div className="rounded-xl bg-slate-50 p-3">
-              <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Move date</div>
+              <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+                {selectedOccurrence?.legLabel || 'Move date'}
+              </div>
               <div className="mt-1 text-sm font-semibold text-[#071421]">
-                {getJobMoveDate(selectedJob) ? formatDate(getJobMoveDate(selectedJob) || '') : 'TBD'}
+                {selectedOccurrence?.date
+                  ? formatDate(selectedOccurrence.date)
+                  : getJobMoveDate(selectedJob)
+                    ? formatDate(getJobMoveDate(selectedJob) || '')
+                    : 'TBD'}
               </div>
             </div>
             {selectedJob.quote?.crewSize && (

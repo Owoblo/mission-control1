@@ -33,7 +33,15 @@ export async function GET(request: Request) {
   const jobs = bookedLeads.map(lead => ({
     lead,
     quote: quotes
-      .filter(q => q.leadId === lead.id && (q.status === 'accepted' || q.status === 'sent' || q.status === 'invoiced'))
+      .filter(q =>
+        q.leadId === lead.id &&
+        (
+          q.id === lead.quoteId ||
+          q.status === 'accepted' ||
+          q.status === 'sent' ||
+          q.status === 'invoiced'
+        )
+      )
       .sort((a, b) => quoteRank(a) - quoteRank(b) || b.createdAt.localeCompare(a.createdAt))[0] || null,
   })).sort((a, b) => {
     const dateA = a.lead.moveDate || a.quote?.moveDate || '9999'
