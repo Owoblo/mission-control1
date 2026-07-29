@@ -56,6 +56,16 @@ export const PARTNER_CATEGORIES: Record<string, PartnerCategory> = {
     suggestedScript: 'Hi, I\'m with Saturn Star Movers — we know tenant turnover means a lot of moves. We\'d love to be your go-to referral for tenants who need help.',
   },
 
+  maintenance_manager: {
+    id: 'maintenance_manager',
+    label: 'Building / Maintenance Manager',
+    tier: 1,
+    icon: '🏢',
+    description: 'Building superintendents and maintenance managers who coordinate tenant access and move logistics',
+    color: 'border-blue-200 bg-blue-50 text-blue-800',
+    suggestedScript: 'Hi, I’m with Saturn Star Movers — we help residents coordinate smooth moves while respecting building access and move procedures.',
+  },
+
   mortgage_broker: {
     id: 'mortgage_broker',
     label: 'Mortgage Broker',
@@ -146,6 +156,46 @@ export const PARTNER_CATEGORIES: Record<string, PartnerCategory> = {
     description: 'HR departments & relocation companies — employee moves',
     color: 'border-indigo-200 bg-indigo-50 text-indigo-700',
     suggestedScript: 'Hi, I\'m with Saturn Star Movers — we specialize in corporate relocations and would love to be your preferred vendor for employee moves.',
+  },
+
+  senior_living: {
+    id: 'senior_living',
+    label: 'Retirement / Senior Living',
+    tier: 2,
+    icon: '🏡',
+    description: 'Retirement residences and senior communities coordinating resident transitions',
+    color: 'border-slate-200 bg-slate-50 text-slate-700',
+    suggestedScript: 'Hi, I’m with Saturn Star Movers — we help families manage careful, respectful transitions into senior living communities.',
+  },
+
+  insurance: {
+    id: 'insurance',
+    label: 'Insurance Representative',
+    tier: 2,
+    icon: '🛡',
+    description: 'Insurance contacts involved in relocations, claims, and temporary moves',
+    color: 'border-slate-200 bg-slate-50 text-slate-700',
+    suggestedScript: 'Hi, I’m with Saturn Star Movers — we support insured moves and temporary relocations with clear documentation and careful handling.',
+  },
+
+  personal_referrer: {
+    id: 'personal_referrer',
+    label: 'Customer / Personal Referrer',
+    tier: 3,
+    icon: '👤',
+    description: 'Customers and personal contacts who introduce a move opportunity',
+    color: 'border-slate-200 bg-slate-50 text-slate-700',
+    suggestedScript: 'Thank you for connecting us — we’ll take excellent care of the person you referred.',
+  },
+
+  other: {
+    id: 'other',
+    label: 'Other Move Connection',
+    tier: 3,
+    icon: '🔗',
+    description: 'A relevant move relationship that does not fit another category',
+    color: 'border-slate-200 bg-slate-50 text-slate-700',
+    suggestedScript: 'Hi, I’m with Saturn Star Movers — I’m reaching out because of a move we are coordinating together.',
   },
 
   school: {

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { PartnerReferralSelector } from './partner-referral-selector'
 import {
   ATTRIBUTION_CHANNELS,
+  MOVE_RELATIONSHIP_CATEGORY_BY_ROLE,
   MOVE_RELATIONSHIP_ROLE_LABELS,
   OPPORTUNITY_POSITION_LABELS,
   normalizeAttributionSignals,
@@ -57,6 +58,7 @@ export function OpportunityNetworkWorkspace({ lead, disabled, onUpdated }: Props
   const [relationshipRole, setRelationshipRole] = useState<MoveRelationshipRole>('listing_realtor')
   const [relationshipConfidence, setRelationshipConfidence] = useState<MoveRelationship['confidence']>('confirmed')
   const [relationshipSource, setRelationshipSource] = useState('')
+  const [addressConnection, setAddressConnection] = useState<NonNullable<MoveRelationship['addressConnection']>>('origin')
   const [socialHandle, setSocialHandle] = useState('')
   const [preferredChannel, setPreferredChannel] = useState<MoveRelationship['preferredChannel']>('unknown')
   const [saving, setSaving] = useState(false)
@@ -82,17 +84,25 @@ export function OpportunityNetworkWorkspace({ lead, disabled, onUpdated }: Props
     setSignalDetail('')
   }
 
-  function addRelationship() {
-    if (!selectedPartner) return
+  function addRelationship(partner = selectedPartner) {
+    if (!partner) return
     const next = normalizeMoveRelationships(relationships.concat({
       id: uid('rel'),
-      contactId: selectedPartner.id,
-      name: selectedPartner.name,
-      company: selectedPartner.company,
+      contactId: partner.id,
+      name: partner.name,
+      company: partner.company,
       role: relationshipRole,
-      category: selectedPartner.category,
-      email: selectedPartner.email,
-      phone: selectedPartner.phone,
+      category: partner.category,
+      email: partner.email,
+      phone: partner.phone,
+      addressConnection,
+      connectedAddress: addressConnection === 'origin'
+        ? lead.originAddress
+        : addressConnection === 'destination'
+          ? lead.destAddress
+          : addressConnection === 'both'
+            ? [lead.originAddress, lead.destAddress].filter(Boolean).join(' → ')
+            : undefined,
       socialHandle: socialHandle.trim() || undefined,
       preferredChannel,
       confidence: relationshipConfidence,
@@ -245,6 +255,18 @@ export function OpportunityNetworkWorkspace({ lead, disabled, onUpdated }: Props
                     <button type="button" disabled={disabled} onClick={() => setRelationships(current => current.filter(item => item.id !== relationship.id))} className="text-xs text-[var(--app-muted)] hover:text-[#071421]">Remove</button>
                   </div>
                   <div className="mt-3 border-t border-[var(--app-line)] pt-2 text-xs text-[#344054]">{MOVE_RELATIONSHIP_ROLE_LABELS[relationship.role]} · {relationship.confidence}</div>
+                  {relationship.addressConnection ? (
+                    <div className="mt-1 text-xs text-[var(--app-muted)]">
+                      {relationship.addressConnection === 'origin'
+                        ? 'Origin connection'
+                        : relationship.addressConnection === 'destination'
+                          ? 'Destination connection'
+                          : relationship.addressConnection === 'both'
+                            ? 'Connected to both addresses'
+                            : 'Move-level connection'}
+                      {relationship.connectedAddress ? ` · ${relationship.connectedAddress}` : ''}
+                    </div>
+                  ) : null}
                   {(relationship.preferredChannel && relationship.preferredChannel !== 'unknown') || relationship.socialHandle ? <div className="mt-1 text-xs text-[var(--app-muted)]">{[relationship.preferredChannel !== 'unknown' ? relationship.preferredChannel : '', relationship.socialHandle].filter(Boolean).join(' · ')}</div> : null}
                 </div>
               )) : <div className="border border-dashed border-[var(--app-line)] bg-[#fbfaf6] p-5 text-sm text-[var(--app-muted)] md:col-span-2">No surrounding relationships connected yet. Add the realtor, brokerage, building, property manager, mortgage broker or other relevant contact.</div>}
@@ -254,7 +276,6 @@ export function OpportunityNetworkWorkspace({ lead, disabled, onUpdated }: Props
           <div className="border border-[var(--app-line)] bg-[#fbfaf6] p-4">
             <div className="text-sm font-semibold text-[#071421]">Connect a relationship</div>
             <div className="mt-3 space-y-3">
-              <PartnerReferralSelector value={selectedPartner} disabled={disabled} onChange={setSelectedPartner} />
               <div className="grid gap-2 md:grid-cols-2">
                 <select className="crm-input" value={relationshipRole} disabled={disabled} onChange={event => setRelationshipRole(event.target.value as MoveRelationshipRole)}>
                   {Object.entries(MOVE_RELATIONSHIP_ROLE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -264,6 +285,15 @@ export function OpportunityNetworkWorkspace({ lead, disabled, onUpdated }: Props
                   <option value="likely">Likely match</option>
                   <option value="possible">Possible — verify</option>
                 </select>
+                <label className="md:col-span-2 text-[10px] font-semibold uppercase tracking-wider text-[#5d5642]">
+                  Which side of the move?
+                  <select className="crm-input mt-1 w-full" value={addressConnection} disabled={disabled} onChange={event => setAddressConnection(event.target.value as NonNullable<MoveRelationship['addressConnection']>)}>
+                    <option value="origin">Origin — {lead.originAddress || 'address not entered'}</option>
+                    <option value="destination">Destination — {lead.destAddress || 'address not entered'}</option>
+                    <option value="both">Both origin and destination</option>
+                    <option value="other">Move-level / neither address</option>
+                  </select>
+                </label>
                 <select className="crm-input" value={preferredChannel} disabled={disabled} onChange={event => setPreferredChannel(event.target.value as MoveRelationship['preferredChannel'])}>
                   <option value="unknown">Contact mode unknown</option>
                   <option value="phone">Phone</option>
@@ -276,7 +306,14 @@ export function OpportunityNetworkWorkspace({ lead, disabled, onUpdated }: Props
                 <input className="crm-input" value={socialHandle} disabled={disabled} onChange={event => setSocialHandle(event.target.value)} placeholder="@handle or profile URL" />
                 <input className="crm-input md:col-span-2" value={relationshipSource} disabled={disabled} onChange={event => setRelationshipSource(event.target.value)} placeholder="How was this connection confirmed or discovered?" />
               </div>
-              <button type="button" onClick={addRelationship} disabled={disabled || !selectedPartner} className="crm-button-dark w-full disabled:opacity-50">Connect to this move</button>
+              <PartnerReferralSelector
+                value={selectedPartner}
+                disabled={disabled}
+                onChange={setSelectedPartner}
+                defaultCategory={MOVE_RELATIONSHIP_CATEGORY_BY_ROLE[relationshipRole]}
+                onCreated={partner => addRelationship(partner)}
+              />
+              <button type="button" onClick={() => addRelationship()} disabled={disabled || !selectedPartner} className="crm-button-dark w-full disabled:opacity-50">Connect to this move</button>
               <div className="border-t border-[var(--app-line)] pt-3">
                 <label className="flex items-start gap-2 text-xs leading-5 text-[#344054]">
                   <input

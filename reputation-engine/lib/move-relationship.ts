@@ -37,6 +37,23 @@ export const MOVE_RELATIONSHIP_ROLE_LABELS: Record<MoveRelationshipRole, string>
   other: 'Other connection',
 }
 
+export const MOVE_RELATIONSHIP_CATEGORY_BY_ROLE: Record<MoveRelationshipRole, string> = {
+  referring_realtor: 'realtor',
+  listing_realtor: 'realtor',
+  buyer_realtor: 'realtor',
+  brokerage: 'brokerage',
+  property_manager: 'property_manager',
+  building_manager: 'maintenance_manager',
+  mortgage_broker: 'mortgage_broker',
+  lender: 'mortgage_broker',
+  employer: 'corporate',
+  storage_facility: 'storage_facility',
+  retirement_residence: 'senior_living',
+  insurance: 'insurance',
+  customer_referrer: 'personal_referrer',
+  other: 'other',
+}
+
 export const ATTRIBUTION_CHANNELS = [
   'Direct mail',
   'Google search',
@@ -95,8 +112,8 @@ export function normalizeMoveRelationships(relationships?: MoveRelationship[]) {
   const seen = new Set<string>()
   return (relationships || []).filter(relationship => {
     const key = relationship.contactId
-      ? `${relationship.contactId}|${relationship.role}`
-      : `${relationship.name.trim().toLowerCase()}|${(relationship.company || '').trim().toLowerCase()}|${relationship.role}`
+      ? `${relationship.contactId}|${relationship.role}|${relationship.addressConnection || 'move'}`
+      : `${relationship.name.trim().toLowerCase()}|${(relationship.company || '').trim().toLowerCase()}|${relationship.role}|${relationship.addressConnection || 'move'}`
     if (!relationship.name.trim() || seen.has(key)) return false
     seen.add(key)
     return true

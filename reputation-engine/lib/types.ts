@@ -131,6 +131,8 @@ export interface MoveRelationship {
   category?: string
   email?: string
   phone?: string
+  addressConnection?: 'origin' | 'destination' | 'both' | 'other'
+  connectedAddress?: string
   socialHandle?: string
   preferredChannel?: 'phone' | 'email' | 'sms' | 'instagram' | 'linkedin' | 'in_person' | 'unknown'
   confidence: 'confirmed' | 'likely' | 'possible'

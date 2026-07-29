@@ -2,12 +2,19 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { CATEGORY_LIST } from '@/lib/partner-categories'
-import type { PartnerDirectoryCreateInput, PartnerDirectoryEntry } from '@/lib/partner-directory'
+import {
+  PARTNER_MUNICIPALITIES,
+  partnerServiceAreaForCity,
+  type PartnerDirectoryCreateInput,
+  type PartnerDirectoryEntry,
+} from '@/lib/partner-directory'
 
 type Props = {
   value?: PartnerDirectoryEntry | null
   disabled?: boolean
   onChange: (value: PartnerDirectoryEntry | null) => void
+  defaultCategory?: string
+  onCreated?: (value: PartnerDirectoryEntry) => void
 }
 
 const EMPTY_CREATE: PartnerDirectoryCreateInput = {
@@ -21,7 +28,7 @@ const EMPTY_CREATE: PartnerDirectoryCreateInput = {
   industry: '',
 }
 
-export function PartnerReferralSelector({ value, disabled, onChange }: Props) {
+export function PartnerReferralSelector({ value, disabled, onChange, defaultCategory, onCreated }: Props) {
   const [query, setQuery] = useState(value?.name || '')
   const [results, setResults] = useState<PartnerDirectoryEntry[]>([])
   const [open, setOpen] = useState(false)
@@ -34,6 +41,12 @@ export function PartnerReferralSelector({ value, disabled, onChange }: Props) {
   useEffect(() => {
     if (value) setQuery(value.name)
   }, [value?.id, value?.name])
+
+  useEffect(() => {
+    if (defaultCategory && !creating) {
+      setCreateForm(current => ({ ...current, category: defaultCategory }))
+    }
+  }, [defaultCategory, creating])
 
   useEffect(() => () => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -94,6 +107,7 @@ export function PartnerReferralSelector({ value, disabled, onChange }: Props) {
       const payload = await response.json()
       if (!response.ok) throw new Error(payload.error || 'Could not create partner')
       select(payload.contact)
+      onCreated?.(payload.contact)
     } catch (createError) {
       setError((createError as Error).message)
     } finally {
@@ -109,7 +123,7 @@ export function PartnerReferralSelector({ value, disabled, onChange }: Props) {
             <div className="text-[10px] font-bold uppercase tracking-wider text-[#8a6800]">Connected partnership record</div>
             <div className="mt-1 truncate text-sm font-semibold text-[#071421]">{value.name}</div>
             <div className="mt-0.5 text-xs text-[#5d5642]">
-              {[value.company, CATEGORY_LIST.find(item => item.id === value.category)?.label || value.category, value.city].filter(Boolean).join(' · ')}
+              {[value.company, CATEGORY_LIST.find(item => item.id === value.category)?.label || value.category, value.city, partnerServiceAreaForCity(value.city)].filter(Boolean).join(' · ')}
             </div>
           </div>
           <button type="button" disabled={disabled} onClick={() => { onChange(null); setQuery(''); }} className="text-xs font-semibold text-[#8a6800] hover:underline disabled:opacity-50">
@@ -171,10 +185,23 @@ export function PartnerReferralSelector({ value, disabled, onChange }: Props) {
             <input className="crm-input" placeholder="Company / brokerage" value={createForm.company} onChange={event => setCreateForm(current => ({ ...current, company: event.target.value }))} />
             <input className="crm-input" placeholder="Email" value={createForm.email} onChange={event => setCreateForm(current => ({ ...current, email: event.target.value }))} />
             <input className="crm-input" placeholder="Phone" value={createForm.phone} onChange={event => setCreateForm(current => ({ ...current, phone: event.target.value }))} />
-            <input className="crm-input col-span-2" placeholder="City" value={createForm.city} onChange={event => setCreateForm(current => ({ ...current, city: event.target.value }))} />
+            <label className="col-span-2 text-[10px] font-semibold uppercase tracking-wider text-[#5d5642]">
+              Municipality and operating area
+              <select className="crm-input mt-1 w-full" value={createForm.city} onChange={event => setCreateForm(current => ({ ...current, city: event.target.value }))}>
+                <option value="">Select municipality</option>
+                {Array.from(new Set(PARTNER_MUNICIPALITIES.map(option => option.serviceArea))).map(area => (
+                  <optgroup key={area} label={area}>
+                    {PARTNER_MUNICIPALITIES.filter(option => option.serviceArea === area).map(option => (
+                      <option key={option.city} value={option.city}>{option.city}</option>
+                    ))}
+                  </optgroup>
+                ))}
+                <option value="Other">Other / outside core areas</option>
+              </select>
+            </label>
           </div>
           <div className="flex gap-2">
-            <button type="button" disabled={searching} onClick={createPartner} className="rounded-[4px] bg-[#071421] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Create & connect</button>
+            <button type="button" disabled={searching} onClick={createPartner} className="rounded-[4px] bg-[#071421] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Create &amp; connect</button>
             <button type="button" onClick={() => setCreating(false)} className="px-3 py-2 text-xs font-semibold text-slate-600">Cancel</button>
           </div>
         </div>

@@ -3,6 +3,7 @@ import test from 'node:test'
 import {
   normalizeAttributionSignals,
   normalizeMoveRelationships,
+  MOVE_RELATIONSHIP_CATEGORY_BY_ROLE,
   isMoveRelationshipLifecycleComplete,
   moveRelationshipLifecycleGaps,
   opportunityHealthLabel,
@@ -50,4 +51,14 @@ test('a contact can hold multiple roles but duplicate role links are removed', (
     { ...base, id: '3', contactId: 'contact-1', role: 'referring_realtor' },
   ])
   assert.equal(relationships.length, 2)
+})
+
+test('the same contact can be connected to distinct sides of a move', () => {
+  const base = { name: 'Mackie Jones', contactId: 'contact-2', role: 'building_manager' as const, confidence: 'confirmed' as const, createdAt: '2026-07-29' }
+  const relationships = normalizeMoveRelationships([
+    { ...base, id: '1', addressConnection: 'origin' },
+    { ...base, id: '2', addressConnection: 'destination' },
+  ])
+  assert.equal(relationships.length, 2)
+  assert.equal(MOVE_RELATIONSHIP_CATEGORY_BY_ROLE.building_manager, 'maintenance_manager')
 })
