@@ -34,6 +34,23 @@ test('lifecycle completion requires context, acquisition evidence and an explici
   }), true)
 })
 
+test('the lead form source satisfies acquisition evidence without duplicate attribution', () => {
+  const context = {
+    position: 'discovery' as const,
+    bookingConfidence: 40,
+    summary: 'Customer is collecting inventory.',
+    nextAction: 'Follow up',
+    nextActionDueAt: '2026-07-30T14:00:00.000Z',
+    relationshipReviewStatus: 'complete' as const,
+    updatedAt: '2026-07-29T14:00:00.000Z',
+  }
+  assert.deepEqual(moveRelationshipLifecycleGaps({
+    context,
+    signals: [],
+    primarySource: 'direct_mail',
+  }), [])
+})
+
 test('multi-touch attribution deduplicates exact evidence without collapsing distinct influence', () => {
   const signals = normalizeAttributionSignals([
     { id: '1', channel: 'Direct mail', influence: 'first_touch', confidence: 'confirmed', observedAt: '2026-07-28' },

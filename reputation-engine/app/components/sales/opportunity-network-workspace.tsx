@@ -13,6 +13,7 @@ import {
   opportunityHealthLabel,
 } from '@/lib/move-relationship'
 import { updateSalesLead } from '@/lib/sales-api'
+import { getLeadSourceLabel } from '@/lib/sales'
 import type { PartnerDirectoryEntry } from '@/lib/partner-directory'
 import type {
   AttributionInfluence,
@@ -40,6 +41,18 @@ function uid(prefix: string) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
 }
 
+const PRIMARY_SOURCE_CHANNEL: Record<string, (typeof ATTRIBUTION_CHANNELS)[number]> = {
+  google_online_search: 'Google search',
+  facebook_instagram_ad: 'Instagram',
+  customer_referral: 'Customer referral',
+  partner_referral: 'Partnership referral',
+  repeat_customer: 'Repeat customer',
+  direct_mail: 'Direct mail',
+  website_form: 'Website',
+  phone: 'Phone / walk-in',
+  walk_in: 'Phone / walk-in',
+}
+
 export function OpportunityNetworkWorkspace({ lead, disabled, onUpdated }: Props) {
   const [context, setContext] = useState<LeadOpportunityContext>(() => lead.opportunityContext || {
     position: lead.stage === 'tentative' ? 'reviewing_estimate' : 'discovery',
@@ -50,6 +63,7 @@ export function OpportunityNetworkWorkspace({ lead, disabled, onUpdated }: Props
     updatedAt: new Date().toISOString(),
   })
   const [signals, setSignals] = useState<LeadAttributionSignal[]>(lead.attributionSignals || [])
+  const [sourceDetail, setSourceDetail] = useState(lead.sourceDetail || '')
   const [relationships, setRelationships] = useState<MoveRelationship[]>(lead.moveRelationships || [])
   const [signalChannel, setSignalChannel] = useState<(typeof ATTRIBUTION_CHANNELS)[number]>('Direct mail')
   const [signalDetail, setSignalDetail] = useState('')
@@ -67,14 +81,22 @@ export function OpportunityNetworkWorkspace({ lead, disabled, onUpdated }: Props
 
   const health = useMemo(() => opportunityHealthLabel(context), [context])
   const lifecycleGaps = useMemo(
-    () => moveRelationshipLifecycleGaps({ context, signals }),
-    [context, signals],
+    () => moveRelationshipLifecycleGaps({ context, signals, primarySource: lead.source }),
+    [context, signals, lead.source],
   )
+  const primarySourceLabel = getLeadSourceLabel(lead.source)
+  const primarySourceChannel = lead.source ? PRIMARY_SOURCE_CHANNEL[lead.source] : undefined
+  const additionalChannels = ATTRIBUTION_CHANNELS.filter(
+    channel => channel !== primarySourceChannel
+  )
+  const effectiveSignalChannel = additionalChannels.includes(signalChannel)
+    ? signalChannel
+    : additionalChannels[0]
 
   function addSignal() {
     const next = normalizeAttributionSignals(signals.concat({
       id: uid('attr'),
-      channel: signalChannel,
+      channel: effectiveSignalChannel,
       detail: signalDetail.trim() || undefined,
       influence: signalInfluence,
       confidence: 'confirmed',
@@ -129,6 +151,7 @@ export function OpportunityNetworkWorkspace({ lead, disabled, onUpdated }: Props
       }
       const saved = await updateSalesLead(lead.id, {
         opportunityContext: nextContext,
+        sourceDetail: sourceDetail.trim() || undefined,
         attributionSignals: normalizeAttributionSignals(signals),
         moveRelationships: normalizeMoveRelationships(relationships),
         ...(dueAt && context.nextAction?.trim() ? {
@@ -209,8 +232,24 @@ export function OpportunityNetworkWorkspace({ lead, disabled, onUpdated }: Props
         <div className="space-y-6 bg-[#fbfaf6] p-5 md:p-7">
           <div>
             <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8a6800]">2 · Multi-touch attribution</div>
-            <h3 className="mt-1 text-lg font-semibold text-[#071421]">Every path that influenced this lead</h3>
-            <p className="mt-1 text-xs leading-5 text-[var(--app-muted)]">Keep the original lead source while recording direct mail, search, referrals, social and other assisted touches.</p>
+            <h3 className="mt-1 text-lg font-semibold text-[#071421]">Lead source and supporting touchpoints</h3>
+            <p className="mt-1 text-xs leading-5 text-[var(--app-muted)]">The source selected on the lead is authoritative. Add useful context here, then record only genuinely different influences below.</p>
+          </div>
+          <div className="border-l-2 border-[#C99700] bg-white p-4">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8a6800]">Primary lead source</div>
+            <div className="mt-1 text-base font-semibold text-[#071421]">{lead.source ? primarySourceLabel : 'Source not selected on lead'}</div>
+            <textarea
+              className="crm-input mt-3 min-h-16 w-full resize-y"
+              value={sourceDetail}
+              disabled={disabled}
+              onChange={event => setSourceDetail(event.target.value)}
+              placeholder="Add the useful detail — which postcard or campaign, Google profile/location, referring person, customer’s wording, tracking code…"
+            />
+            <div className="mt-1 text-[10px] leading-4 text-[var(--app-muted)]">This enriches the lead’s existing source; it does not create a second source.</div>
+          </div>
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#667085]">Additional touchpoints · optional</div>
+            <p className="mt-1 text-xs text-[var(--app-muted)]">Use only when another channel also influenced the enquiry.</p>
           </div>
           <div className="space-y-2">
             {signals.length ? signals.map(signal => (
@@ -224,8 +263,8 @@ export function OpportunityNetworkWorkspace({ lead, disabled, onUpdated }: Props
             )) : <div className="border border-dashed border-[var(--app-line)] bg-white px-4 py-5 text-sm text-[var(--app-muted)]">No supporting attribution evidence recorded yet.</div>}
           </div>
           <div className="grid gap-2 md:grid-cols-2">
-            <select className="crm-input" value={signalChannel} disabled={disabled} onChange={event => setSignalChannel(event.target.value as typeof signalChannel)}>
-              {ATTRIBUTION_CHANNELS.map(channel => <option key={channel}>{channel}</option>)}
+            <select className="crm-input" value={effectiveSignalChannel} disabled={disabled} onChange={event => setSignalChannel(event.target.value as typeof signalChannel)}>
+              {additionalChannels.map(channel => <option key={channel}>{channel}</option>)}
             </select>
             <select className="crm-input" value={signalInfluence} disabled={disabled} onChange={event => setSignalInfluence(event.target.value as AttributionInfluence)}>
               <option value="first_touch">First touch</option>
@@ -234,7 +273,7 @@ export function OpportunityNetworkWorkspace({ lead, disabled, onUpdated }: Props
               <option value="self_reported">Customer reported</option>
             </select>
             <input className="crm-input md:col-span-2" value={signalDetail} disabled={disabled} onChange={event => setSignalDetail(event.target.value)} placeholder="Evidence or detail — postcard, Google search, realtor name…" />
-            <button type="button" onClick={addSignal} disabled={disabled} className="crm-button-dark md:col-span-2">Add attribution evidence</button>
+            <button type="button" onClick={addSignal} disabled={disabled} className="crm-button-dark md:col-span-2">Add additional touchpoint</button>
           </div>
         </div>
       </div>

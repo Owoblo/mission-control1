@@ -822,6 +822,7 @@ export interface CRMLead {
   inboundId?: string
   inboundMessage?: string
   source?: string
+  sourceDetail?: string
   opportunityContext?: LeadOpportunityContext
   attributionSignals?: LeadAttributionSignal[]
   moveRelationships?: MoveRelationship[]
