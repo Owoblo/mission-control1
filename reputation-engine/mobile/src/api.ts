@@ -87,10 +87,10 @@ async function request<T>(
   return payload;
 }
 
-export function signIn(email: string, password: string) {
+export function signIn(password: string) {
   return request<{token: string; user: StaffUser}>('/api/mobile/auth/login', {
     method: 'POST',
-    body: JSON.stringify({email, password}),
+    body: JSON.stringify({password}),
   });
 }
 

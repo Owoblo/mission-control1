@@ -140,17 +140,16 @@ function LoginScreen({
 }: {
   onAuthenticated: (result: {token: string; user: StaffUser}) => void;
 }) {
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   async function submit() {
-    if (!email.trim() || !password) return;
+    if (!password) return;
     setBusy(true);
     setError('');
     try {
-      onAuthenticated(await signIn(email, password));
+      onAuthenticated(await signIn(password));
     } catch (reason) {
       setError(friendlyError(reason));
     } finally {
@@ -174,17 +173,6 @@ function LoginScreen({
           </Text>
         </View>
         <View style={styles.loginCard}>
-          <Text style={styles.fieldLabel}>WORK EMAIL</Text>
-          <TextInput
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-            placeholder="you@saturnstarmovers.ca"
-            placeholderTextColor="#9AA2AE"
-            style={styles.input}
-          />
           <Text style={styles.fieldLabel}>PASSWORD</Text>
           <TextInput
             autoCapitalize="none"
@@ -200,11 +188,11 @@ function LoginScreen({
           {!!error && <Text style={styles.errorText}>{error}</Text>}
           <Pressable
             accessibilityRole="button"
-            disabled={busy || !email.trim() || !password}
+            disabled={busy || !password}
             onPress={submit}
             style={({pressed}) => [
               styles.primaryButton,
-              (busy || !email.trim() || !password) && styles.buttonDisabled,
+              (busy || !password) && styles.buttonDisabled,
               pressed && styles.pressed,
             ]}>
             {busy ? (

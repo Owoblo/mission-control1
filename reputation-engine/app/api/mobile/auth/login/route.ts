@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs'
 import { createSessionToken, type UserRole } from '@/lib/auth'
-import { requireSupabaseEnv } from '@/lib/server/runtime'
+import { readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
 
 interface AppUser {
   id: string
@@ -28,8 +28,28 @@ export async function POST(request: Request) {
   try {
     const body = await request.json() as { email?: string; password?: string }
     const email = body.email?.trim().toLowerCase()
-    if (!email || !body.password) {
-      return Response.json({ error: 'Email and password are required' }, { status: 400 })
+    if (!body.password) {
+      return Response.json({ error: 'Password is required' }, { status: 400 })
+    }
+
+    if (!email) {
+      const expectedPassword = readEnv('AUTH_PASSWORD')
+      if (!expectedPassword || body.password !== expectedPassword) {
+        return Response.json({ error: 'Invalid password' }, { status: 401 })
+      }
+
+      const user = {
+        id: 'legacy-owner',
+        name: 'John.O (Admin)',
+        role: 'owner' as const,
+        branch: null,
+      }
+      const token = await createSessionToken({
+        userId: user.id,
+        role: user.role,
+        name: user.name,
+      })
+      return Response.json({ ok: true, token, user })
     }
 
     const user = await findUserByEmail(email)
