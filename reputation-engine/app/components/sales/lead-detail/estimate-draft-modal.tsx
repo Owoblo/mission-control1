@@ -12,6 +12,7 @@ import { getDisassemblyServiceLabel, getIncludedDisassemblyItems } from '@/lib/m
 import { formatMovePolicyCategoryLabel, getMovePolicyFinding, summarizeMovePolicy } from '@/lib/move-policy'
 import { getTvBoxMaterialPresetForSize } from '@/lib/packing-materials'
 import { buildStarterInventoryPlan } from '@/lib/starter-inventory'
+import { buildInventorySnapshotCopyText } from '@/lib/inventory-copy'
 import { deriveAccessComplexityAssessment } from '@/lib/access-intelligence'
 import { deriveMoveLogisticsPlan, type LogisticsOption } from '@/lib/move-logistics'
 import { prepareUploadFile } from '@/lib/browser-media'
@@ -215,40 +216,6 @@ function getInventoryDisplayLabel(item: InventoryItem) {
   }
 
   return 'Item'
-}
-
-function buildInventorySnapshotCopyText(groupedInventory: GroupedInventory) {
-  return groupedInventory
-    .map(([room, items]) => {
-      const roomItemCount = items.reduce((sum, { item }) => sum + Math.max(1, Number(item.qty || 1)), 0)
-      const roomCuFt = Math.round(items.reduce((sum, { item }) => {
-        const policyFinding = getMovePolicyFinding(item)
-        if (item.included === false || policyFinding?.forceExclude) return sum
-        return sum + (item.cubicFeet || 0) * Math.max(1, Number(item.qty || 1))
-      }, 0))
-      const lines = items.map(({ item }) => {
-        const qty = Math.max(1, Number(item.qty || 1))
-        const label = getInventoryDisplayLabel(item)
-        const policyFinding = getMovePolicyFinding(item)
-        const hasExplicitLabel = [item.name, item.item].some(value => (value || '').trim().length > 0)
-        const sizeText = (item.size || '').trim()
-        const notesText = (item.notes || '').trim()
-        const parts = [`• ${qty} x ${label}`]
-        if (sizeText && (hasExplicitLabel || sizeText !== label)) parts.push(`— ${sizeText}`)
-        if (notesText && notesText !== label) parts.push(`— ${notesText}`)
-        if (item.included === false) parts.push('[stays behind]')
-        if (item.included !== false && policyFinding) {
-          parts.push(`[${formatMovePolicyCategoryLabel(policyFinding.category)}: ${policyFinding.itemLabel}]`)
-        }
-        return parts.join(' ')
-      })
-      return [
-        room,
-        `${roomItemCount} item${roomItemCount === 1 ? '' : 's'} · ${roomCuFt} cu ft`,
-        ...lines,
-      ].join('\n')
-    })
-    .join('\n\n')
 }
 
 function uniquePolicyLabels(findings: ReturnType<typeof summarizeMovePolicy>['findings']) {
@@ -1892,7 +1859,7 @@ export function EstimateDraftModal({
   }
 
   async function copyInventorySnapshot() {
-    const text = buildInventorySnapshotCopyText(groupedInventory)
+    const text = buildInventorySnapshotCopyText(inventory)
     if (!text.trim()) {
       setInventoryCopyNotice('Nothing to copy yet')
       window.setTimeout(() => setInventoryCopyNotice(null), 1800)
