@@ -1,6 +1,6 @@
 import { getAppBaseUrl, getTwilioCredentials } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
-import { getSessionUser } from '@/lib/server/session'
+import { getRequestSessionUser } from '@/lib/server/request-session'
 import { pickSaturnBranchPhoneNumber } from '@/lib/sales-phones'
 import {
   escapeTwiml,
@@ -313,8 +313,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const session = await getSessionUser()
-  if (!session || !['owner', 'manager', 'sales_rep'].includes(session.role || '')) {
+  const session = await getRequestSessionUser(request)
+  if (!session || !['owner', 'manager', 'sales_rep', 'partnership_manager'].includes(session.role || '')) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

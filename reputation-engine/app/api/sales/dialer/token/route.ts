@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getSessionUser } from '@/lib/server/session'
+import { getRequestSessionUser } from '@/lib/server/request-session'
 import { readEnv } from '@/lib/server/runtime'
 
 const IDENTITY_PREFIX = 'saturn-rep'
@@ -61,10 +61,10 @@ async function buildVoiceToken(
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const sessionUser = await getSessionUser()
-    if (!sessionUser) {
+    const sessionUser = await getRequestSessionUser(request)
+    if (!sessionUser || !['owner', 'manager', 'sales_rep', 'partnership_manager'].includes(sessionUser.role || '')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

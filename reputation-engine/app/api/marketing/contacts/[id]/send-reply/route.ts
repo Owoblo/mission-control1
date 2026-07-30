@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
-import { getSessionUser } from '@/lib/server/session'
+import { getRequestSessionUser } from '@/lib/server/request-session'
 import { getTwilioCredentials, requireSupabaseEnv } from '@/lib/server/runtime'
 import { normalizeMarketingPhone, isOptOutText } from '@/lib/server/partnership-sms'
 import { recordOutboundSmsToSupabase } from '@/lib/server/sales-messaging'
+import { canUseMobilePhoneLine } from '@/lib/server/mobile-phone-access'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
 import { partnershipRecordMatchesSession } from '@/lib/server/partnership-access'
 import {
@@ -52,7 +53,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSessionUser()
+  const session = await getRequestSessionUser(request)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
@@ -96,7 +97,15 @@ export async function POST(
     { headers, cache: 'no-store' }
   )
   const recentTouches = (touchesRes.ok ? await touchesRes.json() : []) as Array<Record<string, unknown>>
-  const fromNumber = normalizePartnershipPhone(payload.from_number) ||
+  const requestedFromNumber = normalizePartnershipPhone(payload.from_number)
+  if (
+    request.headers.get('authorization') &&
+    requestedFromNumber &&
+    !canUseMobilePhoneLine(session, requestedFromNumber)
+  ) {
+    return NextResponse.json({ error: 'You do not have access to this company line.' }, { status: 403 })
+  }
+  const fromNumber = requestedFromNumber ||
     threadSenderFromTouches(recentTouches) ||
     getPartnershipPrimaryNumberForMarket(contact.city as string | null) ||
     DEFAULT_PARTNERSHIP_FROM_NUMBER

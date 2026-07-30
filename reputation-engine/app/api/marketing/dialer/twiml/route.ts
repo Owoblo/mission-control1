@@ -45,10 +45,10 @@ function recordingCallbackUrl(baseUrl: string, customerNumber: string, partnersh
   return url.toString()
 }
 
-function dialDestinations(forwardPhone?: string | null, clientIdentity?: string | null) {
+function dialDestinations(forwardPhone?: string | null, clientIdentities?: string[] | null) {
   const destinations: string[] = []
-  if (clientIdentity?.trim()) {
-    destinations.push(`<Client>${xmlAttr(clientIdentity.trim())}</Client>`)
+  for (const identity of Array.from(new Set(clientIdentities || []))) {
+    if (identity.trim()) destinations.push(`<Client>${xmlAttr(identity.trim())}</Client>`)
   }
   if (forwardPhone?.trim()) {
     destinations.push(`<Number>${xmlAttr(forwardPhone.trim())}</Number>`)
@@ -80,9 +80,9 @@ function configuredForwardPhoneForLine(dialedNumber?: string | null) {
   )
 }
 
-async function clientIdentityForPartnershipLine(dialedNumber?: string | null) {
+async function clientIdentitiesForPartnershipLine(dialedNumber?: string | null) {
   const line = partnershipLineForNumber(dialedNumber)
-  if (!line) return ''
+  if (!line) return []
   try {
     const { url, headers } = requireSupabaseEnv()
     const keys = Array.from(new Set([line.market, ...line.cityKeys].map(normalizePartnershipCityKey).filter(Boolean)))
@@ -92,9 +92,11 @@ async function clientIdentityForPartnershipLine(dialedNumber?: string | null) {
       { headers, cache: 'no-store' }
     )
     const [user] = (res.ok ? await res.json() : []) as Array<{ id?: string }>
-    return user?.id ? `partnership-rep-${user.id}` : ''
+    return user?.id
+      ? [`partnership-rep-${user.id}`, `saturn-rep-${user.id}`]
+      : []
   } catch {
-    return ''
+    return []
   }
 }
 
@@ -113,8 +115,11 @@ export async function POST(request: Request) {
     const appUrl = getAppBaseUrl('https://mission-control1-reputation-engine.vercel.app')
     if (!fromBrowser) {
       const dialedNumber = normalizePhone(to) || DEFAULT_PARTNERSHIP_NUMBER
-      const marketClientIdentity = await clientIdentityForPartnershipLine(dialedNumber)
-      const forwardClientIdentity = marketClientIdentity || readEnv('PARTNERSHIP_FORWARD_CLIENT_IDENTITY')
+      const marketClientIdentities = await clientIdentitiesForPartnershipLine(dialedNumber)
+      const fallbackClientIdentity = readEnv('PARTNERSHIP_FORWARD_CLIENT_IDENTITY')
+      const clientIdentities = marketClientIdentities.length > 0
+        ? marketClientIdentities
+        : fallbackClientIdentity ? [fallbackClientIdentity] : []
       const forwardPhone = configuredForwardPhoneForLine(dialedNumber)
       const inboundPhone = normalizePhone(from) || from
       const recordingCallback = recordingCallbackUrl(appUrl, inboundPhone, dialedNumber, 'inbound')
@@ -130,7 +135,7 @@ export async function POST(request: Request) {
       }).catch(() => null)
 
       return xmlResponse(
-        `<?xml version="1.0" encoding="UTF-8"?><Response><Dial callerId="${xmlAttr(dialedNumber)}" timeout="25" record="record-from-answer" recordingStatusCallback="${xmlAttr(recordingCallback)}" recordingStatusCallbackMethod="POST" recordingStatusCallbackEvent="completed" action="${xmlAttr(statusCallback)}" method="POST">${dialDestinations(forwardPhone, forwardClientIdentity)}</Dial></Response>`
+        `<?xml version="1.0" encoding="UTF-8"?><Response><Dial callerId="${xmlAttr(dialedNumber)}" timeout="25" record="record-from-answer" recordingStatusCallback="${xmlAttr(recordingCallback)}" recordingStatusCallbackMethod="POST" recordingStatusCallbackEvent="completed" action="${xmlAttr(statusCallback)}" method="POST">${dialDestinations(forwardPhone, clientIdentities)}</Dial></Response>`
       )
     }
 

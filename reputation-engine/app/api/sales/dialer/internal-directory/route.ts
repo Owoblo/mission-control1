@@ -1,16 +1,15 @@
 import { NextResponse } from 'next/server'
-import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { getDialerSettings } from '@/lib/server/dialer-settings'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
-import { getSessionUser } from '@/lib/server/session'
+import { getRequestSessionUser } from '@/lib/server/request-session'
 import { getHealthyBrowserPresence, listRecentDialerPresence } from '@/lib/server/telephony-monitoring'
 
 const SIP_DOMAIN = 'saturn.sip.twilio.com'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const session = await getSessionUser()
-    if (!canAccessSalesWorkspace(session)) {
+    const session = await getRequestSessionUser(request)
+    if (!session || !['owner', 'manager', 'sales_rep', 'partnership_manager'].includes(session.role || '')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

@@ -7,10 +7,11 @@ import {
   markSalesEmailActioned,
   setInboundLeadHandoff,
 } from '@/lib/server/sales-repository'
-import { getSessionUser } from '@/lib/server/session'
+import { getRequestSessionUser } from '@/lib/server/request-session'
 import { sendSalesMessage } from '@/lib/server/sales-messaging'
 import { getAppBaseUrl, getWorkerSharedSecret } from '@/lib/server/runtime'
 import { isPartnershipSenderNumber } from '@/lib/partnership-lines'
+import { canUseMobilePhoneLine } from '@/lib/server/mobile-phone-access'
 
 function normalizePhoneNumber(value?: string | null) {
   const digits = String(value || '').replace(/\D/g, '')
@@ -20,7 +21,7 @@ function normalizePhoneNumber(value?: string | null) {
 }
 
 function isPartnershipStandaloneSms(
-  session: Awaited<ReturnType<typeof getSessionUser>>,
+  session: Awaited<ReturnType<typeof getRequestSessionUser>>,
   payload: {
     channel?: 'email' | 'sms' | 'whatsapp'
     leadId?: string
@@ -47,7 +48,7 @@ function triggerIntelligence(leadId: string) {
 
 export async function POST(request: Request) {
   try {
-    const session = await getSessionUser()
+    const session = await getRequestSessionUser(request)
     const payload = (await request.json()) as {
       channel?: 'email' | 'sms' | 'whatsapp'
       to?: string
@@ -74,6 +75,13 @@ export async function POST(request: Request) {
 
     if (!payload.channel || !payload.to || !body) {
       return NextResponse.json({ error: 'channel, to, and body are required' }, { status: 400 })
+    }
+    if (
+      request.headers.get('authorization') &&
+      payload.fromNumber &&
+      !canUseMobilePhoneLine(session, normalizePhoneNumber(payload.fromNumber))
+    ) {
+      return NextResponse.json({ error: 'You do not have access to this company line.' }, { status: 403 })
     }
 
     const targetLeadId =
