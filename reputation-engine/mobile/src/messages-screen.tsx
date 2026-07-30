@@ -1,6 +1,7 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {
   ActivityIndicator,
+  Alert,
   AppState,
   BackHandler,
   FlatList,
@@ -14,6 +15,9 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import {pick, types} from '@react-native-documents/picker';
+import {launchImageLibrary} from 'react-native-image-picker';
+import Icon from 'react-native-vector-icons/Ionicons';
 import {
   Conversation,
   ConversationMessage,
@@ -21,6 +25,7 @@ import {
   loadConversations,
   PhoneLine,
   sendConversationMessage,
+  uploadMessageMedia,
 } from './api';
 import {colors} from './theme';
 import {
@@ -30,6 +35,7 @@ import {
 } from './message-state';
 
 type Workspace = 'sales' | 'partnership';
+type PendingAttachment = {uri: string; name: string; type: string};
 
 function relativeTime(value: string) {
   const seconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
@@ -50,9 +56,11 @@ function timeOfDay(value: string) {
 export function MessagesScreen({
   token,
   onOpenDialer,
+  canAccessPartnership,
 }: {
   token: string;
   onOpenDialer: (phone?: string, line?: string) => void;
+  canAccessPartnership: boolean;
 }) {
   const [workspace, setWorkspace] = useState<Workspace>('sales');
   const [lines, setLines] = useState<PhoneLine[]>([]);
@@ -137,11 +145,13 @@ export function MessagesScreen({
           selected={workspace === 'sales'}
           onPress={() => setWorkspace('sales')}
         />
-        <Segment
-          label="Partnerships"
-          selected={workspace === 'partnership'}
-          onPress={() => setWorkspace('partnership')}
-        />
+        {canAccessPartnership && (
+          <Segment
+            label="Partnerships"
+            selected={workspace === 'partnership'}
+            onPress={() => setWorkspace('partnership')}
+          />
+        )}
       </View>
       {lines.length > 1 && (
         <FlatList
@@ -239,6 +249,7 @@ function ThreadScreen({
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [attachment, setAttachment] = useState<PendingAttachment | null>(null);
   const [error, setError] = useState('');
   const list = useRef<FlatList<ConversationMessage>>(null);
 
@@ -271,13 +282,17 @@ function ThreadScreen({
 
   async function send() {
     const body = draft.trim();
-    if (!body || sending) return;
-    const optimistic = createPendingMessage(body);
+    if ((!body && !attachment) || sending) return;
+    const optimistic = createPendingMessage(body || `Attachment: ${attachment?.name}`);
     setDraft('');
     setSending(true);
     setMessages(current => appendPendingMessage(current, optimistic));
     try {
-      await sendConversationMessage(token, conversation, body);
+      const mediaUrls = attachment
+        ? [(await uploadMessageMedia(token, attachment)).url]
+        : [];
+      await sendConversationMessage(token, conversation, body, mediaUrls);
+      setAttachment(null);
       await load();
     } catch (reason) {
       setMessages(current => removePendingMessage(current, optimistic.id));
@@ -286,6 +301,43 @@ function ThreadScreen({
     } finally {
       setSending(false);
     }
+  }
+
+  async function choosePhoto() {
+    const result = await launchImageLibrary({
+      mediaType: 'photo',
+      selectionLimit: 1,
+      quality: 0.8,
+    });
+    const asset = result.assets?.[0];
+    if (!asset?.uri) return;
+    setAttachment({
+      uri: asset.uri,
+      name: asset.fileName || 'photo.jpg',
+      type: asset.type || 'image/jpeg',
+    });
+  }
+
+  async function chooseDocument() {
+    const result = await pick({
+      allowMultiSelection: false,
+      type: [types.pdf, types.plainText],
+    });
+    const file = result[0];
+    if (!file?.uri) return;
+    setAttachment({
+      uri: file.uri,
+      name: file.name || 'document',
+      type: file.type || 'application/octet-stream',
+    });
+  }
+
+  function showAttachmentMenu() {
+    Alert.alert('Add attachment', 'Choose what to send', [
+      {text: 'Photo library', onPress: () => choosePhoto().catch(reason => setError(String(reason)))},
+      {text: 'Document', onPress: () => chooseDocument().catch(reason => setError(String(reason)))},
+      {text: 'Cancel', style: 'cancel'},
+    ]);
   }
 
   return (
@@ -339,7 +391,27 @@ function ThreadScreen({
           </Pressable>
         )}
         <View style={styles.composerWrap}>
+          {!!attachment && (
+            <View style={styles.attachmentChip}>
+              <Icon
+                name={attachment.type.startsWith('image/') ? 'image-outline' : 'document-outline'}
+                size={18}
+                color={colors.navy}
+              />
+              <Text numberOfLines={1} style={styles.attachmentName}>{attachment.name}</Text>
+              <Pressable accessibilityLabel="Remove attachment" onPress={() => setAttachment(null)}>
+                <Icon name="close-circle" size={21} color="#77818F" />
+              </Pressable>
+            </View>
+          )}
           <View style={styles.composer}>
+            <Pressable
+              accessibilityLabel="Add photo or document"
+              onPress={showAttachmentMenu}
+              hitSlop={8}
+              style={styles.attachButton}>
+              <Icon name="add-circle-outline" size={29} color={colors.navy} />
+            </Pressable>
             <TextInput
               multiline
               value={draft}
@@ -350,12 +422,15 @@ function ThreadScreen({
             />
             <Pressable
               accessibilityLabel="Send message"
-              disabled={!draft.trim() || sending}
+              disabled={(!draft.trim() && !attachment) || sending}
               onPress={send}
-              style={[styles.send, (!draft.trim() || sending) && styles.sendDisabled]}>
+              style={[
+                styles.send,
+                ((!draft.trim() && !attachment) || sending) && styles.sendDisabled,
+              ]}>
               {sending
                 ? <ActivityIndicator size="small" color="white" />
-                : <Text style={styles.sendText}>↑</Text>}
+                : <Icon name="arrow-up" size={20} color="white" />}
             </Pressable>
           </View>
           <Text style={styles.sendingLine}>
@@ -424,7 +499,10 @@ const styles = StyleSheet.create({
   inlineError: {marginHorizontal: 12, marginBottom: 7, borderRadius: 9, backgroundColor: '#ECEDEE', paddingHorizontal: 12, paddingVertical: 8},
   inlineErrorText: {fontSize: 13, color: '#48515E', textAlign: 'center'},
   composerWrap: {backgroundColor: '#FFFFFF', paddingHorizontal: 10, paddingTop: 8, paddingBottom: 5, borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#D8DCE1'},
-  composer: {minHeight: 42, maxHeight: 124, borderRadius: 21, borderWidth: 1, borderColor: '#CBD0D6', flexDirection: 'row', alignItems: 'flex-end', paddingLeft: 14, paddingRight: 4, paddingVertical: 3},
+  attachmentChip: {height: 38, maxWidth: '90%', alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 12, backgroundColor: '#ECEEF1', paddingHorizontal: 10, marginBottom: 7},
+  attachmentName: {maxWidth: 230, fontSize: 13, fontWeight: '600', color: colors.navy},
+  composer: {minHeight: 42, maxHeight: 124, borderRadius: 21, borderWidth: 1, borderColor: '#CBD0D6', flexDirection: 'row', alignItems: 'flex-end', paddingLeft: 3, paddingRight: 4, paddingVertical: 3},
+  attachButton: {width: 38, height: 38, alignItems: 'center', justifyContent: 'center'},
   composerInput: {flex: 1, minHeight: 34, maxHeight: 112, fontSize: 16, lineHeight: 21, color: colors.navy, paddingTop: 7, paddingBottom: 6},
   send: {height: 34, width: 34, borderRadius: 17, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center'},
   sendDisabled: {backgroundColor: '#C7CCD2'},

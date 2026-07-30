@@ -1426,6 +1426,50 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - react-native-document-picker (12.0.2):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
+  - react-native-image-picker (8.2.1):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - react-native-safe-area-context (5.8.0):
     - hermes-engine
     - RCTRequired
@@ -1914,6 +1958,28 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - RNVectorIcons (10.3.0):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - twilio-voice-react-native (1.7.0):
     - React-Core
     - TwilioVoice (= 6.13.3)
@@ -1961,6 +2027,8 @@ DEPENDENCIES:
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
   - React-mutationobservernativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/mutationobserver`)
+  - "react-native-document-picker (from `../node_modules/@react-native-documents/picker`)"
+  - react-native-image-picker (from `../node_modules/react-native-image-picker`)
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - React-NativeModulesApple (from `../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
   - React-networking (from `../node_modules/react-native/ReactCommon/react/networking`)
@@ -1998,6 +2066,7 @@ DEPENDENCIES:
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - ReactNativeDependencies (from `../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec`)
   - RNKeychain (from `../node_modules/react-native-keychain`)
+  - RNVectorIcons (from `../node_modules/react-native-vector-icons`)
   - "twilio-voice-react-native (from `../node_modules/@twilio/voice-react-native-sdk`)"
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
@@ -2085,6 +2154,10 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/microtasks"
   React-mutationobservernativemodule:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/mutationobserver"
+  react-native-document-picker:
+    :path: "../node_modules/@react-native-documents/picker"
+  react-native-image-picker:
+    :path: "../node_modules/react-native-image-picker"
   react-native-safe-area-context:
     :path: "../node_modules/react-native-safe-area-context"
   React-NativeModulesApple:
@@ -2159,6 +2232,8 @@ EXTERNAL SOURCES:
     :podspec: "../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec"
   RNKeychain:
     :path: "../node_modules/react-native-keychain"
+  RNVectorIcons:
+    :path: "../node_modules/react-native-vector-icons"
   twilio-voice-react-native:
     :path: "../node_modules/@twilio/voice-react-native-sdk"
   Yoga:
@@ -2204,6 +2279,8 @@ SPEC CHECKSUMS:
   React-Mapbuffer: bfc59384f088a74c1cbe31902b5ba3d89c5947ce
   React-microtasksnativemodule: 4e4a0a4e42861c767989099d02cd871dbe11736f
   React-mutationobservernativemodule: 6aaa67618b68a616b1293967c20a1dfcc26632a5
+  react-native-document-picker: 32318d6faf498b5b3a0647a9830f2477fa9ad1c8
+  react-native-image-picker: 2146157d5d37a34c2063d1d2ed01081b56d0b87b
   react-native-safe-area-context: c1eb308f4b36372a4de4b3bdaa8ed695ec3dd461
   React-NativeModulesApple: f313ed47b56405d621e12ecda106a72020959ff3
   React-networking: a0686d5a80eddbcd7bb702421fca503a76aacb1a
@@ -2241,6 +2318,7 @@ SPEC CHECKSUMS:
   ReactCommon: 00d8d68c7aa036745334d3a3844102ecd9bf099d
   ReactNativeDependencies: 2bd6854ade79bf1b60586d1ab7813a389df1b6bf
   RNKeychain: 1b055a0ec36d058cb0a075e965d8c9d335e0c828
+  RNVectorIcons: 9d52f79c911eb6099a14b8135bd261ccef039fcb
   twilio-voice-react-native: 915044c54ee40645fe203be29de96aadb67d2d6b
   TwilioVoice: 0eea89db614225bfea6b25cf2c909728dfcefa59
   Yoga: 8cf9dd9fc7761e176a3361b4821d26d11cfbeab1

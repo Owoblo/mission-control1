@@ -9,6 +9,7 @@ import React, {
 import {
   ActivityIndicator,
   AppState,
+  Image,
   KeyboardAvoidingView,
   Modal,
   PermissionsAndroid,
@@ -28,6 +29,7 @@ import {
   CallInvite,
   Voice,
 } from '@twilio/voice-react-native-sdk';
+import Icon from 'react-native-vector-icons/Ionicons';
 import {
   controlConference,
   DirectoryEntry,
@@ -36,6 +38,7 @@ import {
   loadPhoneLines,
   loadVoiceToken,
   PhoneLine,
+  resolveSuggestedLine,
   signIn,
   StaffUser,
 } from './src/api';
@@ -49,6 +52,7 @@ import {colors} from './src/theme';
 
 const voice = new Voice();
 const TOKEN_REFRESH_MS = 45 * 60 * 1000;
+const brandIcon = require('./src/assets/saturn-star-icon.png');
 
 function friendlyError(error: unknown) {
   return error instanceof Error ? error.message : 'Something went wrong';
@@ -125,9 +129,7 @@ function LaunchScreen() {
   return (
     <View style={styles.launch}>
       <StatusBar barStyle="light-content" backgroundColor={colors.navy} />
-      <View style={styles.logoMark}>
-        <Text style={styles.logoGlyph}>S</Text>
-      </View>
+      <Image source={brandIcon} style={styles.logoMark} />
       <Text style={styles.launchTitle}>Saturn Star</Text>
       <Text style={styles.launchSubtitle}>Company phone</Text>
       <ActivityIndicator color={colors.gold} style={styles.launchSpinner} />
@@ -164,9 +166,7 @@ function LoginScreen({
       <StatusBar barStyle="dark-content" backgroundColor={colors.ivory} />
       <SafeAreaView style={styles.loginSafe}>
         <View style={styles.loginBrand}>
-          <View style={[styles.logoMark, styles.loginLogo]}>
-            <Text style={styles.logoGlyph}>S</Text>
-          </View>
+          <Image source={brandIcon} style={[styles.logoMark, styles.loginLogo]} />
           <Text style={styles.loginTitle}>Saturn Star Phone</Text>
           <Text style={styles.loginCopy}>
             Your company line, customer context and call controls—together.
@@ -230,6 +230,7 @@ function PhoneScreen({
   const [activeTab, setActiveTab] = useState<'phone' | 'messages' | 'contacts'>('phone');
   const [lines, setLines] = useState<PhoneLine[]>([]);
   const [selectedLine, setSelectedLine] = useState('');
+  const [lineMode, setLineMode] = useState<'automatic' | 'manual'>('automatic');
   const callRef = useRef<Call | null>(null);
   const inviteRef = useRef<CallInvite | null>(null);
 
@@ -287,6 +288,26 @@ function PhoneScreen({
       dispatch({type: 'END'});
     });
   }, []);
+
+  useEffect(() => {
+    if (lineMode !== 'automatic') return;
+    const target = normalizeDialTarget(number);
+    if (target.replace(/\D/g, '').length < 10) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      resolveSuggestedLine(token, target)
+        .then(result => {
+          if (!cancelled && lines.some(line => line.number === result.line.number)) {
+            setSelectedLine(result.line.number);
+          }
+        })
+        .catch(() => undefined);
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [lineMode, lines, number, token]);
 
   useEffect(() => {
     const onInvite = (invite: CallInvite) => {
@@ -357,7 +378,9 @@ function PhoneScreen({
       const call = await voice.connect(voiceToken, {
         params: {
           To: target,
-          ...(selectedLine ? {PreferredFromNumber: selectedLine} : {}),
+          ...(lineMode === 'manual' && selectedLine
+            ? {PreferredFromNumber: selectedLine}
+            : {}),
         },
         contactHandle: target,
         notificationDisplayName: 'Saturn Star call',
@@ -537,9 +560,15 @@ function PhoneScreen({
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         <MessagesScreen
           token={token}
+          canAccessPartnership={user.role !== 'sales_rep'}
           onOpenDialer={(phone, line) => {
             if (phone) setNumber(phone);
-            if (line && lines.some(item => item.number === line)) setSelectedLine(line);
+            if (line && lines.some(item => item.number === line)) {
+              setSelectedLine(line);
+              setLineMode('manual');
+            } else {
+              setLineMode('automatic');
+            }
             setActiveTab('phone');
           }}
         />
@@ -556,7 +585,12 @@ function PhoneScreen({
           token={token}
           onCall={(phone, line) => {
             setNumber(phone);
-            if (line) setSelectedLine(line);
+            if (line) {
+              setSelectedLine(line);
+              setLineMode('manual');
+            } else {
+              setLineMode('automatic');
+            }
             setActiveTab('phone');
           }}
         />
@@ -596,18 +630,39 @@ function PhoneScreen({
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.callerIdRow}>
+              <Pressable
+                onPress={() => setLineMode('automatic')}
+                style={[
+                  styles.callerIdPill,
+                  lineMode === 'automatic' && styles.callerIdPillSelected,
+                ]}>
+                <Text
+                  style={[
+                    styles.callerIdLabel,
+                    lineMode === 'automatic' && styles.callerIdLabelSelected,
+                  ]}>
+                  Auto · {lines.find(line => line.number === selectedLine)?.label || 'Closest'}
+                </Text>
+              </Pressable>
               {lines.map(line => (
                 <Pressable
                   key={line.number}
-                  onPress={() => setSelectedLine(line.number)}
+                  onPress={() => {
+                    setSelectedLine(line.number);
+                    setLineMode('manual');
+                  }}
                   style={[
                     styles.callerIdPill,
-                    selectedLine === line.number && styles.callerIdPillSelected,
+                    lineMode === 'manual' &&
+                      selectedLine === line.number &&
+                      styles.callerIdPillSelected,
                   ]}>
                   <Text
                     style={[
                       styles.callerIdLabel,
-                      selectedLine === line.number && styles.callerIdLabelSelected,
+                      lineMode === 'manual' &&
+                        selectedLine === line.number &&
+                        styles.callerIdLabelSelected,
                     ]}>
                     {line.label}
                   </Text>
@@ -615,14 +670,30 @@ function PhoneScreen({
               ))}
             </ScrollView>
           )}
-          <TextInput
-            value={number}
-            onChangeText={setNumber}
-            keyboardType="phone-pad"
-            placeholder="Name or phone number"
-            placeholderTextColor="#8A94A3"
-            style={styles.numberInput}
-          />
+          <View style={styles.numberEntryRow}>
+            <TextInput
+              value={number}
+              onChangeText={setNumber}
+              keyboardType="phone-pad"
+              placeholder="Name or phone number"
+              placeholderTextColor="#8A94A3"
+              style={styles.numberInput}
+            />
+            {!!number && (
+              <Pressable
+                accessibilityLabel="Delete last digit"
+                accessibilityHint="Press and hold to clear the number"
+                onPress={() => setNumber(current => current.slice(0, -1))}
+                onLongPress={() => setNumber('')}
+                hitSlop={10}
+                style={({pressed}) => [
+                  styles.backspaceButton,
+                  pressed && styles.keyPressed,
+                ]}>
+                <Icon name="backspace-outline" size={27} color={colors.muted} />
+              </Pressable>
+            )}
+          </View>
           <Keypad onDigit={digit => setNumber(current => `${current}${digit}`)} />
           {!!state.error && <Text style={styles.errorText}>{state.error}</Text>}
           <Pressable
@@ -635,7 +706,8 @@ function PhoneScreen({
               pressed && styles.pressed,
             ]}>
             <Text style={styles.callButtonText}>
-              Call from {lines.find(line => line.number === selectedLine)?.label || 'Saturn Star'}
+              Call from {lineMode === 'automatic' ? 'Auto · ' : ''}
+              {lines.find(line => line.number === selectedLine)?.label || 'Saturn Star'}
             </Text>
           </Pressable>
         </View>
@@ -732,10 +804,18 @@ function BottomNavigation({
             accessibilityState={{selected: active === key}}
             onPress={() => onChange(key)}
             style={styles.bottomItem}>
-            <View style={[styles.navGlyph, active === key && styles.navGlyphSelected]}>
-              <Text style={[styles.navGlyphText, active === key && styles.navGlyphTextSelected]}>
-                {key === 'phone' ? '☎' : key === 'messages' ? '••' : '◉'}
-              </Text>
+            <View style={styles.navGlyph}>
+              <Icon
+                name={
+                  key === 'phone'
+                    ? active === key ? 'call' : 'call-outline'
+                    : key === 'messages'
+                      ? active === key ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline'
+                      : active === key ? 'people' : 'people-outline'
+                }
+                size={22}
+                color={active === key ? colors.navy : '#7C8693'}
+              />
             </View>
             <Text style={[styles.bottomLabel, active === key && styles.bottomLabelSelected]}>
               {label}
@@ -1114,11 +1194,8 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.gold,
+    resizeMode: 'contain',
   },
-  logoGlyph: {fontSize: 31, fontWeight: '800', color: colors.navy},
   launchTitle: {fontSize: 27, fontWeight: '700', color: 'white', marginTop: 20},
   launchSubtitle: {fontSize: 15, color: '#AEB8C4', marginTop: 5},
   launchSpinner: {marginTop: 34},
@@ -1199,7 +1276,9 @@ const styles = StyleSheet.create({
   callerIdPillSelected: {backgroundColor: colors.navy, borderColor: colors.navy},
   callerIdLabel: {fontSize: 12, fontWeight: '600', color: colors.muted},
   callerIdLabelSelected: {color: 'white'},
-  numberInput: {fontSize: 25, color: colors.ink, textAlign: 'center', paddingVertical: 10, marginBottom: 12},
+  numberEntryRow: {minHeight: 58, flexDirection: 'row', alignItems: 'center', marginBottom: 12},
+  numberInput: {flex: 1, fontSize: 25, color: colors.ink, textAlign: 'center', paddingVertical: 10, paddingLeft: 38},
+  backspaceButton: {width: 38, height: 42, alignItems: 'center', justifyContent: 'center'},
   keypad: {flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', maxWidth: 340, alignSelf: 'center'},
   key: {width: '31%', height: 64, alignItems: 'center', justifyContent: 'center', borderRadius: 32, marginBottom: 8, backgroundColor: '#F1F2F3'},
   keyLight: {backgroundColor: '#263444'},
@@ -1269,10 +1348,7 @@ const styles = StyleSheet.create({
   bottomSafe: {backgroundColor: '#FFFFFF'},
   bottomNav: {height: 58, flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#D8DCE1', backgroundColor: '#FFFFFF'},
   bottomItem: {flex: 1, alignItems: 'center', justifyContent: 'center'},
-  navGlyph: {height: 21, minWidth: 25, alignItems: 'center', justifyContent: 'center'},
-  navGlyphSelected: {borderRadius: 11, backgroundColor: colors.navy},
-  navGlyphText: {fontSize: 13, fontWeight: '700', color: '#7C8693'},
-  navGlyphTextSelected: {color: '#FFFFFF', paddingHorizontal: 6},
+  navGlyph: {height: 24, minWidth: 26, alignItems: 'center', justifyContent: 'center'},
   bottomLabel: {fontSize: 10, fontWeight: '600', color: '#7C8693', marginTop: 2},
   bottomLabelSelected: {color: colors.navy},
   contactsPage: {flex: 1, backgroundColor: '#FFFFFF'},

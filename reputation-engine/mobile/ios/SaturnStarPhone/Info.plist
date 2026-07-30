@@ -35,6 +35,8 @@
 	</dict>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Saturn Star uses the microphone so staff can speak with customers on company calls.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Saturn Star lets staff choose photos to send through the company inbox.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UIBackgroundModes</key>

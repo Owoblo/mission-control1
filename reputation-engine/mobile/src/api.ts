@@ -63,7 +63,9 @@ async function request<T>(
       signal: controller.signal,
       headers: {
         Accept: 'application/json',
-        ...(options.body ? {'Content-Type': 'application/json'} : {}),
+        ...(options.body && !(options.body instanceof FormData)
+          ? {'Content-Type': 'application/json'}
+          : {}),
         ...(options.token
           ? {Authorization: `Bearer ${options.token}`}
           : {}),
@@ -106,6 +108,14 @@ export function loadPhoneLines(token: string) {
   return request<{lines: PhoneLine[]}>('/api/mobile/lines', {token});
 }
 
+export function resolveSuggestedLine(token: string, phone: string) {
+  const query = new URLSearchParams({phone});
+  return request<{line: PhoneLine; reason: string}>(
+    `/api/mobile/caller-id?${query}`,
+    {token},
+  );
+}
+
 export function loadConversations(
   token: string,
   workspace: 'sales' | 'partnership',
@@ -137,6 +147,7 @@ export function sendConversationMessage(
   token: string,
   conversation: Conversation,
   body: string,
+  mediaUrls: string[] = [],
 ) {
   if (conversation.workspace === 'partnership') {
     return request<{ok: boolean}>(
@@ -144,7 +155,11 @@ export function sendConversationMessage(
       {
         method: 'POST',
         token,
-        body: JSON.stringify({body, from_number: conversation.line}),
+        body: JSON.stringify({
+          body,
+          from_number: conversation.line,
+          media_urls: mediaUrls,
+        }),
       },
     );
   }
@@ -156,9 +171,27 @@ export function sendConversationMessage(
       to: conversation.phone,
       body,
       fromNumber: conversation.line,
+      mediaUrls,
       actor: 'human',
     }),
   });
+}
+
+export async function uploadMessageMedia(
+  token: string,
+  file: {uri: string; name: string; type: string},
+) {
+  const form = new FormData();
+  form.append('file', file as unknown as Blob);
+  return request<{url: string; name: string; type: string}>(
+    '/api/mobile/upload-media',
+    {
+      method: 'POST',
+      token,
+      body: form,
+      headers: {},
+    },
+  );
 }
 
 export function loadDirectory(token: string) {
