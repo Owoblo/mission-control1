@@ -750,11 +750,13 @@ function ContactsScreen({
         <Text style={styles.contactsTitle}>Contacts</Text>
       </View>
       <View style={styles.contactSearch}>
+        <Icon name="search" size={18} color="#8E8E93" />
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Search teammates"
-          placeholderTextColor="#89929F"
+          placeholder="Search"
+          placeholderTextColor="#8E8E93"
+          clearButtonMode="while-editing"
           style={styles.contactSearchInput}
         />
       </View>
@@ -774,7 +776,9 @@ function ContactsScreen({
                 <Text style={styles.contactName}>{entry.label}</Text>
                 <Text style={styles.contactMeta}>{entry.status}</Text>
               </View>
-              <Text style={styles.contactCall}>Call</Text>
+              <View style={styles.contactCall}>
+                <Icon name="call" size={17} color="#007AFF" />
+              </View>
             </Pressable>
           ))}
         </ScrollView>
@@ -801,6 +805,7 @@ function BottomNavigation({
           <Pressable
             key={key}
             accessibilityRole="tab"
+            accessibilityLabel={`${label} tab`}
             accessibilityState={{selected: active === key}}
             onPress={() => onChange(key)}
             style={styles.bottomItem}>
@@ -808,13 +813,13 @@ function BottomNavigation({
               <Icon
                 name={
                   key === 'phone'
-                    ? active === key ? 'call' : 'call-outline'
+                    ? active === key ? 'keypad' : 'keypad-outline'
                     : key === 'messages'
-                      ? active === key ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline'
-                      : active === key ? 'people' : 'people-outline'
+                      ? active === key ? 'chatbubble' : 'chatbubble-outline'
+                      : active === key ? 'person-circle' : 'person-circle-outline'
                 }
-                size={22}
-                color={active === key ? colors.navy : '#7C8693'}
+                size={24}
+                color={active === key ? '#007AFF' : '#8E8E93'}
               />
             </View>
             <Text style={[styles.bottomLabel, active === key && styles.bottomLabelSelected]}>
@@ -1346,23 +1351,23 @@ const styles = StyleSheet.create({
   emptyTitle: {fontSize: 18, fontWeight: '700', color: colors.ink},
   emptyCopy: {fontSize: 14, lineHeight: 21, color: colors.muted, textAlign: 'center', marginTop: 8},
   bottomSafe: {backgroundColor: '#FFFFFF'},
-  bottomNav: {height: 58, flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#D8DCE1', backgroundColor: '#FFFFFF'},
+  bottomNav: {height: 61, flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#C6C6C8', backgroundColor: 'rgba(249,249,249,0.98)'},
   bottomItem: {flex: 1, alignItems: 'center', justifyContent: 'center'},
-  navGlyph: {height: 24, minWidth: 26, alignItems: 'center', justifyContent: 'center'},
-  bottomLabel: {fontSize: 10, fontWeight: '600', color: '#7C8693', marginTop: 2},
-  bottomLabelSelected: {color: colors.navy},
-  contactsPage: {flex: 1, backgroundColor: '#FFFFFF'},
-  contactsHeader: {height: 62, justifyContent: 'center', paddingHorizontal: 20, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#DDE1E6'},
-  contactsTitle: {fontSize: 30, fontWeight: '700', color: colors.navy, letterSpacing: -0.8},
-  contactSearch: {margin: 14, borderRadius: 12, backgroundColor: '#F0F1F2', paddingHorizontal: 13},
-  contactSearchInput: {height: 42, fontSize: 16, color: colors.navy},
+  navGlyph: {height: 25, minWidth: 28, alignItems: 'center', justifyContent: 'center'},
+  bottomLabel: {fontSize: 10, fontWeight: '500', color: '#8E8E93', marginTop: 2},
+  bottomLabelSelected: {color: '#007AFF'},
+  contactsPage: {flex: 1, backgroundColor: '#F2F2F7'},
+  contactsHeader: {height: 58, justifyContent: 'flex-end', paddingHorizontal: 20, paddingBottom: 4, backgroundColor: '#F2F2F7'},
+  contactsTitle: {fontSize: 34, fontWeight: '700', color: '#000000', letterSpacing: -1},
+  contactSearch: {height: 36, marginHorizontal: 16, marginTop: 10, marginBottom: 12, borderRadius: 10, backgroundColor: '#E3E3E8', paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center'},
+  contactSearchInput: {height: 36, flex: 1, paddingVertical: 0, paddingHorizontal: 7, fontSize: 17, color: '#000000'},
   contactsCenter: {flex: 1, alignItems: 'center', justifyContent: 'center'},
-  contactRow: {minHeight: 70, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#E0E3E7'},
-  contactAvatar: {width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E9ECEF', marginRight: 12},
-  contactAvatarText: {fontSize: 16, fontWeight: '600', color: colors.navy},
-  contactName: {fontSize: 16, fontWeight: '600', color: colors.navy},
-  contactMeta: {fontSize: 13, color: '#7A8491', marginTop: 2, textTransform: 'capitalize'},
-  contactCall: {fontSize: 14, fontWeight: '600', color: colors.navy},
+  contactRow: {minHeight: 68, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, backgroundColor: '#FFFFFF', borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#C6C6C8'},
+  contactAvatar: {width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E5E5EA', marginRight: 12},
+  contactAvatarText: {fontSize: 16, fontWeight: '600', color: '#3A3A3C'},
+  contactName: {fontSize: 17, fontWeight: '600', color: '#000000'},
+  contactMeta: {fontSize: 13, color: '#8E8E93', marginTop: 2, textTransform: 'capitalize'},
+  contactCall: {width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EAF3FF'},
 });
 
 export default App;

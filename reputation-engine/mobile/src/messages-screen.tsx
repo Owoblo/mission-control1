@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,6 +11,7 @@ import {
   Pressable,
   RefreshControl,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -39,6 +40,19 @@ import {
 
 type Workspace = 'sales' | 'partnership';
 type PendingAttachment = {uri: string; name: string; type: string};
+type InboxFilter = 'all' | 'needs_reply' | 'unread' | 'recent' | 'waiting' | 'responded' | 'active';
+
+const BASE_FILTERS: Array<{key: InboxFilter; label: string}> = [
+  {key: 'all', label: 'All'},
+  {key: 'needs_reply', label: 'Needs Reply'},
+  {key: 'unread', label: 'Unread'},
+  {key: 'recent', label: 'Recent'},
+  {key: 'waiting', label: 'Waiting'},
+];
+
+function isRecent(value: string) {
+  return Date.now() - new Date(value).getTime() <= 7 * 24 * 60 * 60 * 1000;
+}
 
 function relativeTime(value: string) {
   const seconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
@@ -73,6 +87,10 @@ export function MessagesScreen({
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<InboxFilter>('all');
+  const [city, setCity] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
 
   const refresh = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
@@ -93,7 +111,56 @@ export function MessagesScreen({
   useEffect(() => {
     setSelected(null);
     setLine('');
+    setCity('');
+    setFilter('all');
   }, [workspace]);
+
+  const availableFilters = useMemo(
+    () => workspace === 'partnership'
+      ? [
+          ...BASE_FILTERS,
+          {key: 'responded' as const, label: 'Responded'},
+          {key: 'active' as const, label: 'Active'},
+        ]
+      : BASE_FILTERS,
+    [workspace],
+  );
+  const cities = useMemo(
+    () => Array.from(new Set(
+      conversations.map(item => item.city?.trim()).filter(Boolean) as string[],
+    )).sort((left, right) => left.localeCompare(right)),
+    [conversations],
+  );
+  const matchesFilter = useCallback((conversation: Conversation, key: InboxFilter) => {
+    if (key === 'all') return true;
+    if (key === 'needs_reply') return conversation.needsReply || conversation.lastDirection === 'inbound';
+    if (key === 'unread') return conversation.unreadCount > 0;
+    if (key === 'recent') return isRecent(conversation.lastAt);
+    if (key === 'waiting') return conversation.lastDirection === 'outbound';
+    if (key === 'responded') return Boolean(conversation.responded);
+    return Boolean(conversation.activePartner);
+  }, []);
+  const filterCounts = useMemo(() => new Map(
+    availableFilters.map(item => [
+      item.key,
+      conversations.filter(conversation => matchesFilter(conversation, item.key)).length,
+    ]),
+  ), [availableFilters, conversations, matchesFilter]);
+  const visibleConversations = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return conversations.filter(conversation => {
+      if (city && conversation.city !== city) return false;
+      if (!matchesFilter(conversation, filter)) return false;
+      if (!normalizedQuery) return true;
+      return [
+        conversation.name,
+        conversation.subtitle,
+        conversation.phone,
+        conversation.city,
+        conversation.lastMessage,
+      ].filter(Boolean).join(' ').toLowerCase().includes(normalizedQuery);
+    });
+  }, [city, conversations, filter, matchesFilter, query]);
 
   useEffect(() => {
     refresh();
@@ -138,8 +205,33 @@ export function MessagesScreen({
     <SafeAreaView style={styles.page}>
       <View style={styles.header}>
         <Text style={styles.title}>Messages</Text>
-        <Pressable accessibilityRole="button" onPress={() => refresh()}>
-          <Text style={styles.headerAction}>Refresh</Text>
+        <Pressable
+          accessibilityLabel="Refresh messages"
+          accessibilityRole="button"
+          onPress={() => refresh()}
+          hitSlop={10}
+          style={styles.headerIconButton}>
+          <Icon name="refresh" size={21} color={colors.navy} />
+        </Pressable>
+      </View>
+      <View style={styles.searchRow}>
+        <View style={styles.searchBox}>
+          <Icon name="search" size={18} color="#7D8794" />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder={workspace === 'sales' ? 'Search customers' : 'Search partners or brokerages'}
+            placeholderTextColor="#858E9A"
+            returnKeyType="search"
+            clearButtonMode="while-editing"
+            style={styles.searchInput}
+          />
+        </View>
+        <Pressable
+          accessibilityLabel="Open message filters"
+          onPress={() => setShowFilters(true)}
+          style={[styles.filterButton, (line || city) && styles.filterButtonActive]}>
+          <Icon name="options-outline" size={20} color={(line || city) ? '#FFFFFF' : colors.navy} />
         </Pressable>
       </View>
       <View style={styles.segment}>
@@ -156,24 +248,22 @@ export function MessagesScreen({
           />
         )}
       </View>
-      {lines.length > 1 && (
-        <FlatList
-          horizontal
-          data={[{number: '', label: 'All lines'} as PhoneLine, ...lines]}
-          keyExtractor={item => item.number || 'all'}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.lineList}
-          renderItem={({item}) => (
-            <Pressable
-              onPress={() => setLine(item.number)}
-              style={[styles.linePill, line === item.number && styles.linePillSelected]}>
-              <Text style={[styles.lineText, line === item.number && styles.lineTextSelected]}>
-                {item.label}
-              </Text>
-            </Pressable>
-          )}
-        />
-      )}
+      <FlatList
+        horizontal
+        data={availableFilters}
+        keyExtractor={item => item.key}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.quickFilterList}
+        renderItem={({item}) => (
+          <Pressable
+            onPress={() => setFilter(item.key)}
+            style={[styles.quickFilter, filter === item.key && styles.quickFilterSelected]}>
+            <Text style={[styles.quickFilterText, filter === item.key && styles.quickFilterTextSelected]}>
+              {item.label}{(filterCounts.get(item.key) || 0) > 0 ? ` ${filterCounts.get(item.key)}` : ''}
+            </Text>
+          </Pressable>
+        )}
+      />
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator color={colors.navy} />
@@ -188,7 +278,7 @@ export function MessagesScreen({
         </View>
       ) : (
         <FlatList
-          data={conversations}
+          data={visibleConversations}
           keyExtractor={item => `${item.workspace}:${item.id}:${item.line}`}
           refreshControl={
             <RefreshControl
@@ -233,6 +323,69 @@ export function MessagesScreen({
           )}
         />
       )}
+      <Modal
+        visible={showFilters}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowFilters(false)}>
+        <Pressable style={styles.sheetBackdrop} onPress={() => setShowFilters(false)}>
+          <Pressable style={styles.filterSheet} onPress={() => {}}>
+            <View style={styles.sheetGrabber} />
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>Filter Messages</Text>
+              <Pressable onPress={() => setShowFilters(false)} hitSlop={10}>
+                <Text style={styles.sheetDone}>Done</Text>
+              </Pressable>
+            </View>
+            <Text style={styles.filterSectionTitle}>COMPANY LINE / MARKET</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.sheetChoices}>
+              {[{number: '', label: 'All Markets'} as PhoneLine, ...lines].map(item => (
+                <Pressable
+                  key={item.number || 'all'}
+                  onPress={() => setLine(item.number)}
+                  style={[styles.sheetChoice, line === item.number && styles.sheetChoiceSelected]}>
+                  <Text style={[styles.sheetChoiceText, line === item.number && styles.sheetChoiceTextSelected]}>
+                    {item.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+            {!!cities.length && (
+              <>
+                <Text style={styles.filterSectionTitle}>CITY</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.sheetChoices}>
+                  {['', ...cities].map(item => (
+                    <Pressable
+                      key={item || 'all-cities'}
+                      onPress={() => setCity(item)}
+                      style={[styles.sheetChoice, city === item && styles.sheetChoiceSelected]}>
+                      <Text style={[styles.sheetChoiceText, city === item && styles.sheetChoiceTextSelected]}>
+                        {item || 'All Cities'}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </>
+            )}
+            <Pressable
+              onPress={() => {
+                setLine('');
+                setCity('');
+                setFilter('all');
+                setQuery('');
+              }}
+              style={styles.clearFilters}>
+              <Text style={styles.clearFiltersText}>Clear All Filters</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -540,10 +693,15 @@ function Segment({label, selected, onPress}: {label: string; selected: boolean; 
 const styles = StyleSheet.create({
   page: {flex: 1, backgroundColor: '#FFFFFF'},
   threadPage: {flex: 1, backgroundColor: '#F7F7F5'},
-  header: {height: 62, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#DDE1E6'},
-  title: {fontSize: 30, fontWeight: '700', color: colors.navy, letterSpacing: -0.8},
-  headerAction: {fontSize: 16, color: colors.navy},
-  segment: {margin: 12, padding: 3, borderRadius: 10, backgroundColor: '#F0F1F2', flexDirection: 'row'},
+  header: {height: 60, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'},
+  title: {fontSize: 34, fontWeight: '700', color: colors.navy, letterSpacing: -1},
+  headerIconButton: {width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F1F2F4'},
+  searchRow: {height: 48, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 9},
+  searchBox: {flex: 1, height: 38, borderRadius: 11, backgroundColor: '#EFF0F2', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 11, gap: 7},
+  searchInput: {flex: 1, height: 38, paddingVertical: 0, fontSize: 16, color: colors.navy},
+  filterButton: {width: 38, height: 38, borderRadius: 11, backgroundColor: '#EFF0F2', alignItems: 'center', justifyContent: 'center'},
+  filterButtonActive: {backgroundColor: colors.navy},
+  segment: {marginHorizontal: 16, marginTop: 7, marginBottom: 10, padding: 3, borderRadius: 9, backgroundColor: '#EBECEF', flexDirection: 'row'},
   segmentItem: {flex: 1, minHeight: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 8},
   segmentSelected: {backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 3, shadowOffset: {width: 0, height: 1}},
   segmentText: {fontSize: 14, fontWeight: '600', color: '#697383'},
@@ -553,6 +711,25 @@ const styles = StyleSheet.create({
   linePillSelected: {backgroundColor: colors.navy, borderColor: colors.navy},
   lineText: {fontSize: 13, color: '#596474'},
   lineTextSelected: {color: '#FFFFFF'},
+  quickFilterList: {paddingHorizontal: 16, paddingBottom: 9, gap: 8},
+  quickFilter: {height: 32, justifyContent: 'center', paddingHorizontal: 13, borderRadius: 16, backgroundColor: '#F1F2F4'},
+  quickFilterSelected: {backgroundColor: colors.navy},
+  quickFilterText: {fontSize: 13, fontWeight: '600', color: '#596474'},
+  quickFilterTextSelected: {color: '#FFFFFF'},
+  sheetBackdrop: {flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(7,20,33,0.28)'},
+  filterSheet: {paddingBottom: 30, borderTopLeftRadius: 22, borderTopRightRadius: 22, backgroundColor: '#FFFFFF'},
+  sheetGrabber: {width: 38, height: 5, borderRadius: 3, backgroundColor: '#C8CBD0', alignSelf: 'center', marginTop: 8},
+  sheetHeader: {height: 58, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'},
+  sheetTitle: {fontSize: 20, fontWeight: '700', color: colors.navy},
+  sheetDone: {fontSize: 17, fontWeight: '600', color: '#0A66C2'},
+  filterSectionTitle: {fontSize: 11, fontWeight: '700', letterSpacing: 0.8, color: '#7A8492', marginHorizontal: 20, marginTop: 12, marginBottom: 9},
+  sheetChoices: {paddingHorizontal: 20, gap: 8},
+  sheetChoice: {minHeight: 36, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 18, backgroundColor: '#F0F1F3'},
+  sheetChoiceSelected: {backgroundColor: colors.navy},
+  sheetChoiceText: {fontSize: 14, fontWeight: '600', color: '#556171'},
+  sheetChoiceTextSelected: {color: '#FFFFFF'},
+  clearFilters: {height: 46, marginHorizontal: 20, marginTop: 26, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F0F1F3'},
+  clearFiltersText: {fontSize: 16, fontWeight: '600', color: '#C43B35'},
   center: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32},
   emptyTitle: {fontSize: 18, fontWeight: '600', color: colors.navy, marginBottom: 6},
   emptyCopy: {fontSize: 15, lineHeight: 21, textAlign: 'center', color: '#6C7582'},

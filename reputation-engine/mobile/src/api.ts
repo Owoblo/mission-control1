@@ -41,6 +41,11 @@ export type Conversation = {
   lastAt: string;
   lastDirection: 'inbound' | 'outbound';
   unreadCount: number;
+  city?: string;
+  status?: string;
+  needsReply?: boolean;
+  responded?: boolean;
+  activePartner?: boolean;
 };
 
 export type ConversationMessage = {

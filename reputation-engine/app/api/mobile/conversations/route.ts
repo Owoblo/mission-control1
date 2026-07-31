@@ -21,6 +21,8 @@ type Contact = {
   company: string | null
   phone: string | null
   city: string | null
+  stage: string | null
+  decision: string | null
 }
 
 function metadataPhone(touch: Touch, keys: string[]) {
@@ -73,6 +75,11 @@ export async function GET(request: Request) {
         lastAt: thread.lastAt,
         lastDirection: thread.lastDirection,
         unreadCount: thread.unreadCount,
+        city: '',
+        status: thread.lastDirection === 'inbound' ? 'needs_reply' : 'waiting',
+        needsReply: thread.lastDirection === 'inbound',
+        responded: thread.messages.some(message => message.direction === 'inbound'),
+        activePartner: false,
       }))
     return Response.json({ conversations, lines: allowedLines })
   }
@@ -96,7 +103,7 @@ export async function GET(request: Request) {
   if (!ids.length) return Response.json({ conversations: [], lines: allowedLines })
 
   const contactsResponse = await fetch(
-    `${url}/rest/v1/market_contacts?id=in.(${ids.map(encodeURIComponent).join(',')})&select=id,name,company,phone,city`,
+    `${url}/rest/v1/market_contacts?id=in.(${ids.map(encodeURIComponent).join(',')})&select=id,name,company,phone,city,stage,decision`,
     { headers, cache: 'no-store' },
   )
   const contacts = contactsResponse.ok ? await contactsResponse.json() as Contact[] : []
@@ -115,6 +122,15 @@ export async function GET(request: Request) {
         lastAt: touch.created_at,
         lastDirection: touch.direction === 'inbound' ? 'inbound' : 'outbound',
         unreadCount: touch.direction === 'inbound' ? 1 : 0,
+        city: contact.city || '',
+        status: touch.direction === 'inbound' ? 'needs_reply' : 'waiting',
+        needsReply: touch.direction === 'inbound',
+        responded: touches.some(candidate =>
+          candidate.contact_id === contact.id && candidate.direction === 'inbound'
+        ),
+        activePartner:
+          String(contact.decision || '').toLowerCase() === 'agreed' ||
+          String(contact.stage || '').toLowerCase() === 'partnership_active',
       }
     })
     .filter(Boolean)
