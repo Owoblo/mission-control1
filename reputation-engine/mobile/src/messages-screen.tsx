@@ -6,6 +6,7 @@ import {
   BackHandler,
   FlatList,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -21,6 +22,8 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import {
   Conversation,
   ConversationMessage,
+  ContactProfile,
+  loadContactProfile,
   loadConversationMessages,
   loadConversations,
   PhoneLine,
@@ -250,6 +253,9 @@ function ThreadScreen({
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [attachment, setAttachment] = useState<PendingAttachment | null>(null);
+  const [profile, setProfile] = useState<ContactProfile | null>(null);
+  const [showProfile, setShowProfile] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [error, setError] = useState('');
   const list = useRef<FlatList<ConversationMessage>>(null);
 
@@ -340,6 +346,19 @@ function ThreadScreen({
     ]);
   }
 
+  async function openProfile() {
+    setShowProfile(true);
+    if (profile) return;
+    setProfileLoading(true);
+    try {
+      setProfile((await loadContactProfile(token, conversation)).profile);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Contact details did not load.');
+    } finally {
+      setProfileLoading(false);
+    }
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.threadPage}
@@ -350,10 +369,15 @@ function ThreadScreen({
           <Pressable accessibilityLabel="Back to messages" onPress={onBack} hitSlop={12}>
             <Text style={styles.back}>‹</Text>
           </Pressable>
-          <View style={styles.threadIdentity}>
+          <Pressable
+            accessibilityLabel="Open contact details"
+            onPress={openProfile}
+            style={styles.threadIdentity}>
             <Text numberOfLines={1} style={styles.threadName}>{conversation.name}</Text>
-            <Text numberOfLines={1} style={styles.threadLine}>{conversation.subtitle}</Text>
-          </View>
+            <Text numberOfLines={1} style={styles.threadLine}>
+              {conversation.subtitle} · View details
+            </Text>
+          </Pressable>
           <Pressable accessibilityRole="button" onPress={onCall} hitSlop={12}>
             <Text style={styles.callAction}>Call</Text>
           </Pressable>
@@ -437,6 +461,69 @@ function ThreadScreen({
             Sending from {conversation.line}
           </Text>
         </View>
+        <Modal
+          visible={showProfile}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setShowProfile(false)}>
+          <SafeAreaView style={styles.profilePage}>
+            <View style={styles.profileHeader}>
+              <Text style={styles.profileHeaderTitle}>Contact details</Text>
+              <Pressable onPress={() => setShowProfile(false)} hitSlop={12}>
+                <Icon name="close" size={27} color={colors.navy} />
+              </Pressable>
+            </View>
+            {profileLoading ? (
+              <View style={styles.center}><ActivityIndicator color={colors.navy} /></View>
+            ) : profile ? (
+              <View style={styles.profileContent}>
+                <View style={styles.profileAvatar}>
+                  <Text style={styles.profileAvatarText}>
+                    {profile.name.slice(0, 1).toUpperCase()}
+                  </Text>
+                </View>
+                <Text style={styles.profileName}>{profile.name}</Text>
+                <Text style={styles.profileRole}>
+                  {[profile.title, profile.company].filter(Boolean).join(' · ')}
+                </Text>
+                <View style={styles.profileActions}>
+                  <Pressable onPress={onCall} style={styles.profileAction}>
+                    <Icon name="call" size={20} color="white" />
+                    <Text style={styles.profileActionText}>Call</Text>
+                  </Pressable>
+                </View>
+                {[
+                  ['Phone', profile.phone],
+                  ['Email', profile.email],
+                  ['Location', [profile.city, profile.area].filter((item, index, all) => item && all.indexOf(item) === index).join(' · ')],
+                  ['Status', profile.status],
+                ].filter(([, value]) => value).map(([label, value]) => (
+                  <View key={label} style={styles.profileRow}>
+                    <Text style={styles.profileLabel}>{label}</Text>
+                    <Text style={styles.profileValue}>{value}</Text>
+                  </View>
+                ))}
+                {profile.details.map(detail => (
+                  <View key={detail} style={styles.profileDetail}>
+                    <Icon name="information-circle-outline" size={18} color={colors.gold} />
+                    <Text style={styles.profileDetailText}>{detail}</Text>
+                  </View>
+                ))}
+                {!!profile.notes && (
+                  <View style={styles.profileNotes}>
+                    <Text style={styles.profileLabel}>CRM CONTEXT</Text>
+                    <Text style={styles.profileNotesText}>{profile.notes}</Text>
+                  </View>
+                )}
+              </View>
+            ) : (
+              <View style={styles.center}>
+                <Text style={styles.emptyTitle}>No linked CRM profile yet</Text>
+                <Text style={styles.emptyCopy}>The phone conversation is still available.</Text>
+              </View>
+            )}
+          </SafeAreaView>
+        </Modal>
       </SafeAreaView>
     </KeyboardAvoidingView>
   );
@@ -508,4 +595,22 @@ const styles = StyleSheet.create({
   sendDisabled: {backgroundColor: '#C7CCD2'},
   sendText: {fontSize: 22, lineHeight: 25, fontWeight: '700', color: '#FFFFFF'},
   sendingLine: {fontSize: 10, color: '#89919D', textAlign: 'center', marginTop: 4},
+  profilePage: {flex: 1, backgroundColor: '#F7F7F5'},
+  profileHeader: {height: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#D8DCE1', backgroundColor: 'white'},
+  profileHeaderTitle: {fontSize: 18, fontWeight: '700', color: colors.navy},
+  profileContent: {padding: 22},
+  profileAvatar: {width: 72, height: 72, borderRadius: 36, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.navy},
+  profileAvatarText: {fontSize: 28, fontWeight: '700', color: 'white'},
+  profileName: {fontSize: 25, fontWeight: '700', color: colors.navy, textAlign: 'center', marginTop: 14},
+  profileRole: {fontSize: 14, lineHeight: 20, color: '#6D7785', textAlign: 'center', marginTop: 4},
+  profileActions: {alignItems: 'center', marginVertical: 18},
+  profileAction: {height: 42, paddingHorizontal: 18, borderRadius: 21, backgroundColor: colors.navy, flexDirection: 'row', alignItems: 'center', gap: 7},
+  profileActionText: {fontSize: 14, fontWeight: '700', color: 'white'},
+  profileRow: {minHeight: 50, flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#D8DCE1'},
+  profileLabel: {width: 88, fontSize: 11, letterSpacing: 1.1, fontWeight: '700', color: '#7A8492'},
+  profileValue: {flex: 1, fontSize: 15, color: colors.navy, textAlign: 'right'},
+  profileDetail: {flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 12},
+  profileDetailText: {flex: 1, fontSize: 14, color: '#536070'},
+  profileNotes: {borderRadius: 15, backgroundColor: 'white', borderWidth: 1, borderColor: '#D8DCE1', padding: 15, marginTop: 20},
+  profileNotesText: {fontSize: 14, lineHeight: 21, color: '#3E4957', marginTop: 9},
 });

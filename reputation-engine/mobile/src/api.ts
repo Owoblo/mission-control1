@@ -50,6 +50,21 @@ export type ConversationMessage = {
   created_at: string;
 };
 
+export type ContactProfile = {
+  id: string;
+  workspace: 'sales' | 'partnership';
+  name: string;
+  phone: string;
+  email: string;
+  company: string;
+  title: string;
+  city: string;
+  area: string;
+  status: string;
+  notes: string;
+  details: string[];
+};
+
 async function request<T>(
   path: string,
   options: RequestInit & {token?: string} = {},
@@ -139,6 +154,18 @@ export function loadConversationMessages(
   });
   return request<{messages: ConversationMessage[]}>(
     `/api/mobile/conversations/${encodeURIComponent(conversation.id)}?${query}`,
+    {token},
+  );
+}
+
+export function loadContactProfile(token: string, conversation: Conversation) {
+  const query = new URLSearchParams({
+    workspace: conversation.workspace,
+    id: conversation.id,
+    phone: conversation.phone,
+  });
+  return request<{profile: ContactProfile | null}>(
+    `/api/mobile/contact-profile?${query}`,
     {token},
   );
 }
