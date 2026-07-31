@@ -14,13 +14,18 @@ const CLIENT_IDENTITY_PREFIX = 'saturn-rep'
 const SIP_DOMAIN = 'saturn.sip.twilio.com'
 const INTERNAL_SIP_USERS = ['john', 'salesrep1']
 const SALES_DIALER_ROLES = ['owner', 'manager', 'sales_rep']
+const PARTNERSHIP_DIALER_ROLES = ['owner', 'manager', 'partnership_manager']
+const LEGACY_OWNER_IDENTITY = `${CLIENT_IDENTITY_PREFIX}-legacy-owner`
 const SALES_DIALER_ROSTER_CACHE_MS = 30_000
 const INBOUND_RING_TIMEOUT = 28             // seconds before missed-call action fires
 const DIAL_RECORDING_MODE = 'record-from-answer'
 const DIAL_RECORDING_TRIM = 'do-not-trim'
 const DIAL_RECORDING_EVENTS = 'completed absent'
 
-let salesDialerRosterCache: { expiresAt: number; identities: string[] } | null = null
+const dialerRosterCache: Partial<Record<'sales' | 'partnership', {
+  expiresAt: number
+  identities: string[]
+}>> = {}
 
 function getAppUrl() {
   return getAppBaseUrl()
@@ -67,14 +72,16 @@ function uniqueIdentities(...identityGroups: Array<Array<string | null | undefin
   return result
 }
 
-async function getSalesDialerRosterIdentities() {
+async function getDialerRosterIdentities(workspace: 'sales' | 'partnership') {
   const now = Date.now()
-  if (salesDialerRosterCache && salesDialerRosterCache.expiresAt > now) {
-    return salesDialerRosterCache.identities
+  const cached = dialerRosterCache[workspace]
+  if (cached && cached.expiresAt > now) {
+    return cached.identities
   }
 
   const { url, headers } = requireSupabaseEnv()
-  const roles = SALES_DIALER_ROLES.join(',')
+  const allowedRoles = workspace === 'partnership' ? PARTNERSHIP_DIALER_ROLES : SALES_DIALER_ROLES
+  const roles = allowedRoles.join(',')
   const response = await fetch(
     `${url}/rest/v1/app_users?select=id,role&role=in.(${roles})&order=name.asc&limit=50`,
     { headers, cache: 'no-store' },
@@ -85,11 +92,14 @@ async function getSalesDialerRosterIdentities() {
   }
 
   const rows = await response.json() as Array<{ id?: string | null; role?: string | null }>
-  const identities = uniqueIdentities(rows
-    .filter(row => row.id && SALES_DIALER_ROLES.includes(row.role || ''))
-    .map(row => clientIdentityForUserId(row.id!)))
+  const identities = uniqueIdentities(
+    rows
+      .filter(row => row.id && allowedRoles.includes(row.role || ''))
+      .map(row => clientIdentityForUserId(row.id!)),
+    [LEGACY_OWNER_IDENTITY],
+  )
 
-  salesDialerRosterCache = {
+  dialerRosterCache[workspace] = {
     expiresAt: now + SALES_DIALER_ROSTER_CACHE_MS,
     identities,
   }
@@ -274,13 +284,19 @@ export async function POST(request: Request) {
         identities: [] as string[],
         availableIdentities: [] as string[],
       }))
-      const rosterIdentities = await getSalesDialerRosterIdentities().catch(() => [])
+      const inboundWorkspace = getSaturnTrackingSource(normalizedTo) === 'partnership_outreach'
+        ? 'partnership'
+        : 'sales'
+      const rosterIdentities = await getDialerRosterIdentities(inboundWorkspace).catch(() => [LEGACY_OWNER_IDENTITY])
+      const presentAllowedIdentities = browserPresence.identities.filter(identity =>
+        rosterIdentities.includes(identity)
+      )
       const presenceIdentities = browserPresence.active
         ? (browserPresence.availableIdentities?.length > 0
-            ? browserPresence.availableIdentities
-            : browserPresence.identities)
+            ? browserPresence.availableIdentities.filter(identity => rosterIdentities.includes(identity))
+            : presentAllowedIdentities)
         : []
-      const staleOrUnseenRosterIdentities = rosterIdentities.filter(identity => !browserPresence.identities.includes(identity))
+      const staleOrUnseenRosterIdentities = rosterIdentities.filter(identity => !presentAllowedIdentities.includes(identity))
       const ringIdentities = uniqueIdentities(presenceIdentities, staleOrUnseenRosterIdentities)
 
       if (from) {

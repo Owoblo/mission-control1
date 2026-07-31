@@ -39,6 +39,27 @@ function touchLine(touch: Touch) {
     : metadataPhone(touch, ['from', 'From', 'from_number', 'fromNumber'])
 }
 
+async function loadContactsByIds(
+  url: string,
+  headers: Record<string, string>,
+  ids: string[],
+) {
+  const contacts: Contact[] = []
+  const batchSize = 100
+
+  for (let index = 0; index < ids.length; index += batchSize) {
+    const batch = ids.slice(index, index + batchSize)
+    const response = await fetch(
+      `${url}/rest/v1/market_contacts?id=in.(${batch.map(encodeURIComponent).join(',')})&select=id,name,company,phone,city,stage,decision`,
+      { headers, cache: 'no-store' },
+    )
+    if (!response.ok) throw new Error(`Partnership contact lookup failed: ${response.status}`)
+    contacts.push(...await response.json() as Contact[])
+  }
+
+  return contacts
+}
+
 export async function GET(request: Request) {
   const session = await getRequestSessionUser(request)
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
@@ -102,11 +123,12 @@ export async function GET(request: Request) {
   const ids = Array.from(latest.keys())
   if (!ids.length) return Response.json({ conversations: [], lines: allowedLines })
 
-  const contactsResponse = await fetch(
-    `${url}/rest/v1/market_contacts?id=in.(${ids.map(encodeURIComponent).join(',')})&select=id,name,company,phone,city,stage,decision`,
-    { headers, cache: 'no-store' },
-  )
-  const contacts = contactsResponse.ok ? await contactsResponse.json() as Contact[] : []
+  let contacts: Contact[]
+  try {
+    contacts = await loadContactsByIds(url, headers, ids)
+  } catch {
+    return Response.json({ error: 'Partnership contacts are temporarily unavailable.' }, { status: 503 })
+  }
   const conversations = contacts
     .map(contact => {
       const touch = latest.get(contact.id)
