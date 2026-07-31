@@ -21,6 +21,7 @@ async function buildVoiceToken(
   apiKeySecret: string,
   twimlAppSid: string,
   identity: string,
+  pushCredentialSid?: string,
 ): Promise<{ token: string; expiresAt: string }> {
   const now = Math.floor(Date.now() / 1000)
   const exp = now + 3600
@@ -37,6 +38,7 @@ async function buildVoiceToken(
       voice: {
         incoming: { allow: true },
         outgoing: { application_sid: twimlAppSid },
+        ...(pushCredentialSid ? { push_credential_sid: pushCredentialSid } : {}),
       },
     },
   }
@@ -72,6 +74,7 @@ export async function GET(request: Request) {
     const apiKeySid = readEnv('TWILIO_API_KEY_SID')
     const apiKeySecret = readEnv('TWILIO_API_KEY_SECRET')
     const twimlAppSid = readEnv('TWILIO_TWIML_APP_SID')
+    const pushCredentialSid = readEnv('TWILIO_VOICE_PUSH_CREDENTIAL_SID')
     const missing = [
       !accountSid ? 'TWILIO_ACCOUNT_SID' : null,
       !apiKeySid ? 'TWILIO_API_KEY_SID' : null,
@@ -94,7 +97,14 @@ export async function GET(request: Request) {
       )
     }
     const identity = `${IDENTITY_PREFIX}-${sessionUser.userId}`
-    const { token, expiresAt } = await buildVoiceToken(accountSid, apiKeySid, apiKeySecret, twimlAppSid, identity)
+    const { token, expiresAt } = await buildVoiceToken(
+      accountSid,
+      apiKeySid,
+      apiKeySecret,
+      twimlAppSid,
+      identity,
+      pushCredentialSid,
+    )
 
     return NextResponse.json({
       ok: true,
