@@ -99,7 +99,9 @@ export async function middleware(request: NextRequest) {
 
   if (!needsAuth) return NextResponse.next()
 
-  const token = request.cookies.get(getSessionCookieName())?.value
+  const authorization = request.headers.get('authorization')?.trim() || ''
+  const bearerMatch = authorization.match(/^Bearer\s+(.+)$/i)
+  const token = bearerMatch?.[1]?.trim() || request.cookies.get(getSessionCookieName())?.value
   const payload = await getSessionPayload(token)
 
   if (!payload) {
