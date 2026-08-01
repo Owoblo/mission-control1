@@ -11,6 +11,36 @@ import type { CRMLead, CRMQuote, FollowUpLog, SalesDashboardSummary } from '@/li
 import type { DashboardDrilldownMetric, DashboardDrilldownResponse } from '@/lib/sales-api'
 import { OperatingSystemOverview } from '@/app/components/operating-system-overview'
 
+const SALES_OVERVIEW_SESSION_CACHE_KEY = 'ss_sales_overview_last_good_v1'
+
+type CachedSalesOverview = {
+  savedAt: string
+  leads: CRMLead[]
+  quotes: CRMQuote[]
+  followUps: FollowUpLog[]
+  summary: SalesDashboardSummary
+}
+
+function readCachedSalesOverview(): CachedSalesOverview | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.sessionStorage.getItem(SALES_OVERVIEW_SESSION_CACHE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as CachedSalesOverview
+    if (!parsed.savedAt || !Array.isArray(parsed.leads) || !Array.isArray(parsed.quotes) || !Array.isArray(parsed.followUps) || !parsed.summary) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function writeCachedSalesOverview(data: Omit<CachedSalesOverview, 'savedAt'>) {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.setItem(SALES_OVERVIEW_SESSION_CACHE_KEY, JSON.stringify({ ...data, savedAt: new Date().toISOString() }))
+  } catch {}
+}
+
 type TelephonyMetrics = {
   totalCallsToday: number
   missedCallsToday: number
@@ -106,6 +136,7 @@ export default function SalesDashboardPage() {
   const [telephonyHealth, setTelephonyHealth] = useState<TelephonyHealth | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [staleAsOf, setStaleAsOf] = useState<string | null>(null)
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
   const [drilldown, setDrilldown] = useState<DashboardDrilldownResponse | null>(null)
   const [drilldownLoading, setDrilldownLoading] = useState(false)
@@ -177,9 +208,21 @@ export default function SalesDashboardPage() {
       setFollowUps(data.followUps)
       setSummary(data.summary)
       setTelephonyHealth(telephonyResponse)
+      writeCachedSalesOverview({ leads: data.leads, quotes: data.quotes, followUps: data.followUps, summary: data.summary })
+      setStaleAsOf(null)
       setError(null)
     } catch (err) {
-      setError((err as Error).message)
+      const cached = readCachedSalesOverview()
+      if (cached) {
+        setLeads(cached.leads)
+        setQuotes(cached.quotes)
+        setFollowUps(cached.followUps)
+        setSummary(cached.summary)
+        setStaleAsOf(cached.savedAt)
+        setError('Live CRM data is temporarily unavailable. Showing the last successful dashboard snapshot; sending and editing may still be unavailable.')
+      } else {
+        setError((err as Error).message)
+      }
     } finally {
       setLoading(false)
     }
@@ -200,6 +243,9 @@ export default function SalesDashboardPage() {
           setFollowUps(data.followUps)
           setSummary(data.summary)
           setTelephonyHealth(telephonyResponse)
+          writeCachedSalesOverview({ leads: data.leads, quotes: data.quotes, followUps: data.followUps, summary: data.summary })
+          setStaleAsOf(null)
+          setError(null)
         })
         .catch(() => {/* silently ignore — stale data is fine */})
     }, 60_000)
@@ -425,7 +471,9 @@ export default function SalesDashboardPage() {
           </div>
         </section>
 
-        {error ? <div className="rounded-[4px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
+        {error ? <div className={`rounded-[4px] border px-4 py-3 text-sm ${staleAsOf ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-rose-200 bg-rose-50 text-rose-700'}`}>
+          {error}{staleAsOf ? ` Snapshot saved ${formatRelativeTime(staleAsOf)}.` : ''}
+        </div> : null}
 
         <div className="grid gap-0 border border-[var(--app-line)] bg-[var(--app-panel)] md:grid-cols-4">
           <button
