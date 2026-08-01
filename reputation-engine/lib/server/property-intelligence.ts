@@ -6,7 +6,7 @@
  * Confidence levels: 'high' (Google confirmed) | 'medium' (strong signal) | 'low' (inferred)
  */
 
-import { getGoogleMapsApiKey } from '@/lib/server/runtime'
+import { getGoogleMapsApiKey } from './runtime'
 
 export type PropertyType =
   | 'house_detached'
@@ -94,11 +94,22 @@ function classifyFromGoogleTypes(
   const nameLower = (placeName || '').toLowerCase()
   const addrLower = formattedAddress.toLowerCase()
 
+  if (types.includes('apartment_building') || types.includes('apartment_complex')) {
+    notes.push('Google Places classifies this address as an apartment property')
+    return { propertyType: 'apartment', confidence: 'high', notes }
+  }
+
+  if (types.includes('condominium_complex') || types.includes('housing_complex')) {
+    const highrise = unitInfo.unitFloor !== null && unitInfo.unitFloor >= 5
+    notes.push('Google Places classifies this address as a condominium/housing complex')
+    return { propertyType: highrise ? 'condo_highrise' : 'condo_lowrise', confidence: 'high', notes }
+  }
+
   // Google occasionally returns explicit residential types
   if (types.includes('premise') && !unitInfo.unitNumber) {
     // No unit number + premise type → detached or semi-detached house
     notes.push('No unit number detected — treating as detached/semi house')
-    return { propertyType: 'house_detached', confidence: 'medium', notes }
+    return { propertyType: 'house_detached', confidence: 'low', notes }
   }
 
   // Subpremise = unit within a building
@@ -138,13 +149,13 @@ function deriveAccessFromPropertyType(
     case 'house_detached':
     case 'house_semi':
       return {
-        estimatedFloors: buildingFloors ?? 2,
+        estimatedFloors: buildingFloors ?? 1,
         unitFloor: 1,
         hasElevator: false,
         elevatorReservationLikely: false,
         parkingType: 'driveway',
         carryDistanceEstimate: 'short',
-        stairsEstimate: buildingFloors ? buildingFloors - 1 : 1,
+        stairsEstimate: buildingFloors ? Math.max(0, buildingFloors - 1) : 0,
       }
 
     case 'townhouse':
@@ -155,45 +166,42 @@ function deriveAccessFromPropertyType(
         elevatorReservationLikely: false,
         parkingType: 'driveway',
         carryDistanceEstimate: 'short',
-        stairsEstimate: buildingFloors ? buildingFloors - 1 : 2,
+        stairsEstimate: buildingFloors ? buildingFloors - 1 : 0,
       }
 
     case 'condo_lowrise': {
-      const floor = unitFloor ?? 2
       return {
         estimatedFloors: buildingFloors ?? 4,
-        unitFloor: floor,
-        hasElevator: floor >= 3 ? true : null,
-        elevatorReservationLikely: false,
-        parkingType: 'lot',
-        carryDistanceEstimate: floor <= 2 ? 'medium' : 'long',
-        stairsEstimate: floor >= 3 ? 0 : floor - 1,
+        unitFloor,
+        hasElevator: null,
+        elevatorReservationLikely: true,
+        parkingType: 'unknown',
+        carryDistanceEstimate: 'unknown',
+        stairsEstimate: 0,
       }
     }
 
     case 'condo_highrise': {
-      const floor = unitFloor ?? 8
       return {
         estimatedFloors: buildingFloors ?? 15,
-        unitFloor: floor,
-        hasElevator: true,
-        elevatorReservationLikely: floor >= 5,
-        parkingType: 'underground',
-        carryDistanceEstimate: 'long',
+        unitFloor,
+        hasElevator: null,
+        elevatorReservationLikely: true,
+        parkingType: 'unknown',
+        carryDistanceEstimate: 'unknown',
         stairsEstimate: 0,
       }
     }
 
     case 'apartment': {
-      const floor = unitFloor ?? 3
       return {
         estimatedFloors: buildingFloors ?? 8,
-        unitFloor: floor,
-        hasElevator: floor >= 4 ? true : null,
-        elevatorReservationLikely: floor >= 5,
-        parkingType: 'street',
-        carryDistanceEstimate: 'long',
-        stairsEstimate: floor >= 4 ? 0 : floor - 1,
+        unitFloor,
+        hasElevator: null,
+        elevatorReservationLikely: true,
+        parkingType: 'unknown',
+        carryDistanceEstimate: 'unknown',
+        stairsEstimate: 0,
       }
     }
 
@@ -330,10 +338,10 @@ export async function analyzePropertyAccess(address: string): Promise<PropertyAc
 
     // Access notes for rep
     const accessNotes: string[] = [...notes]
-    if (access.hasElevator === true) accessNotes.push('Elevator likely — confirm booking required')
-    if (access.elevatorReservationLikely) accessNotes.push('Floor 5+ → book elevator with building management')
+    if (access.hasElevator === true) accessNotes.push('Elevator reported — confirm booking required')
+    if (access.elevatorReservationLikely) accessNotes.push('Confirm elevator reservation or the building loading/back entrance')
     if (access.stairsEstimate > 0) accessNotes.push(`~${access.stairsEstimate} flight${access.stairsEstimate > 1 ? 's' : ''} of stairs estimated`)
-    if (access.parkingType === 'driveway') accessNotes.push('Driveway access — truck can pull up close')
+    if (access.parkingType === 'driveway') accessNotes.push('Standard residential driveway assumed — choose 1-car or 2-car only if truck placement matters')
     if (access.parkingType === 'street') accessNotes.push('Street parking — factor longer carry distance')
     if (access.parkingType === 'underground') accessNotes.push('Underground parking possible — confirm truck height clearance')
 
@@ -357,12 +365,12 @@ export async function analyzePropertyAccess(address: string): Promise<PropertyAc
 export function propertyAccessToJobFactors(access: PropertyAccess, side: 'origin' | 'dest') {
   const prefix = side === 'origin' ? 'origin' : 'dest'
   return {
-    [`${prefix}Floors`]: access.unitFloor ?? access.estimatedFloors,
+    [`${prefix}Floors`]: access.unitFloor ?? undefined,
     [`${prefix}HasElevator`]: access.hasElevator ?? undefined,
     [`${prefix}ElevatorReserved`]: access.hasElevator === true ? false : undefined,
     [`${prefix}ParkingOk`]:
       access.parkingType === 'unknown'
         ? undefined
-        : access.parkingType === 'driveway' || access.parkingType === 'underground',
+        : access.parkingType === 'driveway',
   }
 }

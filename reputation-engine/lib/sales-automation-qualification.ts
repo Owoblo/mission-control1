@@ -72,6 +72,63 @@ export function hasAnyAccessDetails(
   )
 }
 
+function accessTextIsUnresolved(value?: string) {
+  return /\b(to confirm|not confirmed|unknown|tbd|pending|need(?:s)? confirmation|reservation needed)\b/i.test(value || '')
+}
+
+function accessTextHasApartmentContext(value?: string) {
+  return /\b(apartment|apt|condo|unit|suite|tower|high[- ]?rise|elevator|loading entrance|loading dock|back entrance)\b/i.test(value || '')
+}
+
+function sideHasOperationalAccess(
+  lead: Pick<CRMLead, 'propertyType' | 'originAddress' | 'destAddress' | 'originAccess' | 'destAccess' | 'parkingNotes' | 'jobFactors'>,
+  side: 'origin' | 'destination'
+) {
+  const address = side === 'origin' ? lead.originAddress : lead.destAddress
+  const accessText = side === 'origin' ? lead.originAccess : lead.destAccess
+  const factors = lead.jobFactors || {}
+  const floors = side === 'origin' ? factors.originFloors : factors.destFloors
+  const hasElevator = side === 'origin' ? factors.originHasElevator : factors.destHasElevator
+  const elevatorReserved = side === 'origin' ? factors.originElevatorReserved : factors.destElevatorReserved
+  const parkingOk = side === 'origin' ? factors.originParkingOk : factors.destParkingOk
+
+  if (!hasCompleteMoveAddress(address)) return false
+  if (accessTextIsUnresolved(accessText)) return false
+
+  // A plain street address is treated as normal house-style access unless
+  // Google/property context or the address itself tells us it is a building.
+  // propertyType describes the origin property in the current lead schema, so
+  // it must not be copied to the destination implicitly.
+  const apartmentLike =
+    addressNeedsAccessConfirmation(address, side === 'origin' ? lead.propertyType : undefined) ||
+    accessTextHasApartmentContext(accessText)
+
+  if (!apartmentLike) {
+    return true
+  }
+
+  const text = accessText || ''
+  const floorKnown = (floors !== undefined && floors !== null) || /\b(?:floor|level)\s*\d+|\bground floor\b|\bstairs?\b/i.test(text)
+  const elevatorKnown =
+    (hasElevator !== undefined && hasElevator !== null) ||
+    /\b(?:elevator available|no elevator|stairs only)\b/i.test(text)
+  const reservationKnown =
+    hasElevator !== true ||
+    elevatorReserved === true ||
+    /\belevator (?:is )?reserved|reservation confirmed|booked elevator\b/i.test(text)
+  const entranceKnown =
+    parkingOk !== undefined && parkingOk !== null ||
+    /\b(?:loading|back|service|main) entrance|loading dock|truck access|parking\b/i.test(`${text} ${lead.parkingNotes || ''}`)
+
+  return floorKnown && elevatorKnown && reservationKnown && entranceKnown
+}
+
+export function hasRequiredAccessDetails(
+  lead: Pick<CRMLead, 'propertyType' | 'originAddress' | 'destAddress' | 'originAccess' | 'destAccess' | 'parkingNotes' | 'jobFactors'>
+) {
+  return sideHasOperationalAccess(lead, 'origin') && sideHasOperationalAccess(lead, 'destination')
+}
+
 export function addressNeedsAccessConfirmation(address?: string, propertyType?: CRMLead['propertyType']) {
   const text = address || ''
   if (propertyType === 'apartment' || propertyType === 'condo' || propertyType === 'commercial' || propertyType === 'storage_unit') {
@@ -100,7 +157,7 @@ export function getAutomationMissingFields(lead: CRMLead) {
   const inventoryKnown =
     (!!lead.totalItems || !!lead.totalCubicFeet || !!(lead.inventory || []).length || !!lead.surveyCompletedAt) &&
     !hasMlsDraftInventoryNeedingConfirmation(lead)
-  const accessKnown = hasAnyAccessDetails(lead)
+  const accessKnown = routeKnown && hasRequiredAccessDetails(lead)
 
   if (!lead.moveDate && !lead.moveDateFlexible) missing.push('move_date')
   if (!lead.originCity && !lead.originAddress) missing.push('origin')
@@ -110,7 +167,9 @@ export function getAutomationMissingFields(lead: CRMLead) {
   if (hasMlsDraftInventoryNeedingConfirmation(lead)) missing.push('inventory_confirmation')
   else if (!lead.totalItems && !lead.totalCubicFeet && !(lead.inventory || []).length && !lead.surveyCompletedAt) missing.push('inventory')
   if (!lead.email && moveDateKnown && routeKnown && inventoryKnown) missing.push('customer_email')
-  if (!accessKnown) missing.push('access')
+  // Route questions come first. Do not pepper the customer with generic access
+  // questions before both actual properties are known.
+  if (routeKnown && !accessKnown) missing.push('access')
   return missing
 }
 
@@ -200,10 +259,11 @@ export function buildLeadQualificationState(
   lead: CRMLead,
   overrides: Partial<LeadQualificationState> = {}
 ): LeadQualificationState {
-  const missingFields =
-    Object.prototype.hasOwnProperty.call(overrides, 'missingFields')
-      ? overrides.missingFields || []
-      : getAutomationMissingFields(lead)
+  const computedMissingFields = getAutomationMissingFields(lead)
+  const missingFields = Array.from(new Set([
+    ...computedMissingFields,
+    ...(Object.prototype.hasOwnProperty.call(overrides, 'missingFields') ? overrides.missingFields || [] : []),
+  ]))
 
   return {
     moveDateKnown: !!lead.moveDate || !!lead.moveDateFlexible,
@@ -211,11 +271,10 @@ export function buildLeadQualificationState(
     inventoryKnown:
       (!!lead.totalItems || !!lead.totalCubicFeet || !!(lead.inventory || []).length || !!lead.surveyCompletedAt) &&
       !hasMlsDraftInventoryNeedingConfirmation(lead),
-    accessKnown:
-      hasAnyAccessDetails(lead),
+    accessKnown: hasCompleteRouteAddresses(lead) && hasRequiredAccessDetails(lead),
     surveyRequested: !!lead.surveyRequestedAt,
     surveyCompleted: !!lead.surveyCompletedAt,
-    quoteReady: missingFields.length === 0 || (missingFields.length === 1 && missingFields[0] === 'access'),
+    quoteReady: missingFields.length === 0,
     activeCustomer: lead.stage === 'booked' || lead.stage === 'completed' || lead.stage === 'customer_success',
     missingFields,
     addressVerification: Object.prototype.hasOwnProperty.call(overrides, 'addressVerification')

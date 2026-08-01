@@ -22,6 +22,7 @@ import { applyMovePolicyToInventory } from './move-policy'
 import { normalizeCrewPayouts } from './operations'
 import { buildPackingMaterialsEstimate } from './packing-materials'
 import { applyRealtorContactToOpportunityLead } from './realtor-opportunity'
+import { buildLeadQualificationState } from './sales-automation-qualification'
 
 function normalizeOptionalText(value?: string | null) {
   const trimmed = value?.trim()
@@ -410,6 +411,18 @@ export function normalizeLead(lead: CRMLead): CRMLead {
     mergedByUserId,
     mergedByName,
     mergedReason,
+  }
+
+  // Qualification is derived operational state, not an immutable snapshot.
+  // Recompute the factual gates on every read so an old handoff cannot leave a
+  // lead marked quote-ready after the route or inventory becomes incomplete.
+  // Conversation metadata is retained, while stale computed flags are healed.
+  if (normalizedLead.qualificationState) {
+    normalizedLead.qualificationState = buildLeadQualificationState(normalizedLead, {
+      lastIntent: normalizedLead.qualificationState.lastIntent,
+      capturedSummary: normalizedLead.qualificationState.capturedSummary,
+      addressVerification: normalizedLead.qualificationState.addressVerification,
+    })
   }
 
   if (normalizedLead.leadKind === 'realtor_opportunity' && normalizedLead.primaryContactRole === 'realtor') {
