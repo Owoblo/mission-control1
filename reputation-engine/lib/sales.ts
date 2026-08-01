@@ -160,9 +160,10 @@ export function getSalesBranchLabel(branch?: SalesBranch) {
 export function detectSalesBranchFromLocation(...values: Array<string | null | undefined>): SalesBranch | undefined {
   const normalized = normalizeLocationText(...values)
   if (!normalized) return undefined
+  const paddedLocation = ` ${normalized} `
 
   for (const [branch, aliases] of Object.entries(SALES_BRANCH_AREAS) as Array<[SalesBranch, string[]]>) {
-    if (aliases.some(alias => normalized.includes(normalizeLocationText(alias)))) {
+    if (aliases.some(alias => paddedLocation.includes(` ${normalizeLocationText(alias)} `))) {
       return branch
     }
   }
@@ -174,7 +175,8 @@ export function isLocationWithinBranchServiceArea(branch: SalesBranch | undefine
   if (!branch) return false
   const normalized = normalizeLocationText(...values)
   if (!normalized) return false
-  return SALES_BRANCH_AREAS[branch].some(alias => normalized.includes(normalizeLocationText(alias)))
+  const paddedLocation = ` ${normalized} `
+  return SALES_BRANCH_AREAS[branch].some(alias => paddedLocation.includes(` ${normalizeLocationText(alias)} `))
 }
 
 export const QUOTE_STATUSES: Array<{ id: QuoteStatus; label: string }> = [

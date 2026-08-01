@@ -3542,6 +3542,56 @@ export default function SalesLeadDetailPage() {
     setQuoteModalDirty(true)
   }
 
+  function scanQuestionItemPattern(question: string) {
+    if (/wall-mounted tv/i.test(question)) return /wall[- ]?mounted|mounted tv/i
+    if (/fridge|freezer/i.test(question)) return /fridge|freezer|refrigerator/i
+    if (/washer|dryer/i.test(question)) return /washer|dryer/i
+    if (/safe/i.test(question)) return /\bsafe\b/i
+    if (/gym|exercise equipment/i.test(question)) return /gym|exercise|treadmill|elliptical|weight|rowing machine/i
+    if (/patio|outdoor furniture|bbq/i.test(question)) return /patio|outdoor|bbq|barbecue|grill/i
+    if (/piano/i.test(question)) return /piano/i
+    return null
+  }
+
+  async function resolveListingScanQuestion(question: string, answer: 'yes' | 'no') {
+    if (!lead || !ensureLeadEditable() || !lead.listingScanSnapshot) return
+    const answeredAt = new Date().toISOString()
+    const itemPattern = scanQuestionItemPattern(question)
+    const nextInventory = itemPattern
+      ? inventory.map(item => {
+          const label = `${item.name || ''} ${item.item || ''}`
+          if (!itemPattern.test(label)) return item
+          return answer === 'yes'
+            ? { ...item, included: true, status: 'confirmed' as const, confirmReason: undefined }
+            : { ...item, included: false, status: 'excluded' as const, confirmReason: `Customer confirmed this is not moving on ${answeredAt.slice(0, 10)}.` }
+        })
+      : inventory
+    const metrics = deriveInventoryMetrics(nextInventory)
+    const listingScanSnapshot = {
+      ...lead.listingScanSnapshot,
+      confirmationResponses: {
+        ...(lead.listingScanSnapshot.confirmationResponses || {}),
+        [question]: { answer, answeredAt, answeredBy: 'rep' as const },
+      },
+    }
+    const saved = await updateSalesLead(lead.id, {
+      listingScanSnapshot,
+      inventory: metrics.inventory,
+      totalItems: metrics.totalItems,
+      totalCubicFeet: metrics.totalCubicFeet,
+      totalWeightLbs: metrics.totalWeightLbs,
+      roomBreakdown: buildRoomBreakdown(metrics.inventory),
+      inventoryVerification: {
+        ...(lead.inventoryVerification || {}),
+        startedAt: lead.inventoryVerification?.startedAt || answeredAt,
+        lastUpdatedAt: answeredAt,
+      },
+    })
+    setInventory(metrics.inventory)
+    applyLeadSnapshot(saved, { hydrateForm: false })
+    setQuoteModalDirty(true)
+  }
+
   function inventoryItemKey(item: InventoryItem) {
     return inventoryItemKeys(item)[0]
   }
@@ -6149,6 +6199,7 @@ export default function SalesLeadDetailPage() {
         onApplyStarterInventory={applyStarterInventory}
         onUpdateInventoryItem={updateInventoryItem}
         onConfirmInventory={confirmCustomerInventory}
+        onResolveScanQuestion={resolveListingScanQuestion}
         onToggleInventoryItem={toggleInventoryItem}
         onRemoveInventoryItem={removeInventoryItem}
       />

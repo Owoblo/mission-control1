@@ -455,6 +455,11 @@ export interface InventoryScanDraft {
   confidence?: 'low' | 'medium' | 'high'
   specialtyFlags?: string[]
   confirmationQuestions?: string[]
+  confirmationResponses?: Record<string, {
+    answer: 'yes' | 'no'
+    answeredAt: string
+    answeredBy?: 'rep' | 'customer'
+  }>
   duplicateRisks?: string[]
   mlsDisclaimer?: string
   notes?: string

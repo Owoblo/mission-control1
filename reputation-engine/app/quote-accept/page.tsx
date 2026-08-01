@@ -5,7 +5,8 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { deriveMoveLogisticsPlan } from '@/lib/move-logistics'
 import { buildMoveSpecificNotes } from '@/lib/move-scope'
-import { detectSalesBranchFromLocation, formatDate, formatMoney, getSalesBranchLabel, isInvoiceStylePaymentTerms, paymentTermsLabel } from '@/lib/sales'
+import { formatDate, formatMoney, getSalesBranchLabel, isInvoiceStylePaymentTerms, paymentTermsLabel } from '@/lib/sales'
+import { getCustomerFacingQuoteBranch } from '@/lib/quote-brand'
 import type { CRMLead, InventoryItem, JobFactors, MoveType, QuoteLeg, QuotePaymentTerms } from '@/lib/types'
 
 type PublicQuote = {
@@ -209,19 +210,7 @@ const PUBLIC_BRANCH_MARKETS: Record<NonNullable<CRMLead['branch']>, string> = {
 }
 
 function quoteBranch(quote: PublicQuote) {
-  const routeParts = [
-    quote.originCity,
-    quote.originAddress,
-    quote.destCity,
-    quote.destAddress,
-    ...(quote.legs || []).flatMap(leg => [
-      leg.originCity,
-      leg.originAddress,
-      leg.destCity,
-      leg.destAddress,
-    ]),
-  ]
-  return quote.branch || detectSalesBranchFromLocation(...routeParts)
+  return getCustomerFacingQuoteBranch(quote)
 }
 
 function quoteBrand(quote: PublicQuote): QuoteBrand {
