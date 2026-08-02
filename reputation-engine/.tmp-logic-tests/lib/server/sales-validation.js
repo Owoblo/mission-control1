@@ -48,22 +48,6 @@ const QUOTE_TYPES = new Set([
     'long_distance',
     'storage',
 ]);
-const PROPERTY_BEDROOMS = new Set([
-    'studio',
-    '1_bedroom',
-    '2_bedrooms',
-    '3_bedrooms',
-    '4_bedrooms',
-    '5_plus',
-]);
-const PROPERTY_TYPES = new Set([
-    'apartment',
-    'condo',
-    'townhouse',
-    'detached_house',
-    'commercial',
-    'storage_unit',
-]);
 const REALTOR_LOOKUP_STATUSES = new Set([
     'not_checked',
     'matched',
@@ -133,21 +117,7 @@ const CONSULTATION_STATUSES = new Set([
 ]);
 const OPTIONAL_TEXT_FIELDS = [
     'source',
-    'sourceDetail',
     'referralCustomerName',
-    'partnerReferralContactId',
-    'partnerReferralName',
-    'partnerReferralCompany',
-    'partnerReferralCategory',
-    'partnerReferralEmail',
-    'partnerReferralPhone',
-    'partnerReferralLinkedAt',
-    'relationshipContactId',
-    'relationshipContactName',
-    'relationshipContactCompany',
-    'relationshipContactCategory',
-    'relationshipContactLinkedAt',
-    'relationshipContactReason',
     'identityPhone',
     'identityEmail',
     'followUpDate',
@@ -278,8 +248,6 @@ const ARRAY_FIELDS = [
     'callLogs',
     'crewHours',
     'crewPayouts',
-    'attributionSignals',
-    'moveRelationships',
 ];
 const OBJECT_FIELDS = [
     'attribution',
@@ -293,7 +261,6 @@ const OBJECT_FIELDS = [
     'jobFactors',
     'intelligence',
     'opsChecklist',
-    'opportunityContext',
 ];
 const ALLOWED_LEAD_PATCH_FIELDS = new Set([
     'name',
@@ -305,8 +272,6 @@ const ALLOWED_LEAD_PATCH_FIELDS = new Set([
     'primaryContactRole',
     'moveDate',
     'moveType',
-    'propertyBedrooms',
-    'propertyType',
     'quoteType',
     'realtorLookupStatus',
     'realtorWarmth',
@@ -465,14 +430,6 @@ function validateLeadPatchPayload(payload) {
         }
         if (key === 'quoteType') {
             updates.quoteType = rawValue == null ? undefined : validateEnum(rawValue, 'quote type', QUOTE_TYPES);
-            continue;
-        }
-        if (key === 'propertyBedrooms') {
-            updates.propertyBedrooms = rawValue == null ? undefined : validateEnum(rawValue, 'property bedrooms', PROPERTY_BEDROOMS);
-            continue;
-        }
-        if (key === 'propertyType') {
-            updates.propertyType = rawValue == null ? undefined : validateEnum(rawValue, 'property type', PROPERTY_TYPES);
             continue;
         }
         if (key === 'realtorLookupStatus') {

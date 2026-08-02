@@ -2,15 +2,12 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.classifyRouteCategory = classifyRouteCategory;
 exports.resolveRouteBranchForEstimate = resolveRouteBranchForEstimate;
-exports.findNearestRouteBranch = findNearestRouteBranch;
 exports.normalizeDrivingRoute = normalizeDrivingRoute;
 exports.geocodeByPlaceId = geocodeByPlaceId;
 exports.geocodeAddress = geocodeAddress;
 exports.suggestAddresses = suggestAddresses;
-exports.isDrivingRoutePlausible = isDrivingRoutePlausible;
 exports.getDrivingRoute = getDrivingRoute;
 exports.estimateRouteContext = estimateRouteContext;
-const route_address_1 = require("../route-address");
 const runtime_1 = require("./runtime");
 const BRANCH_YARDS = {
     windsor: 'Windsor, ON, Canada',
@@ -25,6 +22,7 @@ const BRANCH_YARD_COORDS = {
     london: { lat: 42.9849, lng: -81.2453, displayName: 'London, ON (Saturn Star base)' },
     ottawa: { lat: 45.4215, lng: -75.6972, displayName: 'Ottawa, ON (Saturn Star base)' },
 };
+const BASE_YARD_ADDRESS = BRANCH_YARDS.windsor;
 const ROUTE_BRANCH_ALIASES = {
     waterloo: [
         'waterloo',
@@ -35,15 +33,6 @@ const ROUTE_BRANCH_ALIASES = {
         'st jacobs',
         'st. jacobs',
         'baden',
-        'wilmot',
-        'new hamburg',
-        'wellesley',
-        'elora',
-        'fergus',
-        'centre wellington',
-        'conestogo',
-        'breslau',
-        'ayr',
         'preston',
         'hespeler',
         'doon',
@@ -91,9 +80,6 @@ function normalizeRouteLocationText(value) {
         .trim();
 }
 function resolveRouteBranchForEstimate(input) {
-    return inferRouteBranchForEstimate(input) || 'windsor';
-}
-function inferRouteBranchForEstimate(input) {
     const explicitBranch = normalizeRouteBranch(input.branch);
     if (explicitBranch)
         return explicitBranch;
@@ -108,22 +94,7 @@ function inferRouteBranchForEstimate(input) {
             return branch;
         }
     }
-    return undefined;
-}
-function findNearestRouteBranch(origin) {
-    let nearest = 'windsor';
-    let nearestDistance = Number.POSITIVE_INFINITY;
-    for (const [branch, yard] of Object.entries(BRANCH_YARD_COORDS)) {
-        const latDistance = (origin.lat - yard.lat) * 111.32;
-        const meanLatitudeRadians = ((origin.lat + yard.lat) / 2) * (Math.PI / 180);
-        const lngDistance = (origin.lng - yard.lng) * 111.32 * Math.cos(meanLatitudeRadians);
-        const straightLineDistance = Math.hypot(latDistance, lngDistance);
-        if (straightLineDistance < nearestDistance) {
-            nearest = branch;
-            nearestDistance = straightLineDistance;
-        }
-    }
-    return nearest;
+    return 'windsor';
 }
 function normalizeDrivingRoute(distanceMeters, durationSeconds) {
     const rawDistanceKm = Math.max(0, distanceMeters / 1000);
@@ -236,15 +207,9 @@ async function suggestWithNominatim(query) {
         const placeType = result.type === 'house' || result.type === 'residential' ? 'house'
             : result.type === 'apartments' || result.type === 'flat' ? 'apartment'
                 : detectApartmentFromText(result.display_name);
-        const normalizedCountryCode = result.address?.country_code?.toLowerCase() === 'ca' ? 'ca'
-            : result.address?.country_code?.toLowerCase() === 'us' ? 'us'
-                : undefined;
         return {
             label: result.display_name,
             city: extractAddressLocality(result.address),
-            region: result.address?.state,
-            country: result.address?.country,
-            countryCode: normalizedCountryCode,
             placeType,
         };
     })
@@ -255,39 +220,6 @@ async function suggestWithNominatim(query) {
         return true;
     });
 }
-function googlePredictionToSuggestion(prediction, countryCode) {
-    const types = prediction.types || [];
-    const placeType = types.includes('subpremise') ? 'apartment'
-        : types.includes('establishment') || types.includes('point_of_interest') ? 'commercial'
-            : detectApartmentFromText(prediction.description);
-    const parts = prediction.description.split(',').map(part => part.trim());
-    const regionIndex = parts.findIndex(part => countryCode === 'ca'
-        ? /^(ON|Ontario|QC|Quebec|Québec|BC|British Columbia|AB|Alberta|MB|Manitoba|SK|Saskatchewan|NS|Nova Scotia|NB|New Brunswick|NL|Newfoundland and Labrador|PE|Prince Edward Island|YT|Yukon|NT|Northwest Territories|NU|Nunavut)$/i.test(part)
-        : /^[A-Z]{2}$/i.test(part));
-    return {
-        label: prediction.description,
-        city: regionIndex > 0 ? parts[regionIndex - 1] : undefined,
-        region: regionIndex >= 0 ? parts[regionIndex] : undefined,
-        country: countryCode === 'ca' ? 'Canada' : 'United States',
-        countryCode,
-        placeType,
-        placeId: prediction.place_id,
-    };
-}
-async function suggestWithGoogle(query, apiKey, countryCode) {
-    const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json` +
-        `?input=${encodeURIComponent(query)}` +
-        `&types=address` +
-        `&components=country:${countryCode}` +
-        `&key=${apiKey}`;
-    const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
-    if (!res.ok)
-        return [];
-    const data = (await res.json());
-    if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS')
-        return [];
-    return (data.predictions || []).map(prediction => googlePredictionToSuggestion(prediction, countryCode));
-}
 async function suggestAddresses(query) {
     const trimmed = query.trim();
     if (trimmed.length < 5)
@@ -296,28 +228,36 @@ async function suggestAddresses(query) {
     const apiKey = (0, runtime_1.getGoogleMapsApiKey)();
     if (apiKey) {
         try {
-            // Explicit state/country context wins. A Michigan destination must not be
-            // hidden behind similarly named Canadian autocomplete results.
-            const preferredCountry = (0, route_address_1.inferAddressCountryContext)(trimmed);
-            const firstCountry = preferredCountry === 'us' ? 'us' : 'ca';
-            const secondCountry = firstCountry === 'us' ? 'ca' : 'us';
-            const first = await suggestWithGoogle(trimmed, apiKey, firstCountry);
-            const second = first.length >= 5 && preferredCountry
-                ? []
-                : await suggestWithGoogle(trimmed, apiKey, secondCountry);
-            return [...first, ...second].slice(0, 8);
+            const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json` +
+                `?input=${encodeURIComponent(trimmed)}` +
+                `&types=address` +
+                `&components=country:ca|country:us` +
+                `&key=${apiKey}`;
+            const res = await fetch(url, { cache: 'no-store' });
+            if (res.ok) {
+                const data = (await res.json());
+                if (data.status === 'OK' || data.status === 'ZERO_RESULTS') {
+                    return (data.predictions || []).map(p => {
+                        const types = p.types || [];
+                        const placeType = types.includes('subpremise') ? 'apartment'
+                            : types.includes('establishment') || types.includes('point_of_interest') ? 'commercial'
+                                : types.includes('street_address') || types.includes('premise') ? detectApartmentFromText(p.description)
+                                    : detectApartmentFromText(p.description);
+                        const cityMatch = p.description.match(/,\s*([^,]+),\s*ON|,\s*([^,]+),\s*MI/);
+                        return {
+                            label: p.description,
+                            city: cityMatch?.[1] || cityMatch?.[2] || undefined,
+                            placeType,
+                            placeId: p.place_id,
+                        };
+                    });
+                }
+            }
         }
         catch { /* fall through to Nominatim */ }
     }
     // Fallback: Nominatim (OpenStreetMap) — always works, no API key needed
     return suggestWithNominatim(trimmed);
-}
-function isDrivingRoutePlausible(origin, destination, routeDistanceKm) {
-    const meanLatitudeRadians = ((origin.lat + destination.lat) / 2) * (Math.PI / 180);
-    const latKm = (origin.lat - destination.lat) * 111.32;
-    const lngKm = (origin.lng - destination.lng) * 111.32 * Math.cos(meanLatitudeRadians);
-    const straightLineKm = Math.hypot(latKm, lngKm);
-    return routeDistanceKm <= Math.max(150, straightLineKm * 3.5);
 }
 async function getDrivingRoute(origin, dest) {
     const mapboxToken = process.env.MAPBOX_ACCESS_TOKEN;
@@ -351,7 +291,10 @@ async function getDrivingRoute(origin, dest) {
     return normalizeDrivingRoute(data.routes[0].distance, data.routes[0].duration);
 }
 async function estimateRouteContext(input) {
-    let routeBranch = inferRouteBranchForEstimate(input);
+    const routeBranch = resolveRouteBranchForEstimate(input);
+    const yardAddress = BRANCH_YARDS[routeBranch] || BASE_YARD_ADDRESS;
+    // Use hardcoded coords for known branches — no geocoding needed, never fails
+    const yardGeoHardcoded = BRANCH_YARD_COORDS[routeBranch] || BRANCH_YARD_COORDS.windsor;
     // Geocode with fallback: if full address fails, try stripping the last token
     // Also handles pre-resolved "lat,lng" format passed from place_id resolution
     async function geocodeWithFallback(address) {
@@ -373,16 +316,12 @@ async function estimateRouteContext(input) {
         geocodeWithFallback(input.origin.trim()),
         input.destination?.trim() ? geocodeWithFallback(input.destination.trim()) : Promise.resolve(null),
     ]);
-    if (!originGeo) {
-        throw new Error(`Could not locate: "${input.origin}"`);
-    }
-    // Unknown cities must never silently inherit Windsor. Once the origin is
-    // geocoded, choose the closest yard. Explicit staff selection still wins.
-    routeBranch || (routeBranch = findNearestRouteBranch(originGeo));
-    const yardGeoHardcoded = BRANCH_YARD_COORDS[routeBranch] || BRANCH_YARD_COORDS.windsor;
     // Yard: always use hardcoded branch coords for routing
     // U-Haul pickup distance is handled separately in the Live Margin — keeps pricing engine clean
     const yardGeo = yardGeoHardcoded;
+    if (!originGeo) {
+        throw new Error(`Could not locate: "${input.origin}"`);
+    }
     const yardToOrigin = await getDrivingRoute(yardGeo, originGeo);
     if (!yardToOrigin) {
         throw new Error('Could not calculate yard to origin drive time');
@@ -406,7 +345,6 @@ async function estimateRouteContext(input) {
             missingRequirements: ['Destination address or city needed for travel estimate'],
             originResolved: originGeo.displayName,
             yardResolved: yardGeo.displayName,
-            branch: routeBranch,
         };
     }
     if (!destGeo) {
@@ -418,9 +356,6 @@ async function estimateRouteContext(input) {
     ]);
     if (!originToDestination || !returnToOrigin) {
         throw new Error('Could not calculate driving route between these addresses');
-    }
-    if (!isDrivingRoutePlausible(originGeo, destGeo, originToDestination.distanceKm)) {
-        throw new Error(`Route estimate looks inconsistent with the selected locations (${originGeo.displayName} → ${destGeo.displayName}). Please reselect the addresses.`);
     }
     const originCity = extractRouteCity(input.origin);
     const destCity = extractRouteCity(input.destination);
@@ -463,6 +398,5 @@ async function estimateRouteContext(input) {
         originResolved: originGeo.displayName,
         destResolved: destGeo.displayName,
         yardResolved: yardGeo.displayName,
-        branch: routeBranch,
     };
 }

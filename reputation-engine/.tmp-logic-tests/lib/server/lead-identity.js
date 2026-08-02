@@ -234,8 +234,6 @@ function mergeLeadRecords(primary, duplicate, options = {}) {
     const mergedInventory = dedupeByKey([...(primary.inventory || []), ...(duplicate.inventory || [])], item => item.id || `${item.room || ''}:${item.name || ''}:${item.qty || 0}:${item.cubicFeet || 0}`);
     const mergedMediaAssets = dedupeByKey([...(primary.mediaAssets || []), ...(duplicate.mediaAssets || [])], asset => asset.id || `${asset.url}:${asset.filename || ''}:${asset.uploadedAt || ''}`);
     const mergedCallLogs = dedupeByKey([...(primary.callLogs || []), ...(duplicate.callLogs || [])], entry => entry.callSid || entry.recordingSid || entry.id || `${entry.type}:${entry.date}:${entry.notes || ''}`);
-    const mergedAttributionSignals = dedupeByKey([...(primary.attributionSignals || []), ...(duplicate.attributionSignals || [])], signal => signal.id || `${signal.channel}:${signal.detail || ''}:${signal.influence}`);
-    const mergedMoveRelationships = dedupeByKey([...(primary.moveRelationships || []), ...(duplicate.moveRelationships || [])], relationship => relationship.id || `${relationship.contactId || relationship.name}:${relationship.role}`);
     return (0, sales_1.normalizeLead)({
         ...duplicate,
         ...primary,
@@ -247,24 +245,8 @@ function mergeLeadRecords(primary, duplicate, options = {}) {
         identityEmail: normalizeLeadIdentityEmail(primary.identityEmail || primary.email || duplicate.identityEmail || duplicate.email),
         inboundId: primary.inboundId || duplicate.inboundId,
         inboundMessage: mergeDistinctText(primary.inboundMessage, duplicate.inboundMessage),
-        opportunityContext: primary.opportunityContext || duplicate.opportunityContext,
-        attributionSignals: mergedAttributionSignals.length ? mergedAttributionSignals : undefined,
-        moveRelationships: mergedMoveRelationships.length ? mergedMoveRelationships : undefined,
         source: primary.source || duplicate.source,
         referralCustomerName: choosePreferredText(primary.referralCustomerName, duplicate.referralCustomerName),
-        partnerReferralContactId: choosePreferredText(primary.partnerReferralContactId, duplicate.partnerReferralContactId),
-        partnerReferralName: choosePreferredText(primary.partnerReferralName, duplicate.partnerReferralName),
-        partnerReferralCompany: choosePreferredText(primary.partnerReferralCompany, duplicate.partnerReferralCompany),
-        partnerReferralCategory: choosePreferredText(primary.partnerReferralCategory, duplicate.partnerReferralCategory),
-        partnerReferralEmail: choosePreferredText(primary.partnerReferralEmail, duplicate.partnerReferralEmail),
-        partnerReferralPhone: choosePreferredText(primary.partnerReferralPhone, duplicate.partnerReferralPhone),
-        partnerReferralLinkedAt: choosePreferredText(primary.partnerReferralLinkedAt, duplicate.partnerReferralLinkedAt),
-        relationshipContactId: choosePreferredText(primary.relationshipContactId, duplicate.relationshipContactId),
-        relationshipContactName: choosePreferredText(primary.relationshipContactName, duplicate.relationshipContactName),
-        relationshipContactCompany: choosePreferredText(primary.relationshipContactCompany, duplicate.relationshipContactCompany),
-        relationshipContactCategory: choosePreferredText(primary.relationshipContactCategory, duplicate.relationshipContactCategory),
-        relationshipContactLinkedAt: choosePreferredText(primary.relationshipContactLinkedAt, duplicate.relationshipContactLinkedAt),
-        relationshipContactReason: primary.relationshipContactReason || duplicate.relationshipContactReason,
         moveDate: primary.moveDate || duplicate.moveDate,
         moveDateFlexible: primary.moveDateFlexible ?? duplicate.moveDateFlexible,
         moveDateFlexibleReason: choosePreferredText(primary.moveDateFlexibleReason, duplicate.moveDateFlexibleReason),

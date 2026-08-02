@@ -45,9 +45,6 @@ exports.INVENTORY_PRESETS = [
     p('tv-stand-sm', 'TV Stand · Small (3ft)', '📺', 'Living Room', 15, 40),
     p('tv-stand-med', 'TV Stand · Medium (4ft)', '📺', 'Living Room', 20, 55),
     p('tv-stand-lg', 'TV Stand · Large (6ft+)', '📺', 'Living Room', 35, 85),
-    p('tv-flat-sm', 'TV · Flat Screen 32–49"', '📺', 'Living Room', 5, 25, 'TV box or screen protection required'),
-    p('tv-flat-med', 'TV · Flat Screen 50–65"', '📺', 'Living Room', 8, 45, 'TV box or screen protection required'),
-    p('tv-flat-lg', 'TV · Flat Screen 66–86"', '📺', 'Living Room', 12, 75, 'Large TV box and two-person handling recommended'),
     p('tv-console-large', 'Entertainment Center · Large', '📺', 'Living Room', 60, 150, 'Often requires disassembly'),
     p('entertainment-sm', 'Entertainment Center · 4ft', '📺', 'Living Room', 35, 90),
     p('entertainment-med', 'Entertainment Center · 5ft', '📺', 'Living Room', 45, 120),
@@ -365,53 +362,8 @@ function createInventoryItemFromPreset(preset) {
 function matchInventoryPreset(name) {
     if (!name)
         return null;
-    const normalize = (value) => value
-        .toLowerCase()
-        .normalize('NFKD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, ' ')
-        .replace(/\b(?:la\s*z\s*boy|lay\s*z\s*boy|lazyboy|lazy boy)\s+(?:couch|chair|recliner)?\b/g, 'recliner chair')
-        .replace(/\bchest(?:s)?\s+of\s+drawers\b/g, 'dresser')
-        .replace(/\bsingle\s+bed\b/g, 'bed frame single')
-        .replace(/\bend tables\b/g, 'end table')
-        .replace(/\bside tables\b/g, 'side table')
-        .replace(/\bnight stands\b/g, 'nightstand')
-        .replace(/\bchairs\b/g, 'chair')
-        .replace(/\btelevisions?\b/g, 'tv')
-        .replace(/\bpinball machines\b/g, 'pinball machine')
-        .trim();
-    const normalized = normalize(name);
-    if (!normalized)
-        return null;
-    const tvSize = normalized.match(/\b(\d{2,3})\s*(?:inch|inches|in)?\s*(?:plasma\s+)?tv\b/);
-    if (tvSize && !/\b(?:stand|box|console|center)\b/.test(normalized)) {
-        const inches = Number(tvSize[1]);
-        const id = inches < 50 ? 'tv-flat-sm' : inches <= 65 ? 'tv-flat-med' : 'tv-flat-lg';
-        return exports.INVENTORY_PRESETS.find(preset => preset.id === id) || null;
-    }
-    if (/^(?:plasma |flat screen |smart )?tv$/.test(normalized)) {
-        return exports.INVENTORY_PRESETS.find(preset => preset.id === 'tv-flat-med') || null;
-    }
-    if (normalized === 'chair') {
-        return exports.INVENTORY_PRESETS.find(preset => preset.id === 'dining-chair') || null;
-    }
-    // These are accessories, not pianos. A broad substring match on "piano"
-    // previously assigned a collapsible keyboard stand 55 cu ft / 450 lb.
-    if (/\b(?:piano|keyboard)\s+(?:stand|rack)\b/.test(normalized))
-        return null;
-    const candidates = exports.INVENTORY_PRESETS
-        .map(preset => {
-        const itemName = normalize((preset.item.name || '').split(' ·')[0]);
-        const label = normalize(preset.label.split(' ·')[0]);
-        const aliases = Array.from(new Set([itemName, label].filter(Boolean)));
-        const exact = aliases.some(alias => normalized === alias);
-        const contained = aliases
-            .filter(alias => alias.length >= 4)
-            .filter(alias => new RegExp(`(?:^| )${alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?: |$)`).test(normalized))
-            .sort((a, b) => b.length - a.length)[0];
-        return { preset, exact, matchedLength: contained?.length || 0 };
-    })
-        .filter(candidate => candidate.exact || candidate.matchedLength > 0)
-        .sort((a, b) => Number(b.exact) - Number(a.exact) || b.matchedLength - a.matchedLength);
-    return candidates[0]?.preset || null;
+    const normalized = name.toLowerCase().trim();
+    return (exports.INVENTORY_PRESETS.find(preset => normalized.includes((preset.item.name?.toLowerCase() || '').split(' ·')[0])) ||
+        exports.INVENTORY_PRESETS.find(preset => preset.label.toLowerCase().includes(normalized)) ||
+        null);
 }

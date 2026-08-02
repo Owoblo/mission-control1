@@ -14,7 +14,7 @@ node_module_1.default._resolveFilename = function resolveAlias(request, parent, 
     }
     return originalResolveFilename(request, parent, isMain, options);
 };
-const { suggestPartnershipReply, partnershipDispositionFromSuggestion } = require('../../lib/server/partnership-reply-assistant');
+const { suggestPartnershipReply } = require('../../lib/server/partnership-reply-assistant');
 const contact = {
     id: 'contact_1',
     name: 'Mak Cole',
@@ -47,21 +47,6 @@ function conversation(notes) {
         created_at: new Date(Date.UTC(2026, 5, 18, 16, 48 + index)).toISOString(),
     }));
 }
-(0, node_test_1.default)('partnership assistant separates a polite decline from an explicit telecom opt-out', async () => {
-    delete process.env.OPENAI_API_KEY;
-    const polite = await suggestPartnershipReply({
-        contact,
-        touches: inbound('Not interested thanks but keep up the good work'),
-    });
-    const explicit = await suggestPartnershipReply({
-        contact,
-        touches: inbound('STOP'),
-    });
-    strict_1.default.equal(polite.intent, 'not_interested');
-    strict_1.default.equal(partnershipDispositionFromSuggestion(polite).outcome_code, 'polite_decline');
-    strict_1.default.equal(explicit.intent, 'stop_opt_out');
-    strict_1.default.equal(partnershipDispositionFromSuggestion(explicit).outcome_code, 'opt_out');
-});
 (0, node_test_1.default)('partnership assistant treats client email info requests as package-forwarding requests', async () => {
     process.env.PARTNERSHIP_DIGITAL_PACKAGE_URL = 'https://starmovers.ca/partner/mak-cole-windsor';
     process.env.PARTNERSHIP_RATE_CARD_URL = 'https://starmovers.ca/partner/flyers/windsor.pdf';

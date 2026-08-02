@@ -12,8 +12,7 @@ const sales_quote_sms_1 = require("../../lib/sales-quote-sms");
         quoteNumber: 'QT-2026-0706-LM',
         acceptUrl: 'https://go.quote2move.com/quote-accept?id=qt_123',
     });
-    strict_1.default.match(body, /estimate is ready/);
-    strict_1.default.doesNotMatch(body, /QT-2026-0706-LM/);
+    strict_1.default.match(body, /estimate QT-2026-0706-LM is ready/);
     strict_1.default.match(body, /Please review the full estimate here/);
     strict_1.default.doesNotMatch(body, /\$\d/);
     strict_1.default.doesNotMatch(body, /deposit/i);

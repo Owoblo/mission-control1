@@ -185,10 +185,6 @@ function detectIntent(text, contact, touches = []) {
     const risk_flags = [];
     const decision = cleanText(contact.decision).toLowerCase();
     const stage = cleanText(contact.stage).toLowerCase();
-    if (/\b(this|the) number (?:does not|doesn'?t|cannot|can'?t) (?:accept|receive|support) (?:sms|text) messages?\b/i.test(text) ||
-        /\b(?:sms|text) messages? (?:are|is) not (?:accepted|supported|available)\b/i.test(text)) {
-        return { intent: 'wrong_number', confidence: 0.98, risk_flags: ['automated_carrier_reply', 'sms_unavailable'] };
-    }
     if (decision === 'opted_out' || (0, partnership_sms_1.isOptOutText)(text))
         return { intent: 'stop_opt_out', confidence: 0.98, risk_flags };
     if (CONTEXT_CLARIFICATION_RE.test(text)) {
@@ -630,7 +626,7 @@ function partnershipDispositionFromSuggestion(result) {
         gives_address: 'Confirm address and collect best time or front-desk instruction.',
         warm_acknowledgement: 'Light follow-up only; avoid pushing unless package permission exists.',
         positive_vague: 'Use prior thread context before sending; manual review if ambiguous.',
-        not_interested: 'Pause automated outreach respectfully. Do not mark opted out or lost unless they explicitly ask not to be contacted.',
+        not_interested: 'Close as not interested and stop outreach unless they re-engage.',
         wrong_number: 'Mark wrong number and stop outreach to this phone.',
         stop_opt_out: 'Mark opted out and stop messaging.',
         needs_human_review: 'Human review required before reply.',
@@ -656,7 +652,7 @@ function partnershipDispositionFromSuggestion(result) {
         gives_address: 'gives_address',
         warm_acknowledgement: 'warm_acknowledgement',
         positive_vague: 'positive_vague',
-        not_interested: 'polite_decline',
+        not_interested: 'replied_negative',
         wrong_number: 'wrong_number',
         stop_opt_out: 'opt_out',
         needs_human_review: 'needs_human_review',

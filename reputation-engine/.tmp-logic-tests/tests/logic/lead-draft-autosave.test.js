@@ -42,37 +42,3 @@ function makeLead(inventory) {
     strict_1.default.equal(Object.prototype.hasOwnProperty.call(payload, 'roomBreakdown'), false);
     strict_1.default.equal(Object.prototype.hasOwnProperty.call(payload, 'totalCubicFeet'), false);
 });
-(0, node_test_1.default)('lead draft persists structured partnership attribution and clears it when source changes', () => {
-    const lead = makeLead([]);
-    const draft = {
-        ...(0, lead_draft_1.createLeadDraftState)(lead),
-        leadSource: 'partner_referral',
-        partnerReferral: {
-            id: 'contact_realtor_1',
-            name: 'Alex Realtor',
-            company: 'North Star Realty',
-            category: 'realtor',
-            email: 'alex@example.com',
-            city: 'London',
-        },
-    };
-    const linked = (0, lead_draft_1.buildLeadDraftPayload)(lead, draft);
-    strict_1.default.equal(linked.source, 'partner_referral');
-    strict_1.default.equal(linked.partnerReferralContactId, 'contact_realtor_1');
-    strict_1.default.equal(linked.partnerReferralName, 'Alex Realtor');
-    strict_1.default.equal(linked.partnerReferralCompany, 'North Star Realty');
-    const cleared = (0, lead_draft_1.buildLeadDraftPayload)({ ...lead, ...linked }, { ...draft, leadSource: 'google_online_search', partnerReferral: null });
-    strict_1.default.equal(cleared.partnerReferralContactId, '');
-    strict_1.default.equal(cleared.partnerReferralName, '');
-});
-(0, node_test_1.default)('lead draft does not persist an incomplete partnership source while selection is in progress', () => {
-    const lead = makeLead([]);
-    const draft = {
-        ...(0, lead_draft_1.createLeadDraftState)(lead),
-        leadSource: 'partner_referral',
-        partnerReferral: null,
-    };
-    const payload = (0, lead_draft_1.buildLeadDraftPayload)(lead, draft);
-    strict_1.default.equal(payload.source, lead.source);
-    strict_1.default.equal(payload.partnerReferralContactId, '');
-});

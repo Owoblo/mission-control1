@@ -1,6 +1,5 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FAST_LANE_ISSUE_LABELS = void 0;
 exports.hasStreetNumber = hasStreetNumber;
 exports.hasCanadianPostalCode = hasCanadianPostalCode;
 exports.hasUnitMarker = hasUnitMarker;
@@ -11,16 +10,9 @@ exports.hasCompleteRouteAddresses = hasCompleteRouteAddresses;
 exports.hasVerifiedInventory = hasVerifiedInventory;
 exports.hasMlsDraftInventoryNeedingConfirmation = hasMlsDraftInventoryNeedingConfirmation;
 exports.hasAnyAccessDetails = hasAnyAccessDetails;
-exports.hasRequiredAccessDetails = hasRequiredAccessDetails;
 exports.addressNeedsAccessConfirmation = addressNeedsAccessConfirmation;
 exports.leadNeedsAccessBeforeAutomatedQuote = leadNeedsAccessBeforeAutomatedQuote;
 exports.getAutomationMissingFields = getAutomationMissingFields;
-exports.getFastLaneReadinessIssues = getFastLaneReadinessIssues;
-exports.getFastLaneBlockingIssues = getFastLaneBlockingIssues;
-exports.getFastLaneTruckSize = getFastLaneTruckSize;
-exports.hasConfirmedAutomatedEstimateScope = hasConfirmedAutomatedEstimateScope;
-exports.isEstimateScopeConfirmation = isEstimateScopeConfirmation;
-exports.automatedEstimateSendingIsPaused = automatedEstimateSendingIsPaused;
 exports.buildLeadQualificationState = buildLeadQualificationState;
 function hasStreetNumber(value) {
     return /\d{1,6}/.test(value || '');
@@ -65,59 +57,17 @@ function hasMlsDraftInventoryNeedingConfirmation(lead) {
     return hasInventory && hasListingDraft && !hasVerifiedInventory(lead);
 }
 function hasAnyAccessDetails(lead) {
-    const known = (value) => value !== undefined && value !== null && value !== '';
     return (!!lead.originAccess ||
         !!lead.destAccess ||
         !!lead.parkingNotes ||
-        known(lead.jobFactors?.originFloors) ||
-        known(lead.jobFactors?.destFloors) ||
-        known(lead.jobFactors?.originHasElevator) ||
-        known(lead.jobFactors?.destHasElevator) ||
-        known(lead.jobFactors?.originParkingOk) ||
-        known(lead.jobFactors?.destParkingOk) ||
-        known(lead.jobFactors?.originElevatorReserved) ||
-        known(lead.jobFactors?.destElevatorReserved));
-}
-function accessTextIsUnresolved(value) {
-    return /\b(to confirm|not confirmed|unknown|tbd|pending|need(?:s)? confirmation|reservation needed)\b/i.test(value || '');
-}
-function accessTextHasApartmentContext(value) {
-    return /\b(apartment|apt|condo|unit|suite|tower|high[- ]?rise|elevator|loading entrance|loading dock|back entrance)\b/i.test(value || '');
-}
-function sideHasOperationalAccess(lead, side) {
-    const address = side === 'origin' ? lead.originAddress : lead.destAddress;
-    const accessText = side === 'origin' ? lead.originAccess : lead.destAccess;
-    const factors = lead.jobFactors || {};
-    const floors = side === 'origin' ? factors.originFloors : factors.destFloors;
-    const hasElevator = side === 'origin' ? factors.originHasElevator : factors.destHasElevator;
-    const elevatorReserved = side === 'origin' ? factors.originElevatorReserved : factors.destElevatorReserved;
-    const parkingOk = side === 'origin' ? factors.originParkingOk : factors.destParkingOk;
-    if (!hasCompleteMoveAddress(address))
-        return false;
-    if (accessTextIsUnresolved(accessText))
-        return false;
-    // A plain street address is treated as normal house-style access unless
-    // Google/property context or the address itself tells us it is a building.
-    // propertyType describes the origin property in the current lead schema, so
-    // it must not be copied to the destination implicitly.
-    const apartmentLike = addressNeedsAccessConfirmation(address, side === 'origin' ? lead.propertyType : undefined) ||
-        accessTextHasApartmentContext(accessText);
-    if (!apartmentLike) {
-        return true;
-    }
-    const text = accessText || '';
-    const floorKnown = (floors !== undefined && floors !== null) || /\b(?:floor|level)\s*\d+|\bground floor\b|\bstairs?\b/i.test(text);
-    const elevatorKnown = (hasElevator !== undefined && hasElevator !== null) ||
-        /\b(?:elevator available|no elevator|stairs only)\b/i.test(text);
-    const reservationKnown = hasElevator !== true ||
-        elevatorReserved === true ||
-        /\belevator (?:is )?reserved|reservation confirmed|booked elevator\b/i.test(text);
-    const entranceKnown = parkingOk !== undefined && parkingOk !== null ||
-        /\b(?:loading|back|service|main) entrance|loading dock|truck access|parking\b/i.test(`${text} ${lead.parkingNotes || ''}`);
-    return floorKnown && elevatorKnown && reservationKnown && entranceKnown;
-}
-function hasRequiredAccessDetails(lead) {
-    return sideHasOperationalAccess(lead, 'origin') && sideHasOperationalAccess(lead, 'destination');
+        lead.jobFactors?.originFloors !== undefined ||
+        lead.jobFactors?.destFloors !== undefined ||
+        lead.jobFactors?.originHasElevator !== undefined ||
+        lead.jobFactors?.destHasElevator !== undefined ||
+        lead.jobFactors?.originParkingOk !== undefined ||
+        lead.jobFactors?.destParkingOk !== undefined ||
+        lead.jobFactors?.originElevatorReserved !== undefined ||
+        lead.jobFactors?.destElevatorReserved !== undefined);
 }
 function addressNeedsAccessConfirmation(address, propertyType) {
     const text = address || '';
@@ -139,7 +89,7 @@ function getAutomationMissingFields(lead) {
     const routeKnown = hasCompleteRouteAddresses(lead);
     const inventoryKnown = (!!lead.totalItems || !!lead.totalCubicFeet || !!(lead.inventory || []).length || !!lead.surveyCompletedAt) &&
         !hasMlsDraftInventoryNeedingConfirmation(lead);
-    const accessKnown = routeKnown && hasRequiredAccessDetails(lead);
+    const accessKnown = hasAnyAccessDetails(lead);
     if (!lead.moveDate && !lead.moveDateFlexible)
         missing.push('move_date');
     if (!lead.originCity && !lead.originAddress)
@@ -156,96 +106,23 @@ function getAutomationMissingFields(lead) {
         missing.push('inventory');
     if (!lead.email && moveDateKnown && routeKnown && inventoryKnown)
         missing.push('customer_email');
-    // Route questions come first. Do not pepper the customer with generic access
-    // questions before both actual properties are known.
-    if (routeKnown && !accessKnown)
+    if (!accessKnown)
         missing.push('access');
     return missing;
 }
-function normalizedRouteValue(value) {
-    return (value || '').toLowerCase().replace(/\b(?:on|ontario|canada)\b/g, '').replace(/[^a-z0-9]/g, '');
-}
-function addressContainsScheduleText(value) {
-    return /\b(today|tomorrow|tonight|january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(value || '');
-}
-function getFastLaneReadinessIssues(lead, now = new Date()) {
-    const issues = [];
-    const moveDate = lead.moveDate ? new Date(`${lead.moveDate}T12:00:00`) : null;
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    if (!moveDate || Number.isNaN(moveDate.getTime()) || moveDate < today)
-        issues.push('move_date');
-    if (!hasCompleteMoveAddress(lead.originAddress) || addressContainsScheduleText(lead.originAddress))
-        issues.push('origin_address');
-    if (!lead.originCity?.trim())
-        issues.push('origin_city');
-    if (!hasCompleteMoveAddress(lead.destAddress) || addressContainsScheduleText(lead.destAddress))
-        issues.push('destination_address');
-    if (!lead.destCity?.trim())
-        issues.push('destination_city');
-    const origin = normalizedRouteValue(`${lead.originAddress || ''}${lead.originCity || ''}`);
-    const destination = normalizedRouteValue(`${lead.destAddress || ''}${lead.destCity || ''}`);
-    if (origin && destination && origin === destination)
-        issues.push('route_confirmation');
-    const inventoryKnown = !!lead.totalItems || !!lead.totalCubicFeet || !!(lead.inventory || []).length || !!lead.surveyCompletedAt;
-    if (!inventoryKnown || hasMlsDraftInventoryNeedingConfirmation(lead))
-        issues.push('inventory');
-    if (!hasAnyAccessDetails(lead))
-        issues.push('access');
-    return Array.from(new Set(issues));
-}
-function getFastLaneBlockingIssues(lead, _moveType, now = new Date()) {
-    const issues = getFastLaneReadinessIssues(lead, now);
-    // Fast Lane is an hourly booking in both truck and labour-only modes, not a
-    // fixed-scope estimate. Once the service date and pickup/work location are
-    // known, remaining scope details can be confirmed before dispatch.
-    return issues.filter(issue => issue === 'move_date' || issue === 'origin_address' || issue === 'origin_city');
-}
-exports.FAST_LANE_ISSUE_LABELS = {
-    move_date: 'Confirm a current move date',
-    origin_address: 'Confirm the exact pickup address',
-    origin_city: 'Confirm the pickup city',
-    destination_address: 'Confirm the exact destination address',
-    destination_city: 'Confirm the destination city',
-    route_confirmation: 'Confirm that pickup and destination are different, or document a same-site move',
-    inventory: 'Record the items and quantities being moved',
-    access: 'Confirm stairs, elevators, parking, and carrying distance',
-};
-function getFastLaneTruckSize(crew) {
-    if (crew === 2)
-        return '15ft';
-    if (crew === 3)
-        return '20ft';
-    return '26ft';
-}
-function hasConfirmedAutomatedEstimateScope(lead) {
-    return lead.qualificationState?.lastIntent === 'estimate_scope_confirmed';
-}
-function isEstimateScopeConfirmation(message) {
-    const text = String(message || '').trim().toLowerCase().replace(/[.!?]+$/g, '').trim();
-    if (!text)
-        return false;
-    if (/^(yes|yep|yeah|yup|correct|confirmed|accurate|that'?s right|looks right|sounds right|all correct|go ahead|please do|send it|send the estimate|send the quote)$/.test(text))
-        return true;
-    return /\b(details|information|scope|addresses|inventory|access).{0,30}\b(correct|accurate|right|confirmed)\b|\b(yes|correct|confirmed).{0,30}\b(send|prepare|create).{0,20}\b(estimate|quote)\b/.test(text);
-}
-function automatedEstimateSendingIsPaused() {
-    return true;
-}
 function buildLeadQualificationState(lead, overrides = {}) {
-    const computedMissingFields = getAutomationMissingFields(lead);
-    const missingFields = Array.from(new Set([
-        ...computedMissingFields,
-        ...(Object.prototype.hasOwnProperty.call(overrides, 'missingFields') ? overrides.missingFields || [] : []),
-    ]));
+    const missingFields = Object.prototype.hasOwnProperty.call(overrides, 'missingFields')
+        ? overrides.missingFields || []
+        : getAutomationMissingFields(lead);
     return {
         moveDateKnown: !!lead.moveDate || !!lead.moveDateFlexible,
         routeKnown: hasCompleteRouteAddresses(lead),
         inventoryKnown: (!!lead.totalItems || !!lead.totalCubicFeet || !!(lead.inventory || []).length || !!lead.surveyCompletedAt) &&
             !hasMlsDraftInventoryNeedingConfirmation(lead),
-        accessKnown: hasCompleteRouteAddresses(lead) && hasRequiredAccessDetails(lead),
+        accessKnown: hasAnyAccessDetails(lead),
         surveyRequested: !!lead.surveyRequestedAt,
         surveyCompleted: !!lead.surveyCompletedAt,
-        quoteReady: missingFields.length === 0,
+        quoteReady: missingFields.length === 0 || (missingFields.length === 1 && missingFields[0] === 'access'),
         activeCustomer: lead.stage === 'booked' || lead.stage === 'completed' || lead.stage === 'customer_success',
         missingFields,
         addressVerification: Object.prototype.hasOwnProperty.call(overrides, 'addressVerification')

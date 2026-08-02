@@ -33,41 +33,6 @@ function makeLead(overrides = {}) {
         ...overrides,
     };
 }
-(0, node_test_1.default)('quote line-item reconciliation is stable when the estimate is unchanged', () => {
-    const current = [
-        { description: 'Full-Service Moving', details: '4 professional movers', amount: 3552.5 },
-    ];
-    const reconciled = (0, sales_1.reconcileEstimatedQuoteLineItems)(current, [
-        { description: 'Full-Service Moving', details: '4 professional movers', amount: 3552.5 },
-    ]);
-    strict_1.default.equal(reconciled, current, 'an unchanged estimate must preserve the state reference');
-});
-(0, node_test_1.default)('quote line-item reconciliation updates calculated rows and preserves manual rows', () => {
-    const manual = { description: 'Piano handling', details: 'Upright piano', amount: 250 };
-    const current = [
-        { description: 'Full-Service Moving', details: '3 professional movers', amount: 2400 },
-        manual,
-    ];
-    const reconciled = (0, sales_1.reconcileEstimatedQuoteLineItems)(current, [
-        { description: 'Full-Service Moving', details: '4 professional movers', amount: 3552.5 },
-    ]);
-    strict_1.default.deepEqual(reconciled, [
-        { description: 'Full-Service Moving', details: '4 professional movers', amount: 3552.5 },
-        manual,
-    ]);
-});
-(0, node_test_1.default)('quote line-item reconciliation protects local and long-distance locked prices', () => {
-    for (const description of [
-        'Moving Services — Agreed Rate',
-        'Long-Distance Moving Service — All Inclusive',
-    ]) {
-        const current = [{ description, details: 'Rep-approved fixed price', amount: 3000 }];
-        const reconciled = (0, sales_1.reconcileEstimatedQuoteLineItems)(current, [
-            { description: 'Full-Service Moving', details: 'Calculated price', amount: 5000 },
-        ]);
-        strict_1.default.equal(reconciled, current);
-    }
-});
 (0, node_test_1.default)('estimateLeadQuote prices storage, storage delivery, and secondary stop legs distinctly', () => {
     const lead = makeLead();
     const factors = {
