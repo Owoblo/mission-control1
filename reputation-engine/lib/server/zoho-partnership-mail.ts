@@ -148,4 +148,3 @@ export async function getZohoPartnershipMessageContent(message: Pick<ZohoPartner
   )
   return result?.content || ''
 }
-
