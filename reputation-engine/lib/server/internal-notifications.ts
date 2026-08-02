@@ -125,6 +125,21 @@ export async function sendInternalAlertSms(to: string, body: string, from: strin
 }
 
 export async function sendRepAlertEmail(subject: string, htmlBody: string, recipients = NOTIFY_TO) {
+  return sendRepAlertEmailWithAttachments(subject, htmlBody, recipients)
+}
+
+type RepAlertAttachment = {
+  filename: string
+  content: string
+  content_id?: string
+}
+
+export async function sendRepAlertEmailWithAttachments(
+  subject: string,
+  htmlBody: string,
+  recipients = NOTIFY_TO,
+  attachments: RepAlertAttachment[] = [],
+) {
   const resendKey = readEnv('RESEND_API_KEY')
   const to = uniqueEmails(recipients)
   if (!resendKey || !to.length) return
@@ -137,8 +152,58 @@ export async function sendRepAlertEmail(subject: string, htmlBody: string, recip
       to,
       subject,
       html: htmlBody,
+      ...(attachments.length ? { attachments } : {}),
     }),
   }).catch(() => {})
+}
+
+export type DepositPaidAlert = {
+  customerName: string
+  amount: number
+  quoteNumber: string
+  total: number
+  leadId: string
+  phone?: string | null
+  source?: 'payment_link' | 'phone_card' | 'saved_card'
+  chargedBy?: string | null
+  cardLabel?: string | null
+}
+
+export function buildDepositPaidAlertEmail(input: DepositPaidAlert) {
+  const customerName = escapeHtml(input.customerName || 'Customer')
+  const quoteNumber = escapeHtml(input.quoteNumber || '')
+  const phone = input.phone ? escapeHtml(input.phone) : ''
+  const chargedBy = input.chargedBy ? escapeHtml(input.chargedBy) : ''
+  const cardLabel = input.cardLabel ? escapeHtml(input.cardLabel) : ''
+  const amount = Number.isFinite(input.amount) ? input.amount : 0
+  const balance = Math.max(0, (Number.isFinite(input.total) ? input.total : 0) - amount)
+  const sourceLabel =
+    input.source === 'phone_card' ? 'Card taken by phone' :
+    input.source === 'saved_card' ? 'Saved card charged in CRM' :
+    'Customer payment link'
+  const crmUrl = `https://go.quote2move.com/sales/leads/${encodeURIComponent(input.leadId)}`
+
+  return {
+    subject: `💳 ${input.customerName || 'Customer'} paid deposit — ${input.quoteNumber || ''}`,
+    html: `<div style="font-family:sans-serif;color:#071421;max-width:520px">
+      <p><strong>${customerName}</strong> just paid their deposit of <strong>$${amount.toFixed(2)}</strong>.</p>
+      <table style="font-size:14px;border-collapse:collapse;width:100%">
+        <tr><td style="padding:4px 0;color:#666">Quote</td><td style="padding:4px 0">${quoteNumber}</td></tr>
+        <tr><td style="padding:4px 0;color:#666">Deposit paid</td><td style="padding:4px 0;font-weight:600;color:#0f6a53">$${amount.toFixed(2)}</td></tr>
+        <tr><td style="padding:4px 0;color:#666">Balance due</td><td style="padding:4px 0">$${balance.toFixed(2)}</td></tr>
+        <tr><td style="padding:4px 0;color:#666">Payment source</td><td style="padding:4px 0">${sourceLabel}</td></tr>
+        ${cardLabel ? `<tr><td style="padding:4px 0;color:#666">Card</td><td style="padding:4px 0">${cardLabel}</td></tr>` : ''}
+        ${chargedBy ? `<tr><td style="padding:4px 0;color:#666">Charged by</td><td style="padding:4px 0">${chargedBy}</td></tr>` : ''}
+        ${phone ? `<tr><td style="padding:4px 0;color:#666">Phone</td><td style="padding:4px 0">${phone}</td></tr>` : ''}
+      </table>
+      <p style="margin-top:16px"><a href="${crmUrl}" style="background:#071421;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600">Open in CRM →</a></p>
+    </div>`,
+  }
+}
+
+export async function sendDepositPaidAlert(input: DepositPaidAlert) {
+  const email = buildDepositPaidAlertEmail(input)
+  return sendRepAlertEmail(email.subject, email.html)
 }
 
 export function partnershipInboundNotificationEmail(options: {
@@ -151,6 +216,7 @@ export function partnershipInboundNotificationEmail(options: {
   phone?: string | null
   email?: string | null
   mediaUrls?: string[]
+  embeddedMedia?: Array<{ contentId: string; filename: string }>
 }) {
   const {
     contactId,
@@ -162,6 +228,7 @@ export function partnershipInboundNotificationEmail(options: {
     phone,
     email,
     mediaUrls = [],
+    embeddedMedia = [],
   } = options
 
   const contactLabel = escapeHtml(contactName?.trim() || 'Unknown partner contact')
@@ -176,6 +243,13 @@ export function partnershipInboundNotificationEmail(options: {
   const crmLink = `https://go.quote2move.com/marketing/partners?tab=phone&contact=${encodeURIComponent(contactId)}`
   const mediaLinks = mediaUrls
     .map((url, index) => `<li><a href="${escapeHtml(url)}" style="color:#1a2744">${escapeHtml(`Attachment ${index + 1}`)}</a></li>`)
+    .join('')
+  const mediaPreviews = embeddedMedia
+    .map((media, index) => `
+      <div style="display:inline-block;width:calc(50% - 6px);min-width:220px;vertical-align:top;margin:0 8px 8px 0">
+        <img src="cid:${escapeHtml(media.contentId)}" alt="${escapeHtml(`MMS attachment ${index + 1}`)}" style="display:block;width:100%;max-height:280px;object-fit:contain;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc" />
+        <div style="margin-top:4px;font-size:11px;color:#64748b">${escapeHtml(media.filename)}</div>
+      </div>`)
     .join('')
 
   return `
@@ -192,13 +266,100 @@ export function partnershipInboundNotificationEmail(options: {
       <div><strong>Received:</strong> ${escapeHtml(occurredLabel)}</div>
     </div>
     <div style="margin-top:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;font-size:14px;color:#1a2744;white-space:pre-wrap">${detail}</div>
-    ${mediaLinks ? `<div style="margin-top:12px;font-size:13px;color:#1a2744"><strong>Media attached:</strong><ul style="margin:8px 0 0 18px;padding:0">${mediaLinks}</ul></div>` : ''}
+    ${mediaPreviews ? `<div style="margin-top:12px;font-size:13px;color:#1a2744"><div style="margin-bottom:8px"><strong>Media attached (${embeddedMedia.length}):</strong></div>${mediaPreviews}</div>` : ''}
+    ${!mediaPreviews && mediaLinks ? `<div style="margin-top:12px;font-size:13px;color:#1a2744"><strong>Media attached:</strong><ul style="margin:8px 0 0 18px;padding:0">${mediaLinks}</ul></div>` : ''}
     <div style="margin-top:16px">
       <a href="${crmLink}" style="background:#1a2744;color:#d7f5e6;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600">Open Partner Thread</a>
     </div>
     <div style="margin-top:16px;font-size:11px;color:#94a3b8">Saturn Star OS · Partnerships inbox alert</div>
   </div>
 </div>`
+}
+
+const MAX_PARTNERSHIP_MEDIA_BYTES = 8 * 1024 * 1024
+const MAX_PARTNERSHIP_EMAIL_MEDIA_BYTES = 25 * 1024 * 1024
+
+function mediaExtension(contentType: string) {
+  if (contentType.includes('png')) return 'png'
+  if (contentType.includes('gif')) return 'gif'
+  if (contentType.includes('webp')) return 'webp'
+  if (contentType.includes('heic')) return 'heic'
+  if (contentType.includes('heif')) return 'heif'
+  if (contentType.includes('mp4')) return 'mp4'
+  if (contentType.includes('quicktime')) return 'mov'
+  return 'jpg'
+}
+
+async function downloadPartnershipMediaForEmail(mediaUrls: string[]) {
+  const accountSid = readEnv('TWILIO_ACCOUNT_SID')
+  const authToken = readEnv('TWILIO_AUTH_TOKEN')
+  if (!accountSid || !authToken) return []
+
+  const downloaded = await Promise.all(mediaUrls.slice(0, 10).map(async (mediaUrl, index) => {
+    try {
+      const parsed = new URL(mediaUrl)
+      if (
+        parsed.protocol !== 'https:' ||
+        parsed.hostname !== 'api.twilio.com' ||
+        !parsed.pathname.includes(`/Accounts/${accountSid}/`)
+      ) return null
+
+      const response = await fetch(parsed.toString(), {
+        headers: { Authorization: twilioAuth(accountSid, authToken) },
+        cache: 'no-store',
+        signal: AbortSignal.timeout(12_000),
+      })
+      if (!response.ok) return null
+
+      const declaredLength = Number(response.headers.get('content-length') || 0)
+      if (declaredLength > MAX_PARTNERSHIP_MEDIA_BYTES) return null
+      const contentType = (response.headers.get('content-type') || 'image/jpeg').split(';')[0].trim().toLowerCase()
+      if (!contentType.startsWith('image/')) return null
+
+      const buffer = Buffer.from(await response.arrayBuffer())
+      if (!buffer.length || buffer.length > MAX_PARTNERSHIP_MEDIA_BYTES) return null
+      const contentId = `partner-mms-${index + 1}`
+      return {
+        bytes: buffer.length,
+        attachment: {
+          filename: `partner-mms-${index + 1}.${mediaExtension(contentType)}`,
+          content: buffer.toString('base64'),
+          content_id: contentId,
+        } satisfies RepAlertAttachment,
+        preview: {
+          contentId,
+          filename: `Attachment ${index + 1}`,
+        },
+      }
+    } catch {
+      return null
+    }
+  }))
+
+  let totalBytes = 0
+  return downloaded.filter((item): item is NonNullable<typeof item> => {
+    if (!item || totalBytes + item.bytes > MAX_PARTNERSHIP_EMAIL_MEDIA_BYTES) return false
+    totalBytes += item.bytes
+    return true
+  })
+}
+
+export async function sendPartnershipInboundAlert(
+  subject: string,
+  options: Parameters<typeof partnershipInboundNotificationEmail>[0],
+  recipients: string[],
+) {
+  const media = await downloadPartnershipMediaForEmail(options.mediaUrls || [])
+  const html = partnershipInboundNotificationEmail({
+    ...options,
+    embeddedMedia: media.map(item => item.preview),
+  })
+  return sendRepAlertEmailWithAttachments(
+    subject,
+    html,
+    recipients,
+    media.map(item => item.attachment),
+  )
 }
 
 export function smsNotificationEmail(from: string, body: string, leadId?: string | null) {

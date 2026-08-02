@@ -6,7 +6,7 @@ import { scheduleMoveReminder } from '@/lib/server/sales-automation'
 import { getAppBaseUrl, readEnv } from '@/lib/server/runtime'
 import { getReceiptBrand, type ReceiptBrand } from '@/lib/receipt-brand'
 import { getSalesLead, getSalesQuote, saveSalesLead, saveSalesQuote, saveFollowUpLog } from '@/lib/server/sales-repository'
-import { sendRepAlertEmail } from '@/lib/server/internal-notifications'
+import { sendDepositPaidAlert } from '@/lib/server/internal-notifications'
 import { sendSalesMessage } from '@/lib/server/sales-messaging'
 import { uid } from '@/lib/sales'
 import { deriveLeadBranch, generateCrewBrief, mergeCrewBrief, pickAutoAssignedCrewIds } from '@/lib/server/crew-dispatch'
@@ -166,23 +166,15 @@ export async function POST(request: Request) {
 
             // Notify the team — deposit paid
             if (!receiptAlreadyRecorded) {
-              const customerName = lead.name || 'Customer'
-              const depositAmt = actualDepositPaid
-              const quoteNum = quote?.number || ''
-              const crmUrl = `${readEnv('NEXT_PUBLIC_APP_URL') || 'https://go.quote2move.com'}/sales/leads/${lead.id}`
-              void sendRepAlertEmail(
-                `💳 ${customerName} paid deposit — ${quoteNum}`,
-                `<div style="font-family:sans-serif;color:#071421;max-width:520px">
-                  <p><strong>${customerName}</strong> just paid their deposit of <strong>$${depositAmt.toFixed(2)}</strong> via Stripe.</p>
-                  <table style="font-size:14px;border-collapse:collapse;width:100%">
-                    <tr><td style="padding:4px 0;color:#666">Quote</td><td style="padding:4px 0">${quoteNum}</td></tr>
-                    <tr><td style="padding:4px 0;color:#666">Deposit paid</td><td style="padding:4px 0;font-weight:600;color:#0f6a53">$${depositAmt.toFixed(2)}</td></tr>
-                    <tr><td style="padding:4px 0;color:#666">Balance due</td><td style="padding:4px 0">$${Math.max(0,(quote?.total||0)-depositAmt).toFixed(2)}</td></tr>
-                    ${lead.phone ? `<tr><td style="padding:4px 0;color:#666">Phone</td><td style="padding:4px 0">${lead.phone}</td></tr>` : ''}
-                  </table>
-                  <p style="margin-top:16px"><a href="${crmUrl}" style="background:#071421;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600">Open in CRM →</a></p>
-                </div>`
-              ).catch(() => {})
+              void sendDepositPaidAlert({
+                customerName: lead.name || 'Customer',
+                amount: actualDepositPaid,
+                quoteNumber: quote?.number || '',
+                total: quote?.total || 0,
+                leadId: lead.id,
+                phone: lead.phone,
+                source: 'payment_link',
+              }).catch(() => {})
             }
 
             if (!receiptAlreadyRecorded && lead.email && quote) {

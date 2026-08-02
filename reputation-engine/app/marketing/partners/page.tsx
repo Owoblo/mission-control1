@@ -1,9 +1,8 @@
 'use client'
 
-import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { memo, Suspense, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { PARTNERSHIP_STAGE_META } from '@/lib/marketing'
-import { sendSalesMessage } from '@/lib/sales-api'
 import { prepareUploadFile } from '@/lib/browser-media'
 import { PARTNER_CATEGORIES, CATEGORY_LIST, SERVICE_AREAS, suggestBatchName, getCategoryMeta } from '@/lib/partner-categories'
 import {
@@ -125,6 +124,7 @@ interface Contact {
 interface RecentSaleContext {
   id: string
   contact_id?: string | null
+  mls_id?: string | null
   address: string
   city?: string | null
   sold_verified_at?: string | null
@@ -163,12 +163,35 @@ interface Touch {
   metadata: Record<string, unknown> | null
 }
 
+const CONTACT_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const EMAIL_IN_TEXT_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi
+
+function emailsMentionedInTouches(touches: Touch[]) {
+  const found = new Set<string>()
+  touches.forEach(touch => {
+    if (touch.direction !== 'inbound') return
+    String(touch.notes || '').match(EMAIL_IN_TEXT_PATTERN)?.forEach(value => found.add(value.toLowerCase()))
+  })
+  return [...found]
+}
+
 interface ReplyItem {
   contact: Contact
   latest_touch: Touch
   bucket: 'needs_reply' | 'context' | 'postcard' | 'appointment' | 'opt_out' | 'closed' | 'review'
   needs_response: boolean
   playbook?: PartnershipAiSuggestion | null
+}
+
+interface BrokerageReplyGroup {
+  key: string
+  name: string
+  contacts: Contact[]
+  replies: number
+  needsReply: number
+  meetings: number
+  responseRate: number
+  latestInboundAt: string
 }
 
 interface PartnershipAiSuggestion {
@@ -500,8 +523,17 @@ function detectSmsReaction(current: Touch, priorTouches: Touch[]) {
   const cleaned = normalizeReactionCompare(body)
   if (!cleaned) return null
 
+  // Modern iOS/Android reaction fallbacks commonly arrive as clean text such as
+  // `Liked “Here is the business card…”`. Treat that wrapper as a reaction even
+  // when the carrier did not mangle the smart quotes/emoji encoding.
+  const explicitReaction = body.match(/^\s*(loved|liked|emphasized|laughed(?:\s+at)?|disliked|questioned)\s+[“"]([\s\S]+?)[”"]\s*[.!]?\s*$/i)
+  const explicitKind = explicitReaction ? getReactionKeyword(explicitReaction[1]) : null
+  const quotedMessage = explicitReaction ? normalizeReactionCompare(explicitReaction[2]) : ''
+
   const previousOutbound = [...priorTouches].reverse().find(touch => touch.channel === 'sms' && touch.direction === 'outbound')
-  if (!previousOutbound?.notes) return null
+  if (!previousOutbound?.notes) {
+    return explicitKind ? { kind: explicitKind, preview: truncateText(cleanRichSmsFallback(explicitReaction?.[2] || ''), 96) } : null
+  }
 
   const outbound = normalizeReactionCompare(previousOutbound.notes.replace(/\n?\[MMS:\s*[^\]]+\]/ig, ''))
   if (!outbound || outbound.length < 20) return null
@@ -511,7 +543,14 @@ function detectSmsReaction(current: Touch, priorTouches: Touch[]) {
   const hasKnownReaction = getReactionKeyword(body)
   const hasRichEncodingArtifact = /â€|�|ð/.test(body)
 
-  if (!containsQuotedOutbound && !(hasRichEncodingArtifact && mostlyQuotedOutbound && cleaned.includes(outbound.slice(0, 28)))) return null
+  const quotedMatchesOutbound = Boolean(
+    explicitKind && quotedMessage && (
+      outbound.includes(quotedMessage.slice(0, Math.min(quotedMessage.length, 80))) ||
+      quotedMessage.includes(outbound.slice(0, Math.min(outbound.length, 80)))
+    )
+  )
+
+  if (!quotedMatchesOutbound && !containsQuotedOutbound && !(hasRichEncodingArtifact && mostlyQuotedOutbound && cleaned.includes(outbound.slice(0, 28)))) return null
 
   return {
     kind: hasKnownReaction || 'loved',
@@ -3721,6 +3760,57 @@ function formatPhoneDisplay(value?: string | null) {
   return value || ''
 }
 
+const PartnershipInboxContactRow = memo(function PartnershipInboxContactRow({
+  contact,
+  isSelected,
+  hasRecentSale,
+  onSelect,
+}: {
+  contact: Contact
+  isSelected: boolean
+  hasRecentSale: boolean
+  onSelect: (id: string) => void
+}) {
+  const status = getInboxStatus(contact)
+  const unread = status === 'context' || status === 'needs_reply'
+  const preview = getContactPreview(contact)
+  return (
+    <button
+      onClick={() => onSelect(contact.id)}
+      className={`w-full border-b border-slate-100 px-4 py-4 text-left transition hover:bg-slate-50 lg:py-3.5 ${isSelected ? 'bg-slate-100 shadow-[inset_3px_0_0_#111827]' : ''}`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold ${isSelected ? 'bg-[#111827] text-white' : 'bg-slate-100 text-slate-700'}`}>{contact.name.charAt(0)}</span>
+          <div className="min-w-0">
+            <div className={`truncate text-[15px] font-semibold ${isSelected ? 'text-[#111827]' : 'text-[#071421]'}`}>{contact.name}</div>
+            <div className={`mt-0.5 truncate text-xs ${isSelected ? 'text-slate-600' : 'text-slate-400'}`}>{contact.company ?? contact.industry ?? contact.city ?? 'Partner contact'}</div>
+          </div>
+          <TierBadge tier={contact.outreach_tier} />
+          {hasRecentSale && <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800">Recent sale</span>}
+          {contact.priority === 'high' && <span className="shrink-0 text-sm text-[#b88a25]" title="Priority relationship">★</span>}
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {unread && !isSelected && <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />}
+          <span className={`text-[11px] ${isSelected ? 'text-slate-500' : 'text-slate-400'}`}>{timeAgo(contact.latest_inbound_at || contact.last_touch_at)}</span>
+        </div>
+      </div>
+      {preview?.body && <div className={`mt-2 line-clamp-2 text-sm leading-[1.5] lg:text-[13px] ${isSelected ? 'text-slate-700' : 'text-slate-600'}`}>{truncateText(preview.body, 150)}</div>}
+      <div className="mt-2 flex items-center gap-2 overflow-hidden pl-12 text-xs">
+        <span className={`shrink-0 font-semibold ${status === 'context' ? 'text-rose-700' : status === 'needs_reply' ? 'text-amber-700' : 'text-slate-600'}`}>{inboxStatusLabel(status)}</span>
+        <span className="text-slate-300">·</span>
+        <span className="shrink-0 text-slate-500">{sourceBadge(contact)}</span>
+        {contact.playbook?.intent && <span className="truncate text-slate-400">{contact.playbook.intent.replace(/_/g, ' ')}</span>}
+      </div>
+    </button>
+  )
+}, (previous, next) => (
+  previous.contact === next.contact &&
+  previous.isSelected === next.isSelected &&
+  previous.hasRecentSale === next.hasRecentSale &&
+  previous.onSelect === next.onSelect
+))
+
 function PhoneTab({
   contacts,
   batches,
@@ -3741,7 +3831,13 @@ function PhoneTab({
   const requestedMarket = (searchParams.get('market') as PartnershipMarketKey | null)
   const requestedAreaId = requestedMarket ? marketCommandForKey(requestedMarket).areaId : ''
   const [search, setSearch] = useState('')
+  const deferredSearch = useDeferredValue(search)
+  const [createContactOpen, setCreateContactOpen] = useState(false)
+  const [createContactSaving, setCreateContactSaving] = useState(false)
+  const [createContactForm, setCreateContactForm] = useState({ name: '', phone: '', email: '', company: '', city: '' })
+  const [inboxView, setInboxView] = useState<'replies' | 'brokerages'>('replies')
   const [inboxFilter, setInboxFilter] = useState<InboxFilter>('inbound')
+  const [recentSaleAge, setRecentSaleAge] = useState<'all' | '7' | '30' | 'older30'>('all')
   const [areaFilter, setAreaFilter] = useState(requestedAreaId)
   const [cityFilter, setCityFilter] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
@@ -3759,11 +3855,12 @@ function PhoneTab({
   const [smsBody, setSmsBody] = useState('')
   const [emailSubject, setEmailSubject] = useState('')
   const [emailBody, setEmailBody] = useState('')
+  const [emailTo, setEmailTo] = useState('')
+  const [emailSaving, setEmailSaving] = useState(false)
   const [mediaUrls, setMediaUrls] = useState<string[]>([])
   const [mediaUploading, setMediaUploading] = useState(false)
   const [scheduleMode, setScheduleMode] = useState(false)
   const [scheduledAt, setScheduledAt] = useState(defaultScheduledReplyTime)
-  const [sending, setSending] = useState(false)
   const [aiReplyLoading, setAiReplyLoading] = useState(false)
   const [aiSuggestion, setAiSuggestion] = useState<PartnershipAiSuggestion | null>(null)
   const [quickActionSaving, setQuickActionSaving] = useState<InboxQuickAction | null>(null)
@@ -3785,20 +3882,41 @@ function PhoneTab({
   const mediaInputRef = useRef<HTMLInputElement>(null)
   const smsTextareaRef = useRef<HTMLTextAreaElement>(null)
   const smsDraftRef = useRef('')
+  const sendInFlightRef = useRef(false)
   const speechRecognitionRef = useRef<BrowserSpeechRecognition | null>(null)
   const touchRequestRef = useRef(0)
   const dialer = useDialer()
 
-  useEffect(() => {
-    fetch('/api/marketing/recent-sales?limit=500', { credentials: 'include' })
-      .then(response => response.ok ? response.json() : [])
-      .then(rows => setRecentSales(Array.isArray(rows) ? rows as RecentSaleContext[] : []))
-      .catch(() => setRecentSales([]))
+  const loadRecentSales = useCallback(async () => {
+    try {
+      const response = await fetch('/api/marketing/recent-sales?limit=500', {
+        credentials: 'include',
+        cache: 'no-store',
+      })
+      const rows = response.ok ? await response.json() : []
+      setRecentSales(Array.isArray(rows) ? rows as RecentSaleContext[] : [])
+    } catch {
+      // Keep the last good result when a background refresh fails.
+    }
   }, [])
+
+  useEffect(() => {
+    void loadRecentSales()
+  }, [loadRecentSales])
+
+  useEffect(() => {
+    if (inboxFilter !== 'recent_sales') return
+    void loadRecentSales()
+    const refresh = window.setInterval(() => void loadRecentSales(), 60_000)
+    return () => window.clearInterval(refresh)
+  }, [inboxFilter, loadRecentSales])
 
   const recentSalesByContact = useMemo(() => {
     const grouped = new Map<string, RecentSaleContext[]>()
     recentSales.forEach(sale => {
+      // A sent outreach closes the task, not the underlying listing history.
+      // Keep it connected so the Realtor remains searchable and the listing
+      // context/link is still available from their conversation.
       if (!sale.contact_id || sale.status === 'dismissed') return
       grouped.set(sale.contact_id, [...(grouped.get(sale.contact_id) || []), sale])
     })
@@ -3821,12 +3939,15 @@ function PhoneTab({
     const byId = new Map<string, Contact>()
     const replyIds = new Set(replyContacts.map(contact => contact.id))
     contacts.forEach(contact => {
-      if (!replyIds.has(contact.id) && hasNonPartnershipLatestSms(contact)) return
+      // A contact with an open verified sale belongs in Recent Sales even when
+      // their latest conversation happened on a sales/non-partnership line.
+      // Channel separation should not hide the underlying sale opportunity.
+      if (!replyIds.has(contact.id) && !recentSalesByContact.has(contact.id) && hasNonPartnershipLatestSms(contact)) return
       byId.set(contact.id, contact)
     })
     replyContacts.forEach(contact => byId.set(contact.id, { ...(byId.get(contact.id) || {} as Contact), ...contact }))
     return Array.from(byId.values())
-  }, [contacts, replyContacts])
+  }, [contacts, replyContacts, recentSalesByContact])
 
   const batchMeta = useMemo(() => {
     const sortedBatches = [...batches].sort((a, b) => a.created_at.localeCompare(b.created_at))
@@ -3856,20 +3977,21 @@ function PhoneTab({
 
   const cityOptions = useMemo(() => {
     const area = PARTNERSHIP_AREA_GROUPS.find(item => item.id === areaFilter)
-    const keys = Array.from(new Set(inboxContacts
-      .map(contact => normalizeInboxCity(contact.city))
-      .filter(Boolean)
-      .filter(cityKey => !area || area.cityKeys.includes(cityKey))))
-    return keys
-      .map(cityKey => {
-        const rows = inboxContacts.filter(contact => normalizeInboxCity(contact.city) === cityKey)
-        return {
-          key: cityKey,
-          label: inboxCityLabel(cityKey),
-          total: rows.length,
-          inbound: rows.filter(hasPartnerInbound).length,
-        }
-      })
+    const counts = new Map<string, { total: number; inbound: number }>()
+    inboxContacts.forEach(contact => {
+      const cityKey = normalizeInboxCity(contact.city)
+      if (!cityKey || (area && !area.cityKeys.includes(cityKey))) return
+      const current = counts.get(cityKey) || { total: 0, inbound: 0 }
+      current.total += 1
+      if (hasPartnerInbound(contact)) current.inbound += 1
+      counts.set(cityKey, current)
+    })
+    return Array.from(counts.entries())
+      .map(([key, countsForCity]) => ({
+        key,
+        label: inboxCityLabel(key),
+        ...countsForCity,
+      }))
       .sort((a, b) => a.label.localeCompare(b.label))
   }, [inboxContacts, areaFilter])
 
@@ -3889,19 +4011,18 @@ function PhoneTab({
 
   const brokerageOptions = useMemo(() => {
     const area = PARTNERSHIP_AREA_GROUPS.find(item => item.id === areaFilter)
-    const marketRows = inboxContacts
-      .filter(contact => !area || area.cityKeys.includes(normalizeInboxCity(contact.city)))
-    return Array.from(new Set(marketRows
-      .map(contact => String(contact.company || '').trim())
-      .filter(Boolean)))
-      .map(name => {
-        const rows = marketRows.filter(contact => String(contact.company || '').trim() === name)
-        return {
-          name,
-          total: rows.length,
-          inbound: rows.filter(hasPartnerInbound).length,
-        }
-      })
+    const counts = new Map<string, { total: number; inbound: number }>()
+    inboxContacts.forEach(contact => {
+      if (area && !area.cityKeys.includes(normalizeInboxCity(contact.city))) return
+      const name = String(contact.company || '').trim()
+      if (!name) return
+      const current = counts.get(name) || { total: 0, inbound: 0 }
+      current.total += 1
+      if (hasPartnerInbound(contact)) current.inbound += 1
+      counts.set(name, current)
+    })
+    return Array.from(counts.entries())
+      .map(([name, countsForBrokerage]) => ({ name, ...countsForBrokerage }))
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [inboxContacts, areaFilter])
 
@@ -3916,7 +4037,8 @@ function PhoneTab({
       .map(([id, meta]) => ({ id, ...meta }))
   }, [batchMeta, inboxContacts])
 
-  const hasSegmentFilter = Boolean(areaFilter || cityFilter || categoryFilter || brokerageFilter || batchFilter)
+  // The market tab is primary navigation, not a hidden advanced filter.
+  const hasSegmentFilter = Boolean(cityFilter || categoryFilter || brokerageFilter || batchFilter)
   const activeArea = PARTNERSHIP_AREA_GROUPS.find(item => item.id === areaFilter)
 
   function selectMarket(market?: PartnershipMarketCommand) {
@@ -3930,9 +4052,57 @@ function PhoneTab({
     router.replace(`/marketing/partners?${params.toString()}`, { scroll: false })
   }
 
+  function openCreateContact() {
+    const selectedCity = cityFilter ? inboxCityLabel(cityFilter) : ''
+    setCreateContactForm({ name: search.trim(), phone: '', email: '', company: '', city: selectedCity })
+    setCreateContactOpen(true)
+  }
+
+  async function createPartnershipContact(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (createContactSaving) return
+    setCreateContactSaving(true)
+    try {
+      const response = await fetch('/api/marketing/contacts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(createContactForm),
+      })
+      const result = await response.json().catch(() => null) as { contact?: Contact; error?: string } | null
+      if (!response.ok || !result?.contact) throw new Error(result?.error || 'Could not create contact')
+      onContactUpdated(result.contact)
+      setReplyContacts(current => [result.contact!, ...current.filter(contact => contact.id !== result.contact!.id)])
+      setSearch('')
+      setCreateContactOpen(false)
+      setInboxFilter('inbound')
+      setSelectedId(result.contact.id)
+      showToast(`${result.contact.name} added to Partnerships`)
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Could not create contact')
+    } finally {
+      setCreateContactSaving(false)
+    }
+  }
+
   const sorted = useMemo(() => [...segmentContacts]
     .filter(c => inboxFilter === 'recent_sales' ? recentSalesByContact.has(c.id) : matchesInboxFilter(c, inboxFilter))
+    .filter(contact => {
+      if (inboxFilter !== 'recent_sales' || recentSaleAge === 'all') return true
+      const soldAt = recentSalesByContact.get(contact.id)?.[0]?.sold_verified_at
+      if (!soldAt) return recentSaleAge === 'older30'
+      const ageDays = (Date.now() - new Date(soldAt).getTime()) / 86_400_000
+      if (recentSaleAge === '7') return ageDays <= 7
+      if (recentSaleAge === '30') return ageDays <= 30
+      return ageDays > 30
+    })
     .sort((a, b) => {
+      if (inboxFilter === 'recent_sales') {
+        const aSoldAt = recentSalesByContact.get(a.id)?.[0]?.sold_verified_at || ''
+        const bSoldAt = recentSalesByContact.get(b.id)?.[0]?.sold_verified_at || ''
+        const saleRecency = bSoldAt.localeCompare(aSoldAt)
+        if (saleRecency !== 0) return saleRecency
+      }
       const priorityRank = Number(b.priority === 'high') - Number(a.priority === 'high')
       if (priorityRank !== 0) return priorityRank
       const urgency = inboxUrgencyRank(a) - inboxUrgencyRank(b)
@@ -3944,10 +4114,20 @@ function PhoneTab({
       return (b.last_touch_at || b.latest_inbound_at || '').localeCompare(a.last_touch_at || a.latest_inbound_at || '')
     })
     .filter(c => {
-      const q = search.trim().toLowerCase()
+      const q = deferredSearch.trim().toLowerCase()
       if (!q) return true
       const status = inboxStatusLabel(getInboxStatus(c)).toLowerCase()
       const preview = getContactPreview(c)?.body ?? ''
+      const saleSearchText = inboxFilter === 'recent_sales'
+        ? (recentSalesByContact.get(c.id) || []).map(sale => [
+            sale.address,
+            sale.city,
+            sale.mls_id,
+            sale.verification_source,
+            sale.status,
+            sale.metadata ? JSON.stringify(sale.metadata) : '',
+          ].filter(Boolean).join(' ')).join(' ')
+        : ''
       return [
         c.name,
         c.company,
@@ -3964,8 +4144,54 @@ function PhoneTab({
         c.latest_touch_note,
         preview,
         status,
+        saleSearchText,
       ].filter(Boolean).join(' ').toLowerCase().includes(q)
-    }), [segmentContacts, inboxFilter, search, batchMeta, recentSalesByContact])
+    }), [segmentContacts, inboxFilter, recentSaleAge, deferredSearch, batchMeta, recentSalesByContact])
+
+  const brokerageReplyGroups = useMemo(() => {
+    const groups = new Map<string, { name: string; contacts: Contact[] }>()
+    segmentContacts.forEach(contact => {
+      const name = String(contact.company || '').trim() || 'Independent / no brokerage'
+      const key = name.toLowerCase().replace(/\s+/g, ' ')
+      const current = groups.get(key) || { name, contacts: [] }
+      current.contacts.push(contact)
+      groups.set(key, current)
+    })
+    const query = deferredSearch.trim().toLowerCase()
+    return Array.from(groups.entries())
+      .map(([key, group]): BrokerageReplyGroup => {
+        const replies = group.contacts.filter(hasPartnerInbound).length
+        const needsReply = group.contacts.filter(contact => getInboxStatus(contact) === 'needs_reply' || getInboxStatus(contact) === 'context').length
+        const meetings = group.contacts.filter(contact => ['appointment', 'postcard'].includes(getInboxStatus(contact))).length
+        const latestInboundAt = group.contacts.reduce(
+          (latest, contact) => (contact.latest_inbound_at || '') > latest ? (contact.latest_inbound_at || '') : latest,
+          '',
+        )
+        return {
+          key,
+          name: group.name,
+          contacts: group.contacts,
+          replies,
+          needsReply,
+          meetings,
+          responseRate: group.contacts.length > 0 ? Math.round((replies / group.contacts.length) * 100) : 0,
+          latestInboundAt,
+        }
+      })
+      .filter(group => !query || [
+        group.name,
+        ...group.contacts.flatMap(contact => [contact.name, contact.city, contact.email, contact.phone]),
+      ].filter(Boolean).join(' ').toLowerCase().includes(query))
+      .filter(group => group.name !== 'Independent / no brokerage')
+      .filter(group => group.replies > 0)
+      .sort((a, b) => (
+        b.replies - a.replies ||
+        b.responseRate - a.responseRate ||
+        b.needsReply - a.needsReply ||
+        b.latestInboundAt.localeCompare(a.latestInboundAt) ||
+        a.name.localeCompare(b.name)
+      ))
+  }, [segmentContacts, deferredSearch])
 
   const filterCounts = useMemo(() => {
     return INBOX_FILTERS.reduce((acc, filter) => {
@@ -3986,6 +4212,7 @@ function PhoneTab({
 
   const selected = segmentContacts.find(c => c.id === selectedId) ?? null
   const selectedFromQuery = searchParams.get('contact')
+  const mentionedEmails = useMemo(() => emailsMentionedInTouches(touches), [touches])
   const selectedThreadFromNumber = selected
     ? touches.length > 0
       ? threadFromNumber(touches, selected.city)
@@ -4000,20 +4227,44 @@ function PhoneTab({
     return parseConversationAppointmentSuggestion(selected, threadContext)
   }, [selected, touches])
 
-  const loadReplyContacts = useCallback(() => {
+  const loadReplyContacts = useCallback((options?: { silent?: boolean }) => {
     let cancelled = false
-    setReplyLoading(true)
-    fetch('/api/marketing/sms/replies?limit=500&include_suggestions=1', { credentials: 'include' })
+    const silent = Boolean(options?.silent)
+    if (!silent) setReplyLoading(true)
+    const includeSuggestions = silent ? '0' : '1'
+    fetch(`/api/marketing/sms/replies?limit=2000&include_suggestions=${includeSuggestions}`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : { responses: [] })
       .then((data: { responses?: ReplyItem[] }) => {
         if (cancelled) return
-        setReplyContacts((data.responses || []).map(item => ({ ...item.contact, playbook: item.playbook ?? null })))
+        setReplyContacts(current => {
+          const currentById = new Map(current.map(contact => [contact.id, contact]))
+          return (data.responses || []).map(item => ({
+            ...item.contact,
+            playbook: item.playbook ?? currentById.get(item.contact.id)?.playbook ?? null,
+          }))
+        })
       })
-      .finally(() => { if (!cancelled) setReplyLoading(false) })
+      .finally(() => {
+        if (!cancelled && !silent) setReplyLoading(false)
+      })
     return () => { cancelled = true }
   }, [])
 
   useEffect(() => loadReplyContacts(), [loadReplyContacts])
+
+  useEffect(() => {
+    const refreshReplies = () => {
+      if (document.visibilityState === 'visible') loadReplyContacts({ silent: true })
+    }
+    const timer = window.setInterval(refreshReplies, 30_000)
+    window.addEventListener('focus', refreshReplies)
+    document.addEventListener('visibilitychange', refreshReplies)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refreshReplies)
+      document.removeEventListener('visibilitychange', refreshReplies)
+    }
+  }, [loadReplyContacts])
 
   useEffect(() => {
     void dialer.ensureReady({ showError: false })
@@ -4037,13 +4288,36 @@ function PhoneTab({
       .then(r => r.ok ? r.json() : [])
       .then(d => {
         if (touchRequestRef.current !== requestId) return
-        setTouches(Array.isArray(d) ? d : [])
+        const nextTouches = Array.isArray(d) ? d : []
+        setTouches(current => {
+          const unchanged = current.length === nextTouches.length && current.every((touch, index) => (
+            touch.id === nextTouches[index]?.id &&
+            touch.created_at === nextTouches[index]?.created_at &&
+            touch.notes === nextTouches[index]?.notes
+          ))
+          return unchanged ? current : nextTouches
+        })
       })
       .catch(() => {})
       .finally(() => {
         if (touchRequestRef.current === requestId) setTouchLoading(false)
       })
   }, [])
+
+  useEffect(() => {
+    if (!selectedId) return
+    const refreshTouches = () => {
+      if (document.visibilityState === 'visible') reloadTouches(selectedId)
+    }
+    const timer = window.setInterval(refreshTouches, 10_000)
+    window.addEventListener('focus', refreshTouches)
+    document.addEventListener('visibilitychange', refreshTouches)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refreshTouches)
+      document.removeEventListener('visibilitychange', refreshTouches)
+    }
+  }, [selectedId, reloadTouches])
 
   useEffect(() => {
     if (!selectedId) return
@@ -4078,12 +4352,44 @@ function PhoneTab({
     setSmsBody('')
     setEmailSubject('')
     setEmailBody('')
+    setEmailTo(selected.email || '')
     setMediaUrls([])
     setScheduleMode(false)
     setActionPanelOpen(false)
     setAiSuggestion(null)
     setScheduledAt(defaultScheduledReplyTime())
   }, [selected?.id])
+
+  async function saveContactEmail(value = emailTo) {
+    if (!selected) return false
+    const email = value.trim().toLowerCase()
+    if (!CONTACT_EMAIL_PATTERN.test(email)) {
+      showToast('Enter a valid email address')
+      return false
+    }
+    setEmailSaving(true)
+    try {
+      const res = await fetch('/api/marketing/contacts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: selected.id, email }),
+      })
+      const data = await res.json().catch(() => null) as { contact?: Contact; error?: string } | null
+      if (!res.ok) throw new Error(data?.error || 'Could not save email')
+      const updated = { ...selected, email: data?.contact?.email || email }
+      setEmailTo(updated.email || email)
+      setReplyContacts(current => current.map(contact => contact.id === selected.id ? { ...contact, email: updated.email } : contact))
+      onContactUpdated(updated)
+      showToast('Email saved to contact')
+      return true
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Could not save email')
+      return false
+    } finally {
+      setEmailSaving(false)
+    }
+  }
 
   useLayoutEffect(() => {
     if (!selectedId || touchLoading) return
@@ -4194,7 +4500,7 @@ function PhoneTab({
     setAiSuggestion(suggestion)
   }
 
-  function handleSelect(id: string) {
+  const handleSelect = useCallback((id: string) => {
     setSelectedId(id)
     setMobileListOpen(false)
     if (typeof window !== 'undefined') {
@@ -4204,7 +4510,7 @@ function PhoneTab({
       const marketParam = currentMarket ? `&market=${currentMarket}` : ''
       window.history.replaceState(null, '', `/marketing/partners?tab=phone${marketParam}&contact=${id}`)
     }
-  }
+  }, [areaFilter, requestedMarket])
 
   function openSheetUpdate(contact: Contact) {
     setSheetInstruction('')
@@ -4274,10 +4580,15 @@ function PhoneTab({
     }
   }
 
-  async function handleSend() {
-    if (!selected) return
+  async function handleSend(event?: React.MouseEvent<HTMLButtonElement>) {
+    if (!selected || sendInFlightRef.current) return
+    sendInFlightRef.current = true
+    const clickedButton = event?.currentTarget || null
+    if (clickedButton) {
+      clickedButton.disabled = true
+      clickedButton.textContent = scheduleMode && composeChannel === 'sms' ? 'Scheduling…' : 'Sending…'
+    }
     const currentSmsBody = smsDraftRef.current
-    setSending(true)
     const replyFromNumber = selectedThreadFromNumber
     try {
       if (composeChannel === 'sms' && scheduleMode) {
@@ -4321,21 +4632,35 @@ function PhoneTab({
         const data = await res.json().catch(() => null) as { error?: string } | null
         if (!res.ok) throw new Error(data?.error || 'Could not send SMS')
       } else {
-        await sendSalesMessage({ channel: 'email', to: selected.email!, subject: emailSubject, body: emailBody })
-        await fetch('/api/marketing/touches', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-          body: JSON.stringify({
-            contact_id: selected.id, channel: composeChannel, direction: 'outbound',
-            notes: `Subject: ${emailSubject}\n\n${emailBody}`,
-            metadata: {},
-            schedule_follow_up_days: 3,
-          }),
+        const res = await fetch(`/api/marketing/contacts/${encodeURIComponent(selected.id)}/send-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ to: emailTo, subject: emailSubject, body: emailBody }),
         })
+        const data = await res.json().catch(() => null) as { email?: string; error?: string } | null
+        if (!res.ok) throw new Error(data?.error || 'Could not send Partnership email')
+        setEmailTo(data?.email || emailTo.trim().toLowerCase())
+      }
+      if (inboxFilter === 'recent_sales' && selectedRecentSaleId) {
+        const saleResponse = await fetch('/api/marketing/recent-sales', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ id: selectedRecentSaleId, status: 'sent' }),
+        })
+        if (saleResponse.ok) {
+          setRecentSales(rows => rows.map(sale => sale.id === selectedRecentSaleId
+            ? { ...sale, status: 'sent' }
+            : sale
+          ))
+        }
       }
       showToast(composeChannel === 'sms' ? '💬 SMS sent' : '✉️ Email sent')
       const outboundAt = new Date().toISOString()
       const updatedAfterSend = {
         ...selected,
+        email: composeChannel === 'email' ? emailTo.trim().toLowerCase() : selected.email,
         latest_touch_direction: 'outbound',
         latest_touch_channel: composeChannel,
         latest_touch_note: composeChannel === 'sms' ? currentSmsBody : emailBody,
@@ -4357,7 +4682,13 @@ function PhoneTab({
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Send failed')
     }
-    finally { setSending(false) }
+    finally {
+      sendInFlightRef.current = false
+      if (clickedButton?.isConnected) {
+        clickedButton.disabled = false
+        clickedButton.textContent = scheduleMode && composeChannel === 'sms' ? 'Schedule' : 'Send'
+      }
+    }
   }
 
   async function handleAiReply() {
@@ -4792,7 +5123,7 @@ function PhoneTab({
           <div className="mb-3 lg:mb-2">
             <div>
               <div className="text-[22px] font-semibold tracking-tight text-[#111827] lg:text-xl">Partnership replies</div>
-              <div className="mt-0.5 text-xs font-medium text-slate-500">{filterCounts.inbound} inbound · {filterCounts.needs_reply} need reply</div>
+              <div className="mt-0.5 text-xs font-medium text-slate-500">{filterCounts.inbound} inbound conversation{filterCounts.inbound === 1 ? '' : 's'} · {filterCounts.needs_reply} need reply</div>
             </div>
           </div>
           <div className="scrollbar-hidden -mx-1 mb-2 flex gap-1 overflow-x-auto px-1">
@@ -4813,8 +5144,39 @@ function PhoneTab({
             ))}
           </div>
           <div className="flex gap-2">
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search contacts…"
-              className="h-12 min-w-0 flex-1 rounded-[9px] border border-slate-200 bg-slate-50 px-4 text-base leading-6 text-[#071421] outline-none focus:border-[#071421] lg:h-10 lg:text-sm" />
+            <div className="relative min-w-0 flex-1">
+              <input value={search} onChange={e => { setSearch(e.target.value); setCreateContactOpen(false) }} placeholder="Search contacts…"
+                className="h-12 w-full rounded-[9px] border border-slate-200 bg-slate-50 px-4 text-base leading-6 text-[#071421] outline-none focus:border-[#071421] lg:h-10 lg:text-sm" />
+              {search.trim() && sorted.length === 0 && !createContactOpen && (
+                <div className="absolute inset-x-0 top-full z-40 mt-1 rounded-[9px] border border-slate-200 bg-white p-1.5 shadow-xl">
+                  <button type="button" onClick={openCreateContact} className="flex min-h-11 w-full items-center gap-3 rounded-[7px] px-3 text-left text-sm font-semibold text-[#071421] hover:bg-slate-50">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#071421] text-lg text-white">+</span>
+                    <span className="min-w-0 truncate">Create “{search.trim()}”</span>
+                  </button>
+                </div>
+              )}
+              {createContactOpen && (
+                <form onSubmit={createPartnershipContact} className="absolute inset-x-0 top-full z-40 mt-1 space-y-2 rounded-[10px] border border-slate-200 bg-white p-3 shadow-xl">
+                  <div className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">New partnership contact</div>
+                  <input required value={createContactForm.name} onChange={e => setCreateContactForm(form => ({ ...form, name: e.target.value }))} placeholder="Full name" className="h-10 w-full rounded-[7px] border border-slate-200 px-3 text-sm outline-none focus:border-[#071421]" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input value={createContactForm.phone} onChange={e => setCreateContactForm(form => ({ ...form, phone: e.target.value }))} placeholder="Phone" className="h-10 min-w-0 rounded-[7px] border border-slate-200 px-3 text-sm outline-none focus:border-[#071421]" />
+                    <input type="email" value={createContactForm.email} onChange={e => setCreateContactForm(form => ({ ...form, email: e.target.value }))} placeholder="Email" className="h-10 min-w-0 rounded-[7px] border border-slate-200 px-3 text-sm outline-none focus:border-[#071421]" />
+                  </div>
+                  <input value={createContactForm.company} onChange={e => setCreateContactForm(form => ({ ...form, company: e.target.value }))} placeholder="Brokerage / company" className="h-10 w-full rounded-[7px] border border-slate-200 px-3 text-sm outline-none focus:border-[#071421]" />
+                  <select required value={createContactForm.city} onChange={e => setCreateContactForm(form => ({ ...form, city: e.target.value }))} className="h-10 w-full rounded-[7px] border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#071421]">
+                    <option value="">Select city / market</option>
+                    {cityOptions.map(city => (
+                      <option key={city.key} value={city.label}>{city.label}</option>
+                    ))}
+                  </select>
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button type="button" onClick={() => setCreateContactOpen(false)} className="min-h-9 rounded-[7px] px-3 text-xs font-semibold text-slate-500 hover:bg-slate-50">Cancel</button>
+                    <button type="submit" disabled={createContactSaving} className="min-h-9 rounded-[7px] bg-[#071421] px-4 text-xs font-semibold text-white disabled:opacity-50">{createContactSaving ? 'Creating…' : 'Create contact'}</button>
+                  </div>
+                </form>
+              )}
+            </div>
             <details className="relative shrink-0">
               <summary className="flex h-12 cursor-pointer list-none items-center rounded-[9px] border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 lg:h-10">Filters{hasSegmentFilter ? ' · On' : ''}</summary>
               <div className="absolute right-0 z-30 mt-2 grid w-72 grid-cols-1 gap-2 rounded-[10px] border border-slate-200 bg-white p-3 shadow-lg sm:grid-cols-2">
@@ -4887,6 +5249,31 @@ function PhoneTab({
               )}
             </div>
           )}
+          <div className="mt-2 grid grid-cols-2 rounded-[9px] bg-slate-100 p-1">
+            <button
+              type="button"
+              onClick={() => setInboxView('replies')}
+              className={`min-h-9 rounded-[7px] px-3 text-xs font-semibold transition ${inboxView === 'replies' ? 'bg-white text-[#071421] shadow-sm' : 'text-slate-500'}`}
+            >
+              Conversations
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setBrokerageFilter('')
+                setInboxView('brokerages')
+              }}
+              className={`min-h-9 rounded-[7px] px-3 text-xs font-semibold transition ${inboxView === 'brokerages' ? 'bg-white text-[#071421] shadow-sm' : 'text-slate-500'}`}
+            >
+              Brokerage ranking
+            </button>
+          </div>
+          {inboxView === 'brokerages' && (
+            <div className="mt-2 text-[11px] font-medium text-slate-500">
+              Ranked by number of contacts who replied · {brokerageReplyGroups.length} brokerages
+            </div>
+          )}
+          {inboxView === 'replies' && (
           <div className="scrollbar-hidden mt-2 flex gap-5 overflow-x-auto border-b border-slate-100">
             {INBOX_FILTERS.map(filter => (
               <button
@@ -4898,44 +5285,62 @@ function PhoneTab({
               </button>
             ))}
           </div>
+          )}
+          {inboxView === 'replies' && inboxFilter === 'recent_sales' && (
+            <select value={recentSaleAge} onChange={event => setRecentSaleAge(event.target.value as typeof recentSaleAge)} className="mt-2 h-9 w-full rounded-[8px] border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 outline-none focus:border-[#071421]">
+              <option value="all">All recent sales</option>
+              <option value="7">Sold in the last 7 days</option>
+              <option value="30">Sold in the last 30 days</option>
+              <option value="older30">Older than 30 days — still uncontacted</option>
+            </select>
+          )}
           {replyLoading && <div className="mt-2 text-[11px] text-slate-400">Loading replies...</div>}
         </div>
         <div className="flex-1 overflow-y-auto">
-          {sorted.map(c => {
-            const status = getInboxStatus(c)
-            const unread = status === 'context' || status === 'needs_reply'
-            const p = getContactPreview(c)
-            return (
-              <button key={c.id} onClick={() => handleSelect(c.id)}
-                className={`w-full border-b border-slate-100 px-4 py-4 text-left transition hover:bg-slate-50 lg:py-3.5 ${selectedId === c.id ? 'bg-slate-100 shadow-[inset_3px_0_0_#111827]' : ''}`}>
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold ${selectedId === c.id ? 'bg-[#111827] text-white' : 'bg-slate-100 text-slate-700'}`}>{c.name.charAt(0)}</span>
-                    <div className="min-w-0">
-                      <div className={`truncate text-[15px] font-semibold ${selectedId === c.id ? 'text-[#111827]' : 'text-[#071421]'}`}>{c.name}</div>
-                      <div className={`mt-0.5 truncate text-xs ${selectedId === c.id ? 'text-slate-600' : 'text-slate-400'}`}>{c.company ?? c.industry ?? c.city ?? 'Partner contact'}</div>
-                    </div>
-                    <TierBadge tier={c.outreach_tier} />
-                    {recentSalesByContact.has(c.id) && (
-                      <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800">Recent sale</span>
+          {inboxView === 'brokerages' ? brokerageReplyGroups.map((group, index) => (
+            <div key={group.key} className="border-b border-slate-100 px-4 py-4">
+              <div className="flex items-start gap-3">
+                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${index < 3 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'}`}>
+                  {index + 1}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-semibold text-[#071421]">{group.name}</div>
+                  <div className="mt-1 text-xs text-slate-500">
+                    <span className="font-semibold text-emerald-700">{group.replies} replied</span>
+                    {' · '}{group.contacts.length} contacts
+                    {' · '}{group.responseRate}% response
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {group.needsReply > 0 && (
+                      <span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-800">{group.needsReply} need reply</span>
                     )}
-                    {c.priority === 'high' && <span className="shrink-0 text-sm text-[#b88a25]" title="Priority relationship">★</span>}
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {unread && selectedId !== c.id && <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />}
-                    <span className={`text-[11px] ${selectedId === c.id ? 'text-slate-500' : 'text-slate-400'}`}>{timeAgo(c.latest_inbound_at || c.last_touch_at)}</span>
+                    {group.meetings > 0 && (
+                      <span className="rounded-full bg-violet-50 px-2 py-1 text-[10px] font-semibold text-violet-700">{group.meetings} meeting / visit</span>
+                    )}
                   </div>
                 </div>
-                {p?.body && <div className={`mt-2 line-clamp-2 text-sm leading-[1.5] lg:text-[13px] ${selectedId === c.id ? 'text-slate-700' : 'text-slate-600'}`}>{truncateText(p.body, 150)}</div>}
-                <div className="mt-2 flex items-center gap-2 overflow-hidden pl-12 text-xs">
-                  <span className={`shrink-0 font-semibold ${status === 'context' ? 'text-rose-700' : status === 'needs_reply' ? 'text-amber-700' : 'text-slate-600'}`}>{inboxStatusLabel(status)}</span>
-                  <span className="text-slate-300">·</span>
-                  <span className="shrink-0 text-slate-500">{sourceBadge(c)}</span>
-                  {c.playbook?.intent && <span className="truncate text-slate-400">{c.playbook.intent.replace(/_/g, ' ')}</span>}
-                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setBrokerageFilter(group.name === 'Independent / no brokerage' ? '' : group.name)
+                  setInboxFilter('inbound')
+                  setInboxView('replies')
+                }}
+                className="mt-3 min-h-9 w-full rounded-[9px] border border-slate-200 bg-white px-3 text-xs font-semibold text-[#071421] transition hover:bg-slate-50"
+              >
+                View brokerage conversations
               </button>
-            )
-          })}
+            </div>
+          )) : sorted.map(contact => (
+            <PartnershipInboxContactRow
+              key={contact.id}
+              contact={contact}
+              isSelected={selectedId === contact.id}
+              hasRecentSale={recentSalesByContact.has(contact.id)}
+              onSelect={handleSelect}
+            />
+          ))}
         </div>
       </div>
 
@@ -5048,14 +5453,27 @@ function PhoneTab({
                 <button
                   type="button"
                   onClick={() => {
-                    const message = activeSale.suggested_message || ''
+                    const isNewRelationship = ['cold', 'unmatched'].includes(String(activeSale.relationship_tier || 'unmatched'))
+                    const firstName = selected.name.trim().split(/\s+/)[0] || 'there'
+                    const repName = 'John'
+                    const message = isNewRelationship
+                      ? [
+                          `Hey ${firstName}, my name is ${repName} from SSM | Saturn Star Movers. We are a local moving company serving the ${selected.city || 'your'} area.`,
+                          '',
+                          'I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myself.',
+                          '',
+                          'I would love to be a reliable local option if any of your buyers or sellers ever need help after closing.',
+                          '',
+                          'Would it be okay if I stopped by your office next week to drop off a few cards?',
+                        ].join('\n')
+                      : activeSale.suggested_message || ''
                     smsDraftRef.current = message
                     setSmsBody(message)
                     if (smsTextareaRef.current) smsTextareaRef.current.value = message
                   }}
                   className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-[#071421] hover:bg-slate-50"
                 >
-                  Use relationship draft
+                  {['cold', 'unmatched'].includes(String(activeSale.relationship_tier || 'unmatched')) ? 'Use introduction draft' : 'Use relationship draft'}
                 </button>
               </div>})()}
             </div>
@@ -5118,8 +5536,8 @@ function PhoneTab({
                 return (
                   <div key={touch.id} className={`flex justify-end ${touchIndex === 0 ? '' : groupedWithPrevious ? 'mt-1' : 'mt-6'}`}>
                     <div className="mr-10 flex max-w-[min(78%,640px)] items-center gap-2 rounded-full border border-rose-100 bg-white px-3 py-2 text-xs font-semibold text-[#071421] shadow-sm">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-rose-50 text-sm text-rose-600">{reactionSymbol(reaction.kind)}</span>
-                      <span className="truncate">{reaction.kind === 'loved' ? 'Loved' : reaction.kind} your SMS</span>
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-50 text-base text-rose-600">♥</span>
+                      <span className="truncate">Reacted to your message</span>
                     </div>
                   </div>
                 )
@@ -5343,8 +5761,8 @@ function PhoneTab({
                     placeholder={selected.phone ? 'Message…' : 'No phone'}
                     disabled={!selected.phone}
                     className="max-h-28 min-h-10 flex-1 resize-none border-0 bg-transparent px-2 py-2 text-[15px] leading-6 text-[#071421] outline-none placeholder:text-slate-400 disabled:opacity-40" />
-                  <button onClick={handleSend} disabled={sending || mediaUploading || !selected.phone || (scheduleMode && !scheduledAt)}
-                    className="min-h-10 shrink-0 rounded-full bg-[#071421] px-4 text-[13px] font-semibold text-white disabled:opacity-35">{sending ? '…' : scheduleMode ? 'Schedule' : 'Send'}</button>
+                  <button onClick={handleSend} disabled={mediaUploading || !selected.phone || (scheduleMode && !scheduledAt)}
+                    className="min-h-10 shrink-0 rounded-full bg-[#071421] px-4 text-[13px] font-semibold text-white disabled:opacity-35">{scheduleMode ? 'Schedule' : 'Send'}</button>
                 </div>
                 {(voiceListening || voiceError) && (
                   <div className={`pl-14 text-xs font-medium ${voiceError ? 'text-rose-600' : 'text-slate-500'}`}>
@@ -5354,6 +5772,44 @@ function PhoneTab({
               </div>
             ) : (
               <div className="space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={emailTo}
+                    onChange={e => setEmailTo(e.target.value)}
+                    placeholder="Recipient email address"
+                    aria-label="Recipient email address"
+                    className="min-h-12 min-w-0 flex-1 rounded-[14px] border border-slate-200 bg-slate-50 px-4 text-base text-[#071421] outline-none focus:border-[#071421] lg:min-h-10 lg:text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void saveContactEmail()}
+                    disabled={emailSaving || !CONTACT_EMAIL_PATTERN.test(emailTo.trim()) || emailTo.trim().toLowerCase() === String(selected.email || '').toLowerCase()}
+                    className="min-h-12 rounded-[14px] border border-slate-200 bg-white px-4 text-sm font-semibold text-[#071421] disabled:opacity-40 lg:min-h-10"
+                  >
+                    {emailSaving ? 'Saving…' : 'Save'}
+                  </button>
+                </div>
+                {mentionedEmails.filter(email => email !== String(selected.email || '').toLowerCase()).length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                    <span>Found in conversation:</span>
+                    {mentionedEmails
+                      .filter(email => email !== String(selected.email || '').toLowerCase())
+                      .map(email => (
+                        <button
+                          key={email}
+                          type="button"
+                          onClick={() => {
+                            setEmailTo(email)
+                            void saveContactEmail(email)
+                          }}
+                          className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 font-semibold text-emerald-800 hover:bg-emerald-100"
+                        >
+                          Use &amp; save {email}
+                        </button>
+                      ))}
+                  </div>
+                )}
                 <input value={emailSubject} onChange={e => setEmailSubject(e.target.value)} placeholder="Subject"
                   className="min-h-12 w-full rounded-[14px] border border-slate-200 bg-slate-50 px-4 text-base leading-[1.5] text-[#071421] outline-none focus:border-[#071421] lg:min-h-10 lg:text-sm" />
                 <div className="flex gap-2">
@@ -5365,10 +5821,10 @@ function PhoneTab({
                   >
                     {voiceListening ? '■' : '🎙'}
                   </button>
-                  <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={4} placeholder={selected.email ? 'Write a clear partnership email…' : 'No email'} disabled={!selected.email}
+                  <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={4} placeholder={CONTACT_EMAIL_PATTERN.test(emailTo.trim()) ? 'Write a clear partnership email…' : 'Add the recipient email above'}
                     className="max-h-64 min-h-[120px] flex-1 resize-y rounded-[12px] border border-slate-200 bg-slate-50 px-4 py-3 text-base leading-[1.6] text-[#071421] outline-none focus:border-[#071421] disabled:opacity-40" />
-                  <button onClick={handleSend} disabled={sending || !selected.email || !emailBody.trim()}
-                    className="min-h-12 self-end rounded-full bg-[#071421] px-5 text-sm font-semibold text-white disabled:opacity-40 lg:min-h-11">{sending ? '…' : 'Send'}</button>
+                  <button onClick={handleSend} disabled={!CONTACT_EMAIL_PATTERN.test(emailTo.trim()) || !emailSubject.trim() || !emailBody.trim()}
+                    className="min-h-12 self-end rounded-full bg-[#071421] px-5 text-sm font-semibold text-white disabled:opacity-40 lg:min-h-11">Send</button>
                 </div>
                 {(voiceListening || voiceError) && (
                   <div className={`pl-14 text-xs font-medium ${voiceError ? 'text-rose-600' : 'text-slate-500'}`}>
@@ -5426,7 +5882,7 @@ function PhoneTab({
             <div className="grid grid-cols-2 gap-2">
               <button onClick={handleCall} disabled={!selected.phone} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#071421] disabled:opacity-40">Call</button>
               <button onClick={() => setComposeChannel('sms')} disabled={!selected.phone} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#071421] disabled:opacity-40">Text</button>
-              <button onClick={() => setComposeChannel('email')} disabled={!selected.email} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#071421] disabled:opacity-40">Email</button>
+              <button onClick={() => setComposeChannel('email')} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#071421]">Email</button>
               <button onClick={() => onSelectContact(selected)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#071421]">Details</button>
             </div>
             <button
@@ -5701,11 +6157,11 @@ function PartnersTab({ contacts, onSelect }: { contacts: Contact[]; onSelect: (c
 
 function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () => void }) {
   const [template, setTemplate] = useState([
-    'Hey {{firstName}}, my name is John. I own Saturn Star Movers, a local moving company serving {{city}}.',
+    'Hey {{firstName}}, my name is {{repName}} from SSM | Saturn Star Movers. We are a local moving company serving the {{city}} area.',
     '',
-    'I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myself instead of just sending a random email.',
+    'I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myself.',
     '',
-    'We are licensed and insured, and I would love to be a reliable local option if any of your buyers or sellers ever need help after closing.',
+    'I would love to be a reliable local option if any of your buyers or sellers ever need help after closing.',
     '',
     'Would it be okay if I stopped by your office next week to drop off a few cards?',
   ].join('\n'))
@@ -5926,9 +6382,9 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
 const PARTNERSHIP_SMS_TEMPLATE = [
   'Hey {{firstName}}, my name is {{repName}} from SSM | Saturn Star Movers. We are a local moving company serving the {{city}} area.',
   '',
-  'I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myself instead of just sending a random email.',
+  'I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myself.',
   '',
-  'We are licensed and insured, and I would love to be a reliable local option if any of your buyers or sellers ever need help after closing.',
+  'I would love to be a reliable local option if any of your buyers or sellers ever need help after closing.',
   '',
   'Would it be okay if I stopped by your office next week to drop off a few cards?',
 ].join('\n')

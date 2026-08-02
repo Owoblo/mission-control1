@@ -158,7 +158,7 @@ export async function GET(request: Request) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
-  const limit = Math.min(Math.max(Number(searchParams.get('limit') || '250'), 1), 500)
+  const limit = Math.min(Math.max(Number(searchParams.get('limit') || '1000'), 1), 2000)
   const channel = searchParams.get('channel')
   const includeSuggestions = searchParams.get('include_suggestions') === '1'
 
@@ -167,45 +167,56 @@ export async function GET(request: Request) {
     ? `&channel=eq.${encodeURIComponent(channel)}`
     : '&channel=in.(sms,email,phone,call)'
 
-  const inboundRes = await fetch(
-    `${url}/rest/v1/market_touches?direction=eq.inbound${channelFilter}&select=id,contact_id,channel,direction,notes,created_by,created_at,outcome_code,next_step,metadata&order=created_at.desc&limit=${limit}`,
-    { headers, cache: 'no-store' }
-  )
-
-  if (!inboundRes.ok) {
-    return NextResponse.json({ error: 'Failed to load replies' }, { status: 500 })
-  }
-
-  const inboundTouches = ((await inboundRes.json()) as MarketTouch[]).filter(touchPartnershipSender)
   const latestInboundByContact = new Map<string, MarketTouch>()
-  for (const touch of inboundTouches) {
-    if (!touch.contact_id) continue
-    if (!latestInboundByContact.has(touch.contact_id)) latestInboundByContact.set(touch.contact_id, touch)
+  const pageSize = 1000
+  for (let offset = 0; latestInboundByContact.size < limit; offset += pageSize) {
+    const inboundRes = await fetch(
+      `${url}/rest/v1/market_touches?direction=eq.inbound${channelFilter}&select=id,contact_id,channel,direction,notes,created_by,created_at,outcome_code,next_step,metadata&order=created_at.desc&limit=${pageSize}&offset=${offset}`,
+      { headers, cache: 'no-store' }
+    )
+    if (!inboundRes.ok) {
+      return NextResponse.json({ error: 'Failed to load replies' }, { status: 500 })
+    }
+    const page = (await inboundRes.json()) as MarketTouch[]
+    for (const touch of page) {
+      if (!touch.contact_id || !touchPartnershipSender(touch)) continue
+      if (!latestInboundByContact.has(touch.contact_id)) latestInboundByContact.set(touch.contact_id, touch)
+      if (latestInboundByContact.size >= limit) break
+    }
+    if (page.length < pageSize) break
   }
 
-  const ids = Array.from(latestInboundByContact.keys())
+  const ids = Array.from(latestInboundByContact.keys()).slice(0, limit)
   if (ids.length === 0) return NextResponse.json({ responses: [] })
 
-  const contactRes = await fetch(
-    `${url}/rest/v1/market_contacts?id=in.(${ids.map(encodeURIComponent).join(',')})&select=*${partnershipScopeFilter(session)}`,
-    { headers, cache: 'no-store' }
-  )
-
-  if (!contactRes.ok) {
-    return NextResponse.json({ error: 'Failed to load reply contacts' }, { status: 500 })
+  const contacts: MarketContact[] = []
+  for (let index = 0; index < ids.length; index += 100) {
+    const chunk = ids.slice(index, index + 100)
+    const contactRes = await fetch(
+      `${url}/rest/v1/market_contacts?id=in.(${chunk.map(encodeURIComponent).join(',')})&select=*${partnershipScopeFilter(session)}`,
+      { headers, cache: 'no-store' }
+    )
+    if (!contactRes.ok) {
+      return NextResponse.json({ error: 'Failed to load reply contacts' }, { status: 500 })
+    }
+    contacts.push(...await contactRes.json() as MarketContact[])
   }
 
-  const contacts = (await contactRes.json()) as MarketContact[]
   const scopedIds = contacts.map(contact => contact.id)
   if (scopedIds.length === 0) return NextResponse.json({ responses: [] })
   const contactsById = new Map(contacts.map(contact => [contact.id, contact]))
 
-  const historyRes = await fetch(
-    `${url}/rest/v1/market_touches?contact_id=in.(${scopedIds.map(encodeURIComponent).join(',')})&select=id,contact_id,channel,direction,notes,created_by,created_at,outcome_code,metadata&order=created_at.desc&limit=4000`,
-    { headers, cache: 'no-store' }
-  )
-  const history = ((historyRes.ok ? await historyRes.json() : []) as Array<PartnershipAssistantTouch & MarketTouch & { contact_id?: string }>)
-    .filter(touchPartnershipSender)
+  const history: Array<PartnershipAssistantTouch & MarketTouch & { contact_id?: string }> = []
+  for (let index = 0; index < scopedIds.length; index += 100) {
+    const chunk = scopedIds.slice(index, index + 100)
+    const historyRes = await fetch(
+      `${url}/rest/v1/market_touches?contact_id=in.(${chunk.map(encodeURIComponent).join(',')})&select=id,contact_id,channel,direction,notes,created_by,created_at,outcome_code,metadata&order=created_at.desc&limit=4000`,
+      { headers, cache: 'no-store' }
+    )
+    if (!historyRes.ok) continue
+    const rows = await historyRes.json() as Array<PartnershipAssistantTouch & MarketTouch & { contact_id?: string }>
+    history.push(...rows.filter(touchPartnershipSender))
+  }
   const latestByContact = new Map<string, MarketTouch>()
   let touchHistoryByContact = new Map<string, PartnershipAssistantTouch[]>()
   touchHistoryByContact = history.reduce((map, touch) => {

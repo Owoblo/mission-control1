@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildInventorySmsReference = buildInventorySmsReference;
 exports.buildMlsInventoryConfirmationSms = buildMlsInventoryConfirmationSms;
+exports.buildPhotoSurveyFallbackMessage = buildPhotoSurveyFallbackMessage;
 exports.buildVerifiedInventorySms = buildVerifiedInventorySms;
 exports.mergeInventorySmsUpdate = mergeInventorySmsUpdate;
 const inventory_verification_1 = require("./inventory-verification");
@@ -56,7 +57,7 @@ function buildMlsInventoryConfirmationSms(lead) {
     const grouped = new Map();
     const listingItems = listingBaseInventory(lead);
     if (listingItems.length === 0) {
-        return `Hi ${firstName}, I couldn't pull a clear listing inventory for that address. Please text the main items room by room, plus boxes, garage, basement, storage, and anything staying behind.`;
+        return `Thanks, ${firstName}. I couldn't build a clear starter inventory from the property information in our system, but that's no problem. We can build it together from the main furniture instead.`;
     }
     for (const item of listingItems) {
         const room = (0, inventory_verification_1.canonicalizeSurveyRoomLabel)(item.room || 'Unassigned');
@@ -69,10 +70,18 @@ function buildMlsInventoryConfirmationSms(lead) {
         .slice(0, 6)
         .map(([room, items]) => `${room}: ${items.slice(0, 6).join(', ')}${items.length > 6 ? ', more' : ''}`);
     return [
-        `Hi ${firstName}, I pulled a starter inventory from the listing photos.`,
+        `Nice, ${firstName}—I was able to build a starter inventory from the property information available in our system, so you don't have to list everything from scratch.`,
+        `Here is what I could spot:`,
         ...roomLines,
-        `Please text anything staying behind, missing items, and boxes/garage/basement/storage items we can't see.`,
+        `Does that look like the furniture moving, or is anything shown staying behind?`,
     ].join('\n');
+}
+function buildPhotoSurveyFallbackMessage(lead, surveyUrl, channel = 'sms') {
+    const firstName = (lead.name || 'there').split(' ')[0];
+    if (channel === 'email') {
+        return `Hi ${firstName},\n\nI couldn't confirm the inventory from the property information in our system. That’s completely fine—please upload a few room photos and we’ll build it for you.\n\n${surveyUrl}\n\nOr simply reply with the main furniture—whichever is easier.\n\nSaturn Star Moving`;
+    }
+    return `Hi ${firstName}, I couldn't confirm the inventory from the property information in our system. That’s completely fine—please upload a few room photos and we’ll build it for you.\n\n${surveyUrl}\n\nOr text the main furniture here. Which is easier for you?`;
 }
 function buildVerifiedInventorySms(lead) {
     const grouped = new Map();

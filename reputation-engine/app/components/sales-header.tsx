@@ -32,6 +32,7 @@ const NAV_ICONS: Record<string, React.ReactNode> = {
   Reps:         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><circle cx="8" cy="7" r="3"/><path d="M2 17a6 6 0 0112 0"/><circle cx="15" cy="7" r="2.5"/><path d="M14 17h4a4 4 0 00-4-4"/></svg>,
   Settings:     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><circle cx="10" cy="10" r="2.5"/><path d="M10 2.5V5M10 15v2.5M2.5 10H5M15 10h2.5M4.4 4.4l1.8 1.8M13.8 13.8l1.8 1.8M4.4 15.6l1.8-1.8M13.8 6.2l1.8-1.8"/></svg>,
   Team:         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><circle cx="10" cy="7" r="3"/><path d="M4 17a6 6 0 0112 0"/></svg>,
+  Subcontractors: <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M3 16V7l7-4 7 4v9"/><path d="M7 16v-5h6v5M2 16h16"/></svg>,
   Partnerships: <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M7 10l2 2 4-4"/><path d="M3 10a7 7 0 1014 0A7 7 0 003 10z"/></svg>,
 }
 
@@ -54,6 +55,7 @@ const BASE_NAV = [
   { environment: 'Management', href: '/sales/analytics', label: 'Analytics', match: (p: string) => p.startsWith('/sales/analytics'), roles: ['owner', 'manager'] },
   { environment: 'Management', href: '/sales/reps', label: 'Reps', match: (p: string) => p.startsWith('/sales/reps'), roles: ['owner', 'manager'] },
   { environment: 'Management', href: '/admin/users', label: 'Team', match: (p: string) => p.startsWith('/admin'), roles: ['owner'] },
+  { environment: 'Management', href: '/sales/subcontractors', label: 'Subcontractors', match: (p: string) => p.startsWith('/sales/subcontractors'), roles: ['owner'] },
   { environment: 'Management', href: '/sales/settings', label: 'Settings', match: (p: string) => p.startsWith('/sales/settings'), roles: ['owner'] },
 ]
 

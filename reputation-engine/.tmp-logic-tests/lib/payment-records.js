@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PAYMENT_METHOD_LABELS = void 0;
+exports.resolveDepositReceiptAmount = resolveDepositReceiptAmount;
 exports.buildPaymentRecord = buildPaymentRecord;
 const sales_1 = require("./sales");
 const job_billing_1 = require("./server/job-billing");
@@ -8,6 +9,12 @@ exports.PAYMENT_METHOD_LABELS = {
     credit_card: 'Credit Card', debit: 'Debit', etransfer: 'Interac E-Transfer', cash: 'Cash',
     cheque: 'Cheque', bank_transfer: 'Bank Transfer', other: 'Other',
 };
+function resolveDepositReceiptAmount(quote) {
+    const latestDepositRecord = [...(quote.paymentRecords || [])]
+        .filter(payment => payment.kind === 'deposit')
+        .sort((left, right) => right.paidAt.localeCompare(left.paidAt))[0];
+    return latestDepositRecord?.amount || 0;
+}
 function buildPaymentRecord(input) {
     const paid = (0, job_billing_1.getQuotePaidSoFar)(input.quote, input.lead);
     const amount = Math.round(input.amount * 100) / 100;

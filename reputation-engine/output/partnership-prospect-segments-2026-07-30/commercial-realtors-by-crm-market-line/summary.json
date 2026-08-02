@@ -1,0 +1,32 @@
+{
+  "source_file": "new-commercial-realtors.csv",
+  "unique_source_realtors": 281,
+  "market_files": 3,
+  "total_market_assignments": 299,
+  "markets": [
+    {
+      "market": "Kitchener / Waterloo / Guelph",
+      "file": "commercial-realtors-kitchener-waterloo-guelph.csv",
+      "unique_realtors": 78,
+      "direct_contact_available": 78,
+      "needs_enrichment": 0,
+      "multi_market_realtors": 13
+    },
+    {
+      "market": "London / Sarnia / Woodstock",
+      "file": "commercial-realtors-london-sarnia-woodstock.csv",
+      "unique_realtors": 137,
+      "direct_contact_available": 137,
+      "needs_enrichment": 0,
+      "multi_market_realtors": 19
+    },
+    {
+      "market": "Windsor / Essex",
+      "file": "commercial-realtors-windsor-essex.csv",
+      "unique_realtors": 84,
+      "direct_contact_available": 82,
+      "needs_enrichment": 2,
+      "multi_market_realtors": 8
+    }
+  ]
+}

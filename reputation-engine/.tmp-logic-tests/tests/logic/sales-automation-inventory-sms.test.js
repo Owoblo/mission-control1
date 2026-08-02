@@ -27,7 +27,8 @@ function lead(overrides) {
     }));
     strict_1.default.match(body, /Living Room: Sofa/);
     strict_1.default.match(body, /Bedroom 1: Queen Bed/);
-    strict_1.default.match(body, /Please text anything staying behind/i);
+    strict_1.default.match(body, /anything shown staying behind/i);
+    strict_1.default.match(body, /don't have to list everything from scratch/i);
     strict_1.default.doesNotMatch(body, /reply yes/i);
 });
 (0, node_test_1.default)('MLS inventory SMS does not claim a scan when only customer inventory exists', () => {
@@ -36,7 +37,7 @@ function lead(overrides) {
             { room: 'Packing scope', name: 'Recliner Sofa', qty: 1, included: true, source: 'customer_verification' },
         ],
     }));
-    strict_1.default.match(body, /couldn't pull a clear listing inventory/i);
+    strict_1.default.match(body, /couldn't build a clear starter inventory from the property information in our system/i);
     strict_1.default.doesNotMatch(body, /pulled a starter inventory/i);
     strict_1.default.doesNotMatch(body, /reply yes/i);
 });

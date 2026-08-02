@@ -3960,12 +3960,23 @@ export default function SalesLeadDetailPage() {
                 This Sales record owns the move; the Partnership record keeps the professional relationship history. Messages remain one continuous conversation because both roles use the same phone number.
               </p>
             </div>
-            <Link
-              href={`/marketing/partners?tab=phone&contact=${encodeURIComponent(lead.relationshipContactId)}`}
-              className="crm-button shrink-0 text-center"
-            >
-              Open partnership record
-            </Link>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              {(lead.mediaAssets || []).some(asset => asset.source === 'mms' && asset.kind === 'image' && !asset.removed) ? (
+                <button
+                  type="button"
+                  onClick={() => document.getElementById('section-media')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                  className="crm-button-dark shrink-0"
+                >
+                  View {(lead.mediaAssets || []).filter(asset => asset.source === 'mms' && asset.kind === 'image' && !asset.removed).length} MMS photos
+                </button>
+              ) : null}
+              <Link
+                href={`/marketing/partners?tab=phone&contact=${encodeURIComponent(lead.relationshipContactId)}`}
+                className="crm-button shrink-0 text-center"
+              >
+                Open partnership record
+              </Link>
+            </div>
           </div>
         </section>
       ) : null}
@@ -5207,16 +5218,18 @@ export default function SalesLeadDetailPage() {
                   ))}
                 </div>
               )}
-              <InventoryVerificationPanel
-                lead={lead}
-                canEditCurrentLead={canEditCurrentLead}
-                surveyBusy={surveyBusy}
-                surveyUrl={surveyUrl}
-                onRequestVerification={() => void requestPhotoSurvey()}
-                onScanCustomerMedia={() => void handleScanSurveyMedia()}
-                onGenerateLinkOnly={() => void generateSurveyLinkOnly()}
-                onRemoveMedia={handleRemoveMedia}
-              />
+              <div id="section-media" className="scroll-mt-16">
+                <InventoryVerificationPanel
+                  lead={lead}
+                  canEditCurrentLead={canEditCurrentLead}
+                  surveyBusy={surveyBusy}
+                  surveyUrl={surveyUrl}
+                  onRequestVerification={() => void requestPhotoSurvey()}
+                  onScanCustomerMedia={() => void handleScanSurveyMedia()}
+                  onGenerateLinkOnly={() => void generateSurveyLinkOnly()}
+                  onRemoveMedia={handleRemoveMedia}
+                />
+              </div>
               <details className="group rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)]">
                 <summary className="cursor-pointer list-none p-3">
                   <div className="flex items-center justify-between gap-3">

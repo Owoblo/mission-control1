@@ -35,6 +35,8 @@ function mergeSms(template: string, contact: Record<string, string>) {
     .replace(/\{\{company\}\}/gi, contact.company || 'your company')
     .replace(/\{\{city\}\}/gi, contact.city || 'your area')
     .replace(/\{\{industry\}\}/gi, contact.industry || 'your industry')
+    .replace(/\{\{repName\}\}/gi, contact.repName || 'John')
+    .replace(/\{\{rep_name\}\}/gi, contact.repName || 'John')
 }
 
 export async function POST(request: Request) {
@@ -152,6 +154,7 @@ export async function POST(request: Request) {
           company: c.company || '',
           city: c.city || '',
           industry: c.industry || '',
+          repName: 'John',
         }),
       })),
     })

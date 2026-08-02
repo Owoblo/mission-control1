@@ -12,6 +12,11 @@ import { logEvent } from '@/lib/server/analytics'
 import { sendRepAlertEmail, smsNotificationEmail } from '@/lib/server/internal-notifications'
 import { persistInboundMmsToLead } from '@/lib/server/lead-media'
 import { verifyTwilioSignature } from '@/lib/server/security'
+import {
+  findPartnerCustomerSalesLead,
+  isPartnerMovingLeadIntent,
+  promotePartnerToMovingLead,
+} from '@/lib/server/partner-customer-promotion'
 
 type TwilioMessageLookup = {
   sid?: string
@@ -208,7 +213,45 @@ export async function POST(request: Request) {
         },
       }).catch(() => ({ matched: false as const }))
 
-      if (!partnership.matched) {
+      if (partnership.matched) {
+        const contact = {
+          id: partnership.contactId,
+          name: partnership.contactName,
+          company: partnership.company,
+          category: partnership.category,
+          email: partnership.email,
+          phone: partnership.phone || normalized || from,
+        }
+        const existingLead = await findPartnerCustomerSalesLead(contact).catch(() => null)
+        const shouldCreateLead = isPartnerMovingLeadIntent(body || messageText)
+
+        if (existingLead || shouldCreateLead) {
+          const promotedLead = await promotePartnerToMovingLead(contact, {
+            message: messageText,
+            occurredAt: receivedAt,
+          })
+          const automation = await processInboundAutomationEvent({
+            leadId: promotedLead.id,
+            source: 'relationship_contact',
+            channel: 'sms',
+            phone: normalized || from,
+            name: promotedLead.name,
+            message: messageText,
+            receivedAt,
+            raw: { messageSid, from, to: toField, body, numMedia: media.length, media },
+          }).catch(() => null)
+          const resolvedLead = automation?.lead || promotedLead
+          if (media.length > 0) {
+            void persistInboundMmsToLead({
+              lead: resolvedLead,
+              media,
+              messageSid,
+            }).catch(() => {})
+          }
+          await writeSmsMessage(normalized || from, toField, messageText, messageSid, resolvedLead.id)
+          triggerIntelligence(resolvedLead.id)
+        }
+      } else {
 
         // Check if there's an existing unclaimed inbound lead from this number.
         // If yes, thread the reply into that lead instead of creating a duplicate.

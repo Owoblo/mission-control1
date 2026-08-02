@@ -40,6 +40,11 @@ const STATUS_LABEL: Record<string, string> = {
   dismissed: 'Dismissed',
 }
 
+function saleStatusLabel(sale: SaleSignal) {
+  if (sale.realtor_name === 'Realtor not identified') return 'Needs Realtor'
+  return STATUS_LABEL[sale.status] || sale.status
+}
+
 function dateLabel(value?: string | null) {
   if (!value) return 'Verification date unavailable'
   return new Intl.DateTimeFormat('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -54,6 +59,7 @@ export default function RecentSalesPage() {
   const [draft, setDraft] = useState('')
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('open')
+  const [saleAge, setSaleAge] = useState<'all' | '7' | '30' | 'older30'>('all')
   const [busy, setBusy] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
   const [scheduleAt, setScheduleAt] = useState('')
@@ -77,9 +83,16 @@ export default function RecentSalesPage() {
   const visible = useMemo(() => sales.filter(sale => {
     if (status === 'open' && ['sent', 'dismissed'].includes(sale.status)) return false
     if (status !== 'open' && status !== 'all' && sale.status !== status) return false
+    if (saleAge !== 'all') {
+      const soldAt = sale.sold_verified_at ? new Date(sale.sold_verified_at).getTime() : 0
+      const ageDays = soldAt ? (Date.now() - soldAt) / 86_400_000 : Number.POSITIVE_INFINITY
+      if (saleAge === '7' && ageDays > 7) return false
+      if (saleAge === '30' && ageDays > 30) return false
+      if (saleAge === 'older30' && ageDays <= 30) return false
+    }
     const haystack = `${sale.realtor_name} ${sale.realtor_brokerage || ''} ${sale.address} ${sale.city || ''}`.toLowerCase()
     return !query.trim() || haystack.includes(query.trim().toLowerCase())
-  }), [query, sales, status])
+  }), [query, saleAge, sales, status])
 
   const active = sales.find(sale => sale.id === activeId) || visible[0] || null
 
@@ -243,6 +256,12 @@ export default function RecentSalesPage() {
             <option value="dismissed">Dismissed</option>
             <option value="all">All</option>
           </select>
+          <select value={saleAge} onChange={event => setSaleAge(event.target.value as typeof saleAge)} className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
+            <option value="all">All sale dates</option>
+            <option value="7">Sold in the last 7 days</option>
+            <option value="30">Sold in the last 30 days</option>
+            <option value="older30">Older than 30 days</option>
+          </select>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
           {loading && <div className="p-8 text-center text-sm text-slate-400">Loading verified sales…</div>}
@@ -254,7 +273,7 @@ export default function RecentSalesPage() {
                   <div className="truncate font-semibold text-[#111827]">{sale.realtor_name}</div>
                   <div className="truncate text-xs text-slate-500">{sale.realtor_brokerage || 'Brokerage unavailable'}</div>
                 </div>
-                <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">{STATUS_LABEL[sale.status] || sale.status}</span>
+                <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">{saleStatusLabel(sale)}</span>
               </div>
               <div className="mt-2 truncate text-sm text-slate-700">{sale.address}</div>
               <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
@@ -312,8 +331,8 @@ export default function RecentSalesPage() {
 
             {active.status === 'needs_match' && (
               <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                <div className="font-semibold">Confirm the partnership contact</div>
-                <p className="mt-1">The Realtor was identified, but the system did not find a safe automatic match. Nothing can send until you select the correct record.</p>
+                <div className="font-semibold">{active.realtor_name === 'Realtor not identified' ? 'Find the listing Realtor' : 'Confirm the partnership contact'}</div>
+                <p className="mt-1">{active.realtor_name === 'Realtor not identified' ? 'The sold property is verified, but its listing Realtor still needs to be identified and connected.' : 'The Realtor was identified, but the system did not find a safe automatic match. Nothing can send until you select the correct record.'}</p>
                 <div className="mt-3 flex gap-2">
                   <input
                     value={matchQuery}

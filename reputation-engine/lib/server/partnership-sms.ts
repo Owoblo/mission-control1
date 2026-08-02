@@ -39,11 +39,11 @@ export type PartnershipSmsContactInput = {
 
 export const DEFAULT_PARTNERSHIP_SMS_TEMPLATE =
   [
-    'Hey {{firstName}}, my name is John. I own Saturn Star Movers, a local moving company serving {{city}}.',
+    'Hey {{firstName}}, my name is {{repName}} from SSM | Saturn Star Movers. We are a local moving company serving the {{city}} area.',
     '',
-    'I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myself instead of just sending a random email.',
+    'I know your clients probably ask for moving referrals from time to time, so I wanted to personally introduce myself.',
     '',
-    'We are licensed and insured, and I would love to be a reliable local option if any of your buyers or sellers ever need help after closing.',
+    'I would love to be a reliable local option if any of your buyers or sellers ever need help after closing.',
     '',
     'Would it be okay if I stopped by your office next week to drop off a few cards?',
   ].join('\n')
@@ -245,7 +245,7 @@ export function mergePartnershipSmsTemplate(
   const industry = String(contact.industry || 'real estate')
   const title = String(contact.title || contact.position || 'realtor')
   const zone = String(contact.zone || city)
-  const repName = String(contact.rep_name || contact.repName || 'Saturn Star Partnerships')
+  const repName = 'John'
   const merged = template
     .replace(/\{\{firstName\}\}/gi, firstNameFromName(name))
     .replace(/\{\{first_name\}\}/gi, firstNameFromName(name))

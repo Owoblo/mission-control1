@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DEFAULT_PARTNERSHIP_EMAIL = exports.DEFAULT_PARTNERSHIP_FROM_NUMBER = exports.PARTNERSHIP_REPLY_SENDER_NUMBERS = exports.DEFAULT_PARTNERSHIP_SENDER_NUMBERS = exports.ALL_PARTNERSHIP_SENDER_NUMBERS = exports.TEMP_PARTNERSHIP_SALES_RECOVERY_NUMBER = exports.PARTNERSHIP_LINES = void 0;
+exports.getPartnershipMessagingServiceSidForNumber = getPartnershipMessagingServiceSidForNumber;
 exports.normalizePartnershipCityKey = normalizePartnershipCityKey;
 exports.getPartnershipLinesForMarket = getPartnershipLinesForMarket;
 exports.getPartnershipSenderNumbersForMarket = getPartnershipSenderNumbersForMarket;
@@ -254,6 +255,13 @@ exports.DEFAULT_PARTNERSHIP_FROM_NUMBER = exports.PARTNERSHIP_LINES.find(line =>
     exports.PARTNERSHIP_LINES[0]?.number ||
     '+12268870667';
 exports.DEFAULT_PARTNERSHIP_EMAIL = 'partnerships@starmovers.ca';
+const PARTNERSHIP_MESSAGING_SERVICE_BY_NUMBER = {
+    '+12262419853': 'MGd5a83e63bb6dec9869788e5c1e9b128b',
+    '+15486391428': 'MG340c67baa0824a8880ad0bb91c8701df',
+};
+function getPartnershipMessagingServiceSidForNumber(number) {
+    return number ? PARTNERSHIP_MESSAGING_SERVICE_BY_NUMBER[number] || null : null;
+}
 function normalizePartnershipCityKey(value) {
     return (value || '')
         .toLowerCase()

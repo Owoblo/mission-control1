@@ -1,6 +1,6 @@
 import { defaultFollowUpDate, normalizePartnershipStage } from '@/lib/marketing'
 import { digitsOnly, normalizePhone } from '@/lib/sales-phones'
-import { getPartnershipAlertRecipients, partnershipInboundNotificationEmail, sendRepAlertEmail } from '@/lib/server/internal-notifications'
+import { getPartnershipAlertRecipients, sendPartnershipInboundAlert } from '@/lib/server/internal-notifications'
 import { partnershipDispositionFromSuggestion, suggestPartnershipReply, type PartnershipAssistantContact } from '@/lib/server/partnership-reply-assistant'
 import { isOptOutText } from '@/lib/server/partnership-sms'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
@@ -25,6 +25,7 @@ interface MarketContactMatch {
   phone: string | null
   city: string | null
   industry: string | null
+  category: string | null
   stage: string | null
   decision: string | null
   sequence_paused: boolean
@@ -55,7 +56,7 @@ async function findPartnershipContactMatch(input: PausePartnershipSequenceInput)
 
   if (normalizedEmail) {
     const emailRes = await fetch(
-      `${url}/rest/v1/market_contacts?email=eq.${encodeURIComponent(normalizedEmail)}&select=id,name,company,title,email,phone,city,industry,stage,decision,sequence_paused,pipeline_phase,affiliate_partner_id,tracking_code&order=created_at.desc&limit=20`,
+      `${url}/rest/v1/market_contacts?email=eq.${encodeURIComponent(normalizedEmail)}&select=id,name,company,title,email,phone,city,industry,category,stage,decision,sequence_paused,pipeline_phase,affiliate_partner_id,tracking_code&order=created_at.desc&limit=20`,
       { headers, cache: 'no-store' }
     )
     if (emailRes.ok) {
@@ -66,7 +67,7 @@ async function findPartnershipContactMatch(input: PausePartnershipSequenceInput)
 
   if (lastTen) {
     const phoneRes = await fetch(
-      `${url}/rest/v1/market_contacts?phone=ilike.*${encodeURIComponent(lastTen)}*&select=id,name,company,title,email,phone,city,industry,stage,decision,sequence_paused,pipeline_phase,affiliate_partner_id,tracking_code&order=created_at.desc&limit=50`,
+      `${url}/rest/v1/market_contacts?phone=ilike.*${encodeURIComponent(lastTen)}*&select=id,name,company,title,email,phone,city,industry,category,stage,decision,sequence_paused,pipeline_phase,affiliate_partner_id,tracking_code&order=created_at.desc&limit=50`,
       { headers, cache: 'no-store' }
     )
     if (phoneRes.ok) {
@@ -77,7 +78,7 @@ async function findPartnershipContactMatch(input: PausePartnershipSequenceInput)
   }
 
   const response = await fetch(
-    `${url}/rest/v1/market_contacts?select=id,name,company,title,email,phone,city,industry,stage,decision,sequence_paused,pipeline_phase,affiliate_partner_id,tracking_code&batch_id=not.is.null&order=created_at.desc&limit=10000`,
+    `${url}/rest/v1/market_contacts?select=id,name,company,title,email,phone,city,industry,category,stage,decision,sequence_paused,pipeline_phase,affiliate_partner_id,tracking_code&batch_id=not.is.null&order=created_at.desc&limit=10000`,
     { headers, cache: 'no-store' }
   )
 
@@ -348,9 +349,9 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
     }),
   ])
 
-  void sendRepAlertEmail(
+  await sendPartnershipInboundAlert(
     `Partner inbound ${input.channel.toUpperCase()} — ${contact.name || contact.company || 'Unknown contact'}`,
-    partnershipInboundNotificationEmail({
+    {
       contactId: contact.id,
       contactName: contact.name,
       company: contact.company,
@@ -360,7 +361,7 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
       phone: contact.phone || input.phone || null,
       email: contact.email || input.email || null,
       mediaUrls: metadataMediaUrls(input.metadata),
-    }),
+    },
     getPartnershipAlertRecipients(contact.city)
   )
 
@@ -368,5 +369,9 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
     matched: true as const,
     contactId: contact.id,
     contactName: contact.name,
+    company: contact.company,
+    category: contact.category,
+    email: contact.email,
+    phone: contact.phone || input.phone || null,
   }
 }

@@ -17,6 +17,7 @@ import { getReceiptBrand } from '@/lib/receipt-brand'
 import { getAppBaseUrl } from '@/lib/server/runtime'
 import { buildDepositConfirmationSms } from '@/lib/deposit-confirmation'
 import type { PaymentRecord } from '@/lib/types'
+import { sendDepositPaidAlert } from '@/lib/server/internal-notifications'
 
 export async function POST(request: Request) {
   const session = await getSessionUser()
@@ -226,6 +227,18 @@ export async function POST(request: Request) {
       updatedQuote = await saveSalesQuote({
         ...updatedQuote,
         paymentRecords: (updatedQuote.paymentRecords || []).map(item => item.id === depositPaymentRecord?.id ? deliveredPayment : item),
+      })
+
+      await sendDepositPaidAlert({
+        customerName: updatedLead.name,
+        amount: depositAmount,
+        quoteNumber: updatedQuote.number,
+        total: updatedQuote.total,
+        leadId: updatedLead.id,
+        phone: updatedLead.phone,
+        source: 'phone_card',
+        chargedBy: session?.name || 'CRM',
+        cardLabel: `${cardBrand} ••••${cardLast4}`,
       })
     }
 

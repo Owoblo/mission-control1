@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { defaultFollowUpDate } from '@/lib/marketing'
 import { isAuthorizedCronRequest } from '@/lib/server/cron-auth'
 import { requireSupabaseEnv, readEnv } from '@/lib/server/runtime'
-import { Resend } from 'resend'
+import { sendZohoPartnershipEmail } from '@/lib/server/zoho-partnership-mail'
 import {
   decodeSenderFromTemplateKey,
   ensureSmsOptOutLine,
@@ -80,6 +80,8 @@ function buildEmail(contact: Record<string, unknown>, batch: Record<string, unkn
     `${repName}`,
     `Head of Partnerships | Saturn Star Movers`,
     `${partnershipPhone} | ${PARTNERSHIP_EMAIL}`,
+    '',
+    `If partnership updates are not relevant for you, reply "unsubscribe" and we will stop.`,
   ].join('\n')
 
   const html = `
@@ -95,6 +97,7 @@ function buildEmail(contact: Record<string, unknown>, batch: Record<string, unkn
   <p>Would you be open to a quick 10-minute conversation? You can reply to this email, call or text me at <strong>${partnershipPhone}</strong>, or scan the QR code from our letter.</p>
   <br/>
   <p style="color:#555">${repName}<br/>Head of Partnerships | Saturn Star Movers<br/>${partnershipPhone} | ${PARTNERSHIP_EMAIL}</p>
+  <p style="color:#777;font-size:12px">If partnership updates are not relevant for you, reply <strong>unsubscribe</strong> and we will stop.</p>
 </div>`
 
   return { subject, html, text }
@@ -469,7 +472,6 @@ export async function POST(request: Request) {
     }
   }
 
-  const resend = new Resend(readEnv('RESEND_API_KEY'))
   const accountSid = readEnv('TWILIO_ACCOUNT_SID')
   const authToken = readEnv('TWILIO_AUTH_TOKEN')
 
@@ -538,12 +540,10 @@ export async function POST(request: Request) {
           continue
         }
 
-        const { subject, html, text } = buildEmail(contact, batch)
-        await resend.emails.send({
-          from: `Saturn Star Partnerships <${PARTNERSHIP_EMAIL}>`,
+        const { subject, text } = buildEmail(contact, batch)
+        const zohoResult = await sendZohoPartnershipEmail({
           to: contact.email as string,
           subject,
-          html,
           text,
         })
 
@@ -573,6 +573,11 @@ export async function POST(request: Request) {
               notes: `Auto-email sent: "${subject}"`,
               created_by: 'System',
               created_at: now,
+              metadata: {
+                provider: 'zoho',
+                mailbox: PARTNERSHIP_EMAIL,
+                zoho_response: zohoResult,
+              },
             }),
           }),
         ])

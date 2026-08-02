@@ -278,6 +278,76 @@ export async function GET(request: Request) {
   return NextResponse.json({ contacts: enriched, total })
 }
 
+export async function POST(request: Request) {
+  const session = await getSessionUser()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const body = await request.json() as {
+    name?: string
+    company?: string | null
+    title?: string | null
+    email?: string | null
+    phone?: string | null
+    city?: string | null
+    industry?: string | null
+    category?: string | null
+  }
+  const name = String(body.name || '').trim()
+  const city = String(body.city || '').trim()
+  if (!name) return NextResponse.json({ error: 'Name is required' }, { status: 400 })
+  if (!city) return NextResponse.json({ error: 'City is required so the contact enters the correct partnership market' }, { status: 400 })
+  if (!partnershipRecordMatchesSession(session, { city })) {
+    return NextResponse.json({ error: 'That city is outside your assigned partnership market' }, { status: 403 })
+  }
+
+  const { url, headers } = requireSupabaseEnv()
+  const email = String(body.email || '').trim().toLowerCase()
+  const phone = String(body.phone || '').trim()
+  const duplicateClauses = [
+    email ? `email.eq.${encodeURIComponent(email)}` : '',
+    phone ? `phone.eq.${encodeURIComponent(phone)}` : '',
+  ].filter(Boolean)
+  if (duplicateClauses.length > 0) {
+    const duplicateResponse = await fetch(
+      `${url}/rest/v1/market_contacts?select=id,name,email,phone&or=(${duplicateClauses.join(',')})&limit=1`,
+      { headers, cache: 'no-store' }
+    )
+    const [duplicate] = duplicateResponse.ok ? await duplicateResponse.json() as MarketContact[] : []
+    if (duplicate) {
+      return NextResponse.json({ error: `A partnership contact already exists for ${duplicate.name}`, contact: duplicate }, { status: 409 })
+    }
+  }
+
+  const response = await fetch(`${url}/rest/v1/market_contacts`, {
+    method: 'POST',
+    headers: { ...headers, Prefer: 'return=representation' },
+    body: JSON.stringify({
+      name,
+      company: String(body.company || '').trim() || null,
+      title: String(body.title || '').trim() || null,
+      email: email || null,
+      phone: phone || null,
+      city,
+      industry: String(body.industry || '').trim() || 'Real Estate',
+      category: String(body.category || '').trim() || 'realtor',
+      stage: 'target',
+      pipeline_phase: 'outreach',
+      sequence_step: 0,
+      sequence_paused: false,
+      owner_name: session.name || null,
+      assigned_manager_user_id: session.userId || null,
+      created_at: new Date().toISOString(),
+    }),
+  })
+  if (!response.ok) return NextResponse.json({ error: 'Could not create partnership contact' }, { status: 500 })
+  const [contact] = await response.json() as MarketContact[]
+  return NextResponse.json({ ok: true, contact: {
+    ...contact,
+    normalized_stage: normalizePartnershipStage(contact.stage),
+    pipeline: getPipelineBucket(contact.tier, contact.industry),
+  } })
+}
+
 export async function PATCH(request: Request) {
   const session = await getSessionUser()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
