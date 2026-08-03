@@ -1,6 +1,7 @@
 const DEFAULT_MAX_IMAGE_DIMENSION = 1600
 const DEFAULT_MAX_IMAGE_BYTES = 2_800_000
-const DEFAULT_MAX_UPLOAD_BYTES = 3_500_000
+export const MAX_MEDIA_UPLOAD_BYTES = 50 * 1024 * 1024
+const DEFAULT_MAX_UPLOAD_BYTES = MAX_MEDIA_UPLOAD_BYTES
 
 function isBrowserImage(file: File) {
   return file.type.startsWith('image/') && file.type !== 'image/gif' && file.type !== 'image/svg+xml'
@@ -66,7 +67,7 @@ export async function prepareUploadFile(
 
   if (!isBrowserImage(file)) {
     if (file.size > maxUploadBytes) {
-      throw new Error('That file is too large. Please choose a smaller file or send photos instead of video.')
+      throw new Error('That file is too large. Videos and other attachments can be up to 50 MB.')
     }
     return file
   }
