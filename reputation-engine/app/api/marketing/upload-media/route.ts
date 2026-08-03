@@ -5,7 +5,7 @@ import { requireSupabaseEnv } from '@/lib/server/runtime'
 export const maxDuration = 30
 
 const BUCKET = 'ops-media'
-const MAX_UPLOAD_BYTES = 4_000_000
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 
 function sanitizeFilename(filename: string) {
   return (filename || 'media')
@@ -39,6 +39,44 @@ export async function POST(request: Request) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
+    if (request.headers.get('content-type')?.includes('application/json')) {
+      const input = await request.json() as { name?: string; type?: string; size?: number }
+      const size = Number(input.size || 0)
+      if (!input.name || !Number.isFinite(size) || size <= 0) {
+        return NextResponse.json({ error: 'Invalid file details' }, { status: 400 })
+      }
+      if (size > MAX_UPLOAD_BYTES) {
+        return NextResponse.json({ error: 'Videos and other attachments can be up to 50 MB.' }, { status: 413 })
+      }
+
+      const { url: supabaseUrl, headers } = requireSupabaseEnv()
+      const supabaseKey = headers.apikey
+      const safeName = sanitizeFilename(input.name)
+      const path = `partnership-chat/${new Date().toISOString().slice(0, 10)}/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`
+      const signRes = await fetch(`${supabaseUrl}/storage/v1/object/upload/sign/${BUCKET}/${path}`, {
+        method: 'POST',
+        headers: {
+          apikey: supabaseKey,
+          Authorization: `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      })
+      const signed = await signRes.json().catch(() => null) as { url?: string; token?: string; message?: string } | null
+      if (!signRes.ok || !signed?.url) {
+        return NextResponse.json({ error: signed?.message || 'Could not prepare upload' }, { status: 502 })
+      }
+
+      const uploadUrl = signed.url.startsWith('http')
+        ? signed.url
+        : `${supabaseUrl}/storage/v1${signed.url.startsWith('/') ? '' : '/'}${signed.url}`
+      return NextResponse.json({
+        ok: true,
+        uploadUrl,
+        url: `${supabaseUrl}/storage/v1/object/public/${BUCKET}/${path}`,
+      })
+    }
+
     const formData = await request.formData()
     const file = formData.get('file') as File | null
     if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
@@ -46,7 +84,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'HEIC photos cannot be sent by SMS. Please choose JPG or PNG.' }, { status: 415 })
     }
     if (file.size > MAX_UPLOAD_BYTES) {
-      return NextResponse.json({ error: 'File is too large for MMS. Please choose a smaller photo.' }, { status: 413 })
+      return NextResponse.json({ error: 'Videos and other attachments can be up to 50 MB.' }, { status: 413 })
     }
 
     const { url: supabaseUrl, headers } = requireSupabaseEnv()

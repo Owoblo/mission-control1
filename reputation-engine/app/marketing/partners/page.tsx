@@ -4238,12 +4238,27 @@ function PhoneTab({
   async function uploadMedia(file: File): Promise<{ url?: string; error?: string }> {
     try {
       const preparedFile = await prepareUploadFile(file)
-      const fd = new FormData()
-      fd.append('file', preparedFile)
-      const res = await fetch('/api/marketing/upload-media', { method: 'POST', body: fd, credentials: 'include' })
-      const data = await res.json().catch(() => null) as { url?: string; error?: string } | null
-      if (!res.ok) return { error: data?.error || 'Upload failed' }
-      return data?.url ? { url: data.url } : { error: 'Upload did not return a media URL' }
+      const signRes = await fetch('/api/marketing/upload-media', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name: preparedFile.name, type: preparedFile.type, size: preparedFile.size }),
+      })
+      const signed = await signRes.json().catch(() => null) as { uploadUrl?: string; url?: string; error?: string } | null
+      if (!signRes.ok || !signed?.uploadUrl || !signed.url) {
+        return { error: signed?.error || 'Could not prepare upload' }
+      }
+
+      const uploadRes = await fetch(signed.uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': preparedFile.type || 'application/octet-stream', 'x-upsert': 'false' },
+        body: preparedFile,
+      })
+      if (!uploadRes.ok) {
+        const detail = await uploadRes.json().catch(() => null) as { message?: string; error?: string } | null
+        return { error: detail?.message || detail?.error || 'Upload failed' }
+      }
+      return { url: signed.url }
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'Upload failed' }
     }
