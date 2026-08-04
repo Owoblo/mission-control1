@@ -1,5 +1,6 @@
 import { defaultFollowUpDate, normalizePartnershipStage } from '@/lib/marketing'
 import { digitsOnly, normalizePhone } from '@/lib/sales-phones'
+import { partnershipPhoneLookupSuffix, partnershipPhonesMatch } from '@/lib/partnership-contact-match'
 import { getPartnershipAlertRecipients, partnershipInboundNotificationEmail, sendRepAlertEmail } from '@/lib/server/internal-notifications'
 import { partnershipDispositionFromSuggestion, suggestPartnershipReply, type PartnershipAssistantContact } from '@/lib/server/partnership-reply-assistant'
 import { isOptOutText } from '@/lib/server/partnership-sms'
@@ -37,13 +38,6 @@ function normalizeEmail(value?: string | null) {
   return (value || '').trim().toLowerCase()
 }
 
-function phoneMatches(left?: string | null, right?: string | null) {
-  const leftDigits = digitsOnly(normalizePhone(left))
-  const rightDigits = digitsOnly(normalizePhone(right))
-  if (!leftDigits || !rightDigits) return false
-  return leftDigits === rightDigits || leftDigits.endsWith(rightDigits) || rightDigits.endsWith(leftDigits)
-}
-
 async function findPartnershipContactMatch(input: PausePartnershipSequenceInput) {
   const normalizedEmail = normalizeEmail(input.email)
   const normalizedPhone = normalizePhone(input.phone)
@@ -71,8 +65,25 @@ async function findPartnershipContactMatch(input: PausePartnershipSequenceInput)
     )
     if (phoneRes.ok) {
       const phoneRows = ((await phoneRes.json()) as MarketContactMatch[])
-        .filter(contact => phoneMatches(contact.phone, normalizedPhone))
+        .filter(contact => partnershipPhonesMatch(contact.phone, normalizedPhone))
       if (phoneRows.length > 0) return chooseBestMatch(phoneRows)
+    }
+
+    // Phone values in historical imports are not normalized consistently
+    // (for example, 905-781-0262). A ten-digit ilike only finds contiguous
+    // values, so use the final four digits as a narrow candidate lookup and
+    // then require an exact normalized match in memory.
+    const suffix = partnershipPhoneLookupSuffix(normalizedPhone)
+    if (suffix) {
+      const formattedPhoneRes = await fetch(
+        `${url}/rest/v1/market_contacts?phone=ilike.*${encodeURIComponent(suffix)}*&select=id,name,company,title,email,phone,city,industry,stage,decision,sequence_paused,pipeline_phase,affiliate_partner_id,tracking_code&order=created_at.desc&limit=200`,
+        { headers, cache: 'no-store' }
+      )
+      if (formattedPhoneRes.ok) {
+        const formattedPhoneRows = ((await formattedPhoneRes.json()) as MarketContactMatch[])
+          .filter(contact => partnershipPhonesMatch(contact.phone, normalizedPhone))
+        if (formattedPhoneRows.length > 0) return chooseBestMatch(formattedPhoneRows)
+      }
     }
   }
 
@@ -86,7 +97,7 @@ async function findPartnershipContactMatch(input: PausePartnershipSequenceInput)
   const contacts = (await response.json()) as MarketContactMatch[]
   const matches = contacts.filter(contact => (
     (normalizedEmail && normalizeEmail(contact.email) === normalizedEmail) ||
-    (normalizedPhone && phoneMatches(contact.phone, normalizedPhone))
+    (normalizedPhone && partnershipPhonesMatch(contact.phone, normalizedPhone))
   ))
 
   return chooseBestMatch(matches)
@@ -204,6 +215,7 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
   if (!contact) return { matched: false as const }
 
   const occurredAt = input.occurredAt || new Date().toISOString()
+  try {
   const { url, headers } = requireSupabaseEnv()
   if (isAutomatedSmsUnavailableReply(input.channel, input.notes)) {
     const nextChannel = contact.email ? 'email' : 'phone'
@@ -368,5 +380,75 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
     matched: true as const,
     contactId: contact.id,
     contactName: contact.name,
+  }
+  } catch (error) {
+    // Once identity has matched a relationship contact, never reinterpret a
+    // processing failure as a new Sales lead. Persist a minimal recovery touch
+    // so the partnership team still sees and owns the reply.
+    console.error('[partnership-inbound] Matched reply required recovery', {
+      contactId: contact.id,
+      channel: input.channel,
+      error,
+    })
+    const { url, headers } = requireSupabaseEnv()
+    const touchNotes = input.notes?.trim() || `Inbound ${input.channel} reply received`
+    await Promise.allSettled([
+      fetch(`${url}/rest/v1/market_contacts?id=eq.${contact.id}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          sequence_paused: true,
+          sequence_paused_reason: `${input.channel}_reply_recovery`,
+          last_inbound_at: occurredAt,
+          last_touch_at: occurredAt,
+        }),
+      }),
+      fetch(`${url}/rest/v1/sequence_jobs?contact_id=eq.${contact.id}&status=eq.pending`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          status: 'cancelled',
+          error: `Paused after recovered inbound ${input.channel}`,
+        }),
+      }),
+      fetch(`${url}/rest/v1/market_touches`, {
+        method: 'POST',
+        headers: { ...headers, Prefer: 'return=minimal' },
+        body: JSON.stringify({
+          contact_id: contact.id,
+          channel: input.channel,
+          direction: 'inbound',
+          notes: touchNotes,
+          created_by: 'System',
+          created_at: occurredAt,
+          outcome_code: 'manual_review',
+          next_step: 'Review and reply to this inbound partnership message.',
+          metadata: { ...(input.metadata ?? {}), routingRecovery: true },
+        }),
+      }),
+    ])
+
+    void sendRepAlertEmail(
+      `Partner inbound ${input.channel.toUpperCase()} — ${contact.name || contact.company || 'Unknown contact'}`,
+      partnershipInboundNotificationEmail({
+        contactId: contact.id,
+        contactName: contact.name,
+        company: contact.company,
+        channel: input.channel,
+        occurredAt,
+        notes: input.notes,
+        phone: contact.phone || input.phone || null,
+        email: contact.email || input.email || null,
+        mediaUrls: metadataMediaUrls(input.metadata),
+      }),
+      getPartnershipAlertRecipients(contact.city)
+    )
+
+    return {
+      matched: true as const,
+      contactId: contact.id,
+      contactName: contact.name,
+      recovered: true as const,
+    }
   }
 }
