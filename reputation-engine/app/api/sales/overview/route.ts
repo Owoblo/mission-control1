@@ -50,6 +50,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(overview)
   } catch (error) {
+    console.error('[sales-overview] Live CRM read failed', error)
     if (overviewCache) {
       return NextResponse.json(
         { ...overviewCache.payload, stale: true, warning: 'Live data is temporarily unavailable.' },
