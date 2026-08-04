@@ -193,20 +193,26 @@ export async function POST(request: Request) {
     }
 
     if (from) {
-      const partnership = await pausePartnershipSequenceForInbound({
-        channel: 'sms',
-        phone: normalized || from,
-        occurredAt: receivedAt,
-        notes: body ? `Inbound SMS: ${messageText}` : messageText,
-        metadata: {
-          from,
-          to: toField,
-          messageSid,
-          numMedia: media.length,
-          media: media.length > 0 ? media : undefined,
-          mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
-        },
-      }).catch(() => ({ matched: false as const }))
+      const isPartnershipLine = getSaturnTrackingSource(toField) === 'partnership_outreach'
+      const partnership = isPartnershipLine
+        ? await pausePartnershipSequenceForInbound({
+            channel: 'sms',
+            phone: normalized || from,
+            occurredAt: receivedAt,
+            notes: body ? `Inbound SMS: ${messageText}` : messageText,
+            metadata: {
+              from,
+              to: toField,
+              messageSid,
+              numMedia: media.length,
+              media: media.length > 0 ? media : undefined,
+              mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
+            },
+          }).catch(error => {
+            console.error('[sales-twilio-sms] Partnership identity lookup failed', error)
+            return { matched: false as const }
+          })
+        : { matched: false as const }
 
       if (!partnership.matched) {
 
