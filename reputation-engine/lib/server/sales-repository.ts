@@ -964,11 +964,22 @@ export async function getSalesOverview(): Promise<{
   followUps: FollowUpLog[]
   summary: SalesDashboardSummary
 }> {
+  const followUpsPromise = listFollowUpLogs()
+  const leadsPromise = Promise.all([
+    selectAll<CRMLead>('crm_leads'),
+    followUpsPromise,
+  ]).then(([storedLeads, lifecycle]) => {
+    const archivedLeadIds = getArchivedLeadIds(lifecycle)
+    return filterDisplayDuplicateSalesLeads(storedLeads
+      .map(lead => normalizeLead(lead))
+      .filter(lead => isVisibleSalesLead(lead, archivedLeadIds)))
+  })
+
   const [leads, quotes, clients, followUps] = await Promise.all([
-    listSalesLeads(),
+    leadsPromise,
     listSalesQuotes(),
     listSalesClients(),
-    listFollowUpLogs(),
+    followUpsPromise,
   ])
 
   const archivedLeadIds = getArchivedLeadIds(followUps)

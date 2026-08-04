@@ -21,6 +21,32 @@ import type { CRMEmail, CRMLead, FollowUpLog } from '@/lib/types'
 const DEFAULT_HUMAN_PAUSE_HOURS = 12
 const OUTBOUND_SMS_DEDUPE_WINDOW_MS = 60 * 1000
 const AUTOMATION_SAME_BODY_DEDUPE_WINDOW_MS = 24 * 60 * 60 * 1000
+const POST_DELIVERY_PERSISTENCE_TIMEOUT_MS = 8_000
+
+async function settlePostDeliveryPersistence<T>(
+  label: string,
+  operation: Promise<T>,
+  fallback: T,
+  warnings: string[]
+) {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`${label} timed out after provider acceptance`)),
+          POST_DELIVERY_PERSISTENCE_TIMEOUT_MS
+        )
+      }),
+    ])
+  } catch (error) {
+    warnings.push(error instanceof Error ? error.message : `${label} failed after provider acceptance`)
+    return fallback
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
 
 // ── SMS number safety guard ───────────────────────────────────────────────────
 // Blocks sends to numbers that will always fail: shortcodes, OTP senders,
@@ -92,6 +118,7 @@ export interface SendSalesMessageResult {
   log: FollowUpLog
   email: CRMEmail | null
   lead: CRMLead | null
+  persistenceWarnings?: string[]
 }
 
 export async function recordOutboundSmsToSupabase(from: string, to: string, body: string, leadId: string | undefined, sid?: string | null) {
@@ -349,11 +376,19 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
         : `SMS sent to ${input.to}`),
   }
 
-  const savedLog = await saveFollowUpLog(log)
+  // The provider has accepted the message at this point. CRM bookkeeping is
+  // important, but it must not turn a delivered SMS/email into a failed send
+  // response (which encourages the rep to retry and can duplicate delivery).
+  // Run independent writes together and return a warning if Supabase is slow.
+  const persistenceWarnings: string[] = []
+  const savedLogPromise = settlePostDeliveryPersistence(
+    'Follow-up log persistence',
+    saveFollowUpLog(log),
+    log,
+    persistenceWarnings
+  )
 
-  let emailRecord: CRMEmail | null = null
-  if (input.channel === 'email') {
-    emailRecord = await saveSalesEmail({
+  const emailRecordInput: CRMEmail | null = input.channel === 'email' ? {
       id: uid('em'),
       leadId: input.leadId || null,
       quoteId: input.quoteId || null,
@@ -365,10 +400,29 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
       direction: 'outbound',
       status: 'sent',
       sentAt: now,
-    })
-  }
+    } : null
+  const emailRecordPromise = emailRecordInput
+    ? settlePostDeliveryPersistence(
+        'Outbound email record persistence',
+        saveSalesEmail(emailRecordInput),
+        null,
+        persistenceWarnings
+      )
+    : Promise.resolve(null)
+  const leadPromise = input.leadId
+    ? settlePostDeliveryPersistence(
+        'Lead messaging-state persistence',
+        syncLeadMessagingState(input.leadId, actor),
+        null,
+        persistenceWarnings
+      )
+    : Promise.resolve(null)
 
-  const lead = input.leadId ? await syncLeadMessagingState(input.leadId, actor) : null
+  const [savedLog, emailRecord, lead] = await Promise.all([
+    savedLogPromise,
+    emailRecordPromise,
+    leadPromise,
+  ])
 
   if (input.quoteId && input.leadId && input.channel === 'email') {
     try {
@@ -439,5 +493,6 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
     log: savedLog,
     email: emailRecord,
     lead,
+    ...(persistenceWarnings.length ? { persistenceWarnings } : {}),
   }
 }

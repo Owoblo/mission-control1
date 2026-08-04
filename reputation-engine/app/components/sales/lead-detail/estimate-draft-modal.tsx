@@ -346,6 +346,7 @@ type Props = {
   onApplyStarterInventory?: () => number
   onUpdateInventoryItem: (index: number, field: keyof InventoryItem, value: string) => void
   onConfirmInventory: () => Promise<void>
+  onResolveScanQuestion: (question: string, answer: 'yes' | 'no') => Promise<void>
   onToggleInventoryItem: (index: number) => void
   onRemoveInventoryItem: (index: number) => void
 }
@@ -449,6 +450,7 @@ export function EstimateDraftModal({
   onApplyStarterInventory,
   onUpdateInventoryItem,
   onConfirmInventory,
+  onResolveScanQuestion,
   onToggleInventoryItem,
   onRemoveInventoryItem,
   onOriginAddressChange,
@@ -517,6 +519,7 @@ export function EstimateDraftModal({
   const [junkSmsDraft, setJunkSmsDraft] = useState('')
   const [junkSmsSending, setJunkSmsSending] = useState(false)
   const [inventoryConfirmBusy, setInventoryConfirmBusy] = useState(false)
+  const [scanQuestionBusy, setScanQuestionBusy] = useState<string | null>(null)
   const [activeConjointOwner, setActiveConjointOwner] = useState<'person_a' | 'person_b' | 'combined'>('person_a')
   const [conjointCustomItem, setConjointCustomItem] = useState('')
   const [valuationAmount, setValuationAmount] = useState('149')
@@ -1879,6 +1882,7 @@ export function EstimateDraftModal({
   const listingDescription = getListingDescription(lead.supabaseListing)
   const scanDuplicateRisks = lead.listingScanSnapshot?.duplicateRisks || []
   const scanConfirmationQuestions = lead.listingScanSnapshot?.confirmationQuestions || []
+  const scanConfirmationResponses = lead.listingScanSnapshot?.confirmationResponses || {}
   const selectedMoveDate = quote?.moveDate || lead.moveDate
   const moveDateDaysAway = daysUntilDate(selectedMoveDate)
   const canApproveMarginException = currentUser?.role === 'owner' || currentUser?.role === 'manager'
@@ -2011,7 +2015,8 @@ export function EstimateDraftModal({
   const boxesAsked = Boolean(
     Number(jobFactors.estimatedBoxes || 0) > 0 ||
     packingMaterialsEstimate?.plannedBoxes ||
-    effectiveInventoryMetrics.inventory.some(item => getInventoryDisplayLabel(item).toLowerCase().includes('box'))
+    effectiveInventoryMetrics.inventory.some(item => getInventoryDisplayLabel(item).toLowerCase().includes('box')) ||
+    Object.entries(lead.listingScanSnapshot?.confirmationResponses || {}).some(([question]) => /boxes or bins packed/i.test(question))
   )
   const includedInventory = useMemo(
     () => effectiveInventoryMetrics.inventory.filter(item => item.included !== false && item.status !== 'excluded'),
@@ -2058,7 +2063,8 @@ export function EstimateDraftModal({
   const hiddenAreaEvidence = Boolean(
     customerInventoryConfirmed ||
     includedInventory.some(item => /garage|basement|storage|shed|attic|outdoor|patio|closet/i.test(item.room || '')) ||
-    (mediaAssets || []).some(asset => /garage|basement|storage|shed|attic|outdoor|patio|closet/i.test(asset.room || ''))
+    (mediaAssets || []).some(asset => /garage|basement|storage|shed|attic|outdoor|patio|closet/i.test(asset.room || '')) ||
+    Object.entries(lead.listingScanSnapshot?.confirmationResponses || {}).some(([question]) => /garage or storage room/i.test(question))
   )
   const originAccessConfirmed = Boolean(
     originAccess ||
@@ -2151,12 +2157,12 @@ export function EstimateDraftModal({
             ? `Price is provisional because ${conjointVolumePendingLabel} has inventory items with unknown cubic feet.`
           : 'Price has not been generated yet.',
       },
-      { category: 'commercial', label: 'Margin reviewed', ready: Boolean(liveMarginSummary && liveMarginSummary.liveMargin >= 50), critical: Boolean(liveMarginSummary && liveMarginSummary.actualRevenue > 0 && liveMarginSummary.liveMargin < 40), detail: liveMarginSummary ? `Current margin is ${liveMarginSummary.liveMargin.toFixed(1)}%; manager review may be required.` : 'Margin has not been calculated.' },
+      { category: 'commercial', label: 'Margin reviewed', ready: Boolean(liveMarginSummary && (liveMarginSummary.liveMargin >= 50 || marginGateAck)), critical: Boolean(liveMarginSummary && liveMarginSummary.actualRevenue > 0 && liveMarginSummary.liveMargin < 40 && !marginGateAck), detail: liveMarginSummary ? `Current margin is ${liveMarginSummary.liveMargin.toFixed(1)}%; manager review may be required.` : 'Margin has not been calculated.' },
       { category: 'commercial', label: 'Deposit amount', ready: quoteModalTotals.deposit > 0, critical: true, detail: 'Deposit amount is missing.' },
       { category: 'commercial', label: 'Quote explanation available', ready: Boolean(quoteExplanation.detailed.trim()), detail: 'Customer-facing price explanation is not ready.' },
     ]
     return items
-  }, [boxesAsked, conjointInventoryPending, conjointMode, conjointPendingLabel, conjointVolumePending, conjointVolumePendingLabel, customerInventoryConfirmed, destFull, destinationAccessConfirmed, effectiveInventoryMetrics.totalItems, evidenceSources.length, hiddenAreaEvidence, jobFactors.packingStatus, lead.email, lead.name, lead.phone, liveMarginSummary, originAccessConfirmed, originFull, pricingBreakdown, quoteExplanation.detailed, quoteModalTotals.deposit, quoteModalTotals.total, route?.category, route?.destResolved, route?.originResolved, routeError, selectedMoveDate, quoteType, unknownVolumeItems.length, unresolvedInventoryItems.length])
+  }, [boxesAsked, conjointInventoryPending, conjointMode, conjointPendingLabel, conjointVolumePending, conjointVolumePendingLabel, customerInventoryConfirmed, destFull, destinationAccessConfirmed, effectiveInventoryMetrics.totalItems, evidenceSources.length, hiddenAreaEvidence, jobFactors.packingStatus, lead.email, lead.name, lead.phone, liveMarginSummary, marginGateAck, originAccessConfirmed, originFull, pricingBreakdown, quoteExplanation.detailed, quoteModalTotals.deposit, quoteModalTotals.total, route?.category, route?.destResolved, route?.originResolved, routeError, selectedMoveDate, quoteType, unknownVolumeItems.length, unresolvedInventoryItems.length])
   const blockingReadiness = useMemo(
     () => readinessItems.filter(item => !item.ready && item.critical),
     [readinessItems]
@@ -4078,9 +4084,30 @@ export function EstimateDraftModal({
                   <div className="mt-3 rounded-[8px] border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-900">
                     <div className="font-semibold">Confirm with customer</div>
                     <div className="mt-1 space-y-1">
-                      {scanConfirmationQuestions.slice(0, 4).map(item => (
-                        <div key={item}>{item}</div>
-                      ))}
+                      {scanConfirmationQuestions.slice(0, 6).map(item => {
+                        const response = scanConfirmationResponses[item]?.answer
+                        return (
+                          <div key={item} className="flex items-start justify-between gap-3 rounded-[6px] bg-white/70 px-2 py-1.5">
+                            <span className="leading-5">{item}</span>
+                            <div className="flex shrink-0 overflow-hidden rounded-[5px] border border-orange-200 text-[10px] font-semibold">
+                              {(['yes', 'no'] as const).map(answer => (
+                                <button
+                                  key={answer}
+                                  type="button"
+                                  disabled={scanQuestionBusy === item}
+                                  onClick={() => {
+                                    setScanQuestionBusy(item)
+                                    void onResolveScanQuestion(item, answer).finally(() => setScanQuestionBusy(null))
+                                  }}
+                                  className={`px-2 py-1 capitalize ${answer === 'no' ? 'border-l border-orange-200' : ''} ${response === answer ? 'bg-[#071421] text-white' : 'bg-white text-orange-900 hover:bg-orange-100'} disabled:opacity-50`}
+                                >
+                                  {answer}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 ) : null}
@@ -6519,14 +6546,73 @@ export function EstimateDraftModal({
                             <span className="text-[9px] font-semibold text-[var(--app-muted)]">{categoryReady}/{categoryItems.length}</span>
                           </div>
                           <div className="space-y-1.5">
-                            {categoryItems.map(item => (
-                              <div key={item.label} className="flex items-start justify-between gap-2 text-[11px]" title={item.ready ? undefined : item.detail}>
-                                <span className={item.ready ? 'text-[var(--app-ink)]' : item.critical ? 'text-rose-700' : 'text-amber-700'}>{item.label}</span>
-                                <span className={`shrink-0 font-semibold ${item.ready ? 'text-emerald-700' : item.critical ? 'text-rose-700' : 'text-amber-700'}`}>
-                                  {item.ready ? '✓' : item.critical ? 'Required' : 'Confirm'}
-                                </span>
-                              </div>
-                            ))}
+                            {categoryItems.map(item => {
+                              const canConfirmInventory = !item.ready && (item.label === 'Customer scope confirmation' || item.label === 'Item decisions resolved')
+                              const isOriginAccess = !item.ready && item.label === 'Origin access / parking'
+                              const isDestinationAccess = !item.ready && item.label === 'Destination access / parking'
+                              const isPacking = !item.ready && item.label === 'Packing status'
+                              const canAcknowledgeMargin = !item.ready && item.label === 'Margin reviewed' && Boolean(liveMarginSummary)
+                              return (
+                                <div key={item.label} className="rounded-[5px]" title={item.ready ? undefined : item.detail}>
+                                  <div className="flex items-start justify-between gap-2 text-[11px]">
+                                    <span className={item.ready ? 'text-[var(--app-ink)]' : item.critical ? 'text-rose-700' : 'text-amber-700'}>{item.label}</span>
+                                    <span className={`shrink-0 font-semibold ${item.ready ? 'text-emerald-700' : item.critical ? 'text-rose-700' : 'text-amber-700'}`}>
+                                      {item.ready ? '✓' : item.critical ? 'Required' : 'Confirm'}
+                                    </span>
+                                  </div>
+                                  {canConfirmInventory ? (
+                                    <button
+                                      type="button"
+                                      disabled={inventoryConfirmBusy}
+                                      onClick={() => {
+                                        setInventoryConfirmBusy(true)
+                                        void onConfirmInventory().finally(() => setInventoryConfirmBusy(false))
+                                      }}
+                                      className="mt-1 rounded-[4px] border border-rose-200 bg-white px-2 py-0.5 text-[9px] font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                                    >
+                                      Confirm current inventory
+                                    </button>
+                                  ) : null}
+                                  {isOriginAccess || isDestinationAccess ? (
+                                    <div className="mt-1 flex gap-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const prefix = isOriginAccess ? 'origin' : 'dest'
+                                          setFactor(`${prefix}Floors` as keyof JobFactors, 1 as never)
+                                          setFactor(`${prefix}HasElevator` as keyof JobFactors, false as never)
+                                          setFactor(`${prefix}ParkingOk` as keyof JobFactors, true as never)
+                                        }}
+                                        className="rounded-[4px] border border-amber-200 bg-white px-2 py-0.5 text-[9px] font-semibold text-amber-800 hover:bg-amber-50"
+                                      >
+                                        Normal house access
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => routeSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                                        className="rounded-[4px] border border-amber-200 bg-white px-2 py-0.5 text-[9px] font-semibold text-amber-800 hover:bg-amber-50"
+                                      >
+                                        Building / special
+                                      </button>
+                                    </div>
+                                  ) : null}
+                                  {isPacking ? (
+                                    <div className="mt-1 flex flex-wrap gap-1">
+                                      {(['not-started', 'partial', 'packed'] as const).map(status => (
+                                        <button key={status} type="button" onClick={() => setFactor('packingStatus', status)} className="rounded-[4px] border border-amber-200 bg-white px-2 py-0.5 text-[9px] font-semibold text-amber-800 hover:bg-amber-50">
+                                          {status === 'not-started' ? 'Not packed' : status === 'partial' ? 'Partial' : 'Packed'}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  ) : null}
+                                  {canAcknowledgeMargin ? (
+                                    <button type="button" onClick={() => setMarginGateAck(true)} className="mt-1 rounded-[4px] border border-rose-200 bg-white px-2 py-0.5 text-[9px] font-semibold text-rose-700 hover:bg-rose-50">
+                                      Mark reviewed
+                                    </button>
+                                  ) : null}
+                                </div>
+                              )
+                            })}
                           </div>
                         </div>
                       )

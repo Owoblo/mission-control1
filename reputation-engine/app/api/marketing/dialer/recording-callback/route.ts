@@ -6,6 +6,7 @@
 import { requireSupabaseEnv, readEnv } from '@/lib/server/runtime'
 import { verifyTwilioSignature } from '@/lib/server/security'
 import { PARTNERSHIP_LINES, isPartnershipSenderNumber, normalizePartnershipCityKey } from '@/lib/partnership-lines'
+import { isPartnerMovingLeadIntent, promotePartnerToMovingLead } from '@/lib/server/partner-customer-promotion'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -145,10 +146,18 @@ export async function POST(request: Request) {
 
     const contactPhone = customerNumber.replace(/\D/g, '').slice(-10)
     const contactRes = await fetch(
-      `${url}/rest/v1/market_contacts?phone=ilike.*${contactPhone}&select=id,name,company,city,phone&limit=20`,
+      `${url}/rest/v1/market_contacts?phone=ilike.*${contactPhone}&select=id,name,company,category,email,city,phone&limit=20`,
       { headers, cache: 'no-store' }
     )
-    const contacts = contactRes.ok ? await contactRes.json() as Array<{ id: string; name: string; company: string; city: string | null; phone?: string | null }> : []
+    const contacts = contactRes.ok ? await contactRes.json() as Array<{
+      id: string
+      name: string
+      company: string
+      category?: string | null
+      email?: string | null
+      city: string | null
+      phone?: string | null
+    }> : []
     const exactMatches = contacts.filter(item => normalizePhone(item.phone) === customerNumber && contactMatchesLine(item, partnershipNumber))
     const contact = exactMatches.length === 1 ? exactMatches[0] : null
 
@@ -200,6 +209,13 @@ export async function POST(request: Request) {
       headers,
       body: JSON.stringify({ last_touch_at: now }),
     })
+
+    if (transcript && isPartnerMovingLeadIntent(`${aiSummary || ''}\n${transcript}`)) {
+      await promotePartnerToMovingLead(contact, {
+        message: transcript,
+        occurredAt: now,
+      }).catch(() => null)
+    }
 
     return new Response(null, { status: 204 })
   } catch {

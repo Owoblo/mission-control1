@@ -17,6 +17,8 @@ const PUBLIC_API_PATHS = new Set([
   '/api/sales/stripe/webhook',
   '/api/sales/stripe/webhook/dexa',
   '/api/partners/referral-capture',
+  // Authenticated inside the route with the Sold2Move sync fingerprint.
+  '/api/marketing/recent-sales/sync',
 ])
 
 // All Twilio dialer callbacks — Twilio hits these without auth, so the whole prefix is public

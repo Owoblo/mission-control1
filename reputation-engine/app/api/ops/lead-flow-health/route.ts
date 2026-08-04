@@ -32,7 +32,16 @@ export async function GET(request: Request) {
   }
 
   const report = await runLeadFlowHealthCheck(getAppBaseUrl(new URL(request.url).origin))
-  return NextResponse.json(report)
+  const shouldAlert = report.status === 'fail'
+  if (shouldAlert) {
+    await sendRepAlertEmail(buildSubject(report.status), renderLeadFlowHealthEmail(report))
+  }
+
+  return NextResponse.json({
+    ok: report.status !== 'fail',
+    emailed: shouldAlert,
+    report,
+  })
 }
 
 export async function POST(request: Request) {

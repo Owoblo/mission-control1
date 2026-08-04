@@ -17,8 +17,16 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/api/marketing/email/zoho-poll",
+      "schedule": "*/2 * * * *"
+    },
+    {
       "path": "/api/marketing/recent-sales/digest",
       "schedule": "30 8 * * *"
+    },
+    {
+      "path": "/api/marketing/recent-sales/sync",
+      "schedule": "15 * * * *"
     },
     {
       "path": "/api/sales/inbox/resend-poll",

@@ -5,6 +5,7 @@ export const CRON_API_PATHS = new Set([
   '/api/ops/media-reconciliation',
   '/api/ops/tentative-reservations',
   '/api/marketing/sequence/process',
+  '/api/marketing/email/zoho-poll',
   '/api/marketing/recent-sales/digest',
   '/api/sales/inbox/resend-poll',
   '/api/sales/automation/process',

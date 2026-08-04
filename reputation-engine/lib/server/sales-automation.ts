@@ -37,6 +37,7 @@ import {
   hasCompleteMoveAddress,
   hasCompleteRouteAddresses,
   hasAnyAccessDetails,
+  hasRequiredAccessDetails,
   leadNeedsAccessBeforeAutomatedQuote,
   hasMlsDraftInventoryNeedingConfirmation,
   hasStreetNumber,
@@ -1426,19 +1427,18 @@ export function getMissingFields(lead: CRMLead) {
 }
 
 function buildQualificationState(lead: CRMLead, overrides: Partial<LeadQualificationState> = {}): LeadQualificationState {
-  const missingFields =
-    Object.prototype.hasOwnProperty.call(overrides, 'missingFields')
-      ? overrides.missingFields || []
-      : getMissingFields(lead)
+  const missingFields = Array.from(new Set([
+    ...getMissingFields(lead),
+    ...(Object.prototype.hasOwnProperty.call(overrides, 'missingFields') ? overrides.missingFields || [] : []),
+  ]))
   return {
     moveDateKnown: !!lead.moveDate || !!lead.moveDateFlexible,
     routeKnown: hasCompleteRouteAddresses(lead),
     inventoryKnown: !!lead.totalItems || !!lead.totalCubicFeet || !!(lead.inventory || []).length || !!lead.surveyCompletedAt,
-    accessKnown:
-      hasAnyAccessDetails(lead),
+    accessKnown: hasCompleteRouteAddresses(lead) && hasRequiredAccessDetails(lead),
     surveyRequested: !!lead.surveyRequestedAt,
     surveyCompleted: !!lead.surveyCompletedAt,
-    quoteReady: missingFields.length === 0 || (missingFields.length === 1 && missingFields[0] === 'access'),
+    quoteReady: missingFields.length === 0,
     activeCustomer: isBookedLikeStage(lead.stage),
     missingFields,
     nextBestAction:
@@ -2280,11 +2280,11 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
           : `Hi ${firstName},\n\nThanks—the packing scope is taking shape.\n\nWould you like us to supply the boxes and materials?\n\nJohn\nSaturn Star Moving`
         : channel === 'sms'
           ? apartmentLike
-            ? `Thanks, ${firstName}—I have the main move details now. Will the crew have elevator access at the apartment?`
-            : `Thanks, ${firstName}—the route looks straightforward. Is there anything unusual at the pickup, such as a restricted driveway or long carry?`
+            ? `Thanks, ${firstName}—does the building require a reserved elevator, or should the crew use a loading/back entrance?`
+            : `Thanks, ${firstName}—I’ll treat this as normal house access. Let me know only if the truck cannot use the driveway or curb nearby.`
           : apartmentLike
-            ? `Hi ${firstName},\n\nThanks—I have the main move details now. Will the crew have elevator access at the apartment?\n\nJohn\nSaturn Star Moving`
-            : `Hi ${firstName},\n\nThanks—the route looks straightforward. Is there anything unusual at the pickup, such as a restricted driveway or long carry?\n\nJohn\nSaturn Star Moving`
+            ? `Hi ${firstName},\n\nThanks—does the building require a reserved elevator, or should the crew use a loading/back entrance?\n\nJohn\nSaturn Star Moving`
+            : `Hi ${firstName},\n\nThanks—I’ll treat this as normal house access. Please let me know only if the truck cannot use the driveway or curb nearby.\n\nJohn\nSaturn Star Moving`
   } else {
     reply =
       channel === 'sms'
@@ -2712,8 +2712,8 @@ async function maybeHandleMlsInventorySms(input: {
       const apartmentLike = /\b(apt|apartment|condo|unit|suite)\b/i.test(locationContext)
       const message = parsed.complete
         ? apartmentLike
-          ? `${buildVerifiedInventorySms(savedLead)} That gives me a solid inventory. Will the crew have elevator access at the apartment?`
-          : `${buildVerifiedInventorySms(savedLead)} That gives me a solid inventory. Is there anything unusual about the pickup driveway or carrying distance?`
+          ? `${buildVerifiedInventorySms(savedLead)} That gives me a solid inventory. Does the building require a reserved elevator, or should the crew use a loading/back entrance?`
+          : `${buildVerifiedInventorySms(savedLead)} That gives me a solid inventory. I’ll assume normal house and driveway access unless you tell me otherwise.`
         : buildVerifiedInventorySms(savedLead)
 
       const sendResult = await sendSalesMessage({

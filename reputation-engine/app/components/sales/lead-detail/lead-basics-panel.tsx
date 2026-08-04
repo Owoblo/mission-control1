@@ -29,6 +29,8 @@ type PropertyAccessApplication = {
   parkingType: 'driveway' | 'street' | 'lot' | 'underground' | 'unknown'
 }
 
+type ParkingAccessChoice = 'auto' | 'two_car_driveway' | 'one_car_driveway' | 'curb' | 'lot' | 'underground' | 'loading_entrance'
+
 type Props = {
   lead: CRMLead
   leadName: string
@@ -269,6 +271,7 @@ function PropertyIntelligenceCard({
   const [expanded, setExpanded] = useState(false)
   const [floorOverride, setFloorOverride] = useState<string>(String(access.unitFloor ?? ''))
   const [elevatorOverride, setElevatorOverride] = useState<boolean | null>(access.hasElevator)
+  const [parkingOverride, setParkingOverride] = useState<ParkingAccessChoice>('auto')
   const [applied, setApplied] = useState(false)
 
   function buildAccessApplication(): PropertyAccessApplication {
@@ -279,19 +282,37 @@ function PropertyIntelligenceCard({
     const elevator = elevatorOverride !== null ? elevatorOverride : access.hasElevator
     if (elevator === true) parts.push(access.elevatorReservationLikely ? 'Elevator (reservation needed)' : 'Elevator available')
     else if (elevator === false && access.stairsEstimate > 0) parts.push(`${access.stairsEstimate} flight${access.stairsEstimate > 1 ? 's' : ''} of stairs`)
-    if (access.parkingType === 'driveway') parts.push('Driveway access')
+    const parkingText: Record<Exclude<ParkingAccessChoice, 'auto'>, string> = {
+      two_car_driveway: '2-car driveway — normal truck access',
+      one_car_driveway: '1-car driveway',
+      curb: 'Curb/street parking',
+      lot: 'Parking lot access',
+      underground: 'Underground parking — truck clearance to confirm',
+      loading_entrance: 'Loading/back entrance',
+    }
+    if (parkingOverride !== 'auto') parts.push(parkingText[parkingOverride])
+    else if (access.parkingType === 'driveway') parts.push('Standard driveway assumed')
     else if (access.parkingType === 'street') parts.push('Street parking')
     else if (access.parkingType === 'underground') parts.push('Underground parking')
+    const parkingType = parkingOverride === 'auto'
+      ? access.parkingType
+      : parkingOverride === 'two_car_driveway' || parkingOverride === 'one_car_driveway'
+        ? 'driveway'
+        : parkingOverride === 'curb'
+          ? 'street'
+          : parkingOverride === 'loading_entrance'
+            ? 'lot'
+            : parkingOverride
     return {
       accessText: parts.join(' · '),
-      floor: floor && floor > 0 ? floor : (access.unitFloor ?? access.estimatedFloors ?? null),
+      floor: floor && floor > 0 ? floor : (access.unitFloor ?? null),
       hasElevator: elevator,
       elevatorReserved: elevator === true ? false : undefined,
       parkingOk:
-        access.parkingType === 'unknown'
+        parkingType === 'unknown'
           ? undefined
-          : access.parkingType === 'driveway' || access.parkingType === 'underground',
-      parkingType: access.parkingType,
+          : parkingType === 'driveway' || parkingOverride === 'loading_entrance',
+      parkingType,
     }
   }
 
@@ -373,6 +394,22 @@ function PropertyIntelligenceCard({
                 <option value="no">No</option>
               </select>
             </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-[10px] text-slate-700">Truck access</label>
+            <select
+              value={parkingOverride}
+              onChange={event => setParkingOverride(event.target.value as ParkingAccessChoice)}
+              className="min-w-0 flex-1 rounded-[6px] border border-slate-300 bg-white px-1.5 py-0.5 text-[10px]"
+            >
+              <option value="auto">Auto / normal assumption</option>
+              <option value="two_car_driveway">2-car driveway</option>
+              <option value="one_car_driveway">1-car driveway</option>
+              <option value="curb">Curb / street</option>
+              <option value="lot">Parking lot</option>
+              <option value="underground">Underground</option>
+              <option value="loading_entrance">Loading / back entrance</option>
+            </select>
           </div>
         </div>
       )}
@@ -577,20 +614,20 @@ export function LeadBasicsPanel({
             ? `${originIntelligence.stairsEstimate} flight${originIntelligence.stairsEstimate > 1 ? 's' : ''} of stairs`
             : null,
         originIntelligence.parkingType === 'driveway'
-          ? 'Driveway access'
+          ? 'Standard driveway assumed'
           : originIntelligence.parkingType === 'street'
             ? 'Street parking'
             : originIntelligence.parkingType === 'underground'
               ? 'Underground parking'
               : null,
       ].filter(Boolean).join(' · '),
-      floor: originIntelligence.unitFloor ?? originIntelligence.estimatedFloors ?? null,
+      floor: originIntelligence.unitFloor ?? null,
       hasElevator: originIntelligence.hasElevator,
       elevatorReserved: originIntelligence.hasElevator === true ? false : undefined,
       parkingOk:
         originIntelligence.parkingType === 'unknown'
           ? undefined
-          : originIntelligence.parkingType === 'driveway' || originIntelligence.parkingType === 'underground',
+          : originIntelligence.parkingType === 'driveway',
       parkingType: originIntelligence.parkingType,
     }
 
@@ -616,20 +653,20 @@ export function LeadBasicsPanel({
             ? `${destIntelligence.stairsEstimate} flight${destIntelligence.stairsEstimate > 1 ? 's' : ''} of stairs`
             : null,
         destIntelligence.parkingType === 'driveway'
-          ? 'Driveway access'
+          ? 'Standard driveway assumed'
           : destIntelligence.parkingType === 'street'
             ? 'Street parking'
             : destIntelligence.parkingType === 'underground'
               ? 'Underground parking'
               : null,
       ].filter(Boolean).join(' · '),
-      floor: destIntelligence.unitFloor ?? destIntelligence.estimatedFloors ?? null,
+      floor: destIntelligence.unitFloor ?? null,
       hasElevator: destIntelligence.hasElevator,
       elevatorReserved: destIntelligence.hasElevator === true ? false : undefined,
       parkingOk:
         destIntelligence.parkingType === 'unknown'
           ? undefined
-          : destIntelligence.parkingType === 'driveway' || destIntelligence.parkingType === 'underground',
+          : destIntelligence.parkingType === 'driveway',
       parkingType: destIntelligence.parkingType,
     }
 
@@ -948,6 +985,15 @@ export function LeadBasicsPanel({
           <div>
             <div className="text-xs text-[var(--app-muted)]">Est. Volume</div>
             <div className="mt-2 font-medium text-[var(--app-ink)]">{totalCubicFeet || 0} cu ft</div>
+            <div className="mt-1 text-[10px] leading-4 text-[var(--app-muted)]">
+              {lead.inventoryVerification?.completedAt
+                ? 'Customer-confirmed inventory'
+                : lead.inventoryVerification?.startedAt
+                  ? 'Current included items · customer verification in progress'
+                  : lead.listingScanSnapshot
+                    ? 'Unverified listing-scan estimate'
+                    : 'Working inventory estimate'}
+            </div>
           </div>
           <div>
             <div className="text-xs text-[var(--app-muted)]">MLS Context</div>

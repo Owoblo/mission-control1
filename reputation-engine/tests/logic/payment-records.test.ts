@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { buildPaymentRecord, resolveDepositReceiptAmount } from '../../lib/payment-records'
-import type { CRMLead, CRMQuote } from '../../lib/types'
+import type { CRMQuote } from '../../lib/types'
 
 function quote(overrides: Partial<CRMQuote> = {}): CRMQuote {
   return { id: 'q1', number: 'Q-1042', clientId: 'c1', status: 'accepted', lineItems: [], subtotal: 1000, hst: 130, total: 1130, deposit: 200, balance: 930, createdAt: '2026-07-17T00:00:00.000Z', ...overrides }
@@ -28,5 +28,11 @@ test('receipt uses the actual recorded payment instead of a stale quoted deposit
     paymentRecords: [{ ...actual, paidAt: '2026-07-17T12:00:00.000Z' }],
   })
 
-  assert.equal(resolveDepositReceiptAmount(withActualPayment, { depositAmount: 500 } as CRMLead), 275)
+  assert.equal(resolveDepositReceiptAmount(withActualPayment), 275)
+})
+
+test('receipt never falls back to a stale lead or quoted deposit amount', () => {
+  const unverified = quote({ deposit: 100, depositPaidAmount: 500 })
+
+  assert.equal(resolveDepositReceiptAmount(unverified), 0)
 })

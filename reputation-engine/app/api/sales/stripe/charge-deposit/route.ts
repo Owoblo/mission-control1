@@ -4,7 +4,7 @@ import { canHandleLeadPayments } from '@/lib/server/sales-permissions'
 import { fetchStripeCardSummary, stripePost } from '@/lib/server/stripe-payments'
 import { getSalesLead, getSalesQuote, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
-import { sendRepAlertEmail } from '@/lib/server/internal-notifications'
+import { sendDepositPaidAlert } from '@/lib/server/internal-notifications'
 import { buildPaymentRecord } from '@/lib/payment-records'
 import { appendStripeAccountMetadata, assertQuoteStripeAccount, requireStripeAccountForLead, stripeErrorStatus } from '@/lib/server/stripe-accounts'
 import { sendDepositReceipt } from '@/lib/server/deposit-receipts'
@@ -178,23 +178,17 @@ export async function POST(request: Request) {
       paymentRecords: (updatedQuote.paymentRecords || []).map(item => item.id === paymentRecord.id ? deliveredPayment : item),
     })
 
-    const cardLabel = cardBrand && cardLast4 ? `${cardBrand} ••••${cardLast4}` : 'card on file'
-    void sendRepAlertEmail(
-      `💳 Deposit charged — ${lead.name} — $${chargeAmount.toFixed(2)} CAD`,
-      `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px">
-        <div style="background:#071421;color:#fff;padding:12px 20px;border-radius:8px 8px 0 0;font-weight:700;font-size:15px">
-          Deposit charged — ${lead.name}
-        </div>
-        <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:20px;font-size:14px;color:#071421">
-          <p style="margin:0 0 12px"><strong>Amount charged:</strong> $${chargeAmount.toFixed(2)} CAD</p>
-          <p style="margin:0 0 12px"><strong>Card:</strong> ${cardLabel}</p>
-          <p style="margin:0 0 12px"><strong>Quote:</strong> ${quote.number}</p>
-          <p style="margin:0 0 12px"><strong>Remaining balance:</strong> $${(quote.total - chargeAmount).toFixed(2)} CAD</p>
-          <p style="margin:0 0 12px"><strong>Charged by:</strong> ${session?.name || 'CRM'}</p>
-          <p style="margin:0"><a href="https://go.quote2move.com/sales/leads/${leadId}" style="color:#071421;font-weight:600">View lead →</a></p>
-        </div>
-      </div>`
-    )
+    await sendDepositPaidAlert({
+      customerName: lead.name,
+      amount: chargeAmount,
+      quoteNumber: quote.number,
+      total: quote.total,
+      leadId,
+      phone: lead.phone,
+      source: 'saved_card',
+      chargedBy: session?.name || 'CRM',
+      cardLabel: cardBrand && cardLast4 ? `${cardBrand} ••••${cardLast4}` : 'Card on file',
+    })
 
     return NextResponse.json({
       ok: true,

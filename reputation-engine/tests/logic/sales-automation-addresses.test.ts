@@ -2,17 +2,20 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   automatedEstimateSendingIsPaused,
+  buildLeadQualificationState,
   getAutomationMissingFields,
   getFastLaneReadinessIssues,
   getFastLaneBlockingIssues,
   getFastLaneTruckSize,
   hasConfirmedAutomatedEstimateScope,
   hasAnyAccessDetails,
+  hasRequiredAccessDetails,
   hasCompleteMoveAddress,
   isEstimateScopeConfirmation,
   leadNeedsAccessBeforeAutomatedQuote,
 } from '../../lib/sales-automation-qualification'
 import type { CRMLead } from '../../lib/types'
+import { normalizeLead } from '../../lib/sales'
 
 function lead(overrides: Partial<CRMLead>): CRMLead {
   return {
@@ -98,6 +101,123 @@ test('null access placeholders are not treated as confirmed access intelligence'
   })
 
   assert.equal(hasAnyAccessDetails(candidate), false)
+})
+
+test('ordinary house-to-house routes use normal access without forcing a generic questionnaire', () => {
+  const candidate = lead({
+    moveDate: '2026-09-18',
+    originAddress: '317 Parkside Drive, McGregor, Ontario N0R 1J0',
+    originCity: 'McGregor',
+    destAddress: '88 King Street West, Windsor, Ontario',
+    destCity: 'Windsor',
+    propertyType: 'detached_house',
+    inventory: [{ name: 'Sofa', qty: 1, source: 'customer_verification' }],
+    email: 'customer@example.com',
+  })
+
+  assert.equal(hasRequiredAccessDetails(candidate), true)
+  assert.equal(getAutomationMissingFields(candidate).includes('access'), false)
+})
+
+test('access is deferred until the destination is known', () => {
+  const candidate = lead({
+    moveDate: '2026-09-18',
+    originAddress: '317 Parkside Drive, McGregor, Ontario N0R 1J0',
+    originCity: 'McGregor',
+    originAccess: 'Stairs reported on website form; flight count to confirm',
+    inventory: [{ name: 'Sofa', qty: 1, source: 'customer_verification' }],
+  })
+  const missing = getAutomationMissingFields(candidate)
+
+  assert.ok(missing.includes('destination'))
+  assert.equal(missing.includes('access'), false)
+})
+
+test('origin access cannot clear unknown apartment destination logistics', () => {
+  const candidate = lead({
+    moveDate: '2026-09-18',
+    originAddress: '317 Parkside Drive, McGregor, Ontario N0R 1J0',
+    originCity: 'McGregor',
+    originAccess: '2-car driveway — normal truck access',
+    destAddress: 'Unit 1204, 88 King Street West, Windsor',
+    destCity: 'Windsor',
+    inventory: [{ name: 'Sofa', qty: 1, source: 'customer_verification' }],
+    email: 'customer@example.com',
+  })
+
+  assert.equal(hasRequiredAccessDetails(candidate), false)
+  assert.ok(getAutomationMissingFields(candidate).includes('access'))
+
+  const ready = {
+    ...candidate,
+    destAccess: 'Floor 12 · elevator reserved · loading/back entrance confirmed',
+    jobFactors: {
+      destFloors: 12,
+      destHasElevator: true,
+      destElevatorReserved: true,
+      destParkingOk: true,
+    },
+  }
+  assert.equal(hasRequiredAccessDetails(ready), true)
+  assert.equal(getAutomationMissingFields(ready).includes('access'), false)
+})
+
+test('human handoff metadata cannot erase factual quote blockers', () => {
+  const candidate = lead({
+    moveDate: '2026-09-18',
+    originAddress: '317 Parkside Drive, McGregor, Ontario N0R 1J0',
+    originCity: 'McGregor',
+    originAccess: 'Stairs reported on website form; flight count to confirm',
+    inventory: [{ name: 'Sofa', qty: 1, source: 'mls' }],
+    listingScanSnapshot: {
+      inventory: [{ name: 'Sofa', qty: 1 }],
+      totalItems: 1,
+      totalCubicFeet: 90,
+      source: 'mls_photo_ai',
+    },
+    inventoryVerification: { startedAt: '2026-08-01T08:05:26.181Z', itemChoices: [], addedItems: [] },
+  })
+
+  const state = buildLeadQualificationState(candidate, {
+    missingFields: [],
+    nextBestAction: 'rep_reply_required',
+    lastIntent: 'rep_owned_customer_reply',
+  })
+
+  assert.equal(state.quoteReady, false)
+  assert.equal(state.routeKnown, false)
+  assert.ok(state.missingFields?.includes('destination'))
+  assert.ok(state.missingFields?.includes('inventory_confirmation'))
+})
+
+test('normalizing an existing lead heals stale quote-ready qualification', () => {
+  const normalized = normalizeLead(lead({
+    moveDate: '2026-09-18',
+    originAddress: '317 Parkside Drive, McGregor, Ontario N0R 1J0',
+    originCity: 'McGregor',
+    inventory: [{ name: 'Sofa', qty: 1, source: 'mls' }],
+    listingScanSnapshot: {
+      inventory: [{ name: 'Sofa', qty: 1 }],
+      totalItems: 1,
+      totalCubicFeet: 90,
+      source: 'mls_photo_ai',
+    },
+    inventoryVerification: { startedAt: '2026-08-01T08:05:26.181Z', itemChoices: [], addedItems: [] },
+    qualificationState: {
+      quoteReady: true,
+      routeKnown: false,
+      accessKnown: true,
+      missingFields: [],
+      lastIntent: 'rep_owned_customer_reply',
+      nextBestAction: 'rep_reply_required',
+    },
+  }))
+
+  assert.equal(normalized.qualificationState?.quoteReady, false)
+  assert.equal(normalized.qualificationState?.accessKnown, false)
+  assert.ok(normalized.qualificationState?.missingFields?.includes('destination'))
+  assert.ok(normalized.qualificationState?.missingFields?.includes('inventory_confirmation'))
+  assert.equal(normalized.qualificationState?.lastIntent, 'rep_owned_customer_reply')
 })
 
 test('automation requires confirmation before treating MLS inventory as ready', () => {

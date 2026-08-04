@@ -25,8 +25,8 @@ function normalizePaymentMethod(value?: string): PaymentRecordMethod {
 
 function buildBookingConfirmationSms(name: string, moveDate?: string) {
   const first = (name || 'there').split(' ')[0]
-  const dateLine = moveDate ? ` on ${new Date(moveDate).toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' })}` : ''
-  return `Hi ${first}! Your move with Saturn Star Moving is CONFIRMED${dateLine}. We're excited to take care of you. Questions? Call or text us at ${SATURN_STAR_PHONE}. – The Saturn Star Team`
+  const dateLine = moveDate ? ` for ${new Date(moveDate).toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' })}` : ''
+  return `Perfect, ${first} — your move is confirmed${dateLine}. We'll see you then!`
 }
 
 function buildBookingConfirmationEmail(name: string, moveDate?: string, originCity?: string, destCity?: string) {

@@ -1,0 +1,7 @@
+.next
+.tmp-*
+node_modules
+output
+test-results
+supabase/.temp
+*.csv

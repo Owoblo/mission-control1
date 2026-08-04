@@ -11,6 +11,7 @@ import { normalizeLeadIdentityPhone, sortLeadIdentityMatches } from '@/lib/serve
 import { getInboundLeadLatestActivityAt, getInboundInboxChannelState } from '@/lib/server/inbox-state'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import type { CRMLead, InboundLead } from '@/lib/types'
+import { smsMessageBelongsToPhone } from '@/lib/sms-message-scope'
 
 export interface SmsMessageRecord {
   id: string
@@ -21,6 +22,7 @@ export interface SmsMessageRecord {
   lead_id: string | null
   twilio_sid: string | null
   media_count?: number | null
+  mediaUrls?: string[] | null
   created_at: string
 }
 
@@ -129,7 +131,12 @@ export async function listSmsMessages(filterPhone?: string, filterLeadId?: strin
     const endpoint = `${url}/rest/v1/sms_messages?select=*&lead_id=eq.${encodeURIComponent(filterLeadId)}&order=created_at.asc&limit=2000`
     const response = await fetch(endpoint, { headers, cache: 'no-store' })
     if (response.ok) {
-      const byLead = (await response.json()) as SmsMessageRecord[]
+      const rawByLead = (await response.json()) as SmsMessageRecord[]
+      // A legacy bulk-send bug stamped unrelated partnership messages with a
+      // customer lead ID. When a phone is known, both identifiers must agree.
+      const byLead = normalizedPhone
+        ? rawByLead.filter(message => smsMessageBelongsToPhone(message, normalizedPhone))
+        : rawByLead
       // Merge, deduplicating by id
       const seen = new Set(messages.map(m => m.id))
       for (const m of byLead) {

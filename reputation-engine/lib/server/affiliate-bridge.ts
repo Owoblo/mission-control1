@@ -3,8 +3,9 @@
  * Creates or updates their review_partners (affiliate) record, generates their
  * portal token, and sends a welcome email with their unique portal link.
  */
-import { requireSupabaseEnv, getAppBaseUrl, readEnv } from '@/lib/server/runtime'
-import { DEFAULT_PARTNERSHIP_EMAIL, getPartnershipPrimaryNumberForMarket } from '@/lib/partnership-lines'
+import { requireSupabaseEnv, getAppBaseUrl } from '@/lib/server/runtime'
+import { getPartnershipPrimaryNumberForMarket } from '@/lib/partnership-lines'
+import { sendZohoPartnershipEmail } from '@/lib/server/zoho-partnership-mail'
 
 function generateToken() {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
@@ -159,19 +160,14 @@ async function sendWelcomeEmail(
   portalUrl: string,
   appUrl: string
 ) {
-  const resendKey = readEnv('RESEND_API_KEY')
-  if (!resendKey || !contact.email) return
+  if (!contact.email) return
 
   const firstName = (contact.name || 'there').split(' ')[0]
   const partnershipPhone = getPartnershipPrimaryNumberForMarket(contact.city)
   const partnershipPhoneDisplay = partnershipPhone.replace(/^\+1(\d{3})(\d{3})(\d{4})$/, '$1-$2-$3')
 
-  await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      from: `Saturn Star Partnerships <${DEFAULT_PARTNERSHIP_EMAIL}>`,
-      to: [contact.email],
+  await sendZohoPartnershipEmail({
+      to: contact.email,
       subject: `Your Saturn Star referral partner portal is ready`,
       html: `
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a2744;">
@@ -208,6 +204,5 @@ async function sendWelcomeEmail(
         </div>
       `,
       text: `Hi ${firstName},\n\nYour Saturn Star Movers partner portal is ready.\n\nYour link: ${portalUrl}\n\nBookmark it — no login needed. Submit a referral anytime. Partner rewards are credited only after a completed paid move.\n\nQuestions? Call ${partnershipPhoneDisplay}\n\nSaturn Star Partnerships`,
-    }),
   })
 }

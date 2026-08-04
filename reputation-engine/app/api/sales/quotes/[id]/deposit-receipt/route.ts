@@ -86,9 +86,11 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     }
 
     const paid = getQuotePaidSoFar(quote, lead)
-    const receiptAmount = resolveDepositReceiptAmount(quote, lead)
-    if (!quote.depositPaidAt && !lead.depositDate && paid.totalPaid <= 0) {
-      return NextResponse.json({ error: 'No deposit has been recorded for this quote yet.' }, { status: 409 })
+    const receiptAmount = resolveDepositReceiptAmount(quote)
+    if (receiptAmount <= 0) {
+      return NextResponse.json({
+        error: 'No quote-linked payment amount exists. Record the actual cleared payment before sending a receipt.',
+      }, { status: 409 })
     }
 
     const savedLead = body.updateLeadEmail && toEmail !== cleanEmail(lead.email)
