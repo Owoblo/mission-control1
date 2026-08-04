@@ -964,11 +964,25 @@ export async function getSalesOverview(): Promise<{
   followUps: FollowUpLog[]
   summary: SalesDashboardSummary
 }> {
+  // The overview needs follow-ups both for its response and to exclude archived
+  // leads. Share one request so a cold page load does not issue two identical,
+  // full-table crm_followup_logs reads and double the chance of a timeout.
+  const followUpsPromise = listFollowUpLogs()
+  const leadsPromise = Promise.all([
+    selectAll<CRMLead>('crm_leads'),
+    followUpsPromise,
+  ]).then(([storedLeads, lifecycle]) => {
+    const archivedLeadIds = getArchivedLeadIds(lifecycle)
+    return filterDisplayDuplicateSalesLeads(storedLeads
+      .map(lead => normalizeLead(lead))
+      .filter(lead => isVisibleSalesLead(lead, archivedLeadIds)))
+  })
+
   const [leads, quotes, clients, followUps] = await Promise.all([
-    listSalesLeads(),
+    leadsPromise,
     listSalesQuotes(),
     listSalesClients(),
-    listFollowUpLogs(),
+    followUpsPromise,
   ])
 
   const archivedLeadIds = getArchivedLeadIds(followUps)
