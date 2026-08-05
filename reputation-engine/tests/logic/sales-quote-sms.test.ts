@@ -33,3 +33,15 @@ test('automation quote SMS omits price and reply-yes booking language', () => {
   assert.doesNotMatch(body, /deposit/i)
   assert.doesNotMatch(body, /reply yes/i)
 })
+
+test('manual Ottawa quote SMS uses the supplied Dexa brand', () => {
+  const body = buildManualQuoteSmsDraft({
+    firstName: 'Alex',
+    quoteNumber: 'QT-OTTAWA-1',
+    acceptUrl: 'https://go.quote2move.com/quote-accept?id=qt_ottawa',
+    brandName: 'Dexa Movers',
+  })
+
+  assert.match(body, /your Dexa Movers estimate is ready/)
+  assert.doesNotMatch(body, /Saturn Star/i)
+})
