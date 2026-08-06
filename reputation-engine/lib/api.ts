@@ -16,14 +16,14 @@ export async function fetchJobs(): Promise<Job[]> {
 }
 
 export async function fetchJob(id: string): Promise<Job | null> {
-  const response = await fetch(`/api/jobs/${id}`, { cache: 'no-store' })
+  const response = await fetch(`/api/public/reviews/${id}`, { cache: 'no-store' })
   if (response.status === 404) return null
   return readJson<Job>(response)
 }
 
 export async function saveJob(job: Job): Promise<Job> {
-  const response = await fetch('/api/jobs', {
-    method: 'POST',
+  const response = await fetch(`/api/public/reviews/${job.id}`, {
+    method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(job),
   })

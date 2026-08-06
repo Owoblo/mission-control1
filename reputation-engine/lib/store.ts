@@ -38,6 +38,21 @@ export function normalizeJob(input: Partial<Job> & Pick<Job, 'id' | 'customerNam
     proofSentToPartner: Boolean(input.proofSentToPartner),
     createdAt: input.createdAt,
     reviewSentAt: input.reviewSentAt,
+    crmLeadId: input.crmLeadId,
+    googleReviewUrl: input.googleReviewUrl,
+    googleProfileLocation: input.googleProfileLocation,
+    reviewProofAssets: input.reviewProofAssets ?? [],
+    customerExperience: {
+      googleStatus: input.customerExperience?.googleStatus ?? (input.reviews?.google ? 'completed' : 'not_started'),
+      yelpAccountStatus: input.customerExperience?.yelpAccountStatus ?? 'unknown',
+      yelpStatus: input.customerExperience?.yelpStatus ?? (input.reviews?.yelp ? 'completed' : 'not_started'),
+      videoStatus: input.customerExperience?.videoStatus ?? (input.reviews?.media ? 'completed' : 'not_started'),
+      privateFeedbackStatus: input.customerExperience?.privateFeedbackStatus ?? (input.feedbackComment ? 'completed' : 'not_started'),
+      nextFollowUpAt: input.customerExperience?.nextFollowUpAt,
+      assignedOwner: input.customerExperience?.assignedOwner,
+      notes: input.customerExperience?.notes,
+      updatedAt: input.customerExperience?.updatedAt,
+    },
   }
 }
 

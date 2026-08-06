@@ -30,6 +30,35 @@ export interface Job {
   createdAt: string
   reviewSentAt?: string
   crmLeadId?: string
+  googleReviewUrl?: string
+  googleProfileLocation?: string
+  reviewProofAssets?: ReviewProofAsset[]
+  customerExperience?: CustomerExperienceChecklist
+}
+
+export interface ReviewProofAsset {
+  id: string
+  url: string
+  filename: string
+  mimeType: string
+  kind: 'image' | 'video'
+  platform?: 'google' | 'yelp' | 'video' | 'customer_experience' | 'other'
+  uploadedAt: string
+}
+
+export type ReviewTrackStatus = 'not_started' | 'in_progress' | 'completed' | 'not_applicable'
+export type YelpAccountStatus = 'unknown' | 'yes' | 'no'
+
+export interface CustomerExperienceChecklist {
+  googleStatus: ReviewTrackStatus
+  yelpAccountStatus: YelpAccountStatus
+  yelpStatus: ReviewTrackStatus
+  videoStatus: ReviewTrackStatus
+  privateFeedbackStatus: ReviewTrackStatus
+  nextFollowUpAt?: string
+  assignedOwner?: string
+  notes?: string
+  updatedAt?: string
 }
 
 export type PartnerType = 'realtor' | 'property-manager' | 'builder' | 'supply-chain' | 'other'

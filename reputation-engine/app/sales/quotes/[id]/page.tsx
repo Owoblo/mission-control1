@@ -10,6 +10,7 @@ import { QUOTE_STATUSES, UHAUL_RATE_PER_KM, computeQuoteTotals, dateStamp, estim
 import { enqueueQuoteSendJobs, fetchQuoteSendJobs, fetchSalesQuote, saveSalesFollowUp, updateSalesLead, updateSalesQuote } from '@/lib/sales-api'
 import { buildManualQuoteSmsDraft } from '@/lib/sales-quote-sms'
 import { compactCustomerLink } from '@/lib/customer-links'
+import { getReceiptBrand } from '@/lib/receipt-brand'
 import type { QuoteSendJob } from '@/lib/quote-send-jobs'
 import type { CRMClient, CRMLead, CRMQuote, FollowUpLog, QuoteLineItem } from '@/lib/types'
 
@@ -20,6 +21,7 @@ function plusDays(days: number) {
 }
 
 function buildQuoteEmailHtml({
+  brandName,
   customerName,
   moveDate,
   originCity,
@@ -32,6 +34,7 @@ function buildQuoteEmailHtml({
   scopeNotes,
   isRevision,
 }: {
+  brandName: string
   customerName: string
   moveDate?: string
   originCity?: string
@@ -58,7 +61,7 @@ function buildQuoteEmailHtml({
   <div style="background:#f7f4ee;padding:32px 16px;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#171717;">
     <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e9e4d9;border-radius:18px;overflow:hidden;">
       <div style="padding:28px 32px;border-bottom:1px solid #eee7da;">
-        <div style="font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#7c766a;font-weight:700;">Saturn Star Moving</div>
+        <div style="font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#7c766a;font-weight:700;">${brandName}</div>
         <h1 style="margin:14px 0 8px;font-size:30px;line-height:1.1;color:#171717;">${heading}</h1>
         <p style="margin:0;font-size:15px;line-height:1.7;color:#4b5563;">${intro}</p>
       </div>
@@ -319,8 +322,9 @@ export default function SalesQuoteDetailPage() {
 
   const emailDraft = useMemo(() => {
     if (!quote) return { subject: '', body: '', htmlBody: '', href: '#' }
+    const brand = getReceiptBrand(lead, quote)
     const firstName = (client?.name || lead?.name || 'there').split(' ')[0]
-    const subject = isRevision ? 'Your updated moving estimate from Saturn Star' : 'Your moving estimate from Saturn Star'
+    const subject = isRevision ? `Your updated moving estimate from ${brand.name}` : `Your moving estimate from ${brand.name}`
     const total = quoteTotals.total || quote.total
     const subtotalForEmail = quoteTotals.subtotal || quote.subtotal
     const deposit = quoteTotals.deposit || quote.deposit
@@ -348,12 +352,13 @@ ${detailLine}
 
 Reply to this message if you want anything adjusted.
 
-Saturn Star Movers`
+${brand.fullName}`
 
     return {
       subject,
       body,
       htmlBody: buildQuoteEmailHtml({
+        brandName: brand.fullName,
         customerName: firstName,
         moveDate: formatDate(quote.moveDate),
         originCity: quote.originCity,
@@ -379,6 +384,7 @@ Saturn Star Movers`
       acceptUrl,
       isRevision,
       commercial: invoiceStyleTerms,
+      brandName: getReceiptBrand(lead, quote).name,
     })
   }, [acceptUrl, client?.name, invoiceStyleTerms, isRevision, lead?.name, paymentTerms, quote, quoteTotals])
 
