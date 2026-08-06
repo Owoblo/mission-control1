@@ -86,6 +86,7 @@ import { DEPOSIT_METHODS, FOLLOW_UP_STATUSES, LEAD_CONTEXT_FLAGS, LOST_REASONS, 
 import { buildTentativeReservationSms, buildTentativeReservationUpdate, TENTATIVE_REASON_LABELS } from '@/lib/tentative-reservation'
 import { confirmJob, createLeadQuote, deleteSalesLead, deleteSalesQuote, enrichSalesAddress, fetchSalesLead, fetchSalesLeadFollowUps, fetchSalesQuote, fetchSalesUsers, handoffRealtorOpportunityLead, saveLeadConsultation, saveSalesFollowUp, sendSalesMessage, updateSalesLead, updateSalesQuote, uploadLeadMedia } from '@/lib/sales-api'
 import { sanitizeInventoryRooms } from '@/lib/inventory-sanitizer'
+import { buildInventoryVerificationChoiceKeyMap } from '@/lib/inventory-verification'
 import { detectSpamLead } from '@/lib/spam-detector'
 import { displayEmailSubject } from '@/lib/email-display'
 import { deriveJobReadiness, deriveOperatingExceptions, deriveOperatingStage, OPERATING_STAGE_META } from '@/lib/job-spine'
@@ -3474,7 +3475,7 @@ export default function SalesLeadDetailPage() {
     }
   }
 
-  function persistInventorySnapshot(next: InventoryItem[], options: { immediate?: boolean } = {}) {
+  function persistInventorySnapshot(next: InventoryItem[], options: { immediate?: boolean; inventoryVerification?: CRMLead['inventoryVerification'] } = {}) {
     const metrics = deriveInventoryMetrics(next)
     const leadPatch = {
       inventory: metrics.inventory,
@@ -3483,6 +3484,7 @@ export default function SalesLeadDetailPage() {
       totalWeightLbs: metrics.totalWeightLbs,
       roomBreakdown: buildRoomBreakdown(metrics.inventory),
       removedInventoryItemKeys: Array.from(removedInventoryKeysRef.current),
+      ...(options.inventoryVerification ? { inventoryVerification: options.inventoryVerification } : {}),
     }
     setLead(prev => prev ? { ...prev, ...leadPatch } : prev)
     if (!lead?.id) return
@@ -3583,6 +3585,12 @@ export default function SalesLeadDetailPage() {
 
   function toggleInventoryItem(index: number) {
     setInventory(current => {
+      const keyMap = buildInventoryVerificationChoiceKeyMap(
+        current.filter(item => item.source !== 'customer_verification'),
+      )
+      const baseIndex = current
+        .slice(0, index + 1)
+        .filter(item => item.source !== 'customer_verification').length - 1
       const next = current.map((item, itemIndex) => {
         if (itemIndex !== index) return item
         const nowIncluded = item.included === false
@@ -3593,8 +3601,27 @@ export default function SalesLeadDetailPage() {
           policyOverride: nowIncluded && (item.policyCategory === 'default_exclude' || getMovePolicyFinding(item)?.category === 'default_exclude') ? 'include' as const : undefined,
         }
       })
+      const itemKey = keyMap.get(baseIndex)
+      const toggledItem = next[index]
+      const existingVerification = lead?.inventoryVerification
+      const inventoryVerification = itemKey && existingVerification
+        ? {
+            ...existingVerification,
+            lastUpdatedAt: new Date().toISOString(),
+            itemChoices: (existingVerification.itemChoices || []).map(choice =>
+              choice.itemKey === itemKey
+                ? {
+                    ...choice,
+                    decision: toggledItem?.included === false ? 'not_going' as const : 'going' as const,
+                    updatedAt: new Date().toISOString(),
+                    updatedBy: 'rep' as const,
+                  }
+                : choice
+            ),
+          }
+        : undefined
       // Immediately persist inventory to server so Include Back survives page reloads.
-      persistInventorySnapshot(next, { immediate: true })
+      persistInventorySnapshot(next, { immediate: true, inventoryVerification })
       return next
     })
   }
