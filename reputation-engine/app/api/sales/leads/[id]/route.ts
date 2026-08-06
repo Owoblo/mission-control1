@@ -11,6 +11,7 @@ import { canAccessOperationsWorkspace, canAccessSalesWorkspace, canDeleteLead, c
 import { sendSalesMessage } from '@/lib/server/sales-messaging'
 import { getSessionUser } from '@/lib/server/session'
 import { validateLeadPatchPayload } from '@/lib/server/sales-validation'
+import { applyInventoryVerificationToInventory } from '@/lib/inventory-verification'
 import {
   deleteSalesLead,
   getSalesClient,
@@ -331,6 +332,12 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     const rawBody = (await request.json()) as Partial<typeof current> & { sendAppointmentSms?: boolean }
     const { sendAppointmentSms: sendApptSmsFlag, ...rawUpdates } = rawBody
     const updates = validateLeadPatchPayload(rawUpdates)
+    if (hasOwn(updates, 'inventory') && Array.isArray(updates.inventory)) {
+      updates.inventory = applyInventoryVerificationToInventory(
+        updates.inventory,
+        updates.inventoryVerification || current.inventoryVerification,
+      )
+    }
     if (
       updates.source === 'partner_referral' &&
       !(updates.partnerReferralContactId || current.partnerReferralContactId)
