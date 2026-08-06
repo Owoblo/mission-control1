@@ -34,6 +34,10 @@ export async function POST(request: Request, props: { params: Promise<{ jobId: s
   const current = await getJob(jobId).catch(() => null)
   if (!current) return NextResponse.json({ error: 'Review request not found' }, { status: 404 })
   const formData = await request.formData()
+  const requestedPlatform = String(formData.get('platform') || 'other')
+  const platform = ['google', 'yelp', 'video', 'customer_experience'].includes(requestedPlatform)
+    ? requestedPlatform as ReviewProofAsset['platform']
+    : 'other'
   const files = (formData.getAll('files') as File[]).filter(file =>
     file && (file.type.startsWith('image/') || file.type.startsWith('video/')) && file.size <= 75 * 1024 * 1024
   ).slice(0, 6)
@@ -53,6 +57,7 @@ export async function POST(request: Request, props: { params: Promise<{ jobId: s
     filename: asset.filename || 'review-proof',
     mimeType: asset.mimeType || 'application/octet-stream',
     kind: asset.kind === 'video' ? 'video' : 'image',
+    platform,
     uploadedAt: asset.uploadedAt || new Date().toISOString(),
   }))
   const saved = await saveJobRecord({ ...current, reviewProofAssets: [...(current.reviewProofAssets || []), ...proof] })
