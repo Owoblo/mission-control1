@@ -33,6 +33,7 @@ export default function ReviewPage() {
   const [negSent, setNegSent] = useState(false)
   const [pendingReview, setPendingReview] = useState<ReviewKey | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [uploadingProof, setUploadingProof] = useState(false)
 
   async function refresh() {
     try {
@@ -103,6 +104,25 @@ export default function ReviewPage() {
     if (!href) return
     window.open(href, '_blank', 'noopener,noreferrer')
     setPendingReview(key)
+  }
+
+  async function uploadProof(files: FileList | null) {
+    if (!files?.length || !job) return
+    setUploadingProof(true)
+    setError(null)
+    try {
+      const formData = new FormData()
+      Array.from(files).forEach(file => formData.append('files', file))
+      const response = await fetch(`/api/public/reviews/${job.id}`, { method: 'POST', body: formData })
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload.error || 'Could not upload review proof')
+      setJob(payload)
+      await markReviewDone('media')
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : 'Could not upload review proof')
+    } finally {
+      setUploadingProof(false)
+    }
   }
 
   if (job === undefined) {
@@ -238,7 +258,10 @@ export default function ReviewPage() {
       </div>
 
       <div className="space-y-3">
-        {REVIEW_CARDS.map(card => {
+        {REVIEW_CARDS.map(originalCard => {
+          const card = originalCard.key === 'google' && job?.googleReviewUrl
+            ? { ...originalCard, href: job.googleReviewUrl, desc: `Matched to ${job.googleProfileLocation || 'the closest location'}` }
+            : originalCard
           const done = job?.reviews[card.key] ?? false
           const unavailable = card.key !== 'media' && !card.href
 
@@ -258,9 +281,10 @@ export default function ReviewPage() {
               {done ? (
                 <span className="text-xs font-medium text-emerald-400">Done</span>
               ) : card.key === 'media' ? (
-                <button onClick={() => setPendingReview('media')} className="btn-gold px-3 py-2 text-xs">
-                  Confirm Upload
-                </button>
+                <label className="btn-gold cursor-pointer px-3 py-2 text-xs">
+                  {uploadingProof ? 'Uploading…' : 'Upload proof'}
+                  <input type="file" accept="image/*,video/*" multiple disabled={uploadingProof} className="sr-only" onChange={event => void uploadProof(event.target.files)} />
+                </label>
               ) : (
                 <button onClick={() => openReview(card.key, card.href)} disabled={unavailable} className="btn-gold px-3 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-40">
                   {card.cta}

@@ -30,6 +30,18 @@ export interface Job {
   createdAt: string
   reviewSentAt?: string
   crmLeadId?: string
+  googleReviewUrl?: string
+  googleProfileLocation?: string
+  reviewProofAssets?: ReviewProofAsset[]
+}
+
+export interface ReviewProofAsset {
+  id: string
+  url: string
+  filename: string
+  mimeType: string
+  kind: 'image' | 'video'
+  uploadedAt: string
 }
 
 export type PartnerType = 'realtor' | 'property-manager' | 'builder' | 'supply-chain' | 'other'

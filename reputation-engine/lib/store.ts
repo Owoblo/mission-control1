@@ -38,6 +38,10 @@ export function normalizeJob(input: Partial<Job> & Pick<Job, 'id' | 'customerNam
     proofSentToPartner: Boolean(input.proofSentToPartner),
     createdAt: input.createdAt,
     reviewSentAt: input.reviewSentAt,
+    crmLeadId: input.crmLeadId,
+    googleReviewUrl: input.googleReviewUrl,
+    googleProfileLocation: input.googleProfileLocation,
+    reviewProofAssets: input.reviewProofAssets ?? [],
   }
 }
 

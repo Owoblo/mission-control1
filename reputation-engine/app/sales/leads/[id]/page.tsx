@@ -32,6 +32,17 @@ const FastLaneModal = dynamic(
   () => import('@/app/components/sales/fast-lane-modal').then(m => ({ default: m.FastLaneModal })),
   { ssr: false }
 )
+
+type ReviewRequestPreview = {
+  smsBody: string
+  emailSubject: string
+  emailBody: string
+  reviewFlowUrl: string
+  googleReviewUrl: string
+  profileLabel: string
+  brandName: string
+  originAddress: string
+}
 const InventoryVerificationPanel = dynamic(
   () => import('@/app/components/sales/lead-detail/inventory-verification-panel').then(m => ({ default: m.InventoryVerificationPanel })),
   { ssr: false }
@@ -352,6 +363,9 @@ export default function SalesLeadDetailPage() {
   const [balanceOverrideNote, setBalanceOverrideNote] = useState('')
   const [reviewSentBusy, setReviewSentBusy] = useState(false)
   const [reviewSent, setReviewSent] = useState(false)
+  const [reviewPreviewOpen, setReviewPreviewOpen] = useState(false)
+  const [reviewPreviewBusy, setReviewPreviewBusy] = useState(false)
+  const [reviewPreview, setReviewPreview] = useState<ReviewRequestPreview | null>(null)
   const [collectCardOpen, setCollectCardOpen] = useState(false)
   const [incidentOpen, setIncidentOpen] = useState(false)
   const [incidentType, setIncidentType] = useState<'damage' | 'complaint' | 'lost_item' | 'delay' | 'other'>('damage')
@@ -2815,6 +2829,38 @@ export default function SalesLeadDetailPage() {
     }
   }
 
+  async function openReviewRequestPreview() {
+    if (!lead || !ensureLeadEditable()) return
+    setReviewPreviewOpen(true)
+    setReviewPreviewBusy(true)
+    setReviewPreview(null)
+    setError(null)
+    try {
+      const response = await fetch('/api/sales/review-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          leadId: lead.id,
+          leadName: lead.name,
+          leadEmail: lead.email,
+          leadPhone: lead.phone,
+          quoteNumber: quote?.number,
+          channel: 'both',
+          action: 'preview',
+        }),
+      })
+      const payload = await response.json() as { error?: string; preview?: ReviewRequestPreview }
+      if (!response.ok || !payload.preview) throw new Error(payload.error || 'Failed to prepare review request')
+      setReviewPreview(payload.preview)
+    } catch (err) {
+      setError((err as Error).message)
+      setReviewPreviewOpen(false)
+    } finally {
+      setReviewPreviewBusy(false)
+    }
+  }
+
   async function sendReviewRequest() {
     if (!lead) return
     if (!ensureLeadEditable()) return
@@ -2831,12 +2877,14 @@ export default function SalesLeadDetailPage() {
           leadPhone: lead.phone,
           quoteNumber: quote?.number,
           channel: 'both',
+          action: 'send',
         }),
       })
       const payload = await response.json() as { ok?: boolean; error?: string; lead?: CRMLead | null }
       if (!response.ok || payload.error) throw new Error(payload.error || 'Failed to send review request')
       if (payload.lead) setLead(payload.lead)
       setReviewSent(true)
+      setReviewPreviewOpen(false)
       setError(null)
     } catch (err) {
       setError((err as Error).message)
@@ -4680,11 +4728,11 @@ export default function SalesLeadDetailPage() {
                 {/* Post-job review request */}
                 {(lead.email || lead.phone) && (
                   <button
-                    onClick={() => void sendReviewRequest()}
-                    disabled={!canEditCurrentLead || reviewSentBusy || reviewSent}
+                    onClick={() => void openReviewRequestPreview()}
+                    disabled={!canEditCurrentLead || reviewSentBusy || reviewPreviewBusy}
                     className="w-full rounded-[8px] bg-[#C99700] px-3 py-2 text-xs font-semibold text-[#071421] hover:opacity-90 disabled:opacity-60"
                   >
-                    {reviewSent ? '⭐ Review Request Sent!' : reviewSentBusy ? 'Sending...' : '⭐ Send Review Request'}
+                    {reviewSentBusy || reviewPreviewBusy ? 'Preparing...' : (reviewSent || lead.reviewSentAt) ? '⭐ Preview / Send Again' : '⭐ Preview Review Request'}
                   </button>
                 )}
                 <button
@@ -5707,6 +5755,51 @@ export default function SalesLeadDetailPage() {
                 Stay Here
               </button>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {reviewPreviewOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[16px] border border-[var(--app-line)] bg-white p-6 shadow-xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="font-display text-lg font-semibold text-[var(--app-ink)]">Preview review request</h2>
+                <p className="mt-1 text-xs text-[var(--app-muted)]">Nothing is sent until you confirm below.</p>
+              </div>
+              <button onClick={() => setReviewPreviewOpen(false)} className="rounded-lg px-2 py-1 text-[var(--app-muted)] hover:bg-[var(--app-bg)]">✕</button>
+            </div>
+            {reviewPreviewBusy ? (
+              <div className="py-12 text-center text-sm text-[var(--app-muted)]">Matching the origin address to the closest Google profile…</div>
+            ) : reviewPreview ? (
+              <div className="mt-5 space-y-4">
+                <div className="rounded-[10px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+                  <div className="font-semibold">Closest profile: {reviewPreview.profileLabel}</div>
+                  <div className="mt-1 text-xs text-emerald-800">Based on {reviewPreview.originAddress} · Sending as {reviewPreview.brandName}</div>
+                </div>
+                {lead?.phone ? (
+                  <div>
+                    <div className="crm-label mb-2">SMS to {lead.phone}</div>
+                    <div className="whitespace-pre-wrap rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 text-sm leading-6 text-[var(--app-ink)]">{reviewPreview.smsBody}</div>
+                  </div>
+                ) : null}
+                {lead?.email ? (
+                  <div>
+                    <div className="crm-label mb-2">Email to {lead.email}</div>
+                    <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
+                      <div className="border-b border-[var(--app-line)] pb-2 text-sm font-semibold text-[var(--app-ink)]">{reviewPreview.emailSubject}</div>
+                      <div className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--app-ink)]">{reviewPreview.emailBody}</div>
+                    </div>
+                  </div>
+                ) : null}
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <button onClick={() => setReviewPreviewOpen(false)} disabled={reviewSentBusy} className="crm-button justify-center">Cancel</button>
+                  <button onClick={() => void sendReviewRequest()} disabled={reviewSentBusy} className="crm-button-dark justify-center disabled:opacity-60">
+                    {reviewSentBusy ? 'Sending…' : (reviewSent || lead?.reviewSentAt) ? 'Send Again' : 'Send Review Request'}
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}
