@@ -4,7 +4,7 @@ import { sendSalesMessage } from '@/lib/server/sales-messaging'
 import { getSalesLead, saveFollowUpLog, saveSalesLead } from '@/lib/server/sales-repository'
 import { hasInternalSession } from '@/lib/server/session'
 import { isMoveRelationshipLifecycleComplete } from '@/lib/move-relationship'
-import { configuredReviewUrl, matchReviewLocationFromText, nearestReviewLocationByCoordinates } from '@/lib/review-locations'
+import { configuredReviewUrl, matchReviewLocationForLead, nearestReviewLocationByCoordinates } from '@/lib/review-locations'
 import { geocodeAddress } from '@/lib/server/route-estimation'
 import { listJobs, saveJobRecord } from '@/lib/server/repository'
 import { buildReviewRequestCopy } from '@/lib/review-request-content'
@@ -29,12 +29,19 @@ export async function POST(request: Request) {
 
   const lead = leadId ? await getSalesLead(leadId).catch(() => null) : null
   const preferredAddress = lead?.originAddress || lead?.originCity || lead?.destAddress || lead?.destCity || ''
-  let reviewLocation = matchReviewLocationFromText(preferredAddress)
+  let reviewLocation = lead ? matchReviewLocationForLead({
+    originAddress: lead.originAddress,
+    originCity: lead.originCity,
+    listingAddress: lead.supabaseListing?.address,
+    listingCity: lead.supabaseListing?.city,
+    branch: lead.branch,
+    destAddress: lead.destAddress,
+    destCity: lead.destCity,
+  }) : undefined
   if (!reviewLocation && preferredAddress) {
     const geocoded = await geocodeAddress(preferredAddress).catch(() => null)
     if (geocoded) reviewLocation = nearestReviewLocationByCoordinates(geocoded.lat, geocoded.lng).location
   }
-  reviewLocation ||= matchReviewLocationFromText(lead?.destAddress, lead?.destCity)
   const googleReviewUrl = reviewLocation
     ? configuredReviewUrl(reviewLocation)
     : process.env.NEXT_PUBLIC_GOOGLE_REVIEW_URL || 'https://www.google.com/search?q=Saturn+Star+Movers'
