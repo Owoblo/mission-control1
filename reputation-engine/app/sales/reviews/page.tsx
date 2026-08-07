@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import type { CustomerExperienceChecklist, Job, ReviewProofAsset, ReviewTrackStatus, YelpAccountStatus } from '@/lib/types'
+import { REVIEW_LINKS } from '@/lib/config'
 
 const TRACK_OPTIONS: Array<{ value: ReviewTrackStatus; label: string }> = [
   { value: 'not_started', label: 'Not started' },
@@ -37,6 +38,7 @@ function statusClass(status: ReviewTrackStatus) {
 }
 
 export default function ReviewsWorkspacePage() {
+  const appOrigin = typeof window === 'undefined' ? 'https://go.quote2move.com' : window.location.origin
   const [jobs, setJobs] = useState<Job[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -44,6 +46,13 @@ export default function ReviewsWorkspacePage() {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [savingId, setSavingId] = useState<string | null>(null)
   const [uploadingKey, setUploadingKey] = useState<string | null>(null)
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
+
+  async function copyLink(key: string, value: string) {
+    await navigator.clipboard.writeText(value)
+    setCopiedKey(key)
+    window.setTimeout(() => setCopiedKey(current => current === key ? null : current), 1600)
+  }
 
   async function refresh() {
     try {
@@ -162,10 +171,14 @@ export default function ReviewsWorkspacePage() {
                   <div className="border-t border-[var(--app-line)] p-5">
                     <div className="grid gap-5 xl:grid-cols-2">
                       <div className="space-y-4">
-                        <Track title="Google review" status={cx.googleStatus} onStatus={value => void patchChecklist(job, { googleStatus: value })} uploading={uploadingKey === `${job.id}:google`} onUpload={files => void uploadProof(job, 'google', files)} />
+                        <div className="rounded-[10px] border border-[var(--app-line)] p-4">
+                          <Track compact title="Google review" status={cx.googleStatus} onStatus={value => void patchChecklist(job, { googleStatus: value })} uploading={uploadingKey === `${job.id}:google`} onUpload={files => void uploadProof(job, 'google', files)} />
+                          {job.googleReviewUrl ? <LinkActions label={`${job.googleProfileLocation || 'Matched'} direct review link`} url={job.googleReviewUrl} copyKey={`${job.id}:google-link`} copiedKey={copiedKey} onCopy={copyLink} /> : <div className="mt-3 text-xs text-amber-700">No Google review link has been matched yet.</div>}
+                        </div>
                         <div className="rounded-[10px] border border-[var(--app-line)] p-4">
                           <div className="flex items-center justify-between gap-3"><div className="font-semibold">Yelp</div><select value={cx.yelpAccountStatus} onChange={event => void patchChecklist(job, { yelpAccountStatus: event.target.value as YelpAccountStatus, yelpStatus: event.target.value === 'no' ? 'not_applicable' : cx.yelpStatus })} className="crm-input max-w-[180px] text-xs">{YELP_ACCOUNT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
                           <div className="mt-3"><Track compact title="Yelp follow-up" status={cx.yelpStatus} onStatus={value => void patchChecklist(job, { yelpStatus: value })} uploading={uploadingKey === `${job.id}:yelp`} onUpload={files => void uploadProof(job, 'yelp', files)} /></div>
+                          {REVIEW_LINKS.yelp ? <LinkActions label="Yelp link" url={REVIEW_LINKS.yelp} copyKey={`${job.id}:yelp-link`} copiedKey={copiedKey} onCopy={copyLink} /> : null}
                         </div>
                         <Track title="Video testimonial" status={cx.videoStatus} onStatus={value => void patchChecklist(job, { videoStatus: value })} uploading={uploadingKey === `${job.id}:video`} onUpload={files => void uploadProof(job, 'video', files)} accept="video/*" />
                         <Track title="Private customer experience" status={cx.privateFeedbackStatus} onStatus={value => void patchChecklist(job, { privateFeedbackStatus: value })} uploading={uploadingKey === `${job.id}:customer_experience`} onUpload={files => void uploadProof(job, 'customer_experience', files)} />
@@ -176,6 +189,7 @@ export default function ReviewsWorkspacePage() {
                           <div><span className="text-[var(--app-muted)]">Phone:</span> {job.customerPhone || '—'}</div>
                           <div className="mt-1"><span className="text-[var(--app-muted)]">Email:</span> {job.customerEmail || '—'}</div>
                           <div className="mt-1"><span className="text-[var(--app-muted)]">Google:</span> {job.googleProfileLocation || 'Not selected'}</div>
+                          <LinkActions label="Customer review page" url={`${appOrigin}/review/${job.id}`} copyKey={`${job.id}:customer-link`} copiedKey={copiedKey} onCopy={copyLink} />
                           {job.crmLeadId ? <Link href={`/sales/leads/${job.crmLeadId}`} className="mt-3 inline-block font-semibold text-[#0f6a53]">Open lead →</Link> : null}
                         </div>
                         <label className="block"><span className="crm-label mb-2 block">Private feedback</span><textarea defaultValue={job.feedbackComment || ''} onBlur={event => void patchJob(job, { feedbackComment: event.target.value, customerExperience: { ...cx, privateFeedbackStatus: event.target.value.trim() ? 'completed' : cx.privateFeedbackStatus, updatedAt: new Date().toISOString() } })} className="crm-input min-h-[110px] w-full resize-y" placeholder="What went well? What could we improve?" /></label>
@@ -199,4 +213,8 @@ export default function ReviewsWorkspacePage() {
 
 function Track({ title, status, onStatus, onUpload, uploading, accept = 'image/*,video/*', compact = false }: { title: string; status: ReviewTrackStatus; onStatus: (value: ReviewTrackStatus) => void; onUpload: (files: FileList | null) => void; uploading: boolean; accept?: string; compact?: boolean }) {
   return <div className={compact ? '' : 'rounded-[10px] border border-[var(--app-line)] p-4'}><div className="flex flex-wrap items-center justify-between gap-3"><div className="font-semibold text-[var(--app-ink)]">{title}</div><div className="flex items-center gap-2"><select value={status} onChange={event => onStatus(event.target.value as ReviewTrackStatus)} className="crm-input max-w-[145px] text-xs">{TRACK_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select><label className="crm-button cursor-pointer text-xs">{uploading ? 'Uploading…' : 'Upload'}<input type="file" accept={accept} multiple disabled={uploading} className="sr-only" onChange={event => onUpload(event.target.files)} /></label></div></div></div>
+}
+
+function LinkActions({ label, url, copyKey, copiedKey, onCopy }: { label: string; url: string; copyKey: string; copiedKey: string | null; onCopy: (key: string, url: string) => Promise<void> }) {
+  return <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-[8px] bg-[var(--app-bg)] px-3 py-2"><div className="min-w-0 flex-1 truncate text-xs text-[var(--app-muted)]" title={url}>{label}</div><div className="flex gap-2"><a href={url} target="_blank" rel="noreferrer" className="rounded-[7px] border border-[var(--app-line)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:border-[#C99700]">Open</a><button onClick={() => void onCopy(copyKey, url)} className="rounded-[7px] bg-[#071421] px-3 py-1.5 text-xs font-semibold text-white">{copiedKey === copyKey ? 'Copied' : 'Copy'}</button></div></div>
 }
