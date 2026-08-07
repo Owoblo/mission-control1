@@ -48,6 +48,23 @@ export function matchReviewLocationFromText(...values: Array<string | undefined>
   return undefined
 }
 
+export type ReviewLocationLeadSignals = {
+  originAddress?: string
+  originCity?: string
+  listingAddress?: string
+  listingCity?: string
+  branch?: string
+  destAddress?: string
+  destCity?: string
+}
+
+export function matchReviewLocationForLead(signals: ReviewLocationLeadSignals) {
+  return matchReviewLocationFromText(signals.originAddress, signals.originCity)
+    || matchReviewLocationFromText(signals.listingAddress, signals.listingCity)
+    || matchReviewLocationFromText(signals.branch)
+    || matchReviewLocationFromText(signals.destAddress, signals.destCity)
+}
+
 export function configuredReviewUrl(location: ReviewLocation) {
   const envKey = `GOOGLE_REVIEW_URL_${location.id.toUpperCase()}`
   return process.env[envKey] || location.reviewUrl || location.profileUrl

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { matchReviewLocationFromText, nearestReviewLocationByCoordinates } from '../../lib/review-locations'
+import { matchReviewLocationForLead, matchReviewLocationFromText, nearestReviewLocationByCoordinates } from '../../lib/review-locations'
 
 test('matches a review location from the origin city text', () => {
   assert.equal(matchReviewLocationFromText('1415 Campbell Avenue, Windsor, ON')?.id, 'windsor')
@@ -15,4 +15,12 @@ test('chooses the closest profile from coordinates', () => {
 
 test('Kitchener resolves to the nearest configured Waterloo profile', () => {
   assert.equal(matchReviewLocationFromText('Kitchener, Ontario')?.id, 'waterloo')
+})
+
+test('uses lead service-area signals when a street address has no city', () => {
+  assert.equal(matchReviewLocationForLead({ originAddress: '5 Beechwood Lane', branch: 'waterloo' })?.id, 'waterloo')
+})
+
+test('uses the destination service area for a cross-border origin', () => {
+  assert.equal(matchReviewLocationForLead({ originCity: 'Canton Township, Michigan', destCity: 'Windsor, Ontario' })?.id, 'windsor')
 })
