@@ -48,7 +48,7 @@ export default function ReviewsWorkspacePage() {
   async function refresh() {
     try {
       setLoading(true)
-      const response = await fetch('/api/jobs', { credentials: 'include', cache: 'no-store' })
+      const response = await fetch('/api/sales/reviews', { credentials: 'include', cache: 'no-store' })
       const payload = await response.json()
       if (!response.ok) throw new Error(payload.error || 'Could not load review workspace')
       setJobs(Array.isArray(payload) ? payload : [])
