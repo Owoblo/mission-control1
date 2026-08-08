@@ -436,16 +436,20 @@ export async function restoreInboundLead(inboundId: string): Promise<{ ok: boole
   return readJson(response)
 }
 
-export async function enrichSalesAddress(address: string, analyze = false, forceAnalyze = false): Promise<{
+export async function enrichSalesAddress(address: string, analyze = false, forceAnalyze = false, options?: { listingId?: string; listingUrl?: string }): Promise<{
   listing: ListingMatch | null
   scan: InventoryScanDraft | null
   analysisAvailable: boolean
+  status: import('./types').ListingMatchStatus
+  candidates: ListingMatch[]
+  requestedUnit: string | null
+  requiresSelection: boolean
 }> {
   const response = await fetch('/api/sales/enrich/address', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ address, analyze, forceAnalyze }),
+    body: JSON.stringify({ address, analyze, forceAnalyze, ...options }),
   })
   return readJson(response)
 }

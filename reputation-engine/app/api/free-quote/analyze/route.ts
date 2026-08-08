@@ -5,7 +5,7 @@ import { analyzeListingPhotos } from '@/lib/server/inventory-enrichment'
 import { getClientIp, rateLimit } from '@/lib/server/rate-limit'
 import {
   getListingInventoryScan,
-  lookupListingsByAddress,
+  resolveListingsByAddress,
   saveListingInventoryScan,
 } from '@/lib/server/sales-repository'
 
@@ -49,12 +49,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Please enter a valid address' }, { status: 400, headers: corsHeaders })
     }
 
-    const listings = await lookupListingsByAddress(payload.address.trim())
-    const listing = listings[0] || null
+    const match = await resolveListingsByAddress(payload.address.trim())
+    const listing = match.listing
 
     if (!listing) {
       return NextResponse.json(
-        { listing: null, scan: null, analysisAvailable: false },
+        { ...match, listing: null, scan: null, analysisAvailable: false },
         { headers: corsHeaders }
       )
     }
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     // First call — just return listing info + photos, no AI yet
     if (!payload.analyze) {
       return NextResponse.json(
-        { listing, scan: null, analysisAvailable: photosAvailable },
+        { ...match, listing, scan: null, analysisAvailable: photosAvailable },
         { headers: corsHeaders }
       )
     }

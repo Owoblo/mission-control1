@@ -91,7 +91,7 @@ import {
   listSalesClients,
   listSalesEmails,
   listSalesLeads,
-  lookupListingsByAddress,
+  resolveListingsByAddress,
   markInboundLeadClaimed,
   collapseDuplicateSalesLeadsByIdentity,
   saveListingInventoryScan,
@@ -1037,8 +1037,8 @@ async function hydrateLeadFromAddressAndInventory(lead: CRMLead) {
   let next = lead
 
   if (lead.originAddress && hasCompleteMoveAddress(lead.originAddress) && (!lead.supabaseListing || !(lead.inventory || []).length)) {
-    const listings = await lookupListingsByAddress(lead.originAddress).catch(() => [])
-    const listing = listings[0]
+    const match = await resolveListingsByAddress(lead.originAddress).catch(() => null)
+    const listing = match?.listing
     if (listing) {
       const scan = await getListingInventoryScan(listing.zpid).catch(() => null)
 

@@ -4,28 +4,37 @@ import { getListingPropertyContext } from '@/lib/listing'
 import { analyzeListingPhotos } from '@/lib/server/inventory-enrichment'
 import {
   getListingInventoryScan,
-  lookupListingsByAddress,
+  lookupListingByReference,
+  resolveListingsByAddress,
   saveListingInventoryScan,
 } from '@/lib/server/sales-repository'
+import { selectListingCandidate } from '@/lib/listing-match'
 
 export async function POST(request: Request) {
   try {
-    const payload = (await request.json()) as { address?: string; analyze?: boolean; forceAnalyze?: boolean }
-    if (!payload.address || payload.address.trim().length < 5) {
-      return NextResponse.json({ error: 'Address must be at least 5 characters' }, { status: 400 })
+    const payload = (await request.json()) as { address?: string; listingUrl?: string; listingId?: string; analyze?: boolean; forceAnalyze?: boolean }
+    if ((!payload.address || payload.address.trim().length < 5) && !payload.listingUrl) {
+      return NextResponse.json({ error: 'Enter an address or listing link' }, { status: 400 })
     }
 
-    const listings = await lookupListingsByAddress(payload.address.trim())
-    const listing = listings[0] || null
+    const address = payload.address?.trim() || ''
+    const linkedListing = payload.listingUrl ? await lookupListingByReference(payload.listingUrl.trim()) : null
+    let match = linkedListing
+      ? { status: 'selected' as const, listing: linkedListing, candidates: [linkedListing], requestedAddress: address || linkedListing.address, requestedUnit: null, requiresSelection: false }
+      : payload.listingUrl
+        ? { status: 'no_match' as const, listing: null, candidates: [], requestedAddress: address, requestedUnit: null, requiresSelection: false }
+        : await resolveListingsByAddress(address)
+    if (payload.listingId) match = selectListingCandidate(match, payload.listingId)
+    const listing = match.listing
 
     if (!listing) {
-      return NextResponse.json({ listing: null, scan: null, analysisAvailable: false })
+      return NextResponse.json({ ...match, scan: null, analysisAvailable: false })
     }
 
     const photosAvailable = Array.isArray(listing.carouselphotos) && listing.carouselphotos.length > 0 && !!process.env.OPENAI_API_KEY
     const scan = await getListingInventoryScan(listing.zpid)
     if (scan && !(payload.analyze && payload.forceAnalyze)) {
-      return NextResponse.json({ listing, scan, analysisAvailable: photosAvailable })
+      return NextResponse.json({ ...match, listing, scan, analysisAvailable: photosAvailable })
     }
 
     if (payload.analyze) {
@@ -59,6 +68,7 @@ export async function POST(request: Request) {
         }
       }
       return NextResponse.json({
+        ...match,
         listing,
         scan: normalizedScan,
         analysisAvailable: !!normalizedScan,
@@ -66,6 +76,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({
+      ...match,
       listing,
       scan: null,
       analysisAvailable: Array.isArray(listing.carouselphotos) && listing.carouselphotos.length > 0 && !!process.env.OPENAI_API_KEY,
