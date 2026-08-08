@@ -471,6 +471,28 @@ export interface ListingMatch {
   streetViewMetadataUrl?: string | null
   streetViewUrl?: string | null
   carouselphotos?: Array<{ url: string } | string>
+  detailurl?: string | null
+  listingMlsId?: string | null
+  status?: string | null
+  lastSeenAt?: string | null
+}
+
+export type ListingMatchStatus =
+  | 'exact_address'
+  | 'exact_unit'
+  | 'ambiguous_building'
+  | 'building_only'
+  | 'unit_not_found'
+  | 'selected'
+  | 'no_match'
+
+export interface ListingMatchDecision {
+  status: ListingMatchStatus
+  listing: ListingMatch | null
+  candidates: ListingMatch[]
+  requestedAddress: string
+  requestedUnit: string | null
+  requiresSelection: boolean
 }
 
 export interface InventoryScanDraft {

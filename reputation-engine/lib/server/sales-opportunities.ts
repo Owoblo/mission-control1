@@ -8,7 +8,7 @@ import {
   getSalesLead,
   getListingInventoryScan,
   listSalesOpportunityLeadsBySourceLeadId,
-  lookupListingsByAddress,
+  resolveListingsByAddress,
   saveFollowUpLog,
   saveSalesLead,
 } from '@/lib/server/sales-repository'
@@ -296,7 +296,7 @@ export async function maybeCreateDestinationOpportunityLead(current: CRMLead, sa
     return updateSourceOpportunityStatus({ ...saved, branch }, 'outside_area')
   }
 
-  const listing = (await lookupListingsByAddress(buildDestinationLabel(saved)))[0] || null
+  const listing = (await resolveListingsByAddress(buildDestinationLabel(saved))).listing
   if (!listing) {
     return updateSourceOpportunityStatus({ ...saved, branch }, 'no_match')
   }

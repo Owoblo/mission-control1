@@ -25,6 +25,7 @@ import {
 } from '@/lib/server/lead-identity'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { normalizePhone } from '@/lib/sales-phones'
+import { decideListingMatch, extractListingReference, listingPhotoCount, scoreListingCandidate } from '@/lib/listing-match'
 import type {
   CallLogEntry,
   CRMClient,
@@ -36,6 +37,7 @@ import type {
   InventoryScanDraft,
   LeadInboxChannel,
   ListingMatch,
+  ListingMatchDecision,
   SalesDashboardSummary,
 } from '@/lib/types'
 
@@ -1531,27 +1533,11 @@ function buildAddressLookupVariants(address: string) {
 async function queryListingsByAddressVariant(address: string): Promise<ListingMatch[]> {
   const { url, headers } = requireSupabase()
   const encoded = encodeURIComponent(`%${address}%`)
-  const baseSelect = 'zpid,address,city,brokername,is_furnished,furniture_scan_date,carouselphotos,carousel_photos_composable'
-  const extendedSelect = `${baseSelect},bedrooms,bathrooms,beds,baths`
-  const richSelect = `${extendedSelect},homeStatus:home_status,description,propertyDescription:property_description,parkingFeatures:parking_features,parkingFeaturesLegacy:parkingfeatures,basement,livingArea:living_area,lotSize:lot_size,yearBuilt:year_built,streetViewMetadataUrl:streetviewmetadataurl,streetViewMetadataUrlLegacy:streetViewMetadataUrl,streetViewUrl:streetviewurl,streetViewUrlLegacy:streetViewUrl`
-  let response = await fetch(
-    `${url}/rest/v1/listings?address=ilike.${encoded}&select=${richSelect}&limit=20`,
+  const select = 'zpid,address,city,beds,baths,area,brokername,is_furnished,furniture_scan_date,carouselphotos,carousel_photos_composable,description,streetViewMetadataUrl:streetviewmetadataurl,streetViewUrl:streetviewurl,detailurl,listingMlsId:listing_mls_id,status,lastSeenAt:last_seen_at'
+  const response = await fetch(
+    `${url}/rest/v1/listings?address=ilike.${encoded}&select=${select}&limit=100`,
     { headers, cache: 'no-store' }
   )
-
-  if (!response.ok) {
-    response = await fetch(
-      `${url}/rest/v1/listings?address=ilike.${encoded}&select=${extendedSelect}&limit=20`,
-      { headers, cache: 'no-store' }
-    )
-  }
-
-  if (!response.ok) {
-    response = await fetch(
-      `${url}/rest/v1/listings?address=ilike.${encoded}&select=${baseSelect}&limit=20`,
-      { headers, cache: 'no-store' }
-    )
-  }
 
   if (!response.ok) {
     throw new Error('Failed to look up listings')
@@ -1560,9 +1546,7 @@ async function queryListingsByAddressVariant(address: string): Promise<ListingMa
   const rows = (await response.json()) as Array<ListingMatch & {
     carouselphotos?: ListingMatch['carouselphotos'] | string | null
     carousel_photos_composable?: { baseUrl?: string; photoData?: Array<{ photoKey?: string }> } | string | null
-    parkingFeaturesLegacy?: ListingMatch['parkingFeatures'] | string | null
-    streetViewMetadataUrlLegacy?: string | null
-    streetViewUrlLegacy?: string | null
+    area?: number | string | null
   }>
   return rows.map(row => {
     let carouselphotos = row.carouselphotos
@@ -1597,121 +1581,62 @@ async function queryListingsByAddressVariant(address: string): Promise<ListingMa
 
     const {
       carousel_photos_composable: _cpc,
-      parkingFeaturesLegacy,
-      streetViewMetadataUrlLegacy,
-      streetViewUrlLegacy,
+      area,
       ...rest
     } = row
     return {
       ...rest,
-      parkingFeatures: row.parkingFeatures ?? parkingFeaturesLegacy ?? null,
-      streetViewMetadataUrl: row.streetViewMetadataUrl ?? streetViewMetadataUrlLegacy ?? null,
-      streetViewUrl: row.streetViewUrl ?? streetViewUrlLegacy ?? null,
+      livingArea: area ?? null,
       carouselphotos: Array.isArray(carouselphotos) ? carouselphotos : [],
     }
   })
 }
 
-function normalizeAddressMatchValue(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/,/g, ' ')
-    .split(' ')
-    .filter(Boolean)
-    .map(token => STREET_SUFFIX_CANONICAL[token] || token)
-    .join(' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
-function stripTrailingLocation(value: string) {
-  return normalizeAddressMatchValue(value.split(',')[0] || value)
-}
-
-function extractAddressUnit(value: string) {
-  const normalized = stripTrailingLocation(value)
-  // Canadian prefix format: "601-203 Catherine St" — unit is the part before the dash
-  const canadianPrefixMatch = normalized.match(/^([a-z]?\d+[a-z]?)-(?=\d)/i)
-  if (canadianPrefixMatch?.[1]) return canadianPrefixMatch[1].toLowerCase()
-  const hashMatch = normalized.match(/#\s*([a-z0-9-]+)/i)
-  if (hashMatch?.[1]) return hashMatch[1].toLowerCase()
-  const namedUnitMatch = normalized.match(/\b(?:unit|apt|apartment|suite|ste)\s*([a-z0-9-]+)/i)
-  if (namedUnitMatch?.[1]) return namedUnitMatch[1].toLowerCase()
-  return null
-}
-
-function stripAddressUnit(value: string) {
-  return stripTrailingLocation(value)
-    // Canadian prefix format: "601-203 Catherine St" → "203 Catherine St"
-    .replace(/^[a-z]?\d+[a-z]?-(?=\d)/i, '')
-    .replace(/#\s*[a-z0-9-]+\b/ig, ' ')
-    .replace(/\b(?:unit|apt|apartment|suite|ste)\s*[a-z0-9-]+\b/ig, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
-function getListingPhotoCount(listing: ListingMatch) {
-  return Array.isArray(listing.carouselphotos) ? listing.carouselphotos.length : 0
-}
-
-function scoreListingAddressMatch(query: string, listing: ListingMatch) {
-  const queryNormalized = stripTrailingLocation(query)
-  const queryBase = stripAddressUnit(query)
-  const queryUnit = extractAddressUnit(query)
-  const listingNormalized = stripTrailingLocation(listing.address || '')
-  const listingBase = stripAddressUnit(listing.address || '')
-  const listingUnit = extractAddressUnit(listing.address || '')
-  const photoCount = getListingPhotoCount(listing)
-
-  let score = 0
-
-  if (listingNormalized === queryNormalized) score += 400
-  if (listingBase === queryBase) {
-    score += 220
-  } else if (listingBase.includes(queryBase) || queryBase.includes(listingBase)) {
-    score += 120
-  }
-
-  if (queryUnit && listingUnit) {
-    score += queryUnit === listingUnit ? 160 : 20
-  } else if (queryUnit && !listingUnit) {
-    score += 60
-  } else if (!queryUnit && listingUnit) {
-    score += 30
-  }
-
-  if (photoCount > 0) {
-    score += 80 + Math.min(photoCount, 50)
-  }
-  if (listing.furniture_scan_date) score += 20
-  if (listing.is_furnished) score += 10
-
-  return score
-}
-
 export async function lookupListingsByAddress(address: string): Promise<ListingMatch[]> {
   const variants = buildAddressLookupVariants(address)
   const seen = new Set<string>()
+  const matches: ListingMatch[] = []
 
   for (const variant of variants) {
     const results = await queryListingsByAddressVariant(variant)
-    const deduped: ListingMatch[] = []
     for (const result of results) {
-      if (!seen.has(result.zpid)) {
-        seen.add(result.zpid)
-        deduped.push(result)
+      if (!seen.has(String(result.zpid))) {
+        seen.add(String(result.zpid))
+        matches.push(result)
       }
-    }
-    if (deduped.length > 0) {
-      return deduped.sort((left, right) => {
-        const scoreDelta = scoreListingAddressMatch(address, right) - scoreListingAddressMatch(address, left)
-        if (scoreDelta !== 0) return scoreDelta
-        return getListingPhotoCount(right) - getListingPhotoCount(left)
-      })
     }
   }
 
-  return []
+  return matches.sort((left, right) => {
+    const scoreDelta = scoreListingCandidate(address, right) - scoreListingCandidate(address, left)
+    if (scoreDelta !== 0) return scoreDelta
+    return listingPhotoCount(right) - listingPhotoCount(left)
+  })
+}
+
+export async function resolveListingsByAddress(address: string): Promise<ListingMatchDecision> {
+  return decideListingMatch(address, await lookupListingsByAddress(address))
+}
+
+export async function lookupListingByReference(input: string): Promise<ListingMatch | null> {
+  const { url, headers } = requireSupabase()
+  const reference = extractListingReference(input)
+  const select = 'zpid,address,city,beds,baths,area,brokername,is_furnished,furniture_scan_date,carouselphotos,carousel_photos_composable,description,streetViewMetadataUrl:streetviewmetadataurl,streetViewUrl:streetviewurl,detailurl,listingMlsId:listing_mls_id,status,lastSeenAt:last_seen_at'
+  let filter: string | null = null
+  if (reference.zpid) filter = `zpid=eq.${encodeURIComponent(reference.zpid)}`
+  else if (reference.mlsId) filter = `listing_mls_id=ilike.${encodeURIComponent(reference.mlsId)}`
+  else if (reference.url) filter = `detailurl=eq.${encodeURIComponent(reference.url.split('?')[0].replace(/\/$/, ''))}`
+  if (!filter && reference.address) return (await resolveListingsByAddress(reference.address)).listing
+  if (!filter) return null
+
+  const response = await fetch(`${url}/rest/v1/listings?${filter}&select=${select}&limit=1`, { headers, cache: 'no-store' })
+  if (!response.ok) throw new Error('Failed to resolve listing link')
+  const rows = await response.json() as ListingMatch[]
+  const row = rows[0]
+  if (!row) return reference.address ? (await resolveListingsByAddress(reference.address)).listing : null
+  // Reuse address hydration so composable/legacy photo shapes are normalized consistently.
+  const hydrated = await queryListingsByAddressVariant(row.address)
+  return hydrated.find(candidate => String(candidate.zpid) === String(row.zpid)) || row
 }
 
 export async function getListingInventoryScan(zpid: string): Promise<InventoryScanDraft | null> {

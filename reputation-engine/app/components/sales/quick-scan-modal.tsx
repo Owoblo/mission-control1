@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { SalesAddressAutocompleteInput } from '@/app/components/sales/address-autocomplete-input'
+import { ListingMatchPicker } from '@/app/components/sales/listing-match-picker'
 import { createSalesLead, updateSalesLead } from '@/lib/sales-api'
 import { sanitizeInventoryRooms } from '@/lib/inventory-sanitizer'
-import type { InventoryItem } from '@/lib/types'
+import type { InventoryItem, ListingMatch, ListingMatchStatus } from '@/lib/types'
 
 interface Props {
   open: boolean
@@ -38,6 +39,7 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
   const [smsSent, setSmsSent] = useState(false)
   const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null)
   const [scanDone, setScanDone] = useState<'done' | 'no-listing' | null>(null)
+  const [listingDecision, setListingDecision] = useState<{ status: ListingMatchStatus; candidates: ListingMatch[]; requestedUnit: string | null } | null>(null)
   const addressRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -53,6 +55,7 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
       setCopied(false)
       setScanProgress(null)
       setScanDone(null)
+      setListingDecision(null)
       setTimeout(() => addressRef.current?.focus(), 80)
     }
   }, [open, prefillPhone])
@@ -63,6 +66,57 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
+
+  async function scanListing(savedLeadId: string, listing: ListingMatch) {
+    await updateSalesLead(savedLeadId, { supabaseListing: listing })
+    const streamRes = await fetch(`/api/sales/leads/${savedLeadId}/scan-stream`, { method: 'POST', credentials: 'include' })
+    if (!streamRes.ok || !streamRes.body) {
+      setScanDone('no-listing')
+      setScanProgress(null)
+      return
+    }
+
+    const reader = streamRes.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let allItems: InventoryItem[] = []
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        try {
+          const event = JSON.parse(line.slice(6)) as {
+            type: string; batch?: number; totalBatches?: number; totalPhotos?: number; status?: string
+            items?: InventoryItem[]; scan?: { inventory?: InventoryItem[]; totalCubicFeet?: number; totalWeightLbs?: number; totalItems?: number }
+          }
+          if (event.type === 'start') {
+            setScanProgress({ status: `Scanning ${event.totalPhotos || 0} listing photos…`, batch: 0, totalBatches: event.totalBatches || 0, totalPhotos: event.totalPhotos || 0, itemsFound: 0 })
+          } else if (event.type === 'progress') {
+            setScanProgress(p => p ? { ...p, batch: event.batch ?? p.batch, totalBatches: event.totalBatches ?? p.totalBatches, status: event.status ?? p.status } : null)
+          } else if (event.type === 'batch') {
+            allItems = [...allItems, ...(event.items || [])]
+            setScanProgress(p => p ? { ...p, batch: event.batch ?? p.batch, totalBatches: event.totalBatches ?? p.totalBatches, status: `Photo ${event.batch}/${event.totalBatches} — ${allItems.length} items found`, itemsFound: allItems.length } : null)
+            void updateSalesLead(savedLeadId, { inventory: allItems, totalItems: allItems.length }).catch(() => {})
+          } else if (event.type === 'done') {
+            const finalInventory = sanitizeInventoryRooms(event.scan?.inventory || allItems)
+            await updateSalesLead(savedLeadId, {
+              inventory: finalInventory,
+              totalItems: event.scan?.totalItems ?? finalInventory.length,
+              totalCubicFeet: event.scan?.totalCubicFeet ?? 0,
+              totalWeightLbs: event.scan?.totalWeightLbs ?? 0,
+              listingScanSnapshot: event.scan as Parameters<typeof updateSalesLead>[1]['listingScanSnapshot'],
+            })
+            setScanProgress(null)
+            setScanDone('done')
+          }
+        } catch { /* ignore malformed stream event */ }
+      }
+    }
+  }
 
   async function handleScan() {
     if (!originAddress && !originCity) {
@@ -118,74 +172,14 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
         credentials: 'include',
         body: JSON.stringify({ address: fullAddress, analyze: false }),
       })
-      const enrichData = await enrichRes.json() as { listing?: unknown; scan?: unknown }
+      const enrichData = await enrichRes.json() as { listing?: ListingMatch; status?: ListingMatchStatus; candidates?: ListingMatch[]; requestedUnit?: string | null }
       if (!enrichData.listing) {
         setScanProgress(null)
-        setScanDone('no-listing')
+        setScanDone(enrichData.candidates?.length ? null : 'no-listing')
+        setListingDecision({ status: enrichData.status || 'no_match', candidates: enrichData.candidates || [], requestedUnit: enrichData.requestedUnit || null })
         return
       }
-
-      // Save listing to lead so scan-stream can read it
-      await updateSalesLead(savedLeadId, { supabaseListing: enrichData.listing as Parameters<typeof updateSalesLead>[1]['supabaseListing'] })
-
-      // 4. Stream the AI scan — shows photo progress in real time
-      const streamRes = await fetch(`/api/sales/leads/${savedLeadId}/scan-stream`, {
-        method: 'POST',
-        credentials: 'include',
-      })
-      if (!streamRes.ok || !streamRes.body) {
-        setScanDone('no-listing')
-        setScanProgress(null)
-        return
-      }
-
-      const reader = streamRes.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-      let allItems: InventoryItem[] = []
-      let totalPhotos = 0
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          try {
-            const event = JSON.parse(line.slice(6)) as {
-              type: string; batch?: number; totalBatches?: number; totalPhotos?: number
-              status?: string; items?: InventoryItem[]; allItems?: InventoryItem[]
-              scan?: { inventory?: InventoryItem[]; totalCubicFeet?: number; totalWeightLbs?: number; totalItems?: number }
-            }
-
-            if (event.type === 'start') {
-              totalPhotos = event.totalPhotos ?? 0
-              setScanProgress({ status: `Scanning ${totalPhotos} listing photos…`, batch: 0, totalBatches: event.totalBatches ?? 0, totalPhotos, itemsFound: 0 })
-            } else if (event.type === 'progress') {
-              setScanProgress(p => p ? { ...p, batch: event.batch ?? p.batch, totalBatches: event.totalBatches ?? p.totalBatches, status: event.status ?? p.status } : null)
-            } else if (event.type === 'batch') {
-              allItems = [...allItems, ...(event.items ?? [])]
-              setScanProgress(p => p ? { ...p, batch: event.batch ?? p.batch, totalBatches: event.totalBatches ?? p.totalBatches, status: `Photo ${event.batch}/${event.totalBatches} — ${allItems.length} items found`, itemsFound: allItems.length } : null)
-              // Save intermediate results so customer sees items appear in real time
-              void updateSalesLead(savedLeadId, { inventory: allItems, totalItems: allItems.length }).catch(() => {})
-            } else if (event.type === 'done') {
-              const finalInventory = sanitizeInventoryRooms(event.scan?.inventory || allItems)
-              await updateSalesLead(savedLeadId, {
-                inventory: finalInventory,
-                totalItems: event.scan?.totalItems ?? finalInventory.length,
-                totalCubicFeet: event.scan?.totalCubicFeet ?? 0,
-                totalWeightLbs: event.scan?.totalWeightLbs ?? 0,
-                listingScanSnapshot: event.scan as Parameters<typeof updateSalesLead>[1]['listingScanSnapshot'],
-              })
-              setScanProgress(null)
-              setScanDone('done')
-            }
-          } catch { /* skip malformed event */ }
-        }
-      }
+      await scanListing(savedLeadId, enrichData.listing)
     } catch (err) {
       setError((err as Error).message)
       setStep('form')
@@ -196,6 +190,24 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
     if (!leadId) return
     onClose()
     router.push(`/sales/leads/${leadId}`)
+  }
+
+  async function chooseQuickScanListing(candidate?: ListingMatch, listingUrl?: string) {
+    if (!leadId) return
+    try {
+      setScanProgress({ status: 'Confirming listing…', batch: 0, totalBatches: 0, totalPhotos: 0, itemsFound: 0 })
+      const response = await fetch('/api/sales/enrich/address', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: [originAddress, originCity].filter(Boolean).join(', '), listingId: candidate ? String(candidate.zpid) : undefined, listingUrl }),
+      })
+      const result = await response.json() as { listing?: ListingMatch; error?: string }
+      if (!response.ok || !result.listing) throw new Error(result.error || 'That listing could not be resolved in Supabase.')
+      setListingDecision(null)
+      await scanListing(leadId, result.listing)
+    } catch (err) {
+      setScanProgress(null)
+      setError((err as Error).message)
+    }
   }
 
   async function sendSms() {
@@ -363,6 +375,16 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
                 <div className="rounded-[8px] bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-700">
                   ⚠ No MLS listing found. Customer sees empty rooms — they can add items manually.
                 </div>
+              )}
+              {listingDecision && (
+                <ListingMatchPicker
+                  status={listingDecision.status}
+                  candidates={listingDecision.candidates}
+                  requestedUnit={listingDecision.requestedUnit}
+                  busy={!!scanProgress}
+                  onSelect={candidate => void chooseQuickScanListing(candidate)}
+                  onResolveLink={url => void chooseQuickScanListing(undefined, url)}
+                />
               )}
 
               <div className="border-t border-[var(--app-line)] pt-3 flex gap-2">

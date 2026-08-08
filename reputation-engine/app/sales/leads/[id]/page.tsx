@@ -68,6 +68,7 @@ const PaymentReceiptCenter = dynamic(
   { ssr: false }
 )
 import { LeadBasicsPanel } from '@/app/components/sales/lead-detail/lead-basics-panel'
+import { ListingMatchPicker } from '@/app/components/sales/listing-match-picker'
 import { CRMRecordContext, CRMRecordLayout, CRMRecordMain, CRMRecordWidget } from '@/app/components/crm-layout'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import {
@@ -114,6 +115,8 @@ import type {
   JobFactors,
   LeadAutomationSettings,
   QuoteLineItem,
+  ListingMatch,
+  ListingMatchStatus,
 } from '@/lib/types'
 
 interface SalesUserOption {
@@ -435,6 +438,7 @@ export default function SalesLeadDetailPage() {
   const [smsChannel, setSmsChannel] = useState<'sms' | 'whatsapp'>('sms')
   const smsAreaRef = useRef<HTMLDivElement>(null)
   const [listingLookupBusy, setListingLookupBusy] = useState(false)
+  const [listingDecision, setListingDecision] = useState<{ status: ListingMatchStatus; candidates: ListingMatch[]; requestedUnit: string | null } | null>(null)
   const [scanProgress, setScanProgress] = useState<{ batch: number; totalBatches: number; status: string } | null>(null)
   const [scanResult, setScanResult] = useState<{ totalItems: number; truckLabel: string; cubicFeet: number; flags: string[] } | null>(null)
   const [activeTab, setActiveTab] = useState<'timeline' | 'emails' | 'sms'>('timeline')
@@ -2913,8 +2917,14 @@ export default function SalesLeadDetailPage() {
       // Step 1: match the listing
       const result = await enrichSalesAddress(originAddress.trim(), false)
       if (!result.listing) {
-        throw new Error('No listing match found for this address yet.')
+        setListingDecision({ status: result.status, candidates: result.candidates || [], requestedUnit: result.requestedUnit })
+        setError(result.status === 'unit_not_found'
+          ? `The building was found, but unit ${result.requestedUnit || ''} was not. Confirm the correct unit below.`
+          : 'Confirm the exact listing below before scanning photos.')
+        setListingLookupBusy(false)
+        return
       }
+      setListingDecision(null)
 
       const updates: Partial<CRMLead> = {
         originAddress: originAddress.trim(),
@@ -2927,6 +2937,45 @@ export default function SalesLeadDetailPage() {
       setError(null)
 
       // Step 2: immediately kick off streaming photo scan
+      void streamScanForLead(lead.id)
+    } catch (err) {
+      setError((err as Error).message)
+      setListingLookupBusy(false)
+    }
+  }
+
+  async function chooseListingForLead(candidate: ListingMatch) {
+    if (!lead || !ensureLeadEditable()) return
+    try {
+      setListingLookupBusy(true)
+      const result = await enrichSalesAddress(originAddress.trim(), false, false, { listingId: String(candidate.zpid) })
+      if (!result.listing) throw new Error('That listing is no longer available.')
+      const saved = await updateSalesLead(lead.id, {
+        originAddress: originAddress.trim(),
+        originCity: originCity || result.listing.city || undefined,
+        supabaseListing: result.listing,
+        listingScanSnapshot: null,
+      })
+      setLead(saved)
+      setListingDecision(null)
+      setError(null)
+      void streamScanForLead(lead.id)
+    } catch (err) {
+      setError((err as Error).message)
+      setListingLookupBusy(false)
+    }
+  }
+
+  async function resolveListingLinkForLead(listingUrl: string) {
+    if (!lead || !ensureLeadEditable()) return
+    try {
+      setListingLookupBusy(true)
+      const result = await enrichSalesAddress(originAddress.trim(), false, false, { listingUrl })
+      if (!result.listing) throw new Error('That link or MLS ID is not available in Supabase. Use the customer photo request instead.')
+      const saved = await updateSalesLead(lead.id, { supabaseListing: result.listing, listingScanSnapshot: null })
+      setLead(saved)
+      setListingDecision(null)
+      setError(null)
       void streamScanForLead(lead.id)
     } catch (err) {
       setError((err as Error).message)
@@ -4443,6 +4492,21 @@ export default function SalesLeadDetailPage() {
             onClearListing={() => void clearListing()}
           />
           </CRMRecordContext>
+
+          {listingDecision && (
+            <CRMRecordWidget>
+              <div className="p-5">
+                <ListingMatchPicker
+                  status={listingDecision.status}
+                  candidates={listingDecision.candidates}
+                  requestedUnit={listingDecision.requestedUnit}
+                  busy={listingLookupBusy}
+                  onSelect={candidate => void chooseListingForLead(candidate)}
+                  onResolveLink={url => void resolveListingLinkForLead(url)}
+                />
+              </div>
+            </CRMRecordWidget>
+          )}
 
           <CRMRecordWidget>
             {lead.leadKind === 'realtor_opportunity' ? (

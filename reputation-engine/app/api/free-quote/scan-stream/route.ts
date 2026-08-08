@@ -7,7 +7,7 @@ import {
 } from '@/lib/server/inventory-enrichment'
 import { applyMovePolicyToInventory } from '@/lib/move-policy'
 import { getClientIp, rateLimit } from '@/lib/server/rate-limit'
-import { lookupListingsByAddress } from '@/lib/server/sales-repository'
+import { resolveListingsByAddress } from '@/lib/server/sales-repository'
 import { getListingPropertyContext, getListingBedrooms, getListingBathrooms } from '@/lib/listing'
 
 export const runtime = 'nodejs'
@@ -57,8 +57,8 @@ export async function POST(request: Request) {
   }
 
   // Look up listing
-  const listings = await lookupListingsByAddress(address).catch(() => [])
-  const listing  = listings[0] || null
+  const match = await resolveListingsByAddress(address).catch(() => null)
+  const listing = match?.listing || null
 
   const allPhotos: string[] = listing
     ? Array.from(new Set(

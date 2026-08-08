@@ -5,9 +5,10 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { SalesAddressAutocompleteInput } from '@/app/components/sales/address-autocomplete-input'
 import { PartnerReferralSelector } from '@/app/components/sales/partner-referral-selector'
+import { ListingMatchPicker } from '@/app/components/sales/listing-match-picker'
 import { createSalesLead, enrichSalesAddress } from '@/lib/sales-api'
 import { CRM_LEAD_SOURCES } from '@/lib/sales'
-import type { CRMLead } from '@/lib/types'
+import type { CRMLead, ListingMatch, ListingMatchStatus } from '@/lib/types'
 import type { PartnerDirectoryEntry } from '@/lib/partner-directory'
 
 const MOVE_TYPES: CRMLead['moveType'][] = ['residential', 'long-distance', 'commercial', 'senior', 'labor-only', 'packing']
@@ -64,6 +65,7 @@ export default function NewSalesLeadPage() {
     notes?: string
   } | null>(null)
   const [analysisAvailable, setAnalysisAvailable] = useState(false)
+  const [listingDecision, setListingDecision] = useState<{ status: ListingMatchStatus; candidates: ListingMatch[]; requestedUnit: string | null } | null>(null)
   const [partnerReferral, setPartnerReferral] = useState<PartnerDirectoryEntry | null>(null)
 
   function setField<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
@@ -166,6 +168,7 @@ export default function NewSalesLeadPage() {
       analyze ? setAnalysisBusy(true) : setLookupBusy(true)
       const result = await enrichSalesAddress(form.originAddress, analyze)
       setListingMatch(result.listing)
+      setListingDecision({ status: result.status, candidates: result.candidates || [], requestedUnit: result.requestedUnit })
       setInventoryDraft(result.scan)
       setAnalysisAvailable(result.analysisAvailable)
       // Auto-fill origin city from matched listing
@@ -178,6 +181,40 @@ export default function NewSalesLeadPage() {
     } finally {
       setLookupBusy(false)
       setAnalysisBusy(false)
+    }
+  }
+
+  async function chooseListing(candidate: ListingMatch) {
+    try {
+      setLookupBusy(true)
+      const result = await enrichSalesAddress(form.originAddress, false, false, { listingId: String(candidate.zpid) })
+      if (!result.listing) throw new Error('That listing is no longer available. Refresh the search and try again.')
+      setListingMatch(result.listing)
+      setInventoryDraft(result.scan)
+      setAnalysisAvailable(result.analysisAvailable)
+      setListingDecision(null)
+      setError(null)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setLookupBusy(false)
+    }
+  }
+
+  async function resolveListingLink(listingUrl: string) {
+    try {
+      setLookupBusy(true)
+      const result = await enrichSalesAddress(form.originAddress, false, false, { listingUrl })
+      if (!result.listing) throw new Error('That link or MLS ID is not available in Supabase. Ask the customer to upload photos instead.')
+      setListingMatch(result.listing)
+      setInventoryDraft(result.scan)
+      setAnalysisAvailable(result.analysisAvailable)
+      setListingDecision(null)
+      setError(null)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setLookupBusy(false)
     }
   }
 
@@ -319,6 +356,16 @@ export default function NewSalesLeadPage() {
                 </div>
               ) : (
                 <div className="text-sm text-stone-500">No listing linked yet.</div>
+              )}
+              {listingDecision && !listingMatch && (
+                <ListingMatchPicker
+                  status={listingDecision.status}
+                  candidates={listingDecision.candidates}
+                  requestedUnit={listingDecision.requestedUnit}
+                  busy={lookupBusy}
+                  onSelect={candidate => void chooseListing(candidate)}
+                  onResolveLink={url => void resolveListingLink(url)}
+                />
               )}
               {inventoryDraft && (
                 <div className="rounded-xl border border-stone-200 bg-white px-4 py-4">
