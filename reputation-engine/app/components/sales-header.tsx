@@ -16,6 +16,7 @@ import type { NotificationItem } from '@/app/api/sales/notifications/route'
 
 // Monotone SVG icons — consistent stroke-based, no emoji/color
 const NAV_ICONS: Record<string, React.ReactNode> = {
+  Tasks:        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M6.5 8l1.5 1.5L11 6.5M6.5 13h7"/></svg>,
   'Follow-Up':  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M10 2a8 8 0 100 16A8 8 0 0010 2z"/><path d="M10 6v5l3 2"/></svg>,
   Dashboard:    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><rect x="2" y="2" width="7" height="7" rx="1.5"/><rect x="11" y="2" width="7" height="7" rx="1.5"/><rect x="2" y="11" width="7" height="7" rx="1.5"/><rect x="11" y="11" width="7" height="7" rx="1.5"/></svg>,
   Leads:        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><circle cx="7" cy="7" r="3"/><path d="M2 17a5 5 0 0110 0M14 6h4M16 4v4"/></svg>,
@@ -28,6 +29,7 @@ const NAV_ICONS: Record<string, React.ReactNode> = {
   Operations:   <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M10 2a8 8 0 100 16A8 8 0 0010 2z"/><path d="M10 6v4l3 2"/></svg>,
   Contractors:  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M3 17v-4a3 3 0 013-3h3a3 3 0 013 3v4"/><circle cx="7.5" cy="6" r="3"/><path d="M13 8h2a3 3 0 013 3v6M14 4.5a2.5 2.5 0 010 5"/></svg>,
   'Partner Ops': <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M3 4h14a1 1 0 011 1v8a1 1 0 01-1 1H7l-4 3V5a1 1 0 011-1z"/><path d="M6 8h8M6 11h5"/></svg>,
+  Simulations:  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M7 3h6M9 3v5l-5 8h12l-5-8V3"/><path d="M7 13h6"/></svg>,
   'Ops SMS':    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M3 4h14a1 1 0 011 1v8a1 1 0 01-1 1H6l-4 3V5a1 1 0 011-1z"/></svg>,
   Finance:      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M10 3v14M6 6h5.5a2.5 2.5 0 010 5H6m0 0h5a2.5 2.5 0 010 5H6"/></svg>,
   'Live Feed':  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><circle cx="10" cy="10" r="2"/><path d="M5.5 5.5a6.5 6.5 0 000 9M14.5 5.5a6.5 6.5 0 010 9"/><path d="M3 3a10 10 0 000 14M17 3a10 10 0 010 14"/></svg>,
@@ -42,6 +44,7 @@ const SALES_ROLES = ['owner', 'manager', 'sales_rep']
 
 const BASE_NAV = [
   { environment: 'Command', href: '/sales', label: 'Dashboard', match: (p: string) => p === '/sales', roles: ['owner', 'manager', 'sales_rep'] },
+  { environment: 'Command', href: '/sales/tasks', label: 'Tasks', match: (p: string) => p.startsWith('/sales/tasks'), roles: ['owner', 'manager', 'sales_rep', 'operations_lead', 'partnership_manager'] },
   { environment: 'Intake', href: '/sales/inbox', label: 'Inbox', match: (p: string) => p.startsWith('/sales/inbox'), roles: ['owner', 'manager', 'sales_rep'] },
   { environment: 'Intake', href: '/sales/leads', label: 'Leads', match: (p: string) => p.startsWith('/sales/leads'), roles: ['owner', 'manager', 'sales_rep'] },
   { environment: 'Intake', href: '/marketing', label: 'Partnerships', match: (p: string) => p.startsWith('/marketing'), roles: ['owner', 'manager', 'partnership_manager'] },
@@ -54,6 +57,7 @@ const BASE_NAV = [
   { environment: 'Operations', href: '/sales/operations', label: 'Operations', match: (p: string) => p.startsWith('/sales/operations') && !p.startsWith('/sales/operations/sms'), roles: ['owner', 'manager', 'operations_lead'] },
   { environment: 'Operations', href: '/sales/contractors', label: 'Contractors', match: (p: string) => p.startsWith('/sales/contractors'), roles: ['owner', 'manager', 'operations_lead'] },
   { environment: 'Operations', href: '/sales/partner-operations', label: 'Partner Ops', match: (p: string) => p.startsWith('/sales/partner-operations'), roles: ['owner', 'manager', 'operations_lead'] },
+  { environment: 'Operations', href: '/sales/partner-simulations', label: 'Simulations', match: (p: string) => p.startsWith('/sales/partner-simulations'), roles: ['owner', 'manager', 'operations_lead'] },
   { environment: 'Operations', href: '/sales/performance', label: 'System Health', match: (p: string) => p.startsWith('/sales/performance'), roles: ['owner', 'manager'] },
   { environment: 'Live', href: '/sales/operations/sms', label: 'Ops SMS', match: (p: string) => p.startsWith('/sales/operations/sms'), roles: ['owner', 'manager', 'operations_lead'] },
   { environment: 'Care', href: '/sales/finance', label: 'Finance', match: (p: string) => p.startsWith('/sales/finance'), roles: ['owner', 'manager'] },
