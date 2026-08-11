@@ -605,6 +605,8 @@ export default function OperationsPage() {
 
         {/* Contact + actions */}
         <div className="flex flex-wrap items-center gap-2">
+          <Link href="/sales/partner-operations" className="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-sm font-semibold text-rose-700">Partner alerts</Link>
+          <Link href="/sales/contractors" className="rounded-lg border border-[#C99700]/40 bg-white px-3 py-1.5 text-sm font-semibold text-[#071421]">Contractors</Link>
           {lead.phone ? (
             <a href={`tel:${lead.phone}`} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-[#071421] hover:bg-slate-50 transition">
               📞 {lead.phone}
@@ -1506,6 +1508,11 @@ function JobsCalendar({
               <a href={`tel:${selectedJob.lead.phone}`} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-[#071421] hover:bg-slate-50 transition">
                 📞 {selectedJob.lead.phone}
               </a>
+            )}
+            {canManageCrew && (
+              <Link href={`/sales/contractors?leadId=${selectedJob.lead.id}`} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 transition">
+                Offer to contractors
+              </Link>
             )}
             {canManageCrew && (
               <button

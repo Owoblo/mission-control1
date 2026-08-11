@@ -93,6 +93,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/marketing') ||
     pathname.startsWith('/api/marketing') ||
     pathname.startsWith('/partners') ||
+    pathname.startsWith('/partner-portal') ||
+    pathname.startsWith('/api/partner-portal') ||
     pathname.startsWith('/trigger') ||
     pathname.startsWith('/api/partners') ||
     pathname.startsWith('/api/auth/me')
@@ -115,6 +117,14 @@ export async function middleware(request: NextRequest) {
 
   // Role defaults to 'owner' for legacy tokens without role
   const role = payload.role ?? 'owner'
+
+  if (pathname.startsWith('/partner-portal') || pathname.startsWith('/api/partner-portal')) {
+    const canAccessPartner = role === 'partner_admin' || role === 'partner_dispatcher' || role === 'partner_crew'
+    if (!canAccessPartner || !payload.partnerId) {
+      if (pathname.startsWith('/api/')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+  }
 
   // Owner-only: admin pages
   if ((pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) && role !== 'owner') {
@@ -166,6 +176,8 @@ export const config = {
     '/marketing/:path*',
     '/api/marketing/:path*',
     '/partners/:path*',
+    '/partner-portal/:path*',
+    '/api/partner-portal/:path*',
     '/trigger',
     '/api/partners/:path*',
     '/login',

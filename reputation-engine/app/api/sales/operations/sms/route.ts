@@ -7,6 +7,9 @@
 import { readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
 import { verifyTwilioSignature } from '@/lib/server/security'
+import { normalizePhone } from '@/lib/sales-phones'
+import { listSubcontractorOffers, listSubcontractors } from '@/lib/server/subcontractors'
+import { createPartnerJobMessage } from '@/lib/server/partner-operations'
 
 const OPS_NUMBER = '+12267746581'
 
@@ -121,6 +124,17 @@ async function writeSmsMessage(from: string, body: string, messageSid: string, m
   }
 }
 
+async function linkPartnerMessage(from: string, body: string, messageSid: string, media: Array<{ url: string; contentType?: string }>) {
+  const phone = normalizePhone(from)
+  const contractor = (await listSubcontractors()).find(item => normalizePhone(item.phone) === phone)
+  if (!contractor) return
+  const offers = await listSubcontractorOffers()
+  const active = offers.filter(offer => offer.awardedSubcontractorId === contractor.id && ['awarded', 'open'].includes(offer.status))
+    .sort((left, right) => (right.moveDate || '').localeCompare(left.moveDate || ''))[0]
+  if (!active) return
+  await createPartnerJobMessage({ leadId: active.leadId, offerId: active.id, subcontractorId: contractor.id, direction: 'partner_to_operations', channel: 'sms', body, media, senderName: contractor.companyName, urgent: /urgent|emergency|damage|injur|accident|police|fire|unsafe|cannot proceed/i.test(body), externalMessageId: messageSid || undefined })
+}
+
 export async function GET() {
   return Response.json({ ok: true, route: 'operations-sms' })
 }
@@ -143,6 +157,7 @@ export async function POST(request: Request) {
 
     if (from) {
       await writeSmsMessage(from, messageText, messageSid, media)
+      await linkPartnerMessage(from, messageText, messageSid, media).catch(() => null)
     }
   } catch {
     // always return 200 to Twilio

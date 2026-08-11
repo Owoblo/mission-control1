@@ -3,6 +3,7 @@ import { formatDate } from '@/lib/sales'
 import { listSalesLeads, listSalesQuotes, saveSalesLead } from '@/lib/server/sales-repository'
 import { getTruckPlanLabel, TRUCK_VENDOR_LABELS } from '@/lib/operations'
 import type { CRMLead, CRMQuote, CrewPayoutEntry } from '@/lib/types'
+import { listSubcontractorOffers } from '@/lib/server/subcontractors'
 
 function findCrewAssignment(leads: CRMLead[], token: string) {
   for (const lead of leads) {
@@ -12,7 +13,7 @@ function findCrewAssignment(leads: CRMLead[], token: string) {
   return null
 }
 
-function publicJobPayload(lead: CRMLead, quote: CRMQuote | null, entry: CrewPayoutEntry) {
+function publicJobPayload(lead: CRMLead, quote: CRMQuote | null, entry: CrewPayoutEntry, awardedBrief?: string) {
   return {
     leadId: lead.id,
     customerName: lead.name,
@@ -46,6 +47,8 @@ function publicJobPayload(lead: CRMLead, quote: CRMQuote | null, entry: CrewPayo
       crewNote: lead.crewNote || '',
       equipmentReady: !!lead.opsChecklist?.toolsReady,
       briefingReady: !!lead.opsChecklist?.jobPacketReady,
+      crewBriefing: awardedBrief || '',
+      partnerWorkspaceEnabled: !!entry.subcontractorId,
     },
   }
 }
@@ -55,12 +58,13 @@ export async function GET(_: Request, props: { params: Promise<{ token: string }
   const token = params.token?.trim()
   if (!token) return NextResponse.json({ error: 'Invalid dispatch link' }, { status: 400 })
 
-  const [leads, quotes] = await Promise.all([listSalesLeads(), listSalesQuotes()])
+  const [leads, quotes, offers] = await Promise.all([listSalesLeads(), listSalesQuotes(), listSubcontractorOffers().catch(() => [])])
   const match = findCrewAssignment(leads, token)
   if (!match) return NextResponse.json({ error: 'Dispatch link not found' }, { status: 404 })
 
   const quote = quotes.find(item => item.id === match.lead.quoteId || item.leadId === match.lead.id) || null
-  return NextResponse.json({ job: publicJobPayload(match.lead, quote, match.entry) })
+  const awardedBrief = offers.find(item => item.id === match.entry.subcontractorOfferId)?.awardedCrewBriefing
+  return NextResponse.json({ job: publicJobPayload(match.lead, quote, match.entry, awardedBrief) })
 }
 
 export async function POST(request: Request, props: { params: Promise<{ token: string }> }) {

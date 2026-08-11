@@ -149,6 +149,7 @@ export type MoveRelationshipRole =
   | 'retirement_residence'
   | 'insurance'
   | 'customer_referrer'
+  | 'family_member'
   | 'other'
 
 export interface MoveRelationship {
@@ -197,6 +198,7 @@ export type InboundClosedFilter = 'all' | 'junk' | 'lost' | 'not_interested'
 export type InventoryVerificationDecision = 'going' | 'not_going' | 'unsure'
 export type LeadInboxChannel = 'sms' | 'email' | 'calls' | 'webforms'
 export type AutomationJobKind =
+  | 'intelligence_refresh'
   | 'lead_response'
   | 'lost_feedback'
   | 'quote_followup'
@@ -833,6 +835,8 @@ export type CrewDispatchStatus = 'pending' | 'sent' | 'confirmed' | 'declined'
 
 export interface CrewPayoutEntry {
   id: string
+  subcontractorId?: string
+  subcontractorOfferId?: string
   userId?: string
   workerName: string
   workerEmail?: string
@@ -1196,6 +1200,8 @@ export interface CRMQuote {
   depositStripePaymentMethodId?: string
   depositStripeCardBrand?: string
   depositStripeCardLast4?: string
+  protectionOffer?: MoveProtectionOfferRecord
+  protectionPurchase?: MoveProtectionPurchase
   // Balance charge
   balancePaidAt?: string
   balancePaidAmount?: number
@@ -1221,6 +1227,32 @@ export interface CRMQuote {
   priceOverrideApprovalReason?: string
   // Conditional clause — shown on customer quote (e.g. "if 2nd truck needed, $X extra")
   conditionalClause?: string
+}
+
+export interface MoveProtectionOfferRecord {
+  productCode: 'move_protection_plus'
+  version: string
+  name: string
+  price: number
+  currency: 'cad'
+  decision: 'selected' | 'declined'
+  decidedAt: string
+  ip?: string
+  userAgent?: string
+}
+
+export interface MoveProtectionPurchase {
+  status: 'captured' | 'refunded' | 'partially_refunded'
+  productCode: 'move_protection_plus'
+  version: string
+  name: string
+  amount: number
+  currency: 'cad'
+  purchasedAt: string
+  stripeSessionId: string
+  stripePaymentIntentId?: string
+  refundedAmount?: number
+  refundedAt?: string
 }
 
 export type PaymentRecordKind = 'deposit' | 'partial' | 'balance' | 'final' | 'other'
