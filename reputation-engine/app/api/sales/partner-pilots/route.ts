@@ -1,0 +1,13 @@
+import { NextResponse } from 'next/server'
+import { getSessionUser } from '@/lib/server/session'
+import { canAccessOperationsWorkspace } from '@/lib/server/sales-permissions'
+import { PILOT_SCENARIOS, runPartnerSimulation, type PilotScenario } from '@/lib/partner-simulations'
+import { createOnboardingInvite, listChangeOrders, listOnboardingInvites, listSimulations, saveSimulation, updateChangeOrder } from '@/lib/server/partner-pilot'
+import { sendSalesMessage } from '@/lib/server/sales-messaging'
+
+export async function GET(){const s=await getSessionUser();if(!canAccessOperationsWorkspace(s))return NextResponse.json({error:'Unauthorized'},{status:401});const [runs,onboarding,changes]=await Promise.all([listSimulations(),listOnboardingInvites(),listChangeOrders()]);return NextResponse.json({scenarios:PILOT_SCENARIOS,runs,onboarding,changes})}
+export async function POST(request:Request){const s=await getSessionUser();if(!canAccessOperationsWorkspace(s))return NextResponse.json({error:'Unauthorized'},{status:401});const b=await request.json().catch(()=>({})) as any
+  if(b.action==='simulate'){const result=runPartnerSimulation(b.scenario as PilotScenario);await saveSimulation(result,s?.name);return NextResponse.json(result)}
+  if(b.action==='invite'){if(!b.phone&&!b.email)return NextResponse.json({error:'Phone or email required'},{status:400});const invite=await createOnboardingInvite({subcontractorId:b.subcontractorId,phone:b.phone,email:b.email,createdBy:s?.name});const url=`${new URL(request.url).origin}/onboard/${invite.token}`;let delivery:any=null;if(b.sendNow&&b.phone)delivery=await sendSalesMessage({channel:'sms',to:b.phone,leadId:`partner-onboarding-${invite.id}`,actor:'human',actorName:s?.name||'Partner Operations',actorUserId:s?.userId,body:`Saturn Star Partner Network: complete your secure company onboarding here: ${url}`});return NextResponse.json({invite,url,delivery},{status:201})}
+  if(b.action==='approve_change'){if(!b.id)return NextResponse.json({error:'Change order required'},{status:400});const change=await updateChangeOrder(b.id,{status:'customer_authorization',operations_approved_at:new Date().toISOString(),operations_approved_by:s?.name,customer_sent_at:new Date().toISOString(),customer_delta:Number(b.customerDelta||0),partner_delta:Number(b.partnerDelta||0),estimated_extra_hours:Number(b.extraHours||0),expires_at:new Date(Date.now()+2*3600000).toISOString()});return NextResponse.json({change,customerUrl:`${new URL(request.url).origin}/change/${change.customer_token}`})}
+  return NextResponse.json({error:'Invalid action'},{status:400})}
