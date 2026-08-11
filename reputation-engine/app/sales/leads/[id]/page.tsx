@@ -3985,6 +3985,7 @@ export default function SalesLeadDetailPage() {
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                <Link href={`/sales/tasks?relatedId=${encodeURIComponent(lead.id)}&relatedLabel=${encodeURIComponent(displayLeadName)}`} className="rounded-full border border-[#d9c36a] bg-[#fff9df] px-3 py-1 text-xs font-semibold text-[#725600] hover:bg-[#fff3bd]">View tasks</Link>
                 <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">{operatingStageMeta.label}</span>
                 <span className="rounded-full border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-1 text-xs font-semibold text-[#344054]">Owner: {leadOwnerName}</span>
                 {quote && <span className="rounded-full border border-[var(--app-line)] bg-white px-3 py-1 text-xs font-semibold tabular-nums text-[#344054]">{formatMoney(quote.total)}</span>}
