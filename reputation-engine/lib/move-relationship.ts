@@ -34,6 +34,7 @@ export const MOVE_RELATIONSHIP_ROLE_LABELS: Record<MoveRelationshipRole, string>
   retirement_residence: 'Retirement residence',
   insurance: 'Insurance representative',
   customer_referrer: 'Customer / personal referrer',
+  family_member: 'Family member',
   other: 'Other connection',
 }
 
@@ -51,6 +52,7 @@ export const MOVE_RELATIONSHIP_CATEGORY_BY_ROLE: Record<MoveRelationshipRole, st
   retirement_residence: 'senior_living',
   insurance: 'insurance',
   customer_referrer: 'personal_referrer',
+  family_member: 'personal_referrer',
   other: 'other',
 }
 
@@ -61,6 +63,7 @@ export const ATTRIBUTION_CHANNELS = [
   'Realtor referral',
   'Partnership referral',
   'Customer referral',
+  'Family member',
   'Instagram',
   'Facebook',
   'Website',

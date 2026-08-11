@@ -31,10 +31,10 @@ export function listMobilePhoneLines(session?: SessionPayload | null): MobilePho
       const workspace = getSaturnTrackingSource(number) === 'partnership_outreach'
         ? 'partnership'
         : 'sales'
-      // Sales reps may use the nearest sales presence across every service area,
-      // but partnership lines and conversations never enter their mobile scope.
-      if (session.role === 'sales_rep') return workspace === 'sales'
       if (!branch || getSalesBranchFromSaturnPhone(number) !== branch) return false
+      // Caller IDs are tenant-scoped just like lead access. A branch rep must
+      // never present another market's number to a customer.
+      if (session.role === 'sales_rep') return workspace === 'sales'
       if (session.role === 'partnership_manager') return workspace === 'partnership'
       return true
     })
