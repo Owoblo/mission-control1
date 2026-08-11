@@ -18,8 +18,10 @@ type DispatchJob = {
     notes: string
   }
   crew: { workerName: string; role: string; expectedHours: number | null; status: string }
-  job: { crewSize: number | null; truckCount: number | null; estimatedHours: number | null; crewNote: string; equipmentReady: boolean; briefingReady: boolean }
+  job: { crewSize: number | null; truckCount: number | null; estimatedHours: number | null; crewNote: string; equipmentReady: boolean; briefingReady: boolean; crewBriefing: string; partnerWorkspaceEnabled: boolean }
 }
+
+type PartnerWorkspace = { messages: Array<{ id: string; direction: string; body: string; senderName?: string; urgent: boolean; createdAt: string }>; reports: Array<{ id: string; reportType: string; severity: string; status: string; summary: string; createdAt: string }>; operationsPhone: string }
 
 const ROLE_LABELS: Record<string, string> = {
   crew_lead: 'Crew Lead',
@@ -34,6 +36,13 @@ export default function CrewDispatchPage(props: { params: Promise<{ token: strin
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
+  const [workspace, setWorkspace] = useState<PartnerWorkspace | null>(null)
+  const [partnerMessage, setPartnerMessage] = useState('')
+  const [reportType, setReportType] = useState('additional_inventory')
+  const [reportSummary, setReportSummary] = useState('')
+  const [reportDetails, setReportDetails] = useState('')
+  const [reportSeverity, setReportSeverity] = useState<'routine' | 'urgent' | 'critical'>('urgent')
+  const [reportMedia, setReportMedia] = useState<Array<{ url: string; contentType?: string }>>([])
 
   async function load() {
     setLoading(true)
@@ -45,6 +54,36 @@ export default function CrewDispatchPage(props: { params: Promise<{ token: strin
   }
 
   useEffect(() => { void load() }, [params.token])
+
+  async function loadWorkspace() {
+    const response = await fetch(`/api/contractor/jobs/${params.token}/workspace`, { cache: 'no-store' })
+    if (response.ok) setWorkspace(await response.json())
+  }
+
+  useEffect(() => { if (job?.job.partnerWorkspaceEnabled) void loadWorkspace() }, [job?.job.partnerWorkspaceEnabled])
+
+  async function sendPartnerAction(payload: Record<string, unknown>) {
+    setBusy(true); setMessage('')
+    const outgoing = payload.action === 'report' ? { ...payload, media: reportMedia } : payload
+    const response = await fetch(`/api/contractor/jobs/${params.token}/workspace`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(outgoing) })
+    const body = await response.json()
+    setMessage(response.ok ? 'Operations received your update.' : body.error || 'Could not send update.')
+    if (response.ok) { setPartnerMessage(''); setReportSummary(''); setReportDetails(''); setReportMedia([]); await loadWorkspace() }
+    setBusy(false)
+  }
+
+  async function uploadEvidence(files: FileList | null) {
+    if (!files?.length) return
+    setBusy(true); setMessage('Uploading evidence…')
+    const form = new FormData()
+    Array.from(files).forEach(file => form.append('files', file))
+    form.append('category', reportType)
+    const response = await fetch(`/api/contractor/jobs/${params.token}/upload`, { method: 'POST', body: form })
+    const body = await response.json()
+    if (response.ok) { setReportMedia(current => [...current, ...(body.assets || [])]); setMessage(`${body.assets?.length || 0} evidence file(s) attached.`) }
+    else setMessage(body.error || 'Upload failed.')
+    setBusy(false)
+  }
 
   async function respond(action: 'confirm' | 'decline') {
     setBusy(true)
@@ -90,6 +129,15 @@ export default function CrewDispatchPage(props: { params: Promise<{ token: strin
             <div><span className="font-semibold">To:</span> {job.destination}</div>
           </div>
         </section>
+
+        {job.job.crewBriefing && <section className="rounded-xl border border-[#C99700]/40 bg-white p-5 shadow-sm"><div className="text-xs font-bold uppercase tracking-[0.16em] text-[#C99700]">Authorized crew briefing</div><pre className="mt-3 whitespace-pre-wrap font-sans text-sm leading-6 text-slate-700">{job.job.crewBriefing}</pre></section>}
+
+        {job.job.partnerWorkspaceEnabled && <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><div><div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Operations communication</div><p className="mt-1 text-sm text-slate-600">Routine updates stay in this job record. For critical safety issues, call Operations immediately.</p>{workspace?.operationsPhone && <a href={`tel:${workspace.operationsPhone}`} className="mt-3 inline-flex rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white">Call Operations · {workspace.operationsPhone}</a>}</div>
+          <div className="max-h-72 space-y-2 overflow-y-auto rounded-xl bg-slate-50 p-3">{workspace?.messages.length ? workspace.messages.map(item => <div key={item.id} className={`rounded-xl p-3 text-sm ${item.direction === 'partner_to_operations' ? 'ml-6 bg-[#071421] text-white' : 'mr-6 border bg-white text-slate-700'}`}><div className="text-[10px] font-bold uppercase opacity-60">{item.senderName || item.direction.replaceAll('_', ' ')} · {new Date(item.createdAt).toLocaleString()}</div><p className="mt-1 whitespace-pre-wrap">{item.body}</p></div>) : <p className="text-sm text-slate-400">No job messages yet.</p>}</div>
+          <div className="flex gap-2"><input value={partnerMessage} onChange={event => setPartnerMessage(event.target.value)} placeholder="Send an update to Operations" className="min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"/><button disabled={busy || !partnerMessage.trim()} onClick={() => sendPartnerAction({ action: 'message', body: partnerMessage })} className="rounded-xl bg-[#071421] px-4 py-2 text-sm font-bold text-white disabled:opacity-40">Send</button></div>
+          <div className="border-t border-slate-200 pt-4"><h3 className="font-bold text-rose-700">Report an issue or scope change</h3><div className="mt-3 grid gap-3 sm:grid-cols-2"><select value={reportType} onChange={event => setReportType(event.target.value)} className="rounded-xl border border-slate-300 px-3 py-2 text-sm"><option value="additional_inventory">Additional inventory</option><option value="access_problem">Access problem</option><option value="parking_problem">Parking problem</option><option value="customer_disagreement">Customer disagreement</option><option value="damage_discovered">Pre-existing damage</option><option value="damage_occurred">Damage occurred</option><option value="truck_issue">Truck issue</option><option value="crew_issue">Crew issue</option><option value="delay">Delay</option><option value="additional_labor">Additional labour</option><option value="additional_truck">Additional truck</option><option value="safety_concern">Safety concern</option><option value="payment_issue">Payment issue</option><option value="other">Other</option></select><select value={reportSeverity} onChange={event => setReportSeverity(event.target.value as typeof reportSeverity)} className="rounded-xl border border-slate-300 px-3 py-2 text-sm"><option value="routine">Routine</option><option value="urgent">Urgent</option><option value="critical">Critical — call Operations</option></select></div><input value={reportSummary} onChange={event => setReportSummary(event.target.value)} placeholder="Short factual summary" className="mt-3 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"/><textarea value={reportDetails} onChange={event => setReportDetails(event.target.value)} placeholder="Who, what, where, when, observed condition, action taken, and what decision you need from Operations" className="mt-3 min-h-28 w-full rounded-xl border border-slate-300 p-3 text-sm"/><button disabled={busy || !reportSummary.trim()} onClick={() => sendPartnerAction({ action: 'report', reportType, severity: reportSeverity, summary: reportSummary, details: reportDetails })} className="mt-3 w-full rounded-xl bg-rose-600 px-4 py-3 text-sm font-bold text-white disabled:opacity-40">Submit field report</button><p className="mt-2 text-xs text-slate-500">Do not negotiate price or perform added work until Operations authorizes it.</p></div>
+          <label className="block rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm font-semibold text-slate-700">Upload categorized evidence<input type="file" accept="image/*,video/*" multiple onChange={event => void uploadEvidence(event.target.files)} className="mt-2 block w-full text-xs"/>{reportMedia.length > 0 && <span className="mt-2 block text-emerald-700">{reportMedia.length} file(s) ready with this report</span>}</label>
+        </section>}
 
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Plan</div>

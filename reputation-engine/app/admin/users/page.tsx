@@ -26,6 +26,9 @@ const ROLE_LABELS: Record<UserRole, string> = {
   partnership_manager: 'Partnership Manager',
   operations_lead: 'Operations Lead',
   crew: 'Crew',
+  partner_admin: 'Partner Owner/Admin',
+  partner_dispatcher: 'Partner Dispatcher',
+  partner_crew: 'Partner Crew',
 }
 
 const ROLE_COLORS: Record<UserRole, string> = {
@@ -35,6 +38,9 @@ const ROLE_COLORS: Record<UserRole, string> = {
   partnership_manager: 'bg-teal-100 text-teal-800',
   operations_lead: 'bg-orange-100 text-orange-800',
   crew: 'bg-amber-100 text-amber-800',
+  partner_admin: 'bg-violet-100 text-violet-800',
+  partner_dispatcher: 'bg-indigo-100 text-indigo-800',
+  partner_crew: 'bg-cyan-100 text-cyan-800',
 }
 
 const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
@@ -44,6 +50,9 @@ const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   partnership_manager: 'Partnership CRM, partner SMS, partner dialer, tasks, and appointments only',
   operations_lead: 'Operations calendar only — sees booked jobs, assigns crew for their branch',
   crew: 'Crew calendar — sees their assigned jobs only',
+  partner_admin: 'Partner portal — company jobs, team, compliance, and earnings',
+  partner_dispatcher: 'Partner portal — jobs, crew assignment, and operations communication',
+  partner_crew: 'Partner portal — assigned jobs, checklists, and field reporting',
 }
 
 export default function AdminUsersPage() {

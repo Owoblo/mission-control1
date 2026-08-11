@@ -10,6 +10,8 @@ interface AppUser {
   name: string
   role: UserRole
   branch?: string
+  partner_id?: string
+  partner_member_id?: string
 }
 
 async function findUserByEmail(email: string): Promise<AppUser | null> {
@@ -53,7 +55,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
       }
 
-      const token = await createSessionToken({ userId: user.id, role: user.role, name: user.name, branch: user.branch || undefined })
+      const token = await createSessionToken({ userId: user.id, role: user.role, name: user.name, branch: user.branch || undefined, partnerId: user.partner_id || undefined, partnerMemberId: user.partner_member_id || undefined })
       const response = NextResponse.json({ ok: true, role: user.role, name: user.name, branch: user.branch || undefined })
       response.cookies.set(getSessionCookieName(), token, cookieOptions())
       return response

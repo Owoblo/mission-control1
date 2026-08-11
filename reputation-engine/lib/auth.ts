@@ -4,7 +4,7 @@ const SESSION_COOKIE = 'mc_session'
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7
 const SESSION_REFRESH_WINDOW_MS = 1000 * 60 * 60 * 24
 
-export type UserRole = 'owner' | 'manager' | 'sales_rep' | 'operations_lead' | 'crew' | 'partnership_manager'
+export type UserRole = 'owner' | 'manager' | 'sales_rep' | 'operations_lead' | 'crew' | 'partnership_manager' | 'partner_admin' | 'partner_dispatcher' | 'partner_crew'
 
 export interface SessionPayload {
   exp: number
@@ -12,6 +12,8 @@ export interface SessionPayload {
   role?: UserRole
   name?: string
   branch?: string   // for operations_lead: which branch they manage
+  partnerId?: string
+  partnerMemberId?: string
 }
 
 function toBase64Url(input: ArrayBuffer | string) {
@@ -83,6 +85,8 @@ export async function createSessionToken(options?: {
   role?: UserRole
   name?: string
   branch?: string
+  partnerId?: string
+  partnerMemberId?: string
 }) {
   const payload: SessionPayload = {
     exp: Date.now() + SESSION_TTL_MS,
