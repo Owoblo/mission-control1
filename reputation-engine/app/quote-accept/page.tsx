@@ -519,11 +519,11 @@ function PhotoGallery({ photos }: { photos: string[] }) {
           type="button"
           onClick={() => setExpanded(true)}
           className="group relative block w-full overflow-hidden rounded-2xl bg-[#071421] text-left shadow-[0_24px_70px_rgba(7,20,33,0.13)]"
-          aria-label="Open property photo at full size"
+          aria-label="Open move photo at full size"
         >
           <img
             src={photos[active]}
-            alt={`Property photo ${active + 1} of ${photos.length}`}
+            alt={`Move photo ${active + 1} of ${photos.length}`}
             className="mx-auto block max-h-[520px] min-h-[280px] max-w-full object-contain [image-rendering:auto]"
             decoding="async"
             fetchPriority={active === 0 ? 'high' : 'auto'}
@@ -531,7 +531,7 @@ function PhotoGallery({ photos }: { photos: string[] }) {
           />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#071421]/65 via-transparent to-transparent" />
           <div className="absolute bottom-6 left-7">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70">Property photo {active + 1} of {photos.length}</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70">Move photo {active + 1} of {photos.length}</div>
             <div className="mt-1 text-sm font-semibold text-white">Select to view full resolution</div>
           </div>
         </button>
@@ -569,7 +569,7 @@ function PhotoGallery({ photos }: { photos: string[] }) {
           className="fixed inset-0 z-[100] flex items-center justify-center bg-[#071421]/95 p-4 sm:p-8"
           role="dialog"
           aria-modal="true"
-          aria-label="Full-resolution property photo"
+          aria-label="Full-resolution move photo"
           onClick={() => setExpanded(false)}
         >
           <button
@@ -581,7 +581,7 @@ function PhotoGallery({ photos }: { photos: string[] }) {
           </button>
           <img
             src={photos[active]}
-            alt={`Property photo ${active + 1} of ${photos.length}`}
+            alt={`Move photo ${active + 1} of ${photos.length}`}
             className="max-h-full max-w-full object-contain [image-rendering:auto]"
             decoding="async"
             onClick={(event) => event.stopPropagation()}
@@ -1205,7 +1205,9 @@ function QuoteAcceptPageInner() {
             </h1>
             <p className={`max-w-xl text-base leading-7 text-white/70 ${quoteOptionLabel ? 'mb-3' : 'mb-10'}`}>
               {listingPhotos.length > 0
-                ? 'Built from your home’s listing, detected inventory, and the move details shared with our team.'
+                ? listingSummary
+                  ? 'Built from your home’s listing, detected inventory, and the move details shared with our team.'
+                  : 'Built from the photos and move details you shared with our team.'
                 : 'A personal relocation plan prepared for your home and moving day.'}
             </p>
             {quoteOptionLabel && (
@@ -1258,7 +1260,7 @@ function QuoteAcceptPageInner() {
           </div>
         </div>
 
-        {/* ── Property photos ── */}
+        {/* ── Customer and property photos ── */}
         {listingPhotos.length > 0 && <PhotoGallery photos={listingPhotos} />}
 
         {/* ── Move stats ── */}

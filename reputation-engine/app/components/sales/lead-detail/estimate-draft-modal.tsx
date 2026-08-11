@@ -2166,7 +2166,10 @@ export function EstimateDraftModal({
     [readinessItems]
   )
   const sendIssueDetails = useMemo(
-    () => [...blockingReadiness, ...warningReadiness].map(item => item.detail),
+    () => [...blockingReadiness, ...warningReadiness]
+      // Commercial checks are internal controls, never customer quote copy.
+      .filter(item => item.category !== 'commercial')
+      .map(item => item.detail),
     [blockingReadiness, warningReadiness]
   )
   // Discounts available any time — rep decides when to apply them
