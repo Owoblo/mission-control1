@@ -15,6 +15,7 @@ import { uid, formatMoney, getDefaultPaymentTerms } from '@/lib/sales'
 import { saveJobRecord } from '@/lib/server/repository'
 import { readEnv, getAppBaseUrl } from '@/lib/server/runtime'
 import type { CRMLead, CRMQuote } from '@/lib/types'
+import { sanitizeCustomerQuoteText } from '@/lib/customer-quote-content'
 
 const CURRENT_QUOTE_TERMS_VERSION = '2026-06-07-basic-moving-terms'
 
@@ -166,8 +167,8 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
         hourlyRateOverride: quote.hourlyRateOverride,
         legs: quote.legs || [],
         jobFactors: lead?.jobFactors || undefined,
-        moveDescription: quote.moveDescription,
-        conditionalClause: quote.conditionalClause,
+        moveDescription: sanitizeCustomerQuoteText(quote.moveDescription),
+        conditionalClause: sanitizeCustomerQuoteText(quote.conditionalClause),
         status: quote.status,
         validDays: quote.validDays,
         lineItems: quote.lineItems,
@@ -196,10 +197,13 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
       lead: lead ? {
         name: lead.name,
         inventory: (lead.inventory || []).filter((item: { included?: boolean }) => item.included !== false),
-        listingPhotos: ((lead.supabaseListing as { carouselphotos?: Array<{ url: string } | string> } | null)?.carouselphotos || [])
-          .slice(0, 12)
-          .map((p: { url: string } | string) => typeof p === 'string' ? p : p.url)
-          .filter(Boolean),
+        listingPhotos: Array.from(new Set([
+          ...(lead.mediaAssets || [])
+            .filter(asset => asset.kind === 'image' && !asset.removed && asset.category !== 'receipt')
+            .map(asset => asset.url),
+          ...((lead.supabaseListing as { carouselphotos?: Array<{ url: string } | string> } | null)?.carouselphotos || [])
+            .map((p: { url: string } | string) => typeof p === 'string' ? p : p.url),
+        ].filter(Boolean))).slice(0, 12),
         listingSummary: lead.supabaseListing ? {
           address: lead.supabaseListing.address,
           bedrooms: lead.supabaseListing.bedrooms ?? lead.supabaseListing.beds,
