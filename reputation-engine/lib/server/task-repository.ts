@@ -25,13 +25,13 @@ function fromRow(row: TaskRow): CRMTask {
 
 function toRow(task: CRMTask): TaskRow {
   return {
-    id: task.id, title: task.title, description: task.description, status: task.status, priority: task.priority,
-    category: task.category, due_at: task.dueAt, owner_user_id: task.ownerUserId, owner_name: task.ownerName,
-    branch: task.branch, related_type: task.relatedType, related_id: task.relatedId, related_label: task.relatedLabel,
-    source: task.source, source_key: task.sourceKey, created_by_user_id: task.createdByUserId, created_by_name: task.createdByName,
-    created_at: task.createdAt, updated_at: task.updatedAt, completed_at: task.completedAt,
-    completed_by_user_id: task.completedByUserId, completed_by_name: task.completedByName, outcome_note: task.outcomeNote,
-    next_task_id: task.nextTaskId,
+    id: task.id, title: task.title, description: task.description ?? null, status: task.status, priority: task.priority,
+    category: task.category, due_at: task.dueAt ?? null, owner_user_id: task.ownerUserId ?? null, owner_name: task.ownerName ?? null,
+    branch: task.branch ?? null, related_type: task.relatedType ?? null, related_id: task.relatedId ?? null, related_label: task.relatedLabel ?? null,
+    source: task.source, source_key: task.sourceKey ?? null, created_by_user_id: task.createdByUserId ?? null, created_by_name: task.createdByName ?? null,
+    created_at: task.createdAt, updated_at: task.updatedAt, completed_at: task.completedAt ?? null,
+    completed_by_user_id: task.completedByUserId ?? null, completed_by_name: task.completedByName ?? null, outcome_note: task.outcomeNote ?? null,
+    next_task_id: task.nextTaskId ?? null,
   }
 }
 
