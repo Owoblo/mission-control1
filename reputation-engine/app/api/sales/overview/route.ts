@@ -5,7 +5,9 @@ import { getSessionUser } from '@/lib/server/session'
 import { buildSalesSummary } from '@/lib/sales'
 import { isBranchScopedManager, leadMatchesSessionBranch } from '@/lib/server/sales-permissions'
 
-const OVERVIEW_CACHE_TTL_MS = 10_000
+// Prevent serverless refresh bursts from rebuilding the same database-heavy
+// dashboard snapshot every few seconds.
+const OVERVIEW_CACHE_TTL_MS = 60_000
 let overviewCache: {
   expiresAt: number
   payload: Awaited<ReturnType<typeof getSalesOverview>>
