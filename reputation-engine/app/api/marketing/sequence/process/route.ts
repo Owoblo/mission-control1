@@ -24,6 +24,7 @@ export const maxDuration = 60
 const STALE_JOB_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7
 const STALE_RUNNING_JOB_MS = 1000 * 60 * 15
 const DEFAULT_MAX_ATTEMPTS = 3
+const SEQUENCE_JOB_BATCH_SIZE = 10
 
 const PARTNERSHIP_PHONE = DEFAULT_PARTNERSHIP_FROM_NUMBER
 const PARTNERSHIP_EMAIL = DEFAULT_PARTNERSHIP_EMAIL
@@ -414,7 +415,7 @@ async function suppressSmsContact(params: {
   ])
 }
 
-export async function POST(request: Request) {
+async function processSequence(request: Request) {
   if (!isAuthorizedCronRequest(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -424,7 +425,7 @@ export async function POST(request: Request) {
   await recoverStaleSequenceJobs(url, headers)
 
   const jobsRes = await fetch(
-    `${url}/rest/v1/sequence_jobs?status=eq.pending&scheduled_at=lte.${encodeURIComponent(now)}&select=*&limit=50&order=scheduled_at.asc`,
+    `${url}/rest/v1/sequence_jobs?status=eq.pending&scheduled_at=lte.${encodeURIComponent(now)}&select=*&limit=${SEQUENCE_JOB_BATCH_SIZE}&order=scheduled_at.asc`,
     { headers, cache: 'no-store' }
   )
   if (!jobsRes.ok) return NextResponse.json({ error: 'Failed to fetch jobs' }, { status: 500 })
@@ -720,6 +721,18 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ ok: true, processed, skipped, total: claimedJobs.length, raced: jobs.length - claimedJobs.length })
+}
+
+export async function POST(request: Request) {
+  try {
+    return await processSequence(request)
+  } catch (error) {
+    console.error('[marketing-sequence] Worker failed safely', error)
+    return NextResponse.json(
+      { error: 'Sequence worker temporarily unavailable', retryable: true },
+      { status: 503, headers: { 'Retry-After': '30' } },
+    )
+  }
 }
 
 export async function GET(request: Request) {
