@@ -299,7 +299,7 @@ function isRetryableSupabaseStatus(status: number) {
 }
 
 async function fetchSupabaseWithRetry(input: string, init?: RequestInit) {
-  const maxAttempts = 3
+  const maxAttempts = 2
   let lastError: unknown
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -531,13 +531,18 @@ export async function listSalesLeadIdentitySnapshots() {
 }
 
 export async function listSalesLeadInboxSnapshots() {
-  const [rows, lifecycle] = await Promise.all([
-    selectProjectedLeadRows<LeadInboxRow>(LEAD_INBOX_SELECT),
+  const { url, headers } = requireSupabase()
+  const [response, lifecycle] = await Promise.all([
+    fetchSupabaseWithRetry(`${url}/rest/v1/rpc/crm_sales_inbox_leads`, {
+      method: 'POST', headers, body: '{}', cache: 'no-store',
+    }),
     selectLeadLifecycleSnapshots(),
   ])
+  if (!response.ok) throw new Error(`Failed to read CRM inbox leads. Supabase ${response.status}`)
+  const records = await response.json() as Array<{ data: CRMLead }>
   const archivedLeadIds = getArchivedLeadIds(lifecycle)
-  return rows
-    .map(normalizeLeadInboxSnapshot)
+  return records
+    .map(record => normalizeLead(record.data) as SalesLeadInboxSnapshot)
     .filter(lead => isVisibleSalesLead(lead, archivedLeadIds))
 }
 
