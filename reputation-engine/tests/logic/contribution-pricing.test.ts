@@ -13,6 +13,8 @@ test('major move price is solved backwards from fulfillment cost and margin', ()
   assert.ok(plan.costs.some(cost => cost.key === 'box_delivery'))
   assert.ok(plan.recommendedPrice >= plan.minimumAuthorizedPrice)
   assert.ok(plan.expectedContribution > 0)
+  assert.equal(plan.reserves.length, 5)
+  assert.ok(plan.executionContingencyTotal > (plan.costs.find(cost => cost.key === 'contingency')?.amount || 0))
 })
 
 test('storage and junk allowances become real internal costs', () => {
