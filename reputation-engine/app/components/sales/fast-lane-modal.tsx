@@ -10,7 +10,7 @@ import {
 
 const RATES: Record<string, Record<number, number>> = {
   truck:  { 2: 170, 3: 210, 4: 325 },
-  labor:  { 2: 130, 3: 160, 4: 210 },
+  labor:  { 2: 165, 3: 160, 4: 210 },
 }
 
 const HOUR_RANGES = [

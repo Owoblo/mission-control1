@@ -491,7 +491,7 @@ const LOCAL_CREW_RATES_TRUCK_AWARE: Record<string, number> = {
 
 const LABOR_ONLY_CREW_RATES: Record<number, number> = {
   1: 110,
-  2: 130,
+  2: 165,
   3: 160,
   4: 210,
   5: 260,
