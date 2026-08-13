@@ -20,6 +20,7 @@ import { PhotoLightbox } from '@/app/components/sales/photo-lightbox'
 import { DEFAULT_ROOM_OPTIONS } from './helpers'
 import type { EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, LeadMediaAsset, PricingBreakdown, QuoteLineItem, QuoteLeg, QuoteLegType } from '@/lib/types'
 import { buildServiceProfitabilityPlan } from '@/lib/service-profitability'
+import { buildContributionPricingPlan } from '@/lib/contribution-pricing'
 import { buildConsultativeMovePlan } from '@/lib/consultative-move-plan'
 import { qualifyMoveAddress } from '@/lib/route-address'
 import {
@@ -1932,6 +1933,13 @@ export function EstimateDraftModal({
     jobFactors,
     pricingBreakdown,
   }), [jobFactors, legs, legsEnabled, pricingBreakdown, quoteLineItems])
+  const contributionPlan = useMemo(() => buildContributionPricingPlan({
+    currentPrice: quoteModalTotals.subtotal,
+    pricing: pricingBreakdown,
+    lineItems: quoteLineItems,
+    factors: jobFactors,
+    binding: quote?.billingModel === 'binding',
+  }), [jobFactors, pricingBreakdown, quote?.billingModel, quoteLineItems, quoteModalTotals.subtotal])
   const consultativeMovePlan = useMemo(() => buildConsultativeMovePlan({
     factors: jobFactors,
     lineItems: quoteLineItems,
@@ -5361,6 +5369,35 @@ export function EstimateDraftModal({
           {/* Sidebar */}
           <aside className="border-t border-[var(--app-line)] bg-[var(--app-bg)] p-4 md:p-6 xl:border-l xl:border-t-0 space-y-6">
 
+            {contributionPlan.isMajorMove && <details className="rounded-[8px] border border-[var(--app-line)] bg-white" open>
+              <summary className="cursor-pointer list-none px-3 py-3">
+                <div className="crm-label">Contribution Pricing</div>
+                <div className="mt-1 text-xs text-[var(--app-muted)]">Build the one customer price backwards from complete fulfillment economics.</div>
+              </summary>
+              <div className="border-t border-[var(--app-line)] px-3 py-3 text-xs">
+                <div className="space-y-1.5">
+                  {contributionPlan.costs.map(cost => <div key={cost.key} className="flex justify-between gap-3"><span className="text-[var(--app-muted)]">{cost.label}</span><span className="font-semibold">{formatMoney(cost.amount)}</span></div>)}
+                  <div className="flex justify-between gap-3"><span className="text-[var(--app-muted)]">Sales commission (5%)</span><span>built into target</span></div>
+                  <div className="flex justify-between gap-3"><span className="text-[var(--app-muted)]">Card processing (3%)</span><span>built into target</span></div>
+                  <div className="flex justify-between gap-3"><span className="text-[var(--app-muted)]">Acquisition allocation (4%)</span><span>built into target</span></div>
+                  <div className="flex justify-between gap-3"><span className="text-[var(--app-muted)]">Claims reserve (2%)</span><span>built into target</span></div>
+                  <div className="flex justify-between gap-3"><span className="text-[var(--app-muted)]">Move coordination (3%)</span><span>built into target</span></div>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="rounded bg-slate-50 p-2"><div className="text-[9px] uppercase text-[var(--app-muted)]">Recommended</div><div className="text-base font-bold">{formatMoney(contributionPlan.recommendedPrice)}</div></div>
+                  <div className="rounded bg-amber-50 p-2"><div className="text-[9px] uppercase text-amber-700">Authorized floor</div><div className="text-base font-bold text-amber-900">{formatMoney(contributionPlan.minimumAuthorizedPrice)}</div></div>
+                </div>
+                <div className="mt-2 rounded bg-slate-50 p-2">Current expected contribution: <strong>{formatMoney(contributionPlan.expectedContribution)} ({contributionPlan.contributionMarginPct}%)</strong></div>
+                {quoteModalTotals.subtotal < contributionPlan.minimumAuthorizedPrice && <div className="mt-2 rounded bg-rose-50 p-2 font-semibold text-rose-800">Current price is below the authorized contribution floor.</div>}
+                {quoteModalTotals.subtotal !== contributionPlan.recommendedPrice && <button type="button" onClick={() => {
+                  const next = [...quoteLineItems]
+                  const otherRevenue = next.slice(1).reduce((sum, item) => sum + Math.max(0, Number(item.amount || 0)), 0)
+                  if (next[0]) next[0] = { ...next[0], amount: Math.max(0, contributionPlan.recommendedPrice - otherRevenue) }
+                  onSetLineItems(next)
+                }} className="crm-button-dark mt-3 w-full justify-center text-xs">Apply recommended bundled price</button>}
+              </div>
+            </details>}
+
             <details className="rounded-[8px] border border-[var(--app-line)] bg-white" open={serviceProfitabilityPlan.status !== 'healthy'}>
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-3">
                 <div>
@@ -7229,7 +7266,7 @@ export function EstimateDraftModal({
                     </button>
                   </div>
                 )}
-                <button onClick={() => void handlePreviewSend()} disabled={quoteModalBusy || routeBusy || !quote || (conjointInventoryPending && !marginGateAck) || (!conjointInventoryPending && liveMarginSummary !== null && liveMarginSummary.liveMargin < 50 && liveMarginSummary.actualRevenue > 0 && !marginGateAck)} className="w-full justify-center rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
+                <button onClick={() => void handlePreviewSend()} disabled={quoteModalBusy || routeBusy || !quote || (contributionPlan.isMajorMove && quoteModalTotals.subtotal < contributionPlan.minimumAuthorizedPrice && !marginGateAck) || (conjointInventoryPending && !marginGateAck) || (!conjointInventoryPending && liveMarginSummary !== null && liveMarginSummary.liveMargin < 50 && liveMarginSummary.actualRevenue > 0 && !marginGateAck)} className="w-full justify-center rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
                   {routeBusy ? 'Calculating route…' : quoteModalBusy ? 'Saving...' : 'Preview & Send →'}
                 </button>
                 <button onClick={() => void onSaveDraft({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined, quoteType })} disabled={quoteModalBusy || !quote} className="crm-button-dark w-full justify-center disabled:opacity-60">
