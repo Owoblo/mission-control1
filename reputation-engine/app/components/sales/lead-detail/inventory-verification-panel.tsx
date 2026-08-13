@@ -111,18 +111,17 @@ export function InventoryVerificationPanel({
                 </div>
                 <div className="grid grid-cols-3 gap-1.5">
                   {customerImageAssets.map((asset, index) => (
-                    <button
-                      key={asset.id || index}
-                      type="button"
-                      onClick={() => setLightboxIndex(index)}
-                      className="group relative aspect-square overflow-hidden rounded-[6px] border border-emerald-200 cursor-zoom-in"
-                      title={asset.room || `Photo ${index + 1}`}
-                    >
-                      <img src={asset.url} alt={`Customer photo ${index + 1}`} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                    <div key={asset.id || index} className="group relative aspect-square overflow-hidden rounded-[6px] border border-emerald-200">
+                      <button type="button" onClick={() => setLightboxIndex(index)} className="absolute inset-0 cursor-zoom-in" title={asset.room || `Photo ${index + 1}`}>
+                        <img src={asset.url} alt={`Customer photo ${index + 1}`} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                      </button>
                       {asset.room && (
                         <div className="absolute bottom-0 left-0 right-0 truncate bg-black/50 px-1 py-0.5 text-[9px] text-white">{asset.room}</div>
                       )}
-                    </button>
+                      {canEditCurrentLead && onRemoveMedia && (
+                        <button type="button" onClick={() => onRemoveMedia(asset.id)} className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-rose-600 text-sm font-bold text-white shadow" aria-label={`Delete ${asset.filename || asset.room || `photo ${index + 1}`}`} title="Delete this uploaded photo">×</button>
+                      )}
+                    </div>
                   ))}
                 </div>
                 {customerVideoAssets.length > 0 && (
@@ -231,7 +230,7 @@ export function InventoryVerificationPanel({
                 {customerImageAssets.map((asset, index) => {
                   const sourceLabel = asset.source === 'mms' ? 'MMS' : asset.source === 'survey' ? 'Survey' : 'Rep'
                   const sourceTone = asset.source === 'mms' ? 'bg-sky-100 text-sky-700' : asset.source === 'survey' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'
-                  const canRemove = asset.source === 'rep_upload' && canEditCurrentLead && !!onRemoveMedia
+                  const canRemove = canEditCurrentLead && !!onRemoveMedia
                   return (
                     <div key={asset.id || index} className="group relative aspect-square overflow-hidden rounded-[6px] border border-[var(--app-line)]">
                       <button type="button" onClick={() => setLightboxIndex(index)} className="absolute inset-0 cursor-zoom-in">
@@ -243,8 +242,9 @@ export function InventoryVerificationPanel({
                         <button
                           type="button"
                           onClick={e => { e.stopPropagation(); onRemoveMedia!(asset.id) }}
-                          className="absolute right-1 top-1 hidden group-hover:flex items-center justify-center rounded-full bg-rose-600 text-white w-5 h-5 text-[10px] font-bold shadow"
-                          title="Remove this photo"
+                          className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-rose-600 text-sm font-bold text-white shadow"
+                          aria-label={`Delete ${asset.filename || asset.room || `photo ${index + 1}`}`}
+                          title="Delete this uploaded photo"
                         >
                           ×
                         </button>
