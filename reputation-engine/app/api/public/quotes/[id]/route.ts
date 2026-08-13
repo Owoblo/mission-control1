@@ -176,6 +176,12 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
         hst: quote.hst,
         total: quote.total,
         deposit: quote.deposit,
+        depositPaid: Boolean(
+          quote.depositPaidAt || quote.depositStripePaymentIntentId || Number(quote.depositPaidAmount || 0) > 0 ||
+          lead?.paymentStatus === 'deposit_received' || lead?.paymentStatus === 'paid_in_full'
+        ),
+        depositPaidAt: quote.depositPaidAt || lead?.depositDate,
+        depositPaidAmount: Number(quote.depositPaidAmount || lead?.depositAmount || 0),
         balance: quote.balance,
         discountAmount: quote.discountAmount,
         discountLabel: quote.discountLabel,

@@ -37,6 +37,9 @@ type PublicQuote = {
   hst: number
   total: number
   deposit: number
+  depositPaid?: boolean
+  depositPaidAt?: string
+  depositPaidAmount?: number
   balance: number
   discountAmount?: number
   discountLabel?: string
@@ -858,6 +861,7 @@ function QuoteAcceptPageInner() {
   const token = searchParams.get('token')
   const printMode = searchParams.get('print') === '1'
   const justPaid = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('paid') === '1'
+  const depositConfirmed = justPaid || quote?.depositPaid === true
 
   useEffect(() => {
     async function load() {
@@ -1004,7 +1008,7 @@ function QuoteAcceptPageInner() {
     const rateDesc = lineItem?.description || ''
     const rangeDesc = lineItem?.details || ''
     const specialtyNote = (quote as unknown as Record<string, unknown>).moveDescription as string | undefined
-    const alreadyPaid = justPaid || !!quote.acceptedAt
+    const alreadyPaid = depositConfirmed
 
     // Extract min/max from range for display
     const rangeMatch = rangeDesc.match(/(\d+(?:\.\d+)?)[-–](\d+(?:\.\d+)?)\s*hrs?/i)
@@ -1164,7 +1168,7 @@ function QuoteAcceptPageInner() {
             declining={declining}
             accepted={accepted}
             declined={declined}
-            justPaid={justPaid}
+            justPaid={depositConfirmed}
             stripeLoading={stripeLoading}
             termsAccepted={termsAccepted}
             onAccept={() => void confirmAccept()}
@@ -1516,7 +1520,7 @@ function QuoteAcceptPageInner() {
             declining={declining}
             accepted={accepted}
             declined={declined}
-            justPaid={justPaid}
+            justPaid={depositConfirmed}
             stripeLoading={stripeLoading}
             termsAccepted={termsAccepted}
             onAccept={() => void confirmAccept()}
@@ -1604,7 +1608,7 @@ function QuoteAcceptPageInner() {
         </div>
 
         {/* ── Terms ── */}
-        {!declined && !justPaid && (
+        {!declined && !depositConfirmed && (
           <div ref={termsRef} className="mb-8">
             <CustomerTermsAgreement
               brand={brand}
@@ -1628,7 +1632,7 @@ function QuoteAcceptPageInner() {
             declining={declining}
             accepted={accepted}
             declined={declined}
-            justPaid={justPaid}
+            justPaid={depositConfirmed}
             stripeLoading={stripeLoading}
             termsAccepted={termsAccepted}
             onAccept={() => void confirmAccept()}
