@@ -2179,13 +2179,18 @@ export default function SalesLeadDetailPage() {
   async function persistMediaRemoval(assetId: string) {
     if (!lead) return
     try {
-      await fetch(`/api/sales/leads/${lead.id}/media/${assetId}/remove`, {
+      const response = await fetch(`/api/sales/leads/${lead.id}/media/${assetId}/remove`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
       })
+      const result = await response.json().catch(() => ({})) as { error?: string }
+      if (!response.ok) throw new Error(result.error || 'Failed to delete uploaded media')
       await refresh(lead.id)
     } catch (err) {
       console.error('[media/remove] failed:', err)
+      setLead(prev => prev ? { ...prev, mediaAssets: (prev.mediaAssets || []).map(asset => asset.id === assetId ? { ...asset, removed: undefined, removedAt: undefined } : asset) } : prev)
+      setError(err instanceof Error ? err.message : 'Failed to delete uploaded media')
     }
   }
 
