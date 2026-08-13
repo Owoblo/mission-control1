@@ -30,8 +30,8 @@ const DEPOSIT = 100
 const FAST_LANE_DEDUPE_WINDOW_MS = 6 * 60 * 60 * 1000
 
 const RATES: Record<string, Record<number, number>> = {
-  truck:  { 2: 160, 3: 200, 4: 315 },
-  labor:  { 2: 120, 3: 150, 4: 200 },
+  truck:  { 2: 170, 3: 210, 4: 325 },
+  labor:  { 2: 130, 3: 160, 4: 210 },
 }
 
 function formatFastLaneWindow(minHours: number, maxHours: number) {

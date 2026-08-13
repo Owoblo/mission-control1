@@ -465,46 +465,46 @@ export function normalizeQuote(quote: CRMQuote): CRMQuote {
 
 // Base crew rates for 1-truck jobs (customer-facing $/hr)
 const LOCAL_CREW_RATES: Record<number, number> = {
-  1: 100,
-  2: 160,
-  3: 200,
-  4: 270,
-  5: 325,
-  6: 375,
+  1: 110,
+  2: 170,
+  3: 210,
+  4: 280,
+  5: 335,
+  6: 385,
 }
 
 // Truck-aware combined rates: key = `${crewSize}-${truckCount}`
 // 2-truck jobs get a built-in volume discount vs raw base × multiplier
 // because the customer is paying for speed/efficiency, not just headcount
 const LOCAL_CREW_RATES_TRUCK_AWARE: Record<string, number> = {
-  '1-1': 100,
-  '2-1': 160,
-  '3-1': 200,
-  '4-1': 270,   // rare — 4 movers, 1 large truck
-  '4-2': 290,   // standard 2-truck job — competitive market rate
-  '5-2': 350,
-  '6-2': 395,
-  '6-3': 480,
-  '7-3': 530,
-  '8-3': 580,
+  '1-1': 110,
+  '2-1': 170,
+  '3-1': 210,
+  '4-1': 280,   // rare — 4 movers, 1 large truck
+  '4-2': 300,   // standard 2-truck job — competitive market rate
+  '5-2': 360,
+  '6-2': 405,
+  '6-3': 490,
+  '7-3': 540,
+  '8-3': 590,
 }
 
 const LABOR_ONLY_CREW_RATES: Record<number, number> = {
-  1: 100,
-  2: 120,
-  3: 150,
-  4: 200,
-  5: 250,
-  6: 300,
+  1: 110,
+  2: 130,
+  3: 160,
+  4: 210,
+  5: 260,
+  6: 310,
 }
 
 const PACKING_CREW_RATES: Record<number, number> = {
-  1: 90,
-  2: 150,
-  3: 150,
-  4: 200,
-  5: 250,
-  6: 300,
+  1: 100,
+  2: 160,
+  3: 160,
+  4: 210,
+  5: 260,
+  6: 310,
 }
 
 function roundQuarterHour(value: number) {
