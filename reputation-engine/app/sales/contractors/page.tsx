@@ -1,40 +1,659 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { Suspense, useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { evaluateSubcontractorEligibility, type Subcontractor, type SubcontractorOffer } from '@/lib/subcontractors'
+import Link from "next/link";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import {
+  evaluateSubcontractorEligibility,
+  type Subcontractor,
+  type SubcontractorOffer,
+} from "@/lib/subcontractors";
 
-type JobDefaults = Partial<SubcontractorOffer> & { leadId: string; quoteId?: string; name: string; partnerReadiness?: { ready: boolean; missing: string[]; warnings: string[]; suggestedPayout: number } }
-const emptyContractor = { companyName: '', contactName: '', phone: '', email: '', status: 'active', branches: [], serviceCities: [], serviceTags: ['moving'], truckSizes: [], maxCrewSize: 2, insured: false, insuranceExpiresAt: '', availabilityNotes: '', notes: '' } as unknown as Subcontractor
+type JobDefaults = Partial<SubcontractorOffer> & {
+  leadId: string;
+  quoteId?: string;
+  name: string;
+  partnerReadiness?: {
+    ready: boolean;
+    missing: string[];
+    warnings: string[];
+    suggestedPayout: number;
+  };
+};
+const emptyContractor = {
+  companyName: "",
+  contactName: "",
+  phone: "",
+  email: "",
+  status: "active",
+  branches: [],
+  serviceCities: [],
+  serviceTags: ["moving"],
+  truckAccess: "rents",
+  truckSizes: [],
+  maxCrewSize: 2,
+  insured: false,
+  insuranceExpiresAt: "",
+  availabilityNotes: "",
+  notes: "",
+} as unknown as Subcontractor;
 
 function ContractorsContent() {
-  const search = useSearchParams(); const leadId = search.get('leadId') || ''
-  const [contractors, setContractors] = useState<Subcontractor[]>([]); const [job, setJob] = useState<JobDefaults | null>(null)
-  const [offers, setOffers] = useState<SubcontractorOffer[]>([])
-  const [editing, setEditing] = useState<Subcontractor | null>(null); const [selected, setSelected] = useState<string[]>([])
-  const [payout, setPayout] = useState(''); const [expires, setExpires] = useState(''); const [arrivalWindow, setArrivalWindow] = useState('')
-  const [readinessOverrideReason, setReadinessOverrideReason] = useState('')
-  const [policy, setPolicy] = useState<'first_acceptance' | 'manual_selection'>('first_acceptance'); const [message, setMessage] = useState(''); const [busy, setBusy] = useState(false)
-  async function load() { const response = await fetch(`/api/sales/subcontractors${leadId ? `?leadId=${encodeURIComponent(leadId)}` : ''}`, { cache: 'no-store' }); const body = await response.json(); if (!response.ok) throw new Error(body.error); setContractors(body.contractors); setOffers(body.offers || []); setJob(body.job); if (body.job?.partnerReadiness?.suggestedPayout && !payout) setPayout(String(body.job.partnerReadiness.suggestedPayout)) }
-  useEffect(() => { load().catch(error => setMessage(error.message)) }, [leadId])
-  const ranked = useMemo(() => contractors.map(item => ({ item, fit: evaluateSubcontractorEligibility(item, { branch: job?.branch, originCity: job?.originCity, destinationCity: job?.destinationCity, crewSize: job?.crewSize, truckSize: job?.suggestedTruck, serviceTags: job?.requiredServiceTags, moveDate: job?.moveDate }) })).sort((a, b) => Number(b.fit.eligible) - Number(a.fit.eligible) || b.fit.score - a.fit.score), [contractors, job])
-  async function saveContractor(event: React.FormEvent) { event.preventDefault(); if (!editing) return; setBusy(true); const response = await fetch('/api/sales/subcontractors', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editing) }); const body = await response.json(); setBusy(false); if (!response.ok) return setMessage(body.error); setEditing(null); setMessage('Contractor saved.'); await load() }
-  function csv(value: string) { return value.split(',').map(item => item.trim()).filter(Boolean) }
-  async function sendOffer() { if (!job) return; setBusy(true); setMessage(''); const response = await fetch('/api/sales/subcontractor-offers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...job, recipientIds: selected, offeredPayout: Number(payout), arrivalWindow, expiresAt: expires ? new Date(expires).toISOString() : undefined, awardPolicy: policy, currency: 'CAD', requiredServiceTags: job.requiredServiceTags || ['moving'], readinessOverrideReason }) }); const body = await response.json(); setBusy(false); if (!response.ok) return setMessage(body.error + (body.missing ? ` Missing: ${body.missing.join(', ')}.` : '') + (body.ineligible ? ` ${body.ineligible.map((x: any) => `${x.companyName}: ${x.reasons.join(', ')}`).join('; ')}` : '')); setMessage(`Offer sent to ${body.deliveries.filter((x: any) => x.ok).length} contractor(s).`); setSelected([]); await load() }
-  async function offerAction(offerId: string, action: 'cancel' | 'resend') { setBusy(true); const response = await fetch('/api/sales/subcontractor-offers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ offerId, action }) }); const body = await response.json(); setBusy(false); setMessage(response.ok ? (action === 'cancel' ? 'Offer cancelled.' : `Offer resent to ${body.sent} contractor(s).`) : body.error); await load() }
-  async function award(offerId: string, subcontractorId: string) { setBusy(true); const response = await fetch(`/api/sales/subcontractor-offers/${offerId}/award`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subcontractorId }) }); const body = await response.json(); setBusy(false); setMessage(response.ok ? 'Contractor awarded and added to dispatch.' : body.error); await load() }
-  return <main className="crm-shell space-y-6">
-    <header className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[.18em] text-[#C99700]">Operations</p><h1 className="font-display text-2xl font-bold text-[#071421]">Contractor Dispatch</h1><p className="mt-1 text-sm text-slate-500">Trusted contractor directory, eligibility, offers, and award tracking.</p></div><div className="flex gap-2"><Link href="/sales/operations" className="rounded-lg border bg-white px-4 py-2 text-sm font-semibold">← Operations</Link><button onClick={() => setEditing({ ...emptyContractor })} className="rounded-lg bg-[#071421] px-4 py-2 text-sm font-bold text-white">+ Add contractor</button></div></header>
-    {message && <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-800">{message}</div>}
-    {job?.partnerReadiness && <section className={`rounded-2xl border p-4 text-sm ${job.partnerReadiness.ready ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-rose-200 bg-rose-50 text-rose-900'}`}><p className="font-bold">{job.partnerReadiness.ready ? 'Ready to offer · sanitized briefing will be generated' : 'Automatic offer gate is not ready'}</p>{job.partnerReadiness.missing.length > 0 && <p className="mt-1 text-xs">Missing: {job.partnerReadiness.missing.join(' · ')}</p>}{job.partnerReadiness.warnings.length > 0 && <p className="mt-1 text-xs">Warnings: {job.partnerReadiness.warnings.join(' · ')}</p>}{!job.partnerReadiness.ready && <label className="mt-3 block text-xs font-semibold">Management override reason<input value={readinessOverrideReason} onChange={event => setReadinessOverrideReason(event.target.value)} className="crm-input mt-1" placeholder="Explain why this incomplete job may be offered"/></label>}</section>}
-    {job && <section className="rounded-2xl border border-[#C99700]/40 bg-white p-5"><h2 className="font-bold text-[#071421]">Offer job: {job.name}</h2><p className="mt-1 text-sm text-slate-500">{job.moveDate || 'Date TBD'} · {job.originCity} → {job.destinationCity} · {job.crewSize || '?'} crew · {job.suggestedTruck || 'truck TBD'}</p><div className="mt-4 grid gap-3 md:grid-cols-4"><label className="text-xs font-semibold">Payout (CAD)<input type="number" value={payout} onChange={e => setPayout(e.target.value)} className="crm-input mt-1" placeholder="1200"/></label><label className="text-xs font-semibold">Arrival window<input value={arrivalWindow} onChange={e => setArrivalWindow(e.target.value)} className="crm-input mt-1" placeholder="8–10 AM"/></label><label className="text-xs font-semibold">Offer expires<input type="datetime-local" value={expires} onChange={e => setExpires(e.target.value)} className="crm-input mt-1"/></label><label className="text-xs font-semibold">Award rule<select value={policy} onChange={e => setPolicy(e.target.value as typeof policy)} className="crm-input mt-1"><option value="first_acceptance">First qualified acceptance</option><option value="manual_selection">Operations chooses</option></select></label></div><button disabled={busy || !selected.length || !Number(payout)} onClick={sendOffer} className="mt-4 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-40">Send SMS offer to {selected.length || 0}</button></section>}
-    {offers.length > 0 && <section className="space-y-3"><h2 className="text-lg font-bold text-[#071421]">Offer activity</h2>{offers.map(offer => <article key={offer.id} className="rounded-2xl border bg-white p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-bold">{offer.moveDate || 'Date TBD'} · {offer.originCity} → {offer.destinationCity}</h3><p className="text-xs text-slate-500">CAD ${offer.offeredPayout.toFixed(2)} · {offer.awardPolicy === 'first_acceptance' ? 'first acceptance wins' : 'manual award'}</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase">{offer.status}</span></div><div className="mt-3 grid gap-2 md:grid-cols-2">{offer.recipients?.map(recipient => <div key={recipient.id} className="flex items-center justify-between rounded-xl bg-slate-50 p-3 text-xs"><div><p className="font-bold">{recipient.subcontractor?.companyName || 'Contractor'}</p><p className="text-slate-500">{recipient.status}{recipient.responseNote ? ` · ${recipient.responseNote}` : ''}</p></div>{offer.status === 'open' && ['discussion','viewed','sent'].includes(recipient.status) && <button disabled={busy} onClick={() => award(offer.id, recipient.subcontractorId)} className="rounded-lg bg-emerald-600 px-3 py-1.5 font-bold text-white">Award</button>}</div>)}</div>{offer.status === 'open' && <div className="mt-3 flex gap-2"><button onClick={() => offerAction(offer.id, 'resend')} className="rounded-lg border px-3 py-1.5 text-xs font-bold">Resend</button><button onClick={() => offerAction(offer.id, 'cancel')} className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-bold text-rose-700">Cancel offer</button></div>}</article>)}</section>}
-    <section className="grid gap-3 lg:grid-cols-2">{ranked.map(({ item, fit }) => <article key={item.id} className={`rounded-2xl border bg-white p-4 ${fit.eligible ? 'border-emerald-200' : 'border-slate-200 opacity-80'}`}><div className="flex items-start gap-3">{job && <input type="checkbox" disabled={!fit.eligible} checked={selected.includes(item.id)} onChange={() => setSelected(current => current.includes(item.id) ? current.filter(id => id !== item.id) : [...current, item.id])} className="mt-1 h-4 w-4"/>}<div className="min-w-0 flex-1"><div className="flex justify-between gap-3"><div><h3 className="font-bold text-[#071421]">{item.companyName}</h3><p className="text-xs text-slate-500">{item.contactName} · {item.phone}</p></div><span className={`rounded-full px-2 py-1 text-xs font-bold ${fit.eligible ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{fit.eligible ? `${fit.score}% fit` : 'Not eligible'}</span></div><p className="mt-3 text-xs text-slate-600">{item.branches.join(', ') || 'All branches'} · crew {item.maxCrewSize || '?'} · {item.truckSizes.join(', ') || 'truck not set'} · {item.insured ? `insured${item.insuranceExpiresAt ? ` to ${item.insuranceExpiresAt}` : ''}` : 'insurance unverified'}</p>{fit.reasons.length > 0 && <p className="mt-2 text-xs text-rose-700">{fit.reasons.join(' · ')}</p>}<button onClick={() => setEditing({ ...item })} className="mt-3 text-xs font-bold text-[#071421] underline">Edit profile</button></div></div></article>)}</section>
-    {editing && <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/50 p-4"><form onSubmit={saveContractor} className="mx-auto max-w-2xl space-y-4 rounded-2xl bg-white p-6"><div className="flex justify-between"><h2 className="text-lg font-bold">{editing.id ? 'Edit' : 'Add'} contractor</h2><button type="button" onClick={() => setEditing(null)}>✕</button></div><div className="grid gap-3 sm:grid-cols-2">{([['companyName','Company'],['contactName','Contact'],['phone','Phone'],['email','Email']] as const).map(([key,label]) => <label key={key} className="text-xs font-semibold">{label}<input value={String(editing[key] || '')} onChange={e => setEditing({ ...editing, [key]: e.target.value })} className="crm-input mt-1" required={key !== 'email'}/></label>)}<label className="text-xs font-semibold">Branches<input value={editing.branches.join(', ')} onChange={e => setEditing({ ...editing, branches: csv(e.target.value) })} className="crm-input mt-1" placeholder="windsor, london"/></label><label className="text-xs font-semibold">Service cities<input value={editing.serviceCities.join(', ')} onChange={e => setEditing({ ...editing, serviceCities: csv(e.target.value) })} className="crm-input mt-1"/></label><label className="text-xs font-semibold">Service tags<input value={editing.serviceTags.join(', ')} onChange={e => setEditing({ ...editing, serviceTags: csv(e.target.value) })} className="crm-input mt-1"/></label><label className="text-xs font-semibold">Truck sizes<input value={editing.truckSizes.join(', ')} onChange={e => setEditing({ ...editing, truckSizes: csv(e.target.value) })} className="crm-input mt-1" placeholder="26ft"/></label><label className="text-xs font-semibold">Max crew<input type="number" value={editing.maxCrewSize || ''} onChange={e => setEditing({ ...editing, maxCrewSize: Number(e.target.value) })} className="crm-input mt-1"/></label><label className="text-xs font-semibold">Status<select value={editing.status} onChange={e => setEditing({ ...editing, status: e.target.value as Subcontractor['status'] })} className="crm-input mt-1"><option value="active">Active</option><option value="paused">Paused</option><option value="blocked">Blocked</option></select></label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editing.insured} onChange={e => setEditing({ ...editing, insured: e.target.checked })}/> Insurance verified</label><label className="text-xs font-semibold">Insurance expiry<input type="date" value={editing.insuranceExpiresAt || ''} onChange={e => setEditing({ ...editing, insuranceExpiresAt: e.target.value })} className="crm-input mt-1"/></label></div><label className="text-xs font-semibold">Availability / blackout notes<textarea value={editing.availabilityNotes || ''} onChange={e => setEditing({ ...editing, availabilityNotes: e.target.value })} className="crm-input mt-1 min-h-20"/></label><label className="text-xs font-semibold">Internal notes<textarea value={editing.notes || ''} onChange={e => setEditing({ ...editing, notes: e.target.value })} className="crm-input mt-1 min-h-20"/></label><button disabled={busy} className="w-full rounded-lg bg-[#071421] py-3 font-bold text-white">Save contractor</button></form></div>}
-  </main>
+  const search = useSearchParams();
+  const leadId = search.get("leadId") || "";
+  const [contractors, setContractors] = useState<Subcontractor[]>([]);
+  const [job, setJob] = useState<JobDefaults | null>(null);
+  const [offers, setOffers] = useState<SubcontractorOffer[]>([]);
+  const [editing, setEditing] = useState<Subcontractor | null>(null);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [payout, setPayout] = useState("");
+  const [expires, setExpires] = useState("");
+  const [arrivalWindow, setArrivalWindow] = useState("");
+  const [readinessOverrideReason, setReadinessOverrideReason] = useState("");
+  const [policy, setPolicy] = useState<"first_acceptance" | "manual_selection">(
+    "first_acceptance",
+  );
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function load() {
+    const response = await fetch(
+      `/api/sales/subcontractors${leadId ? `?leadId=${encodeURIComponent(leadId)}` : ""}`,
+      { cache: "no-store" },
+    );
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error);
+    setContractors(body.contractors);
+    setOffers(body.offers || []);
+    setJob(body.job);
+    if (body.job?.partnerReadiness?.suggestedPayout && !payout)
+      setPayout(String(body.job.partnerReadiness.suggestedPayout));
+  }
+  useEffect(() => {
+    load().catch((error) => setMessage(error.message));
+  }, [leadId]);
+  const ranked = useMemo(
+    () =>
+      contractors
+        .map((item) => ({
+          item,
+          fit: evaluateSubcontractorEligibility(item, {
+            branch: job?.branch,
+            originCity: job?.originCity,
+            destinationCity: job?.destinationCity,
+            crewSize: job?.crewSize,
+            truckSize: job?.suggestedTruck,
+            serviceTags: job?.requiredServiceTags,
+            moveDate: job?.moveDate,
+          }),
+        }))
+        .sort(
+          (a, b) =>
+            Number(b.fit.eligible) - Number(a.fit.eligible) ||
+            b.fit.score - a.fit.score,
+        ),
+    [contractors, job],
+  );
+  async function saveContractor(event: React.FormEvent) {
+    event.preventDefault();
+    if (!editing) return;
+    setBusy(true);
+    const response = await fetch("/api/sales/subcontractors", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editing),
+    });
+    const body = await response.json();
+    setBusy(false);
+    if (!response.ok) return setMessage(body.error);
+    setEditing(null);
+    setMessage("Contractor saved.");
+    await load();
+  }
+  function csv(value: string) {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  async function sendOffer() {
+    if (!job) return;
+    setBusy(true);
+    setMessage("");
+    const response = await fetch("/api/sales/subcontractor-offers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...job,
+        recipientIds: selected,
+        offeredPayout: Number(payout),
+        arrivalWindow,
+        expiresAt: expires ? new Date(expires).toISOString() : undefined,
+        awardPolicy: policy,
+        currency: "CAD",
+        requiredServiceTags: job.requiredServiceTags || ["moving"],
+        readinessOverrideReason,
+      }),
+    });
+    const body = await response.json();
+    setBusy(false);
+    if (!response.ok)
+      return setMessage(
+        body.error +
+          (body.missing ? ` Missing: ${body.missing.join(", ")}.` : "") +
+          (body.ineligible
+            ? ` ${body.ineligible.map((x: any) => `${x.companyName}: ${x.reasons.join(", ")}`).join("; ")}`
+            : ""),
+      );
+    setMessage(
+      `Offer sent to ${body.deliveries.filter((x: any) => x.ok).length} contractor(s).`,
+    );
+    setSelected([]);
+    await load();
+  }
+  async function offerAction(offerId: string, action: "cancel" | "resend") {
+    setBusy(true);
+    const response = await fetch("/api/sales/subcontractor-offers", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ offerId, action }),
+    });
+    const body = await response.json();
+    setBusy(false);
+    setMessage(
+      response.ok
+        ? action === "cancel"
+          ? "Offer cancelled."
+          : `Offer resent to ${body.sent} contractor(s).`
+        : body.error,
+    );
+    await load();
+  }
+  async function award(offerId: string, subcontractorId: string) {
+    setBusy(true);
+    const response = await fetch(
+      `/api/sales/subcontractor-offers/${offerId}/award`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subcontractorId }),
+      },
+    );
+    const body = await response.json();
+    setBusy(false);
+    setMessage(
+      response.ok ? "Contractor awarded and added to dispatch." : body.error,
+    );
+    await load();
+  }
+  return (
+    <main className="crm-shell space-y-6">
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[.18em] text-[#C99700]">
+            Operations
+          </p>
+          <h1 className="font-display text-2xl font-bold text-[#071421]">
+            Contractor Dispatch
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Trusted contractor directory, eligibility, offers, and award
+            tracking.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Link
+            href="/sales/operations"
+            className="rounded-lg border bg-white px-4 py-2 text-sm font-semibold"
+          >
+            ← Operations
+          </Link>
+          <button
+            onClick={() => setEditing({ ...emptyContractor })}
+            className="rounded-lg bg-[#071421] px-4 py-2 text-sm font-bold text-white"
+          >
+            + Add contractor
+          </button>
+        </div>
+      </header>
+      {message && (
+        <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-800">
+          {message}
+        </div>
+      )}
+      {job?.partnerReadiness && (
+        <section
+          className={`rounded-2xl border p-4 text-sm ${job.partnerReadiness.ready ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-rose-200 bg-rose-50 text-rose-900"}`}
+        >
+          <p className="font-bold">
+            {job.partnerReadiness.ready
+              ? "Ready to offer · sanitized briefing will be generated"
+              : "Automatic offer gate is not ready"}
+          </p>
+          {job.partnerReadiness.missing.length > 0 && (
+            <p className="mt-1 text-xs">
+              Missing: {job.partnerReadiness.missing.join(" · ")}
+            </p>
+          )}
+          {job.partnerReadiness.warnings.length > 0 && (
+            <p className="mt-1 text-xs">
+              Warnings: {job.partnerReadiness.warnings.join(" · ")}
+            </p>
+          )}
+          {!job.partnerReadiness.ready && (
+            <label className="mt-3 block text-xs font-semibold">
+              Management override reason
+              <input
+                value={readinessOverrideReason}
+                onChange={(event) =>
+                  setReadinessOverrideReason(event.target.value)
+                }
+                className="crm-input mt-1"
+                placeholder="Explain why this incomplete job may be offered"
+              />
+            </label>
+          )}
+        </section>
+      )}
+      {job && (
+        <section className="rounded-2xl border border-[#C99700]/40 bg-white p-5">
+          <h2 className="font-bold text-[#071421]">Offer job: {job.name}</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            {job.moveDate || "Date TBD"} · {job.originCity} →{" "}
+            {job.destinationCity} · {job.crewSize || "?"} crew ·{" "}
+            {job.suggestedTruck || "truck TBD"}
+          </p>
+          <div className="mt-4 grid gap-3 md:grid-cols-4">
+            <label className="text-xs font-semibold">
+              Payout (CAD)
+              <input
+                type="number"
+                value={payout}
+                onChange={(e) => setPayout(e.target.value)}
+                className="crm-input mt-1"
+                placeholder="1200"
+              />
+            </label>
+            <label className="text-xs font-semibold">
+              Arrival window
+              <input
+                value={arrivalWindow}
+                onChange={(e) => setArrivalWindow(e.target.value)}
+                className="crm-input mt-1"
+                placeholder="8–10 AM"
+              />
+            </label>
+            <label className="text-xs font-semibold">
+              Offer expires
+              <input
+                type="datetime-local"
+                value={expires}
+                onChange={(e) => setExpires(e.target.value)}
+                className="crm-input mt-1"
+              />
+            </label>
+            <label className="text-xs font-semibold">
+              Award rule
+              <select
+                value={policy}
+                onChange={(e) => setPolicy(e.target.value as typeof policy)}
+                className="crm-input mt-1"
+              >
+                <option value="first_acceptance">
+                  First qualified acceptance
+                </option>
+                <option value="manual_selection">Operations chooses</option>
+              </select>
+            </label>
+          </div>
+          <button
+            disabled={busy || !selected.length || !Number(payout)}
+            onClick={sendOffer}
+            className="mt-4 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-40"
+          >
+            Send SMS offer to {selected.length || 0}
+          </button>
+        </section>
+      )}
+      {offers.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-lg font-bold text-[#071421]">Offer activity</h2>
+          {offers.map((offer) => (
+            <article key={offer.id} className="rounded-2xl border bg-white p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-bold">
+                    {offer.moveDate || "Date TBD"} · {offer.originCity} →{" "}
+                    {offer.destinationCity}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    CAD ${offer.offeredPayout.toFixed(2)} ·{" "}
+                    {offer.awardPolicy === "first_acceptance"
+                      ? "first acceptance wins"
+                      : "manual award"}
+                  </p>
+                </div>
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase">
+                  {offer.status}
+                </span>
+              </div>
+              <div className="mt-3 grid gap-2 md:grid-cols-2">
+                {offer.recipients?.map((recipient) => (
+                  <div
+                    key={recipient.id}
+                    className="flex items-center justify-between rounded-xl bg-slate-50 p-3 text-xs"
+                  >
+                    <div>
+                      <p className="font-bold">
+                        {recipient.subcontractor?.companyName || "Contractor"}
+                      </p>
+                      <p className="text-slate-500">
+                        {recipient.status}
+                        {recipient.responseNote
+                          ? ` · ${recipient.responseNote}`
+                          : ""}
+                      </p>
+                    </div>
+                    {offer.status === "open" &&
+                      ["discussion", "viewed", "sent"].includes(
+                        recipient.status,
+                      ) && (
+                        <button
+                          disabled={busy}
+                          onClick={() =>
+                            award(offer.id, recipient.subcontractorId)
+                          }
+                          className="rounded-lg bg-emerald-600 px-3 py-1.5 font-bold text-white"
+                        >
+                          Award
+                        </button>
+                      )}
+                  </div>
+                ))}
+              </div>
+              {offer.status === "open" && (
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={() => offerAction(offer.id, "resend")}
+                    className="rounded-lg border px-3 py-1.5 text-xs font-bold"
+                  >
+                    Resend
+                  </button>
+                  <button
+                    onClick={() => offerAction(offer.id, "cancel")}
+                    className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-bold text-rose-700"
+                  >
+                    Cancel offer
+                  </button>
+                </div>
+              )}
+            </article>
+          ))}
+        </section>
+      )}
+      <section className="grid gap-3 lg:grid-cols-2">
+        {ranked.map(({ item, fit }) => (
+          <article
+            key={item.id}
+            className={`rounded-2xl border bg-white p-4 ${fit.eligible ? "border-emerald-200" : "border-slate-200 opacity-80"}`}
+          >
+            <div className="flex items-start gap-3">
+              {job && (
+                <input
+                  type="checkbox"
+                  disabled={!fit.eligible}
+                  checked={selected.includes(item.id)}
+                  onChange={() =>
+                    setSelected((current) =>
+                      current.includes(item.id)
+                        ? current.filter((id) => id !== item.id)
+                        : [...current, item.id],
+                    )
+                  }
+                  className="mt-1 h-4 w-4"
+                />
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex justify-between gap-3">
+                  <div>
+                    <h3 className="font-bold text-[#071421]">
+                      {item.companyName}
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      {item.contactName} · {item.phone}
+                    </p>
+                  </div>
+                  <span
+                    className={`rounded-full px-2 py-1 text-xs font-bold ${fit.eligible ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}
+                  >
+                    {fit.eligible ? `${fit.score}% fit` : "Not eligible"}
+                  </span>
+                </div>
+                <p className="mt-3 text-xs text-slate-600">
+                  {item.serviceCities.join(", ") || "All service areas"} · crew{" "}
+                  {item.maxCrewSize || "?"} ·{" "}
+                  {item.truckAccess === "owns"
+                    ? `owns ${item.truckSizes.join(", ") || "truck"}`
+                    : item.truckAccess === "rents"
+                      ? `rents ${item.truckSizes.join(", ") || "truck per job"}`
+                      : "labour only"}{" "}
+                  ·{" "}
+                  {item.insured
+                    ? `insured${item.insuranceExpiresAt ? ` to ${item.insuranceExpiresAt}` : ""}`
+                    : "insurance unverified"}
+                </p>
+                {fit.reasons.length > 0 && (
+                  <p className="mt-2 text-xs text-rose-700">
+                    {fit.reasons.join(" · ")}
+                  </p>
+                )}
+                <button
+                  onClick={() => setEditing({ ...item })}
+                  className="mt-3 text-xs font-bold text-[#071421] underline"
+                >
+                  Edit profile
+                </button>
+              </div>
+            </div>
+          </article>
+        ))}
+      </section>
+      {editing && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/50 p-4">
+          <form
+            onSubmit={saveContractor}
+            className="mx-auto max-w-2xl space-y-4 rounded-2xl bg-white p-6"
+          >
+            <div className="flex justify-between">
+              <h2 className="text-lg font-bold">
+                {editing.id ? "Edit" : "Add"} contractor
+              </h2>
+              <button type="button" onClick={() => setEditing(null)}>
+                ✕
+              </button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {(
+                [
+                  ["companyName", "Company"],
+                  ["contactName", "Contact"],
+                  ["phone", "Phone"],
+                  ["email", "Email"],
+                ] as const
+              ).map(([key, label]) => (
+                <label key={key} className="text-xs font-semibold">
+                  {label}
+                  <input
+                    value={String(editing[key] || "")}
+                    onChange={(e) =>
+                      setEditing({ ...editing, [key]: e.target.value })
+                    }
+                    className="crm-input mt-1"
+                    required={key !== "email"}
+                  />
+                </label>
+              ))}
+              <label className="text-xs font-semibold sm:col-span-2">
+                Service areas
+                <input
+                  value={editing.serviceCities.join(", ")}
+                  onChange={(e) => {
+                    const areas = csv(e.target.value);
+                    setEditing({
+                      ...editing,
+                      serviceCities: areas,
+                      branches: areas,
+                    });
+                  }}
+                  className="crm-input mt-1"
+                  placeholder="Windsor, Essex County, London"
+                />
+                <span className="mt-1 block text-[10px] font-normal text-slate-500">
+                  Cities or regions this contractor will serve.
+                </span>
+              </label>
+              <label className="text-xs font-semibold">
+                Service tags
+                <input
+                  value={editing.serviceTags.join(", ")}
+                  onChange={(e) =>
+                    setEditing({ ...editing, serviceTags: csv(e.target.value) })
+                  }
+                  className="crm-input mt-1"
+                />
+              </label>
+              <label className="text-xs font-semibold">
+                Truck arrangement
+                <select
+                  value={editing.truckAccess || "rents"}
+                  onChange={(e) =>
+                    setEditing({
+                      ...editing,
+                      truckAccess: e.target
+                        .value as Subcontractor["truckAccess"],
+                      truckSizes:
+                        e.target.value === "labour_only"
+                          ? []
+                          : editing.truckSizes,
+                    })
+                  }
+                  className="crm-input mt-1"
+                >
+                  <option value="owns">Owns truck(s)</option>
+                  <option value="rents">Rents truck per job</option>
+                  <option value="labour_only">Labour only — no truck</option>
+                </select>
+              </label>
+              <label className="text-xs font-semibold">
+                Available truck sizes
+                <input
+                  value={editing.truckSizes.join(", ")}
+                  onChange={(e) =>
+                    setEditing({ ...editing, truckSizes: csv(e.target.value) })
+                  }
+                  className="crm-input mt-1"
+                  placeholder="26ft"
+                  disabled={editing.truckAccess === "labour_only"}
+                />
+              </label>
+              <label className="text-xs font-semibold">
+                Max crew
+                <input
+                  type="number"
+                  value={editing.maxCrewSize || ""}
+                  onChange={(e) =>
+                    setEditing({
+                      ...editing,
+                      maxCrewSize: Number(e.target.value),
+                    })
+                  }
+                  className="crm-input mt-1"
+                />
+              </label>
+              <label className="text-xs font-semibold">
+                Status
+                <select
+                  value={editing.status}
+                  onChange={(e) =>
+                    setEditing({
+                      ...editing,
+                      status: e.target.value as Subcontractor["status"],
+                    })
+                  }
+                  className="crm-input mt-1"
+                >
+                  <option value="active">Active</option>
+                  <option value="paused">Paused</option>
+                  <option value="blocked">Blocked</option>
+                </select>
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={editing.insured}
+                  onChange={(e) =>
+                    setEditing({ ...editing, insured: e.target.checked })
+                  }
+                />{" "}
+                Insurance verified
+              </label>
+              <label className="text-xs font-semibold">
+                Insurance expiry
+                <input
+                  type="date"
+                  value={editing.insuranceExpiresAt || ""}
+                  onChange={(e) =>
+                    setEditing({
+                      ...editing,
+                      insuranceExpiresAt: e.target.value,
+                    })
+                  }
+                  className="crm-input mt-1"
+                />
+              </label>
+            </div>
+            <label className="text-xs font-semibold">
+              Availability / blackout notes
+              <textarea
+                value={editing.availabilityNotes || ""}
+                onChange={(e) =>
+                  setEditing({ ...editing, availabilityNotes: e.target.value })
+                }
+                className="crm-input mt-1 min-h-20"
+              />
+            </label>
+            <label className="text-xs font-semibold">
+              Internal notes
+              <textarea
+                value={editing.notes || ""}
+                onChange={(e) =>
+                  setEditing({ ...editing, notes: e.target.value })
+                }
+                className="crm-input mt-1 min-h-20"
+              />
+            </label>
+            <button
+              disabled={busy}
+              className="w-full rounded-lg bg-[#071421] py-3 font-bold text-white"
+            >
+              Save contractor
+            </button>
+          </form>
+        </div>
+      )}
+    </main>
+  );
 }
 
 export default function ContractorsPage() {
-  return <Suspense fallback={<main className="crm-shell text-sm text-slate-500">Loading contractor dispatch…</main>}><ContractorsContent /></Suspense>
+  return (
+    <Suspense
+      fallback={
+        <main className="crm-shell text-sm text-slate-500">
+          Loading contractor dispatch…
+        </main>
+      }
+    >
+      <ContractorsContent />
+    </Suspense>
+  );
 }
