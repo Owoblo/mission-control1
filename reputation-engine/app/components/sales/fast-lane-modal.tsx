@@ -9,8 +9,8 @@ import {
 } from '@/lib/sales-automation-qualification'
 
 const RATES: Record<string, Record<number, number>> = {
-  truck:  { 2: 160, 3: 200, 4: 315 },
-  labor:  { 2: 120, 3: 150, 4: 200 },
+  truck:  { 2: 170, 3: 210, 4: 325 },
+  labor:  { 2: 130, 3: 160, 4: 210 },
 }
 
 const HOUR_RANGES = [
