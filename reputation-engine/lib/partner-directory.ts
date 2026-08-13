@@ -9,7 +9,10 @@ export type PartnerDirectoryEntry = {
   category?: string
   industry?: string
   stage?: string
+  partnerCompanyId?: string
 }
+
+export type PartnerCompanyOption = { id: string; name: string; city?: string; industry?: string }
 
 export type PartnerDirectoryCreateInput = Omit<PartnerDirectoryEntry, 'id' | 'stage'>
 
