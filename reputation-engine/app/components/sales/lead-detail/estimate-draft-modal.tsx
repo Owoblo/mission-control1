@@ -4670,7 +4670,7 @@ export function EstimateDraftModal({
                       <div className="mt-0.5 text-[10px] text-sky-700">
                         4 movers · {flags.multiTruckOption?.totalHours ?? pricingBreakdown?.totalHours}h
                       </div>
-                      <div className="mt-1 text-[9px] text-slate-400">Both trucks load in parallel — fastest</div>
+                      <div className="mt-1 text-[9px] text-slate-400">{flags.twoTripComparison.twoTruckSpecification} · both load in parallel — fastest</div>
                     </button>
 
                     {/* Option B — 1 truck, 3 movers, 2 trips (RECOMMENDED for local) */}
@@ -4691,7 +4691,7 @@ export function EstimateDraftModal({
                       <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-700">Option B ★ Recommended</div>
                       <div className="mt-0.5 text-base font-bold text-[var(--app-ink)]">{formatMoney(flags.twoTripComparison.totalAmount)}</div>
                       <div className="mt-0.5 text-[10px] text-emerald-700">
-                        3 movers · {flags.twoTripComparison.totalHours}h · 1 truck, 2 trips
+                        3 movers · {flags.twoTripComparison.totalHours}h · {flags.twoTripComparison.oneTruckSpecification}, 2 trips
                       </div>
                       <div className="mt-1 text-[9px] text-slate-400">
                         {flags.twoTripComparison.savings > 0
@@ -4718,12 +4718,13 @@ export function EstimateDraftModal({
                       <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500">Option C — 1 Trip</div>
                       <div className="mt-0.5 text-base font-bold text-[var(--app-ink)]">{formatMoney(flags.twoTripComparison.oneTripAmount)}</div>
                       <div className="mt-0.5 text-[10px] text-slate-500">
-                        3 movers · {flags.twoTripComparison.oneTripHours}h · 1 truck, 1 trip
+                        3 movers · {flags.twoTripComparison.oneTripHours}h · {flags.twoTripComparison.oneTruckSpecification}, 1 trip
                       </div>
                       <div className="mt-1 text-[9px] text-slate-400">Optimistic — conditional clause added if 2nd trip needed</div>
                     </button>
 
                   </div>
+                  <div className="mt-1 text-[10px] text-sky-700">Load basis: {flags.twoTripComparison.inventoryBasis}. Confirm the included inventory before sending.</div>
                   <div className="mt-1.5 text-[10px] text-sky-700">
                     {needsTwoTrucks
                       ? 'Volume exceeds 1 truck safe-load limit. Option B is recommended for local moves — 2nd trip is often cheaper than 2 trucks.'

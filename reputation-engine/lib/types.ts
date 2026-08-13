@@ -607,12 +607,16 @@ export interface PricingBreakdown {
       oneTripHours: number
       oneTripAmount: number
       oneTripSavingsVsTwoTrip: number
+      oneTruckSpecification: string
+      twoTruckSpecification: string
+      inventoryBasis: string
     } | null
     multiTruckOption?: {
       totalHours: number
       totalAmount: number
       truckCount: number
       note: string
+      truckSpecification?: string
     } | null
     packingDayEstimate?: {
       crewSize: number
