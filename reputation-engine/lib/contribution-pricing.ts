@@ -5,11 +5,14 @@ export const TARGET_CONTRIBUTION_MARGIN = 0.38
 export const MINIMUM_CONTRIBUTION_MARGIN = 0.30
 
 export interface ContributionCostLine { key: string; label: string; amount: number }
+export interface ContributionReserveLine extends ContributionCostLine { rate: number }
 export interface ContributionPricingPlan {
   isMajorMove: boolean
   fixedFulfillmentCost: number
   variableCostRate: number
   costs: ContributionCostLine[]
+  reserves: ContributionReserveLine[]
+  executionContingencyTotal: number
   recommendedPrice: number
   minimumAuthorizedPrice: number
   currentPrice: number
@@ -51,11 +54,22 @@ export function buildContributionPricingPlan(input: {
   const variableCostRate = 0.05 + 0.03 + 0.04 + 0.02 + 0.03 // commission, cards, acquisition, claims, coordination
   const recommendedPrice = roundQuote(fixedFulfillmentCost / (1 - variableCostRate - TARGET_CONTRIBUTION_MARGIN))
   const minimumAuthorizedPrice = roundQuote(fixedFulfillmentCost / (1 - variableCostRate - MINIMUM_CONTRIBUTION_MARGIN))
+  const reserveDefinitions = [
+    { key: 'sales_commission', label: 'Sales commission', rate: 0.05 },
+    { key: 'card_processing', label: 'Card processing', rate: 0.03 },
+    { key: 'acquisition', label: 'Acquisition allocation', rate: 0.04 },
+    { key: 'claims', label: 'Claims reserve', rate: 0.02 },
+    { key: 'coordination', label: 'Move coordination', rate: 0.03 },
+  ]
+  const reserves = reserveDefinitions.map(reserve => ({ ...reserve, amount: money(recommendedPrice * reserve.rate) }))
+  const executionContingencyTotal = money(
+    (costs.find(cost => cost.key === 'contingency')?.amount || 0) + reserves.reduce((sum, reserve) => sum + reserve.amount, 0)
+  )
   const variableCosts = currentPrice * variableCostRate
   const expectedContribution = money(currentPrice - fixedFulfillmentCost - variableCosts)
   const isMajorMove = Boolean(input.binding || currentPrice >= MAJOR_MOVE_THRESHOLD || recommendedPrice >= MAJOR_MOVE_THRESHOLD)
   return {
-    isMajorMove, fixedFulfillmentCost, variableCostRate, costs,
+    isMajorMove, fixedFulfillmentCost, variableCostRate, costs, reserves, executionContingencyTotal,
     recommendedPrice, minimumAuthorizedPrice, currentPrice,
     expectedContribution,
     contributionMarginPct: currentPrice ? Math.round(expectedContribution / currentPrice * 1000) / 10 : 0,

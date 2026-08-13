@@ -5376,12 +5376,15 @@ export function EstimateDraftModal({
               </summary>
               <div className="border-t border-[var(--app-line)] px-3 py-3 text-xs">
                 <div className="space-y-1.5">
-                  {contributionPlan.costs.map(cost => <div key={cost.key} className="flex justify-between gap-3"><span className="text-[var(--app-muted)]">{cost.label}</span><span className="font-semibold">{formatMoney(cost.amount)}</span></div>)}
-                  <div className="flex justify-between gap-3"><span className="text-[var(--app-muted)]">Sales commission (5%)</span><span>built into target</span></div>
-                  <div className="flex justify-between gap-3"><span className="text-[var(--app-muted)]">Card processing (3%)</span><span>built into target</span></div>
-                  <div className="flex justify-between gap-3"><span className="text-[var(--app-muted)]">Acquisition allocation (4%)</span><span>built into target</span></div>
-                  <div className="flex justify-between gap-3"><span className="text-[var(--app-muted)]">Claims reserve (2%)</span><span>built into target</span></div>
-                  <div className="flex justify-between gap-3"><span className="text-[var(--app-muted)]">Move coordination (3%)</span><span>built into target</span></div>
+                  {contributionPlan.costs.filter(cost => cost.key !== 'contingency').map(cost => <div key={cost.key} className="flex justify-between gap-3"><span className="text-[var(--app-muted)]">{cost.label}</span><span className="font-semibold">{formatMoney(cost.amount)}</span></div>)}
+                  <details className="rounded border border-[var(--app-line)] bg-slate-50">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-2 py-2"><span className="font-semibold text-[var(--app-ink)]">Execution contingency &amp; reserves <span className="ml-1 text-[10px] text-[var(--app-muted)]">▾</span></span><span className="font-semibold">{formatMoney(contributionPlan.executionContingencyTotal)}</span></summary>
+                    <div className="space-y-1.5 border-t border-[var(--app-line)] px-2 py-2">
+                      <div className="flex justify-between gap-3"><span className="text-[var(--app-muted)]">Operational contingency (8%)</span><span>{formatMoney(contributionPlan.costs.find(cost => cost.key === 'contingency')?.amount || 0)}</span></div>
+                      {contributionPlan.reserves.map(reserve => <div key={reserve.key} className="flex justify-between gap-3"><span className="text-[var(--app-muted)]">{reserve.label} ({Math.round(reserve.rate * 100)}%)</span><span>{formatMoney(reserve.amount)}</span></div>)}
+                      <div className="pt-1 text-[9px] leading-4 text-[var(--app-muted)]">Reserve amounts are calculated from the recommended bundled price.</div>
+                    </div>
+                  </details>
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <div className="rounded bg-slate-50 p-2"><div className="text-[9px] uppercase text-[var(--app-muted)]">Recommended</div><div className="text-base font-bold">{formatMoney(contributionPlan.recommendedPrice)}</div></div>
