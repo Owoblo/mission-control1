@@ -258,7 +258,8 @@ test('estimateLeadQuote applies commercial direct costs and markup to margin mat
   const cost = estimate.pricingBreakdown.internalCostEstimate
   assert.equal(cost.commercialDirectCost, 275)
   assert.ok((cost.commercialMarkupAmount || 0) > 0)
-  assert.ok(estimate.lineItems.some(item => item.description === 'Commercial logistics markup'))
+  assert.ok(!estimate.lineItems.some(item => item.description === 'Commercial logistics markup'))
+  assert.match(estimate.lineItems[0].details || '', /commercial coordination and scope management included/i)
   assert.equal(estimate.deposit, 0)
   assert.equal(estimate.balance, estimate.total)
   assert.equal(cost.totalCost, cost.laborCost + cost.truckOpsCost + (cost.commissionCost || 0) + (cost.suppliesCost || 0) + 275)

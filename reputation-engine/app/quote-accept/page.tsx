@@ -7,6 +7,7 @@ import { deriveMoveLogisticsPlan } from '@/lib/move-logistics'
 import { buildMoveSpecificNotes } from '@/lib/move-scope'
 import { detectSalesBranchFromLocation, formatDate, formatMoney, getSalesBranchLabel, isInvoiceStylePaymentTerms, paymentTermsLabel } from '@/lib/sales'
 import type { CRMLead, InventoryItem, JobFactors, MoveType, QuoteLeg, QuotePaymentTerms } from '@/lib/types'
+import { MAJOR_MOVE_THRESHOLD } from '@/lib/contribution-pricing'
 import { recommendTruckLoadPlan } from '@/lib/truck-planning'
 
 type PublicQuote = {
@@ -989,6 +990,7 @@ function QuoteAcceptPageInner() {
   const firstName = clientName.split(' ')[0] || 'there'
   const daysOut = daysUntilMove(quote.moveDate)
   const depPct = depositPct(quote)
+  const bundledMove = quote.billingModel === 'binding' || quote.subtotal >= MAJOR_MOVE_THRESHOLD
   const invoiceStyleTerms = isInvoiceStylePaymentTerms(quote.paymentTerms)
   const hasInventory = inventory.length > 0
   const roomGroups = groupInventoryByRoom(inventory)
@@ -1425,12 +1427,12 @@ function QuoteAcceptPageInner() {
         <div className="mb-12 overflow-hidden rounded-2xl bg-[#071421] text-white shadow-[0_24px_70px_rgba(7,20,33,0.16)]">
           <div className="flex items-center justify-between px-8 pt-8 sm:px-12 sm:pt-12">
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">Your move investment</div>
-            <button
+            {!bundledMove && <button
               onClick={() => setLineItemsOpen(v => !v)}
               className="text-[10px] font-semibold uppercase tracking-wide text-white/40 hover:text-white"
             >
               {lineItemsOpen ? 'Hide breakdown' : 'See breakdown'}
-            </button>
+            </button>}
           </div>
 
           {/* Summary row */}
@@ -1438,14 +1440,14 @@ function QuoteAcceptPageInner() {
             <div>
               <div className="font-semibold text-white">{serviceLabel}</div>
               <div className="mt-1 text-xs text-white/40">
-                {crewSize}-person crew · {trucks} truck{trucks > 1 ? 's' : ''}{hours ? ` · ~${hours} hrs` : ''}
+                {crewSize}-person professional team · {trucks} truck{trucks > 1 ? 's' : ''}{!bundledMove && hours ? ` · ~${hours} hrs` : bundledMove ? ' · planned execution' : ''}
               </div>
             </div>
             <div className="font-semibold text-white">{formatMoney(quote.subtotal)}</div>
           </div>
 
           {/* Line items */}
-          {lineItemsOpen && (
+          {!bundledMove && lineItemsOpen && (
             <div className="mx-8 rounded-xl bg-white/5 sm:mx-12">
               {quote.lineItems.map((item, i) => (
                 <div key={i} className="grid grid-cols-[1fr_auto] gap-4 px-5 py-3">
@@ -1468,7 +1470,7 @@ function QuoteAcceptPageInner() {
               </div>
             )}
             {/* Subtotal is the hero — anchors customer on pre-tax price */}
-            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/40">Estimated relocation total</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/40">{bundledMove ? 'Flat-rate move investment' : 'Estimated relocation total'}</div>
             <div className="mt-3 text-5xl font-bold tracking-[-0.04em] text-white sm:text-6xl">{formatMoney(quote.subtotal)}</div>
             <div className="mt-4 flex justify-center gap-2 text-xs text-white/35">
               <span>HST {formatMoney(quote.hst)}</span><span>·</span><span>{formatMoney(quote.total)} inclusive</span>
@@ -1509,7 +1511,7 @@ function QuoteAcceptPageInner() {
                 <span key={m} className="rounded-full border border-[#071421]/15 px-2.5 py-0.5 text-[10px] font-medium text-[#071421]/50">{m}</span>
               ))}
             </div>
-            <div className="mt-1.5 text-[9px] text-[#071421]/30">4% processing fee on card payments{brand.email ? ` · e-Transfer to ${brand.email}` : ` · Contact ${brand.phone} for e-Transfer details`}</div>
+            <div className="mt-1.5 text-[9px] text-[#071421]/30">No card or administration surcharge{brand.email ? ` · e-Transfer also available at ${brand.email}` : ` · Contact ${brand.phone} for e-Transfer details`}</div>
           </div>
         </div>
 

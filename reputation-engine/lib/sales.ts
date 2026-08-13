@@ -1506,11 +1506,8 @@ function estimateSingleLeadQuote(
   ]
 
   if (lead.moveType === 'commercial' && commercialCostLayer.markupAmount > 0) {
-    lineItems.push({
-      description: 'Commercial logistics markup',
-      details: `${commercialCostLayer.markupRate}% commercial coordination, risk, and scope management allowance`,
-      amount: commercialCostLayer.markupAmount,
-    })
+    lineItems[0].amount = roundCurrency(lineItems[0].amount + commercialCostLayer.markupAmount)
+    lineItems[0].details = `${lineItems[0].details} · commercial coordination and scope management included`
   }
 
   if (missingDestination) {
