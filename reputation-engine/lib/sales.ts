@@ -22,6 +22,7 @@ import { applyMovePolicyToInventory } from './move-policy'
 import { normalizeCrewPayouts } from './operations'
 import { buildPackingMaterialsEstimate } from './packing-materials'
 import { applyRealtorContactToOpportunityLead } from './realtor-opportunity'
+import { recommendTruckLoadPlan } from './truck-planning'
 
 function normalizeOptionalText(value?: string | null) {
   const trimmed = value?.trim()
@@ -1318,11 +1319,15 @@ function estimateSingleLeadQuote(
     oneTripHours: number
     oneTripAmount: number
     oneTripSavingsVsTwoTrip: number
+    oneTruckSpecification: string
+    twoTruckSpecification: string
+    inventoryBasis: string
   } | null = null
 
   let multiTruckOption: PricingBreakdown['intelligenceFlags']['multiTruckOption'] = null
 
   if (!missingDestination && !isLongDistance && !isPacking && !isLaborOnly && (truckCount >= 2 || totalCubicFeet >= TWO_TRIP_ZONE_CF)) {
+    const twoTruckPlan = recommendTruckLoadPlan({ totalCubicFeet, totalWeightLbs, truckCount: 2 })
     // Business rule: 1 truck always = 3 movers (4th mover not productive on single truck)
     const tripCrewSize = 3
     const oneTruckRate = roundCurrency(getCrewRate(tripCrewSize, lead.moveType))
@@ -1367,6 +1372,9 @@ function estimateSingleLeadQuote(
       oneTripHours,
       oneTripAmount,
       oneTripSavingsVsTwoTrip: roundCurrency(twoTripAmount - oneTripAmount),
+      oneTruckSpecification: '1 × 26ft',
+      twoTruckSpecification: twoTruckPlan.summary,
+      inventoryBasis: twoTruckPlan.basis,
     }
 
     multiTruckOption = {
@@ -1374,6 +1382,7 @@ function estimateSingleLeadQuote(
       totalAmount: laborAmount,
       truckCount,
       note: `${truckCount} trucks reduces repeat travel but carries a higher hourly rate`,
+      truckSpecification: truckCount === 2 ? twoTruckPlan.summary : undefined,
     }
   }
 

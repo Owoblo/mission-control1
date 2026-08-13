@@ -7,6 +7,7 @@ import { deriveMoveLogisticsPlan } from '@/lib/move-logistics'
 import { buildMoveSpecificNotes } from '@/lib/move-scope'
 import { detectSalesBranchFromLocation, formatDate, formatMoney, getSalesBranchLabel, isInvoiceStylePaymentTerms, paymentTermsLabel } from '@/lib/sales'
 import type { CRMLead, InventoryItem, JobFactors, MoveType, QuoteLeg, QuotePaymentTerms } from '@/lib/types'
+import { recommendTruckLoadPlan } from '@/lib/truck-planning'
 
 type PublicQuote = {
   id: string
@@ -26,6 +27,7 @@ type PublicQuote = {
   estimatedHours?: number
   truckCount?: number
   truckSize?: string
+  estimatedWeightLbs?: number
   billingModel?: 'binding' | 'hourly_actuals' | 'hourly_minimum'
   paymentTerms?: QuotePaymentTerms
   minimumBillableHours?: number
@@ -478,9 +480,8 @@ function RecommendationReasoning({ quote, inventory, listingSummary, crewSize, t
   hours: string | null
 }) {
   const cubicFeet = inventory.reduce((sum, item) => sum + Number(item.cubicFeet || 0) * Math.max(1, Number(item.qty || 1)), 0)
-  const truckSize = quote.truckSize || (cubicFeet > 700 ? '26ft' : cubicFeet > 250 ? '20ft' : '15ft')
-  const capacity = truckSize === '15ft' ? 760 : truckSize === '20ft' ? 1016 : 1682
-  const fill = cubicFeet > 0 ? Math.min(100, Math.round(cubicFeet / capacity * 100)) : null
+  const truckPlan = recommendTruckLoadPlan({ totalCubicFeet: cubicFeet, totalWeightLbs: quote.estimatedWeightLbs, truckCount: trucks })
+  const fill = cubicFeet > 0 ? Math.min(100, truckPlan.volumeUtilizationPct) : null
   const itemUnits = inventory.reduce((sum, item) => sum + Math.max(1, Number(item.qty || 1)), 0)
   const accessReasons = [
     quote.jobFactors?.originHasElevator ? 'origin elevator' : null,
@@ -499,8 +500,9 @@ function RecommendationReasoning({ quote, inventory, listingSummary, crewSize, t
         </div>
         <div className="rounded-2xl border border-[#071421]/10 bg-white p-8">
           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#667085]">Truck recommendation</div>
-          <div className="mt-3 text-4xl font-bold text-[#071421]">{trucks > 1 ? `${trucks} × ` : ''}{truckSize} truck{trucks > 1 ? 's' : ''}</div>
-          <p className="mt-4 text-sm leading-6 text-[#667085]">{fill !== null ? `The detected inventory uses approximately ${fill}% of the planning capacity for this truck size.` : 'Selected from the current room inventory and move scope.'} Final loading order is confirmed before moving day.</p>
+          <div className="mt-3 text-4xl font-bold text-[#071421]">{truckPlan.summary}</div>
+          <p className="mt-4 text-sm leading-6 text-[#667085]">{fill !== null ? `The included inventory uses approximately ${fill}% of the combined usable capacity${quote.estimatedWeightLbs ? ` and weighs about ${Math.round(quote.estimatedWeightLbs).toLocaleString()} lb` : ''}.` : 'Selected from the current room inventory and move scope.'} Final loading order and truck availability are confirmed before moving day.</p>
+          {trucks === 2 && quote.moveType !== 'long-distance' && <p className="mt-3 text-xs leading-5 text-[#667085]">Local alternative: 1 × 26ft truck over 2 trips. Your moving coordinator compares the added travel time against the two-truck plan before confirming the best option.</p>}
           {fill !== null && <div className="mt-5 h-2 overflow-hidden rounded-full bg-[#071421]/8"><div className="h-full rounded-full bg-[#C99700]" style={{ width: `${fill}%` }} /></div>}
         </div>
       </div>
