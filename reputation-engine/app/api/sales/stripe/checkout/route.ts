@@ -70,6 +70,17 @@ export async function POST(request: Request) {
     // Find the linked lead for customer info + leadId in metadata
     const lead = quote.leadId ? await getSalesLead(quote.leadId).catch(() => null) : null
     if (!lead) return NextResponse.json({ error: 'Quote lead not found' }, { status: 404 })
+    const depositAlreadyPaid = Boolean(
+      quote.depositPaidAt || quote.depositStripePaymentIntentId || Number(quote.depositPaidAmount || 0) > 0 ||
+      lead.paymentStatus === 'deposit_received' || lead.paymentStatus === 'paid_in_full'
+    )
+    if (depositAlreadyPaid) {
+      return NextResponse.json({
+        error: 'The deposit for this move has already been received.', code: 'deposit_already_paid',
+        paidAt: quote.depositPaidAt || lead.depositDate,
+        amount: Number(quote.depositPaidAmount || lead.depositAmount || 0),
+      }, { status: 409 })
+    }
     const stripeAccount = requireStripeAccountForLead(lead)
     assertQuoteStripeAccount(quote, stripeAccount.key)
     const stripeKey = stripeAccount.secretKey
