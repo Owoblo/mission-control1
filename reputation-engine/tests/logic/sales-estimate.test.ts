@@ -73,6 +73,55 @@ test('quote line-item reconciliation protects local and long-distance locked pri
   }
 })
 
+test('small hourly moves include dispatch base and short-notice priority pricing', () => {
+  const moveDate = new Date(Date.now() + 10 * 86_400_000).toISOString().slice(0, 10)
+  const estimate = estimateLeadQuote(makeLead({ moveDate }), {
+    quoteType: 'standard',
+    routeContext: {
+      pricingStatus: 'ready',
+      routeCategory: 'local',
+      billableDriveHours: 0.5,
+      operationalDriveHours: 0.5,
+      billableDistanceKm: 15,
+      operationalDistanceKm: 15,
+    },
+  })
+
+  assert.equal(estimate.lineItems.find(item => item.description === 'Move readiness & dispatch base')?.amount, 100)
+  assert.equal(estimate.lineItems.find(item => item.description === 'Priority booking surcharge')?.amount, 200)
+  assert.equal(estimate.pricingBreakdown.internalCostEstimate.commissionCost, 0)
+})
+
+test('premium scope follows inventory evidence and never invents TV mounting', () => {
+  const base = makeLead({
+    surveyCompletedAt: '2026-08-13T18:00:00.000Z',
+    inventory: [
+      { name: 'King Bed Frame', room: 'Bedroom', qty: 1, cubicFeet: 55, weightLbs: 180, included: true, source: 'survey_ai' },
+      { name: '65-inch TV', room: 'Living Room', qty: 1, cubicFeet: 8, weightLbs: 45, included: true, source: 'survey_ai' },
+    ],
+  })
+  const standardTv = estimateLeadQuote(base, { quoteType: 'standard' })
+  assert.ok(standardTv.lineItems.some(item => item.description === 'Moving Boxes — As Many As Needed'))
+  assert.ok(standardTv.lineItems.some(item => item.description === 'Professional Packing & Unpacking'))
+  assert.ok(standardTv.lineItems.some(item => item.description === 'Inventory-Specific Disassembly & Reassembly'))
+  assert.ok(standardTv.lineItems.some(item => item.description === 'TV Protection'))
+  assert.ok(!standardTv.lineItems.some(item => item.description === 'Wall-Mounted TV Dismount & Remount'))
+
+  const mountedTv = estimateLeadQuote({
+    ...base,
+    inventory: base.inventory?.map(item => /tv/i.test(item.name || '') ? { ...item, notes: 'wall-mounted TV visible in customer photo' } : item),
+  }, { quoteType: 'standard' })
+  assert.ok(mountedTv.lineItems.some(item => item.description === 'Wall-Mounted TV Dismount & Remount'))
+})
+
+test('explicit self-packing removes the premium packing inclusion', () => {
+  const estimate = estimateLeadQuote(makeLead({
+    surveyCompletedAt: '2026-08-13T18:00:00.000Z',
+    jobFactors: { packingPreference: 'self' },
+  }), { quoteType: 'standard' })
+  assert.ok(!estimate.lineItems.some(item => item.description === 'Professional Packing & Unpacking'))
+})
+
 test('estimateLeadQuote prices storage, storage delivery, and secondary stop legs distinctly', () => {
   const lead = makeLead()
   const factors: JobFactors = {

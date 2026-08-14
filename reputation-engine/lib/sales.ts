@@ -567,6 +567,15 @@ const AUTO_ESTIMATE_LINE_ITEM_DESCRIPTIONS = new Set([
   'Labor-Only Moving Crew',
   'Professional Packing Service',
   'Storage Load/Unload Service',
+  'Move readiness & dispatch base',
+  'Priority booking surcharge',
+  '20 Complimentary Moving Boxes',
+  'Moving Boxes — As Many As Needed',
+  'Professional Packing & Unpacking',
+  'Inventory-Specific Disassembly & Reassembly',
+  'TV Protection',
+  'Wall-Mounted TV Dismount & Remount',
+  'Specialty Item Handling',
   'Packing-Only Service',
   'One-way truck rental',
   'Fuel allowance',
@@ -844,7 +853,6 @@ const LABOR_COST_PER_MOVER_HOUR = 20
 const TRUCK_DAILY_COST = 50          // rental/depreciation per truck per day
 const TRUCK_OPS_COST_PER_KM = 1.1   // fuel + wear at ~$1.10 CAD/km per truck
 export const UHAUL_RATE_PER_KM = 1   // quick rental estimate used for long-distance quoting
-const COMMISSION_RATE = 0.05          // 5% of revenue — rep commission
 const PACKING_SUPPLIES_COST_PER_BOX = 3.50  // avg cost per box (box + tape + paper)
 
 // Items that almost always require disassembly/reassembly — auto-detected from inventory scan
@@ -1299,6 +1307,13 @@ function estimateSingleLeadQuote(
   const operationalPreBufferHours = roundQuarterHour(rawLaborHours + secondTripHandlingHours + effectiveOperationalDriveHours + extraHours)
   const operationalHours = roundQuarterHour(operationalPreBufferHours + loadUnloadBufferHours + (routeCategory === 'long-distance' ? 0 : driveBufferHours))
   const laborAmount = roundCurrency(estimatedHours * crewRate)
+  const hourlySmallService = !isLongDistance && !isPacking && resolvedQuoteType !== 'storage' && lead.moveType !== 'commercial' && laborAmount < 3000
+  const smallMoveBaseFee = hourlySmallService ? 100 : 0
+  const scheduledMoveDate = lead.moveDate ? new Date(`${lead.moveDate}T12:00:00`) : null
+  const daysUntilMove = scheduledMoveDate && !Number.isNaN(scheduledMoveDate.getTime())
+    ? Math.ceil((scheduledMoveDate.getTime() - Date.now()) / 86_400_000)
+    : null
+  const priorityBookingSurcharge = hourlySmallService && daysUntilMove !== null && daysUntilMove >= 0 && daysUntilMove <= 14 ? 200 : 0
   const longDistanceOperationalBase = longDistanceTruckCost + longDistanceGasCost + longDistanceInsuranceCost + longDistanceMiscCost
   const longDistanceMarkupAmount = isLongDistance ? roundCurrency(longDistanceOperationalBase * (longDistanceMarkupRate / 100)) : 0
   const commercialRevenueBase = roundCurrency(laborAmount + longDistanceOperationalBase + longDistanceMarkupAmount)
@@ -1431,13 +1446,15 @@ function estimateSingleLeadQuote(
   const truckDailyCost = roundCurrency(truckCount * TRUCK_DAILY_COST)
   const truckFuelMileageCost = roundCurrency((effectiveOperationalDistanceKm || 0) * truckCount * TRUCK_OPS_COST_PER_KM)
   const truckOpsCost = roundCurrency(truckDailyCost + truckFuelMileageCost)
-  const commissionCost = roundCurrency(laborAmount * COMMISSION_RATE)
+  // Commission is funded by the target markup, not charged again as a live-job
+  // fulfillment cost. Keep the field for compatibility with saved breakdowns.
+  const commissionCost = 0
   const suppliesCost = roundCurrency((factors?.estimatedBoxes || 0) * PACKING_SUPPLIES_COST_PER_BOX)
-  const directCost = roundCurrency(laborCost + truckOpsCost + commissionCost + suppliesCost + commercialCostLayer.totalCost)
+  const directCost = roundCurrency(laborCost + truckOpsCost + suppliesCost + commercialCostLayer.totalCost)
   const computedRevenue = roundCurrency(
     lead.moveType === 'commercial'
       ? commercialRevenueBase + commercialCostLayer.markupAmount
-      : laborAmount
+      : laborAmount + smallMoveBaseFee + priorityBookingSurcharge
   )
   const grossProfit = roundCurrency(computedRevenue - directCost)
   const grossMarginPct = computedRevenue > 0 ? Math.round((grossProfit / computedRevenue) * 1000) / 10 : 0
@@ -1504,6 +1521,59 @@ function estimateSingleLeadQuote(
       amount: totalServiceAmount,
     },
   ]
+
+  const includedInventory = (lead.inventory || []).filter(item => item.included !== false)
+  const tvCount = includedInventory.reduce((sum, item) => /\b(tv|television|flat.?screen)\b/i.test(`${item.name || item.item || ''}`) ? sum + Math.max(1, Number(item.qty || 1)) : sum, 0)
+  const mountedTvCount = includedInventory.reduce((sum, item) => /\b(wall.?mounted|mounted tv|hanging tv|tv.*(?:wall|mount))\b/i.test(`${item.name || item.item || ''} ${item.notes || ''}`) ? sum + Math.max(1, Number(item.qty || 1)) : sum, 0)
+  const premiumDefault = !isPacking && !isLaborOnly && Boolean(isLongDistance || totalServiceAmount >= 3000 || lead.supabaseListing || lead.listingScanSnapshot || lead.surveyCompletedAt)
+  const packingOptedOut = activeFactors?.packingPreference === 'self' || activeFactors?.packingStatus === 'packed'
+  const plannedBoxCount = Math.min(80, Math.max(20,
+    Number(activeFactors?.estimatedBoxes || 0),
+    Number(packingMaterialsEstimate?.recommendedDeliveryBoxes || 0),
+    Math.ceil(totalCubicFeet / 35)
+  ))
+
+  if (premiumDefault) {
+    lineItems.push({
+      description: 'Moving Boxes — As Many As Needed',
+      details: `Standard moving boxes supplied to match the confirmed inventory · current planning allowance: ${plannedBoxCount} boxes · delivery included`,
+      amount: 0,
+    })
+    if (!packingOptedOut) {
+      lineItems.push({
+        description: 'Professional Packing & Unpacking',
+        details: 'Packing before the move and room-by-room unpacking after delivery · removable if the customer prefers to self-pack',
+        amount: 0,
+      })
+    }
+  }
+  if (disassemblyItemNames.length > 0 && !isLaborOnly && !isPacking) {
+    lineItems.push({ description: 'Inventory-Specific Disassembly & Reassembly', details: disassemblyItemNames.join(' · '), amount: 0 })
+  }
+  if (tvCount > 0 && !isLaborOnly && !isPacking) {
+    lineItems.push({ description: 'TV Protection', details: `${tvCount} TV${tvCount === 1 ? '' : 's'} · size-matched TV boxes and screen protection`, amount: 0 })
+  }
+  if (mountedTvCount > 0 && !isLaborOnly && !isPacking) {
+    lineItems.push({ description: 'Wall-Mounted TV Dismount & Remount', details: `${mountedTvCount} wall-mounted TV${mountedTvCount === 1 ? '' : 's'} detected from inventory/photo evidence`, amount: 0 })
+  }
+  if (specialtyItemFlags.length > 0) {
+    lineItems.push({ description: 'Specialty Item Handling', details: specialtyItemFlags.join(' · '), amount: 0 })
+  }
+
+  if (smallMoveBaseFee > 0) {
+    lineItems.push({
+      description: 'Move readiness & dispatch base',
+      details: 'Crew reservation, dispatch preparation, standard equipment readiness and job coordination',
+      amount: smallMoveBaseFee,
+    })
+  }
+  if (priorityBookingSurcharge > 0) {
+    lineItems.push({
+      description: 'Priority booking surcharge',
+      details: `Move scheduled within ${Math.max(0, daysUntilMove || 0)} day${daysUntilMove === 1 ? '' : 's'} of booking`,
+      amount: priorityBookingSurcharge,
+    })
+  }
 
   if (lead.moveType === 'commercial' && commercialCostLayer.markupAmount > 0) {
     lineItems[0].amount = roundCurrency(lineItems[0].amount + commercialCostLayer.markupAmount)
@@ -2258,9 +2328,9 @@ function buildMultiLegEstimate(
   const truckFuelMileageCost = roundCurrency(totalOperationalDistanceKm * baseEstimate.truckCount * TRUCK_OPS_COST_PER_KM)
   const truckOpsCost = roundCurrency(truckDailyCost + truckFuelMileageCost)
   const computedRevenue = roundCurrency(lineItems.reduce((sum, item) => sum + Number(item.amount || 0), 0))
-  const commissionCost = roundCurrency(computedRevenue * COMMISSION_RATE)
+  const commissionCost = 0
   const suppliesCost = roundCurrency((lead.jobFactors?.estimatedBoxes || 0) * PACKING_SUPPLIES_COST_PER_BOX)
-  const directCost = roundCurrency(laborCost + truckOpsCost + commissionCost + suppliesCost)
+  const directCost = roundCurrency(laborCost + truckOpsCost + suppliesCost)
   const grossProfit = roundCurrency(computedRevenue - directCost)
   const grossMarginPct = computedRevenue > 0 ? Math.round((grossProfit / computedRevenue) * 1000) / 10 : 0
   const twoDayMoveEstimate = distinctDays >= 2

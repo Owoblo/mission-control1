@@ -13,8 +13,26 @@ test('major move price is solved backwards from fulfillment cost and margin', ()
   assert.ok(plan.costs.some(cost => cost.key === 'box_delivery'))
   assert.ok(plan.recommendedPrice >= plan.minimumAuthorizedPrice)
   assert.ok(plan.expectedContribution > 0)
-  assert.equal(plan.reserves.length, 5)
+  assert.deepEqual(plan.reserves.map(item => item.key), ['card_processing'])
   assert.ok(plan.executionContingencyTotal > (plan.costs.find(cost => cost.key === 'contingency')?.amount || 0))
+})
+
+test('operational contingency responds to move context without re-adding overhead', () => {
+  const local = buildContributionPricingPlan({
+    currentPrice: 2500,
+    quoteType: 'labor_only',
+    pricing: { routeCategory: 'local', totalHours: 4, truckCount: 1, crewSize: 2, internalCostEstimate: { laborCost: 400, truckOpsCost: 0 } } as never,
+  })
+  const longDistance = buildContributionPricingPlan({
+    currentPrice: 7000,
+    quoteType: 'long_distance',
+    pricing: { routeCategory: 'long-distance', totalHours: 16, truckCount: 2, crewSize: 4, internalCostEstimate: { laborCost: 1800, truckOpsCost: 900 } } as never,
+  })
+  assert.equal(local.operationalContingencyRate, 0.04)
+  assert.ok(longDistance.operationalContingencyRate > local.operationalContingencyRate)
+  assert.deepEqual(longDistance.reserves.map(item => item.key), ['card_processing'])
+  assert.ok(longDistance.costs.some(item => item.key === 'lodging'))
+  assert.ok(longDistance.costs.some(item => item.key === 'crew_meals'))
 })
 
 test('storage and junk allowances become real internal costs', () => {
