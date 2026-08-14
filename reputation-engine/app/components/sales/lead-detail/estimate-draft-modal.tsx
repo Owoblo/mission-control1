@@ -22,6 +22,7 @@ import type { EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem
 import { buildServiceProfitabilityPlan } from '@/lib/service-profitability'
 import { buildContributionPricingPlan, buildProtectionRecommendation } from '@/lib/contribution-pricing'
 import { buildConsultativeMovePlan } from '@/lib/consultative-move-plan'
+import { removeStorageQuoteScope, type QuoteType } from '@/lib/storage-quote-scope'
 import { qualifyMoveAddress } from '@/lib/route-address'
 import {
   calcUHaulCost, compareStrategies, truckSizeFromCubicFeet, calcStrategyTiming, calcLongDistanceUHaul,
@@ -854,7 +855,13 @@ export function EstimateDraftModal({
     setLegs(newLegs)
     onLegsChange?.(newLegs)
     setQuoteType('storage')
-    setTimeout(() => onRecalculate({ quoteType: 'storage', distanceKm: distanceKm || route?.distanceKm || undefined, routeContext }), 100)
+    onRecalculate({ quoteType: 'storage', distanceKm: distanceKm || route?.distanceKm || undefined, routeContext })
+    onJobFactorsChange({
+      ...jobFactors,
+      temporaryStorageNeeded: true,
+      planningScenario: 'storage_staged',
+      preferredOperatingPlan: 'split_day_storage',
+    })
   }
 
   async function runSmartIntake() {
@@ -1490,6 +1497,27 @@ export function EstimateDraftModal({
 
   function setFactors(next: JobFactors) {
     onJobFactorsChange(next)
+  }
+
+  function clearStorageScope(nextQuoteType?: Exclude<QuoteType, 'storage'>, factorOverrides?: Partial<JobFactors>) {
+    const fallbackQuoteType = nextQuoteType || (route?.category === 'long-distance' ? 'long_distance' : 'standard')
+    const cleared = removeStorageQuoteScope({
+      factors: jobFactors,
+      legs,
+      lineItems: quoteLineItems,
+      fallbackQuoteType,
+    })
+    onJobFactorsChange({ ...cleared.factors, ...factorOverrides })
+    setLegs(cleared.legs)
+    setLegsEnabled(cleared.legsEnabled)
+    onLegsChange?.(cleared.legs)
+    onSetLineItems(cleared.lineItems)
+    setQuoteType(cleared.quoteType)
+    window.setTimeout(() => onRecalculate({
+      quoteType: cleared.quoteType,
+      distanceKm: distanceKm || route?.distanceKm || undefined,
+      routeContext,
+    }), 0)
   }
 
   function applyTimelineStartTime(startTime?: string, note?: string) {
@@ -2846,6 +2874,11 @@ export function EstimateDraftModal({
                     key={opt.id}
                     type="button"
                     onClick={() => {
+                      const storageScopeActive = quoteType === 'storage' || jobFactors.temporaryStorageNeeded === true || legs.some(leg => leg.type === 'storage' || leg.type === 'storage_delivery')
+                      if (opt.id !== 'storage' && storageScopeActive) {
+                        clearStorageScope(opt.id)
+                        return
+                      }
                       setQuoteType(opt.id)
                       // Defer recalculate to next tick so button state updates first (fixes INP)
                       setTimeout(() => onRecalculate({
@@ -3066,7 +3099,14 @@ export function EstimateDraftModal({
               <div className="grid gap-2 sm:grid-cols-3">
                 <label className="block">
                   <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Closing / possession timing</span>
-                  <select value={jobFactors.destinationTiming || ''} onChange={e => setFactor('destinationTiming', (e.target.value || undefined) as never)} className="crm-input bg-white text-xs">
+                  <select value={jobFactors.destinationTiming || ''} onChange={e => {
+                    const destinationTiming = (e.target.value || undefined) as JobFactors['destinationTiming']
+                    if (destinationTiming === 'same_day' && jobFactors.temporaryStorageNeeded) {
+                      clearStorageScope(undefined, { destinationTiming })
+                    } else {
+                      setFactor('destinationTiming', destinationTiming)
+                    }
+                  }} className="crm-input bg-white text-xs">
                     <option value="">Ask customer</option>
                     <option value="same_day">Dates line up</option>
                     <option value="known_gap">Known gap</option>
@@ -3099,7 +3139,10 @@ export function EstimateDraftModal({
               {(jobFactors.destinationTiming === 'known_gap' || jobFactors.destinationTiming === 'unknown') && (
                 <div className="grid gap-2 rounded-[7px] border border-indigo-200 bg-indigo-50 p-3 sm:grid-cols-3">
                   <label className="flex items-center gap-2 text-xs font-semibold text-indigo-900">
-                    <input type="checkbox" checked={jobFactors.temporaryStorageNeeded !== false} onChange={e => setFactor('temporaryStorageNeeded', e.target.checked)} />
+                    <input type="checkbox" checked={jobFactors.temporaryStorageNeeded === true} onChange={e => {
+                      if (e.target.checked) setFactor('temporaryStorageNeeded', true)
+                      else clearStorageScope()
+                    }} />
                     Temporary storage
                   </label>
                   <label className="flex items-center gap-2 text-xs font-semibold text-indigo-900">
@@ -3504,9 +3547,14 @@ export function EstimateDraftModal({
                     setLegsEnabled(next)
                     if (next && legs.length === 0) addLeg()
                     if (!next) {
-                      setLegs([])
-                      onLegsChange?.([])
-                      if (conjointMode) onJobFactorsChange({ ...jobFactors, conjointMove: false })
+                      const hasStorageLeg = legs.some(leg => leg.type === 'storage' || leg.type === 'storage_delivery')
+                      if (hasStorageLeg || quoteType === 'storage' || jobFactors.temporaryStorageNeeded) {
+                        clearStorageScope()
+                      } else {
+                        setLegs([])
+                        onLegsChange?.([])
+                        if (conjointMode) onJobFactorsChange({ ...jobFactors, conjointMove: false })
+                      }
                     }
                   }}
                   className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${legsEnabled ? 'bg-[#071421] text-white' : 'bg-[var(--app-line)] text-[var(--app-muted)]'}`}

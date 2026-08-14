@@ -390,6 +390,7 @@ export default function SalesLeadDetailPage() {
   const [recalculateBusy, setRecalculateBusy] = useState(false)
   // Ref always holds the latest quoteLineItems — avoids stale closure in auto-recalculate effect
   const quoteLineItemsRef = useRef<QuoteLineItem[]>([])
+  const quoteDraftTypeRef = useRef<'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'>('standard')
   const pricingMetaRef = useRef<{
     crewSize: number
     estimatedHours: number
@@ -755,6 +756,7 @@ export default function SalesLeadDetailPage() {
       // Restore pricing meta from saved quote so Save Draft doesn't overwrite with defaults
       if (quotePayload?.quote) {
         const q = quotePayload.quote
+        quoteDraftTypeRef.current = q.quoteType || 'standard'
         setQuoteLegs(q.legs || [])
         pricingMetaRef.current = {
           crewSize: q.crewSize || 3,
@@ -1650,16 +1652,18 @@ export default function SalesLeadDetailPage() {
     )) return
     setRecalculateBusy(true)
     try {
+      const effectiveQuoteType = options?.quoteType || quoteDraftTypeRef.current || quote?.quoteType || 'standard'
+      quoteDraftTypeRef.current = effectiveQuoteType
       const snapshot: CRMLead = {
         ...lead,
         inventory,
         totalCubicFeet: inventoryMetrics.totalCubicFeet,
         totalWeightLbs: inventoryMetrics.totalWeightLbs,
         moveType,
-        quoteType: options?.quoteType,
+        quoteType: effectiveQuoteType,
       }
       const estimate = estimateLeadQuote(snapshot, {
-        quoteType: options?.quoteType,
+        quoteType: effectiveQuoteType,
         distanceKm: options?.distanceKm,
         routeContext: options?.routeContext,
         legs: quoteLegs.length > 0 ? quoteLegs : undefined,
@@ -1691,6 +1695,7 @@ export default function SalesLeadDetailPage() {
     distanceKm?: number
     routeContext?: EstimateRouteContext
   }) => {
+    if (options?.quoteType) quoteDraftTypeRef.current = options.quoteType
     recalculateEstimate(options, true)
   }, [lead, inventory, inventoryMetrics.totalCubicFeet, inventoryMetrics.totalWeightLbs, moveType, jobFactors, quoteLegs])
 
@@ -1961,6 +1966,7 @@ export default function SalesLeadDetailPage() {
       }
       // Open the new quote in the builder regardless
       setQuote(result.quote)
+      quoteDraftTypeRef.current = result.quote.quoteType || 'standard'
       setQuoteLegs(result.quote.legs || [])
       setQuoteLineItems(result.quote.lineItems || [])
       setQuoteDiscountAmount(Number(result.quote.discountAmount || 0))
@@ -2312,6 +2318,7 @@ export default function SalesLeadDetailPage() {
       return
     }
     setQuoteLegs(quote.legs || [])
+    quoteDraftTypeRef.current = quote.quoteType || 'standard'
     setQuoteLineItems(quote.lineItems || [])
     setQuoteDiscountAmount(Number(quote.discountAmount || 0))
     setQuoteDiscountLabel(quote.discountLabel || '')
