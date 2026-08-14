@@ -19,7 +19,10 @@ export function isBranchScopedManager(session: SessionPayload | null | undefined
   return session?.role === 'manager' && Boolean(session.branch)
 }
 
-export function leadMatchesSessionBranch(lead: CRMLead, session: SessionPayload | null | undefined) {
+export function leadMatchesSessionBranch<T extends Partial<Pick<CRMLead, 'id' | 'branch' | 'originCity' | 'originAddress' | 'destCity' | 'destAddress'>>>(
+  lead: T,
+  session: SessionPayload | null | undefined
+) {
   if (!isBranchScopedManager(session)) return true
   const detected = lead.branch || detectSalesBranchFromLocation(
     lead.originCity,

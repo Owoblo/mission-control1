@@ -743,7 +743,11 @@ export default function SalesLeadDetailPage() {
   async function refresh(currentLeadId: string): Promise<{ quoteId?: string } | null> {
     try {
       const nextLead = await fetchSalesLead(currentLeadId)
-      const quotePayload = nextLead?.quoteId ? await fetchSalesQuote(nextLead.quoteId) : null
+      // Quote and timeline data are useful, but they must never make the lead itself
+      // disappear when an auxiliary Supabase request is temporarily slow.
+      const quotePayload = nextLead?.quoteId
+        ? await fetchSalesQuote(nextLead.quoteId).catch(() => null)
+        : null
       setQuote(quotePayload?.quote || null)
       setQuoteDiscountAmount(Number(quotePayload?.quote?.discountAmount || 0))
       setQuoteDiscountLabel(quotePayload?.quote?.discountLabel || '')
@@ -775,7 +779,7 @@ export default function SalesLeadDetailPage() {
       } else {
         setAdditionalQuotes([])
       }
-      const leadFollowUps = await fetchSalesLeadFollowUps(currentLeadId)
+      const leadFollowUps = await fetchSalesLeadFollowUps(currentLeadId).catch(() => [])
       setFollowUps(leadFollowUps)
       if (nextLead) {
         // Only reset form fields if the rep has no unsaved edits — prevents background

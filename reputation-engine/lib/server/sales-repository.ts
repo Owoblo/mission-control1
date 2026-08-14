@@ -595,9 +595,29 @@ export async function listSalesLeadsPaginated(page: number, limit: number) {
 export async function getSalesLead(id: string) {
   const lead = await selectById<CRMLead>('crm_leads', id)
   if (!lead) return null
+  // Do not scan the complete lifecycle table for one lead-detail request.
+  // The row's merged marker is sufficient for the hot path; list views still
+  // reconcile the full archive lifecycle in their bounded read model.
+  const normalized = normalizeLead(lead)
+  return normalized.mergedIntoLeadId ? null : normalized
+}
 
-  const archivedLeadIds = getArchivedLeadIds(await selectLeadLifecycleSnapshots())
-  return archivedLeadIds.has(id) ? null : normalizeLead(lead)
+export async function getSalesLeadAccessSnapshot(id: string): Promise<Pick<CRMLead, 'id' | 'branch' | 'originCity' | 'originAddress' | 'destCity' | 'destAddress' | 'mergedIntoLeadId'> | null> {
+  const { url, headers } = requireSupabase()
+  const select = ['id', 'branch:data->>branch', 'mergedIntoLeadId:data->>mergedIntoLeadId'].join(',')
+  const query = new URLSearchParams({ id: `eq.${id}`, select, deleted: 'eq.false', limit: '1' })
+  const response = await fetchSupabaseWithRetry(`${url}/rest/v1/crm_leads?${query.toString()}`, { headers, cache: 'no-store' })
+  if (!response.ok) throw new Error(`Failed to read lead access snapshot/${id}`)
+  const row = (await response.json() as Array<Record<string, unknown>>)[0]
+  if (!row || row.mergedIntoLeadId) return null
+  return {
+    id: String(row.id),
+    branch: normalizeProjectedText(row.branch as string | null) as CRMLead['branch'],
+    originCity: undefined,
+    originAddress: undefined,
+    destCity: undefined,
+    destAddress: undefined,
+  }
 }
 
 export async function getSalesLeadByInboundId(inboundId: string) {
