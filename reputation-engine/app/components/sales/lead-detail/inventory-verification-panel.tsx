@@ -119,7 +119,7 @@ export function InventoryVerificationPanel({
                         <div className="absolute bottom-0 left-0 right-0 truncate bg-black/50 px-1 py-0.5 text-[9px] text-white">{asset.room}</div>
                       )}
                       {canEditCurrentLead && onRemoveMedia && (
-                        <button type="button" onClick={() => onRemoveMedia(asset.id)} className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-rose-600 text-sm font-bold text-white shadow" aria-label={`Delete ${asset.filename || asset.room || `photo ${index + 1}`}`} title="Delete this uploaded photo">×</button>
+                        <button type="button" onClick={() => onRemoveMedia(asset.id)} className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full border border-white/80 bg-rose-600 text-[12px] font-semibold leading-none text-white shadow-sm transition hover:scale-110 hover:bg-rose-700" aria-label={`Delete ${asset.filename || asset.room || `photo ${index + 1}`}`} title="Delete this uploaded photo">×</button>
                       )}
                     </div>
                   ))}
