@@ -7,6 +7,7 @@ import { getSalesLead, saveSalesLead } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
 import { randomToken } from '@/lib/server/security'
 import { compactCustomerLink } from '@/lib/customer-links'
+import { photoSurveyLinkExpiresAt } from '@/lib/survey-links'
 
 const APP_URL = getAppBaseUrl('https://go.quote2move.com')
 
@@ -35,7 +36,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     const partyBLabel = body.partyBLabel?.trim() || 'Party B'
 
     const token = generateToken()
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+    const expiresAt = photoSurveyLinkExpiresAt()
     const surveyUrl = compactCustomerLink(`${APP_URL}/survey/${token}`)
 
     if (isPartyB) {
