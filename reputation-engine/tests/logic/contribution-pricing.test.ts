@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildContributionPricingPlan } from '../../lib/contribution-pricing'
+import { buildContributionPricingPlan, buildProtectionRecommendation } from '../../lib/contribution-pricing'
 
 test('major move price is solved backwards from fulfillment cost and margin', () => {
   const plan = buildContributionPricingPlan({
@@ -81,4 +81,55 @@ test('packing and unpacking are independent selected services with independent c
   assert.equal(packing.costs.find(item => item.key === 'unpacking_labor'), undefined)
   assert.equal(unpacking.costs.find(item => item.key === 'packing_labor'), undefined)
   assert.equal(unpacking.costs.find(item => item.key === 'unpacking_labor')?.amount, 125)
+})
+
+test('costs are separated into core, evidence-required and customer-selected economics', () => {
+  const plan = buildContributionPricingPlan({
+    currentPrice: 6500,
+    quoteType: 'long_distance',
+    factors: { temporaryStorageNeeded: true, storageEstimatedMonths: 1, storageMonthlyAllowance: 200 },
+    pricing: {
+      routeCategory: 'long-distance', totalHours: 14, crewSize: 4, truckCount: 1,
+      intelligenceFlags: { packingDayEstimate: { crewSize: 2, hours: 5, amountBeforeHst: 900 } },
+      internalCostEstimate: { laborCost: 1400, truckOpsCost: 700 },
+    } as never,
+    lineItems: [
+      { description: 'Moving Service', amount: 5000 },
+      { description: 'Professional Packing Service (Day Before Move)', amount: 900 },
+      { description: 'Piano — Specialty Handling', amount: 425 },
+      { description: 'Storage Service', amount: 300 },
+    ],
+    inventory: [{ name: 'Upright piano', qty: 1, included: true }],
+  })
+  assert.equal(plan.costs.find(item => item.key === 'fulfillment_labor')?.classification, 'core_move')
+  assert.equal(plan.costs.find(item => item.key === 'specialty')?.classification, 'evidence_required')
+  assert.equal(plan.costs.find(item => item.key === 'packing_labor')?.classification, 'customer_selected')
+  assert.equal(plan.costs.find(item => item.key === 'storage')?.classification, 'customer_selected')
+  assert.equal(plan.pricingGaps.length, 0)
+})
+
+test('detected specialty inventory blocks a final price until specialty scope is priced', () => {
+  const plan = buildContributionPricingPlan({
+    currentPrice: 4000,
+    pricing: { routeCategory: 'local', crewSize: 3, truckCount: 1, internalCostEstimate: { laborCost: 900, truckOpsCost: 300 } } as never,
+    inventory: [{ name: 'Hot tub', qty: 1, included: true }],
+  })
+  assert.equal(plan.pricingGaps.length, 1)
+  assert.match(plan.pricingGaps[0]?.label || '', /hot tub/i)
+})
+
+test('move protection recommendation scales with actual move risk and context', () => {
+  const simple = buildProtectionRecommendation({ currentPrice: 1200 })
+  const complex = buildProtectionRecommendation({
+    currentPrice: 7000,
+    pricing: { routeCategory: 'long-distance', totalCubicFeet: 1500 } as never,
+    factors: { temporaryStorageNeeded: true },
+    inventory: [
+      { name: '65-inch TV', qty: 2, included: true },
+      { name: 'Upright piano', qty: 1, included: true },
+    ],
+  })
+  assert.equal(simple.price, 100)
+  assert.equal(complex.price, 299)
+  assert.ok(complex.reasons.length >= 4)
 })
