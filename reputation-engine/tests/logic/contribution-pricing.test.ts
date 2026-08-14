@@ -45,3 +45,17 @@ test('storage and junk allowances become real internal costs', () => {
   assert.equal(plan.costs.find(cost => cost.key === 'storage')?.amount, 400)
   assert.equal(plan.costs.find(cost => cost.key === 'junk')?.amount, 225)
 })
+
+test('TV protection uses inventory sizes instead of a flat per-TV guess', () => {
+  const plan = buildContributionPricingPlan({
+    currentPrice: 5000,
+    pricing: { routeCategory: 'local', crewSize: 3, truckCount: 1, adjustmentBreakdown: [], internalCostEstimate: { laborCost: 900, truckOpsCost: 300 } } as never,
+    lineItems: [{ description: 'TV Protection', details: '2 TVs', amount: 0 }],
+    inventory: [
+      { name: '65-inch TV', qty: 1, included: true },
+      { name: '75-inch TV', qty: 1, included: true },
+    ],
+  })
+  assert.equal(plan.costs.find(item => item.key === 'tv_boxes')?.amount, 67)
+  assert.match(plan.costs.find(item => item.key === 'tv_boxes')?.label || '', /1× Large.*1× XL/)
+})
