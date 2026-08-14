@@ -458,6 +458,7 @@ export function EstimateDraftModal({
   onDestCityChange,
 }: Props) {
   const currentUser = useCurrentUser()
+  const onRecalculateRef = useRef(onRecalculate)
   const routeSectionRef = useRef<HTMLDivElement | null>(null)
   const manualKmInputRef = useRef<HTMLInputElement | null>(null)
   const [route, setRoute] = useState<RouteResult | null>(null)
@@ -528,6 +529,8 @@ export function EstimateDraftModal({
   const [intakeApplied, setIntakeApplied] = useState(false)
   const [legsEnabled, setLegsEnabled] = useState(() => (legsProp?.length ?? 0) > 0)
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null)
+
+  useEffect(() => { onRecalculateRef.current = onRecalculate }, [onRecalculate])
   const [dragOverRoom, setDragOverRoom] = useState<string | null>(null)
   const [touchMoveItemIndex, setTouchMoveItemIndex] = useState<number | null>(null)
   const [legs, setLegs] = useState<QuoteLeg[]>(() => legsProp?.length ? legsProp : [])
@@ -1325,6 +1328,17 @@ export function EstimateDraftModal({
     }
   }, [route?.category, quoteType])
 
+  // Route classification is authoritative. Keep the selected quote type in sync
+  // so the controls, pricing engine and header cannot describe different jobs.
+  useEffect(() => {
+    if (routeBusy || !route) return
+    if (route.category === 'long-distance' && quoteType !== 'long_distance') {
+      setQuoteType('long_distance')
+    } else if (route.category !== 'long-distance' && quoteType === 'long_distance' && lead.quoteType !== 'long_distance') {
+      setQuoteType('standard')
+    }
+  }, [lead.quoteType, quoteType, route, routeBusy])
+
   // Auto-find nearest U-Haul to origin when origin address is known
   useEffect(() => {
     const addr = originFull || lead.originAddress
@@ -1373,7 +1387,8 @@ export function EstimateDraftModal({
   useEffect(() => {
     if (!open || !originFull) return
     let cancelled = false
-    setRouteBusy(true)
+    // Keep an already-resolved route visible during background refreshes.
+    setRouteBusy(!route)
     setRouteError(null)
     fetch('/api/sales/route-estimate', {
       method: 'POST',
@@ -1386,6 +1401,7 @@ export function EstimateDraftModal({
         destPlaceId,
       }),
       credentials: 'include',
+      signal: AbortSignal.timeout(15000),
     })
       .then(r => r.json())
       .then((data: RouteResult & { error?: string }) => {
@@ -1393,7 +1409,8 @@ export function EstimateDraftModal({
         if (data.error) { setRouteError(data.error); setRoute(null) }
         else {
           setRoute(data)
-          if (!branchManuallySelectedRef.current && data.branch && data.branch !== selectedBranch) {
+          const originBranch = detectSalesBranchFromLocation(originFull, lead.originCity)
+          if (!branchManuallySelectedRef.current && !originBranch && data.branch && data.branch !== selectedBranch) {
             setLocalBranch(data.branch)
             onBranchChange?.(data.branch)
           }
@@ -1407,7 +1424,7 @@ export function EstimateDraftModal({
   useEffect(() => {
     if (!open) return
     if (routeBusy) return  // wait for route API to settle — prevents provisional→final price flicker
-    onRecalculate({
+    onRecalculateRef.current({
       quoteType,
       distanceKm: distanceKm || route?.distanceKm || undefined,
       routeContext,
@@ -1430,7 +1447,6 @@ export function EstimateDraftModal({
     route?.missingRequirements,
     legsEnabled,
     legs,
-    onRecalculate,
     routeContext,
   ])
 
